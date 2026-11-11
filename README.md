@@ -41,10 +41,12 @@ their workarounds, sequencing and gates — is in **[docs/ROADMAP.md](docs/ROADM
 
 Phase 0's gate is met: the mappings front-end is wired into the pipeline's
 prepare paths, and obfuscated releases now prepare end-to-end through it.
-`versions/26.3/` holds the base rewrite; `versions/26.1/` has completed its
-completion pass (protocol rewire closed, all six tables, prepare green) and
-`versions/26.1.1/` is its first patch delta; `versions/26.2/` is published
-with a partial profile and its completion pass is running.
+`versions/26.3/` holds the base rewrite; `versions/26.1/` and
+`versions/26.2/` have both completed their completion passes (protocol
+rewires closed, all six tables, prepare green, workspaces compile), and the
+completion has been carried forward into the `versions/26.1.1/` patch
+delta; `versions/26.1.2/` is the second delta. Full harness profiles are
+produced per tree by the CI route below.
 `versions/1.21.11/` opens the Components era (E6): prepare proven through
 the front-end, pin set, 3 of 6 tables regenerated; the remaining tables wait
 on a registry-bootstrap rework documented in its port notes. Verification
