@@ -89,7 +89,7 @@ pub(super) struct GuestPlay {
     delayed: Option<([i32; 3], u64)>,
     last_progress: i32,
     /// Swings the guest's actions started this tick, for the players around
-    /// (`LivingEntity.swing` sends ClientboundSwingAnimationPacket).
+    /// (`LivingEntity.swing` sends ClientboundAnimatePacket).
     swings: u32,
     /// The guest's riding jump charge (`LocalPlayer.jumpRidingTicks`).
     mount: super::mounts::MountState,
@@ -6231,14 +6231,13 @@ fn captured_block_break(sound: &horizon_client::audio::CapturedSound, blocks: &[
             .any(|b| (0..3).all(|k| (b[k] + 0.5 - sound.position[k]).abs() < 1e-6))
 }
 
-/// ClientboundSwingAnimationPacket: the hand and the animation (its type and
-/// base duration; each client applies the swinger's haste and fatigue).
-fn swing_packet(id: i32, hand: Hand, animation: SwingAnimation) -> C {
-    C::SwingAnimation(play::SwingAnimation {
+/// ClientboundAnimatePacket: the swing as an animate action (0 main hand,
+/// 3 off hand). The animation itself stays with the swinger's client: 26.2's
+/// wire has no swing kind or duration to send.
+fn swing_packet(id: i32, hand: Hand, _animation: SwingAnimation) -> C {
+    C::Animate(play::Animate {
         id,
-        hand: i32::from(hand == Hand::Off),
-        kind: i32::from(animation.kind),
-        duration: animation.duration,
+        action: if hand == Hand::Off { 3 } else { 0 },
     })
 }
 
@@ -6603,7 +6602,7 @@ mod swing_echo_tests {
                 for body in bodies {
                     let mut r = horizon_protocol::buf::Reader::new(&body);
                     let packet_id = r.varint().unwrap();
-                    if let Ok(Clientbound::SwingAnimation(p)) =
+                    if let Ok(Clientbound::Animate(p)) =
                         Clientbound::decode(packet_id, r.rest())
                         && p.id == id
                     {

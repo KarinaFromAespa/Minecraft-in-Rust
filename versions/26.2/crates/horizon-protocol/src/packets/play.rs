@@ -84,9 +84,6 @@ packet!(
 packet!(BlockDestruction { id: i32 => VarInt, pos: [i32; 3] => Pos, progress: u8 => UByte });
 packet!(BlockEntityData { pos: [i32; 3] => Pos, kind: i32 => VarInt, tag: Tag => Nbt });
 packet!(BlockUpdate { pos: [i32; 3] => Pos, state: i32 => VarInt });
-// ClientboundAddTransientBlockPacket: a block the client shows for a moment
-// while its section mesh catches up (a falling block that landed).
-packet!(AddTransientBlock { pos: [i32; 3] => Pos, state: i32 => VarInt });
 packet!(ChangeDifficulty { difficulty: i32 => VarInt, locked: bool => Bool });
 // ResourceKey<GameRule<?>> is an identifier, followed by its string value.
 packet!(GameRuleEntry { name: String => Ident, value: String => Str });
@@ -800,11 +797,6 @@ packet!(
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
 );
-packet!(
-    /// ClientboundPostEffectsPacket: the `post_effect` chains (ids) the player's
-    /// screen runs, in order (`ServerPlayer.postEffects`).
-    PostEffects { effects: Vec<String> => List<Ident> }
-);
 packet!(PlayerRotation { yaw: f32 => Float, relative_yaw: bool => Bool, pitch: f32 => Float, relative_pitch: bool => Bool });
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
 packet!(Respawn { spawn: SpawnInfo => SpawnInfo, keep: i8 => Byte });
@@ -1288,11 +1280,6 @@ packet!(
     /// ClientboundUpdateAttributesPacket: an entity's synced attribute instances.
     UpdateAttributes { id: i32 => VarInt, values: Vec<AttributeSnapshot> => List<AttributeSnapshot> }
 );
-packet!(
-    /// ClientboundSwingAnimationPacket: hand (0 main, 1 off) and the swing
-    /// type (0 none, 1 whack, 2 stab) with its duration in ticks.
-    SwingAnimation { id: i32 => VarInt, hand: i32 => VarInt, kind: i32 => VarInt, duration: i32 => VarInt }
-);
 packet!(SoundEntity {
     sound: (i32, Option<(String, Option<f32>)>) => SoundHolder,
     source: i32 => VarInt,
@@ -1711,7 +1698,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     PlayerLookAt(PlayerLookAt) = PLAYER_LOOK_AT,
     PlayerPosition(PlayerPosition) = PLAYER_POSITION,
     PlayerRotation(PlayerRotation) = PLAYER_ROTATION,
-    PostEffects(PostEffects) = POST_EFFECTS,
     RemoveEntities(RemoveEntities) = REMOVE_ENTITIES,
     RemoveMobEffect(RemoveMobEffect) = REMOVE_MOB_EFFECT,
     ResetScore(ResetScore) = RESET_SCORE,
@@ -1762,7 +1748,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     // configuration phase sends.
     ServerLinks(ServerLinks) = SERVER_LINKS,
     SelectAdvancementsTab(SelectAdvancementsTab) = SELECT_ADVANCEMENTS_TAB,
-    SwingAnimation(SwingAnimation) = SWING_ANIMATION,
     SystemChat(SystemChat) = SYSTEM_CHAT,
     TabList(TabList) = TAB_LIST,
     TagQuery(TagQuery) = TAG_QUERY,
@@ -1776,7 +1761,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     UpdateAttributes(UpdateAttributes) = UPDATE_ATTRIBUTES,
     LevelParticles(LevelParticles) = LEVEL_PARTICLES,
     Explode(Explode) = EXPLODE,
-    AddTransientBlock(AddTransientBlock) = ADD_TRANSIENT_BLOCK,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     TrackedWaypoint(TrackedWaypoint) = WAYPOINT,

@@ -269,14 +269,13 @@ impl Hub {
     }
 
     pub fn swing(&self, id: i32, hand: i32, at: [f64; 3], except: Option<u32>) {
+        // 26.2 swings a hand through animate: 0 the main hand, 3 the off hand.
         self.broadcast_near(
             at,
             128.0,
-            &C::SwingAnimation(play::SwingAnimation {
+            &C::Animate(play::Animate {
                 id,
-                hand,
-                kind: 1,
-                duration: 6,
+                action: if hand == 1 { 3 } else { 0 },
             }),
             except,
         );

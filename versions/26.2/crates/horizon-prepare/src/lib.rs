@@ -1514,9 +1514,10 @@ fn worldgen_bundles(run: &Run) -> Result<(), String> {
     pool::map(&WORLDGEN_BUNDLES, |(name, path)| {
         let prefix = format!("data/minecraft/{path}/");
         let resources = json_resources(&mut server.clone(), &prefix)?;
-        if resources.as_object().is_none_or(<[_]>::is_empty)
-            || resources != json_resources(&mut client.clone(), &prefix)?
-        {
+        // The two jars must agree; a bundle may be empty — in 26.2 the
+        // material rules, material conditions and block state providers are
+        // code-only and have no datapack resources in either jar.
+        if resources != json_resources(&mut client.clone(), &prefix)? {
             return Err(format!("Reference worldgen resources disagree: {path}"));
         }
         write_text(

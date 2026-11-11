@@ -2832,7 +2832,8 @@ impl Game<'_> {
         }
     }
     /// `handleAnimate`: a player wakes up, or an entity gets the critical
-    /// hit (`CRIT`) or magic critical hit (`ENCHANTED_HIT`) emitter.
+    /// hit (`CRIT`) or magic critical hit (`ENCHANTED_HIT`) emitter. The
+    /// swings (0 main hand, 3 off hand) are handled at the dispatch.
     fn remote_animate(&mut self, id: i32, action: u8) {
         use horizon_client::particles::{ParticleOptions, ParticleType};
         let Some((target, body)) = self.remote_tracking_body(id) else {
@@ -2840,15 +2841,15 @@ impl Game<'_> {
         };
         let particle = match action {
             // Player.stopSleepInBed.
-            0 => {
+            2 => {
                 if target == TrackingTarget::LocalPlayer {
                     self.sleeping = None;
                     self.sleep_timer = 100;
                 }
                 return;
             }
-            1 => ParticleType::Crit,
-            2 => ParticleType::EnchantedHit,
+            4 => ParticleType::Crit,
+            5 => ParticleType::EnchantedHit,
             _ => return,
         };
         self.particles
@@ -3801,8 +3802,6 @@ impl Game<'_> {
                 self.snap_player_model_pitch();
             }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
-            // ClientCommonPacketListenerImpl.handlePostEffects.
-            C::PostEffects(p) => self.post_effects = p.effects,
             C::SetCamera(p) => self.remote_set_camera(p.camera_id),
             C::LevelChunkWithLight(p) => self.remote_chunk(&p, None),
             C::LightUpdate(p) => self.remote_light_update(&p),
@@ -3818,7 +3817,6 @@ impl Game<'_> {
                 }));
             }
             C::BlockUpdate(p) => self.server_block(p.pos, p.state),
-            C::AddTransientBlock(p) => self.add_transient_block(p.pos, p.state),
             // ClientPacketListener.handleBlockDestruction: another player's crack.
             C::BlockDestruction(p) => {
                 self.destroy_block_progress(p.id, p.pos, i32::from(p.progress));
@@ -4856,21 +4854,19 @@ impl Game<'_> {
                     self.remote_complete_using();
                 }
             }
-            C::Animate(p) => self.remote_animate(p.id, p.action),
-            // ClientPacketListener.handleSwingAnimation: the entity swings
-            // (LivingEntity.swing, which a swing in its first half ignores).
-            C::SwingAnimation(p) => {
-                let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
-                let animation = horizon_client::first_person::SwingAnimation {
-                    kind: p.kind.clamp(0, 255) as u8,
-                    duration: p.duration,
-                };
+            // ClientPacketListener.handleAnimate: the swings (0 main hand,
+            // 3 off hand) are a `LivingEntity.swing` with the default
+            // animation (which a swing in its first half ignores); the rest
+            // is `remote_animate`.
+            C::Animate(p) if p.action == 0 || p.action == 3 => {
+                let hand = if p.action == 3 { Hand::Off } else { Hand::Main };
                 if self.remote.as_ref().is_some_and(|r| r.entity_id == p.id) {
-                    self.swing_hand(hand, animation);
+                    self.swing_hand(hand, SwingAnimation::DEFAULT);
                 } else if let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32) {
-                    m.swing_hand_modified(hand == Hand::Off, animation);
+                    m.swing_hand_modified(hand == Hand::Off, SwingAnimation::DEFAULT);
                 }
             }
+            C::Animate(p) => self.remote_animate(p.id, p.action),
             // The player's own instances: its maximum health (the hearts the
             // HUD draws and the health it may hold), reach, speed and so on.
             // Then the received health again, which the old maximum clamped.

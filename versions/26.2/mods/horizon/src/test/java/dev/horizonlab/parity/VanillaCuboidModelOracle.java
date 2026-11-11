@@ -45,7 +45,7 @@ public final class VanillaCuboidModelOracle {
         var faces = new TreeMap<String, Object>();
         value.faces().forEach((key, f) -> faces.put(key.getName(), face(f)));
         return map("from", vector(value.from()), "to", vector(value.to()), "faces", faces,
-            "rotation", rotation(value.rotation()), "shade", direction(value.shadeDirectionOverride()), "light", value.lightEmission());
+            "rotation", rotation(value.rotation()), "shade", value.shade(), "light", value.lightEmission());
     }
     private static Object model(CuboidModel value) throws Exception {
         if (value == null) return null;

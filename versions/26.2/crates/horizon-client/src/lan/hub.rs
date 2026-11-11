@@ -1579,8 +1579,8 @@ impl Hub {
         g.center_sent = Some((cx, cz));
         g.placed_at = self.ticks;
         self.send_active_effects(i);
-        // ServerPlayer.sendPostEffects and initInventoryMenu.
-        self.send_post_effects(i);
+        // initInventoryMenu. (26.2 has no post-effects packet: a guest's chains
+        // are its own client's business, never sent; see PORT-NOTES-26.2.md.)
         self.send_inventory(i);
     }
 
@@ -1798,14 +1798,6 @@ impl Hub {
         self.send_inventory(i);
         self.place_arrival(i, announce);
         Ok(announce)
-    }
-
-    /// `ServerPlayer.sendPostEffects`: the player's `/posteffect` chains.
-    pub fn send_post_effects(&mut self, i: usize) {
-        let g = &mut self.guests[i];
-        g.post_effects_dirty = false;
-        let effects = g.post_effects.clone();
-        g.send(&C::PostEffects(play::PostEffects { effects }));
     }
 
     /// ClientboundUpdateMobEffectPacket for one of the guest's effects.
@@ -3938,10 +3930,8 @@ impl Hub {
             && self.guests[i].sent_health.is_some()
         {
             self.flush_advancements(i, true);
-            // ServerPlayer.doTick: sendPostEffects when postEffectsDirty.
-            if self.guests[i].post_effects_dirty {
-                self.send_post_effects(i);
-            }
+            // 26.2 sends no post effects; the dirty flag just clears.
+            self.guests[i].post_effects_dirty = false;
         }
     }
     fn flush_advancements(&mut self, i: usize, show: bool) {
@@ -5124,10 +5114,7 @@ impl Hub {
             total: xp.2,
         }));
         g.sent_xp = Some(xp);
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
         g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         self.send_level_info(i, ctx, true);
         self.send_permission_level(i);
         // ServerLevel.addRespawnedPlayer: the chunk tracking starts again at the player.
@@ -5236,11 +5223,8 @@ impl Hub {
             slot: g.selected as i32,
         }));
         self.send_active_effects(i);
+        self.guests[i].post_effects_dirty = false;
         let g = &mut self.guests[i];
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
-        g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         // lastSentExp, lastSentHealth and lastSentFood; the client's new
         // player starts with the default air and no absorption.
         g.sent_health = None;

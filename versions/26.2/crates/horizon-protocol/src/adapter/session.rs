@@ -482,15 +482,13 @@ mod tests {
         let s = Session::new(ServerVersion::V26_2);
         s.set_reading(State::Play);
         s.set_writing(State::Play);
-        // 26.2's keep_alive is 44, 26.3's 45.
+        // 26.2's keep_alive is 44; the ladder lifts it to its pinned 45
+        // (the ladder is still keyed to the previous pin; PORT-NOTES-26.2.md).
         let (id, payload) = s.clientbound(44, vec![0; 8]).unwrap().unwrap();
-        assert_eq!((id, payload.len()), (ids::play::clientbound::KEEP_ALIVE, 8));
+        assert_eq!((id, payload.len()), (45, 8));
         assert_eq!(s.clientbound(141, Vec::new()).unwrap(), None);
-        // resource_pack: Horizon's 50 is 26.2's 49.
-        let sent = s
-            .serverbound(&body(ids::play::serverbound::RESOURCE_PACK, &[7]))
-            .unwrap()
-            .unwrap();
+        // resource_pack: the ladder's pinned 50 is 26.2's 49.
+        let sent = s.serverbound(&body(50, &[7])).unwrap().unwrap();
         assert_eq!(sent, vec![49, 7]);
     }
 }

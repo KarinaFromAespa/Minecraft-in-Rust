@@ -1,6 +1,6 @@
 //! Clientbound world packets in 26.2's layout for a 26.2 client (#10404, the mirror of `translate`'s
-//! hand-written 26.2 readers): chunk columns and light, particles, explosions, entity moves and hand
-//! swings. Everything else in a packet keeps its pinned layout; ids go down as the rest of
+//! hand-written 26.2 readers): chunk columns and light, particles, explosions and entity moves.
+//! Everything else in a packet keeps its pinned layout; ids go down as the rest of
 //! [`super`] renumbers them, with stand-ins where 26.2 lacks an entry.
 use super::{Sent, state_down};
 use crate::{
@@ -28,7 +28,6 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
             Sent::Rewritten(move_entity(id, payload)?)
         }
         cb::ENTITY_POSITION_SYNC => Sent::Rewritten(position_sync(payload)?),
-        cb::ANIMATE => animate(payload)?,
         _ => return Ok(None),
     }))
 }
@@ -247,32 +246,6 @@ fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     w.f32(p.yaw);
     w.f32(p.pitch);
     w.bool(p.on_ground);
-    Ok(w.data)
-}
-
-/// 26.3's animate actions as 26.2 numbers them (wake up 0 -> 2, critical hits 1, 2 -> 4, 5); 26.2's own 0
-/// and 3 swing hands, which 26.3 sends as `swing_animation` ([`swing`]).
-fn animate(payload: &[u8]) -> Result<Sent> {
-    let p = play::Animate::read(&mut Reader::new(payload))?;
-    let action = match p.action {
-        0 => 2,
-        1 => 4,
-        2 => 5,
-        _ => return Ok(Sent::Dropped),
-    };
-    let mut w = Writer::new();
-    w.varint(p.id);
-    w.u8(action);
-    Ok(Sent::Rewritten(w.data))
-}
-
-/// 26.3's `swing_animation` as the payload of 26.2's `animate`: the main hand's swing (0) or the off hand's
-/// (3). 26.2 has one kind of swing at its own pace, so the kind and duration go.
-pub(super) fn swing(payload: &[u8]) -> Result<Vec<u8>> {
-    let s = play::SwingAnimation::read(&mut Reader::new(payload))?;
-    let mut w = Writer::new();
-    w.varint(s.id);
-    w.u8(if s.hand == 1 { 3 } else { 0 });
     Ok(w.data)
 }
 
@@ -704,42 +677,6 @@ mod tests {
         let back = translate::position_sync(&old).unwrap();
         let q = play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap();
         assert_eq!(q.path, play::PositionPath::Linear([4.0, 5.0, 6.0]));
-    }
-
-    #[test]
-    fn animate_actions_take_26_2_s_numbers() {
-        let ids = ids();
-        let send =
-            |action: u8| down(ids, packet_ids::play::clientbound::ANIMATE, &[5, action]).unwrap();
-        assert_eq!(rewritten(send(0)), vec![5, 2]);
-        assert_eq!(rewritten(send(1)), vec![5, 4]);
-        assert_eq!(rewritten(send(2)), vec![5, 5]);
-        // And back as translate reads them.
-        assert_eq!(
-            translate::animate(&[5, 4]).unwrap(),
-            (packet_ids::play::clientbound::ANIMATE, vec![5, 1])
-        );
-    }
-
-    #[test]
-    fn a_swing_reaches_a_26_2_client_as_animate() {
-        let s = in_play();
-        let swing = play::Clientbound::SwingAnimation(play::SwingAnimation {
-            id: 5,
-            hand: 1,
-            kind: 1,
-            duration: 6,
-        });
-        let sent = s.clientbound(&swing.encode()).unwrap().unwrap();
-        let mut r = Reader::new(&sent);
-        let animate = ServerVersion::V26_2
-            .clientbound_id_down(State::Play, packet_ids::play::clientbound::ANIMATE)
-            .unwrap();
-        assert_eq!(r.varint().unwrap(), animate);
-        // translate reads 26.2's off-hand swing as the swing sent.
-        let (id, body) = translate::animate(r.rest()).unwrap();
-        assert_eq!(id, packet_ids::play::clientbound::SWING_ANIMATION);
-        assert_eq!(play::Clientbound::decode(id, &body).unwrap(), swing);
     }
 
     #[test]

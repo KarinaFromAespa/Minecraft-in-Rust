@@ -193,11 +193,12 @@ mod tests {
         );
         assert_eq!([r.f32().unwrap(), r.f32().unwrap()], [90.0, -10.0]);
         assert_eq!(r.remaining(), 0);
+        // The pinned swing carries its hand (0, main); it crosses as it stands.
         let swing = super::super::serverbound(
             &session,
             State::Play,
             packet_ids::play::serverbound::SWING,
-            &[],
+            &[0],
         )
         .unwrap()
         .unwrap();

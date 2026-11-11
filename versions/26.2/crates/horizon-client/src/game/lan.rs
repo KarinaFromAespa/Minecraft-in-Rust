@@ -4662,7 +4662,7 @@ mod mob_swing_sync_tests {
         rx
     }
 
-    fn swings(rx: &mpsc::Receiver<Out>) -> Vec<play::SwingAnimation> {
+    fn swings(rx: &mpsc::Receiver<Out>) -> Vec<play::Animate> {
         rx.try_iter()
             .flat_map(|out| match out {
                 Out::Packet(body) => vec![body],
@@ -4673,7 +4673,7 @@ mod mob_swing_sync_tests {
                 let mut r = horizon_protocol::buf::Reader::new(&body);
                 let id = r.varint().unwrap();
                 match C::decode(id, r.rest()).unwrap() {
-                    C::SwingAnimation(p) => Some(p),
+                    C::Animate(p) if p.action == 0 || p.action == 3 => Some(p),
                     _ => None,
                 }
             })
@@ -4700,11 +4700,11 @@ mod mob_swing_sync_tests {
         game.lan = Some(host);
         let sent = swings(&rx);
         assert!(
-            sent.iter().any(|p| p.id == off as i32 && p.hand == 1),
+            sent.iter().any(|p| p.id == off as i32 && p.action == 3),
             "the off hand: {sent:?}"
         );
         assert!(
-            sent.iter().any(|p| p.id == main as i32 && p.hand == 0),
+            sent.iter().any(|p| p.id == main as i32 && p.action == 0),
             "the main hand: {sent:?}"
         );
     }
