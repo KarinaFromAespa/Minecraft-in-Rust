@@ -89,6 +89,50 @@ jobs:
           cd "versions/$V"
           python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
 
+      # The candidate's horizon-prepare verifies a lab-prepared .local, which
+      # lab.py builds by importing from a launcher-shaped directory. Stage
+      # one from the version store (version json + client jar + every client
+      # library artifact, SHA-1 verified) and run lab.py prepare inside the
+      # candidate. Without this the harness stage dies on a missing
+      # .local/minecraft/<version>/manifest.json.
+      - name: Lab-prepare the candidate from a staged launcher directory
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          LAUNCHER="$GITHUB_WORKSPACE/.launcher"
+          python3 - "$V" "$LAUNCHER" <<'EOF'
+          import hashlib, json, os, shutil, sys, urllib.request
+          version, launcher = sys.argv[1], sys.argv[2]
+          store = os.path.join(os.environ["HORIZON_VERSIONS"], version)
+          meta = json.load(open(os.path.join(store, "version.json")))
+          vdir = os.path.join(launcher, "versions", version)
+          os.makedirs(vdir, exist_ok=True)
+          shutil.copy(os.path.join(store, "version.json"), os.path.join(vdir, version + ".json"))
+          shutil.copy(os.path.join(store, "jars", "client.jar"), os.path.join(vdir, version + ".jar"))
+          def fetch(url, dest, sha1):
+              if os.path.exists(dest) and hashlib.sha1(open(dest, "rb").read()).hexdigest() == sha1:
+                  return
+              os.makedirs(os.path.dirname(dest), exist_ok=True)
+              data = urllib.request.urlopen(url).read()
+              assert hashlib.sha1(data).hexdigest() == sha1, f"sha1 mismatch: {url}"
+              open(dest, "wb").write(data)
+          count = 0
+          for lib in meta.get("libraries", []):
+              downloads = lib.get("downloads", {})
+              entries = []
+              if "artifact" in downloads:
+                  entries.append(downloads["artifact"])
+              entries.extend(downloads.get("classifiers", {}).values())
+              for entry in entries:
+                  fetch(entry["url"], os.path.join(launcher, "libraries", entry["path"]), entry["sha1"])
+                  count += 1
+          print(f"staged launcher dir at {launcher}: {count} library files")
+          EOF
+          cd "$HORIZON_PORTS/$V"
+          HORIZON_MINECRAFT_DIR="$LAUNCHER" \
+          HORIZON_SERVER_JAR="$HORIZON_VERSIONS/$V/jars/server.jar" \
+            python3 tools/lab.py prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/lab-prepare.log"
+
       # Only the harness stage links the client's audio/udev dependencies, so
       # the install lives here — and a flaky archive mirror (run 1 died on a
       # DNS failure resolving it) must not take the whole job down with it.
