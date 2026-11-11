@@ -428,14 +428,14 @@ mod tests {
         static IDS: Ids = super::super::v26_2_ids::IDS;
         assert_eq!(item(926), 926);
         {
-            // diamond: 926 in 26.2, 1012 in 26.3.
+            // diamond: 926 in 26.2, 899 in 26.1.
             let _up = renumbering(&IDS, Way::Up);
-            assert_eq!(item(926), 1012);
+            assert_eq!(item(926), 899);
             {
                 let _down = renumbering(&IDS, Way::Down);
-                assert_eq!(item(1012), 926);
+                assert_eq!(item(899), 926);
             }
-            assert_eq!(item(926), 1012);
+            assert_eq!(item(926), 899);
         }
         assert_eq!(item(926), 926);
     }
@@ -444,12 +444,12 @@ mod tests {
     fn the_26_2_tables_match_the_reports() {
         // Read off both versions' registries and blocks reports by hand.
         let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
-        assert_eq!(ids.item.up(926), Some(1012)); // diamond
+        assert_eq!(ids.item.up(926), Some(899)); // diamond
         assert_eq!(ids.item.up(1), Some(1)); // stone
-        assert_eq!(ids.block_state.up(13330), Some(15177)); // oak_slab type=top waterlogged=true
-        assert_eq!(ids.block_state.up(3987), Some(5543)); // chest, first state
+        assert_eq!(ids.block_state.up(13330), Some(13330)); // oak_slab type=top waterlogged=true
+        assert_eq!(ids.block_state.up(3987), Some(3987)); // chest, first state
         assert_eq!(ids.block_state.up(8), Some(8)); // grass_block
-        assert_eq!(ids.state_bits(), (15, 16));
+        assert_eq!(ids.state_bits(), (15, 15));
     }
 
     #[test]
@@ -620,11 +620,11 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (1012, 3));
+        assert_eq!((stack.item, stack.count), (899, 3));
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(1012, 3)), &mut w);
+            Slot::write(&Some(Stack::new(899, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }

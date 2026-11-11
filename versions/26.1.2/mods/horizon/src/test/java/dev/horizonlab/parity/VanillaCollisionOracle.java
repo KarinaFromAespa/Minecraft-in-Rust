@@ -24,8 +24,8 @@ public final class VanillaCollisionOracle {
     private static final Map<BlockState,Tag> encodedStates = new IdentityHashMap<>();
     private static final Map<VoxelShape,CompoundTag> encodedGrids = new IdentityHashMap<>();
     private static Tag encode(BlockState state) {
-        if (!REUSE) return BlockState.FULL_CODEC.encodeStart(NbtOps.INSTANCE,state).getOrThrow();
-        return encodedStates.computeIfAbsent(state, s -> BlockState.FULL_CODEC.encodeStart(NbtOps.INSTANCE,s).getOrThrow()).copy();
+        if (!REUSE) return VanillaStateCodec.encodeFull(state);
+        return encodedStates.computeIfAbsent(state, s -> VanillaStateCodec.encodeFull(s)).copy();
     }
     private static final Field CACHE, COLLISION, DISCRETE;
     private static final Method INDEX;

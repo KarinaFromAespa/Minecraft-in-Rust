@@ -5,7 +5,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
-import com.mojang.authlib.services.ServicesKeySet;
+import com.mojang.authlib.yggdrasil.ServicesKeySet;
 import com.mojang.serialization.Lifecycle;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.io.IOException;
@@ -44,7 +44,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.progress.LoggingLevelLoadListener;
 import net.minecraft.server.network.CommonListenerCookie;
 import net.minecraft.server.notifications.EmptyNotificationService;
-import net.minecraft.server.notifications.NotificationManager;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.permissions.LevelBasedPermissionSet;
@@ -120,7 +119,7 @@ public final class VanillaCommandExecOracle {
             WorldOptions options = new WorldOptions(seed, !flat, false);
             WorldStem stem = Util.<WorldStem>blockUntilDone(executor -> WorldLoader.load(init, context -> {
                 Registry<LevelStem> noDatapackDimensions = new MappedRegistry<>(Registries.LEVEL_STEM, Lifecycle.stable()).freeze();
-                WorldDimensions dimensions = context.datapackWorldRegistries().lookupOrThrow(Registries.WORLD_PRESET)
+                WorldDimensions dimensions = context.datapackWorldgen().lookupOrThrow(Registries.WORLD_PRESET)
                     .getOrThrow(flat ? WorldPresets.FLAT : WorldPresets.NORMAL).value().createWorldDimensions();
                 WorldDimensions.Complete complete = dimensions.bake(noDatapackDimensions);
                 PrimaryLevelData data = new PrimaryLevelData(settings, complete.specialWorldProperty(), complete.lifecycle());
@@ -134,7 +133,7 @@ public final class VanillaCommandExecOracle {
         Server(Thread thread, LevelStorageSource.LevelStorageAccess access, PackRepository packs, WorldStem stem, Path script, Path output) {
             super(thread, access, packs, stem, Optional.of(new GameRules(WorldDataConfiguration.DEFAULT.enabledFeatures())), Proxy.NO_PROXY,
                 DataFixers.getDataFixer(), new Services(null, ServicesKeySet.EMPTY, null, new Resolver(), new Resolver()),
-                LoggingLevelLoadListener.forDedicatedServer(), false, new NotificationManager());
+                LoggingLevelLoadListener.forDedicatedServer(), false);
             this.script = script;
             this.output = output;
         }
@@ -228,9 +227,9 @@ public final class VanillaCommandExecOracle {
                     String phase = probe < 6 ? "dispatch" : probe < 9 ? "elastic" : "snap";
                     net.minecraft.world.entity.PathfinderMob mob;
                     if (kind.equals("cow")) {
-                        mob = new net.minecraft.world.entity.animal.cow.Cow(net.minecraft.world.entity.EntityTypes.COW, level);
+                        mob = new net.minecraft.world.entity.animal.cow.Cow(net.minecraft.world.entity.EntityType.COW, level);
                     } else {
-                        var ghast = new net.minecraft.world.entity.animal.happyghast.HappyGhast(net.minecraft.world.entity.EntityTypes.HAPPY_GHAST, level);
+                        var ghast = new net.minecraft.world.entity.animal.happyghast.HappyGhast(net.minecraft.world.entity.EntityType.HAPPY_GHAST, level);
                         ghast.setAge(kind.equals("baby") ? -24000 : 0);
                         mob = ghast;
                     }
@@ -296,8 +295,8 @@ public final class VanillaCommandExecOracle {
                     for (boolean first : new boolean[] {false, true}) {
                         for (String hand : new String[] {"none", "wrong", "main", "off"}) {
                             net.minecraft.world.entity.Mob mount = kind.equals("pig")
-                                ? new net.minecraft.world.entity.animal.pig.Pig(net.minecraft.world.entity.EntityTypes.PIG, level)
-                                : new net.minecraft.world.entity.monster.Strider(net.minecraft.world.entity.EntityTypes.STRIDER, level);
+                                ? new net.minecraft.world.entity.animal.pig.Pig(net.minecraft.world.entity.EntityType.PIG, level)
+                                : new net.minecraft.world.entity.monster.Strider(net.minecraft.world.entity.EntityType.STRIDER, level);
                             mount.setPos(oldPosition);
                             mount.setItemSlot(net.minecraft.world.entity.EquipmentSlot.SADDLE,
                                 saddled ? new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SADDLE)
@@ -535,7 +534,7 @@ public final class VanillaCommandExecOracle {
                 method.setAccessible(true);
                 for (var entry : JsonParser.parseString(Files.readString(Path.of(input))).getAsJsonArray()) {
                     JsonArray p = entry.getAsJsonArray();
-                    var orb = new net.minecraft.world.entity.ExperienceOrb(net.minecraft.world.entity.EntityTypes.EXPERIENCE_ORB, player.level());
+                    var orb = new net.minecraft.world.entity.ExperienceOrb(net.minecraft.world.entity.EntityType.EXPERIENCE_ORB, player.level());
                     orb.setDeltaMovement(p.get(0).getAsDouble(), p.get(1).getAsDouble(), p.get(2).getAsDouble());
                     method.invoke(orb);
                     var v = orb.getDeltaMovement();
@@ -1323,7 +1322,7 @@ public final class VanillaCommandExecOracle {
             var block = (net.minecraft.world.level.block.NetherPortalBlock) net.minecraft.world.level.block.Blocks.NETHER_PORTAL;
             var transition = block.getPortalDestination(level, player, entry);
             if (transition != null) {
-                player.teleportToPortalDestination(level, transition);
+                player.teleport(transition);
             }
         }
 
@@ -1435,8 +1434,8 @@ public final class VanillaCommandExecOracle {
         @Override public boolean shouldRconBroadcast() { return true; }
         @Override public boolean isDedicatedServer() { return false; }
         @Override public int getRateLimitPacketsPerSecond() { return 0; }
-        @Override public int getCommandSpamThresholdSeconds() { return 0; }
-        @Override public int getChatSpamThresholdSeconds() { return 0; }
+        public int getCommandSpamThresholdSeconds() { return 0; }
+        public int getChatSpamThresholdSeconds() { return 0; }
         @Override public boolean useNativeTransport() { return false; }
         @Override public boolean isPublished() { return false; }
         @Override public boolean shouldInformAdmins() { return true; }

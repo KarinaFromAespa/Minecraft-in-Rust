@@ -294,7 +294,7 @@ mod tests {
             p.sound,
             (-1, Some(("minecraft:entity.generic.explode".into(), None)))
         );
-        assert!(p.play_sound && p.block_particles.is_empty());
+        assert!(p.block_particles.is_empty());
         assert_eq!((p.radius, p.block_count), (0.0, 0));
     }
 

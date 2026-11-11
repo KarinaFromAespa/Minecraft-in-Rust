@@ -40,8 +40,8 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 /**
  * Original oracle: whole-chunk generation through vanilla's own pipeline.
  *
- * Chunks run through STRUCTURE_STARTS, STRUCTURE_REFERENCES, BIOMES, TERRAIN
- * (noise, surface, carvers) and FEATURES exactly as the ChunkStatusTasks do,
+ * Chunks run through STRUCTURE_STARTS, STRUCTURE_REFERENCES, BIOMES, NOISE,
+ * SURFACE, CARVERS and FEATURES exactly as the ChunkStatusTasks do,
  * with actual WorldGenRegion instances over an allocation-only ServerLevel.
  * FEATURES run in row-major order over the target rectangle grown by one chunk,
  * so every target chunk has all eight neighbours decorated. Spill from
@@ -54,7 +54,7 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 public final class VanillaChunkGenerationOracle {
     private static final class OracleCache extends ServerChunkCache {
         private OracleCache() {
-            super(null, null, null, null, null, null, 0, 0, false, null);
+            super(null, null, null, null, null, null, 0, 0, false, null, null);
         }
         static ChunkGeneratorStructureState state;
         static RandomState random;
@@ -79,7 +79,6 @@ public final class VanillaChunkGenerationOracle {
         }
         static long seed;
         static int nextEntityId;
-        @Override
         public int getNextEntityId() {
             return nextEntityId++;
         }
@@ -130,8 +129,8 @@ public final class VanillaChunkGenerationOracle {
             return structures;
         }
         @Override
-        public BiomeResolver uncachedBiomeResolver() {
-            return resolver;
+        public Holder<Biome> getUncachedNoiseBiome(int x, int y, int z) {
+            return resolver.getNoiseBiome(x, y, z, OracleCache.random.sampler());
         }
         @Override
         public ServerChunkCache getChunkSource() {
@@ -265,8 +264,8 @@ public final class VanillaChunkGenerationOracle {
         var flat = flatPreset == null ? null : world.lookupOrThrow(Registries.FLAT_LEVEL_GENERATOR_PRESET)
             .getOrThrow(ResourceKey.create(Registries.FLAT_LEVEL_GENERATOR_PRESET, net.minecraft.resources.Identifier.parse(flatPreset)))
             .value().settings();
-        var randomState = flat == null ? RandomState.create(world.lookupOrThrow(Registries.NOISE), seed, settings.value())
-            : RandomState.create(world.lookupOrThrow(Registries.NOISE), seed, false, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 63, NoiseRouterData.none());
+        var randomState = flat == null ? RandomState.create(settings.value(), world.lookupOrThrow(Registries.NOISE), seed)
+            : RandomState.create(NoiseGeneratorSettings.dummy(), world.lookupOrThrow(Registries.NOISE), seed);
         ChunkGenerator generator = flat == null ? new NoiseBasedChunkGenerator(biomeSource, settings)
             : new FlatLevelSource(flat);
         if (flat != null) biomeSource = generator.getBiomeSource();
@@ -284,7 +283,7 @@ public final class VanillaChunkGenerationOracle {
         }
         // FlatLevelSource.createState: createForFlat, the structure sets of its overrides.
         var state = flat != null ? generator.createState(world.lookupOrThrow(Registries.STRUCTURE_SET), randomState, seed)
-            : ChunkGeneratorStructureState.createForNormal(randomState, seed, new ChunkPos(0, 0), biomeSource, world.lookupOrThrow(Registries.STRUCTURE_SET));
+            : ChunkGeneratorStructureState.createForNormal(randomState, seed, biomeSource, world.lookupOrThrow(Registries.STRUCTURE_SET));
         Path tmp = Files.createTempDirectory("horizon-chunks");
         var storage = LevelStorageSource.createDefault(tmp).createAccess("oracle");
         var templates = new StructureTemplateManager(resources, storage, DataFixers.getDataFixer(), BuiltInRegistries.BLOCK);
@@ -307,7 +306,7 @@ public final class VanillaChunkGenerationOracle {
         OracleLevel.seed = seed;
         OracleLevel.access = access;
         OracleLevel.type = dimensionType;
-        OracleLevel.resolver = biomeSource.createUncachedResolver(randomState);
+        OracleLevel.resolver = biomeSource;
         OracleLevel.cache = (ServerChunkCache) allocate.invoke(unsafe, OracleCache.class);
         OracleLevel.server = (net.minecraft.server.MinecraftServer) allocate.invoke(unsafe, net.minecraft.server.dedicated.DedicatedServer.class);
         var templateField = net.minecraft.server.MinecraftServer.class.getDeclaredField("structureTemplateManager");
@@ -404,11 +403,17 @@ public final class VanillaChunkGenerationOracle {
             for (int rect = 4; rect < args.length; rect++) {
             chunks.clear();
             if (!oldChunks.isEmpty()) {
-                var oldState = RandomState.create(world.lookupOrThrow(Registries.NOISE), oldSeed, settings.value());
+                var oldState = RandomState.create(settings.value(), world.lookupOrThrow(Registries.NOISE), oldSeed);
                 int ox0 = Integer.MAX_VALUE, oz0 = Integer.MAX_VALUE, ox1 = Integer.MIN_VALUE, oz1 = Integer.MIN_VALUE;
                 for (long key : oldChunks) { ox0 = Math.min(ox0, ChunkPos.getX(key)); ox1 = Math.max(ox1, ChunkPos.getX(key)); oz0 = Math.min(oz0, ChunkPos.getZ(key)); oz1 = Math.max(oz1, ChunkPos.getZ(key)); }
                 // The pyramid asks structure starts of every chunk within 8 (there are none here).
                 for (int z = oz0 - 9; z <= oz1 + 9; z++) for (int x = ox0 - 9; x <= ox1 + 9; x++) chunkAt.apply(x, z).setPersistedStatus(ChunkStatus.STRUCTURE_STARTS);
+                for (int z = oz0 - 1; z <= oz1 + 1; z++) for (int x = ox0 - 1; x <= ox1 + 1; x++) {
+                    var chunk = chunkAt.apply(x, z);
+                    var region = regionFor.apply(ChunkStatus.STRUCTURE_REFERENCES, chunk);
+                    generator.createReferences(region, OracleLevel.structures.forWorldGenRegion(region), chunk);
+                    chunk.setPersistedStatus(ChunkStatus.STRUCTURE_REFERENCES);
+                }
                 for (int z = oz0 - 1; z <= oz1 + 1; z++) for (int x = ox0 - 1; x <= ox1 + 1; x++) {
                     var chunk = chunkAt.apply(x, z);
                     var region = regionFor.apply(ChunkStatus.BIOMES, chunk);
@@ -417,12 +422,17 @@ public final class VanillaChunkGenerationOracle {
                 }
                 for (int z = oz0; z <= oz1; z++) for (int x = ox0; x <= ox1; x++) {
                     var chunk = chunkAt.apply(x, z);
-                    var region = regionFor.apply(ChunkStatus.TERRAIN, chunk);
-                    Set<Holder<Biome>> possible = new HashSet<>();
-                    for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) region.getChunk(x + dx, z + dz).collectBiomesInPalette(possible);
-                    generator.buildTerrain(chunk, Blender.empty(), oldState, OracleLevel.structures.forWorldGenRegion(region), region.getBiomeManager(), region, possible).join();
+                    var noiseRegion = regionFor.apply(ChunkStatus.NOISE, chunk);
+                    generator.fillFromNoise(Blender.empty(), oldState, OracleLevel.structures.forWorldGenRegion(noiseRegion), chunk).join();
+                    chunk.setPersistedStatus(ChunkStatus.NOISE);
+                    var surfaceRegion = regionFor.apply(ChunkStatus.SURFACE, chunk);
+                    generator.buildSurface(surfaceRegion, OracleLevel.structures.forWorldGenRegion(surfaceRegion), oldState, chunk);
+                    chunk.setPersistedStatus(ChunkStatus.SURFACE);
+                    var carversRegion = regionFor.apply(ChunkStatus.CARVERS, chunk);
+                    Blender.addAroundOldChunksCarvingMaskFilter(carversRegion, chunk);
+                    generator.applyCarvers(carversRegion, oldSeed, oldState, carversRegion.getBiomeManager(), OracleLevel.structures.forWorldGenRegion(carversRegion), chunk);
                     Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Heightmap.Types.OCEAN_FLOOR, Heightmap.Types.WORLD_SURFACE));
-                    chunk.setPersistedStatus(ChunkStatus.TERRAIN);
+                    chunk.setPersistedStatus(ChunkStatus.CARVERS);
                 }
                 // The ring around the old chunks was only there for their biomes; it is generated afresh below.
                 for (int z = oz0 - 9; z <= oz1 + 9; z++) for (int x = ox0 - 9; x <= ox1 + 9; x++) if (!oldChunks.contains(ChunkPos.pack(x, z))) chunks.remove(ChunkPos.pack(x, z));
@@ -438,12 +448,12 @@ public final class VanillaChunkGenerationOracle {
             }
             String[] corners = args[rect].split(",");
             int x0 = Integer.parseInt(corners[0]), z0 = Integer.parseInt(corners[1]), x1 = Integer.parseInt(corners[2]), z1 = Integer.parseInt(corners[3]);
-            // Margins: FEATURES need TERRAIN at 1, which needs BIOMES at 1 more; STRUCTURE_STARTS reach 8 further.
+            // Margins: FEATURES need CARVERS at 1, which needs BIOMES at 1 more; STRUCTURE_STARTS reach 8 further.
             int m = System.getenv("HORIZON_ISOLATED") != null ? 0 : 1; // diagnostics: decorate the targets only
             int fx0 = x0 - m, fz0 = z0 - m, fx1 = x1 + m, fz1 = z1 + m;
             int tx0 = fx0 - 1, tz0 = fz0 - 1, tx1 = fx1 + 1, tz1 = fz1 + 1;
             int bx0 = tx0 - 1, bz0 = tz0 - 1, bx1 = tx1 + 1, bz1 = tz1 + 1;
-            int sm = oldChunks.isEmpty() ? 8 : 9; // blending reads the neighbours of old chunks 7 away
+            int sm = oldChunks.isEmpty() ? 9 : 10; // references reach 8 from the biomes rectangle; blending reads the neighbours of old chunks 7 away
             int sx0 = tx0 - sm, sz0 = tz0 - sm, sx1 = tx1 + sm, sz1 = tz1 + sm;
             for (int z = sz0; z <= sz1; z++) for (int x = sx0; x <= sx1; x++) {
                 if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
@@ -451,8 +461,9 @@ public final class VanillaChunkGenerationOracle {
                 generator.createStructures(access, state, OracleLevel.structures, chunk, templates, levelKey);
                 chunk.setPersistedStatus(ChunkStatus.STRUCTURE_STARTS);
             }
-            int rm = oldChunks.isEmpty() ? 0 : 1; // Blender.of asks for the centre chunk itself at STRUCTURE_REFERENCES
-            for (int z = tz0 - rm; z <= tz1 + rm; z++) for (int x = tx0 - rm; x <= tx1 + rm; x++) {
+            // In 26.1 createBiomes builds the noise chunk (Beardifier), which reads the centre chunk
+            // itself at STRUCTURE_REFERENCES, so references must cover the whole biomes rectangle.
+            for (int z = bz0; z <= bz1; z++) for (int x = bx0; x <= bx1; x++) {
                 if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 var region = regionFor.apply(ChunkStatus.STRUCTURE_REFERENCES, chunk);
@@ -470,12 +481,17 @@ public final class VanillaChunkGenerationOracle {
             for (int z = tz0; z <= tz1; z++) for (int x = tx0; x <= tx1; x++) {
                 if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
-                var region = regionFor.apply(ChunkStatus.TERRAIN, chunk);
-                Set<Holder<Biome>> possible = new HashSet<>();
-                for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) region.getChunk(x + dx, z + dz).collectBiomesInPalette(possible);
-                generator.buildTerrain(chunk, Blender.of(region), randomState, OracleLevel.structures.forWorldGenRegion(region), region.getBiomeManager(), region, possible).join();
+                var noiseRegion = regionFor.apply(ChunkStatus.NOISE, chunk);
+                generator.fillFromNoise(Blender.of(noiseRegion), randomState, OracleLevel.structures.forWorldGenRegion(noiseRegion), chunk).join();
+                chunk.setPersistedStatus(ChunkStatus.NOISE);
+                var surfaceRegion = regionFor.apply(ChunkStatus.SURFACE, chunk);
+                generator.buildSurface(surfaceRegion, OracleLevel.structures.forWorldGenRegion(surfaceRegion), randomState, chunk);
+                chunk.setPersistedStatus(ChunkStatus.SURFACE);
+                var carversRegion = regionFor.apply(ChunkStatus.CARVERS, chunk);
+                Blender.addAroundOldChunksCarvingMaskFilter(carversRegion, chunk);
+                generator.applyCarvers(carversRegion, seed, randomState, carversRegion.getBiomeManager(), OracleLevel.structures.forWorldGenRegion(carversRegion), chunk);
                 Heightmap.primeHeightmaps(chunk, EnumSet.of(Heightmap.Types.MOTION_BLOCKING, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, Heightmap.Types.OCEAN_FLOOR, Heightmap.Types.WORLD_SURFACE));
-                chunk.setPersistedStatus(ChunkStatus.TERRAIN);
+                chunk.setPersistedStatus(ChunkStatus.CARVERS);
             }
             // HORIZON_ORDER: a file of "x z" lines, the chunks to decorate in that order (default: row-major).
             List<int[]> order = new ArrayList<>();

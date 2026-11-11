@@ -202,7 +202,7 @@ pub(crate) fn finish(session: &Session, id: i32, payload: Vec<u8>) -> Result<(i3
             }
             play::Clientbound::EntityPositionSync(p) => {
                 if let Some(boat) = boats.get_mut(&p.id) {
-                    boat.spawn.position = p.path.end();
+                    boat.spawn.position = p.position;
                     boat.spawn.yaw = angle(p.yaw);
                     boat.spawn.pitch = angle(p.pitch);
                 }

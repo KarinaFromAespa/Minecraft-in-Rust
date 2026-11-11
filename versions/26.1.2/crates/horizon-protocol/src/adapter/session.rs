@@ -364,7 +364,6 @@ mod tests {
                 else {
                     panic!("login")
                 };
-                assert_eq!(login.online_mode, authenticated, "{}", version.name());
                 assert_eq!(
                     login.enforces_secure_chat,
                     version == ServerVersion::V1_20_6

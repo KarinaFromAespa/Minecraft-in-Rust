@@ -84,9 +84,6 @@ packet!(
 packet!(BlockDestruction { id: i32 => VarInt, pos: [i32; 3] => Pos, progress: u8 => UByte });
 packet!(BlockEntityData { pos: [i32; 3] => Pos, kind: i32 => VarInt, tag: Tag => Nbt });
 packet!(BlockUpdate { pos: [i32; 3] => Pos, state: i32 => VarInt });
-// ClientboundAddTransientBlockPacket: a block the client shows for a moment
-// while its section mesh catches up (a falling block that landed).
-packet!(AddTransientBlock { pos: [i32; 3] => Pos, state: i32 => VarInt });
 packet!(ChangeDifficulty { difficulty: i32 => VarInt, locked: bool => Bool });
 // ResourceKey<GameRule<?>> is an identifier, followed by its string value.
 packet!(GameRuleEntry { name: String => Ident, value: String => Str });
@@ -284,52 +281,7 @@ packet!(
 );
 packet!(DisguisedChat { message: Tag => Nbt, chat_type: ChatTypeBound => ChatTypeBound });
 packet!(EntityEvent { id: i32 => Int, event: i8 => Byte });
-/// PositionPath: Linear(end position) or Stepped(list of (position, tick offset)).
-#[derive(Clone, Debug, PartialEq)]
-pub enum PositionPath {
-    Linear([f64; 3]),
-    Stepped(Vec<([f64; 3], i32)>),
-}
-impl PositionPath {
-    pub fn end(&self) -> [f64; 3] {
-        match self {
-            Self::Linear(p) => *p,
-            Self::Stepped(steps) => steps.last().map_or([0.0; 3], |s| s.0),
-        }
-    }
-}
-impl Codec<PositionPath> for PositionPath {
-    fn read(r: &mut Reader) -> Result<Self> {
-        Ok(match r.varint()? {
-            1 => {
-                let n = r.count(r.remaining() / 25)?;
-                Self::Stepped(
-                    (0..n)
-                        .map(|_| Ok((Vec3d::read(r)?, r.varint()?)))
-                        .collect::<Result<_>>()?,
-                )
-            }
-            _ => Self::Linear(Vec3d::read(r)?),
-        })
-    }
-    fn write(v: &Self, w: &mut Writer) {
-        match v {
-            Self::Linear(p) => {
-                w.varint(0);
-                Vec3d::write(p, w);
-            }
-            Self::Stepped(steps) => {
-                w.varint(1);
-                w.varint(steps.len() as i32);
-                for (p, t) in steps {
-                    Vec3d::write(p, w);
-                    w.varint(*t);
-                }
-            }
-        }
-    }
-}
-packet!(EntityPositionSync { id: i32 => VarInt, path: PositionPath => PositionPath, yaw: f32 => Float, pitch: f32 => Float, on_ground: bool => Bool });
+packet!(EntityPositionSync { id: i32 => VarInt, position: [f64; 3] => Vec3d, delta: [f64; 3] => Vec3d, yaw: f32 => Float, pitch: f32 => Float, on_ground: bool => Bool });
 packet!(ForgetLevelChunk { pos: [i32; 2] => ChunkPos });
 packet!(
     /// ClientboundChunksBiomesPacket.ChunkBiomeData: a column and its
@@ -392,7 +344,6 @@ packet!(Login {
     show_death_screen: bool => Bool,
     limited_crafting: bool => Bool,
     spawn: SpawnInfo => SpawnInfo,
-    online_mode: bool => Bool,
     enforces_secure_chat: bool => Bool,
 });
 packet!(
@@ -540,40 +491,48 @@ macro_rules! move_entity {
         }
         impl $name {
             fn read_inner(r: &mut Reader) -> Result<MoveEntity> {
+                // 26.1's form: the delta's three Shorts, the angles for the
+                // variants that turn, and on-ground last. One linear step is
+                // all the wire carries; timed steps are a local matter.
                 let id = r.varint()?;
-                if !$pos {
-                    let on_ground = r.bool()?;
-                    let rotation = Some((r.i8()?, r.i8()?));
-                    return Ok(MoveEntity {
-                        id,
-                        delta: None,
-                        rotation,
-                        on_ground,
-                    });
-                }
-                let properties = r.varint()?;
-                let delta = Some(VecDelta::read(r, (properties as u32 >> 1) as usize)?);
+                let delta = if $pos {
+                    Some(VecDelta::Linear([r.i16()?, r.i16()?, r.i16()?]))
+                } else {
+                    None
+                };
                 let rotation = if $rot { Some((r.i8()?, r.i8()?)) } else { None };
                 Ok(MoveEntity {
                     id,
                     delta,
                     rotation,
-                    on_ground: properties & 1 != 0,
+                    on_ground: r.bool()?,
                 })
             }
             fn write_inner(v: &MoveEntity, w: &mut Writer) {
                 w.varint(v.id);
-                if !$pos {
-                    w.bool(v.on_ground);
-                } else {
-                    let delta = v.delta.clone().unwrap_or(VecDelta::Linear([0; 3]));
-                    w.varint(i32::from(v.on_ground) | (delta.steps() as i32) << 1);
-                    delta.write(w);
+                if $pos {
+                    // A stepped delta goes as its sum (the next position
+                    // sync corrects a sum past a Short).
+                    let sum = match &v.delta {
+                        Some(VecDelta::Linear(d)) => *d,
+                        Some(VecDelta::Stepped(steps)) => {
+                            let mut out = [0i32; 3];
+                            for (d, _) in steps {
+                                for i in 0..3 {
+                                    out[i] += i32::from(d[i]);
+                                }
+                            }
+                            out.map(|n| n.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16)
+                        }
+                        None => [0; 3],
+                    };
+                    sum.iter().for_each(|n| w.i16(*n));
                 }
                 if let Some((y, x)) = v.rotation.filter(|_| $rot) {
                     w.i8(y);
                     w.i8(x);
                 }
+                w.bool(v.on_ground);
             }
         }
     };
@@ -799,11 +758,6 @@ packet!(
         target: [f64; 3] => Vec3d,
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
-);
-packet!(
-    /// ClientboundPostEffectsPacket: the `post_effect` chains (ids) the player's
-    /// screen runs, in order (`ServerPlayer.postEffects`).
-    PostEffects { effects: Vec<String> => List<Ident> }
 );
 packet!(PlayerRotation { yaw: f32 => Float, relative_yaw: bool => Bool, pitch: f32 => Float, relative_pitch: bool => Bool });
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
@@ -1087,33 +1041,33 @@ pub struct LevelParticles {
     pub always_show: bool,
     pub pos: [f64; 3],
     pub dist: [f32; 3],
-    pub max_speed: [f32; 3],
+    pub max_speed: f32,
     pub count: i32,
-    pub randomization: i32,
 }
 impl Codec<LevelParticles> for LevelParticles {
+    // 26.1's order: the two flags, the position and spread, the one speed,
+    // the count as a fixed Int, and the particle last.
     fn read(r: &mut Reader) -> Result<Self> {
         Ok(Self {
-            particle: Particle::read(r)?,
             override_limiter: r.bool()?,
             always_show: r.bool()?,
             pos: Vec3d::read(r)?,
             dist: [r.f32()?, r.f32()?, r.f32()?],
-            max_speed: [r.f32()?, r.f32()?, r.f32()?],
-            count: r.varint()?,
-            randomization: r.varint()?,
+            max_speed: r.f32()?,
+            count: r.i32()?,
+            particle: Particle::read(r)?,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
-        v.particle.write(w);
         w.bool(v.override_limiter);
         w.bool(v.always_show);
         Vec3d::write(&v.pos, w);
-        for f in v.dist.iter().chain(&v.max_speed) {
-            w.f32(*f);
+        for f in v.dist {
+            w.f32(f);
         }
-        w.varint(v.count);
-        w.varint(v.randomization);
+        w.f32(v.max_speed);
+        w.i32(v.count);
+        v.particle.write(w);
     }
 }
 /// `ExplosionParticleInfo` in a `WeightedList`: a particle the blast
@@ -1137,7 +1091,6 @@ pub struct Explode {
     pub particle: Particle,
     pub sound: (i32, Option<(String, Option<f32>)>),
     pub block_particles: Vec<ExplosionParticle>,
-    pub play_sound: bool,
 }
 impl Codec<Explode> for Explode {
     fn read(r: &mut Reader) -> Result<Self> {
@@ -1165,7 +1118,6 @@ impl Codec<Explode> for Explode {
             particle,
             sound,
             block_particles,
-            play_sound: r.bool()?,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
@@ -1182,7 +1134,6 @@ impl Codec<Explode> for Explode {
             w.f32(b.speed);
             w.varint(b.weight);
         }
-        w.bool(v.play_sound);
     }
 }
 /// `ClientboundSetPlayerTeamPacket.Parameters`.
@@ -1214,14 +1165,24 @@ impl Codec<SetPlayerTeam> for SetPlayerTeam {
         let name = r.string(32767)?;
         let method = r.i8()?;
         let parameters = if method == 0 || method == 2 {
+            // 26.1's order: display name, options, visibility, collision, the
+            // colour as a ChatFormatting id (RESET, 21, for none; only 0..16
+            // are colours), then prefix and suffix.
+            let display_name = r.nbt()?;
+            let options = r.i8()?;
+            let name_tag_visibility = r.varint()?;
+            let collision_rule = r.varint()?;
+            let color = r.varint()?;
+            let prefix = r.nbt()?;
+            let suffix = r.nbt()?;
             Some(TeamParameters {
-                display_name: r.nbt()?,
-                prefix: r.nbt()?,
-                suffix: r.nbt()?,
-                name_tag_visibility: r.varint()?,
-                collision_rule: r.varint()?,
-                color: <Opt<VarInt>>::read(r)?,
-                options: r.i8()?,
+                display_name,
+                prefix,
+                suffix,
+                name_tag_visibility,
+                collision_rule,
+                color: (0..16).contains(&color).then_some(color),
+                options,
             })
         } else {
             None
@@ -1252,12 +1213,13 @@ impl Codec<SetPlayerTeam> for SetPlayerTeam {
                 options: 0,
             });
             w.nbt(&p.display_name);
-            w.nbt(&p.prefix);
-            w.nbt(&p.suffix);
+            w.i8(p.options);
             w.varint(p.name_tag_visibility);
             w.varint(p.collision_rule);
-            <Opt<VarInt>>::write(&p.color, w);
-            w.i8(p.options);
+            // The colour as a ChatFormatting id; RESET (21) for none.
+            w.varint(p.color.filter(|c| (0..16).contains(c)).unwrap_or(21));
+            w.nbt(&p.prefix);
+            w.nbt(&p.suffix);
         }
         if matches!(v.method, 0 | 3 | 4) {
             <List<Str>>::write(&v.players, w);
@@ -1287,11 +1249,6 @@ packet!(
 packet!(
     /// ClientboundUpdateAttributesPacket: an entity's synced attribute instances.
     UpdateAttributes { id: i32 => VarInt, values: Vec<AttributeSnapshot> => List<AttributeSnapshot> }
-);
-packet!(
-    /// ClientboundSwingAnimationPacket: hand (0 main, 1 off) and the swing
-    /// type (0 none, 1 whack, 2 stab) with its duration in ticks.
-    SwingAnimation { id: i32 => VarInt, hand: i32 => VarInt, kind: i32 => VarInt, duration: i32 => VarInt }
 );
 packet!(SoundEntity {
     sound: (i32, Option<(String, Option<f32>)>) => SoundHolder,
@@ -1711,7 +1668,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     PlayerLookAt(PlayerLookAt) = PLAYER_LOOK_AT,
     PlayerPosition(PlayerPosition) = PLAYER_POSITION,
     PlayerRotation(PlayerRotation) = PLAYER_ROTATION,
-    PostEffects(PostEffects) = POST_EFFECTS,
     RemoveEntities(RemoveEntities) = REMOVE_ENTITIES,
     RemoveMobEffect(RemoveMobEffect) = REMOVE_MOB_EFFECT,
     ResetScore(ResetScore) = RESET_SCORE,
@@ -1762,7 +1718,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     // configuration phase sends.
     ServerLinks(ServerLinks) = SERVER_LINKS,
     SelectAdvancementsTab(SelectAdvancementsTab) = SELECT_ADVANCEMENTS_TAB,
-    SwingAnimation(SwingAnimation) = SWING_ANIMATION,
     SystemChat(SystemChat) = SYSTEM_CHAT,
     TabList(TabList) = TAB_LIST,
     TagQuery(TagQuery) = TAG_QUERY,
@@ -1776,7 +1731,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     UpdateAttributes(UpdateAttributes) = UPDATE_ATTRIBUTES,
     LevelParticles(LevelParticles) = LEVEL_PARTICLES,
     Explode(Explode) = EXPLODE,
-    AddTransientBlock(AddTransientBlock) = ADD_TRANSIENT_BLOCK,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     TrackedWaypoint(TrackedWaypoint) = WAYPOINT,
@@ -1903,13 +1857,17 @@ impl Codec<TrackedWaypoint> for TrackedWaypoint {
 
 // ---- serverbound -------------------------------------------------------
 
-packet!(AcceptTeleportation { id: i32 => VarInt, x: f64 => Double, y: f64 => Double, z: f64 => Double, yaw: f32 => Float, pitch: f32 => Float });
+packet!(AcceptTeleportation { id: i32 => VarInt });
 packet!(Attack { id: i32 => VarInt });
 packet!(TeleportToEntity { uuid: u128 => Uuid });
 packet!(
-    /// ServerboundSpectatorActionPacket: the entity a spectator clicked, or
-    /// none for a click on nothing.
-    SpectatorAction { target: Option<i32> => OptVarInt }
+    /// ServerboundSpectateEntityPacket: the entity a spectator clicked, by
+    /// its network id. A click on nothing sends no packet at all.
+    SpectateEntity { entity: i32 => VarInt }
+);
+packet!(
+    /// ServerboundSwingPacket: the hand that swung (0 main, 1 off).
+    Swing { hand: i32 => VarInt }
 );
 packet!(
     /// GameType ids: 0 survival, 1 creative, 2 adventure, 3 spectator.
@@ -2060,7 +2018,7 @@ packet!(
 );
 packet!(
     /// ServerboundSignUpdatePacket: the four lines the player wrote on a side.
-    SignUpdate { pos: [i32; 3] => Pos, lines: [String; 4] => SignLines, front: bool => SignSide }
+    SignUpdate { pos: [i32; 3] => Pos, front: bool => Bool, lines: [String; 4] => SignLines }
 );
 packet!(
     /// ServerboundSetJigsawBlockPacket: the jigsaw block's edit screen. The
@@ -2349,7 +2307,7 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     BlockEntityTagQuery(BlockEntityTagQuery) = BLOCK_ENTITY_TAG_QUERY,
     EntityTagQuery(EntityTagQuery) = ENTITY_TAG_QUERY,
     TeleportToEntity(TeleportToEntity) = TELEPORT_TO_ENTITY,
-    SpectatorAction(SpectatorAction) = SPECTATOR_ACTION,
+    SpectateEntity(SpectateEntity) = SPECTATE_ENTITY,
     ChangeGameMode(ChangeGameMode) = CHANGE_GAME_MODE,
     Chat(Chat) = CHAT,
     ChatAck(ChatAck) = CHAT_ACK,
@@ -2391,7 +2349,7 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     RenameItem(RenameItem) = RENAME_ITEM,
     SeenAdvancements(SeenAdvancements) = SEEN_ADVANCEMENTS,
     ContainerSlotStateChanged(ContainerSlotStateChanged) = CONTAINER_SLOT_STATE_CHANGED,
-    Punch(Empty) = PUNCH,
+    Swing(Swing) = SWING,
     JigsawGenerate(JigsawGenerate) = JIGSAW_GENERATE,
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectBundleItem(SelectBundleItem) = BUNDLE_ITEM_SELECTED,

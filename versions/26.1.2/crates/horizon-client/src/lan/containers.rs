@@ -272,11 +272,9 @@ impl Hub {
         self.broadcast_near(
             at,
             128.0,
-            &C::SwingAnimation(play::SwingAnimation {
+            &C::Animate(play::Animate {
                 id,
-                hand,
-                kind: 1,
-                duration: 6,
+                action: if hand == 1 { 3 } else { 0 },
             }),
             except,
         );

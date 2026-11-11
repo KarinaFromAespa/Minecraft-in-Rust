@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let quads = bake_model_transformed(&model, state)?.into_iter().map(|q| json!({
                     "positions":q.positions.map(|v| v.map(bits)),"uv":q.uv.map(|v| v.map(bits)),
                     "facing":q.facing.name(),"cull":q.cull.map(Direction::name),"tint":q.tint_index,
-                    "shade":q.shade_direction_override.map(Direction::name),"light":q.light_emission,
+                    "shade":q.shade,"light":q.light_emission,
                     "material":{"sprite":q.material.sprite,"translucent":q.material.force_translucent}
                 })).collect::<Vec<_>>();
                 let matrices: Vec<_> = model.elements().iter().map(|e| e.as_ref().unwrap().rotation.as_ref().map(|r| ElementMatrix::from_rotation(r).rows.map(|row| row.map(bits)))).collect();

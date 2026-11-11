@@ -135,6 +135,10 @@ pub struct Session {
     /// The connection is in configuration (else in play). Changed only
     /// with `writer` locked, as the packet that switches is sent.
     configuring: Arc<AtomicBool>,
+    /// The server authenticates its players (its login `Hello` said so).
+    /// 26.1's play Login packet carries no such flag, so the session keeps
+    /// what the login exchange itself showed.
+    online: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
     pub address: String,
     pub name: String,
@@ -149,6 +153,12 @@ pub struct Session {
     recorder: RecorderSlot,
 }
 impl Session {
+    /// The server authenticates its players (online mode), as its login
+    /// exchange showed; false until a `Hello` says so.
+    pub fn online_mode(&self) -> bool {
+        self.online.load(Ordering::Relaxed)
+    }
+
     /// The negotiated wire release, once the connection has been established.
     pub fn server_version(&self) -> horizon_protocol::adapter::ServerVersion {
         self.writer.lock().unwrap().as_ref().map_or(
@@ -246,6 +256,7 @@ impl Session {
             events,
             writer: Arc::new(Mutex::new(None)),
             configuring: Arc::new(AtomicBool::new(false)),
+            online: Arc::new(AtomicBool::new(false)),
             thread: None,
             address: "studio-replay".to_owned(),
             name: name.to_owned(),
@@ -270,6 +281,7 @@ impl Session {
         let (send, events) = channel();
         let writer = Arc::new(Mutex::new(None));
         let configuring = Arc::new(AtomicBool::new(true));
+        let online = Arc::new(AtomicBool::new(false));
         let counters = Arc::new(Mutex::new(None));
         // Connection.initiateServerboundPlayConnection: a transfer's
         // handshake says so (ClientIntent.TRANSFER).
@@ -278,6 +290,7 @@ impl Session {
         let (thread_writer, thread_counters, thread_cookies) =
             (writer.clone(), counters.clone(), cookies.clone());
         let thread_configuring = configuring.clone();
+        let thread_online = online.clone();
         let far = Arc::new(crate::lod_net::Inbox::default());
         let thread_far = far.clone();
         let recorder = Arc::new(Mutex::new(None));
@@ -297,6 +310,7 @@ impl Session {
                     &send,
                     &thread_writer,
                     &thread_configuring,
+                    &thread_online,
                     &thread_counters,
                     &thread_cookies,
                     &thread_far,
@@ -324,6 +338,7 @@ impl Session {
             writer,
             configuring,
             thread,
+            online,
             address: address.to_owned(),
             name: name.to_owned(),
             counters,
@@ -780,6 +795,7 @@ fn run(
     send: &Sender<Event>,
     shared_writer: &Mutex<Option<ConnWriter>>,
     configuring: &AtomicBool,
+    online: &AtomicBool,
     shared_counters: &Mutex<Option<Arc<Counters>>>,
     cookies: &Cookies,
     far: &crate::lod_net::Inbox,
@@ -864,6 +880,7 @@ fn run(
                 return Ok(Reason::component(&p.reason_json, lang));
             }
             login::Clientbound::Hello(hello) => {
+                online.store(hello.should_authenticate, Ordering::Relaxed);
                 status(send, &tr(lang, "connect.authorizing"));
                 let key = RsaPublicKey::from_der(&hello.public_key)
                     .map_err(|err| Reason::plain(format!("Protocol error: {err}")))?;
@@ -1865,6 +1882,7 @@ mod tests {
                 events,
                 writer: writer.clone(),
                 configuring: Arc::new(AtomicBool::new(false)),
+                online: Arc::new(AtomicBool::new(false)),
                 thread: Some(thread),
                 address: "local".into(),
                 name: "TestPlayer".into(),
@@ -1968,6 +1986,7 @@ mod tests {
             events,
             writer: Arc::new(Mutex::new(Some(writer))),
             configuring: Arc::new(AtomicBool::new(false)),
+            online: Arc::new(AtomicBool::new(false)),
             thread: None,
             address: "local".into(),
             name: "Player".into(),
@@ -2251,6 +2270,7 @@ mod tests {
             events,
             writer: Arc::new(Mutex::new(Some(writer))),
             configuring: Arc::new(AtomicBool::new(false)),
+            online: Arc::new(AtomicBool::new(false)),
             thread: None,
             address: "local".into(),
             name: "StudioTester".into(),

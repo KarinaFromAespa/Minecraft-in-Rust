@@ -152,6 +152,9 @@ pub struct Element {
     pub to: [f32; 3],
     pub faces: BTreeMap<Direction, Option<Face>>,
     pub rotation: Option<ElementRotation>,
+    /// The element's `shade` flag (26.1's model format: a boolean, default
+    /// true); a later format's direction override is read alongside it.
+    pub shade: bool,
     pub shade_direction_override: Option<Direction>,
     pub light_emission: u8,
     pub neoforge_data: Option<NeoforgeData>,
@@ -409,6 +412,11 @@ impl Element {
         if faces.is_empty() {
             return Err(error("element requires a face"));
         }
+        let shade = obj
+            .get("shade")
+            .map(|r| boolean(r))
+            .transpose()?
+            .unwrap_or(true);
         let shade_direction_override = obj
             .get("shade_direction_override")
             .map(|raw| {
@@ -429,6 +437,7 @@ impl Element {
             to,
             faces,
             rotation,
+            shade,
             shade_direction_override,
             light_emission: light_emission as u8,
             neoforge_data: obj

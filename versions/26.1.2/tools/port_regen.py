@@ -190,6 +190,13 @@ def decompile_classes(root, version, store):
         if (output / f"{name}.java").exists():
             continue
         jar = root / prepared["jars"][side]
+        # Versions before the registry split call it EntityType, not
+        # EntityTypes (the tracking generator accepts either name).
+        with zipfile.ZipFile(jar) as full:
+            if f"{name}.class" not in full.namelist() and f"{name[:-1]}.class" in full.namelist():
+                name = name[:-1]
+        if (output / f"{name}.java").exists():
+            continue
         with tempfile.TemporaryDirectory(prefix=".decompile-", dir=store) as scratch:
             scratch = Path(scratch)
             small = scratch / "classes.jar"
