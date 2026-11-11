@@ -144,16 +144,12 @@ fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     let Some(particle) = particle_down(ids, &p.particle) else {
         return Ok(Sent::Dropped);
     };
-    let speed = p
-        .max_speed
-        .into_iter()
-        .fold(0.0f32, |a, v| if v.abs() > a.abs() { v } else { a });
     let mut w = Writer::new();
     w.bool(p.override_limiter);
     w.bool(p.always_show);
     p.pos.iter().for_each(|v| w.f64(*v));
     p.dist.iter().for_each(|v| w.f32(*v));
-    w.f32(speed);
+    w.f32(p.max_speed);
     w.i32(p.count);
     write_particle(ids, &particle, &mut w);
     Ok(Sent::Rewritten(w.data))
@@ -176,9 +172,7 @@ fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
         })
         .collect();
     let silent = || (-1, Some((SILENT.to_string(), None)));
-    if !e.play_sound {
-        e.sound = silent();
-    } else if e.sound.1.is_none() {
+    if e.sound.1.is_none() {
         // An inline sound is named, not numbered.
         match down_or_substitute(ids.sound_event, ids.substitutes.sound_event, e.sound.0) {
             Some(id) => e.sound.0 = id,
@@ -190,7 +184,6 @@ fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
         let _down = ids::renumbering(ids, Way::Down);
         play::Explode::write(&e, &mut w);
     }
-    w.data.pop();
     Ok(Sent::Rewritten(w.data))
 }
 
@@ -242,38 +235,26 @@ fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     let p = play::EntityPositionSync::read(&mut Reader::new(payload))?;
     let mut w = Writer::new();
     w.varint(p.id);
-    p.path.end().iter().for_each(|v| w.f64(*v));
-    (0..3).for_each(|_| w.f64(0.0));
+    p.position.iter().for_each(|v| w.f64(*v));
+    p.delta.iter().for_each(|v| w.f64(*v));
     w.f32(p.yaw);
     w.f32(p.pitch);
     w.bool(p.on_ground);
     Ok(w.data)
 }
 
-/// 26.3's animate actions as 26.2 numbers them (wake up 0 -> 2, critical hits 1, 2 -> 4, 5); 26.2's own 0
-/// and 3 swing hands, which 26.3 sends as `swing_animation` ([`swing`]).
+/// The pinned animate actions are already 26.2's numbers (both number the
+/// swings 0 and 3, wake up 2, the two critical hits 4 and 5), so the packet
+/// crosses unchanged; the read is the validation.
 fn animate(payload: &[u8]) -> Result<Sent> {
     let p = play::Animate::read(&mut Reader::new(payload))?;
-    let action = match p.action {
-        0 => 2,
-        1 => 4,
-        2 => 5,
-        _ => return Ok(Sent::Dropped),
-    };
+    if !matches!(p.action, 0 | 2 | 3 | 4 | 5) {
+        return Ok(Sent::Dropped);
+    }
     let mut w = Writer::new();
     w.varint(p.id);
-    w.u8(action);
+    w.u8(p.action);
     Ok(Sent::Rewritten(w.data))
-}
-
-/// 26.3's `swing_animation` as the payload of 26.2's `animate`: the main hand's swing (0) or the off hand's
-/// (3). 26.2 has one kind of swing at its own pace, so the kind and duration go.
-pub(super) fn swing(payload: &[u8]) -> Result<Vec<u8>> {
-    let s = play::SwingAnimation::read(&mut Reader::new(payload))?;
-    let mut w = Writer::new();
-    w.varint(s.id);
-    w.u8(if s.hand == 1 { 3 } else { 0 });
-    Ok(w.data)
 }
 
 #[cfg(test)]
@@ -336,14 +317,14 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (chest's first: 5543 pinned, 3987 in 26.2), and one on the global palette:
+        // A section of one state (calcite: 24687 pinned, 27160 in 26.2), and one on the global palette:
         // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[5543; chunk::BLOCKS], Strategy::Blocks, 16);
+        let one = Paletted::from_values(&[24687; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
-        let global = Paletted::from_values(&many, Strategy::Blocks, 16);
-        assert_eq!(global.bits, 16);
+        let global = Paletted::from_values(&many, Strategy::Blocks, 15);
+        assert_eq!(global.bits, 15);
         let plains = Paletted::from_values(&[1; chunk::BIOMES], Strategy::Biomes, 0);
         let section = |states: Paletted| Section {
             non_empty: 4096,
@@ -377,14 +358,14 @@ mod tests {
             )
             .unwrap(),
         );
-        // In 26.2's own numbering: the chest is 3987, the global palette 15 bits wide, 26.2's ids.
+        // In 26.2's own numbering: the calcite is 27160, the global palette 15 bits wide, 26.2's ids.
         {
             let mut r = Reader::new(&old);
             r.i32().unwrap();
             r.i32().unwrap();
             let c = chunk::ChunkData::read(&mut r).unwrap();
             let s = c.sections(2, ids.state_bits().0, 0).unwrap();
-            assert_eq!(s[0].states.get(0), 3987);
+            assert_eq!(s[0].states.get(0), 27160);
             assert_eq!(s[1].states.bits, 15);
             assert_eq!(s[1].states.get(330), 13330);
             assert_eq!(c.block_entities[0].kind, 0);
@@ -410,11 +391,12 @@ mod tests {
     }
 
     #[test]
-    fn a_state_26_2_lacks_goes_down_as_its_stand_in() {
+    fn a_state_crosses_down_in_26_2_s_numbering() {
         let ids = ids();
-        // poplar_log axis=y (167, new in 26.3) shows as birch_log axis=y (143 in 26.2).
-        let p = Paletted::from_values(&[167; chunk::BLOCKS], Strategy::Blocks, 16);
-        assert_eq!(states_down(ids, &p, 15).get(0), 143);
+        // calcite's state: 24687 in 26.1, 27160 in 26.2. (26.2 lacks no
+        // 26.1 state — it only adds blocks — so no stand-in is needed.)
+        let p = Paletted::from_values(&[24687; chunk::BLOCKS], Strategy::Blocks, 15);
+        assert_eq!(states_down(ids, &p, 15).get(0), 27160);
     }
 
     #[test]
@@ -447,9 +429,8 @@ mod tests {
                 always_show: false,
                 pos: [1.5, 64.0, -3.25],
                 dist: [0.5, 0.25, 0.5],
-                max_speed: [0.1; 3],
+                max_speed: 0.1,
                 count: 12,
-                randomization: 0,
             };
             let old = rewritten(
                 down(
@@ -481,27 +462,30 @@ mod tests {
             );
             q.particle
         };
-        // entity_effect (28) carries a colour, alike in both numberings.
+        // entity_effect (21 in 26.1, 28 in 26.2) carries a colour, alike in
+        // both numberings.
         let colour = Particle {
-            id: 28,
+            id: 21,
             data: Some(ParticleData::Color(0x00ff00ff)),
         };
         assert_eq!(send(colour.clone()), colour);
-        // block (1) carries a state: chest's 5543 goes down to 3987 and comes back.
+        // block (1) carries a state: chest's first state is 3987 in both
+        // numberings, so it crosses unchanged and comes back.
         let block = Particle {
             id: 1,
-            data: Some(ParticleData::State(5543)),
+            data: Some(ParticleData::State(3987)),
         };
         assert_eq!(send(block.clone()), block);
-        // 44 is new in 26.3: it shows as its stand-in, 41.
+        // ash is 84 in 26.1 and 91 in 26.2: renumbered both ways, it comes
+        // back as itself.
         assert_eq!(
-            send(Particle { id: 44, data: None }),
-            Particle { id: 41, data: None }
+            send(Particle { id: 84, data: None }),
+            Particle { id: 84, data: None }
         );
     }
 
     #[test]
-    fn of_three_speeds_the_largest_goes() {
+    fn the_one_speed_goes_as_it_is() {
         let ids = ids();
         let p = play::LevelParticles {
             particle: Particle {
@@ -512,9 +496,8 @@ mod tests {
             always_show: false,
             pos: [0.0; 3],
             dist: [0.0; 3],
-            max_speed: [0.1, -0.4, 0.2],
+            max_speed: -0.4,
             count: 0,
-            randomization: 1,
         };
         let old = rewritten(
             down(
@@ -530,21 +513,21 @@ mod tests {
         assert_eq!(r.i32().unwrap(), 0);
     }
 
-    fn blast(play_sound: bool, sound: i32) -> play::Explode {
+    fn blast(sound: i32) -> play::Explode {
         play::Explode {
             center: [10.0, 70.0, -4.0],
             radius: 4.0,
             block_count: 17,
             knockback: Some([0.1, 0.2, 0.3]),
             particle: Particle {
-                id: 28,
+                id: 21,
                 data: Some(ParticleData::Color(-1)),
             },
             sound: (sound, None),
             block_particles: vec![
                 play::ExplosionParticle {
                     particle: Particle {
-                        id: 28,
+                        id: 21,
                         data: Some(ParticleData::Color(7)),
                     },
                     scaling: 1.0,
@@ -562,30 +545,27 @@ mod tests {
                     weight: 1,
                 },
             ],
-            play_sound,
         }
     }
 
-    /// 26.2's explode read back as `translate` reads it: the flag 26.2 lacks appended, ids renumbered up.
+    /// 26.2's explode read back as `translate` reads it: ids renumbered up.
     fn explode_up(old: &[u8]) -> play::Explode {
-        let mut body = old.to_vec();
-        body.push(1);
         let _up = ids::renumbering(ids(), Way::Up);
-        play::Explode::read(&mut Reader::new(&body)).unwrap()
+        play::Explode::read(&mut Reader::new(old)).unwrap()
     }
 
     #[test]
-    fn an_explosion_goes_down_without_the_sound_flag() {
+    fn an_explosion_goes_down_and_back_up() {
         let ids = ids();
         // A sound event both versions number alike.
         let sound = (0..400)
             .find(|&s| ids.sound_event.down(s) == Some(s))
             .unwrap();
-        let e = blast(true, sound);
+        let e = blast(sound);
         let old =
             rewritten(down(ids, packet_ids::play::clientbound::EXPLODE, &encode(&e)).unwrap());
         assert_eq!(
-            old.len() + 1,
+            old.len(),
             encode(&{
                 let mut kept = e.clone();
                 kept.block_particles.truncate(1);
@@ -600,13 +580,13 @@ mod tests {
     }
 
     #[test]
-    fn a_silent_explosion_names_the_empty_sound() {
+    fn an_explosion_with_a_sound_26_2_lacks_names_the_empty_sound() {
         let ids = ids();
         let old = rewritten(
             down(
                 ids,
                 packet_ids::play::clientbound::EXPLODE,
-                &encode(&blast(false, 0)),
+                &encode(&blast(100_000)),
             )
             .unwrap(),
         );
@@ -669,7 +649,8 @@ mod tests {
         let ids = ids();
         let p = play::EntityPositionSync {
             id: 42,
-            path: play::PositionPath::Linear([100.5, 64.0, -20.25]),
+            position: [100.5, 64.0, -20.25],
+            delta: [0.5, 0.0, -0.25],
             yaw: 90.0,
             pitch: -10.0,
             on_ground: false,
@@ -688,58 +669,38 @@ mod tests {
             play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap(),
             p
         );
-        // A stepped path goes as where it ends.
-        let stepped = play::EntityPositionSync {
-            path: play::PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 1), ([4.0, 5.0, 6.0], 2)]),
-            ..p
-        };
-        let old = rewritten(
-            down(
-                ids,
-                packet_ids::play::clientbound::ENTITY_POSITION_SYNC,
-                &encode(&stepped),
-            )
-            .unwrap(),
-        );
-        let back = translate::position_sync(&old).unwrap();
-        let q = play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap();
-        assert_eq!(q.path, play::PositionPath::Linear([4.0, 5.0, 6.0]));
     }
 
     #[test]
-    fn animate_actions_take_26_2_s_numbers() {
+    fn animate_actions_are_already_26_2_s_numbers() {
         let ids = ids();
         let send =
             |action: u8| down(ids, packet_ids::play::clientbound::ANIMATE, &[5, action]).unwrap();
-        assert_eq!(rewritten(send(0)), vec![5, 2]);
-        assert_eq!(rewritten(send(1)), vec![5, 4]);
-        assert_eq!(rewritten(send(2)), vec![5, 5]);
-        // And back as translate reads them.
-        assert_eq!(
-            translate::animate(&[5, 4]).unwrap(),
-            (packet_ids::play::clientbound::ANIMATE, vec![5, 1])
-        );
+        // The swings, wake up and the two critical hits cross unchanged.
+        for action in [0u8, 3, 2, 4, 5] {
+            assert_eq!(rewritten(send(action)), vec![5, action]);
+        }
+        // An action neither version has is dropped.
+        assert!(matches!(
+            down(ids, packet_ids::play::clientbound::ANIMATE, &[5, 1]).unwrap(),
+            Some(Sent::Dropped)
+        ));
     }
 
     #[test]
     fn a_swing_reaches_a_26_2_client_as_animate() {
         let s = in_play();
-        let swing = play::Clientbound::SwingAnimation(play::SwingAnimation {
-            id: 5,
-            hand: 1,
-            kind: 1,
-            duration: 6,
-        });
+        let swing = play::Clientbound::Animate(play::Animate { id: 5, action: 3 });
         let sent = s.clientbound(&swing.encode()).unwrap().unwrap();
         let mut r = Reader::new(&sent);
         let animate = ServerVersion::V26_2
             .clientbound_id_down(State::Play, packet_ids::play::clientbound::ANIMATE)
             .unwrap();
         assert_eq!(r.varint().unwrap(), animate);
-        // translate reads 26.2's off-hand swing as the swing sent.
-        let (id, body) = translate::animate(r.rest()).unwrap();
-        assert_eq!(id, packet_ids::play::clientbound::SWING_ANIMATION);
-        assert_eq!(play::Clientbound::decode(id, &body).unwrap(), swing);
+        assert_eq!(
+            play::Clientbound::decode(animate, r.rest()).unwrap(),
+            swing
+        );
     }
 
     #[test]

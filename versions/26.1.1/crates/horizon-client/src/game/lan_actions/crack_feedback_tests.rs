@@ -215,7 +215,7 @@ fn crack_packets_follow_start_clock_and_strict_observer_radius() {
     assert!(cracks(&receivers[1]).is_empty());
     assert_eq!(host.play[&1].digging.map(|(pos, _)| pos), Some(pos));
     assert_eq!(host.play[&1].dig_start, start);
-    game.lan_guest_packet(&mut host, 1, action(2));
+    game.lan_guest_packet(&mut host, 1, action(1));
     assert_eq!(cracks(&receivers[1]), [(1, pos, 255)]);
     game.lan_guest_packet(&mut host, 1, action(0));
     assert!(cracks(&receivers[1]).is_empty(), "fresh restricted START");

@@ -76,7 +76,9 @@ public final class VanillaBlockStateBindingOracle {
         return selected;
     }
     public static void main(String[] args) throws Exception {
-        net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();mapper=BlockStateDefinitions.definitionLocationToBlockStateMapper();
+        net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
+        // In 26.1 definitionLocationToBlockStateMapper() is package-private (it became public later); call it reflectively.
+        var mapperMethod=BlockStateDefinitions.class.getDeclaredMethod("definitionLocationToBlockStateMapper");mapperMethod.setAccessible(true);mapper=(java.util.function.Function<Identifier,StateDefinition<Block,BlockState>>)mapperMethod.invoke(null);
         if(args[0].equals("export")){export(Path.of(args[1]));return;}
         try(var input=Files.newBufferedReader(Path.of(args[0]));var output=Files.newBufferedWriter(Path.of(args[1]))) {
             for(String line;(line=input.readLine())!=null;) {

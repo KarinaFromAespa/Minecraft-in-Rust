@@ -373,9 +373,8 @@ fn player_input(payload: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// 1.21.2's entity_position_sync (pinned 35), which a 1.21.1 client has no packet for, as the teleport it stands
-/// in for: its 1.21.2 form (absolute, with zero velocity and no relative flags), which the writer above then
-/// brings to 1.21.1's teleport_entity. The path's end is taken (a stepped path loses its steps).
-// TODO(step1_21_1): a stepped path is sent as its end position only.
+/// in for: its 1.21.2 form (absolute, with the sync's own delta movement and no relative flags), which the
+/// writer above then brings to 1.21.1's teleport_entity.
 pub(super) fn entity_position_sync(
     state: State,
     id: i32,
@@ -387,8 +386,8 @@ pub(super) fn entity_position_sync(
     let sync = play::EntityPositionSync::read(&mut Reader::new(payload))?;
     let mut w = Writer::new();
     w.varint(sync.id);
-    sync.path.end().iter().for_each(|v| w.f64(*v));
-    (0..3).for_each(|_| w.f64(0.0));
+    sync.position.iter().for_each(|v| w.f64(*v));
+    sync.delta.iter().for_each(|v| w.f64(*v));
     w.f32(sync.yaw);
     w.f32(sync.pitch);
     w.i32(0);
@@ -625,7 +624,8 @@ mod tests {
     fn a_position_sync_is_the_teleport_it_stands_in_for() {
         let body = play::Clientbound::EntityPositionSync(play::EntityPositionSync {
             id: 4,
-            path: play::PositionPath::Linear([1.5, 70.0, -3.0]),
+            position: [1.5, 70.0, -3.0],
+            delta: [0.0; 3],
             yaw: 45.0,
             pitch: 10.0,
             on_ground: true,

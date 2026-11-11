@@ -145,7 +145,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_21_5);
         use packet_ids::play::serverbound as sb;
         assert_eq!(
-            super::super::serverbound(&session, State::Play, sb::PUNCH, &[]).unwrap(),
+            super::super::serverbound(&session, State::Play, sb::SWING, &[0]).unwrap(),
             Some((59, vec![0]))
         );
         assert_eq!(

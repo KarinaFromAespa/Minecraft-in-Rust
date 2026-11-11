@@ -482,9 +482,11 @@ mod tests {
             ServerVersion::from_protocol(crate::PROTOCOL_VERSION),
             Some(ServerVersion::Current)
         );
+        // 775 is the pinned protocol itself (26.1; 26.1.2 shares it and is
+        // indistinguishable by number, so it resolves to the pin).
         assert_eq!(
             ServerVersion::from_protocol(775),
-            Some(ServerVersion::V26_1)
+            Some(ServerVersion::Current)
         );
         assert_eq!(
             ServerVersion::from_protocol(774),
@@ -569,19 +571,21 @@ mod tests {
     #[test]
     fn serverbound_packets_26_2_lacks_are_not_sent() {
         let v = ServerVersion::V26_2;
-        // punch is new in 26.3; swing, which 26.2 has at 63, is gone.
+        // 26.2 has no packet named spectate_entity (it calls its own
+        // spectator_action); the name table pairs nothing for it, and the
+        // session adapters convert it by hand.
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::PUNCH),
+            v.serverbound_id(State::Play, ids::play::serverbound::SPECTATE_ENTITY),
             None
         );
-        // resource_pack 50 -> 49, spectator_action 63 -> 62, keep_alive unchanged.
+        // resource_pack 49 -> 49, swing 63 -> 63, keep_alive unchanged.
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::RESOURCE_PACK),
             Some(49)
         );
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SPECTATOR_ACTION),
-            Some(62)
+            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            Some(63)
         );
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::KEEP_ALIVE),
@@ -603,9 +607,16 @@ mod tests {
             v.serverbound_body(State::Play, &body).unwrap(),
             Some(vec![49, 1, 2, 3])
         );
-        let mut punch = Vec::new();
-        write_varint(&mut punch, ids::play::serverbound::PUNCH);
-        assert_eq!(v.serverbound_body(State::Play, &punch).unwrap(), None);
+        let mut swing = Vec::new();
+        write_varint(&mut swing, ids::play::serverbound::SWING);
+        swing.push(0);
+        assert_eq!(
+            v.serverbound_body(State::Play, &swing).unwrap(),
+            Some(vec![63, 0])
+        );
+        let mut spectate = Vec::new();
+        write_varint(&mut spectate, ids::play::serverbound::SPECTATE_ENTITY);
+        assert_eq!(v.serverbound_body(State::Play, &spectate).unwrap(), None);
         assert_eq!(
             ServerVersion::Current
                 .serverbound_body(State::Play, &body)

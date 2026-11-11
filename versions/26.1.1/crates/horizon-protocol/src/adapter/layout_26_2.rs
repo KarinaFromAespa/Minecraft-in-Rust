@@ -99,7 +99,10 @@ fn login(payload: &[u8]) -> Result<Vec<u8>> {
     w.bool(l.show_death_screen);
     w.bool(l.limited_crafting);
     spawn_info(&l.spawn, &mut w);
-    w.bool(l.online_mode);
+    // 26.2's login carries an online-mode flag the pinned (26.1) packet has
+    // no field for; this layout path is not re-based in the 26.1 port, so
+    // the flag is written false.
+    w.bool(false);
     w.bool(l.enforces_secure_chat);
     Ok(w.data)
 }
@@ -303,7 +306,6 @@ mod tests {
             show_death_screen: true,
             limited_crafting: false,
             spawn: spawn(None),
-            online_mode: true,
             enforces_secure_chat: false,
         };
         let mut w = Writer::new();
@@ -417,13 +419,13 @@ mod tests {
         let mut w = Writer::new();
         play::AwardStats::write(
             &play::AwardStats {
-                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)],
+                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 899, 2)],
             },
             &mut w,
         );
         let out = award_stats(ids, &w.data).unwrap();
         let p = play::AwardStats::read(&mut Reader::new(&out)).unwrap();
-        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)]
+        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 899, 2)]
             .into_iter()
             .filter_map(|(k, v, n)| {
                 let v = match k {
@@ -434,7 +436,7 @@ mod tests {
             })
             .collect();
         assert_eq!(p.stats, expected);
-        // diamond: 1012 pinned, 926 in 26.2.
+        // diamond: 899 pinned, 926 in 26.2.
         assert!(p.stats.contains(&(1, 926, 2)));
     }
 

@@ -4,10 +4,11 @@ This directory is a delta port of the programme's 26.1 tree to Minecraft
 26.1.1, produced with the tree's own version-port pipeline
 (`tools/version_port.py`: prepare, diff, regen, report). 26.1.1 is a patch
 release on the same protocol as 26.1, and the delta is correspondingly
-small: a DataVersion bump and three changed classes. The port inherits the
-26.1 line's state — including, in this tree, its protocol-crate blocker;
-see "Inherited state" below. Nothing in this file is a claim that the port
-is finished.
+small: a DataVersion bump and three changed classes. The delta was first
+ported from the pre-completion 26.1 tree; the 26.1 line's completion pass
+has since been carried forward into this tree (see "Carried-forward state"
+below), so this directory now stands at the completed state with 26.1.1's
+own identity. Nothing in this file is a claim that the port is finished.
 
 ## Version facts
 
@@ -26,6 +27,9 @@ is finished.
 pipeline records (diff.json, regen.json, report.md) are working files and
 are not part of this tree; their results are summarised here.
 
+The carry-forward ran `regen 26.1.1 --only vanilla_command_order` again on
+the completed tree (below).
+
 ## Regenerated tables
 
 - `version_consts` -> `crates/horizon-core/src/version.rs` (+5 -5): the
@@ -35,7 +39,13 @@ are not part of this tree; their results are summarised here.
 - `entity_tracking` -> regenerated, byte-identical (unchanged).
 - `lan_command_order` -> regenerated, byte-identical (unchanged).
 - `command_suggestions` -> regenerated, byte-identical (unchanged).
-- `vanilla_command_order` -> FAILED, the inherited blocker below.
+- `vanilla_command_order` -> `crates/horizon-command/src/vanilla_order.rs`:
+  blocked in the original delta port (the inherited protocol blocker,
+  below); regenerated in the carry-forward. The generator — the ported
+  command-parse oracle against this version's own server jar, against the
+  now-building `client_probe` — reproduced the table byte-identically, so
+  the table in this tree is confirmed generator output for 26.1.1. All
+  six tables now exist.
 
 ## The delta itself
 
@@ -46,32 +56,43 @@ are not part of this tree; their results are summarised here.
 - **`PlayerEntry.<init>` changed** (social interactions screen). The port
   in `crates/horizon-client/src/game/social.rs` still mirrors 26.1's
   version of that constructor: one method, ranked 3 by the report (ported
-  code, no harness covers it). Flagged here, not ported in this delta.
+  code, no harness covers it). Flagged here, not ported in this delta —
+  the flag is unchanged by the carry-forward.
 - `DetectedVersion.createBuiltIn` and the `SharedConstants` version fields
   are version plumbing, fully absorbed by the `version_consts` regen.
 
-## Inherited state
+## Carried-forward state
 
-This delta was ported from the 26.1 candidate as published before that
-line's completion pass, and its tree inherits that state:
+This delta was originally ported from the 26.1 candidate as published
+before that line's completion pass, and inherited its blockers. Since
+then, the completion pass that landed for 26.1 itself on `main`
+(`ed18214`: the protocol rewire to the pinned 775 forms, all six tables,
+the prepare exporter and the oracles) has been carried forward into this
+tree: the completed 26.1 code was taken as the base and this version's
+own delta re-applied on top (research-lock, `version_consts`, the
+`packet_ids` header, the front docs, these notes). The three versions
+share protocol 775 with identical packets, registries, blocks, items and
+commands, and the only file where the completion pass and this delta both
+differed from the pre-completion base is `vanilla_order.rs`, settled by
+the regeneration above. Measured in this tree after the carry:
 
-- **`horizon-protocol` does not compile** against this line's regenerated
-  packet ids: the crate references five packets that exist only in 26.3
-  (SWING_ANIMATION, SPECTATOR_ACTION, PUNCH, POST_EFFECTS,
-  ADD_TRANSIENT_BLOCK; 16 errors). Confirmed unchanged on 26.1.1: the
-  `vanilla_command_order` generator's build fails with the same 16 errors
-  (e.g. `PUNCH` and `SPECTATOR_ACTION` not found in `ids`), which is why
-  that one table is not regenerated here.
-- `horizon-prepare`'s block-state exporter does not compile against this
-  line, so no prepared resources were produced for 26.1.1, and no harness
-  run was made for this patch delta: it changes no protocol, registry,
-  block, item or command surface. The 26.1 subset profile (17 harnesses:
-  1 pass, 2 oracle-no-longer-compiles, 13 fail, 1 no verdict) stands as
-  this version's inherited profile; see `versions/26.1/PORT-NOTES-26.1.md`.
+- `cargo check --workspace` is clean (the five 26.3-only packets —
+  SWING_ANIMATION, SPECTATOR_ACTION, PUNCH, POST_EFFECTS,
+  ADD_TRANSIENT_BLOCK — are rewired to the pinned 775 forms exactly as in
+  26.1; see `versions/26.1/PORT-NOTES-26.1.md` §1).
+- `cargo test -p horizon-protocol` stands at **405 passed / 34 failed**,
+  identical to 26.1's post-completion state and with every failure
+  accounted for the same way: 32 legacy cross-version adapter tests whose
+  1.20.2–1.21.11 tables are still keyed to the old pin (a separate
+  programme job; `versions/26.1/PORT-NOTES-26.1.md`, "What remains" #1),
+  and 2 sandbox-network tests in code this port does not touch.
+- The horizon-prepare exporter and the parity oracles are the ported
+  (post-completion) ones. No prepared resources were produced and no
+  harness run was made for this patch delta in the carry-forward: it
+  changes no protocol, registry, block, item or command surface. 26.1's
+  post-completion subset profile (prepare ok; block_properties passes;
+  the remaining harnesses not re-run to verdicts there) stands as this
+  version's inherited profile; see `versions/26.1/PORT-NOTES-26.1.md`.
 
-Since this delta was ported, the completion pass has landed for 26.1
-itself on `main` (the protocol rewire to the pinned 775 forms, all six
-tables, the prepare exporter and the oracles). That work was done against
-26.1's tree and is **not** in this directory; carrying it forward to
-26.1.1 (whose protocol is identical) is follow-up work, as is the
-`PlayerEntry` method above.
+What remains for this version is what remains for the line: the
+legacy-adapter re-base above, and the flagged `PlayerEntry` method.

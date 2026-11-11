@@ -243,7 +243,6 @@ pub(super) fn explosion(session: &Session, payload: &[u8]) -> Result<Vec<u8>> {
             },
             sound,
             block_particles: Vec::new(),
-            play_sound: true,
         },
         &mut w,
     );
@@ -484,10 +483,7 @@ mod tests {
             );
             assert_eq!(p.block_count, 2);
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
-            assert_eq!(
-                (p.particle.id, p.sound.0, p.play_sound),
-                (particle, 703, true)
-            );
+            assert_eq!((p.particle.id, p.sound.0), (particle, 703));
             if destroy {
                 for pos in [[2, 64, -4], [0, 65, -2]] {
                     let (id, body) = session.next_incoming().unwrap();

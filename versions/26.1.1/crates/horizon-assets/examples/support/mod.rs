@@ -32,7 +32,7 @@ pub fn element(v: &Element) -> Value {
         .iter()
         .map(|(k, v)| (k.name(), v.as_ref().map(face)))
         .collect();
-    json!({"from":bits(v.from),"to":bits(v.to),"faces":faces,"rotation":v.rotation.as_ref().map(rotation),"shade":v.shade_direction_override.map(Direction::name),"light":v.light_emission})
+    json!({"from":bits(v.from),"to":bits(v.to),"faces":faces,"rotation":v.rotation.as_ref().map(rotation),"shade":v.shade,"light":v.light_emission})
 }
 #[allow(
     dead_code,

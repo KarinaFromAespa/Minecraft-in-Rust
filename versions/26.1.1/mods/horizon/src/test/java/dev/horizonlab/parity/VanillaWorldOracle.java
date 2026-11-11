@@ -132,9 +132,9 @@ public final class VanillaWorldOracle {
         CompoundTag defaults = new CompoundTag();
         for (BlockState state : Block.BLOCK_STATE_REGISTRY) {
             check(Block.BLOCK_STATE_REGISTRY.getId(state) == states.size(), "registry IDs are not dense");
-            states.add(BlockState.FULL_CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow());
+            states.add(VanillaStateCodec.encodeFull(state));
             if (state == state.getBlock().defaultBlockState()) {
-                Tag encoded = BlockState.FULL_CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow();
+                Tag encoded = VanillaStateCodec.encodeFull(state);
                 defaults.putInt(((CompoundTag)encoded).getStringOr("id", ""), Block.BLOCK_STATE_REGISTRY.getId(state));
             }
         }
