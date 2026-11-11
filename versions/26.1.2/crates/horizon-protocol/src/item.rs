@@ -56,7 +56,7 @@ impl Drop for Nested {
     }
 }
 
-/// minecraft:data_component_type registry ids (26.3).
+/// minecraft:data_component_type registry ids (26.1).
 pub mod component {
     pub const CUSTOM_DATA: i32 = 0;
     pub const MAX_STACK_SIZE: i32 = 1;
@@ -89,41 +89,45 @@ pub mod component {
     /// `DeathProtection`: the `death_effects` a stack runs when it saves its holder.
     pub const DEATH_PROTECTION: i32 = 36;
     pub const BLOCKS_ATTACKS: i32 = 37;
-    pub const STORED_ENCHANTMENTS: i32 = 45;
-    pub const PROFILE: i32 = 72;
-    pub const BANNER_PATTERNS: i32 = 74;
-    pub const BASE_COLOR: i32 = 75;
-    pub const DYED_COLOR: i32 = 47;
-    pub const MAP_ID: i32 = 48;
-    pub const MAP_POST_PROCESSING: i32 = 50;
-    pub const CHARGED_PROJECTILES: i32 = 51;
-    pub const BUNDLE_CONTENTS: i32 = 52;
-    pub const POTION_CONTENTS: i32 = 53;
-    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 55;
-    pub const WRITABLE_BOOK_CONTENT: i32 = 56;
-    pub const WRITTEN_BOOK_CONTENT: i32 = 57;
-    pub const TRIM: i32 = 58;
-    pub const INSTRUMENT: i32 = 63;
-    pub const PROVIDES_TRIM_MATERIAL: i32 = 64;
-    pub const PROVIDES_BANNER_PATTERNS: i32 = 67;
+    pub const STORED_ENCHANTMENTS: i32 = 42;
+    pub const PROFILE: i32 = 70;
+    pub const BANNER_PATTERNS: i32 = 72;
+    pub const BASE_COLOR: i32 = 73;
+    pub const DYED_COLOR: i32 = 44;
+    pub const MAP_ID: i32 = 46;
+    pub const MAP_POST_PROCESSING: i32 = 48;
+    pub const CHARGED_PROJECTILES: i32 = 49;
+    pub const BUNDLE_CONTENTS: i32 = 50;
+    pub const POTION_CONTENTS: i32 = 51;
+    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 53;
+    pub const WRITABLE_BOOK_CONTENT: i32 = 54;
+    pub const WRITTEN_BOOK_CONTENT: i32 = 55;
+    pub const TRIM: i32 = 56;
+    pub const INSTRUMENT: i32 = 61;
+    pub const PROVIDES_TRIM_MATERIAL: i32 = 62;
+    pub const PROVIDES_BANNER_PATTERNS: i32 = 65;
     pub const DAMAGE_TYPE: i32 = 8;
-    pub const CHICKEN_VARIANT: i32 = 104;
-    pub const ZOMBIE_NAUTILUS_VARIANT: i32 = 106;
-    pub const LODESTONE_TRACKER: i32 = 69;
-    pub const FIREWORK_EXPLOSION: i32 = 70;
-    pub const FIREWORKS: i32 = 71;
-    pub const BLOCK_ENTITY_DATA: i32 = 62;
-    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 65;
+    pub const CHICKEN_VARIANT: i32 = 97;
+    pub const ZOMBIE_NAUTILUS_VARIANT: i32 = 99;
+    pub const LODESTONE_TRACKER: i32 = 67;
+    pub const FIREWORK_EXPLOSION: i32 = 68;
+    pub const FIREWORKS: i32 = 69;
+    pub const BLOCK_ENTITY_DATA: i32 = 60;
+    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 63;
     pub const USE_REMAINDER: i32 = 25;
-    pub const POT_DECORATIONS: i32 = 76;
-    pub const JUKEBOX_PLAYABLE: i32 = 66;
+    pub const POT_DECORATIONS: i32 = 74;
+    pub const JUKEBOX_PLAYABLE: i32 = 64;
     pub const DAMAGE_RESISTANT: i32 = 27;
-    pub const CONTAINER: i32 = 77;
-    pub const SULFUR_CUBE_CONTENT: i32 = 80;
-    pub const PAINTING_VARIANT: i32 = 109;
-    /// `SignText.STREAM_CODEC`: a sign item's text, front and back.
-    pub const SIGN_TEXT_FRONT: i32 = 118;
-    pub const SIGN_TEXT_BACK: i32 = 119;
+    pub const CONTAINER: i32 = 75;
+    /// Not a pinned component: 26.1 has no `sulfur_cube_content` (a 26.3
+    /// addition). The negative value is an internal marker only, so the
+    /// 26.2-facing arms that name it can never match a canonical id here.
+    pub const SULFUR_CUBE_CONTENT: i32 = -1000;
+    pub const PAINTING_VARIANT: i32 = 102;
+    /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Also not
+    /// pinned components (26.3 additions); internal markers, as above.
+    pub const SIGN_TEXT_FRONT: i32 = -1001;
+    pub const SIGN_TEXT_BACK: i32 = -1002;
 }
 
 /// A written book's content (`WrittenBookContent.STREAM_CODEC`). The raw title
@@ -932,8 +936,8 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (26.3): an older pot's undecorated side.
-const BRICK: i32 = 1142;
+/// `minecraft:brick` (26.1): an older pot's undecorated side.
+const BRICK: i32 = 1026;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).
@@ -1037,13 +1041,15 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
 /// ([`ids::dropped_component`]), as that server writes it.
 fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
     match name {
-        // MapItemColor.STREAM_CODEC: ByteBufCodecs.INT.
-        "minecraft:map_color" => r.i32().map(drop),
-        // SwingAnimation.STREAM_CODEC: SwingAnimationType's id, then the duration, both VAR_INT.
-        "minecraft:swing_animation" => {
-            r.varint()?;
-            r.varint().map(drop)
+        // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 26.1 no
+        // longer has (fire_resistant became damage_resistant; the two hide
+        // flags folded into tooltip_display).
+        "minecraft:fire_resistant" | "minecraft:hide_tooltip" | "minecraft:hide_additional_tooltip" => {
+            Ok(())
         }
+        // SulfurCubeContent (a 26.2 component 26.1 predates): one item stack
+        // template, read and dropped.
+        "minecraft:sulfur_cube_content" => Template::read(r).map(drop),
         _ => Err(crate::Error::new(format!(
             "{name}: a component the pinned version no longer has"
         ))),
@@ -1619,7 +1625,7 @@ mod tests {
             .push((component::OMINOUS_BOTTLE_AMPLIFIER, Component::Int(3)));
         let mut w = Writer::new();
         Slot::write(&Some(bottle.clone()), &mut w);
-        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 65, 3]);
+        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 63, 3]);
         round::<Option<Stack>, Slot>(Some(bottle));
         let mut quill = Stack::new(1099, 1);
         quill.added.push((
@@ -1678,7 +1684,7 @@ mod tests {
     fn charged_projectiles_are_item_stack_templates() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
         // is a list of ItemStackTemplate, the item before the count.
-        let bytes = [1, 7, 1, 0, 51, 1, 9, 1, 0, 0];
+        let bytes = [1, 7, 1, 0, 49, 1, 9, 1, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::CHARGED_PROJECTILES),
@@ -1693,7 +1699,7 @@ mod tests {
     fn bundle_contents_are_item_stack_templates() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
         // ItemStackTemplate, as ChargedProjectiles is.
-        let bytes = [1, 7, 1, 0, 52, 1, 9, 32, 0, 0];
+        let bytes = [1, 7, 1, 0, 50, 1, 9, 32, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::BUNDLE_CONTENTS),
@@ -1707,7 +1713,7 @@ mod tests {
     #[test]
     fn filtered_book_pages_are_read_and_kept() {
         // A writable book with one page "hi" and its filtered "**".
-        let bytes = [1, 7, 1, 0, 56, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
+        let bytes = [1, 7, 1, 0, 54, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::WRITABLE_BOOK_CONTENT),
@@ -1730,8 +1736,8 @@ mod tests {
 
     #[test]
     fn unknown_components_are_errors() {
-        // 122 is past DataComponents' last id (cushion_color, 121).
-        let bytes = [1, 5, 1, 0, 122];
+        // 110 is past DataComponents' last id (shulker/color, 109).
+        let bytes = [1, 5, 1, 0, 110];
         assert!(Slot::read(&mut Reader::new(&bytes)).is_err());
     }
 
@@ -1761,14 +1767,14 @@ mod tests {
 
     #[test]
     fn a_partial_profile_decodes_from_the_wire() {
-        // count 1, item 1, one added component of kind 72 (profile): a partial
+        // count 1, item 1, one added component of kind 70 (profile): a partial
         // profile with an empty name, a UUID, one unsigned texture property
         // and an empty skin patch.
         let uuid = [
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 72, 0, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 70, 0, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
@@ -1789,9 +1795,10 @@ mod tests {
 
     #[test]
     fn direct_trim_decodes_complete_official_inventory_stack_payload() {
-        // Slot portion of our actual Java26.3 ClientboundContainerSetSlotPacket;
+        // Slot portion of our actual Java26.3 ClientboundContainerSetSlotPacket,
+        // re-based to the pinned 26.1 component numbering (the trim kind byte);
         // complete packet and official client decode retained with H284 proof.
-        let hex = "01bd080200000a0300046b6565700000011c003a000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e00";
+        let hex = "01bd080200000a0300046b6565700000011c0038000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e00";
         let bytes: Vec<u8> = (0..hex.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
@@ -1830,17 +1837,18 @@ mod tests {
 
     #[test]
     fn components_read_past_keep_their_bytes() {
-        // Vanilla 26.3's encoding (tools/test_item_wire_parity.py) of a chestplate's
+        // Vanilla 26.3's encoding (tools/test_item_wire_parity.py), re-based to the
+        // pinned 26.1 numbering, of a chestplate's
         // armour trim (decoded: both holders are references), a banner's patterns
         // (one direct), a pot's sherds and a stew's effects: one server's
         // inventory, recipe book and advancements had them.
         for (hex, kind) in [
-            ("01bd0801003a0502", 58),
-            ("01890b01004a02200e000b6d696e6563726166743a7801790b", 74),
-            ("01880301004c01f60801000001be0c0100000001d30c010000", 76),
-            ("01a408010037020f6412a001", 55),
+            ("01bd080100380502", 56),
+            ("01890b01004802200e000b6d696e6563726166743a7801790b", 72),
+            ("01880301004a01820801000001a60b0100000001bb0b010000", 74),
+            ("01a408010035020f6412a001", 53),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            ("01bd0801003f02", 63),
+            ("01bd0801003d02", 61),
         ] {
             let bytes: Vec<u8> = (0..hex.len())
                 .step_by(2)
@@ -1850,15 +1858,15 @@ mod tests {
             let stack = Slot::read(&mut r).unwrap();
             assert_eq!(r.remaining(), 0, "component {kind}");
             let expected = |c: &Component| match kind {
-                58 => {
+                56 => {
                     *c == Component::Trim {
                         material: 4,
                         pattern: 1,
                     }
                 }
                 // night_vision for 100 ticks, poison for the default 160.
-                55 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
-                63 => *c == Component::Instrument(1),
+                53 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
+                61 => *c == Component::Instrument(1),
                 _ => matches!(c, Component::Raw(_)),
             };
             assert!(
@@ -1920,12 +1928,12 @@ mod tests {
         // direct variant (0, width, height, asset id, no title, no author)
         // is read past. Both encode back to the same bytes.
         let asset = b"minecraft:x";
-        let mut direct = vec![1u8, 7, 1, 0, 109, 0, 2, 1, asset.len() as u8];
+        let mut direct = vec![1u8, 7, 1, 0, 102, 0, 2, 1, asset.len() as u8];
         direct.extend_from_slice(asset);
         direct.extend_from_slice(&[0, 0]);
         for (bytes, expected) in [
             (
-                vec![1u8, 7, 1, 0, 109, 5],
+                vec![1u8, 7, 1, 0, 102, 5],
                 Some(Component::PaintingVariant(4)),
             ),
             (direct, None),

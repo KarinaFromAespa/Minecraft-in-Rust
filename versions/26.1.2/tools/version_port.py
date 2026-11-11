@@ -201,6 +201,67 @@ def prepare_pinned(version, directory):
     return {key: path.resolve() for key, path in found.items()}
 
 
+def frontend_script():
+    """The mappings front-end (the programme's deobfuscation tool): $MAPPING_FRONTEND,
+    else the programme layout (<repo>/tools/mapping-frontend/frontend.py with this file at
+    <repo>/versions/<id>/tools/), else a copy vendored beside this file."""
+    override = os.environ.get("MAPPING_FRONTEND")
+    if override:
+        return Path(override)
+    here = Path(__file__).resolve()
+    for candidate in (here.parents[3] / "tools" / "mapping-frontend" / "frontend.py",
+                      here.parent / "mapping-frontend" / "frontend.py"):
+        if candidate.exists():
+            return candidate
+    raise SystemExit("This release is obfuscated and prepare needs the mappings front-end "
+                     "(programme roadmap, P1): set MAPPING_FRONTEND to its frontend.py")
+
+
+def remap_with_driver(frontend, table, source_jar, named_jar, stats):
+    """One jar through the front-end's remap driver. Mojang's server table has the same
+    ProGuard layout as the client's (mapping-io reads it as source=named,
+    target=obfuscated), so the direction the front-end detects from the data for the
+    client (target -> source) is forced here."""
+    home = frontend.resolve().parents[2] / ".local" / "mapping-frontend"
+    deps = home / "deps"
+    classpath = os.pathsep.join([str(home / "build" / "classes")] + [
+        str(deps / name) for name in
+        ("tiny-remapper-0.15.0.jar", "mapping-io-0.7.1.jar", "asm-9.9.1.jar",
+         "asm-tree-9.9.1.jar", "asm-util-9.9.1.jar", "asm-analysis-9.9.1.jar",
+         "asm-commons-9.9.1.jar")])
+    result = subprocess.run([java_command(17), "-Dmf.from=target", "-Dmf.to=source",
+                             "-cp", classpath, "Remap", str(table), str(source_jar),
+                             str(named_jar), str(stats)], capture_output=True, text=True)
+    if result.returncode:
+        raise SystemExit(f"The mappings front-end driver failed on {source_jar.name}:\n"
+                         + (result.stdout + result.stderr)[-2000:])
+
+
+def deobfuscate(version, meta, directory, found):
+    """Releases before 26.1 ship obfuscated jars, and every spec tool downstream (class
+    index, REA, decompile, the Java exporters) assumes readable names. Run the mappings
+    front-end once, here, so prepare's facts, class index and diff all consume named
+    jars and nothing downstream changes."""
+    frontend = frontend_script()
+    print(f"Deobfuscating {version} with the mappings front-end", flush=True)
+    if subprocess.run([sys.executable, str(frontend), version]).returncode:
+        raise SystemExit("The mappings front-end failed; see its output above")
+    produced = (frontend.resolve().parents[2] / ".local" / "mapping-frontend"
+                / version / "client-named.jar")
+    named_client = directory / "jars" / "client-named.jar"
+    shutil.copyfile(produced, named_client)
+    found["client"] = named_client
+    if "server_mappings" in meta["downloads"]:
+        download = meta["downloads"]["server_mappings"]
+        table = lab.download(download["url"], directory / "server-mappings.txt", download["sha1"])
+        named_server = directory / "jars" / "server-game-named.jar"
+        if not named_server.exists():
+            remap_with_driver(frontend, table, found["server_game"], named_server,
+                              directory / "server-mapped-classes.tsv")
+        found["server_game"] = named_server
+    return found
+
+
 def prepare_download(version, directory):
     manifest = json.loads(fetch_json(MANIFEST_URL))
     entry = next((v for v in manifest["versions"] if v["id"] == version), None)
@@ -210,8 +271,6 @@ def prepare_download(version, directory):
     if not (version_json.exists() and lab.digest(version_json, "sha1") == entry["sha1"]):
         version_json.write_bytes(fetch_json(entry["url"], entry["sha1"]))
     meta = json.loads(version_json.read_text())
-    if "client_mappings" in meta["downloads"]:
-        raise SystemExit(f"{version} is obfuscated; the pipeline handles unobfuscated releases (26.1 and later)")
     jars = directory / "jars"
     found = {"version_json": version_json}
     for side in ["client", "server"]:
@@ -219,6 +278,8 @@ def prepare_download(version, directory):
         print(f"Fetching the {version} {side} jar ({download['size'] // 1_000_000} MB)", flush=True)
         found[side] = lab.download(download["url"], jars / f"{side}.jar", download["sha1"])
     found["server_game"] = unpack_game(found["server"], jars / "server-game.jar", version)
+    if "client_mappings" in meta["downloads"]:
+        found = deobfuscate(version, meta, directory, found)
     found["reports"] = directory / "datagen" / "reports"
     if not found["reports"].exists():
         print(f"Running the {version} data generator", flush=True)
