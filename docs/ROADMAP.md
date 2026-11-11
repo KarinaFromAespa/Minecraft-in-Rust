@@ -269,9 +269,7 @@ upstream `ludovic111/horizon` main (pins 26.3; version-port tooling is upstream'
 ## Addendum — adopted setup (2026-11-11, owner's decisions)
 
 - Programme repo: **KarinaFromAespa/Minecraft-in-Rust** (this repo). All rewrite
-  commits are made under the KarinaFromAespa account only. The owner's other
-  projects (Kestrel, the mods catalog) stay under his NepThunder account and are
-  never committed from here.
+  commits are made under the KarinaFromAespa account only.
 - Organization: `main` is the programme home (this plan, VERSIONS.md, shared
   tooling). Each version's rewritten code lives on its own branch,
   `version/<id>`, so all versions share history in one organized tree.
