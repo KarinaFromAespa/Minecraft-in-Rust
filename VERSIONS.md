@@ -8,11 +8,11 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 
 | Version | Branch | Status |
 |---|---|---|
-| 26.3 | `version/26.3` | base era — upstream Horizon pins 26.3; import is Phase 0 |
-| 26.2 | `version/26.2` | planned |
+| 26.3 | `version/26.3` | base — imported (upstream snapshot, unmodified) |
+| 26.2 | `version/26.2` | in progress |
 | 26.1.2 | `version/26.1.2` | planned |
 | 26.1.1 | `version/26.1.1` | planned |
-| 26.1 | `version/26.1` | planned |
+| 26.1 | `version/26.1` | in progress — branch published; partial profile, see `PORT-NOTES-26.1.md` on the branch |
 
 ## E6 — Components (14)
 
