@@ -39,9 +39,15 @@ their workarounds, sequencing and gates — is in **[docs/ROADMAP.md](docs/ROADM
 
 ## Status
 
-Phase 0 is under way. The mappings front-end is built and proven on 1.21.11
-(100% class coverage; `tools/mapping-frontend/`). `versions/26.3/` holds the
-base rewrite; `versions/26.1/` and `versions/26.2/` hold the first two ports,
-both with partial profiles — see their `PORT-NOTES-<version>.md` files; a
-completion pass on 26.1 is running. See the roadmap §5 for sequencing and
-§6 for the remaining owner decisions.
+Phase 0's gate is met: the mappings front-end is wired into the pipeline's
+prepare paths, and obfuscated releases now prepare end-to-end through it.
+`versions/26.3/` holds the base rewrite; `versions/26.1/` has completed its
+completion pass (protocol rewire closed, all six tables, prepare green) and
+`versions/26.1.1/` is its first patch delta; `versions/26.2/` is published
+with a partial profile and its completion pass is running.
+`versions/1.21.11/` opens the Components era (E6): prepare proven through
+the front-end, pin set, 3 of 6 tables regenerated; the remaining tables wait
+on a registry-bootstrap rework documented in its port notes. Verification
+runs for published trees are dispatched to GitHub Actions
+(`port-verify` workflow). See `VERSIONS.md` for the per-version state, the
+roadmap §5 for sequencing and §6 for the remaining owner decisions.
