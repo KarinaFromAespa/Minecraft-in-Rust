@@ -28,10 +28,13 @@ env:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v4
+
+      - name: Log directory (created first, so artifacts exist even if a later step fails)
+        run: mkdir -p "$GITHUB_WORKSPACE/ci-out"
 
       - name: Read the version's Java major from its research lock
         id: lock
@@ -51,15 +54,10 @@ jobs:
         with:
           toolchain: 1.95.0
 
-      - name: System libraries the workspace links against
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
-
       - name: Expose the published tree as the pipeline's candidate
         run: |
           V="${{ inputs.version }}"
-          mkdir -p "$HORIZON_PORTS" "$GITHUB_WORKSPACE/ci-out"
+          mkdir -p "$HORIZON_PORTS"
           ln -s "$GITHUB_WORKSPACE/versions/$V" "$HORIZON_PORTS/$V"
           ls -la "$HORIZON_PORTS"
 
@@ -77,6 +75,20 @@ jobs:
           V="${{ inputs.version }}"
           cd "versions/$V"
           python3 tools/version_port.py prepare "$V" 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
+
+      # Only the harness stage links the client's audio/udev dependencies, so
+      # the install lives here — and a flaky archive mirror (run 1 died on a
+      # DNS failure resolving it) must not take the whole job down with it.
+      - name: System libraries the harness fixtures link against
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 && \
+            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config || \
+             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config) && break
+            echo "apt attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
 
       - name: Harness subset (version-port profile)
         continue-on-error: true
