@@ -825,7 +825,7 @@ mod tests {
     fn a_hashed_stack_carries_each_hashable_component_and_the_removed_ones() {
         let mut stack = Stack::new(1, 2);
         stack.added.push((k::DAMAGE, C::Int(5)));
-        stack.added.push((42, C::Raw(vec![0])));
+        stack.added.push((41, C::Raw(vec![0])));
         stack.removed.push(k::RARITY);
         assert_eq!(
             Hashed::create(&stack, &Table),

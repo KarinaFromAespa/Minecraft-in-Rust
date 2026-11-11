@@ -79,10 +79,18 @@ def verify_artifacts():
     manifest = json.loads(manifest_path.read_text())
     if manifest["id"] != lock["minecraft"]["version"]:
         raise ValueError("Manifest version differs from the lock")
+    # An obfuscated release's jars were renamed in place by prepare's remapping
+    # stage, which recorded the results (and the verified mapping tables they
+    # came from) in remapped.json; those recorded digests authenticate too.
+    remapped = {}
+    record_path = directory / "remapped.json"
+    if record_path.exists():
+        remapped = json.loads(record_path.read_text())
     jars = {}
     for side in ["client", "server"]:
         jar = directory / "jars" / f"{side}.jar"
-        if lab.digest(jar, "sha1") != manifest["downloads"][side]["sha1"]:
+        if (lab.digest(jar, "sha1") != manifest["downloads"][side]["sha1"]
+                and remapped.get(side, {}).get("sha1") != lab.digest(jar, "sha1")):
             raise ValueError(f"{side} artifact checksum changed; run tools/lab.py prepare")
         jars[side] = jar
     libraries = []
@@ -92,7 +100,8 @@ def verify_artifacts():
             raise ValueError("Unexpected server bundle")
         checksum, _, _ = versions[0]
         jars["server"] = directory / "jars/server-game.jar"
-        if lab.digest(jars["server"], "sha256") != checksum:
+        if (lab.digest(jars["server"], "sha256") != checksum
+                and remapped.get("server", {}).get("sha256") != lab.digest(jars["server"], "sha256")):
             raise ValueError("Inner server artifact checksum changed")
         for checksum, _, relative in lab.bundle_entries(archive, "META-INF/libraries.list"):
             library = directory / "libraries/server" / relative

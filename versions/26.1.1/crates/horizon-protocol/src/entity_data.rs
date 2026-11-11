@@ -603,7 +603,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 58);
+                assert_eq!(p.id, 48);
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -730,9 +730,9 @@ mod tests {
         ] {
             let ids = version.ids().unwrap();
             for (pinned, expected) in [
-                (15, ParticleData::Scalar(1.0)),
-                (23, ParticleData::ColorPower(-1, 1.0)),
-                (56, ParticleData::ColorPower(-1, 1.0)),
+                (8, ParticleData::Scalar(1.0)),
+                (16, ParticleData::ColorPower(-1, 1.0)),
+                (46, ParticleData::ColorPower(-1, 1.0)),
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
@@ -753,7 +753,7 @@ mod tests {
         use crate::adapter::{ServerVersion, ids::Way};
         let ids = ServerVersion::V1_21_1.ids().unwrap();
         let mut w = Writer::new();
-        w.varint(ids.particle_type.down(22).unwrap());
+        w.varint(ids.particle_type.down(15).unwrap());
         for f in [0.25, 0.5, 0.75, 1.0, 0.0, 0.5, 2.0] {
             w.f32(f);
         }
@@ -846,22 +846,21 @@ mod tests {
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (26.3 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (26.1 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes.
+    /// still decodes. (The geyser shapes have no 26.1 particle type; they
+    /// are covered by the 26.3 tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
         let all = [
             (1, Some(ParticleData::State(2))),
-            (7, Some(ParticleData::Geyser(5))),
-            (8, Some(ParticleData::GeyserBase(3, 0.5))),
-            (15, Some(ParticleData::Scalar(1.0))),
-            (21, Some(ParticleData::ColorScale(0xff0000, 1.5))),
-            (22, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            (23, Some(ParticleData::ColorPower(-1, 2.0))),
-            (28, Some(ParticleData::Color(0x7f00ff00))),
+            (8, Some(ParticleData::Scalar(1.0))),
+            (14, Some(ParticleData::ColorScale(0xff0000, 1.5))),
+            (15, Some(ParticleData::ColorScale2(1, 2, 0.75))),
+            (16, Some(ParticleData::ColorPower(-1, 2.0))),
+            (21, Some(ParticleData::Color(0x7f00ff00))),
             (
-                57,
+                47,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -876,14 +875,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                58,
+                48,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                58,
+                48,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -892,8 +891,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (59, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (115, Some(ParticleData::Delay(6))),
+            (49, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
+            (105, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });

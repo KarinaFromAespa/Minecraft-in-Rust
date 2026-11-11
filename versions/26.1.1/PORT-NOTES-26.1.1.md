@@ -80,12 +80,10 @@ the regeneration above. Measured in this tree after the carry:
   SWING_ANIMATION, SPECTATOR_ACTION, PUNCH, POST_EFFECTS,
   ADD_TRANSIENT_BLOCK — are rewired to the pinned 775 forms exactly as in
   26.1; see `versions/26.1/PORT-NOTES-26.1.md` §1).
-- `cargo test -p horizon-protocol` stands at **405 passed / 34 failed**,
-  identical to 26.1's post-completion state and with every failure
-  accounted for the same way: 32 legacy cross-version adapter tests whose
-  1.20.2–1.21.11 tables are still keyed to the old pin (a separate
-  programme job; `versions/26.1/PORT-NOTES-26.1.md`, "What remains" #1),
-  and 2 sandbox-network tests in code this port does not touch.
+- `cargo test -p horizon-protocol` stands at **437 passed / 2 failed**,
+  identical to 26.1's state after that line's adapter re-base (below),
+  with every failure accounted for: the 2 sandbox-network tests in code
+  this port does not touch.
 - The horizon-prepare exporter and the parity oracles are the ported
   (post-completion) ones. No prepared resources were produced and no
   harness run was made for this patch delta in the carry-forward: it
@@ -94,5 +92,36 @@ the regeneration above. Measured in this tree after the carry:
   the remaining harnesses not re-run to verdicts there) stands as this
   version's inherited profile; see `versions/26.1/PORT-NOTES-26.1.md`.
 
-What remains for this version is what remains for the line: the
-legacy-adapter re-base above, and the flagged `PlayerEntry` method.
+## Adapter re-base carried
+
+The 1.20.2–1.21.11 cross-version adapter re-base that landed for 26.1
+itself on `main` (`ff7d657`: the legacy packet/registry tables
+regenerated against the 775 pin, plus the production re-bases the new
+tables exposed in item components and entity data) has been carried
+forward into this tree the same way as the completion pass: the current
+26.1 tree was taken as the base and this version's own delta re-applied
+on top. The assembly was verified two ways — against current 26.1 it
+differs only in this version's identity set, and against the previously
+published 26.1.1 tree it differs in exactly the re-base files (46, the
+re-base commit's list less its 26.1 port notes). Measured in this tree
+after the carry: `cargo check --workspace` clean; `cargo test
+-p horizon-protocol` 437 passed / 2 failed (the sandbox-network pair).
+The 32 legacy adapter failures recorded in the earlier carry are closed
+by this one.
+
+Known, out of scope for this carry: `cargo check --workspace
+--all-targets` fails in test code only (the library and binary targets
+are clean — see the `cargo check --workspace` line above). Measured in
+this tree: 42 errors in the `horizon-client-lib` test targets (8 in the
+lib test, 34 in the `lan_bot` integration test) — the tests still build
+26.3 packet shapes the completion rewire removed (`Punch`,
+`SwingAnimation`, `AcceptTeleportation` position fields,
+`EntityPositionSync.path`, `Login.online_mode`) — plus 6 errors in the
+`horizon-client` lib test (`Login.online_mode` in
+`native_client_services`/`native_entity_refs`; the lan-particles
+speed/randomization model). These breakages are latent from the
+completion pass, which verified the library targets only; fixing them
+is test-code work in its own right, not part of this carry.
+
+What remains for this version is the flagged `PlayerEntry` method, plus
+whatever remains for the line (see `versions/26.1/PORT-NOTES-26.1.md`).

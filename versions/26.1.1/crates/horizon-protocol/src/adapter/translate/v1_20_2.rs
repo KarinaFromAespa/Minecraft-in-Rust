@@ -454,7 +454,7 @@ mod tests {
         assert_eq!(p.center, [1.25, 64.0, -2.75]);
         assert_eq!((p.radius, p.block_count), (4.0, 1));
         assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
-        assert_eq!(p.particle.id, 29);
+        assert_eq!(p.particle.id, 22);
         assert_eq!(
             p.sound.1,
             Some(("minecraft:entity.generic.explode".into(), None))
