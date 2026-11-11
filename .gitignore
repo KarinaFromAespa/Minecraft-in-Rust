@@ -1,0 +1,11 @@
+# Mojang materials are development-time reference ONLY — never committed.
+# Jars, mappings, decompiled sources and prepared data live under .local/.
+.local/
+*.jar
+*.class
+mappings/
+decompiled/
+
+# Rust build output
+/target/
+**/target/
