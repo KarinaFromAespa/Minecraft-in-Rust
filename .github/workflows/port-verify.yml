@@ -1,0 +1,110 @@
+name: port-verify
+
+# Verification runs for one published version tree (versions/<version>/):
+# toolchain from the version's own research-lock.json, a protocol-crate
+# compile baseline, the pipeline's prepare (downloads that version's jars
+# from Mojang's CDN into a local version store — nothing Mojang-derived is
+# committed or uploaded), and the version-port harness subset.
+#
+# Dispatched manually:
+#   gh workflow run port-verify.yml -f version=26.2
+# Results land in the job summary and the `port-verify-<version>` artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version directory under versions/ (e.g. 26.2, 26.1, 1.21.11)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  HORIZON_TELEMETRY_URL: "off"
+  HORIZON_VERSIONS: ${{ github.workspace }}/.horizon-versions
+  HORIZON_PORTS: ${{ github.workspace }}/.horizon-ports
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version's Java major from its research lock
+        id: lock
+        run: |
+          V="${{ inputs.version }}"
+          test -d "versions/$V" || { echo "no such version directory: versions/$V"; exit 1; }
+          JAVA_MAJOR=$(python3 -c "import json;print(json.load(open('versions/$V/research-lock.json'))['minecraft']['java_major'])")
+          echo "java_major=$JAVA_MAJOR" >> "$GITHUB_OUTPUT"
+          echo "Version $V pins Java $JAVA_MAJOR"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.lock.outputs.java_major }}
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.95.0
+
+      - name: System libraries the workspace links against
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libasound2-dev libudev-dev pkg-config
+
+      - name: Expose the published tree as the pipeline's candidate
+        run: |
+          V="${{ inputs.version }}"
+          mkdir -p "$HORIZON_PORTS" "$GITHUB_WORKSPACE/ci-out"
+          ln -s "$GITHUB_WORKSPACE/versions/$V" "$HORIZON_PORTS/$V"
+          ls -la "$HORIZON_PORTS"
+
+      - name: Compile baseline — horizon-protocol
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          cd "versions/$V"
+          cargo check -p horizon-protocol 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/protocol-check.log"
+          echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/protocol-check.log" || true)"
+
+      - name: Prepare the version's data (pipeline download path)
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          cd "versions/$V"
+          python3 tools/version_port.py prepare "$V" 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
+
+      - name: Harness subset (version-port profile)
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          cd "versions/$V"
+          python3 tools/version_port.py harnesses "$V" 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/harnesses.log"
+
+      - name: Job summary
+        if: always()
+        run: |
+          V="${{ inputs.version }}"
+          {
+            echo "## port-verify — $V"
+            echo
+            echo "### horizon-protocol compile baseline"
+            echo "error lines: $(grep -c '^error' ci-out/protocol-check.log 2>/dev/null || echo '?')"
+            echo
+            echo "### harness run (tail)"
+            echo '```'
+            tail -40 ci-out/harnesses.log 2>/dev/null || echo "no harness log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: port-verify-${{ inputs.version }}
+          path: ci-out/
+          if-no-files-found: warn
