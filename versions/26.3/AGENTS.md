@@ -1,4 +1,4 @@
-# Horizon: a map for agents
+# A map for agents — Minecraft in Rust (26.3)
 
 Minecraft: Java Edition 26.3 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
 feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) once; this page tells you where things are.
