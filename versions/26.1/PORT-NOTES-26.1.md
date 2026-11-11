@@ -92,9 +92,10 @@ Packet-codec corrections the pin exposed (all verified against the jar):
   `EntityType`, not `EntityTypes`.
 
 The whole workspace compiles (`cargo check --workspace`), and
-`cargo test -p horizon-protocol` stands at **405 passed / 34 failed**; every
-failure is accounted for under "What remains" below (32 legacy-adapter
-tests, 2 sandbox-network tests in code this port does not touch).
+`cargo test -p horizon-protocol` stands at **437 passed / 2 failed**; the
+only failures are the two sandbox-network tests in code this port does not
+touch. The 32 legacy-adapter failures the completion pass left are closed
+(see "What remains" #1, resolved).
 
 ### 2. horizon-prepare exporter
 
@@ -192,23 +193,32 @@ Measured in this pass:
 
 ## What remains
 
-1. **Cross-version adapters for 1.20.2–1.21.11 are still keyed to the old
-   pin.** Their per-version packet/registry tables (`v1_20_*.rs`,
-   `v1_21_*.rs` and the `*_ids.rs` files) map against the 26.3 numbering,
-   so conversions between the 26.1 pin and those versions compose two
-   different numberings. This is the single root cause of the 32 failing
-   `horizon-protocol` unit tests (the `adapter::translate::v1_20_*` /
-   `v1_21_*` tests, the legacy entity-data particle tests, the legacy item
-   datafix tests, and the 1.21.x-facing session tests). Regenerating the
-   tables needs each version's prepared reports, and this pipeline's
-   `prepare` refuses obfuscated releases ("the pipeline handles
-   unobfuscated releases (26.1 and later)"): wiring the mappings front-end
-   into `prepare` is the unlock, and is a pipeline project of its own.
-   The layout/step conversions for those versions (`layout_26_2.rs` is
-   26.2-only and was adjusted for the fields above; the `step_1_*.rs`
-   chain) need the same re-base once the tables exist. Single-version play
-   does not use these tables, and the 26.2 adjacency above is fully
-   re-based; the affected surface is sessions with 1.20.2–1.21.11 peers.
+1. **RESOLVED — cross-version adapters for 1.20.2–1.21.11 re-based to
+   the 26.1 pin.** The mappings front-end wiring was lifted from the
+   1.21.11 tree into this tree's `tools/version_port.py`,
+   `tools/lab.py` and `tools/test_rust_parity.py` (the EntityType
+   pre-split fallback in `port_regen.py` kept), all 11 legacy versions
+   were prepared through it (1.20.2, 1.20.3, 1.20.6, 1.21.1, 1.21.3,
+   1.21.4, 1.21.5, 1.21.6, 1.21.8, 1.21.10, 1.21.11), and the packet-id
+   and registry-id tables were regenerated against protocol 775. The
+   three versions with no datagen packet report (1.20.2, 1.20.3, 1.20.6)
+   had their `packets.json` synthesized from the decompiled
+   `ConnectionProtocol`/`GameProtocols` registration order, validated
+   exact against 1.21.11's real report; rename arbitration between old
+   and pinned packet names came from inverting the published adapter
+   tables against the pinned report. The re-base reached the production
+   conversions the tables exposed (`item.rs` component constants,
+   `item/skip.rs`, the hash dispatches, the `v1_20_3`/`v1_21_4`/`v1_21_5`
+   layout code, tooltip-flag lists) and the fixtures, which were
+   re-keyed by registry name, with the pinned item-stack hexes
+   regenerated through the conversion itself. Two pin facts the
+   26.3-keyed tests had baked in: 1.21.11 and 26.1 share identical
+   entity and block-entity registries (so no 1.21.11 entity is unknown
+   to the pin), and bed still exists as a block entity in 26.1 (id 25;
+   it was only removed in 26.3), and the 5002-era sign
+   `allow_op_features` datafix does not run at world version 4786.
+   `cargo test -p horizon-protocol` is now **437 passed / 2 failed**
+   (only the sandbox-network pair, out of scope).
 2. **26.1.2** shares protocol 775 with 26.1, so `from_protocol` resolves it
    to the pin; its adapter tables exist (regenerated above) for explicit
    selection, but nothing distinguishes it on the wire.

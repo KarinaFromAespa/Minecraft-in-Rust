@@ -2422,11 +2422,14 @@ mod tests {
 
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
+        // 1.21.11 and 26.1 share identical entity registries, so no 1.21.11 entity is
+        // unknown to the pin: the drop path is exercised by the 1.20.3 tests instead.
+        // Here the identity mapping and the falling-block state remap are checked.
         let session = Session::new(ServerVersion::V1_21_11);
         for (kind, data, expected) in [
-            (157, 0, None),
+            (153, 0, Some((153, 0))), // zombie villager, same id in both versions
             (0, 0, Some((0, 0))),
-            (51, 27, Some((52, 28))), // falling block, with a state whose id changed
+            (51, 1381, Some((51, 1581))), // falling block, with a state whose id changed
         ] {
             let packet = play::Clientbound::AddEntity(play::AddEntity {
                 id: 7,
@@ -2465,8 +2468,11 @@ mod tests {
 
     #[test]
     fn a_1_21_11_unknown_block_entity_update_is_dropped() {
+        // 1.21.11 and 26.1 share identical block-entity registries, so no 1.21.11
+        // block entity is unknown to the pin; the drop path is exercised by the
+        // 1.20.3 tests instead. The boundary id passes through unchanged.
         let session = Session::new(ServerVersion::V1_21_11);
-        for (kind, expected) in [(49, None), (1, Some(1))] {
+        for (kind, expected) in [(48, Some(48)), (1, Some(1))] {
             let packet = play::Clientbound::BlockEntityData(play::BlockEntityData {
                 pos: [1, 2, 3],
                 kind,

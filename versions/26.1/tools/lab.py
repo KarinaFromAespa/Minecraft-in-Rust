@@ -542,14 +542,96 @@ def inventory(jar):
             "packages": dict(packages.most_common()), "classes": classes}
 
 
+def frontend_script():
+    """The mappings front-end (the programme's deobfuscation tool): $MAPPING_FRONTEND,
+    else the programme layout (<repo>/tools/mapping-frontend/frontend.py with this file at
+    <repo>/versions/<id>/tools/), else a copy vendored beside this file."""
+    override = os.environ.get("MAPPING_FRONTEND")
+    if override:
+        return Path(override)
+    here = Path(__file__).resolve()
+    for candidate in (here.parents[3] / "tools" / "mapping-frontend" / "frontend.py",
+                      here.parent / "mapping-frontend" / "frontend.py"):
+        if candidate.exists():
+            return candidate
+    raise ValueError("This release is obfuscated and prepare needs the mappings front-end: "
+                     "set MAPPING_FRONTEND to its frontend.py")
+
+
+def remap_with_driver(frontend, table, source_jar, named_jar, stats):
+    """One jar through the front-end's remap driver. Mojang's server table has the same
+    ProGuard layout as the client's (mapping-io reads it as source=named,
+    target=obfuscated), so the direction the front-end detects from the data for the
+    client (target -> source) is forced here."""
+    home = frontend.resolve().parents[2] / ".local" / "mapping-frontend"
+    deps = home / "deps"
+    classpath = os.pathsep.join([str(home / "build" / "classes")] + [
+        str(deps / name) for name in
+        ("tiny-remapper-0.15.0.jar", "mapping-io-0.7.1.jar", "asm-9.9.1.jar",
+         "asm-tree-9.9.1.jar", "asm-util-9.9.1.jar", "asm-analysis-9.9.1.jar",
+         "asm-commons-9.9.1.jar")])
+    java = shutil.which("java")
+    if not java:
+        raise ValueError("Java not found; the remapping stage needs a JDK on the PATH")
+    result = subprocess.run([java, "-Dmf.from=target", "-Dmf.to=source",
+                             "-cp", classpath, "Remap", str(table), str(source_jar),
+                             str(named_jar), str(stats)], capture_output=True, text=True)
+    if result.returncode:
+        raise ValueError(f"The mappings front-end driver failed on {source_jar.name}:\n"
+                         + (result.stdout + result.stderr)[-2000:])
+
+
+def replace_with(source, destination):
+    with tempfile.NamedTemporaryFile(dir=destination.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+    try:
+        shutil.copyfile(source, temporary)
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def remap_stage(manifest, directory, jars):
+    """The remapping stage for obfuscated releases (everything before 26.1). The jars
+    were verified against Mojang's checksums at import; now the mappings front-end
+    renames them in place, so the inventory below, the decompile and every exporter
+    downstream read named classes. A later prepare re-imports the verified originals
+    and re-runs this stage, so it is idempotent."""
+    frontend = frontend_script()
+    version = manifest["id"]
+    print(f"Remapping {version} with the mappings front-end", flush=True)
+    if subprocess.run([sys.executable, str(frontend), version]).returncode:
+        raise ValueError("The mappings front-end failed; see its output above")
+    produced = (frontend.resolve().parents[2] / ".local" / "mapping-frontend"
+                / version / "client-named.jar")
+    replace_with(produced, jars["client"])
+    record = {"client": {"sha1": digest(jars["client"], "sha1"),
+                         "table_sha1": manifest["downloads"]["client_mappings"]["sha1"]}}
+    if "server_mappings" in manifest["downloads"]:
+        mapping = manifest["downloads"]["server_mappings"]
+        table = download(mapping["url"], directory / "server-mappings.txt", mapping["sha1"])
+        named = jars["server"].with_name(jars["server"].stem + "-named.jar")
+        remap_with_driver(frontend, table, jars["server"], named,
+                          directory / "server-mapped-classes.tsv")
+        replace_with(named, jars["server"])
+        named.unlink(missing_ok=True)
+        record["server"] = {"sha1": digest(jars["server"], "sha1"),
+                            "sha256": digest(jars["server"], "sha256"),
+                            "table_sha1": mapping["sha1"]}
+    # The remapped jars are no longer byte-identical to Mojang's, so record what
+    # the stage produced (and from which verified table) for the artifact
+    # authentication in tools/test_rust_parity.py to check against.
+    write_json(directory / "remapped.json", record)
+
+
 def prepare(minecraft=None, server_jar=None):
     lock, directory = config()
     manifest, client = import_client(lock, directory, minecraft)
-    if "client_mappings" in manifest["downloads"] or "server_mappings" in manifest["downloads"]:
-        raise ValueError("This workflow targets unobfuscated releases. Older releases need a remapping stage.")
     print(f"Imported client {manifest['id']} from {minecraft_dir(minecraft)}", flush=True)
     jars = {"client": client, "server": import_server(lock, directory, server_jar)}
     jars["server"], server_libraries = unpack_server(jars["server"], directory, manifest["id"])
+    if "client_mappings" in manifest["downloads"] or "server_mappings" in manifest["downloads"]:
+        remap_stage(manifest, directory, jars)
     client_libraries = [import_library(artifact, directory / "libraries" / "client", minecraft)
                         for artifact in client_library_artifacts(manifest)]
     vf = lock["vineflower"]
