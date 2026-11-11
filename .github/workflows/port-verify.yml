@@ -108,7 +108,7 @@ jobs:
         run: |
           V="${{ inputs.version }}"
           cd "versions/$V"
-          python3 tools/version_port.py harnesses "$V" --timeout 1800 \
+          python3 tools/version_port.py harnesses --timeout 1800 "$V" \
             block_properties chunk_generation command_exec command_parse \
             component_patch datafix entity_components first_person food \
             hotbar item_model lan light options resource_pack save_roundtrip \
