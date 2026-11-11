@@ -9,7 +9,7 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 | Version | Location | Status |
 |---|---|---|
 | 26.3 | `versions/26.3` | base — imported (upstream snapshot, unmodified) |
-| 26.2 | `versions/26.2` | in progress |
+| 26.2 | `versions/26.2` | in progress — partial profile, see `versions/26.2/PORT-NOTES-26.2.md` |
 | 26.1.2 | `versions/26.1.2` | planned |
 | 26.1.1 | `versions/26.1.1` | planned |
 | 26.1 | `versions/26.1` | in progress — partial profile, see `versions/26.1/PORT-NOTES-26.1.md`; completion pass running |
