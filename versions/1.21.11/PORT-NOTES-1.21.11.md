@@ -6,11 +6,12 @@ stopped shipping unobfuscated builds before this era, and 1.21.11 is
 specified through its official mapping tables instead. The era's gate was
 that the pipeline run on such a release at all — **prepare, end-to-end,
 through the mappings front-end**. That gate is met, and this tree is the
-result: the pin is set, three of the six generated tables are regenerated
-from 1.21.11's own jar, the distance to the neighbouring port is sized and
-ranked, and the remaining work is itemised below by cause. The behaviour
-code in this tree is still the 26.3 base's; the port is **in progress**,
-not parity-verified.
+result: the pin is set, five of the six generated tables are regenerated
+from 1.21.11's own jar, the parity oracles compile and run against it, the
+horizon-prepare exporter bundle compiles and runs against it, the distance
+to the neighbouring port is sized and ranked, and the remaining work is
+itemised below by cause. The behaviour code in this tree is still the 26.3
+base's; the port is **in progress**, not parity-verified.
 
 ## Provenance
 
@@ -24,6 +25,9 @@ not parity-verified.
   deobfuscated with Mojang's official mapping tables by the programme's
   mappings front-end (`tools/mapping-frontend/` at the repository root).
   Nothing Mojang-derived is committed in this tree.
+- Completion pass (this update): the oracle bootstrap rework, the
+  remaining table regenerations, and the horizon-prepare bundle, with the
+  harness subset measured as far as this VM allowed (see below).
 
 ## The era gate: the front-end wired into prepare
 
@@ -91,16 +95,14 @@ The pipeline's diff against the nearest published port (26.1) produced
 
 ## Regeneration
 
-Against the 26.3 base pin, regen produced the pin commit plus:
-
 | Generator | Result |
 |---|---|
 | `version_consts` | regenerated (`crates/horizon-core/src/version.rs`, +9 −9) |
 | `packet_ids` | regenerated (`crates/horizon-protocol/src/ids.rs`, +179 −197) |
 | `entity_tracking` | regenerated (`crates/horizon-client/src/lan/tracking.rs`, +17 −23) |
-| `lan_command_order` | failed — parity-oracle compile (below) |
-| `command_suggestions` | failed — parity-oracle compile (below) |
-| `vanilla_command_order` | failed — parity-oracle compile (below) |
+| `lan_command_order` | regenerated (`crates/horizon-client/src/lan/command_order.rs`, +49 −311) |
+| `command_suggestions` | regenerated (`crates/horizon-client/src/lan/command_suggestions.rs`, +11 −26) |
+| `vanilla_command_order` | **blocked** — see below |
 
 `entity_tracking` needed the port's first era adaptation: 1.21.11 predates
 the `EntityTypes` registry split, so the decompile step takes `EntityType`
@@ -108,55 +110,248 @@ the `EntityTypes` registry split, so the decompile step takes `EntityType`
 the same fix the 26.1 port made, lifted into this tree's
 `tools/port_regen.py` and `tools/generate_entity_tracking.py`.
 
+## The oracle bootstrap rework (done)
+
+The era-opening port's blocker is closed. The parity oracles bootstrap
+1.21.11's registries the way 1.21.11 does — determined from its named jar
+(vanilla's own `WorldLoader` is the reference), not by renaming the 26.3
+shape into it:
+
+- `RegistryDataLoader.load` in 1.21.11 is the **synchronous three-argument
+  form** `load(ResourceManager, List<RegistryLookup<?>>, List<RegistryData<?>>)`,
+  returning `RegistryAccess.Frozen` — no Executor, no `.join()`. Both load
+  calls (worldgen and dimension registries) were adapted in `ParityData`
+  and `VanillaCommandParseOracle`.
+- **There is no component-initializer mechanism in 1.21.11**: no
+  `BuiltInRegistries.DATA_COMPONENT_INITIALIZERS`, no
+  `DataComponentInitializers` class. Item default components are fixed at
+  item registration during `Bootstrap.bootStrap()`; vanilla's load
+  sequence has no post-load apply step. The oracle now only applies the
+  static tags (`Registry.PendingTags::apply`), as
+  `ReloadableServerResources` does.
+- **There are no world clocks in 1.21.11**: no `Registries.WORLD_CLOCK`,
+  no `ServerClockManager`, no clock/random-sequence/scheduled-event fields
+  on `MinecraftServer`. Timelines do exist (the `TIMELINE` datapack
+  registry; the four vanilla ones — day, early_game, moon,
+  villager_schedule) but carry environment-attribute tracks only, with no
+  `registerTimeMarkers`. The registries export keeps the schema and emits
+  empty `clocks` / `clock_time_markers`.
+- **Template loading**: no `templatesystem.loader` package, no
+  `ResourceManagerTemplateSource`. `StructureTemplateManager` is
+  constructed directly from a `LevelStorageSource` access, and
+  `listTemplates()` enumerates the ids.
+- `CommandSourceStack`'s 1.21.11 constructor takes nine arguments
+  (`CommandSource, Vec3, Vec2, ServerLevel, PermissionSet, name,
+  displayName, MinecraftServer, Entity`), and `suggestRegistryElements` is
+  declared on it with `ResourceKey<? extends Registry<?>>` (no type
+  parameter, no predicate filter); the delegate helper is the three-argument
+  form. Recipes are not a registry lookup here: the learnable recipes come
+  from the recipe manager's loaded recipes.
+- Verified against the real jars, in the candidate tree: the command oracle
+  in tree mode produces the full command tree (75 root commands); in
+  registries mode it exports 1,505 items, 157 entity types, 1,458 learnable
+  recipes of 1,470 loaded (12 special), 1,202 templates and the four
+  vanilla timelines; in run mode, at permission level 4 all corpus
+  commands parse with correct node paths and live suggestions.
+
+### A signed-jar landmine, found and fixed
+
+Running any oracle against the remapped jars died with
+`SecurityException: SHA-384 digest error` from the JVM's JarVerifier
+(via `JfrProfiler.<clinit>`): remapping rewrites class bytes, but the
+named jars kept Mojang's signature block, so the signed manifest digests
+no longer matched. `tools/lab.py` gained `strip_signature` (drops the
+`.SF`/`.RSA`/`.DSA` entries, keeps only the manifest's main attributes),
+called from `remap_stage` for both jars **before** their digests are
+recorded into `remapped.json`; the store's live jars were stripped in
+place and `remapped.json` updated (client sha1
+`1b09cd188272163a4ca3506b205c064e98807958`, server sha1
+`99f0600a0d9f05fed1e9955562974550dbdf0dde`). Authentication stays
+consistent: `test_rust_parity.verify_artifacts` accepts remapped.json
+digests, and the same acceptance was extended to horizon-prepare (below).
+The store's raw front-end outputs (`*-named.jar`) were left unstripped —
+they are indexing-only and never executed.
+
+### vanilla_command_order: the remaining table, blocked by the protocol rewire
+
+The oracle side of this generator is closed — its Java half runs and
+produces the command tree inside the generator — but the generator then
+builds the Rust client probe, and `horizon-protocol` fails with 26
+compile errors over **nine packet ids that do not exist in 1.21.11**:
+`ADD_TRANSIENT_BLOCK`, `ATTACK`, `GAME_RULE_VALUES`,
+`LOW_DISK_SPACE_WARNING`, `POST_EFFECTS`, `PUNCH`, `SET_GAME_RULE`,
+`SPECTATOR_ACTION`, `SWING_ANIMATION`. Each is a packet introduced after
+1.21.11 and needs its 1.21.11 mechanism determined from the jar (the
+26.1 pass's pattern: animate actions for swing, a pinned serverbound
+swing for punch, spectate for spectator actions, confirmed-absent
+post-effects/transient blocks removed from wire paths). That is the
+protocol packet-set rewire, out of scope for this pass; the table file
+(`crates/horizon-command/src/vanilla_order.rs`) is still the 26.3 base's
+and is **not** regenerated. The same 26 errors are the measured cause of
+the `command_parse` harness failure below.
+
+## horizon-prepare and the exporter bundle (done, with three era fixes)
+
+The full exporter bundle compiles against 1.21.11 (16 server mains plus
+4 client mains, with every transitive oracle) and horizon-prepare runs
+against the named jars end-to-end — **completed in the candidate, 553.9 s,
+exit 0**, producing `.local/horizon-client/1.21.11` (1,505 items with
+their default components, the worldgen bundle, the six block-behaviour
+files, the datafix tables). The adaptations, by family:
+
+- **A shared `VanillaStateCodec`** (`mods/horizon/.../parity/`):
+  `BlockState.FULL_CODEC` does not exist in 1.21.11 — it has only the
+  palette codec — so the flat `{id, properties}` form the fixtures
+  consume is assembled from the registry and the state's property map
+  (encode/decode), following the 26.1 pass's helper. Ten oracle files
+  were converted to it.
+- **Landing / movement / placement / simple-block oracles**, following
+  the 26.1 pass's adaptations where they transfer: `FarmBlock` is
+  1.21.11's farmland class (no `baseBlock` field — turn-to-dirt hardcodes
+  dirt); the bounce path is `updateEntityMovementAfterFallOn`, with
+  `SlimeBlock` and `BedBlock` as the bounce declarers; bounce
+  restitution / fall-distance-reduction fields and the
+  `SUPPRESSES_BOUNCE` tag do not exist yet; `ServerLevel`'s constructor
+  takes an Executor and a `RandomSequences`; `Level` has abstract
+  `fuelValues()` and `potionBrewing()` and a `getShade` on its
+  `BlockAndTintGetter`; `NoiseSettings` is a four-argument record and
+  `NoiseRouter` has fifteen density functions (the all-zero router is
+  built directly — `NoiseRouterData.none()` is protected here);
+  `RepeatingPlacement.count` is protected (invoked reflectively);
+  `PlacementModifier` positions come from `getPositions`, not `modify`.
+  `VanillaSimpleBlockOracle` was restructured on 26.1's version:
+  features place through `FeaturePlaceContext`, the decode returns
+  `ConfiguredFeature`s, `RegistryInfoLookup` returns `RegistryInfo`
+  records, and block-state providers are parsed inline (not a registry
+  here). `VanillaMobDataExporter` uses `EntityType`, not the later
+  `EntityTypes`; `VanillaGameplayFactsExporter` reads light dampening as
+  `getLightBlock()`; `VanillaCreativeTabsExporter` reads item tags as
+  `getTags()`.
+- **The data-fix tables exporter under JDK 21**: the exporter hooks
+  `BlockStateData.register` by bytecode patching, which upstream does
+  with the Class-File API — `java.lang.classfile` does not exist in JDK
+  21 (it arrived in JDK 22 as a preview), and 1.21.11 pins Java 21. The
+  hook is reimplemented in the exporter as a small class-file editor
+  (constant-pool append for the `record()` methodref, six hook bytes
+  prepended to `register`'s code, every pc-bearing table shifted).
+  Verified end-to-end: the exporter records 1,695 block-state lines and
+  its own replay check (replaying the calls must reproduce vanilla's
+  finished tables) passes.
+- **Client model oracles on the classic API**: the 26.x `cuboid` /
+  `sprite` / `dispatch` packages do not exist in 1.21.11. The binding
+  oracle uses `BlockModelDefinition` (record, with `CODEC`,
+  `instantiate`, `simpleModels`), `BlockStateModel`'s unbaked roots and
+  the multipart `Unbaked` with `visualEqualityGroup`; the cuboid oracle
+  uses `BlockModel.fromStream`, `SimpleUnbakedGeometry.elements()`,
+  `BlockElement`/`BlockElementFace`/`BlockElementRotation` (with the same
+  single-axis / Euler rotation value shapes), and `TextureSlots.Data`
+  slots (a `Reference` target or a `Material` whose sprite is
+  `texture()`; 1.21.11 materials have no translucency flag, and elements
+  carry a boolean shade flag, not a shade-direction override — both
+  emitted as what vanilla has). `BlockStateDefinitions.
+  definitionLocationToBlockStateMapper()` is not public here; it is
+  called reflectively.
+- **A note on names**: 1.21.11 already uses `net.minecraft.resources.
+  Identifier` (Mojang renamed `ResourceLocation` in this release); the
+  oracles use it throughout.
+
+### horizon-prepare's own era adaptations (in this tree)
+
+- `crates/horizon-prepare/src/artifacts.rs` — `verify()` accepts the
+  remapping stage's authentication: a jar whose digest matches
+  `remapped.json`'s record, and whose recorded mapping-table sha1 is the
+  manifest's own mapping download, is accepted for the client jar and the
+  inner server jar. Without this, `verify()` can never pass on an
+  obfuscated release, whose prepared jars are the remapped ones by
+  design. The manifest, bundler and library digests are still checked
+  against Mojang's pins.
+- `crates/horizon-prepare/src/survival.rs` — 1.21.11's stem classes carry
+  no `supportBlocks` TagKey field (their `mayPlaceOn` hardcodes
+  farmland), so the binding binds no rule for the four stem blocks rather
+  than failing the whole prepare or inventing one. The rule form for
+  them — and for the nether fungus/roots blocks, whose 1.21.11 placement
+  classes (`FungusBlock`, `RootsBlock`) use hardcoded
+  nylium/mycelium/soul-soil checks — belongs to the behaviour port.
+- `crates/horizon-prepare/src/lib.rs` — the datagen install accepts
+  1.21.11's single `reports/items.json` (each entry carries the same
+  `components` object) when the later per-item components report
+  directory does not exist; and a worldgen registry that is empty in
+  both jars (`material_rule`, `material_condition`,
+  `block_state_provider` — registries this version does not have) is
+  written as an empty bundle instead of failing the reference check,
+  because the generator's required reads expect the file to exist.
+
+## Harness subset (measured on this VM)
+
+Seventeen harnesses were dispatched; the VM is slow and shared, and each
+harness takes on the order of fifteen minutes here. Nine were measured;
+the rest are **unmeasured** — never inherited silently — and the CI
+`port-verify` workflow on main can produce the full profile afterwards.
+Every measured harness fails, each for a named cause below; none is a
+pass.
+
+| Harness | Verdict | Cause (measured) |
+|---|---|---|
+| `block_properties` | fail | The Rust probe build (`cargo build --release -p horizon-world --example world_probe`) timed out at 900 s on the contended VM; the oracle side ran. No code verdict. |
+| `chunk_generation` | fail | The oracle does not compile against 1.21.11 (33 errors). `ChunkPos.pack` is `asLong` here, and the 26.x generation-stage API it drives does not exist: no `ChunkStatus.TERRAIN`, no `generator.buildTerrain` — 1.21.11 generates through the separate `createBiomes` / noise / surface / carver / feature stages. Porting that oracle is part of the chunk-generation behaviour work. |
+| `command_exec` | fail | The oracle does not compile (37 errors). The `ChunkPos` accessor renames and the two spam-threshold server overrides are fixed in this tree; what remains is the integrated-server bootstrap — `LevelSettings` / `DifficultySettings`, `PrimaryLevelData`'s constructor, and the world-preset lookup differ. |
+| `command_parse` | fail | The Rust probe build fails: `horizon-protocol` does not compile (26 errors — the nine post-1.21.11 packets, as for `vanilla_command_order`). |
+| `component_patch` | fail | The oracle runs but dies at runtime: `ClassNotFoundException: net.minecraft.core.component.Removed` — a 26.x component type that does not exist in 1.21.11. |
+| `datafix` | fail (all 6 shards) | `datafix_worlds.py` exits 1 for the whole legacy chain (1.8.9 → 26.2): the cross-version adapter tables for 1.20.2–1.21.11 are not regenerated yet (the 26.1 residual). |
+| `entity_components` | fail | The harness's own fixture builder breaks on 1.21.11 data: `test_entity_components_parity.py` expects `criterion['conditions']['entity']['predicate']` to be a mapping, but the advancement condition shape differs here (`TypeError`). |
+| `first_person` | fail | The oracle does not compile: it is written against the 26.x first-person swing system — `FirstPersonHandsAndItems`, `SwingState`, `swing(InteractionHand, SwingAnimation, boolean)` — which does not exist in 1.21.11; the classic swing model is a behaviour-port item (same family as the `SWING_ANIMATION` packet). |
+| `food` | fail | The oracle does not compile: `VanillaFoodOracle`'s fake `ServerLevel` constructor (the 1.21.11 eleven-argument form, as fixed in the bundle oracles). |
+| `hotbar`, `item_model`, `lan`, `light`, `options`, `resource_pack`, `save_roundtrip`, `sound_event` | **unmeasured** | Not reached on this VM. |
+
 ## What remains, by cause
 
-### The parity oracles do not compile against 1.21.11's registry bootstrap
+### The protocol packet-set rewire (blocks the client and the table)
 
-All three remaining generators drive Java oracles
-(`VanillaCommandParseOracle`, `ParityData`) that bootstrap the vanilla
-registries the way 26.3 does. They now authenticate the (remapped)
-artifacts and pass the era's renames — `RegistryLayer.WORLD` →
-`WORLDGEN`, `RegistryDataLoader.WORLD_REGISTRIES` → `WORLDGEN_REGISTRIES`
-(both applied in this tree) — and stop at the semantic differences:
-
-- `RegistryDataLoader.load(...)` has a different shape in 1.21.11: the
-  networked-registry-data parameter the 26.x bootstrap passes does not
-  exist in this version's API.
-- `BuiltInRegistries.DATA_COMPONENT_INITIALIZERS` and the
-  `net.minecraft.core.component.DataComponentInitializers` class do not
-  exist in 1.21.11 (verified against its named jar): component defaults
-  are initialised by a different mechanism here, and the oracles'
-  bootstrap has to be reworked for it, not renamed into it.
-- The structure-template loader package
-  (`world.level.levelgen.structure.templatesystem.loader`) moved.
-- `CommandSourceStack`'s constructor and the
-  `suggestRegistryElements` signature differ (the 26.x permission rework
-  postdates this version).
-
-Until the oracles compile, the three command-table generators cannot run,
-and the parity harness suite has not been run for this version.
+`horizon-protocol` references nine packets that do not exist in 1.21.11
+(listed above). Until each is rewired to its 1.21.11 mechanism from the
+jar — the 26.1 completion pass is the pattern, and its fix pattern
+should transfer to most of them — the workspace does not compile as a
+1.21.11 client, `vanilla_command_order` cannot regenerate, and every
+harness whose probe depends on `horizon-protocol` fails at probe build
+(`command_parse` measured; `lan`, `first_person` and the rest expected
+the same). This is the single largest remaining step.
 
 ### Behaviour work from the diff (not started)
 
 The 815 ranked items are the port's work list. Largest first: the play
 packet renumbering and the two/three removed packets per direction, the
 registry id-space shifts (item, block, sound), and the 4,154 changed
-classes. The behaviour code in this tree is still the 26.3 base's —
-`horizon-protocol` carries the regenerated 1.21.11 packet-id table but not
-yet the protocol rewire this version needs, the same feature-level step
-the 26.1 and 26.2 notes record at their publish points — so the workspace
-is not expected to compile as a 1.21.11 client yet.
+classes. The behaviour code in this tree is still the 26.3 base's.
 
-### horizon-prepare and the exporter bundle (not attempted)
+### Harness-oracle era ports
 
-The `horizon-prepare` exporter bundle was not run against the named jar in
-this pass; the 26.1/26.2 notes show it is its own adaptation (exporter
-sources compile against the version's APIs). It is the natural next step
-after the oracle bootstrap rework, since both turn on the same registry
-APIs.
+- `VanillaChunkGenerationOracle`: the 1.21.11 generation-stage pipeline
+  (no `TERRAIN` status, no `buildTerrain`).
+- `VanillaCommandExecOracle`: the integrated-server bootstrap
+  (`LevelSettings`, `PrimaryLevelData`, world-preset lookup).
+- `VanillaFirstPersonOracle`: the classic swing model (no
+  `FirstPersonHandsAndItems` / `SwingState`).
+- `VanillaFoodOracle`: the fake `ServerLevel` constructor.
+- `VanillaComponentPatchOracle`: the `Removed` component type does not
+  exist in 1.21.11.
+- `test_entity_components_parity.py`: the advancement-condition shape
+  for entity predicates.
+- A survival-rule form for single-block / composed below-checks (stems
+  on farmland; fungus/roots on nylium, mycelium, soul soil), so the four
+  stem blocks and the nether vegetation get bound rules instead of none.
+- `datafix`: the cross-version adapter tables for 1.20.2–1.21.11 (the
+  26.1 residual; the unlock for it is this era's front-end wiring).
+
+### Full harness profile
+
+The remaining eight harnesses are unmeasured locally; the CI
+`port-verify` workflow on main completes the profile on GitHub runners.
 
 ## Status
 
-Era opened and prepare-proven; pin + 3 of 6 tables regenerated; diff sized
-at 815 ranked items; oracle bootstrap rework is the named blocker for the
-rest. Status in [VERSIONS.md](../../VERSIONS.md): **in progress**.
+Oracle bootstrap rework done and verified against the jars; 5 of 6
+tables regenerated (the sixth waits on the protocol rewire);
+horizon-prepare bundle compiles and runs against the named jars end to
+end; 9 of 17 harnesses measured (all fail, by the causes above), 8
+unmeasured. The protocol rewire is the named blocker for the rest.
+Status in [VERSIONS.md](../../VERSIONS.md): **in progress**.

@@ -591,6 +591,32 @@ def replace_with(source, destination):
         temporary.unlink(missing_ok=True)
 
 
+def strip_signature(jar):
+    """Drop Mojang's signature from a remapped jar. Remapping rewrites the class
+    bytes, so the signed manifest's per-entry digests no longer match them; the
+    JVM verifies the entries that keep a signed digest as their classes load
+    and refuses the mismatches (SecurityException: SHA-384 digest error), which
+    stops any oracle or exporter that runs the game from loading classes such
+    as the JFR event classes. A remapped jar is a derived artifact whose
+    authenticity here is remapped.json's recorded digests, so the signature
+    block goes: no .SF/.RSA/.DSA files, and the manifest keeps only its main
+    attributes."""
+    temporary = jar.with_name(jar.name + ".unsigned")
+    with zipfile.ZipFile(jar) as source, \
+            zipfile.ZipFile(temporary, "w", zipfile.ZIP_DEFLATED) as out:
+        for entry in source.infolist():
+            name = entry.filename
+            if name.startswith("META-INF/") and name.upper().endswith((".SF", ".RSA", ".DSA")):
+                continue
+            data = source.read(name)
+            if name == "META-INF/MANIFEST.MF":
+                main = data.decode("utf-8", "replace").replace("\r\n", "\n").split("\n\n")[0]
+                data = (main + "\n").encode()
+            out.writestr(entry, data)
+    replace_with(temporary, jar)
+    temporary.unlink(missing_ok=True)
+
+
 def remap_stage(manifest, directory, jars):
     """The remapping stage for obfuscated releases (everything before 26.1). The jars
     were verified against Mojang's checksums at import; now the mappings front-end
@@ -605,6 +631,7 @@ def remap_stage(manifest, directory, jars):
     produced = (frontend.resolve().parents[2] / ".local" / "mapping-frontend"
                 / version / "client-named.jar")
     replace_with(produced, jars["client"])
+    strip_signature(jars["client"])
     record = {"client": {"sha1": digest(jars["client"], "sha1"),
                          "table_sha1": manifest["downloads"]["client_mappings"]["sha1"]}}
     if "server_mappings" in manifest["downloads"]:
@@ -615,6 +642,7 @@ def remap_stage(manifest, directory, jars):
                           directory / "server-mapped-classes.tsv")
         replace_with(named, jars["server"])
         named.unlink(missing_ok=True)
+        strip_signature(jars["server"])
         record["server"] = {"sha1": digest(jars["server"], "sha1"),
                             "sha256": digest(jars["server"], "sha256"),
                             "table_sha1": mapping["sha1"]}

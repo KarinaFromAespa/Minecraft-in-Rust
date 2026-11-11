@@ -43,14 +43,18 @@ public final class ParityData {
         var layers = RegistryLayer.createRegistryAccess();
         var staticTags = TagLoader.loadTagsForExistingRegistries(resources, layers.getLayer(RegistryLayer.STATIC));
         var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLDGEN), staticTags);
-        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES, Runnable::run).join();
+        // 1.21.11's RegistryDataLoader.load is the synchronous three-argument
+        // form vanilla's own WorldLoader uses (no executor, no future).
+        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES);
         var worldLayers = layers.replaceFrom(RegistryLayer.WORLDGEN, world);
         var loaded = ReloadableServerRegistries.reload(worldLayers, staticTags, resources, Runnable::run).join();
         loot = new ReloadableServerRegistries.Holder(loaded.lookupWithUpdatedTags());
         lookup = loaded.lookupWithUpdatedTags();
-        var components = BuiltInRegistries.DATA_COMPONENT_INITIALIZERS.build(lookup);
+        // 1.21.11 has no DataComponentInitializers mechanism: item default
+        // components are fixed at item registration during Bootstrap, and
+        // vanilla's load sequence has no post-load component step. Only the
+        // static tags are applied, as ReloadableServerResources does.
         staticTags.forEach(Registry.PendingTags::apply);
-        components.forEach(net.minecraft.core.component.DataComponentInitializers.PendingComponents::apply);
         access = loaded.layers().compositeAccess();
         ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
         var unsafeField = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe");

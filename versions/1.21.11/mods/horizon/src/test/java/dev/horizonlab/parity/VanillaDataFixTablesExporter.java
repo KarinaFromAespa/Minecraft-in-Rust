@@ -8,9 +8,7 @@ import com.mojang.serialization.Dynamic;
 import com.mojang.serialization.JsonOps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
-import java.lang.classfile.*;
-import java.lang.constant.ClassDesc;
-import java.lang.constant.MethodTypeDesc;
+import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -151,31 +149,7 @@ public final class VanillaDataFixTablesExporter {
             if (in == null) throw new IllegalStateException(BLOCK_STATE_DATA + " not on the classpath");
             original = in.readAllBytes();
         }
-        var registerType = MethodTypeDesc.ofDescriptor(REGISTER);
-        var self = ClassDesc.of(VanillaDataFixTablesExporter.class.getName());
-        int[] hooked = {0};
-        var files = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(
-            ClassHierarchyResolver.ofResourceParsing(parent).orElse(ClassHierarchyResolver.defaultResolver())));
-        byte[] patched = files.transformClass(files.parse(original), (builder, element) -> {
-            if (element instanceof MethodModel method && method.methodName().equalsString("register")
-                    && method.methodTypeSymbol().equals(registerType)) {
-                hooked[0]++;
-                builder.transformMethod(method, MethodTransform.transformingCode(new CodeTransform() {
-                    @Override
-                    public void atStart(CodeBuilder code) {
-                        code.iload(0).aload(1).aload(2).invokestatic(self, "record", registerType);
-                    }
-
-                    @Override
-                    public void accept(CodeBuilder code, CodeElement e) {
-                        code.with(e);
-                    }
-                }));
-            } else {
-                builder.with(element);
-            }
-        });
-        if (hooked[0] != 1) throw new IllegalStateException("BlockStateData.register" + REGISTER + " not found");
+        byte[] patched = hookRegisterCalls(original);
         var loader = new ClassLoader(parent) {
             @Override
             protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
@@ -187,6 +161,302 @@ public final class VanillaDataFixTablesExporter {
             }
         };
         return Class.forName(BLOCK_STATE_DATA, true, loader);
+    }
+
+    // ------------------------------------------------------------------ class-file patch
+
+    /**
+     * Inserts the {@link #record} call at the start of {@code BlockStateData.register}. Newer JDKs do
+     * this with the Class-File API (java.lang.classfile, JDK 22+); 1.21.11's JDK 21 does not have it,
+     * so the same edit is done here directly on the class bytes: the record() methodref is appended
+     * to the constant pool and the six hook bytes (iload_0, aload_1, aload_2, invokestatic) are
+     * prepended to the method's code, with every pc-bearing table shifted by the insertion size.
+     */
+    private static byte[] hookRegisterCalls(byte[] original) throws Exception {
+        var in = new Reader(original);
+        in.u4(); // magic
+        in.u2();
+        in.u2(); // minor, major
+        int cpCount = in.u2();
+        var utf8 = new HashMap<Integer, String>();
+        for (int i = 1; i < cpCount; i++) {
+            int tag = in.u1();
+            switch (tag) {
+                case 1 -> {
+                    int len = in.u2();
+                    utf8.put(i, new String(in.bytes(len), StandardCharsets.UTF_8));
+                }
+                case 3, 4 -> in.skip(4);
+                case 5, 6 -> {
+                    in.skip(8);
+                    i++;
+                }
+                case 7, 8, 16, 19, 20 -> in.skip(2);
+                case 9, 10, 11, 12, 17, 18 -> in.skip(4);
+                case 15 -> in.skip(3);
+                default -> throw new IllegalStateException("constant pool tag " + tag);
+            }
+        }
+        int cpEnd = in.pos;
+        in.skip(6); // access flags, this class, super class
+        int interfaces = in.u2();
+        in.skip(2 * interfaces);
+        skipMembers(in); // fields
+        int methods = in.u2();
+        int codeAttrStart = -1;
+        int codeAttrLen = 0;
+        int found = 0;
+        for (int m = 0; m < methods; m++) {
+            in.skip(2); // access flags
+            int nameIdx = in.u2();
+            int descIdx = in.u2();
+            boolean target = "register".equals(utf8.get(nameIdx)) && REGISTER.equals(utf8.get(descIdx));
+            int attrs = in.u2();
+            for (int a = 0; a < attrs; a++) {
+                int attrName = in.u2();
+                int attrLen = (int) in.u4();
+                if (target && "Code".equals(utf8.get(attrName))) {
+                    found++;
+                    codeAttrStart = in.pos;
+                    codeAttrLen = attrLen;
+                }
+                in.skip(attrLen);
+            }
+        }
+        if (found != 1) throw new IllegalStateException("BlockStateData.register" + REGISTER + " not found");
+
+        var code = new Reader(original, codeAttrStart);
+        int maxStack = code.u2();
+        int maxLocals = code.u2();
+        int codeLen = (int) code.u4();
+        int codeStart = code.pos;
+        code.skip(codeLen);
+        int excCount = code.u2();
+        int excStart = code.pos;
+        code.skip(excCount * 8);
+        int codeAttrs = code.u2();
+        var subs = new ArrayList<int[]>(); // {name index, content start, length}
+        for (int a = 0; a < codeAttrs; a++) {
+            int nameIdx = code.u2();
+            int len = (int) code.u4();
+            subs.add(new int[]{nameIdx, code.pos, len});
+            code.skip(len);
+        }
+
+        int hookLen = 6; // iload_0, aload_1, aload_2, invokestatic (opcode + u2 index)
+        int recordRef = cpCount + 5; // the appended Methodref, after Utf8/Class/Utf8/Utf8/NameAndType
+        var pool = new ByteArrayOutputStream();
+        writeUtf8(pool, VanillaDataFixTablesExporter.class.getName().replace('.', '/'));
+        pool.write(7);
+        writeU2(pool, cpCount); // Class -> the class-name Utf8
+        writeUtf8(pool, "record");
+        writeUtf8(pool, REGISTER);
+        pool.write(12); // NameAndType: "record", REGISTER
+        writeU2(pool, cpCount + 2);
+        writeU2(pool, cpCount + 3);
+        pool.write(10); // Methodref: the Class, the NameAndType
+        writeU2(pool, cpCount + 1);
+        writeU2(pool, cpCount + 4);
+
+        var patchedSubs = new ArrayList<byte[]>();
+        int subGrowth = 0;
+        for (int[] sub : subs) {
+            byte[] content = patchCodeAttribute(utf8.get(sub[0]), original, sub[1], sub[2], hookLen);
+            subGrowth += content.length - sub[2];
+            patchedSubs.add(content);
+        }
+
+        var out = new ByteArrayOutputStream(original.length + pool.size() + hookLen + subGrowth);
+        byte[] head = Arrays.copyOfRange(original, 0, cpEnd);
+        head[8] = (byte) ((cpCount + 6) >>> 8);
+        head[9] = (byte) (cpCount + 6);
+        out.write(head);
+        out.write(pool.toByteArray());
+        out.write(original, cpEnd, codeAttrStart - cpEnd); // includes the Code attribute header
+        writeU2(out, Math.max(maxStack, 3));
+        writeU2(out, maxLocals);
+        writeU4(out, codeLen + hookLen);
+        out.write(0x1A); // iload_0
+        out.write(0x2B); // aload_1
+        out.write(0x2C); // aload_2
+        out.write(0xB8); // invokestatic
+        writeU2(out, recordRef);
+        out.write(original, codeStart, codeLen);
+        writeU2(out, excCount);
+        for (int i = 0; i < excCount; i++) {
+            int base = excStart + i * 8;
+            writeU2(out, u2At(original, base) + hookLen);
+            writeU2(out, u2At(original, base + 2) + hookLen);
+            writeU2(out, u2At(original, base + 4) + hookLen);
+            writeU2(out, u2At(original, base + 6));
+        }
+        writeU2(out, codeAttrs);
+        for (int s = 0; s < subs.size(); s++) {
+            writeU2(out, subs.get(s)[0]);
+            byte[] content = patchedSubs.get(s);
+            writeU4(out, content.length);
+            out.write(content);
+        }
+        int after = codeAttrStart + codeAttrLen;
+        out.write(original, after, original.length - after);
+        byte[] result = out.toByteArray();
+        // The Code attribute_length field sits four bytes before its content; only the pool grew before it.
+        int lenPos = codeAttrStart - 4 + pool.size();
+        int newLen = codeAttrLen + hookLen + subGrowth;
+        result[lenPos] = (byte) (newLen >>> 24);
+        result[lenPos + 1] = (byte) (newLen >>> 16);
+        result[lenPos + 2] = (byte) (newLen >>> 8);
+        result[lenPos + 3] = (byte) newLen;
+        return result;
+    }
+
+    private static void skipMembers(Reader in) {
+        int count = in.u2();
+        for (int i = 0; i < count; i++) {
+            in.skip(6);
+            int attrs = in.u2();
+            for (int a = 0; a < attrs; a++) {
+                in.skip(2);
+                in.skip((int) in.u4());
+            }
+        }
+    }
+
+    /** A Code sub-attribute with its pc references shifted past the inserted hook bytes. */
+    private static byte[] patchCodeAttribute(String name, byte[] bytes, int start, int len, int hook) {
+        byte[] content = Arrays.copyOfRange(bytes, start, start + len);
+        if (name == null) return content;
+        switch (name) {
+            case "LineNumberTable" -> {
+                int entries = u2At(content, 0);
+                for (int i = 0; i < entries; i++) putU2(content, 2 + i * 4, u2At(content, 2 + i * 4) + hook);
+            }
+            case "LocalVariableTable", "LocalVariableTypeTable" -> {
+                int entries = u2At(content, 0);
+                for (int i = 0; i < entries; i++) putU2(content, 2 + i * 10, u2At(content, 2 + i * 10) + hook);
+            }
+            case "StackMapTable" -> {
+                return shiftStackMapTable(content, hook);
+            }
+            default -> {
+                return content;
+            }
+        }
+        return content;
+    }
+
+    /**
+     * Every frame's absolute pc moves by {@code hook}; frame offsets are deltas, so only the first
+     * frame's delta changes (re-encoded in the extended form when it outgrows the compact tags).
+     */
+    private static byte[] shiftStackMapTable(byte[] table, int hook) {
+        var in = new Reader(table);
+        int entries = in.u2();
+        if (entries == 0) return table;
+        int tag = in.u1();
+        var out = new ByteArrayOutputStream(table.length + 2);
+        writeU2(out, entries);
+        if (tag <= 63) { // same_frame
+            int delta = tag + hook;
+            if (delta <= 63) {
+                out.write(delta);
+            } else {
+                out.write(251); // same_frame_extended
+                writeU2(out, delta);
+            }
+        } else if (tag <= 127) { // same_locals_1_stack_item
+            int delta = tag - 64 + hook;
+            int vStart = in.pos;
+            skipVerificationType(in);
+            int vEnd = in.pos;
+            if (delta <= 63) {
+                out.write(64 + delta);
+            } else {
+                out.write(247); // same_locals_1_stack_item_extended
+                writeU2(out, delta);
+            }
+            out.write(table, vStart, vEnd - vStart);
+        } else { // every remaining frame form carries an explicit u2 offset_delta
+            int delta = in.u2() + hook;
+            out.write(tag);
+            writeU2(out, delta);
+        }
+        out.write(table, in.pos, table.length - in.pos);
+        return out.toByteArray();
+    }
+
+    private static void skipVerificationType(Reader in) {
+        int tag = in.u1();
+        if (tag == 7 || tag == 8) in.skip(2); // Object, Uninitialized
+    }
+
+    private static int u2At(byte[] bytes, int pos) {
+        return ((bytes[pos] & 0xFF) << 8) | (bytes[pos + 1] & 0xFF);
+    }
+
+    private static void putU2(byte[] bytes, int pos, int value) {
+        bytes[pos] = (byte) (value >>> 8);
+        bytes[pos + 1] = (byte) value;
+    }
+
+    private static void writeU2(ByteArrayOutputStream out, int value) {
+        out.write(value >>> 8);
+        out.write(value);
+    }
+
+    private static void writeU4(ByteArrayOutputStream out, int value) {
+        out.write(value >>> 24);
+        out.write(value >>> 16);
+        out.write(value >>> 8);
+        out.write(value);
+    }
+
+    private static void writeUtf8(ByteArrayOutputStream out, String value) throws Exception {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        out.write(1);
+        writeU2(out, bytes.length);
+        out.write(bytes);
+    }
+
+    private static final class Reader {
+        final byte[] bytes;
+        int pos;
+
+        Reader(byte[] bytes) {
+            this(bytes, 0);
+        }
+
+        Reader(byte[] bytes, int pos) {
+            this.bytes = bytes;
+            this.pos = pos;
+        }
+
+        int u1() {
+            return bytes[pos++] & 0xFF;
+        }
+
+        int u2() {
+            int value = u2At(bytes, pos);
+            pos += 2;
+            return value;
+        }
+
+        long u4() {
+            long value = ((long) (bytes[pos] & 0xFF) << 24) | ((long) (bytes[pos + 1] & 0xFF) << 16)
+                | ((bytes[pos + 2] & 0xFF) << 8) | (bytes[pos + 3] & 0xFF);
+            pos += 4;
+            return value;
+        }
+
+        byte[] bytes(int n) {
+            byte[] value = Arrays.copyOfRange(bytes, pos, pos + n);
+            pos += n;
+            return value;
+        }
+
+        void skip(int n) {
+            pos += n;
+        }
     }
 
     /**

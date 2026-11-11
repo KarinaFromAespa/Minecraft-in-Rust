@@ -18,7 +18,7 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 
 | Version | Location | Status |
 |---|---|---|
-| 1.21.11 | `versions/1.21.11` | in progress — era opened: prepare runs end-to-end through the mappings front-end (the E6 gate), pin + 3 of 6 tables regenerated, diff sized at 815 ranked items; see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
+| 1.21.11 | `versions/1.21.11` | in progress — completion pass: oracle bootstrap reworked to 1.21.11's mechanisms, pin + 5 of 6 tables regenerated, horizon-prepare bundle compiles and runs end-to-end against the named jars, 9 of 17 harnesses measured (all fail, named causes); the protocol packet-set rewire is the remaining blocker; see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
 | 1.21.10 | `versions/1.21.10` | planned |
 | 1.21.9 | `versions/1.21.9` | planned |
 | 1.21.8 | `versions/1.21.8` | planned |

@@ -1425,13 +1425,29 @@ fn install_datagen_reports(root: &Path, reports: &Path) -> Result<(), String> {
         copy(&reports.join(name), &root.join(name))?;
     }
     let mut components = Value::Object(Vec::new());
-    for file in json_files(&reports.join("minecraft/components/item"))? {
-        let stem = file.file_stem().unwrap().to_string_lossy().into_owned();
-        let report = read_json(&file)?;
-        let component = report
-            .get("components")
-            .ok_or_else(|| format!("{} has no components", file.display()))?;
-        components.insert(&format!("minecraft:{stem}"), component.clone());
+    let per_item = reports.join("minecraft/components/item");
+    if per_item.is_dir() {
+        for file in json_files(&per_item)? {
+            let stem = file.file_stem().unwrap().to_string_lossy().into_owned();
+            let report = read_json(&file)?;
+            let component = report
+                .get("components")
+                .ok_or_else(|| format!("{} has no components", file.display()))?;
+            components.insert(&format!("minecraft:{stem}"), component.clone());
+        }
+    } else {
+        // 1.21.11's data generator has no per-item components report; its single
+        // reports/items.json carries the same "components" object under each item id.
+        let report = read_json(&reports.join("items.json"))?;
+        let items = report
+            .as_object()
+            .ok_or("datagen items.json is not an object")?;
+        for (id, entry) in items {
+            let component = entry
+                .get("components")
+                .ok_or_else(|| format!("datagen items.json entry {id} has no components"))?;
+            components.insert(id, component.clone());
+        }
     }
     write_text(
         &root.join("items.json"),
@@ -1514,9 +1530,13 @@ fn worldgen_bundles(run: &Run) -> Result<(), String> {
     pool::map(&WORLDGEN_BUNDLES, |(name, path)| {
         let prefix = format!("data/minecraft/{path}/");
         let resources = json_resources(&mut server.clone(), &prefix)?;
-        if resources.as_object().is_none_or(<[_]>::is_empty)
-            || resources != json_resources(&mut client.clone(), &prefix)?
-        {
+        let client_resources = json_resources(&mut client.clone(), &prefix)?;
+        // A registry this version does not have is empty in both jars; that is
+        // not a disagreement. The bundle is still written (empty) because the
+        // generator's required reads expect the file to exist.
+        let both_empty = resources.as_object().is_none_or(<[_]>::is_empty)
+            && client_resources.as_object().is_none_or(<[_]>::is_empty);
+        if resources != client_resources && !both_empty {
             return Err(format!("Reference worldgen resources disagree: {path}"));
         }
         write_text(

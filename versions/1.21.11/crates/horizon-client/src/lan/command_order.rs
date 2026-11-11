@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone compute damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w swing particle place playsound posteffect random reload recipe fetchprofile return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound stopwatch summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish unpublish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe fetchprofile return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound stopwatch summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -30,28 +30,26 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "execute if",
-        "block biome loaded dimension score blocks entity predicate function stopwatch data items slots",
+        "block biome loaded dimension score blocks entity predicate function items stopwatch data",
     ),
     (
         "execute if score target targetObjective",
         "= < <= > >= matches",
     ),
     ("execute if blocks start end destination", "all masked"),
-    ("execute if data", "entity block storage"),
     ("execute if items", "entity block"),
-    ("execute if slots", "entity block"),
+    ("execute if data", "entity block storage"),
     (
         "execute unless",
-        "block biome loaded dimension score blocks entity predicate function stopwatch data items slots",
+        "block biome loaded dimension score blocks entity predicate function items stopwatch data",
     ),
     (
         "execute unless score target targetObjective",
         "= < <= > >= matches",
     ),
     ("execute unless blocks start end destination", "all masked"),
-    ("execute unless data", "entity block storage"),
     ("execute unless items", "entity block"),
-    ("execute unless slots", "entity block"),
+    ("execute unless data", "entity block storage"),
     ("execute store", "result success"),
     ("execute store result", "score bossbar entity block storage"),
     ("execute store result bossbar id", "value max"),
@@ -60,7 +58,7 @@ pub const ORDER: &[(&str, &str)] = &[
         "int float short long double byte",
     ),
     (
-        "execute store result block target path",
+        "execute store result block targetPos path",
         "int float short long double byte",
     ),
     (
@@ -77,7 +75,7 @@ pub const ORDER: &[(&str, &str)] = &[
         "int float short long double byte",
     ),
     (
-        "execute store success block target path",
+        "execute store success block targetPos path",
         "int float short long double byte",
     ),
     (
@@ -230,10 +228,6 @@ pub const ORDER: &[(&str, &str)] = &[
         "clone from sourceDimension begin end to targetDimension destination strict filtered filter",
         "force move normal",
     ),
-    ("compute", "default block entity"),
-    ("compute default", "float integer"),
-    ("compute block computePos", "float integer"),
-    ("compute entity computeTarget", "float integer"),
     ("damage target amount damageType", "at by"),
     ("data", "merge get remove modify"),
     ("data merge", "entity block storage"),
@@ -246,7 +240,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "data modify entity target targetPath insert index",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify entity target targetPath insert index from",
@@ -257,24 +251,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify entity target targetPath insert index compute",
-        "default block entity",
-    ),
-    (
-        "data modify entity target targetPath insert index compute default",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath insert index compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath insert index compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify entity target targetPath prepend",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify entity target targetPath prepend from",
@@ -285,24 +263,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify entity target targetPath prepend compute",
-        "default block entity",
-    ),
-    (
-        "data modify entity target targetPath prepend compute default",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath prepend compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath prepend compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify entity target targetPath append",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify entity target targetPath append from",
@@ -313,24 +275,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify entity target targetPath append compute",
-        "default block entity",
-    ),
-    (
-        "data modify entity target targetPath append compute default",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath append compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath append compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify entity target targetPath set",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify entity target targetPath set from",
@@ -341,24 +287,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify entity target targetPath set compute",
-        "default block entity",
-    ),
-    (
-        "data modify entity target targetPath set compute default",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath set compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath set compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify entity target targetPath merge",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify entity target targetPath merge from",
@@ -369,164 +299,68 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify entity target targetPath merge compute",
-        "default block entity",
-    ),
-    (
-        "data modify entity target targetPath merge compute default",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath merge compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify entity target targetPath merge compute entity computeTarget",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath",
+        "data modify block targetPos targetPath",
         "insert prepend append set merge",
     ),
     (
-        "data modify block target targetPath insert index",
-        "from string compute value",
+        "data modify block targetPos targetPath insert index",
+        "from string value",
     ),
     (
-        "data modify block target targetPath insert index from",
+        "data modify block targetPos targetPath insert index from",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath insert index string",
+        "data modify block targetPos targetPath insert index string",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath insert index compute",
-        "default block entity",
+        "data modify block targetPos targetPath prepend",
+        "from string value",
     ),
     (
-        "data modify block target targetPath insert index compute default",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath insert index compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath insert index compute entity computeTarget",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath prepend",
-        "from string compute value",
-    ),
-    (
-        "data modify block target targetPath prepend from",
+        "data modify block targetPos targetPath prepend from",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath prepend string",
+        "data modify block targetPos targetPath prepend string",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath prepend compute",
-        "default block entity",
+        "data modify block targetPos targetPath append",
+        "from string value",
     ),
     (
-        "data modify block target targetPath prepend compute default",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath prepend compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath prepend compute entity computeTarget",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath append",
-        "from string compute value",
-    ),
-    (
-        "data modify block target targetPath append from",
+        "data modify block targetPos targetPath append from",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath append string",
+        "data modify block targetPos targetPath append string",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath append compute",
-        "default block entity",
+        "data modify block targetPos targetPath set",
+        "from string value",
     ),
     (
-        "data modify block target targetPath append compute default",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath append compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath append compute entity computeTarget",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath set",
-        "from string compute value",
-    ),
-    (
-        "data modify block target targetPath set from",
+        "data modify block targetPos targetPath set from",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath set string",
+        "data modify block targetPos targetPath set string",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath set compute",
-        "default block entity",
+        "data modify block targetPos targetPath merge",
+        "from string value",
     ),
     (
-        "data modify block target targetPath set compute default",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath set compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath set compute entity computeTarget",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath merge",
-        "from string compute value",
-    ),
-    (
-        "data modify block target targetPath merge from",
+        "data modify block targetPos targetPath merge from",
         "entity block storage",
     ),
     (
-        "data modify block target targetPath merge string",
+        "data modify block targetPos targetPath merge string",
         "entity block storage",
-    ),
-    (
-        "data modify block target targetPath merge compute",
-        "default block entity",
-    ),
-    (
-        "data modify block target targetPath merge compute default",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath merge compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify block target targetPath merge compute entity computeTarget",
-        "float integer",
     ),
     (
         "data modify storage target targetPath",
@@ -534,7 +368,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "data modify storage target targetPath insert index",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify storage target targetPath insert index from",
@@ -545,24 +379,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify storage target targetPath insert index compute",
-        "default block entity",
-    ),
-    (
-        "data modify storage target targetPath insert index compute default",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath insert index compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath insert index compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify storage target targetPath prepend",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify storage target targetPath prepend from",
@@ -573,24 +391,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify storage target targetPath prepend compute",
-        "default block entity",
-    ),
-    (
-        "data modify storage target targetPath prepend compute default",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath prepend compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath prepend compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify storage target targetPath append",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify storage target targetPath append from",
@@ -601,24 +403,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify storage target targetPath append compute",
-        "default block entity",
-    ),
-    (
-        "data modify storage target targetPath append compute default",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath append compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath append compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify storage target targetPath set",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify storage target targetPath set from",
@@ -629,24 +415,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "entity block storage",
     ),
     (
-        "data modify storage target targetPath set compute",
-        "default block entity",
-    ),
-    (
-        "data modify storage target targetPath set compute default",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath set compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath set compute entity computeTarget",
-        "float integer",
-    ),
-    (
         "data modify storage target targetPath merge",
-        "from string compute value",
+        "from string value",
     ),
     (
         "data modify storage target targetPath merge from",
@@ -655,22 +425,6 @@ pub const ORDER: &[(&str, &str)] = &[
     (
         "data modify storage target targetPath merge string",
         "entity block storage",
-    ),
-    (
-        "data modify storage target targetPath merge compute",
-        "default block entity",
-    ),
-    (
-        "data modify storage target targetPath merge compute default",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath merge compute block computePos",
-        "float integer",
-    ),
-    (
-        "data modify storage target targetPath merge compute entity computeTarget",
-        "float integer",
     ),
     ("datapack", "enable disable list create"),
     ("datapack enable name", "after before last first"),
@@ -696,23 +450,13 @@ pub const ORDER: &[(&str, &str)] = &[
     ("forceload remove", "from all"),
     ("function name", "arguments with"),
     ("function name with", "entity block storage"),
-    ("item", "replace fill override modify"),
-    ("item replace", "entity block"),
-    ("item replace entity target slots", "from with"),
-    ("item replace entity target slots from", "entity block"),
-    ("item replace block target slots", "from with"),
-    ("item replace block target slots from", "entity block"),
-    ("item fill", "entity block"),
-    ("item fill entity target slots", "from with"),
-    ("item fill entity target slots from", "entity block"),
-    ("item fill block target slots", "from with"),
-    ("item fill block target slots from", "entity block"),
-    ("item override", "entity block"),
-    ("item override entity target slots", "from with"),
-    ("item override entity target slots from", "entity block"),
-    ("item override block target slots", "from with"),
-    ("item override block target slots from", "entity block"),
-    ("item modify", "entity block"),
+    ("item", "replace modify"),
+    ("item replace", "block entity"),
+    ("item replace block pos slot", "with from"),
+    ("item replace block pos slot from", "block entity"),
+    ("item replace entity targets slot", "with from"),
+    ("item replace entity targets slot from", "block entity"),
+    ("item modify", "block entity"),
     ("locate", "structure biome poi"),
     ("loot", "replace insert give spawn"),
     ("loot replace", "entity block"),
@@ -782,20 +526,18 @@ pub const ORDER: &[(&str, &str)] = &[
         "tool mainhand offhand",
     ),
     ("loot spawn targetPos mine pos", "tool mainhand offhand"),
-    ("swing targets", "mainhand offhand"),
     ("particle name pos delta speed count", "force normal"),
     ("place", "feature jigsaw structure template"),
     (
         "playsound sound",
         "master music record weather block hostile neutral player ambient voice ui",
     ),
-    ("posteffect", "add clear list remove"),
     ("random", "value roll reset"),
     ("random reset", "* sequence"),
     ("recipe", "give take"),
     ("recipe give targets", "recipe *"),
     ("recipe take targets", "recipe *"),
-    ("fetchprofile", "name id entity"),
+    ("fetchprofile", "name id"),
     ("return", "value fail run"),
     ("ride target", "mount dismount"),
     ("rotate target", "rotation facing"),
@@ -841,7 +583,6 @@ pub const ORDER: &[(&str, &str)] = &[
         "team modify team",
         "displayName color friendlyFire seeFriendlyInvisibles nametagVisibility deathMessageVisibility collisionRule prefix suffix",
     ),
-    ("team modify team color", "reset value"),
     (
         "team modify team nametagVisibility",
         "never hideForOtherTeams hideForOwnTeam always",
@@ -866,12 +607,9 @@ pub const ORDER: &[(&str, &str)] = &[
     ("tick", "query rate step sprint unfreeze freeze"),
     ("tick step", "stop time"),
     ("tick sprint", "stop time"),
-    ("time", "set add pause resume rate query of"),
-    ("time set", "time timemarker"),
-    ("time query", "time timeline gametime"),
-    ("time of clock", "set add pause resume rate query"),
-    ("time of clock set", "time timemarker"),
-    ("time of clock query", "time timeline"),
+    ("time", "set add query"),
+    ("time set", "day noon night midnight time"),
+    ("time query", "daytime gametime day"),
     (
         "title targets",
         "clear reset title subtitle actionbar times",

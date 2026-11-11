@@ -728,7 +728,7 @@ public final class VanillaCommandExecOracle {
                         int x = p.get(0).getAsInt(), z = p.get(1).getAsInt();
                         var chunk = player.level().getChunkSource().getChunkNow(x, z);
                         boolean[] ready = {chunk != null, chunk != null && chunk.isLightCorrect(),
-                            player.level().areEntitiesLoaded(new net.minecraft.world.level.ChunkPos(x, z).pack())};
+                            player.level().areEntitiesLoaded(new net.minecraft.world.level.ChunkPos(x, z).asLong())};
                         JsonObject record = new JsonObject(); record.addProperty("cmd", "#chunk_ready " + x + " " + z);
                         record.add("messages", new JsonArray()); JsonArray values = new JsonArray();
                         for (boolean flag : ready) {JsonArray value = new JsonArray(); value.add(true); value.add(flag ? 1 : 0); values.add(value);}
@@ -742,7 +742,7 @@ public final class VanillaCommandExecOracle {
                                 var p = target.getAsJsonArray(); int x = p.get(0).getAsInt(), z = p.get(1).getAsInt();
                                 var chunk = player.level().getChunkSource().getChunkNow(x, z);
                                 ready &= chunk != null && chunk.isLightCorrect()
-                                    && player.level().areEntitiesLoaded(new net.minecraft.world.level.ChunkPos(x, z).pack());
+                                    && player.level().areEntitiesLoaded(new net.minecraft.world.level.ChunkPos(x, z).asLong());
                             }
                             if (ready) break;
                             if (System.nanoTime() > deadline) throw new IllegalStateException("initial target readiness timed out");
@@ -1336,15 +1336,15 @@ public final class VanillaCommandExecOracle {
                 while (true) {
                     tick(); boolean ready = true;
                     for (int dz = -1; dz <= 1; dz++) for (int dx = -1; dx <= 1; dx++) {
-                        var pos = new net.minecraft.world.level.ChunkPos(player.chunkPosition().x() + dx, player.chunkPosition().z() + dz);
-                        ready &= level.getChunkSource().getChunkNow(pos.x(), pos.z()) != null && level.areEntitiesLoaded(pos.pack());
+                        var pos = new net.minecraft.world.level.ChunkPos(player.chunkPosition().x + dx, player.chunkPosition().z + dz);
+                        ready &= level.getChunkSource().getChunkNow(pos.x, pos.z) != null && level.areEntitiesLoaded(pos.asLong());
                     }
                     if (ready) return;
                     if (System.nanoTime() > deadline) throw new IllegalStateException("real player tickets did not load");
                     try {Thread.sleep(5);} catch (InterruptedException error) {throw new RuntimeException(error);}
                 }
             }
-            int cx = player.chunkPosition().x(), cz = player.chunkPosition().z();
+            int cx = player.chunkPosition().x, cz = player.chunkPosition().z;
             for (int dz = -2; dz <= 2; dz++) {
                 for (int dx = -2; dx <= 2; dx++) {
                     // An entity-ticking ticket that, unlike setChunkForced,
@@ -1435,8 +1435,6 @@ public final class VanillaCommandExecOracle {
         @Override public boolean shouldRconBroadcast() { return true; }
         @Override public boolean isDedicatedServer() { return false; }
         @Override public int getRateLimitPacketsPerSecond() { return 0; }
-        @Override public int getCommandSpamThresholdSeconds() { return 0; }
-        @Override public int getChatSpamThresholdSeconds() { return 0; }
         @Override public boolean useNativeTransport() { return false; }
         @Override public boolean isPublished() { return false; }
         @Override public boolean shouldInformAdmins() { return true; }

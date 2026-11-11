@@ -1371,6 +1371,27 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
     if id != lock.version {
         return Err("Manifest version differs from the lock".into());
     }
+    // Obfuscated releases are prepared by remapping the verified jars with
+    // Mojang's mapping tables (the pipeline's remapping stage); the remapped
+    // jars are what the exporters run against, so they no longer match the
+    // manifest's digests. remapped.json, written next to the jars by that
+    // stage, records each remapped jar's digest and the sha1 of the mapping
+    // table it was produced from; a jar is also accepted when its digest is
+    // the recorded one and the recorded table is the manifest's own mapping
+    // download (the same authentication the pipeline's parity tools use).
+    let remapped = read_json(&lock.directory.join("remapped.json")).ok();
+    let remapped_digest = |side: &str, key: &str| -> Option<String> {
+        let record = remapped.as_ref()?.get(side)?;
+        let table = manifest
+            .get("downloads")?
+            .get(format!("{side}_mappings").as_str())?
+            .get("sha1")?
+            .as_str()?;
+        if record.get("table_sha1").and_then(Value::as_str) != Some(table) {
+            return None;
+        }
+        record.get(key).and_then(Value::as_str).map(str::to_string)
+    };
     let mut jars = HashMap::new();
     let client = lock.directory.join("jars/client.jar");
     let pinned = manifest
@@ -1378,9 +1399,10 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
         .and_then(|downloads| downloads.get("client"))
         .and_then(|download| download.get("sha1"))
         .and_then(Value::as_str);
-    let good = pinned == Some(lock.pin("client_sha1")?)
-        && client.exists()
-        && Some(digest(&client, "sha1")?.as_str()) == pinned;
+    let client_digest = client.exists().then(|| digest(&client, "sha1")).transpose()?;
+    let good = client_digest.is_some()
+        && ((pinned == Some(lock.pin("client_sha1")?) && client_digest.as_deref() == pinned)
+            || remapped_digest("client", "sha1") == client_digest);
     if !good {
         return Err("client artifact checksum changed; prepare again with --prepare".into());
     }
@@ -1416,7 +1438,10 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
         return Err("Unexpected server bundle".into());
     }
     let game = lock.directory.join("jars/server-game.jar");
-    if !game.exists() || digest(&game, "sha256")? != versions[0].0 {
+    let game_digest = game.exists().then(|| digest(&game, "sha256")).transpose()?;
+    if game_digest.as_deref() != Some(versions[0].0.as_str())
+        && remapped_digest("server", "sha256") != game_digest
+    {
         return Err("Inner server artifact checksum changed".into());
     }
     jars.insert("server", game);
