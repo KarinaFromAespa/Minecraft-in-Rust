@@ -14,10 +14,10 @@ The one genuinely missing piece of engineering is a **mappings front-end** that 
 existing tooling read obfuscated jars (everything before 26.1). Build that once, early,
 against an easy target, and the rest is sequencing and stamina.
 
-## 1. Foundation: build on upstream desktop Horizon, not the Android fork
+## 1. Foundation: build on upstream desktop Horizon
 
-- The base is **upstream horizon-rust (`ludovic111/horizon`)** — the desktop project
-  Kestrel forked for Android. Its own design doc (`docs/version-ports.md`) states the
+- The base is **upstream horizon-rust (`ludovic111/horizon`)** — the desktop project.
+  Its own design doc (`docs/version-ports.md`) states the
   goal verbatim: *"every Minecraft Java release is turned into Rust by Horizon with as
   little human work as possible."* Upstream already runs this pipeline **forward**
   (each new release). This programme runs it **backward** to every old release.
@@ -37,10 +37,10 @@ against an easy target, and the rest is sequencing and stamina.
   - **Parity harness framework** (~330 harnesses): a Java oracle (the version's own
     classes) and a Rust probe run identical inputs; JSON outputs are diffed. Only the
     oracle sources' API usage is version-specific; the framework is not.
-- Tree proportions (audit of the fork, same code upstream): roughly **60–65% of the
+- Tree proportions (audit of the tree): roughly **60–65% of the
   semantics are version-specific behaviour** (hand-ported), **35–40% generic engine**
   (renderer, mesher, UI, audio, `jmath`/RNG/noise) that carries across nearby versions.
-  Kestrel's Android layer is *not* part of this programme — desktop only.
+  This programme is desktop only.
 
 ## 2. Decomposition: 103 releases → 8 eras → ~45 protocols
 
@@ -248,7 +248,7 @@ After Phase 4: 103/103. Snapshots, if ever wanted, slot into their era as deltas
 3. **Fidelity bar for old eras (E2–E0):** full parity (slowest, most certain) or
    harness-covered core + documented accepted gaps (faster, honest)?
 4. **Base checkout:** work from a fresh clone of upstream `ludovic111/horizon`
-   main (recommended) — Kestrel's fork stays Android-only and untouched by this.
+   main (recommended), used as the base as-is.
 5. **Start:** Phase 0 begins after the Nov 16 limit reset, on your word.
 
 ## 7. Distribution posture (unchanged from Horizon's, kept explicit)
