@@ -41,6 +41,7 @@ their workarounds, sequencing and gates — is in **[docs/ROADMAP.md](docs/ROADM
 
 Phase 0 is under way. The mappings front-end is built and proven on 1.21.11
 (100% class coverage; `tools/mapping-frontend/`). `versions/26.3/` holds the
-base rewrite and `versions/26.1/` the first port — a partial profile, see its
-`PORT-NOTES-26.1.md`, with a completion pass running. 26.2 is in port. See the
-roadmap §5 for sequencing and §6 for the remaining owner decisions.
+base rewrite; `versions/26.1/` and `versions/26.2/` hold the first two ports,
+both with partial profiles — see their `PORT-NOTES-<version>.md` files; a
+completion pass on 26.1 is running. See the roadmap §5 for sequencing and
+§6 for the remaining owner decisions.
