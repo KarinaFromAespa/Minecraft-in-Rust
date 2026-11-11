@@ -12,7 +12,7 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 | 26.2 | `versions/26.2` | in progress — partial profile, see `versions/26.2/PORT-NOTES-26.2.md` |
 | 26.1.2 | `versions/26.1.2` | planned |
 | 26.1.1 | `versions/26.1.1` | planned |
-| 26.1 | `versions/26.1` | in progress — partial profile, see `versions/26.1/PORT-NOTES-26.1.md`; completion pass running |
+| 26.1 | `versions/26.1` | in progress — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; full harness profile via CI (see `versions/26.1/PORT-NOTES-26.1.md`) |
 
 ## E6 — Components (14)
 
