@@ -13,8 +13,7 @@ import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.*;
-import net.minecraft.world.level.levelgen.densityfunction.DensityFunctions;
-import net.minecraft.world.level.levelgen.material.rule.BlockRule;
+import net.minecraft.world.level.levelgen.DensityFunctions;
 import net.minecraft.world.level.levelgen.placement.*;
 
 /** Original transport invoking actual placement codecs and modifier callbacks. */
@@ -23,8 +22,7 @@ public final class VanillaPlacementOracle {
     private static PlacementContext context(JsonObject f) {return context(f,null);}
     private static PlacementContext context(JsonObject f,PrintWriter out) {
         var v=f.getAsJsonArray("context");int min=v.get(0).getAsInt(),height=v.get(1).getAsInt(),sea=v.get(2).getAsInt();
-        var zero=DensityFunctions.zero();
-        var settings=new NoiseGeneratorSettings(new NoiseSettings(min,height),Blocks.STONE.defaultBlockState(),Blocks.WATER.defaultBlockState(),new NoiseRouter(zero,zero,zero,zero,zero,zero,zero,zero),Holder.direct(new BlockRule(Blocks.STONE.defaultBlockState())),List.of(),sea,false,Optional.empty(),false,NoiseGeneratorSettings.DebugFunctions.EMPTY);
+        var settings=new NoiseGeneratorSettings(new NoiseSettings(min,height,1,2),Blocks.STONE.defaultBlockState(),Blocks.WATER.defaultBlockState(),NoiseRouterData.none(),SurfaceRules.state(Blocks.STONE.defaultBlockState()),List.of(),sea,false,false,false,false);
         var biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);
         var generator=new NoiseBasedChunkGenerator(new FixedBiomeSource(biome),Holder.direct(settings));
         int worldMin=f.has("world_min")?f.get("world_min").getAsInt():min;int mode=f.has("height_mode")?f.get("height_mode").getAsInt():0;int fail=f.has("query_fail")?f.get("query_fail").getAsInt():-1;int[] calls={0};boolean layerWorld=f.has("layer_world")&&f.get("layer_world").getAsBoolean();
@@ -82,11 +80,11 @@ public final class VanillaPlacementOracle {
                     for(var value:f.getAsJsonArray("positions")) {
                         var p=value.getAsJsonArray();var position=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());
                         if(f.has("count_only")&&f.get("count_only").getAsBoolean()) {
-                            try {out.println("count "+((RepeatingPlacement)provider).count(random,position));}catch(IllegalArgumentException error){out.println("count error");}
+                            try {var countMethod=RepeatingPlacement.class.getDeclaredMethod("count",RandomSource.class,BlockPos.class);countMethod.setAccessible(true);out.println("count "+countMethod.invoke(provider,random,position));}catch(ReflectiveOperationException|IllegalArgumentException error){out.println("count error");}
                             out.println("next "+random.nextLong());continue;
                         }
                         int[] count={0};int fail=f.get("fail").getAsInt();boolean draw=f.get("draw").getAsBoolean();
-                        try {provider.modify(context,random,position,result->{
+                        try {provider.getPositions(context,random,position).forEach(result->{
                             if(count[0]++==fail)throw new Stop();
                             out.println("position "+result.getX()+" "+result.getY()+" "+result.getZ());
                             if(draw)out.println("consumer "+random.nextLong());

@@ -281,7 +281,7 @@ fn tracked_waypoint_bytes() {
         color: Some(0xFFFF_5555_u32 as i32),
         target: WaypointTarget::Block([1, -2, 300]),
     });
-    let mut expected = vec![141, 1, 0, 1];
+    let mut expected = vec![138, 1, 0, 1];
     expected.extend(1..=16u8);
     expected.push(17);
     expected.extend(b"minecraft:default");
@@ -289,7 +289,7 @@ fn tracked_waypoint_bytes() {
         1, 0xFF, 0x55, 0x55, 1, 1, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 0xAC, 0x02,
     ]);
     assert_eq!(track.encode(), expected);
-    assert_eq!(Clientbound::decode(141, &expected[2..]).unwrap(), track);
+    assert_eq!(Clientbound::decode(138, &expected[2..]).unwrap(), track);
     for target in [
         WaypointTarget::Empty,
         WaypointTarget::Chunk([-3, 4]),
@@ -303,7 +303,7 @@ fn tracked_waypoint_bytes() {
             target,
         });
         let bytes = packet.encode();
-        assert_eq!(Clientbound::decode(141, &bytes[2..]).unwrap(), packet);
+        assert_eq!(Clientbound::decode(138, &bytes[2..]).unwrap(), packet);
     }
 }
 
@@ -385,10 +385,6 @@ fn clientbound_round_trips() {
             pos: [-5, -60, 7],
             state: 1,
         }),
-        Clientbound::AddTransientBlock(AddTransientBlock {
-            pos: [-5, -60, 7],
-            state: 1,
-        }),
         Clientbound::ContainerSetContent(ContainerSetContent {
             container: 0,
             state: 3,
@@ -406,7 +402,8 @@ fn clientbound_round_trips() {
         }),
         Clientbound::EntityPositionSync(EntityPositionSync {
             id: 1,
-            path: PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 0), ([1.5, 2.0, 3.0], 2)]),
+            position: [1.5, 2.0, 3.0],
+            delta: [0.5, 0.0, 0.0],
             yaw: 1.0,
             pitch: 2.0,
             on_ground: true,
@@ -461,7 +458,6 @@ fn clientbound_round_trips() {
             show_death_screen: true,
             limited_crafting: false,
             spawn: spawn(),
-            online_mode: false,
             enforces_secure_chat: false,
         }),
         Clientbound::MoveEntityPos(MoveEntityPos(MoveEntity {
@@ -472,7 +468,8 @@ fn clientbound_round_trips() {
         })),
         Clientbound::MoveEntityPosRot(MoveEntityPosRot(MoveEntity {
             id: 3,
-            delta: Some(VecDelta::Stepped(vec![([1, 2, 3], 1), ([0, 0, 1], 2)])),
+            // 26.1's wire carries one delta: the steps' sum is what crosses.
+            delta: Some(VecDelta::Linear([1, 2, 4])),
             rotation: Some((10, -10)),
             on_ground: false,
         })),
@@ -576,31 +573,29 @@ fn clientbound_round_trips() {
         Clientbound::SetEntityLink(SetEntityLink { source: 2, dest: 0 }),
         Clientbound::LevelParticles(LevelParticles {
             particle: Particle {
-                id: 21,
+                id: 14,
                 data: Some(crate::entity_data::ParticleData::ColorScale(0xFF0000, 1.5)),
             },
             override_limiter: true,
             always_show: false,
             pos: [0.5, 101.0, 3.0],
             dist: [0.2, 0.0, 0.2],
-            max_speed: [0.0; 3],
+            max_speed: 0.0,
             count: 60,
-            randomization: 0,
         }),
         Clientbound::Explode(Explode {
             center: [1.0, 2.0, 3.0],
             radius: 4.0,
             block_count: 12,
             knockback: Some([0.5, 0.1, 0.0]),
-            particle: Particle { id: 29, data: None },
+            particle: Particle { id: 23, data: None },
             sound: (-1, Some(("minecraft:entity.generic.explode".into(), None))),
             block_particles: vec![ExplosionParticle {
-                particle: Particle { id: 69, data: None },
+                particle: Particle { id: 59, data: None },
                 scaling: 0.5,
                 speed: 1.0,
                 weight: 1,
             }],
-            play_sound: true,
         }),
         Clientbound::ProjectilePower(ProjectilePower { id: 4, power: 0.1 }),
         Clientbound::SetEquipment(SetEquipment {
@@ -738,14 +733,7 @@ fn delete_chat_decodes_a_packed_signature() {
 fn serverbound_round_trips() {
     let packets = vec![
         Serverbound::PingRequest(crate::packets::status::Ping { time: -7 }),
-        Serverbound::AcceptTeleportation(AcceptTeleportation {
-            id: 1,
-            x: 0.5,
-            y: 64.0,
-            z: 0.5,
-            yaw: 0.0,
-            pitch: 0.0,
-        }),
+        Serverbound::AcceptTeleportation(AcceptTeleportation { id: 1 }),
         Serverbound::Chat(Chat {
             message: "hello".into(),
             timestamp: 1,
@@ -809,7 +797,7 @@ fn serverbound_round_trips() {
         }),
         Serverbound::PlayerInput(PlayerInput { flags: 0b0101_0001 }),
         Serverbound::PlayerLoaded(Empty),
-        Serverbound::Punch(Empty),
+        Serverbound::Swing(Swing { hand: 0 }),
         Serverbound::SetCarriedItem(SetCarriedItem { slot: 4 }),
         Serverbound::UseItemOn(UseItemOn {
             hand: 0,
@@ -994,23 +982,40 @@ fn player_look_at_round_trips() {
     }
 }
 
+/// ClientboundLevelParticlesPacket in 26.1's order: the flags, the
+/// position and spread, the one speed, the count as a fixed Int, and the
+/// particle last.
 #[test]
-fn post_effects_round_trips() {
-    let p = PostEffects {
-        effects: vec!["minecraft:invert".into(), "pack:glow".into()],
+fn level_particles_round_trips_in_26_1_order() {
+    let p = LevelParticles {
+        particle: crate::entity_data::Particle {
+            id: 0,
+            data: None,
+        },
+        override_limiter: true,
+        always_show: false,
+        pos: [1.5, 64.0, -2.5],
+        dist: [0.5, 0.25, 0.5],
+        max_speed: 0.75,
+        count: 12,
     };
-    let bytes = Clientbound::PostEffects(p.clone()).encode();
+    let bytes = Clientbound::LevelParticles(p.clone()).encode();
     assert_eq!(
-        Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &bytes[1..]).unwrap(),
-        Clientbound::PostEffects(p)
+        Clientbound::decode(crate::ids::play::clientbound::LEVEL_PARTICLES, &bytes[1..]).unwrap(),
+        Clientbound::LevelParticles(p)
     );
-    // The empty list the server sends on join.
-    assert_eq!(
-        Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &[0]).unwrap(),
-        Clientbound::PostEffects(PostEffects {
-            effects: Vec::new()
-        })
-    );
+    // The wire form by hand, up to the particle that comes last: bool,
+    // bool, three doubles, four floats, the count as four big-endian bytes.
+    let mut want = vec![1u8, 0];
+    for v in [1.5f64, 64.0, -2.5] {
+        want.extend_from_slice(&v.to_be_bytes());
+    }
+    for v in [0.5f32, 0.25, 0.5, 0.75] {
+        want.extend_from_slice(&v.to_be_bytes());
+    }
+    want.extend_from_slice(&12i32.to_be_bytes());
+    assert_eq!(bytes[1..1 + want.len()], want[..]);
+    assert!(bytes.len() > 1 + want.len(), "the particle follows the count");
 }
 
 /// ClientboundChunksBiomesPacket is read, not passed through as an
@@ -1083,16 +1088,25 @@ fn set_camera_is_the_camera_entity_id() {
     assert_eq!(p.encode()[1..], [0xAC, 0x02]);
 }
 
-/// ServerboundSpectatorActionPacket: `OPTIONAL_VAR_INT`, the clicked
-/// entity's id plus one, or 0 for a click on nothing.
+/// ServerboundSpectateEntityPacket: the spectated entity's id as a VarInt
+/// (a click on nothing sends no packet at all).
 #[test]
-fn spectator_action_is_an_optional_entity_id() {
-    let id = crate::ids::play::serverbound::SPECTATOR_ACTION;
-    for (bytes, shown) in [([8u8], "Some(7)"), ([0u8], "None")] {
-        let p = Serverbound::decode(id, &bytes).unwrap();
+fn spectate_entity_is_an_entity_id() {
+    let id = crate::ids::play::serverbound::SPECTATE_ENTITY;
+    let p = Serverbound::decode(id, &[8]).unwrap();
+    assert!(!matches!(p, Serverbound::Unknown(..)), "{p:?}");
+    assert!(format!("{p:?}").contains("entity: 8"), "{p:?}");
+    assert_eq!(p.encode()[1..], [8]);
+}
+
+/// ServerboundSwingPacket: the hand as a VarInt (0 main, 1 off).
+#[test]
+fn swing_is_a_hand() {
+    let id = crate::ids::play::serverbound::SWING;
+    for hand in [0u8, 1] {
+        let p = Serverbound::decode(id, &[hand]).unwrap();
         assert!(!matches!(p, Serverbound::Unknown(..)), "{p:?}");
-        assert!(format!("{p:?}").contains(shown), "{p:?}");
-        assert_eq!(p.encode()[1..], bytes);
+        assert_eq!(p.encode()[1..], [hand]);
     }
 }
 
@@ -1121,16 +1135,16 @@ fn update_attributes_encode_like_vanilla() {
         }],
     });
     let body = p.encode();
-    // The packet id (134) is a two-byte VarInt.
-    let mut expected = vec![134, 1, 5, 1, 1];
+    // The packet id (131) is a two-byte VarInt.
+    let mut expected = vec![131, 1, 5, 1, 1];
     expected.extend(0.0f64.to_be_bytes());
     expected.extend([1, 22]);
     expected.extend(b"minecraft:armor.helmet");
     expected.extend(3.0f64.to_be_bytes());
     expected.push(0);
     assert_eq!(body, expected);
-    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 134);
-    assert_eq!(Clientbound::decode(134, &body[2..]).unwrap(), p);
+    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 131);
+    assert_eq!(Clientbound::decode(131, &body[2..]).unwrap(), p);
 }
 
 #[test]
@@ -1157,7 +1171,7 @@ fn map_item_data_carries_a_server_patch() {
 
 #[test]
 fn sign_packets_match_vanilla_stream_codecs() {
-    // ClientboundOpenSignEditorPacket: BlockPos, then SignTextSlot as a VarInt (FRONT is 1).
+    // ClientboundOpenSignEditorPacket: BlockPos, then the front-text boolean.
     let open = Clientbound::OpenSignEditor(OpenSignEditor {
         pos: [1, 2, 3],
         front: true,
@@ -1169,14 +1183,15 @@ fn sign_packets_match_vanilla_stream_codecs() {
     );
     assert_eq!(body[9..], [1]);
     round_trip(open, Clientbound::encode, Clientbound::decode);
-    // ServerboundSignUpdatePacket: BlockPos, four strings with no count, then the slot.
+    // ServerboundSignUpdatePacket (26.1): BlockPos, the front-text boolean,
+    // then the four strings with no count.
     let update = Serverbound::SignUpdate(SignUpdate {
         pos: [-4, 70, 9],
         lines: ["Hi".into(), String::new(), "x".into(), String::new()],
         front: false,
     });
     let body = update.encode();
-    assert_eq!(body[9..], [2, b'H', b'i', 0, 1, b'x', 0, 0]);
+    assert_eq!(body[9..], [0, 2, b'H', b'i', 0, 1, b'x', 0]);
     round_trip(update, Serverbound::encode, Serverbound::decode);
 }
 

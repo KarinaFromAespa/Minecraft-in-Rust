@@ -459,7 +459,6 @@ mod tests {
             p.sound.1,
             Some(("minecraft:entity.generic.explode".into(), None))
         );
-        assert!(p.play_sound);
         let (id, bytes) = session.next_incoming().unwrap();
         assert_eq!(id, packet_ids::play::clientbound::BLOCK_UPDATE);
         let p = play::BlockUpdate::read(&mut Reader::new(&bytes)).unwrap();

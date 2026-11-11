@@ -135,9 +135,8 @@ pub(super) fn send_soul_particle(host: &super::lan::LanHost, at: [f64; 3], veloc
         always_show: false,
         pos: at,
         dist: velocity.map(|v| v as f32),
-        max_speed: [1.0; 3],
+        max_speed: 1.0,
         count: 0,
-        randomization: 0,
     });
     for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
         let distance: f64 = (0..3)
@@ -177,9 +176,10 @@ pub(super) fn send_snowflake_particle(
         always_show: false,
         pos: at,
         dist: [0.0; 3],
-        max_speed: velocity.map(|v| v as f32),
+        max_speed: velocity
+            .iter()
+            .fold(0.0f64, |a, v| if v.abs() > a.abs() { *v } else { a }) as f32,
         count: 1,
-        randomization: 1,
     });
     for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
         let distance: f64 = (0..3)
@@ -211,9 +211,8 @@ pub(super) fn send_hub_level_particles(
         always_show: false,
         pos: at,
         dist: spread.map(|d| d as f32),
-        max_speed: [speed as f32; 3],
+        max_speed: speed as f32,
         count: count as i32,
-        randomization: 0,
     });
     for g in hub.guests.iter().filter(|g| hub.here(g)) {
         if horizon_only && g.brand != "horizon" {
@@ -242,9 +241,8 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: [0.0; 3],
-            max_speed: [0.0; 3],
+            max_speed: 0.0,
             count: 0,
-            randomization: 0,
         });
         for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
             // ServerLevel compares the player's block centre, strictly within 32.
@@ -323,9 +321,8 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: [0.0; 3],
-            max_speed: [speed as f32; 3],
+            max_speed: speed as f32,
             count,
-            randomization: 0,
         });
         for g in hub.guests.iter().filter(|g| hub.here(g)) {
             // ServerLevel compares the player's block centre, strictly within 32.
@@ -574,7 +571,7 @@ impl Game<'_> {
         if self.settings.extras.pvp.combat.hides_particle(options.ty) {
             return;
         }
-        let (d, s) = (p.dist.map(f64::from), p.max_speed.map(f64::from));
+        let (d, s) = (p.dist.map(f64::from), [f64::from(p.max_speed); 3]);
         // ClientLevel.addParticle: the camera's 32 blocks and the Particles
         // option, unless the packet or the type overrides the limiter.
         let add = |particles: &mut horizon_client::particles::ParticleEngine, at, v| {
@@ -589,7 +586,9 @@ impl Game<'_> {
             return;
         }
         for _ in 0..p.count {
-            let (at, v) = spread(self.particles.random(), p.randomization, p.pos, d, s);
+            // 26.1's packet carries no randomization mode: every particle
+            // is the DEFAULT draw (mode 0 in `spread`).
+            let (at, v) = spread(self.particles.random(), 0, p.pos, d, s);
             add(&mut self.particles, at, v);
         }
     }
@@ -597,18 +596,16 @@ impl Game<'_> {
     /// `ClientPacketListener.handleExplosion`: the blast's particles (and its
     /// sound, when the packet carries it), then the player's push.
     pub(super) fn remote_explode(&mut self, p: &play::Explode) {
-        if p.play_sound {
-            let pitch = (1.0
-                + (self.particles.random().next_float() - self.particles.random().next_float())
-                    * 0.2)
-                * 0.7;
-            // The packet's explosionSound: a wind charge's burst, a bed's
-            // or anchor's blast, a modded sound.
-            let sound = self
-                .remote_sound_name(&p.sound)
-                .unwrap_or_else(|| "minecraft:entity.generic.explode".to_owned());
-            self.audio.play(&sound, Some(p.center), 4.0, pitch);
-        }
+        // 26.1's packet has no "sound plays" flag: the sound always plays.
+        let pitch = (1.0
+            + (self.particles.random().next_float() - self.particles.random().next_float()) * 0.2)
+            * 0.7;
+        // The packet's explosionSound: a wind charge's burst, a bed's
+        // or anchor's blast, a modded sound.
+        let sound = self
+            .remote_sound_name(&p.sound)
+            .unwrap_or_else(|| "minecraft:entity.generic.explode".to_owned());
+        self.audio.play(&sound, Some(p.center), 4.0, pitch);
         if let Some(options) = self.received_particle(&p.particle, p.center) {
             self.particles.add(&options, p.center, [1.0, 0.0, 0.0]);
         }
@@ -649,7 +646,7 @@ impl Game<'_> {
             spread,
             speed,
             count,
-            randomization,
+            randomization: _,
         } = request;
         let Some(particle) = self.network_particle(&options, state) else {
             return;
@@ -664,9 +661,13 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: spread.map(|d| d as f32),
-            max_speed: speed.map(|v| v as f32),
+            // 26.1's packet has one speed and no randomization mode: the
+            // per-axis speeds fold to their dominant component, and the
+            // request's mode stays a local-draw matter.
+            max_speed: speed
+                .iter()
+                .fold(0.0f64, |a, v| if v.abs() > a.abs() { *v } else { a }) as f32,
             count,
-            randomization,
         })
         .encode();
         // BlockPos.closerToCenterThan(at, 32): from the centre of the
@@ -814,15 +815,16 @@ impl Game<'_> {
     }
 
     /// `ClientboundExplodePacket` without a push, or None while not serving.
-    /// The sound is the level's, which the players hear already, so it isn't
-    /// played from the packet.
+    /// The sound is the level's, which the players hear already; 26.1's
+    /// packet has no "sound plays" flag, so it names the intentionally
+    /// empty sound instead of the level's.
     fn explosion_packet(
         &self,
         center: [f64; 3],
         radius: f32,
         block_count: usize,
         emitter: &str,
-        sound: &str,
+        _sound: &str,
         block_particles: bool,
     ) -> Option<play::Explode> {
         let hub = &self.lan.as_ref()?.hub;
@@ -853,12 +855,12 @@ impl Game<'_> {
             block_count: block_count as i32,
             knockback: None,
             particle: particle(emitter)?,
-            sound: match hub.registry_id("minecraft:sound_event", sound) {
+            sound: match hub.registry_id("minecraft:sound_event", "minecraft:intentionally_empty")
+            {
                 Some(id) => (id, None),
-                None => (-1, Some((sound.into(), None))),
+                None => (-1, Some(("minecraft:intentionally_empty".into(), None))),
             },
             block_particles,
-            play_sound: false,
         })
     }
 

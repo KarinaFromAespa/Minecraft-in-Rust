@@ -89,7 +89,7 @@ pub(super) struct GuestPlay {
     delayed: Option<([i32; 3], u64)>,
     last_progress: i32,
     /// Swings the guest's actions started this tick, for the players around
-    /// (`LivingEntity.swing` sends ClientboundSwingAnimationPacket).
+    /// (`LivingEntity.swing` sends ClientboundAnimatePacket).
     swings: u32,
     /// The guest's riding jump charge (`LocalPlayer.jumpRidingTicks`).
     mount: super::mounts::MountState,
@@ -2319,8 +2319,7 @@ impl Game<'_> {
                         }
                     }
                 }
-                1 => {}
-                3 => {
+                2 => {
                     host.hub.ack(conn, a.sequence);
                     if !host.hub.guests[gi].may_reach_block(a.pos) {
                         // Too far (handleBlockBreakAction's "too far"): the ack has the client
@@ -2332,7 +2331,7 @@ impl Game<'_> {
                     }
                     self.guest_stop_digging(host, conn, a.pos);
                 }
-                2 => {
+                1 => {
                     host.hub.ack(conn, a.sequence);
                     // ServerPlayerGameMode.abortDestroyBlock clears the dig and the crack; the
                     // clock `destroy_pos` names is left to the next START (#4124).
@@ -2346,14 +2345,14 @@ impl Game<'_> {
                     let guest = &host.hub.guests[gi];
                     self.native_block_damage_abort(guest.uuid, &guest.name, a.pos);
                 }
-                4 | 5 => {
+                3 | 4 => {
                     if !spectator {
-                        self.as_guest(host, conn, |g| g.drop_held(a.action == 4));
+                        self.as_guest(host, conn, |g| g.drop_held(a.action == 3));
                     }
                 }
                 // RELEASE_USE_ITEM: ServerPlayer.releaseUsingItem, with the
                 // hand of the item in use acting.
-                6 => {
+                5 => {
                     let listening = !horizon_client::mod_api::mods().is_empty();
                     let (uuid, name) = if listening {
                         let guest = &host.hub.guests[gi];
@@ -2387,7 +2386,7 @@ impl Game<'_> {
                 }
                 // SWAP_ITEM_WITH_OFFHAND: the hands swap and the item in use stops
                 // (ServerGamePacketListenerImpl.handlePlayerAction), not for spectators.
-                7 if !spectator => {
+                6 if !spectator => {
                     // The mods hear the swap first, and may stop it: the
                     // client, which swapped at once, gets its slots back.
                     let (uuid, name) = {
@@ -2422,8 +2421,6 @@ impl Game<'_> {
                     let guest = &host.hub.guests[gi];
                     self.native_player_swap_with_equipment_slot(guest.uuid, &guest.name, "offhand");
                 }
-                // STAB: `PiercingWeapon.attack` of a left click with a spear.
-                8 if !spectator => self.guest_jab(host, conn),
                 _ => {}
             },
             // handleSetCarriedItem: a new slot stops a main-hand use.
@@ -2470,11 +2467,17 @@ impl Game<'_> {
                     play.using = None;
                 }
             }
-            // ServerGamePacketListenerImpl.handlePunch: the main hand swings
-            // with the held item's attack animation (mining, attacking, a
-            // click on nothing), seen by the players around, and the attack
-            // strength starts again.
-            S::Punch(_) => {
+            // ServerGamePacketListenerImpl.handleSwing: a main-hand swing
+            // (mining, attacking, a click on nothing) is seen by the players
+            // around, and the attack strength starts again; an off-hand
+            // swing only swings.
+            S::Swing(p) => {
+                if p.hand == 1 {
+                    self.as_guest(host, conn, |g| {
+                        g.swing_hand(Hand::Off, SwingAnimation::DEFAULT);
+                    });
+                    return;
+                }
                 let (player, name) = {
                     let g = &host.hub.guests[gi];
                     (g.uuid, g.name.clone())
@@ -3000,7 +3003,7 @@ impl Game<'_> {
             // handleTeleportToEntityPacket: a spectator goes to the player,
             // in whichever level they are.
             S::TeleportToEntity(p) if spectator => self.guest_spectate_teleport(host, gi, p.uuid),
-            S::SpectatorAction(p) => self.guest_spectator_action(host, gi, p.target),
+            S::SpectateEntity(p) => self.guest_spectator_action(host, gi, Some(p.entity)),
             S::ChangeGameMode(p) if host.hub.guests[gi].permission >= 2 => {
                 if let Some(mode) = usize::try_from(p.mode)
                     .ok()
@@ -6231,14 +6234,14 @@ fn captured_block_break(sound: &horizon_client::audio::CapturedSound, blocks: &[
             .any(|b| (0..3).all(|k| (b[k] + 0.5 - sound.position[k]).abs() < 1e-6))
 }
 
-/// ClientboundSwingAnimationPacket: the hand and the animation (its type and
-/// base duration; each client applies the swinger's haste and fatigue).
-fn swing_packet(id: i32, hand: Hand, animation: SwingAnimation) -> C {
-    C::SwingAnimation(play::SwingAnimation {
+/// ClientboundAnimatePacket for a swing: the action names the hand (0 main,
+/// 3 off); the animation's kind and duration stay local to the swinger, and
+/// each client applies the default animation with the swinger's haste and
+/// fatigue.
+fn swing_packet(id: i32, hand: Hand, _animation: SwingAnimation) -> C {
+    C::Animate(play::Animate {
         id,
-        hand: i32::from(hand == Hand::Off),
-        kind: i32::from(animation.kind),
-        duration: animation.duration,
+        action: if hand == Hand::Off { 3 } else { 0 },
     })
 }
 
@@ -6603,9 +6606,10 @@ mod swing_echo_tests {
                 for body in bodies {
                     let mut r = horizon_protocol::buf::Reader::new(&body);
                     let packet_id = r.varint().unwrap();
-                    if let Ok(Clientbound::SwingAnimation(p)) =
+                    if let Ok(Clientbound::Animate(p)) =
                         Clientbound::decode(packet_id, r.rest())
                         && p.id == id
+                        && (p.action == 0 || p.action == 3)
                     {
                         n += 1;
                     }

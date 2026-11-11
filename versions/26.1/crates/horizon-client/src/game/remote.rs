@@ -2832,7 +2832,8 @@ impl Game<'_> {
         }
     }
     /// `handleAnimate`: a player wakes up, or an entity gets the critical
-    /// hit (`CRIT`) or magic critical hit (`ENCHANTED_HIT`) emitter.
+    /// hit (`CRIT`) or magic critical hit (`ENCHANTED_HIT`) emitter. The
+    /// swings (0 and 3) are handled where the packet is matched.
     fn remote_animate(&mut self, id: i32, action: u8) {
         use horizon_client::particles::{ParticleOptions, ParticleType};
         let Some((target, body)) = self.remote_tracking_body(id) else {
@@ -2840,15 +2841,15 @@ impl Game<'_> {
         };
         let particle = match action {
             // Player.stopSleepInBed.
-            0 => {
+            2 => {
                 if target == TrackingTarget::LocalPlayer {
                     self.sleeping = None;
                     self.sleep_timer = 100;
                 }
                 return;
             }
-            1 => ParticleType::Crit,
-            2 => ParticleType::EnchantedHit,
+            4 => ParticleType::Crit,
+            5 => ParticleType::EnchantedHit,
             _ => return,
         };
         self.particles
@@ -3683,7 +3684,9 @@ impl Game<'_> {
                     r.sequence = 0;
                     r.own_invisible = false;
                     r.own_on_fire = false;
-                    r.online_mode = p.online_mode;
+                    // 26.1's login packet states no online mode: the
+                    // session's own login exchange showed it.
+                    r.online_mode = r.session.online_mode();
                     r.enforces_secure_chat = p.enforces_secure_chat;
                     r.entity_id = p.player_id;
                     r.local_entity_silent = false;
@@ -3801,8 +3804,6 @@ impl Game<'_> {
                 self.snap_player_model_pitch();
             }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
-            // ClientCommonPacketListenerImpl.handlePostEffects.
-            C::PostEffects(p) => self.post_effects = p.effects,
             C::SetCamera(p) => self.remote_set_camera(p.camera_id),
             C::LevelChunkWithLight(p) => self.remote_chunk(&p, None),
             C::LightUpdate(p) => self.remote_light_update(&p),
@@ -3818,7 +3819,6 @@ impl Game<'_> {
                 }));
             }
             C::BlockUpdate(p) => self.server_block(p.pos, p.state),
-            C::AddTransientBlock(p) => self.add_transient_block(p.pos, p.state),
             // ClientPacketListener.handleBlockDestruction: another player's crack.
             C::BlockDestruction(p) => {
                 self.destroy_block_progress(p.id, p.pos, i32::from(p.progress));
@@ -4040,13 +4040,10 @@ impl Game<'_> {
                 self.move_entity(m.id, path, rotation, m.on_ground, MovePacket::Move);
             }
             C::EntityPositionSync(p) => {
-                let path = match p.path {
-                    play::PositionPath::Linear(at) => Path::Linear(at),
-                    play::PositionPath::Stepped(steps) => Path::Stepped(steps),
-                };
+                let path = Path::Linear(p.position);
                 // handleEntityPositionSync: the position codec's base is set.
                 if let Some(t) = self.remote.as_mut().and_then(|r| r.entities.get_mut(&p.id)) {
-                    t.codec_base = path.end();
+                    t.codec_base = p.position;
                 }
                 self.move_entity(
                     p.id,
@@ -4856,21 +4853,19 @@ impl Game<'_> {
                     self.remote_complete_using();
                 }
             }
-            C::Animate(p) => self.remote_animate(p.id, p.action),
-            // ClientPacketListener.handleSwingAnimation: the entity swings
-            // (LivingEntity.swing, which a swing in its first half ignores).
-            C::SwingAnimation(p) => {
-                let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
-                let animation = horizon_client::first_person::SwingAnimation {
-                    kind: p.kind.clamp(0, 255) as u8,
-                    duration: p.duration,
-                };
+            // ClientPacketListener.handleAnimate: the swings (0 main hand,
+            // 3 off hand) are a `LivingEntity.swing` with the default
+            // animation (which a swing in its first half ignores); the rest
+            // is `remote_animate`.
+            C::Animate(p) if p.action == 0 || p.action == 3 => {
+                let hand = if p.action == 3 { Hand::Off } else { Hand::Main };
                 if self.remote.as_ref().is_some_and(|r| r.entity_id == p.id) {
-                    self.swing_hand(hand, animation);
+                    self.swing_hand(hand, SwingAnimation::DEFAULT);
                 } else if let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32) {
-                    m.swing_hand_modified(hand == Hand::Off, animation);
+                    m.swing_hand_modified(hand == Hand::Off, SwingAnimation::DEFAULT);
                 }
             }
+            C::Animate(p) => self.remote_animate(p.id, p.action),
             // The player's own instances: its maximum health (the hearts the
             // HUD draws and the health it may hold), reach, speed and so on.
             // Then the received health again, which the old maximum clamped.
@@ -6431,14 +6426,8 @@ impl Game<'_> {
         if self.riding.is_some()
             && let Some(player) = self.player.as_ref()
         {
-            let at = player.position;
             self.send(S::AcceptTeleportation(play::AcceptTeleportation {
                 id: p.teleport,
-                x: at.x,
-                y: at.y,
-                z: at.z,
-                yaw: self.yaw,
-                pitch: self.pitch,
             }));
             self.stop_remote_mining();
             self.mining = None;
@@ -6484,11 +6473,6 @@ impl Game<'_> {
         // the next tick must still report the corrected state.
         self.send(S::AcceptTeleportation(play::AcceptTeleportation {
             id: p.teleport,
-            x: position.x,
-            y: position.y,
-            z: position.z,
-            yaw,
-            pitch,
         }));
         // Then MultiPlayerGameMode.stopDestroyBlock: a dig the teleport (an
         // anticheat's setback, a /tp) interrupts is aborted on the wire, and the
@@ -8068,7 +8052,7 @@ impl Game<'_> {
         let state = self.world.block(pos[0], pos[1], pos[2]);
         self.tutorial_destroy(state, -1.0);
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 2,
+            action: 1,
             pos,
             direction: 0,
             sequence: 0,
@@ -8162,7 +8146,7 @@ impl Game<'_> {
                 let old_state = self.world.block(old[0], old[1], old[2]);
                 self.tutorial_destroy(old_state, -1.0);
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 2,
+                    action: 1,
                     pos: old,
                     direction: face,
                     sequence: 0,
@@ -8216,7 +8200,7 @@ impl Game<'_> {
                 self.predict_break(pos, state, seq);
             }
             self.send(S::PlayerAction(play::PlayerAction {
-                action: 3,
+                action: 2,
                 pos,
                 direction: face,
                 sequence: seq,
@@ -8231,14 +8215,9 @@ impl Game<'_> {
             }
             self.mining = None;
         } else {
-            if last_face != face {
-                self.send(S::PlayerAction(play::PlayerAction {
-                    action: 1,
-                    pos,
-                    direction: face,
-                    sequence: 0,
-                }));
-            }
+            // A face change mid-dig has no packet of its own in 26.1; the
+            // new face rides the dig's next packet.
+            let _ = last_face;
             if let Some(r) = self.remote.as_mut() {
                 r.destroying = Some((pos, face, done));
             }
@@ -9605,7 +9584,7 @@ impl Game<'_> {
             }
             if hit.is_none() && in_hand {
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 6,
+                    action: 5,
                     pos: [0; 3],
                     direction: 0,
                     sequence: 0,
@@ -9832,10 +9811,11 @@ impl Game<'_> {
         }
         if self.spectator() {
             // Minecraft.startAttack: a spectator's click on an entity asks
-            // to watch through it (MultiPlayerGameMode.spectate); a click on
-            // nothing still tells the server (spectatorNoAction).
-            let target = self.spectator_click_target();
-            self.send(S::SpectatorAction(play::SpectatorAction { target }));
+            // to watch through it (MultiPlayerGameMode.spectate, which sends
+            // the entity's id); a click on nothing sends nothing.
+            if let Some(entity) = self.spectator_click_target() {
+                self.send(S::SpectateEntity(play::SpectateEntity { entity }));
+            }
             return true;
         }
         let spear = self
@@ -9857,13 +9837,9 @@ impl Game<'_> {
         // stabs, this client swings, plays the sound and starts its charge
         // again.
         if let Some(kinetic) = spear {
-            // ServerboundPlayerActionPacket.Action.STAB.
-            self.send(S::PlayerAction(play::PlayerAction {
-                action: 8,
-                pos: [0; 3],
-                direction: 0,
-                sequence: 0,
-            }));
+            // 26.1's player action has no STAB (and vanilla 26.1 has no
+            // spear): the jab stays a local swing, sound and charge reset;
+            // nothing goes on the wire for it.
             self.hand_strength.reset_attack();
             self.swing_hand(Hand::Main, kinetic.attack_animation());
             self.play_at_feet(kinetic.attack_sound);
@@ -9921,7 +9897,7 @@ impl Game<'_> {
             self.reset_attack_strength();
         }
         self.swing_arm();
-        self.send(S::Punch(Empty));
+        self.send(S::Swing(play::Swing { hand: 0 }));
         instant
     }
 
@@ -10040,14 +10016,14 @@ impl Game<'_> {
             if let Some(swing) = canceled {
                 if swing {
                     self.swing_arm();
-                    self.send(S::Punch(Empty));
+                    self.send(S::Swing(play::Swing { hand: 0 }));
                 }
             } else if self.remote_break_restricted(hit.pos) {
                 // continueDestroyBlock returned false: no swing.
             } else if !air {
                 self.remote_mining(false);
                 self.swing_arm();
-                self.send(S::Punch(Empty));
+                self.send(S::Swing(play::Swing { hand: 0 }));
             } else {
                 if let Some(r) = self.remote.as_mut() {
                     r.destroying = None;
@@ -10159,7 +10135,7 @@ impl Game<'_> {
     /// in the same tick, when a keybind opens a screen.
     fn release_remote_use(&mut self) {
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 6,
+            action: 5,
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10206,7 +10182,7 @@ impl Game<'_> {
         let dropped =
             horizon_client::items::take_held_drop(&mut self.inventory[self.selected], all, false);
         self.send(S::PlayerAction(play::PlayerAction {
-            action: if all { 4 } else { 5 },
+            action: if all { 3 } else { 4 },
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10220,7 +10196,7 @@ impl Game<'_> {
     /// sends both slots back; nothing is predicted.
     pub(super) fn remote_swap_hands(&mut self) {
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 7,
+            action: 6,
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -12091,7 +12067,8 @@ mod tests {
         .unwrap();
         game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
             id: target,
-            path: play::PositionPath::Linear(moved),
+            position: moved,
+            delta: [0.0; 3],
             yaw: 0.0,
             pitch: 0.0,
             on_ground: true,
@@ -12586,7 +12563,8 @@ mod tests {
         );
         game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
             id: 40,
-            path: play::PositionPath::Linear([12.0, 67.0, -4.0]),
+            position: [12.0, 67.0, -4.0],
+            delta: [0.0; 3],
             yaw: 45.0,
             pitch: 0.0,
             on_ground: true,

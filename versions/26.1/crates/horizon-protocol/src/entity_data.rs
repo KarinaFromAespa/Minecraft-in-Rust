@@ -207,11 +207,13 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 26.3.
+        // `minecraft:particle_type` registry order as of 26.1: block,
+        // block_marker, falling_dust, dust_pillar and block_crumble carry a
+        // block state; entity_effect, tinted_leaves and flash a colour.
         let data = match id {
-            1 | 2 | 36 | 121 | 125 => Some(ParticleData::State(ids::block_state(r.varint()?))),
-            28 | 46 | 52 => Some(ParticleData::Color(r.i32()?)),
-            21 => {
+            1 | 2 | 29 | 111 | 115 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            21 | 36 | 42 => Some(ParticleData::Color(r.i32()?)),
+            14 => {
                 let color = if ids::quirks().components_before_1_21_2 {
                     legacy_rgb(r)?
                 } else {
@@ -219,7 +221,7 @@ impl Particle {
                 };
                 Some(ParticleData::ColorScale(color, r.f32()?))
             }
-            22 => {
+            15 => {
                 let legacy = ids::quirks().components_before_1_21_2;
                 let from = if legacy { legacy_rgb(r)? } else { r.i32()? };
                 let scale = if ids::quirks().legacy_item_nbt {
@@ -238,7 +240,7 @@ impl Particle {
                     },
                 ))
             }
-            23 | 56 => {
+            16 | 46 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -246,10 +248,10 @@ impl Particle {
                     Some(ParticleData::ColorPower(color, r.f32()?))
                 }
             }
-            15 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
-            15 | 48 => Some(ParticleData::Scalar(r.f32()?)),
-            115 => Some(ParticleData::Delay(r.varint()?)),
-            59 => {
+            8 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
+            8 | 38 => Some(ParticleData::Scalar(r.f32()?)),
+            105 => Some(ParticleData::Delay(r.varint()?)),
+            49 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -259,8 +261,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            57 => Some(ParticleData::Item(Template::read(r)?)),
-            58 => {
+            47 => Some(ParticleData::Item(Template::read(r)?)),
+            48 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -286,12 +288,8 @@ impl Particle {
                     ticks: r.varint()?,
                 })
             }
-            7 | 10 => Some(ParticleData::Geyser(r.i32()?)),
-            8 | 9 => {
-                let water = r.i32()?;
-                Some(ParticleData::GeyserBase(water, r.f32()?))
-            }
-            // Every other registered particle carries no data.
+            // Every other registered particle carries no data. (The geyser
+            // particles a later release adds do not exist in 26.1.)
             _ => None,
         };
         Ok(Particle { id, data })

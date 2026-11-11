@@ -358,7 +358,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 "facing":q.facing.name(),
                                 "tint":q.tint_index,
                                 "sprite":q.material.sprite,
-                                "shade":q.shade_direction_override.map(Direction::name),
+                                "shade":q.shade,
                                 "light":q.light_emission,
                             })
                         })

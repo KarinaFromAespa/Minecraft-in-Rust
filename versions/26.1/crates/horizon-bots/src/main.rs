@@ -499,7 +499,7 @@ impl Entities {
             }
             play::Clientbound::EntityPositionSync(p) => {
                 if let Some(e) = self.0.get_mut(&p.id) {
-                    e.pos = p.path.end();
+                    e.pos = p.position;
                 }
             }
             play::Clientbound::SetEntityData(p) => {
@@ -1060,11 +1060,6 @@ fn read(
                     send(
                         play::Serverbound::AcceptTeleportation(play::AcceptTeleportation {
                             id: p.teleport,
-                            x: pos[0],
-                            y: pos[1],
-                            z: pos[2],
-                            yaw: p.yaw,
-                            pitch: p.pitch,
                         })
                         .encode(),
                     )
@@ -1269,7 +1264,9 @@ fn run_bot(
                             // The client sends the attack, then swings the arm.
                             let sent = send(
                                 play::Serverbound::Attack(play::Attack { id: victim }).encode(),
-                            ) && send(play::Serverbound::Punch(Empty).encode());
+                            ) && send(
+                                play::Serverbound::Swing(play::Swing { hand: 0 }).encode(),
+                            );
                             if sent {
                                 bot.attacks.fetch_add(1, Ordering::Relaxed);
                             }
@@ -1373,7 +1370,7 @@ fn run_bot(
                 send(play::Serverbound::Attack(play::Attack { id }).encode());
                 // Minecraft.startAttack swings right after the attack.
                 if !o.no_swing {
-                    send(play::Serverbound::Punch(Empty).encode());
+                    send(play::Serverbound::Swing(play::Swing { hand: 0 }).encode());
                 }
                 bot.attacks.fetch_add(1, Ordering::Relaxed);
             }

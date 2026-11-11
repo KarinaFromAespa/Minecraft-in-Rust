@@ -204,12 +204,10 @@ impl Game<'_> {
             if let Some(r) = self.remote.as_ref()
                 && r.session.is_recording()
             {
-                let pkt = horizon_protocol::packets::play::Clientbound::SwingAnimation(
-                    horizon_protocol::packets::play::SwingAnimation {
+                let pkt = horizon_protocol::packets::play::Clientbound::Animate(
+                    horizon_protocol::packets::play::Animate {
                         id: r.entity_id,
-                        hand: if hand == Hand::Off { 1 } else { 0 },
-                        kind: animation.kind as i32,
-                        duration,
+                        action: if hand == Hand::Off { 3 } else { 0 },
                     },
                 );
                 r.session.record_clientbound(&pkt);

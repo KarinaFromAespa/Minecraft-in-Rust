@@ -12,7 +12,7 @@ use horizon_protocol::{
     item::Stack,
     packets::play::{
         self, AddEntity, AttributeSnapshot, EntityPositionSync, MoveEntity, MoveEntityPos,
-        MoveEntityPosRot, MoveEntityRot, PositionPath, RotateHead, SetEntityData, SetEntityLink,
+        MoveEntityPosRot, MoveEntityRot, RotateHead, SetEntityData, SetEntityLink,
         SetEntityMotion, SetEquipment, SetPassengers, UpdateAttributes, VecDelta,
     },
 };
@@ -308,27 +308,13 @@ fn encode(v: f64) -> i64 {
     horizon_core::jmath::round(v * 4096.0)
 }
 
-/// `VecDeltaCodec.tryEncode`: the path as deltas from `base`, a stepped one
-/// step by step from the step before; None when a delta is too big for a short.
-fn try_encode(base: [f64; 3], path: &PositionPath) -> Option<VecDelta> {
-    let delta = |from: [f64; 3], to: [f64; 3]| {
-        let d = [0, 1, 2].map(|k| encode(to[k]) - encode(from[k]));
-        d.iter()
-            .all(|v| i16::try_from(*v).is_ok())
-            .then(|| d.map(|v| v as i16))
-    };
-    match path {
-        PositionPath::Linear(p) => delta(base, *p).map(VecDelta::Linear),
-        PositionPath::Stepped(steps) => {
-            let mut from = base;
-            let mut out = Vec::with_capacity(steps.len());
-            for (p, ticks) in steps {
-                out.push((delta(from, *p)?, *ticks));
-                from = *p;
-            }
-            Some(VecDelta::Stepped(out))
-        }
-    }
+/// `VecDeltaCodec.tryEncode`: the move as one delta from `base`; None when
+/// it is too big for a short (the caller sends a position sync instead).
+fn try_encode(base: [f64; 3], to: [f64; 3]) -> Option<VecDelta> {
+    let d = [0, 1, 2].map(|k| encode(to[k]) - encode(base[k]));
+    d.iter()
+        .all(|v| i16::try_from(*v).is_ok())
+        .then(|| VecDelta::Linear(d.map(|v| v as i16)))
 }
 
 /// `VecDelta.hasDeltaX` and `hasDeltaZ` (any step's, for a stepped delta), as
@@ -543,20 +529,18 @@ impl ServerEntity {
             self.teleport_delay += 1;
             let d: f64 = (0..3).map(|k| (e.position[k] - self.base[k]).powi(2)).sum();
             let send_position = self.arrow || d >= 7.629_394_5e-6 || self.tick.is_multiple_of(60);
-            // SteppedInterpolationTracker.getPositionPath, then clear: the
-            // current position is the last step of a bounced path.
+            // The bounce steps are tracked above, but 26.1's packets carry
+            // no stepped path: the sync is the end position with the
+            // entity's delta movement, and a move is the one delta to it.
             if e.stepped {
                 self.add_step(e.position);
             }
-            let path = if self.tracked_steps.is_empty() {
-                PositionPath::Linear(e.position)
-            } else {
-                PositionPath::Stepped(std::mem::take(&mut self.tracked_steps))
-            };
+            self.tracked_steps.clear();
             self.ticks_since_step = 0;
             let sync = EntityPositionSync {
                 id: e.id,
-                path: path.clone(),
+                position: e.position,
+                delta: e.velocity,
                 yaw: e.yaw,
                 pitch: e.pitch,
                 on_ground: e.on_ground,
@@ -572,7 +556,7 @@ impl ServerEntity {
                 self.was_riding = false;
                 Some(play::Clientbound::EntityPositionSync(sync))
             } else if send_position {
-                let delta = try_encode(self.base, &path)
+                let delta = try_encode(self.base, e.position)
                     .filter(|d| !full_precision_required(e, delta_axes(d)));
                 if let Some(delta) = delta {
                     let m = MoveEntity {

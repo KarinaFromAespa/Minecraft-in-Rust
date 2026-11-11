@@ -1,11 +1,11 @@
 # Port notes: Minecraft 26.1
 
-This branch is a port of the upstream tree (base commit `962f5949ac`, which pins
-Minecraft 26.3) to Minecraft 26.1, produced with the tree's own version-port
-pipeline (`tools/version_port.py`). It is an honest partial port: the version
-pin and five of the six generated tables are regenerated for 26.1, the shared
-parity oracles are ported to the 26.1 API, and the remaining gaps are listed
-below. Nothing in this file is a claim that the port is finished.
+This directory is a port of the upstream tree (base commit `962f5949ac`, which
+pins Minecraft 26.3) to Minecraft 26.1, produced with the tree's own
+version-port pipeline (`tools/version_port.py`). The initial port was an
+honest partial; this file now describes the state after a completion pass
+that closed its four documented blockers. What remains is listed at the end.
+Nothing in this file is a claim that the port is finished.
 
 ## Version facts
 
@@ -15,90 +15,203 @@ below. Nothing in this file is a claim that the port is finished.
   1151 removed and 450 added going backward; blocks -118, items -152; command
   nodes +297 -680. The pipeline's report lists 795 work items for this port.
 
-## Pipeline steps run
+## Regenerated tables (all six)
 
-`prepare` (both versions, via the download path), `diff 26.3 26.1`,
-`regen 26.1`, `harnesses 26.1` on a subset, `report 26.3 26.1`. The pipeline
-records (diff.json, regen.json, harnesses.json, report.md) are working files
-and are not part of this tree; their results are summarised here.
+- `version_consts` -> `crates/horizon-core/src/version.rs`
+- `packet_ids` -> `crates/horizon-protocol/src/ids.rs`
+- `entity_tracking` -> `crates/horizon-client/src/lan/tracking.rs`
+- `lan_command_order` -> `crates/horizon-client/src/lan/command_order.rs`
+- `command_suggestions` -> `crates/horizon-client/src/lan/command_suggestions.rs`
+- `vanilla_command_order` -> `crates/horizon-command/src/vanilla_order.rs`
+  (new in this pass; it needed a building `client_probe` and the ported
+  command-parse oracle)
 
-## Regenerated tables
+## Completion pass — what closed
 
-- `version_consts` -> `crates/horizon-core/src/version.rs` (+8 -8)
-- `packet_ids` -> `crates/horizon-protocol/src/ids.rs` (+135 -143)
-- `entity_tracking` -> `crates/horizon-client/src/lan/tracking.rs` (+17 -23)
-- `lan_command_order` -> `crates/horizon-client/src/lan/command_order.rs` (+45 -303)
-- `command_suggestions` -> `crates/horizon-client/src/lan/command_suggestions.rs` (+11 -22)
-- `vanilla_command_order` -> FAILED (blocked by the protocol compile breakage below)
+### 1. Protocol rewire (the main blocker)
 
-## Ported by hand
+`horizon-protocol` referenced five packets that do not exist in 26.1. Each
+was determined from the 26.1 jar, its datagen reports and decompiled codecs,
+and the code rewired to how 26.1 actually carries the behaviour:
 
-- `tools/generate_entity_tracking.py`: fall back to `EntityType.java`. 26.1
-  predates the `EntityTypes` registry split — the entity-type registry lives in
-  `EntityType` itself (157 `register(...)` entries parsed).
-- The parity oracles (`mods/horizon/src/test/java/dev/horizonlab/parity`) are
-  ported to the 26.1 API: `RegistryLayer.WORLDGEN` and
-  `RegistryDataLoader.WORLDGEN_REGISTRIES` (renamed to `WORLD` /
-  `WORLD_REGISTRIES` in a later version), the nine-argument
-  `CommandSourceStack` constructor, and the non-generic four-argument
-  `suggestRegistryElements` (the generic, filtered form came later).
+- `SWING_ANIMATION` (clientbound): 26.1 has no such packet; swings are
+  `animate` actions 0 (main hand) and 3 (off hand), with wake-up 2 and the
+  critical hits 4 and 5. All send/receive sites (hand handling, LAN hub,
+  session recording, remote players) now use `animate`.
+- `PUNCH` (serverbound): replaced by 26.1's `swing` packet (a hand VarInt,
+  0 main / 1 off), which is now a pinned packet variant with hub and bot
+  handling. The off hand crosses too; it was dropped by the old design.
+- `SPECTATOR_ACTION`: 26.1's equivalent is `spectate_entity`, whose payload
+  is a bare entity-id VarInt (not a UUID — the jar is the authority here).
+  It is now a pinned variant; the hub's spectator click sends/honours it,
+  and a click on nothing sends no packet, as in 26.1.
+- `POST_EFFECTS`: the feature does not exist in 26.1 — neither the packet
+  nor a `/posteffect` command. The wire paths (hub sends, remote receive)
+  are removed; the local post-chain state stays but nothing drives it from
+  the network.
+- `ADD_TRANSIENT_BLOCK`: likewise 26.3-only. The packet and its hub/remote
+  paths are removed; an explosion that used to also send one now sends the
+  block update alone. The local transient-block rendering module stays,
+  inert.
+
+Packet-codec corrections the pin exposed (all verified against the jar):
+
+- `explode`: no trailing "sound plays" flag (26.3 added it). Hub-built
+  explosions that must stay silent now name the intentionally-empty sound
+  event, which is how 26.1 expresses a silent explosion.
+- `accept_teleportation`: the id alone (26.3 added position/rotation). The
+  hub confirms teleports by id and uses its own record of the target.
+- `entity_position_sync`: 26.1's classic record layout (position, delta,
+  rotations, on-ground) replaces 26.3's stepped `PositionPath`, which is
+  deleted. Move-entity packets likewise use the classic short-delta layout;
+  internally tracked steps are folded to their sum at the wire.
+- `level_particles`: 26.1's field order (flags, position, spread, the one
+  speed, the count as a fixed Int, the particle last) replaces 26.3's. The
+  internal per-axis speed/randomization model is kept locally; at the wire
+  the speed folds to its dominant component, the fold the down-adapter
+  already used.
+- `sign_update`: the front-text boolean sits right after the position,
+  before the four lines (26.3 moved it to the end as a VarInt).
+- `set_player_team`: the parameters are in 26.1's order (colour before the
+  prefix/suffix).
+- `login`: no `online_mode` field. The client's online-mode knowledge now
+  comes from the session's own login exchange (the `Hello` packet's
+  authenticate flag), which is where 26.1 carries it.
+- `player_action` / `player_command` / `client_command` action numbers were
+  audited against the jar and renumbered where 26.1 differs (digging
+  abort/stop/drop/release/swap; the destroy-direction and stab actions do
+  not exist in 26.1 — stab arrived in 26.2 appended at 7, the direction
+  change only in 26.3).
+- The two serverbound packets 26.1 has that the base lacked (`swing`,
+  `spectate_entity`) are full pinned variants now (ids 63 and 62).
+- `pinned_ids.rs` was regenerated for 26.1, and the particle data kinds in
+  `entity_data.rs` were re-keyed to 26.1's `particle_type` registry order
+  (the geyser particles a later release adds do not exist here).
+- `tools/port_regen.py` learned the pre-split fallback the tracking
+  generator already had: versions before the registry split decompile
+  `EntityType`, not `EntityTypes`.
+
+The whole workspace compiles (`cargo check --workspace`), and
+`cargo test -p horizon-protocol` stands at **405 passed / 34 failed**; every
+failure is accounted for under "What remains" below (32 legacy-adapter
+tests, 2 sandbox-network tests in code this port does not touch).
+
+### 2. horizon-prepare exporter
+
+The block-state exporter compiles and runs against 26.1, and the prepared
+resources exist (`.local/horizon-client/26.1`, ~20k files):
+
+- `VanillaBlockStateBindingOracle`: 26.1's mapper method is package-private
+  (called reflectively now), the cuboid element's `shade()` is a boolean
+  (not a direction), and the mob exporter uses `EntityType`. The binding
+  export produces 1,170 blocks including both fake item frames, and every
+  Java exporter lane in prepare succeeds.
+- Rust side: `worldgen_bundles` no longer requires datapack resources for
+  the three worldgen kinds that are code-only in 26.1 (`material_rule`,
+  `material_condition`, `block_state_provider` exist in neither jar); the
+  two jars must still agree. Model elements now read 26.1's boolean
+  `shade`, which flows into baked quads and the baking fixtures.
+
+### 3. Oracles ported
+
+- `VanillaChunkGenerationOracle`: 26.1 splits terrain generation into
+  NOISE/SURFACE/CARVERS steps (`fillFromNoise`/`buildSurface`/`applyCarvers`),
+  `RandomState.create` takes its arguments in the other order, and the
+  biome source is itself the resolver. A standalone dump run produces a
+  complete chunk (307 KB, 384 layers + biome quads).
+- `VanillaCommandExecOracle`: `EntityType` constants, the authlib
+  `ServicesKeySet` package, `datapackWorldgen()`, the ten-argument server
+  constructor, `teleport(TeleportTransition)`. It compiles clean.
+- `VanillaBlockPropertiesOracle` (and the eight oracles sharing the
+  helper): in 26.1 `BlockState.CODEC` *is* the full codec; the split into a
+  compact `CODEC` plus `FULL_CODEC` came later.
+- `VanillaCommandParseOracle`: recipes are not a registry in 26.1 — they
+  live in the `RecipeManager`. Its `registries` mode runs to completion
+  (988 KB, 1,491 learnable recipes); the `tree` mode feeds the regenerated
+  `vanilla_command_order` table.
+- Further oracle adjustments the prepare bundle required:
+  `VanillaBlockLandingOracle`, `VanillaMovementRegistryOracle`,
+  `VanillaSimpleBlockOracle`, `VanillaPlacementOracle` (fall/bounce hooks,
+  code-only block state providers, levelgen class locations in 26.1).
+- The codec split is the subtle one: the base's oracles export block states
+  with `BlockState.FULL_CODEC`, the flat {id, properties} form the Rust
+  fixtures consume. 26.1 has only the palette codec ({Name, Properties}),
+  and substituting it compiles but silently changes every export's shape —
+  the block-properties fixture then fails on "block state is missing id".
+  A shared `VanillaStateCodec` helper now assembles the flat form from the
+  registry and each state's property map (26.1's `StateHolder.getValues()`
+  streams `Property.Value`s), and all ten oracles that exported through
+  FULL_CODEC use it. The block-properties harness passes end-to-end with
+  it (below).
+
+### 4. The 26.2 neighbour
+
+26.2 is the adjacent release and the only other unobfuscated one, so its
+adapter tables could be regenerated against the new pin from its prepared
+reports: `v26_2.rs` / `v26_1_2.rs` (packet ids) and `v26_2_ids.rs` /
+`v26_1_2_ids.rs` (registry ids). Verified from the reports: 26.2 is a
+strict superset of 26.1 for blocks, items and entity types (it only adds
+the cinnabar/sulfur content and the sulfur cube), so no 26.1 content needs
+a stand-in for a 26.2 client. Two payload conversions were added for 26.2
+guests: `spectator_action` (an OptionalInt) becomes the pin's
+`spectate_entity` (empty target = no packet), and a 26.2 stab
+(`player_action` 7) is dropped, the pin having no stab.
 
 ## Harness profile
 
-The subset is the same 17 harnesses the tree's docs use for the 26.2 backward
+The subset is the same 17 harnesses the tree's docs use for the backward
 experiment: block_properties, chunk_generation, command_exec, command_parse,
 component_patch, datafix, entity_components, first_person, food, hotbar,
 item_model, lan, light, options, resource_pack, save_roundtrip, sound_event.
 
-- horizon-prepare: FAILED. Its Java exporter does not compile against 26.1
-  ("javac failed while exporting block states"), so the prepared resources
-  under `.local/horizon-client/26.1` were never produced.
-- 16 harnesses recorded a verdict: **1 pass** (food), **2 oracle no longer
-  compiles** (chunk_generation, command_exec), **13 fail**.
-- datafix: no verdict — the runner was killed during the harness's
-  sample-world generation phase on the porting machine.
-- No baseline run on the pinned 26.3 tree was made, so no newly-failing split
-  is claimed: a harness listed as failing here may or may not have passed on
-  the base.
+Measured in this pass:
 
-Failure notes, where the logs pin them down:
+- **horizon-prepare: ok** (run through the pipeline's `harnesses` step).
+  The initial port recorded it FAILED; the exporter ports above are what
+  fixed it, and the prepared resources under `.local/horizon-client/26.1`
+  are produced.
+- The four oracles that recorded "oracle no longer compiles" or a compile
+  failure in the initial port (chunk_generation, command_exec,
+  block_properties, command_parse) now compile against 26.1, and were
+  verified standalone: chunk_generation dumps a complete chunk,
+  command_parse's `registries` mode completes (above), the block-state
+  binding export runs (1,170 blocks).
+- **block_properties: PASS** — re-run end-to-end in this pass (oracle
+  export, Rust fixture, comparison), up from fail in the initial port.
+- The remaining sixteen harnesses were not re-run to a recorded verdict in
+  this pass: a full 17-harness run was killed after 71 minutes on the
+  porting machine and a focused five-harness re-run also elapsed its
+  window inside the parity stage (each harness compiles the client
+  fixtures and boots JVMs; this machine is slow — the single passing
+  block_properties re-run alone took 7 minutes). Their initial-port
+  verdicts stand except where this pass re-measured: the two
+  "oracle no longer compiles" verdicts (chunk_generation, command_exec)
+  and block_properties' failure are resolved as described above, and
+  prepare is green. A full parity re-run on a faster machine is the
+  remaining measurement, not a known code blocker.
 
-- chunk_generation (oracle): `RandomState.create` signatures and
-  `ChunkStatus` constants differ in 26.1.
-- command_exec (oracle): the oracle references `EntityTypes`, which does not
-  exist in 26.1.
-- block_properties: the oracle compile step failed (javac exit 1).
-- command_parse: the oracle compiles and runs, but throws in
-  `exportRegistries` — a registry lookup fails under 26.1.
-- component_patch: the oracle compiles; its run exits 1.
-- The remaining failures recorded no oracle compile errors; the known dominant
-  causes are the protocol compile breakage below and the missing prepared
-  resources from the failed horizon-prepare.
+## What remains
 
-## Blockers — what remains
-
-1. `horizon-protocol` does not compile against the regenerated 26.1 packet
-   ids: the code references five packets that do not exist in 26.1 —
-   `SWING_ANIMATION`, `SPECTATOR_ACTION`, `PUNCH`, `POST_EFFECTS`,
-   `ADD_TRANSIENT_BLOCK` (16 compile errors). These packets are woven through
-   gameplay (packet handlers, the LAN hub, hand/swing handling, the spectator
-   camera, post effects, transient blocks), and 26.1 carries the equivalent
-   behaviour in other packets (a swing is an entity animation there), so this
-   is feature-level rewiring, not a table fix. It also blocks the
-   `vanilla_command_order` generator, which needs a building `client_probe`.
-2. horizon-prepare's block-state exporter does not compile against 26.1, so no
-   prepared client resources exist for this version yet.
-3. More oracles need porting: chunk_generation, command_exec, block_properties,
-   command_parse (above), and likely others the subset did not reach.
-4. The two serverbound packets 26.1 has that the base dropped have ids in the
-   regenerated table but no packet variants or handlers yet.
-
-## Commits on this branch (over base 962f5949ac)
-
-- `6b12c3f198` Entity tracking generator: fall back to EntityType.java on
-  versions before the EntityTypes registry split
-- `54289d3515` Port to Minecraft 26.1: pin it and regenerate (version_port.py regen)
-- `419cc4e166` Port the parity oracles to the 26.1 API
-- `a9deeb5ba0` Parity oracles: suggestRegistryElements is not generic in 26.1
-- `50a22d19a7` Port to Minecraft 26.1: pin it and regenerate (command_suggestions)
-- `5a7e083982` Port to Minecraft 26.1: pin it and regenerate (lan_command_order)
+1. **Cross-version adapters for 1.20.2–1.21.11 are still keyed to the old
+   pin.** Their per-version packet/registry tables (`v1_20_*.rs`,
+   `v1_21_*.rs` and the `*_ids.rs` files) map against the 26.3 numbering,
+   so conversions between the 26.1 pin and those versions compose two
+   different numberings. This is the single root cause of the 32 failing
+   `horizon-protocol` unit tests (the `adapter::translate::v1_20_*` /
+   `v1_21_*` tests, the legacy entity-data particle tests, the legacy item
+   datafix tests, and the 1.21.x-facing session tests). Regenerating the
+   tables needs each version's prepared reports, and this pipeline's
+   `prepare` refuses obfuscated releases ("the pipeline handles
+   unobfuscated releases (26.1 and later)"): wiring the mappings front-end
+   into `prepare` is the unlock, and is a pipeline project of its own.
+   The layout/step conversions for those versions (`layout_26_2.rs` is
+   26.2-only and was adjusted for the fields above; the `step_1_*.rs`
+   chain) need the same re-base once the tables exist. Single-version play
+   does not use these tables, and the 26.2 adjacency above is fully
+   re-based; the affected surface is sessions with 1.20.2–1.21.11 peers.
+2. **26.1.2** shares protocol 775 with 26.1, so `from_protocol` resolves it
+   to the pin; its adapter tables exist (regenerated above) for explicit
+   selection, but nothing distinguishes it on the wire.
+3. The old `step_26_1` (26.2↔26.1 layout step) was removed: under this pin
+   a 26.1 peer is the pin itself, and 26.2's layout deltas are handled by
+   `layout_26_2` plus the two conversions listed above.

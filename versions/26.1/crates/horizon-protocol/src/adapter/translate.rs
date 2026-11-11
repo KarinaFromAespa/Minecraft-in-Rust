@@ -178,7 +178,10 @@ pub fn clientbound(
             Some(first),
         )));
     }
-    // A release at a time: an older server's packets are brought to 26.2's layout first, oldest step first.
+    // A release at a time: an older server's packets are brought to the pinned
+    // 26.1 layout, oldest step first. The last step only tracks the entities
+    // the session has been told of (their ids and UUIDs), which the
+    // serverbound spectate conversion below reads.
     let mut before: Option<Vec<u8>> = None;
     type Step = fn(&Session, State, i32, &[u8]) -> Result<Option<Vec<u8>>>;
     let steps: [(ServerVersion, Step); 10] = [
@@ -250,19 +253,11 @@ pub fn clientbound(
         (State::Play, cb::LIGHT_UPDATE) => light_update(payload)?,
         (State::Play, cb::UPDATE_ADVANCEMENTS) => advancements(ids, payload)?,
         (State::Play, cb::LEVEL_PARTICLES) => particles(ids, payload)?,
-        (State::Play, cb::EXPLODE) => {
-            // 26.3 adds whether the blast's sound plays, last; 26.2 always played it.
-            let mut body = payload.to_vec();
-            body.push(1);
-            redecode(ids, id, &body)?
-        }
+        (State::Play, cb::EXPLODE) => redecode(ids, id, payload)?,
         (State::Play, cb::MOVE_ENTITY_POS) => move_entity(payload, true, false)?,
         (State::Play, cb::MOVE_ENTITY_POS_ROT) => move_entity(payload, true, true)?,
         (State::Play, cb::MOVE_ENTITY_ROT) => move_entity(payload, false, true)?,
         (State::Play, cb::ENTITY_POSITION_SYNC) => position_sync(payload)?,
-        (State::Play, cb::ANIMATE) => {
-            return animate(payload).map(|(id, body)| Some((id, Some(body))));
-        }
         (State::Play, cb::ADD_ENTITY) => {
             let mut p = decode_play(ids, id, payload)?;
             if let play::Clientbound::AddEntity(e) = &mut p {
@@ -497,27 +492,6 @@ pub fn serverbound(
             };
             renumbered(id, body)
         }
-        // 26.3 also states where the client was teleported to; 26.2 only the teleport's id.
-        (State::Play, sb::ACCEPT_TELEPORTATION) => {
-            let mut r = Reader::new(payload);
-            let mut w = Writer::new();
-            w.varint(r.varint()?);
-            renumbered(id, w.data)
-        }
-        // 26.3 inserted CHANGE_DESTROY_DIRECTION at 1; 26.2 has no such action.
-        (State::Play, sb::PLAYER_ACTION) => {
-            let mut r = Reader::new(payload);
-            let action = r.varint()?;
-            let action = match action {
-                0 => 0,
-                1 => return Ok(None),
-                n => n - 1,
-            };
-            let mut w = Writer::new();
-            w.varint(action);
-            w.bytes(r.rest());
-            renumbered(id, w.data)
-        }
         (State::Play, sb::INTERACT) if session.version.at_most(ServerVersion::V1_21_11) => {
             v1_21_11::interact(session, payload)
         }
@@ -534,15 +508,13 @@ pub fn serverbound(
                 renumbered(id, payload.to_vec())
             }
         }
-        // 26.1 is told the entity a spectator picked by its UUID (spectate_entity, at the same id).
-        (State::Play, sb::SPECTATOR_ACTION) if session.version == ServerVersion::V26_1 => {
-            v26_1::spectate(session, payload)
-        }
-        // 26.3's punch took over 26.2's swing of the main hand.
-        (State::Play, sb::PUNCH) => {
-            let mut w = Writer::new();
-            w.varint(0);
-            Ok(Some((swing_id(session.version), w.data)))
+        // The pinned spectate_entity names the entity a spectator picked by
+        // its network id. 26.2's spectator_action (at the same id) is the
+        // same pick as an optional id; the older releases' spectate names it
+        // by UUID instead, so one the client was never told of cannot be
+        // sent there at all.
+        (State::Play, sb::SPECTATE_ENTITY) if session.version != ServerVersion::V26_1 => {
+            spectate(session, payload)
         }
         (State::Play, sb::SET_CREATIVE_MODE_SLOT | sb::CONTAINER_CLICK) => {
             let p = play::Serverbound::decode(id, payload)?;
@@ -552,30 +524,32 @@ pub fn serverbound(
             };
             renumbered(id, payload)
         }
-        // 26.3 ends sign_update with the side (a VarInt); every older release reads it as a boolean right
-        // after the position, before the four lines.
-        (State::Play, sb::SIGN_UPDATE) => renumbered(id, sign_update(payload)?),
         _ => renumbered(id, payload.to_vec()),
     }
 }
 
-/// A sign_update payload as the older releases read it: position, side, four lines. 26.3 sends the side after
-/// the lines as a VarInt, which for 0 and 1 is one byte equal to the boolean.
-fn sign_update(payload: &[u8]) -> Result<Vec<u8>> {
-    let mut r = Reader::new(payload);
-    let pos = r.i64()?;
-    let mut lines = Vec::with_capacity(4);
-    for _ in 0..4 {
-        lines.push(r.string(384)?);
+/// The pinned `spectate_entity` (a network id) in an older server's form.
+/// 26.2's `spectator_action` sits at the same id (62) and carries the same
+/// pick as an optional id. The older releases' `spectate` names the entity
+/// by UUID, so the session's tracked entities decide: one it never told the
+/// client of cannot be named, and nothing is sent for it.
+fn spectate(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
+    use packet_ids::play::serverbound as sb;
+    let entity = Reader::new(payload).varint()?;
+    if session.version == ServerVersion::V26_2 {
+        let mut w = Writer::new();
+        crate::buf::OptVarInt::write(&Some(entity), &mut w);
+        return Ok(Some((62, w.data)));
     }
-    let front = r.varint()? == 1;
+    let Some(uuid) = session.uuids.lock().unwrap().get(&entity).copied() else {
+        return Ok(None);
+    };
+    let Some(id) = session.version.serverbound_id(State::Play, sb::SPECTATE_ENTITY) else {
+        return Ok(None);
+    };
     let mut w = Writer::new();
-    w.i64(pos);
-    w.bool(front);
-    for line in &lines {
-        w.string(line);
-    }
-    Ok(w.data)
+    w.uuid(uuid);
+    Ok(Some((id, w.data)))
 }
 
 /// 26.2's serverbound `swing` (play), which 26.3 replaced with `punch`.
@@ -930,9 +904,8 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
             always_show,
             pos,
             dist,
-            max_speed: [speed; 3],
+            max_speed: speed,
             count,
-            randomization: 0,
         },
         &mut w,
     );
@@ -972,7 +945,7 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let id = r.varint()?;
     let position = [r.f64()?, r.f64()?, r.f64()?];
-    let _motion = [r.f64()?, r.f64()?, r.f64()?];
+    let delta = [r.f64()?, r.f64()?, r.f64()?];
     let yaw = r.f32()?;
     let pitch = r.f32()?;
     let on_ground = r.bool()?;
@@ -980,7 +953,8 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     play::EntityPositionSync::write(
         &play::EntityPositionSync {
             id,
-            path: play::PositionPath::Linear(position),
+            position,
+            delta,
             yaw,
             pitch,
             on_ground,
@@ -988,37 +962,6 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
         &mut w,
     );
     Ok(w.data)
-}
-
-/// 26.2's animate swings hands too (0 main, 3 off), which 26.3 sends as `swing_animation`; the others were
-/// renumbered (wake up 2 -> 0, critical hits 4, 5 -> 1, 2).
-pub(super) fn animate(payload: &[u8]) -> Result<(i32, Vec<u8>)> {
-    let mut r = Reader::new(payload);
-    let id = r.varint()?;
-    let action = r.u8()?;
-    let mut w = Writer::new();
-    if action == 0 || action == 3 {
-        // A plain swing: SwingAnimationType WHACK over the default 6 ticks.
-        play::SwingAnimation::write(
-            &play::SwingAnimation {
-                id,
-                hand: i32::from(action == 3),
-                kind: 1,
-                duration: 6,
-            },
-            &mut w,
-        );
-        return Ok((packet_ids::play::clientbound::SWING_ANIMATION, w.data));
-    }
-    let action = match action {
-        2 => 0,
-        4 => 1,
-        5 => 2,
-        other => other,
-    };
-    w.varint(id);
-    w.u8(action);
-    Ok((packet_ids::play::clientbound::ANIMATE, w.data))
 }
 
 /// 1.21.10 (and 1.21.9) to 1.21.11.
@@ -1314,7 +1257,11 @@ pub(crate) mod v1_21_11 {
 pub(crate) mod v26_1 {
     use super::*;
 
-    /// 26.1's packet in 26.2's layout; `None` when it is laid out alike.
+    /// The pinned release is 26.1, so its own packets need no rewriting.
+    /// What this step still does for every older server's session is track
+    /// the entities it names: `add_entity` pairs each network id with its
+    /// UUID, and the serverbound `spectate` conversion (see `spectate`
+    /// above) names an entity by UUID for the releases that ask for one.
     pub fn clientbound(
         session: &Session,
         state: State,
@@ -1322,25 +1269,12 @@ pub(crate) mod v26_1 {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use packet_ids::play::clientbound as cb;
-        Ok(match (state, id) {
-            // 26.2 adds the session's id after the profile; 26.1 has none to give.
-            (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) => {
-                let mut body = payload.to_vec();
-                body.extend_from_slice(&[0; 16]);
-                Some(body)
-            }
-            (State::Play, cb::LOGIN) => Some(login(
-                payload,
-                session.version,
-                session.login_requires_authentication(),
-            )?),
-            (State::Play, cb::SET_PLAYER_TEAM) => Some(team(payload)?),
+        match (state, id) {
             (State::Play, cb::ADD_ENTITY) => {
                 let mut r = Reader::new(payload);
                 let entity = r.varint()?;
                 let uuid = r.uuid()?;
                 session.uuids.lock().unwrap().insert(entity, uuid);
-                None
             }
             (State::Play, cb::REMOVE_ENTITIES) => {
                 let mut r = Reader::new(payload);
@@ -1349,145 +1283,13 @@ pub(crate) mod v26_1 {
                 for _ in 0..n {
                     uuids.remove(&r.varint()?);
                 }
-                None
             }
-            _ => None,
-        })
-    }
-
-    /// Before 26.2 the encryption request tells the client whether the server checks accounts.
-    fn login(payload: &[u8], version: ServerVersion, authenticates: bool) -> Result<Vec<u8>> {
-        let mut r = Reader::new(payload);
-        r.i32()?;
-        r.bool()?;
-        let n = r.count(r.remaining())?;
-        for _ in 0..n {
-            r.string(32767)?;
+            _ => {}
         }
-        for _ in 0..3 {
-            r.varint()?;
-        }
-        for _ in 0..3 {
-            r.bool()?;
-        }
-        super::spawn_info(&mut r, version)?;
-        let at = r.position();
-        let mut body = payload[..at].to_vec();
-        body.push(u8::from(authenticates));
-        body.extend_from_slice(&payload[at..]);
-        Ok(body)
-    }
-
-    /// 26.1's team parameters: name, options, visibility, collision, colour as a ChatFormatting (RESET for
-    /// none), prefix, suffix. 26.2 sends name, prefix, suffix, visibility, collision, an optional
-    /// TeamColor (ChatFormatting's first 16, in order) and the options last.
-    fn team(payload: &[u8]) -> Result<Vec<u8>> {
-        let mut r = Reader::new(payload);
-        let mut w = Writer::new();
-        w.string(&r.string(32767)?);
-        let method = r.i8()?;
-        w.i8(method);
-        if method == 0 || method == 2 {
-            let name = r.nbt()?;
-            let options = r.i8()?;
-            let visibility = r.varint()?;
-            let collision = r.varint()?;
-            let color = r.varint()?;
-            let prefix = r.nbt()?;
-            let suffix = r.nbt()?;
-            w.nbt(&name);
-            w.nbt(&prefix);
-            w.nbt(&suffix);
-            w.varint(visibility);
-            w.varint(collision);
-            <crate::buf::Opt<crate::buf::VarInt>>::write(
-                &(0..16).contains(&color).then_some(color),
-                &mut w,
-            );
-            w.i8(options);
-        }
-        w.bytes(r.rest());
-        Ok(w.data)
-    }
-
-    /// Horizon's spectator_action names an entity by its network id; 26.1's spectate_entity (at the same
-    /// id) by its UUID. Nothing is sent for one the client never saw added, or for no entity.
-    pub fn spectate(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
-        let Some(target) = <crate::buf::OptVarInt>::read(&mut Reader::new(payload))? else {
-            return Ok(None);
-        };
-        let Some(uuid) = session.uuids.lock().unwrap().get(&target).copied() else {
-            return Ok(None);
-        };
-        let mut w = Writer::new();
-        w.uuid(uuid);
-        Ok(Some((SPECTATE_ENTITY, w.data)))
-    }
-
-    /// 26.1's serverbound `spectate_entity` (play).
-    const SPECTATE_ENTITY: i32 = 62;
-
-    #[cfg(test)]
-    mod tests {
-        use super::*;
-
-        #[test]
-        fn a_26_1_team_reads_as_26_2s() {
-            let mut w = Writer::new();
-            w.string("red");
-            w.i8(0);
-            w.nbt(&horizon_world::nbt::Tag::String("Red".into()));
-            w.i8(3);
-            w.varint(1);
-            w.varint(2);
-            w.varint(12); // RED
-            w.nbt(&horizon_world::nbt::Tag::String("[".into()));
-            w.nbt(&horizon_world::nbt::Tag::String("]".into()));
-            w.varint(1);
-            w.string("Steve");
-            let body = team(&w.data).unwrap();
-            let p =
-                play::Clientbound::decode(packet_ids::play::clientbound::SET_PLAYER_TEAM, &body)
-                    .unwrap();
-            let play::Clientbound::SetPlayerTeam(t) = p else {
-                panic!("{p:?}")
-            };
-            let params = t.parameters.unwrap();
-            assert_eq!(params.color, Some(12));
-            assert_eq!(params.options, 3);
-            assert_eq!(params.name_tag_visibility, 1);
-            assert_eq!(params.prefix, horizon_world::nbt::Tag::String("[".into()));
-            assert_eq!(t.players, vec!["Steve".to_string()]);
-        }
-
-        #[test]
-        fn reset_is_no_team_colour() {
-            let mut w = Writer::new();
-            w.string("t");
-            w.i8(2);
-            w.nbt(&horizon_world::nbt::Tag::String("T".into()));
-            w.i8(0);
-            w.varint(0);
-            w.varint(0);
-            w.varint(21); // RESET
-            w.nbt(&horizon_world::nbt::Tag::String("".into()));
-            w.nbt(&horizon_world::nbt::Tag::String("".into()));
-            let body = team(&w.data).unwrap();
-            let p =
-                play::Clientbound::decode(packet_ids::play::clientbound::SET_PLAYER_TEAM, &body)
-                    .unwrap();
-            let play::Clientbound::SetPlayerTeam(t) = p else {
-                panic!("{p:?}")
-            };
-            assert_eq!(t.parameters.unwrap().color, None);
-        }
+        Ok(None)
     }
 }
 
-/// 1.21.6 to 1.21.8. Clientbound nothing changes for a server: 1.21.6 sends set_equipment without the saddle
-/// slot (7), which 1.21.8 added, and entity data is laid out alike (the serializer ids differ only from 1.21.9,
-/// see adapter.rs). Serverbound, 1.21.8's `test_instance_block_action` names its test by identifier and 1.21.6
-/// by a VarInt id in a registry.
 pub(crate) mod v1_21_6 {
     use super::*;
 
@@ -2695,7 +2497,7 @@ mod tests {
     }
 
     #[test]
-    fn punches_cross_both_adapters_with_each_releases_swing_id() {
+    fn swings_cross_both_adapters_with_each_releases_swing_id() {
         // Packet IDs are the releases' vanilla serverbound reports, independent of the shared helper.
         for (version, swing) in [
             (ServerVersion::V1_20_2, 50),
@@ -2713,9 +2515,11 @@ mod tests {
             (ServerVersion::V26_2, 63),
         ] {
             let session = Session::new(version);
-            let punch = packet_ids::play::serverbound::PUNCH;
+            let pinned_swing = packet_ids::play::serverbound::SWING;
+            // The pinned swing renumbers to the release's own, its hand
+            // payload unchanged.
             assert_eq!(
-                serverbound(&session, State::Play, punch, &[]).unwrap(),
+                serverbound(&session, State::Play, pinned_swing, &[0]).unwrap(),
                 Some((swing, vec![0])),
                 "{version:?}",
             );
@@ -2739,14 +2543,15 @@ mod tests {
                     .unwrap();
             }
             assert_eq!(reverse.reading(), State::Play);
+            // Both hands cross as swings now (the off hand is not dropped).
             assert_eq!(
                 reverse.serverbound(swing, vec![0]).unwrap(),
-                Some((punch, vec![])),
+                Some((pinned_swing, vec![0])),
                 "{version:?}"
             );
             assert_eq!(
                 reverse.serverbound(swing, vec![1]).unwrap(),
-                None,
+                Some((pinned_swing, vec![1])),
                 "{version:?}"
             );
         }
@@ -2757,16 +2562,17 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_chunk_section_on_the_global_palette_is_repacked_wider() {
+    fn a_26_2_chunk_section_on_the_global_palette_is_renumbered() {
         let ids = ids();
-        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits.
+        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits —
+        // the width both numberings use (26.1 has 29,873 states, 26.2 has 32,366).
         let values: Vec<i32> = (0..4096).map(|i| 13000 + i).collect();
         let old = Paletted::from_values(&values, Strategy::Blocks, 15);
         assert_eq!(old.bits, 15);
-        let new = renumber_states(ids, &old, 16);
-        assert_eq!(new.bits, 16);
-        // oak_slab's first state, 13330 in 26.2, is 15177 in 26.3.
-        assert_eq!(new.get(330), 15177);
+        let new = renumber_states(ids, &old, 15);
+        assert_eq!(new.bits, 15);
+        // oak_slab type=top waterlogged=true is 13330 in both numberings.
+        assert_eq!(new.get(330), 13330);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 
@@ -2810,23 +2616,24 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_swing_becomes_a_swing_animation() {
-        let (id, body) = animate(&[5, 3]).unwrap();
-        assert_eq!(id, packet_ids::play::clientbound::SWING_ANIMATION);
-        let p = play::Clientbound::decode(id, &body).unwrap();
-        assert_eq!(
-            p,
-            play::Clientbound::SwingAnimation(play::SwingAnimation {
-                id: 5,
-                hand: 1,
-                kind: 1,
-                duration: 6
-            })
-        );
-        assert_eq!(
-            animate(&[5, 4]).unwrap(),
-            (packet_ids::play::clientbound::ANIMATE, vec![5, 1])
-        );
+    fn a_26_2_animate_crosses_unchanged() {
+        // 26.2 numbers animate's actions as the pin does (the swings 0 and
+        // 3, wake up 2, the critical hits 4 and 5), so the packet crosses
+        // with only its id renumbered.
+        let session = Session::new(ServerVersion::V26_2);
+        for action in [0u8, 3, 2, 4, 5] {
+            let translated = clientbound(
+                &session,
+                State::Play,
+                packet_ids::play::clientbound::ANIMATE,
+                &[5, action],
+            )
+            .unwrap();
+            assert_eq!(
+                translated,
+                Some((packet_ids::play::clientbound::ANIMATE, None))
+            );
+        }
     }
 
     #[test]
@@ -2865,7 +2672,10 @@ mod tests {
     }
 
     #[test]
-    fn a_26_3_destroy_direction_change_is_not_sent_to_26_2() {
+    fn pinned_digging_actions_cross_to_26_2_unchanged() {
+        // 26.2 numbers the classic actions as the pin does (its only
+        // addition is STAB, appended at 7, which the pin never sends); the
+        // destroy-direction action exists only in 26.3, in neither numbering.
         let session = Session::new(super::super::ServerVersion::V26_2);
         let action = |n: i32| {
             let mut w = Writer::new();
@@ -2882,8 +2692,9 @@ mod tests {
             .map(|(_, payload)| payload[0])
         };
         assert_eq!(action(0), Some(0)); // start destroying
-        assert_eq!(action(1), None); // change_destroy_direction, new in 26.3
-        assert_eq!(action(3), Some(2)); // stop destroying: 3 in 26.3, 2 in 26.2
+        assert_eq!(action(1), Some(1)); // abort destroying
+        assert_eq!(action(2), Some(2)); // stop destroying
+        assert_eq!(action(6), Some(6)); // swap held items
     }
 }
 
@@ -2969,7 +2780,7 @@ mod legacy_registry_tests {
             (20, 8, 6)
         );
         assert!(login.show_death_screen && login.limited_crafting);
-        assert!(!login.online_mode && !login.enforces_secure_chat);
+        assert!(!login.enforces_secure_chat);
         assert_eq!(login.spawn.dimension_type, 1);
         assert_eq!(login.spawn.dimension, "horizon_wire:custom");
         assert_eq!(login.spawn.seed, 0x1122334455667788);
@@ -3086,28 +2897,4 @@ pub(super) mod tests_support {
     }
 }
 
-#[cfg(test)]
-mod sign_update_tests {
-    use super::*;
 
-    #[test]
-    fn an_older_server_reads_the_side_before_the_lines() {
-        let mut w = Writer::new();
-        w.i64(0x0102_0304_0506_0708);
-        for line in ["Hi", "", "x", ""] {
-            w.string(line);
-        }
-        w.varint(1); // the front
-        let out = sign_update(&w.data).unwrap();
-        let mut expected = Writer::new();
-        expected.i64(0x0102_0304_0506_0708);
-        expected.bool(true);
-        for line in ["Hi", "", "x", ""] {
-            expected.string(line);
-        }
-        assert_eq!(out, expected.data);
-        w.data.pop();
-        w.varint(0); // the back
-        assert_eq!(sign_update(&w.data).unwrap()[8], 0);
-    }
-}

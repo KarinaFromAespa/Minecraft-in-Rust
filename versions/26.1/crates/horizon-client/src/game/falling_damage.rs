@@ -158,22 +158,9 @@ impl Game<'_> {
                 }
             }
         }
-        // FallingBlockEntity.tick: the players tracking the entity are told to
-        // show the block for a moment, after the block update.
-        if let Landing::Placed(state) = landing
-            && block.id != 0
-            && let Some(host) = &self.lan
-        {
-            host.hub.send_to_tracking(
-                block.id as i32,
-                &horizon_protocol::packets::play::Clientbound::AddTransientBlock(
-                    horizon_protocol::packets::play::AddTransientBlock {
-                        pos,
-                        state: state.0 as i32,
-                    },
-                ),
-            );
-        }
+        // FallingBlockEntity.tick in 26.1 sends the block update alone (the
+        // transient-block packet is a later addition), which the landing
+        // above already produced.
         if matches!(landing, Landing::Broken)
             && block.drop_item
             && self.ui.rules.bool("entity_drops")

@@ -1473,8 +1473,6 @@ impl Hub {
             show_death_screen: !self.immediate_respawn,
             limited_crafting: self.limited_crafting,
             spawn: self.spawn_info(i, 0, ctx.sea_level),
-            // MinecraftServer.usesAuthentication, enforceSecureProfile.
-            online_mode: self.lan.shared.config.online.is_some(),
             enforces_secure_chat: self.enforces_secure_chat(),
         }));
         g.send(&C::ChangeDifficulty(play::ChangeDifficulty {
@@ -1579,8 +1577,7 @@ impl Hub {
         g.center_sent = Some((cx, cz));
         g.placed_at = self.ticks;
         self.send_active_effects(i);
-        // ServerPlayer.sendPostEffects and initInventoryMenu.
-        self.send_post_effects(i);
+        // initInventoryMenu.
         self.send_inventory(i);
     }
 
@@ -1798,14 +1795,6 @@ impl Hub {
         self.send_inventory(i);
         self.place_arrival(i, announce);
         Ok(announce)
-    }
-
-    /// `ServerPlayer.sendPostEffects`: the player's `/posteffect` chains.
-    pub fn send_post_effects(&mut self, i: usize) {
-        let g = &mut self.guests[i];
-        g.post_effects_dirty = false;
-        let effects = g.post_effects.clone();
-        g.send(&C::PostEffects(play::PostEffects { effects }));
     }
 
     /// ClientboundUpdateMobEffectPacket for one of the guest's effects.
@@ -3938,10 +3927,6 @@ impl Hub {
             && self.guests[i].sent_health.is_some()
         {
             self.flush_advancements(i, true);
-            // ServerPlayer.doTick: sendPostEffects when postEffectsDirty.
-            if self.guests[i].post_effects_dirty {
-                self.send_post_effects(i);
-            }
         }
     }
     fn flush_advancements(&mut self, i: usize, show: bool) {
@@ -4045,7 +4030,9 @@ impl Hub {
         // (the swing starts the attack strength again, #7817).
         let mut held = false;
         while budget > 0 {
-            if held && !matches!(self.guests[i].inbox.front(), Some((S::Punch(_), _))) {
+            if held
+                && !matches!(self.guests[i].inbox.front(), Some((S::Swing(p), _)) if p.hand == 0)
+            {
                 break;
             }
             let Some((packet, bytes)) = self.guests[i].inbox.pop_front() else {
@@ -4087,7 +4074,7 @@ impl Hub {
                 | S::UseItem(_)
                 | S::Attack(_)
                 | S::Interact(_)
-                | S::SpectatorAction(_)
+                | S::SpectateEntity(_)
                 | S::PlayerCommand(_)
                     if !self.guests[i].client_loaded() => {}
                 // handleAcceptTeleportPacket.
@@ -4097,15 +4084,9 @@ impl Hub {
                     if let Some((id, at)) = g.awaiting_teleport
                         && id == p.id
                     {
-                        if p.x.is_nan()
-                            || p.y.is_nan()
-                            || p.z.is_nan()
-                            || !p.yaw.is_finite()
-                            || !p.pitch.is_finite()
-                        {
-                            self.kick(conn, invalid_movement());
-                            continue;
-                        }
+                        // The packet is the id alone: the client confirms the
+                        // teleport, and where it lands is the teleport's own
+                        // target, with the guest's current rotation.
                         g.position = at;
                         g.awaiting_teleport = None;
                         // The prediction's replay starts again where the client now is.
@@ -4116,8 +4097,8 @@ impl Hub {
                                 .get_or_insert_default()
                                 .teleported(at, kept);
                         }
-                        let rot = (p.yaw, p.pitch);
-                        self.position_change(i, [p.x, p.y, p.z], rot, 0, ctx, events);
+                        let rot = (g.yaw, g.pitch);
+                        self.position_change(i, at, rot, 0, ctx, events);
                     }
                 }
                 // handlePlayerAbilities: the client flies only if it may.
@@ -4176,9 +4157,9 @@ impl Hub {
                         held = self.move_queued(i);
                     }
                 }
-                S::Punch(p) => {
+                S::Swing(p) => {
                     self.anticheat_swing(i);
-                    events.push(HostEvent::Packet(conn, Box::new(S::Punch(p))));
+                    events.push(HostEvent::Packet(conn, Box::new(S::Swing(p))));
                 }
                 S::ClientTickEnd(_) => {
                     // handleClientTickEnd: no move this tick, no known movement.
@@ -5124,10 +5105,6 @@ impl Hub {
             total: xp.2,
         }));
         g.sent_xp = Some(xp);
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
-        g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         self.send_level_info(i, ctx, true);
         self.send_permission_level(i);
         // ServerLevel.addRespawnedPlayer: the chunk tracking starts again at the player.
@@ -5237,10 +5214,6 @@ impl Hub {
         }));
         self.send_active_effects(i);
         let g = &mut self.guests[i];
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
-        g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         // lastSentExp, lastSentHealth and lastSentFood; the client's new
         // player starts with the default air and no absorption.
         g.sent_health = None;
