@@ -35,7 +35,7 @@ use super::{
     ServerVersion,
     ids::{self, Ids, Way, down_or_substitute},
     layout_26_2,
-    translate::{packet_ids_entity::FALLING_BLOCK, swing_id},
+    translate::packet_ids_entity::FALLING_BLOCK,
 };
 use crate::{
     Result, State,
@@ -219,11 +219,6 @@ impl ClientSession {
     /// version has no such packet.
     pub fn serverbound(&self, id: i32, payload: Vec<u8>) -> Result<Option<(i32, Vec<u8>)>> {
         let state = self.reading();
-        // 26.3's punch took over the older swing of the main hand; an off-hand swing has no packet there.
-        if state == State::Play && id == swing_id(self.version) {
-            let hand = Reader::new(&payload).varint()?;
-            return Ok((hand == 0).then_some((packet_ids::play::serverbound::PUNCH, Vec::new())));
-        }
         if state == State::Play && Some(id) == old_pick_item_id(self.version) {
             return self.pick_item(&payload);
         }
@@ -309,20 +304,6 @@ impl ClientSession {
             Some(p) => (packet_ids::play::clientbound::TELEPORT_ENTITY, &p[..]),
             None => (id, payload),
         };
-        // 26.2 has no swing_animation: its hands swing through animate (world.rs).
-        if state == State::Play
-            && id == packet_ids::play::clientbound::SWING_ANIMATION
-            && self.version.ids().is_some()
-        {
-            let animate = packet_ids::play::clientbound::ANIMATE;
-            let Some(mapped) = self.version.clientbound_id_down(state, animate) else {
-                return Ok(None);
-            };
-            let mut w = Writer::new();
-            w.varint(mapped);
-            w.bytes(&world::swing(payload)?);
-            return Ok(Some(w.data));
-        }
         if (state, id) == (State::Play, packet_ids::play::clientbound::PLAYER_POSITION) {
             self.teleporting(payload)?;
         }
@@ -516,7 +497,6 @@ impl ClientSession {
         pinned: i32,
         mut payload: Vec<u8>,
     ) -> Result<Option<(i32, Vec<u8>)>> {
-        use packet_ids::play::serverbound as sb;
         let v = self.version;
         // 1.20.6 is the oldest release: its use_item is read first, with the client's last rotation.
         if v.at_most(ServerVersion::V1_20_6) {
@@ -557,33 +537,8 @@ impl ClientSession {
                 step_1_21_6::Out::Dropped => return Ok(None),
             }
         }
-        if v.at_most(ServerVersion::V1_21_11) && (state, pinned) == (State::Play, sb::INTERACT) {
-            let mut r = Reader::new(&payload);
-            let _entity = r.varint()?;
-            return Ok(match r.varint()? {
-                // INTERACT follows each INTERACT_AT; 26.3's interact is the latter alone.
-                0 => None,
-                1 => Some((sb::ATTACK, step_1_21_11::attack(&payload)?)),
-                _ => {
-                    let p = step_1_21_11::serverbound(state, pinned, &payload)?;
-                    Some((pinned, p.unwrap_or(payload)))
-                }
-            });
-        }
-        if v.at_most(ServerVersion::V26_1) {
-            let entities = self.entities.lock().unwrap();
-            let entity_of = |uuid: u128| {
-                entities
-                    .iter()
-                    .find(|(_, (_, u))| *u == uuid)
-                    .map(|(&id, _)| id)
-            };
-            match step_26_1::serverbound(state, pinned, &payload, entity_of)? {
-                step_26_1::Out::Untouched => {}
-                step_26_1::Out::Rewritten(p) => return Ok(Some((pinned, p))),
-                step_26_1::Out::Dropped => return Ok(None),
-            }
-        }
+        // 1.21.11's interact needs no split here: the pinned version IS 1.21.11, so its
+        // interact (actions 0 interact, 1 attack, 2 interact at a point) crosses as it is.
         Ok(Some((pinned, payload)))
     }
 }
@@ -1005,7 +960,7 @@ mod tests {
     #[test]
     fn packets_are_renumbered_both_ways_and_unknown_ones_dropped() {
         let s = in_play();
-        // keep_alive: 26.3's clientbound 45 is 26.2's 44; serverbound 28 in both.
+        // keep_alive: 1.21.11's clientbound 43 is 26.2's 44; serverbound 27 is 26.2's 28.
         let sent = s
             .clientbound(&body(packet_ids::play::clientbound::KEEP_ALIVE, &[0; 8]))
             .unwrap()
@@ -1015,10 +970,9 @@ mod tests {
             s.serverbound(28, vec![0; 8]).unwrap(),
             Some((packet_ids::play::serverbound::KEEP_ALIVE, vec![0; 8]))
         );
-        // add_transient_block (37) is new in 26.3: not sent.
-        let transient = packet_ids::play::clientbound::ADD_TRANSIENT_BLOCK;
-        assert_eq!(s.clientbound(&body(transient, &[0; 9])).unwrap(), None);
-        // 26.2's resource_pack (49) is 26.3's 50.
+        // spectator_action (62 in 26.2) is one 1.21.11 has no packet for: not sent.
+        assert_eq!(s.serverbound(62, vec![0]).unwrap(), None);
+        // 26.2's resource_pack (49) is 1.21.11's 48.
         assert_eq!(
             s.serverbound(49, vec![7]).unwrap(),
             Some((packet_ids::play::serverbound::RESOURCE_PACK, vec![7]))
@@ -1026,14 +980,18 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_main_hand_swing_is_a_punch_and_an_off_hand_one_nothing() {
+    fn a_26_2_swing_crosses_as_a_swing_with_its_hand() {
         let s = in_play();
-        // swing: 63 in 26.2, its hand a VarInt (0 main, 1 off); 26.3's punch has no payload.
+        // swing: 63 in 26.2, 60 in 1.21.11; its hand a VarInt (0 main, 1 off); both hands
+        // cross unchanged.
         assert_eq!(
             s.serverbound(63, vec![0]).unwrap(),
-            Some((packet_ids::play::serverbound::PUNCH, Vec::new()))
+            Some((packet_ids::play::serverbound::SWING, vec![0]))
         );
-        assert_eq!(s.serverbound(63, vec![1]).unwrap(), None);
+        assert_eq!(
+            s.serverbound(63, vec![1]).unwrap(),
+            Some((packet_ids::play::serverbound::SWING, vec![1]))
+        );
     }
 
     #[test]

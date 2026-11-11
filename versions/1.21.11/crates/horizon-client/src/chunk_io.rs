@@ -68,8 +68,8 @@ pub fn report_save_failure(dir: &Path, x: i32, z: i32, error: &dyn std::fmt::Dis
     with(|p| p.save_failed(x, z, low));
 }
 
-/// `Minecraft.sendLowDiskSpaceWarning`: a server's `ClientboundLowDiskSpaceWarningPacket`
-/// (`ClientPacketListener.handleLowDiskSpaceWarning`) toasts like the local report.
+/// A low-disk report from the local chunk storage, shown as a toast. (The
+/// packet that warned a server's operators does not exist in 1.21.11.)
 pub fn report_low_disk_space() {
     with(|p| p.low_disk_space = true);
 }

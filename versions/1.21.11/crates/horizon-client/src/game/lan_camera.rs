@@ -1,16 +1,14 @@
-//! A spectating guest's camera (`ServerPlayer.camera`): chosen by a click
-//! (`handleSpectatorAction`) or `/spectate`, followed every tick, dropped
-//! when the entity dies, the player sneaks, is teleported or leaves
-//! spectator mode.
+//! A spectating guest's camera (`ServerPlayer.camera`): chosen by `/spectate`,
+//! followed every tick, dropped when the entity dies, the player sneaks, is
+//! teleported or leaves spectator mode.
 use super::{Game, commands::Target, lan::LanHost};
-use horizon_core::geometry::{Aabb, Vec3};
+use horizon_core::geometry::Vec3;
 use horizon_protocol::packets::play::{self, Clientbound as C};
 
-/// Where a camera entity is, which way it looks and its box.
+/// Where a camera entity is and which way it looks.
 pub(super) struct CameraExtra {
     pub position: [f64; 3],
     pub rotation: [f32; 2],
-    pub bounds: Aabb,
 }
 
 /// `ServerPlayer.camera` of one guest other than itself.
@@ -66,100 +64,19 @@ impl Game<'_> {
             return Some(CameraExtra {
                 position: at(t.position),
                 rotation: [0.0; 2],
-                bounds: t.bounds(),
             });
         }
         if let Some(f) = self.falling.iter().find(|f| f.id == id) {
-            // EntityType.FALLING_BLOCK: 0.98 x 0.98.
-            let h = 0.49;
             return Some(CameraExtra {
                 position: at(f.position),
                 rotation: [0.0; 2],
-                bounds: Aabb::new(
-                    Vec3::new(f.position.x - h, f.position.y, f.position.z - h),
-                    Vec3::new(f.position.x + h, f.position.y + 0.98, f.position.z + h),
-                ),
             });
         }
-        let (position, bounds) = self.dragon_part(id)?;
+        let (position, _) = self.dragon_part(id)?;
         Some(CameraExtra {
             position: at(position),
             rotation: [0.0; 2],
-            bounds,
         })
-    }
-
-    /// `Entity.isPickable` of the entity with that id.
-    fn camera_pickable(&self, host: &LanHost, id: i32) -> bool {
-        // Player.isPickable: not a spectator.
-        if let Some(g) = host.hub.guests.iter().find(|g| g.entity_id == id) {
-            return !g.spectator() && !g.dead;
-        }
-        if self.camera_extra(id).is_some() {
-            return true;
-        }
-        match self.level_entity(id) {
-            // Projectile.isPickable: the redirectable projectiles
-            // (`#redirectable_projectile`); ShulkerBullet's is `true`.
-            Some(t @ Target::Projectile(_)) => matches!(
-                self.target_type(t).as_str(),
-                "minecraft:fireball"
-                    | "minecraft:wind_charge"
-                    | "minecraft:breeze_wind_charge"
-                    | "minecraft:shulker_bullet"
-            ),
-            // LivingEntity: not removed. ArmorStand: not a marker.
-            Some(Target::Mob(_)) => self.camera_state(host, id).is_some(),
-            Some(Target::Stand(s)) => self.armor_stands.iter().any(|a| a.id == s && !a.marker),
-            // BlockAttachedEntity, minecarts, boats, end crystals.
-            Some(Target::Frame(_) | Target::Painting(_) | Target::Boat(_) | Target::Cart(_))
-            | Some(Target::Crystal(_)) => true,
-            // Interaction.
-            Some(t @ Target::Other(_)) => self.target_type(t) == "minecraft:interaction",
-            _ => false,
-        }
-    }
-
-    /// `ServerGamePacketListenerImpl.handleSpectatorAction`.
-    pub(super) fn guest_spectator_action(
-        &mut self,
-        host: &mut LanHost,
-        gi: usize,
-        target: Option<i32>,
-    ) {
-        let g = &host.hub.guests[gi];
-        if !g.loaded || !g.spectator() {
-            return;
-        }
-        let conn = g.conn;
-        let Some(id) = target else {
-            return;
-        };
-        let Some(bounds) = self
-            .guest_target_box(host, gi, id)
-            .or_else(|| self.camera_extra(id).map(|e| e.bounds))
-        else {
-            return;
-        };
-        let Some((at, _)) = self.camera_state(host, id) else {
-            return;
-        };
-        let block = at.map(|v| v.floor() as i32);
-        if !self
-            .border
-            .contains(f64::from(block[0]), f64::from(block[2]))
-        {
-            return;
-        }
-        if self.as_guest(host, conn, |g| {
-            g.within_entity_interaction_range(&bounds, 3.0)
-        }) != Some(true)
-        {
-            return;
-        }
-        if self.camera_pickable(host, id) {
-            self.guest_set_camera(host, gi, Some(id));
-        }
     }
 
     /// `ServerPlayer.setCamera`: the view moves to the new camera, which

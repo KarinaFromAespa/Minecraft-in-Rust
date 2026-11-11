@@ -1024,14 +1024,6 @@ impl Hub {
             g.sender.send(body.clone());
         }
     }
-    /// `DedicatedServer.sendLowDiskSpaceWarning`: the players with
-    /// `PermissionLevel.ADMINS` (3) or more get `ClientboundLowDiskSpaceWarningPacket`.
-    pub fn send_low_disk_space_warning(&self) {
-        let body = C::LowDiskSpaceWarning(horizon_protocol::packets::Empty).encode();
-        for g in self.guests.iter().filter(|g| g.placed && g.permission >= 3) {
-            g.sender.send(body.clone());
-        }
-    }
     pub fn broadcast_except(&self, conn: u32, packet: &C) {
         let body = packet.encode();
         for g in self.guests.iter().filter(|g| g.placed && g.conn != conn) {
@@ -1579,8 +1571,8 @@ impl Hub {
         g.center_sent = Some((cx, cz));
         g.placed_at = self.ticks;
         self.send_active_effects(i);
-        // ServerPlayer.sendPostEffects and initInventoryMenu.
-        self.send_post_effects(i);
+        // 1.21.11 has no post-effects packet: the guest's own chains stay
+        // local to the server (they are still saved with the player).
         self.send_inventory(i);
     }
 
@@ -1798,14 +1790,6 @@ impl Hub {
         self.send_inventory(i);
         self.place_arrival(i, announce);
         Ok(announce)
-    }
-
-    /// `ServerPlayer.sendPostEffects`: the player's `/posteffect` chains.
-    pub fn send_post_effects(&mut self, i: usize) {
-        let g = &mut self.guests[i];
-        g.post_effects_dirty = false;
-        let effects = g.post_effects.clone();
-        g.send(&C::PostEffects(play::PostEffects { effects }));
     }
 
     /// ClientboundUpdateMobEffectPacket for one of the guest's effects.
@@ -3663,7 +3647,7 @@ impl Hub {
         self.broadcast_near(
             at,
             128.0,
-            &C::Animate(play::Animate { id, action: 0 }),
+            &C::Animate(play::Animate { id, action: 2 }),
             None,
         );
     }
@@ -3938,10 +3922,6 @@ impl Hub {
             && self.guests[i].sent_health.is_some()
         {
             self.flush_advancements(i, true);
-            // ServerPlayer.doTick: sendPostEffects when postEffectsDirty.
-            if self.guests[i].post_effects_dirty {
-                self.send_post_effects(i);
-            }
         }
     }
     fn flush_advancements(&mut self, i: usize, show: bool) {
@@ -4045,7 +4025,7 @@ impl Hub {
         // (the swing starts the attack strength again, #7817).
         let mut held = false;
         while budget > 0 {
-            if held && !matches!(self.guests[i].inbox.front(), Some((S::Punch(_), _))) {
+            if held && !matches!(self.guests[i].inbox.front(), Some((S::Swing(_), _))) {
                 break;
             }
             let Some((packet, bytes)) = self.guests[i].inbox.pop_front() else {
@@ -4085,9 +4065,7 @@ impl Hub {
                 S::PlayerAction(_)
                 | S::UseItemOn(_)
                 | S::UseItem(_)
-                | S::Attack(_)
                 | S::Interact(_)
-                | S::SpectatorAction(_)
                 | S::PlayerCommand(_)
                     if !self.guests[i].client_loaded() => {}
                 // handleAcceptTeleportPacket.
@@ -4167,18 +4145,9 @@ impl Hub {
                     g.max_unacknowledged = 10;
                 }
                 S::Pong(p) => self.anticheat_pong(i, p.id),
-                // handleAttack is the game's too: a move queued behind an attack would move
-                // the player (or land them on the ground, losing a falling attack's critical
-                // hit) before the game checks their reach and state.
-                S::Attack(p) => {
-                    if !self.anticheat_attack(i, p.id, events) {
-                        events.push(HostEvent::Packet(conn, Box::new(S::Attack(p))));
-                        held = self.move_queued(i);
-                    }
-                }
-                S::Punch(p) => {
+                S::Swing(p) => {
                     self.anticheat_swing(i);
-                    events.push(HostEvent::Packet(conn, Box::new(S::Punch(p))));
+                    events.push(HostEvent::Packet(conn, Box::new(S::Swing(p))));
                 }
                 S::ClientTickEnd(_) => {
                     // handleClientTickEnd: no move this tick, no known movement.
@@ -4357,11 +4326,21 @@ impl Hub {
                     events.push(HostEvent::Packet(conn, Box::new(S::UseItemOn(p))));
                     held = self.move_queued(i);
                 }
-                // handleInteract is the game's too, like handleAttack above: a move queued
-                // behind it waits for the next tick.
+                // handleInteract is the game's too: a move queued behind it
+                // waits for the next tick. An attack (action 1) goes through
+                // the anticheat first, like handleAttack above: a move queued
+                // behind an attack would move the player (or land them on the
+                // ground, losing a falling attack's critical hit) before the
+                // game checks their reach and state.
                 S::Interact(p) => {
-                    events.push(HostEvent::Packet(conn, Box::new(S::Interact(p))));
-                    held = self.move_queued(i);
+                    if matches!(p.action, play::InteractAction::Attack)
+                        && self.anticheat_attack(i, p.id, events)
+                    {
+                        // The anticheat took the attack: not passed to the game.
+                    } else {
+                        events.push(HostEvent::Packet(conn, Box::new(S::Interact(p))));
+                        held = self.move_queued(i);
+                    }
                 }
                 // ContainerInput's codec (ByIdMap, OutOfBoundsStrategy.ZERO) reads an
                 // unknown click type as PICKUP.
@@ -5124,10 +5103,6 @@ impl Hub {
             total: xp.2,
         }));
         g.sent_xp = Some(xp);
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
-        g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         self.send_level_info(i, ctx, true);
         self.send_permission_level(i);
         // ServerLevel.addRespawnedPlayer: the chunk tracking starts again at the player.
@@ -5237,10 +5212,6 @@ impl Hub {
         }));
         self.send_active_effects(i);
         let g = &mut self.guests[i];
-        // ServerPlayer.sendPostEffects.
-        let list = g.post_effects.clone();
-        g.post_effects_dirty = false;
-        g.send(&C::PostEffects(play::PostEffects { effects: list }));
         // lastSentExp, lastSentHealth and lastSentFood; the client's new
         // player starts with the default air and no absorption.
         g.sent_health = None;

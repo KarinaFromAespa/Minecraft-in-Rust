@@ -1643,7 +1643,7 @@ impl Game<'_> {
             // MultiPlayerGameMode's attack, interact, useItem, useItemOn, releaseUsingItem, dropItem and
             // piercingAttack run ensureHasSentCarriedItem before their packet: a slot the number keys
             // chose this tick goes out first. A miss, a dig's start or a swap waits for the next tick.
-            if let S::Attack(_) | S::Interact(_) | S::UseItem(_) | S::UseItemOn(_) = &packet {
+            if let S::Interact(_) | S::UseItem(_) | S::UseItemOn(_) = &packet {
                 self.remote_send_carried();
             } else if let S::PlayerAction(a) = &packet
                 && matches!(a.action, 4 | 5 | 6 | 8)
@@ -2840,15 +2840,15 @@ impl Game<'_> {
         };
         let particle = match action {
             // Player.stopSleepInBed.
-            0 => {
+            2 => {
                 if target == TrackingTarget::LocalPlayer {
                     self.sleeping = None;
                     self.sleep_timer = 100;
                 }
                 return;
             }
-            1 => ParticleType::Crit,
-            2 => ParticleType::EnchantedHit,
+            4 => ParticleType::Crit,
+            5 => ParticleType::EnchantedHit,
             _ => return,
         };
         self.particles
@@ -3801,8 +3801,6 @@ impl Game<'_> {
                 self.snap_player_model_pitch();
             }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
-            // ClientCommonPacketListenerImpl.handlePostEffects.
-            C::PostEffects(p) => self.post_effects = p.effects,
             C::SetCamera(p) => self.remote_set_camera(p.camera_id),
             C::LevelChunkWithLight(p) => self.remote_chunk(&p, None),
             C::LightUpdate(p) => self.remote_light_update(&p),
@@ -3818,7 +3816,6 @@ impl Game<'_> {
                 }));
             }
             C::BlockUpdate(p) => self.server_block(p.pos, p.state),
-            C::AddTransientBlock(p) => self.add_transient_block(p.pos, p.state),
             // ClientPacketListener.handleBlockDestruction: another player's crack.
             C::BlockDestruction(p) => {
                 self.destroy_block_progress(p.id, p.pos, i32::from(p.progress));
@@ -4856,21 +4853,18 @@ impl Game<'_> {
                     self.remote_complete_using();
                 }
             }
-            C::Animate(p) => self.remote_animate(p.id, p.action),
-            // ClientPacketListener.handleSwingAnimation: the entity swings
-            // (LivingEntity.swing, which a swing in its first half ignores).
-            C::SwingAnimation(p) => {
-                let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
-                let animation = horizon_client::first_person::SwingAnimation {
-                    kind: p.kind.clamp(0, 255) as u8,
-                    duration: p.duration,
-                };
+            C::Animate(p) if p.action == 0 || p.action == 3 => {
+                // ClientPacketListener.handleAnimate: the entity swings
+                // (LivingEntity.swing, which a swing in its first half ignores); the rest
+                // is `remote_animate`.
+                let hand = if p.action == 3 { Hand::Off } else { Hand::Main };
                 if self.remote.as_ref().is_some_and(|r| r.entity_id == p.id) {
-                    self.swing_hand(hand, animation);
+                    self.swing_hand(hand, SwingAnimation::DEFAULT);
                 } else if let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32) {
-                    m.swing_hand_modified(hand == Hand::Off, animation);
+                    m.swing_hand_modified(hand == Hand::Off, SwingAnimation::DEFAULT);
                 }
             }
+            C::Animate(p) => self.remote_animate(p.id, p.action),
             // The player's own instances: its maximum health (the hearts the
             // HUD draws and the health it may hold), reach, speed and so on.
             // Then the received health again, which the old maximum clamped.
@@ -4894,7 +4888,6 @@ impl Game<'_> {
                 self.level.difficulty_locked = p.locked;
                 self.remote_world_options_difficulty(self.ui.difficulty, p.locked);
             }
-            C::GameRuleValues(p) => self.remote_world_options_rules(p.entries),
             // ClientPacketListener.handleSetHealth: LocalPlayer.hurtTo.
             C::SetHealth(p) => {
                 let flash = self.remote.as_mut().is_some_and(|r| {
@@ -5660,8 +5653,6 @@ impl Game<'_> {
             // ClientCommonPacketListenerImpl.handleShowDialog / handleClearDialog.
             C::ShowDialog(p) => self.show_play_dialog(&p.dialog),
             C::ClearDialog(_) => self.clear_dialog(),
-            // ClientPacketListener.handleLowDiskSpaceWarning.
-            C::LowDiskSpaceWarning(_) => horizon_client::chunk_io::report_low_disk_space(),
             C::ClearTitles(p) => {
                 self.titles.clear();
                 if p.value {
@@ -8417,13 +8408,25 @@ impl Game<'_> {
             if response.is_none() && hand == Hand::Off && !passes {
                 return false;
             }
+            // 1.21.11's interact carries its action: INTERACT_AT (2) with the
+            // point, then INTERACT (0) when the entity passes, as vanilla's
+            // startUseItem sends them.
             self.send(S::Interact(play::Interact {
                 id: hit.id,
-                hand: hand_id(hand),
-                location: hit.location,
+                action: play::InteractAction::InteractAt {
+                    location: hit.location,
+                    hand: hand_id(hand),
+                },
                 secondary: sneaking,
             }));
             if passes {
+                self.send(S::Interact(play::Interact {
+                    id: hit.id,
+                    action: play::InteractAction::Interact {
+                        hand: hand_id(hand),
+                    },
+                    secondary: sneaking,
+                }));
                 return false;
             }
             // Minecart.interact resets the passenger's easing baseline on
@@ -8457,8 +8460,10 @@ impl Game<'_> {
             let id = self.mobs[i].id as i32;
             self.send(S::Interact(play::Interact {
                 id,
-                hand: hand_id(hand),
-                location,
+                action: play::InteractAction::InteractAt {
+                    location,
+                    hand: hand_id(hand),
+                },
                 secondary: sneaking,
             }));
             // Player.interactOn: another player passes, and so does a mob
@@ -8476,6 +8481,14 @@ impl Game<'_> {
                 }
                 return true;
             }
+            // The entity passed: INTERACT follows INTERACT_AT.
+            self.send(S::Interact(play::Interact {
+                id,
+                action: play::InteractAction::Interact {
+                    hand: hand_id(hand),
+                },
+                secondary: sneaking,
+            }));
         }
         false
     }
@@ -9830,14 +9843,12 @@ impl Game<'_> {
         if self.clicks.miss_time > 0 || self.hands_busy() {
             return false;
         }
-        if self.spectator() {
-            // Minecraft.startAttack: a spectator's click on an entity asks
-            // to watch through it (MultiPlayerGameMode.spectate); a click on
-            // nothing still tells the server (spectatorNoAction).
-            let target = self.spectator_click_target();
-            self.send(S::SpectatorAction(play::SpectatorAction { target }));
-            return true;
-        }
+        // Minecraft.startAttack has no spectator branch: a spectator's click
+        // sends the attack packet too (MultiPlayerGameMode.attack sends it
+        // for every game mode), and only the local attack and the swing are
+        // skipped for spectators. Spectating an entity is the spectator
+        // menu's teleport_to_entity, not a click.
+        let spectator = self.spectator();
         let spear = self
             .held()
             .and_then(|s| horizon_client::spear::Kinetic::of(&s.item));
@@ -9855,8 +9866,10 @@ impl Game<'_> {
         }
         // A spear jabs (`MultiPlayerGameMode.piercingAttack`): the server
         // stabs, this client swings, plays the sound and starts its charge
-        // again.
-        if let Some(kinetic) = spear {
+        // again. Not for spectators: vanilla skips the piercing attack for them.
+        if let Some(kinetic) = spear
+            && !spectator
+        {
             // ServerboundPlayerActionPacket.Action.STAB.
             self.send(S::PlayerAction(play::PlayerAction {
                 action: 8,
@@ -9870,6 +9883,16 @@ impl Game<'_> {
             return true;
         }
         let mut instant = false;
+        // MultiPlayerGameMode.attack sends ServerboundInteractPacket's ATTACK
+        // action (with the sneak flag) for every game mode, spectators included.
+        let sneaking = self.remote_shift_down();
+        let attack = |id: i32| {
+            S::Interact(play::Interact {
+                id,
+                action: play::InteractAction::Attack,
+                secondary: sneaking,
+            })
+        };
         // A ghast's fireball or a wind charge nearer than any mob: the
         // server turns it (game/deflect.rs).
         if let Some((i, distance)) = self.redirectable_hit()
@@ -9877,34 +9900,36 @@ impl Game<'_> {
             && self.before_block(distance)
             && self.creatures.projectiles[i].id != 0
         {
-            self.send(S::Attack(play::Attack {
-                id: self.creatures.projectiles[i].id as i32,
-            }));
-            self.reset_attack_strength();
+            self.send(attack(self.creatures.projectiles[i].id as i32));
+            if !spectator {
+                self.reset_attack_strength();
+            }
         } else if let Some(hit) = self.remote_object_hit(true)
             && self.mob_hit().is_none_or(|(_, d, _)| hit.distance < d)
             && self.before_block(hit.distance)
         {
             // VehicleEntity.hurtServer, ItemFrame and ArmorStand hurtServer,
             // a painting broken or an EndCrystal hurtServer: the server decides.
-            self.send(S::Attack(play::Attack { id: hit.id }));
-            self.reset_attack_strength();
+            self.send(attack(hit.id));
+            if !spectator {
+                self.reset_attack_strength();
+            }
         } else if let Some((i, distance, _)) = self.mob_hit()
             && self.before_block(distance)
         {
             // Minecraft.startAttack: an item's attack_range must hold the hit.
             if self.held_range_allows(distance) {
-                self.send(S::Attack(play::Attack {
-                    id: self.mobs[i].id as i32,
-                }));
-                self.pvp_attacked(self.mobs[i].id as i32, distance);
-                let (target, player) = (
-                    self.mobs[i].id,
-                    &*self.mobs[i].kind.id == "minecraft:player",
-                );
-                self.native_client_attack(target, player);
-                self.remote_player_attack(i);
-                self.reset_attack_strength();
+                self.send(attack(self.mobs[i].id as i32));
+                if !spectator {
+                    self.pvp_attacked(self.mobs[i].id as i32, distance);
+                    let (target, player) = (
+                        self.mobs[i].id,
+                        &*self.mobs[i].kind.id == "minecraft:player",
+                    );
+                    self.native_client_attack(target, player);
+                    self.remote_player_attack(i);
+                    self.reset_attack_strength();
+                }
             }
         } else if !self.entity_targeted()
             && let Some(hit) = self.pick()
@@ -9920,8 +9945,12 @@ impl Game<'_> {
             }
             self.reset_attack_strength();
         }
-        self.swing_arm();
-        self.send(S::Punch(Empty));
+        // Minecraft.startAttack swings the main hand last, unless the player
+        // is a spectator; the swing is what sends the swing packet.
+        if !spectator {
+            self.swing_arm();
+            self.send(S::Swing(play::Swing { hand: 0 }));
+        }
         instant
     }
 
@@ -10040,14 +10069,14 @@ impl Game<'_> {
             if let Some(swing) = canceled {
                 if swing {
                     self.swing_arm();
-                    self.send(S::Punch(Empty));
+                    self.send(S::Swing(play::Swing { hand: 0 }));
                 }
             } else if self.remote_break_restricted(hit.pos) {
                 // continueDestroyBlock returned false: no swing.
             } else if !air {
                 self.remote_mining(false);
                 self.swing_arm();
-                self.send(S::Punch(Empty));
+                self.send(S::Swing(play::Swing { hand: 0 }));
             } else {
                 if let Some(r) = self.remote.as_mut() {
                     r.destroying = None;
@@ -12069,7 +12098,7 @@ mod tests {
         let start = [5.0, 64.0, 7.0];
         game.spawn_entity(target, "minecraft:player", start, [0.0; 3]);
         game.particles.requested = Some(Vec::new());
-        for action in [1, 2] {
+        for action in [4, 5] {
             game.handle_packet(C::Animate(play::Animate { id: target, action }))
                 .unwrap();
         }

@@ -1,7 +1,8 @@
-//! `ClientboundAddTransientBlockPacket`: a block the server places that the
-//! client shows for a moment, drawn as a moving block until the section mesh
-//! that holds it has been rebuilt (a landed falling block would otherwise
-//! leave a gap between the entity going and the mesh catching up).
+//! A block the server places that the client shows for a moment, drawn as a
+//! moving block until the section mesh that holds it has been rebuilt (a
+//! landed falling block would otherwise leave a gap between the entity going
+//! and the mesh catching up). The packet that fed this queue is a later
+//! addition; in 1.21.11 nothing queues, and the queue stays empty.
 use super::Game;
 use horizon_client::mesher::Vertex;
 use horizon_world::registry::BlockStateId;
@@ -75,7 +76,10 @@ fn shows_block(created: u64, compile_start: Option<u64>, upload_pending: bool) -
     !upload_pending && compile_start.is_some_and(|start| created < start)
 }
 impl Game<'_> {
-    /// `ClientPacketListener.handleAddTransientBlockPacket`.
+    /// The packet that fed this queue (`ClientboundAddTransientBlockPacket`)
+    /// does not exist in 1.21.11, so nothing queues anymore; the queue and its
+    /// rendering stay for the versions that have the packet.
+    #[allow(dead_code)]
     pub(super) fn add_transient_block(&mut self, pos: [i32; 3], state: i32) {
         self.transient_blocks.queue(pos, BlockStateId(state as u32));
     }

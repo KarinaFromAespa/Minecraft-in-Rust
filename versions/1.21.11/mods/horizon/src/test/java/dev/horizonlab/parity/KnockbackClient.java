@@ -50,17 +50,17 @@ import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
-import net.minecraft.network.protocol.game.ServerboundAttackPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
-import net.minecraft.network.protocol.game.ServerboundPunchPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemPacket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundChunkBatchReceivedPacket;
+import net.minecraft.network.protocol.game.ServerboundInteractPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerLoadedPacket;
+import net.minecraft.network.protocol.game.ServerboundSwingPacket;
 import net.minecraft.network.protocol.handshake.ClientIntent;
 import net.minecraft.network.protocol.handshake.ClientIntentionPacket;
 import net.minecraft.network.protocol.handshake.HandshakeProtocols;
@@ -83,7 +83,7 @@ import net.minecraft.world.phys.Vec3;
  * at that place, on the ground or not), {@code use-pos NAME X Y Z YAW PITCH GROUND}
  * (use the item, then move, in one network write), {@code sprint NAME on|off}, {@code
  * sync NAME} (a round trip through the server thread; "synced NAME" on stdout when
- * it is back), {@code attack NAME TARGET} (ServerboundAttackPacket then the swing; TARGET is a
+ * it is back), {@code attack NAME TARGET} (ServerboundInteractPacket action 1 then the swing; TARGET is a
  * player's name or an entity type's path, the last one added), {@code use
  * NAME} (ServerboundUseItemPacket, main hand) and {@code end}. Each player
  * records the ClientboundSetEntityMotionPacket it receives, the push each
@@ -141,7 +141,7 @@ public final class KnockbackClient {
                             new net.minecraft.world.phys.BlockHitResult(new Vec3(bx + 0.5, by + 1.0, bz + 0.5), net.minecraft.core.Direction.UP,
                                 new net.minecraft.core.BlockPos(bx, by, bz), false), 0));
                     }
-                    case "punch" -> players.get(w[1]).send(net.minecraft.network.protocol.game.ServerboundPunchPacket.INSTANCE);
+                    case "punch" -> players.get(w[1]).send(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
                     case "sync" -> {
                         try {
                             players.get(w[1]).sync();
@@ -297,8 +297,15 @@ public final class KnockbackClient {
                 record("error no " + target + " to attack");
                 return;
             }
-            send(new ServerboundAttackPacket(entity));
-            send(ServerboundPunchPacket.INSTANCE);
+            // ServerboundInteractPacket's only public constructors take an Entity: read it from its bytes.
+            // Action 1 is ATTACK; the sneak flag is false (neither server reads it for an attack, and
+            // the packet this replaces had no such field).
+            FriendlyByteBuf b = new FriendlyByteBuf(Unpooled.buffer());
+            b.writeVarInt(entity);
+            b.writeVarInt(1);
+            b.writeBoolean(false);
+            send(ServerboundInteractPacket.STREAM_CODEC.decode(b));
+            send(new ServerboundSwingPacket(InteractionHand.MAIN_HAND));
         }
 
         void close() throws Exception {

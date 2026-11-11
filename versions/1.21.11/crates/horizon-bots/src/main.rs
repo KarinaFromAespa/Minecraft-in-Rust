@@ -1268,8 +1268,15 @@ fn run_bot(
                         if let Some(victim) = hit {
                             // The client sends the attack, then swings the arm.
                             let sent = send(
-                                play::Serverbound::Attack(play::Attack { id: victim }).encode(),
-                            ) && send(play::Serverbound::Punch(Empty).encode());
+                                play::Serverbound::Interact(play::Interact {
+                                    id: victim,
+                                    action: play::InteractAction::Attack,
+                                    secondary: false,
+                                })
+                                .encode(),
+                            ) && send(
+                                play::Serverbound::Swing(play::Swing { hand: 0 }).encode(),
+                            );
                             if sent {
                                 bot.attacks.fetch_add(1, Ordering::Relaxed);
                             }
@@ -1370,10 +1377,17 @@ fn run_bot(
             // A round counts once a target is known.
             rounds += u32::from(!targets.is_empty());
             for id in targets {
-                send(play::Serverbound::Attack(play::Attack { id }).encode());
+                send(
+                    play::Serverbound::Interact(play::Interact {
+                        id,
+                        action: play::InteractAction::Attack,
+                        secondary: false,
+                    })
+                    .encode(),
+                );
                 // Minecraft.startAttack swings right after the attack.
                 if !o.no_swing {
-                    send(play::Serverbound::Punch(Empty).encode());
+                    send(play::Serverbound::Swing(play::Swing { hand: 0 }).encode());
                 }
                 bot.attacks.fetch_add(1, Ordering::Relaxed);
             }

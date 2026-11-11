@@ -48,9 +48,10 @@ completion has been carried forward into the `versions/26.1.1/` patch
 delta; `versions/26.1.2/` is the second delta. Full harness profiles are
 produced per tree by the CI route below.
 `versions/1.21.11/` opens the Components era (E6): the oracle bootstrap
-rework is done, 5 of 6 tables regenerated, horizon-prepare runs end to end
-against the named jars; the protocol packet-set rewire (nine 26.3-only
-packets) is the remaining blocker, documented in its port notes. Verification
-runs for published trees are dispatched to GitHub Actions
+rework is done, all six tables regenerated, the protocol packet-set
+rewire closed (nine 26.3-only packets rewired to their 1.21.11
+mechanisms from the jar), horizon-prepare runs end to end against the
+named jars; the behaviour port and the adapter ladder re-base remain,
+documented in its port notes. Verification runs for published trees are dispatched to GitHub Actions
 (`port-verify` workflow). See `VERSIONS.md` for the per-version state, the
 roadmap §5 for sequencing and §6 for the remaining owner decisions.

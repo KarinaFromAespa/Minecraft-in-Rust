@@ -676,8 +676,10 @@ impl Game<'_> {
                             horizon_protocol::packets::play::Serverbound::Interact(
                                 horizon_protocol::packets::play::Interact {
                                     id: id as i32,
-                                    hand: 0,
-                                    location: [0.0; 3],
+                                    action: horizon_protocol::packets::play::InteractAction::InteractAt {
+                                        location: [0.0; 3],
+                                        hand: 0,
+                                    },
                                     secondary: false,
                                 },
                             ),
@@ -719,8 +721,10 @@ impl Game<'_> {
                             horizon_protocol::packets::play::Serverbound::Interact(
                                 horizon_protocol::packets::play::Interact {
                                     id: id as i32,
-                                    hand: 0,
-                                    location: [0.0; 3],
+                                    action: horizon_protocol::packets::play::InteractAction::InteractAt {
+                                        location: [0.0; 3],
+                                        hand: 0,
+                                    },
                                     secondary: false,
                                 },
                             ),
@@ -1064,8 +1068,10 @@ impl Game<'_> {
                                     };
                                     S::Interact(play::Interact {
                                         id: id as i32,
-                                        hand: 0,
-                                        location: [0.0; 3],
+                                        action: play::InteractAction::InteractAt {
+                                            location: [0.0; 3],
+                                            hand: 0,
+                                        },
                                         secondary: false,
                                     })
                                 }

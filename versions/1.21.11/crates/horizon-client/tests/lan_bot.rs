@@ -691,7 +691,7 @@ fn a_move_behind_a_dig_and_its_swing_waits_for_the_next_tick() {
         }),
         0,
     ));
-    inbox.push_back((S::Punch(Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerPos(play::MovePlayerPos {
             x: at[0],
@@ -802,7 +802,7 @@ fn a_move_behind_a_use_on_a_block_and_its_swing_waits_for_the_next_tick() {
         }),
         0,
     ));
-    inbox.push_back((S::Punch(Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerPos(play::MovePlayerPos {
             x: at[0],
@@ -845,8 +845,15 @@ fn a_move_behind_an_attack_and_its_swing_waits_for_the_next_tick() {
     // A falling attack sharing a server tick with the landing move behind it:
     // the attack, the arm swing, then the landing move.
     let inbox = &mut s.hub.guests[0].inbox;
-    inbox.push_back((S::Attack(play::Attack { id: 1 }), 0));
-    inbox.push_back((S::Punch(Empty), 0));
+    inbox.push_back((
+        S::Interact(play::Interact {
+            id: 1,
+            action: play::InteractAction::Attack,
+            secondary: false,
+        }),
+        0,
+    ));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((S::MovePlayerStatus(play::MovePlayerStatus { flags: 1 }), 0));
     s.tick(&[]);
     // The game runs the attack after the hub's pass: the landing move waits so
@@ -2242,12 +2249,12 @@ fn a_26_2_clients_walk_dig_swing_and_teleport_confirmations_read_as_26_3s() {
         })
         .collect();
     assert_eq!(actions, [0, 3]);
-    let punches = s
+    let swings = s
         .packets
         .iter()
-        .filter(|p| matches!(p, S::Punch(_)))
+        .filter(|p| matches!(p, S::Swing(_)))
         .count();
-    assert_eq!(punches, 1);
+    assert_eq!(swings, 1);
 }
 
 /// A client of each older release the adapter knows (26.1 down to 1.20.5) gets past configuration and is sent chunks without being

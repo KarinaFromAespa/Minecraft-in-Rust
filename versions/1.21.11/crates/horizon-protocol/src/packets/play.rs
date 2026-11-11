@@ -84,13 +84,7 @@ packet!(
 packet!(BlockDestruction { id: i32 => VarInt, pos: [i32; 3] => Pos, progress: u8 => UByte });
 packet!(BlockEntityData { pos: [i32; 3] => Pos, kind: i32 => VarInt, tag: Tag => Nbt });
 packet!(BlockUpdate { pos: [i32; 3] => Pos, state: i32 => VarInt });
-// ClientboundAddTransientBlockPacket: a block the client shows for a moment
-// while its section mesh catches up (a falling block that landed).
-packet!(AddTransientBlock { pos: [i32; 3] => Pos, state: i32 => VarInt });
 packet!(ChangeDifficulty { difficulty: i32 => VarInt, locked: bool => Bool });
-// ResourceKey<GameRule<?>> is an identifier, followed by its string value.
-packet!(GameRuleEntry { name: String => Ident, value: String => Str });
-packet!(GameRuleValues { entries: Vec<GameRuleEntry> => List<GameRuleEntry> });
 packet!(ChunkBatchFinished { size: i32 => VarInt });
 packet!(ContainerClose { container: i32 => VarInt });
 packet!(ContainerSetContent {
@@ -800,11 +794,6 @@ packet!(
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
 );
-packet!(
-    /// ClientboundPostEffectsPacket: the `post_effect` chains (ids) the player's
-    /// screen runs, in order (`ServerPlayer.postEffects`).
-    PostEffects { effects: Vec<String> => List<Ident> }
-);
 packet!(PlayerRotation { yaw: f32 => Float, relative_yaw: bool => Bool, pitch: f32 => Float, relative_pitch: bool => Bool });
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
 packet!(Respawn { spawn: SpawnInfo => SpawnInfo, keep: i8 => Byte });
@@ -1288,11 +1277,6 @@ packet!(
     /// ClientboundUpdateAttributesPacket: an entity's synced attribute instances.
     UpdateAttributes { id: i32 => VarInt, values: Vec<AttributeSnapshot> => List<AttributeSnapshot> }
 );
-packet!(
-    /// ClientboundSwingAnimationPacket: hand (0 main, 1 off) and the swing
-    /// type (0 none, 1 whack, 2 stab) with its duration in ticks.
-    SwingAnimation { id: i32 => VarInt, hand: i32 => VarInt, kind: i32 => VarInt, duration: i32 => VarInt }
-);
 packet!(SoundEntity {
     sound: (i32, Option<(String, Option<f32>)>) => SoundHolder,
     source: i32 => VarInt,
@@ -1660,7 +1644,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     ChunkBatchFinished(ChunkBatchFinished) = CHUNK_BATCH_FINISHED,
     ChunkBatchStart(Empty) = CHUNK_BATCH_START,
     ClearTitles(Bool1) = CLEAR_TITLES,
-    LowDiskSpaceWarning(Empty) = LOW_DISK_SPACE_WARNING,
     Commands(Commands) = COMMANDS,
     RecipeBookAdd(super::recipes::RecipeBookAdd) = RECIPE_BOOK_ADD,
     RecipeBookRemove(super::recipes::RecipeBookRemove) = RECIPE_BOOK_REMOVE,
@@ -1683,7 +1666,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     ForgetLevelChunk(ForgetLevelChunk) = FORGET_LEVEL_CHUNK,
     GameEvent(GameEvent) = GAME_EVENT,
     GameTestHighlightPos(GameTestHighlightPos) = GAME_TEST_HIGHLIGHT_POS,
-    GameRuleValues(GameRuleValues) = GAME_RULE_VALUES,
     HurtAnimation(HurtAnimation) = HURT_ANIMATION,
     DamageEvent(DamageEvent) = DAMAGE_EVENT,
     KeepAlive(KeepAlive) = KEEP_ALIVE,
@@ -1711,7 +1693,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     PlayerLookAt(PlayerLookAt) = PLAYER_LOOK_AT,
     PlayerPosition(PlayerPosition) = PLAYER_POSITION,
     PlayerRotation(PlayerRotation) = PLAYER_ROTATION,
-    PostEffects(PostEffects) = POST_EFFECTS,
     RemoveEntities(RemoveEntities) = REMOVE_ENTITIES,
     RemoveMobEffect(RemoveMobEffect) = REMOVE_MOB_EFFECT,
     ResetScore(ResetScore) = RESET_SCORE,
@@ -1762,7 +1743,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     // configuration phase sends.
     ServerLinks(ServerLinks) = SERVER_LINKS,
     SelectAdvancementsTab(SelectAdvancementsTab) = SELECT_ADVANCEMENTS_TAB,
-    SwingAnimation(SwingAnimation) = SWING_ANIMATION,
     SystemChat(SystemChat) = SYSTEM_CHAT,
     TabList(TabList) = TAB_LIST,
     TagQuery(TagQuery) = TAG_QUERY,
@@ -1776,7 +1756,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     UpdateAttributes(UpdateAttributes) = UPDATE_ATTRIBUTES,
     LevelParticles(LevelParticles) = LEVEL_PARTICLES,
     Explode(Explode) = EXPLODE,
-    AddTransientBlock(AddTransientBlock) = ADD_TRANSIENT_BLOCK,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     TrackedWaypoint(TrackedWaypoint) = WAYPOINT,
@@ -1904,12 +1883,12 @@ impl Codec<TrackedWaypoint> for TrackedWaypoint {
 // ---- serverbound -------------------------------------------------------
 
 packet!(AcceptTeleportation { id: i32 => VarInt, x: f64 => Double, y: f64 => Double, z: f64 => Double, yaw: f32 => Float, pitch: f32 => Float });
-packet!(Attack { id: i32 => VarInt });
 packet!(TeleportToEntity { uuid: u128 => Uuid });
 packet!(
-    /// ServerboundSpectatorActionPacket: the entity a spectator clicked, or
-    /// none for a click on nothing.
-    SpectatorAction { target: Option<i32> => OptVarInt }
+    /// ServerboundSwingPacket: the hand swung (0 main, 1 off). 1.21.11's
+    /// swing; 26.3 split it into `punch` (the swing itself) and the
+    /// clientbound `swing_animation` (its look).
+    Swing { hand: i32 => VarInt }
 );
 packet!(
     /// GameType ids: 0 survival, 1 creative, 2 adventure, 3 spectator.
@@ -1974,10 +1953,9 @@ packet!(ChangeDifficultyRequest { difficulty: i32 => VarInt });
 packet!(LockDifficulty { locked: bool => Bool });
 // ServerboundPlayerAbilitiesPacket: only whether the player flies (2).
 packet!(PlayerAbilitiesRequest { flags: i8 => Byte });
-packet!(SetGameRule { entries: Vec<GameRuleEntry> => List<GameRuleEntry> });
 packet!(ChunkBatchReceived { chunks_per_tick: f32 => Float });
 packet!(
-    /// ServerboundClientCommandPacket.Action: 0 respawn, 1 request stats, 2 request game rules.
+    /// ServerboundClientCommandPacket.Action: 0 respawn, 1 request stats.
     ClientCommand { action: i32 => VarInt }
 );
 /// Changed slots: (slot, hashed stack) pairs.
@@ -2278,7 +2256,45 @@ packet!(
     /// optional `mob_effect` id.
     SetBeacon { primary: Option<i32> => Opt<VarInt>, secondary: Option<i32> => Opt<VarInt> }
 );
-packet!(Interact { id: i32 => VarInt, hand: i32 => VarInt, location: [f64; 3] => LpVec3, secondary: bool => Bool });
+/// ServerboundInteractPacket.Action: what the click on an entity does (0
+/// interact, 1 attack, 2 interact at a point). 26.3 split this packet apart:
+/// `attack` names the entity alone and `interact` is interact-at only.
+#[derive(Clone, Debug, PartialEq)]
+pub enum InteractAction {
+    Interact { hand: i32 },
+    Attack,
+    InteractAt { location: [f64; 3], hand: i32 },
+}
+impl Codec<InteractAction> for InteractAction {
+    fn read(r: &mut Reader) -> Result<InteractAction> {
+        Ok(match r.varint()? {
+            0 => InteractAction::Interact { hand: r.varint()? },
+            1 => InteractAction::Attack,
+            2 => InteractAction::InteractAt {
+                location: [r.f32()?, r.f32()?, r.f32()?].map(f64::from),
+                hand: r.varint()?,
+            },
+            other => {
+                return Err(Error::new(format!("unknown interact action {other}")));
+            }
+        })
+    }
+    fn write(v: &InteractAction, w: &mut Writer) {
+        match v {
+            InteractAction::Interact { hand } => {
+                w.varint(0);
+                w.varint(*hand);
+            }
+            InteractAction::Attack => w.varint(1),
+            InteractAction::InteractAt { location, hand } => {
+                w.varint(2);
+                location.iter().for_each(|v| w.f32(*v as f32));
+                w.varint(*hand);
+            }
+        }
+    }
+}
+packet!(Interact { id: i32 => VarInt, action: InteractAction => InteractAction, secondary: bool => Bool });
 packet!(
     /// ServerboundMovePlayerPacket flags: 1 on ground, 2 horizontal collision.
     MovePlayerPos { x: f64 => Double, y: f64 => Double, z: f64 => Double, flags: u8 => UByte }
@@ -2343,13 +2359,11 @@ impl Codec<[f32; 3]> for Cursor {
 packet_enum!(Serverbound, crate::ids::play::serverbound {
     ChangeDifficulty(ChangeDifficultyRequest) = CHANGE_DIFFICULTY,
     LockDifficulty(LockDifficulty) = LOCK_DIFFICULTY,
-    SetGameRule(SetGameRule) = SET_GAME_RULE,
     AcceptTeleportation(AcceptTeleportation) = ACCEPT_TELEPORTATION,
-    Attack(Attack) = ATTACK,
     BlockEntityTagQuery(BlockEntityTagQuery) = BLOCK_ENTITY_TAG_QUERY,
     EntityTagQuery(EntityTagQuery) = ENTITY_TAG_QUERY,
     TeleportToEntity(TeleportToEntity) = TELEPORT_TO_ENTITY,
-    SpectatorAction(SpectatorAction) = SPECTATOR_ACTION,
+    Swing(Swing) = SWING,
     ChangeGameMode(ChangeGameMode) = CHANGE_GAME_MODE,
     Chat(Chat) = CHAT,
     ChatAck(ChatAck) = CHAT_ACK,
@@ -2391,7 +2405,6 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     RenameItem(RenameItem) = RENAME_ITEM,
     SeenAdvancements(SeenAdvancements) = SEEN_ADVANCEMENTS,
     ContainerSlotStateChanged(ContainerSlotStateChanged) = CONTAINER_SLOT_STATE_CHANGED,
-    Punch(Empty) = PUNCH,
     JigsawGenerate(JigsawGenerate) = JIGSAW_GENERATE,
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectBundleItem(SelectBundleItem) = BUNDLE_ITEM_SELECTED,

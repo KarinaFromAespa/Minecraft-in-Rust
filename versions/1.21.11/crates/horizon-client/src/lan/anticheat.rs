@@ -178,8 +178,9 @@ impl Hub {
         }
     }
 
-    /// ServerboundAttackPacket on entity `target`: `combat`. Returns whether the attack is dropped:
-    /// from `setback` on, every attack is, until the level decays below it.
+    /// ServerboundInteractPacket with action 1 (ATTACK) on entity `target`: `combat`. Returns
+    /// whether the attack is dropped: from `setback` on, every attack is, until the level decays
+    /// below it.
     pub(super) fn anticheat_attack(
         &mut self,
         i: usize,
@@ -208,7 +209,7 @@ impl Hub {
                 >= setback
     }
 
-    /// ServerboundPunchPacket: the arm swung, for `combat`.
+    /// ServerboundSwingPacket: the arm swung, for `combat`.
     pub(super) fn anticheat_swing(&mut self, i: usize) {
         if self.anticheat.is_some() {
             self.guests[i].anticheat.attacks.swing();

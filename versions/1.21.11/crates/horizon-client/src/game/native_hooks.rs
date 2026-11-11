@@ -6400,6 +6400,11 @@ impl Game<'_> {
     }
 
     /// A server game rule changed to its final `value`. 247.
+    ///
+    /// No caller in 1.21.11: the packet that carried guest rule changes
+    /// (`SetGameRule`) does not exist here, and the `/gamerule` command path
+    /// does not notify mods yet.
+    #[allow(dead_code)]
     pub(super) fn native_world_game_rule_change(
         &mut self,
         player: u128,

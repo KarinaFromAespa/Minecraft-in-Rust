@@ -134,42 +134,15 @@ fn serverbound_abilities_carry_only_flying() {
 
 #[test]
 fn world_options_packets_match_vanilla_stream_codecs() {
-    // mcsrc.dev 26.3: difficulty is a VarInt, locking is a Boolean,
-    // rule entries are ResourceKey identifiers followed by UTF-8 values.
+    // mcsrc.dev 1.21.11: difficulty is a VarInt, locking is a Boolean.
+    // 1.21.11 has no game-rule packets: the client never receives or sends
+    // game rules (they are server-side only), so there is nothing to round-trip here.
     let difficulty = Serverbound::ChangeDifficulty(ChangeDifficultyRequest { difficulty: 3 });
     assert_eq!(&difficulty.encode()[1..], &[3]);
     round_trip(difficulty, Serverbound::encode, Serverbound::decode);
     let lock = Serverbound::LockDifficulty(LockDifficulty { locked: true });
     assert_eq!(&lock.encode()[1..], &[1]);
     round_trip(lock, Serverbound::encode, Serverbound::decode);
-    let payload = b"\x01\x18minecraft:keep_inventory\x04true";
-    let entry = GameRuleEntry {
-        name: "minecraft:keep_inventory".into(),
-        value: "true".into(),
-    };
-    let set = Serverbound::SetGameRule(SetGameRule {
-        entries: vec![entry.clone()],
-    });
-    assert_eq!(&set.encode()[1..], payload);
-    assert_eq!(
-        Serverbound::decode(crate::ids::play::serverbound::SET_GAME_RULE, payload).unwrap(),
-        set
-    );
-    let values = Clientbound::GameRuleValues(GameRuleValues {
-        entries: vec![entry],
-    });
-    assert_eq!(&values.encode()[1..], payload);
-    assert_eq!(
-        Clientbound::decode(crate::ids::play::clientbound::GAME_RULE_VALUES, payload).unwrap(),
-        values
-    );
-    assert!(
-        Serverbound::decode(
-            crate::ids::play::serverbound::SET_GAME_RULE,
-            &payload[..payload.len() - 1]
-        )
-        .is_err()
-    );
 }
 
 /// ServerboundRecipeBookSeenRecipePacket is one `RecipeDisplayId`, a
@@ -281,7 +254,7 @@ fn tracked_waypoint_bytes() {
         color: Some(0xFFFF_5555_u32 as i32),
         target: WaypointTarget::Block([1, -2, 300]),
     });
-    let mut expected = vec![141, 1, 0, 1];
+    let mut expected = vec![136, 1, 0, 1];
     expected.extend(1..=16u8);
     expected.push(17);
     expected.extend(b"minecraft:default");
@@ -289,7 +262,7 @@ fn tracked_waypoint_bytes() {
         1, 0xFF, 0x55, 0x55, 1, 1, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 0xAC, 0x02,
     ]);
     assert_eq!(track.encode(), expected);
-    assert_eq!(Clientbound::decode(141, &expected[2..]).unwrap(), track);
+    assert_eq!(Clientbound::decode(136, &expected[2..]).unwrap(), track);
     for target in [
         WaypointTarget::Empty,
         WaypointTarget::Chunk([-3, 4]),
@@ -303,7 +276,7 @@ fn tracked_waypoint_bytes() {
             target,
         });
         let bytes = packet.encode();
-        assert_eq!(Clientbound::decode(141, &bytes[2..]).unwrap(), packet);
+        assert_eq!(Clientbound::decode(136, &bytes[2..]).unwrap(), packet);
     }
 }
 
@@ -311,7 +284,6 @@ fn tracked_waypoint_bytes() {
 fn clientbound_round_trips() {
     let packets = vec![
         Clientbound::BundleDelimiter(Empty),
-        Clientbound::LowDiskSpaceWarning(Empty),
         Clientbound::PongResponse(crate::packets::status::Ping { time: 1_234_567 }),
         Clientbound::SetBorderCenter(SetBorderCenter { x: 1.5, z: -2.0 }),
         Clientbound::SetBorderLerpSize(SetBorderLerpSize {
@@ -382,10 +354,6 @@ fn clientbound_round_trips() {
             data: 0,
         }),
         Clientbound::BlockUpdate(BlockUpdate {
-            pos: [-5, -60, 7],
-            state: 1,
-        }),
-        Clientbound::AddTransientBlock(AddTransientBlock {
             pos: [-5, -60, 7],
             state: 1,
         }),
@@ -809,7 +777,7 @@ fn serverbound_round_trips() {
         }),
         Serverbound::PlayerInput(PlayerInput { flags: 0b0101_0001 }),
         Serverbound::PlayerLoaded(Empty),
-        Serverbound::Punch(Empty),
+        Serverbound::Swing(Swing { hand: 0 }),
         Serverbound::SetCarriedItem(SetCarriedItem { slot: 4 }),
         Serverbound::UseItemOn(UseItemOn {
             hand: 0,
@@ -822,14 +790,21 @@ fn serverbound_round_trips() {
         }),
         Serverbound::Interact(Interact {
             id: 9,
-            hand: 0,
-            location: [0.25, 1.0, 0.0],
+            action: InteractAction::InteractAt {
+                location: [0.25, 1.0, 0.0],
+                hand: 0,
+            },
+            secondary: false,
+        }),
+        Serverbound::Interact(Interact {
+            id: 9,
+            action: InteractAction::Attack,
             secondary: false,
         }),
     ];
     for p in packets {
         if let Serverbound::Interact(_) = &p {
-            // LpVec3 is lossy; check bytes instead.
+            // The point is floats; check bytes instead.
             let body = p.encode();
             let mut r = Reader::new(&body);
             let id = r.varint().unwrap();
@@ -946,7 +921,7 @@ fn debug_tag_queries_decode_as_their_packets() {
 fn change_game_mode_uses_the_game_type_varint() {
     for mode in 0..=3 {
         let packet = Serverbound::ChangeGameMode(ChangeGameMode { mode });
-        assert_eq!(packet.encode(), vec![5, mode as u8]);
+        assert_eq!(packet.encode(), vec![4, mode as u8]);
         round_trip(packet, Serverbound::encode, Serverbound::decode);
     }
 }
@@ -992,25 +967,6 @@ fn player_look_at_round_trips() {
             Clientbound::PlayerLookAt(p)
         );
     }
-}
-
-#[test]
-fn post_effects_round_trips() {
-    let p = PostEffects {
-        effects: vec!["minecraft:invert".into(), "pack:glow".into()],
-    };
-    let bytes = Clientbound::PostEffects(p.clone()).encode();
-    assert_eq!(
-        Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &bytes[1..]).unwrap(),
-        Clientbound::PostEffects(p)
-    );
-    // The empty list the server sends on join.
-    assert_eq!(
-        Clientbound::decode(crate::ids::play::clientbound::POST_EFFECTS, &[0]).unwrap(),
-        Clientbound::PostEffects(PostEffects {
-            effects: Vec::new()
-        })
-    );
 }
 
 /// ClientboundChunksBiomesPacket is read, not passed through as an
@@ -1083,17 +1039,57 @@ fn set_camera_is_the_camera_entity_id() {
     assert_eq!(p.encode()[1..], [0xAC, 0x02]);
 }
 
-/// ServerboundSpectatorActionPacket: `OPTIONAL_VAR_INT`, the clicked
-/// entity's id plus one, or 0 for a click on nothing.
+/// ServerboundTeleportToEntityPacket: the spectated entity's UUID, 16 bytes.
+/// 1.21.11 spectates by teleporting to the entity; there is no spectator_action packet.
 #[test]
-fn spectator_action_is_an_optional_entity_id() {
-    let id = crate::ids::play::serverbound::SPECTATOR_ACTION;
-    for (bytes, shown) in [([8u8], "Some(7)"), ([0u8], "None")] {
-        let p = Serverbound::decode(id, &bytes).unwrap();
+fn teleport_to_entity_is_a_uuid() {
+    let id = crate::ids::play::serverbound::TELEPORT_TO_ENTITY;
+    let p = Serverbound::decode(id, &[0; 16]).unwrap();
+    assert!(!matches!(p, Serverbound::Unknown(..)), "{p:?}");
+    assert!(format!("{p:?}").contains("uuid: 0"), "{p:?}");
+    assert_eq!(p.encode()[1..], [0; 16]);
+}
+
+/// ServerboundSwingPacket: the hand as a VarInt (0 main, 1 off).
+#[test]
+fn swing_is_a_hand() {
+    let id = crate::ids::play::serverbound::SWING;
+    for hand in [0u8, 1] {
+        let p = Serverbound::decode(id, &[hand]).unwrap();
         assert!(!matches!(p, Serverbound::Unknown(..)), "{p:?}");
-        assert!(format!("{p:?}").contains(shown), "{p:?}");
-        assert_eq!(p.encode()[1..], bytes);
+        assert_eq!(p.encode()[1..], [hand]);
     }
+}
+
+/// ServerboundInteractPacket: the entity, the action (0 interact, 1 attack,
+/// 2 interact at a point) and the sneak flag.
+#[test]
+fn interact_actions_are_what_1_21_11_sends() {
+    let id = crate::ids::play::serverbound::INTERACT;
+    // An attack: entity 9, action 1, not sneaking.
+    let p = Serverbound::decode(id, &[9, 1, 0]).unwrap();
+    assert_eq!(
+        p,
+        Serverbound::Interact(Interact {
+            id: 9,
+            action: InteractAction::Attack,
+            secondary: false,
+        })
+    );
+    assert_eq!(p.encode()[1..], [9, 1, 0]);
+    // An interact: entity 9, action 0, the off hand, sneaking.
+    let p = Serverbound::decode(id, &[9, 0, 1, 1]).unwrap();
+    assert_eq!(
+        p,
+        Serverbound::Interact(Interact {
+            id: 9,
+            action: InteractAction::Interact { hand: 1 },
+            secondary: true,
+        })
+    );
+    assert_eq!(p.encode()[1..], [9, 0, 1, 1]);
+    // An unknown action is refused.
+    assert!(Serverbound::decode(id, &[9, 7, 0]).is_err());
 }
 
 #[test]
@@ -1121,16 +1117,16 @@ fn update_attributes_encode_like_vanilla() {
         }],
     });
     let body = p.encode();
-    // The packet id (134) is a two-byte VarInt.
-    let mut expected = vec![134, 1, 5, 1, 1];
+    // The packet id (129) is a two-byte VarInt.
+    let mut expected = vec![129, 1, 5, 1, 1];
     expected.extend(0.0f64.to_be_bytes());
     expected.extend([1, 22]);
     expected.extend(b"minecraft:armor.helmet");
     expected.extend(3.0f64.to_be_bytes());
     expected.push(0);
     assert_eq!(body, expected);
-    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 134);
-    assert_eq!(Clientbound::decode(134, &body[2..]).unwrap(), p);
+    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 129);
+    assert_eq!(Clientbound::decode(129, &body[2..]).unwrap(), p);
 }
 
 #[test]

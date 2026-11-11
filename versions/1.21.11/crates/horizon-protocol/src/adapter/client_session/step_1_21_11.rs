@@ -1,8 +1,10 @@
 //! 26.1's packets in 1.21.11's layout for a 1.21.11 client: the mirror of `translate`'s `mod v1_21_11`
-//! (1.21.11 to 26.1). Four things differ: a chunk section loses 26.1's fluid count, the time packet becomes
-//! the overworld's day time and whether it runs, the entity data of an AgeableMob loses the boolean 26.1 added
-//! at index 17, and the serverbound `interact` of 1.21.11 is split by its action. Every other packet is laid
-//! out alike, so it passes as it is.
+//! (1.21.11 to 26.1). Three things differ: a chunk section loses 26.1's fluid count, the time packet becomes
+//! the overworld's day time and whether it runs, and the entity data of an AgeableMob loses the boolean 26.1 added
+//! at index 17. Every other packet is laid out alike, so it passes as it is.
+//!
+//! The serverbound `interact` needs no step: the pinned version IS 1.21.11, so a 1.21.11 client's interact
+//! (actions 0 interact, 1 attack, 2 interact at a point) is already the pinned packet.
 //!
 //! The 1.21.10 step ([`super::step_1_21_10`]) comes after this one for entity data: entity data is undone
 //! here first, then the older entity types.
@@ -11,15 +13,12 @@
 //! - The `minecraft:world_clock` registry 26.1 sends during configuration, which 1.21.11 lacks, must be
 //!   dropped for a 1.21.11 client. It is its own REGISTRY_DATA packet and a packet can only be rewritten here,
 //!   never dropped (the signature gives a payload, not a drop).
-//! - Serverbound `interact` action 0 (INTERACT, vanilla sends it right after INTERACT_AT) must be dropped, and
-//!   action 1 (ATTACK) becomes 26.3's `attack` under its own id. Neither fits a payload-only answer; see
-//!   [`serverbound`].
 //! - Login and set_player_team are not in translate's `mod v1_21_11`: translate reads them in `mod v26_1`
 //!   (26.1 to 26.2), so the 26.1 step covers them. 1.21.11 lays them out as 26.1 does.
 use crate::{
-    Error, Result, State,
+    Result, State,
     adapter::translate::v1_21_11::AGEABLE,
-    buf::{Codec, LpVec3, Reader, Writer},
+    buf::{Codec, Reader, Writer},
     chunk::{self, Paletted, Strategy},
     ids as packet_ids,
     packets::play,
@@ -35,21 +34,6 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Optio
         (State::Play, cb::LEVEL_CHUNK_WITH_LIGHT) => Some(chunk(payload)?),
         _ => None,
     })
-}
-
-/// The pinned serverbound packet `id` as the 1.21.11 client sent it (`payload`) in 26.3's layout; `None` when
-/// laid out alike. The client's `interact` (one id) carries an action: 2 (INTERACT_AT, the point and hand) is
-/// 26.3's `interact`. The other two actions are the caller's and are errors here, not a silent pass-through:
-/// action 0 (INTERACT) must be dropped, and action 1 (ATTACK) is 26.3's `attack`, which
-/// [`attack`] gives the payload of, under the attack id.
-///
-/// `translate`'s serverbound gate is `at_most(1.21.11)`, so this also covers 1.21.10 clients.
-pub(super) fn serverbound(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
-    use packet_ids::play::serverbound as sb;
-    match (state, id) {
-        (State::Play, sb::INTERACT) => interact(payload).map(Some),
-        _ => Ok(None),
-    }
 }
 
 /// 1.21.11 sends the game time, the day time and whether the day time runs; 26.1 a state per world clock. The
@@ -107,46 +91,6 @@ pub(super) fn entity_data(kind: Option<i32>, data: &mut play::SetEntityData) {
             *index -= 1;
         }
     }
-}
-
-/// 1.21.11's `interact` with action 2 (INTERACT_AT: the point as three floats, the hand) and the sneak flag,
-/// as 26.3's `interact` (the entity, the hand, the point as LpVec3, the sneak flag).
-fn interact(payload: &[u8]) -> Result<Vec<u8>> {
-    let mut r = Reader::new(payload);
-    let entity = r.varint()?;
-    let action = r.varint()?;
-    match action {
-        2 => {
-            let at = [r.f32()?, r.f32()?, r.f32()?].map(f64::from);
-            let hand = r.varint()?;
-            let secondary = r.bool()?;
-            let mut w = Writer::new();
-            w.varint(entity);
-            w.varint(hand);
-            LpVec3::write(&at, &mut w);
-            w.bool(secondary);
-            Ok(w.data)
-        }
-        // Vanilla sends INTERACT (action 0) right after INTERACT_AT; 26.3 has no such packet.
-        0 => Err(Error::new(
-            "1.21.11 interact action 0 is dropped by the caller",
-        )),
-        // 26.3's attack, under the attack id: the caller uses [`attack`].
-        1 => Err(Error::new(
-            "1.21.11 interact action 1 is an attack, sent by the caller",
-        )),
-        other => Err(Error::new(format!(
-            "1.21.11 interact action {other} is unknown"
-        ))),
-    }
-}
-
-/// 1.21.11's `interact` with action 1 (ATTACK) as 26.3's `attack`, which names the entity alone. The caller
-/// sends the result under the pinned attack id, which [`serverbound`] can't name.
-pub(super) fn attack(payload: &[u8]) -> Result<Vec<u8>> {
-    let mut w = Writer::new();
-    w.varint(Reader::new(payload).varint()?);
-    Ok(w.data)
 }
 
 #[cfg(test)]
@@ -316,90 +260,5 @@ mod tests {
         assert_eq!(d.values[1].0, 18);
         entity_data(Some(4), &mut d);
         assert_eq!(d, original);
-    }
-
-    #[test]
-    fn an_interaction_at_a_point_reads_as_26_3_s_interact() {
-        let mut w = Writer::new();
-        w.varint(9); // entity
-        w.varint(2); // INTERACT_AT
-        [0.5f32, 1.0, 0.0].iter().for_each(|v| w.f32(*v));
-        w.varint(1); // off hand
-        w.bool(true); // sneaking
-        let body = serverbound(
-            State::Play,
-            packet_ids::play::serverbound::INTERACT,
-            &w.data,
-        )
-        .unwrap()
-        .unwrap();
-        let p = play::Interact::read(&mut Reader::new(&body)).unwrap();
-        assert_eq!((p.id, p.hand, p.secondary), (9, 1, true));
-        assert!(
-            p.location
-                .iter()
-                .zip([0.5, 1.0, 0.0])
-                .all(|(a, b)| (a - b).abs() < 0.01)
-        );
-    }
-
-    #[test]
-    fn an_interaction_at_a_point_comes_back_as_1_21_11_s() {
-        let p = play::Interact {
-            id: 9,
-            hand: 1,
-            location: [0.25, -0.5, 0.75],
-            secondary: false,
-        };
-        let mut w = Writer::new();
-        play::Interact::write(&p, &mut w);
-        // translate writes INTERACT_AT (the body it returns); its INTERACT (action 0) is pushed aside.
-        let session = Session::new(ServerVersion::V1_21_11);
-        let (_, first) = translate::v1_21_11::interact(&session, &w.data)
-            .unwrap()
-            .unwrap();
-        let body = serverbound(State::Play, packet_ids::play::serverbound::INTERACT, &first)
-            .unwrap()
-            .unwrap();
-        let q = play::Interact::read(&mut Reader::new(&body)).unwrap();
-        assert_eq!((q.id, q.hand, q.secondary), (p.id, p.hand, p.secondary));
-        assert!(
-            q.location
-                .iter()
-                .zip(p.location)
-                .all(|(a, b)| (a - b).abs() < 0.01)
-        );
-    }
-
-    #[test]
-    fn an_interaction_without_a_point_is_not_forwarded_yet() {
-        let mut w = Writer::new();
-        w.varint(9);
-        w.varint(0); // INTERACT
-        w.varint(0);
-        w.bool(false);
-        assert!(
-            serverbound(
-                State::Play,
-                packet_ids::play::serverbound::INTERACT,
-                &w.data
-            )
-            .is_err()
-        );
-    }
-
-    #[test]
-    fn an_attack_names_the_entity_alone() {
-        let mut w = Writer::new();
-        play::Attack::write(&play::Attack { id: 9 }, &mut w);
-        // translate writes the 1.21.11 interact of action 1 for an attack.
-        let (_, sent) = translate::v1_21_11::attack(
-            &crate::adapter::session::Session::new(crate::adapter::ServerVersion::V1_21_11),
-            &w.data,
-        )
-        .unwrap()
-        .unwrap();
-        let body = attack(&sent).unwrap();
-        assert_eq!(play::Attack::read(&mut Reader::new(&body)).unwrap().id, 9);
     }
 }

@@ -4,27 +4,18 @@
 //!
 //! Only the packets `v26_1` changes are here; translate's `v26_1` renumbers no id itself, so none is added or
 //! dropped on this step.
-//! Serverbound, 26.1's `spectate_entity` (by UUID) is the pinned `spectator_action` (by network id), which needs
-//! the entities the session has been told of, so the caller passes their lookup.
+//!
+//! Serverbound there is nothing to do: 26.1's `spectate_entity` has no counterpart in the pinned 1.21.11
+//! (which spectates by `teleport_to_entity`), so the session drops it before this step is reached.
 use crate::{
     Error, Result, State,
     adapter::translate,
-    buf::{Codec, Opt, OptVarInt, Reader, VarInt, Writer},
+    buf::{Codec, Opt, Reader, VarInt, Writer},
     ids as packet_ids,
 };
 
 /// `ChatFormatting.RESET`, which 26.1 sends for a team without a colour.
 const RESET: i32 = 21;
-
-/// What becomes of a payload the 26.1 client sent.
-#[derive(Debug, PartialEq)]
-pub(super) enum Out {
-    /// Not one of the packets this step rewrites.
-    Untouched,
-    Rewritten(Vec<u8>),
-    /// The pinned server has nothing to read it as: the entity it names was never added to the client.
-    Dropped,
-}
 
 /// The pinned clientbound packet `id` in 26.2's layout, in 26.1's; `None` when 26.1 lays it out alike.
 pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
@@ -39,22 +30,6 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Optio
         // entity added, which the session keeps (translate's v26_1 does the same the other way).
         // ADD_ENTITY's (id, UUID) are kept by `ClientSession::track_entities`.
         _ => None,
-    })
-}
-
-/// The pinned serverbound packet `id` (`payload` as 26.1 sent it) in 26.2's layout. `id` is the pinned
-/// `spectator_action`, which 26.1's `spectate_entity` maps to. `entity_of` finds the network id of an entity by
-/// its UUID: the session's `uuids`, reversed.
-pub(super) fn serverbound(
-    state: State,
-    id: i32,
-    payload: &[u8],
-    entity_of: impl Fn(u128) -> Option<i32>,
-) -> Result<Out> {
-    use packet_ids::play::serverbound as sb;
-    Ok(match (state, id) {
-        (State::Play, sb::SPECTATOR_ACTION) => spectate(payload, entity_of)?,
-        _ => Out::Untouched,
     })
 }
 
@@ -117,19 +92,6 @@ fn team(payload: &[u8]) -> Result<Vec<u8>> {
     }
     w.bytes(r.rest());
     Ok(w.data)
-}
-
-/// 26.1's spectate_entity names an entity by its UUID, the pinned spectator_action by its network id
-/// (translate's `v26_1::spectate`, the other way). Dropped for an entity the client was never told of.
-fn spectate(payload: &[u8], entity_of: impl Fn(u128) -> Option<i32>) -> Result<Out> {
-    let mut r = Reader::new(payload);
-    let uuid = r.uuid()?;
-    let Some(entity) = entity_of(uuid) else {
-        return Ok(Out::Dropped);
-    };
-    let mut w = Writer::new();
-    <OptVarInt>::write(&Some(entity), &mut w);
-    Ok(Out::Rewritten(w.data))
 }
 
 #[cfg(test)]
@@ -273,46 +235,5 @@ mod tests {
         zeroed.extend_from_slice(&[0; 16]);
         assert_eq!(back, zeroed);
         assert!(clientbound(State::Login, id, &[0; 15]).is_err());
-    }
-
-    #[test]
-    fn a_spectated_entity_goes_up_by_its_network_id() {
-        let session = Session::new(ServerVersion::V26_1);
-        let uuid = 0x42u128;
-        session.uuids.lock().unwrap().insert(7, uuid);
-        let mut w = Writer::new();
-        w.uuid(uuid);
-        let id = packet_ids::play::serverbound::SPECTATOR_ACTION;
-        let Out::Rewritten(up) =
-            serverbound(State::Play, id, &w.data, |u| (u == uuid).then_some(7)).unwrap()
-        else {
-            panic!("not rewritten");
-        };
-        assert_eq!(<OptVarInt>::read(&mut Reader::new(&up)).unwrap(), Some(7));
-        // translate's reader turns it back into 26.1's spectate_entity (62) with the same UUID.
-        assert_eq!(
-            translate::v26_1::spectate(&session, &up).unwrap(),
-            Some((62, w.data))
-        );
-    }
-
-    #[test]
-    fn a_spectated_entity_never_added_is_dropped() {
-        let mut w = Writer::new();
-        w.uuid(0x42);
-        let id = packet_ids::play::serverbound::SPECTATOR_ACTION;
-        assert_eq!(
-            serverbound(State::Play, id, &w.data, |_| None).unwrap(),
-            Out::Dropped
-        );
-    }
-
-    #[test]
-    fn other_serverbound_packets_are_untouched() {
-        let keep_alive = packet_ids::play::serverbound::KEEP_ALIVE;
-        assert_eq!(
-            serverbound(State::Play, keep_alive, &[0; 8], |_| None).unwrap(),
-            Out::Untouched
-        );
     }
 }

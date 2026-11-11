@@ -260,9 +260,6 @@ pub fn clientbound(
         (State::Play, cb::MOVE_ENTITY_POS_ROT) => move_entity(payload, true, true)?,
         (State::Play, cb::MOVE_ENTITY_ROT) => move_entity(payload, false, true)?,
         (State::Play, cb::ENTITY_POSITION_SYNC) => position_sync(payload)?,
-        (State::Play, cb::ANIMATE) => {
-            return animate(payload).map(|(id, body)| Some((id, Some(body))));
-        }
         (State::Play, cb::ADD_ENTITY) => {
             let mut p = decode_play(ids, id, payload)?;
             if let play::Clientbound::AddEntity(e) = &mut p {
@@ -518,12 +515,6 @@ pub fn serverbound(
             w.bytes(r.rest());
             renumbered(id, w.data)
         }
-        (State::Play, sb::INTERACT) if session.version.at_most(ServerVersion::V1_21_11) => {
-            v1_21_11::interact(session, payload)
-        }
-        (State::Play, sb::ATTACK) if session.version.at_most(ServerVersion::V1_21_11) => {
-            v1_21_11::attack(session, payload)
-        }
         // 1.21.6 names a test by a VarInt id, 26.3 by its identifier: a named test is dropped (v1_21_6).
         (State::Play, sb::TEST_INSTANCE_BLOCK_ACTION)
             if session.version.at_most(ServerVersion::V1_21_6) =>
@@ -533,16 +524,6 @@ pub fn serverbound(
             } else {
                 renumbered(id, payload.to_vec())
             }
-        }
-        // 26.1 is told the entity a spectator picked by its UUID (spectate_entity, at the same id).
-        (State::Play, sb::SPECTATOR_ACTION) if session.version == ServerVersion::V26_1 => {
-            v26_1::spectate(session, payload)
-        }
-        // 26.3's punch took over 26.2's swing of the main hand.
-        (State::Play, sb::PUNCH) => {
-            let mut w = Writer::new();
-            w.varint(0);
-            Ok(Some((swing_id(session.version), w.data)))
         }
         (State::Play, sb::SET_CREATIVE_MODE_SLOT | sb::CONTAINER_CLICK) => {
             let p = play::Serverbound::decode(id, payload)?;
@@ -576,30 +557,6 @@ fn sign_update(payload: &[u8]) -> Result<Vec<u8>> {
         w.string(line);
     }
     Ok(w.data)
-}
-
-/// 26.2's serverbound `swing` (play), which 26.3 replaced with `punch`.
-const V26_2_SWING: i32 = 63;
-
-/// The id an older `version` numbers its serverbound `swing` (play) by.
-pub(super) fn swing_id(version: ServerVersion) -> i32 {
-    if version.at_most(ServerVersion::V1_20_2) {
-        50
-    } else if version.at_most(ServerVersion::V1_20_3) {
-        51
-    } else if version.at_most(ServerVersion::V1_21_1) {
-        54 // Vanilla 1.21/1.21.1, before bundle selection and client tick-end.
-    } else if version.at_most(ServerVersion::V1_21_3) {
-        56 // Vanilla 1.21.2/1.21.3, before block/entity picking and player_loaded.
-    } else if version.at_most(ServerVersion::V1_21_4) {
-        58 // Vanilla 1.21.4, before the two 1.21.5 test-block packets.
-    } else if version.at_most(ServerVersion::V1_21_5) {
-        59 // Vanilla 1.21.5's swing, before change_game_mode shifted the later ids.
-    } else if version.at_most(ServerVersion::V1_21_11) {
-        v1_21_11::SWING
-    } else {
-        V26_2_SWING
-    }
 }
 
 /// A play packet decoded with the older version's ids renumbered as they are read.
@@ -990,37 +947,6 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// 26.2's animate swings hands too (0 main, 3 off), which 26.3 sends as `swing_animation`; the others were
-/// renumbered (wake up 2 -> 0, critical hits 4, 5 -> 1, 2).
-pub(super) fn animate(payload: &[u8]) -> Result<(i32, Vec<u8>)> {
-    let mut r = Reader::new(payload);
-    let id = r.varint()?;
-    let action = r.u8()?;
-    let mut w = Writer::new();
-    if action == 0 || action == 3 {
-        // A plain swing: SwingAnimationType WHACK over the default 6 ticks.
-        play::SwingAnimation::write(
-            &play::SwingAnimation {
-                id,
-                hand: i32::from(action == 3),
-                kind: 1,
-                duration: 6,
-            },
-            &mut w,
-        );
-        return Ok((packet_ids::play::clientbound::SWING_ANIMATION, w.data));
-    }
-    let action = match action {
-        2 => 0,
-        4 => 1,
-        5 => 2,
-        other => other,
-    };
-    w.varint(id);
-    w.u8(action);
-    Ok((packet_ids::play::clientbound::ANIMATE, w.data))
-}
-
 /// 1.21.10 (and 1.21.9) to 1.21.11.
 pub(crate) mod v1_21_10 {
     use super::*;
@@ -1084,11 +1010,6 @@ pub(crate) mod v1_21_10 {
 pub(crate) mod v1_21_11 {
     use super::*;
     use crate::adapter::pinned_ids::entity_type as entity;
-
-    /// 1.21.11's serverbound `swing` and `interact` (play).
-    pub const SWING: i32 = 60;
-    #[cfg(test)]
-    const INTERACT: i32 = 25;
 
     /// Entity types (26.3 ids) whose class extends AgeableMob: 26.1 added a second boolean to it, after the
     /// baby flag (16), so their later entity data entries moved up one. Read off 26.1.2's EntityType
@@ -1223,52 +1144,6 @@ pub(crate) mod v1_21_11 {
         }
     }
 
-    /// Horizon's interact (entity, hand, where on it, sneaking) is 1.21.11's INTERACT_AT (action 2: the
-    /// point as floats, then the hand), followed as vanilla 1.21.11 did by INTERACT (action 0: the hand).
-    pub fn interact(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
-        let Some(interact) = session
-            .version
-            .serverbound_id(State::Play, packet_ids::play::serverbound::INTERACT)
-        else {
-            return Ok(None);
-        };
-        let mut r = Reader::new(payload);
-        let entity = r.varint()?;
-        let hand = r.varint()?;
-        let at = crate::buf::LpVec3::read(&mut r)?;
-        let sneaking = r.bool()?;
-        let mut first = Writer::new();
-        first.varint(entity);
-        first.varint(2);
-        at.iter().for_each(|v| first.f32(*v as f32));
-        first.varint(hand);
-        first.bool(sneaking);
-        let mut then = Writer::new();
-        then.varint(interact);
-        then.varint(entity);
-        then.varint(0);
-        then.varint(hand);
-        then.bool(sneaking);
-        session.outgoing.lock().unwrap().push(then.data);
-        Ok(Some((interact, first.data)))
-    }
-
-    /// 26.1's attack is 1.21.11's interact with action 1 (ATTACK).
-    pub fn attack(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
-        let Some(interact) = session
-            .version
-            .serverbound_id(State::Play, packet_ids::play::serverbound::INTERACT)
-        else {
-            return Ok(None);
-        };
-        let mut r = Reader::new(payload);
-        let mut w = Writer::new();
-        w.varint(r.varint()?);
-        w.varint(1);
-        w.bool(false);
-        Ok(Some((interact, w.data)))
-    }
-
     #[cfg(test)]
     mod tests {
         use super::*;
@@ -1288,24 +1163,6 @@ pub(crate) mod v1_21_11 {
             assert_eq!(t.game_time, 100);
             assert_eq!((t.clocks[0].clock, t.clocks[0].total_ticks), (0, 6000));
             assert_eq!(t.clocks[0].rate, 0.0); // the day time stands still
-        }
-
-        #[test]
-        fn an_interaction_is_sent_as_interact_at_then_interact() {
-            let session = Session::new(ServerVersion::V1_21_11);
-            let mut w = Writer::new();
-            w.varint(9); // entity
-            w.varint(1); // off hand
-            crate::buf::LpVec3::write(&[0.5, 1.0, 0.0], &mut w);
-            w.bool(true);
-            let (id, first) = interact(&session, &w.data).unwrap().unwrap();
-            assert_eq!(id, INTERACT);
-            let mut r = Reader::new(&first);
-            assert_eq!((r.varint().unwrap(), r.varint().unwrap()), (9, 2)); // INTERACT_AT
-            assert!((r.f32().unwrap() - 0.5).abs() < 0.01); // LpVec3 is approximate
-            let then = session.take_outgoing();
-            // INTERACT (action 0) with the off hand, sneaking.
-            assert_eq!(then, vec![vec![INTERACT as u8, 9, 0, 1, 1]]);
         }
     }
 }
@@ -1409,23 +1266,6 @@ pub(crate) mod v26_1 {
         w.bytes(r.rest());
         Ok(w.data)
     }
-
-    /// Horizon's spectator_action names an entity by its network id; 26.1's spectate_entity (at the same
-    /// id) by its UUID. Nothing is sent for one the client never saw added, or for no entity.
-    pub fn spectate(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
-        let Some(target) = <crate::buf::OptVarInt>::read(&mut Reader::new(payload))? else {
-            return Ok(None);
-        };
-        let Some(uuid) = session.uuids.lock().unwrap().get(&target).copied() else {
-            return Ok(None);
-        };
-        let mut w = Writer::new();
-        w.uuid(uuid);
-        Ok(Some((SPECTATE_ENTITY, w.data)))
-    }
-
-    /// 26.1's serverbound `spectate_entity` (play).
-    const SPECTATE_ENTITY: i32 = 62;
 
     #[cfg(test)]
     mod tests {
@@ -2695,7 +2535,7 @@ mod tests {
     }
 
     #[test]
-    fn punches_cross_both_adapters_with_each_releases_swing_id() {
+    fn swings_cross_both_adapters_with_each_releases_swing_id() {
         // Packet IDs are the releases' vanilla serverbound reports, independent of the shared helper.
         for (version, swing) in [
             (ServerVersion::V1_20_2, 50),
@@ -2713,9 +2553,11 @@ mod tests {
             (ServerVersion::V26_2, 63),
         ] {
             let session = Session::new(version);
-            let punch = packet_ids::play::serverbound::PUNCH;
+            let pinned_swing = packet_ids::play::serverbound::SWING;
+            // The pinned swing renumbers to the release's own, its hand
+            // payload unchanged.
             assert_eq!(
-                serverbound(&session, State::Play, punch, &[]).unwrap(),
+                serverbound(&session, State::Play, pinned_swing, &[0]).unwrap(),
                 Some((swing, vec![0])),
                 "{version:?}",
             );
@@ -2739,14 +2581,15 @@ mod tests {
                     .unwrap();
             }
             assert_eq!(reverse.reading(), State::Play);
+            // Both hands cross as swings now (the off hand is not dropped).
             assert_eq!(
                 reverse.serverbound(swing, vec![0]).unwrap(),
-                Some((punch, vec![])),
+                Some((pinned_swing, vec![0])),
                 "{version:?}"
             );
             assert_eq!(
                 reverse.serverbound(swing, vec![1]).unwrap(),
-                None,
+                Some((pinned_swing, vec![1])),
                 "{version:?}"
             );
         }
@@ -2806,26 +2649,6 @@ mod tests {
                 rotation: Some((10, -20)),
                 on_ground: false,
             }))
-        );
-    }
-
-    #[test]
-    fn a_26_2_swing_becomes_a_swing_animation() {
-        let (id, body) = animate(&[5, 3]).unwrap();
-        assert_eq!(id, packet_ids::play::clientbound::SWING_ANIMATION);
-        let p = play::Clientbound::decode(id, &body).unwrap();
-        assert_eq!(
-            p,
-            play::Clientbound::SwingAnimation(play::SwingAnimation {
-                id: 5,
-                hand: 1,
-                kind: 1,
-                duration: 6
-            })
-        );
-        assert_eq!(
-            animate(&[5, 4]).unwrap(),
-            (packet_ids::play::clientbound::ANIMATE, vec![5, 1])
         );
     }
 

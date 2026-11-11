@@ -154,8 +154,10 @@ fn walk_stop(assert_trajectory: bool) {
         &mut g,
         vec![S::Interact(play::Interact {
             id: id as i32,
-            hand: 0,
-            location: [0.; 3],
+            action: play::InteractAction::InteractAt {
+                location: [0.; 3],
+                hand: 0,
+            },
             secondary: false,
         })],
         1,
@@ -228,8 +230,10 @@ fn walking_then_still_tick_end_preserves_the_accepted_displacement() {
         &mut g,
         vec![S::Interact(play::Interact {
             id: id as i32,
-            hand: 0,
-            location: [0.0; 3],
+            action: play::InteractAction::InteractAt {
+                location: [0.0; 3],
+                hand: 0,
+            },
             secondary: false,
         })],
         1,

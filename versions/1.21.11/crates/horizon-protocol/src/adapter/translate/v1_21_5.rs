@@ -145,24 +145,33 @@ mod tests {
         let session = Session::new(ServerVersion::V1_21_5);
         use packet_ids::play::serverbound as sb;
         assert_eq!(
-            super::super::serverbound(&session, State::Play, sb::PUNCH, &[]).unwrap(),
+            super::super::serverbound(&session, State::Play, sb::SWING, &[0]).unwrap(),
             Some((59, vec![0]))
         );
+        // An attack is interact with action 1; the payload crosses unchanged.
         assert_eq!(
-            super::super::serverbound(&session, State::Play, sb::ATTACK, &[42]).unwrap(),
+            super::super::serverbound(&session, State::Play, sb::INTERACT, &[42, 1, 0]).unwrap(),
             Some((24, vec![42, 1, 0]))
         );
+        // INTERACT_AT (action 2): the point as three floats, then the hand.
         let mut w = Writer::new();
         w.varint(42);
+        w.varint(2);
+        [0.0f32, 0.0, 0.0].iter().for_each(|v| w.f32(*v));
         w.varint(0);
-        crate::buf::LpVec3::write(&[0.0, 0.0, 0.0], &mut w);
         w.bool(false);
         let (id, body) = super::super::serverbound(&session, State::Play, sb::INTERACT, &w.data)
             .unwrap()
             .unwrap();
         assert_eq!(id, 24);
-        assert_eq!(body[..2], [42, 2]);
-        assert_eq!(session.take_outgoing(), [vec![24, 42, 0, 0, 0]]);
+        assert_eq!(body, w.data);
+        // INTERACT (action 0): the hand, then the sneak flag. No second packet follows:
+        // the pinned client sends INTERACT itself, as vanilla 1.21.11 does.
+        assert_eq!(
+            super::super::serverbound(&session, State::Play, sb::INTERACT, &[42, 0, 0, 0]).unwrap(),
+            Some((24, vec![42, 0, 0, 0]))
+        );
+        assert!(session.take_outgoing().is_empty());
     }
 
     #[test]

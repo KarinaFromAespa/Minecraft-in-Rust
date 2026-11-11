@@ -2636,7 +2636,8 @@ struct Game<'a> {
     random_tick_sections: horizon_client::random_tick_sections::RandomTickSections,
     level_events: Vec<LevelEvent>,
     falling: horizon_client::join_seq::JoinList<FallingBlock>,
-    /// Blocks the server shows for a moment (`ClientboundAddTransientBlockPacket`).
+    /// Blocks the server shows for a moment (the transient-block packet is a
+    /// later addition; in 1.21.11 the queue stays empty).
     transient_blocks: transient_blocks::TransientBlocks,
     paintings: Vec<horizon_client::entities::Painting>,
     painting_variants: paintings::PaintingVariants,
@@ -2666,7 +2667,8 @@ struct Game<'a> {
     /// none when it drew from vanilla's.
     posed_rotation: Option<(f32, f32)>,
     /// `LocalPlayer.postEffects`: the chains the server has the screen run
-    /// (`ClientboundPostEffectsPacket`), in order.
+    /// (the packet that carries them is a later addition; in 1.21.11 no
+    /// server sends any, so the list stays empty), in order.
     post_effects: Vec<String>,
     /// The game time (ticks and partial) of the last frame, for `PolyDeltaTime`.
     polytone_post_ticks: f64,

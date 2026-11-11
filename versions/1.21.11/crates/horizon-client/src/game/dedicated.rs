@@ -1410,12 +1410,11 @@ impl Game<'_> {
                     &format!("Trace written: {events} events (reports/)"),
                 );
             }
-            // DedicatedServer.sendLowDiskSpaceWarning: the operators hear of it
-            // (no window drains the toasts here).
-            if horizon_client::chunk_io::take().low_disk_space
-                && let Some(host) = self.lan.as_ref()
-            {
-                host.hub.send_low_disk_space_warning();
+            // Low disk space: a dedicated server has no window to drain the
+            // toast, and 1.21.11 has no packet to warn the operators with,
+            // so the console hears of it here instead.
+            if horizon_client::chunk_io::take().low_disk_space {
+                ::log::warn!("low disk space: chunk saves are backing up");
             }
             // `PlayerList.tick` reads `MinecraftServer.playerIdleTimeout`
             // every tick, so `/setidletimeout` changes it while the server runs.

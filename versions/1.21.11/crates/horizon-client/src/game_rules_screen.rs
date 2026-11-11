@@ -1,8 +1,9 @@
 //! AbstractGameRulesScreen: the rules by category under a search box, a
 //! switch or a number box each. InWorldGameRulesScreen, opened from World
-//! Options, sends the changed ones on Done (ServerboundSetGameRulePacket) and
-//! asks before leaving with changes (ConfirmScreen); WorldCreationGameRulesScreen,
-//! opened from Create New World, hands them back and leaves without asking.
+//! Options, sends the changed ones on Done as `/gamerule` commands (1.21.11
+//! has no game-rule packets) and asks before leaving with changes
+//! (ConfirmScreen); WorldCreationGameRulesScreen, opened from Create New
+//! World, hands them back and leaves without asking.
 use crate::{
     confirm_screen::Confirm,
     font::Font,

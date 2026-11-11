@@ -1399,7 +1399,10 @@ pub fn verify(lock: &Lock) -> Result<Artifacts, String> {
         .and_then(|downloads| downloads.get("client"))
         .and_then(|download| download.get("sha1"))
         .and_then(Value::as_str);
-    let client_digest = client.exists().then(|| digest(&client, "sha1")).transpose()?;
+    let client_digest = client
+        .exists()
+        .then(|| digest(&client, "sha1"))
+        .transpose()?;
     let good = client_digest.is_some()
         && ((pinned == Some(lock.pin("client_sha1")?) && client_digest.as_deref() == pinned)
             || remapped_digest("client", "sha1") == client_digest);

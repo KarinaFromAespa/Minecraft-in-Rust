@@ -196,8 +196,8 @@ mod tests {
         let swing = super::super::serverbound(
             &session,
             State::Play,
-            packet_ids::play::serverbound::PUNCH,
-            &[],
+            packet_ids::play::serverbound::SWING,
+            &[0],
         )
         .unwrap()
         .unwrap();

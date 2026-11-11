@@ -359,7 +359,9 @@ impl WorldOptions {
                 Button::Difficulty | Button::Lock => {
                     self.gamemaster && !self.hardcore && !self.difficulty_locked
                 }
-                Button::GameRules => self.gamemaster,
+                // 1.21.11 has no packet to fetch a server's rules: a gamemaster
+                // on an external server changes them with /gamerule, as in vanilla.
+                Button::GameRules => false,
                 Button::Restrictions | Button::Cancel => true,
                 Button::Apply => self.gamemaster && self.changed(),
                 _ => false,
@@ -557,30 +559,6 @@ impl Game<'_> {
             o.server_difficulty(difficulty, locked);
         }
     }
-    pub(super) fn remote_world_options_rules(&mut self, entries: Vec<play::GameRuleEntry>) {
-        let Some(o) = self
-            .world_options
-            .as_mut()
-            .filter(|o| o.view == View::GameRules)
-        else {
-            return;
-        };
-        // The response itself lists the server's available rules; the client
-        // may not own this world's level.dat (including on the server thread).
-        let features = if entries.iter().any(|e| {
-            horizon_client::gamerules::rule(&e.name)
-                .is_some_and(|r| r.name == horizon_client::gamerules::MAX_MINECART_SPEED.name)
-        }) {
-            vec![horizon_client::gamerules::MINECART_IMPROVEMENTS.to_owned()]
-        } else {
-            Vec::new()
-        };
-        let mut rules = horizon_client::gamerules::GameRules::with_features(&features);
-        for entry in entries {
-            rules.set_string(&entry.name, &entry.value);
-        }
-        o.rules = Some(RulesScreen::new(&rules));
-    }
     pub(super) fn open_world_options(&mut self) {
         let hint = horizon_client::lan::available_port();
         let mut port = EditBox::new(0.0, 0.0, 150.0, 20.0);
@@ -644,10 +622,7 @@ impl Game<'_> {
     pub(super) fn world_options_escape(&mut self) {
         match self.world_options.as_mut() {
             Some(o) if o.view == View::GameRules => {
-                if o.rules.is_none() {
-                    // A server may be slow to answer REQUEST_GAMERULE_VALUES.
-                    o.view = View::Options;
-                } else if let Some(exit) = o.rules.as_mut().and_then(RulesScreen::escape) {
+                if let Some(exit) = o.rules.as_mut().and_then(RulesScreen::escape) {
                     self.close_game_rules(exit);
                 }
             }
@@ -656,9 +631,10 @@ impl Game<'_> {
         }
     }
 
-    /// InWorldGameRulesScreen's exit, back to the options. Done sends the
-    /// changed rules (ServerboundSetGameRulePacket), which the server's
-    /// handleSetGameRule sets for a gamemaster and tells its operators.
+    /// InWorldGameRulesScreen's exit, back to the options. Done applies the
+    /// changed rules: 1.21.11 has no game-rule packets, so on a server the
+    /// change goes as `/gamerule` commands (which the server runs), and the
+    /// window's own rules move with them.
     fn close_game_rules(&mut self, exit: Exit) {
         if let Some(o) = self.world_options.as_mut() {
             o.view = View::Options;
@@ -669,15 +645,15 @@ impl Game<'_> {
         };
         if self.remote.is_some() {
             if self.ui.registries.permission >= 2 && !changes.is_empty() {
-                self.send(S::SetGameRule(play::SetGameRule {
-                    entries: changes
-                        .into_iter()
-                        .map(|(name, value)| play::GameRuleEntry {
-                            name: format!("minecraft:{name}"),
-                            value: value.to_string(),
-                        })
-                        .collect(),
-                }));
+                for (name, value) in &changes {
+                    self.send_command(&format!("gamerule {name} {value}"));
+                }
+                // The window knows what it sent, so its own rules move with
+                // the server's (there is no packet to fetch them back).
+                for (name, value) in changes {
+                    self.ui.rules.set(name, value);
+                }
+                self.sync_rules();
             }
             return;
         }
@@ -1184,12 +1160,9 @@ impl Game<'_> {
             Some(Button::Lock) => o.locked = !o.locked,
             Some(Button::Restrictions) => o.view = View::Restrictions,
             Some(Button::GameRules) => {
-                if self.remote.is_some() {
-                    o.rules = None;
-                    self.send(S::ClientCommand(play::ClientCommand { action: 2 }));
-                } else {
-                    o.rules = Some(RulesScreen::new(&self.ui.rules));
-                }
+                // The window's own rules: 1.21.11 has no packet to fetch a
+                // server's, so an external server's rules are not shown here.
+                o.rules = Some(RulesScreen::new(&self.ui.rules));
                 o.view = View::GameRules;
             }
             Some(Button::Lan) => {
@@ -1496,12 +1469,9 @@ impl Game<'_> {
                         Button::Lock => o.locked = !o.locked,
                         Button::Restrictions => o.view = View::Restrictions,
                         Button::GameRules => {
-                            if self.remote.is_some() {
-                                o.rules = None;
-                                self.send(S::ClientCommand(play::ClientCommand { action: 2 }));
-                            } else {
-                                o.rules = Some(RulesScreen::new(&self.ui.rules));
-                            }
+                            // The window's own rules: 1.21.11 has no packet to fetch a
+                            // server's, so an external server's rules are not shown here.
+                            o.rules = Some(RulesScreen::new(&self.ui.rules));
                             o.view = View::GameRules;
                         }
                         Button::Lan => {

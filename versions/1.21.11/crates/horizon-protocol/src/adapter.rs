@@ -567,25 +567,21 @@ mod tests {
     }
 
     #[test]
-    fn serverbound_packets_26_2_lacks_are_not_sent() {
+    fn serverbound_packets_renumber_to_26_2_s() {
         let v = ServerVersion::V26_2;
-        // punch is new in 26.3; swing, which 26.2 has at 63, is gone.
+        // 1.21.11 has no serverbound packet 26.2 lacks, so every pin packet renumbers:
+        // swing 60 -> 63, resource_pack 48 -> 49, keep_alive 27 -> 28.
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::PUNCH),
-            None
+            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            Some(63)
         );
-        // resource_pack 50 -> 49, spectator_action 63 -> 62, keep_alive unchanged.
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::RESOURCE_PACK),
             Some(49)
         );
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SPECTATOR_ACTION),
-            Some(62)
-        );
-        assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::KEEP_ALIVE),
-            Some(ids::play::serverbound::KEEP_ALIVE)
+            Some(28)
         );
         assert_eq!(
             v.serverbound_id(State::Handshake, ids::handshake::serverbound::INTENTION),
@@ -603,9 +599,13 @@ mod tests {
             v.serverbound_body(State::Play, &body).unwrap(),
             Some(vec![49, 1, 2, 3])
         );
-        let mut punch = Vec::new();
-        write_varint(&mut punch, ids::play::serverbound::PUNCH);
-        assert_eq!(v.serverbound_body(State::Play, &punch).unwrap(), None);
+        let mut swing = Vec::new();
+        write_varint(&mut swing, ids::play::serverbound::SWING);
+        swing.push(0);
+        assert_eq!(
+            v.serverbound_body(State::Play, &swing).unwrap(),
+            Some(vec![63, 0])
+        );
         assert_eq!(
             ServerVersion::Current
                 .serverbound_body(State::Play, &body)
