@@ -278,3 +278,29 @@ and compostable data components (26.2 has `Level.fuelValues()` instead),
 and cushion among them), and the registry/worldgen shifts the regenerated
 tables already encode. `docs/version-ports.md` in this tree describes the
 order to take them in.
+
+## CI profile — port-verify v5, run 43086869031 (2026-11-11)
+
+The full 17-harness profile the completion pass deferred to CI is now
+measured on GitHub runners, against the completed tree (candidate commit
+9b4a521d1f92, main@2596a39 incl. 2d06bb3). `prepare: ok`; horizon-prepare
+completed in 25.1 s; protocol compiles clean (0 errors — the 8-error
+blocker is gone).
+
+**Profile: 3 pass / 0 oracle-no-longer-compiles / 14 fail.**
+Passes: food, lan, resource_pack. (The "14 newly failing" count is a
+no-baseline classification artifact — no baseline was passed to the run.)
+Against the codespace verification of the pre-completion tree (1 pass /
+1 oracle / 15 fail), the oracle failure is cured and two more harnesses
+pass; against completed 26.1's CI profile (3 pass / 0 oracle / 14 fail)
+the count matches but the pass set differs (26.1 passes block_properties,
+26.2 passes resource_pack instead). Sampled failure causes, all real
+behaviour/oracle mismatches now that the probe builds and runs:
+chunk_generation's oracle crashes at runtime (`IllegalStateException:
+Requested chunk unavailable during world generation` in the
+Beardifier/structure path); command_parse runs to comparison
+(34,582/34,583 commands match at permission 0) but reports 6,266 parse
+mismatches, with the Rust suggestion list still offering `compute` where
+vanilla does not; block_properties' world_probe fixture exits 1. These
+are the next behaviour/oracle work for this tree, not verification gaps.
+Artifacts kept at `~/workspace/mcir-ci/26.2v5-completed/`.
