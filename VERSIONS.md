@@ -12,7 +12,7 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 | 26.2 | `versions/26.2` | in progress — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; full harness profile via CI (see `versions/26.2/PORT-NOTES-26.2.md`) |
 | 26.1.2 | `versions/26.1.2` | in progress — patch delta of 26.1.1 (DataVersion bump, 6 classes incl. handleAttack); inherits the pre-completion 26.1 state, see `versions/26.1.2/PORT-NOTES-26.1.2.md` |
 | 26.1.1 | `versions/26.1.1` | in progress — completion pass carried forward: protocol rewire closed, 6/6 tables, workspace compiles; patch delta of 26.1 (DataVersion bump, 3 classes), see `versions/26.1.1/PORT-NOTES-26.1.1.md` |
-| 26.1 | `versions/26.1` | in progress — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; full harness profile via CI (see `versions/26.1/PORT-NOTES-26.1.md`) |
+| 26.1 | `versions/26.1` | completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.1/PORT-NOTES-26.1.md`) |
 
 ## E6 — Components (14)
 

@@ -215,3 +215,23 @@ Measured in this pass:
 3. The old `step_26_1` (26.2↔26.1 layout step) was removed: under this pin
    a 26.1 peer is the pin itself, and 26.2's layout deltas are handled by
    `layout_26_2` plus the two conversions listed above.
+
+## CI profile — port-verify v5, run 43062079306 (2026-11-11)
+
+The full 17-harness profile the completion pass deferred to CI is now
+measured on GitHub runners, against this tree (candidate commit e27b20a).
+The route itself is proven: store prepare, lab-prepare from a staged
+launcher directory, protocol baseline, and the harness subset all executed
+end to end; `prepare: ok`; protocol compiles clean (5 warnings, 0 errors);
+horizon-prepare completed in 30.7 s.
+
+**Profile: 3 pass / 0 oracle-no-longer-compiles / 14 fail.**
+Passes: block_properties, food, lan. (The "14 newly failing" count is a
+no-baseline classification artifact — no baseline was passed to the run.)
+Sampled failure causes, all specific and diagnosable, none a route defect:
+chunk_generation and light fail on a missing `minecraft:blocks_motion_in_heightmap`
+block tag in the prepared data; command_exec's oracle reflects on an
+`ENTITY_COUNTER` field 26.1's jar does not have; datafix reports 19,372
+differences over 7 worlds; four harness logs mention timeouts. These are
+the next behaviour/oracle work for this tree, not verification gaps.
+Artifacts kept at `~/workspace/mcir-ci/26.1v5/`.
