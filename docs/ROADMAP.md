@@ -270,11 +270,11 @@ upstream `ludovic111/horizon` main (pins 26.3; version-port tooling is upstream'
 
 - Programme repo: **KarinaFromAespa/Minecraft-in-Rust** (this repo). All rewrite
   commits are made under the KarinaFromAespa account only.
-- Organization: `main` is the programme home (this plan, VERSIONS.md, shared
-  tooling). Each version's rewritten code lives on its own branch,
-  `version/<id>`, so all versions share history in one organized tree.
-- §6 decisions settled by this setup: (2) repo shape — one repo, version
-  branches, era lines with the freeze policy; (4) base — a fresh clone of
-  upstream `ludovic111/horizon` per version branch when its work starts.
+- Organization: `main` is the only branch — the programme home (this plan,
+  VERSIONS.md, shared tooling) and every version's rewritten code, each version
+  in its own directory `versions/<id>/` with its documentation alongside.
+- §6 decisions settled by this setup: (2) repo shape — one repo, single main
+  branch, versions as directories, era lines with the freeze policy; (4) base —
+  a fresh clone of upstream `ludovic111/horizon` per version when its work starts.
   Still open: (1) snapshot scope, (3) the old-era fidelity bar, (5) the
   Phase 0 start, on the owner's word.
