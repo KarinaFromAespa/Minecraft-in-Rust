@@ -54,12 +54,20 @@ jobs:
         with:
           toolchain: 1.95.0
 
-      - name: Expose the published tree as the pipeline's candidate
+      # The harness stage requires its candidate to be a git worktree
+      # (port_harness checks for .git), so stage a committed copy of the
+      # published tree — the check then measures exactly what is on main,
+      # and the pipeline's writes land in the scratch copy.
+      - name: Stage the published tree as the pipeline's candidate
         run: |
           V="${{ inputs.version }}"
           mkdir -p "$HORIZON_PORTS"
-          ln -s "$GITHUB_WORKSPACE/versions/$V" "$HORIZON_PORTS/$V"
-          ls -la "$HORIZON_PORTS"
+          cp -a "versions/$V" "$HORIZON_PORTS/$V"
+          cd "$HORIZON_PORTS/$V"
+          git init -q
+          git add -A
+          git -c user.email=port-verify@localhost -c user.name=port-verify commit -qm "published tree, as pushed"
+          git log --oneline -1
 
       - name: Compile baseline — horizon-protocol
         continue-on-error: true
@@ -69,12 +77,17 @@ jobs:
           cargo check -p horizon-protocol 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/protocol-check.log"
           echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/protocol-check.log" || true)"
 
+      # --download: fetch this version's jars from Mojang's CDN into the
+      # version store (SHA-1 verified) and run its data generator. Without
+      # the flag the step demands a lab-prepared .local, which a clean
+      # runner does not have. Obfuscated releases are refused here until
+      # the mappings front-end is wired into prepare.
       - name: Prepare the version's data (pipeline download path)
         continue-on-error: true
         run: |
           V="${{ inputs.version }}"
           cd "versions/$V"
-          python3 tools/version_port.py prepare "$V" 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
+          python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
 
       # Only the harness stage links the client's audio/udev dependencies, so
       # the install lives here — and a flaky archive mirror (run 1 died on a
@@ -95,7 +108,20 @@ jobs:
         run: |
           V="${{ inputs.version }}"
           cd "versions/$V"
-          python3 tools/version_port.py harnesses "$V" 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/harnesses.log"
+          python3 tools/version_port.py harnesses "$V" --timeout 1800 \
+            block_properties chunk_generation command_exec command_parse \
+            component_patch datafix entity_components first_person food \
+            hotbar item_model lan light options resource_pack save_roundtrip \
+            sound_event 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/harnesses.log"
+
+      - name: Collect pipeline results
+        if: always()
+        run: |
+          V="${{ inputs.version }}"
+          cp "$HORIZON_VERSIONS"/diff-*/harnesses.json "$GITHUB_WORKSPACE/ci-out/" 2>/dev/null || true
+          cp -r "$HORIZON_VERSIONS"/diff-*/harness-logs "$GITHUB_WORKSPACE/ci-out/" 2>/dev/null || true
+          cp "$HORIZON_PORTS/$V/.local/port-regen/horizon-prepare.log" "$GITHUB_WORKSPACE/ci-out/" 2>/dev/null || true
+          ls -la "$GITHUB_WORKSPACE/ci-out/"
 
       - name: Job summary
         if: always()
@@ -105,11 +131,17 @@ jobs:
             echo "## port-verify — $V"
             echo
             echo "### horizon-protocol compile baseline"
-            echo "error lines: $(grep -c '^error' ci-out/protocol-check.log 2>/dev/null || echo '?')"
+            echo "error lines: $(sed 's/\x1b\[[0-9;]*m//g' ci-out/protocol-check.log 2>/dev/null | grep -c '^error' || echo '?')"
             echo
-            echo "### harness run (tail)"
+            echo "### prepare"
             echo '```'
-            tail -40 ci-out/harnesses.log 2>/dev/null || echo "no harness log"
+            tail -5 ci-out/prepare.log 2>/dev/null || echo "no prepare log"
+            echo '```'
+            echo
+            echo "### harness run"
+            grep -E '^(horizon-prepare|harnesses):' ci-out/harnesses.log 2>/dev/null || echo "no harness summary line"
+            echo '```'
+            tail -20 ci-out/harnesses.log 2>/dev/null || echo "no harness log"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
