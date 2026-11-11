@@ -846,7 +846,7 @@ mod tests {
         s
     }
 
-    // Expected ids are read off the 26.2 and 26.3 packets and registries reports by hand, not from the
+    // Expected ids are read off the 26.2 and 1.21.11 packets and registries reports by hand, not from the
     // generated tables.
 
     #[test]
@@ -1086,14 +1086,13 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         };
-        // chest's first state: 5543 in 26.3, 3987 in 26.2; grass_block 8 in both.
-        assert_eq!(update(5543), 3987);
+        // chest's first state: 3786 in 1.21.11, 3987 in 26.2; grass_block 8 in both.
+        assert_eq!(update(3786), 3987);
         assert_eq!(update(8), 8);
-        // poplar_log axis=y (167, new in 26.3) shows as birch_log axis=y (146 in 26.3, 143 in 26.2).
-        assert_eq!(update(167), 143);
-        // shelf_mushroom (11227, new in 26.3) is solid: it shows as a brown_mushroom_block (9500 in 26.3, 7766 in
-        // 26.2), not as the brown mushroom players would fall through.
-        assert_eq!(update(11227), 7766);
+        // calcite's state is renumbered: 24485 in 1.21.11, 27160 in 26.2.
+        assert_eq!(update(24485), 27160);
+        // 26.2 has every block 1.21.11 has (it only adds), so no state needs a
+        // stand-in for this client; stand-ins apply to older ones.
     }
 
     #[test]
@@ -1110,12 +1109,12 @@ mod tests {
             let mut payload = Reader::new(r.rest());
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 1012 in 26.3, 926 in 26.2.
-        assert_eq!(slot(1012), 926);
-        // poplar_planks (72, new in 26.3) shows as birch_planks (65 in both).
-        assert_eq!(slot(72), 65);
-        // ocean_monument_map (1239, new in 26.3) is a filled map: filled_map (1238 in 26.3, 1133 in 26.2).
-        assert_eq!(slot(1239), 1133);
+        // diamond: 898 in 1.21.11, 926 in 26.2.
+        assert_eq!(slot(898), 926);
+        // birch_planks: 38 in 1.21.11, 65 in 26.2.
+        assert_eq!(slot(38), 65);
+        // filled_map: 1104 in 1.21.11, 1133 in 26.2.
+        assert_eq!(slot(1104), 1133);
     }
 
     #[test]
@@ -1135,9 +1134,11 @@ mod tests {
             })
             .encode()
         };
-        // cushion (33, new in 26.3) has no stand-in; poplar_boat (106) sails as birch_boat (12).
-        assert_eq!(s.clientbound(&add(33)).unwrap(), None);
-        let sent = s.clientbound(&add(106)).unwrap().unwrap();
+        // 26.2 has every entity type 1.21.11 has (it only adds the sulfur
+        // cube and the poplar boats), so nothing is dropped for this client:
+        // birch_boat is 12 in both, and the tadpole is renumbered (130 in
+        // 1.21.11, 131 in 26.2).
+        let sent = s.clientbound(&add(12)).unwrap().unwrap();
         let mut r = Reader::new(&sent);
         // add_entity: 1 in both.
         assert_eq!(r.varint().unwrap(), 1);
@@ -1145,12 +1146,19 @@ mod tests {
             play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 12),
             other => panic!("{other:?}"),
         }
+        let sent = s.clientbound(&add(130)).unwrap().unwrap();
+        let mut r = Reader::new(&sent);
+        assert_eq!(r.varint().unwrap(), 1);
+        match play::Clientbound::decode(1, r.rest()).unwrap() {
+            play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 131),
+            other => panic!("{other:?}"),
+        }
     }
 
     #[test]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 26.3's 57. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 26.2's 56 is 1.21.11's 55. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1158,7 +1166,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((1012, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((898, 3)));
             }
             other => panic!("{other:?}"),
         }

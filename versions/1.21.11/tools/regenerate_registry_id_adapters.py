@@ -24,7 +24,9 @@ ADAPTER = Path("crates/horizon-protocol/src/adapter")
 RENAMES = [
     "block:minecraft:chain=minecraft:iron_chain",
     "item:minecraft:chain=minecraft:iron_chain",
-    "command_argument_type:minecraft:color=minecraft:team_color",
+    # No command_argument_type color -> team_color rename: the pinned 1.21.11
+    # still calls it minecraft:color (the rename happened in 26.x), so the
+    # old name matches the pin by name. (Upstream keeps the rename for 26.3.)
     "entity_type:minecraft:potion=minecraft:splash_potion",
 ]
 ATTRIBUTES = {

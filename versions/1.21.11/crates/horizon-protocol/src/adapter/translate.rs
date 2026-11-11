@@ -2461,10 +2461,13 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
+        // 1.21.11 is the pin itself, so every 1.21.11 entity maps to itself: the
+        // drop path is exercised by the 1.20.3 tests instead. Here the identity
+        // mapping and the falling-block state are checked.
         for (kind, data, expected) in [
-            (157, 0, None),
+            (153, 0, Some((153, 0))), // zombie villager, same id in both versions
             (0, 0, Some((0, 0))),
-            (51, 27, Some((52, 28))), // falling block, with a state whose id changed
+            (51, 1381, Some((51, 1381))), // falling block, with a state that maps to itself
         ] {
             let packet = play::Clientbound::AddEntity(play::AddEntity {
                 id: 7,
@@ -2504,7 +2507,10 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_block_entity_update_is_dropped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        for (kind, expected) in [(49, None), (1, Some(1))] {
+        // 1.21.11 is the pin itself, so no 1.21.11 block entity is unknown to
+        // it; the drop path is exercised by the 1.20.3 tests instead. The
+        // boundary id passes through unchanged.
+        for (kind, expected) in [(48, Some(48)), (1, Some(1))] {
             let packet = play::Clientbound::BlockEntityData(play::BlockEntityData {
                 pos: [1, 2, 3],
                 kind,
@@ -2600,16 +2606,17 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_chunk_section_on_the_global_palette_is_repacked_wider() {
+    fn a_26_2_chunk_section_on_the_global_palette_is_renumbered() {
         let ids = ids();
-        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits.
+        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits —
+        // the width both numberings use (1.21.11 has 29,671 states, 26.2 has 32,366).
         let values: Vec<i32> = (0..4096).map(|i| 13000 + i).collect();
         let old = Paletted::from_values(&values, Strategy::Blocks, 15);
         assert_eq!(old.bits, 15);
-        let new = renumber_states(ids, &old, 16);
-        assert_eq!(new.bits, 16);
-        // oak_slab's first state, 13330 in 26.2, is 15177 in 26.3.
-        assert_eq!(new.get(330), 15177);
+        let new = renumber_states(ids, &old, 15);
+        assert_eq!(new.bits, 15);
+        // oak_slab type=top waterlogged=true is 13330 in 26.2, 13128 in 1.21.11.
+        assert_eq!(new.get(330), 13128);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 

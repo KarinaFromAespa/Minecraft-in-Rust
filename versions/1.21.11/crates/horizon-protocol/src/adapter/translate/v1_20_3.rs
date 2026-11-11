@@ -521,7 +521,7 @@ mod tests {
             // skull
             (15, 16, "0a0a000a536b756c6c4f776e65720b0002496400000004000000010000000200000003000000040a000a50726f7065727469657309000874657874757265730a000000010800095369676e6174757265001373796e7468657469632d7369676e617475726508000556616c7565000c63336c756447686c64476c6a00000800044e616d650008483437536b756c6c000a00064f70617175650100066e756d6265720700030001780000000303000179000000400300017a000000020800026964000f6d696e6563726166743a736b756c6c00", "0a0a000a536b756c6c4f776e65720b0002496400000004000000010000000200000003000000040a000a50726f7065727469657309000874657874757265730a000000010800095369676e6174757265001373796e7468657469632d7369676e617475726508000556616c7565000c63336c756447686c64476c6a00000800044e616d650008483437536b756c6c000a00064f70617175650100066e756d62657207000a000770726f66696c650800046e616d650008483437536b756c6c09000a70726f706572746965730a000000010800046e616d650008746578747572657308000576616c7565000c63336c756447686c64476c6a0800097369676e6174757265001373796e7468657469632d7369676e6174757265000b00026964000000040000000100000002000000030000000400030001780000000303000179000000400300017a000000020800026964000f6d696e6563726166743a736b756c6c00"),
             // sign
-            (7, 7, "0a0a00096261636b5f746578740100106861735f676c6f77696e675f7465787401080005636f6c6f7200037265640900086d6573736167657308000000040006224261636b220002222200022222000222220001000869735f7761786564000a00064f70617175650100066e756d6265720700030001780000000503000179000000400300017a000000020800026964000e6d696e6563726166743a7369676e0a000a66726f6e745f746578740100106861735f676c6f77696e675f7465787400080005636f6c6f720005626c61636b0900086d65737361676573080000000400107b2274657874223a2246726f6e74227d0002222200022222000222220000", "0a0a00096261636b5f74657874080005636f6c6f7200037265640900086d65737361676573080000000400044261636b0000000000000100106861735f676c6f77696e675f746578740100010011616c6c6f775f6f705f66656174757265730101000869735f7761786564000a00064f70617175650100066e756d6265720700030001780000000503000179000000400300017a000000020800026964000e6d696e6563726166743a7369676e0a000a66726f6e745f74657874080005636f6c6f720005626c61636b0900086d657373616765730a0000000408000474657874000546726f6e74000800000000000800000000000800000000000100106861735f676c6f77696e675f74657874000000"),
+            (7, 7, "0a0a00096261636b5f746578740100106861735f676c6f77696e675f7465787401080005636f6c6f7200037265640900086d6573736167657308000000040006224261636b220002222200022222000222220001000869735f7761786564000a00064f70617175650100066e756d6265720700030001780000000503000179000000400300017a000000020800026964000e6d696e6563726166743a7369676e0a000a66726f6e745f746578740100106861735f676c6f77696e675f7465787400080005636f6c6f720005626c61636b0900086d65737361676573080000000400107b2274657874223a2246726f6e74227d0002222200022222000222220000", "0a0a00096261636b5f74657874080005636f6c6f7200037265640900086d65737361676573080000000400044261636b0000000000000100106861735f676c6f77696e675f74657874010001000869735f7761786564000a00064f70617175650100066e756d6265720700030001780000000503000179000000400300017a000000020800026964000e6d696e6563726166743a7369676e0a000a66726f6e745f74657874080005636f6c6f720005626c61636b0900086d657373616765730a0000000408000474657874000546726f6e74000800000000000800000000000800000000000100106861735f676c6f77696e675f74657874000000"),
             // chest
             (1, 1, "0a08000a437573746f6d4e616d6500137b2274657874223a225141204368657374227d0a00064f70617175650100066e756d6265720700030001780000000703000179000000400300017a000000020900054974656d730a00000001010004536c6f74000800026964000f6d696e6563726166743a73746f6e65010005436f756e7403000800026964000f6d696e6563726166743a636865737400", "0a0a000a437573746f6d4e616d650800047465787400085141204368657374000a00064f70617175650100066e756d6265720700030001780000000703000179000000400300017a000000020900054974656d730a00000001030005636f756e7400000003010004536c6f74000800026964000f6d696e6563726166743a73746f6e65000800026964000f6d696e6563726166743a636865737400"),
         ]
@@ -609,7 +609,8 @@ mod tests {
                     old_block_entity_tag(version, &before, &mut old);
                     expected.push((new_kind, after));
                 }
-                // End stays End; the removed bed block-entity type is dropped.
+                // End stays End. Bed still exists in 1.21.11 (id 25), so unlike the
+                // 26.3 pin it is kept here, remapped from the old id 24.
                 for kind in [1, 24] {
                     old.i8(0x12);
                     old.i16(64);
@@ -617,6 +618,7 @@ mod tests {
                     old_block_entity_tag(version, &Tag::End, &mut old);
                 }
                 expected.push((1, Tag::End));
+                expected.push((25, Tag::End));
                 for _ in 0..4 {
                     old.long_array(&[]);
                 }
@@ -680,8 +682,11 @@ mod tests {
     #[test]
     fn legacy_removed_block_entity_updates_drop_instead_of_reusing_an_id() {
         use horizon_world::nbt::Tag;
+        // No 1.20.2/1.20.3 block-entity type was removed before 1.21.11 (bed, dropped
+        // in 26.3, still exists at id 25 here), so the drop branch is shown with
+        // an id outside the old registry instead of a removed type.
         for &version in block_entity_versions() {
-            for (kind, dropped) in [(1, false), (24, true)] {
+            for (kind, dropped) in [(1, false), (99, true)] {
                 let mut old = Writer::new();
                 <crate::buf::Pos>::write(&[1, 64, 2], &mut old);
                 old.varint(kind);
@@ -711,20 +716,20 @@ mod tests {
     fn legacy_attribute_names_keep_their_meaning_across_registry_orders() {
         // Names and pinned IDs independently checked against vanilla registry reports.
         let expected = [
-            ("minecraft:generic.armor", 1),
-            ("minecraft:generic.armor_toughness", 2),
-            ("minecraft:generic.attack_damage", 3),
-            ("minecraft:generic.attack_knockback", 4),
-            ("minecraft:generic.attack_speed", 5),
-            ("minecraft:generic.flying_speed", 15),
-            ("minecraft:generic.follow_range", 16),
-            ("minecraft:generic.knockback_resistance", 20),
-            ("minecraft:generic.luck", 21),
-            ("minecraft:generic.max_absorption", 22),
-            ("minecraft:generic.max_health", 23),
-            ("minecraft:generic.movement_speed", 26),
-            ("minecraft:horse.jump_strength", 19),
-            ("minecraft:zombie.spawn_reinforcements", 32),
+            ("minecraft:generic.armor", 0),
+            ("minecraft:generic.armor_toughness", 1),
+            ("minecraft:generic.attack_damage", 2),
+            ("minecraft:generic.attack_knockback", 3),
+            ("minecraft:generic.attack_speed", 4),
+            ("minecraft:generic.flying_speed", 12),
+            ("minecraft:generic.follow_range", 13),
+            ("minecraft:generic.knockback_resistance", 16),
+            ("minecraft:generic.luck", 17),
+            ("minecraft:generic.max_absorption", 18),
+            ("minecraft:generic.max_health", 19),
+            ("minecraft:generic.movement_speed", 22),
+            ("minecraft:horse.jump_strength", 15),
+            ("minecraft:zombie.spawn_reinforcements", 27),
         ];
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
             let session = Session::new(version);
@@ -763,10 +768,10 @@ mod tests {
 
     #[test]
     fn llama_carpet_colors_resolve_by_item_name_for_each_legacy_registry() {
-        // All sixteen names/IDs come from the vanilla 26.3 item report. The old
+        // All sixteen names/IDs come from the vanilla 1.21.11 item report. The old
         // white-carpet ID is424 in1.20.2 and445 in1.20.3, not a shared offset.
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
-            for kind in [79, 138] {
+            for kind in [78, 134] {
                 let session = Session::new(version);
                 session.kinds.lock().unwrap().insert(42, kind);
                 for color in -1..=16 {
@@ -784,8 +789,8 @@ mod tests {
                     };
                     let expected = match color {
                         -1 => None,
-                        0..=15 => Some(580 + color),
-                        _ => Some(580),
+                        0..=15 => Some(505 + color),
+                        _ => Some(505),
                     };
                     assert_eq!(packet.id, 42);
                     assert_eq!(
@@ -917,7 +922,7 @@ mod tests {
             assert_eq!(
                 particle(ServerVersion::V1_20_6, new),
                 Particle {
-                    id: 28,
+                    id: 21,
                     data: Some(ParticleData::Color(color))
                 }
             );
@@ -961,7 +966,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_3);
         for (kind, pairs) in [
             (
-                159,
+                155,
                 vec![
                     ("2a0a0199cdcd010b0801ff", "2a0a120114263366990b0801ff"),
                     ("2a0b0800ff", "2a0a120114ff3366990b0800ff"),
@@ -975,7 +980,7 @@ mod tests {
                 ],
             ),
             (
-                79,
+                78,
                 vec![
                     ("2a14010e150102ff", "2a140102ff"),
                     ("2a1401ffffffff0fff", "2aff"),
@@ -993,7 +998,7 @@ mod tests {
                 assert_eq!(old, expected);
             }
         }
-        for item in [Some(594), None] {
+        for item in [Some(519), None] {
             // pinned minecraft:red_carpet, then unequipped
             let (id, body) = session.next_incoming().unwrap();
             let play::Clientbound::SetEquipment(p) = play::Clientbound::decode(id, &body).unwrap()
@@ -1009,7 +1014,7 @@ mod tests {
             );
         }
         // ItemFrame and BlockDisplay are not LivingEntity: their integer entry must stay an integer.
-        for kind in [74, 15] {
+        for kind in [73, 15] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut data = play::SetEntityData {
                 id: 42,
@@ -1020,7 +1025,7 @@ mod tests {
             assert_eq!(data, expected);
         }
         session.legacy_metadata.lock().unwrap().forget(42);
-        session.kinds.lock().unwrap().insert(42, 159);
+        session.kinds.lock().unwrap().insert(42, 155);
         let mut data = metadata(ServerVersion::V1_20_3, "2a0b0800ff");
         entity_data(&session, &mut data);
         assert!(
@@ -1053,19 +1058,19 @@ mod tests {
                 offer.result.item,
                 offer.result.count
             ),
-            (1013, 5, 1012, 1)
+            (899, 5, 898, 1)
         );
         assert!(offer.cost_b.is_none());
         assert_eq!(
             (offer.uses, offer.max_uses, offer.xp, offer.price_multiplier),
             (0, 8, 2, 0.05)
         );
-        for (kind, slot) in [(67, 6), (159, 4)] {
+        for (kind, slot) in [(66, 6), (155, 4)] {
             session.kinds.lock().unwrap().insert(42, kind);
             let body = equipment(&session, &bytes("2a0401df080100")).unwrap();
             let p = play::SetEquipment::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.slots[0].0, slot);
-            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1409);
+            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1258);
         }
     }
 
@@ -1082,7 +1087,7 @@ mod tests {
             ([1.25, 64.0, -2.75], 4.0, 1)
         );
         assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
-        assert_eq!(p.particle.id, 29);
+        assert_eq!(p.particle.id, 22);
         assert_eq!(
             p.sound,
             (-1, Some(("minecraft:entity.generic.explode".into(), None)))

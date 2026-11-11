@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(p.particle.id, 1);
         assert_eq!(
             p.particle.data,
-            Some(crate::entity_data::ParticleData::State(9983))
+            Some(crate::entity_data::ParticleData::State(8048))
         );
     }
 
@@ -97,7 +97,7 @@ mod tests {
             let _up = ids::renumbering(ids, Way::Up);
             crate::entity_data::Particle::read(&mut r).unwrap()
         };
-        assert_eq!(particle.id, 59);
+        assert_eq!(particle.id, 49);
         assert_eq!(
             particle.data,
             Some(crate::entity_data::ParticleData::Trail(
@@ -114,7 +114,7 @@ mod tests {
         let ids = ServerVersion::V1_21_3.ids().unwrap();
         // All three axes and disabled/dormant/active states, from independent vanilla reports.
         for (old, pinned) in
-            (2917..2926).zip([5446, 5448, 5450, 5452, 5454, 5456, 5458, 5460, 5462])
+            (2917..2926).zip([3689, 3691, 3693, 3695, 3697, 3699, 3701, 3703, 3705])
         {
             assert_eq!(ids.block_state.up(old), Some(pinned));
             assert_eq!(ids.block_state.down(pinned), Some(old));

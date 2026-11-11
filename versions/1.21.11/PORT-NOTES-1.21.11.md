@@ -362,6 +362,88 @@ resource_pack 48↔49), with packets 26.2 lacks dropped.
   harnesses need the full game binary and were not reached on this VM;
   the CI `port-verify` workflow produces the full profile.
 
+## The adapter ladder re-base (done)
+
+The cross-version adapter ladder is re-based to the 774 pin, following
+the 26.1 line's ff7d657 method. The ladder is consistent only whole:
+every version's tables were regenerated, not just one.
+
+- **Prepared store reused**: the 11 legacy versions (1.20.2–1.21.11)
+  prepared for the 26.1 re-base — verified download + mappings
+  front-end remap + datagen — were reused as-is; no re-prepare was
+  needed. The 26.3 packets report arbitrated the packet renames.
+- **Packet-id tables regenerated** (12 files):
+  `tools/generate_packet_id_adapter.py` against the 774 pin, with
+  arbitrated renames (e.g. `horse_screen_open` → `mount_screen_open`
+  for 1.21.3–1.21.10; `game_profile` → `login_finished` and
+  `set_carried_item` → `set_held_slot` for 1.20.6/1.21.1; `bundle` →
+  `bundle_delimiter` and `client_intention` → `intention` for
+  1.20.2/1.20.3; `resource_pack` → `resource_pack_push` for 1.20.2).
+  `v1_21_11.rs` is identity (play 139/66); 26.2/26.1.2 packets
+  genuinely absent in 1.21.11 (`game_rule_values`,
+  `low_disk_space_warning`, `attack`, `set_game_rule`,
+  `spectator_action`/`spectate_entity`) map to None.
+  `debug_sample_subscription` is deliberately left unrenamed (the 26.1
+  precedent).
+- **Registry-id tables regenerated** (14 files):
+  `tools/regenerate_registry_id_adapters.py` against the 774 pin. One
+  driver rename dropped: `command_argument_type` `minecraft:color` →
+  `minecraft:team_color` — 1.21.11 still calls it `minecraft:color`
+  (the rename happened in 26.x). The 774 component registry (104
+  entries, last id 103 `shulker/color`) is a strict subset of 775's;
+  the six 26.1-only components (`additional_trade_cost`, `dye`, the
+  four mob sound variants) are dropped under the pin.
+- **Production code re-keyed** (`item.rs`, `item/skip.rs`,
+  `item/hash.rs`, `item/hash/gameplay.rs`, `item/hash/raw.rs`,
+  `entity_data.rs`, `item/v1_20_3.rs`, `item/v1_21_4.rs`
+  TOOLTIP_FLAGS/ADDITIONAL, `item/v1_21_5.rs` snip holder) and **all
+  test fixtures re-keyed** (the `item/v1_*` fixtures regenerated
+  through the converter itself; the adapter translate /
+  client_session / world / layout tests re-keyed by hand from the
+  1.21.11 and 26.2 reports). The rewire's files were ported onto, never
+  copied over: the `play_sound` removals and swing renumberings the
+  26.1 completion made do not apply here (the 1.21.11 rewire did its
+  own equivalents).
+- **The seven rewire-rewritten tests** asserting the correct
+  774↔776 mappings now pass with the tables right; none was rewritten
+  back.
+- **The 2 legacy item failures** (v1_20_3 pot encoding) are fixed: the
+  item-conversion code this job re-keyed covers them.
+- **The slot_display trap**: the SlotDisplay codec still uses the 26.3
+  numbering (item=4, smithing_trim=8, composite=10), but 1.21.11's
+  slot_display registry has 8 entries in a different order (item=2,
+  smithing_trim=5, composite=7). The generator's old→pin mapping is
+  identity for the 8-entry versions and 11→8 for the 26.x versions —
+  both wrong for the codec as it stands (the 1.21.4 smithing test read
+  its composite/item bytes as WithAnyPotion). Five generated tables
+  are hand-corrected to map old → the codec's 26.3 numbering instead
+  (`v1_21_8_ids` — inherited by 1.21.3/4/5/6 — `v1_21_10_ids`,
+  `v1_21_11_ids` to the 8→11 Runs table; `v26_1_2_ids`, `v26_2_ids`
+  to Same), each with a comment. When the behaviour port rewires the
+  codec to the 1.21.11 layout, these five tables must be regenerated
+  to old→pin.
+- **Pin-older-than-client**: the 26.2-client tests follow the 26.1
+  tree's ed18214 pattern — 26.2 has every block/item/entity 1.21.11
+  has (verified: the down tables cover all 29,671 pinned states,
+  1,505 items, 157 entities), so no stand-in applies for that client
+  and the stand-in test is deleted; the chunk test uses calcite
+  (24485 → 27160) and the chunk-section test is renamed to
+  `..._is_renumbered` at 15 bits (oak_slab 13330 → 13128).
+
+### Verification
+
+- `cargo test -p horizon-protocol`: **438 passed, 2 failed** (was
+  418/23). The only failures are the sandbox-network pair (out of
+  scope, the same pair every version reports here). The 19 adapter
+  failures and the 2 legacy-item failures are all closed. (440 tests
+  total vs 441 before: the deleted stand-in test.)
+- `cargo check --workspace --all-targets`: **0 errors, 0 warnings**
+  (`CARGO_BUILD_JOBS=2`). The lib-only check first surfaced one
+  warning — `four_texts` in `item/hash/raw.rs` orphaned when the
+  26.3 SignText arm (kinds 118/119) was dropped, since sign text is
+  not a component in 1.21.11; the helper is deleted (the 26.1 tree
+  carries the same orphan).
+
 ## horizon-prepare and the exporter bundle (done, with three era fixes)
 
 The full exporter bundle compiles against 1.21.11 (16 server mains plus
@@ -469,24 +551,13 @@ pass.
 | `command_exec` | fail | The oracle does not compile (37 errors). The `ChunkPos` accessor renames and the two spam-threshold server overrides are fixed in this tree; what remains is the integrated-server bootstrap — `LevelSettings` / `DifficultySettings`, `PrimaryLevelData`'s constructor, and the world-preset lookup differ. |
 | `command_parse` | fail | **Re-measured by the rewire pass**: the probe builds now (the 26 protocol errors are gone) and the harness runs to a real verdict — 7,147 command parse mismatches. Permission 0: 34,460/34,461 commands match; permission 2: 30,895/34,461. Sample causes: the Rust command tree still holds 26.x commands (`compute`, `posteffect`) that 1.21.11 rejects; registry lookups fail (`minecraft:oak` in `worldgen/feature` — the Rust side's registry data is the 26.3 base's); error-message/cursor differences (`time set  1`). Behaviour-port work, now measurable. |
 | `component_patch` | fail | The oracle runs but dies at runtime: `ClassNotFoundException: net.minecraft.core.component.Removed` — a 26.x component type that does not exist in 1.21.11. |
-| `datafix` | fail (all 6 shards) | `datafix_worlds.py` exits 1 for the whole legacy chain (1.8.9 → 26.2): the cross-version adapter tables for 1.20.2–1.21.11 are not regenerated yet (the 26.1 residual). |
+| `datafix` | fail (all 6 shards) | `datafix_worlds.py` exits 1 for the whole legacy chain (1.8.9 → 26.2): at measurement time the cross-version adapter tables for 1.20.2–1.21.11 were not regenerated yet (the 26.1 residual). The re-base has since landed (see above), so this harness needs re-measuring; its verdict may change. |
 | `entity_components` | fail | The harness's own fixture builder breaks on 1.21.11 data: `test_entity_components_parity.py` expects `criterion['conditions']['entity']['predicate']` to be a mapping, but the advancement condition shape differs here (`TypeError`). |
 | `first_person` | fail | The oracle does not compile: it is written against the 26.x first-person swing system — `FirstPersonHandsAndItems`, `SwingState`, `swing(InteractionHand, SwingAnimation, boolean)` — which does not exist in 1.21.11; the classic swing model is a behaviour-port item (same family as the `SWING_ANIMATION` packet). |
 | `food` | fail | The oracle does not compile: `VanillaFoodOracle`'s fake `ServerLevel` constructor (the 1.21.11 eleven-argument form, as fixed in the bundle oracles). |
 | `hotbar`, `item_model`, `lan`, `light`, `options`, `resource_pack`, `save_roundtrip`, `sound_event` | **unmeasured** | Not reached on this VM. |
 
 ## What remains, by cause
-
-### The adapter ladder re-base (the protocol tests' remaining failures)
-
-The cross-version adapter's per-version packet-id tables, layout
-conversions and registry tables are still keyed to the pinned 777
-(26.3). Under the 774 pin, 19 adapter tests and 2 legacy item tests
-fail by the drift between the two pins (see the rewire's verification
-section above for the split). Re-basing them against 1.21.11's own jar
-— the 26.1 line's equivalent re-base landed as ff7d657 — is its own
-job; the 1.21.11 ladder is untouched by this pass beyond the
-pin-correct deletions the rewire required.
 
 ### Behaviour work from the diff (not started)
 
@@ -511,8 +582,8 @@ classes. The behaviour code in this tree is still the 26.3 base's.
 - A survival-rule form for single-block / composed below-checks (stems
   on farmland; fungus/roots on nylium, mycelium, soul soil), so the four
   stem blocks and the nether vegetation get bound rules instead of none.
-- `datafix`: the cross-version adapter tables for 1.20.2–1.21.11 (the
-  26.1 residual; the unlock for it is this era's front-end wiring).
+- `datafix`: re-measure now that the adapter re-base has landed (its
+  recorded cause was the un-regenerated 1.20.2–1.21.11 tables).
 
 ### Full harness profile
 
@@ -523,11 +594,12 @@ The remaining eight harnesses are unmeasured locally; the CI
 
 Protocol packet-set rewire done (nine 26.3-only packets rewired to
 their 1.21.11 mechanisms from the jar); 6 of 6 tables regenerated;
-workspace compiles with 0 errors and 0 warnings; protocol tests 418
-pass / 23 fail (19 adapter-ladder + 2 legacy-item + 2 sandbox-network,
-all accounted for above). Oracle bootstrap rework done and verified
-against the jars; horizon-prepare bundle compiles and runs against the
-named jars end to end; 9 of 17 harnesses measured (all fail, by the
-causes above), 8 unmeasured. The behaviour port (815 ranked items) and
-the adapter ladder re-base are the remaining work.
+adapter ladder re-based to the 774 pin (all 19 adapter failures and
+both legacy-item failures closed); workspace compiles with 0 errors
+and 0 warnings; protocol tests 438 pass / 2 fail (sandbox-network
+pair only). Oracle bootstrap rework done and verified against the
+jars; horizon-prepare bundle compiles and runs against the named jars
+end to end; 9 of 17 harnesses measured (all fail, by the causes
+above), 8 unmeasured. The behaviour port (815 ranked items) is the
+remaining work.
 Status in [VERSIONS.md](../../VERSIONS.md): **in progress**.

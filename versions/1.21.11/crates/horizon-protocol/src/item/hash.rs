@@ -808,8 +808,9 @@ mod tests {
             C::Enchantments(vec![(9, 1)]).hash(k::ENCHANTMENTS, &Table),
             None
         );
-        // additional_trade_cost has no persistent codec either.
-        assert_eq!(C::Raw(vec![1]).hash(42, &Table), None);
+        // damage_type hashes through its registry name, which the table
+        // cannot give, so it hashes to nothing either.
+        assert_eq!(C::Raw(vec![1]).hash(8, &Table), None);
         assert_eq!(C::Unit.hash(k::CREATIVE_SLOT_LOCK, &Table), None);
         assert_eq!(C::Int(0).hash(k::MAP_POST_PROCESSING, &Table), None);
         // Custom effects cut short.
@@ -825,7 +826,7 @@ mod tests {
     fn a_hashed_stack_carries_each_hashable_component_and_the_removed_ones() {
         let mut stack = Stack::new(1, 2);
         stack.added.push((k::DAMAGE, C::Int(5)));
-        stack.added.push((42, C::Raw(vec![0])));
+        stack.added.push((8, C::Raw(vec![0])));
         stack.removed.push(k::RARITY);
         assert_eq!(
             Hashed::create(&stack, &Table),

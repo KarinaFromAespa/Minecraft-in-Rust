@@ -326,14 +326,14 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (chest's first: 5543 pinned, 3987 in 26.2), and one on the global palette:
+        // A section of one state (calcite: 24485 pinned, 27160 in 26.2), and one on the global palette:
         // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[5543; chunk::BLOCKS], Strategy::Blocks, 16);
+        let one = Paletted::from_values(&[24485; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
-        let global = Paletted::from_values(&many, Strategy::Blocks, 16);
-        assert_eq!(global.bits, 16);
+        let global = Paletted::from_values(&many, Strategy::Blocks, 15);
+        assert_eq!(global.bits, 15);
         let plains = Paletted::from_values(&[1; chunk::BIOMES], Strategy::Biomes, 0);
         let section = |states: Paletted| Section {
             non_empty: 4096,
@@ -367,14 +367,14 @@ mod tests {
             )
             .unwrap(),
         );
-        // In 26.2's own numbering: the chest is 3987, the global palette 15 bits wide, 26.2's ids.
+        // In 26.2's own numbering: the calcite is 27160, the global palette 15 bits wide, 26.2's ids.
         {
             let mut r = Reader::new(&old);
             r.i32().unwrap();
             r.i32().unwrap();
             let c = chunk::ChunkData::read(&mut r).unwrap();
             let s = c.sections(2, ids.state_bits().0, 0).unwrap();
-            assert_eq!(s[0].states.get(0), 3987);
+            assert_eq!(s[0].states.get(0), 27160);
             assert_eq!(s[1].states.bits, 15);
             assert_eq!(s[1].states.get(330), 13330);
             assert_eq!(c.block_entities[0].kind, 0);
@@ -397,14 +397,6 @@ mod tests {
             }
             assert_eq!(a.biomes, b.biomes);
         }
-    }
-
-    #[test]
-    fn a_state_26_2_lacks_goes_down_as_its_stand_in() {
-        let ids = ids();
-        // poplar_log axis=y (167, new in 26.3) shows as birch_log axis=y (143 in 26.2).
-        let p = Paletted::from_values(&[167; chunk::BLOCKS], Strategy::Blocks, 16);
-        assert_eq!(states_down(ids, &p, 15).get(0), 143);
     }
 
     #[test]
@@ -471,22 +463,24 @@ mod tests {
             );
             q.particle
         };
-        // entity_effect (28) carries a colour, alike in both numberings.
+        // entity_effect (21 in 1.21.11, 28 in 26.2) carries a colour, alike
+        // in both numberings.
         let colour = Particle {
-            id: 28,
+            id: 21,
             data: Some(ParticleData::Color(0x00ff00ff)),
         };
         assert_eq!(send(colour.clone()), colour);
-        // block (1) carries a state: chest's 5543 goes down to 3987 and comes back.
+        // block (1) carries a state: chest's 3786 goes down to 3987 and comes back.
         let block = Particle {
             id: 1,
-            data: Some(ParticleData::State(5543)),
+            data: Some(ParticleData::State(3786)),
         };
         assert_eq!(send(block.clone()), block);
-        // 44 is new in 26.3: it shows as its stand-in, 41.
+        // ash is 82 in 1.21.11 and 91 in 26.2: renumbered both ways, it comes
+        // back as itself.
         assert_eq!(
-            send(Particle { id: 44, data: None }),
-            Particle { id: 41, data: None }
+            send(Particle { id: 82, data: None }),
+            Particle { id: 82, data: None }
         );
     }
 
@@ -495,7 +489,7 @@ mod tests {
         let ids = ids();
         let p = play::LevelParticles {
             particle: Particle {
-                id: 28,
+                id: 21,
                 data: Some(ParticleData::Color(0)),
             },
             override_limiter: false,
@@ -527,14 +521,14 @@ mod tests {
             block_count: 17,
             knockback: Some([0.1, 0.2, 0.3]),
             particle: Particle {
-                id: 28,
+                id: 21,
                 data: Some(ParticleData::Color(-1)),
             },
             sound: (sound, None),
             block_particles: vec![
                 play::ExplosionParticle {
                     particle: Particle {
-                        id: 28,
+                        id: 21,
                         data: Some(ParticleData::Color(7)),
                     },
                     scaling: 1.0,

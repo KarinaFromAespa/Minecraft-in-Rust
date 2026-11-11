@@ -428,14 +428,14 @@ mod tests {
         static IDS: Ids = super::super::v26_2_ids::IDS;
         assert_eq!(item(926), 926);
         {
-            // diamond: 926 in 26.2, 1012 in 26.3.
+            // diamond: 926 in 26.2, 898 in 1.21.11.
             let _up = renumbering(&IDS, Way::Up);
-            assert_eq!(item(926), 1012);
+            assert_eq!(item(926), 898);
             {
                 let _down = renumbering(&IDS, Way::Down);
-                assert_eq!(item(1012), 926);
+                assert_eq!(item(898), 926);
             }
-            assert_eq!(item(926), 1012);
+            assert_eq!(item(926), 898);
         }
         assert_eq!(item(926), 926);
     }
@@ -444,58 +444,44 @@ mod tests {
     fn the_26_2_tables_match_the_reports() {
         // Read off both versions' registries and blocks reports by hand.
         let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
-        assert_eq!(ids.item.up(926), Some(1012)); // diamond
+        assert_eq!(ids.item.up(926), Some(898)); // diamond
         assert_eq!(ids.item.up(1), Some(1)); // stone
-        assert_eq!(ids.block_state.up(13330), Some(15177)); // oak_slab type=top waterlogged=true
-        assert_eq!(ids.block_state.up(3987), Some(5543)); // chest, first state
+        assert_eq!(ids.block_state.up(13330), Some(13128)); // oak_slab type=top waterlogged=true
+        assert_eq!(ids.block_state.up(3987), Some(3786)); // chest, first state
         assert_eq!(ids.block_state.up(8), Some(8)); // grass_block
-        assert_eq!(ids.state_bits(), (15, 16));
+        assert_eq!(ids.state_bits(), (15, 15));
     }
 
     #[test]
     fn components_the_pinned_version_dropped_are_read_past() {
         use crate::buf::{Codec, Reader, Writer};
         use crate::item::{Component, Slot};
-        let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A filled map (1104 in 1.21.11, 1238 in 26.3) as a 1.21.11 server sends it. Its patch adds
-        // map_color (43, gone in 26.3), swing_animation (40, gone too), damage 5 (3 in both) and a
-        // tooltip_display (18 in both) hiding dyed_color (42, 47 in 26.3) and swing_animation; it removes
-        // map_color and potion_contents (49, 53 in 26.3). Ids read off both versions' registries reports.
+        let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
+        // A stone (1 in both) as a 26.2 server sends it. Its patch adds sulfur_cube_content
+        // (78 in 26.2), a component the pinned 1.21.11 does not have, holding a diamond template
+        // (926 in 26.2), and damage 5 (3 in both); it removes sulfur_cube_content again.
+        // Ids read off both versions' registries reports.
         let sent = [
-            1, 0xd0, 0x08, // count, item
-            4, 2, // added, removed
-            43, 0x00, 0xff, 0x00, 0x00, // map_color: a big-endian int
-            40, 1, 6, // swing_animation: its type and duration
-            3, 5, // damage
-            18, 0, 2, 42, 40, // tooltip_display: shown, two hidden components
-            43, 49, // removed
+            1, 1, // count, item
+            2, 1, // added, removed
+            78, 0x9e, 0x07, 1, 0, 0, // sulfur_cube_content: one template (a diamond, count 1)
+            3, 5,  // damage
+            78, // removed
         ];
         let stack = {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (1238, 1));
-        assert_eq!(
-            stack.added,
-            [
-                (3, Component::Int(5)),
-                (
-                    18,
-                    Component::TooltipDisplay {
-                        hide: false,
-                        hidden: vec![47],
-                    },
-                ),
-            ]
-        );
-        assert_eq!(stack.removed, [53]);
-        // Written back to that server, the kept components take its numbers again.
+        assert_eq!((stack.item, stack.count), (1, 1));
+        assert_eq!(stack.added, [(3, Component::Int(5))]);
+        assert_eq!(stack.removed, Vec::<i32>::new());
+        // Written back to that server, only the kept component remains.
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
             Slot::write(&Some(stack), &mut w);
         }
-        assert_eq!(w.data, [1, 0xd0, 0x08, 2, 1, 3, 5, 18, 0, 1, 42, 49]);
+        assert_eq!(w.data, [1, 1, 1, 0, 3, 5]);
     }
 
     #[test]
@@ -507,8 +493,8 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
-        // A decorated pot (319 in 1.21.11, 392 in 26.3) as a 1.21.11 server sends it: pot_decorations (72)
-        // lists a brick (1025) and an angler sherd (1445, 1598 in 26.3); damage_resistant (27) a tag id;
+        // A decorated pot (319 in both) as a 1.21.11 server sends it: pot_decorations (72)
+        // lists a brick (1025) and an angler sherd (1445); damage_resistant (27) a tag id;
         // jukebox_playable (62) a song by holder: the flag set, then the song's id plus one.
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
@@ -516,16 +502,16 @@ mod tests {
         sent.extend(b"minecraft:is_fire");
         sent.extend([62, 1, 3]);
         let stack = read(&sent);
-        assert_eq!(stack.item, 392);
+        assert_eq!(stack.item, 319);
         let mut resistant = vec![0, 17];
         resistant.extend(b"minecraft:is_fire");
         assert_eq!(
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (76, Component::Raw(vec![0, 1, 0xbe, 0x0c, 1, 0, 0, 0, 0])),
+                (72, Component::Raw(vec![0, 1, 0xa5, 0x0b, 1, 0, 0, 0, 0])),
                 (27, Component::Raw(resistant)),
-                (66, Component::Raw(vec![3])),
+                (62, Component::Raw(vec![3])),
             ]
         );
         // A song named by its key has no pinned holder: the component goes.
@@ -586,9 +572,9 @@ mod tests {
         use crate::buf::{Codec, Reader};
         use crate::item::{Component, Slot};
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A shulker box (581 in 1.21.11, 656 in 26.3) as a 1.21.11 server sends it. Its container (73, 77
-        // in 26.3) lists ItemStacks, a count first: two diamonds (898, 1012 in 26.3) with a map_color (43,
-        // gone in 26.3), then an empty slot. Its use_remainder (25 in both) is a bowl (892, 1006).
+        // A shulker box (581 in both) as a 1.21.11 server sends it. Its container (73 in both)
+        // lists ItemStacks, a count first: two diamonds (898) with a map_color (43),
+        // then an empty slot. Its use_remainder (25 in both) is a bowl (892).
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
             73, 2, 2, 0x82, 0x07, 1, 0, 43, 0, 0, 0, 5, 0, // container
@@ -598,13 +584,16 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!(stack.item, 656);
-        // Templates, the item first: the diamonds without the color, then no item.
+        assert_eq!(stack.item, 581);
+        // Templates, the item first: the diamonds with their colour in the pinned numbering, then no item.
         assert_eq!(
             stack.added,
             [
-                (77, Component::Raw(vec![2, 1, 0xf4, 0x07, 2, 0, 0, 0])),
-                (25, Component::Raw(vec![0xee, 0x07, 1, 0, 0])),
+                (
+                    73,
+                    Component::Raw(vec![2, 1, 0x82, 0x07, 2, 1, 0, 43, 0, 0, 0, 5, 0]),
+                ),
+                (25, Component::Raw(vec![0xfc, 0x06, 1, 0, 0])),
             ]
         );
     }
@@ -620,11 +609,11 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (1012, 3));
+        assert_eq!((stack.item, stack.count), (898, 3));
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(1012, 3)), &mut w);
+            Slot::write(&Some(Stack::new(898, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
@@ -635,8 +624,8 @@ mod tests {
         use crate::item::{Component, Slot, Stack, component as k};
         let ids = crate::adapter::ServerVersion::V1_21_5.ids().unwrap();
         let raw = |kind: i32| ids.data_component_type.down(kind).unwrap();
-        // A stone as 1.21.5 sends it, with two attribute modifiers (holders: armor is 0 in 1.21.5, 1 in
-        // 26.3, so the holder is its id plus one, 1 and 3; attack damage is 2 and 3 in 26.3, so 3 and 4)
+        // A stone as 1.21.5 sends it, with two attribute modifiers (holders: armor is 0 and attack
+        // damage 2 in both 1.21.5 and 1.21.11, so the holders are their ids plus one, 1 and 3)
         // and an equippable for the chest: no display, no shearing fields.
         let mut sent = Writer::new();
         sent.varint(1);
@@ -671,8 +660,8 @@ mod tests {
         let mut modifiers = Writer::new();
         modifiers.varint(2);
         for (holder, id, amount, operation, slot) in [
-            (2, "minecraft:test", 2.5, 0, 6),
-            (4, "minecraft:other", -1.0, 1, 1),
+            (1, "minecraft:test", 2.5, 0, 6),
+            (3, "minecraft:other", -1.0, 1, 1),
         ] {
             modifiers.varint(holder);
             modifiers.string(id);
@@ -687,7 +676,7 @@ mod tests {
         for b in [false, false, false, true, true, true, false, false] {
             equippable.bool(b);
         }
-        equippable.varint(1448);
+        equippable.varint(1383);
         assert_eq!(
             stack.added,
             [

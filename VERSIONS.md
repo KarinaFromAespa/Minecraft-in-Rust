@@ -18,7 +18,7 @@ Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
 
 | Version | Location | Status |
 |---|---|---|
-| 1.21.11 | `versions/1.21.11` | in progress — protocol packet-set rewire closed: nine 26.3-only packets rewired to their 1.21.11 mechanisms from the jar, 6/6 tables regenerated (vanilla_command_order +5 −26), workspace compiles 0 errors / 0 warnings, protocol tests 418 pass / 23 fail (19 adapter-ladder + 2 legacy-item + 2 sandbox-network); oracle bootstrap reworked to 1.21.11's mechanisms, horizon-prepare bundle compiles and runs end-to-end against the named jars, 9 of 17 harnesses measured (all fail, named causes); see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
+| 1.21.11 | `versions/1.21.11` | in progress — protocol packet-set rewire closed: nine 26.3-only packets rewired to their 1.21.11 mechanisms from the jar, 6/6 tables regenerated (vanilla_command_order +5 −26); cross-version adapter ladder re-based to the 774 pin (all tables regenerated, 19 adapter + 2 legacy-item failures closed), workspace compiles 0 errors / 0 warnings, protocol tests 438 pass / 2 fail (sandbox-network pair only); oracle bootstrap reworked to 1.21.11's mechanisms, horizon-prepare bundle compiles and runs end-to-end against the named jars, 9 of 17 harnesses measured (all fail, named causes); see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
 | 1.21.10 | `versions/1.21.10` | planned |
 | 1.21.9 | `versions/1.21.9` | planned |
 | 1.21.8 | `versions/1.21.8` | planned |

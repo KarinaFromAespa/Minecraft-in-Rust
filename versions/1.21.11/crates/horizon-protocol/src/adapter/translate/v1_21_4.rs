@@ -470,14 +470,14 @@ mod tests {
             (sections[0].states.get(0), sections[0].biomes.get(0)),
             (1, 7)
         );
-        assert_eq!(sections[1].states.palette, [0, 9980]);
+        assert_eq!(sections[1].states.palette, [0, 8045]);
         assert_eq!(
             (
                 sections[1].states.get(1),
                 sections[1].biomes.get(63),
                 sections[1].fluids
             ),
-            (9980, 0, 0)
+            (8045, 0, 0)
         );
     }
 
@@ -535,7 +535,7 @@ mod tests {
         let play::Clientbound::AddEntity(p) = play::Clientbound::decode(id, &body).unwrap() else {
             panic!("orb")
         };
-        assert_eq!((p.id, p.kind, p.position), (41, 50, [1.0, 2.0, -3.0]));
+        assert_eq!((p.id, p.kind, p.position), (41, 49, [1.0, 2.0, -3.0]));
         let (id, body) = session.next_incoming().unwrap();
         let play::Clientbound::SetEntityData(p) = play::Clientbound::decode(id, &body).unwrap()
         else {
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn a_saddle_moves_to_equipment_and_boost_stays_in_the_pig_field() {
         let session = Session::new(ServerVersion::V1_21_4);
-        session.kinds.lock().unwrap().insert(42, 101);
+        session.kinds.lock().unwrap().insert(42, 100);
         let (id, body) = super::super::clientbound(
             &session,
             State::Play,
@@ -569,7 +569,7 @@ mod tests {
         };
         assert_eq!(
             (p.id, p.slots[0].0, p.slots[0].1.as_ref().unwrap().item),
-            (42, 7, 949)
+            (42, 7, 837)
         );
     }
 
@@ -578,9 +578,9 @@ mod tests {
         let session = Session::new(ServerVersion::V1_21_4);
         // Field ids independently obtained from vanilla SynchedEntityData accessors.
         for (kind, old, expected) in [
-            (36, vec![17, 18, 19], vec![17, 18]),
-            (141, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
-            (87, vec![17], vec![17]),
+            (35, vec![17, 18, 19], vec![17, 18]),
+            (137, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
+            (86, vec![17], vec![17]),
         ] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut p = play::SetEntityData {
@@ -593,10 +593,10 @@ mod tests {
             entity_data(&session, &mut p);
             assert_eq!(p.values.iter().map(|v| v.0).collect::<Vec<_>>(), expected);
         }
-        session.kinds.lock().unwrap().insert(42, 86);
+        session.kinds.lock().unwrap().insert(42, 85);
         for (values, expected) in [
             (vec![(11, serializer::INT, Value::Int(7006))], 0),
-            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 9980),
+            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 8045),
             (vec![(13, serializer::BOOLEAN, Value::Bool(false))], 0),
         ] {
             let mut p = play::SetEntityData { id: 42, values };

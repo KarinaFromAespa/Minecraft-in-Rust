@@ -207,11 +207,13 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 26.3.
+        // `minecraft:particle_type` registry order as of 1.21.11: block,
+        // block_marker, falling_dust, dust_pillar and block_crumble carry a
+        // block state; entity_effect, tinted_leaves and flash a colour.
         let data = match id {
-            1 | 2 | 36 | 121 | 125 => Some(ParticleData::State(ids::block_state(r.varint()?))),
-            28 | 46 | 52 => Some(ParticleData::Color(r.i32()?)),
-            21 => {
+            1 | 2 | 29 | 109 | 113 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            21 | 36 | 42 => Some(ParticleData::Color(r.i32()?)),
+            14 => {
                 let color = if ids::quirks().components_before_1_21_2 {
                     legacy_rgb(r)?
                 } else {
@@ -219,7 +221,7 @@ impl Particle {
                 };
                 Some(ParticleData::ColorScale(color, r.f32()?))
             }
-            22 => {
+            15 => {
                 let legacy = ids::quirks().components_before_1_21_2;
                 let from = if legacy { legacy_rgb(r)? } else { r.i32()? };
                 let scale = if ids::quirks().legacy_item_nbt {
@@ -238,7 +240,7 @@ impl Particle {
                     },
                 ))
             }
-            23 | 56 => {
+            16 | 46 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -246,10 +248,10 @@ impl Particle {
                     Some(ParticleData::ColorPower(color, r.f32()?))
                 }
             }
-            15 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
-            15 | 48 => Some(ParticleData::Scalar(r.f32()?)),
-            115 => Some(ParticleData::Delay(r.varint()?)),
-            59 => {
+            8 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
+            8 | 38 => Some(ParticleData::Scalar(r.f32()?)),
+            103 => Some(ParticleData::Delay(r.varint()?)),
+            49 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -259,8 +261,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            57 => Some(ParticleData::Item(Template::read(r)?)),
-            58 => {
+            47 => Some(ParticleData::Item(Template::read(r)?)),
+            48 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -286,12 +288,8 @@ impl Particle {
                     ticks: r.varint()?,
                 })
             }
-            7 | 10 => Some(ParticleData::Geyser(r.i32()?)),
-            8 | 9 => {
-                let water = r.i32()?;
-                Some(ParticleData::GeyserBase(water, r.f32()?))
-            }
-            // Every other registered particle carries no data.
+            // Every other registered particle carries no data. (The geyser
+            // particles a later release adds do not exist in 1.21.11.)
             _ => None,
         };
         Ok(Particle { id, data })
@@ -605,7 +603,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 58);
+                assert_eq!(p.id, 48);
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -732,9 +730,9 @@ mod tests {
         ] {
             let ids = version.ids().unwrap();
             for (pinned, expected) in [
-                (15, ParticleData::Scalar(1.0)),
-                (23, ParticleData::ColorPower(-1, 1.0)),
-                (56, ParticleData::ColorPower(-1, 1.0)),
+                (8, ParticleData::Scalar(1.0)),
+                (16, ParticleData::ColorPower(-1, 1.0)),
+                (46, ParticleData::ColorPower(-1, 1.0)),
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
@@ -755,7 +753,7 @@ mod tests {
         use crate::adapter::{ServerVersion, ids::Way};
         let ids = ServerVersion::V1_21_1.ids().unwrap();
         let mut w = Writer::new();
-        w.varint(ids.particle_type.down(22).unwrap());
+        w.varint(ids.particle_type.down(15).unwrap());
         for f in [0.25, 0.5, 0.75, 1.0, 0.0, 0.5, 2.0] {
             w.f32(f);
         }
@@ -848,22 +846,21 @@ mod tests {
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (26.3 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (1.21.11 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes.
+    /// still decodes. (The geyser shapes have no 1.21.11 particle type; they
+    /// are covered by the 26.3 tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
         let all = [
             (1, Some(ParticleData::State(2))),
-            (7, Some(ParticleData::Geyser(5))),
-            (8, Some(ParticleData::GeyserBase(3, 0.5))),
-            (15, Some(ParticleData::Scalar(1.0))),
-            (21, Some(ParticleData::ColorScale(0xff0000, 1.5))),
-            (22, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            (23, Some(ParticleData::ColorPower(-1, 2.0))),
-            (28, Some(ParticleData::Color(0x7f00ff00))),
+            (8, Some(ParticleData::Scalar(1.0))),
+            (14, Some(ParticleData::ColorScale(0xff0000, 1.5))),
+            (15, Some(ParticleData::ColorScale2(1, 2, 0.75))),
+            (16, Some(ParticleData::ColorPower(-1, 2.0))),
+            (21, Some(ParticleData::Color(0x7f00ff00))),
             (
-                57,
+                47,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -878,14 +875,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                58,
+                48,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                58,
+                48,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -894,8 +891,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (59, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (115, Some(ParticleData::Delay(6))),
+            (49, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
+            (103, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });

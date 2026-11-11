@@ -63,10 +63,10 @@ fn vec_delta_quantizes_the_base_like_math_round() {
 #[test]
 fn merchant_cost_predicate_is_a_typed_list_without_patch_counts() {
     // ItemCost.STREAM_CODEC: item=7, count=1, one typed component,
-    // potion_contents=53, potion present (water=0), no color/effects/name.
+    // potion_contents=49, potion present (water=0), no color/effects/name.
     // Result: count=1, item=8, empty component patch. Secondary cost:
     // item=9, count=2, empty predicate, followed by the offer fields.
-    let mut bytes = vec![1, 7, 1, 1, 53, 1, 0, 0, 0, 0, 1, 8, 0, 0, 1, 9, 2, 0, 0];
+    let mut bytes = vec![1, 7, 1, 1, 49, 1, 0, 0, 0, 0, 1, 8, 0, 0, 1, 9, 2, 0, 0];
     bytes.extend_from_slice(&[0; 4]); // uses
     bytes.extend_from_slice(&2i32.to_be_bytes()); // max uses
     bytes.extend_from_slice(&[0; 16]); // xp, special price, multiplier, demand
@@ -76,7 +76,7 @@ fn merchant_cost_predicate_is_a_typed_list_without_patch_counts() {
     assert_eq!(
         offers[0].cost_a.components,
         vec![(
-            53,
+            49,
             Component::Potion {
                 potion: Some(0),
                 color: None,
@@ -544,7 +544,7 @@ fn clientbound_round_trips() {
         Clientbound::SetEntityLink(SetEntityLink { source: 2, dest: 0 }),
         Clientbound::LevelParticles(LevelParticles {
             particle: Particle {
-                id: 21,
+                id: 14,
                 data: Some(crate::entity_data::ParticleData::ColorScale(0xFF0000, 1.5)),
             },
             override_limiter: true,
@@ -560,10 +560,10 @@ fn clientbound_round_trips() {
             radius: 4.0,
             block_count: 12,
             knockback: Some([0.5, 0.1, 0.0]),
-            particle: Particle { id: 29, data: None },
+            particle: Particle { id: 23, data: None },
             sound: (-1, Some(("minecraft:entity.generic.explode".into(), None))),
             block_particles: vec![ExplosionParticle {
-                particle: Particle { id: 69, data: None },
+                particle: Particle { id: 59, data: None },
                 scaling: 0.5,
                 speed: 1.0,
                 weight: 1,

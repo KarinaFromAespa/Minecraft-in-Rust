@@ -417,13 +417,13 @@ mod tests {
         let mut w = Writer::new();
         play::AwardStats::write(
             &play::AwardStats {
-                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)],
+                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 898, 2)],
             },
             &mut w,
         );
         let out = award_stats(ids, &w.data).unwrap();
         let p = play::AwardStats::read(&mut Reader::new(&out)).unwrap();
-        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)]
+        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 898, 2)]
             .into_iter()
             .filter_map(|(k, v, n)| {
                 let v = match k {
@@ -434,7 +434,7 @@ mod tests {
             })
             .collect();
         assert_eq!(p.stats, expected);
-        // diamond: 1012 pinned, 926 in 26.2.
+        // diamond: 898 pinned, 926 in 26.2.
         assert!(p.stats.contains(&(1, 926, 2)));
     }
 
