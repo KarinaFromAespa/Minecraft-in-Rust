@@ -1,1 +1,34 @@
-{"behaviour":{"closed":0,"note":"Protocol/table infrastructure complete (completion + rewire + adapter re-base); behaviour port unstarted. Behaviour code is still the 26.3 base's.","total":815},"harness":{"fail":13,"note":"Profile measured on the PRE-re-base tree (main@d8479b1). A fresh run for the post-re-base tree (run 43127256427) was in flight when this file was written; update this file when it lands.","oracle_fail":2,"oracle_failing":["chunk_generation","command_exec"],"pass":2,"passing":["block_properties","lan"],"total":17},"last_ci_commit":"306a153c5245","last_ci_run":43114684827,"notes":"SlotDisplay codec still uses 26.3 numbering; five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec.","profile_recorded":"2026-11-11","protocol":774,"protocol_tests":{"fail":2,"note":"2 failures are the pre-existing sandbox-network pair in untouched code.","pass":438},"role":"E6 era template","version":"1.21.11"}
+{
+  "behaviour": {
+    "closed": 0,
+    "note": "Protocol/table infrastructure complete (completion + rewire + adapter re-base); behaviour port unstarted. Behaviour code is still the 26.3 base's.",
+    "total": 815
+  },
+  "harness": {
+    "fail": 13,
+    "note": "Profile measured on the POST-re-base tree (main@6587c35, adapter re-base 2e2ef22): 2 pass / 2 oracle / 13 fail, identical to the pre-re-base profile. datafix is unmeasured in CI, not failing on behaviour: fixture generation runs a 26.1 server needing Java 25, but the runner has only the version's Java 21 (UnsupportedClassVersionError in all six shards).",
+    "oracle_fail": 2,
+    "oracle_failing": [
+      "chunk_generation",
+      "command_exec"
+    ],
+    "pass": 2,
+    "passing": [
+      "block_properties",
+      "lan"
+    ],
+    "total": 17
+  },
+  "last_ci_commit": "6587c35",
+  "last_ci_run": 43127256427,
+  "notes": "SlotDisplay codec still uses 26.3 numbering; five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec.",
+  "profile_recorded": "2026-11-12",
+  "protocol": 774,
+  "protocol_tests": {
+    "fail": 2,
+    "note": "2 failures are the pre-existing sandbox-network pair in untouched code.",
+    "pass": 438
+  },
+  "role": "E6 era template",
+  "version": "1.21.11"
+}

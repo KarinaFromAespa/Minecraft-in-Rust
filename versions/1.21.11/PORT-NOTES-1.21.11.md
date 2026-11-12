@@ -625,3 +625,26 @@ Food fails at oracle compile too (VanillaFoodOracle javac exit 1).
 The remaining 12 fails are the behaviour-port work (815 ranked items):
 the command tree and registry data are still the 26.3 base's.
 Artifacts kept at `~/workspace/mcir-ci/1.21.11v5-prerebase/`.
+
+## CI profile — port-verify v5, run 43127256427 (2026-11-12, post-re-base)
+
+The fresh run from the re-based tree (main@6587c35, adapter re-base
+2e2ef22 included). **Profile: 2 pass / 2 oracle / 13 fail — identical
+to the pre-re-base profile.** Same passes (block_properties, lan),
+same oracle failures (chunk_generation, command_exec). The re-base
+closed the protocol-test failures (438/2) but moved no harness
+verdict, which is consistent: the harness failures are behaviour-port
+and oracle-port work, not adapter-table work.
+
+**datafix cause corrected.** The completion notes blamed stale
+adapter tables; that was wrong. Both the pre-re-base and post-re-base
+runs fail datafix identically, before any comparison runs: the
+fixture generation starts a 26.1 server jar, which needs Java 25
+(class file 69.0), but the CI runner installs only the version's own
+Java (21, class file 65.0) — `UnsupportedClassVersionError`, 600 s
+timeout, all six shards fail the same way. `datafix_worlds.py`
+resolves 1.20.5+ servers to plain `java` on PATH. So datafix is
+currently **unmeasured in CI for pre-26.x versions**, not failing on
+behaviour. Queued fix: install multiple JDKs in port-verify (the
+version's own for oracles, Java 25 on PATH for the fixture servers).
+Artifacts kept at `~/workspace/mcir-ci/1.21.11-postrebase-v5/`.
