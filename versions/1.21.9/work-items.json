@@ -1,0 +1,31 @@
+{
+  "release": "1.21.9",
+  "generated_from": "204a7fabc997aaf4dc6bfe0a4ceea08fc21bad3052f85559f6551555953dc40d",
+  "note": "Mechanical-layer publish: the pin, tables, packet set and adapter state are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "rank1": {
+    "total": 3,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank2": {
+    "total": 20,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank3": {
+    "total": 3,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank4": {
+    "total": 0,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank5": {
+    "total": 1,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank3plus": "Inherits the 1.21.10 template's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
+}

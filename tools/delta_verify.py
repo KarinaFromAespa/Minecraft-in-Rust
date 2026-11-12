@@ -423,7 +423,22 @@ def check_d3(tree: Path, pin: Path, release: str):
         return check_stop("no diff-<prev>-<release>/report.json: run `version_port.py report`")
     if "ranks" not in report and "items" not in report:
         return check_bad("report.json holds no ranks or items — not a port report", [str(report_path)])
+    # version_port.py's report step nests the rank totals under
+    # summary.ranks and lists the items at top level; no real report
+    # carries a top-level "ranks" key. Read top-level ranks first
+    # (back-compat), then summary.ranks (the tool's own totals), then
+    # derive the totals from the items list. Reading only the top
+    # level made every rank total 0 and failed D3 on any real pin.
     ranks = {str(k): int(v) for k, v in (report.get("ranks") or {}).items()}
+    if not ranks:
+        summary = report.get("summary")
+        if isinstance(summary, dict):
+            ranks = {str(k): int(v) for k, v in (summary.get("ranks") or {}).items()}
+    if not ranks and isinstance(report.get("items"), list):
+        from collections import Counter
+        ranks = {str(k): v for k, v in Counter(
+            str(i.get("rank")) for i in report["items"]
+            if isinstance(i, dict) and i.get("rank") is not None).items()}
     ledger_path = pin / "work-items.json"
     ledger = read_json(ledger_path)
     if ledger is None:

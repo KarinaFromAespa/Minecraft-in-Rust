@@ -9,3 +9,7 @@ decompiled/
 # Rust build output
 /target/
 **/target/
+
+# Python bytecode (py_compile runs leave these in tools/)
+__pycache__/
+**/__pycache__/
