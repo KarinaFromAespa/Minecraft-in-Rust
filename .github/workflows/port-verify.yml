@@ -126,8 +126,21 @@ jobs:
           set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
-          cargo check --workspace --all-targets --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log"
+          # Two names for one log: the emitter reads all-targets-check.log,
+          # the delta gate (D2) reads ci-out/cargo-check.log.
+          cargo check --workspace --all-targets --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log" "$GITHUB_WORKSPACE/ci-out/cargo-check.log"
           echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/all-targets-check.log" || true)"
+
+      # Reporting only, NOT a gate: the two sandbox-network protocol tests
+      # fail on every runner by design, so gating here would fail every run.
+      # The delta gate (D2) judges this log with its exemption list instead.
+      - name: Protocol tests (recorded for the delta gate's D2)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          V="${{ inputs.version }}"
+          cd "versions/$V"
+          cargo test -p horizon-protocol --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/cargo-test-protocol.log"
 
       # --download: fetch this version's jars from Mojang's CDN into the
       # version store (SHA-1 verified) and run its data generator. Without
@@ -274,6 +287,13 @@ jobs:
                   "passing": sorted(passing),
                   "oracle_failing": sorted(oracle_failing),
                   "failing": sorted(failing),
+              }
+              # The per-harness map the delta gate (D4/D5) consumes: it
+              # reads profile.json first and accepts a "harnesses" key
+              # of {name: {"status": ...}} ("oracle" counts as not-pass).
+              profile["harnesses"] = {
+                  name: {"status": entry.get("status", "other")}
+                  for name, entry in sorted(per.items())
               }
           else:
               profile["note"] = "no harnesses.json produced; the harness leg did not complete"
