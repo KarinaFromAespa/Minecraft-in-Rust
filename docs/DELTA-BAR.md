@@ -1,6 +1,6 @@
 # The delta bar: checklist and gate
 
-Companion to `docs/ROADMAP.md` §4.2. Turns D1–D6 into six checks a pipeline can run,
+Companion to `docs/ROADMAP.md` §8.2. Turns D1–D6 into six checks a pipeline can run,
 against artifacts the pipeline already produces, so a release is either **delta-verified** or it
 isn't — with no third state and no adjective in between.
 

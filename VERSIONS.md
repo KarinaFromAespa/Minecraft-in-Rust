@@ -2,10 +2,13 @@
 
 Every major Minecraft Java Edition release, grouped by architecture era (see `docs/ROADMAP.md` §2).
 Each version's rewritten Rust code lives on `main` in its own directory, `versions/<id>/`, with its documentation alongside the code.
-Status values: `planned` · `in progress` · `parity-verified` · `frozen`. Each published
-version carries a machine-readable `status.json` in its directory; the scalars below
-come from it — `harness n/17` is passing harnesses of the 17-harness CI subset,
-`behaviour n/m` is closed items of the version's ranked work items.
+Status values (roadmap §8.3): `prepared` · `delta-verified` · `parity-verified` ·
+`frozen`. A tree that compiles and prepares but has not met its bar is `prepared`.
+Each published version carries a machine-readable `status.json` in its directory;
+the scalars below come from it — `harness n/17` is passing harnesses of the
+17-harness CI subset, `behaviour n/m` is closed items of the version's ranked
+work items. Rows migrate to generated `delta-verdict.json` rows
+(`tools/delta_verify.py --index`) as releases are gated.
 
 ## E7 — Unobfuscated (26.x) (5)
 

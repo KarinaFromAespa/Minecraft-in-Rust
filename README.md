@@ -1,9 +1,12 @@
 # Minecraft in Rust
 
 Every major Minecraft Java Edition release — **1.0 → 26.3, 103 releases** — rewritten
-in Rust for desktop. Each version's behaviour is a reference reimplementation from
-decompiled jars, verified against its own jar with parity harnesses, the same method
-that produced the 26.3 rewrite.
+in Rust for desktop. **Eleven releases** — the era templates — are held to full
+one-to-one behavioural parity with their own jar; the other **ninety-two** are
+delta-verified: correct on everything that release changed, correct on data, and
+honest about the rest in a signed ledger. Both are reference reimplementations
+from decompiled jars, verified against the running jar with parity harnesses,
+the same method that produced the 26.3 rewrite.
 
 ## Base
 
@@ -39,14 +42,17 @@ their workarounds, sequencing and gates — is in **[docs/ROADMAP.md](docs/ROADM
 
 ## Status
 
-Phase 0's **tooling milestone** is met: the mappings front-end is wired into the
-pipeline's prepare paths, and obfuscated releases now prepare end-to-end through
-it. The **gate itself is still open** — as written in the roadmap §5 it requires
-a 1.21.11 parity profile ≈ its baseline (baseline: the 26.3 control profile,
-not yet run) and the front-end remapping a gappy SRG jar (1.12.2) without
-manual rescue; neither condition is done yet. Each version directory carries a
-machine-readable `status.json` (harness counts, behaviour items, last CI run);
-the scalars in `VERSIONS.md` come from it.
+Phase 0 is re-gated (roadmap §5, 2026-11-12 reframe): 1.21.11 must reach
+T1–T4 — pin, prepare, build, and the oracle corpus compiling — plus a
+complete measured profile. T1–T3 are done; T4 needs the two oracle
+failures fixed (`chunk_generation`, `command_exec`). The 26.3 control
+profile defines the baseline; the first control run produced no
+baseline (Mojang republished the 26.3 version JSON and v6's gates did
+not gate — both fixed, re-run in flight). The 1.12.2 SRG proof moved
+to Phase 3. Each version directory carries a machine-readable
+`status.json` (harness counts, behaviour items, last CI run); the
+scalars in `VERSIONS.md` come from it today and migrate to generated
+`delta-verdict.json` rows as releases are gated.
 `versions/26.3/` holds the base rewrite; `versions/26.1/` and
 `versions/26.2/` have both completed their completion passes (protocol
 rewires closed, all six tables, prepare green, workspaces compile), and the
