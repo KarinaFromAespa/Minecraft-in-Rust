@@ -235,7 +235,11 @@ def compile_oracle(root, version, classpath, sources, build):
 
 def classpaths(root, version):
     prepared = json.loads((root / ".local" / "minecraft" / version / "prepared.json").read_text())
-    return {side: [root / prepared["jars"][side], *(root / p for p in prepared["libraries"][side])]
+    # Mojang's jars before 1.21.11 reference javax.annotation.Nullable but never shipped
+    # jsr305 as a library; javac crashes completing symbols without it on the classpath.
+    jsr305 = root / "tools/jsr305-3.0.2.jar"
+    extra = [jsr305] if jsr305.is_file() else []
+    return {side: [root / prepared["jars"][side], *(root / p for p in prepared["libraries"][side]), *extra]
             for side in ("client", "server")}
 
 

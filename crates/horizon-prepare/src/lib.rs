@@ -417,6 +417,19 @@ fn classpath_join(head: &Path, rest: &[PathBuf]) -> String {
     java::classpath(std::iter::once(head).chain(rest.iter().map(PathBuf::as_path)))
 }
 
+/// Mojang's jars before 1.21.11 reference javax.annotation.Nullable from over a thousand
+/// classes but never shipped jsr305 as a library, so javac crashes completing symbols without
+/// it on the classpath. The tree carries the 20 KB annotation jar (tools/jsr305-3.0.2.jar);
+/// append it when present. Inert for versions whose jars never reference it.
+fn with_jsr305(root: &Path, libraries: &[PathBuf]) -> Vec<PathBuf> {
+    let mut libraries = libraries.to_vec();
+    let jsr305 = root.join("tools/jsr305-3.0.2.jar");
+    if jsr305.is_file() {
+        libraries.push(jsr305);
+    }
+    libraries
+}
+
 struct Run<'a> {
     root: PathBuf,
     local: PathBuf,
@@ -706,8 +719,8 @@ fn prepare_impl(
                 java_major: lock.java_major,
                 server: found.jars["server"].clone(),
                 client: found.jars["client"].clone(),
-                server_classpath: classpath_join(&found.jars["server"], &found.libraries),
-                client_classpath: classpath_join(&found.jars["client"], &client_libraries),
+                server_classpath: classpath_join(&found.jars["server"], &with_jsr305(root, &found.libraries)),
+                client_classpath: classpath_join(&found.jars["client"], &with_jsr305(root, &client_libraries)),
                 server_from_client: found.server_from_client,
                 bundles: Mutex::new(None),
                 workers: [Mutex::new(None), Mutex::new(None), Mutex::new(None)],

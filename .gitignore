@@ -5,6 +5,10 @@
 /.venv/
 # Downloaded/decompiled game content and private profiling artifacts.
 *.jar
+# The jsr305 annotation library is a third-party compile-time dependency, not game
+# content: Mojang's jars before 1.21.11 reference javax.annotation.Nullable but never
+# shipped the jar, so javac crashes without it on the classpath.
+!tools/jsr305-3.0.2.jar
 *.class
 *.jfr
 *.hprof

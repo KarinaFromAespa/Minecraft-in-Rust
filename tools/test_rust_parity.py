@@ -108,6 +108,11 @@ def verify_artifacts():
             if lab.digest(library, "sha256") != checksum:
                 raise ValueError(f"Dependency checksum changed: {relative}")
             libraries.append(library)
+    # Mojang's jars before 1.21.11 reference javax.annotation.Nullable but never shipped
+    # jsr305 as a library; javac crashes completing symbols without it on the classpath.
+    jsr305 = lab.ROOT / "tools/jsr305-3.0.2.jar"
+    if jsr305.is_file():
+        libraries.append(jsr305)
     return lock, jars, libraries
 
 

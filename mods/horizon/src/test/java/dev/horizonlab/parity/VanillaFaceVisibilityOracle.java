@@ -55,7 +55,10 @@ public final class VanillaFaceVisibilityOracle {
                 var values=line.split(" ");int a=Integer.parseInt(values[0]),b=Integer.parseInt(values[1]);
                 var state=Block.stateById(a);var neighbor=Block.stateById(b);
                 for(boolean cutout:new boolean[]{false,true}) {
-                    LeavesBlock.setCutoutLeaves(cutout);int skip=0,visible=0;
+                    // 1.21.10 has no LeavesBlock.setCutoutLeaves toggle (added
+                    // in 1.21.11); skipRendering/shouldRenderFace are pure
+                    // functions of the two states here, so both rows agree.
+                    int skip=0,visible=0;
                     for(var direction:Direction.values()) {
                         if(state.skipRendering(neighbor,direction))skip|=1<<direction.ordinal();
                         if(Block.shouldRenderFace(state,neighbor,direction))visible|=1<<direction.ordinal();

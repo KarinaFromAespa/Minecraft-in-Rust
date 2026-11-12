@@ -10,6 +10,11 @@ import sys
 PRIVATE_ROOTS = {".local", "decompiled", "minecraft", "assets", "run", "logs"}
 PRIVATE_EXTENSIONS = {".jar", ".class", ".jfr", ".hprof", ".java"}
 ORIGINAL_JDK_TOOLS = {"tools/JfrSummary.java", "tests/java/JfrFixture.java"}
+# The jsr305 annotation library (javax.annotation.Nullable): Mojang's jars before 1.21.11
+# reference it from 1,219 server classes, but Mojang never shipped it as a library, so javac
+# crashes completing symbols without it on the classpath. Third-party (BSD), not a Mojang file;
+# SHA-256 766ad2a0783f2687962c8ad74ceecc38a28b9f72a2d085ee438b7813e928d0c7 (Maven Central 3.0.2).
+ORIGINAL_TOOL_JARS = {"tools/jsr305-3.0.2.jar"}
 # The prepared folder's files in one file (crates/horizon-core/src/prepared_files.rs): Mojang's data.
 PRIVATE_NAMES = {"horizon-data.bin"}
 # Vanilla's 1.13 data fixer tables, copied from its code until 2026-11; horizon-prepare now exports them from the
@@ -26,6 +31,9 @@ def prohibited(path):
     parsed = PurePosixPath(path)
     # Original JDK-only tools are an exact allowlist; recovered game Java stays private.
     if path in ORIGINAL_JDK_TOOLS:
+        return False
+    # The jsr305 annotation library is a third-party compile-time dependency, not a game artifact.
+    if path in ORIGINAL_TOOL_JARS:
         return False
     # Original Horizon mod sources may also be tracked.
     if parsed.suffix == ".java" and path.startswith(("mods/horizon/src/", "mods/horizon-lab/src/")):
