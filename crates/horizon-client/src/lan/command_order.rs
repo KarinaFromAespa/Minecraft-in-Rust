@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe fetchprofile return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound stopwatch summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe fetchprofile return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -30,7 +30,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "execute if",
-        "block biome loaded dimension score blocks entity predicate function items stopwatch data",
+        "block biome loaded dimension score blocks entity predicate function items data",
     ),
     (
         "execute if score target targetObjective",
@@ -41,7 +41,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ("execute if data", "entity block storage"),
     (
         "execute unless",
-        "block biome loaded dimension score blocks entity predicate function items stopwatch data",
+        "block biome loaded dimension score blocks entity predicate function items data",
     ),
     (
         "execute unless score target targetObjective",
@@ -576,7 +576,6 @@ pub const ORDER: &[(&str, &str)] = &[
         "stopsound targets",
         "* master music record weather block hostile neutral player ambient voice ui",
     ),
-    ("stopwatch", "create query restart remove"),
     ("tag targets", "add remove list"),
     ("team", "list add remove empty join leave modify"),
     (
