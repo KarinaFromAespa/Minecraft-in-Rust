@@ -243,8 +243,8 @@ same-protocol delta (~65 min) and 1.21.10's cross-protocol delta
 (~3 h 10 min). Times are reconstructed from session file timestamps
 (VM clock, UTC) and are approximate to about ±10 minutes per bucket.
 
-- **Wall clock:** work started 2026-11-12 ~03:44 UTC; [PUBLISH COMMIT
-  — to be filled from the actual commit time after pushing].
+- **Wall clock:** work started 2026-11-12 ~03:44 UTC; end 2026-11-12
+  14:24 UTC (publish commit b884d16d). Total: ~10 h 40 min.
 - **Work items closed vs total:** 0 / 526 behaviour items closed. The
   port closed the infrastructure layer only: pin, tables, packet
   rewire, adapter re-base, oracle rework, verification. No behaviour
@@ -267,7 +267,7 @@ same-protocol delta (~65 min) and 1.21.10's cross-protocol delta
 | Oracle rework for prepare (7 files, 27 errors, incl. the ProtoChunk/biome-registry rework) | ~25 min |
 | Harness runs / debugging (run 6 1 h 18 min, datafix re-run 24 min, three restart-killed runs ~2 h 15 min repeated) | ~3 h 40 min (of which ~1 h 40 min produced the profile) |
 | Behaviour-item porting | 0 min |
-| Publish (docs, notes, audit, commit) | [to be filled] |
+| Publish (docs, notes, audit, determinism regen, commit) | ~2 h 30 min |
 
 The contrast with 1.21.9 (~65 min) is the protocol crossing: the
 adapter re-base and the codec/serializer rewire dominate, and the
