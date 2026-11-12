@@ -1,0 +1,60 @@
+{
+  "old": "1.21.10",
+  "new": "1.21.9",
+  "candidate": "/home/hatch/workspace/mcir-work/e6-deltas/ports/1.21.9",
+  "commit": "f8081e8b1ac9ba2bea98eb3691cb6939bbd4e3e5",
+  "generators": {
+    "version_consts": {
+      "status": "regenerated",
+      "outputs": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "stat": {
+        "crates/horizon-core/src/version.rs": [
+          5,
+          5
+        ]
+      }
+    },
+    "packet_ids": {
+      "status": "regenerated",
+      "outputs": [
+        "crates/horizon-protocol/src/ids.rs"
+      ],
+      "stat": {
+        "crates/horizon-protocol/src/ids.rs": [
+          1,
+          1
+        ]
+      }
+    },
+    "entity_tracking": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/tracking.rs"
+      ],
+      "stat": {}
+    },
+    "lan_command_order": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/command_order.rs"
+      ],
+      "stat": {}
+    },
+    "command_suggestions": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/command_suggestions.rs"
+      ],
+      "stat": {}
+    },
+    "vanilla_command_order": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-command/src/vanilla_order.rs"
+      ],
+      "stat": {}
+    }
+  }
+}

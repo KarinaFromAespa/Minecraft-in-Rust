@@ -1,0 +1,845 @@
+{
+  "old": "1.21.10",
+  "new": "1.21.9",
+  "summary": {
+    "facts": {
+      "world_version": [
+        4556,
+        4554
+      ]
+    },
+    "ranks": {
+      "1": 3,
+      "2": 20,
+      "3": 3,
+      "5": 1
+    },
+    "classes": {
+      "added": 0,
+      "removed": 0,
+      "moved": 0,
+      "changed": 35,
+      "horizon": 33
+    },
+    "generators": {
+      "crates/horizon-core/src/version.rs": "stale"
+    }
+  },
+  "harnesses": null,
+  "regen": null,
+  "items": [
+    {
+      "rank": 1,
+      "kind": "regenerate",
+      "title": "Regenerate crates/horizon-core/src/version.rs",
+      "files": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "command": "python3 tools/gen_version_consts.py",
+      "id": 1
+    },
+    {
+      "rank": 1,
+      "kind": "save-format",
+      "title": "Save format: DataFixers 4556 -> 4554: 0 schemas, 0 fixes added, 0 datafix classes changed",
+      "files": [
+        "crates/horizon-client/src/debug_entries.rs",
+        "crates/horizon-client/src/save.rs",
+        "crates/horizon-protocol/src/adapter/translate/v1_20_3.rs",
+        "crates/horizon-world/src/datafix/json.rs",
+        "crates/horizon-world/src/datafix/mod.rs"
+      ],
+      "harnesses": [
+        "arrow_mob_permission",
+        "blending",
+        "camera",
+        "chat_screen",
+        "chest_load",
+        "chunk_generation",
+        "command_exec",
+        "command_parse",
+        "container_component_names",
+        "container_screen",
+        "container_title",
+        "datafix",
+        "datapack_worldgen",
+        "dragon_contacts",
+        "flat_generation",
+        "game_loop",
+        "hotbar",
+        "mob_ai",
+        "mob_rider_navigation",
+        "options",
+        "portal_tickets",
+        "redstone_catalog",
+        "sculk",
+        "stand_lodestone",
+        "structure_layout",
+        "structure_start_nbt",
+        "toggle_keys",
+        "trading"
+      ],
+      "details": {
+        "schemas": [],
+        "fixes": [],
+        "changed": []
+      },
+      "id": 2
+    },
+    {
+      "rank": 1,
+      "kind": "facts",
+      "title": "Version facts: world_version 4556 -> 4554",
+      "files": [
+        "crates/horizon-client/src/net.rs:1514",
+        "crates/horizon-core/src/version.rs:11",
+        "crates/horizon-core/src/version.rs:5",
+        "crates/horizon-core/src/version.rs:7",
+        "crates/horizon-core/src/version.rs:9",
+        "crates/horizon-protocol/src/adapter.rs:489",
+        "crates/horizon-protocol/src/adapter.rs:491",
+        "crates/horizon-protocol/src/adapter/v1_20_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_6.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_1.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_10.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:6",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:7",
+        "crates/horizon-protocol/src/adapter/v1_21_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_4.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_5.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_8.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_1_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_2.rs:1",
+        "crates/horizon-protocol/src/ids.rs:1",
+        "tools/regenerate_registry_id_adapters.py:68"
+      ],
+      "details": {
+        "world_version": [
+          4556,
+          4554
+        ]
+      },
+      "id": 3
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/entities.rs: 6 vanilla classes changed (15 methods, 8 named in Horizon)",
+      "module": "crates/horizon-client/src/entities.rs",
+      "files": [
+        "crates/horizon-client/src/entities.rs"
+      ],
+      "harnesses": [
+        "arrow",
+        "arrow_mob_permission",
+        "block_landing",
+        "container_component_names",
+        "falling_block",
+        "mob_ai",
+        "mob_rider_navigation",
+        "stand_lodestone"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/decoration/ItemFrame": {
+          "methods": 4,
+          "named": [
+            "createBoundingBox",
+            "survives"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/entity/Entity": {
+          "methods": 3,
+          "named": [
+            "checkInsideBlocks",
+            "move"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/CactusBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/HoneyBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/LavaCauldronBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/PowderSnowBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 95,
+      "id": 4
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/arrows.rs: 2 vanilla classes changed (4 methods, 2 named in Horizon)",
+      "module": "crates/horizon-client/src/arrows.rs",
+      "files": [
+        "crates/horizon-client/src/arrows.rs"
+      ],
+      "harnesses": [
+        "ambient_sound",
+        "falling_block",
+        "level_shape"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/BaseFireBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/BubbleColumnBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 24,
+      "id": 5
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/mobs/ravager.rs: 2 vanilla classes changed (4 methods, 2 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/ravager.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/ravager.rs"
+      ],
+      "harnesses": [
+        "mob_ai",
+        "villager_farming"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/CropBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/PitcherCropBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 24,
+      "id": 6
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client-render/src/block_entity_anim.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client-render/src/block_entity_anim.rs",
+      "files": [
+        "crates/horizon-client-render/src/block_entity_anim.rs"
+      ],
+      "harnesses": [
+        "block_entity_anim"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/EndGatewayBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 7
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client-render/src/effects.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client-render/src/effects.rs",
+      "files": [
+        "crates/horizon-client-render/src/effects.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/WebBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 8
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/examples/probe/scene_motion_probe.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/examples/probe/scene_motion_probe.rs",
+      "files": [
+        "crates/horizon-client/examples/probe/scene_motion_probe.rs"
+      ],
+      "harnesses": [
+        "arrow_mob_permission",
+        "command_exec",
+        "container_component_names",
+        "dragon_contacts",
+        "mob_ai",
+        "mob_rider_navigation",
+        "nether_portal",
+        "stand_lodestone"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/NetherPortalBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 9
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/game/block_ticks.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game/block_ticks.rs",
+      "files": [
+        "crates/horizon-client/src/game/block_ticks.rs"
+      ],
+      "harnesses": [
+        "falling_block",
+        "level_shape"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/BigDripleafBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 10
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/game/creatures.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game/creatures.rs",
+      "files": [
+        "crates/horizon-client/src/game/creatures.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/WitherRoseBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 11
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/health.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/health.rs",
+      "files": [
+        "crates/horizon-client/src/health.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/SweetBerryBushBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 12
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/mobs.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs.rs",
+      "files": [
+        "crates/horizon-client/src/mobs.rs"
+      ],
+      "harnesses": [
+        "entity_model",
+        "mob_ai",
+        "mob_attributes",
+        "natural_spawn",
+        "spawner",
+        "trading",
+        "trial_spawner",
+        "vault"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/CampfireBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 13
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/mobs/ai.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/ai.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/ai.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/EyeblossomBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 14
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/motion.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/motion.rs",
+      "files": [
+        "crates/horizon-client/src/motion.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/LayeredCauldronBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 15
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-world/src/level/hooks.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-world/src/level/hooks.rs",
+      "files": [
+        "crates/horizon-world/src/level/hooks.rs"
+      ],
+      "harnesses": [
+        "redstone_catalog"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/ButtonBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 16
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/game/dedicated.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game/dedicated.rs",
+      "files": [
+        "crates/horizon-client/src/game/dedicated.rs"
+      ],
+      "harnesses": [
+        "arrow_hit_sound",
+        "command_parse",
+        "entity_sound_packet",
+        "explosion_items",
+        "game_loop",
+        "trident",
+        "vehicle_container",
+        "wet_fire"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/server/MinecraftServer": {
+          "methods": 1,
+          "named": [
+            "runServer"
+          ],
+          "removed": false
+        }
+      },
+      "score": 11,
+      "id": 17
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/projectiles.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/projectiles.rs",
+      "files": [
+        "crates/horizon-client/src/projectiles.rs"
+      ],
+      "harnesses": [
+        "conversion_tags",
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/projectile/ThrowableProjectile": {
+          "methods": 1,
+          "named": [
+            "handleFirstTickBubbleColumn"
+          ],
+          "removed": false
+        }
+      },
+      "score": 11,
+      "id": 18
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-world/src/level/query.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "crates/horizon-world/src/level/query.rs",
+      "files": [
+        "crates/horizon-world/src/level/query.rs"
+      ],
+      "harnesses": [
+        "collision_context",
+        "contextual_collision",
+        "liquid_collision",
+        "powder_snow_collision",
+        "scaffolding_collision"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/state/BlockBehaviour$BlockStateBase": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 19
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: world/level/block/state: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "widely named: world/level/block/state",
+      "files": [
+        "crates/horizon-client/examples/probe/first_person_probe.rs",
+        "crates/horizon-client/src/game/explosion.rs",
+        "crates/horizon-client/src/game/hand.rs",
+        "crates/horizon-client/src/game/interaction_shapes.rs",
+        "crates/horizon-client/src/game/lan_actions.rs",
+        "crates/horizon-client/src/game/native_hooks.rs",
+        "crates/horizon-client/src/game/perspective.rs",
+        "crates/horizon-client/src/game/spill.rs",
+        "crates/horizon-client/src/game/wind.rs",
+        "crates/horizon-mods/src/content.rs",
+        "crates/horizon-port-pack/src/oracle.rs",
+        "crates/horizon-world/src/level/interact.rs",
+        "crates/horizon-world/src/level/redstone.rs",
+        "crates/horizon-world/src/level/removal.rs",
+        "crates/horizon-world/src/level/shapes.rs",
+        "crates/horizon-world/src/level/tick.rs",
+        "crates/horizon-world/src/level/update.rs"
+      ],
+      "harnesses": [
+        "block_support",
+        "collision",
+        "cushion_placement",
+        "entity_move",
+        "face_support",
+        "fall_damage",
+        "movement_support",
+        "restitution"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/state/BlockBehaviour": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 20
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: world/level/block: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "widely named: world/level/block",
+      "files": [],
+      "harnesses": [
+        "interaction_shape",
+        "registry_fall_ray"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/HopperBlock": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 21
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: world/entity/projectile: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: world/entity/projectile",
+      "files": [
+        "crates/horizon-client/src/entity_nbt.rs",
+        "crates/horizon-client/src/game/dragon.rs",
+        "crates/horizon-client/src/game/entity.rs",
+        "crates/horizon-client/src/game/fireworks.rs",
+        "crates/horizon-client/src/game/loaded_arrow_shot_tests.rs",
+        "crates/horizon-client/src/game/remote_projectiles.rs"
+      ],
+      "harnesses": [
+        "conversion_tags",
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/projectile/FireworkRocketEntity": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 22
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: net/minecraft: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+      "module": "widely named: net/minecraft",
+      "files": [
+        "crates/horizon-client-render/src/packs.rs",
+        "crates/horizon-client/src/game/functions.rs",
+        "crates/horizon-client/src/realms/download.rs",
+        "crates/horizon-command/src/vanilla.rs",
+        "crates/horizon-core/src/version.rs",
+        "crates/horizon-protocol/src/lib.rs",
+        "crates/horizon-world/src/datafix/files.rs",
+        "crates/horizon-world/src/worldgen/generator.rs"
+      ],
+      "harnesses": [
+        "block_tint",
+        "environment_attribute_modifier",
+        "environment_system",
+        "environment_timeline",
+        "mob_discard",
+        "server_property_numbers",
+        "villager_farming",
+        "world_border_render"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/SharedConstants": {
+          "methods": 0,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 0,
+      "id": 23
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/game/paintings.rs: 1 vanilla classes changed (3 methods, 2 named in Horizon)",
+      "module": "crates/horizon-client/src/game/paintings.rs",
+      "files": [
+        "crates/horizon-client/src/game/paintings.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/decoration/HangingEntity": {
+          "methods": 3,
+          "named": [
+            "canCoexist",
+            "survives"
+          ],
+          "removed": false
+        }
+      },
+      "score": 23,
+      "id": 24
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/game.rs: 4 vanilla classes changed (8 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game.rs",
+      "files": [
+        "crates/horizon-client/src/game.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/DetectorRailBlock": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/EndPortalBlock": {
+          "methods": 2,
+          "named": [
+            "entityInside"
+          ],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/FrogspawnBlock": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        },
+        "net/minecraft/world/level/block/TripWireBlock": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 18,
+      "id": 25
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-world/src/level/redstone.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "crates/horizon-world/src/level/redstone.rs",
+      "files": [
+        "crates/horizon-world/src/level/redstone.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/block/BasePressurePlateBlock": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 26
+    },
+    {
+      "rank": 5,
+      "kind": "unported",
+      "title": "2 changed or removed vanilla classes Horizon doesn't port, in 2 packages",
+      "packages": {
+        "net/minecraft": 1,
+        "net/minecraft/world/level/block": 1
+      },
+      "id": 27
+    }
+  ],
+  "clean": [
+    "packets",
+    "blocks",
+    "items"
+  ]
+}

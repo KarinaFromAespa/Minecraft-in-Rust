@@ -1,0 +1,24 @@
+{
+  "behaviour": {
+    "closed": 0,
+    "note": "Infrastructure complete (pin, tables, verification); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 27 items, dominated by an entityInside change across ~20 block classes.",
+    "total": 27
+  },
+  "harness": {
+    "fail": 0,
+    "note": "Not measured locally: the tree differs from published 1.21.10 in 3 files (version pin, one header comment, research lock), so its profile is 1.21.10's by construction (1 pass / 4 oracle / 4 fail of 9 measured); CI port-verify measures the full 17-harness profile. No CI run dispatched yet.",
+    "oracle_fail": 0,
+    "pass": 0,
+    "total": 17
+  },
+  "notes": "SlotDisplay codec still uses 26.3 numbering (carried from 1.21.10); five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec. Same protocol as 1.21.10 (773): adapter ladder unchanged.",
+  "profile_recorded": "2026-11-12",
+  "protocol": 773,
+  "protocol_tests": {
+    "fail": 2,
+    "note": "2 failures are the pre-existing sandbox-network pair in untouched code.",
+    "pass": 438
+  },
+  "role": "E6 delta (from 1.21.10)",
+  "version": "1.21.9"
+}
