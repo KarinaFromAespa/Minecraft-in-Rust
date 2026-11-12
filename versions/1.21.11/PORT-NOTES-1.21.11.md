@@ -603,3 +603,25 @@ end to end; 9 of 17 harnesses measured (all fail, by the causes
 above), 8 unmeasured. The behaviour port (815 ranked items) is the
 remaining work.
 Status in [VERSIONS.md](../../VERSIONS.md): **in progress**.
+
+## CI profile — port-verify v5, run 43114684827 (2026-11-11)
+
+The first full 17-harness profile on GitHub runners, against the
+rewire-only tree (candidate commit 306a153c5245, main@d8479b1 — BEFORE
+the adapter re-base 2e2ef22, so a fresh run from the re-based tree is
+still owed). `prepare: ok`; the front-end remap works on CI too
+(lab-prepare imported 10,291 client classes from the remapped jar);
+horizon-prepare completed in 29.6 s; protocol compiles clean (0 errors).
+
+**Profile: 2 pass / 2 oracle-no-longer-compiles / 13 fail.**
+Passes: block_properties, lan. (The "15 newly failing" count is a
+no-baseline classification artifact.) Notably, block_properties PASSES
+on clean hardware — its local failure was a probe-build timeout under
+VM contention, not a tree defect. The two oracle failures are the
+known era ports: chunk_generation (33 javac errors, no
+`ChunkStatus.TERRAIN`/`buildTerrain`) and command_exec (29 errors,
+integrated-server bootstrap + the interact-packet constructor shape).
+Food fails at oracle compile too (VanillaFoodOracle javac exit 1).
+The remaining 12 fails are the behaviour-port work (815 ranked items):
+the command tree and registry data are still the 26.3 base's.
+Artifacts kept at `~/workspace/mcir-ci/1.21.11v5-prerebase/`.
