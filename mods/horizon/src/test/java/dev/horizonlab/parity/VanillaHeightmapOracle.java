@@ -2,6 +2,7 @@ package dev.horizonlab.parity;
 
 import com.google.gson.*;
 import com.mojang.serialization.JsonOps;
+import com.mojang.serialization.Lifecycle;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -18,11 +19,11 @@ import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.ticks.ProtoChunkTicks;
 
 /** Original transport calling actual vanilla heightmap and chunk APIs. */
 public final class VanillaHeightmapOracle {
     private static final Heightmap.Types[] TYPES=Heightmap.Types.values();
-    private static PalettedContainerFactory factory;
 
     private static JsonObject facts() {
         var result=new JsonObject();var states=new JsonArray();var defaults=new JsonObject();
@@ -55,8 +56,20 @@ public final class VanillaHeightmapOracle {
         final List<String> reads=new ArrayList<>();
         final boolean trace;
         Chunk(int min,int height,boolean trace) {
-            super(new ChunkPos(0,0),UpgradeData.EMPTY,LevelHeightAccessor.create(min,height),factory,null);
+            // 1.21.8 has no BuiltInRegistries.BIOME (biomes are datapack
+            // registries, not built-in) and no PalettedContainerFactory:
+            // build the sections directly around a standalone PLAINS
+            // holder, and hand ProtoChunk an empty biome registry it
+            // never queries (the oracles never read biomes).
+            super(new ChunkPos(0,0),UpgradeData.EMPTY,sections(height),new ProtoChunkTicks<>(),new ProtoChunkTicks<>(),LevelHeightAccessor.create(min,height),new MappedRegistry<>(Registries.BIOME,Lifecycle.stable()),null);
             this.trace=trace;
+        }
+        private static LevelChunkSection[] sections(int height) {
+            Holder<Biome> biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);
+            var ids=new IdMapper<Holder<Biome>>();ids.add(biome);
+            var sections=new LevelChunkSection[height>>4];
+            for(int i=0;i<sections.length;i++)sections[i]=new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,Blocks.AIR.defaultBlockState(),PalettedContainer.Strategy.SECTION_STATES),new PalettedContainer<>(ids,biome,PalettedContainer.Strategy.SECTION_BIOMES));
+            return sections;
         }
         @Override public BlockState getBlockState(BlockPos pos) {
             var state=super.getBlockState(pos);
@@ -128,10 +141,7 @@ public final class VanillaHeightmapOracle {
         if(args[0].equals("export")) {
             Files.writeString(directory,new Gson().toJson(facts()),StandardCharsets.UTF_8);return;
         }
-        Holder<Biome> biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);
-        var ids=new IdMapper<Holder<Biome>>();ids.add(biome);
         // Only in-memory section storage is exercised; biome and section codecs are not invoked.
-        factory=new PalettedContainerFactory(Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY),Blocks.AIR.defaultBlockState(),null,Strategy.createForBiomes(ids),biome,null);
         bindTags(JsonParser.parseString(Files.readString(directory.resolve("tags.json"))).getAsJsonObject());
         try(var out=new PrintWriter(Files.newBufferedWriter(directory.resolve(args[0]+".txt"),StandardCharsets.UTF_8))) {
             for(int t=0;t<TYPES.length;t++)out.println("type "+t+" "+TYPES[t].getSerializationKey()+" "+TYPES[t].sendToClient()+" "+TYPES[t].keepAfterWorldgen());

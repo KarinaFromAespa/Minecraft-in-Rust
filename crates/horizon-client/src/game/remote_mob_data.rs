@@ -237,10 +237,6 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // Axolotl.DATA_PLAYING_DEAD (after DATA_VARIANT): the factors
             // ease in `sync::client_tick`.
             (Species::Axolotl, 19, Value::Bool(dead)) => m.extra.axolotl.playing_dead = *dead,
-            // CopperGolem.COPPER_GOLEM_STATE (after DATA_WEATHER_STATE).
-            (Species::CopperGolem, 17, Value::Id(state)) => {
-                m.extra.variant3 = (*state).clamp(0, 4) as u8;
-            }
             // AbstractHorse's flags take 18. Horse.DATA_ID_TYPE_VARIANT: the
             // colour in the low byte, the markings in the next.
             (Species::Horse, 19, Value::Int(v)) => {
@@ -280,10 +276,6 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // Ghast.DATA_IS_CHARGING and WitherBoss.DATA_ID_INV.
             (Species::Ghast, 16, Value::Bool(charging)) => m.extra.flag = *charging,
             (Species::Wither, 19, Value::Int(ticks)) => m.extra.counter = (*ticks).max(0),
-            // CopperGolem.DATA_WEATHER_STATE: the oxidation the texture shows.
-            (Species::CopperGolem, 16, Value::Id(state)) => {
-                m.extra.variant = (*state).clamp(0, 3) as u8;
-            }
             // AbstractHorse.DATA_ID_FLAGS: eating 16 and standing 32 (the
             // graze and the rear), which `sync::client_tick` animates.
             (s, 18, Value::Byte(flags)) if equine::grazes(s) => equine::set_flags(m, *flags as u8),
@@ -348,18 +340,6 @@ fn apply(m: &mut Mob, values: &[(u8, i32, Value)], builtin: &Builtin, local_enti
             // Zombie's three): what VillagerProfessionLayer draws.
             (Species::Villager, 19, Value::Ids(data))
             | (Species::ZombieVillager, 20, Value::Ids(data)) => villager_data(m, data, builtin),
-            // Mannequin.DATA_PROFILE (after Avatar's two): whose skin it
-            // wears; update_remote_skins resolves it like a tab player's.
-            (Species::Mannequin, 17, Value::Profile(profile)) => {
-                m.profile = Some(profile.clone());
-            }
-            // Mannequin.DATA_IMMOVABLE and DATA_DESCRIPTION (an empty one is hidden).
-            (Species::Mannequin, 18, Value::Bool(immovable)) => m.extra.immovable = *immovable,
-            (Species::Mannequin, 19, Value::OptText(description)) => {
-                m.extra.description = horizon_client::mobs::MannequinDescription::from_component(
-                    description.as_ref(),
-                );
-            }
             _ => {}
         }
     }
@@ -1332,24 +1312,6 @@ mod tests {
         assert_eq!(e.extra.variant2, 2);
     }
 
-    #[test]
-    fn a_mannequin_exists_and_takes_its_profile() {
-        let Some(mut m) = mob("minecraft:mannequin") else {
-            return;
-        };
-        assert_eq!(&*m.kind.id, "minecraft:mannequin");
-        let profile = horizon_protocol::entity_data::Profile {
-            name: Some("Gommunity".into()),
-            uuid: Some(1),
-            ..Default::default()
-        };
-        apply(
-            &mut m,
-            &[(17, s::RESOLVABLE_PROFILE, Value::Profile(profile.clone()))],
-        );
-        assert_eq!(m.profile, Some(profile));
-    }
-
     /// `Ocelot.DATA_TRUSTING` (after AgeableMob's two).
     #[test]
     fn an_ocelot_takes_its_trusting_flag() {
@@ -1361,40 +1323,6 @@ mod tests {
         assert!(m.extra.trusting);
         apply(&mut m, &[(18, s::BOOLEAN, Value::Bool(false))]);
         assert!(!m.extra.trusting);
-    }
-
-    /// `Mannequin.DATA_IMMOVABLE` and `DATA_DESCRIPTION`: the default component is the default
-    /// description, an empty one hides it, any other is the server's own.
-    #[test]
-    fn a_mannequin_takes_its_immovable_flag_and_description() {
-        use horizon_client::mobs::MannequinDescription as D;
-        let Some(mut m) = mob("minecraft:mannequin") else {
-            return;
-        };
-        assert_eq!(
-            (m.extra.immovable, m.extra.description.clone()),
-            (false, D::Default)
-        );
-        let own = horizon_protocol::text::literal("Guard");
-        apply(
-            &mut m,
-            &[
-                (18, s::BOOLEAN, Value::Bool(true)),
-                (19, s::OPTIONAL_COMPONENT, Value::OptText(Some(own.clone()))),
-            ],
-        );
-        assert_eq!(
-            (m.extra.immovable, m.extra.description.clone()),
-            (true, D::Custom(own))
-        );
-        apply(&mut m, &[(19, s::OPTIONAL_COMPONENT, Value::OptText(None))]);
-        assert_eq!(m.extra.description, D::Hidden);
-        let default = D::Default.component();
-        apply(
-            &mut m,
-            &[(19, s::OPTIONAL_COMPONENT, Value::OptText(default))],
-        );
-        assert_eq!(m.extra.description, D::Default);
     }
 
     /// `LivingEntity.getDimensions`: the pose's box times `minecraft:scale` —

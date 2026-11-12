@@ -1,20 +1,20 @@
-# Minecraft in Rust — Java Edition 1.21.9
+# Minecraft in Rust — Java Edition 1.21.8
 
-**Minecraft: Java Edition 1.21.9, rewritten in Rust.** This directory is one
+**Minecraft: Java Edition 1.21.8, rewritten in Rust.** This directory is one
 version of the [Minecraft-in-Rust](../../README.md) programme: every major
 Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — a reference
 reimplementation, each version specified and verified against its own jar.
 
-1.21.9 is the second adjacent delta port in the programme's **Components era
-(E6, 1.20.5–1.21.11)**, taken from 1.21.10: a same-protocol delta
-(protocol stays 773; world version 4556 → 4554), so the pin is a version
-bump only — packets, registries, blocks, items and commands are identical
-to 1.21.10, and the adapter ladder stays 773-pinned. The measured delta is
-27 ranked work items, dominated by an `entityInside` change across ~20
-block classes. The six generated tables are regenerated or confirmed
-unchanged against 1.21.9's own jar, and the remaining work is sized, ranked
-and documented.
-[PORT-NOTES-1.21.9.md](PORT-NOTES-1.21.9.md) in this directory is the
+1.21.8 is the third adjacent delta port in the programme's **Components era
+(E6, 1.20.5–1.21.11)**, taken from 1.21.9: a protocol-changing delta
+(protocol 773 → 772; world version 4554 → 4440), so the adapter ladder is
+re-based to 772 and the packet set rewired — 1.21.9's code-of-conduct and
+debug packets are removed, the debug-subscription packet reverts to its
+1.21.8 name, and 108 play packets renumber. The measured delta is
+526 ranked work items, dominated by 317 harness reruns and the debug-payload
+rework. The six generated tables are regenerated against 1.21.8's own jar,
+and the remaining work is sized, ranked and documented.
+[PORT-NOTES-1.21.8.md](PORT-NOTES-1.21.8.md) in this directory is the
 authoritative record of the stage reached, the numbers behind it, and the
 residual. Its status is also tracked in
 [VERSIONS.md](../../VERSIONS.md).

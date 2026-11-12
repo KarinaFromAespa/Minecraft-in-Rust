@@ -376,25 +376,15 @@ fn mob_variant_meta(
                 meta.push((18, serializer::INT, Value::Int(i32::from(e.variant))));
             }
         }
-        // Frog.DATA_VARIANT_ID, Pig's, Cow's, Chicken's and ZombieNautilus's
-        // (after the entries of their parents): registry holders.
-        "minecraft:frog"
-        | "minecraft:pig"
-        | "minecraft:cow"
-        | "minecraft:chicken"
-        | "minecraft:zombie_nautilus" => {
+        // Frog.DATA_VARIANT_ID, Pig's, Cow's and Chicken's (after the entries
+        // of their parents): registry holders.
+        "minecraft:frog" | "minecraft:pig" | "minecraft:cow" | "minecraft:chicken" => {
             let (index, serializer, registry) = match kind {
                 "minecraft:frog" => (18, serializer::FROG_VARIANT, "minecraft:frog_variant"),
                 "minecraft:pig" => (19, serializer::PIG_VARIANT, "minecraft:pig_variant"),
                 "minecraft:cow" => (18, serializer::COW_VARIANT, "minecraft:cow_variant"),
-                "minecraft:chicken" => {
-                    (18, serializer::CHICKEN_VARIANT, "minecraft:chicken_variant")
-                }
-                _ => (
-                    21,
-                    serializer::ZOMBIE_NAUTILUS_VARIANT,
-                    "minecraft:zombie_nautilus_variant",
-                ),
+                // The outer pattern admits only these four kinds.
+                _ => (18, serializer::CHICKEN_VARIANT, "minecraft:chicken_variant"),
             };
             // Each registry's default (`define(DATA_VARIANT_ID, ... TEMPERATE)`)
             // stays out of the pairing data, as other default values do.
@@ -463,18 +453,6 @@ fn mob_variant_meta(
                 meta.push((17, serializer::BOOLEAN, Value::Bool(true)));
             }
             defaults.push((17, serializer::BOOLEAN, Value::Bool(false)));
-        }
-        // CopperGolem.DATA_WEATHER_STATE: unaffected 0 to oxidized 3, and it
-        // goes back down when the golem is scraped.
-        "minecraft:copper_golem" => {
-            if e.variant != 0 {
-                meta.push((
-                    16,
-                    serializer::WEATHERING_COPPER_STATE,
-                    Value::Id(i32::from(e.variant.min(3))),
-                ));
-            }
-            defaults.push((16, serializer::WEATHERING_COPPER_STATE, Value::Id(0)));
         }
         // Ghast.DATA_IS_CHARGING: the shooting texture.
         "minecraft:ghast" => {
@@ -954,27 +932,6 @@ pub(super) fn mob_meta(
             }
             defaults.push((18, serializer::BOOLEAN, Value::Bool(false)));
         }
-        // Mannequin.DATA_PROFILE, DATA_IMMOVABLE and DATA_DESCRIPTION (after Avatar's two):
-        // `updateDescription` keeps the last as a component, or none when hidden.
-        "minecraft:mannequin" => {
-            if let Some(profile) = &m.profile {
-                meta.push((
-                    17,
-                    serializer::RESOLVABLE_PROFILE,
-                    Value::Profile(profile.clone()),
-                ));
-            }
-            if e.immovable {
-                meta.push((18, serializer::BOOLEAN, Value::Bool(true)));
-            }
-            defaults.push((18, serializer::BOOLEAN, Value::Bool(false)));
-            let default = horizon_client::mobs::MannequinDescription::Default.component();
-            let shown = e.description.component();
-            if shown != default {
-                meta.push((19, serializer::OPTIONAL_COMPONENT, Value::OptText(shown)));
-            }
-            defaults.push((19, serializer::OPTIONAL_COMPONENT, Value::OptText(default)));
-        }
         // Creaking.CAN_MOVE, IS_ACTIVE and IS_TEARING_DOWN.
         "minecraft:creaking" => {
             if e.flag2 {
@@ -1008,17 +965,6 @@ pub(super) fn mob_meta(
                 meta.push((19, serializer::BOOLEAN, Value::Bool(true)));
             }
             defaults.push((19, serializer::BOOLEAN, Value::Bool(false)));
-        }
-        // CopperGolem.COPPER_GOLEM_STATE (after DATA_WEATHER_STATE).
-        "minecraft:copper_golem" => {
-            if e.variant3 != 0 {
-                meta.push((
-                    17,
-                    serializer::COPPER_GOLEM_STATE,
-                    Value::Id(i32::from(e.variant3)),
-                ));
-            }
-            defaults.push((17, serializer::COPPER_GOLEM_STATE, Value::Id(0)));
         }
         // Armadillo.ARMADILLO_STATE (after AgeableMob's two).
         "minecraft:armadillo" => {
@@ -4361,11 +4307,12 @@ mod world_spawn_sync_tests {
             1,
             "a placed Nether guest must hear the world spawn change"
         );
-        assert_eq!(sent[0].pos.dimension, "minecraft:overworld");
-        assert_eq!(sent[0].pos.pos, [100, 140, -20]);
+        // 1.21.8's spawn packet carries no dimension: the world spawn is the
+        // Overworld's by construction.
+        assert_eq!(sent[0].pos, [100, 140, -20]);
         println!(
-            "world-spawn\tchanged\t{}\t{}\t{}\t{}",
-            sent[0].pos.dimension, sent[0].pos.pos[0], sent[0].pos.pos[1], sent[0].pos.pos[2]
+            "world-spawn\tchanged\t{}\t{}\t{}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2]
         );
         game.as_console(|game| assert!(game.run_command("setworldspawn 100 140 -20")));
         assert!(
@@ -4385,27 +4332,25 @@ mod world_spawn_sync_tests {
         game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
-        assert_eq!(sent[0].pos.dimension, target.dimension);
-        assert_eq!(sent[0].pos.pos, target.pos);
+        // The override target's position goes; its dimension cannot — the
+        // 1.21.8 packet carries none.
+        assert_eq!(sent[0].pos, target.pos);
         println!(
-            "world-spawn\toverride\t{}\t{}\t{}\t{}",
-            sent[0].pos.dimension, sent[0].pos.pos[0], sent[0].pos.pos[1], sent[0].pos.pos[2]
+            "world-spawn\toverride\t{}\t{}\t{}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2]
         );
         game.lan.as_mut().unwrap().hub.compass_targets.clear();
         // Rotation alone is a changed RespawnData, even at the same block.
         game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
-        assert_eq!(sent[0].pos.pos, [-7, 90, 12]);
-        assert_eq!([sent[0].yaw, sent[0].pitch], [45.0, -10.0]);
+        assert_eq!(sent[0].pos, [-7, 90, 12]);
+        // 1.21.8's spawn packet carries yaw only; the pitch is stored but
+        // not sent.
+        assert_eq!(sent[0].yaw, 45.0);
         println!(
-            "world-spawn\tangle\t{}\t{}\t{}\t{}\t{:.1}\t{:.1}",
-            sent[0].pos.dimension,
-            sent[0].pos.pos[0],
-            sent[0].pos.pos[1],
-            sent[0].pos.pos[2],
-            sent[0].yaw,
-            sent[0].pitch
+            "world-spawn\tangle\t{}\t{}\t{}\t{:.1}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
         game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
         assert!(spawns(&rx).is_empty());
@@ -4414,15 +4359,10 @@ mod world_spawn_sync_tests {
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
         assert_eq!(game.level.world_spawn_angle, [45.0, 90.0]);
-        assert_eq!([sent[0].yaw, sent[0].pitch], [45.0, 90.0]);
+        assert_eq!(sent[0].yaw, 45.0);
         println!(
-            "world-spawn\tnormalized\t{}\t{}\t{}\t{}\t{:.1}\t{:.1}",
-            sent[0].pos.dimension,
-            sent[0].pos.pos[0],
-            sent[0].pos.pos[1],
-            sent[0].pos.pos[2],
-            sent[0].yaw,
-            sent[0].pitch
+            "world-spawn\tnormalized\t{}\t{}\t{}\t{:.1}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
         for command in [
             "setworldspawn -7 90 12 45 90",
@@ -4439,15 +4379,10 @@ mod world_spawn_sync_tests {
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
         assert_eq!(game.level.world_spawn_angle, [45.0, -90.0]);
-        assert_eq!([sent[0].yaw, sent[0].pitch], [45.0, -90.0]);
+        assert_eq!(sent[0].yaw, 45.0);
         println!(
-            "world-spawn\tclamped\t{}\t{}\t{}\t{}\t{:.1}\t{:.1}",
-            sent[0].pos.dimension,
-            sent[0].pos.pos[0],
-            sent[0].pos.pos[1],
-            sent[0].pos.pos[2],
-            sent[0].yaw,
-            sent[0].pitch
+            "world-spawn\tclamped\t{}\t{}\t{}\t{:.1}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
     }
 
@@ -4479,22 +4414,16 @@ mod world_spawn_sync_tests {
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 2, "respawn and level info both send world data");
         for point in &sent {
-            assert_eq!(point.pos.dimension, "minecraft:overworld");
             assert_eq!(
-                point.pos.pos,
+                point.pos,
                 [0, 80, 0],
                 "the host's personal point is not world data"
             );
-            assert_eq!([point.yaw, point.pitch], [45.0, -10.0]);
+            assert_eq!(point.yaw, 45.0);
         }
         println!(
-            "world-spawn\trespawn\t{}\t{}\t{}\t{}\t{:.1}\t{:.1}",
-            sent[0].pos.dimension,
-            sent[0].pos.pos[0],
-            sent[0].pos.pos[1],
-            sent[0].pos.pos[2],
-            sent[0].yaw,
-            sent[0].pitch
+            "world-spawn\trespawn\t{}\t{}\t{}\t{:.1}",
+            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
     }
 }

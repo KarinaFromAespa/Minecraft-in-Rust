@@ -1,6 +1,6 @@
-# A map for agents — Minecraft in Rust (1.21.9)
+# A map for agents — Minecraft in Rust (1.21.8)
 
-Minecraft: Java Edition 1.21.9 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
+Minecraft: Java Edition 1.21.8 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
 feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) once; this page tells you where things are.
 Feature → files → harness for the most-changed areas: [docs/architecture.md](docs/architecture.md).
 
@@ -62,7 +62,7 @@ Game workspace (root `Cargo.toml`); `launcher/` and `crates/horizon-telemetry-se
 | `horizon-client-render` | The client's world data, rendering and screens (chunks, meshing, light, streaming, `gfx`, HUD, menus, settings), modules that horizon-client re-exports under the same paths. Nothing in it reaches gameplay |
 | `horizon-world` | Vanilla world data with no gameplay loop: NBT, regions, chunks, `datafix/`, `worldgen/`, `level/` (server-side block behaviour, ticks, redstone), entity physics, items, effects, food, damage |
 | `horizon-core` | Simulation primitives: Java `Random`s, `jmath` (HotSpot-exact `Math`), positions, noise, density, paletted storage, `version.rs` (the pinned version) |
-| `horizon-protocol` | Network protocol 777: codecs, framing, encryption, `packets/{handshake,status,login,configuration,play}.rs`, `entity_data.rs` |
+| `horizon-protocol` | Network protocol 772: codecs, framing, encryption, `packets/{handshake,status,login,configuration,play}.rs`, `entity_data.rs` |
 | `horizon-assets` | Resource decoding: block-state and item models, baking, atlases |
 | `horizon-prepare` | Builds `.local/horizon-client/26.3` from the player's own Minecraft install (runs the Java exporters) |
 | `horizon-server` | `horizon-server`: `server.toml`, CLI, supervisor of the headless game ([docs/hosting.md](docs/hosting.md)) |

@@ -254,7 +254,7 @@ fn tracked_waypoint_bytes() {
         color: Some(0xFFFF_5555_u32 as i32),
         target: WaypointTarget::Block([1, -2, 300]),
     });
-    let mut expected = vec![136, 1, 0, 1];
+    let mut expected = vec![131, 1, 0, 1];
     expected.extend(1..=16u8);
     expected.push(17);
     expected.extend(b"minecraft:default");
@@ -262,7 +262,7 @@ fn tracked_waypoint_bytes() {
         1, 0xFF, 0x55, 0x55, 1, 1, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 0xAC, 0x02,
     ]);
     assert_eq!(track.encode(), expected);
-    assert_eq!(Clientbound::decode(136, &expected[2..]).unwrap(), track);
+    assert_eq!(Clientbound::decode(131, &expected[2..]).unwrap(), track);
     for target in [
         WaypointTarget::Empty,
         WaypointTarget::Chunk([-3, 4]),
@@ -276,7 +276,7 @@ fn tracked_waypoint_bytes() {
             target,
         });
         let bytes = packet.encode();
-        assert_eq!(Clientbound::decode(136, &bytes[2..]).unwrap(), packet);
+        assert_eq!(Clientbound::decode(131, &bytes[2..]).unwrap(), packet);
     }
 }
 
@@ -544,7 +544,7 @@ fn clientbound_round_trips() {
         Clientbound::SetEntityLink(SetEntityLink { source: 2, dest: 0 }),
         Clientbound::LevelParticles(LevelParticles {
             particle: Particle {
-                id: 14,
+                id: 13,
                 data: Some(crate::entity_data::ParticleData::ColorScale(0xFF0000, 1.5)),
             },
             override_limiter: true,
@@ -557,17 +557,9 @@ fn clientbound_round_trips() {
         }),
         Clientbound::Explode(Explode {
             center: [1.0, 2.0, 3.0],
-            radius: 4.0,
-            block_count: 12,
             knockback: Some([0.5, 0.1, 0.0]),
             particle: Particle { id: 23, data: None },
             sound: (-1, Some(("minecraft:entity.generic.explode".into(), None))),
-            block_particles: vec![ExplosionParticle {
-                particle: Particle { id: 59, data: None },
-                scaling: 0.5,
-                speed: 1.0,
-                weight: 1,
-            }],
             play_sound: true,
         }),
         Clientbound::ProjectilePower(ProjectilePower { id: 4, power: 0.1 }),
@@ -1117,16 +1109,16 @@ fn update_attributes_encode_like_vanilla() {
         }],
     });
     let body = p.encode();
-    // The packet id (129) is a two-byte VarInt.
-    let mut expected = vec![129, 1, 5, 1, 1];
+    // The packet id (124) is a one-byte VarInt.
+    let mut expected = vec![124, 5, 1, 1];
     expected.extend(0.0f64.to_be_bytes());
     expected.extend([1, 22]);
     expected.extend(b"minecraft:armor.helmet");
     expected.extend(3.0f64.to_be_bytes());
     expected.push(0);
     assert_eq!(body, expected);
-    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 129);
-    assert_eq!(Clientbound::decode(129, &body[2..]).unwrap(), p);
+    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 124);
+    assert_eq!(Clientbound::decode(124, &body[1..]).unwrap(), p);
 }
 
 #[test]
@@ -1353,18 +1345,6 @@ fn test_instance_packets_round_trip() {
         Clientbound::TestInstanceBlockStatus(TestInstanceBlockStatus {
             status: Tag::String("ok".into()),
             size: Some([1, 2, 3]),
-        }),
-        Clientbound::encode,
-        Clientbound::decode,
-    );
-}
-
-#[test]
-fn game_test_highlight_pos_round_trips() {
-    round_trip(
-        Clientbound::GameTestHighlightPos(GameTestHighlightPos {
-            absolute: [10, -64, 30],
-            relative: [1, 2, 3],
         }),
         Clientbound::encode,
         Clientbound::decode,

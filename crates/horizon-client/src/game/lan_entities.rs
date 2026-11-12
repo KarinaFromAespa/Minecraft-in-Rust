@@ -446,7 +446,10 @@ impl Game<'_> {
         }
         for c in self.cushions.iter().filter(|c| c.id > after) {
             let p = c.position;
-            let e = add_state(
+            // No DATA_COLOR: the pinned 1.21.8 has neither the cushion entity
+            // nor a dye-colour serializer (both arrived later), so a cushion
+            // carries no colour metadata here.
+            add_state(
                 out,
                 c.id,
                 "minecraft:cushion",
@@ -454,11 +457,6 @@ impl Game<'_> {
                 c.yaw,
                 false,
             );
-            // Cushion.DATA_COLOR, set unless it is the default white.
-            if c.color != 0 {
-                e.meta
-                    .push((8, serializer::DYE_COLOR, Value::Id(i32::from(c.color))));
-            }
         }
         // DATA_ITEM, `ItemStack.EMPTY` by default.
         for o in self.ominous_spawners.iter().filter(|o| o.id > after) {

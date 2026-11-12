@@ -109,9 +109,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 c.send(&cfg::Serverbound::KeepAlive(p).encode())?
             }
             Ok(cfg::Clientbound::Ping(p)) => c.send(&cfg::Serverbound::Pong(p).encode())?,
-            Ok(cfg::Clientbound::CodeOfConduct(_)) => {
-                c.send(&cfg::Serverbound::AcceptCodeOfConduct(Empty).encode())?
-            }
             Ok(cfg::Clientbound::FinishConfiguration(_)) => {
                 c.send(&cfg::Serverbound::FinishConfiguration(Empty).encode())?;
                 break;

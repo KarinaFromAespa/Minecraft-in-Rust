@@ -2,9 +2,9 @@
 use crate::{
     Error, Result,
     buf::{
-        Bool, Byte, BytesN, ChunkPos, Codec, Double, Float, Ident, Int, List, Long, LpVec3, Nbt,
-        Opt, OptVarInt, Pos, Reader, SectionPos, Short, Str, StrN, UByte, Uuid, VarInt, VarLong,
-        VarVec3i, Vec3d, Writer,
+        Bool, Byte, BytesN, ChunkPos, Codec, Double, Float, Ident, Int, List, Long, Nbt,
+        Opt, OptVarInt, Pos, Reader, SectionPos, Short, ShortVec3, Str, StrN, UByte, Uuid, VarInt,
+        VarLong, VarVec3i, Vec3d, Writer,
     },
     chunk::{ChunkData, LightData},
     entity_data::{EntityData, Particle, Value},
@@ -62,16 +62,20 @@ pub mod relative {
 
 // ---- clientbound -------------------------------------------------------
 
-packet!(AddEntity {
+packet!(
+    /// `ClientboundAddEntityPacket` as 1.21.8 sends it: the velocity is three
+    /// signed shorts (1/8000) after the data, not the LpVec3 before the angles
+    /// 1.21.9 introduced.
+    AddEntity {
     id: i32 => VarInt,
     uuid: u128 => Uuid,
     kind: i32 => VarInt,
     position: [f64; 3] => Vec3d,
-    velocity: [f64; 3] => LpVec3,
     pitch: i8 => Byte,
     yaw: i8 => Byte,
     head_yaw: i8 => Byte,
     data: i32 => VarInt,
+    velocity: [f64; 3] => ShortVec3,
 });
 packet!(Animate { id: i32 => VarInt, action: u8 => UByte });
 packet!(BlockChangedAck { sequence: i32 => VarInt });
@@ -794,7 +798,11 @@ packet!(
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
 );
-packet!(PlayerRotation { yaw: f32 => Float, relative_yaw: bool => Bool, pitch: f32 => Float, relative_pitch: bool => Bool });
+packet!(
+    /// `ClientboundPlayerRotationPacket` as 1.21.8 sends it: yaw and pitch only,
+    /// always absolute; the relative flags came in 1.21.9.
+    PlayerRotation { yaw: f32 => Float, pitch: f32 => Float }
+);
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
 packet!(Respawn { spawn: SpawnInfo => SpawnInfo, keep: i8 => Byte });
 packet!(RotateHead { id: i32 => VarInt, head_yaw: i8 => Byte });
@@ -814,9 +822,18 @@ packet!(
 );
 packet!(Distance { distance: i32 => VarInt });
 packet!(SetCursorItem { item: Option<Stack> => Slot });
-packet!(SetDefaultSpawnPosition { pos: GlobalPos => GlobalPos, yaw: f32 => Float, pitch: f32 => Float });
+packet!(
+    /// `ClientboundSetDefaultSpawnPositionPacket` as 1.21.8 sends it: the block
+    /// position and the yaw only; the dimension and pitch came with RespawnData
+    /// in 1.21.9.
+    SetDefaultSpawnPosition { pos: [i32; 3] => Pos, yaw: f32 => Float }
+);
 packet!(SetEntityData { id: i32 => VarInt, values: Vec<(u8, i32, Value)> => EntityData });
-packet!(SetEntityMotion { id: i32 => VarInt, velocity: [f64; 3] => LpVec3 });
+packet!(
+    /// `ClientboundSetEntityMotionPacket` as 1.21.8 sends it: the velocity is
+    /// three signed shorts (1/8000), not the LpVec3 1.21.9 introduced.
+    SetEntityMotion { id: i32 => VarInt, velocity: [f64; 3] => ShortVec3 }
+);
 packet!(
     /// ClientboundSetEntityLinkPacket: the entity holding a leashed entity's
     /// lead, 0 when none (Leashable.setDelayedLeashHolderId).
@@ -1105,72 +1122,38 @@ impl Codec<LevelParticles> for LevelParticles {
         w.varint(v.randomization);
     }
 }
-/// `ExplosionParticleInfo` in a `WeightedList`: a particle the blast
-/// scatters, its scaling and speed, then its weight.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ExplosionParticle {
-    pub particle: Particle,
-    pub scaling: f32,
-    pub speed: f32,
-    pub weight: i32,
-}
-/// ClientboundExplodePacket: the centre, radius and blocks destroyed, the
-/// push the receiving player takes, the particle at the centre, the sound,
-/// the particles the blast scatters, and whether the sound plays.
+/// ClientboundExplodePacket as 1.21.8 sends it: the centre, the push the
+/// receiving player takes, the particle at the centre and the sound. The
+/// radius, the destroyed-block count and the scattered block particles came
+/// in 1.21.9/1.21.10; `play_sound` is Horizon's own trailing flag, appended
+/// by the adapter (26.3's packet carries it; older ones always play).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Explode {
     pub center: [f64; 3],
-    pub radius: f32,
-    pub block_count: i32,
     pub knockback: Option<[f64; 3]>,
     pub particle: Particle,
     pub sound: (i32, Option<(String, Option<f32>)>),
-    pub block_particles: Vec<ExplosionParticle>,
     pub play_sound: bool,
 }
 impl Codec<Explode> for Explode {
     fn read(r: &mut Reader) -> Result<Self> {
         let center = Vec3d::read(r)?;
-        let radius = r.f32()?;
-        let block_count = r.i32()?;
         let knockback = <Opt<Vec3d>>::read(r)?;
         let particle = Particle::read(r)?;
         let sound = SoundHolder::read(r)?;
-        let n = r.varint()?;
-        let mut block_particles = Vec::new();
-        for _ in 0..n {
-            block_particles.push(ExplosionParticle {
-                particle: Particle::read(r)?,
-                scaling: r.f32()?,
-                speed: r.f32()?,
-                weight: r.varint()?,
-            });
-        }
         Ok(Self {
             center,
-            radius,
-            block_count,
             knockback,
             particle,
             sound,
-            block_particles,
             play_sound: r.bool()?,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
         Vec3d::write(&v.center, w);
-        w.f32(v.radius);
-        w.i32(v.block_count);
         <Opt<Vec3d>>::write(&v.knockback, w);
         v.particle.write(w);
         SoundHolder::write(&v.sound, w);
-        w.varint(v.block_particles.len() as i32);
-        for b in &v.block_particles {
-            b.particle.write(w);
-            w.f32(b.scaling);
-            w.f32(b.speed);
-            w.varint(b.weight);
-        }
         w.bool(v.play_sound);
     }
 }
@@ -1665,7 +1648,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     ChunksBiomes(ChunksBiomes) = CHUNKS_BIOMES,
     ForgetLevelChunk(ForgetLevelChunk) = FORGET_LEVEL_CHUNK,
     GameEvent(GameEvent) = GAME_EVENT,
-    GameTestHighlightPos(GameTestHighlightPos) = GAME_TEST_HIGHLIGHT_POS,
+    // No GameTestHighlightPos: 1.21.8 has no game_test_highlight_pos packet (added in 1.21.9).
     HurtAnimation(HurtAnimation) = HURT_ANIMATION,
     DamageEvent(DamageEvent) = DAMAGE_EVENT,
     KeepAlive(KeepAlive) = KEEP_ALIVE,
@@ -2075,11 +2058,6 @@ packet!(
     /// ServerboundTestInstanceBlockActionPacket: `action` is the `Action` id
     /// (INIT 0, QUERY 1, SET 2, RESET 3, SAVE 4, EXPORT 5, RUN 6).
     TestInstanceBlockAction { pos: [i32; 3] => Pos, action: i32 => VarInt, data: TestInstanceData => TestInstanceData }
-);
-packet!(
-    /// ClientboundGameTestHighlightPosPacket: the absolute position and the
-    /// position relative to the test's origin.
-    GameTestHighlightPos { absolute: [i32; 3] => Pos, relative: [i32; 3] => Pos }
 );
 packet!(
     /// ClientboundTestInstanceBlockStatus: the test's description and, for a

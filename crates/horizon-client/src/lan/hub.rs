@@ -2171,26 +2171,23 @@ impl Hub {
 
     /// ClientboundSetDefaultSpawnPositionPacket for the level's respawn data
     /// (the world spawn, in the Overworld wherever the player is), or the
-    /// compass target a mod set for that player (`compass_targets`).
+    /// compass target a mod set for that player (`compass_targets`). 1.21.8
+    /// sends the position and the yaw only: a compass target's dimension and
+    /// the pitch do not survive the packet.
     pub fn default_spawn(&self, uuid: u128, spawn: [f64; 3], angle: [f32; 2]) -> C {
         if let Some(target) = self.compass_targets.get(&uuid) {
             return C::SetDefaultSpawnPosition(play::SetDefaultSpawnPosition {
-                pos: target.clone(),
+                pos: target.pos,
                 yaw: 0.0,
-                pitch: 0.0,
             });
         }
         C::SetDefaultSpawnPosition(play::SetDefaultSpawnPosition {
-            pos: play::GlobalPos {
-                dimension: "minecraft:overworld".into(),
-                pos: [
-                    spawn[0].floor() as i32,
-                    spawn[1].floor() as i32,
-                    spawn[2].floor() as i32,
-                ],
-            },
+            pos: [
+                spawn[0].floor() as i32,
+                spawn[1].floor() as i32,
+                spawn[2].floor() as i32,
+            ],
             yaw: angle[0],
-            pitch: angle[1],
         })
     }
 

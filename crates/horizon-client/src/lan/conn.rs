@@ -1462,12 +1462,7 @@ fn login_and_configure(
         send(c, cfg::Clientbound::RegistryData(packet))?;
     }
     send(c, cfg::Clientbound::UpdateTags(sync.tags.clone()))?;
-    // addOptionalTasks: the code of conduct task comes first.
-    if let Some(text) =
-        super::code_of_conduct::pick(&shared.config.code_of_conducts, &info.language)
-    {
-        accept_code_of_conduct(c, text, &mut info, &mut configured)?;
-    }
+    // No code-of-conduct task: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
     if let Some(pack) = &shared.config.resource_pack
         && let Some(rejected) = offer_pack(c, pack, &mut info, &mut configured)?
     {
@@ -1592,36 +1587,6 @@ fn offer_pack(
 }
 
 /// ServerCodeOfConductConfigurationTask: send the text, then wait for
-/// ServerboundAcceptCodeOfConductPacket (`handleAcceptCodeOfConduct`),
-/// keeping the connection alive while the player reads. Finishing the
-/// configuration first is `finishCurrentTask` of the wrong task type, an
-/// error that drops the connection.
-fn accept_code_of_conduct(
-    c: &mut Connection,
-    text: &str,
-    info: &mut ClientInformation,
-    configured: &mut super::Configured,
-) -> Result<(), String> {
-    let e = |e: horizon_protocol::Error| e.to_string();
-    c.send(&cfg::Clientbound::CodeOfConduct(cfg::CodeOfConduct { text: text.into() }).encode())
-        .map_err(e)?;
-    wait_alive(c, |packet| match packet {
-        Ok(cfg::Serverbound::AcceptCodeOfConduct(_)) => Some(Ok(())),
-        Ok(cfg::Serverbound::FinishConfiguration(_)) => {
-            Some(Err("Unexpected configuration task".to_owned()))
-        }
-        Ok(cfg::Serverbound::ClientInformation(i)) => {
-            *info = i;
-            None
-        }
-        Ok(packet) => {
-            note_channels(configured, &packet);
-            None
-        }
-        Err(err) => Some(Err(err)),
-    })
-}
-
 /// Read configuration packets until `answer` has a result, sending a
 /// keep-alive every `KEEP_ALIVE_EVERY` meanwhile
 /// (ServerConfigurationPacketListenerImpl.tick).

@@ -655,6 +655,20 @@ impl Codec<[f64; 3]> for LpVec3 {
         }
     }
 }
+/// ShortVec3: a velocity as three signed shorts, 1/8000 of a block per tick
+/// (`ClientboundAddEntityPacket` / `ClientboundSetEntityMotionPacket` before
+/// 1.21.9 replaced them with LpVec3).
+pub struct ShortVec3;
+impl Codec<[f64; 3]> for ShortVec3 {
+    fn read(r: &mut Reader) -> Result<[f64; 3]> {
+        Ok([r.i16()?, r.i16()?, r.i16()?].map(|v| f64::from(v) / 8000.0))
+    }
+    fn write(v: &[f64; 3], w: &mut Writer) {
+        for c in v {
+            w.i16((c * 8000.0).round().clamp(f64::from(i16::MIN), f64::from(i16::MAX)) as i16);
+        }
+    }
+}
 /// A degree angle sent as a byte (Mth.packDegrees / unpackDegrees).
 pub fn pack_degrees(deg: f32) -> i8 {
     (deg * 256.0 / 360.0).floor() as i32 as i8

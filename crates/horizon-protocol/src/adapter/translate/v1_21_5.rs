@@ -177,7 +177,8 @@ mod tests {
     #[test]
     fn hanging_fields_move_but_other_entity_fields_stay() {
         let session = Session::new(ServerVersion::V1_21_5);
-        for kind in [59, 72, 91, 151] {
+        // Pinned 1.21.8 kinds: glow_item_frame 58, item_frame 71, painting 89, player 149.
+        for kind in [58, 71, 89, 149] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut data = play::SetEntityData {
                 id: 42,
@@ -191,7 +192,7 @@ mod tests {
             let indices: Vec<_> = data.values.iter().map(|v| v.0).collect();
             assert_eq!(
                 indices,
-                if kind == 151 {
+                if kind == 149 {
                     vec![0, 8, 9]
                 } else {
                     vec![0, 9, 10]

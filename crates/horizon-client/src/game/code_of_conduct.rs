@@ -13,7 +13,6 @@ use horizon_client::{
     text::Text,
     ui,
 };
-use horizon_core::random::java_string_hash;
 use horizon_protocol::servers;
 
 /// The text's line height.
@@ -91,18 +90,6 @@ impl Prompt {
 }
 
 impl Game<'_> {
-    /// The server list entry of the joined address, if it has one, shown or
-    /// hidden (`ServerList.get`).
-    fn accepted_code_of_conduct(&self) -> Option<i32> {
-        let address = self.server_packs.address.as_deref()?;
-        let (shown, hidden) = servers::load_all(&multiplayer::servers_file(&saves()));
-        shown
-            .into_iter()
-            .chain(hidden)
-            .find(|s| s.ip == address)
-            .map(|s| s.accepted_code_of_conduct)
-    }
-
     /// `ServerList.saveSingleServer`: the joined address's entry keeps `accepted`.
     fn store_code_of_conduct(&self, accepted: i32) {
         let Some(address) = &self.server_packs.address else {
@@ -127,25 +114,9 @@ impl Game<'_> {
         }
     }
 
-    /// `handleCodeOfConduct`: text accepted before for this server is
-    /// accepted at once; otherwise the screen opens over the connecting one.
-    pub(super) fn handle_code_of_conduct(&mut self, text: String) {
-        let Some(r) = &self.remote else {
-            return;
-        };
-        let hash = java_string_hash(text.encode_utf16());
-        if self.accepted_code_of_conduct() == Some(hash) {
-            r.session.accept_code_of_conduct();
-            return;
-        }
-        self.capture(false);
-        self.code_of_conduct = Some(Prompt {
-            text,
-            hash,
-            stop_showing: false,
-            scroll: ui::Scroll::default(),
-        });
-    }
+    // No handle_code_of_conduct: 1.21.8 has no code-of-conduct packets, so
+    // the prompt can never open. The screen below stays inert (drawn and
+    // clicked only while a prompt is open, which never happens).
 
     /// `CodeOfConductScreen.onResult`: accepting tells the server, declining
     /// ends the connection. The entry keeps the text only when it was
@@ -155,9 +126,7 @@ impl Game<'_> {
             return Ok(());
         };
         if accepted {
-            if let Some(r) = &self.remote {
-                r.session.accept_code_of_conduct();
-            }
+            // No packet to send: 1.21.8 has no AcceptCodeOfConduct.
             if self.player.is_some() && self.screen == Screen::Playing {
                 self.capture(true);
             }

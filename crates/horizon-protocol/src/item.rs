@@ -591,12 +591,40 @@ impl Component {
         match self {
             Self::Raw(bytes) => {
                 let legacy = if kind == component::CONTAINER
-                    && matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.count_first_templates)
+                    && ids::quirks_written().count_first_templates
                 {
                     write_legacy_container(bytes).ok()
+                } else if kind == component::POT_DECORATIONS
+                    && ids::quirks_written().pot_decorations_are_items
+                {
+                    write_pot_decorations(bytes).ok()
+                } else if kind == component::DAMAGE_RESISTANT
+                    && ids::quirks_written().either_holders_and_tag_resistance
+                {
+                    write_damage_resistant(bytes).ok()
                 } else {
                     v1_21_5::write(kind, bytes)
                 };
+                // Before 26.1 these components were EitherHolders: a flag
+                // set for the holder, which the read consumed. A key was
+                // dropped on read, so what is stored is always a holder.
+                // The instrument's wrapper only started in 1.21.5, so
+                // earlier versions send the holder bare (as the read side's
+                // pre-1.21.5 bypass does).
+                let quirks = ids::quirks_written();
+                let either_holder = quirks.either_holders_and_tag_resistance
+                    && (kind != component::INSTRUMENT
+                        || !quirks.components_before_1_21_5);
+                if matches!(
+                    kind,
+                    component::INSTRUMENT
+                        | component::PROVIDES_TRIM_MATERIAL
+                        | component::JUKEBOX_PLAYABLE
+                        | component::CHICKEN_VARIANT
+                ) && either_holder
+                {
+                    w.bool(true);
+                }
                 w.bytes(legacy.as_deref().unwrap_or(bytes));
             }
             Self::BannerPatterns(layers) => {
@@ -614,7 +642,17 @@ impl Component {
                 material.write(w, TrimMaterial::write);
                 pattern.write(w, TrimPattern::write);
             }
-            Self::Instrument(id) => w.varint(id + 1),
+            Self::Instrument(id) => {
+                // The EitherHolder wrapper started in 1.21.5; earlier
+                // versions send the holder bare.
+                let quirks = ids::quirks_written();
+                if quirks.either_holders_and_tag_resistance
+                    && !quirks.components_before_1_21_5
+                {
+                    w.bool(true);
+                }
+                w.varint(id + 1)
+            }
             Self::PaintingVariant(id) => w.varint(id + 1),
             Self::Int(v) if kind == component::DYED_COLOR => w.i32(*v),
             Self::Int(v) => w.varint(*v),
@@ -656,7 +694,7 @@ impl Component {
                 }
             }
             Self::Profile(p) => {
-                if matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.optional_profile_fields)
+                if ids::quirks_written().optional_profile_fields
                 {
                     write_optional_profile(p, w);
                     return;
@@ -821,8 +859,14 @@ fn read_legacy_container(r: &mut Reader) -> Result<Vec<u8>> {
         let stack = Slot::read(r)?;
         w.bool(stack.is_some());
         if let Some(stack) = stack {
+            // Raw values stored in a Stack always use the pinned layout — the
+            // template form — so it is written out here, not via
+            // Template::write, which follows the target's quirks and would
+            // write a count-first slot for the pinned 1.21.8.
             let _pinned = ids::unrenumbered();
-            Template::write(&stack, &mut w);
+            w.varint(ids::item(stack.item));
+            w.varint(stack.count);
+            write_patch(&stack, &mut w);
         }
     }
     Ok(w.data)
@@ -836,12 +880,47 @@ fn write_legacy_container(bytes: &[u8]) -> Result<Vec<u8>> {
         let stack = if r.bool()? {
             Some({
                 let _pinned = ids::unrenumbered();
-                Template::read(&mut r)?
+                // The held bytes are the internal template form, not the
+                // wire form: read_template, not Template::read, which
+                // would read a count-first slot for the pinned 1.21.8.
+                read_template(&mut r)?
             })
         } else {
             None
         };
         write_slot(stack.as_ref(), &mut w);
+    }
+    Ok(w.data)
+}
+
+/// A damage-resistant tag in the bare-tag form from the internal HolderSet
+/// form: the tag behind a `0`, without it. An explicit set has no tag
+/// form — an empty tag keeps the stream aligned where the list would not.
+fn write_damage_resistant(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    if r.varint()? == 0 {
+        w.string(&r.string(32767)?);
+    } else {
+        w.string("");
+    }
+    Ok(w.data)
+}
+
+/// A pot's decorations in the item-id form (four item ids, a brick for an
+/// undecorated side) from the internal template form.
+fn write_pot_decorations(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    w.varint(4);
+    for _ in 0..4 {
+        let item = if r.bool()? {
+            let _pinned = ids::unrenumbered();
+            read_template(&mut r)?.item
+        } else {
+            BRICK
+        };
+        w.varint(ids::item(item));
     }
     Ok(w.data)
 }
@@ -904,7 +983,14 @@ fn read_added<'a>(
         Older::Rewritten(bytes) => {
             // Already in the pinned numbering.
             let _pinned = ids::pinned();
-            let component = Component::read(kind, &mut Reader::new(&bytes))?;
+            // A rewritten container is already in the internal form
+            // (bool + template per slot); Component::read would re-apply
+            // the legacy-wire conversion to it.
+            let component = if kind == component::CONTAINER {
+                Component::Raw(bytes.clone())
+            } else {
+                Component::read(kind, &mut Reader::new(&bytes))?
+            };
             Ok(Some((kind, component, bytes.into())))
         }
         Older::Pinned => {
@@ -925,8 +1011,8 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (1.21.10): an older pot's undecorated side.
-const BRICK: i32 = 1025;
+/// `minecraft:brick` (1.21.8): an older pot's undecorated side.
+const BRICK: i32 = 980;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).
@@ -991,7 +1077,10 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
             };
             let mut w = Writer::new();
             let _pinned = ids::pinned();
-            Template::write(&stack, &mut w);
+            // The internal form is the template form, not the wire form:
+            // Template::write would write a count-first slot for the
+            // pinned 1.21.8.
+            write_template(&stack, &mut w);
             Older::Rewritten(w.data)
         }
         // ItemContainerContents: up to 256 slots, each an optional template (ItemStack.OPTIONAL_STREAM_CODEC
@@ -1015,7 +1104,7 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
             for slot in &slots {
                 w.bool(slot.is_some());
                 if let Some(stack) = slot {
-                    Template::write(stack, &mut w);
+                    write_template(stack, &mut w);
                 }
             }
             Older::Rewritten(w.data)
@@ -1230,11 +1319,18 @@ fn write_value(kind: i32, c: &Component, w: &mut Writer) {
     if !renumbered || !held {
         return c.write(kind, w);
     }
-    let pinned = {
-        let _pinned = ids::pinned();
-        let mut b = Writer::new();
-        c.write(kind, &mut b);
-        b.data
+    // The held bytes are already in the pinned (internal) form: a Raw
+    // value is stored that way, and writing it through Component::write
+    // would convert it back to the wire form (a container's legacy
+    // slots), which value_down cannot read.
+    let pinned = match c {
+        Component::Raw(bytes) => bytes.clone(),
+        _ => {
+            let _pinned = ids::pinned();
+            let mut b = Writer::new();
+            c.write(kind, &mut b);
+            b.data
+        }
     };
     match value_down(kind, quirks, &pinned) {
         Ok(bytes) => w.bytes(&bytes),
@@ -1242,10 +1338,44 @@ fn write_value(kind: i32, c: &Component, w: &mut Writer) {
     }
 }
 
+/// A stack template as the pinned version wrote it: the internal form Raw
+/// values hold (item, count, patch), whatever the wire layout is. Template
+/// is the wire codec and dispatches on the quirks; this is the form the
+/// held bytes are actually in.
+fn read_template(r: &mut Reader) -> Result<Stack> {
+    let item = ids::item(r.varint()?);
+    let count = r.varint()?;
+    let positive = r.count(65536)?;
+    let negative = r.count(65536)?;
+    let mut added = Vec::with_capacity(positive.min(64));
+    for _ in 0..positive {
+        let raw = r.varint()?;
+        if let Some((kind, component, _)) = read_added(raw, r)? {
+            added.push((kind, component));
+        }
+    }
+    let removed = read_removed(r, negative)?;
+    Ok(Stack {
+        item,
+        count,
+        added,
+        removed,
+        wire: WirePatch::default(),
+    })
+}
+
+/// A stack template in the pinned layout (item, count, patch): the form Raw
+/// values hold, whatever the wire layout is.
+fn write_template(s: &Stack, w: &mut Writer) {
+    w.varint(ids::item(s.item));
+    w.varint(s.count);
+    write_patch(s, w);
+}
+
 /// A stack template as the pinned version wrote it.
 fn read_pinned(r: &mut Reader) -> Result<Stack> {
     let _pinned = ids::pinned();
-    Template::read(r)
+    read_template(r)
 }
 
 /// The pinned bytes of an item-holding component (see [`write_value`]) in the numbering written now.
@@ -1436,34 +1566,14 @@ impl Codec<Stack> for Template {
         if ids::quirks().count_first_templates {
             return read_stack(r, false)?.ok_or_else(|| crate::Error::new("empty item template"));
         }
-        let item = ids::item(r.varint()?);
-        let count = r.varint()?;
-        let positive = r.count(65536)?;
-        let negative = r.count(65536)?;
-        let mut added = Vec::with_capacity(positive.min(64));
-        for _ in 0..positive {
-            let raw = r.varint()?;
-            if let Some((kind, component, _)) = read_added(raw, r)? {
-                added.push((kind, component));
-            }
-        }
-        let removed = read_removed(r, negative)?;
-        Ok(Stack {
-            item,
-            count,
-            added,
-            removed,
-            wire: WirePatch::default(),
-        })
+        read_template(r)
     }
     fn write(s: &Stack, w: &mut Writer) {
-        if matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.count_first_templates) {
+        if ids::quirks_written().count_first_templates {
             write_slot(Some(s), w);
             return;
         }
-        w.varint(ids::item(s.item));
-        w.varint(s.count);
-        write_patch(s, w);
+        write_template(s, w);
     }
 }
 
@@ -1751,8 +1861,9 @@ mod tests {
     #[test]
     fn charged_projectiles_are_item_stack_templates() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
-        // is a list of ItemStackTemplate, the item before the count.
-        let bytes = [1, 7, 1, 0, 40, 1, 9, 1, 0, 0];
+        // is a list of ItemStackTemplate, count-first in 1.21.8 (the item
+        // before the count arrived in 1.21.9).
+        let bytes = [1, 7, 1, 0, 40, 1, 1, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::CHARGED_PROJECTILES),
@@ -1766,8 +1877,8 @@ mod tests {
     #[test]
     fn bundle_contents_are_item_stack_templates() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
-        // ItemStackTemplate, as ChargedProjectiles is.
-        let bytes = [1, 7, 1, 0, 41, 1, 9, 32, 0, 0];
+        // ItemStackTemplate, count-first in 1.21.8, as ChargedProjectiles is.
+        let bytes = [1, 7, 1, 0, 41, 1, 32, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::BUNDLE_CONTENTS),
@@ -1811,6 +1922,8 @@ mod tests {
 
     #[test]
     fn profiles_round_trip() {
+        // 1.21.8's profile carries no skin patch on the wire (it arrived in
+        // 1.21.11), so the round-tripped profile has the default skin.
         let mut sword = Stack::new(900, 1);
         sword.added.push((
             component::PROFILE,
@@ -1818,12 +1931,7 @@ mod tests {
                 name: Some("Player53470".into()),
                 id: Some(0x7a5d_6a1a_30d7_4187_88c5_efe9_1201_8922),
                 properties: vec![("textures".into(), "dGV4dHVyZXM=".into(), None)],
-                skin: SkinPatch {
-                    body: Some("minecraft:entity/player/wide/steve".into()),
-                    cape: None,
-                    elytra: None,
-                    slim: Some(true),
-                },
+                skin: SkinPatch::default(),
             }),
         ));
         round::<Option<Stack>, Slot>(Some(sword));
@@ -1832,17 +1940,18 @@ mod tests {
     #[test]
     fn a_partial_profile_decodes_from_the_wire() {
         // count 1, item 1, one added component of kind 61 (profile): a partial
-        // profile with an empty name, a UUID, one unsigned texture property
-        // and an empty skin patch.
+        // profile with an empty name, a UUID and one unsigned texture
+        // property. 1.21.8's profile is optional fields only — no Either
+        // tag, no skin patch (those arrived in 1.21.11).
         let uuid = [
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 61, 0, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 61, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
-        bytes.extend_from_slice(&[1, b'x', 0, 0, 0, 0, 0]);
+        bytes.extend_from_slice(&[1, b'x', 0]);
         let mut r = Reader::new(&bytes);
         let stack = Slot::read(&mut r).unwrap().unwrap();
         assert_eq!(r.remaining(), 0);
@@ -1905,14 +2014,16 @@ mod tests {
         // pinned 1.21.10 numbering, of a chestplate's
         // armour trim (decoded: both holders are references), a banner's patterns
         // (one direct), a pot's sherds and a stew's effects: one server's
-        // inventory, recipe book and advancements had them.
+        // inventory, recipe book and advancements had them. The pot's value is
+        // in 1.21.8's own form (four item ids: brick, angler, brick, skull).
         for (hex, kind) in [
             ("01bd0801002f0502", 47),
             ("01890b01003f02200e000b6d696e6563726166743a7801790b", 63),
-            ("01880301004101810801000001940b0100000001a90b010000", 65),
+            ("01880301004104d407dc0ad407f10a", 65),
             ("01a40801002c020f6412a001", 44),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            ("01bd0801003402", 52),
+            // 1.21.8's instrument is an EitherHolder: the flag, then the holder.
+            ("01bd080100340102", 52),
         ] {
             let bytes: Vec<u8> = (0..hex.len())
                 .step_by(2)

@@ -417,13 +417,13 @@ mod tests {
         let mut w = Writer::new();
         play::AwardStats::write(
             &play::AwardStats {
-                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 898, 2)],
+                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 862, 2)],
             },
             &mut w,
         );
         let out = award_stats(ids, &w.data).unwrap();
         let p = play::AwardStats::read(&mut Reader::new(&out)).unwrap();
-        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 898, 2)]
+        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 862, 2)]
             .into_iter()
             .filter_map(|(k, v, n)| {
                 let v = match k {
@@ -434,7 +434,7 @@ mod tests {
             })
             .collect();
         assert_eq!(p.stats, expected);
-        // diamond: 898 pinned, 926 in 26.2.
+        // diamond: 862 pinned, 926 in 26.2.
         assert!(p.stats.contains(&(1, 926, 2)));
     }
 
@@ -442,18 +442,25 @@ mod tests {
     fn pot_sides_and_container_slots_take_26_2_s_layout_and_ids() {
         use crate::item::{Component, Stack, Template, component};
         let v26_2 = ids();
-        // A pot with a diamond (1012 pinned, 926 in 26.2) at the back, the rest undecorated, and a
-        // container holding three diamonds and an empty slot: their pinned bytes.
+        // A pot with a diamond (862 pinned, 926 in 26.2) at the back, the rest undecorated, and a
+        // container holding three diamonds and an empty slot: their pinned bytes. The pot's Raw
+        // is the internal template form (four optional templates); the container's input is the
+        // pinned wire form (count-first slots), which Component::read converts.
         let mut pot = Writer::new();
         pot.bool(true);
-        Template::write(&Stack::new(1012, 1), &mut pot);
+        pot.varint(862);
+        pot.varint(1);
+        pot.varint(0);
+        pot.varint(0);
         (0..3).for_each(|_| pot.bool(false));
         let mut container = Writer::new();
         container.varint(2);
-        container.bool(true);
-        Template::write(&Stack::new(1012, 3), &mut container);
-        container.bool(false);
-        let mut stack = Stack::new(1012, 1);
+        container.varint(3);
+        container.varint(862);
+        container.varint(0);
+        container.varint(0);
+        container.varint(0);
+        let mut stack = Stack::new(862, 1);
         for (kind, bytes) in [
             (component::POT_DECORATIONS, &pot.data),
             (component::CONTAINER, &container.data),
@@ -471,9 +478,18 @@ mod tests {
             let _up = ids::renumbering(v26_2, Way::Up);
             Template::read(&mut Reader::new(&w.data)).unwrap()
         };
-        assert_eq!(back.item, 1012);
+        assert_eq!(back.item, 862);
+        // Written back for the pin, both come back in the pinned wire form:
+        // the pot as four item ids (the input was its internal template
+        // form), the container as count-first slots (as it went in).
+        let mut pot_wire = Writer::new();
+        pot_wire.varint(4);
+        pot_wire.varint(862);
+        pot_wire.varint(980);
+        pot_wire.varint(980);
+        pot_wire.varint(980);
         for (kind, bytes) in [
-            (component::POT_DECORATIONS, &pot.data),
+            (component::POT_DECORATIONS, &pot_wire.data),
             (component::CONTAINER, &container.data),
         ] {
             let mut b = Writer::new();

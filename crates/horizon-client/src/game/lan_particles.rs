@@ -612,11 +612,8 @@ impl Game<'_> {
         if let Some(options) = self.received_particle(&p.particle, p.center) {
             self.particles.add(&options, p.center, [1.0, 0.0, 0.0]);
         }
-        // A wind charge's burst throws none.
-        if !p.block_particles.is_empty() {
-            self.particles
-                .track_explosion(p.center, p.radius, p.block_count.max(0) as usize);
-        }
+        // 1.21.8's packet carries no radius or block count, so there is no
+        // block-particle trail to track (the scattered particles came in 1.21.9).
         // Entity.pushFromExplosion.
         if let (Some(push), Some(player)) = (p.knockback, self.player.as_mut()) {
             player.velocity = Vec3::new(
@@ -754,17 +751,13 @@ impl Game<'_> {
         &mut self,
         center: [f64; 3],
         small: bool,
-        radius: f32,
-        block_count: usize,
         pushed: Vec<(u32, [f64; 3])>,
     ) {
         // In a guest's turn (their hit on an end crystal or a minecart) the
         // host holds the players (`as_guest`): the packet waits for the turn
         // to end so that it reaches every player, the guest too.
         if self.lan_acting.is_some() && self.lan.is_none() {
-            self.creatures
-                .lan_explosions
-                .push((center, small, radius, block_count, pushed));
+            self.creatures.lan_explosions.push((center, small, pushed));
             return;
         }
         let emitter = if small {
@@ -773,19 +766,15 @@ impl Game<'_> {
             "minecraft:explosion_emitter"
         };
         let sound = "minecraft:entity.generic.explode";
-        if let Some(packet) =
-            self.explosion_packet(center, radius, block_count, emitter, sound, true)
-        {
+        if let Some(packet) = self.explosion_packet(center, emitter, sound) {
             self.send_explosion(packet, &pushed);
         }
     }
 
     /// The explosions guests' turns put off.
     pub(super) fn flush_lan_explosions(&mut self) {
-        for (center, small, radius, block_count, pushed) in
-            std::mem::take(&mut self.creatures.lan_explosions)
-        {
-            self.lan_explode(center, small, radius, block_count, pushed);
+        for (center, small, pushed) in std::mem::take(&mut self.creatures.lan_explosions) {
+            self.lan_explode(center, small, pushed);
         }
     }
 
@@ -798,7 +787,6 @@ impl Game<'_> {
         center: [f64; 3],
         radius: f32,
         sound: &str,
-        block_count: usize,
         pushed: &[(u32, [f64; 3])],
     ) {
         let emitter = if radius < 2.0 {
@@ -806,24 +794,20 @@ impl Game<'_> {
         } else {
             "minecraft:gust_emitter_large"
         };
-        if let Some(packet) =
-            self.explosion_packet(center, radius, block_count, emitter, sound, false)
-        {
+        if let Some(packet) = self.explosion_packet(center, emitter, sound) {
             self.send_explosion(packet, pushed);
         }
     }
 
     /// `ClientboundExplodePacket` without a push, or None while not serving.
     /// The sound is the level's, which the players hear already, so it isn't
-    /// played from the packet.
+    /// played from the packet. 1.21.8's packet carries no radius, block
+    /// count or scattered particles.
     fn explosion_packet(
         &self,
         center: [f64; 3],
-        radius: f32,
-        block_count: usize,
         emitter: &str,
         sound: &str,
-        block_particles: bool,
     ) -> Option<play::Explode> {
         let hub = &self.lan.as_ref()?.hub;
         let particle = |name: &str| {
@@ -832,32 +816,14 @@ impl Game<'_> {
                 data: None,
             })
         };
-        // Level.DEFAULT_EXPLOSION_BLOCK_PARTICLES.
-        let info = |particle, scaling| play::ExplosionParticle {
-            particle,
-            scaling,
-            speed: 1.0,
-            weight: 1,
-        };
-        let block_particles = if block_particles {
-            vec![
-                info(particle("minecraft:poof")?, 0.5),
-                info(particle("minecraft:smoke")?, 1.0),
-            ]
-        } else {
-            Vec::new()
-        };
         Some(play::Explode {
             center,
-            radius,
-            block_count: block_count as i32,
             knockback: None,
             particle: particle(emitter)?,
             sound: match hub.registry_id("minecraft:sound_event", sound) {
                 Some(id) => (id, None),
                 None => (-1, Some((sound.into(), None))),
             },
-            block_particles,
             play_sound: false,
         })
     }

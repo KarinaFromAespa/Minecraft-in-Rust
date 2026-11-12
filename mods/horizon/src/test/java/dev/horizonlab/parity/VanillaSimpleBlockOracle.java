@@ -60,11 +60,15 @@ public final class VanillaSimpleBlockOracle {
  private static BlockPos pos(JsonArray a){return new BlockPos(a.get(0).getAsInt(),a.get(1).getAsInt(),a.get(2).getAsInt());}
  private static String xyz(BlockPos p){return p.getX()+" "+p.getY()+" "+p.getZ();}
  private static final class Chunks {
-  static final PalettedContainerFactory FACTORY;
-  static {
+  // 1.21.8 has no BuiltInRegistries.BIOME and no PalettedContainerFactory:
+  // build the sections directly around a standalone PLAINS holder, and
+  // hand ProtoChunk an empty biome registry it never queries.
+  static LevelChunkSection[] sections(int count) {
    Holder<Biome> biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);
    var ids=new IdMapper<Holder<Biome>>();ids.add(biome);
-   FACTORY=new PalettedContainerFactory(Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY),Blocks.AIR.defaultBlockState(),null,Strategy.createForBiomes(ids),biome,null);
+   var sections=new LevelChunkSection[count];
+   for(int i=0;i<count;i++)sections[i]=new LevelChunkSection(new PalettedContainer<>(Block.BLOCK_STATE_REGISTRY,Blocks.AIR.defaultBlockState(),PalettedContainer.Strategy.SECTION_STATES),new PalettedContainer<>(ids,biome,PalettedContainer.Strategy.SECTION_BIOMES));
+   return sections;
   }
  }
  private static final class World implements InvocationHandler {
@@ -76,7 +80,7 @@ public final class VanillaSimpleBlockOracle {
   final Map<ChunkPos,ProtoChunk> chunks=new HashMap<>();
   ProtoChunk chunk(BlockPos p) {
    event("chunk "+xyz(p));var key=new ChunkPos(p.getX()>>4,p.getZ()>>4);
-   return chunks.computeIfAbsent(key,cp->new ProtoChunk(cp,UpgradeData.EMPTY,LevelHeightAccessor.create(-64,384),Chunks.FACTORY,null){
+   return chunks.computeIfAbsent(key,cp->new ProtoChunk(cp,UpgradeData.EMPTY,Chunks.sections(24),new net.minecraft.world.ticks.ProtoChunkTicks<>(),new net.minecraft.world.ticks.ProtoChunkTicks<>(),LevelHeightAccessor.create(-64,384),new MappedRegistry<>(Registries.BIOME,com.mojang.serialization.Lifecycle.stable()),null){
     @Override public void markPosForPostprocessing(BlockPos position){event("post "+xyz(position));super.markPosForPostprocessing(position);}
    });
   }

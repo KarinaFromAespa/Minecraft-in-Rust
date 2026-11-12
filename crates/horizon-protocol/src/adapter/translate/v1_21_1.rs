@@ -230,11 +230,11 @@ pub(super) fn explosion(session: &Session, payload: &[u8]) -> Result<Vec<u8>> {
     };
     ensure_end(&r)?;
     let mut w = Writer::new();
+    // The pinned 1.21.8 packet carries no radius or block count: they only
+    // choose the particle here.
     play::Explode::write(
         &play::Explode {
             center,
-            radius,
-            block_count: count as i32,
             knockback: Some(knockback),
             particle: if radius >= 2.0 && interaction != 0 {
                 large
@@ -242,7 +242,6 @@ pub(super) fn explosion(session: &Session, payload: &[u8]) -> Result<Vec<u8>> {
                 small
             },
             sound,
-            block_particles: Vec::new(),
             play_sound: true,
         },
         &mut w,
@@ -454,17 +453,17 @@ mod tests {
         for (old, particle, destroy) in [
             (
                 "3ff40000000000004050000000000000c00600000000000040800000020100ffff01013e8000003f000000bf400000011615c104",
-                22,
+                21,
                 true,
             ),
             (
                 "3ff40000000000004050000000000000c00600000000000040800000020100ffff01013e8000003f000000bf400000001615c104",
-                23,
+                22,
                 false,
             ),
             (
                 "3ff40000000000004050000000000000c0060000000000003f800000020100ffff01013e8000003f000000bf400000011615c104",
-                23,
+                22,
                 true,
             ),
         ] {
@@ -472,21 +471,13 @@ mod tests {
             let body = explosion(&session, &bytes(old)).unwrap();
             let p = play::Explode::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.center, [1.25, 64.0, -2.75]);
-            assert_eq!(
-                p.radius,
-                if old
-                    == "3ff40000000000004050000000000000c0060000000000003f800000020100ffff01013e8000003f000000bf400000011615c104"
-                {
-                    1.0
-                } else {
-                    4.0
-                }
-            );
-            assert_eq!(p.block_count, 2);
+            // The old packet's radius and block count do not survive: the
+            // pinned 1.21.8 packet carries neither (the radius only chooses
+            // the particle above).
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
             assert_eq!(
                 (p.particle.id, p.sound.0, p.play_sound),
-                (particle, 646, true)
+                (particle, 615, true)
             );
             if destroy {
                 for pos in [[2, 64, -4], [0, 65, -2]] {

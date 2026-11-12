@@ -1,13 +1,11 @@
 //! 26.1's packets in 1.21.11's layout for a 1.21.11 client: the mirror of `translate`'s `mod v1_21_11`
-//! (1.21.11 to 26.1). Three things differ: a chunk section loses 26.1's fluid count, the time packet becomes
-//! the overworld's day time and whether it runs, and the entity data of an AgeableMob loses the boolean 26.1 added
-//! at index 17. Every other packet is laid out alike, so it passes as it is.
+//! (1.21.11 to 26.1). Two things differ: a chunk section loses 26.1's fluid count, and the time packet becomes
+//! the overworld's day time and whether it runs. Every other packet is laid out alike, so it passes as it is.
+//! (The AgeableMob entity-data shift 26.1 added lives in [`super::ClientSession::pin_entity_data_up`]: the
+//! pinned 1.21.8 layout is already 1.21.11's for entity data up to that shift.)
 //!
-//! The serverbound `interact` needs no step: the pinned version IS 1.21.11, so a 1.21.11 client's interact
-//! (actions 0 interact, 1 attack, 2 interact at a point) is already the pinned packet.
-//!
-//! The 1.21.10 step ([`super::step_1_21_10`]) comes after this one for entity data: entity data is undone
-//! here first, then the older entity types.
+//! The serverbound `interact` needs no step: a 1.21.11 client's interact (actions 0 interact, 1 attack,
+//! 2 interact at a point) is already the pinned packet.
 //!
 //! Done by the caller (`ClientSession::older_layout_down` / `older_layout_up`), not here:
 //! - The `minecraft:world_clock` registry 26.1 sends during configuration, which 1.21.11 lacks, must be
@@ -17,7 +15,6 @@
 //!   (26.1 to 26.2), so the 26.1 step covers them. 1.21.11 lays them out as 26.1 does.
 use crate::{
     Result, State,
-    adapter::translate::v1_21_11::AGEABLE,
     buf::{Codec, Reader, Writer},
     chunk::{self, Paletted, Strategy},
     ids as packet_ids,
@@ -25,8 +22,7 @@ use crate::{
 };
 
 /// The pinned clientbound packet `id` (`payload` in 26.1's layout) in 1.21.11's layout; `None` when laid out
-/// alike. ADD_ENTITY and REMOVE_ENTITIES are alike: the entity kinds [`entity_data`] needs are the caller's to
-/// keep, as translate keeps them in its `Session::kinds`.
+/// alike.
 pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     use packet_ids::play::clientbound as cb;
     Ok(match (state, id) {
@@ -78,30 +74,12 @@ fn chunk(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// Entity data of an AgeableMob, 26.1's layout to 1.21.11's (translate's `entity_data`, reversed): the boolean
-/// 26.1 added after the baby flag goes (index 17), and the entries past it move back down one. `kind` is the
-/// entity's type in the pinned ids, `None` when the caller doesn't know it, which leaves the data as it is.
-pub(super) fn entity_data(kind: Option<i32>, data: &mut play::SetEntityData) {
-    if !kind.is_some_and(|k| AGEABLE.contains(&k)) {
-        return;
-    }
-    data.values.retain(|(index, _, _)| *index != 17);
-    for (index, _, _) in &mut data.values {
-        if *index >= 18 {
-            *index -= 1;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     //! Each packet written here is read back with `translate`'s 1.21.11 reader, which brings it to 26.1's
     //! layout again.
     use super::*;
-    use crate::{
-        adapter::{ServerVersion, session::Session, translate},
-        entity_data::{Value, serializer},
-    };
+    use crate::adapter::{ServerVersion, session::Session, translate};
 
     /// A chunk section of one state and the biomes of one, in 26.1's layout (fluids 0, which translate
     /// writes back, so the round trip is exact).
@@ -212,53 +190,5 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(back, p);
-    }
-
-    #[test]
-    fn an_ageable_mob_s_entity_data_loses_26_1_s_boolean() {
-        // Kind 4 is an AgeableMob. 26.1's index 17 is the boolean it added; 18 was 17 in 1.21.11.
-        let mut d = play::SetEntityData {
-            id: 1,
-            values: vec![
-                (16, serializer::BOOLEAN, Value::Bool(true)),
-                (17, serializer::BOOLEAN, Value::Bool(false)),
-                (18, serializer::BYTE, Value::Byte(3)),
-            ],
-        };
-        entity_data(Some(4), &mut d);
-        assert_eq!(
-            d.values,
-            vec![
-                (16, serializer::BOOLEAN, Value::Bool(true)),
-                (17, serializer::BYTE, Value::Byte(3)),
-            ]
-        );
-        // Not an AgeableMob, or not known: nothing moves.
-        let mut e = play::SetEntityData {
-            id: 1,
-            values: vec![(17, serializer::BOOLEAN, Value::Bool(false))],
-        };
-        entity_data(None, &mut e);
-        entity_data(Some(1), &mut e);
-        assert_eq!(e.values[0].0, 17);
-    }
-
-    #[test]
-    fn ageable_entity_data_goes_up_and_back_down() {
-        let session = Session::new(ServerVersion::V1_21_11);
-        session.kinds.lock().unwrap().insert(1, 4);
-        let original = play::SetEntityData {
-            id: 1,
-            values: vec![
-                (16, serializer::BOOLEAN, Value::Bool(true)),
-                (17, serializer::BYTE, Value::Byte(3)),
-                (20, serializer::INT, Value::Int(7)),
-            ],
-        };
-        let mut d = original.clone();
-        translate::v1_21_11::entity_data(&session, &mut d);
-        assert_eq!(d.values[1].0, 18);
-        entity_data(Some(4), &mut d);
-        assert_eq!(d, original);
     }
 }

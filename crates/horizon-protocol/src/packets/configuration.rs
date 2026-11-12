@@ -44,8 +44,6 @@ packet!(
 );
 packet!(KnownPack { namespace: String => Str, id: String => Str, version: String => Str });
 packet!(SelectKnownPacks { packs: Vec<KnownPack> => List<KnownPack> });
-packet!(CodeOfConduct { text: String => Str });
-
 /// ServerLinks.UntrustedEntry's `type` (Either<KnownLinkType, Component>): a
 /// known link's id, or a custom label component.
 #[derive(Clone, Debug, PartialEq)]
@@ -139,7 +137,7 @@ packet_enum!(Clientbound, crate::ids::configuration::clientbound {
     ClearDialog(Empty) = CLEAR_DIALOG,
     ServerLinks(ServerLinks) = SERVER_LINKS,
     ShowDialog(ShowDialog) = SHOW_DIALOG,
-    CodeOfConduct(CodeOfConduct) = CODE_OF_CONDUCT,
+    // No CodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
 });
 
 /// ClientInformation.
@@ -217,7 +215,7 @@ packet_enum!(Serverbound, crate::ids::configuration::serverbound {
     Pong(Ping) = PONG,
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
-    AcceptCodeOfConduct(Empty) = ACCEPT_CODE_OF_CONDUCT,
+    // No AcceptCodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
     CustomClickAction(CustomClickAction) = CUSTOM_CLICK_ACTION,
 });
 
@@ -282,9 +280,6 @@ mod tests {
                     version: "26.3".into(),
                 }],
             }),
-            Clientbound::CodeOfConduct(CodeOfConduct {
-                text: "Be nice".into(),
-            }),
             Clientbound::ServerLinks(ServerLinks {
                 links: vec![
                     ServerLink {
@@ -311,7 +306,6 @@ mod tests {
             Serverbound::Pong(Ping { id: -3 }),
             Serverbound::ResourcePack(ResourcePackResponse { id: 5, action: 1 }),
             Serverbound::SelectKnownPacks(SelectKnownPacks { packs: vec![] }),
-            Serverbound::AcceptCodeOfConduct(Empty),
             Serverbound::CustomClickAction(CustomClickAction {
                 id: "authme:prejoin-register/submit".into(),
                 payload: Some(Tag::compound([("password", Tag::String("hunter2".into()))])),

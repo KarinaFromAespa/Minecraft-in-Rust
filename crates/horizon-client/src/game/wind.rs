@@ -466,7 +466,6 @@ impl Game<'_> {
         self.post_game_event("minecraft:explode", center, ctx);
         let mut targets = self.wind_positions(center, radius);
         let pushed = self.wind_knockback(center, radius, multiplier, breeze, wind_charge, &targets);
-        let block_count = targets.len();
         // Explosion.canTriggerBlocks: a breeze's charge needs mob griefing.
         if !breeze || self.ui.rules.bool("mob_griefing") {
             // Util.shuffle(list, level.random)
@@ -497,7 +496,7 @@ impl Game<'_> {
         };
         self.particles
             .add(&ParticleOptions::simple(ty), center, [1.0, 0.0, 0.0]);
-        self.lan_wind_burst(center, radius, sound, block_count, &pushed);
+        self.lan_wind_burst(center, radius, sound, &pushed);
         Ok(())
     }
     /// The bursts guests' turns put off.

@@ -35,13 +35,11 @@ pub enum Value {
     Particle(Particle),
     /// A particle list (PARTICLES: a VarInt count, then each particle).
     Particles(Vec<Particle>),
-    /// A `ResolvableProfile` (a mannequin's DATA_PROFILE).
-    Profile(Profile),
 }
-/// `ResolvableProfile.STREAM_CODEC`: the GameProfile a mannequin or player
-/// head resolves — either a full profile (id, name and properties on the
-/// wire) or a partial one (a name and/or id to look up) — followed by a
-/// `PlayerSkin.Patch` of texture overrides.
+/// A resolvable profile: the GameProfile a mannequin or player head resolves.
+/// The pinned 1.21.8 has no RESOLVABLE_PROFILE serializer (it arrived in
+/// 1.21.10), so no wire codec reads or writes this — it is the game's
+/// internal model, filled from NBT (saves) and used for skin resolution.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Profile {
     pub name: Option<String>,
@@ -54,79 +52,6 @@ pub struct Profile {
     pub elytra: Option<String>,
     /// `PlayerModelType`: true is the slim (4px arms) model.
     pub slim: Option<bool>,
-}
-/// `ByteBufCodecs.GAME_PROFILE_PROPERTIES`.
-fn read_properties(r: &mut Reader) -> Result<Vec<crate::packets::login::Property>> {
-    use crate::buf::Codec;
-    let n = r.count(16)?;
-    (0..n)
-        .map(|_| crate::packets::login::Property::read(r))
-        .collect()
-}
-fn write_properties(p: &[crate::packets::login::Property], w: &mut Writer) {
-    use crate::buf::Codec;
-    w.varint(p.len() as i32);
-    p.iter()
-        .for_each(|p| crate::packets::login::Property::write(p, w));
-}
-fn read_profile(r: &mut Reader) -> Result<Profile> {
-    let mut p = Profile::default();
-    // ByteBufCodecs.either: true is the full GameProfile, false a Partial.
-    if r.bool()? {
-        p.uuid = Some(r.uuid()?);
-        p.name = Some(r.string(16)?);
-        p.properties = read_properties(r)?;
-    } else {
-        if r.bool()? {
-            p.name = Some(r.string(16)?);
-        }
-        if r.bool()? {
-            p.uuid = Some(r.uuid()?);
-        }
-        p.properties = read_properties(r)?;
-    }
-    // PlayerSkin.Patch: three optional texture ids, then the model type.
-    if r.bool()? {
-        p.body = Some(r.string(32767)?);
-    }
-    if r.bool()? {
-        p.cape = Some(r.string(32767)?);
-    }
-    if r.bool()? {
-        p.elytra = Some(r.string(32767)?);
-    }
-    if r.bool()? {
-        p.slim = Some(r.bool()?);
-    }
-    Ok(p)
-}
-fn write_profile(p: &Profile, w: &mut Writer) {
-    let full = p.uuid.is_some() && p.name.is_some();
-    w.bool(full);
-    if full {
-        w.uuid(p.uuid.unwrap_or(0));
-        w.string(p.name.as_deref().unwrap_or(""));
-    } else {
-        w.bool(p.name.is_some());
-        if let Some(name) = &p.name {
-            w.string(name);
-        }
-        w.bool(p.uuid.is_some());
-        if let Some(uuid) = p.uuid {
-            w.uuid(uuid);
-        }
-    }
-    write_properties(&p.properties, w);
-    for texture in [&p.body, &p.cape, &p.elytra] {
-        w.bool(texture.is_some());
-        if let Some(texture) = texture {
-            w.string(texture);
-        }
-    }
-    w.bool(p.slim.is_some());
-    if let Some(slim) = p.slim {
-        w.bool(slim);
-    }
 }
 /// One `ParticleTypes.STREAM_CODEC` value: the `minecraft:particle_type` id,
 /// then the data its type carries (26.3 registry order).
@@ -207,13 +132,13 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 1.21.11: block,
+        // `minecraft:particle_type` registry order as of 1.21.8: block,
         // block_marker, falling_dust, dust_pillar and block_crumble carry a
         // block state; entity_effect, tinted_leaves and flash a colour.
         let data = match id {
-            1 | 2 | 29 | 109 | 113 => Some(ParticleData::State(ids::block_state(r.varint()?))),
-            21 | 36 | 42 => Some(ParticleData::Color(r.i32()?)),
-            14 => {
+            1 | 2 | 28 | 108 | 112 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            20 | 35 | 41 => Some(ParticleData::Color(r.i32()?)),
+            13 => {
                 let color = if ids::quirks().components_before_1_21_2 {
                     legacy_rgb(r)?
                 } else {
@@ -221,7 +146,7 @@ impl Particle {
                 };
                 Some(ParticleData::ColorScale(color, r.f32()?))
             }
-            15 => {
+            14 => {
                 let legacy = ids::quirks().components_before_1_21_2;
                 let from = if legacy { legacy_rgb(r)? } else { r.i32()? };
                 let scale = if ids::quirks().legacy_item_nbt {
@@ -240,7 +165,7 @@ impl Particle {
                     },
                 ))
             }
-            16 | 46 => {
+            15 | 45 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -248,10 +173,10 @@ impl Particle {
                     Some(ParticleData::ColorPower(color, r.f32()?))
                 }
             }
-            8 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
-            8 | 38 => Some(ParticleData::Scalar(r.f32()?)),
-            103 => Some(ParticleData::Delay(r.varint()?)),
-            49 => {
+            7 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
+            7 | 37 => Some(ParticleData::Scalar(r.f32()?)),
+            102 => Some(ParticleData::Delay(r.varint()?)),
+            48 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -261,8 +186,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            47 => Some(ParticleData::Item(Template::read(r)?)),
-            48 => {
+            46 => Some(ParticleData::Item(Template::read(r)?)),
+            47 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -289,7 +214,7 @@ impl Particle {
                 })
             }
             // Every other registered particle carries no data. (The geyser
-            // particles a later release adds do not exist in 1.21.11.)
+            // particles a later release adds do not exist in 1.21.8.)
             _ => None,
         };
         Ok(Particle { id, data })
@@ -297,6 +222,22 @@ impl Particle {
     pub fn write(&self, w: &mut Writer) {
         w.varint(self.id);
         let Some(data) = &self.data else { return };
+        // Through 1.21.8 the spell particles carried no options at all: a
+        // target that still reads them that way gets the id alone. The
+        // effect pair are the only ColorPower carriers; dragon breath is the
+        // Scalar one without options (sculk charge keeps its scalar), so it
+        // is matched by the target's own id for it.
+        if ids::quirks_written().simple_spell_particles {
+            let dragon_breath = match ids::active() {
+                Some((ids, ids::Way::Down)) => ids.particle_type.down(7),
+                _ => Some(7),
+            };
+            match data {
+                ParticleData::ColorPower(..) => return,
+                ParticleData::Scalar(_) if Some(self.id) == dragon_breath => return,
+                _ => {}
+            }
+        }
         match data {
             ParticleData::State(s) | ParticleData::Delay(s) => w.varint(*s),
             ParticleData::Color(c) | ParticleData::Geyser(c) => w.i32(*c),
@@ -344,7 +285,11 @@ fn legacy_rgb(r: &mut Reader) -> Result<i32> {
     Ok((255_i32 << 24) | (red << 16) | (green << 8) | blue)
 }
 
-/// Serializer ids in EntityDataSerializers registration order.
+/// Serializer ids in EntityDataSerializers registration order, as of the
+/// pinned 1.21.8 (from the named jar's `<clinit>` register calls, not the
+/// field declaration order). 1.21.8 still has COMPOUND_TAG (16) and no sound
+/// variants, copper golem states, resolvable profile, humanoid arm or dye
+/// colour — those arrived in 1.21.9 and later.
 pub mod serializer {
     pub const BYTE: i32 = 0;
     pub const INT: i32 = 1;
@@ -362,34 +307,25 @@ pub mod serializer {
     pub const OPTIONAL_LIVING_ENTITY_REFERENCE: i32 = 13;
     pub const BLOCK_STATE: i32 = 14;
     pub const OPTIONAL_BLOCK_STATE: i32 = 15;
-    pub const PARTICLE: i32 = 16;
-    pub const PARTICLES: i32 = 17;
-    pub const VILLAGER_DATA: i32 = 18;
-    pub const OPTIONAL_UNSIGNED_INT: i32 = 19;
-    pub const POSE: i32 = 20;
-    pub const CAT_VARIANT: i32 = 21;
-    pub const CAT_SOUND_VARIANT: i32 = 22;
+    pub const COMPOUND_TAG: i32 = 16;
+    pub const PARTICLE: i32 = 17;
+    pub const PARTICLES: i32 = 18;
+    pub const VILLAGER_DATA: i32 = 19;
+    pub const OPTIONAL_UNSIGNED_INT: i32 = 20;
+    pub const POSE: i32 = 21;
+    pub const CAT_VARIANT: i32 = 22;
     pub const COW_VARIANT: i32 = 23;
-    pub const COW_SOUND_VARIANT: i32 = 24;
-    pub const WOLF_VARIANT: i32 = 25;
-    pub const WOLF_SOUND_VARIANT: i32 = 26;
-    pub const FROG_VARIANT: i32 = 27;
-    pub const PIG_VARIANT: i32 = 28;
-    pub const PIG_SOUND_VARIANT: i32 = 29;
-    pub const CHICKEN_VARIANT: i32 = 30;
-    pub const CHICKEN_SOUND_VARIANT: i32 = 31;
-    pub const ZOMBIE_NAUTILUS_VARIANT: i32 = 32;
-    pub const OPTIONAL_GLOBAL_POS: i32 = 33;
-    pub const PAINTING_VARIANT: i32 = 34;
-    pub const SNIFFER_STATE: i32 = 35;
-    pub const ARMADILLO_STATE: i32 = 36;
-    pub const COPPER_GOLEM_STATE: i32 = 37;
-    pub const WEATHERING_COPPER_STATE: i32 = 38;
-    pub const VECTOR3: i32 = 39;
-    pub const QUATERNION: i32 = 40;
-    pub const RESOLVABLE_PROFILE: i32 = 41;
-    pub const HUMANOID_ARM: i32 = 42;
-    pub const DYE_COLOR: i32 = 43;
+    pub const WOLF_VARIANT: i32 = 24;
+    pub const WOLF_SOUND_VARIANT: i32 = 25;
+    pub const FROG_VARIANT: i32 = 26;
+    pub const PIG_VARIANT: i32 = 27;
+    pub const CHICKEN_VARIANT: i32 = 28;
+    pub const OPTIONAL_GLOBAL_POS: i32 = 29;
+    pub const PAINTING_VARIANT: i32 = 30;
+    pub const SNIFFER_STATE: i32 = 31;
+    pub const ARMADILLO_STATE: i32 = 32;
+    pub const VECTOR3: i32 = 33;
+    pub const QUATERNION: i32 = 34;
 }
 fn read_value(kind: i32, r: &mut Reader) -> Result<Option<Value>> {
     use serializer::*;
@@ -447,19 +383,16 @@ fn read_value(kind: i32, r: &mut Reader) -> Result<Option<Value>> {
             )
         }
         // VarInt-encoded: direction, block states, optional ints, pose, the
-        // holder-registry variants (cat to zombie nautilus, painting) and the
-        // enum states (sniffer to weathering copper), arm, dye.
+        // holder-registry variants (cat to chicken, painting) and the enum
+        // states (sniffer, armadillo).
         // Block states as an older server numbers them (the optional one sends air, 0, for none).
         BLOCK_STATE | OPTIONAL_BLOCK_STATE => Value::Id(ids::block_state(r.varint()?)),
         DIRECTION
         | OPTIONAL_UNSIGNED_INT
         | POSE
-        | CAT_VARIANT..=ZOMBIE_NAUTILUS_VARIANT
-        | PAINTING_VARIANT..=WEATHERING_COPPER_STATE
-        | HUMANOID_ARM
-        | DYE_COLOR => Value::Id(r.varint()?),
+        | CAT_VARIANT..=CHICKEN_VARIANT
+        | PAINTING_VARIANT..=ARMADILLO_STATE => Value::Id(r.varint()?),
         PARTICLE => Value::Particle(Particle::read(r)?),
-        RESOLVABLE_PROFILE => Value::Profile(read_profile(r)?),
         PARTICLES => {
             let n = r.count(65536)?;
             let mut list = Vec::with_capacity(n.min(64));
@@ -507,7 +440,6 @@ fn write_value(kind: i32, v: &Value, w: &mut Writer) {
             w.varint(list.len() as i32);
             list.iter().for_each(|p| p.write(w));
         }
-        Value::Profile(p) => write_profile(p, w),
     }
     let _ = kind;
 }
@@ -523,9 +455,12 @@ impl Codec<Vec<(u8, i32, Value)>> for EntityData {
                 return Ok(out);
             }
             let wire_kind = r.varint()?;
-            if wire_kind == 16 && ids::quirks().shoulder_parrots_as_nbt {
-                // Player.DATA_SHOULDER_LEFT/RIGHT: only parrots occupy shoulders in vanilla. 1.21.9
-                // replaced their entity NBT with an optional Parrot.Variant (0 = absent, id + 1).
+            // Serializer 16 is COMPOUND_TAG in the pinned 1.21.8 and in every
+            // version the client can connect to (all pre-1.21.9): only the
+            // player shoulders use it, for their parrots. 1.21.9 replaced the
+            // entity NBT with an optional Parrot.Variant (0 = absent, id + 1),
+            // which is the form the game reads — so the tag is converted here.
+            if wire_kind == serializer::COMPOUND_TAG {
                 let tag = r.nbt()?;
                 let parrot = matches!(tag.get("id"), Some(Tag::String(id)) if id.to_string_lossy() == "minecraft:parrot");
                 let variant = match tag.get("Variant") {
@@ -603,7 +538,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 48);
+                assert_eq!(p.id, 47); // minecraft:vibration is particle 47 in 1.21.8.
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -730,9 +665,9 @@ mod tests {
         ] {
             let ids = version.ids().unwrap();
             for (pinned, expected) in [
-                (8, ParticleData::Scalar(1.0)),
-                (16, ParticleData::ColorPower(-1, 1.0)),
-                (46, ParticleData::ColorPower(-1, 1.0)),
+                (7, ParticleData::Scalar(1.0)),
+                (15, ParticleData::ColorPower(-1, 1.0)),
+                (45, ParticleData::ColorPower(-1, 1.0)),
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
@@ -753,7 +688,7 @@ mod tests {
         use crate::adapter::{ServerVersion, ids::Way};
         let ids = ServerVersion::V1_21_1.ids().unwrap();
         let mut w = Writer::new();
-        w.varint(ids.particle_type.down(15).unwrap());
+        w.varint(ids.particle_type.down(14).unwrap());
         for f in [0.25, 0.5, 0.75, 1.0, 0.0, 0.5, 2.0] {
             w.f32(f);
         }
@@ -838,29 +773,31 @@ mod tests {
         EntityData::write(&entries, &mut w);
         #[rustfmt::skip]
         let bytes = [
-            11, 39, 0x3F, 0x80, 0, 0, 0xC0, 0, 0, 0, 0x3E, 0x80, 0, 0,
-            13, 40, 0, 0, 0, 0, 0, 0, 0, 0, 0x3F, 0x35, 0x04, 0xF3, 0x3F, 0x35, 0x04, 0xF3,
+            11, 33, 0x3F, 0x80, 0, 0, 0xC0, 0, 0, 0, 0x3E, 0x80, 0, 0,
+            13, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0x3F, 0x35, 0x04, 0xF3, 0x3F, 0x35, 0x04, 0xF3,
             0xFF,
         ];
         assert_eq!(w.data, bytes);
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (1.21.11 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (1.21.8 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes. (The geyser shapes have no 1.21.11 particle type; they
+    /// still decodes. (The geyser shapes have no 1.21.8 particle type; they
     /// are covered by the 26.3 tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
         let all = [
             (1, Some(ParticleData::State(2))),
-            (8, Some(ParticleData::Scalar(1.0))),
-            (14, Some(ParticleData::ColorScale(0xff0000, 1.5))),
-            (15, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            (16, Some(ParticleData::ColorPower(-1, 2.0))),
-            (21, Some(ParticleData::Color(0x7f00ff00))),
+            (7, Some(ParticleData::Scalar(1.0))),
+            (13, Some(ParticleData::ColorScale(0xff0000, 1.5))),
+            (14, Some(ParticleData::ColorScale2(1, 2, 0.75))),
+            // 1.21.8 carries no spell-particle options: the effect's colour
+            // and power are the read defaults (-1, 1.0), not wire data.
+            (15, Some(ParticleData::ColorPower(-1, 1.0))),
+            (20, Some(ParticleData::Color(0x7f00ff00))),
             (
-                47,
+                46,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -875,14 +812,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                48,
+                47,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                48,
+                47,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -891,8 +828,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (49, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (103, Some(ParticleData::Delay(6))),
+            (48, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
+            (102, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });
@@ -915,55 +852,6 @@ mod tests {
             vec![
                 (11, serializer::PARTICLES, Value::Particles(Vec::new())),
                 (12, serializer::BYTE, Value::Byte(4)),
-            ]
-        );
-    }
-
-    /// RESOLVABLE_PROFILE (a mannequin's DATA_PROFILE): both ResolvableProfile
-    /// contents round-trip, and an entry after it still decodes.
-    #[test]
-    fn resolvable_profile_round_trips() {
-        use crate::packets::login::Property;
-        let full = Profile {
-            name: Some("Gommunity".into()),
-            uuid: Some(0x0123_4567_89AB_CDEF_0123_4567_89AB_CDEF),
-            properties: vec![Property {
-                name: "textures".into(),
-                value: "e30=".into(),
-                signature: Some("sig".into()),
-            }],
-            body: Some("minecraft:entity/player/wide/steve".into()),
-            cape: None,
-            elytra: None,
-            slim: Some(false),
-        };
-        let partial = Profile {
-            name: Some("Gommunity".into()),
-            ..Profile::default()
-        };
-        let mut w = Writer::new();
-        EntityData::write(
-            &vec![
-                (
-                    17,
-                    serializer::RESOLVABLE_PROFILE,
-                    Value::Profile(full.clone()),
-                ),
-                (
-                    17,
-                    serializer::RESOLVABLE_PROFILE,
-                    Value::Profile(partial.clone()),
-                ),
-                (18, serializer::BOOLEAN, Value::Bool(true)),
-            ],
-            &mut w,
-        );
-        assert_eq!(
-            EntityData::read(&mut Reader::new(&w.data)).unwrap(),
-            vec![
-                (17, serializer::RESOLVABLE_PROFILE, Value::Profile(full)),
-                (17, serializer::RESOLVABLE_PROFILE, Value::Profile(partial)),
-                (18, serializer::BOOLEAN, Value::Bool(true)),
             ]
         );
     }

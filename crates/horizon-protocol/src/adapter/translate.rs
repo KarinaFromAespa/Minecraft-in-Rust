@@ -201,6 +201,16 @@ pub fn clientbound(
         }
     }
     let payload = before.as_deref().unwrap_or(payload);
+    // The steps bring an older server's packets to 26.2's layout; the pinned
+    // 1.21.8 wire lays five of them out differently, so they are stripped to
+    // the pinned layout before the arms below decode them.
+    let payload = match pin_layout(state, id, payload)? {
+        Some(stripped) => {
+            before = Some(stripped);
+            before.as_deref().unwrap()
+        }
+        None => payload,
+    };
     let out = match (state, id) {
         (State::Configuration, packet_ids::configuration::clientbound::UPDATE_TAGS) => {
             let mut p = configuration::Clientbound::decode(id, payload)?;
@@ -251,10 +261,9 @@ pub fn clientbound(
         (State::Play, cb::UPDATE_ADVANCEMENTS) => advancements(ids, payload)?,
         (State::Play, cb::LEVEL_PARTICLES) => particles(ids, payload)?,
         (State::Play, cb::EXPLODE) => {
-            // 26.3 adds whether the blast's sound plays, last; 26.2 always played it.
-            let mut body = payload.to_vec();
-            body.push(1);
-            redecode(ids, id, &body)?
+            // The strip above already wrote the play-sound flag 26.2's packet
+            // lacks (its sound always plays); the ids are renumbered here.
+            redecode(ids, id, payload)?
         }
         (State::Play, cb::MOVE_ENTITY_POS) => move_entity(payload, true, false)?,
         (State::Play, cb::MOVE_ENTITY_POS_ROT) => move_entity(payload, true, true)?,
@@ -348,6 +357,7 @@ pub fn clientbound(
                     v1_21_10::entity_data(session, d);
                 }
                 v1_21_11::entity_data(session, d);
+                pin_entity_data(session, d);
             }
             strip_id(p.encode())
         }
@@ -369,6 +379,143 @@ pub fn clientbound(
         _ => return Ok(Some((id, before.or(normalized_text)))),
     };
     Ok(Some((id, Some(out))))
+}
+
+/// The five packets 1.21.9 reshaped, brought from 26.2's layout (what the
+/// steps above produce) to the pinned 1.21.8 wire. `None` when the packet
+/// is laid out alike. Velocities quantize twice (shorts → LpVec3 → shorts)
+/// on the round trip, by at most one short unit (1/8000 of a block per
+/// tick); the steps' tests assert within 0.001.
+fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
+    use crate::{
+        buf::{LpVec3, Opt, Vec3d},
+        entity_data::Particle,
+    };
+    use packet_ids::play::clientbound as cb;
+    if state != State::Play {
+        return Ok(None);
+    }
+    let mut r = Reader::new(payload);
+    let mut w = Writer::new();
+    match id {
+        cb::ADD_ENTITY => {
+            let e = play::AddEntity {
+                id: r.varint()?,
+                uuid: r.uuid()?,
+                kind: r.varint()?,
+                position: Vec3d::read(&mut r)?,
+                velocity: LpVec3::read(&mut r)?,
+                pitch: r.i8()?,
+                yaw: r.i8()?,
+                head_yaw: r.i8()?,
+                data: r.varint()?,
+            };
+            play::AddEntity::write(&e, &mut w);
+        }
+        cb::SET_ENTITY_MOTION => {
+            let m = play::SetEntityMotion {
+                id: r.varint()?,
+                velocity: LpVec3::read(&mut r)?,
+            };
+            play::SetEntityMotion::write(&m, &mut w);
+        }
+        cb::PLAYER_ROTATION => {
+            let yaw = r.f32()?;
+            let _relative_yaw = r.bool()?;
+            let pitch = r.f32()?;
+            let _relative_pitch = r.bool()?;
+            play::PlayerRotation::write(&play::PlayerRotation { yaw, pitch }, &mut w);
+        }
+        cb::SET_DEFAULT_SPAWN_POSITION => {
+            let _dimension = r.string(32767)?;
+            let p = play::SetDefaultSpawnPosition {
+                pos: crate::buf::Pos::read(&mut r)?,
+                yaw: r.f32()?,
+            };
+            let _pitch = r.f32()?;
+            play::SetDefaultSpawnPosition::write(&p, &mut w);
+        }
+        cb::EXPLODE => {
+            let center = Vec3d::read(&mut r)?;
+            let _radius = r.f32()?;
+            let _block_count = r.i32()?;
+            let knockback = <Opt<Vec3d>>::read(&mut r)?;
+            let particle = Particle::read(&mut r)?;
+            let sound = play::SoundHolder::read(&mut r)?;
+            let n = r.varint()?;
+            for _ in 0..n {
+                Particle::read(&mut r)?;
+                r.f32()?;
+                r.f32()?;
+                r.varint()?;
+            }
+            // 26.2's packet has no sound flag: its sound always plays.
+            play::Explode::write(
+                &play::Explode {
+                    center,
+                    knockback,
+                    particle,
+                    sound,
+                    play_sound: true,
+                },
+                &mut w,
+            );
+        }
+        _ => return Ok(None),
+    }
+    Ok(Some(w.data))
+}
+
+/// The player entity-data indexes and types, brought from 26.2's layout
+/// back to the pinned 1.21.8 numbering: the inverse of the three steps the
+/// arm above ran, in reverse order — 26.1's ageable shift, 1.21.11's types,
+/// then the Avatar move of 1.21.9. The shoulder data (19, 20) is dropped:
+/// 1.21.8 sends it as an NBT, not entity data (as the old down-step did).
+fn pin_entity_data(session: &Session, data: &mut play::SetEntityData) {
+    use super::pinned_ids::entity_type as entity;
+    use crate::entity_data::{Value, serializer};
+    let Some(kind) = session.kinds.lock().unwrap().get(&data.id).copied() else {
+        return;
+    };
+    // Undo 26.1's ageable shift: the boolean 26.1 added at 17 goes, the
+    // entries past it move back down one.
+    if v1_21_11::AGEABLE.contains(&kind) {
+        data.values.retain(|(index, _, _)| *index != 17);
+        for (index, _, _) in &mut data.values {
+            if *index >= 18 {
+                *index -= 1;
+            }
+        }
+    }
+    // Undo 1.21.11's types: a bee's and a wolf's anger end back to INT, a
+    // player's main arm back to BYTE.
+    for (index, ser, value) in &mut data.values {
+        match (kind, *index, &*value) {
+            (v1_21_10::BEE, 18, Value::Long(v)) | (v1_21_10::WOLF, 21, Value::Long(v)) => {
+                *value = Value::Int((*v).clamp(i64::from(i32::MIN), i64::from(i32::MAX)) as i32);
+                *ser = serializer::INT;
+            }
+            (v1_21_10::PLAYER, 15, Value::Id(v)) => {
+                *value = Value::Byte(i8::try_from(*v).unwrap_or(0));
+                *ser = serializer::BYTE;
+            }
+            _ => {}
+        }
+    }
+    // Undo the Avatar move.
+    if kind == entity::PLAYER {
+        data.values
+            .retain(|(index, _, _)| !matches!(*index, 19 | 20));
+        for (index, _, _) in &mut data.values {
+            *index = match *index {
+                15 => 18, // main arm
+                16 => 17, // skin mask
+                17 => 15, // absorption
+                18 => 16, // score
+                other => other,
+            };
+        }
+    }
 }
 
 pub(super) use super::pinned_ids::entity_type as packet_ids_entity;
@@ -955,7 +1102,11 @@ pub(crate) mod v1_21_10 {
     // `horse_screen_open` (the id tables pair them): only entity data needs a step.
     use crate::entity_data::{Value, serializer};
 
-    pub(crate) use crate::adapter::pinned_ids::entity_type::{BEE, MANNEQUIN, PLAYER, WOLF};
+    pub(crate) use crate::adapter::pinned_ids::entity_type::{BEE, PLAYER, WOLF};
+
+    /// HUMANOID_ARM in 1.21.11's EntityDataSerializers order (the last of its
+    /// 39): the pinned 1.21.8 has no such serializer — its main arm is a BYTE.
+    const HUMANOID_ARM_1_21_11: i32 = 38;
 
     /// 1.21.11 made the bee's and the wolf's anger end a LONG (an INT before) and an avatar's main arm a
     /// HUMANOID_ARM (a BYTE before, with the same 0 left, 1 right). Indexes as 1.21.10 numbers them.
@@ -969,9 +1120,11 @@ pub(crate) mod v1_21_10 {
                     *value = Value::Long(i64::from(*v));
                     *ser = serializer::LONG;
                 }
-                (PLAYER | MANNEQUIN, 15, Value::Byte(v)) => {
+                // No mannequin arm: the pin (1.21.8) has no mannequin, so no
+                // tracked entity ever carries its kind in pinned ids.
+                (PLAYER, 15, Value::Byte(v)) => {
                     *value = Value::Id(i32::from(*v));
-                    *ser = serializer::HUMANOID_ARM;
+                    *ser = HUMANOID_ARM_1_21_11;
                 }
                 _ => {}
             }
@@ -1000,7 +1153,7 @@ pub(crate) mod v1_21_10 {
             entity_data(&session, &mut player);
             assert_eq!(
                 player.values,
-                vec![(15, serializer::HUMANOID_ARM, Value::Id(1))]
+                vec![(15, HUMANOID_ARM_1_21_11, Value::Id(1))]
             );
         }
     }
@@ -1915,28 +2068,6 @@ pub(crate) mod client_layout_v1_21_8 {
         Ok(w.data)
     }
 
-    /// Player entity data: 1.21.10's Avatar has the main hand (15) and the displayed skin parts (16), and the
-    /// player's additional hearts (17) and score (18) follow them. 1.21.8 had the hearts and the score at 15 and
-    /// 16 and the skin parts and the main hand at 17 and 18. The shoulder data (19, 20) is an NBT in 1.21.8,
-    /// which is where decoding stops. `session` knows the entity's kind; other kinds are left alone.
-    // TODO(step1.21.8): translate the shoulder data into 1.21.10's Optional VarInt instead of dropping it.
-    pub fn entity_data(session: &Session, data: &mut play::SetEntityData) {
-        let Some(kind) = session.kinds.lock().unwrap().get(&data.id).copied() else {
-            return;
-        };
-        if kind != v1_21_10::PLAYER {
-            return;
-        }
-        for (index, _, _) in &mut data.values {
-            *index = match *index {
-                15 => 17,
-                16 => 18,
-                17 => 16,
-                18 => 15,
-                other => other,
-            };
-        }
-    }
 }
 
 /// 1.20.6 to 1.21 (protocol 766 to 767): the mirror of `client_session::step_1_20_6`. Clientbound, from the two
@@ -2461,26 +2592,26 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11 is one protocol above the pin: its entities map down to the
-        // 1.21.10 ids, and one the pin lacks (the nautilus) is dropped.
+        // 1.21.11 is two protocols above the pin: its entities map down to the
+        // 1.21.8 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
-            (88, 0, None), // nautilus: no 1.21.10 counterpart
-            (153, 0, Some((149, 0))), // zombie villager
+            (88, 0, None), // nautilus: no 1.21.8 counterpart
+            (153, 0, Some((147, 0))), // zombie villager
             (0, 0, Some((0, 0))),
-            (51, 1381, Some((50, 1381))), // falling block, with a state that maps to itself
+            (51, 1381, Some((49, 1381))), // falling block, with a state that maps to itself
         ] {
-            let packet = play::Clientbound::AddEntity(play::AddEntity {
-                id: 7,
-                uuid: 1,
-                kind,
-                position: [0.0; 3],
-                velocity: [0.0; 3],
-                pitch: 0,
-                yaw: 0,
-                head_yaw: 0,
-                data,
-            });
-            let body = strip_id(packet.encode());
+            // 1.21.11's layout, written by hand: the pinned codec is 1.21.8's now.
+            let mut w = Writer::new();
+            w.varint(7);
+            w.uuid(1);
+            w.varint(kind);
+            crate::buf::Vec3d::write(&[0.0; 3], &mut w);
+            crate::buf::LpVec3::write(&[0.0; 3], &mut w);
+            w.i8(0);
+            w.i8(0);
+            w.i8(0);
+            w.varint(data);
+            let body = w.data;
             let translated = clientbound(
                 &session,
                 State::Play,
@@ -2507,10 +2638,9 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_block_entity_update_is_dropped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11's block entities are all in the pin too, with the same ids;
-        // the drop path is exercised by the 1.20.3 tests instead. The
-        // boundary id passes through unchanged.
-        for (kind, expected) in [(48, Some(48)), (1, Some(1))] {
+        // 1.21.11's copper golem statue (48, its last type) has no 1.21.8
+        // counterpart and is dropped; the chest (1) passes through unchanged.
+        for (kind, expected) in [(48, None), (1, Some(1))] {
             let packet = play::Clientbound::BlockEntityData(play::BlockEntityData {
                 pos: [1, 2, 3],
                 kind,
@@ -2609,14 +2739,14 @@ mod tests {
     fn a_26_2_chunk_section_on_the_global_palette_is_renumbered() {
         let ids = ids();
         // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits —
-        // the width both numberings use (1.21.11 has 29,671 states, 26.2 has 32,366).
+        // the width both numberings use (1.21.8 has 27,946 states, 26.2 has 32,366).
         let values: Vec<i32> = (0..4096).map(|i| 13000 + i).collect();
         let old = Paletted::from_values(&values, Strategy::Blocks, 15);
         assert_eq!(old.bits, 15);
         let new = renumber_states(ids, &old, 15);
         assert_eq!(new.bits, 15);
-        // oak_slab type=top waterlogged=true is 13330 in 26.2, 13128 in 1.21.11.
-        assert_eq!(new.get(330), 13128);
+        // oak_slab type=top waterlogged=true is 13330 in 26.2, 12051 in 1.21.8.
+        assert_eq!(new.get(330), 12051);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 

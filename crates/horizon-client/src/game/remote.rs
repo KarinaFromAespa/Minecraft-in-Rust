@@ -2401,7 +2401,6 @@ impl Game<'_> {
                 }
                 Event::ShowDialog(dialog) => self.show_dialog(&dialog),
                 Event::ClearDialog => self.clear_dialog(),
-                Event::CodeOfConduct(text) => self.handle_code_of_conduct(text),
                 Event::DecodeError(e) => {
                     if let Some(r) = self.remote.as_mut() {
                         r.decode_errors += 1;
@@ -3787,17 +3786,9 @@ impl Game<'_> {
             }
             C::PlayerPosition(p) => self.remote_teleport(&p)?,
             C::PlayerRotation(p) => {
-                self.yaw = if p.relative_yaw {
-                    self.yaw + p.yaw
-                } else {
-                    p.yaw
-                };
-                self.pitch = (if p.relative_pitch {
-                    self.pitch + p.pitch
-                } else {
-                    p.pitch
-                })
-                .clamp(-90.0, 90.0);
+                // 1.21.8's rotation is always absolute; the relative flags came in 1.21.9.
+                self.yaw = p.yaw;
+                self.pitch = p.pitch.clamp(-90.0, 90.0);
                 self.snap_player_model_pitch();
             }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
@@ -5244,8 +5235,7 @@ impl Game<'_> {
                     self.cooldowns.add(group, p.duration);
                 }
             }
-            // ClientPacketListener.handleGameTestHighlightPos.
-            C::GameTestHighlightPos(p) => self.highlight_test_pos(p.absolute, p.relative),
+            // No GameTestHighlightPos: 1.21.8 has no game_test_highlight_pos packet.
             // ClientPacketListener.handleTestInstanceBlockStatus.
             C::TestInstanceBlockStatus(p) => {
                 self.block_editor_status(remote_text(&p.status), p.size);
@@ -5573,9 +5563,10 @@ impl Game<'_> {
             C::OpenBook(p) => self.remote_open_book(p.hand),
             // handleSetSpawn: ClientLevel.setRespawnData, which spawn compasses point at.
             C::SetDefaultSpawnPosition(p) => {
-                let [x, y, z] = p.pos.pos;
-                self.spawn = (p.pos.dimension == "minecraft:overworld")
-                    .then(|| Vec3::new(f64::from(x) + 0.5, f64::from(y), f64::from(z) + 0.5));
+                let [x, y, z] = p.pos;
+                // 1.21.8 sends no dimension: the packet only ever means the world
+                // spawn, which is the Overworld's.
+                self.spawn = Some(Vec3::new(f64::from(x) + 0.5, f64::from(y), f64::from(z) + 0.5));
                 // 1.20.2 handleSetSpawn notified ReceivingLevelScreen here; the later
                 // LEVEL_CHUNKS_LOAD_START game event did not exist yet.
                 if let Some(r) = self.remote.as_mut()

@@ -835,7 +835,6 @@ fn join(o: &Options, name: &str) -> Result<Connection, String> {
             cb::SELECT_KNOWN_PACKS
             | cb::KEEP_ALIVE
             | cb::PING
-            | cb::CODE_OF_CONDUCT
             | cb::COOKIE_REQUEST
             | cb::DISCONNECT
             | cb::FINISH_CONFIGURATION => {
@@ -847,9 +846,6 @@ fn join(o: &Options, name: &str) -> Result<Connection, String> {
                         configuration::Serverbound::KeepAlive(p)
                     }
                     configuration::Clientbound::Ping(p) => configuration::Serverbound::Pong(p),
-                    configuration::Clientbound::CodeOfConduct(_) => {
-                        configuration::Serverbound::AcceptCodeOfConduct(Empty)
-                    }
                     configuration::Clientbound::CookieRequest(p) => {
                         configuration::Serverbound::CookieResponse(configuration::CookieResponse {
                             key: p.key,

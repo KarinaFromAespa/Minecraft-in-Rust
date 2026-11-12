@@ -122,8 +122,10 @@ public final class VanillaMobDataExporter {
                 for (Keyframe k : channel.keyframes()) {
                     var f = new JsonArray();
                     f.add(k.timestamp());
-                    f.add(vector(k.preTarget()));
-                    f.add(vector(k.postTarget()));
+                    // 1.21.8's Keyframe has one target; the pre/post split
+                    // arrived in 1.21.9, so both are the same target here.
+                    f.add(vector(k.target()));
+                    f.add(vector(k.target()));
                     f.add(k.interpolation() == AnimationChannel.Interpolations.CATMULLROM ? "catmullrom" : "linear");
                     frames.add(f);
                 }

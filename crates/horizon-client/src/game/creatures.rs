@@ -102,7 +102,7 @@ pub(super) struct Creatures {
     /// Explosion packets from a guest's turn, waiting for it to end
     /// (centre, small, radius, blocks hit, the players it pushed;
     /// game/lan_particles.rs).
-    pub lan_explosions: Vec<([f64; 3], bool, f32, usize, Vec<(u32, [f64; 3])>)>,
+    pub lan_explosions: Vec<([f64; 3], bool, Vec<(u32, [f64; 3])>)>,
     /// Ticks left of the elder guardian's apparition (MobAppearanceParticle).
     pub elder_apparition: i32,
     /// The snapshot's buffer between ticks, empty: ~400 bytes a mob, so

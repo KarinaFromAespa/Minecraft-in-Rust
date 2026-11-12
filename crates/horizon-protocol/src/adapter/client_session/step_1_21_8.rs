@@ -2,18 +2,17 @@
 //! `mod v1_21_8` (1.21.8 to 1.21.10). Five packets change layout: add_entity and set_entity_motion (the LpVec3
 //! velocity becomes three shorts), set_default_spawn_position (the dimension name and the pitch go),
 //! player_rotation (the relative flags go) and explode (the radius, the block count and the block particles go).
-//! Entity data: a player's main hand and skin parts move back to 18 and 17, its hearts and score to 15 and 16, and
-//! the shoulder data (19, 20), which 1.21.8 sends as an NBT, is dropped.
+//! Entity data needs no step here: the pinned layout is already 1.21.8's (a newer client's goes up in
+//! [`super::ClientSession::pin_entity_data_up`], through `track_entities`).
 //!
-//! The 1.21.10 entity data steps come before this one ([`entity_data`] reads 1.21.10's indexes and types). The
-//! debug packets 1.21.10 added and the serverbound debug subscription have no 1.21.8 counterpart the id tables
+//! The debug packets 1.21.10 added and the serverbound debug subscription have no 1.21.8 counterpart the id tables
 //! pair them with, so they are dropped there, and nothing here touches serverbound packets.
 use crate::{
     Result, State,
-    adapter::translate::{v1_21_8::VELOCITY_UNIT, v1_21_10::PLAYER},
+    adapter::translate::v1_21_8::VELOCITY_UNIT,
     buf::{Codec, LpVec3, Opt, Reader, Vec3d, Writer},
     ids as packet_ids,
-    packets::play::{self, SoundHolder},
+    packets::play::SoundHolder,
 };
 
 /// The pinned clientbound packet `id` (`payload` in 1.21.10's layout) in 1.21.8's layout; `None` when laid out
@@ -101,43 +100,32 @@ fn player_rotation(payload: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// explode: the centre, the knockback, the particle and the sound stay; the radius, the block count and the block
-/// particles go.
+/// particles go. The 1.21.10 layout is read by hand: the pinned codec is 1.21.8's now.
 fn explode(payload: &[u8]) -> Result<Vec<u8>> {
-    // The pinned read ends with a play-sound flag 1.21.10 does not have: a set one is appended to read it.
-    let mut body = payload.to_vec();
-    body.push(1);
-    let e = super::read_in_client_ids(|| play::Explode::read(&mut Reader::new(&body)))?;
+    use crate::entity_data::Particle;
+    let (center, knockback, particle, sound) = super::read_in_client_ids(|| {
+        let mut r = Reader::new(payload);
+        let center = Vec3d::read(&mut r)?;
+        let _radius = r.f32()?;
+        let _block_count = r.i32()?;
+        let knockback = <Opt<Vec3d>>::read(&mut r)?;
+        let particle = Particle::read(&mut r)?;
+        let sound = SoundHolder::read(&mut r)?;
+        let n = r.varint()?;
+        for _ in 0..n {
+            Particle::read(&mut r)?;
+            r.f32()?;
+            r.f32()?;
+            r.varint()?;
+        }
+        Ok((center, knockback, particle, sound))
+    })?;
     Ok(super::write_in_client_ids(|w| {
-        Vec3d::write(&e.center, w);
-        <Opt<Vec3d>>::write(&e.knockback, w);
-        e.particle.write(w);
-        SoundHolder::write(&e.sound, w);
+        Vec3d::write(&center, w);
+        <Opt<Vec3d>>::write(&knockback, w);
+        particle.write(w);
+        SoundHolder::write(&sound, w);
     }))
-}
-
-/// Entity data of a player, 1.21.10's layout to 1.21.8's (translate's `v1_21_8::entity_data`, reversed), after
-/// [`super::step_1_21_10::entity_data`]. `kind` is the entity's type in the pinned ids, `None` when the caller
-/// doesn't know it, which leaves the data as it is.
-pub(super) fn entity_data(kind: Option<i32>, data: &mut play::SetEntityData) {
-    let Some(kind) = kind else {
-        return;
-    };
-    if kind != PLAYER {
-        return;
-    }
-    // The shoulder data (an NBT in 1.21.8) is dropped: a 1.21.8 client does not show the parrot.
-    // TODO(step1.21.8): write 1.21.8's NBT (a parrot with its variant) instead of dropping it.
-    data.values
-        .retain(|(index, _, _)| !matches!(*index, 19 | 20));
-    for (index, _, _) in &mut data.values {
-        *index = match *index {
-            15 => 18,
-            16 => 17,
-            17 => 15,
-            18 => 16,
-            other => other,
-        };
-    }
 }
 
 #[cfg(test)]
@@ -145,10 +133,7 @@ mod tests {
     //! Each change written here is read back with `translate`'s 1.21.8 reader: the full chain, 1.21.8's layout
     //! to 1.21.10's and back again, byte for byte where the layouts carry the same information.
     use super::*;
-    use crate::{
-        adapter::{ServerVersion, session::Session, translate},
-        entity_data::{Value, serializer as ser},
-    };
+    use crate::adapter::{ServerVersion, session::Session, translate};
 
     /// 1.21.8's packet, read by translate's 1.21.8 reader, then written back by this step.
     fn round_trip(session: &Session, id: i32, body: &[u8]) -> Vec<u8> {
@@ -236,66 +221,21 @@ mod tests {
         let id = packet_ids::play::clientbound::EXPLODE;
         assert_eq!(round_trip(&session, id, &body), body);
 
-        // And the 1.21.10 side the pinned reader sees: the radius and count it was given, no block particles.
+        // And the 1.21.10 side: the radius and count it was given, no block particles.
+        // (Read by hand: the pinned codec is 1.21.8's now.)
         let up = translate::client_layout_v1_21_8::clientbound(&session, State::Play, id, &body)
             .unwrap()
             .unwrap();
-        let mut up = up;
-        up.push(1);
-        let e = play::Explode::read(&mut Reader::new(&up)).unwrap();
-        assert_eq!(e.radius, 3.0);
-        assert_eq!(e.block_count, 0);
-        assert!(e.block_particles.is_empty());
-        assert_eq!(e.knockback, Some([0.5, 0.0, -0.25]));
-    }
-
-    #[test]
-    fn a_player_s_main_hand_and_hearts_move_back_to_1_21_8_s_indexes() {
-        let session = Session::new(ServerVersion::V1_21_8);
-        session.kinds.lock().unwrap().insert(2, PLAYER);
-        // 1.21.10's order: main hand, skin parts, hearts, score and the shoulders (dropped here).
-        let player = play::SetEntityData {
-            id: 2,
-            values: vec![
-                (15, ser::BYTE, Value::Byte(1)),
-                (16, ser::BYTE, Value::Byte(0x7f)),
-                (17, ser::FLOAT, Value::Float(4.0)),
-                (18, ser::INT, Value::Int(3)),
-                (19, ser::OPTIONAL_UNSIGNED_INT, Value::Id(0)),
-            ],
-        };
-        let mut d = player.clone();
-        entity_data(Some(PLAYER), &mut d);
+        let mut r = Reader::new(&up);
+        Vec3d::read(&mut r).unwrap();
+        assert_eq!(r.f32().unwrap(), 3.0);
+        assert_eq!(r.i32().unwrap(), 0);
         assert_eq!(
-            d.values,
-            vec![
-                (18, ser::BYTE, Value::Byte(1)),
-                (17, ser::BYTE, Value::Byte(0x7f)),
-                (15, ser::FLOAT, Value::Float(4.0)),
-                (16, ser::INT, Value::Int(3)),
-            ]
+            <Opt<Vec3d>>::read(&mut r).unwrap(),
+            Some([0.5, 0.0, -0.25])
         );
-        // The way back, by translate's reader, gives 1.21.10's order again, minus the shoulders.
-        let mut back = d.clone();
-        translate::client_layout_v1_21_8::entity_data(&session, &mut back);
-        assert_eq!(
-            back.values,
-            vec![
-                (15, ser::BYTE, Value::Byte(1)),
-                (16, ser::BYTE, Value::Byte(0x7f)),
-                (17, ser::FLOAT, Value::Float(4.0)),
-                (18, ser::INT, Value::Int(3)),
-            ]
-        );
-    }
-
-    #[test]
-    fn an_unknown_kind_is_left_alone() {
-        let mut d = play::SetEntityData {
-            id: 4,
-            values: vec![(18, ser::INT, Value::Int(9))],
-        };
-        entity_data(None, &mut d);
-        assert_eq!(d.values, vec![(18, ser::INT, Value::Int(9))]);
+        crate::entity_data::Particle::read(&mut r).unwrap();
+        SoundHolder::read(&mut r).unwrap();
+        assert_eq!(r.varint().unwrap(), 0);
     }
 }

@@ -339,6 +339,26 @@ impl ClientSession {
             }
         };
         let out = rewritten.unwrap_or_else(|| payload.to_vec());
+        // A newer client's entity-data layout conversion waits until here:
+        // the renumbering above decodes the packet with the pin codec, which
+        // stops at a serializer the pin lacks (26.2's HUMANOID_ARM is 42,
+        // past the pin's last serializer 34). The ids inside the values are
+        // the client's by now; only the layout still needs converting.
+        let out = if (state, id) == (State::Play, packet_ids::play::clientbound::SET_ENTITY_DATA)
+            && self.version != ServerVersion::Current
+            && !self.version.at_most(ServerVersion::V1_21_8)
+        {
+            let mut p = play::Clientbound::decode(id, &out)?;
+            if let play::Clientbound::SetEntityData(d) = &mut p {
+                let kind = self.entities.lock().unwrap().get(&d.id).map(|&(kind, _)| kind);
+                self.pin_entity_data_up(kind, d);
+                strip_id(p.encode())
+            } else {
+                out
+            }
+        } else {
+            out
+        };
         let Some(out) = self.older_layout_down(state, id, out)? else {
             return Ok(None);
         };
@@ -349,8 +369,11 @@ impl ClientSession {
     }
 
     /// Keeps the entities the client is sent (`add_entity`, `remove_entities`), and writes a pinned
-    /// `set_entity_data` in 1.21.11's or 1.21.10's entity data (still in pinned ids, which [`down`]
-    /// renumbers): `Some` when it changed.
+    /// `set_entity_data` in an older client's entity-data layout (still in pinned ids, which [`down`]
+    /// renumbers): `Some` when it changed. The pinned 1.21.8 layout is already a 1.21.5–1.21.8
+    /// client's; older clients go down through 1.21.4's step. A newer client's layout conversion
+    /// waits until after the renumbering (see [`ClientSession::clientbound`]): the renumbering
+    /// decodes the packet with the pin codec, which stops at a serializer the pin lacks.
     fn track_entities(&self, state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
         use packet_ids::play::clientbound as cb;
         if state != State::Play
@@ -372,26 +395,80 @@ impl ClientSession {
                     entities.remove(id);
                 }
             }
-            play::Clientbound::SetEntityData(d)
-                if self.version.at_most(ServerVersion::V1_21_11) =>
-            {
+            play::Clientbound::SetEntityData(d) => {
                 let kind = entities.get(&d.id).map(|&(kind, _)| kind);
-                step_1_21_11::entity_data(kind, d);
-                if self.version.at_most(ServerVersion::V1_21_10) {
-                    step_1_21_10::entity_data(kind, d);
-                }
-                if self.version.at_most(ServerVersion::V1_21_8) {
-                    step_1_21_8::entity_data(kind, d);
-                }
-                // 1.21.5's indexes go back to 1.21.4's last.
-                if self.version.at_most(ServerVersion::V1_21_4) {
+                let v = self.version;
+                if v.at_most(ServerVersion::V1_21_4) {
+                    // 1.21.5's indexes go back to 1.21.4's last.
                     step_1_21_4::entity_data(kind, d);
+                } else {
+                    // A 1.21.5–1.21.8 client (or the pinned version itself): the
+                    // pinned layout is already theirs. A newer client's
+                    // conversion happens after the renumbering, in clientbound.
+                    return Ok(None);
                 }
                 return Ok(Some(strip_id(p.encode())));
             }
             _ => {}
         }
         Ok(None)
+    }
+
+    /// A pinned `set_entity_data` in a newer client's layout: the Avatar move
+    /// of 1.21.9 (player indexes), then 1.21.11's types (a bee's and a wolf's
+    /// anger end as LONG, a player's main arm as HUMANOID_ARM), then 26.1's
+    /// ageable index shift. The inverse of the `step_1_21_*::entity_data`
+    /// chain, which ran when the pin was newer than the client.
+    fn pin_entity_data_up(&self, kind: Option<i32>, d: &mut play::SetEntityData) {
+        use super::translate::{
+            v1_21_10::{BEE, PLAYER, WOLF},
+            v1_21_11::AGEABLE,
+        };
+        let v = self.version;
+        if kind == Some(PLAYER) {
+            for (index, _, _) in &mut d.values {
+                *index = match *index {
+                    15 => 17, // absorption
+                    16 => 18, // score
+                    17 => 16, // skin mask
+                    18 => 15, // main arm
+                    other => other,
+                };
+            }
+        }
+        if !v.at_most(ServerVersion::V1_21_10) {
+            let Some(kind) = kind else { return };
+            // HUMANOID_ARM's id in the client's own serializers order: 38 in
+            // 1.21.11 (the last of its 39), 42 in 26.1/26.2. The pinned
+            // 1.21.8 has no such serializer — its main arm is a BYTE.
+            let humanoid_arm = if v.at_most(ServerVersion::V1_21_11) {
+                38
+            } else {
+                42
+            };
+            for (index, ser, value) in &mut d.values {
+                match (kind, *index, &*value) {
+                    (BEE, 18, Value::Int(x)) | (WOLF, 21, Value::Int(x)) => {
+                        *value = Value::Long(i64::from(*x));
+                        *ser = serializer::LONG;
+                    }
+                    (PLAYER, 15, Value::Byte(x)) => {
+                        *value = Value::Id(i32::from(*x));
+                        *ser = humanoid_arm;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        if !v.at_most(ServerVersion::V1_21_11)
+            && kind.is_some_and(|k| AGEABLE.contains(&k))
+        {
+            for (index, _, _) in &mut d.values {
+                if *index >= 17 {
+                    *index += 1;
+                }
+            }
+        }
     }
 
     /// A packet in 26.2's layout (and the client's ids) brought down to the client's own release, a step at a
@@ -428,12 +505,6 @@ impl ClientSession {
         {
             return Ok(None);
         }
-        // 26.3's explode carries the radius right after the centre; 1.21.8 dropped it, so it is kept here for
-        // 1.21.1's strength (written at the same place, after the centre).
-        let explode_radius = (v.at_most(ServerVersion::V1_21_1)
-            && (state, id) == (State::Play, packet_ids::play::clientbound::EXPLODE))
-            .then(|| payload.get(24..28).map(|b| [b[0], b[1], b[2], b[3]]))
-            .flatten();
         type Step = fn(State, i32, &[u8]) -> Result<Option<Vec<u8>>>;
         let steps: [(ServerVersion, Step); 4] = [
             (ServerVersion::V26_1, step_26_1::clientbound),
@@ -473,11 +544,6 @@ impl ClientSession {
             && let Some(next) = step_1_21_1::clientbound(state, id, &payload)?
         {
             payload = next;
-        }
-        if let Some(radius) = explode_radius
-            && let Some(strength) = payload.get_mut(24..28)
-        {
-            strength.copy_from_slice(&radius);
         }
         // 1.20.6 is the oldest release: its packets are brought down after every step above.
         if v.at_most(ServerVersion::V1_20_6)
@@ -846,7 +912,7 @@ mod tests {
         s
     }
 
-    // Expected ids are read off the 26.2 and 1.21.10 packets and registries reports by hand, not from the
+    // Expected ids are read off the 26.2 and 1.21.8 packets and registries reports by hand, not from the
     // generated tables.
 
     #[test]
@@ -902,18 +968,15 @@ mod tests {
     }
 
     #[test]
-    fn a_1_21_1_client_is_sent_the_real_explosion_radius() {
+    fn a_1_21_1_client_is_sent_the_default_explosion_strength() {
         let s = ClientSession::new(ServerVersion::V1_21_1);
         s.reading.store(to_u8(State::Play), Ordering::Release);
         s.writing.store(to_u8(State::Play), Ordering::Release);
         let body = play::Clientbound::Explode(play::Explode {
             center: [1.0, 2.0, 3.0],
-            radius: 6.5,
-            block_count: 12,
             knockback: Some([0.5, 0.1, 0.0]),
             particle: crate::entity_data::Particle { id: 29, data: None },
             sound: (-1, Some(("minecraft:entity.generic.explode".into(), None))),
-            block_particles: Vec::new(),
             play_sound: true,
         })
         .encode();
@@ -930,8 +993,9 @@ mod tests {
             [r.f64().unwrap(), r.f64().unwrap(), r.f64().unwrap()],
             [1.0, 2.0, 3.0]
         );
-        // 1.21.1's strength, after the centre: 26.3's radius, not a guess.
-        assert_eq!(r.f32().unwrap(), 6.5);
+        // 1.21.1's strength, after the centre: the pinned packet carries no
+        // radius, so 1.21.1 gets its default (EXPLODE_STRENGTH).
+        assert_eq!(r.f32().unwrap(), 3.0);
     }
 
     #[test]
@@ -1086,12 +1150,12 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         };
-        // chest's first state: 3786 in 1.21.11, 3987 in 26.2; grass_block 8 in both.
-        assert_eq!(update(3786), 3987);
+        // chest's first state: 3018 in 1.21.8, 3987 in 26.2; grass_block 8 in both.
+        assert_eq!(update(3018), 3987);
         assert_eq!(update(8), 8);
-        // calcite's state is renumbered: 24485 in 1.21.11, 27160 in 26.2.
-        assert_eq!(update(24485), 27160);
-        // 26.2 has every block 1.21.11 has (it only adds), so no state needs a
+        // calcite's state is renumbered: 23376 in 1.21.8, 27160 in 26.2.
+        assert_eq!(update(23376), 27160);
+        // 26.2 has every block 1.21.8 has (it only adds), so no state needs a
         // stand-in for this client; stand-ins apply to older ones.
     }
 
@@ -1109,12 +1173,12 @@ mod tests {
             let mut payload = Reader::new(r.rest());
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 898 in 1.21.11, 926 in 26.2.
-        assert_eq!(slot(898), 926);
-        // birch_planks: 38 in 1.21.11, 65 in 26.2.
+        // diamond: 862 in 1.21.8, 926 in 26.2.
+        assert_eq!(slot(862), 926);
+        // birch_planks: 38 in 1.21.8, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 1104 in 1.21.11, 1133 in 26.2.
-        assert_eq!(slot(1104), 1133);
+        // filled_map: 1059 in 1.21.8, 1133 in 26.2.
+        assert_eq!(slot(1059), 1133);
     }
 
     #[test]
@@ -1134,31 +1198,98 @@ mod tests {
             })
             .encode()
         };
-        // 26.2 has every entity type 1.21.10 has (it only adds the sulfur
+        // 26.2 has every entity type 1.21.8 has (it only adds the sulfur
         // cube and the poplar boats), so nothing is dropped for this client:
-        // birch_boat is 12 in both, and the tadpole is renumbered (127 in
-        // 1.21.10, 131 in 26.2).
-        let sent = s.clientbound(&add(12)).unwrap().unwrap();
+        // birch_boat is 12 in both, and the tadpole is renumbered (125 in
+        // 1.21.8, 131 in 26.2). The sent packet is 26.2's layout, read by
+        // hand: the pinned codec is 1.21.8's now.
+        let kind_of = |sent: &[u8]| {
+            let mut r = Reader::new(sent);
+            // add_entity: 1 in both.
+            assert_eq!(r.varint().unwrap(), 1);
+            let mut r = Reader::new(r.rest());
+            r.varint().unwrap();
+            r.uuid().unwrap();
+            let kind = r.varint().unwrap();
+            crate::buf::Vec3d::read(&mut r).unwrap();
+            crate::buf::LpVec3::read(&mut r).unwrap();
+            r.i8().unwrap();
+            r.i8().unwrap();
+            r.i8().unwrap();
+            r.varint().unwrap();
+            assert!(r.rest().is_empty());
+            kind
+        };
+        assert_eq!(kind_of(&s.clientbound(&add(12)).unwrap().unwrap()), 12);
+        assert_eq!(kind_of(&s.clientbound(&add(125)).unwrap().unwrap()), 131);
+    }
+
+    #[test]
+    fn a_newer_client_gets_its_own_player_indexes() {
+        let s = in_play();
+        // Register a player (149 in 1.21.8) so track_entities knows the kind.
+        let add = play::Clientbound::AddEntity(play::AddEntity {
+            id: 7,
+            uuid: 1,
+            kind: 149,
+            position: [0.0; 3],
+            velocity: [0.0; 3],
+            pitch: 0,
+            yaw: 0,
+            head_yaw: 0,
+            data: 0,
+        });
+        s.clientbound(&add.encode()).unwrap().unwrap();
+        // 1.21.8's player fields: absorption 15, score 16, skin mask 17, main arm 18.
+        let data = play::Clientbound::SetEntityData(play::SetEntityData {
+            id: 7,
+            values: vec![
+                (15, serializer::FLOAT, Value::Float(4.0)),
+                (16, serializer::INT, Value::Int(5)),
+                (17, serializer::BYTE, Value::Byte(0x7f)),
+                (18, serializer::BYTE, Value::Byte(1)),
+            ],
+        });
+        let sent = s.clientbound(&data.encode()).unwrap().unwrap();
+        // The sent packet is in 26.2's layout, so it is read by hand: the pin
+        // codec would stop at serializer 42 (26.2's HUMANOID_ARM), which the
+        // pinned 1.21.8 has no counterpart for.
         let mut r = Reader::new(&sent);
-        // add_entity: 1 in both.
-        assert_eq!(r.varint().unwrap(), 1);
-        match play::Clientbound::decode(1, r.rest()).unwrap() {
-            play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 12),
-            other => panic!("{other:?}"),
+        r.varint().unwrap();
+        let mut values = Vec::new();
+        let mut r = Reader::new(r.rest());
+        assert_eq!(r.varint().unwrap(), 7);
+        loop {
+            let index = r.u8().unwrap();
+            if index == 0xFF {
+                break;
+            }
+            let ser = r.varint().unwrap();
+            let value = match ser {
+                0 => Value::Byte(r.i8().unwrap()),
+                1 => Value::Int(r.varint().unwrap()),
+                3 => Value::Float(r.f32().unwrap()),
+                42 => Value::Id(r.varint().unwrap()),
+                other => panic!("unexpected serializer {other}"),
+            };
+            values.push((index, ser, value));
         }
-        let sent = s.clientbound(&add(127)).unwrap().unwrap();
-        let mut r = Reader::new(&sent);
-        assert_eq!(r.varint().unwrap(), 1);
-        match play::Clientbound::decode(1, r.rest()).unwrap() {
-            play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 131),
-            other => panic!("{other:?}"),
-        }
+        // 26.2's layout: main arm 15 as HUMANOID_ARM (42 in 26.2's order), skin mask 16, hearts 17, score 18.
+        assert_eq!(
+            values,
+            vec![
+                (17, serializer::FLOAT, Value::Float(4.0)),
+                (18, serializer::INT, Value::Int(5)),
+                (16, serializer::BYTE, Value::Byte(0x7f)),
+                (15, 42, Value::Id(1)),
+            ]
+        );
     }
 
     #[test]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 1.21.11's 55. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 26.2's 56 is 1.21.8's 55. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1166,7 +1297,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((898, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((862, 3)));
             }
             other => panic!("{other:?}"),
         }

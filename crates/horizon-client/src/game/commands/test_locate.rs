@@ -6,7 +6,6 @@ use horizon_client::{
     test_instance_block::{Status, TestInstanceBlock},
     text::{self, ClickEvent, Style, Text},
 };
-use horizon_protocol::packets::play::{self, Clientbound as C};
 use horizon_world::worldgen::structure::Rotation;
 
 type Pos = (i32, i32, i32);
@@ -242,16 +241,9 @@ impl Game<'_> {
             "commands.test.relative_position",
             &[Text::literal(name), coords],
         ));
-        // `player.connection.send(new ClientboundGameTestHighlightPosPacket(..))`.
-        if self.lan_acting.is_some() {
-            self.guest_packets
-                .push(C::GameTestHighlightPos(play::GameTestHighlightPos {
-                    absolute: [target.0, target.1, target.2],
-                    relative,
-                }));
-        } else {
-            self.highlight_test_pos([target.0, target.1, target.2], relative);
-        }
+        // 1.21.8 has no game_test_highlight_pos packet, so LAN guests get no
+        // highlight; the local window highlights directly.
+        self.highlight_test_pos([target.0, target.1, target.2], relative);
         Ok(1)
     }
 

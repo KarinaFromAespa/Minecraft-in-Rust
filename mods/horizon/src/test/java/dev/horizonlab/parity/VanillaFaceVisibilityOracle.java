@@ -6,8 +6,10 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.*;
-import net.minecraft.tags.BlockTags;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -46,7 +48,10 @@ public final class VanillaFaceVisibilityOracle {
                 var state=block.defaultBlockState();var ids=new ArrayList<Integer>();
                 for(var value:block.getStateDefinition().getPossibleStates())ids.add(Block.getId(value));
                 definitions.put(BuiltInRegistries.BLOCK.getKey(block).toString(),Map.of("rule",rule(block),
-                    "can_occlude",state.canOcclude(),"bars_tag",state.is(BlockTags.BARS),"default",Block.getId(state),"states",ids));
+                    // 1.21.8 has no BlockTags.BARS constant (the bars tag
+                    // came with the copper bars in 1.21.9): build the key
+                    // directly. No 1.21.8 block is in it.
+                    "can_occlude",state.canOcclude(),"bars_tag",state.is(TagKey.create(Registries.BLOCK,ResourceLocation.withDefaultNamespace("bars"))),"default",Block.getId(state),"states",ids));
             }
             Files.writeString(directory.resolve("definitions.json"),JSON.toJson(definitions));return;
         }

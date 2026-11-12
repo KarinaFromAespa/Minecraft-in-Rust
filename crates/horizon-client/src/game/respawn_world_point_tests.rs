@@ -185,18 +185,14 @@ fn check_respawn(check_sea_level: bool) {
                 }
                 Clientbound::SetDefaultSpawnPosition(p) => {
                     sequence.push(99);
-                    points.push((
-                        p.pos.dimension,
-                        p.pos.pos,
-                        p.yaw.to_bits(),
-                        p.pitch.to_bits(),
-                    ));
+                    // 1.21.8's spawn packet carries no dimension or pitch.
+                    points.push((p.pos, p.yaw.to_bits()));
                 }
                 _ => {}
             }
         }
         assert_eq!(sequence, [84, 99, 99]);
-        assert_eq!(points, vec![("minecraft:overworld".into(), world, 0, 0); 2]);
+        assert_eq!(points, vec![(world, 0); 2]);
     }
     drop(host);
     drop(game);

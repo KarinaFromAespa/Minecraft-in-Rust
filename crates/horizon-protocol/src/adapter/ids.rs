@@ -133,8 +133,6 @@ pub struct Quirks {
     /// `use_remainder` holds an ItemStack and `container` a list of optional ones (a count first, 0 for
     /// none) instead of item stack templates (1.21.11).
     pub stacks_in_components: bool,
-    /// Before 1.21.9, player shoulder parrots were compound tags (serializer 16), not optional variants.
-    pub shoulder_parrots_as_nbt: bool,
     /// Before 1.21.6, attribute modifiers had no display and equippables no shearing fields.
     pub components_before_1_21_6: bool,
     /// The 1.21.4 component patch has per-component tooltip flags and older nested codecs.
@@ -170,7 +168,6 @@ impl Quirks {
         pot_decorations_are_items: false,
         either_holders_and_tag_resistance: false,
         stacks_in_components: false,
-        shoulder_parrots_as_nbt: false,
         components_before_1_21_6: false,
         components_before_1_21_5: false,
         count_first_templates: false,
@@ -186,6 +183,34 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
+    /// The pinned 1.21.8's own wire layouts: what `quirks()` and
+    /// `quirks_written()` return when no other version is active. 1.21.8 is
+    /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
+    /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
+    /// stacks, optional profile fields) and the last release whose spell
+    /// particles carried no options. (The shoulder parrots are compound tags
+    /// in 1.21.8 too, but EntityData::read converts them unconditionally —
+    /// no quirk gates that.)
+    pub const PINNED: Self = Self {
+        tag_slot_display_is_id: true,
+        pot_decorations_are_items: true,
+        either_holders_and_tag_resistance: true,
+        stacks_in_components: true,
+        components_before_1_21_6: false,
+        components_before_1_21_5: false,
+        count_first_templates: true,
+        optional_profile_fields: true,
+        integer_custom_model_data: false,
+        trail_without_duration: false,
+        components_before_1_21_2: false,
+        components_before_1_21: false,
+        wolf_variant_holder: false,
+        legacy_item_nbt: false,
+        legacy_item_data_version: 0,
+        components_as_json: false,
+        vibration_source_identifier: false,
+        simple_spell_particles: true,
+    };
 }
 
 /// Whether an older server's packet is being read on this thread.
@@ -199,20 +224,20 @@ pub fn pinned() -> Guard {
     Guard(ACTIVE.replace(None))
 }
 
-/// The older version's quirks while its packets are decoded on this thread; none otherwise.
+/// The older version's quirks while its packets are decoded on this thread; the pinned version's otherwise.
 pub fn quirks() -> Quirks {
     match ACTIVE.get() {
         Some((ids, Way::Up)) => ids.quirks,
-        _ => Quirks::NONE,
+        _ => Quirks::PINNED,
     }
 }
 
 /// The older version's quirks while packets are encoded for it on this thread (an older client, or what is
-/// sent to an older server); none otherwise. The writers then lay those structures out as it reads them.
+/// sent to an older server); the pinned version's otherwise. The writers then lay those structures out as it reads them.
 pub fn quirks_written() -> Quirks {
     match ACTIVE.get() {
         Some((ids, Way::Down)) => ids.quirks,
-        _ => Quirks::NONE,
+        _ => Quirks::PINNED,
     }
 }
 
@@ -428,14 +453,14 @@ mod tests {
         static IDS: Ids = super::super::v26_2_ids::IDS;
         assert_eq!(item(926), 926);
         {
-            // diamond: 926 in 26.2, 898 in 1.21.11.
+            // diamond: 926 in 26.2, 862 in 1.21.8.
             let _up = renumbering(&IDS, Way::Up);
-            assert_eq!(item(926), 898);
+            assert_eq!(item(926), 862);
             {
                 let _down = renumbering(&IDS, Way::Down);
-                assert_eq!(item(898), 926);
+                assert_eq!(item(862), 926);
             }
-            assert_eq!(item(926), 898);
+            assert_eq!(item(926), 862);
         }
         assert_eq!(item(926), 926);
     }
@@ -444,10 +469,10 @@ mod tests {
     fn the_26_2_tables_match_the_reports() {
         // Read off both versions' registries and blocks reports by hand.
         let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
-        assert_eq!(ids.item.up(926), Some(898)); // diamond
+        assert_eq!(ids.item.up(926), Some(862)); // diamond
         assert_eq!(ids.item.up(1), Some(1)); // stone
-        assert_eq!(ids.block_state.up(13330), Some(13128)); // oak_slab type=top waterlogged=true
-        assert_eq!(ids.block_state.up(3987), Some(3786)); // chest, first state
+        assert_eq!(ids.block_state.up(13330), Some(12051)); // oak_slab type=top waterlogged=true
+        assert_eq!(ids.block_state.up(3987), Some(3018)); // chest, first state
         assert_eq!(ids.block_state.up(8), Some(8)); // grass_block
         assert_eq!(ids.state_bits(), (15, 15));
     }
@@ -493,8 +518,8 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
-        // A decorated pot (319 in both) as a 1.21.11 server sends it: pot_decorations (65)
-        // lists a brick (1025) and an angler sherd (1428); damage_resistant (24) a tag id;
+        // A decorated pot (319 in 1.21.11, 307 pinned) as a 1.21.11 server sends it: pot_decorations (65)
+        // lists a brick (1025) and an angler sherd (1372 pinned); damage_resistant (24) a tag id;
         // jukebox_playable (55) a song by holder: the flag set, then the song's id plus one.
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
@@ -502,14 +527,14 @@ mod tests {
         sent.extend(b"minecraft:is_fire");
         sent.extend([62, 1, 3]);
         let stack = read(&sent);
-        assert_eq!(stack.item, 319);
+        assert_eq!(stack.item, 307);
         let mut resistant = vec![0, 17];
         resistant.extend(b"minecraft:is_fire");
         assert_eq!(
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (65, Component::Raw(vec![0, 1, 0x94, 0x0b, 1, 0, 0, 0, 0])),
+                (65, Component::Raw(vec![0, 1, 0xdc, 0x0a, 1, 0, 0, 0, 0])),
                 (24, Component::Raw(resistant)),
                 (55, Component::Raw(vec![3])),
             ]
@@ -572,9 +597,9 @@ mod tests {
         use crate::buf::{Codec, Reader};
         use crate::item::{Component, Slot};
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A shulker box (581 in both) as a 1.21.11 server sends it. Its container (66 pinned,
-        // 73 sent) lists ItemStacks, a count first: two diamonds (898) with a map_color (36),
-        // then an empty slot. Its use_remainder (22 pinned, 25 sent) is a bowl (892).
+        // A shulker box (581 in 1.21.11, 552 pinned) as a 1.21.11 server sends it. Its container (66 pinned,
+        // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 862 pinned) with a map_color (36),
+        // then an empty slot. Its use_remainder (22 pinned, 25 sent) is a bowl (892 sent, 856 pinned).
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
             73, 2, 2, 0x82, 0x07, 1, 0, 43, 0, 0, 0, 5, 0, // container
@@ -584,16 +609,16 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!(stack.item, 581);
+        assert_eq!(stack.item, 552);
         // Templates, the item first: the diamonds with their colour in the pinned numbering, then no item.
         assert_eq!(
             stack.added,
             [
                 (
                     66,
-                    Component::Raw(vec![2, 1, 0x82, 0x07, 2, 1, 0, 36, 0, 0, 0, 5, 0]),
+                    Component::Raw(vec![2, 1, 0xde, 0x06, 2, 1, 0, 36, 0, 0, 0, 5, 0]),
                 ),
-                (22, Component::Raw(vec![0xfc, 0x06, 1, 0, 0])),
+                (22, Component::Raw(vec![0xd8, 0x06, 1, 0, 0])),
             ]
         );
     }
@@ -609,11 +634,11 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (898, 3));
+        assert_eq!((stack.item, stack.count), (862, 3));
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(898, 3)), &mut w);
+            Slot::write(&Some(Stack::new(862, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }

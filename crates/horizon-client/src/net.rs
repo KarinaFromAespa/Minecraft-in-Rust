@@ -103,10 +103,6 @@ pub enum Event {
     ShowDialog(horizon_world::nbt::Tag),
     /// `clear_dialog` in configuration.
     ClearDialog,
-    /// ClientboundCodeOfConductPacket: the game shows it and answers with
-    /// `Session::accept_code_of_conduct` or a disconnect; until then the
-    /// server waits in configuration.
-    CodeOfConduct(String),
     /// `ClientboundTransferPacket`: the server sent us to another address.
     /// The connection ends right after; the game reconnects there with the
     /// stored cookies.
@@ -468,16 +464,7 @@ impl Session {
             w.shutdown();
         }
     }
-    /// ServerboundAcceptCodeOfConductPacket, sent in configuration.
-    pub fn accept_code_of_conduct(&self) {
-        let mut writer = self.writer.lock().unwrap();
-        if let Some(w) = writer.as_mut()
-            && w.send(&cfg::Serverbound::AcceptCodeOfConduct(Empty).encode())
-                .is_err()
-        {
-            w.shutdown();
-        }
-    }
+    // No accept_code_of_conduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
     /// `Connection.disconnect`: the socket closes and the game goes on at once.
     /// The reader thread is left to end on its own: on Windows a shutdown
     /// doesn't wake a read already waiting, so joining it held the window until
@@ -1165,9 +1152,6 @@ fn configure(
                 registries.add(r);
             }
             cfg::Clientbound::UpdateTags(t) => registries.add_tags(&t),
-            cfg::Clientbound::CodeOfConduct(c) => {
-                let _ = send.send(Event::CodeOfConduct(c.text));
-            }
             // The game answers: it may prompt the player first.
             cfg::Clientbound::ResourcePackPush(p) => {
                 let _ = send.send(Event::PackPush(p));

@@ -82,7 +82,7 @@ PINNED_NAMES = {
         enderman endermite evoker experience_orb falling_block fox frog furnace_minecart ghast giant
         glow_item_frame glow_squid goat guardian happy_ghast hoglin hopper_minecart horse husk illusioner
         iron_golem item_frame jungle_boat jungle_chest_boat llama magma_cube mangrove_boat
-        mangrove_chest_boat mannequin minecart mooshroom mule oak_boat oak_chest_boat ocelot
+        mangrove_chest_boat minecart mooshroom mule oak_boat oak_chest_boat ocelot
         painting panda parrot phantom pig piglin piglin_brute pillager player polar_bear pufferfish rabbit
         ravager salmon sheep shulker silverfish skeleton skeleton_horse slime sniffer snow_golem
         spawner_minecart spider spruce_boat spruce_chest_boat squid stray strider tadpole tnt_minecart

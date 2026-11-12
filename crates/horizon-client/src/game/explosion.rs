@@ -1068,7 +1068,7 @@ impl Game<'_> {
             .explosion(center, small, block_count, radius, &|b| {
                 facts.is_air(world.block(b[0], b[1], b[2]))
             });
-        self.lan_explode(center, small, radius, block_count, pushed);
+        self.lan_explode(center, small, pushed);
         Ok(())
     }
     /// `InfestedBlock.spawnAfterBreak` without a tool that prevents it: while

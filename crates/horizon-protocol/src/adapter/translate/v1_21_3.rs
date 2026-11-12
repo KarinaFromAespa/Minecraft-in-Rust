@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(p.particle.id, 1);
         assert_eq!(
             p.particle.data,
-            Some(crate::entity_data::ParticleData::State(8048))
+            Some(crate::entity_data::ParticleData::State(7019))
         );
     }
 
@@ -97,7 +97,7 @@ mod tests {
             let _up = ids::renumbering(ids, Way::Up);
             crate::entity_data::Particle::read(&mut r).unwrap()
         };
-        assert_eq!(particle.id, 49);
+        assert_eq!(particle.id, 48); // minecraft:trail is particle 48 in 1.21.8.
         assert_eq!(
             particle.data,
             Some(crate::entity_data::ParticleData::Trail(
@@ -113,16 +113,18 @@ mod tests {
     fn old_heart_states_and_both_creaking_types_retain_their_meaning() {
         let ids = ServerVersion::V1_21_3.ids().unwrap();
         // All three axes and disabled/dormant/active states, from independent vanilla reports.
+        // The pinned 1.21.8 creaking_heart states are the natural=false half of 2920..2938.
         for (old, pinned) in
-            (2917..2926).zip([3689, 3691, 3693, 3695, 3697, 3699, 3701, 3703, 3705])
+            (2917..2926).zip([2921, 2923, 2925, 2927, 2929, 2931, 2933, 2935, 2937])
         {
             assert_eq!(ids.block_state.up(old), Some(pinned));
             assert_eq!(ids.block_state.down(pinned), Some(old));
             assert_eq!(ids.block_state.down(pinned - 1), Some(old)); // natural=true also maps back
         }
-        assert_eq!(ids.entity_type.up(29), Some(30));
-        assert_eq!(ids.entity_type.up(30), Some(30));
-        assert_eq!(ids.entity_type.down(30), Some(29));
+        // Both creaking entities collapse to the pinned minecraft:creaking (29 in 1.21.8).
+        assert_eq!(ids.entity_type.up(29), Some(29));
+        assert_eq!(ids.entity_type.up(30), Some(29));
+        assert_eq!(ids.entity_type.down(29), Some(29));
     }
 
     #[test]

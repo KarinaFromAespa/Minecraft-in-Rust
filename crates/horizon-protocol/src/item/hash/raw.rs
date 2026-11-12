@@ -5,8 +5,8 @@
 //! encodes: a component without a `networkSynchronized` stream codec goes as
 //! its codec's NBT, so that NBT converts to hashes as it is (`NbtOps.convertTo`).
 use super::*;
-use crate::buf::{Codec, Reader};
-use crate::item::{Profile, Template};
+use crate::buf::Reader;
+use crate::item::Profile;
 use horizon_world::nbt::Tag;
 
 /// `DyeColor` names by id.
@@ -112,7 +112,10 @@ fn optional(
     }
 }
 pub(super) fn template_code(r: &mut Reader, names: &dyn Names) -> Option<HashCode> {
-    let stack = <Template as Codec<Stack>>::read(r).ok()?;
+    // The held bytes are the internal template form, not the wire form:
+    // read_template, not Template::read, which would read a count-first
+    // slot for the pinned 1.21.8.
+    let stack = super::super::read_template(r).ok()?;
     template(&stack, names)
 }
 /// `MobEffectInstance.Details.MAP_CODEC` (the fields of a record, flattened into
@@ -634,7 +637,16 @@ mod tests {
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
             let mut r = Reader::new(&bytes);
-            let c = Component::read(kind, &mut r).unwrap();
+            // The cases are vanilla 1.21.11's stream bytes: read them as
+            // 1.21.11 data (its Either-form profiles and template-form
+            // containers), not as the pinned 1.21.8's.
+            let c = {
+                let _up = crate::adapter::ids::renumbering(
+                    crate::adapter::ServerVersion::V1_21_11.ids().unwrap(),
+                    crate::adapter::ids::Way::Up,
+                );
+                Component::read(kind, &mut r).unwrap()
+            };
             assert_eq!(r.remaining(), 0, "{name}");
             assert_eq!(c.hash(kind, &Pinned), Some(expected), "{name} {hex}");
         }
@@ -771,7 +783,15 @@ mod tests {
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
             let mut r = Reader::new(&bytes);
-            let c = Component::read(kind, &mut r).unwrap();
+            // The cases are vanilla 1.21.11's stream bytes: read them as
+            // 1.21.11 data, not as the pinned 1.21.8's.
+            let c = {
+                let _up = crate::adapter::ids::renumbering(
+                    crate::adapter::ServerVersion::V1_21_11.ids().unwrap(),
+                    crate::adapter::ids::Way::Up,
+                );
+                Component::read(kind, &mut r).unwrap()
+            };
             assert_eq!(r.remaining(), 0, "{name}");
             assert_eq!(c.hash(kind, &Pinned), Some(expected), "{name} {hex}");
         }

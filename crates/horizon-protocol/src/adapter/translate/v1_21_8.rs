@@ -114,7 +114,7 @@ mod tests {
         let mut w = Writer::new();
         w.varint(42);
         w.uuid(7);
-        w.varint(49); // 1.21.8's falling block, pinned id 50.
+        w.varint(49); // 1.21.8's falling block, pinned id 49.
         crate::buf::Vec3d::write(&[1.0, 64.0, -2.0], &mut w);
         for angle in [-64, 32, -128] {
             w.i8(angle);
@@ -128,7 +128,7 @@ mod tests {
         else {
             panic!("spawn");
         };
-        assert_eq!((e.id, e.kind, e.position), (42, 50, [1.0, 64.0, -2.0]));
+        assert_eq!((e.id, e.kind, e.position), (42, 49, [1.0, 64.0, -2.0]));
         assert_eq!((e.pitch, e.yaw, e.head_yaw, e.data), (-64, 32, -128, 0));
         assert!((e.velocity[0] + 1.0).abs() < 0.001);
         assert!((e.velocity[1] - 0.5).abs() < 0.001);
@@ -146,19 +146,24 @@ mod tests {
 
     #[test]
     fn player_rotation_is_absolute_and_spawn_uses_the_current_dimension() {
+        // The step's output is 1.21.10's layout, read by hand: the pinned codec is 1.21.8's now.
+        let session = Session::new(ServerVersion::V1_21_8);
         let mut w = Writer::new();
         w.f32(90.0);
         w.f32(-30.0);
-        let play::Clientbound::PlayerRotation(p) =
-            translated(packet_ids::play::clientbound::PLAYER_ROTATION, &w.data)
-        else {
-            panic!("rotation");
-        };
+        let body = clientbound(
+            &session,
+            State::Play,
+            packet_ids::play::clientbound::PLAYER_ROTATION,
+            &w.data,
+        )
+        .unwrap()
+        .unwrap();
+        let mut r = Reader::new(&body);
         assert_eq!(
-            (p.yaw, p.pitch, p.relative_yaw, p.relative_pitch),
-            (90.0, -30.0, false, false)
+            (r.f32().unwrap(), r.bool().unwrap(), r.f32().unwrap(), r.bool().unwrap()),
+            (90.0, false, -30.0, false)
         );
-        let session = Session::new(ServerVersion::V1_21_8);
         *session.dimension.lock().unwrap() = "minecraft:the_nether".into();
         let mut w = Writer::new();
         crate::buf::Pos::write(&[-5, 70, 8], &mut w);
@@ -171,9 +176,16 @@ mod tests {
         )
         .unwrap()
         .unwrap();
-        let p = play::SetDefaultSpawnPosition::read(&mut Reader::new(&body)).unwrap();
-        assert_eq!(p.pos.dimension, "minecraft:the_nether");
-        assert_eq!((p.pos.pos, p.yaw, p.pitch), ([-5, 70, 8], 180.0, 0.0));
+        let mut r = Reader::new(&body);
+        assert_eq!(r.string(32767).unwrap(), "minecraft:the_nether");
+        assert_eq!(
+            (
+                crate::buf::Pos::read(&mut r).unwrap(),
+                r.f32().unwrap(),
+                r.f32().unwrap()
+            ),
+            ([-5, 70, 8], 180.0, 0.0)
+        );
     }
 
     #[test]
@@ -258,15 +270,17 @@ mod tests {
         else {
             panic!("metadata");
         };
+        // The pinned 1.21.8 layout again: the steps take the fields up to
+        // 26.2's layout and the boundary brings them back. The shoulders
+        // (19, 20) are dropped — 1.21.8 sends them as an NBT, not entity
+        // data — and the field after them survives.
         assert_eq!(
             p.values,
             vec![
-                (17, serializer::FLOAT, Value::Float(4.0)),
-                (18, serializer::INT, Value::Int(5)),
-                (16, serializer::BYTE, Value::Byte(0x7f)),
-                (15, serializer::HUMANOID_ARM, Value::Id(1)),
-                (19, serializer::OPTIONAL_UNSIGNED_INT, Value::Id(4)),
-                (20, serializer::OPTIONAL_UNSIGNED_INT, Value::Id(0)),
+                (15, serializer::FLOAT, Value::Float(4.0)),
+                (16, serializer::INT, Value::Int(5)),
+                (17, serializer::BYTE, Value::Byte(0x7f)),
+                (18, serializer::BYTE, Value::Byte(1)),
                 (0, serializer::BYTE, Value::Byte(2)),
             ]
         );
@@ -278,7 +292,7 @@ mod tests {
         crate::buf::Vec3d::write(&[1.0, 64.0, -2.0], &mut w);
         w.bool(true);
         crate::buf::Vec3d::write(&[0.5, -1.0, 2.0], &mut w);
-        w.varint(22); // 1.21.8 explosion particle, 23 in the pinned report.
+        w.varint(22); // 1.21.8 explosion particle, 22 in the pinned report.
         w.varint(0); // Inline sound holder, not a registry id.
         w.string("minecraft:entity.generic.explode");
         w.bool(false);
@@ -289,13 +303,14 @@ mod tests {
         };
         assert_eq!(p.center, [1.0, 64.0, -2.0]);
         assert_eq!(p.knockback, Some([0.5, -1.0, 2.0]));
-        assert_eq!(p.particle.id, 23);
+        assert_eq!(p.particle.id, 22);
         assert_eq!(
             p.sound,
             (-1, Some(("minecraft:entity.generic.explode".into(), None)))
         );
-        assert!(p.play_sound && p.block_particles.is_empty());
-        assert_eq!((p.radius, p.block_count), (0.0, 0));
+        // The radius, block count and block particles the step inserts on the
+        // way up are stripped back off: the pinned packet carries none.
+        assert!(p.play_sound);
     }
 
     #[test]
@@ -309,18 +324,18 @@ mod tests {
             data: vec![],
         };
         let new = super::super::renumber_states(ids, &old, 16);
-        assert_eq!(new.get(0), 8045);
-        assert_eq!(ids.block_state.down(8045), Some(7016));
+        assert_eq!(new.get(0), 7016);
+        assert_eq!(ids.block_state.down(7016), Some(7016));
         let sent = [3, 0xfa, 0x02, 0, 0]; // Three chain items, old id 378.
         let stack = {
             let _up = ids::renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (399, 3));
+        assert_eq!((stack.item, stack.count), (378, 3));
         let mut w = Writer::new();
         {
             let _down = ids::renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(399, 3)), &mut w);
+            Slot::write(&Some(Stack::new(378, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
@@ -329,9 +344,9 @@ mod tests {
     fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_6() {
         use crate::item::{Slot, Stack};
         let ids = ServerVersion::V1_21_6.ids().unwrap();
-        // Vanilla reports: cat is 1250 -> 1298; pigstep is 1266 -> 1315. The newer lava chicken
-        // disc occupies pinned id 1304, with no 1.21.6 counterpart (1.21.8 has it at 1256).
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1298), ([3, 0xf2, 0x09, 0, 0], 1315)] {
+        // Vanilla reports: cat is 1250 in both; pigstep is 1266 -> 1267. The newer lava chicken
+        // disc occupies pinned id 1256, with no 1.21.6 counterpart.
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1250), ([3, 0xf2, 0x09, 0, 0], 1267)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -344,18 +359,18 @@ mod tests {
             }
             assert_eq!(w.data, sent);
         }
-        assert_eq!(ids.item.down(1304), None);
+        assert_eq!(ids.item.down(1256), None);
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().item.down(1304),
+            ServerVersion::V1_21_8.ids().unwrap().item.down(1256),
             Some(1256)
         );
-        assert_eq!(ids.block_state.up(7016), Some(8045)); // inherited chain axis=x, waterlogged=true
+        assert_eq!(ids.block_state.up(7016), Some(7016)); // inherited chain axis=x, waterlogged=true
     }
 
     #[test]
     fn a_1_21_6_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1211.
+        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1180.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -370,13 +385,13 @@ mod tests {
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1211, None));
+        assert_eq!(p.sound, (1180, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1211),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1180),
             Some(1180)
         );
     }

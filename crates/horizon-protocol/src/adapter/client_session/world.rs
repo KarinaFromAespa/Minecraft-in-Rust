@@ -24,6 +24,10 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
         cb::LIGHT_UPDATE => Sent::Rewritten(light_update(payload)?),
         cb::LEVEL_PARTICLES => particles(ids, payload)?,
         cb::EXPLODE => explode(ids, payload)?,
+        cb::ADD_ENTITY => add_entity(ids, payload)?,
+        cb::SET_ENTITY_MOTION => Sent::Rewritten(set_entity_motion(payload)?),
+        cb::PLAYER_ROTATION => Sent::Rewritten(player_rotation(payload)?),
+        cb::SET_DEFAULT_SPAWN_POSITION => Sent::Rewritten(spawn_position(payload)?),
         cb::MOVE_ENTITY_POS | cb::MOVE_ENTITY_POS_ROT | cb::MOVE_ENTITY_ROT => {
             Sent::Rewritten(move_entity(id, payload)?)
         }
@@ -31,6 +35,76 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
         cb::ANIMATE => animate(payload)?,
         _ => return Ok(None),
     }))
+}
+
+/// 26.2's add-entity carries the velocity as an LpVec3 before the angles;
+/// 1.21.8 sends three shorts after the data. The kind and a falling block's
+/// state take 26.2's ids, as [`super::renumber`] would.
+fn add_entity(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
+    use crate::{
+        adapter::pinned_ids::entity_type::FALLING_BLOCK,
+        buf::{LpVec3, Vec3d},
+    };
+    let mut e = play::AddEntity::read(&mut Reader::new(payload))?;
+    if e.kind == FALLING_BLOCK {
+        e.data = state_down(ids, e.data);
+    }
+    let Some(kind) = down_or_substitute(
+        ids.entity_type,
+        ids.substitutes.entity_type,
+        e.kind,
+    ) else {
+        return Ok(Sent::Dropped);
+    };
+    e.kind = kind;
+    let mut w = Writer::new();
+    w.varint(e.id);
+    w.uuid(e.uuid);
+    w.varint(e.kind);
+    Vec3d::write(&e.position, &mut w);
+    LpVec3::write(&e.velocity, &mut w);
+    w.i8(e.pitch);
+    w.i8(e.yaw);
+    w.i8(e.head_yaw);
+    w.varint(e.data);
+    Ok(Sent::Rewritten(w.data))
+}
+
+/// 26.2's set-entity-motion carries the velocity as an LpVec3; 1.21.8 sends
+/// three shorts.
+fn set_entity_motion(payload: &[u8]) -> Result<Vec<u8>> {
+    use crate::buf::LpVec3;
+    let m = play::SetEntityMotion::read(&mut Reader::new(payload))?;
+    let mut w = Writer::new();
+    w.varint(m.id);
+    LpVec3::write(&m.velocity, &mut w);
+    Ok(w.data)
+}
+
+/// 26.2's player rotation carries the relative flags; 1.21.8's is always
+/// absolute.
+fn player_rotation(payload: &[u8]) -> Result<Vec<u8>> {
+    let p = play::PlayerRotation::read(&mut Reader::new(payload))?;
+    let mut w = Writer::new();
+    w.f32(p.yaw);
+    w.bool(false);
+    w.f32(p.pitch);
+    w.bool(false);
+    Ok(w.data)
+}
+
+/// 26.2's spawn position carries the dimension and the pitch; 1.21.8 sends
+/// the position and the yaw only. The pinned packet carries no dimension:
+/// the world spawn is the Overworld's (a mod-set compass target in another
+/// dimension cannot survive the pinned packet either way).
+fn spawn_position(payload: &[u8]) -> Result<Vec<u8>> {
+    let p = play::SetDefaultSpawnPosition::read(&mut Reader::new(payload))?;
+    let mut w = Writer::new();
+    w.string("minecraft:overworld");
+    crate::buf::Pos::write(&p.pos, &mut w);
+    w.f32(p.yaw);
+    w.f32(0.0);
+    Ok(w.data)
 }
 
 /// The column with its block states renumbered (stand-ins for states 26.2 lacks) and packed for 26.2's
@@ -159,22 +233,19 @@ fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     Ok(Sent::Rewritten(w.data))
 }
 
-/// 26.2's explode is 26.3's without the trailing "sound plays" flag: 26.2 always plays the sound, so a
-/// silent blast names `SoundEvents.EMPTY`. Its particles and sound take 26.2's ids; a scattered particle
-/// 26.2 has nothing for is left out.
+/// 26.2's explode carries the radius, the destroyed-block count and the
+/// scattered block particles 1.21.8's packet lacks, and no trailing "sound
+/// plays" flag: 26.2 always plays the sound, so a silent blast names
+/// `SoundEvents.EMPTY`. The radius and count are unknown to the pinned
+/// packet, so 26.2 gets 0 and an empty particle list. Its particle and sound
+/// take 26.2's ids.
 fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
+    use crate::buf::{Opt, Vec3d};
     let mut e = play::Explode::read(&mut Reader::new(payload))?;
     let Some(particle) = particle_down(ids, &e.particle) else {
         return Ok(Sent::Dropped);
     };
     e.particle = particle;
-    e.block_particles = std::mem::take(&mut e.block_particles)
-        .into_iter()
-        .filter_map(|mut b| {
-            b.particle = particle_down(ids, &b.particle)?;
-            Some(b)
-        })
-        .collect();
     let silent = || (-1, Some((SILENT.to_string(), None)));
     if !e.play_sound {
         e.sound = silent();
@@ -188,9 +259,14 @@ fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     let mut w = Writer::new();
     {
         let _down = ids::renumbering(ids, Way::Down);
-        play::Explode::write(&e, &mut w);
+        Vec3d::write(&e.center, &mut w);
+        w.f32(0.0);
+        w.i32(0);
+        <Opt<Vec3d>>::write(&e.knockback, &mut w);
+        e.particle.write(&mut w);
+        play::SoundHolder::write(&e.sound, &mut w);
+        w.varint(0);
     }
-    w.data.pop();
     Ok(Sent::Rewritten(w.data))
 }
 
@@ -326,9 +402,9 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (calcite: 24485 pinned, 27160 in 26.2), and one on the global palette:
+        // A section of one state (calcite: 23376 pinned, 27160 in 26.2), and one on the global palette:
         // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[24485; chunk::BLOCKS], Strategy::Blocks, 15);
+        let one = Paletted::from_values(&[23376; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
@@ -463,24 +539,24 @@ mod tests {
             );
             q.particle
         };
-        // entity_effect (21 in 1.21.11, 28 in 26.2) carries a colour, alike
+        // entity_effect (20 in 1.21.8, 28 in 26.2) carries a colour, alike
         // in both numberings.
         let colour = Particle {
-            id: 21,
+            id: 20,
             data: Some(ParticleData::Color(0x00ff00ff)),
         };
         assert_eq!(send(colour.clone()), colour);
-        // block (1) carries a state: chest's 3786 goes down to 3987 and comes back.
+        // block (1) carries a state: chest's 3018 goes down to 3987 and comes back.
         let block = Particle {
             id: 1,
-            data: Some(ParticleData::State(3786)),
+            data: Some(ParticleData::State(3018)),
         };
         assert_eq!(send(block.clone()), block);
-        // ash is 82 in 1.21.11 and 91 in 26.2: renumbered both ways, it comes
+        // ash is 81 in 1.21.8 and 91 in 26.2: renumbered both ways, it comes
         // back as itself.
         assert_eq!(
-            send(Particle { id: 82, data: None }),
-            Particle { id: 82, data: None }
+            send(Particle { id: 81, data: None }),
+            Particle { id: 81, data: None }
         );
     }
 
@@ -489,7 +565,7 @@ mod tests {
         let ids = ids();
         let p = play::LevelParticles {
             particle: Particle {
-                id: 21,
+                id: 20,
                 data: Some(ParticleData::Color(0)),
             },
             override_limiter: false,
@@ -517,45 +593,38 @@ mod tests {
     fn blast(play_sound: bool, sound: i32) -> play::Explode {
         play::Explode {
             center: [10.0, 70.0, -4.0],
-            radius: 4.0,
-            block_count: 17,
             knockback: Some([0.1, 0.2, 0.3]),
             particle: Particle {
-                id: 21,
+                id: 20,
                 data: Some(ParticleData::Color(-1)),
             },
             sound: (sound, None),
-            block_particles: vec![
-                play::ExplosionParticle {
-                    particle: Particle {
-                        id: 21,
-                        data: Some(ParticleData::Color(7)),
-                    },
-                    scaling: 1.0,
-                    speed: 0.5,
-                    weight: 3,
-                },
-                // A native mod's particle: 26.2 has nothing for it.
-                play::ExplosionParticle {
-                    particle: Particle {
-                        id: crate::entity_data::MOD_PARTICLE_ID,
-                        data: Some(ParticleData::Mod("mymod:spark".into())),
-                    },
-                    scaling: 1.0,
-                    speed: 0.5,
-                    weight: 1,
-                },
-            ],
             play_sound,
         }
     }
 
-    /// 26.2's explode read back as `translate` reads it: the flag 26.2 lacks appended, ids renumbered up.
+    /// 26.2's explode read back as a pinned one: the radius, count and block
+    /// particles 26.2 carries are asserted 0/empty on the way (the pinned
+    /// packet has none), ids renumbered up. 26.2 has no sound flag: its sound
+    /// always plays.
     fn explode_up(old: &[u8]) -> play::Explode {
-        let mut body = old.to_vec();
-        body.push(1);
+        use crate::buf::{Opt, Vec3d};
         let _up = ids::renumbering(ids(), Way::Up);
-        play::Explode::read(&mut Reader::new(&body)).unwrap()
+        let mut r = Reader::new(old);
+        let center = Vec3d::read(&mut r).unwrap();
+        assert_eq!(r.f32().unwrap(), 0.0);
+        assert_eq!(r.i32().unwrap(), 0);
+        let knockback = <Opt<Vec3d>>::read(&mut r).unwrap();
+        let particle = Particle::read(&mut r).unwrap();
+        let sound = play::SoundHolder::read(&mut r).unwrap();
+        assert_eq!(r.varint().unwrap(), 0);
+        play::Explode {
+            center,
+            knockback,
+            particle,
+            sound,
+            play_sound: true,
+        }
     }
 
     #[test]
@@ -568,19 +637,10 @@ mod tests {
         let e = blast(true, sound);
         let old =
             rewritten(down(ids, packet_ids::play::clientbound::EXPLODE, &encode(&e)).unwrap());
-        assert_eq!(
-            old.len() + 1,
-            encode(&{
-                let mut kept = e.clone();
-                kept.block_particles.truncate(1);
-                kept
-            })
-            .len()
-        );
-        let back = explode_up(&old);
-        let mut expected = e;
-        expected.block_particles.truncate(1);
-        assert_eq!(back, expected);
+        // 26.2's layout adds the radius (4), the block count (4) and the
+        // block-particle count (1), and drops the flag (1).
+        assert_eq!(old.len(), encode(&e).len() + 8);
+        assert_eq!(explode_up(&old), e);
     }
 
     #[test]

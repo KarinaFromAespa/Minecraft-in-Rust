@@ -1146,9 +1146,7 @@ impl Game<'_> {
         if forced {
             g.send(&C::PlayerRotation(play::PlayerRotation {
                 yaw: g.yaw,
-                relative_yaw: false,
                 pitch: g.pitch,
-                relative_pitch: false,
             }));
         }
         self.yaw = yaw;

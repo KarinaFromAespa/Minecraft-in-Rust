@@ -55,12 +55,14 @@ public final class VanillaBlockLandingOracle {
         Data d;Server(){super(null,null,null,null,null,null,null,null);} // MinecraftServer ctor: (Thread, storage, packs, WorldStem, Proxy, DataFixer, Services, LevelLoadListener)
         @Override public boolean isUnderSpawnProtection(net.minecraft.server.level.ServerLevel level,BlockPos p,Player player){d.query("protection "+pos(p));return d.flag("protected");}
         @Override public boolean initServer(){throw new UnsupportedOperationException();}
-        // 1.21.10 MinecraftServer: int permission levels (operatorUserPermissionLevel,
-        // getFunctionCompilationLevel) and isEpollEnabled(); the permissions package
-        // and useNativeTransport() came in 1.21.11.
-        @Override public int operatorUserPermissionLevel(){throw new UnsupportedOperationException();}
+        // 1.21.8 MinecraftServer: getOperatorUserPermissionLevel (the
+        // operatorUserPermissionLevel name arrived in 1.21.10) and
+        // isSingleplayerOwner(GameProfile) (NameAndId came in 1.21.9);
+        // isCommandBlockEnabled is abstract here.
+        @Override public int getOperatorUserPermissionLevel(){throw new UnsupportedOperationException();}
         @Override public int getFunctionCompilationLevel(){throw new UnsupportedOperationException();}
         @Override public boolean isEpollEnabled(){throw new UnsupportedOperationException();}
+        @Override public boolean isCommandBlockEnabled(){throw new UnsupportedOperationException();}
         @Override public boolean shouldRconBroadcast(){throw new UnsupportedOperationException();}
         @Override public net.minecraft.util.debugchart.SampleLogger getTickTimeLogger(){throw new UnsupportedOperationException();}
         @Override public boolean isTickTimeLoggingEnabled(){throw new UnsupportedOperationException();}
@@ -69,10 +71,10 @@ public final class VanillaBlockLandingOracle {
         @Override public int getRateLimitPacketsPerSecond(){throw new UnsupportedOperationException();}
         @Override public boolean isPublished(){throw new UnsupportedOperationException();}
         @Override public boolean shouldInformAdmins(){throw new UnsupportedOperationException();}
-        @Override public boolean isSingleplayerOwner(net.minecraft.server.players.NameAndId p0){throw new UnsupportedOperationException();}
+        @Override public boolean isSingleplayerOwner(com.mojang.authlib.GameProfile p0){throw new UnsupportedOperationException();}
     }
     static final class ServerWorld extends net.minecraft.server.level.ServerLevel {
-        Data d;ServerWorld(){super(null,null,null,null,null,null,false,0L,List.of(),false,null);}
+        Data d;ServerWorld(){super(null,null,null,null,null,null,null,false,0L,List.of(),false,null);} // 1.21.8 ServerLevel ctor: (server, executor, storage, data, dimension, stem, progressListener, debug, seed, spawners, tickTime, sequences)
         @Override public GameRules getGameRules(){d.query("rules");return d.rules;}
 
         @Override public boolean isClientSide(){d.query("client");return d.flag("client");}
@@ -104,7 +106,7 @@ public final class VanillaBlockLandingOracle {
 @Override public void destroyBlockProgress(int p0,net.minecraft.core.BlockPos p1,int p2){throw new UnsupportedOperationException();}
 @Override public java.util.Collection dragonParts(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures(){throw new UnsupportedOperationException();}
-@Override public void explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.util.random.WeightedList p11,net.minecraft.core.Holder p12){throw new UnsupportedOperationException();}
+@Override public void explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.core.Holder p11){throw new UnsupportedOperationException();}
 @Override public void gameEvent(net.minecraft.core.Holder p0,net.minecraft.world.phys.Vec3 p1,net.minecraft.world.level.gameevent.GameEvent.Context p2){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.block.entity.FuelValues fuelValues(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.item.alchemy.PotionBrewing potionBrewing(){throw new UnsupportedOperationException();}
@@ -116,7 +118,6 @@ public final class VanillaBlockLandingOracle {
 @Override public net.minecraft.world.entity.Entity getEntity(int p0){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.ticks.LevelTickAccess getFluidTicks(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.saveddata.maps.MapItemSavedData getMapData(net.minecraft.world.level.saveddata.maps.MapId p0){throw new UnsupportedOperationException();}
-@Override public net.minecraft.world.level.storage.LevelData.RespawnData getRespawnData(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.scores.Scoreboard getScoreboard(){throw new UnsupportedOperationException();}
 @Override public int getSeaLevel(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.core.Holder getUncachedNoiseBiome(int p0,int p1,int p2){throw new UnsupportedOperationException();}
@@ -127,7 +128,6 @@ public final class VanillaBlockLandingOracle {
 @Override public java.util.List players(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.item.crafting.RecipeAccess recipeAccess(){throw new UnsupportedOperationException();}
 @Override public void sendBlockUpdated(net.minecraft.core.BlockPos p0,net.minecraft.world.level.block.state.BlockState p1,net.minecraft.world.level.block.state.BlockState p2,int p3){throw new UnsupportedOperationException();}
-@Override public void setRespawnData(net.minecraft.world.level.storage.LevelData.RespawnData p0){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.TickRateManager tickRateManager(){throw new UnsupportedOperationException();}
     }
     static final class Other extends Marker {
