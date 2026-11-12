@@ -1,11 +1,11 @@
 # The delta bar: checklist and gate
 
-Companion to `ROADMAP-TARGET-REDRAFT.md` §4.2. Turns D1–D6 into six checks a pipeline can run,
+Companion to `docs/ROADMAP.md` §4.2. Turns D1–D6 into six checks a pipeline can run,
 against artifacts the pipeline already produces, so a release is either **delta-verified** or it
 isn't — with no third state and no adjective in between.
 
-The gate is `files/delta_verify.py` → install as `tools/delta_verify.py` in the tree (or at the
-repo root and pass `--tree`). Stdlib only, 3.10+.
+The gate is `tools/delta_verify.py` at the repo root (pass `--tree` when the
+release's tree is elsewhere). Stdlib only, 3.10+.
 
 ```sh
 python3 tools/delta_verify.py 1.21.10                 # judge recorded evidence
@@ -72,13 +72,12 @@ that `version_port.py` writes into its store, `.local/horizon-client/<release>/`
 | **Must hold** | The tree pins this exact release; all six tables regenerated from its own jar; prepare ran end to end; regeneration is byte-stable. |
 | **Command** | `python3 tools/version_port.py prepare <v>` (add `--download` if the store is cold); `python3 tools/version_port.py regen <v> --worktree A`, then `--worktree B`. |
 | **Artifacts** | `research-lock.json`; `diff-*-<v>/regen.json`; `pins/<v>/regen-determinism.json`; `.local/horizon-client/<v>/`. |
-| **Passes when** | `minecraft.version == <v>`; `client_sha1`, `server_sha1`, `java_major` present; `version.rs` says `VERSION_ID == <v>` with non-zero protocol/data; every generator in `regen.json` clean; the six table hashes match across both regen runs; prepared data exists (or prepare exited 0 under `--run`). |
+| **Passes when** | `minecraft.version == <v>`; `client_sha1`, `server_sha1`, `java_major` present; `version.rs` says `VERSION_ID == <v>` with non-zero protocol/data; every generator in `regen.json` clean; the six committed tables match a fresh regen (run1 = the published tree, run2 = a regenerated worktree); prepared data exists (or prepare exited 0 under `--run`). |
 | **Cost** | 1–2 h warm; 10–30 min with a hot store. |
 
 Producing the determinism record (the only artifact nobody generates today):
 
 ```sh
-python3 tools/version_port.py regen 1.21.10 --worktree /tmp/regen-a
 python3 tools/version_port.py regen 1.21.10 --worktree /tmp/regen-b
 python3 - <<'PY'
 import hashlib, json, pathlib
@@ -87,15 +86,21 @@ tables = ["crates/horizon-core/src/version.rs", "crates/horizon-protocol/src/ids
           "crates/horizon-client/src/lan/command_suggestions.rs", "crates/horizon-command/src/vanilla_order.rs"]
 def hashes(root):
     return {t: hashlib.sha256((pathlib.Path(root) / t).read_bytes()).hexdigest() for t in tables}
-record = {"run1": hashes("/tmp/regen-a"), "run2": hashes("/tmp/regen-b")}
-pathlib.Path("pins/1.21.10/regen-determinism.json").write_text(json.dumps(record, indent=2))
+# run1 is the COMMITTED tables in the published tree, run2 a fresh regen.
+# Comparing two fresh regens would not catch anything: the same generator
+# on the same input produces the same output, wrong or not.
+record = {"run1": hashes("versions/1.21.10"), "run2": hashes("/tmp/regen-b")}
+pathlib.Path("versions/1.21.10/regen-determinism.json").write_text(json.dumps(record, indent=2))
 PY
 ```
 
 Why it's a real check: 1.21.11's regen pass found 5 hand-corrected adapter tables and a
 `slot_display` numbering trap where the generator's mapping was identity for an 8-entry registry
-and 11→8 for the 26.x versions — both wrong for the codec. A second regen run is what catches
-that class of thing before it reaches a build.
+and 11→8 for the 26.x versions — both wrong for the codec. Two fresh regens would agree with
+each other and pass while the committed tables still carried the hand-correction, so the
+record compares the committed tables against a fresh regen instead: any drift means the
+generator is wrong or the tree is stale, and D1 fails until the fix lands at the source
+(the generator or the codec), not as another silent hand-edit.
 
 ---
 
@@ -242,6 +247,10 @@ stage is derived from the one before it:
 So `status.json` retires, or becomes a regenerated cache with no hand-edited fields. If a number
 appears in the index and is not in a verdict, it is wrong by construction — which is the failure
 mode that produced "completion pass landed" beside a 3-of-17 profile.
+
+The gate also cross-checks `profile.json`'s `commit` against the tree's HEAD: a profile from
+another commit fails the verdict outright, so stale evidence cannot verify a newer tree. A
+profile with no `commit` field skips the check rather than failing it.
 
 `delta-verdict.json`:
 

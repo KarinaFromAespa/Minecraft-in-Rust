@@ -25,7 +25,7 @@ Layout it expects (see DELTA-BAR.md §2):
       harness-subset.txt          D5: this era's regression subset
       allowed-failures.txt        any check: "name  # cause: … owner: …"
       playtest.md                 D6 signed playtest
-      regen-determinism.json      D1: two regen runs' table hashes
+      regen-determinism.json      D1: committed tables' hashes vs a fresh regen's
       delta-verdict.json          written by this script
 
 Exit: 0 verified · 1 failed · 3 blocked (evidence missing) · 2 usage error.
@@ -273,8 +273,8 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     determinism = read_json(determinism_path)
     if determinism is None:
         return check_stop(
-            "no regen-determinism.json: regenerate twice into two worktrees "
-            "(`version_port.py regen <v> --worktree A` then B) and record the six tables' sha256",
+            "no regen-determinism.json: hash the six committed tables (run1) and a fresh "
+            "regen's (`version_port.py regen <v> --worktree B`, run2) and record both",
             evidence,
         )
     run1, run2 = determinism.get("run1") or {}, determinism.get("run2") or {}
@@ -289,7 +289,7 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     if missing:
         return check_stop("regen-determinism.json omits tables: " + ", ".join(missing[:3]),
                           [str(determinism_path)])
-    notes.append(f"{len(run1)} tables identical across two regen runs")
+    notes.append(f"{len(run1)} tables: committed match a fresh regen")
     evidence.append(str(determinism_path))
 
     prepared = tree / ".local" / "horizon-client" / release
@@ -469,6 +469,21 @@ def _parity_state(tree: Path, pin: Path):
             if state:
                 return state, candidate
     return None, None
+
+
+def published_profile_commit(tree: Path, pin: Path):
+    """The commit a published profile claims to be about, if it says.
+
+    The gate judges evidence that shipped; a profile from another commit
+    must not verify this tree. state.json carries no commit, so only a
+    profile.json can answer — a missing commit means no cross-check,
+    not a failure.
+    """
+    for candidate in (pin / "profile.json", pin / "ci-out/profile.json"):
+        raw = read_json(candidate)
+        if isinstance(raw, dict) and raw.get("commit"):
+            return str(raw["commit"])
+    return ""
 
 
 def _judge_harnesses(state, names, exempt):
@@ -677,6 +692,17 @@ def main(argv=None) -> int:
     else:
         verdict_state = "verified"
 
+    # A profile from another commit fails the verdict outright: stale
+    # evidence cannot verify a newer tree. Same prefix rule as D6's
+    # playtest stamp; skipped when either side is unknown.
+    profile_commit = published_profile_commit(tree, pin)
+    commit_mismatch = None
+    if profile_commit and commit and not (
+        commit.startswith(profile_commit) or profile_commit.startswith(commit[:7])
+    ):
+        commit_mismatch = {"profile": profile_commit, "head": commit}
+        verdict_state = "failed"
+
     tier_file = pin / "tier.txt"
     tier = tier_file.read_text(encoding="utf-8").strip()[:1].upper() if tier_file.exists() else "D"
     if tier not in ("T", "D"):
@@ -710,6 +736,7 @@ def main(argv=None) -> int:
         "mode": "run" if args.run else "recorded",
         "verified": verdict_state == "verified",
         "state": verdict_state,
+        "commit_mismatch": commit_mismatch,
         "checked_at": checked_at,
         "scalars": scalars,
         "index_line": index_line,
@@ -728,6 +755,8 @@ def main(argv=None) -> int:
         for name in CHECK_ORDER:
             entry = checks[name]
             print(f"  {name} {entry['status']:<8} {'; '.join(entry['notes'])[:150]}")
+        if commit_mismatch:
+            print(f"  commit MISMATCH: profile is for {profile_commit[:12]}, HEAD is {commit[:12]}")
         print(f"  verdict: {out}")
 
     return {"verified": 0, "failed": STATUS_EXIT[FAIL], "blocked": STATUS_EXIT[BLOCKED]}[verdict_state]
