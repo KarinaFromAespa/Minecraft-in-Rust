@@ -20,6 +20,24 @@ pin's own metadata is malformed. **Blocked is not verified.** That distinction i
 
 ---
 
+## In this repository today
+
+The tree lives at `versions/<id>/` and holds both the code and this release's metadata, so the gate
+needs no `--pin`:
+
+```sh
+python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11            # judge recorded evidence
+python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11 --check D3 # one check, while working
+python3 tools/delta_verify.py --index                                    # VERSIONS.md rows
+```
+
+Artifacts land beside the tree: `versions/<id>/{work-items.json, harness-subset.txt,
+allowed-failures.txt, regen-determinism.json, playtest.md, profile.json, ci-out/, delta-verdict.json}`.
+§2 also describes `pins/<release>/`, which is the redraft's target shape (code in `lines/<era>/`,
+metadata in `pins/<release>/`); both layouts work, and `--pin` overrides either.
+
+---
+
 ## 1. The one rule
 
 > A release is delta-verified iff **D1–D6 all pass at one commit**, with the evidence recorded in
