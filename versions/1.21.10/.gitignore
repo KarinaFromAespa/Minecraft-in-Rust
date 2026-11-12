@@ -1,0 +1,41 @@
+/.local/
+/target/
+**/__pycache__/
+*.py[cod]
+/.venv/
+# Downloaded/decompiled game content and private profiling artifacts.
+*.jar
+# The jsr305 annotation library is a third-party compile-time dependency, not game
+# content: Mojang's jars before 1.21.11 reference javax.annotation.Nullable but never
+# shipped the jar, so javac crashes without it on the classpath.
+!tools/jsr305-3.0.2.jar
+*.class
+*.jfr
+*.hprof
+/decompiled/
+/minecraft/
+/assets/
+/run/
+/logs/
+/dist/
+/mods/horizon/build/
+/saves/
+/backups/
+/tools/logs/
+.DS_Store
+# What the client writes to its working directory when run from the repo root.
+/options.txt
+/debug-profile.json
+/horizon.txt
+/horizon-graphics.txt
+/horizon-controller.txt
+/horizon-extras.txt
+/horizon-player.txt
+/servers.dat
+/screenshots/
+/.horizon-cache/
+/crash-reports/
+/debug/
+
+# Release-only compiled original exporter bundle.
+/exporters/

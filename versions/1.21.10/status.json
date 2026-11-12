@@ -1,0 +1,39 @@
+{
+  "behaviour": {
+    "closed": 0,
+    "note": "Protocol/table infrastructure complete (packet rename, 6/6 tables, oracle ports for prepare, adapter re-base to the 773 pin); behaviour port unstarted. Behaviour code is still the 26.3 base's.",
+    "total": 719
+  },
+  "harness": {
+    "fail": 4,
+    "failing": [
+      "command_parse",
+      "component_patch",
+      "datafix",
+      "entity_components"
+    ],
+    "note": "9 of 17 measured locally on this VM (run 2, 2026-11-12, 43.1 min): 1 pass / 4 oracle / 4 fail. command_parse ran to a real verdict (7,488 mismatches); component_patch's oracle crashes at runtime (Removed class missing in 1.21.10); datafix's fixture generation failed on a truncated manifest download (environmental); entity_components fails on a harness-side Python bug (entity predicate is a list in 1.21.10). 8 game-binary harnesses unmeasured locally; CI covers them. No CI run dispatched yet.",
+    "oracle_fail": 4,
+    "oracle_failing": [
+      "chunk_generation",
+      "command_exec",
+      "first_person",
+      "food"
+    ],
+    "pass": 1,
+    "passing": [
+      "block_properties"
+    ],
+    "total": 17
+  },
+  "notes": "SlotDisplay codec still uses 26.3 numbering; five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec. jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths: 1.21.10's server jar references it from 1,219 classes but Mojang never shipped the jar.",
+  "profile_recorded": "2026-11-12",
+  "protocol": 773,
+  "protocol_tests": {
+    "fail": 2,
+    "note": "2 failures are the pre-existing sandbox-network pair in untouched code.",
+    "pass": 438
+  },
+  "role": "E6 delta (from template 1.21.11)",
+  "version": "1.21.10"
+}
