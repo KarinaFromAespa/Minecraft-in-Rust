@@ -472,77 +472,71 @@ PASS_KEYS = ("passing", "passed", "pass")
 FAIL_KEYS = ("failing", "failed", "fail")
 
 
+def _records(container) -> dict:
+    """name → record from a record-style container ({} for a summary container)."""
+    if isinstance(container, list):
+        if not all(isinstance(entry, dict) for entry in container):
+            return {}
+        container = {(e.get("name") or e.get("harness")): e for e in container}
+    if not isinstance(container, dict):
+        return {}
+    if container and all(isinstance(value, list) for value in container.values()):
+        return {}  # a summary: passing/failing lists, not records
+    out = {}
+    for name, value in container.items():
+        if not isinstance(name, str) or not name:
+            continue
+        if isinstance(value, str):
+            out[name] = {"status": ALIASES.get(value.lower(), value.lower())}
+        elif isinstance(value, dict):
+            status = value.get("status") or value.get("verdict") or value.get("result")
+            if status is None and "passed" in value:
+                status = "pass" if value["passed"] else "fail"
+            if status is None:
+                continue
+            out[name] = {**value,
+                         "status": ALIASES.get(str(status).lower(), str(status).lower())}
+    return out
+
+
+def _buckets(container) -> dict:
+    """name → record from passing/failing lists."""
+    if not isinstance(container, dict):
+        return {}
+    out = {}
+    for status, keys in (("pass", PASS_KEYS), ("fail", FAIL_KEYS)):
+        for key in keys:
+            names = container.get(key)
+            if isinstance(names, list):
+                for name in names:
+                    if isinstance(name, str) and name:
+                        out.setdefault(name, {"status": status})
+                break
+    return out
+
+
 def normalise_profile(raw):
-    """Accept the shapes a published profile comes in; return {"harnesses": {...}}.
+    """Any published profile shape → {"harnesses": {...}}, records beating summaries.
 
-    `profile.json` is the frozen record of one completed sweep. Two shapes are
-    accepted because the emitter already exists: a map of harness name to record
-    (`{"harnesses": {name: {...}}}`) and the summary form with lists
-    (`{"harness": {"passing": [...], "failing": [...]}}`, singular or nested).
-    A profile from another commit is refused: evidence must match the tree judged.
-
-    The record form is read first: it carries per-harness status (including
-    "oracle"), which the summary form's pass/fail lists cannot express. A
-    profile carrying both — the publisher and the v6.2 emitter write both —
-    is judged on the richer one, so an oracle failure reads as failed rather
-    than unmeasured; a summary-only profile still reads fine.
+    A profile may carry both a summary (`passing`/`failing` lists) and a map of
+    harness records. The map wins where they disagree and the summary fills gaps,
+    so a harness whose status is neither pass nor fail — an oracle that no longer
+    compiles, a flaky rerun — keeps that status instead of vanishing into
+    "unmeasured". Reading the summary first would report the wrong reason.
     """
     if not isinstance(raw, dict):
         return None
-
-    # Record form: name to record (or name to bare status). Tried first; a
-    # summary dict under "harness" yields no records here and falls through.
-    entries = None
+    found = dict(_buckets(raw))
+    for key in ("harnesses", "harness", "suite", "summary"):
+        value = raw.get(key)
+        if isinstance(value, dict):
+            for name, record in _buckets(value).items():
+                found.setdefault(name, record)
     for key in ("harnesses", "harness", "suite", "results", "tests"):
         value = raw.get(key)
         if isinstance(value, (dict, list)):
-            entries = value
-            break
-    if isinstance(entries, list):
-        entries = {
-            (entry.get("name") or entry.get("harness")): entry
-            for entry in entries if isinstance(entry, dict)
-        }
-    if isinstance(entries, dict):
-        harnesses = {}
-        for name, value in entries.items():
-            if not name:
-                continue
-            if isinstance(value, str):
-                harnesses[name] = {"status": ALIASES.get(value.lower(), value.lower())}
-            elif isinstance(value, dict):
-                raw_status = value.get("status") or value.get("verdict") or value.get("result")
-                if raw_status is None and "passed" in value:
-                    raw_status = "pass" if value["passed"] else "fail"
-                if raw_status is None:
-                    continue
-                harnesses[name] = {**value,
-                                   "status": ALIASES.get(str(raw_status).lower(),
-                                                         str(raw_status).lower())}
-        if harnesses:
-            return {"harnesses": harnesses}
-
-    # Summary form: pass/fail lists, at the top level or under one container key.
-    for container in [raw] + [raw.get(key) for key in ("harness", "harnesses", "suite", "summary")]:
-        if not isinstance(container, dict):
-            continue
-        buckets = {}
-        for key in PASS_KEYS:
-            if isinstance(container.get(key), list):
-                buckets["pass"] = container[key]
-                break
-        for key in FAIL_KEYS:
-            if isinstance(container.get(key), list):
-                buckets["fail"] = container[key]
-                break
-        if buckets:
-            harnesses = {}
-            for status, names in buckets.items():
-                for name in names:
-                    if isinstance(name, str) and name:
-                        harnesses[name] = {"status": status}
-            return {"harnesses": harnesses} if harnesses else None
-    return None
+            found.update(_records(value))
+    return {"harnesses": found} if found else None
 
 
 def commit_agrees(stamped: str, actual: str) -> bool:
@@ -591,7 +585,8 @@ def _judge_harnesses(state, names, exempt):
         if record is None:
             unknown.append(name)
         elif record.get("status") != "pass" and not any(token in name for token in exempt):
-            failing.append(name)
+            status = record.get("status")
+            failing.append(name if status == "fail" else f"{name}({status})")
     return failing, unknown
 
 

@@ -74,7 +74,10 @@ versions/1.21.10/               this release's metadata, no crates
 emitter already produces — `{"harness": {"passing": [...], "failing": [...]}}`, singular or
 nested — as well as `{"harnesses": {name: status}}` and `{"results": [{name, passed}]}`, with
 `pass`/`passed`/`ok` normalised. The point is that a published profile exists, not that it is
-written in one dialect. `parity.py`'s local `state.json` is accepted only as a fallback, so a
+written in one dialect. When a profile carries both a summary and a `harnesses` map, the map
+wins and the summary fills gaps — so a harness with a status of its own (`oracle`, `flaky`)
+keeps it instead of disappearing into "unmeasured". `parity.py`'s local `state.json` is
+accepted only as a fallback, so a
 verdict judges evidence that was actually shipped.
 
 A profile stamped with a `commit` that does not match HEAD is **refused**, not downgraded: it is
@@ -324,18 +327,20 @@ table that could be mistaken for success.
 
 The gate is record-and-judge, so CI only has to produce artifacts. Two jobs per release.
 
-**First add what `port-verify` does not record today.** It has no protocol-test step, and its only
-compile step is `cargo check -p horizon-protocol` (protocol package, `continue-on-error`) writing
-`protocol-check.log` — which cannot satisfy D2, and the gate says so rather than passing it:
+**`port-verify` v6.2 already records both D2 logs.** If a line still does not, the steps are these
+— and the `set -o pipefail` is not decoration: without it `tee` reports its own status, which is
+how an earlier draft of this note quoted an exit code the gate never returned.
 
 ```yaml
-      - name: Workspace check (D2)
+      - name: Workspace check (D2 evidence)
         continue-on-error: true
         run: |
+          set -o pipefail
           cargo check --workspace --all-targets 2>&1 | tee ci-out/cargo-check.log
-      - name: Protocol tests (D2)
+      - name: Protocol tests (D2 evidence)
         continue-on-error: true
         run: |
+          set -o pipefail
           cargo test -p horizon-protocol 2>&1 | tee ci-out/cargo-test-protocol.log
 ```
 

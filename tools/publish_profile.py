@@ -41,56 +41,65 @@ def read_json(path: Path):
         return None
 
 
-def normalise(raw) -> dict[str, dict]:
-    """Any parity.py state or profile shape → {harness name: record}."""
-    if not isinstance(raw, dict):
+def _records(container) -> dict[str, dict]:
+    if isinstance(container, list):
+        if not all(isinstance(entry, dict) for entry in container):
+            return {}
+        container = {(e.get("name") or e.get("harness")): e for e in container}
+    if not isinstance(container, dict):
         return {}
-    for container in [raw] + [raw.get(key) for key in CONTAINERS]:
-        if not isinstance(container, dict):
-            continue
-        buckets = {}
-        for key in PASS_KEYS:
-            if isinstance(container.get(key), list):
-                buckets["pass"] = container[key]
-                break
-        for key in FAIL_KEYS:
-            if isinstance(container.get(key), list):
-                buckets["fail"] = container[key]
-                break
-        if buckets:
-            return {
-                str(name): {"status": status}
-                for status, names in buckets.items()
-                for name in names if isinstance(name, str) and name
-            }
-    entries = None
-    for key in CONTAINERS:
-        value = raw.get(key)
-        if isinstance(value, (dict, list)):
-            entries = value
-            break
-    if isinstance(entries, list):
-        entries = {
-            (entry.get("name") or entry.get("harness")): entry
-            for entry in entries if isinstance(entry, dict)
-        }
-    if not isinstance(entries, dict):
+    if container and all(isinstance(value, list) for value in container.values()):
         return {}
-    harnesses = {}
-    for name, value in entries.items():
-        if not name:
+    out = {}
+    for name, value in container.items():
+        if not isinstance(name, str) or not name:
             continue
         if isinstance(value, str):
-            harnesses[name] = {"status": ALIASES.get(value.lower(), value.lower())}
+            out[name] = {"status": ALIASES.get(value.lower(), value.lower())}
         elif isinstance(value, dict):
             status = value.get("status") or value.get("verdict") or value.get("result")
             if status is None and "passed" in value:
                 status = "pass" if value["passed"] else "fail"
             if status is None:
                 continue
-            record = {**value, "status": ALIASES.get(str(status).lower(), str(status).lower())}
-            harnesses[name] = record
-    return harnesses
+            out[name] = {**value, "status": ALIASES.get(str(status).lower(), str(status).lower())}
+    return out
+
+
+def _buckets(container) -> dict[str, dict]:
+    if not isinstance(container, dict):
+        return {}
+    out = {}
+    for status, keys in (("pass", PASS_KEYS), ("fail", FAIL_KEYS)):
+        for key in keys:
+            names = container.get(key)
+            if isinstance(names, list):
+                for name in names:
+                    if isinstance(name, str) and name:
+                        out.setdefault(name, {"status": status})
+                break
+    return out
+
+
+def normalise(raw) -> dict[str, dict]:
+    """Any parity.py state or profile shape → {harness name: record}.
+
+    Records beat summary buckets; buckets fill gaps, so a status that is neither
+    pass nor fail survives the round trip.
+    """
+    if not isinstance(raw, dict):
+        return {}
+    found = dict(_buckets(raw))
+    for key in CONTAINERS:
+        value = raw.get(key)
+        if isinstance(value, dict):
+            for name, record in _buckets(value).items():
+                found.setdefault(name, record)
+    for key in CONTAINERS:
+        value = raw.get(key)
+        if isinstance(value, (dict, list)):
+            found.update(_records(value))
+    return found
 
 
 def candidates(release: str) -> list[Path]:
@@ -159,7 +168,10 @@ def main(argv=None) -> int:
         "sources": used,
         "summary": {"total": len(merged), **counts,
                     "passing": sorted(n for n, r in merged.items() if r.get("status") == "pass"),
-                    "failing": sorted(n for n, r in merged.items() if r.get("status") == "fail")},
+                    "failing": sorted(n for n, r in merged.items() if r.get("status") == "fail"),
+                    # never silent: a status of its own (oracle, flaky) is named here
+                    "other_harnesses": sorted(n for n, r in merged.items()
+                                              if r.get("status") not in ("pass", "fail"))},
         "harnesses": dict(sorted(merged.items())),
     }
 
