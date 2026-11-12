@@ -1,18 +1,20 @@
-# Minecraft in Rust — Java Edition 1.21.10
+# Minecraft in Rust — Java Edition 1.21.9
 
-**Minecraft: Java Edition 1.21.10, rewritten in Rust.** This directory is one
+**Minecraft: Java Edition 1.21.9, rewritten in Rust.** This directory is one
 version of the [Minecraft-in-Rust](../../README.md) programme: every major
 Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — a reference
 reimplementation, each version specified and verified against its own jar.
 
-1.21.10 is the first adjacent delta port in the programme's **Components era
-(E6, 1.20.5–1.21.11)**, taken from the era template 1.21.11: protocol
-774 → 773, one packet rename (`mount_screen_open` → `horse_screen_open`),
-the command-parse oracle ported back to the pre-permissions API, and the
-cross-version adapter ladder re-based to the 773 pin. All six generated
-tables are regenerated from 1.21.10's own jar, and the remaining work is
-sized, ranked and documented.
-[PORT-NOTES-1.21.10.md](PORT-NOTES-1.21.10.md) in this directory is the
+1.21.9 is the second adjacent delta port in the programme's **Components era
+(E6, 1.20.5–1.21.11)**, taken from 1.21.10: a same-protocol delta
+(protocol stays 773; world version 4556 → 4554), so the pin is a version
+bump only — packets, registries, blocks, items and commands are identical
+to 1.21.10, and the adapter ladder stays 773-pinned. The measured delta is
+27 ranked work items, dominated by an `entityInside` change across ~20
+block classes. The six generated tables are regenerated or confirmed
+unchanged against 1.21.9's own jar, and the remaining work is sized, ranked
+and documented.
+[PORT-NOTES-1.21.9.md](PORT-NOTES-1.21.9.md) in this directory is the
 authoritative record of the stage reached, the numbers behind it, and the
 residual. Its status is also tracked in
 [VERSIONS.md](../../VERSIONS.md).
