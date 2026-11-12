@@ -279,8 +279,9 @@ model: one adjacent delta port, timed end to end, measured against
 clock, UTC) and are approximate to about ±10 minutes per bucket.
 
 - **Wall clock:** start ~2026-11-11 23:45 UTC (task spawn; repo clone
-  and environment setup first), end ~2026-11-12 03:10 UTC (publish
-  commit; approximate). Total: ~3 h 25 min.
+  and environment setup first), end 2026-11-12 02:55 UTC (publish
+  commit e8d85d1). Total: ~3 h 10 min. (Corrected 2026-11-12: the
+  end time was estimated 15 minutes late before the commit landed.)
 - **Work items closed vs total:** 0 / 719 behaviour items closed. The
   port closed the infrastructure layer only: pin, 6/6 tables, one
   packet rename, one oracle port, the adapter re-base. No behaviour

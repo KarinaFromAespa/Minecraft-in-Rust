@@ -146,9 +146,10 @@ timestamps (VM clock, UTC) and are approximate to about ±10 minutes
 per bucket.
 
 - **Wall clock:** prepare 2026-11-12 01:31–01:36 UTC; diff/report
-  ~01:52–01:54 UTC; port work 02:56–~03:45 UTC (publish commit;
-  approximate). Active time (excluding the idle gap while 1.21.10
-  finished): ~70 min.
+  ~01:52–01:54 UTC; port work 02:56–03:31 UTC (publish commit
+  a1d6494). Active time (excluding the idle gap while 1.21.10
+  finished): ~65 min. (Corrected 2026-11-12: the end time was
+  estimated 15 minutes late before the commit landed.)
 - **Work items closed vs total:** 0 / 27 behaviour items closed. The
   port closed the infrastructure layer only: pin, tables, verification.
   No behaviour item was attempted.
