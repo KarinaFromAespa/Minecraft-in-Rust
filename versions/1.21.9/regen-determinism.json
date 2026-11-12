@@ -1,0 +1,20 @@
+{
+  "release": "1.21.9",
+  "committed": {
+    "crates/horizon-core/src/version.rs": "a5c8cc1f16b3a895425183dcef8a73e21f575de89d5efdec8bb0b80617fe0bc6",
+    "crates/horizon-protocol/src/ids.rs": "5ad0db5b12b6d63ea9e586b28b1ef037f9641f7666b598297ecba84bb5e252ef",
+    "crates/horizon-client/src/lan/tracking.rs": "70c23cc8f8f3536193173409c5de3e58103eca517d2ed92d57d19b71b7294c3e",
+    "crates/horizon-client/src/lan/command_order.rs": "6b93dc794d10479fc83adc3b349a52e38366e82203aa1aeebd34bd3af1389780",
+    "crates/horizon-client/src/lan/command_suggestions.rs": "d6df4ee234efb16971cdd24debcac3ecf22be604a7a50cb21aed99fb0b1ac5b5",
+    "crates/horizon-command/src/vanilla_order.rs": "8383f20e13e2def675016651cbe059ee09b018be6e22aec6baf9b45910092bfb"
+  },
+  "fresh": {
+    "crates/horizon-core/src/version.rs": "a5c8cc1f16b3a895425183dcef8a73e21f575de89d5efdec8bb0b80617fe0bc6",
+    "crates/horizon-protocol/src/ids.rs": "5ad0db5b12b6d63ea9e586b28b1ef037f9641f7666b598297ecba84bb5e252ef",
+    "crates/horizon-client/src/lan/tracking.rs": "70c23cc8f8f3536193173409c5de3e58103eca517d2ed92d57d19b71b7294c3e",
+    "crates/horizon-client/src/lan/command_order.rs": "6b93dc794d10479fc83adc3b349a52e38366e82203aa1aeebd34bd3af1389780",
+    "crates/horizon-client/src/lan/command_suggestions.rs": "d6df4ee234efb16971cdd24debcac3ecf22be604a7a50cb21aed99fb0b1ac5b5",
+    "crates/horizon-command/src/vanilla_order.rs": "8383f20e13e2def675016651cbe059ee09b018be6e22aec6baf9b45910092bfb"
+  },
+  "overrides": []
+}
