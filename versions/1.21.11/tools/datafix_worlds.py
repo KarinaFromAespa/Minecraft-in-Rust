@@ -13,6 +13,7 @@ so that player data exists. The saved world is kept in datafix/worlds/VERSION be
 import argparse
 import hashlib
 import json
+import os
 import queue
 import re
 import shutil
@@ -119,6 +120,15 @@ def java(version):
     meta = version_meta(version)
     component = meta.get('javaVersion', {}).get('component', 'jre-legacy')
     if component in ('java-runtime-delta', 'java-runtime-epsilon'):
+        # 1.20.5 on: the JDK that runs 26.3 runs them — but only when that JDK
+        # really is 25. A tree whose own JDK is older (21 for 1.21.11) still
+        # starts its 26.x fixture servers here, and plain `java` is too old
+        # for them (class file 69). port-verify installs Java 25 alongside
+        # and exports HORIZON_JAVA_25; use it when present so only the
+        # fixture servers move, never the oracles.
+        java25 = os.environ.get('HORIZON_JAVA_25')
+        if java25:
+            return str(Path(java25) / 'bin' / 'java')
         return 'java'  # 1.20.5 on: the JDK that runs 26.3 runs them
     runtimes = LOCK[platform()]
     if component not in runtimes:

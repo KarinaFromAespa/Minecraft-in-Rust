@@ -19,6 +19,13 @@ name: port-verify
 # the delta gate against it; the profile and the verdict are uploaded as
 # the delta-bar-<version> artifact. The judge step cannot fail the job —
 # the verdict is the record, not a gate on the run.
+# v6.4 is multi-JDK: when the version's JDK is older than 25, Temurin 25
+# is installed alongside and exported as HORIZON_JAVA_25 for the datafix
+# fixture servers only (datafix_worlds.py reads it); JAVA_HOME and PATH
+# stay on the version JDK, so the oracle runtime does not move. Without
+# this, datafix is unmeasured in CI for every pre-26.x version: fixture
+# generation starts a 26.1 server needing Java 25 (class file 69.0) and
+# the runner has only the version's JDK.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -57,12 +64,36 @@ jobs:
           test -d "versions/$V" || { echo "no such version directory: versions/$V"; exit 1; }
           JAVA_MAJOR=$(python3 -c "import json;print(json.load(open('versions/$V/research-lock.json'))['minecraft']['java_major'])")
           echo "java_major=$JAVA_MAJOR" >> "$GITHUB_OUTPUT"
+          if [ "$JAVA_MAJOR" -lt 25 ]; then echo "needs_java25=true" >> "$GITHUB_OUTPUT"; else echo "needs_java25=false" >> "$GITHUB_OUTPUT"; fi
           echo "Version $V pins Java $JAVA_MAJOR"
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: ${{ steps.lock.outputs.java_major }}
+
+      # The datafix fixture servers go up to 26.2 and need Java 25, while the
+      # version's own JDK is what the oracles and datagen run under. Install
+      # 25 alongside only when the version JDK is older, and keep the version
+      # JDK as JAVA_HOME and first on PATH: only datafix_worlds.py reads
+      # HORIZON_JAVA_25, so the oracle runtime does not move. Skipped
+      # entirely for 26.x trees, whose own JDK is already 25.
+      - name: Record the version JDK path
+        run: echo "VERSION_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - name: Install Java 25 for the datafix fixture servers
+        if: steps.lock.outputs.needs_java25 == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - name: Export Java 25 for fixtures; restore the version JDK
+        if: steps.lock.outputs.needs_java25 == 'true'
+        run: |
+          echo "HORIZON_JAVA_25=$JAVA_HOME" >> "$GITHUB_ENV"
+          echo "JAVA_HOME=$VERSION_JAVA_HOME" >> "$GITHUB_ENV"
+          echo "$VERSION_JAVA_HOME/bin" >> "$GITHUB_PATH"
 
       - uses: dtolnay/rust-toolchain@master
         with:
