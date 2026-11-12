@@ -19,9 +19,9 @@ the same method that produced the 26.3 rewrite.
 | Releases verified (templates at parity + deltas gated) | 0 / 103 | 0% |
 | Era templates at full parity | 0 / 11 | 0% |
 | Delta releases verified | 0 / 92 | 0% |
-| Trees published on main | 6 / 103 | 5.8% |
-| Behaviour items closed | 0 / 2,274 | 0% |
-| Harnesses passing (3 profiled versions) | 8 / 51 | 15.7% |
+| Trees published on main | 7 / 103 | 6.8% |
+| Behaviour items closed | 0 / 2,993 | 0% |
+| Harnesses passing (4 profiled versions) | 9 / 68 | 13.2% |
 
 Phase 0 is 4 of 6 exit conditions met: T1–T3 and the complete 1.21.11
 profile are in; the two oracle repairs (`chunk_generation`,
