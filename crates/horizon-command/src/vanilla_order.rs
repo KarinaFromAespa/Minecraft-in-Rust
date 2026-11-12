@@ -48,7 +48,6 @@ pub const ORDER: &[(&str, &[&str])] = &[
             "random",
             "reload",
             "recipe",
-            "fetchprofile",
             "return",
             "ride",
             "rotate",
