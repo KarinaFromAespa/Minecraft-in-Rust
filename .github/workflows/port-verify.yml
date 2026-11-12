@@ -26,6 +26,12 @@ name: port-verify
 # this, datafix is unmeasured in CI for every pre-26.x version: fixture
 # generation starts a 26.1 server needing Java 25 (class file 69.0) and
 # the runner has only the version's JDK.
+# v6.5 runs the harness leg under a virtual display (xvfb-run, installed
+# with the system libraries, with a bare-run fallback): the 26.3 control
+# baseline lost save_roundtrip because winit refuses to start with no
+# display on the headless runner. sound_event still fails on missing
+# sounds.json — the sounds step (horizon-prepare sounds / --complete)
+# is not wired into the prepare path yet, and stays queued.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -117,8 +123,8 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             sudo apt-get update -o Acquire::Retries=3 && \
-            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config || \
-             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config) && break
+            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config xvfb || \
+             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config xvfb) && break
             echo "apt attempt $attempt failed; retrying in 20s"
             sleep 20
           done
@@ -243,13 +249,22 @@ jobs:
       # measured profile, not an infrastructure failure. A version with
       # 14 failing harnesses is a successful measurement, and the job
       # must stay green so the profile (not the colour) is the record.
+      # Game-binary harnesses (save_roundtrip, first_person, ...) launch the
+      # real game, and winit refuses to start with no display at all — the
+      # 26.3 control baseline lost save_roundtrip to exactly that ("neither
+      # WAYLAND_DISPLAY nor WAYLAND_SOCKET nor DISPLAY is set"). Run the
+      # harness leg under a virtual display when one is available; fall
+      # back to a bare run if xvfb-run is somehow absent, so a missing
+      # package can never turn the whole profile into launch failures.
       - name: Harness subset (version-port profile)
         continue-on-error: true
         run: |
           set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
-          python3 tools/version_port.py harnesses --timeout 1800 "$V" \
+          RUNNER=""
+          if command -v xvfb-run >/dev/null 2>&1; then RUNNER="xvfb-run -a"; fi
+          $RUNNER python3 tools/version_port.py harnesses --timeout 1800 "$V" \
             block_properties chunk_generation command_exec command_parse \
             component_patch datafix entity_components first_person food \
             hotbar item_model lan light options resource_pack save_roundtrip \
