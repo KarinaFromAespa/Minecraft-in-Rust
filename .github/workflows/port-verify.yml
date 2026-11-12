@@ -12,6 +12,13 @@ name: port-verify
 # continue-on-error deliberately: harness failures ARE the measured
 # profile, not an infrastructure failure. The run emits a machine-readable
 # profile.json alongside the logs; VERSIONS.md scalars come from it.
+# v6.2 added the "harnesses" map to that profile (the shape the delta
+# gate consumes), the cargo-check.log alias, and the protocol-test step.
+# v6.3 publishes the harness profile into versions/<v>/profile.json
+# (stamped with the run's commit, via tools/publish_profile.py) and runs
+# the delta gate against it; the profile and the verdict are uploaded as
+# the delta-bar-<version> artifact. The judge step cannot fail the job —
+# the verdict is the record, not a gate on the run.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -303,6 +310,47 @@ jobs:
           print(json.dumps(profile, indent=2, sort_keys=True))
           EOF
 
+      # The delta bar judges a published record, not a worktree's scratch
+      # state, and a profile stamped with another commit is refused
+      # rather than believed. The publisher merges state files (so
+      # sharded runs work later) and refuses to invent a profile from
+      # nothing — if the harness leg produced no state, this step fails
+      # harmlessly and the judge reports D4/D5 blocked.
+      - name: Publish the harness profile (D4/D5 evidence)
+        if: always()
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          python3 tools/publish_profile.py "$V" \
+            --state "$HORIZON_PORTS/$V/.local/parity-runner/state.json" \
+            --commit "${{ github.sha }}" \
+            --out "versions/$V/profile.json"
+
+      # Reporting only, NOT a gate: the verdict is the record of what
+      # this tree has and hasn't evidenced. The D2 logs live at the repo
+      # root's ci-out/ but the gate reads them from the pin's ci-out/,
+      # so stage copies beside the tree first. The verdict lands in
+      # versions/$V/delta-verdict.json; neither file is committed
+      # (permissions are contents: read) — the upload step carries them.
+      - name: Judge the delta bar
+        if: always()
+        continue-on-error: true
+        run: |
+          V="${{ inputs.version }}"
+          mkdir -p "versions/$V/ci-out"
+          cp ci-out/cargo-check.log ci-out/cargo-test-protocol.log "versions/$V/ci-out/" 2>/dev/null || true
+          python3 tools/delta_verify.py "$V" --tree "versions/$V" | tee ci-out/delta-verify.log
+
+      - name: Upload the profile and the verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: delta-bar-${{ inputs.version }}
+          path: |
+            versions/${{ inputs.version }}/profile.json
+            versions/${{ inputs.version }}/delta-verdict.json
+          if-no-files-found: warn
+
       - name: Job summary
         if: always()
         run: |
@@ -313,6 +361,9 @@ jobs:
             echo "### full-workspace compile gate"
             echo "error lines: $(sed 's/\x1b\[[0-9;]*m//g' ci-out/workspace-check.log 2>/dev/null | grep -c '^error' || echo '?')"
             echo "all-targets error lines (reporting only): $(sed 's/\x1b\[[0-9;]*m//g' ci-out/all-targets-check.log 2>/dev/null | grep -c '^error' || echo '?')"
+            echo
+            echo "### protocol tests (D2)"
+            grep -E '^test result:' ci-out/cargo-test-protocol.log 2>/dev/null | tail -1 || echo "no test log"
             echo
             echo "### prepare"
             echo '```'
