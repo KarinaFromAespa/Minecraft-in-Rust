@@ -14,10 +14,15 @@ What this script does, for a given version id (e.g. 1.21.11):
      .local/mapping-frontend/<version>/ (git-ignored, never committed).
   3. Remap obfuscated -> named with Fabric's tiny-remapper, reading the
      mapping table through Fabric's mapping-io (the normalization layer:
-     ProGuard txt today; SRG/TSRG/tiny plug in at the same seam later).
-     The remapper driver is src/Remap.java, compiled on first use.
+     ProGuard txt, SRG/TSRG, tiny v1/v2). Multi-namespace tables remap as a
+     chain through their intermediate namespace (e.g. official ->
+     intermediary -> named), so a member missing a named name still lands on
+     its intermediate name. The remapper driver is src/Remap.java, compiled
+     on first use.
   4. Emit .local/mapping-frontend/<version>/client-named.jar and print
-     coverage statistics (how many of the jar's classes carry mapped names).
+     coverage statistics (classes, methods and fields mapped vs total, and
+     leftover placeholder names), with a machine-readable report in
+     mapped-classes.json next to mapped-classes.tsv.
   5. With --prove: decompile a small sample of well-known classes from the
      named jar with Vineflower and show that the output uses real names.
 
@@ -28,9 +33,14 @@ remapping) are reported as unsupported rather than silently mishandled.
 
 Usage:
     python3 frontend.py <version> [--prove] [--force]
+    python3 frontend.py <version> --to-namespace named --side server
 
 Requirements: Python 3.10+, a JDK (javac) for the one-time driver compile
 and a Java 17+ runtime. Set JAVAC/JAVA to override tool discovery.
+
+Direction is normally detected from the table (per-side probe classes);
+--to-namespace / --from-namespace force one side explicitly, and --side
+picks which probe set to try (client, server, or auto).
 """
 
 from __future__ import annotations
@@ -216,6 +226,15 @@ def main() -> int:
                         help="also decompile a sample of classes with Vineflower")
     parser.add_argument("--force", action="store_true",
                         help="refetch downloads even when cached copies verify")
+    parser.add_argument("--to-namespace", default=None, metavar="NS",
+                        help="force the target namespace (e.g. named); "
+                             "otherwise detected from the table")
+    parser.add_argument("--from-namespace", default=None, metavar="NS",
+                        help="force the source namespace (e.g. official); "
+                             "otherwise detected from the table")
+    parser.add_argument("--side", default="auto", choices=("auto", "client", "server"),
+                        help="which probe set the driver tries for direction "
+                             "detection (default: auto, client first)")
     args = parser.parse_args()
 
     version_dir = WORK_DIR / args.version
@@ -246,11 +265,17 @@ def main() -> int:
 
     named_jar = version_dir / "client-named.jar"
     stats_file = version_dir / "mapped-classes.tsv"
+    report_file = version_dir / "mapped-classes.json"
     cp = os.pathsep.join([str(classes_dir)]
                          + [str(deps_dir / n) for n in REMAPPER_DEPS])
+    driver_props = [f"-Dmf.side={args.side}"]
+    if args.from_namespace:
+        driver_props.append(f"-Dmf.from={args.from_namespace}")
+    if args.to_namespace:
+        driver_props.append(f"-Dmf.to={args.to_namespace}")
     print("remapping obfuscated -> named:")
-    subprocess.run([java, "-cp", cp, "Remap", str(mappings), str(client_jar),
-                    str(named_jar), str(stats_file)], check=True)
+    subprocess.run([java, *driver_props, "-cp", cp, "Remap", str(mappings),
+                    str(client_jar), str(named_jar), str(stats_file)], check=True)
 
     jar_classes = class_names_in_jar(client_jar)
     pairs = [ln.split("\t") for ln in stats_file.read_text().splitlines() if "\t" in ln]
@@ -263,6 +288,16 @@ def main() -> int:
     print(f"  jar classes with a mapping: {len(covered)} "
           f"({100.0 * len(covered) / len(jar_classes):.2f}%)")
     print(f"  classes actually renamed  : {renamed}")
+    if report_file.exists():
+        report = json.loads(report_file.read_text())
+        for kind in ("methods", "fields"):
+            c = report[kind]
+            print(f"  {kind} in mapping table   : {c['mapped']} mapped / {c['total']} total, "
+                  f"{c['renamed']} renamed, {c['placeholders']} placeholders"
+                  + (f", {c['fallback_to_intermediate']} fallback to intermediate"
+                     if c['fallback_to_intermediate'] else ""))
+        print(f"  placeholder names total   : {report['placeholders_total']}")
+        print(f"  coverage report           : {report_file}")
     print(f"  named jar                 : {named_jar} ({named_jar.stat().st_size} bytes)")
 
     if args.prove:
