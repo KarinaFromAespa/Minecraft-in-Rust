@@ -66,6 +66,25 @@ jobs:
           workspaces: versions/${{ inputs.version }}
           cache-on-failure: true
 
+      # BEFORE the compile gate, not before the harness stage: `cargo check
+      # --workspace` builds horizon-client, whose alsa-sys build script needs
+      # pkg-config + libasound at check time, not just at link time. Run 14
+      # (26.3 control) failed the workspace check on exactly this, with the
+      # install still sitting after the gate. A flaky archive mirror (run 1
+      # died on a DNS failure resolving it) must not take the whole job down
+      # with it, so this stays continue-on-error, retried 3x; a failed
+      # install then surfaces as a compile-gate failure with a clear cause.
+      - name: System libraries the workspace check and harness fixtures need
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3; do
+            sudo apt-get update -o Acquire::Retries=3 && \
+            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config || \
+             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config) && break
+            echo "apt attempt $attempt failed; retrying in 20s"
+            sleep 20
+          done
+
       # The harness stage requires its candidate to be a git worktree
       # (port_harness checks for .git), so stage a committed copy of the
       # published tree — the check then measures exactly what is on main,
@@ -84,11 +103,16 @@ jobs:
       # Gate: the full workspace (lib + bins) must compile. This is the
       # check behind the "workspace compiles" claim in VERSIONS.md — the
       # old protocol-only check did not cover it.
+      # `set -o pipefail` is load-bearing here: the runner's shell is
+      # `bash -e` WITHOUT pipefail, so `cargo ... | tee` returns tee's
+      # status and a failed check used to report success (run 14).
+      # `--color=never` keeps the log plain text so `^error` counting works.
       - name: Compile gate — full workspace
         run: |
+          set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
-          cargo check --workspace 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/workspace-check.log"
+          cargo check --workspace --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/workspace-check.log"
           echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/workspace-check.log" || true)"
 
       # Reporting only, NOT a gate — yet. The 26.1 line carries 48 known
@@ -99,9 +123,10 @@ jobs:
       - name: Test-target check (reporting only — 26.1-line debt)
         continue-on-error: true
         run: |
+          set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
-          cargo check --workspace --all-targets 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log"
+          cargo check --workspace --all-targets --color=never 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log"
           echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/all-targets-check.log" || true)"
 
       # --download: fetch this version's jars from Mojang's CDN into the
@@ -109,9 +134,11 @@ jobs:
       # the flag the step demands a lab-prepared .local, which a clean
       # runner does not have. Obfuscated releases prepare through the
       # mappings front-end, wired into both prepare paths.
-      # Gate: a failed prepare fails the job (v6).
+      # Gate: a failed prepare fails the job (v6; pipefail added in v6.1 —
+      # without it the `| tee` swallowed the failure, as run 14 proved).
       - name: Prepare the version's data (pipeline download path)
         run: |
+          set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
           python3 tools/version_port.py prepare "$V" --download 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/prepare.log"
@@ -122,9 +149,10 @@ jobs:
       # library artifact, SHA-1 verified) and run lab.py prepare inside the
       # candidate. Without this the harness stage dies on a missing
       # .local/minecraft/<version>/manifest.json.
-      # Gate: a failed lab-prepare fails the job (v6).
+      # Gate: a failed lab-prepare fails the job (v6; pipefail added in v6.1).
       - name: Lab-prepare the candidate from a staged launcher directory
         run: |
+          set -o pipefail
           V="${{ inputs.version }}"
           LAUNCHER="$GITHUB_WORKSPACE/.launcher"
           python3 - "$V" "$LAUNCHER" <<'EOF'
@@ -160,22 +188,6 @@ jobs:
           HORIZON_SERVER_JAR="$HORIZON_VERSIONS/$V/jars/server.jar" \
             python3 tools/lab.py prepare 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/lab-prepare.log"
 
-      # Only the harness stage links the client's audio/udev dependencies, so
-      # the install lives here — and a flaky archive mirror (run 1 died on a
-      # DNS failure resolving it) must not take the whole job down with it.
-      # Stays continue-on-error: environmental, retried 3x, and a link
-      # failure shows up in the harness logs if it matters.
-      - name: System libraries the harness fixtures link against
-        continue-on-error: true
-        run: |
-          for attempt in 1 2 3; do
-            sudo apt-get update -o Acquire::Retries=3 && \
-            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config || \
-             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config) && break
-            echo "apt attempt $attempt failed; retrying in 20s"
-            sleep 20
-          done
-
       # Stays continue-on-error DELIBERATELY: harness failures are the
       # measured profile, not an infrastructure failure. A version with
       # 14 failing harnesses is a successful measurement, and the job
@@ -183,6 +195,7 @@ jobs:
       - name: Harness subset (version-port profile)
         continue-on-error: true
         run: |
+          set -o pipefail
           V="${{ inputs.version }}"
           cd "versions/$V"
           python3 tools/version_port.py harnesses --timeout 1800 "$V" \
@@ -209,7 +222,8 @@ jobs:
           V: ${{ inputs.version }}
         run: |
           python3 - <<'EOF'
-          import datetime, json, os
+          import datetime, json, os, re
+          ansi = re.compile(r"\x1b\[[0-9;]*m")
           out_dir = os.path.join(os.environ["GITHUB_WORKSPACE"], "ci-out")
           hj_path = os.path.join(out_dir, "harnesses.json")
           profile = {
@@ -223,9 +237,13 @@ jobs:
               "harness": None,
           }
           def error_lines(name):
+              # Strip ANSI escapes first: cargo's coloured `error:` lines do
+              # not start with "error", and run 14's profile counted 0 errors
+              # for a build that failed (the cargo commands now also pass
+              # --color=never; this is the belt to that braces).
               try:
                   with open(os.path.join(out_dir, name), errors="replace") as f:
-                      return sum(1 for ln in f if ln.startswith("error"))
+                      return sum(1 for ln in f if ansi.sub("", ln).startswith("error"))
               except FileNotFoundError:
                   return None
           profile["compile"] = {
