@@ -2,7 +2,7 @@
 
 **Minecraft: Java Edition 1.21.11, rewritten in Rust.** This directory is one
 version of the [Minecraft-in-Rust](../../README.md) programme: every major
-Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — clean-room,
+Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — a reference reimplementation,
 each version specified and verified against its own jar.
 
 1.21.11 opens the programme's **Components era (E6, 1.20.5–1.21.11)**: it is

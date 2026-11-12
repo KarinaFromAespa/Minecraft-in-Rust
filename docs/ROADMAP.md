@@ -1,7 +1,8 @@
 # Every Minecraft Version in Rust — Roadmap (Desktop)
 
 Prepared 2026-11-11 for V-Cool. Scope: all 103 major Java Edition releases, 1.0 → 26.3,
-rewritten in Rust for desktop, clean-room, each version verified against its own jar.
+rewritten in Rust for desktop — a reference reimplementation from decompiled jars,
+each version verified against its own jar.
 Snapshots/pre-releases (~820 more entries in Mojang's manifest) are out of scope unless
 the owner says otherwise; the pipeline below would cover them unchanged.
 
@@ -114,7 +115,9 @@ From the tree's own `version_port.py` flow; class = regenerate / adapt / rewrite
   inside an era are pins regenerated from the era line, not independent forks.
   Version-agnostic crates (core math, renderer, UI, audio) are the "commons": fixes
   land on the newest line and are cherry-picked *down* era lines by a standing
-  commons-sync pass, with the parity suite as the regression net.
+  commons-sync pass, with the parity suite as the regression net. A concrete
+  restructure sketch implementing this (commons + thin per-version overlays +
+  an assemble step) is in `docs/restructure.md` — proposal, not yet executed.
 - **Hindrance:** Cherry-picks across era boundaries will sometimes conflict where
   behaviour genuinely diverged (that's the point of the eras). Some fixes simply
   won't apply to old eras — correctly.
@@ -257,7 +260,7 @@ Nothing Mojang-derived ever ships: jars, mappings, decompiled sources are
 development-time reference only (the mappings' own license forbids redistributing
 them; the EULA governs the rest). Players run `horizon-prepare` against **their
 own** Minecraft copy per version, exactly as 26.3 works today. The product is
-only ever the clean-room Rust code and the player's own prepared data.
+only ever the reimplemented Rust code and the player's own prepared data.
 
 ---
 *Evidence base: Mojang version manifest + per-version JSONs (fetched 2026-11-11);

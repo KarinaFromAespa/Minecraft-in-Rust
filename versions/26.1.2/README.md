@@ -2,7 +2,7 @@
 
 **Minecraft: Java Edition 26.1.2, rewritten in Rust.** This directory is one
 version of the [Minecraft-in-Rust](../../README.md) programme: every major
-Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — clean-room,
+Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — a reference reimplementation,
 each version specified and verified against its own jar.
 
 26.1.2 is the second patch release on the 26.1 line. It was delta-ported

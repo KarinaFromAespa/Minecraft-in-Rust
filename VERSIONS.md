@@ -2,23 +2,26 @@
 
 Every major Minecraft Java Edition release, grouped by architecture era (see `docs/ROADMAP.md` §2).
 Each version's rewritten Rust code lives on `main` in its own directory, `versions/<id>/`, with its documentation alongside the code.
-Status values: `planned` · `in progress` · `parity-verified` · `frozen`.
+Status values: `planned` · `in progress` · `parity-verified` · `frozen`. Each published
+version carries a machine-readable `status.json` in its directory; the scalars below
+come from it — `harness n/17` is passing harnesses of the 17-harness CI subset,
+`behaviour n/m` is closed items of the version's ranked work items.
 
 ## E7 — Unobfuscated (26.x) (5)
 
 | Version | Location | Status |
 |---|---|---|
-| 26.3 | `versions/26.3` | base — imported (upstream snapshot, unmodified) |
-| 26.2 | `versions/26.2` | completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.2/PORT-NOTES-26.2.md`) |
-| 26.1.2 | `versions/26.1.2` | in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1.1 (DataVersion bump, 6 classes incl. handleAttack), see `versions/26.1.2/PORT-NOTES-26.1.2.md` |
-| 26.1.1 | `versions/26.1.1` | in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1 (DataVersion bump, 3 classes), see `versions/26.1.1/PORT-NOTES-26.1.1.md` |
-| 26.1 | `versions/26.1` | completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; 1.20.2–1.21.11 adapters re-based to the 775 pin, protocol tests 437 pass / 2 fail (sandbox-network pair only); CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.1/PORT-NOTES-26.1.md`) |
+| 26.3 | `versions/26.3` | base — imported (upstream snapshot, unmodified); no profile yet (the control run against this tree defines the Phase 0 gate baseline; not dispatched) |
+| 26.2 | `versions/26.2` | harness 3/17 · behaviour 0/651 — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.2/PORT-NOTES-26.2.md`) |
+| 26.1.2 | `versions/26.1.2` | harness — · behaviour 0/7 — in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1.1 (DataVersion bump, 6 classes incl. handleAttack), see `versions/26.1.2/PORT-NOTES-26.1.2.md` |
+| 26.1.1 | `versions/26.1.1` | harness — · behaviour 0/6 — in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1 (DataVersion bump, 3 classes), see `versions/26.1.1/PORT-NOTES-26.1.1.md` |
+| 26.1 | `versions/26.1` | harness 3/17 · behaviour 0/795 — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; 1.20.2–1.21.11 adapters re-based to the 775 pin, protocol tests 437 pass / 2 fail (sandbox-network pair only); CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.1/PORT-NOTES-26.1.md`) |
 
 ## E6 — Components (14)
 
 | Version | Location | Status |
 |---|---|---|
-| 1.21.11 | `versions/1.21.11` | in progress — protocol packet-set rewire closed: nine 26.3-only packets rewired to their 1.21.11 mechanisms from the jar, 6/6 tables regenerated (vanilla_command_order +5 −26); cross-version adapter ladder re-based to the 774 pin (all tables regenerated, 19 adapter + 2 legacy-item failures closed), workspace compiles 0 errors / 0 warnings, protocol tests 438 pass / 2 fail (sandbox-network pair only); oracle bootstrap reworked to 1.21.11's mechanisms, horizon-prepare bundle compiles and runs end-to-end against the named jars; CI port-verify v5 profile (pre-re-base tree) 2 pass / 2 oracle / 13 fail; see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
+| 1.21.11 | `versions/1.21.11` | harness 2/17 (2 oracle fail) · behaviour 0/815 — in progress — protocol packet-set rewire closed: nine 26.3-only packets rewired to their 1.21.11 mechanisms from the jar, 6/6 tables regenerated (vanilla_command_order +5 −26); cross-version adapter ladder re-based to the 774 pin (all tables regenerated, 19 adapter + 2 legacy-item failures closed), workspace compiles 0 errors / 0 warnings, protocol tests 438 pass / 2 fail (sandbox-network pair only); oracle bootstrap reworked to 1.21.11's mechanisms, horizon-prepare bundle compiles and runs end-to-end against the named jars; CI port-verify v5 profile (pre-re-base tree) 2 pass / 2 oracle / 13 fail; see `versions/1.21.11/PORT-NOTES-1.21.11.md` |
 | 1.21.10 | `versions/1.21.10` | planned |
 | 1.21.9 | `versions/1.21.9` | planned |
 | 1.21.8 | `versions/1.21.8` | planned |
