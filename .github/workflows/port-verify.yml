@@ -32,6 +32,9 @@ name: port-verify
 # display on the headless runner. sound_event still fails on missing
 # sounds.json — the sounds step (horizon-prepare sounds / --complete)
 # is not wired into the prepare path yet, and stays queued.
+# v6.6 judges the candidate as the gate's tree (pin stays the published
+# tree): D1's prepared-data leg needs .local, which only the candidate
+# has — against the bare published tree D1 blocks on every version.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -378,6 +381,15 @@ jobs:
       # so stage copies beside the tree first. The verdict lands in
       # versions/$V/delta-verdict.json; neither file is committed
       # (permissions are contents: read) — the upload step carries them.
+      # D1's prepared-data leg needs .local/horizon-client/<v>/, which only
+      # the candidate has (prepared data is Mojang-derived and never
+      # committed, so the published tree can never satisfy it in recorded
+      # mode). Judge the candidate as the tree and the published tree as
+      # the pin: the candidate is a verbatim copy of the published tree
+      # plus .local, and the pin carries the metadata (work-items.json,
+      # regen-determinism.json, profile.json, ci-out logs). Verified
+      # locally: D1 passes for 1.21.10 this way (all 6 tables reproduce
+      # exactly, prepared data present); against the bare tree it blocks.
       - name: Judge the delta bar
         if: always()
         continue-on-error: true
@@ -385,7 +397,7 @@ jobs:
           V="${{ inputs.version }}"
           mkdir -p "versions/$V/ci-out"
           cp ci-out/cargo-check.log ci-out/cargo-test-protocol.log "versions/$V/ci-out/" 2>/dev/null || true
-          python3 tools/delta_verify.py "$V" --tree "versions/$V" | tee ci-out/delta-verify.log
+          python3 tools/delta_verify.py "$V" --tree "$HORIZON_PORTS/$V" --pin "versions/$V" | tee ci-out/delta-verify.log
 
       - name: Upload the profile and the verdict
         if: always()
