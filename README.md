@@ -23,9 +23,9 @@ the same method that produced the 26.3 rewrite.
 | Behaviour items closed | 0 / 3,020 | 0% |
 | Harnesses passing (5 profiled versions) | 9 / 85 | 10.6% |
 
-Phase 0 is 4 of 6 exit conditions met: T1–T3 and the complete 1.21.11
-profile are in; the two oracle repairs (`chunk_generation`,
-`command_exec`) and the 26.3 control baseline remain. The foundation —
+Phase 0 is 5 of 6 exit conditions met: T1–T3, the complete 1.21.11
+profile, and the 26.3 control baseline (14/17) are in; only the two
+oracle repairs (`chunk_generation`, `command_exec`) remain. The foundation —
 mappings front-end, CI, the delta gate, the roadmap — is finished; the
 version work is at the starting line.
 
@@ -67,10 +67,11 @@ Phase 0 is re-gated (roadmap §5, 2026-11-12 reframe): 1.21.11 must reach
 T1–T4 — pin, prepare, build, and the oracle corpus compiling — plus a
 complete measured profile. T1–T3 are done; T4 needs the two oracle
 failures fixed (`chunk_generation`, `command_exec`). The 26.3 control
-profile defines the baseline; the first control run produced no
-baseline (Mojang republished the 26.3 version JSON and v6's gates did
-not gate — both fixed, re-run in flight). The 1.12.2 SRG proof moved
-to Phase 3. Each version directory carries a machine-readable
+profile defines the baseline: the re-run (43137475228, v6.1) measured
+14/17 — `command_exec` fails on real differentials in the base itself,
+while `save_roundtrip` and `sound_event` fail environmentally (no
+display on the headless runner; sounds not prepared). The 1.12.2 SRG
+proof moved to Phase 3. Each version directory carries a machine-readable
 `status.json` (harness counts, behaviour items, last CI run); the
 scalars in `VERSIONS.md` come from it today and migrate to generated
 `delta-verdict.json` rows as releases are gated.

@@ -40,3 +40,37 @@ lines (verified against run 14's logs: 0 -> 1 error on both check logs).
 
 Control re-run dispatched after these fixes; the baseline is pending
 until it produces a profile from a green prepare.
+
+## Control re-run 15 (43137475228) — the baseline: 14/17
+
+Dispatched 2026-11-12 01:52Z on port-verify v6.1 (main@0c2666d),
+completed 03:36Z (~1h44m), `completed/success` — and this time the
+artifacts back the colour. Compile gates clean (0 errors, workspace
+and all-targets); prepare ok; lab-prepare indexed the client at
+11,383 classes / 98,739 methods and the server at 7,762 classes /
+72,269 methods.
+
+**Profile: 14 pass / 0 oracle / 3 fail.** Passing:
+block_properties, chunk_generation, command_parse, component_patch,
+datafix, entity_components, first_person, food, hotbar, item_model,
+lan, light, options, resource_pack. This is the Phase 0 gate
+baseline: a port's profile is read against it, not against 17/17.
+
+The three failures split two ways:
+
+- **command_exec — a real failure of the base itself.** 232 of
+  19,125 commands mismatch against the vanilla oracle: entity
+  Age/Life values (vanilla 2, Rust 0), thrown-potion positions
+  (3393.5985 vs 3393.5), fire counts (35 vs 31). Ports failing
+  command_exec are matching the baseline, not regressing; the
+  harness is a known upstream gap, not a port defect.
+- **save_roundtrip, sound_event — environmental, not behaviour.**
+  save_roundtrip's game binary cannot launch on the headless
+  runner: winit dies with "neither WAYLAND_DISPLAY nor
+  WAYLAND_SOCKET nor DISPLAY is set" (resources load fine first).
+  sound_event's fixture is missing: `sounds.json` is not in the
+  prepared assets — prepare does not copy sounds ("run
+  horizon-prepare sounds"). Both need workflow work, not port work:
+  a virtual display (Xvfb) for the game-binary harnesses and a
+  sounds step in prepare. Until then, **D4's save_roundtrip leg
+  cannot pass in CI for any version**, including the base.

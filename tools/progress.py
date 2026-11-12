@@ -47,6 +47,11 @@ def main() -> int:
     verified_templates = verified_deltas = 0
     for version in versions:
         status = read_json(version / "status.json") or {}
+        # The base (26.3) is upstream's client, not a port: its profile
+        # is the baseline the ports are measured against, not progress.
+        # Counting it would inflate the harness aggregate.
+        if status.get("role") == "base":
+            continue
         behaviour = status.get("behaviour") or {}
         behaviour_closed += behaviour.get("closed") or 0
         behaviour_total += behaviour.get("total") or 0
