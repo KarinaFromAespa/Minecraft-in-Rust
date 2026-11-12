@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe fetchprofile return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -537,7 +537,6 @@ pub const ORDER: &[(&str, &str)] = &[
     ("recipe", "give take"),
     ("recipe give targets", "recipe *"),
     ("recipe take targets", "recipe *"),
-    ("fetchprofile", "name id"),
     ("return", "value fail run"),
     ("ride target", "mount dismount"),
     ("rotate target", "rotation facing"),
