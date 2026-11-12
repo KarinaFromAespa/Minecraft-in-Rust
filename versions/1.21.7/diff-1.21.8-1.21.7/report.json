@@ -1,0 +1,181 @@
+{
+  "old": "1.21.8",
+  "new": "1.21.7",
+  "summary": {
+    "facts": {
+      "world_version": [
+        4440,
+        4438
+      ]
+    },
+    "ranks": {
+      "1": 3,
+      "2": 1,
+      "5": 1
+    },
+    "classes": {
+      "added": 0,
+      "removed": 1,
+      "moved": 0,
+      "changed": 6,
+      "horizon": 1
+    },
+    "generators": {
+      "crates/horizon-core/src/version.rs": "stale"
+    }
+  },
+  "harnesses": null,
+  "regen": null,
+  "items": [
+    {
+      "rank": 1,
+      "kind": "regenerate",
+      "title": "Regenerate crates/horizon-core/src/version.rs",
+      "files": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "command": "python3 tools/gen_version_consts.py",
+      "id": 1
+    },
+    {
+      "rank": 1,
+      "kind": "save-format",
+      "title": "Save format: DataFixers 4440 -> 4438: 0 schemas, 0 fixes added, 0 datafix classes changed",
+      "files": [
+        "crates/horizon-client/src/debug_entries.rs",
+        "crates/horizon-client/src/save.rs",
+        "crates/horizon-protocol/src/adapter/translate/v1_20_3.rs",
+        "crates/horizon-world/src/datafix/json.rs",
+        "crates/horizon-world/src/datafix/mod.rs"
+      ],
+      "harnesses": [
+        "arrow_mob_permission",
+        "blending",
+        "camera",
+        "chat_screen",
+        "chest_load",
+        "chunk_generation",
+        "command_exec",
+        "command_parse",
+        "container_component_names",
+        "container_screen",
+        "container_title",
+        "datafix",
+        "datapack_worldgen",
+        "dragon_contacts",
+        "flat_generation",
+        "game_loop",
+        "hotbar",
+        "mob_ai",
+        "mob_rider_navigation",
+        "options",
+        "portal_tickets",
+        "redstone_catalog",
+        "sculk",
+        "stand_lodestone",
+        "structure_layout",
+        "structure_start_nbt",
+        "toggle_keys",
+        "trading"
+      ],
+      "details": {
+        "schemas": [],
+        "fixes": [],
+        "changed": []
+      },
+      "id": 2
+    },
+    {
+      "rank": 1,
+      "kind": "facts",
+      "title": "Version facts: world_version 4440 -> 4438",
+      "files": [
+        "crates/horizon-client/src/net.rs:1514",
+        "crates/horizon-core/src/version.rs:11",
+        "crates/horizon-core/src/version.rs:5",
+        "crates/horizon-core/src/version.rs:7",
+        "crates/horizon-core/src/version.rs:9",
+        "crates/horizon-protocol/src/adapter.rs:489",
+        "crates/horizon-protocol/src/adapter.rs:491",
+        "crates/horizon-protocol/src/adapter/v1_20_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_6.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_1.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_10.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:6",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:7",
+        "crates/horizon-protocol/src/adapter/v1_21_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_4.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_5.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_8.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_1_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_2.rs:1",
+        "crates/horizon-protocol/src/ids.rs:1",
+        "tools/regenerate_registry_id_adapters.py:68"
+      ],
+      "details": {
+        "world_version": [
+          4440,
+          4438
+        ]
+      },
+      "id": 3
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: net/minecraft: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+      "module": "widely named: net/minecraft",
+      "files": [
+        "crates/horizon-client-render/src/packs.rs",
+        "crates/horizon-client/src/game/functions.rs",
+        "crates/horizon-client/src/realms/download.rs",
+        "crates/horizon-command/src/vanilla.rs",
+        "crates/horizon-core/src/version.rs",
+        "crates/horizon-protocol/src/lib.rs",
+        "crates/horizon-world/src/datafix/files.rs",
+        "crates/horizon-world/src/worldgen/generator.rs"
+      ],
+      "harnesses": [
+        "block_tint",
+        "environment_attribute_modifier",
+        "environment_system",
+        "environment_timeline",
+        "mob_discard",
+        "server_property_numbers",
+        "villager_farming",
+        "world_border_render"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/SharedConstants": {
+          "methods": 0,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 0,
+      "id": 4
+    },
+    {
+      "rank": 5,
+      "kind": "unported",
+      "title": "6 changed or removed vanilla classes Horizon doesn't port, in 5 packages",
+      "packages": {
+        "com/mojang/blaze3d/opengl": 2,
+        "com/mojang/blaze3d/vertex": 1,
+        "net/minecraft": 1,
+        "net/minecraft/client/multiplayer/chat/report": 1,
+        "com/mojang/blaze3d": 1
+      },
+      "id": 5
+    }
+  ],
+  "clean": [
+    "packets",
+    "blocks",
+    "items"
+  ]
+}
