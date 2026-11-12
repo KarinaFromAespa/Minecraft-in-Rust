@@ -195,10 +195,8 @@ Same-protocol hotfix delta, recorded for contrast with 1.21.9's
 same-protocol delta (~65 min) and 1.21.8's cross-protocol delta
 (~10 h 40 min). Times are from session timestamps (VM clock, UTC).
 
-- **Wall clock:** work started 2026-11-12 ~14:32 UTC; the
-  determinism regen finished 19:13 UTC. Total to that point:
-  ~4 h 41 min. (Publish commit and final wall clock to be recorded
-  after pushing — see the follow-up correction, as for 1.21.8.)
+- **Wall clock:** work started 2026-11-12 ~14:32 UTC; end 2026-11-12
+  19:15 UTC (publish commit be65dca). Total: ~4 h 44 min.
 - **Work items closed vs total:** 0 / 5 behaviour items closed. The
   port closed the infrastructure layer only: pin, tables,
   verification. No behaviour item was attempted.
