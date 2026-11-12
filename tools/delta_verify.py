@@ -1,0 +1,743 @@
+#!/usr/bin/env python3
+"""delta_verify.py — decide whether one Minecraft release is delta-verified.
+
+Implements the D1–D6 bar from DELTA-BAR.md as a single gate. A release is
+delta-verified only if every check PASSES. Missing evidence is BLOCKED, and
+blocked is never verified: the exit status distinguishes the two.
+
+    python3 tools/delta_verify.py 1.21.10                 # judge recorded evidence
+    python3 tools/delta_verify.py 1.21.10 --run           # run the build/tests/harnesses
+    python3 tools/delta_verify.py 1.21.10 --run --download
+    python3 tools/delta_verify.py 1.21.10 --json           # verdict to stdout
+    python3 tools/delta_verify.py 1.21.10 --check D3       # one check, for a loop
+
+Layout it expects (see DELTA-BAR.md §2):
+
+    <tree>/                       lines/<release> or versions/<release>
+      research-lock.json
+      crates/horizon-core/src/version.rs
+      tools/{version_port.py,parity.py,port_ledger.py}
+      .local/horizon-client/<release>/        prepared runtime data
+      .local/parity-runner/state.json         parity.py's own record
+
+    <pin>/                        pins/<release>, or the tree itself if no pins/
+      work-items.json             D3 ledger, hashes the report it was built from
+      harness-subset.txt          D5: this era's regression subset
+      allowed-failures.txt        any check: "name  # cause: … owner: …"
+      playtest.md                 D6 signed playtest
+      regen-determinism.json      D1: two regen runs' table hashes
+      delta-verdict.json          written by this script
+
+Exit: 0 verified · 1 failed · 3 blocked (evidence missing) · 2 usage error.
+Stdlib only; no imports from the tree, so it runs from CI or a scratch checkout.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+SCHEMA = "delta-verdict/1"
+
+
+class ConfigurationError(Exception):
+    """The pin's own metadata is malformed — a config error, not a verdict."""
+PASS, FAIL, BLOCKED = "pass", "fail", "blocked"
+STATUS_EXIT = {PASS: 0, FAIL: 1, BLOCKED: 3}
+
+PROTOCOL_PACKAGE = "horizon-protocol"
+RUST_TABLES = (
+    "crates/horizon-core/src/version.rs",
+    "crates/horizon-protocol/src/ids.rs",
+    "crates/horizon-client/src/lan/tracking.rs",
+    "crates/horizon-client/src/lan/command_order.rs",
+    "crates/horizon-client/src/lan/command_suggestions.rs",
+    "crates/horizon-command/src/vanilla_order.rs",
+)
+DATA_CHECKS = ("datafix", "save_roundtrip")  # D4
+D3_RANKS = ("1", "2")
+PLAYTEST_BOXES = 6
+
+
+# ---------------------------------------------------------------- plumbing
+
+
+def read_json(path: Path):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None
+    except (OSError, json.JSONDecodeError) as error:
+        raise SystemExit(f"delta_verify: cannot read {path}: {error}")
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def sh(argv, cwd: Path, timeout: int = 3600, env: dict | None = None):
+    merged = dict(os.environ)
+    merged.setdefault("CARGO_BUILD_JOBS", "2")
+    merged.update(env or {})
+    try:
+        run = subprocess.run(
+            argv, cwd=cwd, env=merged, timeout=timeout,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        )
+        return run.returncode, run.stdout
+    except FileNotFoundError:
+        return 127, f"{argv[0]}: not found"
+    except subprocess.TimeoutExpired as expired:
+        text = (expired.stdout or "") if isinstance(expired.stdout, str) else ""
+        return 124, text + f"\n[delta_verify] timed out after {timeout}s"
+
+
+def first_line(text: str) -> str:
+    for line in text.splitlines():
+        if line.strip():
+            return line.strip()[:240]
+    return ""
+
+
+def allowed(pin: Path) -> dict[str, str]:
+    """allowed-failures.txt: `name  # cause: … owner: …` → name to the line."""
+    table, path = {}, pin / "allowed-failures.txt"
+    if not path.exists():
+        return table
+    for number, raw in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        name = line.split("#", 1)[0].strip()
+        comment = line.split("#", 1)[1] if "#" in line else ""
+        if "cause:" not in comment or "owner:" not in comment:
+            raise ConfigurationError(
+                f"{path}:{number}: '{name}' is exempted without "
+                "'cause: …' and 'owner: …' — an accepted gap needs both"
+            )
+        table[name] = comment.strip()
+    return table
+
+
+def check_ok(notes, evidence=None, metrics=None):
+    result = {"status": PASS, "notes": list(notes), "evidence": list(evidence or [])}
+    if metrics:
+        result["metrics"] = metrics
+    return result
+
+
+def check_bad(note, evidence=None):
+    return {"status": FAIL, "notes": [note], "evidence": list(evidence or [])}
+
+
+def check_stop(note, evidence=None):
+    return {"status": BLOCKED, "notes": [note], "evidence": list(evidence or [])}
+
+
+# ---------------------------------------------------------------- discovery
+
+
+def resolve_tree(release: str, given: str | None) -> Path:
+    if given:
+        return Path(given).resolve()
+    here = Path.cwd()
+    for candidate in (here / "lines" / release, here / "versions" / release, here):
+        if (candidate / "research-lock.json").exists() or (
+            candidate / "crates" / "horizon-core" / "src" / "version.rs"
+        ).exists():
+            return candidate.resolve()
+    raise SystemExit(
+        f"delta_verify: no tree for {release}; pass --tree lines/{release} "
+        f"or versions/{release}"
+    )
+
+
+def resolve_pin(release: str, given: str | None, tree: Path) -> Path:
+    """Where this release's metadata lives.
+
+    Two layouts are supported, and the second is the recommended one: pin
+    metadata beside the version (`versions/<id>/`) rather than in a second
+    per-version tree, or `lines/<era>/pins/<release>/` when code and pins split.
+    """
+    if given:
+        return Path(given).resolve()
+    repo = tree.parent.parent
+    for candidate in (
+        repo / "pins" / release,
+        repo / "versions" / release,
+        tree / "pins" / release,
+        tree,
+    ):
+        if candidate.is_dir() and any(candidate.iterdir()):
+            return candidate.resolve()
+    return tree
+
+
+def find_report(tree: Path, release: str) -> Path | None:
+    """version_port.py's ranked report for the diff that produced this pin."""
+    roots = [tree / ".local", tree, tree.parent / ".local", tree.parent]
+    override = os.environ.get("HORIZON_PORTS")
+    if override:
+        roots.insert(0, Path(override))
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob(f"diff-*-{release}/report.json")):
+            return path
+    return None
+
+
+def find_sibling(tree: Path, release: str, name: str) -> Path | None:
+    report = find_report(tree, release)
+    if report and (report.with_name(name)).exists():
+        return report.with_name(name)
+    roots = [tree / ".local", tree, tree.parent / ".local", tree.parent]
+    for root in roots:
+        if not root.is_dir():
+            continue
+        hits = sorted(root.rglob(f"diff-*-{release}/{name}"))
+        if hits:
+            return hits[0]
+    return None
+
+
+# ---------------------------------------------------------------- the checks
+
+
+def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
+    """D1 — pin regenerated from this release's own jar, prepare green, determinism."""
+    evidence, notes = [], []
+    lock_path = tree / "research-lock.json"
+    lock = read_json(lock_path)
+    if not lock:
+        return check_stop("no research-lock.json", [str(lock_path)])
+    pinned = lock.get("minecraft", {}).get("version")
+    if pinned != release:
+        return check_bad(f"research-lock pins {pinned!r}, not {release!r}", [str(lock_path)])
+    for key in ("client_sha1", "server_sha1", "java_major"):
+        if key not in lock.get("minecraft", {}):
+            return check_bad(f"research-lock.minecraft.{key} missing", [str(lock_path)])
+    notes.append(f"lock pins {release} (java {lock['minecraft']['java_major']})")
+    evidence.append(str(lock_path))
+
+    version_rs = tree / "crates/horizon-core/src/version.rs"
+    if not version_rs.exists():
+        return check_stop("no crates/horizon-core/src/version.rs", [str(version_rs)])
+    text = version_rs.read_text(encoding="utf-8", errors="replace")
+    found = {
+        "id": re.search(r'VERSION_ID:\s*&str\s*=\s*"([^"]+)"', text),
+        "protocol": re.search(r"PROTOCOL_VERSION:\s*i32\s*=\s*(\d+)", text),
+        "data": re.search(r"DATA_VERSION:\s*i32\s*=\s*(\d+)", text),
+    }
+    if not all(found.values()):
+        return check_bad("version.rs is missing VERSION_ID/PROTOCOL_VERSION/DATA_VERSION",
+                         [str(version_rs)])
+    if found["id"].group(1) != release:
+        return check_bad(f"version.rs VERSION_ID is {found['id'].group(1)!r}", [str(version_rs)])
+    if int(found["protocol"].group(1)) <= 0 or int(found["data"].group(1)) <= 0:
+        return check_bad("version.rs has an unregenerated protocol/data version", [str(version_rs)])
+    notes.append(
+        f"version.rs: protocol {found['protocol'].group(1)}, data {found['data'].group(1)}"
+    )
+    evidence.append(str(version_rs))
+
+    regen_path = find_sibling(tree, release, "regen.json")
+    regen = read_json(regen_path) if regen_path else None
+    if regen is None:
+        return check_stop("no regen.json: run `version_port.py regen` and keep its output",
+                          evidence)
+    bad = [
+        f"{name}: {entry.get('what') or entry.get('error') or 'failed'}"
+        for name, entry in (regen.get("generators") or {}).items()
+        if str(entry.get("status", entry.get("ok", ""))).lower() in ("fail", "failed", "error")
+        or entry.get("what") or entry.get("error")
+    ]
+    if bad:
+        return check_bad("generators failed: " + "; ".join(bad[:4]), evidence + [str(regen_path)])
+    generated = regen.get("generators") or {}
+    notes.append(f"regen.json: {len(generated) or 'all'} generators clean")
+    evidence.append(str(regen_path))
+
+    determinism_path = pin / "regen-determinism.json"
+    determinism = read_json(determinism_path)
+    if determinism is None:
+        return check_stop(
+            "no regen-determinism.json: regenerate twice into two worktrees "
+            "(`version_port.py regen <v> --worktree A` then B) and record the six tables' sha256",
+            evidence,
+        )
+    run1, run2 = determinism.get("run1") or {}, determinism.get("run2") or {}
+    if not run1 or set(run1) != set(run2):
+        return check_bad("regen-determinism.json does not hold two matching runs",
+                         [str(determinism_path)])
+    drift = sorted(k for k in run1 if run1[k] != run2[k])
+    if drift:
+        return check_bad("regeneration is not deterministic: " + ", ".join(drift[:3]),
+                         [str(determinism_path)])
+    missing = [t for t in RUST_TABLES if t not in run1]
+    if missing:
+        return check_stop("regen-determinism.json omits tables: " + ", ".join(missing[:3]),
+                          [str(determinism_path)])
+    notes.append(f"{len(run1)} tables identical across two regen runs")
+    evidence.append(str(determinism_path))
+
+    prepared = tree / ".local" / "horizon-client" / release
+    if run:
+        argv = [sys.executable, "tools/version_port.py", "prepare", release]
+        if download:
+            argv.append("--download")
+        code, output = sh(argv, tree, timeout=7200)
+        evidence.append(f"version_port.py prepare → exit {code}")
+        if code != 0:
+            return check_bad(f"prepare failed (exit {code}): {first_line(output)}", evidence)
+        notes.append("prepare ran end to end (exit 0)")
+    elif prepared.is_dir():
+        files = sum(1 for _ in prepared.rglob("*") if _.is_file())
+        if files < 50:
+            return check_bad(f"prepared data at {prepared} holds only {files} files", [str(prepared)])
+        notes.append(f"prepared data present ({files} files)")
+        evidence.append(str(prepared))
+    else:
+        return check_stop(f"no prepared data at {prepared}; rerun with --run", evidence)
+
+    return check_ok(notes, evidence)
+
+
+def _cargo(tree: Path, argv, log_name: str, run: bool, pin: Path):
+    if run:
+        code, output = sh(argv, tree, timeout=7200)
+    else:
+        log = pin / "ci-out" / log_name
+        if not log.exists():
+            return None, None
+        code, output = 0, log.read_text(encoding="utf-8", errors="replace")
+    return code, output
+
+
+def check_d2(tree: Path, pin: Path, release: str, run: bool, timeout: int):
+    """D2 — workspace compiles clean, protocol tests green except the sandbox pair."""
+    evidence, notes = [], []
+    exempt = allowed(pin)
+
+    code, output = _cargo(
+        tree, ["cargo", "check", "--workspace", "--all-targets"], "cargo-check.log", run, pin
+    )
+    if output is None:
+        return check_stop("no ci-out/cargo-check.log; rerun with --run", evidence)
+    errors = len(re.findall(r"^error(\[E\d+\])?:", output, re.M))
+    warnings = len(re.findall(r"^warning:", output, re.M))
+    if code != 0 or errors:
+        return check_bad(f"cargo check: {errors} error(s), exit {code}", evidence)
+    if warnings:
+        return check_bad(f"cargo check: {warnings} warning(s) (bar is 0/0)", evidence)
+    notes.append("cargo check --workspace --all-targets: 0 errors, 0 warnings")
+
+    code, output = _cargo(
+        tree, ["cargo", "test", "-p", PROTOCOL_PACKAGE], "cargo-test-protocol.log", run, pin
+    )
+    if output is None:
+        return check_stop("no ci-out/cargo-test-protocol.log; rerun with --run", evidence)
+    blocks = re.findall(r"^failures:\n((?:\s{4}\S+\n)+)", output, re.M)
+    failures = sorted({name for block in blocks for name in block.split()})
+    passed = re.search(r"test result: ok\. (\d+) passed", output)
+    if code != 0 and not failures:
+        return check_bad(f"cargo test -p {PROTOCOL_PACKAGE} failed (exit {code})", evidence)
+    unexplained = [f for f in failures if not any(token in f for token in exempt)]
+    if unexplained:
+        return check_bad(
+            f"{len(unexplained)} protocol test(s) failing without an accepted gap: "
+            + ", ".join(unexplained[:3]),
+            evidence,
+        )
+    notes.append(
+        f"protocol tests: {passed.group(1) if passed else 'ran'}"
+        + (f", {len(failures)} allowed" if failures else ", none failing")
+    )
+    return check_ok(notes, evidence)
+
+
+def check_d3(tree: Path, pin: Path, release: str):
+    """D3 — rank-1 and rank-2 work items closed or accepted with a cause and owner."""
+    report_path = find_report(tree, release)
+    report = read_json(report_path) if report_path else None
+    if report is None:
+        return check_stop("no diff-<prev>-<release>/report.json: run `version_port.py report`")
+    if "ranks" not in report and "items" not in report:
+        return check_bad("report.json holds no ranks or items — not a port report", [str(report_path)])
+    ranks = {str(k): int(v) for k, v in (report.get("ranks") or {}).items()}
+    ledger_path = pin / "work-items.json"
+    ledger = read_json(ledger_path)
+    if ledger is None:
+        return check_stop("no work-items.json: record closure per rank in the pin", [str(report_path)])
+    if ledger.get("release") != release:
+        return check_bad(f"work-items.json is for {ledger.get('release')!r}", [str(ledger_path)])
+    recorded = ledger.get("generated_from")
+    if recorded and recorded != sha256(report_path):
+        return check_bad("work-items.json was built from a different report.json", [str(ledger_path)])
+    notes, evidence = [], [str(report_path), str(ledger_path)]
+    for rank in D3_RANKS:
+        total = ranks.get(rank, 0)
+        entry = ledger.get(f"rank{rank}") or {}
+        if int(entry.get("total", -1)) != total:
+            return check_bad(
+                f"rank-{rank}: ledger says {entry.get('total')!r} items, report has {total}",
+                evidence,
+            )
+        accepted = entry.get("accepted") or []
+        for gap in accepted:
+            if not gap.get("cause") or not gap.get("owner"):
+                return check_bad(f"rank-{rank}: an accepted gap lacks cause or owner", evidence)
+        closed = int(entry.get("closed", 0)) + len(accepted)
+        if closed != total:
+            return check_bad(
+                f"rank-{rank}: {total - closed} of {total} item(s) neither closed nor accepted",
+                evidence,
+            )
+        notes.append(f"rank-{rank}: {entry.get('closed', 0)} closed, {len(accepted)} accepted, {total} total")
+    if ranks.get("1", 0) == 0:
+        notes.append("report has no rank-1 items (mechanically identical release)")
+    inherited = ledger.get("rank3plus")
+    if not inherited:
+        return check_stop("work-items.json must say what rank-3+ items inherit (e.g. the template)")
+    notes.append(f"rank-3+: {inherited}")
+    closed = sum(int((ledger.get(f"rank{r}") or {}).get("closed", 0)) for r in D3_RANKS)
+    total = sum(ranks.get(r, 0) for r in D3_RANKS)
+    accepted = sum(len((ledger.get(f"rank{r}") or {}).get("accepted") or []) for r in D3_RANKS)
+    return check_ok(notes, evidence, {"items_closed": closed, "items_total": total,
+                                      "items_accepted": accepted})
+
+
+def normalise_profile(raw):
+    """Accept the shapes a published profile comes in; return {"harnesses": {...}}.
+
+    `profile.json` is the frozen record of one completed sweep (what CI uploads).
+    `parity.py`'s `state.json` is the same information, unfrozen and local. The
+    gate prefers the published one so a verdict judges evidence that shipped.
+    """
+    if not isinstance(raw, dict):
+        return None
+    entries = raw.get("harnesses")
+    if entries is None:
+        entries = raw.get("suite")
+    if entries is None:
+        entries = raw.get("results")
+    if isinstance(entries, list):
+        entries = {
+            (e.get("name") or e.get("harness")): e
+            for e in entries if isinstance(e, dict)
+        }
+    if not isinstance(entries, dict):
+        return None
+    aliases = {"pass": "pass", "passed": "pass", "ok": "pass", "green": "pass",
+               "fail": "fail", "failed": "fail", "red": "fail"}
+    harnesses = {}
+    for name, value in entries.items():
+        if not name:
+            continue
+        if isinstance(value, str):
+            status = aliases.get(value.lower(), value.lower())
+            harnesses[name] = {"status": status}
+        elif isinstance(value, dict):
+            raw_status = value.get("status") or value.get("verdict")
+            if raw_status is None and "passed" in value:
+                raw_status = "pass" if value["passed"] else "fail"
+            if raw_status is None:
+                continue
+            harnesses[name] = {**value, "status": aliases.get(str(raw_status).lower(),
+                                                             str(raw_status).lower())}
+    return {"harnesses": harnesses} if harnesses else None
+
+
+def _parity_state(tree: Path, pin: Path):
+    """Published profile first (the frozen record), then the local run state."""
+    for candidate in (pin / "profile.json", pin / "ci-out/profile.json",
+                      tree / ".local/parity-runner/state.json", pin / "ci-out/state.json"):
+        raw = read_json(candidate)
+        if raw:
+            state = normalise_profile(raw)
+            if state:
+                return state, candidate
+    return None, None
+
+
+def _judge_harnesses(state, names, exempt):
+    harnesses = state.get("harnesses") or {}
+    failing, unknown = [], []
+    for name in names:
+        record = harnesses.get(name)
+        if record is None:
+            unknown.append(name)
+        elif record.get("status") != "pass" and not any(token in name for token in exempt):
+            failing.append(name)
+    return failing, unknown
+
+
+def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int):
+    """D4 — data compatibility: datafix ladder and save round-trip."""
+    exempt = allowed(pin)
+    if run:
+        code, output = sh(
+            [sys.executable, "tools/parity.py", *DATA_CHECKS, "--timeout", str(timeout)],
+            tree, timeout=timeout * len(DATA_CHECKS) + 300,
+        )
+        if code != 0:
+            return check_bad(f"parity.py {DATA_CHECKS} exited {code}: {first_line(output)}")
+    state, path = _parity_state(tree, pin)
+    if state is None:
+        return check_stop("no .local/parity-runner/state.json; rerun with --run")
+    failing, unknown = _judge_harnesses(state, DATA_CHECKS, exempt)
+    if unknown:
+        return check_stop(f"not measured: {', '.join(unknown)}", [str(path)])
+    if failing:
+        return check_bad(f"data compatibility failing: {', '.join(failing)}", [str(path)])
+    return check_ok([f"{', '.join(DATA_CHECKS)}: pass"], [str(path)])
+
+
+def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int):
+    """D5 — this era's regression subset is green (or exempted with cause and owner)."""
+    subset_path = pin / "harness-subset.txt"
+    if not subset_path.exists():
+        return check_stop("no harness-subset.txt: the era's regression subset is undefined",
+                          [str(subset_path)])
+    names = [
+        line.split("#", 1)[0].strip()
+        for line in subset_path.read_text(encoding="utf-8").splitlines()
+        if line.split("#", 1)[0].strip()
+    ]
+    if len(names) < 5:
+        return check_bad(f"harness-subset.txt names only {len(names)} harnesses", [str(subset_path)])
+    exempt = allowed(pin)
+    if run:
+        code, output = sh(
+            [sys.executable, "tools/parity.py", *names, "--timeout", str(timeout)],
+            tree, timeout=timeout * min(len(names), 8) + 900,
+        )
+        if code != 0 and not (tree / ".local/parity-runner/state.json").exists():
+            return check_bad(f"parity.py exited {code}: {first_line(output)}")
+    state, path = _parity_state(tree, pin)
+    if state is None:
+        return check_stop("no .local/parity-runner/state.json; rerun with --run")
+    failing, unknown = _judge_harnesses(state, names, exempt)
+    if unknown:
+        return check_stop(f"{len(unknown)} of {len(names)} subset harnesses unmeasured: "
+                          + ", ".join(unknown[:4]), [str(path)])
+    if failing:
+        return check_bad(f"{len(failing)} of {len(names)} subset harnesses failing: "
+                         + ", ".join(failing[:4]), [str(path)])
+    exempted = sum(1 for name in names if any(token in name for token in exempt))
+    return check_ok([f"{len(names)}/{len(names)} subset harnesses pass"],
+                    [str(path), str(subset_path)],
+                    {"suite_pass": len(names) - exempted, "suite_total": len(names),
+                     "suite_exempt": exempted})
+
+
+def check_d6(pin: Path, release: str, commit: str):
+    """D6 — signed playtest: world loads, a vanilla client of this version joins."""
+    path = pin / "playtest.md"
+    if not path.exists():
+        return check_stop("no playtest.md: the play gate has not been recorded", [str(path)])
+    text = path.read_text(encoding="utf-8", errors="replace")
+    problems = []
+    if not re.search(rf"release:\s*{re.escape(release)}\b", text):
+        problems.append(f"does not name release {release}")
+    stamped = re.search(r"commit:\s*([0-9a-f]{7,40})", text)
+    if not stamped:
+        problems.append("no `commit:` line")
+    elif commit and not commit.startswith(stamped.group(1)) and not stamped.group(1).startswith(commit[:7]):
+        problems.append(f"commit {stamped.group(1)} is not HEAD ({commit[:12]})")
+    if not re.search(r"tester:\s*\S+", text):
+        problems.append("no `tester:` line")
+    boxes = re.findall(r"^\s*[-*] \[([ xX])\]", text, re.M)
+    if len(boxes) < PLAYTEST_BOXES:
+        problems.append(f"{len(boxes)} checklist boxes, need at least {PLAYTEST_BOXES}")
+    elif any(box == " " for box in boxes):
+        problems.append(f"{boxes.count(' ')} checklist box(es) unticked")
+    evidence = re.findall(r"^\s*evidence:\s*(\S+)", text, re.M)
+    if not evidence:
+        problems.append("no `evidence:` path (log, screenshot or capture)")
+    else:
+        missing = [e for e in evidence if not (pin / e).exists() and not Path(e).exists()]
+        if missing:
+            problems.append("evidence path missing: " + ", ".join(missing[:2]))
+    if problems:
+        return check_bad("playtest.md: " + "; ".join(problems), [str(path)])
+    return check_ok([f"playtest signed by {re.search(r'tester:\s*(\S+)', text).group(1)}, "
+                     f"{len(boxes)} checks, commit {stamped.group(1)}"], [str(path)])
+
+
+# ---------------------------------------------------------------- driver
+
+
+def git_head(tree: Path) -> str:
+    code, output = sh(["git", "rev-parse", "HEAD"], tree, timeout=30)
+    return output.strip() if code == 0 else ""
+
+
+def version_key(release: str):
+    return tuple(int(part) if part.isdigit() else 0 for part in release.split("."))
+
+
+def fmt_ratio(pair, empty="—"):
+    if pair[0] is None or pair[1] is None:
+        return empty
+    return f"{pair[0]}/{pair[1]}"
+
+
+def print_index(roots) -> int:
+    """Emit VERSIONS.md rows from the verdicts, so the index is generated, not written."""
+    found = {}
+    for root in roots:
+        if not Path(root).is_dir():
+            continue
+        for path in Path(root).glob("**/delta-verdict.json"):
+            verdict = read_json(path)
+            if verdict and verdict.get("release"):
+                found[verdict["release"]] = verdict
+    if not found:
+        print("delta_verify: no delta-verdict.json under " + ", ".join(map(str, roots)),
+              file=sys.stderr)
+        return 3
+    print("| Release | Tier | Subset | Items | Accepted | Status |")
+    print("|---|---|---|---|---|---|")
+    for release in sorted(found, key=version_key):
+        verdict = found[release]
+        scalars = verdict.get("scalars") or {}
+        print(verdict.get("index_line") or (
+            f"| {release} | {scalars.get('tier', 'D')} | "
+            f"{fmt_ratio((scalars.get('suite_pass'), scalars.get('suite_total'))) } | "
+            f"{fmt_ratio((scalars.get('items_closed'), scalars.get('items_total'))) } | "
+            f"{scalars.get('items_accepted', 0)} | {verdict.get('state', 'unknown')} |"
+        ))
+    return 0
+
+
+CHECK_ORDER = ("D1", "D2", "D3", "D4", "D5", "D6")
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Decide whether one Minecraft release meets the delta bar (D1–D6).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument("release", nargs="?", help="e.g. 1.21.10 (omit with --index)")
+    parser.add_argument("--index", action="store_true",
+                        help="print VERSIONS.md rows from every delta-verdict.json found")
+    parser.add_argument("--tree", help="the release's tree (default: lines/<v> or versions/<v>)")
+    parser.add_argument("--pin", help="the pin directory (default: pins/<v>, else the tree)")
+    parser.add_argument("--run", action="store_true",
+                        help="run prepare, cargo check/test and the harnesses instead of "
+                             "reading recorded output")
+    parser.add_argument("--download", action="store_true", help="with --run: re-download the jars")
+    parser.add_argument("--timeout", type=int, default=1800, help="seconds per harness")
+    parser.add_argument("--check", action="append", choices=CHECK_ORDER,
+                        help="only these checks (repeatable)")
+    parser.add_argument("--json", action="store_true", help="print the verdict to stdout")
+    parser.add_argument("--quiet", action="store_true", help="write the verdict, print nothing")
+    args = parser.parse_args(argv)
+
+    if args.index:
+        roots = [args.pin] if args.pin else ["pins", "versions", "lines"]
+        return print_index(roots)
+    if not args.release:
+        parser.error("release is required unless --index is given")
+
+    tree = resolve_tree(args.release, args.tree)
+    pin = resolve_pin(args.release, args.pin, tree)
+    commit = git_head(tree)
+    wanted = set(args.check or CHECK_ORDER)
+
+    runners = {
+        "D1": lambda: check_d1(tree, pin, args.release, args.run, args.download),
+        "D2": lambda: check_d2(tree, pin, args.release, args.run, args.timeout),
+        "D3": lambda: check_d3(tree, pin, args.release),
+        "D4": lambda: check_d4(tree, pin, args.release, args.run, args.timeout),
+        "D5": lambda: check_d5(tree, pin, args.release, args.run, args.timeout),
+        "D6": lambda: check_d6(pin, args.release, commit),
+    }
+    checks = {}
+    for name in CHECK_ORDER:
+        checks[name] = runners[name]() if name in wanted else check_stop("not run (--check)")
+
+    statuses = [entry["status"] for entry in checks.values()]
+    if FAIL in statuses:
+        verdict_state = "failed"
+    elif BLOCKED in statuses:
+        verdict_state = "blocked"
+    else:
+        verdict_state = "verified"
+
+    tier_file = pin / "tier.txt"
+    tier = tier_file.read_text(encoding="utf-8").strip()[:1].upper() if tier_file.exists() else "D"
+    if tier not in ("T", "D"):
+        raise ConfigurationError(f"{tier_file}: tier must be T (template) or D (delta), got {tier!r}")
+
+    metrics = {}
+    for entry in checks.values():
+        metrics.update(entry.get("metrics") or {})
+    scalars = {
+        "tier": tier,
+        "suite_pass": metrics.get("suite_pass"),
+        "suite_total": metrics.get("suite_total"),
+        "suite_exempt": metrics.get("suite_exempt", 0),
+        "items_closed": metrics.get("items_closed"),
+        "items_total": metrics.get("items_total"),
+        "items_accepted": metrics.get("items_accepted", 0),
+    }
+    checked_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    index_line = (
+        f"| {args.release} | {tier} | {fmt_ratio((scalars['suite_pass'], scalars['suite_total']))} | "
+        f"{fmt_ratio((scalars['items_closed'], scalars['items_total']))} | "
+        f"{scalars['items_accepted']} | {verdict_state} {checked_at[:10]} |"
+    )
+
+    verdict = {
+        "schema": SCHEMA,
+        "release": args.release,
+        "commit": commit,
+        "tree": str(tree),
+        "pin": str(pin),
+        "mode": "run" if args.run else "recorded",
+        "verified": verdict_state == "verified",
+        "state": verdict_state,
+        "checked_at": checked_at,
+        "scalars": scalars,
+        "index_line": index_line,
+        "checks": checks,
+    }
+    out = pin / "delta-verdict.json"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(verdict, indent=2) + "\n", encoding="utf-8")
+
+    if args.json:
+        print(json.dumps(verdict, indent=2))
+    if not args.quiet and not args.json:
+        head = {"verified": "DELTA-VERIFIED", "failed": "NOT DELTA-VERIFIED",
+                "blocked": "BLOCKED (evidence missing — not verified)"}[verdict_state]
+        print(f"{args.release}: {head}")
+        for name in CHECK_ORDER:
+            entry = checks[name]
+            print(f"  {name} {entry['status']:<8} {'; '.join(entry['notes'])[:150]}")
+        print(f"  verdict: {out}")
+
+    return {"verified": 0, "failed": STATUS_EXIT[FAIL], "blocked": STATUS_EXIT[BLOCKED]}[verdict_state]
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except ConfigurationError as error:
+        print(f"delta_verify: {error}", file=sys.stderr)
+        sys.exit(2)
+    except KeyboardInterrupt:
+        sys.exit(130)
