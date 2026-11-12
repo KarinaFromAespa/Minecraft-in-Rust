@@ -102,6 +102,36 @@ def normalise(raw) -> dict[str, dict]:
     return found
 
 
+def collapse_shards(merged: dict[str, dict]) -> dict[str, dict]:
+    """Collapse parity.py shard records (`name#N`) into an aggregate `name`.
+
+    parity.py runs sharded harnesses (datafix runs as 6 shards) and records
+    each shard separately in state.json, with no aggregate entry. The gate's
+    D4/D5 judge harness NAMES, so a published profile without the aggregate
+    reads as "not measured: datafix" even when all six shards ran. The
+    aggregate is pass iff every shard passed, fail if any shard failed,
+    else the first non-pass status (oracle, flaky). The shard entries stay
+    alongside it, so the published record keeps which shard failed.
+    """
+    shards: dict[str, list[dict]] = {}
+    for name, record in merged.items():
+        base, sep, num = name.partition("#")
+        if sep and num.isdigit() and base:
+            shards.setdefault(base, []).append(record)
+    for base, records in shards.items():
+        if base in merged:
+            continue  # an explicit aggregate already exists; keep it
+        statuses = [r.get("status") for r in records]
+        if all(s == "pass" for s in statuses):
+            status = "pass"
+        elif any(s == "fail" for s in statuses):
+            status = "fail"
+        else:
+            status = next((s for s in statuses if s != "pass"), "fail")
+        merged[base] = {"status": status, "shards": len(records)}
+    return merged
+
+
 def candidates(release: str) -> list[Path]:
     found = []
     ports = os.environ.get("HORIZON_PORTS")
@@ -153,6 +183,8 @@ def main(argv=None) -> int:
         print(f"publish_profile: {', '.join(used) or sources[0]} holds no harness results",
               file=sys.stderr)
         return 1
+
+    merged = collapse_shards(merged)
 
     commit = args.commit or head_commit()
     counts = {"pass": 0, "fail": 0, "other": 0}

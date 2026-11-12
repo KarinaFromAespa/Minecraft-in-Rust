@@ -1,0 +1,31 @@
+{
+  "release": "1.21.11",
+  "generated_from": "2015d5e9a53605e626d6dfb97bd8e8a128345e859f29e4709bf28cbbdd06f09a",
+  "note": "E6 template publish: the pin, tables, packet rewire and adapter re-base are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "rank1": {
+    "total": 10,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank2": {
+    "total": 492,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank3": {
+    "total": 247,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank4": {
+    "total": 64,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank5": {
+    "total": 2,
+    "closed": 0,
+    "accepted": []
+  },
+  "rank3plus": "This release IS the E6 template: rank-3+ items are the template's own answers, unmeasured until the behaviour port reaches them."
+}

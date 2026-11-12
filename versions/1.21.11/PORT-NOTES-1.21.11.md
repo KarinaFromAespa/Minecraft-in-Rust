@@ -648,3 +648,55 @@ currently **unmeasured in CI for pre-26.x versions**, not failing on
 behaviour. Queued fix: install multiple JDKs in port-verify (the
 version's own for oracles, Java 25 on PATH for the fixture servers).
 Artifacts kept at `~/workspace/mcir-ci/1.21.11-postrebase-v5/`.
+
+## CI profile — port-verify v6.4, run 43149789732 (2026-11-12, multi-JDK validation)
+
+The live test of the v6.4 multi-JDK fix (main@d1658a0, ~1h47m).
+**Profile: 2 pass / 2 oracle / 13 fail — the same shape as both v5
+runs.** Same passes (block_properties, lan), same oracle failures
+(chunk_generation 33 errors, command_exec 29 errors — unchanged
+counts, the T4 work). D2 passes in CI for this tree: cargo check
+--workspace --all-targets 0 errors / 0 warnings, protocol tests 440
+with none failing (the 2 local "failures" are the sandbox-network
+pair, which pass with real network).
+
+**The multi-JDK fix worked — and exposed the next layer.** datafix
+no longer fails with UnsupportedClassVersionError: the fixture
+generation now runs its 26.x servers under Java 25 and passes. The
+harness then reaches the oracle compile, which fails: the
+VanillaDataFixOracle is still the 26.3 oracle and does not compile
+against the 1.21.11 client jar (javac exit 1, all six shards). Note
+the ordering: main() generates worlds BEFORE compiling the oracle,
+so the v5 runs never reached the oracle compile at all — this
+failure is not a regression, it is the next blocker, and it is
+oracle-port work of the same class as chunk_generation and
+command_exec. (Its javac errors go to a build-dir log the artifacts
+do not carry; the T4 agent reproduces them locally.) datafix's
+profile status is "fail", but its true failure mode is
+oracle-compile — the classifier sees a generic failure because the
+errors are hidden in the build log. Food and item_model also fail
+at oracle compile in this run.
+
+**Publish-profile shard bug found in this run's verdict.** The
+judge reported D4 blocked ("not measured: datafix") even though all
+six datafix shards ran and failed: publish_profile.py reads
+parity.py's state.json, which records shards as `datafix#1..6`
+with no aggregate entry, and the gate judges the name `datafix`.
+Fixed in tools/publish_profile.py (collapse_shards: the aggregate
+is pass iff all shards pass, fail if any fails, else the first
+non-pass status; the shard entries stay alongside it). Tested on
+synthetic states (all-fail, all-pass, mixed-oracle) and end to end
+through the gate: D4 now judges datafix (fail) and passes when
+both datafix and save_roundtrip pass. The next CI run will carry
+the fix.
+
+**Gate backfill landed with this run's processing.**
+versions/1.21.11/ now carries tier.txt ("T"), the committed
+diff-26.1-1.21.11/report.json (from the 1.21.11 agent's store:
+815 items, ranks 10/492/247/64/2) and an honest work-items.json
+(0 closed, 0 accepted) — D3 now fails with the correct totals
+instead of blocking. Still missing: regen.json (the store holds
+regen files only for the 26.3→1.21.11 and self diffs, not
+26.1→1.21.11) and regen-determinism.json — both need a fresh
+1.21.11 regen, queued. Artifacts kept at
+`~/workspace/mcir-ci/1.21.11-v6.4-multijdk/`.

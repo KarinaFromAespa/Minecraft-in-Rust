@@ -6,7 +6,7 @@
   },
   "harness": {
     "fail": 13,
-    "note": "Profile measured on the POST-re-base tree (main@6587c35, adapter re-base 2e2ef22): 2 pass / 2 oracle / 13 fail, identical to the pre-re-base profile. datafix is unmeasured in CI, not failing on behaviour: fixture generation runs a 26.1 server needing Java 25, but the runner has only the version's Java 21 (UnsupportedClassVersionError in all six shards).",
+    "note": "Profile measured on the v6.4 multi-JDK validation run (main@d1658a0): 2 pass / 2 oracle / 13 fail, same shape as both v5 runs. datafix is now MEASURED one stage deeper: fixture generation passes under Java 25 (the multi-JDK fix works), and the harness now fails at the VanillaDataFixOracle compile \u2014 oracle-port work, same class as chunk_generation/command_exec.",
     "oracle_fail": 2,
     "oracle_failing": [
       "chunk_generation",
@@ -19,15 +19,15 @@
     ],
     "total": 17
   },
-  "last_ci_commit": "6587c35",
-  "last_ci_run": 43127256427,
+  "last_ci_commit": "d1658a0",
+  "last_ci_run": 43149789732,
   "notes": "SlotDisplay codec still uses 26.3 numbering; five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec.",
   "profile_recorded": "2026-11-12",
   "protocol": 774,
   "protocol_tests": {
-    "fail": 2,
-    "note": "2 failures are the pre-existing sandbox-network pair in untouched code.",
-    "pass": 438
+    "fail": 0,
+    "note": "CI v6.4 run 43149789732: 440 pass, none failing. Locally 438/2 (the sandbox-network pair).",
+    "pass": 440
   },
   "role": "E6 era template",
   "version": "1.21.11"
