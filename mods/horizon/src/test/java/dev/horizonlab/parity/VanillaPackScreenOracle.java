@@ -28,7 +28,7 @@ import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import net.minecraft.network.chat.FormattedText;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackSelectionConfig;
 import net.minecraft.server.packs.repository.Pack;
@@ -152,13 +152,13 @@ public final class VanillaPackScreenOracle {
             var o = add("highlight");
             o.addProperty("x0", x0); o.addProperty("y0", y0); o.addProperty("x1", x1); o.addProperty("y1", y1);
         }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int color) {
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int color) {
             var o = add("sprite");
             o.addProperty("sprite", id.getPath());
             o.addProperty("x", x); o.addProperty("y", y); o.addProperty("w", w); o.addProperty("h", h);
             o.addProperty("color", color);
         }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
             var o = add("blit");
             o.addProperty("texture", texture.getPath());
             o.addProperty("x", x); o.addProperty("y", y); o.addProperty("w", w); o.addProperty("h", h);
@@ -201,14 +201,14 @@ public final class VanillaPackScreenOracle {
             return collector(1.0F);
         }
         @Override public void setTooltipForNextFrame(Font font, List<FormattedCharSequence> lines, Optional<TooltipComponent> image,
-                                                     ClientTooltipPositioner positioner, int x, int y, boolean replace, Identifier style) {
+                                                     ClientTooltipPositioner positioner, int x, int y, boolean replace, ResourceLocation style) {
             var o = add("tooltip");
             var a = new JsonArray();
             for (var l : lines) a.add(runs(l));
             o.add("lines", a);
             o.addProperty("x", x); o.addProperty("y", y);
         }
-        @Override public void setTooltipForNextFrame(Font font, List<? extends FormattedCharSequence> lines, int x, int y, Identifier style) {
+        @Override public void setTooltipForNextFrame(Font font, List<? extends FormattedCharSequence> lines, int x, int y, ResourceLocation style) {
             var o = add("tooltip");
             var a = new JsonArray();
             for (var l : lines) a.add(runs(l));
@@ -349,13 +349,13 @@ public final class VanillaPackScreenOracle {
         gui.setScreen(screen);
         // PackSelectionScreen.loadPackIcon: a pack with a pack.png gets its own texture.
         @SuppressWarnings("unchecked")
-        var iconMap = (Map<String, Identifier>) field(PackSelectionScreen.class, "packIcons").get(screen);
+        var iconMap = (Map<String, ResourceLocation>) field(PackSelectionScreen.class, "packIcons").get(screen);
         iconMap.clear();
         for (var e : icons.entrySet()) {
             String id = e.getKey();
             iconMap.put(id, e.getValue()
-                ? Identifier.withDefaultNamespace("pack/" + Util.sanitizeName(id, Identifier::validPathChar) + "/" + com.google.common.hash.Hashing.sha1().hashUnencodedChars(id) + "/icon")
-                : Identifier.withDefaultNamespace("textures/misc/unknown_pack.png"));
+                ? ResourceLocation.withDefaultNamespace("pack/" + Util.sanitizeName(id, ResourceLocation::validPathChar) + "/" + com.google.common.hash.Hashing.sha1().hashUnencodedChars(id) + "/icon")
+                : ResourceLocation.withDefaultNamespace("textures/misc/unknown_pack.png"));
         }
         var search = (EditBox) field(PackSelectionScreen.class, "search").get(screen);
         var info = new MouseButtonInfo(1, 0);

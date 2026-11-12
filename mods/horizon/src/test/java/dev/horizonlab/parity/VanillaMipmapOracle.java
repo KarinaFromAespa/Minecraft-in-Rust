@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import net.minecraft.client.renderer.texture.MipmapGenerator;
 import net.minecraft.client.renderer.texture.MipmapStrategy;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Vanilla's sprite mip levels for tools/test_mipmap_parity.py. The first
@@ -27,7 +27,7 @@ public final class VanillaMipmapOracle {
         Path root = Path.of(lines.get(0));
         try (PrintWriter out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8))) {
             for (String name : lines.subList(1, lines.size())) {
-                Identifier id = Identifier.parse(name);
+                ResourceLocation id = ResourceLocation.parse(name);
                 Path png = root.resolve("assets/" + id.getNamespace() + "/textures/" + id.getPath() + ".png");
                 Path meta = png.resolveSibling(png.getFileName() + ".mcmeta");
                 MipmapStrategy strategy = MipmapStrategy.AUTO;

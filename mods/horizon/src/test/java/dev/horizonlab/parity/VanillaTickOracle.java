@@ -37,7 +37,7 @@ public final class VanillaTickOracle {
         BoundingBox area() { BlockPos a = pos(), b = pos(); return new BoundingBox(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()), Math.max(a.getX(), b.getX()), Math.max(a.getY(), b.getY()), Math.max(a.getZ(), b.getZ())); }
     }
     private int schedule(ScheduledTick<Object> tick) {
-        if (!chunks.containsKey(ChunkPos.pack(tick.pos()))) { level.schedule(tick); return 2; }
+        if (!chunks.containsKey(ChunkPos.asLong(tick.pos()))) { level.schedule(tick); return 2; }
         boolean duplicate = level.hasScheduledTick(tick.pos(), tick.type());
         level.schedule(tick);
         return duplicate ? 0 : 1;
@@ -88,7 +88,7 @@ public final class VanillaTickOracle {
                         case 2 -> { level.clearArea(new BoundingBox(pos.getX(), pos.getY(), pos.getZ(), pos.getX() + 1, pos.getY() + 1, pos.getZ() + 1)); out.printf("callback-clear %d%n", level.willTickThisTick(probe, probeKind) ? 1 : 0); }
                         case 3 -> level.copyArea(new BoundingBox(pos.getX() - 2, pos.getY() - 2, pos.getZ() - 2, pos.getX() + 2, pos.getY() + 2, pos.getZ() + 2), new Vec3i(16, 0, 0));
                         case 4 -> { ChunkPos chunkPos = new ChunkPos(pos.getX() >> 4, pos.getZ() >> 4); LevelChunkTicks<Object> chunk = remove(chunkPos); if (chunk != null) detached.put(chunkPos.pack(), chunk); }
-                        case 5 -> blocked.add(ChunkPos.pack(pos));
+                        case 5 -> blocked.add(ChunkPos.asLong(pos));
                         case 0 -> {}
                         default -> throw new AssertionError("unknown callback action");
                     }

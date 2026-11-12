@@ -24,7 +24,7 @@ import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.sprite.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StrictJsonParser;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
@@ -63,8 +63,8 @@ public final class VanillaSectionMeshOracle {
             super(TextureAtlas.LOCATION_BLOCKS, contents, contents.width() * slots, contents.height(), contents.width() * slot, 0, 0);
         }
     }
-    private static final Map<Identifier, TextureAtlasSprite> SPRITES = new HashMap<>();
-    private static SpriteContents contents(Identifier id) throws IOException {
+    private static final Map<ResourceLocation, TextureAtlasSprite> SPRITES = new HashMap<>();
+    private static SpriteContents contents(ResourceLocation id) throws IOException {
         var path = "/assets/" + id.getNamespace() + "/textures/" + id.getPath() + ".png";
         try (var input = VanillaSectionMeshOracle.class.getResourceAsStream(path)) {
             NativeImage image = input == null ? new NativeImage(16, 16, true) : NativeImage.read(input);
@@ -72,7 +72,7 @@ public final class VanillaSectionMeshOracle {
             return new SpriteContents(id, new FrameSize(image.getWidth(), size), image);
         }
     }
-    private static TextureAtlasSprite sprite(Identifier id) {
+    private static TextureAtlasSprite sprite(ResourceLocation id) {
         return SPRITES.computeIfAbsent(id, key -> {
             try {
                 int slot = Arrays.asList(FLUID_SPRITES).indexOf(key.toString());
@@ -88,12 +88,12 @@ public final class VanillaSectionMeshOracle {
         }
     }
     private static final class Baker implements ModelBaker {
-        final Map<Identifier, ResolvedModel> resolved; final ResolvedModel missing; final MaterialBaker materials;
+        final Map<ResourceLocation, ResolvedModel> resolved; final ResolvedModel missing; final MaterialBaker materials;
         final Map<SharedOperationKey<?>, Object> cache = new HashMap<>();
-        Baker(Map<Identifier, ResolvedModel> resolved, ResolvedModel missing, MaterialBaker materials) {
+        Baker(Map<ResourceLocation, ResolvedModel> resolved, ResolvedModel missing, MaterialBaker materials) {
             this.resolved = resolved; this.missing = missing; this.materials = materials;
         }
-        public ResolvedModel getModel(Identifier id) { return resolved.getOrDefault(id, missing); }
+        public ResolvedModel getModel(ResourceLocation id) { return resolved.getOrDefault(id, missing); }
         public BlockStateModelPart missingBlockModelPart() { throw new AssertionError("missing block model part"); }
         public MaterialBaker materials() { return materials; }
         public ModelBaker.Interner interner() {
@@ -126,7 +126,7 @@ public final class VanillaSectionMeshOracle {
         final Map<BlockState, BlockStateModel> baked = new HashMap<>();
         final Baker baker;
         Models(Set<Block> blocks, MaterialBaker materials) throws IOException {
-            var unbaked = new HashMap<Identifier, UnbakedModel>();
+            var unbaked = new HashMap<ResourceLocation, UnbakedModel>();
             for (var block : blocks) {
                 var id = BuiltInRegistries.BLOCK.getKey(block);
                 var raw = resource("/assets/" + id.getNamespace() + "/blockstates/" + id.getPath() + ".json");
@@ -134,7 +134,7 @@ public final class VanillaSectionMeshOracle {
                 var definition = BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE, StrictJsonParser.parse(raw)).getOrThrow();
                 roots.putAll(definition.instantiate(block.getStateDefinition(), id::toString));
             }
-            var pending = new ArrayList<Identifier>();
+            var pending = new ArrayList<ResourceLocation>();
             for (var root : new HashSet<>(roots.values())) root.resolveDependencies(pending::add);
             for (int i = 0; i < pending.size(); i++) {
                 var id = pending.get(i);
@@ -163,7 +163,7 @@ public final class VanillaSectionMeshOracle {
         final Holder<Biome> dflt, plains;
         TintBiomes(JsonObject o, HolderLookup.RegistryLookup<Biome> lookup) {
             radius = o.get("radius").getAsInt();
-            Function<String, Holder<Biome>> named = name -> lookup.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(name)));
+            Function<String, Holder<Biome>> named = name -> lookup.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(name)));
             plains = named.apply("minecraft:plains");
             dflt = named.apply(o.get("default").getAsString());
             for (var item : o.getAsJsonArray("cells")) {
@@ -339,7 +339,7 @@ public final class VanillaSectionMeshOracle {
         }
         var blocks = new HashSet<Block>();
         for (var row : rows) for (var item : row.getAsJsonArray("blocks")) blocks.add(Block.stateById(item.getAsJsonArray().get(3).getAsInt()).getBlock());
-        var missingContents = new SpriteContents(Identifier.parse("minecraft:missingno"), new FrameSize(16, 16), new NativeImage(16, 16, true));
+        var missingContents = new SpriteContents(ResourceLocation.parse("minecraft:missingno"), new FrameSize(16, 16), new NativeImage(16, 16, true));
         var missing = new Sprite(missingContents, 1, 0);
         var atlas = new SpriteLoader.Preparations(16, 16, 0, missing, Map.of(), CompletableFuture.completedFuture(null));
         var materials = new Materials(atlas);

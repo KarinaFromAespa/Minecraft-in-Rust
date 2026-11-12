@@ -9,7 +9,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.component.DataComponentMap;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Abilities;
 import net.minecraft.world.entity.player.Player;
@@ -24,7 +24,7 @@ public final class VanillaCreativeMiningOracle {
         var defaults = JsonParser.parseString(Files.readString(Path.of(args[0]).getParent()
             .getParent().resolve("horizon-client/26.3/items.json"))).getAsJsonObject();
         for (var entry : defaults.entrySet()) {
-            var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(entry.getKey()));
+            var item = BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(entry.getKey()));
             var components = DataComponentMap.builder();
             var tool = entry.getValue().getAsJsonObject().getAsJsonObject("minecraft:tool");
             if (tool != null) {
@@ -49,7 +49,7 @@ public final class VanillaCreativeMiningOracle {
              var lines = Files.lines(Path.of(args[0]))) {
             for (var line : (Iterable<String>) lines::iterator) {
                 var row = JsonParser.parseString(line).getAsJsonObject();
-                var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(row.get("item").getAsString()));
+                var item = BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(row.get("item").getAsString()));
                 var stack = new ItemStack(item, row.get("count").getAsInt());
                 var mode = row.get("tool").getAsString();
                 if (!mode.equals("default")) {

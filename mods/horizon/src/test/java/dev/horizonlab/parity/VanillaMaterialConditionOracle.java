@@ -59,40 +59,40 @@ public final class VanillaMaterialConditionOracle {
         for(var e:definitions.entrySet()) {
             var f=new JsonObject();f.addProperty("json",e.getValue().getAsString());
             var biome=(Biome)make.invoke(null,climate.invoke(null,f));
-            biomes.register(ResourceKey.create(Registries.BIOME,Identifier.parse(e.getKey())),biome,RegistrationInfo.BUILT_IN);
+            biomes.register(ResourceKey.create(Registries.BIOME,ResourceLocation.parse(e.getKey())),biome,RegistrationInfo.BUILT_IN);
         }
         biomes.freeze();
         var tagResources=JsonParser.parseString(Files.readString(dir.resolve("biome_tags.json"))).getAsJsonObject();
         var loader=new TagLoader<Holder<Biome>>((id,required)->biomes.get(id).map(value->(Holder<Biome>)value),"tags/worldgen/biome");
-        var tags=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var tags=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var e:tagResources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            tags.put(Identifier.parse(e.getKey()),entries);
+            tags.put(ResourceLocation.parse(e.getKey()),entries);
         }
         var resolved=new HashMap<TagKey<Biome>,List<Holder<Biome>>>();
         loader.build(tags).forEach((id,values)->resolved.put(TagKey.create(Registries.BIOME,id),List.copyOf(values)));
         if(resolved.size()!=tagResources.size())throw new AssertionError("unresolved biome tags");
         biomes.prepareTagReload(new TagLoader.LoadResult<>(Registries.BIOME,resolved)).apply();
     }
-    private static Holder<Biome> biome(String name) {return biomes.getOrThrow(ResourceKey.create(Registries.BIOME,Identifier.parse(name)));}
+    private static Holder<Biome> biome(String name) {return biomes.getOrThrow(ResourceKey.create(Registries.BIOME,ResourceLocation.parse(name)));}
     private static String test(ConditionEvaluator condition) {try{return Boolean.toString(condition.test());}catch(RuntimeException error){return "error";}}
     private static void loadConditions(Path dir) throws Exception {
         definitions=new MappedRegistry<>(Registries.MATERIAL_CONDITION,Lifecycle.stable());
         ops=conditionOps(definitions.createRegistrationLookup());
         var data=JsonParser.parseString(Files.readString(dir.resolve("conditions.json"))).getAsJsonObject();
-        for(var e:new TreeMap<>(data.asMap()).entrySet())definitions.register(ResourceKey.create(Registries.MATERIAL_CONDITION,Identifier.parse(e.getKey())),MaterialCondition.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:new TreeMap<>(data.asMap()).entrySet())definitions.register(ResourceKey.create(Registries.MATERIAL_CONDITION,ResourceLocation.parse(e.getKey())),MaterialCondition.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         definitions.freeze();ops=conditionOps(definitions);
     }
     private static void loadRules(Path dir) throws Exception {
         if(!Files.exists(dir.resolve("rules.json")))return;
         densities=new MappedRegistry<>(Registries.DENSITY_FUNCTION,Lifecycle.stable());densityLookup=densities.createRegistrationLookup();
         var densityJson=JsonParser.parseString(Files.readString(dir.resolve("densities.json"))).getAsJsonObject();
-        for(var e:new TreeMap<>(densityJson.asMap()).entrySet())densities.register(ResourceKey.create(Registries.DENSITY_FUNCTION,Identifier.parse(e.getKey())),DensityFunctions.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:new TreeMap<>(densityJson.asMap()).entrySet())densities.register(ResourceKey.create(Registries.DENSITY_FUNCTION,ResourceLocation.parse(e.getKey())),DensityFunctions.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         densities.freeze();densityLookup=densities;
         ruleDefinitions=new MappedRegistry<>(Registries.MATERIAL_RULE,Lifecycle.stable());ruleLookup=ruleDefinitions.createRegistrationLookup();
         var data=JsonParser.parseString(Files.readString(dir.resolve("rules.json"))).getAsJsonObject();
-        for(var e:new TreeMap<>(data.asMap()).entrySet())ruleDefinitions.register(ResourceKey.create(Registries.MATERIAL_RULE,Identifier.parse(e.getKey())),MaterialRule.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:new TreeMap<>(data.asMap()).entrySet())ruleDefinitions.register(ResourceKey.create(Registries.MATERIAL_RULE,ResourceLocation.parse(e.getKey())),MaterialRule.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         ruleDefinitions.freeze();ruleLookup=ruleDefinitions;
     }
     private static VerticalAnchor anchor(JsonElement e) {
@@ -104,14 +104,14 @@ public final class VanillaMaterialConditionOracle {
             case "temperature"->TemperatureCondition.INSTANCE;
             case "above"->AbovePreliminarySurfaceCondition.INSTANCE;
             case "biome"->{var selected=new ArrayList<Holder<Biome>>();for(var name:a.get(1).getAsJsonArray())selected.add(biome(name.getAsString()));yield new BiomeCondition(HolderSet.direct(selected));}
-            case "noise"->new NoiseThresholdCondition(ResourceKey.create(Registries.NOISE,Identifier.parse(a.get(1).getAsString())),Double.longBitsToDouble(Long.parseUnsignedLong(a.get(2).getAsString(),16)),Double.longBitsToDouble(Long.parseUnsignedLong(a.get(3).getAsString(),16)),a.get(4).getAsBoolean());
+            case "noise"->new NoiseThresholdCondition(ResourceKey.create(Registries.NOISE,ResourceLocation.parse(a.get(1).getAsString())),Double.longBitsToDouble(Long.parseUnsignedLong(a.get(2).getAsString(),16)),Double.longBitsToDouble(Long.parseUnsignedLong(a.get(3).getAsString(),16)),a.get(4).getAsBoolean());
             case "json"->MaterialCondition.CODEC.parse(ops,JsonParser.parseString(a.get(1).getAsString())).getOrThrow();
             case "hole"->HoleCondition.INSTANCE;
             case "steep"->SteepCondition.INSTANCE;
             case "y"->new YCondition(anchor(a.get(1)),a.get(2).getAsInt(),a.get(3).getAsBoolean());
             case "water"->new WaterCondition(a.get(1).getAsInt(),a.get(2).getAsInt(),a.get(3).getAsBoolean());
             case "stone"->new StoneDepthCondition(a.get(1).getAsInt(),a.get(2).getAsBoolean(),a.get(3).getAsInt(),a.get(4).getAsBoolean()?CaveSurface.CEILING:CaveSurface.FLOOR);
-            case "gradient"->new VerticalGradientCondition(Identifier.parse(a.get(1).getAsString()),anchor(a.get(2)),anchor(a.get(3)));
+            case "gradient"->new VerticalGradientCondition(ResourceLocation.parse(a.get(1).getAsString()),anchor(a.get(2)),anchor(a.get(3)));
             case "not"->new NotCondition(condition(a.get(1)));
             default->throw new AssertionError("unknown condition "+a);
         };
@@ -141,7 +141,7 @@ public final class VanillaMaterialConditionOracle {
             for(var key:noises.registryKeySet())noiseCache.put(key,new Noise(){
                 public net.minecraft.util.Interval range(){return net.minecraft.util.Interval.INFINITE;}
                 public float get(double x,double z){throw new AssertionError("unexpected 2D noise call");}
-                public float get(double x,double y,double z){out.println("noise query "+key.identifier()+" "+(int)x+" "+(int)y+" "+(int)z);return secondary[0];}
+                public float get(double x,double y,double z){out.println("noise query "+key.location()+" "+(int)x+" "+(int)y+" "+(int)z);return secondary[0];}
             });
         }
         Noise noise=new Noise() {
@@ -214,7 +214,7 @@ public final class VanillaMaterialConditionOracle {
         }
         var rules=new ArrayList<RuleEvaluator>();
         if(f.has("rules"))for(var r:f.getAsJsonArray("rules"))rules.add(rule(r).compile(context));
-        if(ruleDefinitions!=null)for(var name:f.getAsJsonArray("library_rules"))rules.add(ruleDefinitions.getValue(Identifier.parse(name.getAsString())).compile(context));
+        if(ruleDefinitions!=null)for(var name:f.getAsJsonArray("library_rules"))rules.add(ruleDefinitions.getValue(ResourceLocation.parse(name.getAsString())).compile(context));
         for(var item:f.getAsJsonArray("ops")) {
             var op=item.getAsJsonArray();switch(op.get(0).getAsString()) {
                 case "ore_input"->{int channel=op.get(1).getAsInt();oreValues[channel]=Float.intBitsToFloat(Integer.parseUnsignedInt(op.get(2).getAsString(),16));oreRemaining[channel]=op.get(3).getAsInt();}
@@ -238,13 +238,13 @@ public final class VanillaMaterialConditionOracle {
     }
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
-        BLOCKS=Arrays.stream(new String[]{"terracotta","orange_terracotta","yellow_terracotta","brown_terracotta","red_terracotta","white_terracotta","light_gray_terracotta","stone","air","water"}).map(name->BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace(name)).defaultBlockState()).toArray(BlockState[]::new);
+        BLOCKS=Arrays.stream(new String[]{"terracotta","orange_terracotta","yellow_terracotta","brown_terracotta","red_terracotta","white_terracotta","light_gray_terracotta","stone","air","water"}).map(name->BuiltInRegistries.BLOCK.getValue(ResourceLocation.withDefaultNamespace(name)).defaultBlockState()).toArray(BlockState[]::new);
         Path dir=Path.of(args[1]);noises=new MappedRegistry<>(Registries.NOISE,Lifecycle.stable());
         var noiseDefinitions=JsonParser.parseString(Files.readString(dir.resolve("noises.json"))).getAsJsonObject();
-        for(var e:noiseDefinitions.entrySet())noises.register(ResourceKey.create(Registries.NOISE,Identifier.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:noiseDefinitions.entrySet())noises.register(ResourceKey.create(Registries.NOISE,ResourceLocation.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         noises.freeze();loadBiomes(dir);loadConditions(dir);loadRules(dir);
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt"),StandardCharsets.UTF_8))) {
-            for(var name:definitions.keySet().stream().map(Object::toString).sorted().toList())out.println("registry "+name+" "+encode(definitions.getValue(Identifier.parse(name))));
+            for(var name:definitions.keySet().stream().map(Object::toString).sorted().toList())out.println("registry "+name+" "+encode(definitions.getValue(ResourceLocation.parse(name))));
             for(String line:Files.readAllLines(dir.resolve("inputs.txt")))fixture(JsonParser.parseString(line).getAsJsonObject(),out);
         }
     }

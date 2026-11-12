@@ -114,7 +114,7 @@ mod tests {
         let mut w = Writer::new();
         w.varint(42);
         w.uuid(7);
-        w.varint(49); // 1.21.8's falling block, pinned id 52.
+        w.varint(49); // 1.21.8's falling block, pinned id 50.
         crate::buf::Vec3d::write(&[1.0, 64.0, -2.0], &mut w);
         for angle in [-64, 32, -128] {
             w.i8(angle);
@@ -128,7 +128,7 @@ mod tests {
         else {
             panic!("spawn");
         };
-        assert_eq!((e.id, e.kind, e.position), (42, 51, [1.0, 64.0, -2.0]));
+        assert_eq!((e.id, e.kind, e.position), (42, 50, [1.0, 64.0, -2.0]));
         assert_eq!((e.pitch, e.yaw, e.head_yaw, e.data), (-64, 32, -128, 0));
         assert!((e.velocity[0] + 1.0).abs() < 0.001);
         assert!((e.velocity[1] - 0.5).abs() < 0.001);
@@ -329,9 +329,9 @@ mod tests {
     fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_6() {
         use crate::item::{Slot, Stack};
         let ids = ServerVersion::V1_21_6.ids().unwrap();
-        // Vanilla reports: cat is 1250 -> 1310; pigstep is 1266 -> 1327. The newer lava chicken
-        // disc occupies pinned id 1316, with no 1.21.6 counterpart (1.21.8 has it at 1256).
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1310), ([3, 0xf2, 0x09, 0, 0], 1327)] {
+        // Vanilla reports: cat is 1250 -> 1298; pigstep is 1266 -> 1315. The newer lava chicken
+        // disc occupies pinned id 1304, with no 1.21.6 counterpart (1.21.8 has it at 1256).
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1298), ([3, 0xf2, 0x09, 0, 0], 1315)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -344,9 +344,9 @@ mod tests {
             }
             assert_eq!(w.data, sent);
         }
-        assert_eq!(ids.item.down(1316), None);
+        assert_eq!(ids.item.down(1304), None);
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().item.down(1316),
+            ServerVersion::V1_21_8.ids().unwrap().item.down(1304),
             Some(1256)
         );
         assert_eq!(ids.block_state.up(7016), Some(8045)); // inherited chain axis=x, waterlogged=true
@@ -355,7 +355,7 @@ mod tests {
     #[test]
     fn a_1_21_6_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1256.
+        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1211.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -370,13 +370,13 @@ mod tests {
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1256, None));
+        assert_eq!(p.sound, (1211, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1256),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1211),
             Some(1180)
         );
     }

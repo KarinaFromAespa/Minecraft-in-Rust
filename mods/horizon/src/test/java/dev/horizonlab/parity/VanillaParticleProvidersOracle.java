@@ -23,7 +23,7 @@ import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -104,11 +104,11 @@ public final class VanillaParticleProvidersOracle {
     static String f(float v) { return String.format("%08x", Float.floatToRawIntBits(v)); }
 
     static final class Sprite extends TextureAtlasSprite {
-        Sprite(Identifier atlas, Identifier name) { super(atlas, new SpriteContents(name, new FrameSize(16, 16), new NativeImage(16, 16, true)), 16, 16, 0, 0, 0); }
+        Sprite(ResourceLocation atlas, ResourceLocation name) { super(atlas, new SpriteContents(name, new FrameSize(16, 16), new NativeImage(16, 16, true)), 16, 16, 0, 0, 0); }
     }
     static final Map<String, TextureAtlasSprite> SPRITES = new HashMap<>();
-    static TextureAtlasSprite sprite(Identifier atlas, String name) {
-        return SPRITES.computeIfAbsent(name, n -> new Sprite(atlas, Identifier.withDefaultNamespace(n)));
+    static TextureAtlasSprite sprite(ResourceLocation atlas, String name) {
+        return SPRITES.computeIfAbsent(name, n -> new Sprite(atlas, ResourceLocation.withDefaultNamespace(n)));
     }
     static final class Models extends BlockStateModelSet {
         Models() { super(Map.of(), null); }
@@ -126,7 +126,7 @@ public final class VanillaParticleProvidersOracle {
     }
 
     static ParticleOptions options(JsonObject c) {
-        var id = Identifier.withDefaultNamespace(c.get("type").getAsString());
+        var id = ResourceLocation.withDefaultNamespace(c.get("type").getAsString());
         ParticleType<?> type = BuiltInRegistries.PARTICLE_TYPE.getValue(id);
         if (type == null) throw new AssertionError("unknown particle " + id);
         var o = c.has("options") ? c.getAsJsonObject("options") : new JsonObject();
@@ -147,7 +147,7 @@ public final class VanillaParticleProvidersOracle {
                                                  o.get("burst_impulse_base").getAsFloat());
         if (type == ParticleTypes.SHRIEK) return new ShriekParticleOption((int) scale);
         if (type == ParticleTypes.ITEM)
-            return new ItemParticleOption(ParticleTypes.ITEM, new ItemStackTemplate(BuiltInRegistries.ITEM.getValue(Identifier.parse(o.get("item").getAsString()))));
+            return new ItemParticleOption(ParticleTypes.ITEM, new ItemStackTemplate(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(o.get("item").getAsString()))));
         if (type == ParticleTypes.TRAIL) {
             var t = o.getAsJsonArray("target");
             return new TrailParticleOption(new Vec3(t.get(0).getAsDouble(), t.get(1).getAsDouble(), t.get(2).getAsDouble()), color, o.get("duration").getAsInt());
@@ -242,14 +242,14 @@ public final class VanillaParticleProvidersOracle {
 
         // The real providers, their sprite sets bound to one stand-in sprite per listed texture.
         var resources = new ParticleResources();
-        @SuppressWarnings("unchecked") var sets = (Map<Identifier, Object>) field(ParticleResources.class, "spriteSets").get(resources);
+        @SuppressWarnings("unchecked") var sets = (Map<ResourceLocation, Object>) field(ParticleResources.class, "spriteSets").get(resources);
         for (var e : sets.entrySet()) {
             var stream = Minecraft.class.getResourceAsStream("/assets/minecraft/particles/" + e.getKey().getPath() + ".json");
             var sprites = new ArrayList<TextureAtlasSprite>();
             if (stream != null) {
                 try (var reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                     for (var t : JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("textures"))
-                        sprites.add(sprite(TextureAtlas.LOCATION_PARTICLES, Identifier.parse(t.getAsString()).getPath()));
+                        sprites.add(sprite(TextureAtlas.LOCATION_PARTICLES, ResourceLocation.parse(t.getAsString()).getPath()));
                 }
             }
             if (sprites.isEmpty()) sprites.add(sprite(TextureAtlas.LOCATION_PARTICLES, "missingno"));

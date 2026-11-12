@@ -10,7 +10,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -184,8 +184,8 @@ public final class VanillaSpawnRulesOracle {
                     level.surface = Integer.parseInt(c.getOrDefault("surface", "0"));
                     level.seed = Long.parseLong(c.getOrDefault("wseed", "0"));
                     level.difficulty = Difficulty.byName(c.getOrDefault("difficulty", "normal"));
-                    level.dimension = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.parse(c.getOrDefault("dim", "minecraft:overworld")))).value();
-                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(c.getOrDefault("biome", "minecraft:plains"))));
+                    level.dimension = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.parse(c.getOrDefault("dim", "minecraft:overworld")))).value();
+                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
                     level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder()
                         .addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributeMap.builder()
                             .set(net.minecraft.world.attribute.EnvironmentAttributes.SURFACE_SLIME_SPAWN_CHANCE, Float.parseFloat(c.getOrDefault("slime", "0.0")))
@@ -198,7 +198,7 @@ public final class VanillaSpawnRulesOracle {
                         player.setPos(level.x0 + Double.parseDouble(p[0]), y + Double.parseDouble(p[1]), level.z0 + Double.parseDouble(p[2]));
                         level.playerList.add(player);
                     }
-                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(c.get("type")));
+                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(c.get("type")));
                     EntitySpawnReason reason = EntitySpawnReason.valueOf(c.getOrDefault("reason", "natural").toUpperCase(Locale.ROOT));
                     BlockPos pos = new BlockPos(level.x0, y, level.z0);
                     if (c.getOrDefault("mode", "").equals("obstruction")) {

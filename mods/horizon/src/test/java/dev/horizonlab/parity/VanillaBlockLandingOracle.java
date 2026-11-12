@@ -14,7 +14,6 @@ import net.minecraft.world.damagesource.*;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.*;
-import net.minecraft.world.level.gamerules.*;
 import net.minecraft.world.level.gameevent.*;
 import net.minecraft.world.phys.*;
 /** Runs registered native landing/bounce methods with controlled observable providers. */
@@ -47,22 +46,27 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Rules extends GameRules {
         Data d;Rules(){super(net.minecraft.world.flag.FeatureFlagSet.of());}
-        @SuppressWarnings("unchecked") @Override public <T>T get(GameRule<T> rule){if(rule!=GameRules.MOB_GRIEFING)throw new AssertionError();d.query("mob-griefing");return (T)Boolean.valueOf(d.flag("griefing"));}
+        // 1.21.10 GameRules: typed keys, getBoolean(Key<BooleanValue>); the
+        // 1.21.11 GameRule<T>/get(GameRule) API does not exist yet.
+        @Override public boolean getBoolean(GameRules.Key<GameRules.BooleanValue> key){if(key!=GameRules.RULE_MOBGRIEFING)throw new AssertionError();d.query("mob-griefing");return d.flag("griefing");}
     }
     static final class Server extends net.minecraft.server.MinecraftServer {
         @Override public int getMaxPlayers(){throw new UnsupportedOperationException();}
-        Data d;Server(){super(null,null,null,null,null,null,null,null);} // 1.21.11 MinecraftServer ctor: (Thread, storage, packs, WorldStem, Proxy, DataFixer, Services, LevelLoadListener)
+        Data d;Server(){super(null,null,null,null,null,null,null,null);} // MinecraftServer ctor: (Thread, storage, packs, WorldStem, Proxy, DataFixer, Services, LevelLoadListener)
         @Override public boolean isUnderSpawnProtection(net.minecraft.server.level.ServerLevel level,BlockPos p,Player player){d.query("protection "+pos(p));return d.flag("protected");}
         @Override public boolean initServer(){throw new UnsupportedOperationException();}
-        @Override public net.minecraft.server.permissions.LevelBasedPermissionSet operatorUserPermissions(){throw new UnsupportedOperationException();}
-        @Override public net.minecraft.server.permissions.PermissionSet getFunctionCompilationPermissions(){throw new UnsupportedOperationException();}
+        // 1.21.10 MinecraftServer: int permission levels (operatorUserPermissionLevel,
+        // getFunctionCompilationLevel) and isEpollEnabled(); the permissions package
+        // and useNativeTransport() came in 1.21.11.
+        @Override public int operatorUserPermissionLevel(){throw new UnsupportedOperationException();}
+        @Override public int getFunctionCompilationLevel(){throw new UnsupportedOperationException();}
+        @Override public boolean isEpollEnabled(){throw new UnsupportedOperationException();}
         @Override public boolean shouldRconBroadcast(){throw new UnsupportedOperationException();}
         @Override public net.minecraft.util.debugchart.SampleLogger getTickTimeLogger(){throw new UnsupportedOperationException();}
         @Override public boolean isTickTimeLoggingEnabled(){throw new UnsupportedOperationException();}
         @Override public net.minecraft.SystemReport fillServerSystemReport(net.minecraft.SystemReport p0){throw new UnsupportedOperationException();}
         @Override public boolean isDedicatedServer(){throw new UnsupportedOperationException();}
         @Override public int getRateLimitPacketsPerSecond(){throw new UnsupportedOperationException();}
-        @Override public boolean useNativeTransport(){throw new UnsupportedOperationException();}
         @Override public boolean isPublished(){throw new UnsupportedOperationException();}
         @Override public boolean shouldInformAdmins(){throw new UnsupportedOperationException();}
         @Override public boolean isSingleplayerOwner(net.minecraft.server.players.NameAndId p0){throw new UnsupportedOperationException();}
@@ -100,7 +104,6 @@ public final class VanillaBlockLandingOracle {
 @Override public void destroyBlockProgress(int p0,net.minecraft.core.BlockPos p1,int p2){throw new UnsupportedOperationException();}
 @Override public java.util.Collection dragonParts(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures(){throw new UnsupportedOperationException();}
-@Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes(){throw new UnsupportedOperationException();}
 @Override public void explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.util.random.WeightedList p11,net.minecraft.core.Holder p12){throw new UnsupportedOperationException();}
 @Override public void gameEvent(net.minecraft.core.Holder p0,net.minecraft.world.phys.Vec3 p1,net.minecraft.world.level.gameevent.GameEvent.Context p2){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.block.entity.FuelValues fuelValues(){throw new UnsupportedOperationException();}
@@ -151,7 +154,7 @@ public final class VanillaBlockLandingOracle {
         @Override public Fallsounds getFallSounds(){d.query("fall-sounds");return new Fallsounds(SoundEvents.GENERIC_SMALL_FALL,SoundEvents.GENERIC_BIG_FALL);}
         @Override public GameType gameMode(){return GameType.SURVIVAL;}
     }
-    static final class Undead extends net.minecraft.world.entity.monster.zombie.Zombie {
+    static final class Undead extends net.minecraft.world.entity.monster.Zombie {
         Data d;Undead(){super(null,null);}
         @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
@@ -159,7 +162,7 @@ public final class VanillaBlockLandingOracle {
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
         @Override public Fallsounds getFallSounds(){d.query("fall-sounds");return new Fallsounds(SoundEvents.GENERIC_SMALL_FALL,SoundEvents.GENERIC_BIG_FALL);}
     }
-    static final class Reptile extends net.minecraft.world.entity.animal.turtle.Turtle {
+    static final class Reptile extends net.minecraft.world.entity.animal.Turtle {
         Data d;Reptile(){super(null,null);}
         @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}

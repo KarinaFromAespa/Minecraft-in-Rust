@@ -23,7 +23,7 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Util;
@@ -102,7 +102,7 @@ public final class VanillaRecipeBookScreenOracle {
         return out;
     }
 
-    static String id(ItemStack s) { return s.isEmpty() ? "minecraft:air" : s.getItem().builtInRegistryHolder().key().identifier().toString(); }
+    static String id(ItemStack s) { return s.isEmpty() ? "minecraft:air" : s.getItem().builtInRegistryHolder().key().location().toString(); }
 
     /** Records every GuiGraphicsExtractor call with the pose it was made under. */
     public static final class Capture extends GuiGraphicsExtractor {
@@ -132,12 +132,12 @@ public final class VanillaRecipeBookScreenOracle {
             var o = add("highlight");
             o.addProperty("x0", x0); o.addProperty("y0", y0); o.addProperty("x1", x1); o.addProperty("y1", y1);
         }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int color) {
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int color) {
             var o = add("sprite");
             o.addProperty("id", id.getPath());
             o.addProperty("x", x); o.addProperty("y", y); o.addProperty("w", w); o.addProperty("h", h);
         }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
             var o = add("blit");
             o.addProperty("texture", texture.getPath());
             o.addProperty("x", x); o.addProperty("y", y); o.addProperty("w", w); o.addProperty("h", h);
@@ -163,7 +163,7 @@ public final class VanillaRecipeBookScreenOracle {
         @Override public void fakeItem(ItemStack s, int x, int y, int seed) { item("fake", s, x, y); }
         @Override public void itemDecorations(Font font, ItemStack s, int x, int y, String count) { item("decorations", s, x, y); }
         @Override public void setTooltipForNextFrame(Font font, List<FormattedCharSequence> lines, Optional<TooltipComponent> image,
-                                                     ClientTooltipPositioner positioner, int x, int y, boolean replace, Identifier style) {
+                                                     ClientTooltipPositioner positioner, int x, int y, boolean replace, ResourceLocation style) {
             var o = add("tooltip");
             var a = new JsonArray();
             for (var l : lines) a.add(runs(l));
@@ -179,7 +179,7 @@ public final class VanillaRecipeBookScreenOracle {
 
     static List<RecipeDisplayEntry> displays(RecipeManager recipes, String id) {
         List<RecipeDisplayEntry> out = new ArrayList<>();
-        recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, Identifier.parse(id)), out::add);
+        recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(id)), out::add);
         return out;
     }
 
@@ -222,7 +222,7 @@ public final class VanillaRecipeBookScreenOracle {
         SlotSelectTime time = () -> index;
         boolean filtering = c.get("filtering").getAsBoolean();
         // RecipeBookComponent.extractRenderState.
-        g.blit(RenderPipelines.GUI_TEXTURED, (Identifier) field(RecipeBookComponent.class, "RECIPE_BOOK_LOCATION").get(null), xo, yo, 1.0F, 1.0F, 147, 166, 256, 256);
+        g.blit(RenderPipelines.GUI_TEXTURED, (ResourceLocation) field(RecipeBookComponent.class, "RECIPE_BOOK_LOCATION").get(null), xo, yo, 1.0F, 1.0F, 147, 166, 256, 256);
         var s = c.getAsJsonObject("search");
         var search = new EditBox(mc.font, xo + 25, yo + 13, 81, 9 + 5, Component.translatable("itemGroup.search"));
         search.setMaxLength(50);
@@ -311,7 +311,7 @@ public final class VanillaRecipeBookScreenOracle {
                 var gs = e.getAsJsonObject();
                 var slot = new Slot(container, i++, gs.get("x").getAsInt(), gs.get("y").getAsInt());
                 List<SlotDisplay> items = new ArrayList<>();
-                for (var it : gs.getAsJsonArray("items")) items.add(new SlotDisplay.ItemStackSlotDisplay(new net.minecraft.world.item.ItemStackTemplate(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(Identifier.parse(it.getAsString())))));
+                for (var it : gs.getAsJsonArray("items")) items.add(new SlotDisplay.ItemStackSlotDisplay(new net.minecraft.world.item.ItemStackTemplate(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(it.getAsString())))));
                 SlotDisplay display = new SlotDisplay.Composite(items);
                 Method set = GhostSlots.class.getDeclaredMethod(gs.get("result").getAsBoolean() ? "setResult" : "setInput", Slot.class, ContextMap.class, SlotDisplay.class);
                 set.setAccessible(true);

@@ -12,40 +12,34 @@ use crate::{
 
 type Read = fn(&mut Reader) -> Result<()>;
 
-/// DataComponents' registry order (1.21.11) for the ids `Component::read`
+/// DataComponents' registry order (1.21.10) for the ids `Component::read`
 /// doesn't decode itself.
 pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
     match kind {
         // Unit.STREAM_CODEC: glider.
-        34 => Ok(()),
+        30 => Ok(()),
         // Components without a network codec go as their NBT: intangible_projectile,
         // map_decorations, debug_stick_state, recipes, lock, container_loot.
-        22 | 45 | 55 | 64 | 76 | 77 => nbt(r),
-        // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id): damage_type,
+        19 | 38 | 48 | 57 | 69..=70 => nbt(r),
+        // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id):
         // enchantable, ominous_bottle_amplifier, base_color, the mob variants and
         // colours (except painting/variant, which has its own holder arm below).
-        8 | 31 | 61 | 71 | 79..=96 | 98..=103 => varint(r),
-        // FLOAT: minimum_attack_charge, potion_duration_scale.
-        7 | 50 => f32(r),
+        27 | 54 | 64 | 72..=88 | 90..=95 => varint(r),
+        // FLOAT: potion_duration_scale.
+        43 => f32(r),
         // Identifier.STREAM_CODEC: tooltip_style, note_block_sound.
-        35 | 69 => ident(r),
-        // UseEffects: canSprint, interactVibrations, speedMultiplier.
-        5 => {
-            r.bool()?;
-            r.bool()?;
-            f32(r)
-        }
+        31 | 62 => ident(r),
         // AdventureModePredicate: can_place_on, can_break.
-        14 | 15 => list(r, block_predicate),
-        16 => list(r, attribute_modifier),
+        11..=12 => list(r, block_predicate),
+        13 => list(r, attribute_modifier),
         // FoodProperties.DIRECT_STREAM_CODEC: nutrition, saturation, canAlwaysEat.
-        23 => {
+        20 => {
             varint(r)?;
             f32(r)?;
             boolean(r)
         }
         // Consumable: consumeSeconds, animation, sound, hasConsumeParticles, onConsumeEffects.
-        24 => {
+        21 => {
             f32(r)?;
             varint(r)?;
             sound(r)?;
@@ -53,48 +47,35 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             list(r, consume_effect)
         }
         // UseRemainder: one template.
-        25 => template(r),
+        22 => template(r),
         // UseCooldown: seconds, cooldownGroup.
-        26 => {
+        23 => {
             f32(r)?;
             optional(r, ident)
         }
         // DamageResistant, Repairable, provides_banner_patterns: a holder set.
-        27 | 33 | 63 => holder_set(r),
-        28 => tool(r),
+        24 | 29 | 56 => holder_set(r),
+        25 => tool(r),
         // Weapon: itemDamagePerAttack, disableBlockingForSeconds.
-        29 => {
+        26 => {
             varint(r)?;
             f32(r)
         }
-        32 => equippable(r),
+        28 => equippable(r),
         // DeathProtection: deathEffects.
-        36 => list(r, consume_effect),
-        37 => blocks_attacks(r),
-        // PiercingWeapon: dealsKnockback, dismounts, sound, hitSound.
-        38 => {
-            boolean(r)?;
-            boolean(r)?;
-            optional(r, sound)?;
-            optional(r, sound)
-        }
-        39 => kinetic_weapon(r),
-        // SwingAnimation: type, duration.
-        40 => {
-            varint(r)?;
-            varint(r)
-        }
+        32 => list(r, consume_effect),
+        33 => blocks_attacks(r),
         // MapColor: a big-endian int.
-        43 => i32(r),
+        36 => i32(r),
         // BundleContents: templates.
-        48 => list(r, template),
+        41 => list(r, template),
         // SuspiciousStewEffects: effect, duration.
-        51 => list(r, |r| {
+        44 => list(r, |r| {
             varint(r)?;
             varint(r)
         }),
         // ArmorTrim: material, then Holder<TrimPattern> (assetId, description, decal).
-        54 => {
+        47 => {
             trim_material(r)?;
             holder(r, |r| {
                 ident(r)?;
@@ -103,46 +84,46 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             })
         }
         // TypedEntityData (entity_data, block_entity_data): the type id, then a compound.
-        56 | 58 => {
+        49 | 51 => {
             varint(r)?;
             nbt(r)
         }
         // CustomData: bucket_entity_data.
-        57 => nbt(r),
+        50 => nbt(r),
         // InstrumentComponent: Holder<Instrument> (soundEvent, useDuration, range,
         // durabilityDamage, description).
-        59 => holder(r, |r| {
+        52 => holder(r, |r| {
             sound(r)?;
             f32(r)?;
             f32(r)?;
             varint(r)?;
             nbt(r)
         }),
-        60 => trim_material(r),
+        53 => trim_material(r),
         // JukeboxPlayable: Holder<JukeboxSong> (soundEvent, description, lengthInSeconds,
         // comparatorOutput).
-        62 => holder(r, |r| {
+        55 => holder(r, |r| {
             sound(r)?;
             nbt(r)?;
             f32(r)?;
             varint(r)
         }),
         // LodestoneTracker: target (GlobalPos: dimension, BlockPos), tracked.
-        65 => {
+        58 => {
             optional(r, |r| {
                 ident(r)?;
                 r.i64().map(drop)
             })?;
             boolean(r)
         }
-        66 => firework_explosion(r),
+        59 => firework_explosion(r),
         // Fireworks: flightDuration, explosions.
-        67 => {
+        60 => {
             varint(r)?;
             list(r, firework_explosion)
         }
         // BannerPatternLayers: Holder<BannerPattern> (assetId, translationKey), colour.
-        70 => list(r, |r| {
+        63 => list(r, |r| {
             holder(r, |r| {
                 ident(r)?;
                 string(r)
@@ -150,24 +131,24 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             varint(r)
         }),
         // PotDecorations: back, left, right, front.
-        72 => (0..4).try_for_each(|_| optional(r, template)),
+        65 => (0..4).try_for_each(|_| optional(r, template)),
         // ItemContainerContents: optional templates.
-        73 => list(r, |r| optional(r, template)),
+        66 => list(r, |r| optional(r, template)),
         // BlockItemStateProperties: a string to string map.
-        74 => list(r, |r| {
+        67 => list(r, |r| {
             string(r)?;
             string(r)
         }),
         // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
-        75 => list(r, |r| {
+        68 => list(r, |r| {
             varint(r)?;
             nbt(r)?;
             varint(r)?;
             varint(r)
         }),
-        78 => sound(r),
+        71 => sound(r),
         // Holder<PaintingVariant>: width, height, assetId, title, author.
-        97 => holder(r, |r| {
+        89 => holder(r, |r| {
             varint(r)?;
             varint(r)?;
             ident(r)?;
@@ -380,24 +361,6 @@ fn blocks_attacks(r: &mut Reader) -> Result<()> {
     })?;
     (0..3).try_for_each(|_| f32(r))?;
     optional(r, holder_set)?;
-    optional(r, sound)?;
-    optional(r, sound)
-}
-/// KineticWeapon: contactCooldownTicks, delayTicks, the dismount, knockback and damage
-/// conditions (maxDurationTicks, minSpeed, minRelativeSpeed), forwardMovement,
-/// damageMultiplier, sound, hitSound.
-fn kinetic_weapon(r: &mut Reader) -> Result<()> {
-    varint(r)?;
-    varint(r)?;
-    (0..3).try_for_each(|_| {
-        optional(r, |r| {
-            varint(r)?;
-            f32(r)?;
-            f32(r)
-        })
-    })?;
-    f32(r)?;
-    f32(r)?;
     optional(r, sound)?;
     optional(r, sound)
 }

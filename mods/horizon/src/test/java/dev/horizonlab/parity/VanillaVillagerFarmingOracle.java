@@ -4,7 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.CropBlock;
@@ -18,7 +18,7 @@ public final class VanillaVillagerFarmingOracle {
         try (var out = Files.newBufferedWriter(Path.of(args[0]))) {
             for (String name : new String[] {"wheat", "carrots", "potatoes", "beetroots",
                     "torchflower_crop", "pitcher_crop", "cocoa", "farmland", "stone"}) {
-                var block = BuiltInRegistries.BLOCK.getValue(Identifier.parse("minecraft:" + name));
+                var block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse("minecraft:" + name));
                 for (var state : block.getStateDefinition().getPossibleStates()) {
                     boolean crop = block instanceof CropBlock;
                     boolean ripe = block instanceof CropBlock c && c.isMaxAge(state);

@@ -9,7 +9,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.RegistryLayer;
@@ -103,7 +103,7 @@ public final class VanillaStructurePlacementOracle {
             for(int t=3;t<args.length;t++) {
                 String[] xz=args[t].split(",");int cx=Integer.parseInt(xz[0]),cz=Integer.parseInt(xz[1]);
                 Map<Long,ProtoChunk> chunks=new HashMap<>();
-                java.util.function.BiFunction<Integer,Integer,ProtoChunk> chunkAt=(x,z)->chunks.computeIfAbsent(ChunkPos.pack(x,z),k->new ProtoChunk(new ChunkPos(x,z),UpgradeData.EMPTY,height,factory,null));
+                java.util.function.BiFunction<Integer,Integer,ProtoChunk> chunkAt=(x,z)->chunks.computeIfAbsent(ChunkPos.asLong(x,z),k->new ProtoChunk(new ChunkPos(x,z),UpgradeData.EMPTY,height,factory,null));
                 // STRUCTURE_STARTS within reference range of the 3x3 region.
                 for(int x=cx-9;x<=cx+9;x++)for(int z=cz-9;z<=cz+9;z++) {
                     ChunkPos pos=new ChunkPos(x,z);ProtoChunk chunk=chunkAt.apply(x,z);
@@ -130,7 +130,7 @@ public final class VanillaStructurePlacementOracle {
                     ProtoChunk chunk=chunkAt.apply(x,z);int bx=x<<4,bz=z<<4;
                     for(int sx=x-8;sx<=x+8;sx++)for(int sz=z-8;sz<=z+8;sz++)
                         for(StructureStart start:chunkAt.apply(sx,sz).getAllStarts().values())
-                            if(start.isValid()&&start.getBoundingBox().intersects(bx,bz,bx+15,bz+15))chunk.addReferenceForStructure(start.getStructure(),ChunkPos.pack(sx,sz));
+                            if(start.isValid()&&start.getBoundingBox().intersects(bx,bz,bx+15,bz+15))chunk.addReferenceForStructure(start.getStructure(),ChunkPos.asLong(sx,sz));
                 }
                 int[] center={cx,cz};
                 var heightRef=new Object(){LevelHeightAccessor value=height;};
@@ -182,7 +182,7 @@ public final class VanillaStructurePlacementOracle {
                         case "getChunk":{
                             int x,z;
                             if(values[0] instanceof BlockPos p){x=p.getX()>>4;z=p.getZ()>>4;}else{x=(Integer)values[0];z=(Integer)values[1];}
-                            if(values.length==4&&!(Boolean)values[3]&&!chunks.containsKey(ChunkPos.pack(x,z)))return null;
+                            if(values.length==4&&!(Boolean)values[3]&&!chunks.containsKey(ChunkPos.asLong(x,z)))return null;
                             return chunkAt.apply(x,z);
                         }
                         case "hasChunk":return true;
@@ -205,7 +205,7 @@ public final class VanillaStructurePlacementOracle {
                     if(method.isDefault())return InvocationHandler.invokeDefault(proxy,method,values);
                     throw new AssertionError(method);
                 });
-                self[0]=randomState.getOrCreateRandomFactory(Identifier.withDefaultNamespace("worldgen_region_random")).at(new ChunkPos(cx,cz).getWorldPosition());
+                self[0]=randomState.getOrCreateRandomFactory(ResourceLocation.withDefaultNamespace("worldgen_region_random")).at(new ChunkPos(cx,cz).getWorldPosition());
                 zoom[0]=new BiomeManager(level,BiomeManager.obfuscateSeed(seed));
                 attributes[0]=net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addStaticLayers(level).build();
                 var manager=new StructureManager(level,new WorldOptions(seed,true,false),null);
@@ -249,8 +249,8 @@ public final class VanillaStructurePlacementOracle {
                 entities.putAll(target.getBlockEntities());
                 for(var e:entities.values()) {
                     var p=e.getBlockPos();String table="-",lootSeed="-";
-                    if(e instanceof RandomizableContainer rc&&rc.getLootTable()!=null){table=rc.getLootTable().identifier().toString();lootSeed=Long.toString(rc.getLootTableSeed());}
-                    if(e instanceof net.minecraft.world.level.block.entity.BrushableBlockEntity){try{var f=e.getClass().getDeclaredField("lootTable");f.setAccessible(true);var key=(net.minecraft.resources.ResourceKey<?>)f.get(e);var s=e.getClass().getDeclaredField("lootTableSeed");s.setAccessible(true);if(key!=null){table=key.identifier().toString();lootSeed=Long.toString(s.getLong(e));}}catch(ReflectiveOperationException ex){throw new RuntimeException(ex);}}
+                    if(e instanceof RandomizableContainer rc&&rc.getLootTable()!=null){table=rc.getLootTable().location().toString();lootSeed=Long.toString(rc.getLootTableSeed());}
+                    if(e instanceof net.minecraft.world.level.block.entity.BrushableBlockEntity){try{var f=e.getClass().getDeclaredField("lootTable");f.setAccessible(true);var key=(net.minecraft.resources.ResourceKey<?>)f.get(e);var s=e.getClass().getDeclaredField("lootTableSeed");s.setAccessible(true);if(key!=null){table=key.location().toString();lootSeed=Long.toString(s.getLong(e));}}catch(ReflectiveOperationException ex){throw new RuntimeException(ex);}}
                     w.println("be "+p.getX()+" "+p.getY()+" "+p.getZ()+" "+BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(e.getType())+" "+table+" "+lootSeed);
                 }
             }

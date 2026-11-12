@@ -50,7 +50,7 @@ public final class VanillaFireStarterSoundOracle {
         @Override public void gameEvent(Entity entity, Holder<GameEvent> event, BlockPos p) {}
         @Override public void playSeededSound(net.minecraft.world.entity.Entity p, double x, double y, double z,
                 Holder<net.minecraft.sounds.SoundEvent> s, net.minecraft.sounds.SoundSource c, float v, float pitch, long seed) {
-            sounds.append(s.unwrapKey().orElseThrow().identifier()).append(' ')
+            sounds.append(s.unwrapKey().orElseThrow().location()).append(' ')
                 .append(Float.floatToIntBits(v)).append(' ').append(Float.floatToIntBits(pitch));
         }
     }

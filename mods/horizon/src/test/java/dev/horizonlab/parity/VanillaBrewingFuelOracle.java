@@ -7,7 +7,7 @@ import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.BrewingFuel;
@@ -48,7 +48,7 @@ public final class VanillaBrewingFuelOracle {
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1])))) {
             for (String line : Files.readAllLines(Path.of(args[0]))) {
                 var input = JsonParser.parseString(line).getAsJsonObject();
-                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(input.get("item").getAsString())), input.get("count").getAsInt());
+                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(input.get("item").getAsString())), input.get("count").getAsInt());
                 var patch = input.getAsJsonObject("components");
                 if (patch.has("minecraft:brewing_fuel")) stack.set(DataComponents.BREWING_FUEL, BrewingFuel.CODEC.parse(com.mojang.serialization.JsonOps.INSTANCE, patch.get("minecraft:brewing_fuel")).getOrThrow());
                 if (patch.has("!minecraft:brewing_fuel")) stack.remove(DataComponents.BREWING_FUEL);

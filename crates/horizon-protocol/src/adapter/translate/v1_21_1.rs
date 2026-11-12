@@ -91,7 +91,7 @@ pub(super) fn clientbound(
         cb::CONTAINER_CLOSE
         | cb::CONTAINER_SET_CONTENT
         | cb::CONTAINER_SET_DATA
-        | cb::MOUNT_SCREEN_OPEN => {
+        | cb::HORSE_SCREEN_OPEN => {
             w.varint(i32::from(r.u8()?));
             w.bytes(r.rest());
         }
@@ -426,12 +426,12 @@ mod tests {
         let body = clientbound(
             &session,
             State::Play,
-            packet_ids::play::clientbound::MOUNT_SCREEN_OPEN,
+            packet_ids::play::clientbound::HORSE_SCREEN_OPEN,
             &bytes("c8050000002a"),
         )
         .unwrap()
         .unwrap();
-        let p = play::MountScreenOpen::read(&mut Reader::new(&body)).unwrap();
+        let p = play::HorseScreenOpen::read(&mut Reader::new(&body)).unwrap();
         assert_eq!((p.container, p.columns, p.entity), (200, 5, 42));
         let body = clientbound(
             &session,
@@ -486,7 +486,7 @@ mod tests {
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
             assert_eq!(
                 (p.particle.id, p.sound.0, p.play_sound),
-                (particle, 668, true)
+                (particle, 646, true)
             );
             if destroy {
                 for pos in [[2, 64, -4], [0, 65, -2]] {

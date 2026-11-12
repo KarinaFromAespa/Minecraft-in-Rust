@@ -208,7 +208,7 @@ public final class VanillaEntityAnimOracle {
             // value = an item id. The item components are not bound outside a level, so the stack
             // carries none: models only test that it is not empty.
             var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.wrapAsHolder(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
-                net.minecraft.resources.Identifier.parse(value.getAsString())));
+                net.minecraft.resources.ResourceLocation.parse(value.getAsString())));
             var ctor = net.minecraft.world.item.ItemStack.class.getDeclaredConstructor(net.minecraft.core.Holder.class, int.class,
                 net.minecraft.core.component.PatchedDataComponentMap.class);
             ctor.setAccessible(true);

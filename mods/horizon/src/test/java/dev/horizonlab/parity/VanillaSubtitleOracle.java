@@ -17,7 +17,7 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.SoundEventListener;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.RandomSource;
@@ -213,8 +213,8 @@ public final class VanillaSubtitleOracle {
                         case "play" -> {
                             Vec3 at = vec(op.get("at"));
                             JsonElement key = op.get("key");
-                            WeighedSoundEvents event = new WeighedSoundEvents(Identifier.withDefaultNamespace("test"), key.isJsonNull() ? null : key.getAsString());
-                            SoundInstance sound = new SimpleSoundInstance(Identifier.withDefaultNamespace("test"), SoundSource.MASTER, 1.0F, 1.0F,
+                            WeighedSoundEvents event = new WeighedSoundEvents(ResourceLocation.withDefaultNamespace("test"), key.isJsonNull() ? null : key.getAsString());
+                            SoundInstance sound = new SimpleSoundInstance(ResourceLocation.withDefaultNamespace("test"), SoundSource.MASTER, 1.0F, 1.0F,
                                 RandomSource.create(0L), op.get("looping").getAsBoolean(), 0, SoundInstance.Attenuation.LINEAR, at.x, at.y, at.z, false);
                             float range = op.get("range").isJsonNull() ? Float.POSITIVE_INFINITY : op.get("range").getAsFloat();
                             for (SoundEventListener listener : List.copyOf(sounds.listeners)) {

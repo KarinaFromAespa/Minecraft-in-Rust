@@ -19,7 +19,6 @@ const USE_ANIMATION: [&str; 12] = [
     "bundle",
     "spear",
 ];
-const SWING: [&str; 3] = ["none", "whack", "stab"];
 /// `EquipmentSlot` by `id` (not declaration order).
 const SLOT: [&str; 8] = [
     "mainhand", "feet", "legs", "chest", "head", "offhand", "body", "saddle",
@@ -187,24 +186,6 @@ fn consume_effect(r: &mut Reader, names: &dyn Names) -> Option<HashCode> {
     )
 }
 
-/// `SwingAnimation`: `DEFAULT` is whack for 6 ticks.
-fn swing(r: &mut Reader) -> Option<HashCode> {
-    let kind = int(r)?;
-    let duration = int(r)?;
-    let rec = or_default(RecordHash::new(), "type", kind, 1, pick(&SWING, kind)?);
-    Some(int_or(rec, "duration", duration, 6).build())
-}
-
-/// `KineticWeapon.Condition`.
-fn kinetic_condition(r: &mut Reader) -> Option<HashCode> {
-    let ticks = int(r)?;
-    let speed = float(r)?;
-    let relative = float(r)?;
-    let rec = RecordHash::new().field("max_duration_ticks", HashOps::create_int(ticks));
-    let rec = float_or(rec, "min_speed", speed, 0.0);
-    Some(float_or(rec, "min_relative_speed", relative, 0.0).build())
-}
-
 /// The `Codec.BOOL` fields of the component predicates' codecs
 /// (`FireworkPredicate`, `WrittenBookPredicate`, `MobEffectInstancePredicate`):
 /// they travel as NBT bytes and hash as booleans. The text components inside a
@@ -303,15 +284,8 @@ fn block_predicate(r: &mut Reader, names: &dyn Names) -> Option<HashCode> {
 /// The hash of component `kind` from its stream, or `None`.
 pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashCode> {
     Some(match kind {
-        // UseEffects: canSprint, interactVibrations, speedMultiplier.
-        5 => {
-            let (sprint, vibrations, speed) = (boolean(r)?, boolean(r)?, float(r)?);
-            let rec = bool_or(RecordHash::new(), "can_sprint", sprint, false);
-            let rec = bool_or(rec, "interact_vibrations", vibrations, true);
-            float_or(rec, "speed_multiplier", speed, 0.2).build()
-        }
         // ItemAttributeModifiers: attribute, modifier, slot, display.
-        16 => HashOps::create_list(list(r, |r| {
+        13 => HashOps::create_list(list(r, |r| {
             let attribute = holder("minecraft:attribute", names, r)?;
             let id = ident(r)?;
             let amount = r.f64().ok()?;
@@ -343,7 +317,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             )
         })?),
         // FoodProperties.DIRECT_CODEC: nutrition, saturation, canAlwaysEat.
-        23 => {
+        20 => {
             let nutrition = int(r)?;
             let saturation = float(r)?;
             bool_or(
@@ -357,7 +331,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // Consumable: consumeSeconds, animation, sound, hasConsumeParticles, effects.
-        24 => {
+        21 => {
             let seconds = float(r)?;
             let animation = int(r)?;
             let snd = sound(r, names)?;
@@ -381,7 +355,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // UseCooldown: seconds, cooldownGroup.
-        26 => {
+        23 => {
             let seconds = float(r)?;
             RecordHash::new()
                 .field("seconds", HashOps::create_f32(seconds))
@@ -389,14 +363,14 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
                 .build()
         }
         // DamageResistant, Repairable: a holder set.
-        27 => RecordHash::new()
+        24 => RecordHash::new()
             .field("types", holder_set("minecraft:damage_type", names, r)?)
             .build(),
-        33 => RecordHash::new()
+        29 => RecordHash::new()
             .field("items", holder_set("minecraft:item", names, r)?)
             .build(),
         // Tool: rules, defaultMiningSpeed, damagePerBlock, canDestroyBlocksInCreative.
-        28 => {
+        25 => {
             let rules = list(r, |r| {
                 let blocks = holder_set("minecraft:block", names, r)?;
                 let speed = optional(r, float)?;
@@ -416,7 +390,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             bool_or(rec, "can_destroy_blocks_in_creative", creative, true).build()
         }
         // Weapon: itemDamagePerAttack, disableBlockingForSeconds.
-        29 => {
+        26 => {
             let damage = int(r)?;
             let seconds = float(r)?;
             float_or(
@@ -428,7 +402,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // Equippable.
-        32 => {
+        28 => {
             let slot = pick(&SLOT, int(r)?)?;
             let equip = sound(r, names)?;
             let asset = optional(r, ident)?;
@@ -466,7 +440,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // DeathProtection: deathEffects.
-        36 => {
+        32 => {
             let effects = list(r, |r| consume_effect(r, names))?;
             if effects.is_empty() {
                 RecordHash::new()
@@ -476,7 +450,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // BlocksAttacks.
-        37 => {
+        33 => {
             let delay = float(r)?;
             let scale = float(r)?;
             let reductions = list(r, |r| {
@@ -529,53 +503,17 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
                 .optional("disabled_sound", disabled.map(|s| s.code))
                 .build()
         }
-        // PiercingWeapon: dealsKnockback, dismounts, sound, hitSound.
-        38 => {
-            let (knockback, dismounts) = (boolean(r)?, boolean(r)?);
-            let snd = optional(r, |r| sound(r, names))?;
-            let hit = optional(r, |r| sound(r, names))?;
-            bool_or(
-                bool_or(RecordHash::new(), "deals_knockback", knockback, true),
-                "dismounts",
-                dismounts,
-                false,
-            )
-            .optional("sound", snd.map(|s| s.code))
-            .optional("hit_sound", hit.map(|s| s.code))
-            .build()
-        }
-        // KineticWeapon.
-        39 => {
-            let (cooldown, delay) = (int(r)?, int(r)?);
-            let dismount = optional(r, kinetic_condition)?;
-            let knockback = optional(r, kinetic_condition)?;
-            let damage = optional(r, kinetic_condition)?;
-            let (forward, multiplier) = (float(r)?, float(r)?);
-            let snd = optional(r, |r| sound(r, names))?;
-            let hit = optional(r, |r| sound(r, names))?;
-            let rec = int_or(RecordHash::new(), "contact_cooldown_ticks", cooldown, 10);
-            let rec = int_or(rec, "delay_ticks", delay, 0)
-                .optional("dismount_conditions", dismount)
-                .optional("knockback_conditions", knockback)
-                .optional("damage_conditions", damage);
-            let rec = float_or(rec, "forward_movement", forward, 0.0);
-            float_or(rec, "damage_multiplier", multiplier, 1.0)
-                .optional("sound", snd.map(|s| s.code))
-                .optional("hit_sound", hit.map(|s| s.code))
-                .build()
-        }
-        40 => swing(r)?,
         // `JukeboxSong.CODEC` is a `RegistryFixedCodec`: a direct song cannot be
         // encoded (vanilla's client would throw), so only a reference hashes.
-        62 => match int(r)? {
+        55 => match int(r)? {
             0 => return None,
             id => entry(names, "minecraft:jukebox_song", id - 1)?,
         },
-        63 => holder_set("minecraft:banner_pattern", names, r)?,
-        78 => sound(r, names)?.code,
+        56 => holder_set("minecraft:banner_pattern", names, r)?,
+        71 => sound(r, names)?.code,
         // AdventureModePredicate (can_place_on, can_break): `compactListCodec`
         // writes one predicate as itself and `nonEmptyList` refuses none.
-        14 | 15 => {
+        11 | 12 => {
             let mut predicates = list(r, |r| block_predicate(r, names))?;
             match predicates.len() {
                 0 => return None,
@@ -584,7 +522,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             }
         }
         // UseRemainder: one template.
-        25 => super::raw::template_code(r, names)?,
+        22 => super::raw::template_code(r, names)?,
         _ => return None,
     })
 }

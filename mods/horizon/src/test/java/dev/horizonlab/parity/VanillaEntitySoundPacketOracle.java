@@ -14,7 +14,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -133,7 +133,7 @@ public final class VanillaEntitySoundPacketOracle {
                 set(emitter, Entity.class, "position", new Vec3(x, y, z));
                 Holder<SoundEvent> event;
                 if (c.get("sound_id").isJsonNull()) {
-                    event = Holder.direct(SoundEvent.createVariableRangeEvent(Identifier.parse("fixture:bound")));
+                    event = Holder.direct(SoundEvent.createVariableRangeEvent(ResourceLocation.parse("fixture:bound")));
                 } else { event = BuiltInRegistries.SOUND_EVENT.get(c.get("sound_id").getAsInt()).orElseThrow(); }
                 if (event.value().fixedRange().isPresent()) { throw new AssertionError("fixture requires a variable-range event"); }
                 var source = SoundSource.values()[c.get("source").getAsInt()];

@@ -43,7 +43,7 @@ import net.minecraft.network.chat.numbers.BlankFormat;
 import net.minecraft.network.chat.numbers.FixedFormat;
 import net.minecraft.network.chat.numbers.NumberFormat;
 import net.minecraft.network.chat.numbers.StyledFormat;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
@@ -152,7 +152,7 @@ public final class VanillaTabListOracle {
         var downloads = c.getAsJsonObject("downloads");
         var downloader = new SkinTextureDownloader(java.net.Proxy.NO_PROXY, null, Runnable::run) {
             @Override
-            public CompletableFuture<ClientAsset.Texture> downloadAndRegisterSkin(Identifier textureId, Path localCopy, String url, boolean processLegacySkin) {
+            public CompletableFuture<ClientAsset.Texture> downloadAndRegisterSkin(ResourceLocation textureId, Path localCopy, String url, boolean processLegacySkin) {
                 String hash = new MinecraftProfileTexture(url, Map.of()).getHash();
                 String state = downloads.has(hash) ? downloads.get(hash).getAsString() : "ok";
                 return switch (state) {
@@ -178,14 +178,14 @@ public final class VanillaTabListOracle {
             o.addProperty("color", color);
             draws.add(o);
         }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int color) {
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int color) {
             var o = new JsonObject();
             o.addProperty("type", "sprite");
             o.addProperty("sprite", id.getPath());
             o.addProperty("x", x); o.addProperty("y", y); o.addProperty("w", w); o.addProperty("h", h);
             draws.add(o);
         }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int sw, int sh, int tw, int th, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int sw, int sh, int tw, int th, int color) {
             var o = new JsonObject();
             o.addProperty("type", "blit");
             String path = texture.getPath();

@@ -444,7 +444,7 @@ public final class LocatorBarClient {
                 out.addProperty("receipt_count", listReplies);
                 var states = new com.google.gson.JsonObject();
                 for (String identifier : identifiers) {
-                    var node = advancementTree.get(net.minecraft.resources.Identifier.parse(identifier));
+                    var node = advancementTree.get(net.minecraft.resources.ResourceLocation.parse(identifier));
                     var state = new com.google.gson.JsonObject();
                     state.addProperty("present", node != null);
                     if (node != null) {
@@ -709,7 +709,7 @@ public final class LocatorBarClient {
                 UUID target = trackedProfiles.get(data.getEntityId());
                 if (target != null) {
                     for (var attribute : data.getValues()) {
-                        String key = attribute.attribute().unwrapKey().orElseThrow().identifier().toString();
+                        String key = attribute.attribute().unwrapKey().orElseThrow().location().toString();
                         if (key.equals("minecraft:scale")) {
                             var modifiers = new com.google.gson.JsonArray();
                             for (var modifier : attribute.modifiers()) {
@@ -918,7 +918,7 @@ if (ownPoses && p instanceof net.minecraft.network.protocol.game.ClientboundSetE
                             if (who != null && players) record("remove " + who);
                         });
                     } else if (p instanceof net.minecraft.network.protocol.game.ClientboundRespawnPacket rs) {
-                        if (players) record("respawn " + rs.commonPlayerSpawnInfo().dimension().identifier());
+                        if (players) record("respawn " + rs.commonPlayerSpawnInfo().dimension().location());
                         seen.clear();
                     } else if (p instanceof ClientboundTrackedWaypointPacket) {
                         record(waypoint(r.payload));

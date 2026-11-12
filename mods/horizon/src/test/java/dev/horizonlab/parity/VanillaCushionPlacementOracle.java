@@ -24,7 +24,7 @@ public final class VanillaCushionPlacementOracle {
     static final Cell AIR = new Cell(Shapes.empty(), Shapes.empty(), false);
     static final class FixtureBlock extends Block {
         FixtureBlock() { super(BlockBehaviour.Properties.of().dynamicShape()
-            .setId(ResourceKey.create(Registries.BLOCK, Identifier.parse("horizon:cushion_fixture")))
+            .setId(ResourceKey.create(Registries.BLOCK, ResourceLocation.parse("horizon:cushion_fixture")))
             .isSuffocating((s, w, p) -> ((World)w).cell(p).suffocating())); }
         @Override protected VoxelShape getShape(BlockState s, BlockGetter w, BlockPos p, CollisionContext c) {
             return w instanceof World f ? f.cell(p).outline() : Shapes.empty();

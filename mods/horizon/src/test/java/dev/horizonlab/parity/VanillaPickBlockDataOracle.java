@@ -12,7 +12,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -68,7 +68,7 @@ public final class VanillaPickBlockDataOracle {
             for (String line : (Iterable<String>) lines::iterator) {
                 var c = JsonParser.parseString(line).getAsJsonObject();
                 try {
-                    BlockState state = BuiltInRegistries.BLOCK.getValue(Identifier.parse(c.get("block").getAsString())).defaultBlockState();
+                    BlockState state = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(c.get("block").getAsString())).defaultBlockState();
                     ItemStack picked = pick(state, load(state, c.get("nbt").getAsString()));
                     ItemStack item = picked;
                     if (c.has("patch")) {

@@ -35,7 +35,7 @@ public final class VanillaBiomePlacementOracle {
                 int[] queries={0},calls={0};int queryFail=f.get("query_fail").getAsInt(),featureFail=f.get("feature_fail").getAsInt();
                 var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));
                 var generator=((PlacementContext)contextMethod.invoke(null,bounds)).generator();
-                var biomes=List.of(Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:a"))),Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:b"))));
+                var biomes=List.of(Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,ResourceLocation.parse("horizon:a"))),Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,ResourceLocation.parse("horizon:b"))));
                 var leaf=new Feature(){
                     public MapCodec<? extends Feature> codec(){return MapCodec.unit(this);}
                     public boolean place(WorldGenLevel world,ChunkGenerator gen,RandomSource rng,BlockPos p){

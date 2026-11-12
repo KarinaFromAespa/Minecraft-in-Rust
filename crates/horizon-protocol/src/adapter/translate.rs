@@ -952,7 +952,7 @@ pub(crate) mod v1_21_10 {
     use super::*;
 
     // 1.21.10's packets are laid out as 1.21.11's but for `horse_screen_open`, which 1.21.11 renamed
-    // `mount_screen_open` (the id tables pair them): only entity data needs a step.
+    // `horse_screen_open` (the id tables pair them): only entity data needs a step.
     use crate::entity_data::{Value, serializer};
 
     pub(crate) use crate::adapter::pinned_ids::entity_type::{BEE, MANNEQUIN, PLAYER, WOLF};
@@ -1015,15 +1015,15 @@ pub(crate) mod v1_21_11 {
     /// baby flag (16), so their later entity data entries moved up one. Read off 26.1.2's EntityType
     /// registrations and class hierarchy.
     #[rustfmt::skip]
-    pub(crate) const AGEABLE: [i32; 39] = [
-        entity::ARMADILLO, entity::AXOLOTL, entity::BEE, entity::CAMEL, entity::CAMEL_HUSK,
+    pub(crate) const AGEABLE: [i32; 36] = [
+        entity::ARMADILLO, entity::AXOLOTL, entity::BEE, entity::CAMEL,
         entity::CAT, entity::CHICKEN, entity::COW, entity::DOLPHIN, entity::DONKEY, entity::FOX,
         entity::FROG, entity::HAPPY_GHAST, entity::GLOW_SQUID, entity::GOAT, entity::HOGLIN,
-        entity::HORSE, entity::LLAMA, entity::MOOSHROOM, entity::MULE, entity::NAUTILUS,
+        entity::HORSE, entity::LLAMA, entity::MOOSHROOM, entity::MULE,
         entity::OCELOT, entity::PANDA, entity::PARROT, entity::PIG, entity::POLAR_BEAR,
         entity::RABBIT, entity::SHEEP, entity::SKELETON_HORSE, entity::SNIFFER, entity::SQUID,
         entity::STRIDER, entity::TRADER_LLAMA, entity::TURTLE, entity::VILLAGER,
-        entity::WANDERING_TRADER, entity::WOLF, entity::ZOMBIE_HORSE, entity::ZOMBIE_NAUTILUS,
+        entity::WANDERING_TRADER, entity::WOLF, entity::ZOMBIE_HORSE,
     ];
 
     /// 1.21.11's packet in 26.1's layout; `None` when it is laid out alike. Ids stay the server's.
@@ -2270,7 +2270,7 @@ pub(crate) mod client_layout_v1_21_1 {
             cb::CONTAINER_CLOSE
             | cb::CONTAINER_SET_CONTENT
             | cb::CONTAINER_SET_DATA
-            | cb::MOUNT_SCREEN_OPEN => window_up(payload, false)?,
+            | cb::HORSE_SCREEN_OPEN => window_up(payload, false)?,
             cb::CONTAINER_SET_SLOT => window_up(payload, true)?,
             cb::SET_HELD_SLOT => held_slot(payload)?,
             cb::SET_TIME => set_time(payload)?,
@@ -2461,13 +2461,13 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11 is the pin itself, so every 1.21.11 entity maps to itself: the
-        // drop path is exercised by the 1.20.3 tests instead. Here the identity
-        // mapping and the falling-block state are checked.
+        // 1.21.11 is one protocol above the pin: its entities map down to the
+        // 1.21.10 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
-            (153, 0, Some((153, 0))), // zombie villager, same id in both versions
+            (88, 0, None), // nautilus: no 1.21.10 counterpart
+            (153, 0, Some((149, 0))), // zombie villager
             (0, 0, Some((0, 0))),
-            (51, 1381, Some((51, 1381))), // falling block, with a state that maps to itself
+            (51, 1381, Some((50, 1381))), // falling block, with a state that maps to itself
         ] {
             let packet = play::Clientbound::AddEntity(play::AddEntity {
                 id: 7,
@@ -2507,8 +2507,8 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_block_entity_update_is_dropped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11 is the pin itself, so no 1.21.11 block entity is unknown to
-        // it; the drop path is exercised by the 1.20.3 tests instead. The
+        // 1.21.11's block entities are all in the pin too, with the same ids;
+        // the drop path is exercised by the 1.20.3 tests instead. The
         // boundary id passes through unchanged.
         for (kind, expected) in [(48, Some(48)), (1, Some(1))] {
             let packet = play::Clientbound::BlockEntityData(play::BlockEntityData {

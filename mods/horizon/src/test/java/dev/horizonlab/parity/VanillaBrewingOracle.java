@@ -12,7 +12,7 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -79,7 +79,7 @@ public final class VanillaBrewingOracle {
                         .filter(h -> h.value().matches(brewingInput))
                         .findFirst();
                 String result = found.map(h -> ParityData.canon(h.value().assemble(brewingInput))).orElse("-");
-                String id = found.map(h -> h.id().identifier().toString()).orElse("-");
+                String id = found.map(h -> h.unwrapKey().orElseThrow().location().toString()).orElse("-");
                 w.println(n + " " + potionSlot + " " + reagentSlot + " " + fuelSlot + " " + result + " " + id);
                 n++;
             }
@@ -131,7 +131,7 @@ public final class VanillaBrewingOracle {
         setInt(be, BrewingStandBlockEntity.class, "totalFuel", totalFuel);
         field(BrewingStandBlockEntity.class, "speedMultiplier").setFloat(be, speed);
         Item ingredientItem = ingredient.equals("-") ? null
-                : BuiltInRegistries.ITEM.getValue(Identifier.parse(ingredient));
+                : BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(ingredient));
         field(BrewingStandBlockEntity.class, "ingredient").set(be, ingredientItem);
         for (int t = 0; t < ticks; t++) {
             BrewingStandBlockEntity.serverTick(w, pos, state, be);

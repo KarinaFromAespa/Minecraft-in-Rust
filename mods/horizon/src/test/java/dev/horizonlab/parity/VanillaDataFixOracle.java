@@ -15,7 +15,7 @@ import java.util.stream.Stream;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.level.ChunkMap;
@@ -82,10 +82,10 @@ public final class VanillaDataFixOracle {
             }
             for (Path dim : dims) {
                 String id = dim.getParent().getFileName() + ":" + dim.getFileName();
-                ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, Identifier.parse(id));
+                ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(id));
                 String generator = generators.get(id);
                 CompoundTag context = ChunkMap.getChunkDataFixContextTag(
-                    key, Optional.ofNullable(generator).map(Identifier::parse));
+                    key, Optional.ofNullable(generator).map(ResourceLocation::parse));
                 upgradeRegions(dim.resolve("region"), key, "chunk", DataFixTypes.CHUNK, -1, context, current);
                 upgradeRegions(dim.resolve("entities"), key, "entities", DataFixTypes.ENTITY_CHUNK, -1, null, current);
                 upgradeRegions(dim.resolve("poi"), key, "poi", DataFixTypes.POI_CHUNK, 1945, null, current);
@@ -147,7 +147,7 @@ public final class VanillaDataFixOracle {
         String[][] dims = {{"", "minecraft:overworld"}, {"DIM-1", "minecraft:the_nether"}, {"DIM1", "minecraft:the_end"}};
         for (String[] d : dims) {
             Path dim = d[0].isEmpty() ? out : out.resolve(d[0]);
-            ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, Identifier.parse(d[1]));
+            ResourceKey<Level> key = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(d[1]));
             CompoundTag context = ChunkMap.getChunkDataFixContextTag(key, Optional.empty());
             upgradeRegions(dim.resolve("region"), key, "chunk", DataFixTypes.CHUNK, -1, context, target);
             upgradeRegions(dim.resolve("entities"), key, "entities", DataFixTypes.ENTITY_CHUNK, -1, null, target);

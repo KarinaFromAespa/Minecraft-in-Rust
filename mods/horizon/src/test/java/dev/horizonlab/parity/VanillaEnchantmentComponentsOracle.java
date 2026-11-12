@@ -21,7 +21,7 @@ public final class VanillaEnchantmentComponentsOracle {
         for (var entry : enchantments.entrySet()) {
             var holder = entry.getKey();
             int level = entry.getIntValue();
-            rows.add(holder.unwrapKey().orElseThrow().identifier() + "=" + level + "="
+            rows.add(holder.unwrapKey().orElseThrow().location() + "=" + level + "="
                 + Enchantment.getFullname(holder, level).getString());
         }
         Collections.sort(rows);

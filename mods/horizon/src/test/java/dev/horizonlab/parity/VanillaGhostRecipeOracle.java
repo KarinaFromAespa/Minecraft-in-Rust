@@ -12,7 +12,7 @@ import net.minecraft.client.gui.screens.recipebook.FurnaceRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.context.ContextMap;
@@ -84,7 +84,7 @@ public final class VanillaGhostRecipeOracle {
                     fill.setAccessible(true);
                     int grid = kind.equals("inventory") ? 2 : 3;
                     List<RecipeDisplayEntry> displays = new ArrayList<>();
-                    recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, Identifier.parse(f.get("recipe").getAsString())), displays::add);
+                    recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(f.get("recipe").getAsString())), displays::add);
                     StringBuilder result = new StringBuilder();
                     for (RecipeDisplayEntry entry : displays) {
                         RecipeDisplay display = entry.display();

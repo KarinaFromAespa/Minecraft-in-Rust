@@ -308,52 +308,50 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
     let r = &mut r;
     let code = match kind {
         // `Unit.CODEC`: an empty map.
-        34 => HashOps::empty_map(),
+        30 => HashOps::empty_map(),
         // Persistent codecs only: the stream form is the codec's NBT.
         // intangible_projectile, map_decorations, debug_stick_state, recipes,
         // lock (an `ItemPredicate`) and container_loot.
-        22 | 45 | 55 | 64 | 76 | 77 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
-        // `Codec.FLOAT`: minimum_attack_charge, potion_duration_scale.
-        7 | 50 => float(r)?,
+        19 | 38 | 48 | 57 | 69 | 70 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        // `Codec.FLOAT`: potion_duration_scale.
+        43 => float(r)?,
         // `Identifier.CODEC`: tooltip_style, note_block_sound.
-        35 | 69 => string(&r.string(32767).ok()?),
+        31 | 62 => string(&r.string(32767).ok()?),
         // `Enchantable`.
-        31 => int_record("value", r)?,
+        27 => int_record("value", r)?,
         // `DyeColor.CODEC`: wolf/collar, tropical_fish/base_color and
         // pattern_color, cat/collar, sheep/color, shulker/color.
-        82 | 87 | 88 | 101 | 102 | 103 => dye(r.varint().ok()?)?,
-        8 => registry_entry("minecraft:damage_type", names, r)?,
-        79 => registry_entry("minecraft:villager_type", names, r)?,
-        80 => registry_entry("minecraft:wolf_variant", names, r)?,
-        81 => registry_entry("minecraft:wolf_sound_variant", names, r)?,
-        91 => registry_entry("minecraft:pig_variant", names, r)?,
-        92 => registry_entry("minecraft:cow_variant", names, r)?,
-        93 => registry_entry("minecraft:chicken_variant", names, r)?,
-        94 => registry_entry("minecraft:zombie_nautilus_variant", names, r)?,
-        95 => registry_entry("minecraft:frog_variant", names, r)?,
-        100 => registry_entry("minecraft:cat_variant", names, r)?,
+        75 | 80 | 81 | 93 | 94 | 95 => dye(r.varint().ok()?)?,
+        72 => registry_entry("minecraft:villager_type", names, r)?,
+        73 => registry_entry("minecraft:wolf_variant", names, r)?,
+        74 => registry_entry("minecraft:wolf_sound_variant", names, r)?,
+        84 => registry_entry("minecraft:pig_variant", names, r)?,
+        85 => registry_entry("minecraft:cow_variant", names, r)?,
+        86 => registry_entry("minecraft:chicken_variant", names, r)?,
+        87 => registry_entry("minecraft:frog_variant", names, r)?,
+        92 => registry_entry("minecraft:cat_variant", names, r)?,
         // The mob variants that are enums.
-        83 => named(&FOX, r)?,
-        84 => named(&SALMON, r)?,
-        85 => named(&PARROT, r)?,
-        86 => {
+        76 => named(&FOX, r)?,
+        77 => named(&SALMON, r)?,
+        78 => named(&PARROT, r)?,
+        79 => {
             let id = r.varint().ok()?;
             string(TROPICAL.iter().find(|(packed, _)| *packed == id)?.1)
         }
-        89 => named(&MOOSHROOM, r)?,
-        90 => match r.varint().ok()? {
+        82 => named(&MOOSHROOM, r)?,
+        83 => match r.varint().ok()? {
             99 => string("evil"),
             id => pick(&RABBIT, id)?,
         },
-        96 => named(&HORSE, r)?,
-        98 => named(&LLAMA, r)?,
-        99 => named(&AXOLOTL, r)?,
+        88 => named(&HORSE, r)?,
+        90 => named(&LLAMA, r)?,
+        91 => named(&AXOLOTL, r)?,
         // `TypedEntityData` (entity_data, block_entity_data) and `CustomData`.
-        56 => typed_data("minecraft:entity_type", names, r)?,
-        58 => typed_data("minecraft:block_entity_type", names, r)?,
-        57 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        49 => typed_data("minecraft:entity_type", names, r)?,
+        51 => typed_data("minecraft:block_entity_type", names, r)?,
+        50 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `BlockItemStateProperties`: a string map.
-        74 => {
+        67 => {
             let n = r.count(r.remaining()).ok()?;
             let mut entries = Vec::with_capacity(n);
             for _ in 0..n {
@@ -365,7 +363,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         // `ArmorTrim`, `InstrumentComponent`, `provides_trim_material` and
         // `BannerPatternLayers` holders (a reference stays typed in Horizon but
         // a direct one comes here).
-        54 => {
+        47 => {
             let material = holder_or("minecraft:trim_material", names, r, trim_material)?;
             let pattern = holder_or("minecraft:trim_pattern", names, r, trim_pattern)?;
             RecordHash::new()
@@ -373,9 +371,9 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
                 .field("pattern", pattern)
                 .build()
         }
-        59 => holder_or("minecraft:instrument", names, r, |r| instrument(r, names))?,
-        60 => holder_or("minecraft:trim_material", names, r, trim_material)?,
-        70 => list(r, |r| {
+        52 => holder_or("minecraft:instrument", names, r, |r| instrument(r, names))?,
+        53 => holder_or("minecraft:trim_material", names, r, trim_material)?,
+        63 => list(r, |r| {
             let pattern = holder_or("minecraft:banner_pattern", names, r, banner_pattern)?;
             let color = dye(r.varint().ok()?)?;
             Some(
@@ -386,7 +384,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             )
         })?,
         // `PotDecorations`: back, left, right, front.
-        72 => {
+        65 => {
             let mut rec = RecordHash::new();
             for side in ["back", "left", "right", "front"] {
                 rec = rec.optional(side, optional(r, |r| template_code(r, names))?);
@@ -394,7 +392,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             rec.build()
         }
         // `ItemContainerContents`: the occupied slots as `{slot, item}`.
-        73 => {
+        66 => {
             let n = r.count(256).ok()?;
             let mut slots = Vec::new();
             for slot in 0..n {
@@ -410,7 +408,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             HashOps::create_list(slots)
         }
         // `Bees`: occupants.
-        75 => list(r, |r| {
+        68 => list(r, |r| {
             let data = typed_data("minecraft:entity_type", names, r)?;
             let ticks = r.varint().ok()?;
             let min = r.varint().ok()?;
@@ -445,12 +443,12 @@ mod tests {
                 ("minecraft:mob_effect", 1) => "minecraft:slowness",
                 ("minecraft:potion", 13) => "minecraft:swiftness",
                 ("minecraft:entity_type", 11) => "minecraft:bee",
-                ("minecraft:entity_type", 30) => "minecraft:cow",
+                ("minecraft:entity_type", 29) => "minecraft:cow",
                 ("minecraft:block_entity_type", 1) => "minecraft:chest",
                 ("minecraft:data_component_type", 1) => "minecraft:max_stack_size",
                 ("minecraft:data_component_type", 2) => "minecraft:max_damage",
                 ("minecraft:data_component_type", 3) => "minecraft:damage",
-                ("minecraft:data_component_type", 12) => "minecraft:rarity",
+                ("minecraft:data_component_type", 9) => "minecraft:rarity",
                 ("minecraft:villager_type", 0) => "minecraft:desert",
                 ("minecraft:data_component_predicate_type", 0) => "minecraft:damage",
                 ("minecraft:data_component_predicate_type", 1) => "minecraft:enchantments",
@@ -472,18 +470,18 @@ mod tests {
                 ("minecraft:sound_event", 50) => "minecraft:block.anvil.land",
                 ("minecraft:sound_event", 70) => "minecraft:item.armor.equip_generic",
                 ("minecraft:sound_event", 71) => "minecraft:item.armor.equip_gold",
-                ("minecraft:sound_event", 667) => "minecraft:entity.generic.eat",
-                ("minecraft:sound_event", 1249) => "minecraft:entity.player.burp",
-                ("minecraft:sound_event", 1382) => "minecraft:item.shears.snip",
-                ("minecraft:sound_event", 1394) => "minecraft:item.shield.block",
+                ("minecraft:sound_event", 645) => "minecraft:entity.generic.eat",
+                ("minecraft:sound_event", 1204) => "minecraft:entity.player.burp",
+                ("minecraft:sound_event", 1328) => "minecraft:item.shears.snip",
+                ("minecraft:sound_event", 1340) => "minecraft:item.shield.block",
                 ("minecraft:mob_effect", 18) => "minecraft:poison",
                 ("minecraft:block", 1) => "minecraft:stone",
                 ("minecraft:block", 9) => "minecraft:dirt",
                 ("minecraft:item", 892) => "minecraft:bowl",
                 ("minecraft:item", 904) => "minecraft:iron_ingot",
-                ("minecraft:entity_type", 32) => "minecraft:creeper",
-                ("minecraft:entity_type", 100) => "minecraft:pig",
-                ("minecraft:entity_type", 150) => "minecraft:zombie",
+                ("minecraft:entity_type", 31) => "minecraft:creeper",
+                ("minecraft:entity_type", 97) => "minecraft:pig",
+                ("minecraft:entity_type", 147) => "minecraft:zombie",
                 _ => return None,
             };
             Some(name.to_owned())
@@ -501,138 +499,137 @@ mod tests {
     /// through `HashOps.CRC32C_INSTANCE`).
     #[test]
     fn components_read_past_hash_as_vanilla_does() {
-        let cases: [(&str, i32, &str, i32); 41] = [
+        let cases: [(&str, i32, &str, i32); 40] = [
             (
                 "potion_contents",
-                49,
+                42,
                 "010d01000000ff020001c8010001000001000000010100010178",
                 568571899,
             ),
-            ("potion_contents", 49, "0000010000000100000000", -1716828889),
-            ("potion_contents", 49, "00000001026e6d", -1256264264),
+            ("potion_contents", 42, "0000010000000100000000", -1716828889),
+            ("potion_contents", 42, "00000001026e6d", -1256264264),
             (
                 "profile",
-                68,
+                61,
                 "010000000100000002000000030000000405537465766501087465787475726573036162630103736967010d6d696e6563726166743a666f6f010e6d696e6563726166743a63617065000101",
                 1753620268,
             ),
-            ("profile", 68, "0001054e6f746368000000000000", -1744970702),
+            ("profile", 61, "0001054e6f746368000000000000", -1744970702),
             (
                 "profile",
-                68,
+                61,
                 "000001fffffffb000000060000000700000008000000000100",
                 -196647545,
             ),
             (
                 "profile",
-                68,
+                61,
                 "010000000100000001000000010000000101610108746578747572657301760000000000",
                 -1883525005,
             ),
             (
                 "entity_data",
-                56,
-                "1e0a0100044e6f4149010300034167650000000500",
+                49,
+                "1d0a0100044e6f4149010300034167650000000500",
                 1343601188,
             ),
             (
                 "block_entity_data",
-                58,
+                51,
                 "010a0800044c6f636b00017800",
                 -1404731534,
             ),
             (
                 "bucket_entity_data",
-                57,
+                50,
                 "0a0500064865616c7468404000000100044e6f41490100",
                 2142887662,
             ),
             (
                 "container",
-                73,
+                66,
                 "0601b2070300000000000001ff060101000304",
                 92591498,
             ),
-            ("container", 73, "00", -1978007022),
+            ("container", 66, "00", -1978007022),
             (
                 "pot_decorations",
-                72,
+                65,
                 "01810801000000000101020000",
                 1078935147,
             ),
             (
                 "block_state",
-                74,
+                67,
                 "02036c6974047472756506666163696e67056e6f727468",
                 1069123732,
             ),
-            ("bees", 75, "010b0a030003416765000000030003d804", -122152224),
+            ("bees", 68, "010b0a030003416765000000030003d804", -122152224),
             (
                 "lock",
-                76,
+                69,
                 "0a0800056974656d73000f6d696e6563726166743a737469636b00",
                 791108361,
             ),
             (
                 "container_loot",
-                77,
+                70,
                 "0a04000473656564000000000000000508000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
                 33155076,
             ),
             (
                 "container_loot",
-                77,
+                70,
                 "0a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
                 -2040272502,
             ),
             (
                 "map_decorations",
-                45,
+                38,
                 "0a0a000161050008726f746174696f6e40400000060001783ff00000000000000600017a40000000000000000800047479706500106d696e6563726166743a706c617965720000",
                 1757442925,
             ),
             (
                 "debug_stick_state",
-                55,
+                48,
                 "0a0800146d696e6563726166743a6f616b5f7374616972730006666163696e6700",
                 -1281127558,
             ),
             (
                 "recipes",
-                64,
+                57,
                 "090800000001000f6d696e6563726166743a737469636b",
                 -533729841,
             ),
-            ("intangible_projectile", 22, "0a00", -982207288),
-            ("minimum_attack_charge", 7, "3f000000", -1631070359),
-            ("potion_duration_scale", 50, "40000000", -1320370368),
+            ("intangible_projectile", 19, "0a00", -982207288),
+            ("potion_duration_scale", 43, "40000000", -1320370368),
             (
                 "tooltip_style",
-                35,
+                31,
                 "0f6d696e6563726166743a66616e6379",
                 -1403952026,
             ),
             (
                 "note_block_sound",
-                69,
+                62,
                 "106d696e6563726166743a637573746f6d",
                 1404676026,
             ),
-            ("enchantable", 31, "05", -1577171417),
-            ("glider", 34, "", -982207288),
-            ("wolf/collar", 82, "0b", 199633461),
-            ("sheep/color", 102, "05", -1201809287),
-            ("villager/variant", 79, "00", 1867638223),
-            ("fox/variant", 83, "01", -1511535024),
-            ("salmon/size", 84, "02", -886537313),
-            ("parrot/variant", 85, "04", -727074367),
-            ("tropical_fish/pattern", 86, "8108", 312926869),
-            ("mooshroom/variant", 89, "01", -541737949),
-            ("rabbit/variant", 90, "63", 1619861300),
-            ("rabbit/variant", 90, "05", 359467842),
-            ("horse/variant", 96, "06", -337512376),
-            ("llama/variant", 98, "03", -727074367),
-            ("axolotl/variant", 99, "04", 199633461),
+            ("enchantable", 27, "05", -1577171417),
+            ("glider", 30, "", -982207288),
+            ("wolf/collar", 75, "0b", 199633461),
+            ("sheep/color", 94, "05", -1201809287),
+            ("villager/variant", 72, "00", 1867638223),
+            ("fox/variant", 76, "01", -1511535024),
+            ("salmon/size", 77, "02", -886537313),
+            ("parrot/variant", 78, "04", -727074367),
+            ("tropical_fish/pattern", 79, "8108", 312926869),
+            ("mooshroom/variant", 82, "01", -541737949),
+            ("rabbit/variant", 83, "63", 1619861300),
+            ("rabbit/variant", 83, "05", 359467842),
+            ("horse/variant", 88, "06", -337512376),
+            ("llama/variant", 90, "03", -727074367),
+            ("axolotl/variant", 91, "04", 199633461),
         ];
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
@@ -646,147 +643,130 @@ mod tests {
     /// The same for the components that tune an item's behaviour.
     #[test]
     fn gameplay_components_hash_as_vanilla_does() {
-        let cases: [(&str, i32, &str, i32); 45] = [
+        let cases: [(&str, i32, &str, i32); 38] = [
             (
                 "trim",
-                54,
+                47,
                 "000b6d696e6563726166743a700800034d6174000b6d696e6563726166743a610a080005636f6c6f7200037265640800047465787400035061740001",
                 58182709,
             ),
             (
                 "instrument",
-                59,
+                52,
                 "00000d6d696e6563726166743a666f6f004000000042c8000000080004486f726e",
                 -2003793539,
             ),
             (
                 "instrument",
-                59,
-                "009c054000000042c80000030a080004746578740004486f726e010004626f6c640100",
+                52,
+                "0086054000000042c80000030a080004746578740004486f726e010004626f6c640100",
                 -1995771085,
             ),
             (
                 "provides_trim_material",
-                60,
+                53,
                 "000b6d696e6563726166743a7108000164",
                 167259767,
             ),
             (
                 "banner_patterns",
-                70,
+                63,
                 "02000b6d696e6563726166743a62016b0e000b6d696e6563726166743a63016c0b",
                 -178464072,
             ),
-            ("can_break", 15, "0101020100000000", -1161294463),
+            ("can_break", 12, "0101020100000000", -1161294463),
             (
                 "can_place_on",
-                14,
+                11,
                 "02010301090103036c6974000101300006666163696e6701056e6f727468036167650001013101013300000001020900000000",
                 -279938577,
             ),
-            ("can_break", 15, "010000000203030c0200", 1412654667),
-            ("can_break", 15, "010000000000", -982207288),
-            ("can_break", 15, "01000100000000", 281125914),
-            ("use_effects", 5, "01013f000000", -1226654547),
-            ("use_effects", 5, "00013e4ccccd", -982207288),
+            ("can_break", 12, "01000000020303090200", 1412654667),
+            ("can_break", 12, "010000000000", -982207288),
+            ("can_break", 12, "01000100000000", 281125914),
             (
                 "attribute_modifiers",
-                16,
+                13,
                 "03020e6d696e6563726166743a746573744014000000000000000100130b6d696e6563726166743a78c004000000000000010001000b6d696e6563726166743a793ff00000000000000208020800024869",
                 694631198,
             ),
-            ("food", 23, "044020000001", 1478675052),
-            ("food", 23, "010000000000", -72303299),
-            ("consumable", 24, "3fcccccd019c050100", -982207288),
+            ("food", 20, "044020000001", 1478675052),
+            ("food", 20, "010000000000", -72303299),
+            ("consumable", 21, "3fcccccd0186050100", -982207288),
             (
                 "consumable",
-                24,
-                "4040000002e20900050001000064000101003f0000000102120203410000000104000d6d696e6563726166743a666f6f0140800000",
+                21,
+                "4040000002b50900050001000064000101003f0000000102120203410000000104000d6d696e6563726166743a666f6f0140800000",
                 -1668265051,
             ),
             (
                 "consumable",
-                24,
+                21,
                 "3fcccccd01000d6d696e6563726166743a626172000100",
                 1520278491,
             ),
-            ("use_remainder", 25, "fc06010000", -1449413585),
+            ("use_remainder", 22, "fc06010000", -1449413585),
             (
                 "use_cooldown",
-                26,
+                23,
                 "40000000010d6d696e6563726166743a677270",
                 -783582811,
             ),
-            ("use_cooldown", 26, "3f00000000", -818046427),
+            ("use_cooldown", 23, "3f00000000", -818046427),
             (
                 "tool",
-                28,
+                25,
                 "020301090141000000010102010000400000000200",
                 -1435046669,
             ),
-            ("tool", 28, "003f8000000101", 937295970),
-            ("weapon", 29, "023fc00000", 896609515),
-            ("weapon", 29, "0100000000", -982207288),
+            ("tool", 25, "003f8000000101", 937295970),
+            ("weapon", 26, "023fc00000", 896609515),
+            ("weapon", 26, "0100000000", -982207288),
             (
                 "equippable",
-                32,
-                "0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c7572010296010001010001e70a",
+                28,
+                "0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c7572010293010001010001b10a",
                 -1318691560,
             ),
-            ("equippable", 32, "00470000000101010000e70a", -352294351),
+            ("equippable", 28, "00470000000101010000b10a", -352294351),
             (
                 "equippable",
-                32,
-                "0547000001031e640100000100e70a",
+                28,
+                "0547000001031d610100000100b10a",
                 696858640,
             ),
-            ("equippable", 32, "0747000000010101000033", -1214114539),
-            ("equippable", 32, "06470000000101010000e70a", 1294431019),
-            ("repairable", 33, "028807", -646002763),
-            ("repairable", 33, "038807fc06", 1894900226),
-            ("death_protection", 36, "0102", 1103435691),
-            ("death_protection", 36, "00", -982207288),
+            ("equippable", 28, "0747000000010101000033", -1214114539),
+            ("equippable", 28, "06470000000101010000b10a", 1294431019),
+            ("repairable", 29, "028807", -646002763),
+            ("repairable", 29, "038807fc06", 1894900226),
+            ("death_protection", 32, "0102", 1103435691),
+            ("death_protection", 32, "00", -982207288),
             (
                 "blocks_attacks",
-                37,
-                "3f0000003f8000000142340000003f8000003f000000404000003f8000003e4ccccd0001f30a00",
+                33,
+                "3f0000003f8000000142340000003f8000003f000000404000003f8000003e4ccccd0001bd0a00",
                 -1535582378,
             ),
             (
                 "blocks_attacks",
-                37,
+                33,
                 "000000003f8000000142b4000000000000003f8000003f800000000000003f800000000000",
                 -982207288,
             ),
             (
                 "blocks_attacks",
-                37,
+                33,
                 "000000003f8000000142b4000000000000003f8000003f800000000000003f800000000000",
                 -982207288,
             ),
             (
                 "blocks_attacks",
-                37,
+                33,
                 "000000003f800000003f800000000000003f800000000000",
                 354948751,
             ),
-            ("piercing_weapon", 38, "0101019c0500", 1744160152),
-            ("piercing_weapon", 38, "01000000", -982207288),
-            (
-                "kinetic_weapon",
-                39,
-                "050001143f8000000000000000003f0000003f800000019c0500",
-                775699335,
-            ),
-            (
-                "kinetic_weapon",
-                39,
-                "0a00000000000000003f8000000000",
-                -982207288,
-            ),
-            ("swing_animation", 40, "020a", -2140542379),
-            ("break_sound", 78, "9c05", 1901640159),
-            ("break_sound", 78, "000b6d696e6563726166743a7100", 924623336),
+            ("break_sound", 71, "8605", 1901640159),
+            ("break_sound", 71, "000b6d696e6563726166743a7100", 924623336),
         ];
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
@@ -818,134 +798,134 @@ mod tests {
         let cases: [(&str, i32, &str, Option<i32>); 23] = [
             (
                 "stone_nbt",
-                14,
+                11,
                 "0101020100010a010001610108000162000178000000",
                 Some(-359417396),
             ),
             (
                 "nbt_all_types",
-                14,
+                11,
                 "010000010a08000361206200027122020001730007060001654202a05f20000000050001783fc000000600017940000000000000000b0001690000000200000001000000020900054974656d730a000000010800026964000e6d696e6563726166743a64697274010005436f756e7401000700017a0000000201020400016c00000000000000050c00014c0000000100000000000000030500016e00000000000000",
                 Some(18640168),
             ),
             (
                 "damage_partial",
-                14,
+                11,
                 "010102010000000101000a0a000664616d6167650300036d696e000000010300036d6178000000050000",
                 Some(-752850259),
             ),
             (
                 "custom_data",
-                14,
+                11,
                 "010000000001010408000d7b613a312c623a5b312c325d7d",
                 Some(-1320400474),
             ),
             (
                 "twinkle",
-                14,
+                11,
                 "01000000000101070a080005736861706500047374617201000b6861735f7477696e6b6c650100",
                 Some(-1476889576),
             ),
             (
                 "trail_false",
-                14,
+                11,
                 "01000000000101070a0100096861735f747261696c0000",
                 Some(-1034820270),
             ),
-            ("any_value", 14, "01000000000100020a00", Some(-1904716790)),
+            ("any_value", 11, "01000000000100020a00", Some(-1904716790)),
             (
                 "potion_effects",
-                14,
+                11,
                 "01000000000101030a0a000765666665637473090008636f6e7461696e730a000000010a000f6d696e6563726166743a73706565640a00086475726174696f6e0300036d6178000000640001000776697369626c6500030009616d706c696669657200000001010007616d6269656e740100000000",
                 Some(150754403),
             ),
             (
                 "container",
-                14,
+                11,
                 "01000000000101050a0a00056974656d73090008636f6e7461696e730a000000010a0005636f756e740300036d696e00000002000800056974656d73000f6d696e6563726166743a73746f6e650003000473697a65000000030000",
                 Some(-820017514),
             ),
             (
                 "fireworks",
-                14,
+                11,
                 "01000000000101080a0a000a6578706c6f73696f6e7303000473697a65000000010003000f666c696768745f6475726174696f6e0000000200",
                 Some(-551561987),
             ),
             (
                 "attribute_modifiers",
-                14,
+                11,
                 "010000000001010b0a0a00096d6f64696669657273090008636f6e7461696e730a000000010a0006616d6f756e740600036d696e3ff800000000000000080009617474726962757465000f6d696e6563726166743a61726d6f72080004736c6f740004686561640800096f7065726174696f6e00096164645f76616c7565000000",
                 Some(-233125185),
             ),
             (
                 "bundle_stored",
-                14,
+                11,
                 "01000000000201060a0a00056974656d73090008636f6e7461696e730a000000010800056974656d73000f6d696e6563726166743a73746f6e650000000102090a000000010300066c6576656c730000000300",
                 Some(1901599730),
             ),
             (
                 "writable_book",
-                14,
+                11,
                 "01000000000101090a0a00057061676573090008636f6e7461696e7308000000010001780000",
                 Some(-883070685),
             ),
             (
                 "written_book",
-                14,
+                11,
                 "010000000001010a0a03000a67656e65726174696f6e000000020a00057061676573090008636f6e7461696e730a000000010800047465787400026869010004626f6c64010000080006617574686f720001410100087265736f6c7665640000",
                 Some(1470044104),
             ),
             (
                 "all_fields",
-                14,
+                11,
                 "010000010a0300016100000001000101050301000a03000a6475726162696c697479000000030001040800027b7d00020a00",
                 Some(808431166),
             ),
             (
                 "container_components",
-                14,
+                11,
                 "01000000000101050a0a00056974656d73090008636f6e7461696e730a000000010a000a636f6d706f6e656e74730100246d696e6563726166743a656e6368616e746d656e745f676c696e745f6f7665727269646501000800056974656d73000f6d696e6563726166743a73746f6e65000000",
                 Some(-1100559882),
             ),
             (
                 "container_components_false",
-                14,
+                11,
                 "01000000000101050a0a00056974656d73090008636f6e7461696e730a000000010a000a636f6d706f6e656e74730100246d696e6563726166743a656e6368616e746d656e745f676c696e745f6f7665727269646500000800056974656d73000f6d696e6563726166743a73746f6e65000000",
                 Some(-566759991),
             ),
             (
                 "bundle_components_damage_and_name",
-                14,
+                11,
                 "01000000000101060a0a00056974656d73090008636f6e7461696e730a000000010a000a636f6d706f6e656e74730300106d696e6563726166743a64616d616765000000050a00156d696e6563726166743a637573746f6d5f6e616d650800047465787400026869010004626f6c640100000800056974656d73000f6d696e6563726166743a73746f6e65000000",
                 Some(-473617213),
             ),
             (
                 "container_components_food",
-                14,
+                11,
                 "01000000000101050a0a00056974656d73090008636f6e7461696e730a000000010a000a636f6d706f6e656e74730a000e6d696e6563726166743a666f6f6405000a73617475726174696f6e400000000300096e7574726974696f6e0000000401000e63616e5f616c776179735f6561740100000800056974656d73000f6d696e6563726166743a6170706c65000a000473697a650300036d696e00000001000000",
                 Some(1890827479),
             ),
             (
                 "can_break_two",
-                15,
+                12,
                 "0201020100010a000000000000000100020a00",
                 Some(2146318348),
             ),
             (
                 "written_filtered",
-                53,
+                46,
                 "01540101460161010208000170010a08000474657874000171010004626f6c640100080005706c61696e0001",
                 Some(1884774986),
             ),
             (
                 "written_plain",
-                53,
+                46,
                 "01540001610001080001700000",
                 Some(100213250),
             ),
             (
                 "writable_filtered",
-                52,
+                45,
                 "03036f6e6501022a2a0374776f000133010133",
                 Some(1192237218),
             ),
@@ -1077,9 +1057,9 @@ mod tests {
         for (name, hex, expected) in cases {
             let bytes = unhex(hex);
             let mut r = Reader::new(&bytes);
-            let c = Component::read(14, &mut r).unwrap();
+            let c = Component::read(11, &mut r).unwrap();
             assert_eq!(r.remaining(), 0, "{name}");
-            assert_eq!(c.hash(14, &Pinned), Some(expected), "{name}");
+            assert_eq!(c.hash(11, &Pinned), Some(expected), "{name}");
         }
     }
 }

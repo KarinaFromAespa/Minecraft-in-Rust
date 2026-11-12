@@ -55,7 +55,7 @@ public final class VanillaDensityOracle {
     private static DensityFunction.CompileContext shiftContext(Noise noise) {
         return new DensityFunction.CompileContext() {
             public Noise createNoiseSampler(net.minecraft.core.Holder<NormalNoise> holder) { return noise; }
-            public RandomSource createRandom(net.minecraft.resources.Identifier id) { throw new AssertionError("unexpected random lookup"); }
+            public RandomSource createRandom(net.minecraft.resources.ResourceLocation id) { throw new AssertionError("unexpected random lookup"); }
             public RandomSource createEndIslandRandom() { throw new AssertionError("unexpected end lookup"); }
         };
     }
@@ -319,7 +319,7 @@ public final class VanillaDensityOracle {
                         var builder=NormalNoise.builder().setBaseOctave(base).setBaseAmplitude(amplitude).setOctaveCount(count);
                         if(normalization==2)builder.setLegacyNormalization();else builder.setNormalize(normalization==1);
                         for(int i=0;i<modifiers;i++)builder.setAmplitudeModifier(i,number(args));
-                        var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.NOISE,net.minecraft.resources.Identifier.parse(name));
+                        var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.NOISE,net.minecraft.resources.ResourceLocation.parse(name));
                         graphNoises.add(graphRegistry.register(key,builder.build(),net.minecraft.core.RegistrationInfo.BUILT_IN));out.println("graph-noise "+(graphNoises.size()-1));
                     }
                     case "ginstance" -> {var holder=graphNoises.get(integer(args));var a=graphContext.createNoiseSampler(holder);var b=graphContext.createNoiseSampler(holder);out.println("graph-instance "+(a==b?1:0));}
@@ -335,7 +335,7 @@ public final class VanillaDensityOracle {
                         String name=args.nextToken();var value=graph.get(integer(args));
                         // Distinct equal constant objects may have distinct registered holders.
                         if(value instanceof ConstantFunction constant)value=new ConstantFunction(constant.value());
-                        var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DENSITY_FUNCTION,net.minecraft.resources.Identifier.parse(name));
+                        var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DENSITY_FUNCTION,net.minecraft.resources.ResourceLocation.parse(name));
                         var holder=graphFunctions.register(key,value,net.minecraft.core.RegistrationInfo.BUILT_IN);
                         // Bind each transport entry immediately, as freeze binds a loaded registry.
                         var bind=net.minecraft.core.Holder.Reference.class.getDeclaredMethod("bindValue",Object.class);bind.setAccessible(true);bind.invoke(holder,value);namedFunctions.put(name,holder);

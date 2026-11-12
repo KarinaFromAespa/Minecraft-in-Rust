@@ -8,7 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.ai.village.poi.PoiManager;
@@ -161,7 +161,7 @@ public final class VanillaPortalOracle {
         target.poi = poi;
         VanillaBlockUpdateOracle.set(net.minecraft.server.level.ServerLevel.class, target, "portalForcer", new net.minecraft.world.level.portal.PortalForcer(target));
         var e = f.getAsJsonObject("entity");
-        Entity entity = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(e.get("type").getAsString())).create(source, EntitySpawnReason.LOAD);
+        Entity entity = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(e.get("type").getAsString())).create(source, EntitySpawnReason.LOAD);
         // Exact doubles, as bits.
         var at = e.getAsJsonArray("bits");
         java.util.function.IntToDoubleFunction bit = i -> Double.longBitsToDouble(Long.parseUnsignedLong(at.get(i).getAsString(), 16));

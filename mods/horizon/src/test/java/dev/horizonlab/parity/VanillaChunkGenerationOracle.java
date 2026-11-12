@@ -172,7 +172,7 @@ public final class VanillaChunkGenerationOracle {
         public void updatePOIOnBlockStateChange(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState a, net.minecraft.world.level.block.state.BlockState b) {}
         @Override
         public ChunkAccess getChunk(int x, int z, ChunkStatus status, boolean load) {
-            return chunks.get(ChunkPos.pack(x, z));
+            return chunks.get(ChunkPos.asLong(x, z));
         }
     }
 
@@ -247,7 +247,7 @@ public final class VanillaChunkGenerationOracle {
         if (datapacks != null) {
             var dimensionLookups = TagLoader.buildUpdatedLookups(layers.replaceFrom(RegistryLayer.WORLD, world).getAccessForLoading(RegistryLayer.DIMENSIONS), staticTags);
             var dimensions = RegistryDataLoader.load(resources, dimensionLookups, RegistryDataLoader.DIMENSION_REGISTRIES, Runnable::run).join();
-            var stemKey = ResourceKey.create(Registries.LEVEL_STEM, net.minecraft.resources.Identifier.withDefaultNamespace(dimension));
+            var stemKey = ResourceKey.create(Registries.LEVEL_STEM, net.minecraft.resources.ResourceLocation.withDefaultNamespace(dimension));
             var stem = dimensions.lookupOrThrow(Registries.LEVEL_STEM).get(stemKey);
             if (stem.isPresent() && stem.get().value().generator() instanceof NoiseBasedChunkGenerator noise) {
                 biomeSource = noise.getBiomeSource();
@@ -263,7 +263,7 @@ public final class VanillaChunkGenerationOracle {
         // (FlatLevelSource), with the random state ChunkMap makes for a generator without noise.
         String flatPreset = System.getenv("HORIZON_FLAT");
         var flat = flatPreset == null ? null : world.lookupOrThrow(Registries.FLAT_LEVEL_GENERATOR_PRESET)
-            .getOrThrow(ResourceKey.create(Registries.FLAT_LEVEL_GENERATOR_PRESET, net.minecraft.resources.Identifier.parse(flatPreset)))
+            .getOrThrow(ResourceKey.create(Registries.FLAT_LEVEL_GENERATOR_PRESET, net.minecraft.resources.ResourceLocation.parse(flatPreset)))
             .value().settings();
         var randomState = flat == null ? RandomState.create(world.lookupOrThrow(Registries.NOISE), seed, settings.value())
             : RandomState.create(world.lookupOrThrow(Registries.NOISE), seed, false, net.minecraft.world.level.block.Blocks.STONE.defaultBlockState(), 63, NoiseRouterData.none());
@@ -348,9 +348,9 @@ public final class VanillaChunkGenerationOracle {
         if (oldSpec != null) {
             oldSeed = Long.parseLong(oldSpec.substring(0, oldSpec.indexOf(':')));
             String[] c = oldSpec.substring(oldSpec.indexOf(':') + 1).split(",");
-            for (int x = Integer.parseInt(c[0]); x <= Integer.parseInt(c[2]); x++) for (int z = Integer.parseInt(c[1]); z <= Integer.parseInt(c[3]); z++) oldChunks.add(ChunkPos.pack(x, z));
+            for (int x = Integer.parseInt(c[0]); x <= Integer.parseInt(c[2]); x++) for (int z = Integer.parseInt(c[1]); z <= Integer.parseInt(c[3]); z++) oldChunks.add(ChunkPos.asLong(x, z));
         }
-        java.util.function.BiFunction<Integer, Integer, ProtoChunk> chunkAt = (x, z) -> chunks.computeIfAbsent(ChunkPos.pack(x, z), k -> new ProtoChunk(new ChunkPos(x, z), UpgradeData.EMPTY, height, factory, null));
+        java.util.function.BiFunction<Integer, Integer, ProtoChunk> chunkAt = (x, z) -> chunks.computeIfAbsent(ChunkPos.asLong(x, z), k -> new ProtoChunk(new ChunkPos(x, z), UpgradeData.EMPTY, height, factory, null));
         java.util.function.BiFunction<ChunkStatus, ProtoChunk, WorldGenRegion> regionFor = (status, chunk) -> {
             var step = pyramid.getStepTo(status);
             int radius = step.directDependencies().size() - 1;
@@ -425,7 +425,7 @@ public final class VanillaChunkGenerationOracle {
                     chunk.setPersistedStatus(ChunkStatus.TERRAIN);
                 }
                 // The ring around the old chunks was only there for their biomes; it is generated afresh below.
-                for (int z = oz0 - 9; z <= oz1 + 9; z++) for (int x = ox0 - 9; x <= ox1 + 9; x++) if (!oldChunks.contains(ChunkPos.pack(x, z))) chunks.remove(ChunkPos.pack(x, z));
+                for (int z = oz0 - 9; z <= oz1 + 9; z++) for (int x = ox0 - 9; x <= ox1 + 9; x++) if (!oldChunks.contains(ChunkPos.asLong(x, z))) chunks.remove(ChunkPos.asLong(x, z));
                 var blendingField = ChunkAccess.class.getDeclaredField("blendingData");
                 blendingField.setAccessible(true);
                 var heightmapsField = ChunkAccess.class.getDeclaredField("heightmaps");
@@ -446,21 +446,21 @@ public final class VanillaChunkGenerationOracle {
             int sm = oldChunks.isEmpty() ? 8 : 9; // blending reads the neighbours of old chunks 7 away
             int sx0 = tx0 - sm, sz0 = tz0 - sm, sx1 = tx1 + sm, sz1 = tz1 + sm;
             for (int z = sz0; z <= sz1; z++) for (int x = sx0; x <= sx1; x++) {
-                if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
+                if (oldChunks.contains(ChunkPos.asLong(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 generator.createStructures(access, state, OracleLevel.structures, chunk, templates, levelKey);
                 chunk.setPersistedStatus(ChunkStatus.STRUCTURE_STARTS);
             }
             int rm = oldChunks.isEmpty() ? 0 : 1; // Blender.of asks for the centre chunk itself at STRUCTURE_REFERENCES
             for (int z = tz0 - rm; z <= tz1 + rm; z++) for (int x = tx0 - rm; x <= tx1 + rm; x++) {
-                if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
+                if (oldChunks.contains(ChunkPos.asLong(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 var region = regionFor.apply(ChunkStatus.STRUCTURE_REFERENCES, chunk);
                 generator.createReferences(region, OracleLevel.structures.forWorldGenRegion(region), chunk);
                 chunk.setPersistedStatus(ChunkStatus.STRUCTURE_REFERENCES);
             }
             for (int z = bz0; z <= bz1; z++) for (int x = bx0; x <= bx1; x++) {
-                if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
+                if (oldChunks.contains(ChunkPos.asLong(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 if (chunk.getPersistedStatus() != ChunkStatus.STRUCTURE_STARTS && chunk.getPersistedStatus() != ChunkStatus.EMPTY && chunk.getPersistedStatus() != ChunkStatus.STRUCTURE_REFERENCES) continue;
                 var region = regionFor.apply(ChunkStatus.BIOMES, chunk);
@@ -468,7 +468,7 @@ public final class VanillaChunkGenerationOracle {
                 chunk.setPersistedStatus(ChunkStatus.BIOMES);
             }
             for (int z = tz0; z <= tz1; z++) for (int x = tx0; x <= tx1; x++) {
-                if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
+                if (oldChunks.contains(ChunkPos.asLong(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 var region = regionFor.apply(ChunkStatus.TERRAIN, chunk);
                 Set<Holder<Biome>> possible = new HashSet<>();
@@ -490,7 +490,7 @@ public final class VanillaChunkGenerationOracle {
             for (int[] at : order) {
                 if (phase.equals("terrain")) break;
                 int x = at[0], z = at[1];
-                if (oldChunks.contains(ChunkPos.pack(x, z))) continue; // an old chunk is not decorated, only written into
+                if (oldChunks.contains(ChunkPos.asLong(x, z))) continue; // an old chunk is not decorated, only written into
                 var chunk = chunkAt.apply(x, z);
                 var region = regionFor.apply(ChunkStatus.FEATURES, chunk);
                 generator.applyBiomeDecoration(region, chunk, OracleLevel.structures.forWorldGenRegion(region));
@@ -504,7 +504,7 @@ public final class VanillaChunkGenerationOracle {
                 for (int qy = height.getMinY() >> 2; qy <= height.getMaxY() >> 2; qy++) {
                     StringBuilder line = new StringBuilder("q " + qy);
                     for (int qz = 0; qz < 4; qz++) for (int qx = 0; qx < 4; qx++)
-                        line.append(' ').append(target.getNoiseBiome((x << 2) + qx, qy, (z << 2) + qz).unwrapKey().orElseThrow().identifier());
+                        line.append(' ').append(target.getNoiseBiome((x << 2) + qx, qy, (z << 2) + qz).unwrapKey().orElseThrow().location());
                     w.println(line);
                 }
                 for (int y = height.getMinY(); y <= height.getMaxY(); y++) {

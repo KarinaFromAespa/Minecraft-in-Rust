@@ -493,7 +493,7 @@ public final class VanillaMobAiOracle {
                             if (slots[k].equals("-")) continue;
                             String[] ic = slots[k].split("\\*");
                             chest.setItem(k, new net.minecraft.world.item.ItemStack(
-                                BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(ic[0])), Integer.parseInt(ic[1])));
+                                BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse(ic[0])), Integer.parseInt(ic[1])));
                         }
                     }
                 } else {
@@ -533,7 +533,7 @@ public final class VanillaMobAiOracle {
                 }
                 player.setGameMode(s.creative ? GameType.CREATIVE : GameType.SURVIVAL);
                 player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, s.hand == null ? net.minecraft.world.item.ItemStack.EMPTY
-                    : new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(s.hand))));
+                    : new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse(s.hand))));
                 player.snapTo(s.player[0], s.player[1], s.player[2], 0.0F, 0.0F);
                 // snapTo leaves the head and body as the player was created
                 // (a random head yaw): face +z like the probe's player.
@@ -564,7 +564,7 @@ public final class VanillaMobAiOracle {
             List<Long> seeds = new ArrayList<>();
             int id = 100000;
             for (MobSpec spec : s.mobs) {
-                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse(spec.type));
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.ResourceLocation.parse(spec.type));
                 // Ignore canSpawn: a Peaceful scenario's hostile mob is one that was already
                 // in the world when the difficulty changed (create returns null at Peaceful).
                 Mob mob = (Mob) type.create(level, new EntitySpawnRequest(EntitySpawnReason.COMMAND, true));
@@ -589,13 +589,13 @@ public final class VanillaMobAiOracle {
                         }
                         case "ridden" -> mob.setItemSlot(net.minecraft.world.entity.EquipmentSlot.BODY,
                             new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(
-                                net.minecraft.resources.Identifier.parse("minecraft:red_harness"))));
+                                net.minecraft.resources.ResourceLocation.parse("minecraft:red_harness"))));
                         case "noai" -> mob.setNoAi(true);
                         case "agelocked" -> method(AgeableMob.class, "setAgeLocked", boolean.class).invoke(mob, true);
                         case "profession" -> {
                             Villager villager = (Villager) mob;
                             villager.setVillagerData(villager.getVillagerData().withProfession(level.registryAccess(),
-                                ResourceKey.create(Registries.VILLAGER_PROFESSION, net.minecraft.resources.Identifier.withDefaultNamespace(v))));
+                                ResourceKey.create(Registries.VILLAGER_PROFESSION, net.minecraft.resources.ResourceLocation.withDefaultNamespace(v))));
                             villager.refreshBrain(level);
                         }
                         case "level" -> {
@@ -609,7 +609,7 @@ public final class VanillaMobAiOracle {
                             for (String item : v.split(",")) {
                                 String[] ic = item.split("\\*");
                                 ((Villager) mob).getInventory().addItem(new net.minecraft.world.item.ItemStack(
-                                    BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(ic[0])),
+                                    BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse(ic[0])),
                                     ic.length > 1 ? Integer.parseInt(ic[1]) : 1));
                             }
                         }
@@ -650,7 +650,7 @@ public final class VanillaMobAiOracle {
                         case "effect" -> {
                             String[] ea = v.split(":");
                             var effect = BuiltInRegistries.MOB_EFFECT.wrapAsHolder(BuiltInRegistries.MOB_EFFECT.getValue(
-                                net.minecraft.resources.Identifier.withDefaultNamespace(ea[0])));
+                                net.minecraft.resources.ResourceLocation.withDefaultNamespace(ea[0])));
                             afterAdd.add(() -> mob.addEffect(new net.minecraft.world.effect.MobEffectInstance(
                                 effect, -1, Integer.parseInt(ea[1]))));
                         }
@@ -660,7 +660,7 @@ public final class VanillaMobAiOracle {
                         case "hand" -> {
                             String[] ic = v.split("\\*");
                             mob.setItemSlot(net.minecraft.world.entity.EquipmentSlot.MAINHAND, new net.minecraft.world.item.ItemStack(
-                                BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(ic[0])), Integer.parseInt(ic[1])));
+                                BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse(ic[0])), Integer.parseInt(ic[1])));
                         }
                         case "cooldown" -> {
                             // Set after the seeded constructor draw (below).
@@ -810,7 +810,7 @@ public final class VanillaMobAiOracle {
                     var hand = net.minecraft.world.InteractionHand.MAIN_HAND;
                     var held = player.getItemInHand(hand);
                     player.setItemInHand(hand, new net.minecraft.world.item.ItemStack(
-                        BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse((String) feed[2])), 64));
+                        BuiltInRegistries.ITEM.getValue(net.minecraft.resources.ResourceLocation.parse((String) feed[2])), 64));
                     animal.mobInteract(player, hand);
                     player.setItemInHand(hand, held);
                 }
@@ -1168,7 +1168,7 @@ public final class VanillaMobAiOracle {
         static String villager(Villager v) throws Exception {
             StringBuilder sb = new StringBuilder();
             var data = v.getVillagerData();
-            sb.append("prof ").append(data.profession().unwrapKey().get().identifier().getPath()).append(" lvl ").append(data.level())
+            sb.append("prof ").append(data.profession().unwrapKey().get().location().getPath()).append(" lvl ").append(data.level())
                 .append(" xp ").append(v.getVillagerXp()).append(" food ").append(field(Villager.class, "foodLevel").getInt(v))
                 .append(" age ").append(v.getAge());
             List<String> slots = new ArrayList<>();

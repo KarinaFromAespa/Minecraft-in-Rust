@@ -486,14 +486,15 @@ mod tests {
             ServerVersion::from_protocol(775),
             Some(ServerVersion::V26_1)
         );
-        // 774 is the pinned protocol itself (1.21.11; it resolves to the pin).
+        // 774 is 1.21.11, one protocol above the pin.
         assert_eq!(
             ServerVersion::from_protocol(774),
-            Some(ServerVersion::Current)
+            Some(ServerVersion::V1_21_11)
         );
+        // 773 is the pinned protocol itself (1.21.10; it resolves to the pin).
         assert_eq!(
             ServerVersion::from_protocol(773),
-            Some(ServerVersion::V1_21_10)
+            Some(ServerVersion::Current)
         );
         assert_eq!(
             ServerVersion::from_protocol(772),

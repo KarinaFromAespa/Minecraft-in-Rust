@@ -73,7 +73,7 @@ public final class VanillaClientArrowOracle {
                 for(int x=-1;x<=1;x++)for(int z=-1;z<=1;z++)world.chunks.put(key(x,z),new Chunk(x,z,trace,null));
                 for(var entry:row.getAsJsonArray("cells")) {
                     var c=entry.getAsJsonArray();int x=c.get(0).getAsInt(),y=c.get(1).getAsInt(),z=c.get(2).getAsInt();
-                    var state=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(c.get(3).getAsString())).defaultBlockState();
+                    var state=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.ResourceLocation.parse(c.get(3).getAsString())).defaultBlockState();
                     if(c.size()>4) {
                         if(state.is(Blocks.BUBBLE_COLUMN))state=state.setValue(net.minecraft.world.level.block.state.properties.BlockStateProperties.DRAG,c.get(4).getAsBoolean());
                         else state=VanillaSceneCollisionOracle.property(state,net.minecraft.world.level.block.state.properties.BlockStateProperties.LEVEL,c.get(4).getAsString());

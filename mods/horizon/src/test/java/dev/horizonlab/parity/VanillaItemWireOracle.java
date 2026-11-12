@@ -23,7 +23,7 @@ import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.decoration.painting.PaintingVariant;
 import net.minecraft.world.item.JukeboxPlayable;
@@ -83,7 +83,7 @@ public final class VanillaItemWireOracle {
             direct.set(DataComponents.JUKEBOX_PLAYABLE, new JukeboxPlayable(Holder.direct(
                 new JukeboxSong(SoundEvents.ARMOR_EQUIP_CHAIN, Component.literal("S"), 10f, 3))));
             direct.set(DataComponents.PAINTING_VARIANT, Holder.direct(new PaintingVariant(
-                2, 1, Identifier.withDefaultNamespace("kebab"), Optional.of(Component.literal("T")), Optional.empty())));
+                2, 1, ResourceLocation.withDefaultNamespace("kebab"), Optional.of(Component.literal("T")), Optional.empty())));
             print(out, "non-persistent and direct", direct);
             ItemStack locked = new ItemStack(Items.STONE);
             locked.set(DataComponents.CREATIVE_SLOT_LOCK, Unit.INSTANCE);

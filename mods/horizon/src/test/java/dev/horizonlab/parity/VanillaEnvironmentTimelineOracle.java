@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Optional;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.EasingType;
 import net.minecraft.util.KeyframeTrackSampler;
@@ -46,7 +46,7 @@ public final class VanillaEnvironmentTimelineOracle {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static String track(String id, String period, String trackJson, String baseJson, String ticks) {
-        var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(Identifier.parse(id));
+        var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(ResourceLocation.parse(id));
         Object base = attribute.valueCodec().parse(JsonOps.INSTANCE, JsonParser.parseString(baseJson)).getOrThrow();
         var parsed = AttributeTrack.createCodec(attribute).parse(JsonOps.INSTANCE, JsonParser.parseString(trackJson));
         Optional<Integer> periodTicks = period.equals("-") ? Optional.empty() : Optional.of(Integer.parseInt(period));

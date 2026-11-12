@@ -33,7 +33,7 @@ public final class VanillaMaterialStageOracle {
     private static void load(Path dir) throws Exception {
         noises=new MappedRegistry<>(Registries.NOISE,Lifecycle.stable());
         var data=JsonParser.parseString(Files.readString(dir.resolve("noises.json"))).getAsJsonObject();
-        for(var e:data.entrySet())noises.register(ResourceKey.create(Registries.NOISE,Identifier.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);noises.freeze();
+        for(var e:data.entrySet())noises.register(ResourceKey.create(Registries.NOISE,ResourceLocation.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);noises.freeze();
         var field=VanillaMaterialConditionOracle.class.getDeclaredField("noises");field.setAccessible(true);field.set(null,noises);
         for(var name:new String[]{"loadBiomes","loadConditions","loadRules"}){var method=VanillaMaterialConditionOracle.class.getDeclaredMethod(name,Path.class);method.setAccessible(true);method.invoke(null,dir);}
         biomes=(MappedRegistry<Biome>)field("biomes");ops=(RegistryOps<JsonElement>)field("ops");
@@ -42,7 +42,7 @@ public final class VanillaMaterialStageOracle {
         factory=new PalettedContainerFactory(Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY),Blocks.AIR.defaultBlockState(),null,Strategy.createForBiomes(ids),biome("minecraft:plains"),null);
         var carvers=new MappedRegistry<net.minecraft.world.level.levelgen.carver.WorldCarver>(Registries.CARVER,Lifecycle.stable());
         var carverJson=JsonParser.parseString(Files.readString(dir.resolve("carvers.json"))).getAsJsonObject();
-        for(var e:carverJson.entrySet())carvers.register(ResourceKey.create(Registries.CARVER,Identifier.parse(e.getKey())),net.minecraft.world.level.levelgen.carver.WorldCarver.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);carvers.freeze();
+        for(var e:carverJson.entrySet())carvers.register(ResourceKey.create(Registries.CARVER,ResourceLocation.parse(e.getKey())),net.minecraft.world.level.levelgen.carver.WorldCarver.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);carvers.freeze();
         var carverOps=RegistryOps.create(JsonOps.INSTANCE,new RegistryOps.RegistryInfoLookup(){public <T> Optional<HolderGetter<T>> lookup(ResourceKey<? extends Registry<? extends T>> key){if(key.equals(Registries.CARVER))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(carvers);return Optional.empty();}});
         var generationField=Biome.class.getDeclaredField("generationSettings");generationField.setAccessible(true);var biomeJson=JsonParser.parseString(Files.readString(dir.resolve("biomes.json"))).getAsJsonObject();
         for(var e:biomeJson.entrySet()) {
@@ -58,7 +58,7 @@ public final class VanillaMaterialStageOracle {
             if(key.equals(Registries.BIOME))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(biomes);
             if(key.equals(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(presets);return Optional.empty();}});
     }
-    private static Holder<Biome> biome(String name){return biomes.getOrThrow(ResourceKey.create(Registries.BIOME,Identifier.parse(name)));}
+    private static Holder<Biome> biome(String name){return biomes.getOrThrow(ResourceKey.create(Registries.BIOME,ResourceLocation.parse(name)));}
     private static void export(Path path) throws Exception {
         var method=VanillaHeightmapOracle.class.getDeclaredMethod("facts");method.setAccessible(true);var facts=(JsonObject)method.invoke(null);
         var integers=new JsonArray();for(var id:new TreeSet<>(BuiltInRegistries.BLOCK.keySet()))for(var p:BuiltInRegistries.BLOCK.getValue(id).getStateDefinition().getProperties())if(p instanceof IntegerProperty){var a=new JsonArray();a.add(id.toString());a.add(p.getName());integers.add(a);}
@@ -91,13 +91,13 @@ public final class VanillaMaterialStageOracle {
                 neighbor.setPersistedStatus(ChunkStatus.BIOMES);create.invoke(generator,Blender.empty(),random,neighbor);
                 out.println("biomechunk "+x+" "+z);
                 for(int section=0;section<height/16;section++){var data=neighbor.getSection(section);for(int y=0;y<4;y++)for(int lz=0;lz<4;lz++)for(int lx=0;lx<4;lx++)out.println("stored "+biomes.getKey(data.getNoiseBiome(lx,y,lz).value()));}
-                neighborhood.put(ChunkPos.pack(x,z),neighbor);
+                neighborhood.put(ChunkPos.asLong(x,z),neighbor);
             }
         }
         var names=f.getAsJsonArray("biome_choices");boolean zoom=f.has("biome_zoom")&&f.get("biome_zoom").getAsBoolean();
         var manager=new BiomeManager((x,y,z)->{
             Holder<Biome> value;
-            if(!neighborhood.isEmpty())value=neighborhood.get(ChunkPos.pack(x>>2,z>>2)).getNoiseBiome(x,y,z);
+            if(!neighborhood.isEmpty())value=neighborhood.get(ChunkPos.asLong(x>>2,z>>2)).getNoiseBiome(x,y,z);
             else {int hash=x*31+y*7+z*17;value=biome(names.get(Math.floorMod(hash,names.size())).getAsString());}
             out.println("quart "+x+" "+y+" "+z+" "+biomes.getKey(value.value()));return value;
         },BiomeManager.obfuscateSeed(seed)) {

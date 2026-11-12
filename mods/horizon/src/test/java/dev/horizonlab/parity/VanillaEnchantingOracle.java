@@ -8,7 +8,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -37,7 +37,7 @@ import net.minecraft.world.item.enchantment.ItemEnchantments;
  */
 public final class VanillaEnchantingOracle {
     private static String name(EnchantmentInstance e) {
-        return e.enchantment().unwrapKey().get().identifier() + ":" + e.level();
+        return e.enchantment().unwrapKey().get().location() + ":" + e.level();
     }
 
     private static List<EnchantmentInstance> list(RandomSource random, int seed, int slot, int cost, ItemStack stack, HolderSet.Named<Enchantment> table) {
@@ -71,14 +71,14 @@ public final class VanillaEnchantingOracle {
             for (String line : Files.readAllLines(in, StandardCharsets.UTF_8)) {
                 String[] f = line.split(" ");
                 int seed = Integer.parseInt(f[0]), bookcases = Integer.parseInt(f[1]);
-                ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(f[2])));
+                ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(f[2])));
                 if (f.length > 3) stack.setDamageValue(Integer.parseInt(f[3]));
                 if (f.length > 4 && !f[4].equals("-")) {
                     var levels = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
                     var enchants = access.lookupOrThrow(Registries.ENCHANTMENT);
                     for (String part : f[4].split(",")) {
                         String[] kv = part.split("=");
-                        levels.set(enchants.getOrThrow(ResourceKey.create(Registries.ENCHANTMENT, Identifier.parse(kv[0]))),
+                        levels.set(enchants.getOrThrow(ResourceKey.create(Registries.ENCHANTMENT, ResourceLocation.parse(kv[0]))),
                                    Integer.parseInt(kv[1]));
                     }
                     stack.set(DataComponents.ENCHANTMENTS, levels.toImmutable());

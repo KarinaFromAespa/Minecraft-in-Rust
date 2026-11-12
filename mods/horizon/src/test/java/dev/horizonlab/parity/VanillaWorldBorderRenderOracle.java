@@ -23,7 +23,7 @@ import net.minecraft.client.renderer.WorldBorderRenderer;
 import net.minecraft.client.renderer.state.level.WorldBorderRenderState;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureManager;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.Entity;
@@ -110,7 +110,7 @@ public final class VanillaWorldBorderRenderOracle {
         private Capture() { super(null, null, 0, 0); }
         @Override public int guiWidth() { return 427; }
         @Override public int guiHeight() { return 240; }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int sw, int sh, int tw, int th, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int sw, int sh, int tw, int th, int color) {
             vignetteColor = color;
         }
     }
@@ -182,7 +182,7 @@ public final class VanillaWorldBorderRenderOracle {
                 put(renderer, WorldBorderRenderer.class, "worldBorderBuffer", buffer);
                 put(renderer, WorldBorderRenderer.class, "indices", alloc(indicesType));
                 var textures = alloc(TextureManager.class);
-                var byPath = new HashMap<Identifier, AbstractTexture>();
+                var byPath = new HashMap<ResourceLocation, AbstractTexture>();
                 byPath.put(WorldBorderRenderer.FORCEFIELD_LOCATION, alloc(net.minecraft.client.renderer.texture.SimpleTexture.class));
                 put(textures, TextureManager.class, "byPath", byPath);
                 put(renderer, WorldBorderRenderer.class, "textureManager", textures);

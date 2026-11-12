@@ -14,7 +14,7 @@ import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -264,7 +264,7 @@ public final class VanillaNaturalSpawnOracle {
         }
         @Override public void levelEvent(Entity source, int type, BlockPos pos, int data) { if (tick >= 0) log.add(tick + " levent " + type + " " + data); }
         @Override public void gameEvent(Holder<net.minecraft.world.level.gameevent.GameEvent> event, Vec3 at, net.minecraft.world.level.gameevent.GameEvent.Context context) {
-            if (tick >= 0) log.add(tick + " gevent " + event.unwrapKey().orElseThrow().identifier() + " " + Mth.floor(at.x) + " " + Mth.floor(at.y) + " " + Mth.floor(at.z));
+            if (tick >= 0) log.add(tick + " gevent " + event.unwrapKey().orElseThrow().location() + " " + Mth.floor(at.x) + " " + Mth.floor(at.y) + " " + Mth.floor(at.z));
         }
         @Override public void broadcastEntityEvent(Entity entity, byte event) { if (tick >= 0) log.add(tick + " eevent " + event); }
         @Override public ServerChunkCache getChunkSource() { return chunkSource; }
@@ -339,7 +339,7 @@ public final class VanillaNaturalSpawnOracle {
         net.minecraft.world.RandomSequences sequences;
         long seed;
         @Override public net.minecraft.server.ReloadableServerRegistries.Holder reloadableRegistries() { return registries; }
-        @Override public RandomSource getRandomSequence(Identifier key) { return sequences.get(key, seed); }
+        @Override public RandomSource getRandomSequence(ResourceLocation key) { return sequences.get(key, seed); }
     }
 
     static final class Chunk extends LevelChunk {
@@ -423,12 +423,12 @@ public final class VanillaNaturalSpawnOracle {
         Lvl lvl;
         // Trial Omen replacing Bad Omen: logged, without the client updates.
         @Override public boolean addEffect(net.minecraft.world.effect.MobEffectInstance effect, Entity source) {
-            if (lvl.tick >= 0) lvl.log.add(lvl.tick + " effect add " + effect.getEffect().unwrapKey().orElseThrow().identifier() + " " + effect.getDuration() + " " + effect.getAmplifier());
+            if (lvl.tick >= 0) lvl.log.add(lvl.tick + " effect add " + effect.getEffect().unwrapKey().orElseThrow().location() + " " + effect.getDuration() + " " + effect.getAmplifier());
             getActiveEffectsMap().put(effect.getEffect(), effect);
             return true;
         }
         @Override public boolean removeEffect(Holder<net.minecraft.world.effect.MobEffect> effect) {
-            if (lvl.tick >= 0) lvl.log.add(lvl.tick + " effect remove " + effect.unwrapKey().orElseThrow().identifier());
+            if (lvl.tick >= 0) lvl.log.add(lvl.tick + " effect remove " + effect.unwrapKey().orElseThrow().location());
             return getActiveEffectsMap().remove(effect) != null;
         }
         @Override public boolean isSpectator() { return mode == GameType.SPECTATOR; }
@@ -498,7 +498,7 @@ public final class VanillaNaturalSpawnOracle {
                 }
                 for (String[] u : uses.getOrDefault(t, List.of())) {
                     Player p = level.playerList.get(Integer.parseInt(u[1]));
-                    var item = new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(u[2])), Integer.parseInt(u[3]));
+                    var item = new net.minecraft.world.item.ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(u[2])), Integer.parseInt(u[3]));
                     var result = ((net.minecraft.world.level.block.VaultBlock) Blocks.VAULT).useItemOn(item, level.getBlockState(at), level, at, p,
                         net.minecraft.world.InteractionHand.MAIN_HAND, null);
                     log.add(t + " use " + (result instanceof net.minecraft.world.InteractionResult.Success ? "ok" : "pass") + " " + item.getCount());
@@ -682,8 +682,8 @@ public final class VanillaNaturalSpawnOracle {
                 level.log = log;
                 level.logColumns = false;
                 try {
-                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, Identifier.parse(c.getOrDefault("dim", "minecraft:overworld")));
-                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.identifier())).value();
+                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(c.getOrDefault("dim", "minecraft:overworld")));
+                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.location())).value();
                     level.border = new WorldBorder();
                     level.border.setCenter(Double.parseDouble(c.getOrDefault("borderx", "0")), Double.parseDouble(c.getOrDefault("borderz", "0")));
                     level.border.setSize(Double.parseDouble(c.getOrDefault("bordersize", "59999968")));
@@ -698,11 +698,11 @@ public final class VanillaNaturalSpawnOracle {
                         String[] v = p[1].split(",");
                         level.lights.add(Map.entry(Box.parse(p[0]), new int[] {Integer.parseInt(v[0]), Integer.parseInt(v[1])}));
                     }
-                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(c.getOrDefault("biome", "minecraft:plains"))));
+                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
                     level.biomes.clear();
                     for (int i = 0; c.containsKey("b" + i); i++) {
                         String[] p = c.get("b" + i).split("/", 2);
-                        level.biomes.add(Map.entry(Box.parse(p[0]), biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(p[1])))));
+                        level.biomes.add(Map.entry(Box.parse(p[0]), biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(p[1])))));
                     }
                     level.sky = Integer.parseInt(c.getOrDefault("sky", "15"));
                     level.block = Integer.parseInt(c.getOrDefault("light", "0"));
@@ -721,12 +721,12 @@ public final class VanillaNaturalSpawnOracle {
                     level.unloaded.clear();
                     if (c.containsKey("unloaded")) for (String u : c.get("unloaded").split(";")) {
                         String[] p = u.split(",");
-                        level.unloaded.add(ChunkPos.pack(Integer.parseInt(p[0]), Integer.parseInt(p[1])));
+                        level.unloaded.add(ChunkPos.asLong(Integer.parseInt(p[0]), Integer.parseInt(p[1])));
                     }
                     level.starts.clear();
                     for (int i = 0; c.containsKey("s" + i); i++) {
                         String[] p = c.get("s" + i).split("/", 2);
-                        Structure structure = structureLookup.getValue(Identifier.parse(p[0]));
+                        Structure structure = structureLookup.getValue(ResourceLocation.parse(p[0]));
                         List<StructurePiece> pieces = new ArrayList<>();
                         for (String b : p[1].split(";")) {
                             Box bx = Box.parse(b);
@@ -736,7 +736,7 @@ public final class VanillaNaturalSpawnOracle {
                     }
                     String[] r = c.getOrDefault("respawn", "0,-1000,0/minecraft:overworld").split("/");
                     String[] rp = r[0].split(",");
-                    level.respawn = new LevelData.RespawnData(GlobalPos.of(ResourceKey.create(Registries.DIMENSION, Identifier.parse(r[1])),
+                    level.respawn = new LevelData.RespawnData(GlobalPos.of(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(r[1])),
                         new BlockPos(Integer.parseInt(rp[0]), Integer.parseInt(rp[1]), Integer.parseInt(rp[2]))), 0.0F, 0.0F);
                     level.playerList.clear();
                     for (int i = 0; c.containsKey("p" + i); i++) {
@@ -765,7 +765,7 @@ public final class VanillaNaturalSpawnOracle {
                     for (int i = 0; c.containsKey("e" + i); i++) {
                         String[] p = c.get("e" + i).split("/");
                         String[] v = p[1].split(",");
-                        Entity e = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(p[0])).create(level, EntitySpawnReason.LOAD);
+                        Entity e = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(p[0])).create(level, EntitySpawnReason.LOAD);
                         if (e == null) continue; // monsters do not exist in peaceful
                         e.setPos(Double.parseDouble(v[0]), Double.parseDouble(v[1]), Double.parseDouble(v[2]));
                         if (p.length > 2 && p[2].equals("p") && e instanceof Mob mob) mob.setPersistenceRequired();

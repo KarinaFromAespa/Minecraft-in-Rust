@@ -15,7 +15,7 @@ import net.minecraft.world.phys.shapes.*;
 public final class VanillaFaceSupportOracle {
     private static final class SupportBlock extends Block {
         VoxelShape shape;int calls;
-        SupportBlock(){super(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK,Identifier.parse("horizon:fixture_support"))));}
+        SupportBlock(){super(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK,ResourceLocation.parse("horizon:fixture_support"))));}
         @Override protected VoxelShape getBlockSupportShape(BlockState state,BlockGetter world,BlockPos pos){calls++;return shape;}
     }
     private static double number(JsonElement value){return Double.longBitsToDouble(Long.parseUnsignedLong(value.getAsString(),16));}

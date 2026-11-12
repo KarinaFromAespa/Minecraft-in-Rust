@@ -411,7 +411,7 @@ public final class VanillaProtocolClient {
                     for (var t : e.getValue().tags().entrySet()) {
                         tags.put(t.getKey().toString(), t.getValue().toString());
                     }
-                    registries.put(e.getKey().identifier().toString(), tags.size() + " " + sha(tags.toString().getBytes()));
+                    registries.put(e.getKey().location().toString(), tags.size() + " " + sha(tags.toString().getBytes()));
                 }
                 record("config", r.type + " " + registries.size() + " registries");
                 registries.forEach((k, v) -> record("config-tags", k + " " + v));
@@ -1072,7 +1072,7 @@ public final class VanillaProtocolClient {
 
             @Override
             public com.mojang.brigadier.builder.ArgumentBuilder<Object, ?> createArgument(String id, com.mojang.brigadier.arguments.ArgumentType<?> type,
-                net.minecraft.resources.Identifier suggestionId) {
+                net.minecraft.resources.ResourceLocation suggestionId) {
                 return com.mojang.brigadier.builder.RequiredArgumentBuilder.argument(id + ":" + type.getClass().getSimpleName() + ":" + suggestionId, type);
             }
 
@@ -1112,7 +1112,7 @@ public final class VanillaProtocolClient {
             // levels: the server's level keys, in an identity-hashed order after the overworld.
             var login = (net.minecraft.network.protocol.game.ClientboundLoginPacket) r.packet;
             var levels = new java.util.TreeSet<String>();
-            login.levels().forEach(l -> levels.add(l.identifier().toString()));
+            login.levels().forEach(l -> levels.add(l.location().toString()));
             return text(r.packet).replaceAll("playerId=-?\\d+", "playerId=_").replaceAll("levels=\\[(ResourceKey\\[[^\\]]*\\](, )?)*\\]", "levels=" + levels);
         }
         if (t.equals("minecraft:set_time") || t.equals("minecraft:keep_alive") || t.equals("minecraft:ping")) return "";
@@ -1125,7 +1125,7 @@ public final class VanillaProtocolClient {
             p.itemSets().forEach((k, v) -> {
                 var items = new java.util.TreeSet<String>();
                 ((java.util.Set<?>) field(v, "items")).forEach(h -> items.add(((net.minecraft.core.Holder<?>) h).getRegisteredName()));
-                sets.put(k.identifier().toString(), items.toString());
+                sets.put(k.location().toString(), items.toString());
             });
             p.stonecutterRecipes().entries().forEach(e -> record("play-stonecutter", field(e.input(), "values") + " -> " + e.recipe().optionDisplay()));
             sets.forEach((k, v) -> record("play-property-set", k + " " + v));

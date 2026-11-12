@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.entity.ai.attributes.*;
 
@@ -86,7 +86,7 @@ public final class VanillaLiveAttributesOracle {
              var lines = Files.lines(dir.resolve("inputs.txt"))) {
             for (var line : (Iterable<String>)lines::iterator) {
                 var fixture = JsonParser.parseString(line).getAsJsonObject();
-                var entity = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(fixture.get("entity").getAsString()));
+                var entity = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(fixture.get("entity").getAsString()));
                 var data = new Data();
                 data.attributes = new Attrs(data, supplier(entity));
                 data.map = (Map<Holder<Attribute>, AttributeInstance>)storage.get(data.attributes);
@@ -96,7 +96,7 @@ public final class VanillaLiveAttributesOracle {
                     int index = op.get("attribute").getAsInt();
                     var key = index < 0 ? null : attributes.get(index);
                     String mode = op.get("mode").getAsString();
-                    var modifier = new AttributeModifier(Identifier.parse(op.get("id").getAsString()), number(op.get("amount")), AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
+                    var modifier = new AttributeModifier(ResourceLocation.parse(op.get("id").getAsString()), number(op.get("amount")), AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
                     String result = "ok";
                     try {
                         switch (mode) {

@@ -31,11 +31,10 @@ public final class VanillaCuboidModelOracle {
     }
     private static Object rotation(BlockElementRotation value) {
         if (value == null) return null;
-        Object angles = switch (value.value()) {
-            case BlockElementRotation.SingleAxisRotation single -> map("axis", single.axis().getName(), "angle", bits(single.angle()));
-            case BlockElementRotation.EulerXYZRotation euler -> new long[]{bits(euler.x()), bits(euler.y()), bits(euler.z())};
-            default -> throw new AssertionError("Unexpected parsed rotation " + value.value().getClass());
-        };
+        // 1.21.10 rotations are single-axis records (origin, axis, angle,
+        // rescale); the sealed SingleAxisRotation/EulerXYZRotation split
+        // came later. Emit the same single-axis shape.
+        Object angles = map("axis", value.axis().getName(), "angle", bits(value.angle()));
         return map("origin", vector(value.origin()), "value", angles, "rescale", value.rescale());
     }
     private static Object face(BlockElementFace value) {

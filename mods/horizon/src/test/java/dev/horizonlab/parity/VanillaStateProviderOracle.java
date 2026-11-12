@@ -37,12 +37,12 @@ public final class VanillaStateProviderOracle {
     private static void bindFluidTags(JsonObject resources) {
         var registry=BuiltInRegistries.FLUID;
         var loader=new TagLoader<Holder<Fluid>>((id,required)->registry.get(id).map(value->(Holder<Fluid>)value),"tags/fluid");
-        var definitions=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(Identifier.parse(item.getKey()),entries);
+            definitions.put(ResourceLocation.parse(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Fluid>,List<Holder<Fluid>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.FLUID,id),List.copyOf(values)));
@@ -70,7 +70,7 @@ public final class VanillaStateProviderOracle {
         }});
         for(var entry:JsonParser.parseString(Files.readString(dir.resolve("catalog.json"))).getAsJsonObject().entrySet()) {
             var provider=BlockStateProvider.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
-            providers.register(ResourceKey.create(Registries.BLOCK_STATE_PROVIDER,Identifier.parse(entry.getKey())),provider,RegistrationInfo.BUILT_IN);
+            providers.register(ResourceKey.create(Registries.BLOCK_STATE_PROVIDER,ResourceLocation.parse(entry.getKey())),provider,RegistrationInfo.BUILT_IN);
         }
         providers.freeze();
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt"),StandardCharsets.UTF_8));var inputs=Files.lines(dir.resolve("inputs.txt"))) {

@@ -7,7 +7,7 @@ import java.util.*;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -84,7 +84,7 @@ public final class VanillaSoundEngineOracle {
                 switch (a[0]) {
                     case "play" -> {
                         // play name kind event source volume pitch x y z looping delay attenuation relative seed
-                        Identifier id = Identifier.parse(a[3]);
+                        ResourceLocation id = ResourceLocation.parse(a[3]);
                         SoundEvent event = SoundEvent.createVariableRangeEvent(id);
                         long seed = Long.parseLong(a[14]);
                         SoundInstance instance = switch (a[2]) {
@@ -114,7 +114,7 @@ public final class VanillaSoundEngineOracle {
                         }
                     }
                     case "stop" -> manager.stop(instances.get(a[1]));
-                    case "stopmatch" -> manager.stop(a[1].equals("-") ? null : Identifier.parse(a[1]),
+                    case "stopmatch" -> manager.stop(a[1].equals("-") ? null : ResourceLocation.parse(a[1]),
                         a[2].equals("-") ? null : SoundSource.values()[Integer.parseInt(a[2])]);
                     case "finish" -> rig.finish(instances.get(a[1]));
                     case "gain" -> manager.updateCategoryVolume(SoundSource.values()[Integer.parseInt(a[1])], f(a[2]));

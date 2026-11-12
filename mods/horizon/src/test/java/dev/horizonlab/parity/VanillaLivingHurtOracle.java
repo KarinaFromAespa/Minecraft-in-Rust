@@ -71,7 +71,7 @@ public final class VanillaLivingHurtOracle {
         @Override public Collection<MobEffectInstance> getActiveEffects(){d.event("effects");return d.effects;}
 
         @Override public PlayerAdvancements getAdvancements(){d.event("criterion");return d.advancements;}
-        @Override public void awardStat(Identifier s,int v){if(s!=Stats.DAMAGE_BLOCKED_BY_SHIELD)throw new AssertionError();d.event("blocked-stat "+v);}
+        @Override public void awardStat(ResourceLocation s,int v){if(s!=Stats.DAMAGE_BLOCKED_BY_SHIELD)throw new AssertionError();d.event("blocked-stat "+v);}
     }
     public static void main(String[] args)throws Throwable {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();var u=Class.forName("sun.misc.Unsafe");unsafe=field(u,"theUnsafe").get(null);allocate=u.getMethod("allocateInstance",Class.class);

@@ -1,6 +1,6 @@
 package dev.horizonlab.parity;
 import com.google.gson.*;import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
-import net.minecraft.core.*;import net.minecraft.core.registries.*;import net.minecraft.resources.Identifier;
+import net.minecraft.core.*;import net.minecraft.core.registries.*;import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.server.level.*;import net.minecraft.network.syncher.*;
 import net.minecraft.world.food.FoodData;import net.minecraft.world.Difficulty;import net.minecraft.world.damagesource.*;import net.minecraft.world.level.gamerules.*;
 /** Actual registered attributes, synchronized health and hunger regeneration. */
@@ -32,13 +32,13 @@ public final class VanillaAttributeHealthOracle {
         absorption=field(LivingEntity.class,"absorptionAmount");exhaustion=field(FoodData.class,"exhaustionLevel");timer=field(FoodData.class,"tickTimer");var entityData=field(Entity.class,"entityData");var dead=field(LivingEntity.class,"dead");
         var ctor=SynchedEntityData.class.getDeclaredConstructor(SyncedDataHolder.class,SynchedEntityData.DataItem[].class);ctor.setAccessible(true);var keys=List.of(Attributes.MAX_HEALTH,Attributes.MAX_ABSORPTION);Path dir=Path.of(args[1]);
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){for(var line:(Iterable<String>)lines::iterator){var f=JsonParser.parseString(line).getAsJsonObject();var d=new Data();d.f=f;d.out=out;d.actor=make(Actor.class);d.actor.d=d;
-            var type=BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(f.get("entity").getAsString()));d.attributes=new AttributeMap(VanillaEntityAttributeOracle.supplier(type));d.level=make(Level.class);d.level.d=d;d.rules=make(Rules.class);d.rules.d=d;d.sources=make(Sources.class);d.sources.source=make(DamageSource.class);
+            var type=BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(f.get("entity").getAsString()));d.attributes=new AttributeMap(VanillaEntityAttributeOracle.supplier(type));d.level=make(Level.class);d.level.d=d;d.rules=make(Rules.class);d.rules.d=d;d.sources=make(Sources.class);d.sources.source=make(DamageSource.class);
             var items=new SynchedEntityData.DataItem<?>[healthKey.id()+1];for(int i=0;i<items.length;i++)items[i]=new SynchedEntityData.DataItem<Float>(new EntityDataAccessor<Float>(i,EntityDataSerializers.FLOAT),0f);var health=new SynchedEntityData.DataItem<Float>(healthKey,single(f.get("health")));items[healthKey.id()]=health;var data=ctor.newInstance(d.actor,items);entityData.set(d.actor,data);dead.setBoolean(d.actor,f.get("dead").getAsBoolean());absorption.setFloat(d.actor,single(f.get("absorption")));
             d.food=new FoodData();var food=f.getAsJsonObject("food");d.food.setFoodLevel(food.get("food").getAsInt());d.food.setSaturation(single(food.get("saturation")));exhaustion.setFloat(d.food,single(food.get("exhaustion")));timer.setInt(d.food,food.get("timer").getAsInt());
             for(var ov:f.getAsJsonArray("ops")){var op=ov.getAsJsonObject();var key=keys.get(op.get("attribute").getAsInt());float v=single(op.get("value"));try{switch(op.get("mode").getAsString()){
                 case "base":d.attributes.getInstance(key).setBaseValue(number(op.get("amount")));break;
-                case "add":d.attributes.getInstance(key).addOrUpdateTransientModifier(new AttributeModifier(Identifier.parse(op.get("id").getAsString()),number(op.get("amount")),AttributeModifier.Operation.values()[op.get("operation").getAsInt()]));break;
-                case "remove":d.attributes.getInstance(key).removeModifier(Identifier.parse(op.get("id").getAsString()));break;
+                case "add":d.attributes.getInstance(key).addOrUpdateTransientModifier(new AttributeModifier(ResourceLocation.parse(op.get("id").getAsString()),number(op.get("amount")),AttributeModifier.Operation.values()[op.get("operation").getAsInt()]));break;
+                case "remove":d.attributes.getInstance(key).removeModifier(ResourceLocation.parse(op.get("id").getAsString()));break;
                 case "reset":d.attributes.resetBaseValue(key);break;
                 case "set":d.actor.setHealth(v);break;case "heal":d.actor.heal(v);break;case "absorption":d.actor.setAbsorptionAmount(v);break;
                 case "hurt":out.println("bool "+d.actor.isHurt());break;case "dead":out.println("bool "+d.actor.isDeadOrDying());break;

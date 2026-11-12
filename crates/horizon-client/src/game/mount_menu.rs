@@ -4,7 +4,7 @@
 //! cursor. A nautilus has the same two slots and no chest
 //! (`NautilusInventoryMenu`). It opens with E while riding a tamed mount or
 //! with shift + use on a tamed one. On a
-//! server the screen shows the server's menu (`ClientboundMountScreenOpenPacket`)
+//! server the screen shows the server's menu (`ClientboundHorseScreenOpenPacket`)
 //! and its clicks go out as container clicks; a server's players get theirs
 //! from game/lan_mount_menu.rs.
 use super::{Game, Screen};
@@ -122,7 +122,7 @@ impl Game<'_> {
         });
         self.show_mount_menu();
     }
-    /// `ClientPacketListener.handleMountScreenOpen`: a server's horse
+    /// `ClientPacketListener.handleHorseScreenOpen`: a server's horse
     /// inventory over mount `entity`, its slots to come in the menu's content.
     pub(super) fn open_remote_mount_menu(&mut self, entity: u32, columns: usize) -> bool {
         let Some(species) = self

@@ -14,7 +14,7 @@ import net.minecraft.world.level.levelgen.densityfunction.*;
 public final class VanillaBiomeSourceOracle {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
-        var ids=new IdMapper<Holder<Biome>>();for(int i=0;i<512;i++)ids.add(Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:biome_"+i))));
+        var ids=new IdMapper<Holder<Biome>>();for(int i=0;i<512;i++)ids.add(Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,ResourceLocation.parse("horizon:biome_"+i))));
         var constructor=TheEndBiomeSource.class.getDeclaredConstructor(Holder.class,Holder.class,Holder.class,Holder.class,Holder.class);constructor.setAccessible(true);
         var end=constructor.newInstance(ids.byId(0),ids.byId(1),ids.byId(2),ids.byId(3),ids.byId(4));
         Path dir=Path.of(args[1]);try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt"),StandardCharsets.UTF_8))) {

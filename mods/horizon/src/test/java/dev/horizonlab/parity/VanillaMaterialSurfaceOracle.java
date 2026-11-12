@@ -29,7 +29,7 @@ public final class VanillaMaterialSurfaceOracle {
     private static void fixture(JsonObject f,PrintWriter out) throws Exception {
         long seed=f.get("seed").getAsLong();boolean legacy=f.get("legacy").getAsBoolean();
         RandomSource direct=legacy?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
-        if(f.get("child").getAsBoolean())direct=direct.forkPositional().fromHashOf(Identifier.parse("minecraft:clay_bands"));
+        if(f.get("child").getAsBoolean())direct=direct.forkPositional().fromHashOf(ResourceLocation.parse("minecraft:clay_bands"));
         direct.consumeCount(f.get("consume").getAsInt());
         var generate=MaterialSystem.class.getDeclaredMethod("generateBands",RandomSource.class);generate.setAccessible(true);
         var bands=(BlockState[])generate.invoke(null,direct);out.println("bands "+bands.length);
@@ -66,7 +66,7 @@ public final class VanillaMaterialSurfaceOracle {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
         Path dir=Path.of(args[1]);noises=new MappedRegistry<>(Registries.NOISE,Lifecycle.stable());
         var definitions=JsonParser.parseString(Files.readString(dir.resolve("noises.json"))).getAsJsonObject();
-        for(var e:definitions.entrySet())noises.register(ResourceKey.create(Registries.NOISE,Identifier.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:definitions.entrySet())noises.register(ResourceKey.create(Registries.NOISE,ResourceLocation.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         noises.freeze();
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt"),StandardCharsets.UTF_8))) {
             for(String line:Files.readAllLines(dir.resolve("inputs.txt")))fixture(JsonParser.parseString(line).getAsJsonObject(),out);

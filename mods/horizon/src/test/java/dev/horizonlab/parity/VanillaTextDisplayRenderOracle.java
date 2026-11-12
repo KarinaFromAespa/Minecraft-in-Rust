@@ -30,7 +30,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.*;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
 import net.minecraft.network.syncher.EntityDataAccessor;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.RandomSource;
@@ -84,7 +84,7 @@ public final class VanillaTextDisplayRenderOracle {
     static Font font(ResourceManager resources) throws Exception {
         List<GlyphProvider> providers = new ArrayList<>();
         for (String include : new String[] {"space", "default"}) {
-            var id = Identifier.withDefaultNamespace("font/include/" + include + ".json");
+            var id = ResourceLocation.withDefaultNamespace("font/include/" + include + ".json");
             try (var reader = new InputStreamReader(resources.open(id), StandardCharsets.UTF_8)) {
                 for (var element : JsonParser.parseReader(reader).getAsJsonObject().getAsJsonArray("providers")) {
                     var conditional = GlyphProviderDefinition.Conditional.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
@@ -169,7 +169,7 @@ public final class VanillaTextDisplayRenderOracle {
         Method fresh = Display.TextDisplay.class.getDeclaredMethod("createFreshTextRenderState");
         fresh.setAccessible(true);
         var level = (Level) allocate(Level.class);
-        var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:text_display"));
+        var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse("minecraft:text_display"));
         String[][] keys = {{"text", "DATA_TEXT_ID"}, {"line_width", "DATA_LINE_WIDTH_ID"},
             {"background", "DATA_BACKGROUND_COLOR_ID"}, {"opacity", "DATA_TEXT_OPACITY_ID"}, {"flags", "DATA_STYLE_FLAGS_ID"}};
         var out = new ArrayList<String>();

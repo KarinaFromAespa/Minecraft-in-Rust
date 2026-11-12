@@ -43,9 +43,6 @@ import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
-import net.minecraft.server.permissions.LevelBasedPermissionSet;
-import net.minecraft.server.permissions.PermissionLevel;
-import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.tags.TagLoader;
 import net.minecraft.world.flag.FeatureFlagSet;
@@ -76,13 +73,15 @@ public final class VanillaCommandParseOracle {
     static final class Src extends CommandSourceStack {
         final RegistryAccess access;
         final HolderLookup.Provider lookup;
-        Src(MinecraftServer server, PermissionSet perms, RegistryAccess access, HolderLookup.Provider lookup) {
-            this(server, null, perms, access, lookup);
+        Src(MinecraftServer server, int permissionLevel, RegistryAccess access, HolderLookup.Provider lookup) {
+            this(server, null, permissionLevel, access, lookup);
         }
-        Src(MinecraftServer server, net.minecraft.server.level.ServerLevel level, PermissionSet perms, RegistryAccess access, HolderLookup.Provider lookup) {
-            // 1.21.11's constructor takes the name and display name separately
-            // and an entity (null: this source is not an entity).
-            super(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, level, perms, "Player", Component.literal("Player"), server, null);
+        Src(MinecraftServer server, net.minecraft.server.level.ServerLevel level, int permissionLevel, RegistryAccess access, HolderLookup.Provider lookup) {
+            // 1.21.10 has no permissions package: the classic constructor
+            // takes the permission level as an int (0-4), the name and
+            // display name separately, and an entity (null: this source is
+            // not an entity).
+            super(CommandSource.NULL, Vec3.ZERO, Vec2.ZERO, level, permissionLevel, "Player", Component.literal("Player"), server, null);
             this.access = access;
             this.lookup = lookup;
         }
@@ -92,7 +91,7 @@ public final class VanillaCommandParseOracle {
         @Override public RegistryAccess registryAccess() { return access; }
         @Override public Set<ResourceKey<Level>> levels() { return Set.of(Level.OVERWORLD, Level.NETHER, Level.END); }
         @Override public FeatureFlagSet enabledFeatures() { return FeatureFlags.VANILLA_SET; }
-        // 1.21.11's suggestRegistryElements is declared on
+        // 1.21.10's suggestRegistryElements is declared on
         // CommandSourceStack with a Registry<?> key and no element filter
         // parameter; the lookup helper it delegates to takes only the
         // lookup, the suggestion type and the builder.
@@ -130,18 +129,21 @@ public final class VanillaCommandParseOracle {
         var layers = RegistryLayer.createRegistryAccess();
         var staticTags = TagLoader.loadTagsForExistingRegistries(resources, layers.getLayer(RegistryLayer.STATIC));
         var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLDGEN), staticTags);
-        // 1.21.11's RegistryDataLoader.load is the synchronous
+        // 1.21.10's RegistryDataLoader.load is the synchronous
         // three-argument form vanilla's own WorldLoader uses.
         RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES);
         var dims = RegistryDataLoader.load(resources, java.util.stream.Stream.concat(context.stream(), world.listRegistries()).toList(), RegistryDataLoader.DIMENSION_REGISTRIES);
         var worldLayers = layers.replaceFrom(RegistryLayer.WORLDGEN, world, dims);
         var loaded = ReloadableServerRegistries.reload(worldLayers, staticTags, resources, Runnable::run).join();
         // The data pack managers (advancements, functions, recipes) a running server holds.
+        // The int is the function compilation permission level:
+        // vanilla passes getFunctionCompilationLevel(), which a default
+        // dedicated server reads as 2 from server.properties.
         var managers = net.minecraft.server.ReloadableServerResources.loadResources(
             resources, worldLayers, staticTags, FeatureFlags.VANILLA_SET, Commands.CommandSelection.INTEGRATED,
-            LevelBasedPermissionSet.GAMEMASTER, Runnable::run, Runnable::run).join();
+            2, Runnable::run, Runnable::run).join();
         HolderLookup.Provider lookup = loaded.lookupWithUpdatedTags();
-        // No DataComponentInitializers in 1.21.11: item default components
+        // No DataComponentInitializers in 1.21.10: item default components
         // are fixed at registration during Bootstrap (see ParityData).
         staticTags.forEach(Registry.PendingTags::apply);
         RegistryAccess access = loaded.layers().compositeAccess();
@@ -163,11 +165,11 @@ public final class VanillaCommandParseOracle {
         }
         MinecraftServer server = (MinecraftServer) unsafe.allocateInstance(DedicatedServer.class);
         // The minimal state of a freshly created world that suggestion providers read:
-        // empty command storage, stopwatches, boss bars, the vanilla data pack
+        // empty command storage, boss bars, the vanilla data pack
         // (repository, advancements, functions, structure templates) and an
-        // overworld level. (1.21.11's MinecraftServer holds no random
-        // sequences, scheduled-events queue or clock manager fields; those
-        // live elsewhere or do not exist in this version.)
+        // overworld level. (1.21.10's MinecraftServer holds no stopwatches,
+        // random sequences, scheduled-events queue or clock manager fields;
+        // those live elsewhere or do not exist in this version.)
         put(server, MinecraftServer.class, "registries", loaded.layers());
         Class<?> reloadable = Class.forName("net.minecraft.server.MinecraftServer$ReloadableResources");
         var reloadableCtor = reloadable.getDeclaredConstructor(net.minecraft.server.packs.resources.CloseableResourceManager.class, net.minecraft.server.ReloadableServerResources.class);
@@ -176,7 +178,6 @@ public final class VanillaCommandParseOracle {
         put(server, MinecraftServer.class, "functionManager", new net.minecraft.server.ServerFunctionManager(server, managers.getFunctionLibrary()));
         put(server, MinecraftServer.class, "packRepository", repo);
         put(server, MinecraftServer.class, "commandStorage", new net.minecraft.world.level.storage.CommandStorage(null));
-        put(server, MinecraftServer.class, "stopwatches", net.minecraft.world.Stopwatches.TYPE.constructor().get());
         put(server, MinecraftServer.class, "customBossEvents", new net.minecraft.server.bossevents.CustomBossEvents());
         put(server, MinecraftServer.class, "structureTemplateManager", templateManager(lookup, resources));
         var level = (net.minecraft.server.level.ServerLevel) unsafe.allocateInstance(net.minecraft.server.level.ServerLevel.class);
@@ -195,8 +196,8 @@ public final class VanillaCommandParseOracle {
         Object holder = null;
         for (String tracked : TRACKED)
             scoreboard.getOrCreatePlayerScore(net.minecraft.world.scores.ScoreHolder.forNameOnly(tracked), scoreboard.getObjective("kills"));
-        PermissionSet perms = LevelBasedPermissionSet.forLevel(PermissionLevel.byId(Integer.parseInt(args[3])));
-        Src source = new Src(server, level, perms, access, lookup);
+        int permissionLevel = Integer.parseInt(args[3]);
+        Src source = new Src(server, level, permissionLevel, access, lookup);
 
         List<String> lines = Files.readAllLines(Path.of(args[2]), StandardCharsets.UTF_8);
         java.io.BufferedWriter sb = Files.newBufferedWriter(out.resolve("vanilla.jsonl"));
@@ -268,7 +269,7 @@ public final class VanillaCommandParseOracle {
     }
 
     static net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager templateManager(HolderLookup.Provider lookup, MultiPackResourceManager resources) throws Exception {
-        // 1.21.11 has no templatesystem.loader package and no template
+        // 1.21.10 has no templatesystem.loader package and no template
         // source type: StructureTemplateManager is constructed directly
         // from the resource manager, a level storage access (for the
         // generated-structures folder), the data fixer and the block
@@ -284,8 +285,9 @@ public final class VanillaCommandParseOracle {
     static void exportRegistries(Path out, RegistryAccess access, HolderLookup.Provider lookup, net.minecraft.server.packs.repository.PackRepository repo, MultiPackResourceManager resources, net.minecraft.server.ReloadableServerResources managers) throws Exception {
         JsonObject o = new JsonObject();
         Set<String> learnable = new TreeSet<>();
-        // In 1.21.11 recipes are not a registry lookup; they live in the RecipeManager.
-        managers.getRecipeManager().getRecipes().stream().filter(h -> !h.value().isSpecial()).forEach(h -> learnable.add(h.id().identifier().toString()));
+        // In 1.21.10 recipes are not a registry lookup; they live in the RecipeManager.
+        // ResourceKey has location() here, not 1.21.11's identifier().
+        managers.getRecipeManager().getRecipes().stream().filter(h -> !h.value().isSpecial()).forEach(h -> learnable.add(h.id().location().toString()));
         JsonArray learnableArr = new JsonArray();
         learnable.forEach(learnableArr::add);
         o.add("learnable_recipes", learnableArr);
@@ -306,14 +308,14 @@ public final class VanillaCommandParseOracle {
         o.add("block_entities", blockEntities);
         Set<String> persistent = new TreeSet<>();
         for (var entry : BuiltInRegistries.DATA_COMPONENT_TYPE.entrySet())
-            if (!entry.getValue().isTransient()) persistent.add(entry.getKey().identifier().toString());
+            if (!entry.getValue().isTransient()) persistent.add(entry.getKey().location().toString());
         JsonArray persistentArr = new JsonArray();
         persistent.forEach(persistentArr::add);
         o.add("persistent_components", persistentArr);
         JsonObject blockTagMembers = new JsonObject();
         lookup.lookupOrThrow(Registries.BLOCK).listTags().sorted(java.util.Comparator.comparing(t -> t.key().location().toString())).forEach(tag -> {
             JsonArray members = new JsonArray();
-            tag.forEach(holder -> members.add(holder.unwrapKey().orElseThrow().identifier().toString()));
+            tag.forEach(holder -> members.add(holder.unwrapKey().orElseThrow().location().toString()));
             blockTagMembers.add(tag.key().location().toString(), members);
         });
         o.add("block_tag_members", blockTagMembers);
@@ -327,9 +329,9 @@ public final class VanillaCommandParseOracle {
         repo.getAvailablePacks().stream().filter(p -> p.getRequestedFeatures().isSubsetOf(FeatureFlags.VANILLA_SET))
             .forEach(p -> enableable.add(p.getId()));
         o.add("datapacks_enableable", enableable);
-        // 1.21.11 has no world clocks and no command time markers: its
-        // timelines carry environment-attribute tracks only, and there is
-        // no ServerClockManager. The clock marker export is empty.
+        // 1.21.10 has no world clocks and no command time markers, and no
+        // timeline registry at all: there is no ServerClockManager. The
+        // clock marker and timelines exports are empty.
         o.add("clock_time_markers", new JsonObject());
         Set<String> templates = new TreeSet<>();
         templateManager(lookup, resources).listTemplates().forEach(id -> templates.add(id.toString()));
@@ -377,7 +379,7 @@ public final class VanillaCommandParseOracle {
         o.add("biomes", dynamic(access, Registries.BIOME));
         o.add("damage_types", dynamic(access, Registries.DAMAGE_TYPE));
         o.add("clocks", new JsonArray());
-        o.add("timelines", dynamic(access, Registries.TIMELINE));
+        o.add("timelines", new JsonArray());
         o.add("dimensions", arr("minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"));
         o.add("players", arr(PLAYERS));
         o.add("selected_entities", arr(SELECTED));
@@ -385,17 +387,17 @@ public final class VanillaCommandParseOracle {
         o.add("objectives", arr(OBJECTIVES));
         o.add("tracked", arr(TRACKED));
         JsonObject by = new JsonObject();
-        lookup.listRegistryKeys().sorted(java.util.Comparator.comparing(k -> k.identifier().toString())).forEach(key -> {
+        lookup.listRegistryKeys().sorted(java.util.Comparator.comparing(k -> k.location().toString())).forEach(key -> {
             var reg = lookup.lookupOrThrow(key);
             JsonObject entry = new JsonObject();
-            java.util.List<String> ids = reg.listElementIds().map(k -> k.identifier().toString()).sorted().toList();
+            java.util.List<String> ids = reg.listElementIds().map(k -> k.location().toString()).sorted().toList();
             JsonArray idArr = new JsonArray();
             ids.forEach(idArr::add);
             entry.add("ids", idArr);
             JsonArray tagArr = new JsonArray();
             reg.listTagIds().map(t -> t.location().toString()).sorted().forEach(tagArr::add);
             entry.add("tags", tagArr);
-            by.add(key.identifier().toString(), entry);
+            by.add(key.location().toString(), entry);
         });
         o.add("by_registry", by);
         Files.writeString(out.resolve("registries.json"), o.toString());

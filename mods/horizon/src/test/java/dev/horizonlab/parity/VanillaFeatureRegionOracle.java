@@ -52,12 +52,12 @@ public final class VanillaFeatureRegionOracle {
     private static void bindFluidTags(JsonObject resources) {
         var registry=BuiltInRegistries.FLUID;
         var loader=new TagLoader<Holder<Fluid>>((id,required)->registry.get(id).map(value->(Holder<Fluid>)value),"tags/fluid");
-        var definitions=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(Identifier.parse(item.getKey()),entries);
+            definitions.put(ResourceLocation.parse(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Fluid>,List<Holder<Fluid>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.FLUID,id),List.copyOf(values)));
@@ -70,7 +70,7 @@ public final class VanillaFeatureRegionOracle {
         catch(RuntimeException error){out.println("fluid error");}
         try {out.println("water "+world.isWaterAt(p));}catch(RuntimeException error){out.println("water error");}
         var bits=new StringBuilder();
-        for(var tag:tags){try{bits.append(world.getBlockState(p).is(TagKey.create(Registries.BLOCK,Identifier.parse(tag)))?'1':'0');}catch(RuntimeException error){bits.append('E');}}
+        for(var tag:tags){try{bits.append(world.getBlockState(p).is(TagKey.create(Registries.BLOCK,ResourceLocation.parse(tag)))?'1':'0');}catch(RuntimeException error){bits.append('E');}}
         out.println("tags "+bits);
     }
     private static void upgradeLifecycle(PalettedContainerFactory factory, PrintWriter out)throws ReflectiveOperationException {

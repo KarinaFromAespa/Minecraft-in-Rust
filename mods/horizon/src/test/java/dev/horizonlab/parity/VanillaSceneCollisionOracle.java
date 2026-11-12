@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.*;
@@ -32,7 +32,7 @@ public final class VanillaSceneCollisionOracle {
         return state.setValue(key,key.getValue(value).orElseThrow());
     }
     static BlockState state(String name) {
-        return BuiltInRegistries.BLOCK.getValue(Identifier.parse(name)).defaultBlockState();
+        return BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(name)).defaultBlockState();
     }
     static void put(Map<Long,Chunk> chunks,int x,int y,int z,BlockState state) {
         chunks.get(key(x>>4,z>>4)).write(new BlockPos(x,y,z),Block.getId(state));

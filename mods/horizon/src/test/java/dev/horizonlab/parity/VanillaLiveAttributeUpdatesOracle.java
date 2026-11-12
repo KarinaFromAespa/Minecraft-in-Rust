@@ -9,7 +9,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.*;
@@ -70,7 +70,7 @@ public final class VanillaLiveAttributeUpdatesOracle {
             var map = maps[op.get("target").getAsInt()];
             var key = key(op);
             String mode = op.get("mode").getAsString();
-            var modifier = new AttributeModifier(Identifier.parse(op.get("id").getAsString()), number(op.get("amount")), AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
+            var modifier = new AttributeModifier(ResourceLocation.parse(op.get("id").getAsString()), number(op.get("amount")), AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
             switch (mode) {
                 case "controls": controls(op.getAsJsonObject("changes")); return "ok";
                 case "ensure": return map.reference(map.attributes.getInstance(key));
@@ -148,7 +148,7 @@ public final class VanillaLiveAttributeUpdatesOracle {
             for (var line : (Iterable<String>)lines::iterator) {
                 var f = JsonParser.parseString(line).getAsJsonObject(); var d = new Data(); d.out = out;
                 d.actor = make(Actor.class); d.actor.d = d; d.level = make(EffectLevel.class); d.level.d = d;
-                var entity = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(f.get("entity").getAsString()));
+                var entity = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(f.get("entity").getAsString()));
                 for (int i = 0; i < 2; i++) {
                     var map = new VanillaLiveAttributesOracle.Data(); d.maps[i] = map;
                     map.attributes = new VanillaLiveAttributesOracle.Attrs(map, supplier(entity));

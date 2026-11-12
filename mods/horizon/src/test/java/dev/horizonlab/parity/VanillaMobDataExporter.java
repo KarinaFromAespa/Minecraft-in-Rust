@@ -12,7 +12,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagFile;
 import net.minecraft.tags.TagKey;
@@ -162,7 +162,7 @@ public final class VanillaMobDataExporter {
     /** Binds one registry's vanilla tags from the jar's data pack, as a server reload would. */
     private static <T> void bindTags(ZipFile jar, Registry<T> registry, ResourceKey<? extends Registry<T>> key, String folder) throws Exception {
         var loader = new TagLoader<Holder<T>>((id, required) -> registry.get(id).map(value -> (Holder<T>) value), "tags/" + folder);
-        var definitions = new HashMap<Identifier, List<TagLoader.EntryWithSource>>();
+        var definitions = new HashMap<ResourceLocation, List<TagLoader.EntryWithSource>>();
         var prefix = "data/minecraft/tags/" + folder + "/";
         var entries = jar.entries();
         while (entries.hasMoreElements()) {
@@ -173,7 +173,7 @@ public final class VanillaMobDataExporter {
             var file = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(text)).getOrThrow();
             var list = new ArrayList<TagLoader.EntryWithSource>();
             for (var e : file.entries()) list.add(new TagLoader.EntryWithSource(e, "vanilla"));
-            definitions.put(Identifier.parse("minecraft:" + name.substring(prefix.length(), name.length() - 5)), list);
+            definitions.put(ResourceLocation.parse("minecraft:" + name.substring(prefix.length(), name.length() - 5)), list);
         }
         var tags = new HashMap<TagKey<T>, List<Holder<T>>>();
         loader.build(definitions).forEach((id, values) -> tags.put(TagKey.create(key, id), List.copyOf(values)));

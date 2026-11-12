@@ -31,7 +31,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
 import com.mojang.serialization.JsonOps;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.world.item.DyeColor;
@@ -61,7 +61,7 @@ public final class VanillaBlockEntityRenderOracle {
     private static Object unsafe;
     private static Method allocate;
 
-    static String textureName(Identifier id) {
+    static String textureName(ResourceLocation id) {
         String path = id.getPath();
         if (path.startsWith("textures/")) path = path.substring(9);
         if (path.endsWith(".png")) path = path.substring(0, path.length() - 4);
@@ -69,7 +69,7 @@ public final class VanillaBlockEntityRenderOracle {
     }
 
     @SuppressWarnings("unchecked")
-    static Identifier renderTypeTexture(RenderType type) throws Exception {
+    static ResourceLocation renderTypeTexture(RenderType type) throws Exception {
         Field state = RenderType.class.getDeclaredField("state");
         state.setAccessible(true);
         Object setup = state.get(type);
@@ -80,7 +80,7 @@ public final class VanillaBlockEntityRenderOracle {
         if (binding == null) return null;
         Method location = binding.getClass().getDeclaredMethod("location");
         location.setAccessible(true);
-        return (Identifier) location.invoke(binding);
+        return (ResourceLocation) location.invoke(binding);
     }
 
     static JsonArray matrix(Matrix4f m) {
@@ -157,7 +157,7 @@ public final class VanillaBlockEntityRenderOracle {
                         if (uv instanceof TextureAtlasSprite sprite && SPRITES.containsKey(sprite))
                             texture = textureName(SPRITES.get(sprite).texture());
                         else {
-                            Identifier t = renderTypeTexture(renderType);
+                            ResourceLocation t = renderTypeTexture(renderType);
                             texture = t == null ? "?" : textureName(t);
                         }
                         submit.addProperty("texture", texture);
@@ -191,7 +191,7 @@ public final class VanillaBlockEntityRenderOracle {
                     case "submitCustomGeometry" -> {
                         var pose = (PoseStack) args[0];
                         var renderType = (RenderType) args[1];
-                        Identifier t = renderTypeTexture(renderType);
+                        ResourceLocation t = renderTypeTexture(renderType);
                         submit.addProperty("texture", t == null ? "?" : textureName(t));
                         submit.addProperty("renderType", renderType.toString().split("\\[")[0]);
                         List<float[]> verts = new ArrayList<>();
@@ -363,7 +363,7 @@ public final class VanillaBlockEntityRenderOracle {
             for (var e : s) {
                 var id = e.getAsString();
                 items.add(id.isEmpty() ? Optional.empty()
-                    : Optional.of(new ItemStackTemplate(BuiltInRegistries.ITEM.getValue(Identifier.parse(id)))));
+                    : Optional.of(new ItemStackTemplate(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(id)))));
             }
             field(DecoratedPotBlockEntity.class, "decorations").set(be, new PotDecorations(items.get(0), items.get(1), items.get(2), items.get(3)));
         } else if (be instanceof TheEndGatewayBlockEntity) {
@@ -397,7 +397,7 @@ public final class VanillaBlockEntityRenderOracle {
         var registry = ParityData.access.lookupOrThrow(Registries.BANNER_PATTERN);
         for (var e : list) {
             var p = e.getAsJsonArray();
-            var holder = registry.getOrThrow(ResourceKey.create(Registries.BANNER_PATTERN, Identifier.parse(p.get(0).getAsString())));
+            var holder = registry.getOrThrow(ResourceKey.create(Registries.BANNER_PATTERN, ResourceLocation.parse(p.get(0).getAsString())));
             builder.add(holder, dye(p.get(1).getAsString()));
         }
         return builder.build();

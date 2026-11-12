@@ -38,9 +38,9 @@ public final class VanillaBiomeSourceCodecOracle {
                 try { decoded=BiomeSource.CODEC.parse(ops,JsonParser.parseString(json)).result(); }catch(IllegalArgumentException|IllegalStateException error){decoded=Optional.empty();}
                 if(decoded.isEmpty()){out.println("codec error");continue;}
                 var source=decoded.get();out.println("codec "+normalized(BiomeSource.CODEC.encodeStart(ops,source).getOrThrow()));
-                var names=new TreeSet<String>();for(var biome:source.possibleBiomes())names.add(biome.unwrapKey().orElseThrow().identifier().toString());out.println("possible "+new Gson().toJson(names));
+                var names=new TreeSet<String>();for(var biome:source.possibleBiomes())names.add(biome.unwrapKey().orElseThrow().location().toString());out.println("possible "+new Gson().toJson(names));
                 var resolver=source.createResolver(climate);
-                for(var p:positions){var q=p.getAsJsonArray();try{out.println("biome "+resolver.getNoiseBiome(q.get(0).getAsInt(),q.get(1).getAsInt(),q.get(2).getAsInt()).unwrapKey().orElseThrow().identifier());}catch(ArithmeticException|IllegalStateException error){out.println("biome error");}}
+                for(var p:positions){var q=p.getAsJsonArray();try{out.println("biome "+resolver.getNoiseBiome(q.get(0).getAsInt(),q.get(1).getAsInt(),q.get(2).getAsInt()).unwrapKey().orElseThrow().location());}catch(ArithmeticException|IllegalStateException error){out.println("biome error");}}
             }
         }
     }

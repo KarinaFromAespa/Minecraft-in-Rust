@@ -12,7 +12,7 @@ import net.minecraft.client.sounds.MusicManager;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.Music;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -67,7 +67,7 @@ public final class VanillaMusicOracle {
     static Music music(String spec) {
         if (spec.equals("-")) return null;
         String[] p = spec.split(",");
-        return new Music(Holder.direct(SoundEvent.createVariableRangeEvent(Identifier.parse(p[0]))), Integer.parseInt(p[1]),
+        return new Music(Holder.direct(SoundEvent.createVariableRangeEvent(ResourceLocation.parse(p[0]))), Integer.parseInt(p[1]),
             Integer.parseInt(p[2]), p[3].equals("1"));
     }
 

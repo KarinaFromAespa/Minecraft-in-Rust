@@ -2,7 +2,7 @@
 //! `mod v1_21_10` (1.21.10 to 1.21.11). Only entity data changed. A bee's and a wolf's anger end went from an
 //! INT to a LONG, and a player's or mannequin's main arm from a BYTE (0 left, 1 right) to a HUMANOID_ARM.
 //! No packet changes layout: 1.21.10's packets are 1.21.11's but for `horse_screen_open`, which the id tables
-//! pair with `mount_screen_open`.
+//! pair with `horse_screen_open`.
 //!
 //! Entity data goes through [`super::step_1_21_11::entity_data`] first (it undoes 26.1's index shift), then
 //! this step. The serverbound `interact` is the 1.21.11 step's too (see [`super::step_1_21_11::serverbound`]).

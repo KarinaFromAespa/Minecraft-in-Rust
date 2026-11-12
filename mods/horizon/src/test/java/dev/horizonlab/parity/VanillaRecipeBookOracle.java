@@ -10,7 +10,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.*;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ServerboundRecipeBookChangeSettingsPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.ServerRecipeBook;
@@ -45,12 +45,12 @@ public final class VanillaRecipeBookOracle {
 
     static String ids(Collection<ResourceKey<Recipe<?>>> keys) {
         List<String> out = new ArrayList<>();
-        for (var k : keys) out.add(k.identifier().toString());
+        for (var k : keys) out.add(k.location().toString());
         return out.size() + ":" + Long.toHexString(fnv(out));
     }
 
     static ResourceKey<Recipe<?>> key(String id) {
-        return ResourceKey.create(Registries.RECIPE, Identifier.parse(id));
+        return ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(id));
     }
 
     static String compound(CompoundTag tag) {

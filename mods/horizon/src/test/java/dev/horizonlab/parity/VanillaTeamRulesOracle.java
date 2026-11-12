@@ -16,7 +16,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
@@ -120,7 +120,7 @@ public final class VanillaTeamRulesOracle {
 
     static final class Concrete extends Renderer {
         @Override
-        public Identifier getTextureLocation(final LivingEntityRenderState state) {
+        public ResourceLocation getTextureLocation(final LivingEntityRenderState state) {
             return null;
         }
 

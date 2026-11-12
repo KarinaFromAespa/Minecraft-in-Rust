@@ -18,7 +18,7 @@ import net.minecraft.client.tutorial.Tutorial;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.protocol.Packet;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -203,7 +203,7 @@ public final class VanillaFirstPersonOracle {
             return ItemStack.EMPTY;
         }
         var a = e.getAsJsonArray();
-        return new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(a.get(0).getAsString())), a.get(1).getAsInt());
+        return new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(a.get(0).getAsString())), a.get(1).getAsInt());
     }
 
     /** LivingEntity.collectEquipmentChanges for the main hand: the item's attribute modifiers. */
@@ -256,7 +256,7 @@ public final class VanillaFirstPersonOracle {
                 for (var e : c.getAsJsonArray("blocks")) {
                     var b = e.getAsJsonArray();
                     blocks.put(new BlockPos(b.get(0).getAsInt(), b.get(1).getAsInt(), b.get(2).getAsInt()),
-                        BuiltInRegistries.BLOCK.getValue(Identifier.parse(b.get(3).getAsString())).defaultBlockState());
+                        BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(b.get(3).getAsString())).defaultBlockState());
                 }
                 Minecraft mc = make(Minecraft.class);
                 Level0 level = make(Level0.class);

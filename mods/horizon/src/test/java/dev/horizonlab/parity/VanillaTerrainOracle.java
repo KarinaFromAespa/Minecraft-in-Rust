@@ -39,9 +39,9 @@ public final class VanillaTerrainOracle {
                 return Optional.empty();
             }
         });
-        for(var e:bundle.getAsJsonObject("noises").entrySet())noises.register(ResourceKey.create(Registries.NOISE,Identifier.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:bundle.getAsJsonObject("noises").entrySet())noises.register(ResourceKey.create(Registries.NOISE,ResourceLocation.parse(e.getKey())),NormalNoise.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         noises.freeze();
-        for(var e:bundle.getAsJsonObject("densities").entrySet())densities.register(ResourceKey.create(Registries.DENSITY_FUNCTION,Identifier.parse(e.getKey())),DensityFunctions.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var e:bundle.getAsJsonObject("densities").entrySet())densities.register(ResourceKey.create(Registries.DENSITY_FUNCTION,ResourceLocation.parse(e.getKey())),DensityFunctions.DIRECT_CODEC.parse(ops,JsonParser.parseString(e.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         densities.freeze();
         VanillaHeightmapOracle.bindTags(bundle.getAsJsonObject("tags"));
         biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);
@@ -65,7 +65,7 @@ public final class VanillaTerrainOracle {
         var router=NoiseRouter.CODEC.parse(ops,f.get("router")).getOrThrow();
         Optional<Aquifer.Config> config=f.get("aquifers").isJsonNull()?Optional.empty():Optional.of(Aquifer.Config.CODEC.parse(ops,f.get("aquifers")).getOrThrow());
         // Neither material rules nor biome properties are evaluated by doFill.
-        var rule=Holder.Reference.createStandAlone(new HolderOwner<MaterialRule>(){},ResourceKey.create(Registries.MATERIAL_RULE,Identifier.parse("horizon:unused")));
+        var rule=Holder.Reference.createStandAlone(new HolderOwner<MaterialRule>(){},ResourceKey.create(Registries.MATERIAL_RULE,ResourceLocation.parse("horizon:unused")));
         var settings=new NoiseGeneratorSettings(NoiseSettings.create(noiseMin,noiseHeight),block,fluid,router,rule,List.of(),sea,false,config,legacy,NoiseGeneratorSettings.DebugFunctions.EMPTY);
         var state=RandomState.create(noises,seed,legacy,block,sea,router);
         var generator=new NoiseBasedChunkGenerator(new FixedBiomeSource(biome),Holder.direct(settings));

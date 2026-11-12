@@ -23,7 +23,7 @@ public final class VanillaBiomeExport {
                 for(var parameter:new Climate.Parameter[]{point.temperature(),point.humidity(),point.continentalness(),point.erosion(),point.depth(),point.weirdness()}) {
                     var interval=new JsonArray();interval.add(parameter.min());interval.add(parameter.max());coordinates.add(interval);
                 }
-                entry.add("coordinates",coordinates);entry.addProperty("offset",point.offset());entry.addProperty("biome",value.getSecond().identifier().toString());entries.add(entry);
+                entry.add("coordinates",coordinates);entry.addProperty("offset",point.offset());entry.addProperty("biome",value.getSecond().location().toString());entries.add(entry);
             }
             result.addProperty(preset.getKey(),entries.toString());
         }

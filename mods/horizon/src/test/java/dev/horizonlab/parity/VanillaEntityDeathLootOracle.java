@@ -12,7 +12,7 @@ import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -106,9 +106,9 @@ public final class VanillaEntityDeathLootOracle {
         StringBuilder line = new StringBuilder(BuiltInRegistries.ITEM.getKey(stack.getItem()) + " " + stack.getCount());
         if (stack.getDamageValue() != 0) line.append(" damage=").append(stack.getDamageValue());
         var enchantments = stack.getOrDefault(DataComponents.ENCHANTMENTS, net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
-        for (var e : enchantments.entrySet()) line.append(" ench=").append(e.getKey().unwrapKey().get().identifier()).append(':').append(e.getIntValue());
+        for (var e : enchantments.entrySet()) line.append(" ench=").append(e.getKey().unwrapKey().get().location()).append(':').append(e.getIntValue());
         var potion = stack.get(DataComponents.POTION_CONTENTS);
-        if (potion != null && potion.potion().isPresent()) line.append(" potion=").append(potion.potion().get().unwrapKey().get().identifier());
+        if (potion != null && potion.potion().isPresent()) line.append(" potion=").append(potion.potion().get().unwrapKey().get().location());
         var ominous = stack.get(DataComponents.OMINOUS_BOTTLE_AMPLIFIER);
         if (ominous != null) line.append(" ominous=").append(ominous.value());
         return line.toString();
@@ -232,18 +232,18 @@ public final class VanillaEntityDeathLootOracle {
     static ItemStack item(HolderLookup.RegistryLookup<net.minecraft.world.item.enchantment.Enchantment> enchantments, String spec) {
         // id[;enchantment:level...]
         String[] parts = spec.split(";");
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(parts[0])));
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(parts[0])));
         for (int i = 1; i < parts.length; i++) {
             int colon = parts[i].lastIndexOf(':');
             String name = parts[i].substring(0, colon);
             if (!name.contains(":")) name = "minecraft:" + name;
-            stack.enchant(enchantments.getOrThrow(ResourceKey.create(Registries.ENCHANTMENT, Identifier.parse(name))), Integer.parseInt(parts[i].substring(colon + 1)));
+            stack.enchant(enchantments.getOrThrow(ResourceKey.create(Registries.ENCHANTMENT, ResourceLocation.parse(name))), Integer.parseInt(parts[i].substring(colon + 1)));
         }
         return stack;
     }
 
     static Entity create(Lvl level, String id) {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(id));
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(id));
         return type.create(level, EntitySpawnReason.LOAD);
     }
 
@@ -257,7 +257,7 @@ public final class VanillaEntityDeathLootOracle {
         if (c.containsKey("size")) victim.getClass().getMethod("setSize", int.class, boolean.class).invoke(victim, Integer.parseInt(c.get("size")), true);
         if (c.containsKey("color") && victim instanceof net.minecraft.world.entity.animal.sheep.Sheep sheep) sheep.setColor(DyeColor.byName(c.get("color"), DyeColor.WHITE));
         if (c.getOrDefault("sheared", "0").equals("1") && victim instanceof net.minecraft.world.entity.animal.sheep.Sheep sheep) sheep.setSheared(true);
-        if (c.containsKey("carried")) ((net.minecraft.world.entity.monster.Enderman) victim).setCarriedBlock(BuiltInRegistries.BLOCK.getValue(Identifier.parse(c.get("carried"))).defaultBlockState());
+        if (c.containsKey("carried")) ((net.minecraft.world.entity.monster.Enderman) victim).setCarriedBlock(BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(c.get("carried"))).defaultBlockState());
         if (c.getOrDefault("leader", "0").equals("1")) ((net.minecraft.world.entity.monster.PatrollingMonster) victim).setPatrolLeader(true);
         if (c.getOrDefault("captain", "0").equals("1"))
             victim.setItemSlot(EquipmentSlot.HEAD, net.minecraft.world.entity.raid.Raid.getOminousBannerInstance(access.lookupOrThrow(Registries.BANNER_PATTERN)));
@@ -288,7 +288,7 @@ public final class VanillaEntityDeathLootOracle {
             killer.setPos(2.5, 64.0, 0.5);
             if (c.containsKey("weapon")) killer.setItemSlot(EquipmentSlot.MAINHAND, item(enchantments, c.get("weapon")));
             if (c.containsKey("frog")) killer.setComponent(DataComponents.FROG_VARIANT,
-                access.lookupOrThrow(Registries.FROG_VARIANT).getOrThrow(ResourceKey.create(Registries.FROG_VARIANT, Identifier.parse(c.get("frog")))));
+                access.lookupOrThrow(Registries.FROG_VARIANT).getOrThrow(ResourceKey.create(Registries.FROG_VARIANT, ResourceLocation.parse(c.get("frog")))));
             if (c.getOrDefault("charged", "0").equals("1")) {
                 Field powered = net.minecraft.world.entity.monster.Creeper.class.getDeclaredField("DATA_IS_POWERED");
                 powered.setAccessible(true);

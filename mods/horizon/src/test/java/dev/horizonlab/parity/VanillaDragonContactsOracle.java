@@ -7,7 +7,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragon;
 import net.minecraft.world.entity.boss.enderdragon.EnderDragonPart;
@@ -27,11 +27,11 @@ public final class VanillaDragonContactsOracle {
             JsonArray rows = new JsonArray();
             String[] names = {"flying", "sitting", "two_wings", "team", "head", "hurt_dragon", "recent_victim"};
             for (String name : names) {
-                EnderDragon dragon = (EnderDragon) BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:ender_dragon")).create(level, EntitySpawnReason.COMMAND);
+                EnderDragon dragon = (EnderDragon) BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse("minecraft:ender_dragon")).create(level, EntitySpawnReason.COMMAND);
                 dragon.setPos(0, 0, 0);
                 ((EnderDragonPart) body.get(dragon)).setPos(0, 0, 0);
                 dragon.getPhaseManager().setPhase(name.equals("sitting") ? EnderDragonPhase.HOVERING : EnderDragonPhase.HOLDING_PATTERN);
-                Enderman mob = (Enderman) BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse("minecraft:enderman")).create(level, EntitySpawnReason.COMMAND);
+                Enderman mob = (Enderman) BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse("minecraft:enderman")).create(level, EntitySpawnReason.COMMAND);
                 mob.setPos(1, 0, 0);
                 mob.setNoAi(true);
                 mob.tickCount = 100;

@@ -1,6 +1,6 @@
-# A map for agents — Minecraft in Rust (1.21.11)
+# A map for agents — Minecraft in Rust (1.21.10)
 
-Minecraft: Java Edition 1.21.11 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
+Minecraft: Java Edition 1.21.10 rewritten in Rust (wgpu). Vanilla is the specification wherever it has the
 feature. Read [CONTRIBUTING.md](CONTRIBUTING.md) once; this page tells you where things are.
 Feature → files → harness for the most-changed areas: [docs/architecture.md](docs/architecture.md).
 

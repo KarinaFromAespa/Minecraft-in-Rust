@@ -40,7 +40,7 @@ public final class VanillaBlockEntityStorageOracle {
         Holder<Biome> biome=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},Biomes.PLAINS);var ids=new IdMapper<Holder<Biome>>();ids.add(biome);
         factory=new PalettedContainerFactory(Strategy.createForBlockStates(Block.BLOCK_STATE_REGISTRY),Blocks.AIR.defaultBlockState(),null,Strategy.createForBiomes(ids),biome,null);
         var registries=RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
-        var loot=ResourceKey.create(Registries.LOOT_TABLE,Identifier.parse("horizon:storage_probe"));
+        var loot=ResourceKey.create(Registries.LOOT_TABLE,ResourceLocation.parse("horizon:storage_probe"));
         ProtoChunk chunk=null;
         try(var input=Files.newBufferedReader(Path.of(args[0]));var out=new PrintWriter(Files.newBufferedWriter(Path.of(args[1])))){
             String line;int index=0;

@@ -20,7 +20,7 @@ public final class VanillaGenerationTickOracle {
  private final Map<Long,TickContainerAccess<Object>> chunks=new HashMap<>();
  private final PrintWriter out;private boolean fail;private List<SavedTick<Object>> snapshot=List.of();
  private final WorldGenTickAccess<Object> access;
- private VanillaGenerationTickOracle(PrintWriter out){this.out=out;access=new WorldGenTickAccess<>(p->{out.println("lookup "+p.getX()+" "+p.getY()+" "+p.getZ());if(fail)throw new Stop();return chunks.computeIfAbsent(ChunkPos.pack(p),key->new ProtoChunkTicks<>());});}
+ private VanillaGenerationTickOracle(PrintWriter out){this.out=out;access=new WorldGenTickAccess<>(p->{out.println("lookup "+p.getX()+" "+p.getY()+" "+p.getZ());if(fail)throw new Stop();return chunks.computeIfAbsent(ChunkPos.asLong(p),key->new ProtoChunkTicks<>());});}
  private static int type(Object value){for(int i=0;i<TYPES.length;i++)if(TYPES[i]==value)return i;throw new AssertionError();}
  private void emit(List<SavedTick<Object>> ticks){out.println("saved "+ticks.size());for(var t:ticks)out.println("value "+type(t.type())+" "+t.pos().getX()+" "+t.pos().getY()+" "+t.pos().getZ()+" "+t.delay()+" "+t.priority().getValue());}
  @SuppressWarnings("unchecked") private void command(String line,int index){var in=new Input(line);String op=in.words[0];out.println("command "+index+" "+op);

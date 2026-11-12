@@ -10,7 +10,7 @@ import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.*;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.attribute.EnvironmentAttributeReader;
@@ -31,14 +31,14 @@ public final class VanillaLevelShapeOracle {
     static void bindFluidTags(Path dir) throws Exception {
         var registry = BuiltInRegistries.FLUID;
         var loader = new TagLoader<Holder<Fluid>>((id, required) -> registry.get(id).map(value -> (Holder<Fluid>) value), "tags/fluid");
-        var definitions = new HashMap<Identifier, List<TagLoader.EntryWithSource>>();
+        var definitions = new HashMap<ResourceLocation, List<TagLoader.EntryWithSource>>();
         try (var files = Files.list(dir)) {
             for (var file : (Iterable<Path>) files::iterator) {
                 var name = file.getFileName().toString().replace(".json", "");
                 var parsed = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(Files.readString(file))).getOrThrow();
                 var entries = new ArrayList<TagLoader.EntryWithSource>();
                 for (var entry : parsed.entries()) entries.add(new TagLoader.EntryWithSource(entry, "vanilla"));
-                definitions.put(Identifier.parse("minecraft:" + name), entries);
+                definitions.put(ResourceLocation.parse("minecraft:" + name), entries);
             }
         }
         var tags = new HashMap<TagKey<Fluid>, List<Holder<Fluid>>>();

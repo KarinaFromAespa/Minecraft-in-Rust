@@ -60,7 +60,7 @@ public final class VanillaRecipeOracle {
                     int at = (positioned.top() + i / input.width()) * n + positioned.left() + i % input.width();
                     joiner.add(at + "=" + ParityData.canon(rest.get(i)));
                 }
-                return found.get().id().identifier().getPath() + "\t" + ParityData.canon(result) + "\t" + joiner;
+                return found.get().unwrapKey().orElseThrow().location().getPath() + "\t" + ParityData.canon(result) + "\t" + joiner;
             }
             case "cook": {
                 RecipeType<? extends AbstractCookingRecipe> type = switch (f[1]) {
@@ -76,7 +76,7 @@ public final class VanillaRecipeOracle {
                 StringJoiner joiner = new StringJoiner(";");
                 for (var entry : recipes.getSynchronizedStonecutterRecipes().selectByInput(stack).entries()) {
                     var holder = entry.recipe().recipe().get();
-                    joiner.add(holder.id().identifier().getPath() + "=" + ParityData.canon(holder.value().assemble(new SingleRecipeInput(stack))));
+                    joiner.add(holder.unwrapKey().orElseThrow().location().getPath() + "=" + ParityData.canon(holder.value().assemble(new SingleRecipeInput(stack))));
                 }
                 return joiner.toString();
             }
@@ -107,7 +107,7 @@ public final class VanillaRecipeOracle {
         var found = recipes.getRecipeFor(type, input, null);
         if (found.isEmpty()) return "none";
         var recipe = found.get().value();
-        return found.get().id().identifier().getPath() + "\t" + ParityData.canon(recipe.assemble(input)) + "\t" + recipe.experience() + "\t" + recipe.cookingTime();
+        return found.get().unwrapKey().orElseThrow().location().getPath() + "\t" + ParityData.canon(recipe.assemble(input)) + "\t" + recipe.experience() + "\t" + recipe.cookingTime();
     }
 
     static String items(Ingredient ingredient) {
@@ -123,7 +123,7 @@ public final class VanillaRecipeOracle {
             for (var holder : recipes.getRecipes()) {
                 var recipe = holder.value();
                 if (recipe instanceof SmithingRecipe smithing) {
-                    out.println("{\"id\":\"" + holder.id().identifier().getPath() + "\",\"kind\":\"" + recipe.getClass().getSimpleName()
+                    out.println("{\"id\":\"" + holder.unwrapKey().orElseThrow().location().getPath() + "\",\"kind\":\"" + recipe.getClass().getSimpleName()
                             + "\",\"template\":" + items(smithing.templateIngredient().orElse(null)) + ",\"base\":" + items(smithing.baseIngredient())
                             + ",\"addition\":" + items(smithing.additionIngredient().orElse(null)) + "}");
                     continue;
@@ -131,7 +131,7 @@ public final class VanillaRecipeOracle {
                 if (recipe.getType() != RecipeType.CRAFTING) continue;
                 var info = recipe.placementInfo();
                 StringBuilder row = new StringBuilder();
-                row.append("{\"id\":\"").append(holder.id().identifier().getPath()).append("\",\"kind\":\"").append(recipe.getClass().getSimpleName()).append("\",\"slots\":[");
+                row.append("{\"id\":\"").append(holder.unwrapKey().orElseThrow().location().getPath()).append("\",\"kind\":\"").append(recipe.getClass().getSimpleName()).append("\",\"slots\":[");
                 for (int i = 0; i < info.slotsToIngredientIndex().size(); i++) row.append(i > 0 ? "," : "").append(info.slotsToIngredientIndex().getInt(i));
                 row.append("],\"ingredients\":[");
                 boolean firstIngredient = true;

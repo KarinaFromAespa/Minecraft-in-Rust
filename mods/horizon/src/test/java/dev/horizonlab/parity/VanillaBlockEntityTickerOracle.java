@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.debug.LevelDebugSynchronizers;
 import net.minecraft.world.TickRateManager;
 import net.minecraft.world.level.ChunkPos;
@@ -108,7 +108,7 @@ public final class VanillaBlockEntityTickerOracle {
     }
 
     static Chunk chunk(int cx, int cz) throws Exception {
-        Chunk c = chunks.get(ChunkPos.pack(cx, cz));
+        Chunk c = chunks.get(ChunkPos.asLong(cx, cz));
         if (c != null) return c;
         c = alloc(Chunk.class);
         set(ChunkAccess.class, c, "blockEntities", new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<BlockPos, BlockEntity>());
@@ -116,7 +116,7 @@ public final class VanillaBlockEntityTickerOracle {
         set(ChunkAccess.class, c, "chunkPos", new ChunkPos(cx, cz));
         set(LevelChunk.class, c, "level", world);
         set(LevelChunk.class, c, "tickersInLevel", new HashMap<>());
-        chunks.put(ChunkPos.pack(cx, cz), c);
+        chunks.put(ChunkPos.asLong(cx, cz), c);
         return c;
     }
 
@@ -130,7 +130,7 @@ public final class VanillaBlockEntityTickerOracle {
     /** The block's state: a jukebox's has_record from the name (`jukebox_record`). */
     static BlockState state(String name) {
         boolean record = name.equals("jukebox_record");
-        Block block = BuiltInRegistries.BLOCK.getValue(Identifier.withDefaultNamespace(record ? "jukebox" : name));
+        Block block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.withDefaultNamespace(record ? "jukebox" : name));
         BlockState s = block.defaultBlockState();
         return block instanceof JukeboxBlock ? s.setValue(JukeboxBlock.HAS_RECORD, record) : s;
     }
@@ -195,7 +195,7 @@ public final class VanillaBlockEntityTickerOracle {
                     update.invoke(at(p), be);
                 }
                 case "unload" -> {
-                    Chunk c = chunks.remove(ChunkPos.pack(Integer.parseInt(w[1]), Integer.parseInt(w[2])));
+                    Chunk c = chunks.remove(ChunkPos.asLong(Integer.parseInt(w[1]), Integer.parseInt(w[2])));
                     if (c != null) c.clearAllBlockEntities();
                 }
                 case "tick" -> {

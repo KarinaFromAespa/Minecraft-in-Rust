@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.Mth;
 import net.minecraft.world.attribute.EnvironmentAttribute;
@@ -56,7 +56,7 @@ public final class VanillaEnvironmentSystemOracle {
             // and don't affect the others: they are left out.
             var ported = new JsonObject();
             for (var attribute : entry.getValue().getAsJsonObject().entrySet()) {
-                var type = BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(Identifier.parse(attribute.getKey())).type();
+                var type = BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(ResourceLocation.parse(attribute.getKey())).type();
                 if (PORTED.contains(BuiltInRegistries.ATTRIBUTE_TYPE.getKey(type).toString())) {
                     ported.add(attribute.getKey(), attribute.getValue());
                 }
@@ -105,7 +105,7 @@ public final class VanillaEnvironmentSystemOracle {
                 Optional<Integer> period = timeline.has("period_ticks")
                     ? Optional.of(timeline.get("period_ticks").getAsInt()) : Optional.empty();
                 for (var entry : timeline.getAsJsonObject("tracks").entrySet()) {
-                    var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(Identifier.parse(entry.getKey()));
+                    var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(ResourceLocation.parse(entry.getKey()));
                     if (!PORTED.contains(BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString())) {
                         continue;
                     }

@@ -19,7 +19,7 @@ import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.gui.screens.recipebook.SearchRecipeBookCategory;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.flag.FeatureFlags;
@@ -72,7 +72,7 @@ public final class VanillaRecipeBookViewOracle {
 
     static List<RecipeDisplayEntry> displays(RecipeManager recipes, String id) {
         List<RecipeDisplayEntry> out = new ArrayList<>();
-        recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, Identifier.parse(id)), out::add);
+        recipes.listDisplaysForRecipe(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(id)), out::add);
         return out;
     }
 

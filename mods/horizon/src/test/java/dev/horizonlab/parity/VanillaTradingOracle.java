@@ -33,7 +33,7 @@ import net.minecraft.nbt.*;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.PacketFlow;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
@@ -378,9 +378,9 @@ public final class VanillaTradingOracle {
                 String[] p = spec.split(":");
                 Villager villager = net.minecraft.world.entity.EntityTypes.VILLAGER.create(level, EntitySpawnReason.COMMAND);
                 Holder<VillagerType> type = BuiltInRegistries.VILLAGER_TYPE.getOrThrow(
-                    ResourceKey.create(Registries.VILLAGER_TYPE, Identifier.withDefaultNamespace(p[1])));
+                    ResourceKey.create(Registries.VILLAGER_TYPE, ResourceLocation.withDefaultNamespace(p[1])));
                 Holder<VillagerProfession> prof = BuiltInRegistries.VILLAGER_PROFESSION.getOrThrow(
-                    ResourceKey.create(Registries.VILLAGER_PROFESSION, Identifier.withDefaultNamespace(p[0])));
+                    ResourceKey.create(Registries.VILLAGER_PROFESSION, ResourceLocation.withDefaultNamespace(p[0])));
                 villager.setVillagerData(new VillagerData(type, prof, 1));
                 v = villager;
             }
@@ -429,9 +429,9 @@ public final class VanillaTradingOracle {
                     level.registryAccess().lookupOrThrow(Registries.TRADE_SET).listElements()
                         .map(h -> h.value().randomSequence())
                         .flatMap(Optional::stream)
-                        .map(Identifier::toString)
+                        .map(ResourceLocation::toString)
                         .sorted()
-                        .forEach(id -> sb.append(' ').append(this.getRandomSequence(Identifier.parse(id)).nextInt()));
+                        .forEach(id -> sb.append(' ').append(this.getRandomSequence(ResourceLocation.parse(id)).nextInt()));
                     out.println(sb);
                 }
                 case "price" -> {
@@ -533,7 +533,7 @@ public final class VanillaTradingOracle {
                     String[] f = s.split(":", 2);
                     String[] ic = f[1].split("\\*");
                     p.getInventory().setItem(Integer.parseInt(f[0]), new ItemStack(
-                        BuiltInRegistries.ITEM.getValue(Identifier.parse(ic[0].contains(":") ? ic[0] : "minecraft:" + ic[0])), Integer.parseInt(ic[1])));
+                        BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(ic[0].contains(":") ? ic[0] : "minecraft:" + ic[0])), Integer.parseInt(ic[1])));
                 }
             }
             p.getInventory().setSelectedSlot(Integer.parseInt(kv.getOrDefault("hand", "8")));

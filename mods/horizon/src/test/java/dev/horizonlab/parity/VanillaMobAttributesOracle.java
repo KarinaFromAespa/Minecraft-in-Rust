@@ -74,7 +74,7 @@ public final class VanillaMobAttributesOracle {
                     sb.append("\tattrs");
                     for (var a : BuiltInRegistries.ATTRIBUTE.asHolderIdMap())
                         if (le.getAttributes().hasAttribute(a))
-                            sb.append(' ').append(a.unwrapKey().orElseThrow().identifier().getPath()).append('=').append(f(le.getAttributeValue(a)));
+                            sb.append(' ').append(a.unwrapKey().orElseThrow().location().getPath()).append('=').append(f(le.getAttributeValue(a)));
                     if (e instanceof AgeableMob am) {
                         try {
                             am.setBaby(true);

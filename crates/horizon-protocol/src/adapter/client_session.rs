@@ -846,12 +846,12 @@ mod tests {
         s
     }
 
-    // Expected ids are read off the 26.2 and 1.21.11 packets and registries reports by hand, not from the
+    // Expected ids are read off the 26.2 and 1.21.10 packets and registries reports by hand, not from the
     // generated tables.
 
     #[test]
     fn an_effect_an_older_client_lacks_is_not_sent() {
-        let s = ClientSession::new(ServerVersion::V1_21_1);
+        let s = ClientSession::new(ServerVersion::V1_20_2);
         s.writing.store(to_u8(State::Play), Ordering::Release);
         let effect = |effect| {
             play::Clientbound::UpdateMobEffect(play::UpdateMobEffect {
@@ -863,11 +863,11 @@ mod tests {
             })
             .encode()
         };
-        // Speed (0) is known to 1.21.1; pinned 39 was added after it (1.21.1 has 39 effects).
+        // Speed (0) is known to 1.20.2; pinned 38 (infested) was added after it (1.20.2 has 33 effects).
         assert!(s.clientbound(&effect(0)).unwrap().is_some());
-        assert_eq!(s.clientbound(&effect(39)).unwrap(), None);
+        assert_eq!(s.clientbound(&effect(38)).unwrap(), None);
         let removed =
-            play::Clientbound::RemoveMobEffect(play::RemoveMobEffect { id: 1, effect: 39 })
+            play::Clientbound::RemoveMobEffect(play::RemoveMobEffect { id: 1, effect: 38 })
                 .encode();
         assert_eq!(s.clientbound(&removed).unwrap(), None);
     }
@@ -1134,10 +1134,10 @@ mod tests {
             })
             .encode()
         };
-        // 26.2 has every entity type 1.21.11 has (it only adds the sulfur
+        // 26.2 has every entity type 1.21.10 has (it only adds the sulfur
         // cube and the poplar boats), so nothing is dropped for this client:
-        // birch_boat is 12 in both, and the tadpole is renumbered (130 in
-        // 1.21.11, 131 in 26.2).
+        // birch_boat is 12 in both, and the tadpole is renumbered (127 in
+        // 1.21.10, 131 in 26.2).
         let sent = s.clientbound(&add(12)).unwrap().unwrap();
         let mut r = Reader::new(&sent);
         // add_entity: 1 in both.
@@ -1146,7 +1146,7 @@ mod tests {
             play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 12),
             other => panic!("{other:?}"),
         }
-        let sent = s.clientbound(&add(130)).unwrap().unwrap();
+        let sent = s.clientbound(&add(127)).unwrap().unwrap();
         let mut r = Reader::new(&sent);
         assert_eq!(r.varint().unwrap(), 1);
         match play::Clientbound::decode(1, r.rest()).unwrap() {

@@ -27,7 +27,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.gametest.framework.GameTestServer;
 import net.minecraft.gizmos.GizmoCollector;
 import net.minecraft.gizmos.Gizmos;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.Services;
@@ -296,7 +296,7 @@ public final class VanillaRedstoneCatalogOracle {
                 if (!(level.getBlockEntity(at(a)) instanceof Container container)) continue;
                 for (var s : a.get(3).getAsJsonArray()) {
                     JsonArray slot = s.getAsJsonArray();
-                    var item = BuiltInRegistries.ITEM.getOptional(Identifier.parse(slot.get(1).getAsString())).orElse(Items.AIR);
+                    var item = BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse(slot.get(1).getAsString())).orElse(Items.AIR);
                     int index = slot.get(0).getAsInt();
                     if (index >= 0 && index < container.getContainerSize()) container.setItem(index, new ItemStack(item, slot.get(2).getAsInt()));
                 }

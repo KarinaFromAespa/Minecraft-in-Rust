@@ -640,18 +640,6 @@ mod tests {
                 -982207288,
             ),
             (
-                "attack_range",
-                k::ATTACK_RANGE,
-                C::AttackRange([0.0, 4.0, 0.0, 6.0, 0.3, 1.0]),
-                -287603881,
-            ),
-            (
-                "attack_range_default",
-                k::ATTACK_RANGE,
-                C::AttackRange([0.0, 3.0, 0.0, 5.0, 0.3, 1.0]),
-                -982207288,
-            ),
-            (
                 "firework_explosion",
                 k::FIREWORK_EXPLOSION,
                 C::FireworkExplosion(fe.clone()),
@@ -808,9 +796,9 @@ mod tests {
             C::Enchantments(vec![(9, 1)]).hash(k::ENCHANTMENTS, &Table),
             None
         );
-        // damage_type hashes through its registry name, which the table
+        // villager/variant hashes through its registry name, which the table
         // cannot give, so it hashes to nothing either.
-        assert_eq!(C::Raw(vec![1]).hash(8, &Table), None);
+        assert_eq!(C::Raw(vec![1]).hash(72, &Table), None);
         assert_eq!(C::Unit.hash(k::CREATIVE_SLOT_LOCK, &Table), None);
         assert_eq!(C::Int(0).hash(k::MAP_POST_PROCESSING, &Table), None);
         // Custom effects cut short.
@@ -826,7 +814,7 @@ mod tests {
     fn a_hashed_stack_carries_each_hashable_component_and_the_removed_ones() {
         let mut stack = Stack::new(1, 2);
         stack.added.push((k::DAMAGE, C::Int(5)));
-        stack.added.push((8, C::Raw(vec![0])));
+        stack.added.push((72, C::Raw(vec![0]))); // villager/variant: unhashable here
         stack.removed.push(k::RARITY);
         assert_eq!(
             Hashed::create(&stack, &Table),

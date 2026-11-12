@@ -12,7 +12,7 @@ import net.minecraft.advancements.predicates.entity.EntityPredicate;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
@@ -94,14 +94,14 @@ public final class VanillaEntityComponentsOracle {
                 var c = JsonParser.parseString(line).getAsJsonObject();
                 out.println("== " + n++);
                 String type = c.get("type").getAsString();
-                Entity entity = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(type)).create(level, EntitySpawnReason.LOAD);
+                Entity entity = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(type)).create(level, EntitySpawnReason.LOAD);
                 if (c.has("variant")) {
                     // The species' variant component and registry: minecraft:<species>/variant
                     // holds an entry of minecraft:<species>_variant.
-                    String species = Identifier.parse(type).getPath();
-                    var component = (DataComponentType) BuiltInRegistries.DATA_COMPONENT_TYPE.getValue(Identifier.parse("minecraft:" + species + "/variant"));
-                    ResourceKey<Registry<Object>> registry = ResourceKey.createRegistryKey(Identifier.parse("minecraft:" + species + "_variant"));
-                    var holder = access.lookupOrThrow(registry).getOrThrow(ResourceKey.create(registry, Identifier.parse(c.get("variant").getAsString())));
+                    String species = ResourceLocation.parse(type).getPath();
+                    var component = (DataComponentType) BuiltInRegistries.DATA_COMPONENT_TYPE.getValue(ResourceLocation.parse("minecraft:" + species + "/variant"));
+                    ResourceKey<Registry<Object>> registry = ResourceKey.createRegistryKey(ResourceLocation.parse("minecraft:" + species + "_variant"));
+                    var holder = access.lookupOrThrow(registry).getOrThrow(ResourceKey.create(registry, ResourceLocation.parse(c.get("variant").getAsString())));
                     entity.setComponent(component, holder);
                 }
                 entity.setPos(0.5, 64.0, 0.5);

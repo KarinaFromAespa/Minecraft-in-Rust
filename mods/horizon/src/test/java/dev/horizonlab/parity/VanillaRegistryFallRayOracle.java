@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.*;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.level.*;
@@ -50,12 +50,12 @@ public final class VanillaRegistryFallRayOracle {
     private static void bindFluidTags(JsonObject resources) {
         var registry=BuiltInRegistries.FLUID;
         var loader=new TagLoader<Holder<Fluid>>((id,required)->registry.get(id).map(value->(Holder<Fluid>)value),"tags/fluid");
-        var definitions=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(Identifier.parse(item.getKey()),entries);
+            definitions.put(ResourceLocation.parse(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Fluid>,List<Holder<Fluid>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.FLUID,id),List.copyOf(values)));

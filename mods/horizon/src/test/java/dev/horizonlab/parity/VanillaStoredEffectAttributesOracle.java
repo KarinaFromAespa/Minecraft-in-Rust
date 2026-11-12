@@ -5,7 +5,7 @@ import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.entity.ai.attributes.*;
 
@@ -26,7 +26,7 @@ public final class VanillaStoredEffectAttributesOracle {
         @Override public boolean isClientSyncable() { d.event("syncable "+id); return d.syncable[id]; }
     }
     static final class Effect extends MobEffect { Effect() { super(MobEffectCategory.BENEFICIAL,0); } }
-    record Template(Identifier id,double amount,AttributeModifier.Operation operation) {}
+    record Template(ResourceLocation id,double amount,AttributeModifier.Operation operation) {}
     static final class Attrs extends AttributeMap {
         Data d;
         Attrs(Data d,AttributeSupplier supplier) { super(supplier); this.d=d; }
@@ -91,7 +91,7 @@ public final class VanillaStoredEffectAttributesOracle {
                 var prototypes=new HashMap<Holder<Attribute>,AttributeInstance>();
                 for(int i=0;i<n;i++){var base=f.getAsJsonArray("bases").get(i);if(!base.isJsonNull()){var a=new AttributeInstance(d.keys.get(i),ignored->{});a.setBaseValue(number(base));prototypes.put(d.keys.get(i),a);}}
                 d.attributes=new Attrs(d,supplierConstructor.newInstance(prototypes));d.map=(Map<Holder<Attribute>,AttributeInstance>)mapField.get(d.attributes);
-                for(var tv:f.getAsJsonArray("templates")){var t=tv.getAsJsonObject();d.templates.add(new Template(Identifier.parse(t.get("id").getAsString()),number(t.get("amount")),AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));}
+                for(var tv:f.getAsJsonArray("templates")){var t=tv.getAsJsonObject();d.templates.add(new Template(ResourceLocation.parse(t.get("id").getAsString()),number(t.get("amount")),AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));}
                 for(var ov:f.getAsJsonArray("definitions")){var op=ov.getAsJsonObject();var t=d.templates.get(op.get("template").getAsInt());d.effect.addAttributeModifier(d.key(op),t.id(),t.amount(),t.operation());}
                 for(var ov:f.getAsJsonArray("ops")){d.op=ov.getAsJsonObject();d.calls=0;d.changed=false;String result="ok";
                     try{switch(d.op.get("op").getAsString()){

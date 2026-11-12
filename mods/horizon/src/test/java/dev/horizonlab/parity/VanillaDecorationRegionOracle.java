@@ -39,7 +39,7 @@ public final class VanillaDecorationRegionOracle {
                 var f=JsonParser.parseString(line).getAsJsonObject();int min=f.get("min").getAsInt(),height=f.get("height").getAsInt();
                 int biomeCount=f.getAsJsonArray("biomes").size(),featureCount=f.getAsJsonArray("placements").size();
                 var holders=new ArrayList<Holder<Biome>>();var ids=new IdMapper<Holder<Biome>>();
-                for(int i=0;i<=biomeCount;i++){var holder=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:b"+i)));holders.add(holder);ids.add(holder);}
+                for(int i=0;i<=biomeCount;i++){var holder=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,ResourceLocation.parse("horizon:b"+i)));holders.add(holder);ids.add(holder);}
                 var biomeLookup=new HolderGetter<Biome>() {
                     public Optional<Holder.Reference<Biome>> get(ResourceKey<Biome> key) {
                         return holders.stream().filter(h->h.unwrapKey().orElseThrow().equals(key)).map(h->(Holder.Reference<Biome>)h).findFirst();
@@ -60,7 +60,7 @@ public final class VanillaDecorationRegionOracle {
                     var leaf=Feature.DIRECT_CODEC.parse(JsonOps.INSTANCE,f.getAsJsonArray("features").get(i)).getOrThrow();
                     var modifiers=new ArrayList<PlacementModifier>();for(var value:f.getAsJsonArray("placements").get(i).getAsJsonArray())modifiers.add(PlacementModifier.CODEC.parse(ops,value).getOrThrow());
                     var root=new PlacedFeature(Holder.direct(leaf),modifiers);features.add(root);
-                    placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse("horizon:f"+i)),root,RegistrationInfo.BUILT_IN);
+                    placed.register(ResourceKey.create(Registries.PLACED_FEATURE,ResourceLocation.parse("horizon:f"+i)),root,RegistrationInfo.BUILT_IN);
                 }
                 placed.freeze();
                 var settings=new ArrayList<BiomeGenerationSettings>();

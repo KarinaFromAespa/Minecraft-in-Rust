@@ -576,9 +576,9 @@ move_entity!(MoveEntityPos, pos: true, rot: false);
 move_entity!(MoveEntityPosRot, pos: true, rot: true);
 move_entity!(MoveEntityRot, pos: false, rot: true);
 packet!(OpenScreen { container: i32 => VarInt, menu: i32 => VarInt, title: Tag => Nbt });
-// ClientboundMountScreenOpenPacket: a horse's or llama's inventory, with its
+// ClientboundHorseScreenOpenPacket: a horse's or llama's inventory, with its
 // chest's columns (`getInventoryColumns`).
-packet!(MountScreenOpen { container: i32 => VarInt, columns: i32 => VarInt, entity: i32 => Int });
+packet!(HorseScreenOpen { container: i32 => VarInt, columns: i32 => VarInt, entity: i32 => Int });
 packet!(
     /// ClientboundOpenSignEditorPacket: the sign whose side the player edits.
     OpenSignEditor { pos: [i32; 3] => Pos, front: bool => SignSide }
@@ -1679,7 +1679,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     MoveEntityPosRot(MoveEntityPosRot) = MOVE_ENTITY_POS_ROT,
     MoveEntityRot(MoveEntityRot) = MOVE_ENTITY_ROT,
     MerchantOffers(MerchantOffers) = MERCHANT_OFFERS,
-    MountScreenOpen(MountScreenOpen) = MOUNT_SCREEN_OPEN,
+    HorseScreenOpen(HorseScreenOpen) = HORSE_SCREEN_OPEN,
     OpenScreen(OpenScreen) = OPEN_SCREEN,
     OpenBook(OpenBook) = OPEN_BOOK,
     OpenSignEditor(OpenSignEditor) = OPEN_SIGN_EDITOR,

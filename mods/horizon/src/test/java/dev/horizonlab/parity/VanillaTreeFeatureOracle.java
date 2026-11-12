@@ -95,7 +95,7 @@ public final class VanillaTreeFeatureOracle {
     case "environmentAttributes":return net.minecraft.world.attribute.EnvironmentAttributeReader.EMPTY;  // attribute defaults
     case "getBlockEntity":{
      if(args.length!=1)break;var p=((BlockPos)args[0]).immutable();var state=get(p);
-     if(state.is(Blocks.CHEST))return chests.computeIfAbsent(p,key->new ChestBlockEntity(key,state){@Override public void setLootTable(net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table,long seed){out.println("loot "+xyz(key)+" "+table.identifier()+" "+seed);super.setLootTable(table,seed);}});
+     if(state.is(Blocks.CHEST))return chests.computeIfAbsent(p,key->new ChestBlockEntity(key,state){@Override public void setLootTable(net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> table,long seed){out.println("loot "+xyz(key)+" "+table.location()+" "+seed);super.setLootTable(table,seed);}});
      if(state.is(Blocks.SPAWNER))return spawners.computeIfAbsent(p,key->new SpawnerBlockEntity(key,state){@Override public void setEntityId(net.minecraft.world.entity.EntityType<?> type,RandomSource r){super.setEntityId(type,r);out.println("spawner "+xyz(key)+" "+BuiltInRegistries.ENTITY_TYPE.getKey(type));}});
      if(!state.is(Blocks.BEE_NEST))return null;
      return hives.computeIfAbsent(p,key->new BeehiveBlockEntity(key,state){@Override public void storeBee(BeehiveBlockEntity.Occupant occupant){out.println("bee "+xyz(key)+" "+occupant.ticksInHive());}});
@@ -121,7 +121,7 @@ public final class VanillaTreeFeatureOracle {
   JsonObject json;com.mojang.serialization.Codec<T> codec;RegistryOps<JsonElement> ops;final Map<ResourceKey<T>,Holder.Reference<T>> cache=new HashMap<>();
   public Optional<Holder.Reference<T>> get(ResourceKey<T> key){
    var cached=cache.get(key);if(cached!=null)return Optional.of(cached);
-   var text=json.get(key.identifier().toString());if(text==null)return Optional.empty();
+   var text=json.get(key.location().toString());if(text==null)return Optional.empty();
    var ref=Holder.Reference.createStandAlone(this,key);cache.put(key,ref);
    T value=codec.parse(ops,JsonParser.parseString(text.getAsString())).getOrThrow();
    try{var bind=Holder.Reference.class.getDeclaredMethod("bindValue",Object.class);bind.setAccessible(true);bind.invoke(ref,value);}catch(ReflectiveOperationException e){throw new IllegalStateException(e);}
@@ -146,7 +146,7 @@ public final class VanillaTreeFeatureOracle {
   }});
   var bundle=JsonParser.parseString(Files.readString(dir.resolve("vanilla-features.json"))).getAsJsonObject();
   for(var entry:bundle.getAsJsonObject("providers").entrySet())
-   providers.register(ResourceKey.create(Registries.BLOCK_STATE_PROVIDER,Identifier.parse(entry.getKey())),BlockStateProvider.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+   providers.register(ResourceKey.create(Registries.BLOCK_STATE_PROVIDER,ResourceLocation.parse(entry.getKey())),BlockStateProvider.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   providers.freeze();
   var features=bundle.getAsJsonObject("features");var placedJson=bundle.getAsJsonObject("placed");
   lazyFeatures.json=features;lazyPlaced.json=placedJson;lazyFeatures.codec=Feature.DIRECT_CODEC;lazyPlaced.codec=net.minecraft.world.level.levelgen.placement.PlacedFeature.DIRECT_CODEC;lazyFeatures.ops=ops;lazyPlaced.ops=ops;

@@ -9,7 +9,7 @@ import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.*;
@@ -275,7 +275,7 @@ public final class VanillaDispenserOracle {
     }
 
     static Entity target(VanillaBlockUpdateOracle.World w, JsonObject e) throws Exception {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(e.get("type").getAsString()));
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(e.get("type").getAsString()));
         Entity ent = type.create(w, EntitySpawnReason.COMMAND);
         var p = e.getAsJsonArray("pos");
         ent.snapTo(p.get(0).getAsDouble(), p.get(1).getAsDouble(), p.get(2).getAsDouble(), e.has("yaw") ? e.get("yaw").getAsFloat() : 0f, 0f);
@@ -745,7 +745,7 @@ public final class VanillaDispenserOracle {
         out.add("held " + ParityData.canon(player.hand) + " offhand " + ParityData.canon(player.offhand)
             + " using " + (player.using == null ? "-" : player.using));
         var respawn = player.getRespawnConfig();
-        out.add("respawn " + (respawn == null ? "-" : respawn.respawnData().dimension().identifier() + " " + VanillaBlockUpdateOracle.pos(respawn.respawnData().pos())));
+        out.add("respawn " + (respawn == null ? "-" : respawn.respawnData().dimension().location() + " " + VanillaBlockUpdateOracle.pos(respawn.respawnData().pos())));
         return out;
     }
 

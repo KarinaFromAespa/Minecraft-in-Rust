@@ -8,7 +8,7 @@ import net.minecraft.client.resources.model.*;
 import net.minecraft.client.resources.model.cuboid.*;
 import net.minecraft.client.resources.model.geometry.UnbakedGeometry;
 import net.minecraft.client.resources.model.sprite.Material;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemDisplayContext;
 import static dev.horizonlab.parity.VanillaCuboidModelOracle.*;
 
@@ -24,19 +24,19 @@ public final class VanillaModelResolutionOracle {
             int index=0;
             for (String line; (line=input.readLine())!=null; index++) {
                 var row=JsonParser.parseString(line).getAsJsonObject();
-                var models=new HashMap<Identifier, UnbakedModel>();
+                var models=new HashMap<ResourceLocation, UnbakedModel>();
                 var slots=new TreeSet<String>(); slots.add("missingno"); slots.add("particle");
                 for (var entry:row.getAsJsonObject("models").entrySet()) {
                     var model=CuboidModel.fromStream(new StringReader(entry.getValue().getAsString()));
-                    models.put(Identifier.parse(entry.getKey()),model);
+                    models.put(ResourceLocation.parse(entry.getKey()),model);
                     slots.addAll(model.textureSlots().values().keySet());
                 }
                 var discovery=new ModelDiscovery(models,MissingCuboidModel.missingModel());
-                discovery.addRoot(resolver -> {for(var root:row.getAsJsonArray("roots")) resolver.markDependency(Identifier.parse(root.getAsString()));});
+                discovery.addRoot(resolver -> {for(var root:row.getAsJsonArray("roots")) resolver.markDependency(ResourceLocation.parse(root.getAsString()));});
                 var resolved=discovery.resolve();
                 for (var root:row.getAsJsonArray("roots")) {
                     String name=root.getAsString();
-                    var model=resolved.get(Identifier.parse(name));
+                    var model=resolved.get(ResourceLocation.parse(name));
                     if(model==null) {output.write(JSON.toJson(map("case",index,"name",name,"error",true)));output.newLine();continue;}
                     var geometry=model.getTopGeometry();
                     var elements=new ArrayList<Object>();

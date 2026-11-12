@@ -4,7 +4,7 @@ import net.minecraft.core.BlockPos;
 import io.netty.buffer.Unpooled;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientboundSetDefaultSpawnPositionPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.storage.LevelData;
@@ -14,14 +14,14 @@ public final class VanillaWorldSpawnPacketOracle {
     private static final java.io.PrintStream OUT = System.out;
     private static void emit(String label, String dimension, int x, int y, int z, float yaw, float pitch) {
         var data = LevelData.RespawnData.of(
-            ResourceKey.create(Registries.DIMENSION, Identifier.parse(dimension)),
+            ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(dimension)),
             new BlockPos(x, y, z), yaw, pitch);
         var buffer = new FriendlyByteBuf(Unpooled.buffer());
         ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.encode(buffer,
             new ClientboundSetDefaultSpawnPositionPacket(data));
         var actual = ClientboundSetDefaultSpawnPositionPacket.STREAM_CODEC.decode(buffer).respawnData();
         buffer.release();
-        OUT.println("world-spawn\t" + label + "\t" + actual.dimension().identifier()
+        OUT.println("world-spawn\t" + label + "\t" + actual.dimension().location()
             + "\t" + actual.pos().getX() + "\t" + actual.pos().getY() + "\t" + actual.pos().getZ()
             + ((label.equals("angle") || label.equals("respawn") || label.equals("normalized") || label.equals("clamped")) ? "\t" + actual.yaw() + "\t" + actual.pitch() : ""));
     }

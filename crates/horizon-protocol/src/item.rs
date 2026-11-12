@@ -56,74 +56,70 @@ impl Drop for Nested {
     }
 }
 
-/// minecraft:data_component_type registry ids (1.21.11).
+/// minecraft:data_component_type registry ids (1.21.10).
 pub mod component {
     pub const CUSTOM_DATA: i32 = 0;
     pub const MAX_STACK_SIZE: i32 = 1;
     pub const MAX_DAMAGE: i32 = 2;
     pub const DAMAGE: i32 = 3;
     pub const UNBREAKABLE: i32 = 4;
-    pub const CUSTOM_NAME: i32 = 6;
-    pub const ITEM_NAME: i32 = 9;
-    pub const ITEM_MODEL: i32 = 10;
-    pub const LORE: i32 = 11;
-    pub const RARITY: i32 = 12;
-    pub const ENCHANTMENTS: i32 = 13;
+    pub const CUSTOM_NAME: i32 = 5;
+    pub const ITEM_NAME: i32 = 6;
+    pub const ITEM_MODEL: i32 = 7;
+    pub const LORE: i32 = 8;
+    pub const RARITY: i32 = 9;
+    pub const ENCHANTMENTS: i32 = 10;
     /// `AdventureModePredicate`: the blocks an adventure player may place on.
-    pub const CAN_PLACE_ON: i32 = 14;
+    pub const CAN_PLACE_ON: i32 = 11;
     /// `AdventureModePredicate`: the blocks an adventure player may break.
-    pub const CAN_BREAK: i32 = 15;
+    pub const CAN_BREAK: i32 = 12;
     /// `ItemAttributeModifiers`: a list of entries, each with a display from 1.21.6 on.
-    pub const ATTRIBUTE_MODIFIERS: i32 = 16;
-    pub const CUSTOM_MODEL_DATA: i32 = 17;
-    pub const TOOLTIP_DISPLAY: i32 = 18;
-    pub const REPAIR_COST: i32 = 19;
-    pub const CREATIVE_SLOT_LOCK: i32 = 20;
-    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 21;
+    pub const ATTRIBUTE_MODIFIERS: i32 = 13;
+    pub const CUSTOM_MODEL_DATA: i32 = 14;
+    pub const TOOLTIP_DISPLAY: i32 = 15;
+    pub const REPAIR_COST: i32 = 16;
+    pub const CREATIVE_SLOT_LOCK: i32 = 17;
+    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 18;
     /// `Consumable.STREAM_CODEC`: consumeSeconds first.
-    pub const CONSUMABLE: i32 = 24;
-    /// `AttackRange`: six floats, in the record's field order.
-    pub const ATTACK_RANGE: i32 = 30;
-    pub const EQUIPPABLE: i32 = 32;
-    pub const GLIDER: i32 = 34;
+    pub const CONSUMABLE: i32 = 21;
+    pub const EQUIPPABLE: i32 = 28;
+    pub const GLIDER: i32 = 30;
     /// `DeathProtection`: the `death_effects` a stack runs when it saves its holder.
-    pub const DEATH_PROTECTION: i32 = 36;
-    pub const BLOCKS_ATTACKS: i32 = 37;
-    pub const STORED_ENCHANTMENTS: i32 = 41;
-    pub const PROFILE: i32 = 68;
-    pub const BANNER_PATTERNS: i32 = 70;
-    pub const BASE_COLOR: i32 = 71;
-    pub const DYED_COLOR: i32 = 42;
-    pub const MAP_ID: i32 = 44;
-    pub const MAP_POST_PROCESSING: i32 = 46;
-    pub const CHARGED_PROJECTILES: i32 = 47;
-    pub const BUNDLE_CONTENTS: i32 = 48;
-    pub const POTION_CONTENTS: i32 = 49;
-    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 51;
-    pub const WRITABLE_BOOK_CONTENT: i32 = 52;
-    pub const WRITTEN_BOOK_CONTENT: i32 = 53;
-    pub const TRIM: i32 = 54;
-    pub const INSTRUMENT: i32 = 59;
-    pub const PROVIDES_TRIM_MATERIAL: i32 = 60;
-    pub const PROVIDES_BANNER_PATTERNS: i32 = 63;
-    pub const DAMAGE_TYPE: i32 = 8;
-    pub const CHICKEN_VARIANT: i32 = 93;
-    pub const ZOMBIE_NAUTILUS_VARIANT: i32 = 94;
-    pub const LODESTONE_TRACKER: i32 = 65;
-    pub const FIREWORK_EXPLOSION: i32 = 66;
-    pub const FIREWORKS: i32 = 67;
-    pub const BLOCK_ENTITY_DATA: i32 = 58;
-    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 61;
-    pub const USE_REMAINDER: i32 = 25;
-    pub const POT_DECORATIONS: i32 = 72;
-    pub const JUKEBOX_PLAYABLE: i32 = 62;
-    pub const DAMAGE_RESISTANT: i32 = 27;
-    pub const CONTAINER: i32 = 73;
-    /// Not a pinned component: 1.21.11 has no `sulfur_cube_content` (a 26.3
+    pub const DEATH_PROTECTION: i32 = 32;
+    pub const BLOCKS_ATTACKS: i32 = 33;
+    pub const STORED_ENCHANTMENTS: i32 = 34;
+    pub const PROFILE: i32 = 61;
+    pub const BANNER_PATTERNS: i32 = 63;
+    pub const BASE_COLOR: i32 = 64;
+    pub const DYED_COLOR: i32 = 35;
+    pub const MAP_ID: i32 = 37;
+    pub const MAP_POST_PROCESSING: i32 = 39;
+    pub const CHARGED_PROJECTILES: i32 = 40;
+    pub const BUNDLE_CONTENTS: i32 = 41;
+    pub const POTION_CONTENTS: i32 = 42;
+    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 44;
+    pub const WRITABLE_BOOK_CONTENT: i32 = 45;
+    pub const WRITTEN_BOOK_CONTENT: i32 = 46;
+    pub const TRIM: i32 = 47;
+    pub const INSTRUMENT: i32 = 52;
+    pub const PROVIDES_TRIM_MATERIAL: i32 = 53;
+    pub const PROVIDES_BANNER_PATTERNS: i32 = 56;
+    pub const CHICKEN_VARIANT: i32 = 86;
+    pub const LODESTONE_TRACKER: i32 = 58;
+    pub const FIREWORK_EXPLOSION: i32 = 59;
+    pub const FIREWORKS: i32 = 60;
+    pub const BLOCK_ENTITY_DATA: i32 = 51;
+    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 54;
+    pub const USE_REMAINDER: i32 = 22;
+    pub const POT_DECORATIONS: i32 = 65;
+    pub const JUKEBOX_PLAYABLE: i32 = 55;
+    pub const DAMAGE_RESISTANT: i32 = 24;
+    pub const CONTAINER: i32 = 66;
+    /// Not a pinned component: 1.21.10 has no `sulfur_cube_content` (a 26.3
     /// addition). The negative value is an internal marker only, so the
     /// 26.2-facing arms that name it can never match a canonical id here.
     pub const SULFUR_CUBE_CONTENT: i32 = -1000;
-    pub const PAINTING_VARIANT: i32 = 97;
+    pub const PAINTING_VARIANT: i32 = 89;
     /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Also not
     /// pinned components (26.3 additions); internal markers, as above.
     pub const SIGN_TEXT_FRONT: i32 = -1001;
@@ -424,13 +420,6 @@ impl Component {
                     color,
                     rest,
                 }
-            }
-            ATTACK_RANGE => {
-                let mut values = [0.0f32; 6];
-                for v in &mut values {
-                    *v = r.f32()?;
-                }
-                Self::AttackRange(values)
             }
             PROFILE => {
                 fn properties(r: &mut Reader) -> Result<Vec<(String, String, Option<String>)>> {
@@ -936,7 +925,7 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (1.21.11): an older pot's undecorated side.
+/// `minecraft:brick` (1.21.10): an older pot's undecorated side.
 const BRICK: i32 = 1025;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
@@ -948,12 +937,10 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
         // EitherHolder.streamCodec: ByteBufCodecs.either(the holder, its ResourceKey), a flag set for the
         // holder, which then reads as the pinned one does. A key names an entry of the server's registry
         // that the pinned holder can't point to without its numbering.
-        DAMAGE_TYPE
-        | INSTRUMENT
+        INSTRUMENT
         | PROVIDES_TRIM_MATERIAL
         | JUKEBOX_PLAYABLE
         | CHICKEN_VARIANT
-        | ZOMBIE_NAUTILUS_VARIANT
             if quirks.either_holders_and_tag_resistance =>
         {
             if r.bool()? {
@@ -1039,18 +1026,34 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
 
 /// Reads past the value of `name`, a data component an older server sent that the pinned version lacks
 /// ([`ids::dropped_component`]), as that server writes it.
+/// An optional sound holder (PiercingWeapon/KineticWeapon): a flag, then the
+/// holder — 0 and the direct event (a name, an optional fixed range), or the
+/// registry id plus one. `SoundEvent.STREAM_CODEC` in the 1.21.11 jar.
+fn skip_sound(r: &mut Reader) -> Result<()> {
+    if !r.bool()? {
+        return Ok(());
+    }
+    if r.varint()? == 0 {
+        r.string(32767)?;
+        if r.bool()? {
+            r.f32()?;
+        }
+    }
+    Ok(())
+}
+
 fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
     match name {
-        // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 1.21.11 no
+        // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 1.21.10 no
         // longer has (fire_resistant became damage_resistant; the two hide
         // flags folded into tooltip_display).
         "minecraft:fire_resistant"
         | "minecraft:hide_tooltip"
         | "minecraft:hide_additional_tooltip" => Ok(()),
-        // SulfurCubeContent (a 26.2 component 1.21.11 predates): one item stack
+        // SulfurCubeContent (a 26.2 component 1.21.10 predates): one item stack
         // template, read and dropped.
         "minecraft:sulfur_cube_content" => Template::read(r).map(drop),
-        // VarInt (a registry or holder id): the 26.1 components 1.21.11
+        // VarInt (a registry or holder id): the 26.1 components 1.21.10
         // predates — additional_trade_cost, dye and the sound variants.
         "minecraft:additional_trade_cost"
         | "minecraft:dye"
@@ -1058,6 +1061,63 @@ fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
         | "minecraft:cow/sound_variant"
         | "minecraft:chicken/sound_variant"
         | "minecraft:cat/sound_variant" => r.varint().map(drop),
+        // The 1.21.11 components 1.21.10 predates, with their 1.21.11 stream
+        // codecs (DataComponents in the 1.21.11 jar; the shapes carried into
+        // 26.x unchanged). EitherHolder: a flag, then a holder id or a key.
+        "minecraft:damage_type" | "minecraft:zombie_nautilus/variant" => {
+            if r.bool()? {
+                r.varint().map(drop)
+            } else {
+                r.string(32767).map(drop)
+            }
+        }
+        // AttackRange.STREAM_CODEC: six floats.
+        "minecraft:attack_range" => {
+            for _ in 0..6 {
+                r.f32()?;
+            }
+            Ok(())
+        }
+        // UseEffects.STREAM_CODEC: two flags and a float.
+        "minecraft:use_effects" => {
+            r.bool()?;
+            r.bool()?;
+            r.f32().map(drop)
+        }
+        // ByteBufCodecs.FLOAT.
+        "minecraft:minimum_attack_charge" => r.f32().map(drop),
+        // SwingAnimation.STREAM_CODEC: the type id, then the duration.
+        "minecraft:swing_animation" => {
+            r.varint()?;
+            r.varint().map(drop)
+        }
+        // PiercingWeapon.STREAM_CODEC: two flags, then two optional sound
+        // holders (a flag, then the holder: 0 and the direct event — a name
+        // and an optional fixed range — or the registry id plus one).
+        "minecraft:piercing_weapon" => {
+            r.bool()?;
+            r.bool()?;
+            skip_sound(r)?;
+            skip_sound(r)
+        }
+        // KineticWeapon.STREAM_CODEC: two counts, three optional conditions
+        // (a count and two floats), two floats, then two optional sound
+        // holders.
+        "minecraft:kinetic_weapon" => {
+            r.varint()?;
+            r.varint()?;
+            for _ in 0..3 {
+                if r.bool()? {
+                    r.varint()?;
+                    r.f32()?;
+                    r.f32()?;
+                }
+            }
+            r.f32()?;
+            r.f32()?;
+            skip_sound(r)?;
+            skip_sound(r)
+        }
         _ => Err(crate::Error::new(format!(
             "{name}: a component the pinned version no longer has"
         ))),
@@ -1633,7 +1693,7 @@ mod tests {
             .push((component::OMINOUS_BOTTLE_AMPLIFIER, Component::Int(3)));
         let mut w = Writer::new();
         Slot::write(&Some(bottle.clone()), &mut w);
-        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 61, 3]);
+        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 54, 3]);
         round::<Option<Stack>, Slot>(Some(bottle));
         let mut quill = Stack::new(1099, 1);
         quill.added.push((
@@ -1692,7 +1752,7 @@ mod tests {
     fn charged_projectiles_are_item_stack_templates() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
         // is a list of ItemStackTemplate, the item before the count.
-        let bytes = [1, 7, 1, 0, 47, 1, 9, 1, 0, 0];
+        let bytes = [1, 7, 1, 0, 40, 1, 9, 1, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::CHARGED_PROJECTILES),
@@ -1707,7 +1767,7 @@ mod tests {
     fn bundle_contents_are_item_stack_templates() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
         // ItemStackTemplate, as ChargedProjectiles is.
-        let bytes = [1, 7, 1, 0, 48, 1, 9, 32, 0, 0];
+        let bytes = [1, 7, 1, 0, 41, 1, 9, 32, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::BUNDLE_CONTENTS),
@@ -1721,7 +1781,7 @@ mod tests {
     #[test]
     fn filtered_book_pages_are_read_and_kept() {
         // A writable book with one page "hi" and its filtered "**".
-        let bytes = [1, 7, 1, 0, 52, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
+        let bytes = [1, 7, 1, 0, 45, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::WRITABLE_BOOK_CONTENT),
@@ -1744,18 +1804,14 @@ mod tests {
 
     #[test]
     fn unknown_components_are_errors() {
-        // 104 is past DataComponents' last id (shulker/color, 103).
-        let bytes = [1, 5, 1, 0, 104];
+        // 96 is past DataComponents' last id (shulker/color, 95).
+        let bytes = [1, 5, 1, 0, 96];
         assert!(Slot::read(&mut Reader::new(&bytes)).is_err());
     }
 
     #[test]
-    fn attack_range_and_profiles_round_trip() {
+    fn profiles_round_trip() {
         let mut sword = Stack::new(900, 1);
-        sword.added.push((
-            component::ATTACK_RANGE,
-            Component::AttackRange([0.0, 3.0, 0.0, 4.0, 0.1, 1.0]),
-        ));
         sword.added.push((
             component::PROFILE,
             Component::Profile(Profile {
@@ -1775,14 +1831,14 @@ mod tests {
 
     #[test]
     fn a_partial_profile_decodes_from_the_wire() {
-        // count 1, item 1, one added component of kind 68 (profile): a partial
+        // count 1, item 1, one added component of kind 61 (profile): a partial
         // profile with an empty name, a UUID, one unsigned texture property
         // and an empty skin patch.
         let uuid = [
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 68, 0, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 61, 0, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
@@ -1804,9 +1860,9 @@ mod tests {
     #[test]
     fn direct_trim_decodes_complete_official_inventory_stack_payload() {
         // Slot portion of our actual Java26.3 ClientboundContainerSetSlotPacket,
-        // re-based to the pinned 1.21.11 component numbering (the trim kind byte);
+        // re-based to the pinned 1.21.10 component numbering (the trim kind byte);
         // complete packet and official client decode retained with H284 proof.
-        let hex = "01bd080200000a0300046b6565700000011c0036000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e00";
+        let hex = "01bd080200000a0300046b6565700000011c002f000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e00";
         let bytes: Vec<u8> = (0..hex.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
@@ -1846,17 +1902,17 @@ mod tests {
     #[test]
     fn components_read_past_keep_their_bytes() {
         // Vanilla 26.3's encoding (tools/test_item_wire_parity.py), re-based to the
-        // pinned 1.21.11 numbering, of a chestplate's
+        // pinned 1.21.10 numbering, of a chestplate's
         // armour trim (decoded: both holders are references), a banner's patterns
         // (one direct), a pot's sherds and a stew's effects: one server's
         // inventory, recipe book and advancements had them.
         for (hex, kind) in [
-            ("01bd080100360502", 54),
-            ("01890b01004602200e000b6d696e6563726166743a7801790b", 70),
-            ("01880301004801810801000001a50b0100000001ba0b010000", 72),
-            ("01a408010033020f6412a001", 51),
+            ("01bd0801002f0502", 47),
+            ("01890b01003f02200e000b6d696e6563726166743a7801790b", 63),
+            ("01880301004101810801000001940b0100000001a90b010000", 65),
+            ("01a40801002c020f6412a001", 44),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            ("01bd0801003b02", 59),
+            ("01bd0801003402", 52),
         ] {
             let bytes: Vec<u8> = (0..hex.len())
                 .step_by(2)
@@ -1866,15 +1922,15 @@ mod tests {
             let stack = Slot::read(&mut r).unwrap();
             assert_eq!(r.remaining(), 0, "component {kind}");
             let expected = |c: &Component| match kind {
-                54 => {
+                47 => {
                     *c == Component::Trim {
                         material: 4,
                         pattern: 1,
                     }
                 }
                 // night_vision for 100 ticks, poison for the default 160.
-                51 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
-                59 => *c == Component::Instrument(1),
+                44 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
+                52 => *c == Component::Instrument(1),
                 _ => matches!(c, Component::Raw(_)),
             };
             assert!(
@@ -1907,16 +1963,13 @@ mod tests {
         for (value, valid) in [(1, true), (-1, false), (i32::MIN, false)] {
             let mut v = Writer::new();
             v.varint(value);
-            // kinetic_weapon: default fields, then a sound holder (`value`) and no hit sound.
-            let mut kinetic = vec![10, 0, 0, 0, 0, 0, 0, 0, 0, 0x3f, 0x80, 0, 0, 1];
-            kinetic.extend_from_slice(&v.data);
-            kinetic.push(0);
+            // break_sound (71): a bare sound holder (`value`).
             // can_break: one predicate whose blocks are a holder set (`value`, an empty
             // list when 1), with no properties, NBT or component matchers.
             let mut can_break = vec![1, 1];
             can_break.extend_from_slice(&v.data);
             can_break.extend([0, 0, 0, 0]);
-            for (kind, bytes) in [(39, kinetic), (component::CAN_BREAK, can_break)] {
+            for (kind, bytes) in [(71, v.data.clone()), (component::CAN_BREAK, can_break)] {
                 let read = slot(kind, &bytes);
                 if valid {
                     assert!(
@@ -1936,12 +1989,12 @@ mod tests {
         // direct variant (0, width, height, asset id, no title, no author)
         // is read past. Both encode back to the same bytes.
         let asset = b"minecraft:x";
-        let mut direct = vec![1u8, 7, 1, 0, 97, 0, 2, 1, asset.len() as u8];
+        let mut direct = vec![1u8, 7, 1, 0, 89, 0, 2, 1, asset.len() as u8];
         direct.extend_from_slice(asset);
         direct.extend_from_slice(&[0, 0]);
         for (bytes, expected) in [
             (
-                vec![1u8, 7, 1, 0, 97, 5],
+                vec![1u8, 7, 1, 0, 89, 5],
                 Some(Component::PaintingVariant(4)),
             ),
             (direct, None),

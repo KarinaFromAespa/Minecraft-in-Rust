@@ -11,7 +11,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
@@ -137,7 +137,7 @@ public final class VanillaMarkerParticlesOracle {
     @SuppressWarnings("unchecked")
     static void bindBlockTags() throws Exception {
         var source = Block.class.getProtectionDomain().getCodeSource().getLocation();
-        var raw = new java.util.HashMap<Identifier, java.util.List<String>>();
+        var raw = new java.util.HashMap<ResourceLocation, java.util.List<String>>();
         try (var file = new java.util.zip.ZipFile(java.nio.file.Path.of(source.toURI()).toFile())) {
             var entries = file.entries();
             while (entries.hasMoreElements()) {
@@ -155,7 +155,7 @@ public final class VanillaMarkerParticlesOracle {
                     else if (value.isJsonObject() && value.getAsJsonObject().has("id"))
                         values.add(value.getAsJsonObject().get("id").getAsString());
                 }
-                raw.put(Identifier.fromNamespaceAndPath(namespace, name), values);
+                raw.put(ResourceLocation.fromNamespaceAndPath(namespace, name), values);
             }
         }
         var registry = (net.minecraft.core.WritableRegistry<Block>) BuiltInRegistries.BLOCK;
@@ -176,14 +176,14 @@ public final class VanillaMarkerParticlesOracle {
         pending.apply();
     }
 
-    static void collectTaggedBlocks(java.util.Map<Identifier, java.util.List<String>> raw,
+    static void collectTaggedBlocks(java.util.Map<ResourceLocation, java.util.List<String>> raw,
                                     net.minecraft.core.WritableRegistry<Block> registry,
                                     java.util.List<String> values,
                                     java.util.List<net.minecraft.core.Holder<Block>> out,
-                                    java.util.Set<Identifier> seen) {
+                                    java.util.Set<ResourceLocation> seen) {
         for (var value : values) {
             if (value.startsWith("#")) {
-                var tag = Identifier.parse(value.substring(1));
+                var tag = ResourceLocation.parse(value.substring(1));
                 if (seen.add(tag) && raw.containsKey(tag)) {
                     collectTaggedBlocks(raw, registry, raw.get(tag), out, seen);
                 }
@@ -191,7 +191,7 @@ public final class VanillaMarkerParticlesOracle {
             }
             // A block the pinned jar does not have is left out, as a datapack
             // load drops an optional entry it cannot resolve.
-            registry.get(Identifier.parse(value))
+            registry.get(ResourceLocation.parse(value))
                     .ifPresent(block -> out.add((net.minecraft.core.Holder<Block>) block));
         }
     }
@@ -200,7 +200,7 @@ public final class VanillaMarkerParticlesOracle {
     static BlockState parseState(String spec) {
         int bracket = spec.indexOf('[');
         var name = bracket < 0 ? spec : spec.substring(0, bracket);
-        Block block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(name));
+        Block block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(name));
         var state = block.defaultBlockState();
         if (bracket < 0) return state;
         for (var pair : spec.substring(bracket + 1, spec.length() - 1).split(",")) {
@@ -310,9 +310,9 @@ public final class VanillaMarkerParticlesOracle {
                 }
                 mode.mode = GameType.byName(c.get("mode").getAsString());
                 player.main = new ItemStack(BuiltInRegistries.ITEM.getValue(
-                    Identifier.parse("minecraft:" + c.get("main").getAsString())), c.get("count").getAsInt());
+                    ResourceLocation.parse("minecraft:" + c.get("main").getAsString())), c.get("count").getAsInt());
                 player.off = new ItemStack(BuiltInRegistries.ITEM.getValue(
-                    Identifier.parse("minecraft:" + c.get("off").getAsString())));
+                    ResourceLocation.parse("minecraft:" + c.get("off").getAsString())));
                 var block = (Block) select.invoke(level);
                 out.write(block == null ? "none" : BuiltInRegistries.BLOCK.getKey(block).toString());
                 out.newLine();

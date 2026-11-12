@@ -14,7 +14,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ChestBlock;
@@ -52,7 +52,7 @@ public final class VanillaContainerTitleOracle {
     }
 
     static Component title(JsonObject c) throws Exception {
-        BlockState state = BuiltInRegistries.BLOCK.getValue(Identifier.parse(c.get("block").getAsString())).defaultBlockState();
+        BlockState state = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(c.get("block").getAsString())).defaultBlockState();
         if (c.has("first")) {
             var first = (ChestBlockEntity) load(state, POS, c.get("first").getAsString());
             var second = (ChestBlockEntity) load(state, POS.west(), c.get("second").getAsString());

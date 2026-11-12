@@ -10,7 +10,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.TagParser;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 /** NBT boolean components through the actual codec, JSON encoding and ItemStack.hasFoil. */
@@ -20,7 +20,7 @@ public final class VanillaStackFoilOracle {
         try (var out = Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8)) {
             for (var line : Files.readAllLines(Path.of(args[0]), StandardCharsets.UTF_8)) {
                 var input = JsonParser.parseString(line).getAsJsonObject();
-                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(input.get("item").getAsString())));
+                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(input.get("item").getAsString())));
                 var result = new JsonObject();
                 result.add("id", input.get("id"));
                 if (input.has("nbt")) {

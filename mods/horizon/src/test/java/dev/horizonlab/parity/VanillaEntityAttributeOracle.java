@@ -2,7 +2,7 @@ package dev.horizonlab.parity;
 import com.google.gson.*;
 import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
 import net.minecraft.core.*;import net.minecraft.core.registries.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.*;
 /** Native lazy entity attributes; set membership is observed in registry order. */
@@ -25,8 +25,8 @@ public final class VanillaEntityAttributeOracle {
         for(var a:BuiltInRegistries.ATTRIBUTE)attributes.add(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(a));
         Path dir=Path.of(args[1]);if(args[0].equals("export")){Files.writeString(dir.resolve("catalog.json"),export().toString());return;}
         var storage=field(AttributeMap.class,"attributes");var dirty=field(AttributeInstance.class,"dirty");var cached=field(AttributeInstance.class,"cachedValue");
-        try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){for(var line:(Iterable<String>)lines::iterator){var f=JsonParser.parseString(line).getAsJsonObject();var entity=BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(f.get("entity").getAsString()));var map=new AttributeMap(supplier(entity));var instances=(Map<Holder<Attribute>,AttributeInstance>)storage.get(map);
-            for(var ov:f.getAsJsonArray("ops")){var op=ov.getAsJsonObject();var a=attributes.get(op.get("attribute").getAsInt());String mode=op.get("mode").getAsString();var id=Identifier.parse(op.get("id").getAsString());
+        try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){for(var line:(Iterable<String>)lines::iterator){var f=JsonParser.parseString(line).getAsJsonObject();var entity=BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(f.get("entity").getAsString()));var map=new AttributeMap(supplier(entity));var instances=(Map<Holder<Attribute>,AttributeInstance>)storage.get(map);
+            for(var ov:f.getAsJsonArray("ops")){var op=ov.getAsJsonObject();var a=attributes.get(op.get("attribute").getAsInt());String mode=op.get("mode").getAsString();var id=ResourceLocation.parse(op.get("id").getAsString());
                 try{switch(mode){
                     case "value":out.println("value "+bits(map.getValue(a)));break;
                     case "base":out.println("base "+bits(map.getBaseValue(a)));break;

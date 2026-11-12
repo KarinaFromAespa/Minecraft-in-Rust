@@ -18,7 +18,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -100,8 +100,8 @@ public final class VanillaSituationalMusicOracle {
                 var probe = new EnvironmentAttributeProbe();
                 VanillaSoundRig.set(camera, Camera.class, "attributeProbe", probe);
                 if (f[1].equals("1")) {
-                    DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.parse(f[2]))).value();
-                    Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(f[3]))).value();
+                    DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.parse(f[2]))).value();
+                    Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(f[3]))).value();
                     var b = EnvironmentAttributeSystem.builder();
                     b.addConstantLayer(dim.attributes());
                     for (EnvironmentAttribute<?> attr : biome.getAttributes().keySet()) addBiome(b, attr, biome);

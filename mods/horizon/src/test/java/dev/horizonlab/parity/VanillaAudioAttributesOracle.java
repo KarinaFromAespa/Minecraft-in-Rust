@@ -7,7 +7,7 @@ import java.util.*;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -66,8 +66,8 @@ public final class VanillaAudioAttributesOracle {
             w.println("GAME " + music(Musics.GAME));
             for (String line : Files.readAllLines(Path.of(args[0]), StandardCharsets.UTF_8)) {
                 String[] f = line.split(" ");
-                DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.parse(f[0]))).value();
-                Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(f[1]))).value();
+                DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.parse(f[0]))).value();
+                Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(f[1]))).value();
                 long ticks = Long.parseLong(f[2]);
                 ClockManager clocks = h -> new ClockInstance() {
                     public long totalTicks() { return ticks; }

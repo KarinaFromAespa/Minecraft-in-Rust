@@ -1,19 +1,20 @@
-# Minecraft in Rust — Java Edition 1.21.11
+# Minecraft in Rust — Java Edition 1.21.10
 
-**Minecraft: Java Edition 1.21.11, rewritten in Rust.** This directory is one
+**Minecraft: Java Edition 1.21.10, rewritten in Rust.** This directory is one
 version of the [Minecraft-in-Rust](../../README.md) programme: every major
-Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — clean-room,
-each version specified and verified against its own jar.
+Java Edition release, 1.0 → 26.3, rewritten in Rust for desktop — a reference
+reimplementation, each version specified and verified against its own jar.
 
-1.21.11 opens the programme's **Components era (E6, 1.20.5–1.21.11)**: it is
-the first version whose specification pipeline runs **through the mappings
-front-end**, because 1.21.11's jar is obfuscated and the pipeline's prepare
-stage previously only accepted unobfuscated releases. **The era gate is met:
-prepare runs end-to-end on 1.21.11** — the pin and three of the six generated
-tables are regenerated, and the remaining work is sized, ranked and
-documented. [PORT-NOTES-1.21.11.md](PORT-NOTES-1.21.11.md) in this directory
-is the authoritative record of the stage reached, the numbers behind it, and
-the residual. Its status is also tracked in
+1.21.10 is the first adjacent delta port in the programme's **Components era
+(E6, 1.20.5–1.21.11)**, taken from the era template 1.21.11: protocol
+774 → 773, one packet rename (`mount_screen_open` → `horse_screen_open`),
+the command-parse oracle ported back to the pre-permissions API, and the
+cross-version adapter ladder re-based to the 773 pin. All six generated
+tables are regenerated from 1.21.10's own jar, and the remaining work is
+sized, ranked and documented.
+[PORT-NOTES-1.21.10.md](PORT-NOTES-1.21.10.md) in this directory is the
+authoritative record of the stage reached, the numbers behind it, and the
+residual. Its status is also tracked in
 [VERSIONS.md](../../VERSIONS.md).
 
 ## Base and credit

@@ -13,7 +13,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.ParticleUtils;
 import net.minecraft.util.RandomSource;
@@ -68,7 +68,7 @@ public final class VanillaEmitterParticlesOracle {
         var dimensions = field(Entity.class, "dimensions");
         var removed = field(Entity.class, "removalReason");
         entity.setDeltaMovement(Vec3.ZERO);
-        var type = BuiltInRegistries.PARTICLE_TYPE.getValue(Identifier.parse(test.get("particle").getAsString()));
+        var type = BuiltInRegistries.PARTICLE_TYPE.getValue(ResourceLocation.parse(test.get("particle").getAsString()));
         var options = (ParticleOptions) type;
         SeededTrackingEmitter emitter = null;
         int tick = 0;
@@ -130,7 +130,7 @@ public final class VanillaEmitterParticlesOracle {
                     xRot.setFloat(entity, c.get("pitch").getAsFloat());
                     yRot.setFloat(entity, c.get("yaw").getAsFloat());
                     eyeHeight.setFloat(entity, c.get("eye").getAsFloat());
-                    var item = BuiltInRegistries.ITEM.getValue(Identifier.parse(c.get("item").getAsString()));
+                    var item = BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(c.get("item").getAsString()));
                     entity.spawnItemParticles(new ItemStack(item), c.get("count").getAsInt());
                 } else {
                     levelRandom.set(level, r);

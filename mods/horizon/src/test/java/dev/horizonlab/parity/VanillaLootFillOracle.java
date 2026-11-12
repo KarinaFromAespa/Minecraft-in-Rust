@@ -10,7 +10,7 @@ import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -63,14 +63,14 @@ public final class VanillaLootFillOracle {
         unsafe.getClass().getMethod("putObject",Object.class,long.class,Object.class).invoke(unsafe,level,offset,access);
         var tables=lookup.lookupOrThrow(Registries.LOOT_TABLE);
         List<String> names=new ArrayList<>();
-        if(args[1].equals("chests"))tables.listElementIds().map(k->k.identifier().toString()).filter(n->n.startsWith("minecraft:chests/")).sorted().forEach(names::add);
+        if(args[1].equals("chests"))tables.listElementIds().map(k->k.location().toString()).filter(n->n.startsWith("minecraft:chests/")).sorted().forEach(names::add);
         else names.addAll(Arrays.asList(args[1].split(",")));
         Constructor<LootContext> ctor=LootContext.class.getDeclaredConstructor(LootParams.class,RandomSource.class,HolderGetter.Provider.class);ctor.setAccessible(true);
         Method slots=LootTable.class.getDeclaredMethod("getAvailableSlots",net.minecraft.world.Container.class,RandomSource.class);slots.setAccessible(true);
         Method split=LootTable.class.getDeclaredMethod("shuffleAndSplitItems",it.unimi.dsi.fastutil.objects.ObjectArrayList.class,int.class,RandomSource.class);split.setAccessible(true);
         try(var w=new PrintWriter(Files.newBufferedWriter(out,StandardCharsets.UTF_8))) {
             for(String name:names) {
-                LootTable table=tables.getOrThrow(ResourceKey.create(Registries.LOOT_TABLE,Identifier.parse(name))).value();
+                LootTable table=tables.getOrThrow(ResourceKey.create(Registries.LOOT_TABLE,ResourceLocation.parse(name))).value();
                 for(int i=2;i<args.length;i++) {
                     long seed=Long.parseLong(args[i]);
                     w.println("table "+name+" "+seed);
@@ -93,8 +93,8 @@ public final class VanillaLootFillOracle {
                             StringBuilder line=new StringBuilder("fill "+name+" "+seed+" "+slot+" "+BuiltInRegistries.ITEM.getKey(stack.getItem())+" "+stack.getCount()+" "+stack.getDamageValue());
                             var enchantments=stack.getOrDefault(DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
                             var stored=stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
-                            for(var e:enchantments.entrySet())line.append(" "+e.getKey().unwrapKey().get().identifier()+"="+e.getIntValue());
-                            for(var e:stored.entrySet())line.append(" "+e.getKey().unwrapKey().get().identifier()+"="+e.getIntValue());
+                            for(var e:enchantments.entrySet())line.append(" "+e.getKey().unwrapKey().get().location()+"="+e.getIntValue());
+                            for(var e:stored.entrySet())line.append(" "+e.getKey().unwrapKey().get().location()+"="+e.getIntValue());
                             w.println(line);
                         }
                     } catch(Exception e) {

@@ -14,7 +14,7 @@ import net.minecraft.client.Options;
 import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.client.sounds.*;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundSource;
 import org.lwjgl.openal.AL10;
 
@@ -81,12 +81,12 @@ public final class VanillaSoundRig {
         }
 
         @Override
-        public CompletableFuture<SoundBuffer> getCompleteBuffer(final Identifier location) {
+        public CompletableFuture<SoundBuffer> getCompleteBuffer(final ResourceLocation location) {
             return CompletableFuture.completedFuture(silence);
         }
 
         @Override
-        public CompletableFuture<AudioStream> getStream(final Identifier location, final boolean looping) {
+        public CompletableFuture<AudioStream> getStream(final ResourceLocation location, final boolean looping) {
             return CompletableFuture.completedFuture(new Silence());
         }
     }

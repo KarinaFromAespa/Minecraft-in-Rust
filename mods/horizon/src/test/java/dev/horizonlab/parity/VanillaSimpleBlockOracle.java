@@ -147,9 +147,9 @@ public final class VanillaSimpleBlockOracle {
    BlockStateProvider.CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
   }
   var bundle=JsonParser.parseString(Files.readString(dir.resolve("feature-catalog.json"))).getAsJsonObject();
-  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow().feature(),RegistrationInfo.BUILT_IN);
+  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.FEATURE,ResourceLocation.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow().feature(),RegistrationInfo.BUILT_IN);
   features.freeze();
-  for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+  for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,ResourceLocation.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   placed.freeze();
   var contextMethod=VanillaPlacementOracle.class.getDeclaredMethod("context",JsonObject.class);contextMethod.setAccessible(true);
   var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));
@@ -165,7 +165,7 @@ public final class VanillaSimpleBlockOracle {
       handler.calls=0;try{out.println("place "+decoded.get().place(world,generator,random,origin));}catch(Stop|IllegalArgumentException error){out.println("place error");}
       out.println("next "+random.nextLong()+" "+worldRandom.nextLong());out.println("calls "+handler.calls);
       for(var entry:handler.states.entrySet())out.println("stored "+xyz(entry.getKey())+" "+Block.getId(entry.getValue()));
-      for(var entry:handler.lootContainers.entrySet())if(entry.getValue().getLootTable()!=null)out.println("loot "+xyz(entry.getKey())+" "+entry.getValue().getLootTable().identifier()+" "+entry.getValue().getLootTableSeed());
+      for(var entry:handler.lootContainers.entrySet())if(entry.getValue().getLootTable()!=null)out.println("loot "+xyz(entry.getKey())+" "+entry.getValue().getLootTable().location()+" "+entry.getValue().getLootTableSeed());
       for(var entry:handler.gateways.entrySet()) {
        var exit=TheEndGatewayBlockEntity.class.getDeclaredField("exitPortal");exit.setAccessible(true);var exact=TheEndGatewayBlockEntity.class.getDeclaredField("exactTeleport");exact.setAccessible(true);
        out.println("gateway "+xyz(entry.getKey())+" "+xyz((BlockPos)exit.get(entry.getValue()))+" "+exact.getBoolean(entry.getValue()));

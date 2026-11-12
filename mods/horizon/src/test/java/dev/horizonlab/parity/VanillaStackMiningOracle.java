@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import net.minecraft.commands.arguments.item.ItemParser;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -31,7 +31,7 @@ public final class VanillaStackMiningOracle {
                 var row = JsonParser.parseString(line).getAsJsonObject();
                 var stack = parser.parse(new StringReader(row.get("item").getAsString())).createItemStack(1);
                 if (row.has("count")) stack.setCount(row.get("count").getAsInt());
-                var block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(row.get("block").getAsString())).defaultBlockState();
+                var block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(row.get("block").getAsString())).defaultBlockState();
                 var restored = stack;
                 if (!stack.isEmpty()) {
                     var saved = ItemStack.CODEC.encodeStart(ParityData.ops, stack).getOrThrow();

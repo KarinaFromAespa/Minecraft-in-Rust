@@ -3,7 +3,7 @@
 //! packets 1.21.2 changed are not written yet.
 //!
 //! Done here, packet by packet:
-//! - The window id of container_close, container_set_content, container_set_data and mount_screen_open is a
+//! - The window id of container_close, container_set_content, container_set_data and horse_screen_open is a
 //!   VarInt from 1.21.2, a byte in 1.21.1; container_set_slot's is a signed byte in 1.21.1 (-1 is the cursor).
 //! - set_held_slot is a VarInt, a byte in 1.21.1 (see the TODO in translate's `v1_21_1`: the id tables call 1.21.1's
 //!   set_carried_item unknown, so this layout is reached only once that is renamed).
@@ -57,7 +57,7 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Optio
         cb::CONTAINER_CLOSE
         | cb::CONTAINER_SET_CONTENT
         | cb::CONTAINER_SET_DATA
-        | cb::MOUNT_SCREEN_OPEN => window_down(payload, false)?,
+        | cb::HORSE_SCREEN_OPEN => window_down(payload, false)?,
         cb::CONTAINER_SET_SLOT => window_down(payload, true)?,
         cb::SET_HELD_SLOT => held_slot(payload)?,
         cb::SET_TIME => set_time(payload)?,

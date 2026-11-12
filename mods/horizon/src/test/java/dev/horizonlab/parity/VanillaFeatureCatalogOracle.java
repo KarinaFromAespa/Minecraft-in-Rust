@@ -46,20 +46,20 @@ public final class VanillaFeatureCatalogOracle {
             if(key.equals(Registries.PLACED_FEATURE))return (Optional<HolderGetter<T>>)(Optional<?>)Optional.of(placed);
             return Optional.empty();
         }});
-        for(var entry:bundle.getAsJsonObject("features").entrySet())if(!entry.getKey().equals("horizon:composite"))features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse(entry.getKey())),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
-        for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var entry:bundle.getAsJsonObject("features").entrySet())if(!entry.getKey().equals("horizon:composite"))features.register(ResourceKey.create(Registries.FEATURE,ResourceLocation.parse(entry.getKey())),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,ResourceLocation.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         placed.freeze();
         var loader=new TagLoader<Holder<PlacedFeature>>((id,required)->placed.get(id).map(value->(Holder<PlacedFeature>)value),"tags/worldgen/placed_feature");
-        var definitions=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var entry:bundle.getAsJsonObject("tags").entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
             var values=new ArrayList<TagLoader.EntryWithSource>();for(var value:file.entries())values.add(new TagLoader.EntryWithSource(value,"fixture"));
-            definitions.put(Identifier.parse(entry.getKey()),values);
+            definitions.put(ResourceLocation.parse(entry.getKey()),values);
         }
         var tags=new HashMap<TagKey<PlacedFeature>,List<Holder<PlacedFeature>>>();
         loader.build(definitions).forEach((name,values)->tags.put(TagKey.create(Registries.PLACED_FEATURE,name),List.copyOf(values)));
         placed.prepareTagReload(new TagLoader.LoadResult<>(Registries.PLACED_FEATURE,tags)).apply();
-        features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse("horizon:composite")),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(bundle.getAsJsonObject("features").get("horizon:composite").getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+        features.register(ResourceKey.create(Registries.FEATURE,ResourceLocation.parse("horizon:composite")),Feature.DIRECT_CODEC.parse(ops,JsonParser.parseString(bundle.getAsJsonObject("features").get("horizon:composite").getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
         features.freeze();return ops;
     }
     public static void main(String[] args) throws Exception {

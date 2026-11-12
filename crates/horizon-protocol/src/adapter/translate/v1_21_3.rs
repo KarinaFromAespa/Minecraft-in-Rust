@@ -120,9 +120,9 @@ mod tests {
             assert_eq!(ids.block_state.down(pinned), Some(old));
             assert_eq!(ids.block_state.down(pinned - 1), Some(old)); // natural=true also maps back
         }
-        assert_eq!(ids.entity_type.up(29), Some(31));
-        assert_eq!(ids.entity_type.up(30), Some(31));
-        assert_eq!(ids.entity_type.down(31), Some(29));
+        assert_eq!(ids.entity_type.up(29), Some(30));
+        assert_eq!(ids.entity_type.up(30), Some(30));
+        assert_eq!(ids.entity_type.down(30), Some(29));
     }
 
     #[test]

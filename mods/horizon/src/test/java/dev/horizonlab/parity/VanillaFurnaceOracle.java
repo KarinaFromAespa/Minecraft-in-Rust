@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
@@ -55,7 +55,7 @@ public final class VanillaFurnaceOracle {
         Map<String, Float> experience = new TreeMap<>();
         for (var holder : recipes.getRecipes()) {
             if (holder.value() instanceof AbstractCookingRecipe cooking) {
-                experience.put(holder.id().identifier().toString(), cooking.experience());
+                experience.put(holder.unwrapKey().orElseThrow().location().toString(), cooking.experience());
             }
         }
         Path in = Path.of(args[0]), out = Path.of(args[1]);

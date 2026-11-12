@@ -10,7 +10,7 @@ import net.minecraft.client.resources.sounds.*;
 import net.minecraft.client.sounds.*;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.*;
 import net.minecraft.server.packs.repository.PackSource;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
@@ -78,7 +78,7 @@ public final class VanillaSoundEventOracle {
                 float volume = Float.intBitsToFloat(Integer.parseUnsignedInt(f[2], 16));
                 float pitch = Float.intBitsToFloat(Integer.parseUnsignedInt(f[3], 16));
                 RandomSource random = RandomSource.create(seed);
-                var instance = new SimpleSoundInstance(Identifier.parse(f[0]), SoundSource.MASTER, volume, pitch, random, false, 0,
+                var instance = new SimpleSoundInstance(ResourceLocation.parse(f[0]), SoundSource.MASTER, volume, pitch, random, false, 0,
                     SoundInstance.Attenuation.LINEAR, 0.0, 0.0, 0.0, false);
                 WeighedSoundEvents event = instance.getOrResolve(manager);
                 Sound sound = instance.getSound();

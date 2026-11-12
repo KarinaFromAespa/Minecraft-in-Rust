@@ -20,7 +20,7 @@ import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.FormattedCharSequence;
@@ -137,7 +137,7 @@ public final class VanillaHudOracle {
         @Override public int getArmorValue() { return i("armor", 0); }
         @Override public FoodData getFoodData() { return food; }
         @Override public boolean hasEffect(Holder<MobEffect> effect) {
-            if (c.has("effects")) for (var e : c.getAsJsonArray("effects")) if (effect.is(Identifier.parse(e.getAsString()))) return true;
+            if (c.has("effects")) for (var e : c.getAsJsonArray("effects")) if (effect.is(ResourceLocation.parse(e.getAsString()))) return true;
             return false;
         }
         @Override public java.util.Collection<net.minecraft.world.effect.MobEffectInstance> getActiveEffects() { return active; }
@@ -162,7 +162,7 @@ public final class VanillaHudOracle {
         @Override public float getJumpRidingScale() { return f("jumpScale", 0); }
         @Override public ItemStack getItemBySlot(net.minecraft.world.entity.EquipmentSlot slot) {
             return slot == net.minecraft.world.entity.EquipmentSlot.HEAD && c.has("head") && !c.get("head").isJsonNull()
-                ? new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(c.get("head").getAsString()))) : ItemStack.EMPTY;
+                ? new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.withDefaultNamespace(c.get("head").getAsString()))) : ItemStack.EMPTY;
         }
         @Override public int getTicksFrozen() { return i("ticksFrozen", 0); }
         @Override public boolean isScoping() { return b("scoping"); }
@@ -206,7 +206,7 @@ public final class VanillaHudOracle {
             draws.add(o);
             return o;
         }
-        void sprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int[] region, int color) {
+        void sprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int[] region, int color) {
             var o = new JsonObject();
             o.addProperty("type", "sprite");
             o.addProperty("sprite", id.getPath());
@@ -220,8 +220,8 @@ public final class VanillaHudOracle {
             o.addProperty("pipeline", p.getLocation().getPath());
             posed(o, stack);
         }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int color) { sprite(p, id, x, y, w, h, null, color); }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int sw, int sh, int u, int v, int x, int y, int w, int h, int color) {
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int color) { sprite(p, id, x, y, w, h, null, color); }
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int sw, int sh, int u, int v, int x, int y, int w, int h, int color) {
             sprite(p, id, x, y, w, h, new int[] {sw, sh, u, v}, color);
         }
         @Override public void blitSprite(RenderPipeline p, net.minecraft.client.renderer.texture.TextureAtlasSprite s, int x, int y, int w, int h, int color) {
@@ -232,7 +232,7 @@ public final class VanillaHudOracle {
             o.addProperty("color", color);
             posed(o, stack);
         }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
             var o = new JsonObject();
             o.addProperty("type", "blit");
             o.addProperty("texture", texture.getPath());
@@ -437,7 +437,7 @@ public final class VanillaHudOracle {
                         if (c.has("crosshair") && c.get("crosshair").getAsBoolean()) {
                             put(options, Options.class, "cameraType", net.minecraft.client.CameraType.FIRST_PERSON);
                             var debug = alloc(net.minecraft.client.gui.components.debug.DebugScreenEntryList.class);
-                            put(debug, net.minecraft.client.gui.components.debug.DebugScreenEntryList.class, "currentlyEnabled", new ArrayList<Identifier>());
+                            put(debug, net.minecraft.client.gui.components.debug.DebugScreenEntryList.class, "currentlyEnabled", new ArrayList<ResourceLocation>());
                             put(mc, Minecraft.class, "debugEntries", debug);
                             boolean target = c.has("target") && !c.get("target").isJsonNull();
                             put(mc, Minecraft.class, "crosshairPickEntity", target ? alloc(Target.class) : null);
@@ -452,7 +452,7 @@ public final class VanillaHudOracle {
                     case "effects" -> {
                         for (var e : c.getAsJsonArray("active")) {
                             var o = e.getAsJsonObject();
-                            var effect = BuiltInRegistries.MOB_EFFECT.get(Identifier.parse(o.get("id").getAsString())).orElseThrow();
+                            var effect = BuiltInRegistries.MOB_EFFECT.get(ResourceLocation.parse(o.get("id").getAsString())).orElseThrow();
                             actor.active.add(new net.minecraft.world.effect.MobEffectInstance(effect, o.get("duration").getAsInt(), 0,
                                 o.get("ambient").getAsBoolean(), true, o.get("icon").getAsBoolean()));
                         }
@@ -481,7 +481,7 @@ public final class VanillaHudOracle {
                             ItemStack stack = ItemStack.EMPTY;
                             if (!e.isJsonNull()) {
                                 var o = e.getAsJsonObject();
-                                stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(o.get("item").getAsString())));
+                                stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.withDefaultNamespace(o.get("item").getAsString())));
                                 if (!o.get("custom").isJsonNull()) stack.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME, comp(o.get("custom")));
                             }
                             inventory.setItem(slot, stack);
@@ -527,7 +527,7 @@ public final class VanillaHudOracle {
                         sidebar.invoke(hud, capture, objective);
                     }
                     case "decor" -> {
-                        var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.withDefaultNamespace(c.get("item").getAsString())));
+                        var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.withDefaultNamespace(c.get("item").getAsString())));
                         stack.setCount(i("count", 1));
                         stack.setDamageValue(i("damage", 0));
                         if (b("unbreakable")) stack.set(net.minecraft.core.component.DataComponents.UNBREAKABLE, net.minecraft.util.Unit.INSTANCE);
@@ -565,7 +565,7 @@ public final class VanillaHudOracle {
                         put(hud, Hud.class, "scopeScale", f("scopeScale", 0.5F));
                         // The nether portal particle sprite, as the block model set would give it.
                         var contents = alloc(net.minecraft.client.renderer.texture.SpriteContents.class);
-                        put(contents, net.minecraft.client.renderer.texture.SpriteContents.class, "name", Identifier.withDefaultNamespace("block/nether_portal"));
+                        put(contents, net.minecraft.client.renderer.texture.SpriteContents.class, "name", ResourceLocation.withDefaultNamespace("block/nether_portal"));
                         var sprite = alloc(net.minecraft.client.renderer.texture.TextureAtlasSprite.class);
                         put(sprite, net.minecraft.client.renderer.texture.TextureAtlasSprite.class, "contents", contents);
                         var material = new net.minecraft.client.resources.model.sprite.Material.Baked(sprite, false);

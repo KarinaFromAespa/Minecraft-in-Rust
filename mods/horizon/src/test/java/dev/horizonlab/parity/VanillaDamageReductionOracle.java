@@ -1,6 +1,6 @@
 package dev.horizonlab.parity;
 import com.google.gson.*;import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
-import net.minecraft.core.Holder;import net.minecraft.resources.Identifier;import net.minecraft.tags.*;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.damagesource.*;import net.minecraft.world.effect.*;import net.minecraft.world.item.ItemStack;import net.minecraft.world.level.Level;import net.minecraft.server.level.*;import net.minecraft.stats.Stats;
+import net.minecraft.core.Holder;import net.minecraft.resources.ResourceLocation;import net.minecraft.tags.*;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.damagesource.*;import net.minecraft.world.effect.*;import net.minecraft.world.item.ItemStack;import net.minecraft.world.level.Level;import net.minecraft.server.level.*;import net.minecraft.stats.Stats;
 /** Actual living armor/resistance/protection dispatch, with empty equipment. */
 public final class VanillaDamageReductionOracle {
     static final class Stop extends RuntimeException {}
@@ -41,7 +41,7 @@ public final class VanillaDamageReductionOracle {
         float armor(DamageSource s,float v){return super.getDamageAfterArmorAbsorb(s,v);}
         float magic(DamageSource s,float v){return super.getDamageAfterMagicAbsorb(s,v);}
 
-        @Override public void awardStat(Identifier stat,int v){String n=stat==Stats.DAMAGE_RESISTED?"resisted":stat==Stats.DAMAGE_DEALT_RESISTED?"dealt-resisted":null;if(n==null)throw new AssertionError();d.query("stat "+(d.actor==this?"self":"attacker")+" "+n+" "+v);}
+        @Override public void awardStat(ResourceLocation stat,int v){String n=stat==Stats.DAMAGE_RESISTED?"resisted":stat==Stats.DAMAGE_DEALT_RESISTED?"dealt-resisted":null;if(n==null)throw new AssertionError();d.query("stat "+(d.actor==this?"self":"attacker")+" "+n+" "+v);}
     }
     public static void main(String[] args)throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);if(args[0].equals("export")){var slots=new JsonArray();for(var slot:EquipmentSlot.VALUES)slots.add(slot.ordinal());Files.writeString(dir.resolve("slots.json"),slots.toString());return;}

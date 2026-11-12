@@ -43,7 +43,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundCommandsPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -116,8 +116,8 @@ public final class VanillaChatScreenOracle {
         @Override public Collection<String> getCustomTabSuggestions() { return getOnlinePlayerNames(); }
         @Override public Collection<String> getSelectedEntities() { return new ArrayList<>(List.of(VanillaCommandParseOracle.SELECTED)); }
         @Override public Collection<String> getAllTeams() { return new ArrayList<>(List.of(VanillaCommandParseOracle.TEAMS)); }
-        @Override public java.util.stream.Stream<Identifier> getAvailableSounds() { return BuiltInRegistries.SOUND_EVENT.keySet().stream(); }
-        @Override public java.util.stream.Stream<Identifier> getAvailablePostEffects() { return source.getAvailablePostEffects(); }
+        @Override public java.util.stream.Stream<ResourceLocation> getAvailableSounds() { return BuiltInRegistries.SOUND_EVENT.keySet().stream(); }
+        @Override public java.util.stream.Stream<ResourceLocation> getAvailablePostEffects() { return source.getAvailablePostEffects(); }
         /** ClientPacketListener's: the player's (an operator's) and ALLOW_RESTRICTED_COMMANDS. */
         @Override public PermissionSet permissions() {
             try {

@@ -12,7 +12,7 @@ import net.minecraft.client.resources.model.cuboid.*;
 import net.minecraft.client.resources.model.sprite.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StrictJsonParser;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
@@ -34,10 +34,10 @@ public final class VanillaGallerySelectionOracle {
         var faces=new ArrayList<Object>();for(var d:Direction.values())faces.add(matrix(state.inverseFaceTransformation(d)));
         return JSON.toJsonTree(map("model",name,"matrix",matrix(state.transformation().getMatrix()),"inverse_uv",faces));
     }
-    private record PartTag(Identifier model,ModelState transform,JsonElement signature) {}
+    private record PartTag(ResourceLocation model,ModelState transform,JsonElement signature) {}
     private static final class Baker implements ModelBaker {
         final IdentityHashMap<QuadCollection,PartTag> tags=new IdentityHashMap<>();
-        public ResolvedModel getModel(Identifier id) {
+        public ResolvedModel getModel(ResourceLocation id) {
             return new ResolvedModel() {
                 public String debugName(){return id.toString();}
                 public UnbakedModel wrapped(){throw new AssertionError("unexpected wrapped model access");}
@@ -67,7 +67,7 @@ public final class VanillaGallerySelectionOracle {
         if(diameter*diameter!=chunks || diameter%2==0)throw new AssertionError("unsupported scene grid");
         int radius=diameter/2;var world=new HashMap<BlockPos,BlockState>();
         String[] layers={"bedrock","dirt","stone","sand","oak_planks","bricks"};
-        var materials=new ArrayList<BlockState>();for(var name:layers)materials.add(BuiltInRegistries.BLOCK.getValue(Identifier.parse(name)).defaultBlockState());
+        var materials=new ArrayList<BlockState>();for(var name:layers)materials.add(BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(name)).defaultBlockState());
         for(int cz=-radius;cz<=radius;cz++)for(int cx=-radius;cx<=radius;cx++)
             for(int z=0;z<16;z++)for(int x=0;x<16;x++)for(int y=0;y<4;y++) {
                 int layer=y==0?0:y<3?1:((cx+cz)&1)==0?2:3;
@@ -89,7 +89,7 @@ public final class VanillaGallerySelectionOracle {
         }
         var baker=new Baker();var models=new HashMap<BlockState,BlockStateModel>();
         for(var state:new HashSet<>(world.values()))models.put(state,Objects.requireNonNull(roots.get(state)).bake(state,baker));
-        var unbaked=new HashMap<Identifier,UnbakedModel>();var pending=new ArrayList<Identifier>();
+        var unbaked=new HashMap<ResourceLocation,UnbakedModel>();var pending=new ArrayList<ResourceLocation>();
         for(var part:baker.tags.values())pending.add(part.model());
         for(int i=0;i<pending.size();i++) {
             var id=pending.get(i);if(unbaked.containsKey(id))continue;
@@ -125,7 +125,7 @@ public final class VanillaGallerySelectionOracle {
         VanillaHeightmapOracle.bindTags(JsonParser.parseString(Files.readString(Path.of(args[2]).resolve("block-tags.json"))).getAsJsonObject());
         var results=new ArrayList<Object>();int index=0;
         for(var item:report.getAsJsonArray("model_gallery")) {
-            var row=item.getAsJsonObject();var id=Identifier.parse(row.get("block").getAsString());
+            var row=item.getAsJsonObject();var id=ResourceLocation.parse(row.get("block").getAsString());
             var block=BuiltInRegistries.BLOCK.getValue(id);var state=block.defaultBlockState();
             for(var entry:row.getAsJsonObject("properties").entrySet())
                 state=set(state,Objects.requireNonNull(block.getStateDefinition().getProperty(entry.getKey())),entry.getValue().getAsString());

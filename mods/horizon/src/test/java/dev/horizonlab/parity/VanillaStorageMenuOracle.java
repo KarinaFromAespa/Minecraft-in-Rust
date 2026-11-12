@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
@@ -28,7 +28,7 @@ import net.minecraft.world.level.block.state.BlockState;
  */
 public final class VanillaStorageMenuOracle {
     static String menu(String id, Method createMenu) throws Exception {
-        BlockState state = BuiltInRegistries.BLOCK.getValue(Identifier.parse(id)).defaultBlockState();
+        BlockState state = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(id)).defaultBlockState();
         BlockEntity entity = ((EntityBlock) state.getBlock()).newBlockEntity(BlockPos.ZERO, state);
         entity.setRemoved();
         Inventory inventory = new Inventory(null, null);

@@ -34,7 +34,7 @@ public final class VanillaShulkerSpaceOracle {
                     var row = cell.getAsJsonArray();
                     var name = row.get(3).getAsString();
                     var state = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(
-                        net.minecraft.resources.Identifier.parse(name)).defaultBlockState();
+                        net.minecraft.resources.ResourceLocation.parse(name)).defaultBlockState();
                     row.set(3, new com.google.gson.JsonPrimitive(Block.getId(state)));
                 }
                 var world = VanillaBlockUpdateOracle.build(input);

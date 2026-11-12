@@ -47,7 +47,7 @@ public final class VanillaTradeComponentsOracle {
                 var random = RandomSource.create(input.get("seed").getAsLong());
                 var loot = ctor.newInstance(null, random, access);
                 var gives = t.getAsJsonObject("gives");
-                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(gives.get("id").getAsString())), gives.has("count") ? gives.get("count").getAsInt() : 1);
+                var stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(gives.get("id").getAsString())), gives.has("count") ? gives.get("count").getAsInt() : 1);
                 if (t.has("given_item_modifier")) {
                     var mods = t.get("given_item_modifier");
                     var list = mods.isJsonArray() ? mods.getAsJsonArray() : new JsonArray();

@@ -7,7 +7,7 @@ import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.*;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.util.RandomSource;
@@ -64,7 +64,7 @@ public final class VanillaHelmetDamageOracle {
         }
     }
     static ItemStack stack(String item, int damage, int unbreaking) {
-        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse("minecraft:" + item)));
+        ItemStack stack = new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse("minecraft:" + item)));
         stack.setDamageValue(damage);
         if (unbreaking > 0) {
             var levels = new ItemEnchantments.Mutable(ItemEnchantments.EMPTY);
@@ -115,7 +115,7 @@ public final class VanillaHelmetDamageOracle {
                     entry.getValue().forEachModifier(entry.getKey(), (attribute, modifier) -> actor.attributes.getInstance(attribute).addTransientModifier(modifier));
                 }
                 var source = new DamageSource(ParityData.lookup.lookupOrThrow(Registries.DAMAGE_TYPE)
-                    .getOrThrow(net.minecraft.resources.ResourceKey.create(Registries.DAMAGE_TYPE, Identifier.parse("minecraft:" + input.get("source").getAsString()))));
+                    .getOrThrow(net.minecraft.resources.ResourceKey.create(Registries.DAMAGE_TYPE, ResourceLocation.parse("minecraft:" + input.get("source").getAsString()))));
                 float health = 20.0F - actor.hit(source, 8.0F);
                 long next = actor.level.random.nextLong();
                 for (int path = 0; path < 2; path++) {

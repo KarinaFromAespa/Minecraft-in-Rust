@@ -15,7 +15,7 @@ import com.mojang.math.Quadrant;
 import net.minecraft.client.renderer.texture.*;
 import net.minecraft.client.resources.metadata.animation.FrameSize;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import org.joml.*;
 import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
 
@@ -23,7 +23,7 @@ import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
 public final class VanillaModelBakingOracle {
     private static final Gson JSON = new GsonBuilder().serializeNulls().create();
     private static final class Sprite extends TextureAtlasSprite {
-        Sprite(SpriteContents contents) { super(Identifier.parse("horizon:atlas"),contents,16,16,0,0,0); }
+        Sprite(SpriteContents contents) { super(ResourceLocation.parse("horizon:atlas"),contents,16,16,0,0,0); }
     }
     private static final ModelBaker.Interner INTERNER = new ModelBaker.Interner() {
         public Vector3fc vector(Vector3fc vector) { return vector; }
@@ -47,7 +47,7 @@ public final class VanillaModelBakingOracle {
             for(var entry:element.faces().entrySet()) {
                 var face=entry.getValue();
                 var material=textures.getMaterial(face.texture());
-                if(material==null)material=new Material(Identifier.parse("minecraft:missingno"));
+                if(material==null)material=new Material(ResourceLocation.parse("minecraft:missingno"));
                 var uv=face.uvs();
                 if(uv==null)uv=(CuboidFace.UVs)defaultUv.invoke(null,element.from(),element.to(),entry.getKey());
                 var info=new BakedQuad.MaterialInfo(sprite,null,null,null,null,face.tintIndex(),element.shadeDirectionOverride(),element.lightEmission());
@@ -74,15 +74,15 @@ public final class VanillaModelBakingOracle {
         net.minecraft.SharedConstants.tryDetectVersion();
         if(org.joml.Options.FASTMATH || org.joml.Options.USE_MATH_FMA)throw new AssertionError("Expected default JOML math options");
         var image=new NativeImage(16,16,true);
-        var contents=new SpriteContents(Identifier.parse("horizon:probe"),new FrameSize(16,16),image);
+        var contents=new SpriteContents(ResourceLocation.parse("horizon:probe"),new FrameSize(16,16),image);
         var sprite=new Sprite(contents);
         try (contents; var input=Files.newBufferedReader(Path.of(args[0])); var output=Files.newBufferedWriter(Path.of(args[1]))) {
             int index=0;
             for(String line;(line=input.readLine())!=null;index++) {
-                var row=JsonParser.parseString(line).getAsJsonObject();var models=new HashMap<Identifier,UnbakedModel>();
-                for(var entry:row.getAsJsonObject("models").entrySet())models.put(Identifier.parse(entry.getKey()),CuboidModel.fromStream(new StringReader(entry.getValue().getAsString())));
+                var row=JsonParser.parseString(line).getAsJsonObject();var models=new HashMap<ResourceLocation,UnbakedModel>();
+                for(var entry:row.getAsJsonObject("models").entrySet())models.put(ResourceLocation.parse(entry.getKey()),CuboidModel.fromStream(new StringReader(entry.getValue().getAsString())));
                 var discovery=new ModelDiscovery(models,MissingCuboidModel.missingModel());
-                discovery.addRoot(resolver->{for(var root:row.getAsJsonArray("roots"))resolver.markDependency(Identifier.parse(root.getAsString()));});
+                discovery.addRoot(resolver->{for(var root:row.getAsJsonArray("roots"))resolver.markDependency(ResourceLocation.parse(root.getAsString()));});
                 var resolved=discovery.resolve();
                 ModelState state=new ModelState(){};
                 if(row.has("transform")) {
@@ -91,7 +91,7 @@ public final class VanillaModelBakingOracle {
                 }
                 for(var root:row.getAsJsonArray("roots")) {
                     String name=root.getAsString();Map<String,Object> value;
-                    try {value=bake(Objects.requireNonNull(resolved.get(Identifier.parse(name))),sprite,state);
+                    try {value=bake(Objects.requireNonNull(resolved.get(ResourceLocation.parse(name))),sprite,state);
                         if(row.has("transform")) {
                             var inverse=new ArrayList<Object>();
                             for(var d:Direction.values())inverse.add(affine(state.inverseFaceTransformation(d)));

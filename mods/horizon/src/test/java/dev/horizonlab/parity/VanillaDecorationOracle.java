@@ -36,7 +36,7 @@ public final class VanillaDecorationOracle {
                 var f=JsonParser.parseString(line).getAsJsonObject();int min=f.get("min").getAsInt(),height=f.get("height").getAsInt();
                 int biomeCount=f.getAsJsonArray("biomes").size(),featureCount=f.getAsJsonArray("placements").size();
                 var holders=new ArrayList<Holder<Biome>>();var ids=new IdMapper<Holder<Biome>>();
-                for(int i=0;i<=biomeCount;i++){var holder=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:b"+i)));holders.add(holder);ids.add(holder);}
+                for(int i=0;i<=biomeCount;i++){var holder=Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,ResourceLocation.parse("horizon:b"+i)));holders.add(holder);ids.add(holder);}
                 var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));
                 var generator=((PlacementContext)contextMethod.invoke(null,bounds)).generator();
                 var placed=new MappedRegistry<PlacedFeature>(Registries.PLACED_FEATURE,Lifecycle.stable());
@@ -56,7 +56,7 @@ public final class VanillaDecorationOracle {
                     };
                     var modifiers=new ArrayList<PlacementModifier>();for(var value:f.getAsJsonArray("placements").get(i).getAsJsonArray())modifiers.add(PlacementModifier.CODEC.parse(JsonOps.INSTANCE,value).getOrThrow());
                     var root=new PlacedFeature(Holder.direct(leaf),modifiers);features.add(root);
-                    placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse("horizon:f"+i)),root,RegistrationInfo.BUILT_IN);
+                    placed.register(ResourceKey.create(Registries.PLACED_FEATURE,ResourceLocation.parse("horizon:f"+i)),root,RegistrationInfo.BUILT_IN);
                 }
                 placed.freeze();
                 var settings=new ArrayList<BiomeGenerationSettings>();

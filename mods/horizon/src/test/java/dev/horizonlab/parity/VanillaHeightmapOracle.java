@@ -10,7 +10,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.*;
 import net.minecraft.world.level.*;
 import net.minecraft.world.level.biome.*;
@@ -39,12 +39,12 @@ public final class VanillaHeightmapOracle {
     static void bindTags(JsonObject resources) {
         var registry=BuiltInRegistries.BLOCK;
         var loader=new TagLoader<Holder<Block>>((id,required)->registry.get(id).map(value->(Holder<Block>)value),"tags/block");
-        var definitions=new HashMap<Identifier,List<TagLoader.EntryWithSource>>();
+        var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(Identifier.parse(item.getKey()),entries);
+            definitions.put(ResourceLocation.parse(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Block>,List<Holder<Block>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.BLOCK,id),List.copyOf(values)));

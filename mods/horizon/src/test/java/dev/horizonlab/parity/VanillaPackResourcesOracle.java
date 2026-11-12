@@ -21,7 +21,7 @@ import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackLocationInfo;
 import net.minecraft.server.packs.PackResources;
 import net.minecraft.server.packs.PackType;
@@ -76,8 +76,8 @@ public final class VanillaPackResourcesOracle {
         var registryField = preparations.getClass().getDeclaredField("registry");
         registryField.setAccessible(true);
         @SuppressWarnings("unchecked")
-        Map<Identifier, WeighedSoundEvents> registry = (Map<Identifier, WeighedSoundEvents>) registryField.get(preparations);
-        Method fontStack = net.minecraft.client.gui.font.FontManager.class.getDeclaredMethod("loadResourceStack", List.class, Identifier.class);
+        Map<ResourceLocation, WeighedSoundEvents> registry = (Map<ResourceLocation, WeighedSoundEvents>) registryField.get(preparations);
+        Method fontStack = net.minecraft.client.gui.font.FontManager.class.getDeclaredMethod("loadResourceStack", List.class, ResourceLocation.class);
         fontStack.setAccessible(true);
 
         StringBuilder out = new StringBuilder();
@@ -86,7 +86,7 @@ public final class VanillaPackResourcesOracle {
             out.append(line).append(" =>");
             switch (q[0]) {
                 case "file" -> {
-                    Optional<Resource> resource = manager.getResource(Identifier.parse(q[1]));
+                    Optional<Resource> resource = manager.getResource(ResourceLocation.parse(q[1]));
                     if (resource.isEmpty()) {
                         out.append(" missing");
                     } else {
@@ -97,7 +97,7 @@ public final class VanillaPackResourcesOracle {
                 }
                 case "lang" -> out.append(' ').append(language.getOrDefault(q[1]));
                 case "sound" -> {
-                    WeighedSoundEvents event = registry.get(Identifier.parse(q[1]));
+                    WeighedSoundEvents event = registry.get(ResourceLocation.parse(q[1]));
                     if (event == null) {
                         out.append(" missing");
                         break;
@@ -113,7 +113,7 @@ public final class VanillaPackResourcesOracle {
                     }
                 }
                 case "font" -> {
-                    Identifier id = Identifier.parse(q[1]);
+                    ResourceLocation id = ResourceLocation.parse(q[1]);
                     List<Resource> stack = manager.getResourceStack(id.withPath(p -> "font/" + p + ".json"));
                     List<?> builders = new ArrayList<>((List<?>) fontStack.invoke(null, stack, id));
                     java.util.Collections.reverse(builders);
@@ -124,7 +124,7 @@ public final class VanillaPackResourcesOracle {
                     }
                 }
                 case "atlas" -> {
-                    SpriteSourceList list = SpriteSourceList.load(manager, Identifier.parse(q[1]));
+                    SpriteSourceList list = SpriteSourceList.load(manager, ResourceLocation.parse(q[1]));
                     var sourcesField = SpriteSourceList.class.getDeclaredField("sources");
                     sourcesField.setAccessible(true);
                     @SuppressWarnings("unchecked")

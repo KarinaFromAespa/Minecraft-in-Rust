@@ -1,6 +1,6 @@
 package dev.horizonlab.parity;
 import com.google.gson.*;import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
-import net.minecraft.core.Holder;import net.minecraft.resources.Identifier;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.damagesource.*;import net.minecraft.server.level.*;import net.minecraft.world.level.gameevent.GameEvent;import net.minecraft.stats.Stats;
+import net.minecraft.core.Holder;import net.minecraft.resources.ResourceLocation;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.damagesource.*;import net.minecraft.server.level.*;import net.minecraft.world.level.gameevent.GameEvent;import net.minecraft.stats.Stats;
 /** Actual LivingEntity/Player inner damage application with controlled phase hooks. */
 public final class VanillaLivingDamageOracle {
     static final class Stop extends RuntimeException {}
@@ -48,7 +48,7 @@ public final class VanillaLivingDamageOracle {
         void run(ServerLevel l,DamageSource s,float v){super.actuallyHurt(l,s,v);}
 
         @Override public void causeFoodExhaustion(float v){d.query("exhaust "+bits(v));d.exhaustion+=v;}
-        @Override public void awardStat(Identifier stat,int value){String name=stat==Stats.DAMAGE_ABSORBED?"absorbed":stat==Stats.DAMAGE_DEALT_ABSORBED?"dealt-absorbed":stat==Stats.DAMAGE_TAKEN?"taken":"unknown";if(name.equals("unknown"))throw new AssertionError();d.query("stat "+(d.actor==this?"self":"attacker")+" "+name+" "+value);}
+        @Override public void awardStat(ResourceLocation stat,int value){String name=stat==Stats.DAMAGE_ABSORBED?"absorbed":stat==Stats.DAMAGE_DEALT_ABSORBED?"dealt-absorbed":stat==Stats.DAMAGE_TAKEN?"taken":"unknown";if(name.equals("unknown"))throw new AssertionError();d.query("stat "+(d.actor==this?"self":"attacker")+" "+name+" "+value);}
     }
     public static void main(String[] args)throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();var u=Class.forName("sun.misc.Unsafe");var uf=u.getDeclaredField("theUnsafe");uf.setAccessible(true);unsafe=uf.get(null);allocate=u.getMethod("allocateInstance",Class.class);var level=make(Level.class);Path dir=Path.of(args[1]);

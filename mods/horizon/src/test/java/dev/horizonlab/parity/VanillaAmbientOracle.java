@@ -14,7 +14,7 @@ import net.minecraft.client.sounds.ChannelAccess;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.FluidTags;
@@ -111,7 +111,7 @@ public final class VanillaAmbientOracle {
     }
 
     static Holder<SoundEvent> event(String id) {
-        return Holder.direct(SoundEvent.createVariableRangeEvent(Identifier.parse(id)));
+        return Holder.direct(SoundEvent.createVariableRangeEvent(ResourceLocation.parse(id)));
     }
 
     /** "loop|- mood|- addition..." with mood "sound,delay,extent,offsetbits" and additions "sound,chancebits". */

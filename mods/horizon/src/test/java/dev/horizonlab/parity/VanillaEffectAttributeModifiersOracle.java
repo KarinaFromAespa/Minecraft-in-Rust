@@ -6,7 +6,7 @@ import java.lang.reflect.*;
 import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Holder;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.entity.ai.attributes.*;
 
@@ -26,7 +26,7 @@ public final class VanillaEffectAttributeModifiersOracle {
         @Override public int hashCode() { return hash; }
     }
     static final class Effect extends MobEffect { Effect() { super(MobEffectCategory.BENEFICIAL, 0); } }
-    record Template(Identifier id, double amount, AttributeModifier.Operation operation) {
+    record Template(ResourceLocation id, double amount, AttributeModifier.Operation operation) {
         AttributeModifier create(int amplifier) { return new AttributeModifier(id, amount * (double)(amplifier + 1), operation); }
     }
     static final class Data {
@@ -98,7 +98,7 @@ public final class VanillaEffectAttributeModifiersOracle {
     static final class Attr extends AttributeInstance {
         Data d; int id;
         Attr(Data d, int id, double value) { super(Holder.direct(new Basic(value, id)), d::changed); this.d = d; this.id = id; }
-        @Override public boolean removeModifier(Identifier id) { d.event("remove " + this.id + " " + id); return super.removeModifier(id); }
+        @Override public boolean removeModifier(ResourceLocation id) { d.event("remove " + this.id + " " + id); return super.removeModifier(id); }
         @Override public void addPermanentModifier(AttributeModifier modifier) {
             int m = d.modifier(modifier); d.event("permanent " + id + " " + m + " " + desc(modifier));
             super.addPermanentModifier(modifier);
@@ -129,7 +129,7 @@ public final class VanillaEffectAttributeModifiersOracle {
                 }
                 for (var v : f.getAsJsonArray("templates")) {
                     var t = v.getAsJsonObject();
-                    d.templates.add(new Template(Identifier.parse(t.get("id").getAsString()), number(t.get("amount")), AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));
+                    d.templates.add(new Template(ResourceLocation.parse(t.get("id").getAsString()), number(t.get("amount")), AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));
                 }
                 d.routes = new int[d.keys.size() + 1];
                 for (int i = 0; i < d.routes.length; i++) d.routes[i] = f.getAsJsonArray("routes").get(i).getAsInt();

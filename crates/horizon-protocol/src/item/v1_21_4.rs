@@ -9,10 +9,10 @@ pub(super) fn reading() -> bool {
 pub(super) fn writing() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_5)
 }
-pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 13, 14, 15, 16, 41, 42, 54, 60];
+pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 10, 11, 12, 13, 34, 35, 47, 53];
 // The old hide_additional_tooltip hid item-specific tooltip providers.
 pub(super) const ADDITIONAL: &[i32] = &[
-    70, 75, 58, 74, 48, 47, 73, 77, 66, 67, 59, 44, 97, 72, 49, 86, 53,
+    63, 68, 51, 67, 41, 40, 66, 70, 59, 60, 52, 37, 89, 65, 42, 79, 46,
 ];
 
 pub(super) fn tooltip_ids() -> (i32, i32) {
@@ -114,7 +114,8 @@ pub(super) fn read_added_legacy(raw: i32, r: &mut Reader) -> Result<Option<(i32,
 
 pub(super) fn read_component(kind: i32, r: &mut Reader) -> Result<Component> {
     match kind {
-        14 | 15 | 28 => Ok(Component::Raw(rewrite(kind, r, true)?)),
+        // can_place_on, can_break, tool (pinned ids).
+        11 | 12 | 25 => Ok(Component::Raw(rewrite(kind, r, true)?)),
         component::TRIM => {
             let material = r.varint()?;
             let pattern = r.varint()?;
@@ -187,7 +188,7 @@ pub(super) fn write_stack(stack: Option<&Stack>, w: &mut Writer) {
 
 pub(super) fn write_component(kind: i32, value: &Component, w: &mut Writer) {
     match (kind, value) {
-        (14 | 15 | 28, Component::Raw(bytes)) => {
+        (11 | 12 | 25, Component::Raw(bytes)) => {
             let rewritten =
                 rewrite(kind, &mut Reader::new(bytes), false).unwrap_or_else(|_| bytes.clone());
             w.bytes(&rewritten);
@@ -223,7 +224,7 @@ pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
     let n = r.count(65536)?;
     w.varint(n as i32);
     for _ in 0..n {
-        if kind == 28 {
+        if kind == 25 { // tool
             block_set(r, &mut w)?;
             let speed = r.bool()?;
             w.bool(speed);
@@ -252,7 +253,7 @@ pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
             }
         }
     }
-    if kind == 28 {
+    if kind == 25 { // tool
         w.f32(r.f32()?);
         w.varint(r.varint()?);
         if up {
@@ -328,9 +329,9 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{version:?}");
             let mut expected = Writer::new();
-            expected.bytes(&[1, 1, 3, 1, 43, 0x12, 0x34, 0x56, 0x78, 72, 1]);
-            expected.varint(1445); // Pinned angler_pottery_sherd.
-            expected.bytes(&[1, 0, 0, 0, 0, 0, 3, 17, 43]);
+            expected.bytes(&[1, 1, 3, 1, 36, 0x12, 0x34, 0x56, 0x78, 65, 1]);
+            expected.varint(1428); // Pinned angler_pottery_sherd.
+            expected.bytes(&[1, 0, 0, 0, 0, 0, 3, 17, 36]);
             let expected = Slot::read(&mut Reader::new(&expected.data)).unwrap();
             assert_eq!(stack, expected, "{version:?}");
 
@@ -348,7 +349,7 @@ mod tests {
                 let _down = ids::renumbering(version.ids().unwrap(), Way::Down);
                 Slot::write(&stack, &mut down);
             }
-            // The removed map color round-trips (it is a real component in 1.21.11);
+            // The removed map color round-trips (it is a real component in 1.21.10);
             // the old pot's item ids and damage survive.
             let mut expected_old = Writer::new();
             expected_old.bytes(&[1, 1, 3, 1]);
@@ -408,7 +409,7 @@ mod tests {
                 .component(component::TOOLTIP_DISPLAY),
             Some(&Component::TooltipDisplay {
                 hide: true,
-                hidden: vec![4, 13, 42]
+                hidden: vec![4, 10, 35]
             })
         );
         let mut w = Writer::new();
@@ -456,57 +457,57 @@ mod tests {
             (
                 "attributes",
                 "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01b20701001002020b6d696e6563726166743a783ff8000000000000000100160b6d696e6563726166743a793fd0000000000000020000",
+                "01b20701000d02020b6d696e6563726166743a783ff8000000000000000100160b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "equip_bare",
                 "01ef0601001c0347000000010101",
-                "01b20701002003470000000101010000e70a",
+                "01b20701001c03470000000101010000b10a",
             ),
             (
                 "equip_list",
                 "01ef0601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e8f01000000",
-                "01b2070100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036496010000000000e70a",
+                "01b20701001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036193010000000000b10a",
             ),
             (
                 "equip_direct",
                 "01ef0601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01b20701002004000e6d696e6563726166743a7465737401408000000000000101010000e70a",
+                "01b20701001c04000e6d696e6563726166743a7465737401408000000000000101010000b10a",
             ),
             (
                 "combined",
                 "01ef0603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01b20703001001000b6d696e6563726166743a7a400800000000000000000003112003470000000101010000e70a",
+                "01b207030003110d01000b6d696e6563726166743a7a40080000000000000000001c03470000000101010000b10a",
             ),
             (
                 "tool",
                 "01ef0601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01b20701001c020301dd0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01b207010019020301dd0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
             ),
             (
                 "profile",
                 "01ef06010039010b486f72697a6f6e576972650000",
-                "01b20701004400010b486f72697a6f6e57697265000000000000",
+                "01b20701003d00010b486f72697a6f6e57697265000000000000",
             ),
             (
                 "color_hidden",
                 "01ef0601002200ff000000",
-                "01b20702002a00ff00001200012a",
+                "01b20702000f0001232300ff0000",
             ),
             (
                 "unbreakable_hidden",
                 "01ef0601000400",
-                "01b20702000412000104",
+                "01b2070200040f000104",
             ),
             (
                 "container",
                 "01ef0601003e06030100000000000002f3020000",
-                "01b20701004906010103000000000000018f03020000",
+                "01b20701004206010103000000000000018f03020000",
             ),
             (
                 "can_break_hidden",
                 "01ef0601000c01010201000000",
-                "01b20702000f01010201000000001200010f",
+                "01b20702000c01010201000000000f00010c",
             ),
         ] {
             let old = bytes(old);
@@ -550,72 +551,72 @@ mod tests {
             (
                 "attributes",
                 "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01b20701001002020b6d696e6563726166743a783ff8000000000000000100160b6d696e6563726166743a793fd0000000000000020000",
+                "01b20701000d02020b6d696e6563726166743a783ff8000000000000000100160b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "equip_bare",
                 "01e60601001c0347000000010101",
-                "01b20701002003470000000101010000e70a",
+                "01b20701001c03470000000101010000b10a",
             ),
             (
                 "equip_list",
                 "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-                "01b2070100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036496010000000000e70a",
+                "01b20701001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036193010000000000b10a",
             ),
             (
                 "equip_direct",
                 "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01b20701002004000e6d696e6563726166743a7465737401408000000000000101010000e70a",
+                "01b20701001c04000e6d696e6563726166743a7465737401408000000000000101010000b10a",
             ),
             (
                 "combined",
                 "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01b20703001001000b6d696e6563726166743a7a400800000000000000000003112003470000000101010000e70a",
+                "01b207030003110d01000b6d696e6563726166743a7a40080000000000000000001c03470000000101010000b10a",
             ),
             (
                 "model",
                 "01e60602000eb9600311",
-                "01b207020011014640e4000000000311",
+                "01b207020003110e014640e400000000",
             ),
             (
                 "model_negative",
                 "01e60601000eefffffff0f",
-                "01b20701001101c1880000000000",
+                "01b20701000e01c1880000000000",
             ),
             (
                 "model_large",
                 "01e60601000e80808008",
-                "01b207010011014b800000000000",
+                "01b20701000e014b800000000000",
             ),
             (
                 "tool",
                 "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01b20701001c020301dd0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01b207010019020301dd0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
             ),
             (
                 "profile",
                 "01e606010039010b486f72697a6f6e576972650000",
-                "01b20701004400010b486f72697a6f6e57697265000000000000",
+                "01b20701003d00010b486f72697a6f6e57697265000000000000",
             ),
             (
                 "color_hidden",
                 "01e60601002200ff000000",
-                "01b20702002a00ff00001200012a",
+                "01b20702000f0001232300ff0000",
             ),
             (
                 "unbreakable_hidden",
                 "01e60601000400",
-                "01b20702000412000104",
+                "01b2070200040f000104",
             ),
             (
                 "container",
                 "01e60601003e06030100000000000002f1020000",
-                "01b20701004906010103000000000000018f03020000",
+                "01b20701004206010103000000000000018f03020000",
             ),
             (
                 "can_break_hidden",
                 "01e60601000c01010201000000",
-                "01b20702000f01010201000000001200010f",
+                "01b20702000c01010201000000000f00010c",
             ),
         ] {
             let old = bytes(old);

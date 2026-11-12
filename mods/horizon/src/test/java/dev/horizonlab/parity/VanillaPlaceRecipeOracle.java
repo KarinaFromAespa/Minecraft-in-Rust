@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.EntityEquipment;
@@ -45,7 +45,7 @@ public final class VanillaPlaceRecipeOracle {
         StackedContents<Holder<Item>> stacked = (StackedContents<Holder<Item>>) raw.get(contents);
         List<String> out = new ArrayList<>();
         for (var entry : it.unimi.dsi.fastutil.objects.Reference2IntMaps.fastIterable(stacked.amounts)) {
-            out.add(entry.getKey().unwrapKey().orElseThrow().identifier().toString());
+            out.add(entry.getKey().unwrapKey().orElseThrow().location().toString());
         }
         return out;
     }
@@ -92,7 +92,7 @@ public final class VanillaPlaceRecipeOracle {
                     VanillaMenuOracle.drops.clear();
                     RecipeBookMenu book = (RecipeBookMenu) menu;
                     order = order(inv, book);
-                    RecipeHolder<?> recipe = recipes.byKey(ResourceKey.create(Registries.RECIPE, Identifier.parse(f.get("recipe").getAsString()))).orElseThrow();
+                    RecipeHolder<?> recipe = recipes.byKey(ResourceKey.create(Registries.RECIPE, ResourceLocation.parse(f.get("recipe").getAsString()))).orElseThrow();
                     String post = "-";
                     // ServerGamePacketListenerImpl.handlePlaceRecipe
                     if (!recipe.value().placementInfo().isImpossibleToPlace()) {

@@ -13,7 +13,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.*;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -161,9 +161,9 @@ public final class VanillaRaidOracle {
         @Override public int getRawBrightness(BlockPos pos, int darkening) { int[] l = light(pos); return Math.max(l[1], l[0] - darkening); }
         @Override public int getSkyDarken() { return darken; }
         @Override public boolean isBrightOutside() { return !dimensionType.hasFixedTime() && darken < 4; }
-        @Override public boolean hasChunk(int x, int z) { return !unloaded.contains(ChunkPos.pack(x, z)); }
+        @Override public boolean hasChunk(int x, int z) { return !unloaded.contains(ChunkPos.asLong(x, z)); }
         @Override public boolean isPositionEntityTicking(BlockPos pos) {
-            long key = ChunkPos.pack(pos.getX() >> 4, pos.getZ() >> 4);
+            long key = ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4);
             return !unloaded.contains(key) && !noTicking.contains(key);
         }
         @Override public int getHeight(Heightmap.Types type, int x, int z) {
@@ -447,8 +447,8 @@ public final class VanillaRaidOracle {
                         w.println(c.get("name") + " " + String.join(" ; ", log));
                         continue;
                     }
-                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, Identifier.parse(c.getOrDefault("dim", "minecraft:overworld")));
-                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.identifier())).value();
+                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(c.getOrDefault("dim", "minecraft:overworld")));
+                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.location())).value();
                     level.blocks.clear();
                     for (int i = 0; c.containsKey("k" + i); i++) {
                         String[] p = c.get("k" + i).split("/", 2);
@@ -460,7 +460,7 @@ public final class VanillaRaidOracle {
                         String[] v = p[1].split(",");
                         level.lights.add(Map.entry(Box.parse(p[0]), new int[] {Integer.parseInt(v[0]), Integer.parseInt(v[1])}));
                     }
-                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(c.getOrDefault("biome", "minecraft:plains"))));
+                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
                     level.sky = Integer.parseInt(c.getOrDefault("sky", "15"));
                     level.block = Integer.parseInt(c.getOrDefault("light", "0"));
                     level.darken = Integer.parseInt(c.getOrDefault("darken", "0"));
@@ -485,7 +485,7 @@ public final class VanillaRaidOracle {
                         if (!c.containsKey(key)) continue;
                         for (String u : c.get(key).split(";")) {
                             String[] p = u.split(",");
-                            (key.equals("unloaded") ? level.unloaded : level.noTicking).add(ChunkPos.pack(Integer.parseInt(p[0]), Integer.parseInt(p[1])));
+                            (key.equals("unloaded") ? level.unloaded : level.noTicking).add(ChunkPos.asLong(Integer.parseInt(p[0]), Integer.parseInt(p[1])));
                         }
                     }
                     if (!c.containsKey("noticking")) level.noTicking.clear();
@@ -645,7 +645,7 @@ public final class VanillaRaidOracle {
                                 case "gone" -> level.entities.remove(tracked.get(Integer.parseInt(a[1])));
                                 case "discard" -> removalReason.set(tracked.get(Integer.parseInt(a[1])), Entity.RemovalReason.DISCARDED);
                                 case "join", "loadmob" -> {
-                                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(a[1]));
+                                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(a[1]));
                                     Raider r = (Raider) type.create(level, EntitySpawnReason.LOAD);
                                     String[] v = a[2].split(",");
                                     r.setPos(Integer.parseInt(v[0]) + 0.5, Integer.parseInt(v[1]), Integer.parseInt(v[2]) + 0.5);
@@ -701,7 +701,7 @@ public final class VanillaRaidOracle {
         System.exit(0);
     }
 
-    static long chunk(String s) { String[] p = s.split(","); return ChunkPos.pack(Integer.parseInt(p[0]), Integer.parseInt(p[1])); }
+    static long chunk(String s) { String[] p = s.split(","); return ChunkPos.asLong(Integer.parseInt(p[0]), Integer.parseInt(p[1])); }
     static int[] ints(String s) { return Arrays.stream(s.split(",")).mapToInt(Integer::parseInt).toArray(); }
 
     static void setPosition(Entity e, double x, double y, double z) throws Exception {

@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.block.model.BlockModelDefinition;
 import net.minecraft.client.renderer.block.model.BlockStateModel;
 import net.minecraft.client.renderer.block.model.multipart.MultiPartModel;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.resources.model.BlockStateDefinitions;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.StateDefinition;
@@ -20,7 +20,7 @@ import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
 
 /** Native registry binding and multipart visual-equality selection, without a GPU. */
 public final class VanillaBlockStateBindingOracle {
-    private static java.util.function.Function<Identifier,StateDefinition<Block,BlockState>> mapper;
+    private static java.util.function.Function<ResourceLocation,StateDefinition<Block,BlockState>> mapper;
     private static final Gson JSON = new GsonBuilder().serializeNulls().create();
     private static Object field(Object value,String name) throws Exception {
         var f=value.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(value);
@@ -28,7 +28,7 @@ public final class VanillaBlockStateBindingOracle {
     private static void export(Path path) throws Exception {
         var blocks=new TreeMap<String,Object>();
         var ids=new TreeSet<>(BuiltInRegistries.BLOCK.keySet());
-        ids.add(Identifier.parse("minecraft:item_frame"));ids.add(Identifier.parse("minecraft:glow_item_frame"));
+        ids.add(ResourceLocation.parse("minecraft:item_frame"));ids.add(ResourceLocation.parse("minecraft:glow_item_frame"));
         for(var id:ids) {
             var definition=Objects.requireNonNull(mapper.apply(id));
             var schema=new TreeMap<String,Object>();
@@ -55,7 +55,7 @@ public final class VanillaBlockStateBindingOracle {
     }
     private static <T extends Comparable<T>> String value(BlockState state,Property<T> property) {return property.getName(state.getValue(property));}
     private static Object bind(JsonObject row) throws Exception {
-        var states=Objects.requireNonNull(mapper.apply(Identifier.parse(row.get("block").getAsString())));
+        var states=Objects.requireNonNull(mapper.apply(ResourceLocation.parse(row.get("block").getAsString())));
         var definition=BlockModelDefinition.CODEC.parse(JsonOps.INSTANCE,StrictJsonParser.parse(row.get("json").getAsString())).getOrThrow();
         var roots=definition.instantiate(states,()->"horizon:binding_probe");
         var indices=new IdentityHashMap<BlockStateModel.Unbaked,Integer>();
@@ -78,7 +78,7 @@ public final class VanillaBlockStateBindingOracle {
     }
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();// In 1.21.11 definitionLocationToBlockStateMapper() is not public; call it reflectively.
-        var mapperMethod=BlockStateDefinitions.class.getDeclaredMethod("definitionLocationToBlockStateMapper");mapperMethod.setAccessible(true);mapper=(java.util.function.Function<Identifier,StateDefinition<Block,BlockState>>)mapperMethod.invoke(null);
+        var mapperMethod=BlockStateDefinitions.class.getDeclaredMethod("definitionLocationToBlockStateMapper");mapperMethod.setAccessible(true);mapper=(java.util.function.Function<ResourceLocation,StateDefinition<Block,BlockState>>)mapperMethod.invoke(null);
         if(args[0].equals("export")){export(Path.of(args[1]));return;}
         try(var input=Files.newBufferedReader(Path.of(args[0]));var output=Files.newBufferedWriter(Path.of(args[1]))) {
             for(String line;(line=input.readLine())!=null;) {

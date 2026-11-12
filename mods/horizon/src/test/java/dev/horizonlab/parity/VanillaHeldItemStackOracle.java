@@ -8,7 +8,7 @@ import net.minecraft.client.renderer.entity.state.ArmedEntityRenderState;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
@@ -39,7 +39,7 @@ public final class VanillaHeldItemStackOracle {
         }
     }
     static ItemStack stack(String id) {
-        return new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse("minecraft:" + id)));
+        return new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse("minecraft:" + id)));
     }
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();

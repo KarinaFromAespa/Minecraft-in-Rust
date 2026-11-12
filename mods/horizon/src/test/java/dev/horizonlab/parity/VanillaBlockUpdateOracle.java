@@ -492,7 +492,7 @@ public final class VanillaBlockUpdateOracle {
         }
         @Override
         public net.minecraft.world.level.storage.loot.LootTable getLootTable(net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> id) {
-            world.emit("D " + id.identifier());
+            world.emit("D " + id.location());
             return delegate != null ? delegate.getLootTable(id) : net.minecraft.world.level.storage.loot.LootTable.EMPTY;
         }
         /** The registries loot contexts resolve providers in (a composter's compostable layers). */
@@ -535,7 +535,7 @@ public final class VanillaBlockUpdateOracle {
         @Override public boolean isSingleplayerOwner(net.minecraft.server.players.NameAndId id) { return false; }
         net.minecraft.world.RandomSequences sequences;
         /** Loot tables with a random_sequence draw from the server's sequences (world seed 0). */
-        @Override public RandomSource getRandomSequence(net.minecraft.resources.Identifier key) {
+        @Override public RandomSource getRandomSequence(net.minecraft.resources.ResourceLocation key) {
             if (sequences == null) sequences = new net.minecraft.world.RandomSequences();
             return sequences.get(key, 0L);
         }

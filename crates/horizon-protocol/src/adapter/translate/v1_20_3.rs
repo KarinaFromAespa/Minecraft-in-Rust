@@ -40,7 +40,7 @@ pub(super) fn clientbound(
     let mut r = Reader::new(payload);
     let mut w = Writer::new();
     match id {
-        cb::MOUNT_SCREEN_OPEN => {
+        cb::HORSE_SCREEN_OPEN => {
             let container = r.u8()?;
             let size = r.varint()?;
             let entity = r.i32()?;
@@ -768,10 +768,10 @@ mod tests {
 
     #[test]
     fn llama_carpet_colors_resolve_by_item_name_for_each_legacy_registry() {
-        // All sixteen names/IDs come from the vanilla 1.21.11 item report. The old
+        // All sixteen names/IDs come from the vanilla 1.21.10 item report. The old
         // white-carpet ID is424 in1.20.2 and445 in1.20.3, not a shared offset.
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
-            for kind in [78, 134] {
+            for kind in [77, 131] {
                 let session = Session::new(version);
                 session.kinds.lock().unwrap().insert(42, kind);
                 for color in -1..=16 {
@@ -833,7 +833,7 @@ mod tests {
             ),
             (
                 State::Play,
-                cb::MOUNT_SCREEN_OPEN,
+                cb::HORSE_SCREEN_OPEN,
                 "c8110000002a",
                 "c8100000002a",
             ),
@@ -966,7 +966,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_3);
         for (kind, pairs) in [
             (
-                155,
+                151,
                 vec![
                     ("2a0a0199cdcd010b0801ff", "2a0a120114263366990b0801ff"),
                     ("2a0b0800ff", "2a0a120114ff3366990b0800ff"),
@@ -980,7 +980,7 @@ mod tests {
                 ],
             ),
             (
-                78,
+                77,
                 vec![
                     ("2a14010e150102ff", "2a140102ff"),
                     ("2a1401ffffffff0fff", "2aff"),
@@ -1014,7 +1014,7 @@ mod tests {
             );
         }
         // ItemFrame and BlockDisplay are not LivingEntity: their integer entry must stay an integer.
-        for kind in [73, 15] {
+        for kind in [72, 15] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut data = play::SetEntityData {
                 id: 42,
@@ -1025,7 +1025,7 @@ mod tests {
             assert_eq!(data, expected);
         }
         session.legacy_metadata.lock().unwrap().forget(42);
-        session.kinds.lock().unwrap().insert(42, 155);
+        session.kinds.lock().unwrap().insert(42, 151);
         let mut data = metadata(ServerVersion::V1_20_3, "2a0b0800ff");
         entity_data(&session, &mut data);
         assert!(
@@ -1065,12 +1065,12 @@ mod tests {
             (offer.uses, offer.max_uses, offer.xp, offer.price_multiplier),
             (0, 8, 2, 0.05)
         );
-        for (kind, slot) in [(66, 6), (155, 4)] {
+        for (kind, slot) in [(65, 6), (151, 4)] {
             session.kinds.lock().unwrap().insert(42, kind);
             let body = equipment(&session, &bytes("2a0401df080100")).unwrap();
             let p = play::SetEquipment::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.slots[0].0, slot);
-            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1258);
+            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1254);
         }
     }
 

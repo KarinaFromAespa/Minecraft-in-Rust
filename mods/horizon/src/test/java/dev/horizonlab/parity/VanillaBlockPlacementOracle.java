@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
@@ -124,7 +124,7 @@ public final class VanillaBlockPlacementOracle {
                 player.pitch = f.get("pitch").getAsFloat();
                 player.sneak = f.get("sneak").getAsBoolean();
                 position.set(player, Vec3.ZERO);
-                var item = (BlockItem) BuiltInRegistries.ITEM.getValue(Identifier.parse(f.get("item").getAsString()));
+                var item = (BlockItem) BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(f.get("item").getAsString()));
                 if (bound.add(item)) {
                     item.builtInRegistryHolder().bindComponents(net.minecraft.core.component.DataComponentMap.EMPTY);
                 }

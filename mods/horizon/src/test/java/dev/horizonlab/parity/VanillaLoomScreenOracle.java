@@ -21,7 +21,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.inventory.*;
@@ -104,18 +104,18 @@ public final class VanillaLoomScreenOracle {
             o.addProperty("x1", tx(Math.max(x0, x1))); o.addProperty("y1", ty(Math.max(y0, y1)));
             o.addProperty("color", color);
         }
-        @Override public void blitSprite(RenderPipeline p, Identifier id, int x, int y, int w, int h, int color) {
+        @Override public void blitSprite(RenderPipeline p, ResourceLocation id, int x, int y, int w, int h, int color) {
             var o = add("sprite");
             o.addProperty("id", id.getPath());
             o.addProperty("x", tx(x)); o.addProperty("y", ty(y)); o.addProperty("w", w); o.addProperty("h", h);
         }
-        @Override public void blit(RenderPipeline p, Identifier texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
+        @Override public void blit(RenderPipeline p, ResourceLocation texture, int x, int y, float u, float v, int w, int h, int srcW, int srcH, int texW, int texH, int color) {
             var o = add("blit");
             o.addProperty("texture", texture.getPath());
             o.addProperty("x", tx(x)); o.addProperty("y", ty(y)); o.addProperty("w", w); o.addProperty("h", h);
             o.addProperty("u", u); o.addProperty("v", v); o.addProperty("tw", texW); o.addProperty("th", texH);
         }
-        @Override public void blit(Identifier location, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1) {
+        @Override public void blit(ResourceLocation location, int x0, int y0, int x1, int y1, float u0, float u1, float v0, float v1) {
             var o = add("atlas");
             o.addProperty("x0", tx(x0)); o.addProperty("y0", ty(y0)); o.addProperty("x1", tx(x1)); o.addProperty("y1", ty(y1));
             o.addProperty("u0", round(u0)); o.addProperty("u1", round(u1)); o.addProperty("v0", round(v0)); o.addProperty("v1", round(v1));
@@ -142,7 +142,7 @@ public final class VanillaLoomScreenOracle {
             var a = new JsonArray();
             for (var layer : layers.layers()) {
                 var l = new JsonArray();
-                l.add(layer.pattern().unwrapKey().orElseThrow().identifier().toString());
+                l.add(layer.pattern().unwrapKey().orElseThrow().location().toString());
                 l.add(layer.color().getSerializedName());
                 a.add(l);
             }
@@ -156,7 +156,7 @@ public final class VanillaLoomScreenOracle {
     }
 
     static Holder<BannerPattern> pattern(String id) {
-        return ParityData.access.lookupOrThrow(Registries.BANNER_PATTERN).getOrThrow(ResourceKey.create(Registries.BANNER_PATTERN, Identifier.parse(id)));
+        return ParityData.access.lookupOrThrow(Registries.BANNER_PATTERN).getOrThrow(ResourceKey.create(Registries.BANNER_PATTERN, ResourceLocation.parse(id)));
     }
 
     static BannerPatternLayers layers(JsonArray list) {
@@ -170,7 +170,7 @@ public final class VanillaLoomScreenOracle {
 
     static Slot slot(String item, int x, int y) {
         var container = new SimpleContainer(1);
-        if (item != null) container.setItem(0, new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(item))));
+        if (item != null) container.setItem(0, new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(item))));
         return new Slot(container, 0, x, y);
     }
 
@@ -204,7 +204,7 @@ public final class VanillaLoomScreenOracle {
         put(screen, LoomScreen.class, "scrollOffs", c.get("scroll").getAsFloat());
         put(screen, LoomScreen.class, "startRow", c.get("startRow").getAsInt());
         put(screen, LoomScreen.class, "resultBannerPatterns", c.has("resultLayers") ? layers(c.getAsJsonArray("resultLayers")) : null);
-        ItemStack dye = opt("dyeStack") == null ? ItemStack.EMPTY : new ItemStack(BuiltInRegistries.ITEM.getValue(Identifier.parse(opt("dyeStack"))));
+        ItemStack dye = opt("dyeStack") == null ? ItemStack.EMPTY : new ItemStack(BuiltInRegistries.ITEM.getValue(ResourceLocation.parse(opt("dyeStack"))));
         put(screen, LoomScreen.class, "dyeStack", dye);
         try {
             screen.extractBackground(g, c.get("mouseX").getAsInt(), c.get("mouseY").getAsInt(), 0f);

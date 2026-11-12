@@ -50,7 +50,7 @@ pub(super) fn clientbound(
             );
             w.bytes(&payload[tail..]);
         }
-        cb::MOUNT_SCREEN_OPEN => {
+        cb::HORSE_SCREEN_OPEN => {
             let container = r.u8()?;
             let size = r.varint()?;
             let entity = r.i32()?;
@@ -133,8 +133,8 @@ mod tests {
         use packet_ids::play::clientbound as cb;
         let session = Session::new(ServerVersion::V1_20_6);
         for (id, old, newer) in [
-            (cb::MOUNT_SCREEN_OPEN, "c8010000002a", "c8000000002a"),
-            (cb::MOUNT_SCREEN_OPEN, "c8100000002a", "c8050000002a"),
+            (cb::HORSE_SCREEN_OPEN, "c8010000002a", "c8000000002a"),
+            (cb::HORSE_SCREEN_OPEN, "c8100000002a", "c8050000002a"),
             (
                 cb::PROJECTILE_POWER,
                 "2a3f9eb851eb851eb83fa47ae147ae147b0000000000000000",
@@ -162,7 +162,7 @@ mod tests {
             clientbound(
                 &session,
                 State::Play,
-                cb::MOUNT_SCREEN_OPEN,
+                cb::HORSE_SCREEN_OPEN,
                 &bytes("c8020000002a")
             )
             .is_err()

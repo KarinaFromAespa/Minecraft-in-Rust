@@ -8,7 +8,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -76,7 +76,7 @@ public final class VanillaCauldronOracle {
     @SuppressWarnings({"unchecked", "rawtypes"})
     static BlockState parse(String text) {
         String[] parts = text.split("\\|", -1);
-        Block block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(parts[0]));
+        Block block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(parts[0]));
         BlockState state = block.defaultBlockState();
         if (!parts[1].isEmpty()) {
             for (String kv : parts[1].split(",")) {

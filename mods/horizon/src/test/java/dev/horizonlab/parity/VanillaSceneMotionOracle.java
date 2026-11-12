@@ -7,7 +7,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.effect.*;
 import net.minecraft.world.damagesource.*;
 import net.minecraft.sounds.*;
@@ -244,7 +244,7 @@ public final class VanillaSceneMotionOracle {
             if(stat.getValue()!=net.minecraft.stats.Stats.JUMP)throw new AssertionError(stat);
             events.add("health-stat jump "+value);
         }
-        @Override public void awardStat(Identifier stat,int value){
+        @Override public void awardStat(ResourceLocation stat,int value){
             if(stat==net.minecraft.stats.Stats.FALL_ONE_CM){events.add("stat "+value);return;}
             String name=stat==net.minecraft.stats.Stats.DAMAGE_ABSORBED?"absorbed":stat==net.minecraft.stats.Stats.DAMAGE_TAKEN?"taken":stat==net.minecraft.stats.Stats.DAMAGE_RESISTED?"resisted":null;
             if(name==null){name=stat.getPath();if(!Set.of("swim_one_cm","walk_under_water_one_cm","walk_on_water_one_cm","climb_one_cm","sprint_one_cm","crouch_one_cm","walk_one_cm","aviate_one_cm","fly_one_cm").contains(name))throw new AssertionError(stat);}events.add("health-stat "+name+" "+value);
@@ -451,7 +451,7 @@ public final class VanillaSceneMotionOracle {
                         case "air"->p.air=op.get("value").getAsInt();
                         case "pitch"->p.setXRot(single(op.get("value")));
                         case "swimming"->p.setSwimming(op.get("value").getAsBoolean());
-                        case "effect"->{var e=BuiltInRegistries.MOB_EFFECT.wrapAsHolder(BuiltInRegistries.MOB_EFFECT.getValue(Identifier.parse(op.get("name").getAsString())));if(op.get("value").getAsBoolean())p.effectFlags.add(e);else p.effectFlags.remove(e);}
+                        case "effect"->{var e=BuiltInRegistries.MOB_EFFECT.wrapAsHolder(BuiltInRegistries.MOB_EFFECT.getValue(ResourceLocation.parse(op.get("name").getAsString())));if(op.get("value").getAsBoolean())p.effectFlags.add(e);else p.effectFlags.remove(e);}
                         case "travel"->p.travel(VanillaSceneCollisionOracle.vector(op.get("value")));
                         case "tick"->p.movementTick(VanillaSceneCollisionOracle.vector(op.get("value")));
                         case "player_tick"->p.playerMovementTick(VanillaSceneCollisionOracle.vector(op.get("value")),op.get("jumping").getAsBoolean());
@@ -483,8 +483,8 @@ public final class VanillaSceneMotionOracle {
                         case "delay"->delay.setInt(p,op.get("value").getAsInt());
                         case "ack_attributes"->{p.attrs.getAttributesToUpdate().clear();p.attrs.getAttributesToSync().clear();}
                         case "modifier"->{
-                            var holder=BuiltInRegistries.ATTRIBUTE.get(Identifier.parse(op.get("name").getAsString())).orElseThrow();
-                            var modifier=new AttributeModifier(Identifier.parse(op.get("id").getAsString()),number(op.get("value")),AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
+                            var holder=BuiltInRegistries.ATTRIBUTE.get(ResourceLocation.parse(op.get("name").getAsString())).orElseThrow();
+                            var modifier=new AttributeModifier(ResourceLocation.parse(op.get("id").getAsString()),number(op.get("value")),AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);
                             if(op.get("permanent").getAsBoolean())p.getAttribute(holder).addPermanentModifier(modifier);else p.getAttribute(holder).addTransientModifier(modifier);
                         }
                         case "move"->p.move(MoverType.SELF,VanillaSceneCollisionOracle.vector(op.get("value")));
@@ -496,7 +496,7 @@ public final class VanillaSceneMotionOracle {
                         case "stuck"->write(stuck,p,VanillaSceneCollisionOracle.vector(op.get("value")));
                         case "fall"->p.fallDistance=number(op.get("value"));
                         case "jumping"->p.setJumping(op.get("value").getAsBoolean());
-                        case "attribute"->{var attr=BuiltInRegistries.ATTRIBUTE.wrapAsHolder(BuiltInRegistries.ATTRIBUTE.getValue(Identifier.parse(op.get("name").getAsString())));p.getAttribute(attr).setBaseValue(number(op.get("value")));}
+                        case "attribute"->{var attr=BuiltInRegistries.ATTRIBUTE.wrapAsHolder(BuiltInRegistries.ATTRIBUTE.getValue(ResourceLocation.parse(op.get("name").getAsString())));p.getAttribute(attr).setBaseValue(number(op.get("value")));}
                         default->throw new AssertionError(op);
                     }
                     snapshot(out,p);

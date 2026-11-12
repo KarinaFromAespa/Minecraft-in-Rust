@@ -25,7 +25,7 @@ public final class VanillaTextDisplayTransformOracle {
         orientation.setAccessible(true);
         var fresh = Display.class.getDeclaredMethod("createFreshRenderState"); fresh.setAccessible(true);
         var output = new ArrayList<String>();
-        var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse("minecraft:text_display"));
+        var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.ResourceLocation.parse("minecraft:text_display"));
         for (String line : Files.readAllLines(Path.of(args[0]))) {
             JsonObject input = JsonParser.parseString(line).getAsJsonObject();
             var display = new Display.TextDisplay(type, level);

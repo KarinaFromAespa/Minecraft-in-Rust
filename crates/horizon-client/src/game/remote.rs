@@ -5181,7 +5181,7 @@ impl Game<'_> {
                 }
             }
             C::OpenScreen(p) => self.remote_open_screen(p),
-            C::MountScreenOpen(p) => self.remote_open_mount(p),
+            C::HorseScreenOpen(p) => self.remote_open_mount(p),
             C::RecipeBookAdd(p) => self.remote_recipe_book_add(p),
             C::RecipeBookRemove(p) => self.remote_recipe_book_remove(p),
             C::RecipeBookSettings(p) => self.remote_recipe_book_settings(p),
@@ -10771,9 +10771,9 @@ impl Game<'_> {
         self.screen = Screen::Inventory;
         self.capture(false);
     }
-    /// `ClientPacketListener.handleMountScreenOpen`: a horse's or llama's
+    /// `ClientPacketListener.handleHorseScreenOpen`: a horse's or llama's
     /// inventory; for another entity the window is closed again.
-    fn remote_open_mount(&mut self, p: play::MountScreenOpen) {
+    fn remote_open_mount(&mut self, p: play::HorseScreenOpen) {
         let columns = usize::try_from(p.columns).unwrap_or(0).min(5);
         if !self.open_remote_mount_menu(p.entity as u32, columns) {
             self.send(S::ContainerClose(play::ContainerClose {

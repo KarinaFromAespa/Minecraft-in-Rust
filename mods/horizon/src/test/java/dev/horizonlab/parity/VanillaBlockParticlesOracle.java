@@ -16,7 +16,7 @@ import net.minecraft.client.resources.metadata.animation.FrameSize;
 import net.minecraft.client.resources.model.ModelManager;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.core.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -39,7 +39,7 @@ public final class VanillaBlockParticlesOracle {
         @Override public BlockState getBlockState(BlockPos p) { return p.equals(pos)?state:Blocks.AIR.defaultBlockState(); }
     }
     private static final class Sprite extends TextureAtlasSprite {
-        Sprite() { super(TextureAtlas.LOCATION_BLOCKS,new SpriteContents(Identifier.parse("minecraft:missingno"),new FrameSize(16,16),new NativeImage(16,16,true)),16,16,0,0,0); }
+        Sprite() { super(TextureAtlas.LOCATION_BLOCKS,new SpriteContents(ResourceLocation.parse("minecraft:missingno"),new FrameSize(16,16),new NativeImage(16,16,true)),16,16,0,0,0); }
     }
     private static final class Models extends BlockStateModelSet {
         private final Material.Baked material=new Material.Baked(new Sprite(),false);

@@ -76,18 +76,18 @@ REGISTRIES = [
 PINNED_NAMES = {
     "entity_type": """
         acacia_boat acacia_chest_boat allay area_effect_cloud armadillo armor_stand axolotl
-        bamboo_chest_raft bamboo_raft bat bee birch_boat birch_chest_boat blaze breeze camel camel_husk cat
+        bamboo_chest_raft bamboo_raft bat bee birch_boat birch_chest_boat blaze breeze camel cat
         cave_spider cherry_boat cherry_chest_boat chest_minecart chicken cod command_block_minecart cow
         creeper dark_oak_boat dark_oak_chest_boat dolphin donkey drowned elder_guardian ender_dragon
         enderman endermite evoker experience_orb falling_block fox frog furnace_minecart ghast giant
         glow_item_frame glow_squid goat guardian happy_ghast hoglin hopper_minecart horse husk illusioner
         iron_golem item_frame jungle_boat jungle_chest_boat llama magma_cube mangrove_boat
-        mangrove_chest_boat mannequin minecart mooshroom mule nautilus oak_boat oak_chest_boat ocelot
+        mangrove_chest_boat mannequin minecart mooshroom mule oak_boat oak_chest_boat ocelot
         painting panda parrot phantom pig piglin piglin_brute pillager player polar_bear pufferfish rabbit
         ravager salmon sheep shulker silverfish skeleton skeleton_horse slime sniffer snow_golem
         spawner_minecart spider spruce_boat spruce_chest_boat squid stray strider tadpole tnt_minecart
         trader_llama tropical_fish turtle vex villager vindicator wandering_trader warden witch wither
-        wither_skeleton wolf zoglin zombie zombie_horse zombie_nautilus zombie_villager zombified_piglin
+        wither_skeleton wolf zoglin zombie zombie_horse zombie_villager zombified_piglin
     """.split(),
     "item": """
         blast_furnace bolt_armor_trim_smithing_template campfire coast_armor_trim_smithing_template

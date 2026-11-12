@@ -30,14 +30,14 @@ public final class VanillaWorldgenOracle {
             }
         });
         for(var entry:bundle.getAsJsonObject("noises").entrySet()) {
-            var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.NOISE,net.minecraft.resources.Identifier.parse(entry.getKey()));
+            var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.NOISE,net.minecraft.resources.ResourceLocation.parse(entry.getKey()));
             var noise=NormalNoise.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
             noises.register(key,noise,net.minecraft.core.RegistrationInfo.BUILT_IN);
         }
         noises.freeze();
         java.util.Map<String,net.minecraft.world.level.levelgen.densityfunction.DensityFunction> functions=new java.util.TreeMap<>();
         for(var entry:bundle.getAsJsonObject("densities").entrySet()) {
-            var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DENSITY_FUNCTION,net.minecraft.resources.Identifier.parse(entry.getKey()));
+            var key=net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DENSITY_FUNCTION,net.minecraft.resources.ResourceLocation.parse(entry.getKey()));
             var function=net.minecraft.world.level.levelgen.densityfunction.DensityFunctions.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
             densities.register(key,function,net.minecraft.core.RegistrationInfo.BUILT_IN);functions.put(entry.getKey(),function);
         }
@@ -114,7 +114,7 @@ public final class VanillaWorldgenOracle {
                 var source=net.minecraft.world.level.biome.MultiNoiseBiomeSource.createFromList(new net.minecraft.world.level.biome.Climate.ParameterList<>(entries));
                 out.println("biomes "+preset.getKey()+" "+entries.size());
                 var resolver=source.createResolver(climate);
-                for(var position:positions)out.println("biome "+resolver.getNoiseBiome(position[0],position[1],position[2]).unwrapKey().orElseThrow().identifier());
+                for(var position:positions)out.println("biome "+resolver.getNoiseBiome(position[0],position[1],position[2]).unwrapKey().orElseThrow().location());
                 int[][] minima={{-5,-16,8},{-4,-16,8},{Integer.MAX_VALUE-1,Integer.MIN_VALUE,-1}},extents={{3,4,2},{3,4,2},{2,2,2}};
                 for(int v=0;v<3;v++) {
                     var min=minima[v];var size=extents[v];
@@ -122,7 +122,7 @@ public final class VanillaWorldgenOracle {
                     var queries=new java.util.ArrayList<int[]>();
                     for(int z=0;z<size[2];z++)for(int x=0;x<size[0];x++)for(int y=0;y<size[1];y++)queries.add(new int[]{min[0]+x,min[1]+y,min[2]+z});
                     var forward=new java.util.ArrayList<>(queries);var reverse=new java.util.ArrayList<>(queries);java.util.Collections.reverse(reverse);queries.addAll(reverse);queries.addAll(forward.subList(0,3));
-                    for(var position:queries)out.println("biomecell "+bulk.getNoiseBiome(position[0],position[1],position[2]).unwrapKey().orElseThrow().identifier());
+                    for(var position:queries)out.println("biomecell "+bulk.getNoiseBiome(position[0],position[1],position[2]).unwrapKey().orElseThrow().location());
                 }
             }
 
@@ -254,7 +254,7 @@ public final class VanillaWorldgenOracle {
         var size=fixture.getAsJsonArray("sizes");var min=fixture.getAsJsonArray("minimum");var steps=fixture.getAsJsonArray("steps");
         var volume=new net.minecraft.world.level.levelgen.densityfunction.DensityVolume(size.get(0).getAsInt(),size.get(1).getAsInt(),size.get(2).getAsInt(),min.get(0).getAsInt(),min.get(1).getAsInt(),min.get(2).getAsInt(),steps.get(0).getAsInt(),steps.get(1).getAsInt(),steps.get(2).getAsInt());
         net.minecraft.world.level.levelgen.Aquifer aquifer;
-        try{aquifer=config.create(set,state.getOrCreateRandomFactory(net.minecraft.resources.Identifier.withDefaultNamespace("aquifer")),volume,picker);}
+        try{aquifer=config.create(set,state.getOrCreateRandomFactory(net.minecraft.resources.ResourceLocation.withDefaultNamespace("aquifer")),volume,picker);}
         catch(IllegalArgumentException | IllegalStateException e){events.forEach(out::println);out.println("aquifer create error");return;}
         events.forEach(out::println);events.clear();
         var skip=aquifer.getClass().getDeclaredField("skipSamplingAboveY");skip.setAccessible(true);out.println("aquifer ready "+skip.getInt(aquifer));
@@ -284,9 +284,9 @@ public final class VanillaWorldgenOracle {
     }
     private static void tagsProbe(com.google.gson.JsonObject fixture,PrintWriter out)throws Exception {
         out.println("tags resources "+fixture.getAsJsonArray("files").size());
-        var definitions=new java.util.HashMap<net.minecraft.resources.Identifier,java.util.List<net.minecraft.tags.TagLoader.EntryWithSource>>();
+        var definitions=new java.util.HashMap<net.minecraft.resources.ResourceLocation,java.util.List<net.minecraft.tags.TagLoader.EntryWithSource>>();
         for(var raw:fixture.getAsJsonArray("files")){
-            var row=raw.getAsJsonArray();var name=net.minecraft.resources.Identifier.parse(row.get(0).getAsString());String source=row.get(1).getAsString();
+            var row=raw.getAsJsonArray();var name=net.minecraft.resources.ResourceLocation.parse(row.get(0).getAsString());String source=row.get(1).getAsString();
             var json=JsonParser.parseString(row.get(2).getAsString());var entries=definitions.computeIfAbsent(name,ignored->new java.util.ArrayList<>());
             var decoded=net.minecraft.tags.TagFile.CODEC.parse(JsonOps.INSTANCE,json).result();
             if(decoded.isEmpty()){out.println("tag resource error "+name+" "+source);continue;}
@@ -312,7 +312,7 @@ public final class VanillaWorldgenOracle {
         // This lookup table must agree with the actual reference registry.
         var elements=bundle.getAsJsonObject("block_elements");
         if(elements.size()!=net.minecraft.core.registries.BuiltInRegistries.BLOCK.keySet().size())throw new AssertionError("block identifiers differ");
-        for(var name:elements.keySet())if(!net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(net.minecraft.resources.Identifier.parse(name)))throw new AssertionError("unknown exported block");
+        for(var name:elements.keySet())if(!net.minecraft.core.registries.BuiltInRegistries.BLOCK.containsKey(net.minecraft.resources.ResourceLocation.parse(name)))throw new AssertionError("unknown exported block");
         fixture.add("elements",elements);tagsProbe(fixture,out);
     }
 

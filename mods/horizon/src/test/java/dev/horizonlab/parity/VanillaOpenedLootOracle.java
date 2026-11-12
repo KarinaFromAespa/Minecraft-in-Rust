@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.util.RandomSource;
@@ -49,7 +49,7 @@ public final class VanillaOpenedLootOracle {
                 world.server.loot.delegate = ParityData.loot;
                 var chest = new Chest();
                 chest.setLevel(world);
-                chest.setLootTable(ResourceKey.create(Registries.LOOT_TABLE, Identifier.parse(parts[0])));
+                chest.setLootTable(ResourceKey.create(Registries.LOOT_TABLE, ResourceLocation.parse(parts[0])));
                 chest.setLootTableSeed(seed);
                 if (mode != 0) {
                     chest.unpackLootTable(null);

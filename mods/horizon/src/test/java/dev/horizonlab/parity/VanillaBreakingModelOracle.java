@@ -14,7 +14,7 @@ import net.minecraft.client.renderer.texture.*;
 import net.minecraft.client.renderer.texture.atlas.*;
 import net.minecraft.client.resources.model.sprite.MaterialBaker;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
@@ -55,7 +55,7 @@ public final class VanillaBreakingModelOracle {
         }
         // Reuse the existing oracle model baker rather than duplicating it.
         String helper=VanillaSectionMeshOracle.class.getName();
-        var missingContents=new SpriteContents(Identifier.parse("minecraft:missingno"),new FrameSize(16,16),new NativeImage(16,16,true));
+        var missingContents=new SpriteContents(ResourceLocation.parse("minecraft:missingno"),new FrameSize(16,16),new NativeImage(16,16,true));
         var spriteCtor=Class.forName(helper+"$Sprite").getDeclaredConstructor(SpriteContents.class,int.class,int.class);spriteCtor.setAccessible(true);
         var missing=(TextureAtlasSprite)spriteCtor.newInstance(missingContents,1,0);
         var atlas=new SpriteLoader.Preparations(16,16,0,missing,Map.of(),CompletableFuture.completedFuture(null));

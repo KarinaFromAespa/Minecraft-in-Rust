@@ -9,7 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.LevelAccessor;
@@ -46,7 +46,7 @@ public final class VanillaBlockTransformerOracle {
     @SuppressWarnings({"unchecked", "rawtypes"})
     static BlockState parse(String text) {
         String[] parts = text.split("\\|", -1);
-        Block block = BuiltInRegistries.BLOCK.getValue(Identifier.parse(parts[0]));
+        Block block = BuiltInRegistries.BLOCK.getValue(ResourceLocation.parse(parts[0]));
         BlockState state = block.defaultBlockState();
         if (!parts[1].isEmpty()) {
             for (String kv : parts[1].split(",")) {
@@ -88,7 +88,7 @@ public final class VanillaBlockTransformerOracle {
                         out.println(net.minecraft.world.item.HoneycombItem.getWaxed(parse(f[2])).map(VanillaBlockTransformerOracle::describe).orElse("none"));
                         continue;
                     }
-                    var transformer = registry.getOrThrow(ResourceKey.create(Registries.BLOCK_TRANSFORMER, Identifier.parse(f[0]))).value();
+                    var transformer = registry.getOrThrow(ResourceKey.create(Registries.BLOCK_TRANSFORMER, ResourceLocation.parse(f[0]))).value();
                     Direction face = Direction.byName(f[1]);
                     BlockState clicked = parse(f[2]);
                     LevelAccessor level = level(clicked, parse(f[3]));
@@ -100,7 +100,7 @@ public final class VanillaBlockTransformerOracle {
                             if (state != null) {
                                 result = index + "\t" + describe(state) + "\t" + BuiltInRegistries.SOUND_EVENT.getKey(data.sound().value())
                                     + "\t" + data.particle().name().toLowerCase() + "\t"
-                                    + data.loot().map(k -> k.identifier().toString()).orElse("-") + "\t" + data.dropStrategy().name().toLowerCase()
+                                    + data.loot().map(k -> k.location().toString()).orElse("-") + "\t" + data.dropStrategy().name().toLowerCase()
                                     + "\t" + data.updateFromNeighbors() + "\t" + data.transformType().name().toLowerCase() + "\t" + data.consumeOnUse()
                                     + "\t" + data.itemDamagePerUse();
                                 break;

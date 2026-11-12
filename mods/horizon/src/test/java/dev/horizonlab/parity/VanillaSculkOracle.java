@@ -39,7 +39,7 @@ import net.minecraft.network.protocol.PacketFlow;
 import net.minecraft.network.protocol.game.ClientboundLevelEventPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.server.MinecraftServer;
@@ -544,7 +544,7 @@ public final class VanillaSculkOracle {
             List<Mob> mobs = new ArrayList<>();
             int id = 100000;
             for (MobSpec spec : s.mobs) {
-                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(spec.type));
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(spec.type));
                 Mob mob = (Mob) type.create(level, EntitySpawnReason.COMMAND);
                 mob.setId(id++);
                 mob.snapTo(spec.x, spec.y, spec.z, spec.yaw, 0.0F);
@@ -676,7 +676,7 @@ public final class VanillaSculkOracle {
         void act(ServerLevel level, String[] w, List<Mob> mobs) throws Exception {
             switch (w[0]) {
                 case "event" -> {
-                    Holder<GameEvent> event = BuiltInRegistries.GAME_EVENT.get(Identifier.parse(w[1])).orElseThrow();
+                    Holder<GameEvent> event = BuiltInRegistries.GAME_EVENT.get(ResourceLocation.parse(w[1])).orElseThrow();
                     Vec3 at = new Vec3(Double.parseDouble(w[2]), Double.parseDouble(w[3]), Double.parseDouble(w[4]));
                     Entity source = source(w[5], mobs);
                     BlockState state = w.length > 6 ? parseState(level, w[6]) : null;
@@ -748,7 +748,7 @@ public final class VanillaSculkOracle {
             Vec3 p = info.pos();
             Entity source = info.getEntity(level).orElse(null);
             Entity owner = info.getProjectileOwner(level).orElse(null);
-            return info.gameEvent().unwrapKey().orElseThrow().identifier().getPath() + "/" + f(info.distance()) + "/" + d(p.x) + "," + d(p.y) + "," + d(p.z)
+            return info.gameEvent().unwrapKey().orElseThrow().location().getPath() + "/" + f(info.distance()) + "/" + d(p.x) + "," + d(p.y) + "," + d(p.z)
                 + "/" + who(source) + "/" + who(owner);
         }
 

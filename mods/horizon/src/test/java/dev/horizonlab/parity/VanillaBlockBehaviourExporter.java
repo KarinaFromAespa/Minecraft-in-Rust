@@ -12,7 +12,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.sounds.SoundEvent;
@@ -59,17 +59,17 @@ public final class VanillaBlockBehaviourExporter {
             return new JsonPrimitive(BuiltInRegistries.FLUID.getKey(f).toString());
         } else if (v instanceof SoundEvent s) {
             return new JsonPrimitive(s.location().toString());
-        } else if (v instanceof Identifier id) {
+        } else if (v instanceof ResourceLocation id) {
             return new JsonPrimitive(id.toString());
         } else if (v instanceof ResourceKey<?> key) {
-            return new JsonPrimitive(key.identifier().toString());
+            return new JsonPrimitive(key.location().toString());
         } else if (v instanceof TagKey<?> tag) {
             return new JsonPrimitive("#" + tag.location());
         } else if (v instanceof Holder<?> holder) {
             if (holder.isBound() && depth > 0) {
                 return value(holder.value(), depth - 1);
             }
-            return holder.unwrapKey().<JsonElement>map(k -> new JsonPrimitive(k.identifier().toString())).orElse(JsonNull.INSTANCE);
+            return holder.unwrapKey().<JsonElement>map(k -> new JsonPrimitive(k.location().toString())).orElse(JsonNull.INSTANCE);
         } else if (v instanceof Optional<?> optional) {
             return optional.isPresent() ? value(optional.get(), depth) : JsonNull.INSTANCE;
         } else if (depth > 0 && v instanceof java.util.Map<?, ?> map) {

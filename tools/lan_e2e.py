@@ -6649,7 +6649,7 @@ def mount_screen(game, ticks=20):
 
 def check_mounts(host, guest, out):
     """The host and the guest each open a tamed horse's, donkey's and llama's inventory with
-    shift + right click (`ClientboundMountScreenOpenPacket` for a server's player), put on a
+    shift + right click (`ClientboundHorseScreenOpenPacket` for a server's player), put on a
     saddle, horse armour or a carpet and fill the chest by shift-clicking, close it, then ride the
     mount and open its inventory with the inventory key (OPEN_INVENTORY): it shows what was put
     in, and the server took the items from the inventory."""

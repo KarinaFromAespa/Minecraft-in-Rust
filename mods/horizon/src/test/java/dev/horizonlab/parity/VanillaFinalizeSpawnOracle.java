@@ -11,7 +11,7 @@ import net.minecraft.core.*;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -216,7 +216,7 @@ public final class VanillaFinalizeSpawnOracle {
 
     static String hex(double v) { return Long.toHexString(Double.doubleToRawLongBits(v)); }
     static String hex(float v) { return Integer.toHexString(Float.floatToRawIntBits(v)); }
-    static String id(Holder<?> h) { return h.unwrapKey().map(k -> k.identifier().toString()).orElse("?"); }
+    static String id(Holder<?> h) { return h.unwrapKey().map(k -> k.location().toString()).orElse("?"); }
 
     static final EquipmentSlot[] SLOTS = {EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND, EquipmentSlot.FEET, EquipmentSlot.LEGS,
         EquipmentSlot.CHEST, EquipmentSlot.HEAD, EquipmentSlot.BODY, EquipmentSlot.SADDLE};
@@ -455,9 +455,9 @@ public final class VanillaFinalizeSpawnOracle {
                     if (eq < 0) c.put("name", token); else c.put(token.substring(0, eq), token.substring(eq + 1));
                 }
                 try {
-                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, Identifier.parse(c.getOrDefault("dim", "minecraft:overworld")));
-                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.identifier())).value();
-                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.parse(c.getOrDefault("biome", "minecraft:plains"))));
+                    level.dimensionKey = ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(c.getOrDefault("dim", "minecraft:overworld")));
+                    level.dimensionType = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, level.dimensionKey.location())).value();
+                    level.biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.parse(c.getOrDefault("biome", "minecraft:plains"))));
                     level.difficulty = Difficulty.byName(c.getOrDefault("difficulty", "normal"));
                     level.time = Long.parseLong(c.getOrDefault("time", "0"));
                     level.rules.set(GameRules.SPAWN_MONSTERS, !c.getOrDefault("monsters", "1").equals("0"), null);
@@ -474,7 +474,7 @@ public final class VanillaFinalizeSpawnOracle {
                     level.roofY = c.containsKey("roof") ? block.getY() + Integer.parseInt(c.get("roof")) : Integer.MIN_VALUE;
                     structures.start = null;
                     if (c.containsKey("structure")) {
-                        structures.structure = structureLookup.getValue(Identifier.parse(c.get("structure")));
+                        structures.structure = structureLookup.getValue(ResourceLocation.parse(c.get("structure")));
                         BoundingBox box = new BoundingBox(block.getX() - 8, block.getY() - 8, block.getZ() - 8, block.getX() + 8, block.getY() + 8, block.getZ() + 8);
                         structures.start = new StructureStart(structures.structure, new ChunkPos(block.getX() >> 4, block.getZ() >> 4), 0,
                             new PiecesContainer(List.of(new Piece(box))));
@@ -492,7 +492,7 @@ public final class VanillaFinalizeSpawnOracle {
                         chicken.setPos(x + i, y, z);
                         level.entities.add(chicken);
                     }
-                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(c.get("type")));
+                    EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(c.get("type")));
                     EntitySpawnReason reason = EntitySpawnReason.valueOf(c.getOrDefault("reason", "NATURAL"));
                     float moon = DimensionType.MOON_BRIGHTNESS_PER_PHASE[phase];
                     DifficultyInstance difficulty = new DifficultyInstance(level.difficulty, level.time, Long.parseLong(c.getOrDefault("inhabited", "0")), moon);

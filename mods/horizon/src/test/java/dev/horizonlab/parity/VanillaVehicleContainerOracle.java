@@ -11,7 +11,7 @@ import java.util.UUID;
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.MenuProvider;
@@ -111,7 +111,7 @@ public final class VanillaVehicleContainerOracle {
     }
 
     static String menu(Lvl level, String id) throws Exception {
-        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(id));
+        EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(id));
         if (type == null) {
             return "error";
         }

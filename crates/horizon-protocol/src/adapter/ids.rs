@@ -493,9 +493,9 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
-        // A decorated pot (319 in both) as a 1.21.11 server sends it: pot_decorations (72)
-        // lists a brick (1025) and an angler sherd (1445); damage_resistant (27) a tag id;
-        // jukebox_playable (62) a song by holder: the flag set, then the song's id plus one.
+        // A decorated pot (319 in both) as a 1.21.11 server sends it: pot_decorations (65)
+        // lists a brick (1025) and an angler sherd (1428); damage_resistant (24) a tag id;
+        // jukebox_playable (55) a song by holder: the flag set, then the song's id plus one.
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
         sent.extend([27, 17]);
@@ -509,9 +509,9 @@ mod tests {
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (72, Component::Raw(vec![0, 1, 0xa5, 0x0b, 1, 0, 0, 0, 0])),
-                (27, Component::Raw(resistant)),
-                (62, Component::Raw(vec![3])),
+                (65, Component::Raw(vec![0, 1, 0x94, 0x0b, 1, 0, 0, 0, 0])),
+                (24, Component::Raw(resistant)),
+                (55, Component::Raw(vec![3])),
             ]
         );
         // A song named by its key has no pinned holder: the component goes.
@@ -539,13 +539,15 @@ mod tests {
         };
         // Stone (1 in both) as a 1.21.11 server sends a stack whose instrument, provides_trim_material,
         // damage_type, chicken/variant and zombie_nautilus/variant are held: the flag set, then the
-        // holder as 26.3 reads it (an id plus one, or a registry id).
+        // holder as 26.3 reads it (an id plus one, or a registry id). damage_type (8 in 1.21.11) and
+        // zombie_nautilus/variant (94) are 1.21.11 components the pin lacks, so the adapter drops
+        // them; the other three survive with their pinned ids.
         let mut sent = vec![1, 1, 5, 0];
         sent.extend([older(k::INSTRUMENT), 1, 2]);
         sent.extend([older(k::PROVIDES_TRIM_MATERIAL), 1, 5]);
-        sent.extend([older(k::DAMAGE_TYPE), 1, 3]);
+        sent.extend([8, 1, 3]); // damage_type, 1.21.11 id
         sent.extend([older(k::CHICKEN_VARIANT), 1, 2]);
-        sent.extend([older(k::ZOMBIE_NAUTILUS_VARIANT), 1, 0]);
+        sent.extend([94, 1, 0]); // zombie_nautilus/variant, 1.21.11 id
         let stack = read(&sent);
         let kinds: Vec<i32> = stack.added.iter().map(|(kind, _)| *kind).collect();
         assert_eq!(
@@ -553,9 +555,7 @@ mod tests {
             [
                 k::INSTRUMENT,
                 k::PROVIDES_TRIM_MATERIAL,
-                k::DAMAGE_TYPE,
                 k::CHICKEN_VARIANT,
-                k::ZOMBIE_NAUTILUS_VARIANT,
             ]
         );
         assert_eq!(stack.added[0].1, Component::Instrument(1));
@@ -572,9 +572,9 @@ mod tests {
         use crate::buf::{Codec, Reader};
         use crate::item::{Component, Slot};
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A shulker box (581 in both) as a 1.21.11 server sends it. Its container (73 in both)
-        // lists ItemStacks, a count first: two diamonds (898) with a map_color (43),
-        // then an empty slot. Its use_remainder (25 in both) is a bowl (892).
+        // A shulker box (581 in both) as a 1.21.11 server sends it. Its container (66 pinned,
+        // 73 sent) lists ItemStacks, a count first: two diamonds (898) with a map_color (36),
+        // then an empty slot. Its use_remainder (22 pinned, 25 sent) is a bowl (892).
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
             73, 2, 2, 0x82, 0x07, 1, 0, 43, 0, 0, 0, 5, 0, // container
@@ -590,10 +590,10 @@ mod tests {
             stack.added,
             [
                 (
-                    73,
-                    Component::Raw(vec![2, 1, 0x82, 0x07, 2, 1, 0, 43, 0, 0, 0, 5, 0]),
+                    66,
+                    Component::Raw(vec![2, 1, 0x82, 0x07, 2, 1, 0, 36, 0, 0, 0, 5, 0]),
                 ),
-                (25, Component::Raw(vec![0xfc, 0x06, 1, 0, 0])),
+                (22, Component::Raw(vec![0xfc, 0x06, 1, 0, 0])),
             ]
         );
     }
@@ -625,7 +625,7 @@ mod tests {
         let ids = crate::adapter::ServerVersion::V1_21_5.ids().unwrap();
         let raw = |kind: i32| ids.data_component_type.down(kind).unwrap();
         // A stone as 1.21.5 sends it, with two attribute modifiers (holders: armor is 0 and attack
-        // damage 2 in both 1.21.5 and 1.21.11, so the holders are their ids plus one, 1 and 3)
+        // damage 2 in both 1.21.5 and 1.21.10, so the holders are their ids plus one, 1 and 3)
         // and an equippable for the chest: no display, no shearing fields.
         let mut sent = Writer::new();
         sent.varint(1);
@@ -676,7 +676,7 @@ mod tests {
         for b in [false, false, false, true, true, true, false, false] {
             equippable.bool(b);
         }
-        equippable.varint(1383);
+        equippable.varint(1329);
         assert_eq!(
             stack.added,
             [

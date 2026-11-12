@@ -6,7 +6,7 @@ import com.mojang.serialization.JsonOps;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 
@@ -39,7 +39,7 @@ final class VanillaStateCodec {
     static BlockState decodeFull(JsonElement json) {
         var object = json.getAsJsonObject();
         var block = BuiltInRegistries.BLOCK.getValue(
-            Identifier.parse(object.get("id").getAsString()));
+            ResourceLocation.parse(object.get("id").getAsString()));
         var state = block.defaultBlockState();
         if (object.has("properties")) {
             for (var entry : object.getAsJsonObject("properties").entrySet()) {

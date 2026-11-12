@@ -47,8 +47,6 @@ import net.minecraft.server.notifications.EmptyNotificationService;
 import net.minecraft.server.notifications.NotificationManager;
 import net.minecraft.server.packs.repository.PackRepository;
 import net.minecraft.server.packs.repository.ServerPacksSource;
-import net.minecraft.server.permissions.LevelBasedPermissionSet;
-import net.minecraft.server.permissions.PermissionSet;
 import net.minecraft.server.players.NameAndId;
 import net.minecraft.server.players.PlayerList;
 import net.minecraft.server.players.ProfileResolver;
@@ -115,7 +113,9 @@ public final class VanillaCommandExecOracle {
             LevelSettings settings = new LevelSettings("Harness", GameType.SURVIVAL, LevelSettings.DifficultySettings.DEFAULT, true, config);
             WorldLoader.PackConfig packConfig = new WorldLoader.PackConfig(packs, config, false, true);
             WorldLoader.InitConfig init = new WorldLoader.InitConfig(packConfig, Commands.CommandSelection.INTEGRATED,
-                Boolean.getBoolean("horizon.functionAdmissionFixture") ? LevelBasedPermissionSet.GAMEMASTER : LevelBasedPermissionSet.OWNER);
+                // 1.21.10 InitConfig takes an int function-compilation level; 1.21.11's
+                // LevelBasedPermissionSet.GAMEMASTER is level 2, OWNER is level 4.
+                Boolean.getBoolean("horizon.functionAdmissionFixture") ? 2 : 4);
             boolean flat = Boolean.getBoolean("horizon.parity.flat");
             WorldOptions options = new WorldOptions(seed, !flat, false);
             WorldStem stem = Util.<WorldStem>blockUntilDone(executor -> WorldLoader.load(init, context -> {
@@ -353,7 +353,7 @@ public final class VanillaCommandExecOracle {
         void writeFishingReference() throws Exception {
             if (!Boolean.getBoolean("horizon.fishingReference")) return;
             var level = this.overworld();
-            var sequence = net.minecraft.resources.Identifier.parse("minecraft:gameplay/fishing");
+            var sequence = net.minecraft.resources.ResourceLocation.parse("minecraft:gameplay/fishing");
             var nibble = net.minecraft.world.entity.projectile.FishingHook.class.getDeclaredField("nibble");
             nibble.setAccessible(true);
             JsonArray rows = new JsonArray();
@@ -678,7 +678,7 @@ public final class VanillaCommandExecOracle {
                         var pp=op.getAsJsonArray("poi");var pos=new BlockPos(pp.get(0).getAsInt(),pp.get(1).getAsInt(),pp.get(2).getAsInt());
                         raw.addProperty("loaded",raidLevel.hasChunkAt(pos));
                         raw.addProperty("occupied",raidLevel.getPoiManager().getCountInRange(h->h.is(net.minecraft.tags.PoiTypeTags.VILLAGE),pos,0,net.minecraft.world.entity.ai.village.poi.PoiManager.Occupancy.IS_OCCUPIED));
-                        raw.addProperty("poi_type",raidLevel.getPoiManager().getType(pos).map(h->h.unwrapKey().orElseThrow().identifier().toString()).orElse("none"));
+                        raw.addProperty("poi_type",raidLevel.getPoiManager().getType(pos).map(h->h.unwrapKey().orElseThrow().location().toString()).orElse("none"));
                         raw.addProperty("raid_nbt",net.minecraft.world.entity.raid.Raids.CODEC.encodeStart(net.minecraft.nbt.NbtOps.INSTANCE,raidLevel.getRaids()).getOrThrow().toString());
                         JsonArray members=new JsonArray();if (raid!=null) for (var entity:raid.getAllRaiders()) members.add(raidActor(entity,raidLevel));raw.add("actors",members);
                         JsonArray villagers=new JsonArray();for (var uuid:op.getAsJsonArray("villagers")) {
@@ -947,7 +947,7 @@ public final class VanillaCommandExecOracle {
                             state.add("pos", gson.toJsonTree(new int[]{p.getX(), p.getY(), p.getZ()}));
                             state.add("center", gson.toJsonTree(new int[]{map.centerX, map.centerZ}));
                             state.addProperty("scale", map.scale);
-                            state.addProperty("dimension", map.dimension.identifier().toString());
+                            state.addProperty("dimension", map.dimension.location().toString());
                             state.addProperty("saved", found != null);
                             state.add("saved_pos", found == null ? com.google.gson.JsonNull.INSTANCE
                                 : gson.toJsonTree(found.getIntArray("pos").orElseThrow()));
@@ -1214,7 +1214,7 @@ public final class VanillaCommandExecOracle {
                         String block = op.get("block").getAsString();
                         boolean noGravity = op.get("no_gravity").getAsBoolean();
                         var key = net.minecraft.resources.ResourceKey.create(Registries.DIMENSION,
-                            net.minecraft.resources.Identifier.parse(dimension));
+                            net.minecraft.resources.ResourceLocation.parse(dimension));
                         var portalLevel = this.getLevel(key);
                         var inspected = new ArrayList<net.minecraft.world.entity.item.FallingBlockEntity>();
                         for (var entity : portalLevel.getAllEntities()) {
@@ -1425,17 +1425,20 @@ public final class VanillaCommandExecOracle {
             return key;
         }
 
-        @Override public LevelBasedPermissionSet getProfilePermissions(NameAndId nameAndId) { return LevelBasedPermissionSet.OWNER; }
+        @Override public int getProfilePermissions(NameAndId nameAndId) { return 4; }
         @Override protected SampleLogger getTickTimeLogger() { return sampleLogger; }
         @Override public boolean isTickTimeLoggingEnabled() { return false; }
         @Override public SystemReport fillServerSystemReport(SystemReport report) { return report; }
         @Override public boolean isHardcore() { return false; }
-        @Override public LevelBasedPermissionSet operatorUserPermissions() { return LevelBasedPermissionSet.GAMEMASTER; }
-        @Override public PermissionSet getFunctionCompilationPermissions() { return LevelBasedPermissionSet.GAMEMASTER; }
+        // 1.21.10 MinecraftServer: int permission levels (GAMEMASTER is level 2,
+        // OWNER is level 4) and isEpollEnabled(); the permissions package and
+        // useNativeTransport() came in 1.21.11.
+        @Override public int operatorUserPermissionLevel() { return 2; }
+        @Override public int getFunctionCompilationLevel() { return 2; }
         @Override public boolean shouldRconBroadcast() { return true; }
         @Override public boolean isDedicatedServer() { return false; }
         @Override public int getRateLimitPacketsPerSecond() { return 0; }
-        @Override public boolean useNativeTransport() { return false; }
+        @Override public boolean isEpollEnabled() { return false; }
         @Override public boolean isPublished() { return false; }
         @Override public boolean shouldInformAdmins() { return true; }
         @Override public boolean isSingleplayerOwner(NameAndId nameAndId) { return nameAndId.name().equalsIgnoreCase("Player"); }

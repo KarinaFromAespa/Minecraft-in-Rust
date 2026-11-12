@@ -1,6 +1,6 @@
 package dev.horizonlab.parity;
 import com.google.gson.*;import java.io.*;import java.lang.reflect.*;import java.nio.file.*;import java.util.*;
-import net.minecraft.core.Holder;import net.minecraft.resources.Identifier;import net.minecraft.world.effect.*;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.level.Level;import net.minecraft.server.level.ServerLevel;import com.google.common.collect.ImmutableList;
+import net.minecraft.core.Holder;import net.minecraft.resources.ResourceLocation;import net.minecraft.world.effect.*;import net.minecraft.world.entity.*;import net.minecraft.world.entity.ai.attributes.*;import net.minecraft.world.level.Level;import net.minecraft.server.level.ServerLevel;import com.google.common.collect.ImmutableList;
 import static dev.horizonlab.parity.VanillaStoredEffectAttributesOracle.*;
 /** Actual AttributeMap queries/reset with cached instances, mutable supplier prototypes and entity notifications. */
 public final class VanillaAttributeMapQueriesOracle {
@@ -53,7 +53,7 @@ public final class VanillaAttributeMapQueriesOracle {
                 var prototypes=new HashMap<Holder<Attribute>,AttributeInstance>();
                 for(int i=0;i<n;i++){var base=f.getAsJsonArray("bases").get(i);if(!base.isJsonNull()){var a=new AttributeInstance(d.keys.get(i),ignored->{});a.setBaseValue(number(base));prototypes.put(d.keys.get(i),a);}}
                 d.attributes=new Attrs(d,supplierConstructor.newInstance(prototypes));d.map=(Map<Holder<Attribute>,AttributeInstance>)mapField.get(d.attributes);
-                for(var tv:f.getAsJsonArray("templates")){var t=tv.getAsJsonObject();d.templates.add(new Template(Identifier.parse(t.get("id").getAsString()),number(t.get("amount")),AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));}
+                for(var tv:f.getAsJsonArray("templates")){var t=tv.getAsJsonObject();d.templates.add(new Template(ResourceLocation.parse(t.get("id").getAsString()),number(t.get("amount")),AttributeModifier.Operation.values()[t.get("operation").getAsInt()]));}
                 for(var ov:f.getAsJsonArray("definitions")){var op=ov.getAsJsonObject();var t=d.templates.get(op.get("template").getAsInt());d.effect.addAttributeModifier(d.key(op),t.id(),t.amount(),t.operation());}
                 var actor=make(Actor.class);actor.d=d;actor.level=make(EffectLevel.class);actor.level.d=d;
                 effectDirty.setBoolean(actor,true);passengers.set(actor,ImmutableList.of());

@@ -11,7 +11,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.client.renderer.texture.SpriteContents;
 import net.minecraft.client.resources.metadata.animation.*;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
 
 /** Invokes the pinned metadata codec and real animation tick state, without GPU draws. */
@@ -31,7 +31,7 @@ public final class VanillaSpriteAnimationOracle {
         // This guard scopes allocation to valid sprite grids. Frame-size calculation
         // above remains tested for impossible dimensions; loader errors are separate.
         if(size.width()>width || size.height()>height || width%size.width()!=0 || height%size.height()!=0) return result;
-        try(var contents=new SpriteContents(Identifier.parse("horizon:probe"),size,new NativeImage(width,height,true),Optional.of(metadata),List.of(),Optional.empty())) {
+        try(var contents=new SpriteContents(ResourceLocation.parse("horizon:probe"),size,new NativeImage(width,height,true),Optional.of(metadata),List.of(),Optional.empty())) {
             var animation=field(contents,"animatedTexture");
             if(animation==null) { result.put("animation",null); return result; }
             var nativeFrames=(List<?>)field(animation,"frames"); var sequence=new ArrayList<int[]>();

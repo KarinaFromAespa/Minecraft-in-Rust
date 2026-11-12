@@ -19,7 +19,7 @@ import net.minecraft.client.gui.font.providers.GlyphProviderDefinition;
 import net.minecraft.client.gui.font.TextRenderable;
 import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.Style;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -46,7 +46,7 @@ public final class ParityFont {
     public static Font create(ResourceManager resources) throws Exception {
         List<GlyphProvider> providers = new ArrayList<>();
         for (String include : new String[] {"space", "default"}) {
-            var id = Identifier.withDefaultNamespace("font/include/" + include + ".json");
+            var id = ResourceLocation.withDefaultNamespace("font/include/" + include + ".json");
             try (var reader = new InputStreamReader(resources.open(id), StandardCharsets.UTF_8)) {
                 var json = JsonParser.parseReader(reader).getAsJsonObject();
                 for (var element : json.getAsJsonArray("providers")) {
@@ -62,12 +62,12 @@ public final class ParityFont {
     /** The full default font, including references and the external Unihex fallback. */
     public static Font createDefault(ResourceManager resources) throws Exception {
         List<GlyphProvider> providers = new ArrayList<>();
-        loadProviders(resources, Identifier.withDefaultNamespace("default"), providers, new HashSet<>());
+        loadProviders(resources, ResourceLocation.withDefaultNamespace("default"), providers, new HashSet<>());
         return create(providers);
     }
 
-    private static void loadProviders(ResourceManager resources, Identifier font, List<GlyphProvider> providers,
-                                      Set<Identifier> visiting) throws Exception {
+    private static void loadProviders(ResourceManager resources, ResourceLocation font, List<GlyphProvider> providers,
+                                      Set<ResourceLocation> visiting) throws Exception {
         if (!visiting.add(font)) throw new IllegalArgumentException("Cyclic font reference: " + font);
         var file = font.withPath("font/" + font.getPath() + ".json");
         try (var reader = new InputStreamReader(resources.open(file), StandardCharsets.UTF_8)) {

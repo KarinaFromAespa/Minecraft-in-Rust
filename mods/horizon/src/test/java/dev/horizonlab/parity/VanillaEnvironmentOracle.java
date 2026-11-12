@@ -8,7 +8,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryDataLoader;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.Bootstrap;
@@ -64,10 +64,10 @@ public final class VanillaEnvironmentOracle {
         try (var w = new PrintWriter(Files.newBufferedWriter(out, StandardCharsets.UTF_8))) {
             for (String line : Files.readAllLines(in, StandardCharsets.UTF_8)) {
                 String[] f = line.split(" ");
-                DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, Identifier.withDefaultNamespace(f[0]))).value();
+                DimensionType dim = dimensions.getOrThrow(ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.withDefaultNamespace(f[0]))).value();
                 long ticks = Long.parseLong(f[1]);
                 float rain = Float.parseFloat(f[2]), thunder = Float.parseFloat(f[3]);
-                Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.withDefaultNamespace(f[4]))).value();
+                Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, ResourceLocation.withDefaultNamespace(f[4]))).value();
                 ClockManager clocks = h -> new ClockInstance() {
                     public long totalTicks() { return ticks; }
                     public float partialTick() { return 0.0F; }
@@ -89,7 +89,7 @@ public final class VanillaEnvironmentOracle {
                 for (var entry : BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.entrySet()) {
                     EnvironmentAttribute<?> attr = entry.getValue();
                     String s = fmt(system.getValue(attr, Vec3.ZERO));
-                    if (s != null) sb.append(",\"").append(entry.getKey().identifier()).append("\":").append(s);
+                    if (s != null) sb.append(",\"").append(entry.getKey().location()).append("\":").append(s);
                 }
                 w.println(sb.append("}"));
             }

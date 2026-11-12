@@ -234,7 +234,7 @@ public final class VanillaMenuOracle {
     static Optional<net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>> effect(JsonElement name) {
         if (name.isJsonNull()) return Optional.empty();
         return net.minecraft.core.registries.BuiltInRegistries.MOB_EFFECT
-            .get(net.minecraft.resources.Identifier.parse(name.getAsString()))
+            .get(net.minecraft.resources.ResourceLocation.parse(name.getAsString()))
             .map(h -> (net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect>) h);
     }
 

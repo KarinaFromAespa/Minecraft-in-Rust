@@ -38,7 +38,7 @@ public final class VanillaTextDisplayOracle {
         var out = new ArrayList<String>();
         for (String line : Files.readAllLines(Path.of(args[0]))) {
             JsonObject input = JsonParser.parseString(line).getAsJsonObject();
-            var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse("minecraft:text_display"));
+            var type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.ResourceLocation.parse("minecraft:text_display"));
             var display = new Display.TextDisplay(type, level);
             var state = new JsonObject();
             for (int i = 0; i < KEYS.length; i++) {

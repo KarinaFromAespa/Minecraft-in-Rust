@@ -30,7 +30,7 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.util.StrictJsonParser;
 import net.minecraft.world.entity.EntityType;
@@ -64,24 +64,24 @@ public final class VanillaItemModelOracle {
     static HolderLookup.Provider registries;
     static RegistryOps<JsonElement> ops;
     static String frozenTime = "";
-    static final Identifier BLOCKS = TextureAtlas.LOCATION_BLOCKS, ITEMS = TextureAtlas.LOCATION_ITEMS;
+    static final ResourceLocation BLOCKS = TextureAtlas.LOCATION_BLOCKS, ITEMS = TextureAtlas.LOCATION_ITEMS;
 
     static final class Sprite extends TextureAtlasSprite {
-        Sprite(Identifier atlas, SpriteContents contents) { super(atlas, contents, contents.width(), contents.height(), 0, 0, 0); }
+        Sprite(ResourceLocation atlas, SpriteContents contents) { super(atlas, contents, contents.width(), contents.height(), 0, 0, 0); }
     }
 
     /** Sprites loaded on demand from the extracted jar. */
-    static final class Regions extends HashMap<Identifier, TextureAtlasSprite> {
+    static final class Regions extends HashMap<ResourceLocation, TextureAtlasSprite> {
         final boolean items;
         Regions(boolean items) { this.items = items; }
         @Override public TextureAtlasSprite get(Object key) {
-            var id = (Identifier) key;
+            var id = (ResourceLocation) key;
             boolean itemAtlas = id.getPath().startsWith("item/") || id.getPath().startsWith("trims/");
             if (itemAtlas != items) return null;
             return computeIfAbsent(id, k -> load(k, items ? ITEMS : BLOCKS));
         }
     }
-    static TextureAtlasSprite load(Identifier id, Identifier atlas) {
+    static TextureAtlasSprite load(ResourceLocation id, ResourceLocation atlas) {
         try {
             var png = root.resolve("assets").resolve(id.getNamespace()).resolve("textures").resolve(id.getPath() + ".png");
             if (!Files.isRegularFile(png)) {
@@ -104,19 +104,19 @@ public final class VanillaItemModelOracle {
         } catch (IOException e) { throw new UncheckedIOException(e); }
     }
 
-    static final Map<Identifier, Map<Identifier, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader>> GENERATED = new HashMap<>();
+    static final Map<ResourceLocation, Map<ResourceLocation, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader>> GENERATED = new HashMap<>();
     /** The atlas's paletted_permutations sprites, run by vanilla's own source over the extracted resources. */
-    static Map<Identifier, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader> generatedSprites(Identifier atlas) {
+    static Map<ResourceLocation, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader> generatedSprites(ResourceLocation atlas) {
         return GENERATED.computeIfAbsent(atlas, a -> {
-            Map<Identifier, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader> out = new HashMap<>();
+            Map<ResourceLocation, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader> out = new HashMap<>();
             var file = "/assets/" + a.getNamespace() + "/atlases/" + a.getPath().replaceFirst("^textures/atlas/", "").replaceFirst("\\.png$", "") + ".json";
             try (var in = VanillaItemModelOracle.class.getResourceAsStream(file)) {
                 if (in == null) return out;
                 var json = JsonParser.parseString(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8));
                 var sources = net.minecraft.client.renderer.texture.atlas.SpriteSources.FILE_CODEC.parse(JsonOps.INSTANCE, json).getOrThrow();
                 var output = new net.minecraft.client.renderer.texture.atlas.SpriteSource.Output() {
-                    @Override public void add(Identifier id, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader sprite) { out.put(id, sprite); }
-                    @Override public void removeAll(java.util.function.Predicate<Identifier> predicate) { out.keySet().removeIf(predicate); }
+                    @Override public void add(ResourceLocation id, net.minecraft.client.renderer.texture.atlas.SpriteSource.DiscardableLoader sprite) { out.put(id, sprite); }
+                    @Override public void removeAll(java.util.function.Predicate<ResourceLocation> predicate) { out.keySet().removeIf(predicate); }
                 };
                 for (var source : sources)
                     if (source instanceof net.minecraft.client.renderer.texture.atlas.sources.PalettedPermutations) source.run(FILES, output);
@@ -126,15 +126,15 @@ public final class VanillaItemModelOracle {
     }
     /** The extracted resources as a single-pack resource manager. */
     static final net.minecraft.server.packs.resources.ResourceManager FILES = new net.minecraft.server.packs.resources.ResourceManager() {
-        Path path(Identifier id) { return root.resolve("assets").resolve(id.getNamespace()).resolve(id.getPath()); }
-        @Override public Optional<net.minecraft.server.packs.resources.Resource> getResource(Identifier id) {
+        Path path(ResourceLocation id) { return root.resolve("assets").resolve(id.getNamespace()).resolve(id.getPath()); }
+        @Override public Optional<net.minecraft.server.packs.resources.Resource> getResource(ResourceLocation id) {
             var file = path(id);
             return Files.isRegularFile(file) ? Optional.of(new net.minecraft.server.packs.resources.Resource(null, () -> Files.newInputStream(file))) : Optional.empty();
         }
         @Override public java.util.Set<String> getNamespaces() { return java.util.Set.of("minecraft"); }
-        @Override public List<net.minecraft.server.packs.resources.Resource> getResourceStack(Identifier id) { return getResource(id).stream().toList(); }
-        @Override public Map<Identifier, net.minecraft.server.packs.resources.Resource> listResources(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
-        @Override public Map<Identifier, List<net.minecraft.server.packs.resources.Resource>> listResourceStacks(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
+        @Override public List<net.minecraft.server.packs.resources.Resource> getResourceStack(ResourceLocation id) { return getResource(id).stream().toList(); }
+        @Override public Map<ResourceLocation, net.minecraft.server.packs.resources.Resource> listResources(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
+        @Override public Map<ResourceLocation, List<net.minecraft.server.packs.resources.Resource>> listResourceStacks(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
         @Override public java.util.stream.Stream<net.minecraft.server.packs.PackResources> listPacks() { return java.util.stream.Stream.empty(); }
     };
 
@@ -225,10 +225,10 @@ public final class VanillaItemModelOracle {
     @SuppressWarnings("unchecked") static <T> T make(Class<T> type) throws Exception { return (T) allocate.invoke(unsafe, type); }
 
     static final class Resolver extends ItemModelResolver {
-        Map<Identifier, ItemModel> models; Map<Identifier, ClientItem.Properties> properties; ItemModel missing;
+        Map<ResourceLocation, ItemModel> models; Map<ResourceLocation, ClientItem.Properties> properties; ItemModel missing;
         Resolver() { super(null); }
         @Override public void appendItemLayers(ItemStackRenderState output, ItemStack item, ItemDisplayContext context, Level level, ItemOwner owner, int seed) {
-            Identifier id = item.get(DataComponents.ITEM_MODEL);
+            ResourceLocation id = item.get(DataComponents.ITEM_MODEL);
             if (id != null) {
                 output.setOversizedInGui(properties.getOrDefault(id, ClientItem.Properties.DEFAULT).oversizedInGui());
                 models.getOrDefault(id, missing).update(output, item, this, context, level instanceof ClientLevel c ? c : null, owner, seed);
@@ -236,11 +236,11 @@ public final class VanillaItemModelOracle {
         }
         // ModelManager.getItemProperties, from the same baked properties.
         @Override public boolean shouldPlaySwapAnimation(ItemStack stack) {
-            Identifier id = stack.get(DataComponents.ITEM_MODEL);
+            ResourceLocation id = stack.get(DataComponents.ITEM_MODEL);
             return id == null || properties.getOrDefault(id, ClientItem.Properties.DEFAULT).handAnimationOnSwap();
         }
         @Override public float swapAnimationScale(ItemStack stack) {
-            Identifier id = stack.get(DataComponents.ITEM_MODEL);
+            ResourceLocation id = stack.get(DataComponents.ITEM_MODEL);
             return id == null ? 1.0F : properties.getOrDefault(id, ClientItem.Properties.DEFAULT).swapAnimationScale();
         }
     }
@@ -335,24 +335,24 @@ public final class VanillaItemModelOracle {
         }
 
         // Every model file.
-        var models = new HashMap<Identifier, UnbakedModel>();
+        var models = new HashMap<ResourceLocation, UnbakedModel>();
         try (Stream<Path> files = Files.walk(root.resolve("assets/minecraft/models"))) {
             for (var file : (Iterable<Path>) files.filter(p -> p.toString().endsWith(".json"))::iterator) {
                 var relative = root.resolve("assets/minecraft/models").relativize(file).toString().replace('\\', '/');
                 try (var reader = Files.newBufferedReader(file)) {
-                    models.put(Identifier.withDefaultNamespace(relative.substring(0, relative.length() - 5)), CuboidModel.fromStream(reader));
+                    models.put(ResourceLocation.withDefaultNamespace(relative.substring(0, relative.length() - 5)), CuboidModel.fromStream(reader));
                 } catch (RuntimeException ignored) {}
             }
         }
         // Every item definition.
         var output = Files.newBufferedWriter(Path.of(args[2]));
         output.write(JSON.toJson(map("row", "components", "names",
-            BuiltInRegistries.DATA_COMPONENT_TYPE.keySet().stream().map(Identifier::toString).sorted().toList()))); output.newLine();
-        var items = new TreeMap<Identifier, ClientItem>();
+            BuiltInRegistries.DATA_COMPONENT_TYPE.keySet().stream().map(ResourceLocation::toString).sorted().toList()))); output.newLine();
+        var items = new TreeMap<ResourceLocation, ClientItem>();
         try (Stream<Path> files = Files.list(root.resolve("assets/minecraft/items"))) {
             for (var file : (Iterable<Path>) files.sorted()::iterator) {
                 var name = file.getFileName().toString();
-                var id = Identifier.withDefaultNamespace(name.substring(0, name.length() - 5));
+                var id = ResourceLocation.withDefaultNamespace(name.substring(0, name.length() - 5));
                 String text = Files.readString(file);
                 boolean ok = decode(id, text, items);
                 output.write(JSON.toJson(map("row", "decode", "name", name, "ok", ok))); output.newLine();
@@ -362,7 +362,7 @@ public final class VanillaItemModelOracle {
         try (var lines = Files.lines(Path.of(args[1] + ".definitions"))) {
             for (var line : (Iterable<String>) lines::iterator) {
                 var row = JsonParser.parseString(line).getAsJsonObject();
-                var id = Identifier.parse(row.get("name").getAsString());
+                var id = ResourceLocation.parse(row.get("name").getAsString());
                 boolean ok = decode(id, row.get("json").getAsString(), items);
                 output.write(JSON.toJson(map("row", "decode", "name", row.get("name").getAsString(), "ok", ok))); output.newLine();
             }
@@ -377,7 +377,7 @@ public final class VanillaItemModelOracle {
         var blockAtlas = new SpriteLoader.Preparations(16, 16, 0, missingSprite, new Regions(false), CompletableFuture.completedFuture(null));
         var itemAtlas = new SpriteLoader.Preparations(16, 16, 0, missingSprite, new Regions(true), CompletableFuture.completedFuture(null));
         var materials = new net.minecraft.client.resources.model.sprite.MaterialBaker(blockAtlas, itemAtlas);
-        var dummy = new Sprite(ITEMS, new SpriteContents(Identifier.parse("minecraft:dummy"), new net.minecraft.client.resources.metadata.animation.FrameSize(16, 16), new NativeImage(16, 16, true)));
+        var dummy = new Sprite(ITEMS, new SpriteContents(ResourceLocation.parse("minecraft:dummy"), new net.minecraft.client.resources.metadata.animation.FrameSize(16, 16), new NativeImage(16, 16, true)));
         SpriteGetter sprites = id -> dummy;
         var bakery = new ModelBakery(EntityModelSet.vanilla(), sprites, null, Map.of(), tagged(items), resolved, discovery.missingModel());
         var baked = bakery.bakeModels(materials, Runnable::run).join();
@@ -415,7 +415,7 @@ public final class VanillaItemModelOracle {
                         actor.remaining = o.get("remaining").getAsInt();
                         actor.stack = stack;
                         actor.arm = o.get("main_arm").getAsString().equals("left") ? HumanoidArm.LEFT : HumanoidArm.RIGHT;
-                        actor.kind = BuiltInRegistries.ENTITY_TYPE.getValue(Identifier.parse(o.get("entity_type").getAsString()));
+                        actor.kind = BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(o.get("entity_type").getAsString()));
                         var derived = new TreeMap<String, Object>();
                         derived.put("use_duration", stack.getUseDuration(actor));
                         try { derived.put("charge_duration", CrossbowItem.getChargeDuration(stack, actor)); } catch (RuntimeException e) { derived.put("charge_duration", 0); }
@@ -423,7 +423,7 @@ public final class VanillaItemModelOracle {
                     }
                     Level level = null;
                     if (row.has("dimension") && !row.get("dimension").isJsonNull()) {
-                        var dim = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, Identifier.parse(row.get("dimension").getAsString()));
+                        var dim = net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, ResourceLocation.parse(row.get("dimension").getAsString()));
                         var clientLevel = make(ClientLevel.class);
                         var f = Level.class.getDeclaredField("dimension"); f.setAccessible(true);
                         var offset = (long) u.getMethod("objectFieldOffset", Field.class).invoke(unsafe, f);
@@ -449,12 +449,12 @@ public final class VanillaItemModelOracle {
         output.close();
     }
 
-    static Map<Identifier, ClientItem> tagged(Map<Identifier, ClientItem> items) {
-        var out = new TreeMap<Identifier, ClientItem>();
+    static Map<ResourceLocation, ClientItem> tagged(Map<ResourceLocation, ClientItem> items) {
+        var out = new TreeMap<ResourceLocation, ClientItem>();
         items.forEach((id, item) -> out.put(id, new ClientItem(tag(item.model()), item.properties(), item.registrySwapper())));
         return out;
     }
-    static boolean decode(Identifier id, String text, Map<Identifier, ClientItem> items) {
+    static boolean decode(ResourceLocation id, String text, Map<ResourceLocation, ClientItem> items) {
         try {
             var parsed = ClientItem.CODEC.parse(ops, StrictJsonParser.parse(new StringReader(text))).result();
             parsed.ifPresent(item -> items.put(id, item));

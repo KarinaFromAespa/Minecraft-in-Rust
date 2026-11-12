@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.attribute.EnvironmentAttribute;
 import net.minecraft.world.attribute.EnvironmentAttributeMap;
@@ -37,7 +37,7 @@ public final class VanillaEnvironmentAttributeModifierOracle {
 
     @SuppressWarnings("unchecked")
     private static String run(String id, String subjectJson, String entryJson) {
-        var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(Identifier.parse(id));
+        var attribute = (EnvironmentAttribute<Object>) BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getValue(ResourceLocation.parse(id));
         Object subject = attribute.valueCodec().parse(JsonOps.INSTANCE, JsonParser.parseString(subjectJson)).getOrThrow();
         var map = new JsonObject();
         map.add(id, JsonParser.parseString(entryJson));
