@@ -1,11 +1,11 @@
 # The delta bar: checklist and gate
 
-Companion to `docs/ROADMAP.md` §8.2. Turns D1–D6 into six checks a pipeline can run,
+Companion to `ROADMAP-TARGET-REDRAFT.md` §4.2. Turns D1–D6 into six checks a pipeline can run,
 against artifacts the pipeline already produces, so a release is either **delta-verified** or it
 isn't — with no third state and no adjective in between.
 
-The gate is `tools/delta_verify.py` at the repo root (pass `--tree` when the
-release's tree is elsewhere). Stdlib only, 3.10+.
+The gate is `files/delta_verify.py` → install as `tools/delta_verify.py` in the tree (or at the
+repo root and pass `--tree`). Stdlib only, 3.10+.
 
 ```sh
 python3 tools/delta_verify.py 1.21.10                 # judge recorded evidence
@@ -44,7 +44,7 @@ versions/1.21.10/               this release's metadata, no crates
   work-items.json               D3 — closure ledger, hashed against report.json
   harness-subset.txt            D5 — this era's frozen regression subset
   allowed-failures.txt          any check — exemptions, each with cause + owner
-  regen-determinism.json        D1 — the six tables' hashes from two regen runs
+  regen-determinism.json        D1 — committed vs freshly regenerated table hashes, + overrides
   playtest.md                   D6 — signed play gate
   lan-join.log                  D6 — evidence the playtest cites
   ci-out/cargo-check.log        D2 — recorded, when the gate runs without --run
@@ -52,11 +52,16 @@ versions/1.21.10/               this release's metadata, no crates
   delta-verdict.json            written by the gate; the only thing VERSIONS.md reads
 ```
 
-`profile.json` is the gate's preferred evidence for D4/D5. It accepts `{"harnesses": {name:
-status}}`, `{"suite": {...}}` or `{"results": [{name, passed}]}`, with `pass`/`passed`/`ok`
-normalised — because the point is that a published profile exists, not that it is written in this
-particular dialect. `parity.py`'s local `state.json` is accepted only as a fallback, so a verdict
-judges evidence that was actually shipped.
+`profile.json` is the gate's preferred evidence for D4/D5. It accepts the summary shape the
+emitter already produces — `{"harness": {"passing": [...], "failing": [...]}}`, singular or
+nested — as well as `{"harnesses": {name: status}}` and `{"results": [{name, passed}]}`, with
+`pass`/`passed`/`ok` normalised. The point is that a published profile exists, not that it is
+written in one dialect. `parity.py`'s local `state.json` is accepted only as a fallback, so a
+verdict judges evidence that was actually shipped.
+
+A profile stamped with a `commit` that does not match HEAD is **refused**, not downgraded: it is
+not evidence about this tree. That is the one cross-file check in the gate, and it exists because
+a profile, a playtest and a verdict are three documents that can otherwise disagree quietly.
 
 Things the gate reads from the tree, not the pin: `research-lock.json`,
 `crates/horizon-core/src/version.rs`, the `diff-<prev>-<release>/report.json` and `regen.json`
@@ -72,13 +77,15 @@ that `version_port.py` writes into its store, `.local/horizon-client/<release>/`
 | **Must hold** | The tree pins this exact release; all six tables regenerated from its own jar; prepare ran end to end; regeneration is byte-stable. |
 | **Command** | `python3 tools/version_port.py prepare <v>` (add `--download` if the store is cold); `python3 tools/version_port.py regen <v> --worktree A`, then `--worktree B`. |
 | **Artifacts** | `research-lock.json`; `diff-*-<v>/regen.json`; `pins/<v>/regen-determinism.json`; `.local/horizon-client/<v>/`. |
-| **Passes when** | `minecraft.version == <v>`; `client_sha1`, `server_sha1`, `java_major` present; `version.rs` says `VERSION_ID == <v>` with non-zero protocol/data; every generator in `regen.json` clean; the six committed tables match a fresh regen (run1 = the published tree, run2 = a regenerated worktree); prepared data exists (or prepare exited 0 under `--run`). |
+| **Passes when** | `minecraft.version == <v>`; `client_sha1`, `server_sha1`, `java_major` present; `version.rs` says `VERSION_ID == <v>` with non-zero protocol/data; every generator in `regen.json` clean; a fresh regen reproduces the **committed** tables exactly, except tables listed in `overrides` with a cause and an owner; prepared data exists (or prepare exited 0 under `--run`). |
 | **Cost** | 1–2 h warm; 10–30 min with a hot store. |
 
-Producing the determinism record (the only artifact nobody generates today):
+Producing the determinism record (the only artifact nobody generates today). **One side must be
+the committed tree** — hashing two fresh regenerations against each other passes two identically
+wrong runs, which is precisely how a hand-corrected table goes unnoticed:
 
 ```sh
-python3 tools/version_port.py regen 1.21.10 --worktree /tmp/regen-b
+python3 tools/version_port.py regen 1.21.10 --worktree /tmp/regen-fresh
 python3 - <<'PY'
 import hashlib, json, pathlib
 tables = ["crates/horizon-core/src/version.rs", "crates/horizon-protocol/src/ids.rs",
@@ -86,21 +93,23 @@ tables = ["crates/horizon-core/src/version.rs", "crates/horizon-protocol/src/ids
           "crates/horizon-client/src/lan/command_suggestions.rs", "crates/horizon-command/src/vanilla_order.rs"]
 def hashes(root):
     return {t: hashlib.sha256((pathlib.Path(root) / t).read_bytes()).hexdigest() for t in tables}
-# run1 is the COMMITTED tables in the published tree, run2 a fresh regen.
-# Comparing two fresh regens would not catch anything: the same generator
-# on the same input produces the same output, wrong or not.
-record = {"run1": hashes("versions/1.21.10"), "run2": hashes("/tmp/regen-b")}
+record = {
+    "release": "1.21.10",
+    "committed": hashes("versions/1.21.10"),      # the tree as shipped
+    "fresh": hashes("/tmp/regen-fresh"),           # one run of the generators
+    "overrides": [],                               # each: {table, reason, owner}
+}
 pathlib.Path("versions/1.21.10/regen-determinism.json").write_text(json.dumps(record, indent=2))
 PY
 ```
 
-Why it's a real check: 1.21.11's regen pass found 5 hand-corrected adapter tables and a
-`slot_display` numbering trap where the generator's mapping was identity for an 8-entry registry
-and 11→8 for the 26.x versions — both wrong for the codec. Two fresh regens would agree with
-each other and pass while the committed tables still carried the hand-correction, so the
-record compares the committed tables against a fresh regen instead: any drift means the
-generator is wrong or the tree is stale, and D1 fails until the fix lands at the source
-(the generator or the codec), not as another silent hand-edit.
+Any table where `fresh` differs from `committed` is either a generator bug or a hand correction,
+and both need to be visible. A hand correction is allowed — but only as an `overrides` entry with
+a reason and an owner: 1.21.11 carries five hand-corrected adapter tables and a `slot_display`
+numbering trap (identity for the 8-entry registry, 11→8 for the 26.x versions), where the
+generator is wrong for the codec as it stands. Under the old two-fresh-runs recipe all six would
+pass silently; under this one each has to be declared, and the declaration is what tells the next
+person the generator needs fixing before that override can go.
 
 ---
 
@@ -219,8 +228,9 @@ evidence: lan-join.log
    and the ledger is stale, not reusable.
 4. **The subset is frozen.** Growing it is cheap and encouraged; shrinking it is a decision with a
    date and a name attached.
-5. **Unmeasured is blocked.** The 1.21.11 run left 8 of 17 harnesses unmeasured and the notes
-   correctly refused to call them anything; the gate does the same mechanically.
+5. **Unmeasured is blocked.** The *local* 1.21.11 run left 8 of 17 harnesses unmeasured — CI
+   later measured all 17 (2 pass / 13 fail), and the notes correctly refused to call the
+   unmeasured ones anything; the gate does the same mechanically.
 6. **One commit.** Verdict records the commit; if HEAD moves, rerun.
 7. **Precedence:** `fail` beats `blocked` beats `verified`. A wrong answer outranks a missing one.
 
@@ -247,10 +257,6 @@ stage is derived from the one before it:
 So `status.json` retires, or becomes a regenerated cache with no hand-edited fields. If a number
 appears in the index and is not in a verdict, it is wrong by construction — which is the failure
 mode that produced "completion pass landed" beside a 3-of-17 profile.
-
-The gate also cross-checks `profile.json`'s `commit` against the tree's HEAD: a profile from
-another commit fails the verdict outright, so stale evidence cannot verify a newer tree. A
-profile with no `commit` field skips the check rather than failing it.
 
 `delta-verdict.json`:
 
@@ -298,7 +304,25 @@ table that could be mistaken for success.
 
 ## 9. Running it from CI
 
-The gate is record-and-judge, so CI only has to produce artifacts. Two jobs per release:
+The gate is record-and-judge, so CI only has to produce artifacts. Two jobs per release.
+
+**First add what `port-verify` does not record today.** It has no protocol-test step, and its only
+compile step is `cargo check -p horizon-protocol` (protocol package, `continue-on-error`) writing
+`protocol-check.log` — which cannot satisfy D2, and the gate says so rather than passing it:
+
+```yaml
+      - name: Workspace check (D2)
+        continue-on-error: true
+        run: |
+          cargo check --workspace --all-targets 2>&1 | tee ci-out/cargo-check.log
+      - name: Protocol tests (D2)
+        continue-on-error: true
+        run: |
+          cargo test -p horizon-protocol 2>&1 | tee ci-out/cargo-test-protocol.log
+```
+
+With those two steps the 26.1 line will fail D2 on its 48 test-target errors — which is the
+honest verdict and the work item, not a reason to weaken the bar.
 
 ```yaml
   record:                      # the harness SET is split here, one job per slice

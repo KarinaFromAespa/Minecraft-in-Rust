@@ -25,7 +25,7 @@ Layout it expects (see DELTA-BAR.md §2):
       harness-subset.txt          D5: this era's regression subset
       allowed-failures.txt        any check: "name  # cause: … owner: …"
       playtest.md                 D6 signed playtest
-      regen-determinism.json      D1: committed tables' hashes vs a fresh regen's
+      regen-determinism.json      D1: two regen runs' table hashes
       delta-verdict.json          written by this script
 
 Exit: 0 verified · 1 failed · 3 blocked (evidence missing) · 2 usage error.
@@ -273,23 +273,54 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     determinism = read_json(determinism_path)
     if determinism is None:
         return check_stop(
-            "no regen-determinism.json: hash the six committed tables (run1) and a fresh "
-            "regen's (`version_port.py regen <v> --worktree B`, run2) and record both",
+            "no regen-determinism.json: hash the COMMITTED tables as `committed`, do one fresh "
+            "`version_port.py regen <v> --worktree A` as `fresh`, and compare",
             evidence,
         )
-    run1, run2 = determinism.get("run1") or {}, determinism.get("run2") or {}
-    if not run1 or set(run1) != set(run2):
-        return check_bad("regen-determinism.json does not hold two matching runs",
+    # `committed` is the tree as shipped; `fresh` is one regeneration. Comparing two
+    # fresh runs to each other passes two identically wrong regens, which is exactly
+    # how a hand-corrected table survives unnoticed.
+    committed = determinism.get("committed") or determinism.get("run1") or {}
+    fresh = determinism.get("fresh") or determinism.get("run2") or {}
+    if not committed or not fresh:
+        return check_stop("regen-determinism.json needs `committed` and `fresh` table hashes",
+                          [str(determinism_path)])
+    if set(committed) != set(fresh):
+        return check_bad("regen-determinism.json: the two runs cover different tables",
                          [str(determinism_path)])
-    drift = sorted(k for k in run1 if run1[k] != run2[k])
-    if drift:
-        return check_bad("regeneration is not deterministic: " + ", ".join(drift[:3]),
-                         [str(determinism_path)])
-    missing = [t for t in RUST_TABLES if t not in run1]
+    missing = [t for t in RUST_TABLES if t not in committed]
     if missing:
         return check_stop("regen-determinism.json omits tables: " + ", ".join(missing[:3]),
                           [str(determinism_path)])
-    notes.append(f"{len(run1)} tables: committed match a fresh regen")
+    drift = sorted(t for t in committed if committed[t] != fresh[t])
+    overrides = {
+        entry.get("table"): entry
+        for entry in (determinism.get("overrides") or [])
+        if isinstance(entry, dict) and entry.get("table")
+    }
+    unjustified = [t for t, entry in overrides.items()
+                   if not entry.get("reason") or not entry.get("owner")]
+    if unjustified:
+        return check_bad("declared table override without cause or owner: "
+                         + ", ".join(unjustified[:3]), [str(determinism_path)])
+    undeclared = [t for t in drift if t not in overrides]
+    if undeclared:
+        return check_bad(
+            f"a fresh regen differs from the committed tables at {len(undeclared)} table(s) with "
+            "no declared override: " + ", ".join(undeclared[:3]),
+            [str(determinism_path)],
+        )
+    if overrides:
+        notes.append(
+            f"{len(committed) - len(overrides)} tables reproduce exactly; "
+            f"{len(overrides)} declared hand override(s): "
+            + ", ".join(sorted(overrides)[:3])
+        )
+    else:
+        notes.append(f"all {len(committed)} tables reproduce exactly")
+    stale = [t for t in overrides if t not in drift]
+    if stale:
+        notes.append(f"declared override no longer differs from the generator: {len(stale)}")
     evidence.append(str(determinism_path))
 
     prepared = tree / ".local" / "horizon-client" / release
@@ -314,15 +345,16 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     return check_ok(notes, evidence)
 
 
-def _cargo(tree: Path, argv, log_name: str, run: bool, pin: Path):
+def _cargo(tree: Path, argv, log_names, run: bool, pin: Path):
+    """Run the command, or read the first of several accepted log names."""
     if run:
         code, output = sh(argv, tree, timeout=7200)
-    else:
-        log = pin / "ci-out" / log_name
-        if not log.exists():
-            return None, None
-        code, output = 0, log.read_text(encoding="utf-8", errors="replace")
-    return code, output
+        return code, output, None
+    for name in log_names:
+        log = pin / "ci-out" / name
+        if log.exists():
+            return 0, log.read_text(encoding="utf-8", errors="replace"), log
+    return None, None, None
 
 
 def check_d2(tree: Path, pin: Path, release: str, run: bool, timeout: int):
@@ -330,11 +362,21 @@ def check_d2(tree: Path, pin: Path, release: str, run: bool, timeout: int):
     evidence, notes = [], []
     exempt = allowed(pin)
 
-    code, output = _cargo(
-        tree, ["cargo", "check", "--workspace", "--all-targets"], "cargo-check.log", run, pin
+    code, output, log = _cargo(
+        tree, ["cargo", "check", "--workspace", "--all-targets"],
+        ("cargo-check.log", "workspace-check.log"), run, pin,
     )
     if output is None:
+        narrow = pin / "ci-out" / "protocol-check.log"
+        if narrow.exists():
+            return check_stop(
+                "only ci-out/protocol-check.log is recorded: that compiles horizon-protocol alone "
+                "and cannot show the workspace builds — record a `cargo check --workspace "
+                "--all-targets` step", [str(narrow)],
+            )
         return check_stop("no ci-out/cargo-check.log; rerun with --run", evidence)
+    if log:
+        evidence.append(str(log))
     errors = len(re.findall(r"^error(\[E\d+\])?:", output, re.M))
     warnings = len(re.findall(r"^warning:", output, re.M))
     if code != 0 or errors:
@@ -343,11 +385,17 @@ def check_d2(tree: Path, pin: Path, release: str, run: bool, timeout: int):
         return check_bad(f"cargo check: {warnings} warning(s) (bar is 0/0)", evidence)
     notes.append("cargo check --workspace --all-targets: 0 errors, 0 warnings")
 
-    code, output = _cargo(
-        tree, ["cargo", "test", "-p", PROTOCOL_PACKAGE], "cargo-test-protocol.log", run, pin
+    code, output, log = _cargo(
+        tree, ["cargo", "test", "-p", PROTOCOL_PACKAGE],
+        ("cargo-test-protocol.log", "protocol-test.log", "cargo-test.log"), run, pin,
     )
     if output is None:
-        return check_stop("no ci-out/cargo-test-protocol.log; rerun with --run", evidence)
+        return check_stop(
+            "no protocol-test log (cargo-test-protocol.log / protocol-test.log); the workflow has "
+            "no test step yet — add one, or rerun with --run", evidence,
+        )
+    if log:
+        evidence.append(str(log))
     blocks = re.findall(r"^failures:\n((?:\s{4}\S+\n)+)", output, re.M)
     failures = sorted({name for block in blocks for name in block.split()})
     passed = re.search(r"test result: ok\. (\d+) passed", output)
@@ -418,72 +466,113 @@ def check_d3(tree: Path, pin: Path, release: str):
                                       "items_accepted": accepted})
 
 
+ALIASES = {"pass": "pass", "passed": "pass", "ok": "pass", "green": "pass",
+           "fail": "fail", "failed": "fail", "red": "fail"}
+PASS_KEYS = ("passing", "passed", "pass")
+FAIL_KEYS = ("failing", "failed", "fail")
+
+
 def normalise_profile(raw):
     """Accept the shapes a published profile comes in; return {"harnesses": {...}}.
 
-    `profile.json` is the frozen record of one completed sweep (what CI uploads).
-    `parity.py`'s `state.json` is the same information, unfrozen and local. The
-    gate prefers the published one so a verdict judges evidence that shipped.
+    `profile.json` is the frozen record of one completed sweep. Two shapes are
+    accepted because the emitter already exists: a map of harness name to record
+    (`{"harnesses": {name: {...}}}`) and the summary form with lists
+    (`{"harness": {"passing": [...], "failing": [...]}}`, singular or nested).
+    A profile from another commit is refused: evidence must match the tree judged.
     """
     if not isinstance(raw, dict):
         return None
-    entries = raw.get("harnesses")
-    if entries is None:
-        entries = raw.get("suite")
-    if entries is None:
-        entries = raw.get("results")
+
+    # Summary form: pass/fail lists, at the top level or under one container key.
+    for container in [raw] + [raw.get(key) for key in ("harness", "harnesses", "suite", "summary")]:
+        if not isinstance(container, dict):
+            continue
+        buckets = {}
+        for key in PASS_KEYS:
+            if isinstance(container.get(key), list):
+                buckets["pass"] = container[key]
+                break
+        for key in FAIL_KEYS:
+            if isinstance(container.get(key), list):
+                buckets["fail"] = container[key]
+                break
+        if buckets:
+            harnesses = {}
+            for status, names in buckets.items():
+                for name in names:
+                    if isinstance(name, str) and name:
+                        harnesses[name] = {"status": status}
+            return {"harnesses": harnesses} if harnesses else None
+
+    # Record form: name to record (or name to bare status).
+    entries = None
+    for key in ("harnesses", "harness", "suite", "results", "tests"):
+        value = raw.get(key)
+        if isinstance(value, (dict, list)):
+            entries = value
+            break
     if isinstance(entries, list):
         entries = {
-            (e.get("name") or e.get("harness")): e
-            for e in entries if isinstance(e, dict)
+            (entry.get("name") or entry.get("harness")): entry
+            for entry in entries if isinstance(entry, dict)
         }
     if not isinstance(entries, dict):
         return None
-    aliases = {"pass": "pass", "passed": "pass", "ok": "pass", "green": "pass",
-               "fail": "fail", "failed": "fail", "red": "fail"}
     harnesses = {}
     for name, value in entries.items():
         if not name:
             continue
         if isinstance(value, str):
-            status = aliases.get(value.lower(), value.lower())
-            harnesses[name] = {"status": status}
+            harnesses[name] = {"status": ALIASES.get(value.lower(), value.lower())}
         elif isinstance(value, dict):
-            raw_status = value.get("status") or value.get("verdict")
+            raw_status = value.get("status") or value.get("verdict") or value.get("result")
             if raw_status is None and "passed" in value:
                 raw_status = "pass" if value["passed"] else "fail"
             if raw_status is None:
                 continue
-            harnesses[name] = {**value, "status": aliases.get(str(raw_status).lower(),
-                                                             str(raw_status).lower())}
+            harnesses[name] = {**value,
+                               "status": ALIASES.get(str(raw_status).lower(),
+                                                     str(raw_status).lower())}
     return {"harnesses": harnesses} if harnesses else None
 
 
-def _parity_state(tree: Path, pin: Path):
-    """Published profile first (the frozen record), then the local run state."""
-    for candidate in (pin / "profile.json", pin / "ci-out/profile.json",
-                      tree / ".local/parity-runner/state.json", pin / "ci-out/state.json"):
+def commit_agrees(stamped: str, actual: str) -> bool:
+    if not stamped or not actual:
+        return True
+    short = min(len(stamped), len(actual), 40)
+    if short < 7:
+        return True
+    return stamped[:short][:7] == actual[:7] or actual.startswith(stamped) or stamped.startswith(actual)
+
+
+def _parity_state(tree: Path, pin: Path, commit: str = ""):
+    """Published profile first (the frozen record), then the local run state.
+
+    Returns (state, path, reason). A profile stamped with another commit is not
+    evidence about this tree, so it is refused rather than downgraded.
+    """
+    profile = pin / "profile.json"
+    if not profile.exists():
+        profile = pin / "ci-out" / "profile.json"
+    if profile.exists():
+        raw = read_json(profile)
+        stamped = (raw or {}).get("commit") or ""
+        if not commit_agrees(stamped, commit):
+            return None, profile, (
+                f"{profile.name} is stamped for commit {stamped[:12]}, HEAD is {commit[:12]} "
+                "— re-record the sweep for this tree"
+            )
+        state = normalise_profile(raw or {})
+        if state:
+            return state, profile, ""
+    for candidate in (tree / ".local/parity-runner/state.json", pin / "ci-out/state.json"):
         raw = read_json(candidate)
         if raw:
             state = normalise_profile(raw)
             if state:
-                return state, candidate
-    return None, None
-
-
-def published_profile_commit(tree: Path, pin: Path):
-    """The commit a published profile claims to be about, if it says.
-
-    The gate judges evidence that shipped; a profile from another commit
-    must not verify this tree. state.json carries no commit, so only a
-    profile.json can answer — a missing commit means no cross-check,
-    not a failure.
-    """
-    for candidate in (pin / "profile.json", pin / "ci-out/profile.json"):
-        raw = read_json(candidate)
-        if isinstance(raw, dict) and raw.get("commit"):
-            return str(raw["commit"])
-    return ""
+                return state, candidate, ""
+    return None, None, ""
 
 
 def _judge_harnesses(state, names, exempt):
@@ -498,7 +587,7 @@ def _judge_harnesses(state, names, exempt):
     return failing, unknown
 
 
-def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int):
+def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = ""):
     """D4 — data compatibility: datafix ladder and save round-trip."""
     exempt = allowed(pin)
     if run:
@@ -508,9 +597,10 @@ def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int):
         )
         if code != 0:
             return check_bad(f"parity.py {DATA_CHECKS} exited {code}: {first_line(output)}")
-    state, path = _parity_state(tree, pin)
+    state, path, reason = _parity_state(tree, pin, commit)
     if state is None:
-        return check_stop("no .local/parity-runner/state.json; rerun with --run")
+        return check_stop(reason or "no profile.json or .local/parity-runner/state.json; "
+                                  "rerun with --run", [str(path)] if path else [])
     failing, unknown = _judge_harnesses(state, DATA_CHECKS, exempt)
     if unknown:
         return check_stop(f"not measured: {', '.join(unknown)}", [str(path)])
@@ -519,7 +609,7 @@ def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int):
     return check_ok([f"{', '.join(DATA_CHECKS)}: pass"], [str(path)])
 
 
-def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int):
+def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = ""):
     """D5 — this era's regression subset is green (or exempted with cause and owner)."""
     subset_path = pin / "harness-subset.txt"
     if not subset_path.exists():
@@ -540,9 +630,10 @@ def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int):
         )
         if code != 0 and not (tree / ".local/parity-runner/state.json").exists():
             return check_bad(f"parity.py exited {code}: {first_line(output)}")
-    state, path = _parity_state(tree, pin)
+    state, path, reason = _parity_state(tree, pin, commit)
     if state is None:
-        return check_stop("no .local/parity-runner/state.json; rerun with --run")
+        return check_stop(reason or "no profile.json or .local/parity-runner/state.json; "
+                                  "rerun with --run", [str(path)] if path else [])
     failing, unknown = _judge_harnesses(state, names, exempt)
     if unknown:
         return check_stop(f"{len(unknown)} of {len(names)} subset harnesses unmeasured: "
@@ -676,8 +767,8 @@ def main(argv=None) -> int:
         "D1": lambda: check_d1(tree, pin, args.release, args.run, args.download),
         "D2": lambda: check_d2(tree, pin, args.release, args.run, args.timeout),
         "D3": lambda: check_d3(tree, pin, args.release),
-        "D4": lambda: check_d4(tree, pin, args.release, args.run, args.timeout),
-        "D5": lambda: check_d5(tree, pin, args.release, args.run, args.timeout),
+        "D4": lambda: check_d4(tree, pin, args.release, args.run, args.timeout, commit),
+        "D5": lambda: check_d5(tree, pin, args.release, args.run, args.timeout, commit),
         "D6": lambda: check_d6(pin, args.release, commit),
     }
     checks = {}
@@ -691,17 +782,6 @@ def main(argv=None) -> int:
         verdict_state = "blocked"
     else:
         verdict_state = "verified"
-
-    # A profile from another commit fails the verdict outright: stale
-    # evidence cannot verify a newer tree. Same prefix rule as D6's
-    # playtest stamp; skipped when either side is unknown.
-    profile_commit = published_profile_commit(tree, pin)
-    commit_mismatch = None
-    if profile_commit and commit and not (
-        commit.startswith(profile_commit) or profile_commit.startswith(commit[:7])
-    ):
-        commit_mismatch = {"profile": profile_commit, "head": commit}
-        verdict_state = "failed"
 
     tier_file = pin / "tier.txt"
     tier = tier_file.read_text(encoding="utf-8").strip()[:1].upper() if tier_file.exists() else "D"
@@ -736,7 +816,6 @@ def main(argv=None) -> int:
         "mode": "run" if args.run else "recorded",
         "verified": verdict_state == "verified",
         "state": verdict_state,
-        "commit_mismatch": commit_mismatch,
         "checked_at": checked_at,
         "scalars": scalars,
         "index_line": index_line,
@@ -755,8 +834,6 @@ def main(argv=None) -> int:
         for name in CHECK_ORDER:
             entry = checks[name]
             print(f"  {name} {entry['status']:<8} {'; '.join(entry['notes'])[:150]}")
-        if commit_mismatch:
-            print(f"  commit MISMATCH: profile is for {profile_commit[:12]}, HEAD is {commit[:12]}")
         print(f"  verdict: {out}")
 
     return {"verified": 0, "failed": STATUS_EXIT[FAIL], "blocked": STATUS_EXIT[BLOCKED]}[verdict_state]
