@@ -332,9 +332,16 @@ the exit condition of each phase and the factory/work split inside it.
   "prepare runs" and onto "oracle corpus compiles and the full suite
   produces a complete, measured profile — no unmeasured harnesses".
   *Exit: a complete 1.21.11 profile exists, whatever its pass count.*
-  (The old gate's second condition — the front-end remapping a gappy
-  SRG jar (1.12.2) without manual rescue — moves to Phase 3, where the
-  MCP eras need it; the front-end work already done is not wasted.)
+  Two consequences worth stating, because they make Phase 0 cheaper
+  than the old plan implied. First, the exit is close: T1–T4 on
+  1.21.11 needs the two outstanding oracle repairs (generation stages,
+  first-person swing) and nothing else — the pin, prepare, workspace
+  build, table regen and packet rewire are already recorded. Second,
+  **the gappy-SRG proof (1.12.2) drops out of Phase 0 into Phase 3.**
+  Nothing before E2 needs SRG-form mappings, and 1.21.11's complete
+  official tables are the front-end's Phase 0 proof; carrying a 1.12.2
+  remap into Phase 0 was measuring a risk the first four eras do not
+  have.
 - **Phase 1 — Mojmap belt (E6 → E5 → E4).**
   1.21.11 to T; then 1.20.4 across the configuration-phase gate; 1.18.2
   across the height break; 1.16.5. Deltas for E6/E5/E4 run behind each

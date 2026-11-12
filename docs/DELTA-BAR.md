@@ -1,11 +1,11 @@
 # The delta bar: checklist and gate
 
-Companion to `ROADMAP-TARGET-REDRAFT.md` §4.2. Turns D1–D6 into six checks a pipeline can run,
+Companion to `docs/ROADMAP.md` §8.2. Turns D1–D6 into six checks a pipeline can run,
 against artifacts the pipeline already produces, so a release is either **delta-verified** or it
 isn't — with no third state and no adjective in between.
 
-The gate is `files/delta_verify.py` → install as `tools/delta_verify.py` in the tree (or at the
-repo root and pass `--tree`). Stdlib only, 3.10+.
+The gate is `tools/delta_verify.py` at the repo root (pass `--tree` when the
+release's tree is elsewhere). Stdlib only, 3.10+.
 
 ```sh
 python3 tools/delta_verify.py 1.21.10                 # judge recorded evidence
