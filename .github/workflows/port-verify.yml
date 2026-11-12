@@ -1,10 +1,17 @@
 name: port-verify
 
 # Verification runs for one published version tree (versions/<version>/):
-# toolchain from the version's own research-lock.json, a protocol-crate
-# compile baseline, the pipeline's prepare (downloads that version's jars
+# toolchain from the version's own research-lock.json, a full-workspace
+# compile gate, the pipeline's prepare (downloads that version's jars
 # from Mojang's CDN into a local version store — nothing Mojang-derived is
 # committed or uploaded), and the version-port harness subset.
+#
+# v6 gates: the compile, prepare and lab-prepare steps FAIL the job when
+# they fail (earlier versions ran them continue-on-error, so a run could
+# finish green with a broken prepare). The harness step stays
+# continue-on-error deliberately: harness failures ARE the measured
+# profile, not an infrastructure failure. The run emits a machine-readable
+# profile.json alongside the logs; VERSIONS.md scalars come from it.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -54,6 +61,11 @@ jobs:
         with:
           toolchain: 1.95.0
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: versions/${{ inputs.version }}
+          cache-on-failure: true
+
       # The harness stage requires its candidate to be a git worktree
       # (port_harness checks for .git), so stage a committed copy of the
       # published tree — the check then measures exactly what is on main,
@@ -69,21 +81,36 @@ jobs:
           git -c user.email=port-verify@localhost -c user.name=port-verify commit -qm "published tree, as pushed"
           git log --oneline -1
 
-      - name: Compile baseline — horizon-protocol
+      # Gate: the full workspace (lib + bins) must compile. This is the
+      # check behind the "workspace compiles" claim in VERSIONS.md — the
+      # old protocol-only check did not cover it.
+      - name: Compile gate — full workspace
+        run: |
+          V="${{ inputs.version }}"
+          cd "versions/$V"
+          cargo check --workspace 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/workspace-check.log"
+          echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/workspace-check.log" || true)"
+
+      # Reporting only, NOT a gate — yet. The 26.1 line carries 48 known
+      # test-target errors (latent from its completion pass, which verified
+      # library targets only); gating on all-targets today would fail every
+      # 26.1-line run on known debt. This step keeps the count visible in
+      # CI output; it becomes a gate once that test-code debt is fixed.
+      - name: Test-target check (reporting only — 26.1-line debt)
         continue-on-error: true
         run: |
           V="${{ inputs.version }}"
           cd "versions/$V"
-          cargo check -p horizon-protocol 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/protocol-check.log"
-          echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/protocol-check.log" || true)"
+          cargo check --workspace --all-targets 2>&1 | tee "$GITHUB_WORKSPACE/ci-out/all-targets-check.log"
+          echo "error lines: $(grep -c '^error' "$GITHUB_WORKSPACE/ci-out/all-targets-check.log" || true)"
 
       # --download: fetch this version's jars from Mojang's CDN into the
       # version store (SHA-1 verified) and run its data generator. Without
       # the flag the step demands a lab-prepared .local, which a clean
-      # runner does not have. Obfuscated releases are refused here until
-      # the mappings front-end is wired into prepare.
+      # runner does not have. Obfuscated releases prepare through the
+      # mappings front-end, wired into both prepare paths.
+      # Gate: a failed prepare fails the job (v6).
       - name: Prepare the version's data (pipeline download path)
-        continue-on-error: true
         run: |
           V="${{ inputs.version }}"
           cd "versions/$V"
@@ -95,8 +122,8 @@ jobs:
       # library artifact, SHA-1 verified) and run lab.py prepare inside the
       # candidate. Without this the harness stage dies on a missing
       # .local/minecraft/<version>/manifest.json.
+      # Gate: a failed lab-prepare fails the job (v6).
       - name: Lab-prepare the candidate from a staged launcher directory
-        continue-on-error: true
         run: |
           V="${{ inputs.version }}"
           LAUNCHER="$GITHUB_WORKSPACE/.launcher"
@@ -136,6 +163,8 @@ jobs:
       # Only the harness stage links the client's audio/udev dependencies, so
       # the install lives here — and a flaky archive mirror (run 1 died on a
       # DNS failure resolving it) must not take the whole job down with it.
+      # Stays continue-on-error: environmental, retried 3x, and a link
+      # failure shows up in the harness logs if it matters.
       - name: System libraries the harness fixtures link against
         continue-on-error: true
         run: |
@@ -147,6 +176,10 @@ jobs:
             sleep 20
           done
 
+      # Stays continue-on-error DELIBERATELY: harness failures are the
+      # measured profile, not an infrastructure failure. A version with
+      # 14 failing harnesses is a successful measurement, and the job
+      # must stay green so the profile (not the colour) is the record.
       - name: Harness subset (version-port profile)
         continue-on-error: true
         run: |
@@ -167,6 +200,71 @@ jobs:
           cp "$HORIZON_PORTS/$V/.local/port-regen/horizon-prepare.log" "$GITHUB_WORKSPACE/ci-out/" 2>/dev/null || true
           ls -la "$GITHUB_WORKSPACE/ci-out/"
 
+      # Machine-readable profile for VERSIONS.md / status.json. Written
+      # even when the harness leg produced nothing, so a missing
+      # harnesses.json is explicit (harness: null) rather than silent.
+      - name: Emit machine-readable profile
+        if: always()
+        env:
+          V: ${{ inputs.version }}
+        run: |
+          python3 - <<'EOF'
+          import datetime, json, os
+          out_dir = os.path.join(os.environ["GITHUB_WORKSPACE"], "ci-out")
+          hj_path = os.path.join(out_dir, "harnesses.json")
+          profile = {
+              "version": os.environ["V"],
+              "workflow": "port-verify",
+              "run_id": os.environ.get("GITHUB_RUN_ID"),
+              "run_number": os.environ.get("GITHUB_RUN_NUMBER"),
+              "commit": os.environ.get("GITHUB_SHA"),
+              "measured_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "prepare": None,
+              "harness": None,
+          }
+          def error_lines(name):
+              try:
+                  with open(os.path.join(out_dir, name), errors="replace") as f:
+                      return sum(1 for ln in f if ln.startswith("error"))
+              except FileNotFoundError:
+                  return None
+          profile["compile"] = {
+              "workspace_errors": error_lines("workspace-check.log"),
+              "all_targets_errors": error_lines("all-targets-check.log"),
+          }
+          if os.path.exists(hj_path):
+              hj = json.load(open(hj_path))
+              profile["prepare"] = hj.get("prepare", {}).get("status")
+              per = hj.get("harnesses", {})
+              counts = {"pass": 0, "oracle": 0, "fail": 0, "other": 0}
+              passing, failing, oracle_failing = [], [], []
+              for name, entry in per.items():
+                  st = entry.get("status", "other")
+                  counts[st if st in counts else "other"] += 1
+                  if st == "pass":
+                      passing.append(name)
+                  elif st == "oracle":
+                      oracle_failing.append(name)
+                  else:
+                      failing.append(name)
+              profile["harness"] = {
+                  "pass": counts["pass"],
+                  "oracle_fail": counts["oracle"],
+                  "fail": counts["fail"],
+                  "other": counts["other"],
+                  "total": len(per),
+                  "passing": sorted(passing),
+                  "oracle_failing": sorted(oracle_failing),
+                  "failing": sorted(failing),
+              }
+          else:
+              profile["note"] = "no harnesses.json produced; the harness leg did not complete"
+          with open(os.path.join(out_dir, "profile.json"), "w") as f:
+              json.dump(profile, f, indent=2, sort_keys=True)
+              f.write("\n")
+          print(json.dumps(profile, indent=2, sort_keys=True))
+          EOF
+
       - name: Job summary
         if: always()
         run: |
@@ -174,12 +272,18 @@ jobs:
           {
             echo "## port-verify — $V"
             echo
-            echo "### horizon-protocol compile baseline"
-            echo "error lines: $(sed 's/\x1b\[[0-9;]*m//g' ci-out/protocol-check.log 2>/dev/null | grep -c '^error' || echo '?')"
+            echo "### full-workspace compile gate"
+            echo "error lines: $(sed 's/\x1b\[[0-9;]*m//g' ci-out/workspace-check.log 2>/dev/null | grep -c '^error' || echo '?')"
+            echo "all-targets error lines (reporting only): $(sed 's/\x1b\[[0-9;]*m//g' ci-out/all-targets-check.log 2>/dev/null | grep -c '^error' || echo '?')"
             echo
             echo "### prepare"
             echo '```'
             tail -5 ci-out/prepare.log 2>/dev/null || echo "no prepare log"
+            echo '```'
+            echo
+            echo "### profile"
+            echo '```json'
+            cat ci-out/profile.json 2>/dev/null || echo "no profile.json"
             echo '```'
             echo
             echo "### harness run"
