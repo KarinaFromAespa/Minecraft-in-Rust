@@ -61,6 +61,18 @@ RUST_TABLES = (
     "crates/horizon-client/src/lan/command_suggestions.rs",
     "crates/horizon-command/src/vanilla_order.rs",
 )
+# The six generators in versions/*/tools/port_regen.py GENERATORS, verified
+# identical in 26.1, 26.2, 1.21.9, 1.21.10 and 1.21.11. A `regen --only`
+# run records only the generators it ran, so D1 must check completeness
+# explicitly instead of trusting the file's length.
+EXPECTED_GENERATORS = (
+    "version_consts",
+    "packet_ids",
+    "entity_tracking",
+    "lan_command_order",
+    "command_suggestions",
+    "vanilla_command_order",
+)
 DATA_CHECKS = ("datafix", "save_roundtrip")  # D4
 D3_RANKS = ("1", "2")
 PLAYTEST_BOXES = 6
@@ -266,7 +278,14 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     if bad:
         return check_bad("generators failed: " + "; ".join(bad[:4]), evidence + [str(regen_path)])
     generated = regen.get("generators") or {}
-    notes.append(f"regen.json: {len(generated) or 'all'} generators clean")
+    missing = sorted(set(EXPECTED_GENERATORS) - set(generated))
+    if missing:
+        return check_stop(
+            "regen.json is a partial run: missing " + ", ".join(missing)
+            + "; run a full `version_port.py regen` (no --only) and keep its output",
+            evidence + [str(regen_path)],
+        )
+    notes.append(f"regen.json: all {len(generated)} generators clean")
     evidence.append(str(regen_path))
 
     determinism_path = pin / "regen-determinism.json"
