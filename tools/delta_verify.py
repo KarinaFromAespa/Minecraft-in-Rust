@@ -480,9 +480,47 @@ def normalise_profile(raw):
     (`{"harnesses": {name: {...}}}`) and the summary form with lists
     (`{"harness": {"passing": [...], "failing": [...]}}`, singular or nested).
     A profile from another commit is refused: evidence must match the tree judged.
+
+    The record form is read first: it carries per-harness status (including
+    "oracle"), which the summary form's pass/fail lists cannot express. A
+    profile carrying both — the publisher and the v6.2 emitter write both —
+    is judged on the richer one, so an oracle failure reads as failed rather
+    than unmeasured; a summary-only profile still reads fine.
     """
     if not isinstance(raw, dict):
         return None
+
+    # Record form: name to record (or name to bare status). Tried first; a
+    # summary dict under "harness" yields no records here and falls through.
+    entries = None
+    for key in ("harnesses", "harness", "suite", "results", "tests"):
+        value = raw.get(key)
+        if isinstance(value, (dict, list)):
+            entries = value
+            break
+    if isinstance(entries, list):
+        entries = {
+            (entry.get("name") or entry.get("harness")): entry
+            for entry in entries if isinstance(entry, dict)
+        }
+    if isinstance(entries, dict):
+        harnesses = {}
+        for name, value in entries.items():
+            if not name:
+                continue
+            if isinstance(value, str):
+                harnesses[name] = {"status": ALIASES.get(value.lower(), value.lower())}
+            elif isinstance(value, dict):
+                raw_status = value.get("status") or value.get("verdict") or value.get("result")
+                if raw_status is None and "passed" in value:
+                    raw_status = "pass" if value["passed"] else "fail"
+                if raw_status is None:
+                    continue
+                harnesses[name] = {**value,
+                                   "status": ALIASES.get(str(raw_status).lower(),
+                                                         str(raw_status).lower())}
+        if harnesses:
+            return {"harnesses": harnesses}
 
     # Summary form: pass/fail lists, at the top level or under one container key.
     for container in [raw] + [raw.get(key) for key in ("harness", "harnesses", "suite", "summary")]:
@@ -504,37 +542,7 @@ def normalise_profile(raw):
                     if isinstance(name, str) and name:
                         harnesses[name] = {"status": status}
             return {"harnesses": harnesses} if harnesses else None
-
-    # Record form: name to record (or name to bare status).
-    entries = None
-    for key in ("harnesses", "harness", "suite", "results", "tests"):
-        value = raw.get(key)
-        if isinstance(value, (dict, list)):
-            entries = value
-            break
-    if isinstance(entries, list):
-        entries = {
-            (entry.get("name") or entry.get("harness")): entry
-            for entry in entries if isinstance(entry, dict)
-        }
-    if not isinstance(entries, dict):
-        return None
-    harnesses = {}
-    for name, value in entries.items():
-        if not name:
-            continue
-        if isinstance(value, str):
-            harnesses[name] = {"status": ALIASES.get(value.lower(), value.lower())}
-        elif isinstance(value, dict):
-            raw_status = value.get("status") or value.get("verdict") or value.get("result")
-            if raw_status is None and "passed" in value:
-                raw_status = "pass" if value["passed"] else "fail"
-            if raw_status is None:
-                continue
-            harnesses[name] = {**value,
-                               "status": ALIASES.get(str(raw_status).lower(),
-                                                     str(raw_status).lower())}
-    return {"harnesses": harnesses} if harnesses else None
+    return None
 
 
 def commit_agrees(stamped: str, actual: str) -> bool:
