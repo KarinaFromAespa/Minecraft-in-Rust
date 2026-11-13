@@ -177,19 +177,20 @@ pub fn save_nbt(
         }
         block_list.push(Tag::Compound(tag));
     }
-    // NbtUtils.writeBlockState: `id` and every property as a string.
+    // NbtUtils.writeBlockState: 26.2 writes `Name`/`Properties` (the
+    // `id`/`properties` form is 26.3's codec rename).
     let palette_list = palette
         .iter()
         .map(|id| {
             let mut tag = Compound::new();
             if let Some(state) = registry.state(*id) {
-                tag.insert("id".into(), Tag::String(state.name.as_str().into()));
+                tag.insert("Name".into(), Tag::String(state.name.as_str().into()));
                 if !state.properties.is_empty() {
                     let mut properties = Compound::new();
                     for (k, v) in &state.properties {
                         properties.insert(k.as_str().into(), Tag::String(v.as_str().into()));
                     }
-                    tag.insert("properties".into(), Tag::Compound(properties));
+                    tag.insert("Properties".into(), Tag::Compound(properties));
                 }
             }
             Tag::Compound(tag)
@@ -565,7 +566,7 @@ mod save_tests {
         // First use order: the stone full blocks come first.
         assert_eq!(palette.len(), 2);
         assert_eq!(
-            palette[0].get("id"),
+            palette[0].get("Name"),
             Some(&Tag::String("minecraft:stone".into()))
         );
         let read = StructureTemplate::from_nbt(&tag, &registry, &transforms);

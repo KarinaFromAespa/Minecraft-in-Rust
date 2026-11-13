@@ -3,11 +3,13 @@ use super::super::{
     Game,
     entity::{Entity, with_entity},
 };
-use horizon_client::{mobs::Species, scoreboard::teams_allow_damage};
+use horizon_client::mobs::Species;
 use horizon_core::geometry::Vec3;
 
 impl Game<'_> {
     /// `Pufferfish.playerTouch`: accepted player damage, then poison with this fish as source.
+    /// 26.2 has no `doTeamsAllowDamage` check here (that gate is a 26.3
+    /// addition), so a teammate's fish stings the player too.
     pub(in crate::game) fn touch_pufferfish(&mut self) {
         if self.remote.is_some() || self.spectator() {
             return;
@@ -36,10 +38,7 @@ impl Game<'_> {
             |b| own.union_bounds(b).inflate(Vec3::new(1.0, 0.0, 1.0)),
         );
         let touching: Vec<_> = fish
-            .filter(|m| {
-                query.intersects(m.bounds())
-                    && teams_allow_damage(self.mob_team_of(m), self.player_team())
-            })
+            .filter(|m| query.intersects(m.bounds()))
             .map(|m| {
                 (
                     m.id,

@@ -163,16 +163,26 @@ fn pause_buttons(
         let y = y0 + 122.0 + if row3 { 24.0 } else { 0.0 };
         v.push((x0 + 4.0, y, 204.0, SPLIT_SETTINGS, 30, true));
     }
+    // 26.2 `PauseScreen.createPauseMenu`: with a single-player server the
+    // row is Options + Multiplayer Options; without one (multiplayer) it
+    // is a single full-width Options button. 26.3 shows Options + World
+    // Options whenever a level is open.
+    if remote {
+        v.push((x0 + 4.0, y0 + 122.0 + down, 204.0, "menu.options", 1, true));
+    } else {
+        v.extend([
+            (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
+            (
+                x0 + 110.0,
+                y0 + 122.0 + down,
+                98.0,
+                "menu.multiplayerOptions.button",
+                9,
+                true,
+            ),
+        ]);
+    }
     v.extend([
-        (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
-        (
-            x0 + 110.0,
-            y0 + 122.0 + down,
-            98.0,
-            "options.worldOptions.button",
-            9,
-            true,
-        ),
         (
             x0 + 4.0,
             y0 + 146.0 + down,
@@ -443,6 +453,10 @@ impl Game<'_> {
             1 => self.open_options(false),
             3 => self.open_stats(),
             4 => self.open_advancements(true),
+            // 26.2: the Multiplayer Options button. The screen behind it
+            // is still the 26.3 WorldOptionsScreen (which holds the LAN
+            // publish controls); a dedicated 26.2 MultiplayerOptionsScreen
+            // layout port is outstanding.
             9 => self.open_world_options(),
             10 => self.screen = Screen::Friends,
             // DialogConnectionAccess.openDialog(Dialogs.SERVER_LINKS).
@@ -996,13 +1010,26 @@ mod tests {
     }
 
     #[test]
-    fn pause_menu_uses_disconnect_for_servers_and_keeps_world_options() {
+    fn pause_menu_uses_disconnect_for_servers_and_26_2_options_row() {
         for (remote, label) in [(false, "menu.returnToMenu"), (true, "menu.disconnect")] {
             let buttons = pause_buttons(427.0, 240.0, remote, false, false, false);
             let quit = buttons.iter().find(|b| b.4 == 2).unwrap();
             assert_eq!(quit.3, label);
             assert!(quit.5);
-            assert!(buttons.iter().any(|b| b.4 == 9 && b.5));
+            let options = buttons.iter().find(|b| b.4 == 1).unwrap();
+            if remote {
+                // 26.2 multiplayer: a single full-width Options button,
+                // no second button.
+                assert_eq!(options.2, 204.0);
+                assert!(buttons.iter().all(|b| b.4 != 9));
+            } else {
+                // 26.2 single-player: Options + Multiplayer Options.
+                assert_eq!(options.2, 98.0);
+                let second = buttons.iter().find(|b| b.4 == 9).unwrap();
+                assert_eq!(second.3, "menu.multiplayerOptions.button");
+                assert_eq!(second.2, 98.0);
+                assert!(second.5);
+            }
         }
     }
 
@@ -1030,12 +1057,13 @@ mod tests {
         assert_eq!(links.3, "menu.server_links");
         assert!(links.5);
         // The icon row sits above it; Options and Disconnect move down 24.
+        // (remote=true: 26.2 shows no second button in the options row.)
         let icons = pause_icons(427.0, 240.0, true, false, false);
         let y0_icons = ((240.0f32 - 190.0) * 0.25).floor() + 98.0;
         assert_eq!(icons[0].1, y0_icons);
         assert!(links.1 > icons[0].1);
         for b in &with {
-            if b.4 == 1 || b.4 == 9 || b.4 == 2 {
+            if b.4 == 1 || b.4 == 2 {
                 let same = without.iter().find(|o| o.4 == b.4).unwrap();
                 assert_eq!(b.1, same.1 + 24.0 - 6.0, "{}", b.3);
             }
@@ -1054,7 +1082,7 @@ mod tests {
             (button.0, button.1, button.2, button.5),
             (links[3].0, links[3].1, 204.0, true)
         );
-        for id in [1, 9, 2] {
+        for id in [1, 2] {
             let add = with.iter().find(|b| b.4 == id).unwrap();
             let link = links.iter().find(|b| b.4 == id).unwrap();
             assert_eq!(add.1, link.1);

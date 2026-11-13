@@ -191,10 +191,12 @@ pub struct BlockState {
 impl BlockState {
     pub fn to_nbt(&self) -> Tag {
         let mut map = Compound::new();
-        map.insert(key("id"), Tag::String(key(&self.name)));
+        // 26.2's BlockState.CODEC is the NBT form (`Name`/`Properties`);
+        // the `id`/`properties` form is 26.3's codec rename.
+        map.insert(key("Name"), Tag::String(key(&self.name)));
         if !self.properties.is_empty() {
             map.insert(
-                key("properties"),
+                key("Properties"),
                 Tag::Compound(
                     self.properties
                         .iter()

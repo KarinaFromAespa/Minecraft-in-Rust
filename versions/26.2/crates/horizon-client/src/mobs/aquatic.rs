@@ -2,7 +2,7 @@
 //! tropical fish and pufferfish (`AbstractFish`, puffing), and dolphins
 //! (breathing, smooth swimming).
 use super::{
-    Damage, Mob, MobEvent, MobWorld, Species, Who,
+    Damage, Mob, MobEvent, MobWorld, Species,
     anim::{Poses, State},
     control::MoveKind,
     goals::{
@@ -396,15 +396,15 @@ pub fn not_scary_for_pufferfish(s: Species) -> bool {
 /// every mob that touches it, not only the player. The query is `Mob.class`
 /// in its own box inflated by 0.3, filtered by `TARGETING_CONDITIONS` (alive
 /// and not `#not_scary_for_pufferfish`; invisibility and line of sight are
-/// not tested), and each one takes `Pufferfish.touch`: `doTeamsAllowDamage`,
-/// then a `mobAttack` hit for `getPuffState() + 1`. The poison and the sting
-/// sound follow a hit that landed, which only the game layer knows.
+/// not tested), and each one takes `Pufferfish.touch`: a `mobAttack` hit for
+/// `getPuffState() + 1`. The poison and the sting sound follow a hit that
+/// landed, which only the game layer knows. 26.2 has no `doTeamsAllowDamage`
+/// check here (that gate is a 26.3 addition), so teammates sting too.
 pub(super) fn sting_touching_mobs(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     if !m.alive() || m.extra.size <= 0 {
         return;
     }
     let area = m.bounds().inflate(Vec3::new(0.3, 0.3, 0.3));
-    let own = w.teams.of(Who::Mob(m.id));
     let from = [m.position.x, m.position.y, m.position.z];
     let mob_id = m.id;
     let size = m.extra.size;
@@ -415,7 +415,6 @@ pub(super) fn sting_touching_mobs(m: &mut Mob, w: &MobWorld, events: &mut Vec<Mo
             && o.alive
             && !not_scary_for_pufferfish(o.species)
             && o.bounds.intersects(area)
-            && crate::scoreboard::teams_allow_damage(own, w.teams.of(Who::Mob(o.id)))
         {
             events.push(MobEvent::PufferfishSting {
                 mob: mob_id,
@@ -1232,6 +1231,7 @@ mod school_tests {
 #[cfg(test)]
 mod pufferfish_sting_tests {
     use super::*;
+    use crate::mobs::Who;
     use crate::mobs::apply_brain_events;
     use crate::mobs::world::with_test_world;
     use horizon_core::random::LegacyRandom;
