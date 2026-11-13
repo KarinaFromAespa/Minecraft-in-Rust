@@ -1650,9 +1650,10 @@ fn place_entities<W: PlacementContext>(
             Tag::List(pos.iter().map(|v| Tag::Double(v.to_bits())).collect()),
         );
         nbt.remove(&"UUID".into());
-        if nbt.contains_key(&"block_pos".into()) {
-            nbt.insert("block_pos".into(), Tag::IntArray(block_pos.to_vec()));
-        }
+        // 26.2 does not rewrite an entity's `block_pos` on placement (26.3
+        // does); a block-attached entity's load only trusts a stored
+        // `block_pos` within 16 blocks of its new position, else it takes
+        // the block holding the placed position.
         for (key, i) in [("TileX", 0), ("TileY", 1), ("TileZ", 2)] {
             if nbt.contains_key(&key.into()) {
                 nbt.insert(key.into(), Tag::Int(block_pos[i]));
