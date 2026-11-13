@@ -185,18 +185,13 @@ impl Game<'_> {
         }
         let tree = self.adv.tree.clone();
         let kids = tree.children();
-        // A server's advancements come placed (`DisplayInfo` x, y).
-        let pos = match &self.adv.positions {
-            Some(server) => server
-                .iter()
-                .map(|&(x, y)| Some(((x * 28.0).floor() as i32, (y * 27.0).floor() as i32)))
-                .collect(),
-            None => tree
-                .layout()
-                .into_iter()
-                .map(|p| p.map(|(x, y)| (x * 28, (y * 27.0).floor() as i32)))
-                .collect(),
-        };
+        // 26.2 lays the tree out client-side (`AdvancementTree
+        // .repositionNodes`): the packet carries no positions.
+        let pos = tree
+            .layout()
+            .into_iter()
+            .map(|p| p.map(|(x, y)| (x * 28, (y * 27.0).floor() as i32)))
+            .collect();
         self.adv_ui.cache = Some(Cache { tree, kids, pos });
     }
     fn adv_done(&self, i: usize) -> bool {
@@ -214,7 +209,7 @@ impl Game<'_> {
         };
         let tree = &c.tree;
         // A server sends only what the player may see.
-        let visible = if self.adv.positions.is_some() {
+        let visible = if self.remote.is_some() {
             vec![true; tree.list.len()]
         } else {
             tree.visible(&c.kids, |i| self.adv.progress.done(&tree.list[i]))

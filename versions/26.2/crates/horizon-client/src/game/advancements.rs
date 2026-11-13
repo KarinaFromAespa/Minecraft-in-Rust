@@ -129,9 +129,6 @@ pub(super) struct TravelMarks {
 #[derive(Default)]
 pub(super) struct AdvState {
     pub(super) tree: Arc<Tree>,
-    /// `ClientAdvancements`: a server's tree carries each advancement's
-    /// place on its tab (`DisplayInfo` x, y), in tree order.
-    pub(super) positions: Option<Vec<(f32, f32)>>,
     pub(super) progress: Progress,
     pub(super) loaded: bool,
     pub(super) toasts: VecDeque<Toast>,
@@ -2453,13 +2450,10 @@ impl Game<'_> {
     ) {
         use horizon_client::scoreboard::tag_to_json;
         let mut list: Vec<adv::Advancement> = Vec::new();
-        let mut positions: Vec<(f32, f32)> = Vec::new();
         if !p.reset {
-            let old = self.adv.positions.take().unwrap_or_default();
-            for (i, a) in self.adv.tree.list.iter().enumerate() {
+            for a in self.adv.tree.list.iter() {
                 if !p.removed.contains(&a.id) {
                     list.push(a.clone());
-                    positions.push(old.get(i).copied().unwrap_or((0.0, 0.0)));
                 }
             }
         } else {
@@ -2502,7 +2496,6 @@ impl Game<'_> {
                 requirements: a.requirements,
                 rewards: Default::default(),
             });
-            positions.push((a.x, a.y));
         }
         let mut tree = Tree::default();
         tree.list = list;
@@ -2511,7 +2504,6 @@ impl Game<'_> {
         }
         self.ui.registries.advancements = tree.list.iter().map(|a| a.id.clone()).collect();
         self.adv.tree = Arc::new(tree);
-        self.adv.positions = Some(positions);
         let tree = self.adv.tree.clone();
         for (id, criteria) in p.progress {
             let Some(&i) = tree.by_id.get(&id) else {

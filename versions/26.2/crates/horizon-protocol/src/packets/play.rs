@@ -1336,7 +1336,10 @@ pub struct AdvancementDisplay {
     pub hidden: bool,
     pub background: Option<String>,
 }
-/// `ClientboundUpdateAdvancementsPacket.PositionedAdvancement`.
+/// One added advancement in `ClientboundUpdateAdvancementsPacket`: the
+/// `AdvancementHolder`, with no position — 26.2 lays the tree out
+/// client-side (`AdvancementTree.repositionNodes`); positioned
+/// advancements are 26.3's form.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Advancement {
     pub id: String,
@@ -1344,8 +1347,6 @@ pub struct Advancement {
     pub display: Option<AdvancementDisplay>,
     pub requirements: Vec<Vec<String>>,
     pub telemetry: bool,
-    pub x: f32,
-    pub y: f32,
 }
 /// `ClientboundUpdateAdvancementsPacket`: whether it replaces what the
 /// client has, the advancements added and removed, the progress of each
@@ -1401,15 +1402,12 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                 requirements.push((0..k).map(|_| r.string(32767)).collect::<Result<_>>()?);
             }
             let telemetry = r.bool()?;
-            let (x, y) = (r.f32()?, r.f32()?);
             added.push(Advancement {
                 id,
                 parent,
                 display,
                 requirements,
                 telemetry,
-                x,
-                y,
             });
         }
         let n = r.count(r.remaining())?;
@@ -1468,8 +1466,6 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                 }
             }
             w.bool(a.telemetry);
-            w.f32(a.x);
-            w.f32(a.y);
         }
         w.varint(v.removed.len() as i32);
         for id in &v.removed {

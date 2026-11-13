@@ -693,8 +693,6 @@ fn clientbound_round_trips() {
                 }),
                 requirements: vec![vec!["crafting_table".into()]],
                 telemetry: false,
-                x: 0.0,
-                y: 1.5,
             }],
             removed: vec!["minecraft:story/gone".into()],
             progress: vec![(

@@ -19,7 +19,6 @@ use std::{
 pub struct ServerAdvancements {
     tree: std::sync::Arc<Tree>,
     kids: Vec<Vec<usize>>,
-    layout: Vec<Option<(i32, f32)>>,
     /// Recipe files by id, as compact JSON text with their ingredient
     /// objects already resolved to flat item lists (`network_recipes`): a
     /// book entry parses its recipe when a player gets it (a few µs), and
@@ -54,11 +53,9 @@ impl ServerAdvancements {
     ) -> Self {
         let tree = Tree::shared(&resources.join("data"), overlay);
         let kids = tree.children();
-        let layout = tree.layout();
         Self {
             tree,
             kids,
-            layout,
             recipes,
             displays: RecipeIndex::load(resources, overlay),
             groups,
@@ -284,7 +281,9 @@ impl ServerAdvancements {
             .visible(&self.kids, |i| progress.done(&self.tree.list[i]))
     }
 
-    /// `ClientboundUpdateAdvancementsPacket.PositionedAdvancement`.
+    /// One added advancement in `ClientboundUpdateAdvancementsPacket`: the
+    /// `AdvancementHolder`, with no position — 26.2 lays the tree out
+    /// client-side; positioned advancements are 26.3's form.
     fn write_advancement(&self, w: &mut Writer, i: usize, sync: &SyncData) {
         let a = &self.tree.list[i];
         w.string(&a.id);
@@ -322,9 +321,6 @@ impl ServerAdvancements {
             }
         }
         w.bool(false); // sends_telemetry_event
-        let (x, y) = self.layout[i].unwrap_or((0, 0.0));
-        w.f32(x as f32);
-        w.f32(y);
     }
 
     /// An `AdvancementProgress`: each criterion and when it was obtained.
