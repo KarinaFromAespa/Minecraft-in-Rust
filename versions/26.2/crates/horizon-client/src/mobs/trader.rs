@@ -192,10 +192,12 @@ impl Goal for TradeWithPlayer {
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
         // `TradeWithPlayerGoal.canUse`: alive, dry, on the ground, not hurt
-        // recently, and within four blocks of the trading player.
+        // marked (26.2 gates on `!hurtMarked`, the mark a fresh hit sets
+        // and the tracker clears each tick, not 26.3's hurt window), and
+        // within four blocks of the trading player.
         m.extra.flag2
             && m.alive()
-            && m.hurt_time <= 0
+            && !m.hurt_marked
             && !m.fluids.in_water
             && m.on_ground
             && cx
@@ -423,22 +425,23 @@ mod trade_start_tests {
     use std::sync::Arc;
 
     /// `TradeWithPlayerGoal.canUse`: alive, dry, on the ground, not hurt
-    /// recently and within four blocks of the trading player. A hurt trader,
-    /// or one whose customer walked away, must not start the stand-still goal.
+    /// marked and within four blocks of the trading player. A hurt-marked
+    /// trader, or one whose customer walked away, must not start the
+    /// stand-still goal.
     #[test]
     fn a_trader_stops_trading_when_hurt_or_out_of_reach() {
         let mut outcomes = Vec::new();
         let ran = with_test_world(&[], |w, types| {
             let kind = Arc::new(types.types["minecraft:wandering_trader"].clone());
-            for (label, hurt_time, distance) in [
-                ("trading", 0, 2.0),
-                ("hurt", 5, 2.0),
-                ("out of reach", 0, 5.0),
+            for (label, hurt_marked, distance) in [
+                ("trading", false, 2.0),
+                ("hurt", true, 2.0),
+                ("out of reach", false, 5.0),
             ] {
                 let mut m = Mob::new(1, kind.clone(), Vec3::new(0.5, 64.0, 0.5), 0.0);
                 m.extra.flag2 = true;
                 m.on_ground = true;
-                m.hurt_time = hurt_time;
+                m.hurt_marked = hurt_marked;
                 m.ai.goals.add(1, TradeWithPlayer);
                 let mut world = w.clone();
                 world.player = Some(test_player(Vec3::new(0.5 + distance, 64.0, 0.5)));

@@ -916,6 +916,8 @@ impl Menu {
             2 => self.set_data(0, self.data[0] + 1),
             3 if self.may_build => {
                 // removeItemNoUpdate: the whole book, and onBookItemRemove.
+                // 26.3's drop passes `Prediction.PREDICTED`; 26.2 drops
+                // plainly, which is all this drop models.
                 let book = self.containers[MAIN][0].take();
                 self.data[0] = 0;
                 if let Some(mut book) = book
@@ -1457,6 +1459,12 @@ impl Menu {
             Role::Output | Role::CraftResult | Role::Inert => false,
             Role::CrafterIn => self.data.get(self.slots[s].index) != Some(&1),
             Role::Potion => {
+                // 26.2's `PotionSlot.mayPlaceItem`: potion, splash and
+                // lingering potion plus the glass bottle — the brewing
+                // recipes' inputs plus the bottle. The
+                // `brewing_potion_inputs` tag arm is 26.3's
+                // `PotionIngredient.isPotionInput`; the tag does not exist
+                // in 26.2's data, so it never matches here.
                 env.brewing.is_bottle(stack)
                     || env
                         .items

@@ -106,11 +106,109 @@
    "verdict": "no-change"
   },
   {
+   "id": 165,
+   "module": "crates/horizon-client-render/src/fog.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "FogRenderer.computeFogColor brighten: 26.2 scales the max channel to 1.0 and the others by 1/clamp(max, 0.07, 1.0); 26.3 scales all by 1/max (identical unless every channel < 0.07). Ported with a per-channel loop. Fluid height: 26.3's getHeightForCamera returns 1.0 for a source with a sturdy face above; 26.2's getHeight is hasSameAbove ? 1.0 : amount/9.0. Removed the (source && above.full_collision) branch from camera_fluid_height; doc comment cites 26.2's getHeight."
+  },
+  {
    "bucket": "B",
    "evidence": "MeshData#decodeQuadCentroids: bodies byte-identical between 26.3 and 26.2 (opposite-corner midpoint); the added/removed flag is only the VertexFormat type moving from com.mojang.renderpearl.api.vertex to com.mojang.blaze3d.vertex. The Rust references it in a comment only (translucency.rs:4).",
    "id": 172,
    "module": "crates/horizon-client-render/src/gfx/translucency.rs",
    "verdict": "no-change"
+  },
+  {
+   "id": 176,
+   "module": "crates/horizon-world/src/worldgen/structure/template.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "NbtUtils readBlockState/writeBlockState: the diff is exactly the Name/Properties vs id/properties codec form. The read side already accepts both forms. Write side fixed: save_nbt palette now writes Name/Properties (was id/properties), test assertion updated; also fixed BlockState::to_nbt (chunk.rs:192) to write Name/Properties \u2014 chunk palettes in 'id' form would be unreadable by vanilla 26.2. No test pins the 'id' write form for chunks; read sides accept both, so round-trips stay safe."
+  },
+  {
+   "id": 179,
+   "module": "crates/horizon-client/src/game/allays.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Allay mobInteract swing is plain swing(MAIN_HAND) in 26.2 (26.3 passes the interact animation); the Rust calls plain swing(). throwItem vs onItemThrown is structural only: the Rust's allay_deliver implements all steps (remove 1 item, throw toward target+1.0, criterion for block below, sound when gameTime % 7 == 0 && random < 0.9, pitch from THROW_SOUND_PITCHES). Comment updated to cite the 26.2 form."
+  },
+  {
+   "id": 181,
+   "module": "crates/horizon-client/src/item_render/special.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "BannerRenderer.submitPatterns breakProgress is 26.2 plumbing; the Rust's render_breaking re-renders banner block entities (patterns included) under the destroy stage, matching 26.2's observable outcome. Shield foil: 26.2 uses entityGlint last (always when foil) vs 26.3's patternedShieldGlint (only with patterns) / entitySolidGlint (foil without patterns); the Rust's per-layer foil flag abstracts this and yields the glint in both cases. Comment updated to cite 26.2's entityGlint."
+  },
+  {
+   "id": 183,
+   "module": "crates/horizon-client-render/src/border_render.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "WorldBorderRenderer: 26.3's rebuildWorldBorderBuffer applies RENDERING_OFFSET (0.01) to the border bounds; 26.2 uses the bounds as-is (no such constant in 26.2). Removed the OFFSET const and its application from rebuild(). The rest matches 26.2: v0/v1 texture coords, rebuild condition (needs_rebuild || border != last_border), closest-border sides, transform math. The 26.3 OIT render-pass plumbing is moot \u2014 the Rust module is GPU-free by design."
+  },
+  {
+   "id": 184,
+   "module": "crates/horizon-client/src/game/cartography.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "The Rust already uses scaling && scale >= 4 (the 26.2 form, no EXTENDABLE_MAPS check); MapRenderer.render differs only in the rotate API (rotateDegrees vs mulPose(rotationDegrees)), same rotation."
+  },
+  {
+   "id": 186,
+   "module": "crates/horizon-client/src/game/chat.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ChatScreen.keyPressed is key-encoding only (SDL 1073741901-1073741906 vs GLFW 264-269). PageUp/PageDown verified: 26.2 scrolls +(linesPerPage-1) on PageUp (GLFW 266) and -(linesPerPage-1) on PageDown (267); the Rust's scroll_by(+n)/scroll_by(-n) with n = lines_per_page-1 matches, including the same clamp logic as ChatComponent.scrollChat, and the suggestions-first guard matches vanilla calling commandSuggestions.keyPressed first. mouseClicked: both versions are left click (SDL button 1 / GLFW button 0); the Rust checks MouseButton::Left."
+  },
+  {
+   "id": 188,
+   "module": "crates/horizon-client-render/src/environment.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "26.3's addStaticLayers/addDynamicLayers split is structural (same layers); 26.3 samples full-resolution biomes for isFullResolutionBiomes attributes, 26.2 always uses the noise biome \u2014 the Rust always samples the noise (quart) biome (gaussian_weights over quart coords; |_full_resolution: bool| closures ignore the flag), matching 26.2."
+  },
+  {
+   "id": 189,
+   "module": "crates/horizon-client/src/menu.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "BrewingStandMenu PotionSlot.onTake: 26.2 fires BREWED_POTION only when the stack's PotionContents holds a potion; the Rust's trigger_brewed_potion fired with potion=None, which would match a bare brewed_potion criterion (Local Brewery). Ported: trigger_brewed_potion now returns early when stack.potion() is None (the menu's on_take already filters by item type, so this closes the stripped-component edge). mayPlaceItem: NO-CHANGE \u2014 the Rust's is_bottle (recipe inputs + glass bottle) is exactly 26.2's static set; the brewing_potion_inputs tag arm is dead for 26.2 data (the tag does not exist in the 26.2 jars). LecternMenu.clickMenuButton: NO-CHANGE \u2014 the only difference is 26.3's Prediction.PREDICTED drop argument, which has no Rust surface. Brewing screen totals: NO-CHANGE \u2014 the Rust's total_fuel/total_brew_time default to 20/400, exactly 26.2's hardcoded constants, and brewing_fuel already returns 20 uses at speed 1.0."
+  },
+  {
+   "id": 190,
+   "module": "crates/horizon-world/src/level/hooks.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "ice_destroyed_by_player already used blocks_motion || liquid (the 26.2 form, vs 26.3's ICE_MELTS_WHEN_DESTROYED_ABOVE tag). ice_melt fired a BLOCK_DESTROY game event (a 26.3 addition) \u2014 removed it; 26.2's melt only sets the block + neighborChanged. All melt paths covered (tick.rs:382, tick.rs:812, hooks.rs:81 frosted ice)."
+  },
+  {
+   "id": 193,
+   "module": "crates/horizon-client/src/mobs.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "LivingEntity.knockback bodies are identical in both versions (5-arg delegates to 6-arg with comesFromEffect=false; the 6-arg body does not use it). The difference is which overload Creaking overrides: 26.2 overrides only the 5-arg, so effect knockbacks (6-arg, sprint/Knockback enchantment) bypass the canMove gate; 26.3 overrides the 6-arg, gating both. Ported: the creaking gate in knockback_by now applies only when effect.is_none(). RemotePlayer.aiStep: NO-CHANGE \u2014 26.2 calls updateSwingTime() and steps interpolation in aiStep; the Rust's remote tick already calls tick_swing(m) and steps the interpolation handler. lerpMotion's hasUpdateInterval check has no Rust surface."
+  },
+  {
+   "id": 194,
+   "module": "crates/horizon-client/src/game/music.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "PauseScreen: extractRenderState identical (music.rs's use: no-change). createPauseMenu differs in the bottom buttons (port landed in screens.rs pause_buttons): 26.3 shows OPTIONS + WORLD_OPTIONS when level != null; 26.2 shows OPTIONS + MULTIPLAYER_OPTIONS when hasSingleplayerServer(), else a single full-width OPTIONS. Ported: single-player -> OPTIONS (98, id 1) + MULTIPLAYER_OPTIONS (98, id 9); multiplayer -> full-width OPTIONS (204, id 1). Documented gap: id 9 still opens the existing 26.3 WorldOptionsScreen (which holds the LAN publish controls, the functional core of 26.2's MultiplayerOptionsScreen); a dedicated 26.2 MultiplayerOptionsScreen layout port is outstanding. The friend-list listener and friends-button condition differences have no Rust equivalent."
+  },
+  {
+   "id": 195,
+   "module": "crates/horizon-client/src/mobs/shulker.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Shulker: teleportSomewhere identical. createInterpolationHandler is 26.3-only and returns NO_OP; 26.2 has no such method. The Rust already treats a move packet as a snap to setPos with no interpolation, which is the same observable behaviour. Comments updated to cite the 26.2 form."
+  },
+  {
+   "id": 196,
+   "module": "crates/horizon-world/src/worldgen/live.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PlacedFeature: getFeatures is a pure type rename (ConfiguredFeature -> Feature in 26.3, same logic). place: 26.3 routes through the 26.3-only FeaturePlacer class (explicit stack, reverse-push to preserve order); 26.2 uses placeWithContext (stream flatMap). Both traversals are depth-first, in-order, with identical random-draw order, and the Rust FeaturePlacer (chain.rs) implements the stack form with the same order guarantees. The 4-arg place's biomeCheck flag maps exactly onto 26.2's place() (Optional.empty()) vs placeWithBiomeCheck() (Optional.of(this))."
   },
   {
    "bucket": "B",
@@ -120,11 +218,67 @@
    "verdict": "no-change"
   },
   {
+   "id": 198,
+   "module": "crates/horizon-client/src/game/screens.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "WinScreen: extractBackground identical. keyPressed/keyReleased differ only in key encoding \u2014 26.2 event.key() 341/345 (GLFW left/right control) vs 26.3 event.shortcutKey() 1073742048/1073742052 (SDL left/right control): the same physical keys. The Rust win_screen.rs Key enum admits only Up/Space/LeftControl/RightControl (from_code returns None otherwise), so only control keys ever reach speedup_modifiers, matching both versions."
+  },
+  {
+   "id": 200,
+   "module": "crates/horizon-client-render/src/auth.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AccountProfileKeyPairManager.fetchProfileKeyPair differs only in the authlib import (com.mojang.authlib.services.response in 26.3 vs yggdrasil.response in 26.2) \u2014 same class, moved package; the method body is identical. ClientHandshakePacketListenerImpl.authenticateServer differs only in a log line ('Authentication failed: {}' vs the bare message). The Rust auth.rs is HTTP-level code, unaffected by the Java package move."
+  },
+  {
+   "id": 201,
+   "module": "crates/horizon-client/src/game/copper_golems.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CopperGolem: turnToStatue identical. mobInteract: 26.3 adds an explicit HONEYCOMB_WAX_ON playSound on waxing; 26.2 fires only level event 3003. The Rust already implements the 26.2 form (level_event_at(3003) with the comment 'The event carries the wax-on sound in 26.2; no explicit play')."
+  },
+  {
+   "id": 202,
+   "module": "crates/horizon-client/src/game/recipe_book.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "RecipeBookComponent.extractRenderState identical. keyPressed swallow condition differs (26.3 capturesInput() = isActive && isFocused && isEditable; 26.2 isFocused() && isVisible()) but the conditions coincide in every reachable recipe-book state (search box is visible iff the book is open, always editable); the Rust's focused-only check matches the common path."
+  },
+  {
+   "id": 203,
+   "module": "crates/horizon-client/src/game/sniffers.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Sniffer.isTempted: 26.2 reads the IS_TEMPTED boolean memory, which FollowTemptation sets on start and erases on stop (verified by scanning the jars: only FollowTemptation, MemoryModuleType and Sniffer reference it in 26.2); 26.3 reads TEMPTING_PLAYER presence, true whenever a tempting player is sensed \u2014 including during the 100-tick temptation cooldown. Ported: added an is_tempted memory slot (animal_brain.rs), set in FollowTemptation try_start (with the VALUE_ABSENT start guard) and cleared in do_stop; is_tempted now reads it. emitDiggingParticles: no change needed \u2014 the Rust already plays the hit sound positionally at the sniffer (26.2's coords form with distanceDelay=false), and a digging sniffer does not move, so 26.3's entity-bound form is equivalent."
+  },
+  {
+   "id": 204,
+   "module": "crates/horizon-client/src/mobs/undead.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Drowned.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel) (a 26.3-only RangedAttackMob method); 26.2 inlines 14 - difficulty.getId() * 4. The Rust ranged_attack_uncertainty already computes 14.0 - 4.0 * difficulty and the drowned throw uses it."
+  },
+  {
+   "id": 206,
+   "module": "crates/horizon-client/src/mobs/villager_brain.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "LookAndFollowTradingPlayerSink.checkExtraStartConditions: 26.3 gates on !wasHurtRecently() (hurtTime > 0, a 10-tick window); 26.2 gates on !body.hurtMarked \u2014 a flag markHurt() sets on a fresh hit (skipped only for #no_impact, which in 26.2 is just minecraft:drown) and ServerEntity.sendChanges clears every tick, so it blocks the follow for at most the tick the hurt landed in. Ported: added Mob.hurt_marked, set in the fresh-hit branch of Mob.hurt (except Drown), cleared in ai::tick after the brains run; follow_trading_condition and TradeWithPlayer.can_use (26.2's TradeWithPlayerGoal uses the same check) now gate on !hurt_marked; the trader test now parameterizes by hurt_marked. ValidateNearbyPoi.bedIsOccupied: NO-CHANGE \u2014 26.3's VILLAGERS_CAN_SLEEP_ON_BED tag holds exactly #beds, and the Rust checks block_name.ends_with(\"_bed\")."
+  },
+  {
    "bucket": "B",
    "evidence": "SignatureValidator#from: the only 26.3->26.2 diff is the authlib package move (com.mojang.authlib.services -> com.mojang.authlib.yggdrasil); both from overloads are byte-identical. The Rust references it in a comment only (secure_chat.rs:47).",
    "id": 207,
    "module": "crates/horizon-protocol/src/secure_chat.rs",
    "verdict": "no-change"
+  },
+  {
+   "id": 209,
+   "module": "crates/horizon-assets/src/bake.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "FaceBakery.bakeQuad takes a shadeDirectionOverride (26.3) vs a shade boolean (26.2); UnbakedCuboidGeometry.bake passes element.shadeDirectionOverride() vs element.shade(). 26.2 has 333 model elements with shade=false (bamboo leaves, big dripleaf, ...), which 26.3 rewrote as shade_direction_override 'up' (cardinal Up = 1.0, visually identical to flat). The Rust never read the element-level shade property and hardcoded shade: true for cuboid quads, so those elements got full directional shading. Ported: Element gained a shade field parsed from the element-level 'shade' property (default true); bake passes element.shade to the quad; the mesher already renders shade=false quads flat. Synthetic elements (bake_flat_face, resolve.rs) keep shade: true."
   },
   {
    "bucket": "B",
@@ -134,11 +288,39 @@
    "verdict": "no-change"
   },
   {
+   "id": 211,
+   "module": "crates/horizon-client-render/src/tab_list.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PlayerTabOverlay and PlayerFaceExtractor: the decompiled sources are byte-identical between 26.3 and 26.2 (extractPingIcon and all extractRenderState overloads). The triage hit is a bytecode-level flag with no source-visible difference."
+  },
+  {
+   "id": 212,
+   "module": "crates/horizon-client/src/game/fov.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Camera: getFluidInCamera identical. extractRenderState differs only in arg shape (26.3 takes DeltaTracker and stores partial ticks in the state; 26.2 takes the float directly) plus 26.3 setting isFirstPerson on the render state, which 26.2 never sets. The Rust fov.rs derives first_person from camera_type directly and never reads an isFirstPerson field, so the difference does not affect it."
+  },
+  {
    "bucket": "B",
    "evidence": "FileToIdConverter#listMatchingResources: 26.3 routes through an extensionSelector() helper and added prefixMatches/matches; 26.2 calls manager.listResources(prefix, this::extensionMatches) directly. Same prefix, same predicate, identical behaviour. The Rust references it in a comment only (lan/data.rs:186).",
    "id": 213,
    "module": "crates/horizon-client/src/lan/data.rs",
    "verdict": "no-change"
+  },
+  {
+   "id": 215,
+   "module": "crates/horizon-client/examples/probe/falling_block_fixture.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "FallingBlockEntity fall/tick: setBlockAndUpdate vs setBlock(..., 3) is literally identical in 26.2 (setBlockAndUpdate IS setBlock(pos, state, 3)). The tick differences are 26.3-only additions the Rust does not implement: the ClientboundAddTransientBlockPacket send on landing and setRequiresPrecisePosition. The fixture compares landing decisions, changed cells and level events only \u2014 no packet or precise-position surface. The landing decision logic itself is unchanged."
+  },
+  {
+   "id": 216,
+   "module": "crates/horizon-client/src/game/fireworks.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "FireworkRocketEntity: onHitBlock differs only in the immutable-copy spelling (getBlockPos().immutable() vs new BlockPos(...)) \u2014 same value. handleEntityEvent: 26.3 passes !isSilent() to createFireworks; 26.2 calls the 7-arg form, and ClientLevel.createFireworks in 26.2 always builds the Starter, which always bangs. The Rust Starter has no play_sound flag and always plays the blast sound \u2014 the 26.2 form already."
   },
   {
    "bucket": "B",
@@ -155,11 +337,60 @@
    "verdict": "ported"
   },
   {
+   "id": 219,
+   "module": "crates/horizon-client/src/mobs/golem.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SnowGolem: 26.3 extracts the ranged-attack uncertainty into rangedAttackUncertainty() returning 12.0F; 26.2 hardcodes 12.0F at the shoot call. Same value. The Rust golem.rs already shoots with 12.0."
+  },
+  {
+   "id": 220,
+   "module": "crates/horizon-client/src/projectiles.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ThrowableProjectile.handleFirstTickBubbleColumn: 26.3 findBlocksIn vs 26.2 betweenClosed over the same box \u2014 the same set of blocks. Each bubble_column_push only adds to the Y velocity (commutative) and records surface blocks for particles only, so iteration order is unobservable. LlamaSpit.tick: findBlocksIn(...).filterState(isAir).noneMatched() vs getBlockStates(...).noneMatch(isAir) \u2014 same discard condition. Comment updated to cite the 26.2 betweenClosed form."
+  },
+  {
+   "id": 221,
+   "module": "crates/horizon-client-render/src/level_loading.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "LoadingOverlay.extractRenderState identical. WaitingForPlayerChunk.isReady: 26.2 requires BOTH the player's Y and the camera's Y inside build height before waiting for the player section; 26.3 dropped the player-Y check. Ported: PlayerCheck split into player_outside_build_height + camera_outside_build_height, tick_client_load requires both inside, remote.rs computes both Y values, and the tracker test gained a player-outside case."
+  },
+  {
    "bucket": "B",
    "evidence": "BiomeManager#getBiome: 26.3 split the BlockPos form into a delegating overload plus getBiome(int,int,int) and renamed BiomeResolver to NoiseBiomeSource; the body (x-2, >>2 zoom) is identical. The Rust ports the lookup in mesher.rs unchanged.",
    "id": 222,
    "module": "crates/horizon-client-render/src/mesher.rs",
    "verdict": "no-change"
+  },
+  {
+   "id": 223,
+   "module": "crates/horizon-client/src/game/boats/placement.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Item: getPlayerPOVHitResult differs only in the view-vector call's spelling \u2014 26.3 Player.calculateViewVector (static) vs 26.2 player.calculateViewVector (final instance); the Entity.calculateViewVector body is identical in both versions and the Rust view_vector matches it. useOn: 26.3 checks the BLOCK_TRANSFORMER data component; 26.2 returns PASS. The Rust generic use-on path has no component check (26.2's per-item transforms are the rank-1 block transformer), matching 26.2."
+  },
+  {
+   "id": 224,
+   "module": "crates/horizon-client/src/game/creatures/pufferfish_player.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Pufferfish playerTouch/touch: 26.3 gates the sting behind doTeamsAllowDamage; 26.2 has no team check \u2014 teammates sting too. Ported: removed the teams_allow_damage check from both the player-touch path (pufferfish_player.rs) and the mob-touch path (aquatic.rs sting_touching_mobs), with the now-unused import and team lookup removed."
+  },
+  {
+   "id": 225,
+   "module": "crates/horizon-client/src/game/crossbow.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AbstractSkeleton.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel); 26.2 inlines 14 - difficulty.getId() * 4. The Rust shoots with (14 - id * 4) as f32 \u2014 the 26.2 formula. CrossbowItem.performShooting: 26.3 materializes charged.itemCopies().toList() before shoot; 26.2 passes the stream \u2014 same projectiles, same order; API-shape only."
+  },
+  {
+   "id": 226,
+   "module": "crates/horizon-client/src/mobs/illager.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CrossbowAttackMob.performCrossbowAttack: same uncertainty pattern; the Rust already uses (14 - difficulty * 4), the 26.2 formula. IllagerModel.setupAnim: 26.3 added a bobArms call after animateZombieArms in the empty-hand ATTACKING branch, which the Rust does not do (its comment wrongly claimed it did \u2014 comment fixed to cite 26.2); the swingWeaponDown branch passes state.attackAnim in 26.2 vs state.swingAnimation in 26.3, and the Rust's s.swing is the interpolated attack_anim, the 26.2 value."
   },
   {
    "bucket": "B",
@@ -461,146 +692,6 @@
    "bucket": "B",
    "verdict": "no-change",
    "evidence": "AttributeTrackSampler#applyTimeBased: only the clock API (26.3 clockManager.getInstance(clock).totalTicks() vs 26.2 clockManager.getTotalTicks(clock)) \u2014 the same API-shape difference as item 237, same value. The Rust apply() takes the tick count as a parameter; the caller passes day time."
-  },
-  {
-   "id": 176,
-   "module": "crates/horizon-world/src/worldgen/structure/template.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "NbtUtils readBlockState/writeBlockState: the diff is exactly the Name/Properties vs id/properties codec form. The read side already accepts both forms. Write side fixed: save_nbt palette now writes Name/Properties (was id/properties), test assertion updated; also fixed BlockState::to_nbt (chunk.rs:192) to write Name/Properties \u2014 chunk palettes in 'id' form would be unreadable by vanilla 26.2. No test pins the 'id' write form for chunks; read sides accept both, so round-trips stay safe."
-  },
-  {
-   "id": 183,
-   "module": "crates/horizon-client-render/src/border_render.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "WorldBorderRenderer: 26.3's rebuildWorldBorderBuffer applies RENDERING_OFFSET (0.01) to the border bounds; 26.2 uses the bounds as-is (no such constant in 26.2). Removed the OFFSET const and its application from rebuild(). The rest matches 26.2: v0/v1 texture coords, rebuild condition (needs_rebuild || border != last_border), closest-border sides, transform math. The 26.3 OIT render-pass plumbing is moot \u2014 the Rust module is GPU-free by design."
-  },
-  {
-   "id": 194,
-   "module": "crates/horizon-client/src/game/music.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "PauseScreen: extractRenderState identical (music.rs's use: no-change). createPauseMenu differs in the bottom buttons (port landed in screens.rs pause_buttons): 26.3 shows OPTIONS + WORLD_OPTIONS when level != null; 26.2 shows OPTIONS + MULTIPLAYER_OPTIONS when hasSingleplayerServer(), else a single full-width OPTIONS. Ported: single-player -> OPTIONS (98, id 1) + MULTIPLAYER_OPTIONS (98, id 9); multiplayer -> full-width OPTIONS (204, id 1). Documented gap: id 9 still opens the existing 26.3 WorldOptionsScreen (which holds the LAN publish controls, the functional core of 26.2's MultiplayerOptionsScreen); a dedicated 26.2 MultiplayerOptionsScreen layout port is outstanding. The friend-list listener and friends-button condition differences have no Rust equivalent."
-  },
-  {
-   "id": 196,
-   "module": "crates/horizon-world/src/worldgen/live.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "PlacedFeature: getFeatures is a pure type rename (ConfiguredFeature -> Feature in 26.3, same logic). place: 26.3 routes through the 26.3-only FeaturePlacer class (explicit stack, reverse-push to preserve order); 26.2 uses placeWithContext (stream flatMap). Both traversals are depth-first, in-order, with identical random-draw order, and the Rust FeaturePlacer (chain.rs) implements the stack form with the same order guarantees. The 4-arg place's biomeCheck flag maps exactly onto 26.2's place() (Optional.empty()) vs placeWithBiomeCheck() (Optional.of(this))."
-  },
-  {
-   "id": 212,
-   "module": "crates/horizon-client/src/game/fov.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "Camera: getFluidInCamera identical. extractRenderState differs only in arg shape (26.3 takes DeltaTracker and stores partial ticks in the state; 26.2 takes the float directly) plus 26.3 setting isFirstPerson on the render state, which 26.2 never sets. The Rust fov.rs derives first_person from camera_type directly and never reads an isFirstPerson field, so the difference does not affect it."
-  },
-  {
-   "id": 215,
-   "module": "crates/horizon-client/examples/probe/falling_block_fixture.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "FallingBlockEntity fall/tick: setBlockAndUpdate vs setBlock(..., 3) is literally identical in 26.2 (setBlockAndUpdate IS setBlock(pos, state, 3)). The tick differences are 26.3-only additions the Rust does not implement: the ClientboundAddTransientBlockPacket send on landing and setRequiresPrecisePosition. The fixture compares landing decisions, changed cells and level events only \u2014 no packet or precise-position surface. The landing decision logic itself is unchanged."
-  },
-  {
-   "id": 219,
-   "module": "crates/horizon-client/src/mobs/golem.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "SnowGolem: 26.3 extracts the ranged-attack uncertainty into rangedAttackUncertainty() returning 12.0F; 26.2 hardcodes 12.0F at the shoot call. Same value. The Rust golem.rs already shoots with 12.0."
-  },
-  {
-   "id": 223,
-   "module": "crates/horizon-client/src/game/boats/placement.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "Item: getPlayerPOVHitResult differs only in the view-vector call's spelling \u2014 26.3 Player.calculateViewVector (static) vs 26.2 player.calculateViewVector (final instance); the Entity.calculateViewVector body is identical in both versions and the Rust view_vector matches it. useOn: 26.3 checks the BLOCK_TRANSFORMER data component; 26.2 returns PASS. The Rust generic use-on path has no component check (26.2's per-item transforms are the rank-1 block transformer), matching 26.2."
-  },
-  {
-   "id": 224,
-   "module": "crates/horizon-client/src/game/creatures/pufferfish_player.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "Pufferfish playerTouch/touch: 26.3 gates the sting behind doTeamsAllowDamage; 26.2 has no team check \u2014 teammates sting too. Ported: removed the teams_allow_damage check from both the player-touch path (pufferfish_player.rs) and the mob-touch path (aquatic.rs sting_touching_mobs), with the now-unused import and team lookup removed."
-  },
-  {
-   "id": 195,
-   "module": "crates/horizon-client/src/mobs/shulker.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "Shulker: teleportSomewhere identical. createInterpolationHandler is 26.3-only and returns NO_OP; 26.2 has no such method. The Rust already treats a move packet as a snap to setPos with no interpolation, which is the same observable behaviour. Comments updated to cite the 26.2 form."
-  },
-  {
-   "id": 198,
-   "module": "crates/horizon-client/src/game/screens.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "WinScreen: extractBackground identical. keyPressed/keyReleased differ only in key encoding \u2014 26.2 event.key() 341/345 (GLFW left/right control) vs 26.3 event.shortcutKey() 1073742048/1073742052 (SDL left/right control): the same physical keys. The Rust win_screen.rs Key enum admits only Up/Space/LeftControl/RightControl (from_code returns None otherwise), so only control keys ever reach speedup_modifiers, matching both versions."
-  },
-  {
-   "id": 200,
-   "module": "crates/horizon-client-render/src/auth.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "AccountProfileKeyPairManager.fetchProfileKeyPair differs only in the authlib import (com.mojang.authlib.services.response in 26.3 vs yggdrasil.response in 26.2) \u2014 same class, moved package; the method body is identical. ClientHandshakePacketListenerImpl.authenticateServer differs only in a log line ('Authentication failed: {}' vs the bare message). The Rust auth.rs is HTTP-level code, unaffected by the Java package move."
-  },
-  {
-   "id": 201,
-   "module": "crates/horizon-client/src/game/copper_golems.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "CopperGolem: turnToStatue identical. mobInteract: 26.3 adds an explicit HONEYCOMB_WAX_ON playSound on waxing; 26.2 fires only level event 3003. The Rust already implements the 26.2 form (level_event_at(3003) with the comment 'The event carries the wax-on sound in 26.2; no explicit play')."
-  },
-  {
-   "id": 203,
-   "module": "crates/horizon-client/src/game/sniffers.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "Sniffer.isTempted: 26.2 reads the IS_TEMPTED boolean memory, which FollowTemptation sets on start and erases on stop (verified by scanning the jars: only FollowTemptation, MemoryModuleType and Sniffer reference it in 26.2); 26.3 reads TEMPTING_PLAYER presence, true whenever a tempting player is sensed \u2014 including during the 100-tick temptation cooldown. Ported: added an is_tempted memory slot (animal_brain.rs), set in FollowTemptation try_start (with the VALUE_ABSENT start guard) and cleared in do_stop; is_tempted now reads it. emitDiggingParticles: no change needed \u2014 the Rust already plays the hit sound positionally at the sniffer (26.2's coords form with distanceDelay=false), and a digging sniffer does not move, so 26.3's entity-bound form is equivalent."
-  },
-  {
-   "id": 204,
-   "module": "crates/horizon-client/src/mobs/undead.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "Drowned.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel) (a 26.3-only RangedAttackMob method); 26.2 inlines 14 - difficulty.getId() * 4. The Rust ranged_attack_uncertainty already computes 14.0 - 4.0 * difficulty and the drowned throw uses it."
-  },
-  {
-   "id": 211,
-   "module": "crates/horizon-client-render/src/tab_list.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "PlayerTabOverlay and PlayerFaceExtractor: the decompiled sources are byte-identical between 26.3 and 26.2 (extractPingIcon and all extractRenderState overloads). The triage hit is a bytecode-level flag with no source-visible difference."
-  },
-  {
-   "id": 216,
-   "module": "crates/horizon-client/src/game/fireworks.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "FireworkRocketEntity: onHitBlock differs only in the immutable-copy spelling (getBlockPos().immutable() vs new BlockPos(...)) \u2014 same value. handleEntityEvent: 26.3 passes !isSilent() to createFireworks; 26.2 calls the 7-arg form, and ClientLevel.createFireworks in 26.2 always builds the Starter, which always bangs. The Rust Starter has no play_sound flag and always plays the blast sound \u2014 the 26.2 form already."
-  },
-  {
-   "id": 220,
-   "module": "crates/horizon-client/src/projectiles.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "ThrowableProjectile.handleFirstTickBubbleColumn: 26.3 findBlocksIn vs 26.2 betweenClosed over the same box \u2014 the same set of blocks. Each bubble_column_push only adds to the Y velocity (commutative) and records surface blocks for particles only, so iteration order is unobservable. LlamaSpit.tick: findBlocksIn(...).filterState(isAir).noneMatched() vs getBlockStates(...).noneMatch(isAir) \u2014 same discard condition. Comment updated to cite the 26.2 betweenClosed form."
-  },
-  {
-   "id": 221,
-   "module": "crates/horizon-client-render/src/level_loading.rs",
-   "bucket": "B",
-   "verdict": "ported",
-   "evidence": "LoadingOverlay.extractRenderState identical. WaitingForPlayerChunk.isReady: 26.2 requires BOTH the player's Y and the camera's Y inside build height before waiting for the player section; 26.3 dropped the player-Y check. Ported: PlayerCheck split into player_outside_build_height + camera_outside_build_height, tick_client_load requires both inside, remote.rs computes both Y values, and the tracker test gained a player-outside case."
-  },
-  {
-   "id": 225,
-   "module": "crates/horizon-client/src/game/crossbow.rs",
-   "bucket": "B",
-   "verdict": "no-change",
-   "evidence": "AbstractSkeleton.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel); 26.2 inlines 14 - difficulty.getId() * 4. The Rust shoots with (14 - id * 4) as f32 \u2014 the 26.2 formula. CrossbowItem.performShooting: 26.3 materializes charged.itemCopies().toList() before shoot; 26.2 passes the stream \u2014 same projectiles, same order; API-shape only."
   }
  ],
  "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 120 (all named==0, no method-level evidence) / B 142 / C 58 / D 90. B hits: 332 changed, 55 removed, 53 added+removed (signature swaps), 4 added. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank2-triage.{py,json}."

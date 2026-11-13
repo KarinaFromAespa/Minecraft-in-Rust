@@ -1535,6 +1535,15 @@ pub struct Mob {
     pub gear_knockback_resistance: Option<f64>,
     pub health: f32,
     pub hurt_time: i32,
+    /// `Entity.hurtMarked`: set by `LivingEntity.hurtServer` on a fresh hit
+    /// (`markHurt`, skipped only for `#no_impact` — drowning in 26.2) and
+    /// cleared by `ServerEntity.sendChanges` every tick, so it is true only
+    /// until the end of the tick the hurt landed in. 26.2's
+    /// `LookAndFollowTradingPlayerSink` and `TradeWithPlayerGoal` gate on
+    /// `!hurtMarked`, not on the 10-tick hurt window 26.3's
+    /// `wasHurtRecently` reads; a hurt villager or trader may follow its
+    /// customer again from the next tick.
+    pub hurt_marked: bool,
     /// `LivingEntity.invulnerableTime`: the hurt cooldown, 20 after a hit;
     /// transient, never saved. (26.3 renamed it `damageCooldownTime` and
     /// repurposed `invulnerableTime` as a saved temporary-invulnerability
@@ -3406,6 +3415,7 @@ impl Mob {
             sync_position: false,
             gear_knockback_resistance: None,
             hurt_time: 0,
+            hurt_marked: false,
             invulnerable: 0,
             death_time: 0,
             impulse_grace_time: 0,
@@ -3903,6 +3913,13 @@ impl Mob {
                 taken = self.hurt_health(through, &source);
             }
             self.hurt_time = 10;
+            // `LivingEntity.hurtServer` calls `markHurt` on a fresh hit
+            // (`tookFullDamage`) unless the source is `#no_impact` — in 26.2
+            // that tag holds only `minecraft:drown`. Mobs never block, so
+            // the `(!blocked || damage > 0)` arm is always true here.
+            if source.kind != DamageKind::Drown {
+                self.hurt_marked = true;
+            }
             amount
         };
         // LivingEntity.actuallyHurt: a hit that reaches the health is
@@ -4143,7 +4160,12 @@ impl Mob {
         {
             return;
         }
-        if creaking::is_creaking(self) && !creaking::can_move(self) {
+        // `Creaking.knockback`: in 26.2 the creaking overrides only the
+        // 5-argument knockback, so the effect form (6-argument, with damage)
+        // bypasses the canMove gate — an immobile creaking can still be
+        // shoved by a sprint hit or the Knockback enchantment. 26.3 moved the
+        // override to the 6-argument form, gating both.
+        if effect.is_none() && creaking::is_creaking(self) && !creaking::can_move(self) {
             return;
         }
         // The native hook runs first, on the raw strength (NeoForge's `LivingKnockBackEvent` fires

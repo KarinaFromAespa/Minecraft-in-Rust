@@ -1894,7 +1894,9 @@ impl B {
                     && cx.w.prop(p[0], p[1], p[2], "occupied") == Some("true")
                     && !super::villager::sleeping(m)
                 {
-                    // ValidateNearbyPoi.bedIsOccupied: someone else sleeps there.
+                    // ValidateNearbyPoi.bedIsOccupied (26.2: `BlockTags.BEDS`;
+                    // 26.3 renamed the check to `VILLAGERS_CAN_SLEEP_ON_BED`,
+                    // which holds exactly `#beds`): someone else sleeps there.
                     which.clear(m);
                 }
                 *running = true;
@@ -3454,11 +3456,15 @@ pub(super) fn compute_path(
     false
 }
 /// `LookAndFollowTradingPlayerSink.checkExtraStartConditions`.
+/// 26.2 gates on `!body.hurtMarked` — the mark a fresh hit sets and the
+/// tracker clears each tick — not on 26.3's `wasHurtRecently()` (the full
+/// 10-tick hurt window); a hurt villager may follow its customer again
+/// from the next tick.
 fn follow_trading_condition(m: &Mob, w: &MobWorld) -> bool {
     m.extra.flag2
         && m.alive()
         && !m.fluids.in_water
-        && m.hurt_time <= 0
+        && !m.hurt_marked
         && w.player
             .as_ref()
             .is_some_and(|p| m.distance_sqr(p.position) <= 16.0)

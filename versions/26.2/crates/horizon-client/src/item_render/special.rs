@@ -613,13 +613,14 @@ pub(super) fn submit(
             } else {
                 "entity/shield/shield_base_nopattern"
             };
-            // Without patterns: `entitySolidGlint`. With them, vanilla draws
-            // `patternedShieldGlint` last, the glint alone over the finished
-            // plate. A foil quad here is its texture with the glint over it
-            // (the GUI adds the glint masked by the layer's alpha, the world
-            // shader composites it), so every layer carries the foil: each
-            // pixel ends with the glint once, over the layers below it.
-            // Redrawing the base with the foil would cover the patterns.
+            // Without patterns, 26.2 draws the base plain and the `entityGlint`
+            // over it last (26.3 uses `entitySolidGlint` for the base and
+            // `patternedShieldGlint` over patterned shields). A foil quad here
+            // is its texture with the glint over it (the GUI adds the glint
+            // masked by the layer's alpha, the world shader composites it), so
+            // every layer carries the foil: each pixel ends with the glint
+            // once, over the layers below it. Redrawing the base with the
+            // foil would cover the patterns.
             let foil = if has_foil { Foil::Standard } else { Foil::None };
             part("shield", &none, base, white, foil);
             if has_patterns {

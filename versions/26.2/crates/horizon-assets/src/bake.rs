@@ -382,6 +382,7 @@ pub fn bake_flat_face(
         to,
         faces: Default::default(),
         rotation: None,
+        shade: true,
         shade_direction_override: None,
         light_emission: 0,
         neoforge_data: None,
@@ -480,7 +481,7 @@ fn bake_face(
         color: data.color,
         ambient_occlusion: data.ambient_occlusion,
         render_type,
-        shade: true,
+        shade: element.shade,
     })
 }
 

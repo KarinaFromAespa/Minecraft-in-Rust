@@ -132,15 +132,16 @@ impl FogState {
     }
 }
 
-/// `FluidState.getHeightForCamera`.
+/// `FluidState.getHeight`: 1.0 when the same fluid is above, else
+/// `getOwnHeight` (amount / 9). 26.3's `getHeightForCamera` additionally
+/// returns 1.0 for a source with a sturdy face above; 26.2 has no such rule.
 fn camera_fluid_height(world: &World, facts: &BlockFacts, b: [i32; 3]) -> Option<(Fluid, f64)> {
     let s = facts.get(world.block(b[0], b[1], b[2]));
     if s.fluid == Fluid::None {
         return None;
     }
     let above = facts.get(world.block(b[0], b[1] + 1, b[2]));
-    let source = s.fluid_level >= 8 && !s.fluid_falling;
-    let height = if (source && above.full_collision) || above.fluid == s.fluid {
+    let height = if above.fluid == s.fluid {
         1.0
     } else {
         f64::from(s.fluid_level) / 9.0
@@ -315,8 +316,21 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
         input.night_vision
     };
     if color.iter().all(|&c| c != 0.0) {
-        let scale = 1.0 / color[0].max(color[1]).max(color[2]);
-        color = color.map(|c| c + (c * scale - c) * brighten);
+        // 26.2's computeFogColor brighten: the brightest channel scales to
+        // 1.0 (targetScaleMax), the others to 1/clamp(max, 0.07, 1.0); 26.3
+        // scales every channel by 1/max. The two agree unless every channel
+        // is below 0.07 (very dark fog).
+        let max = color[0].max(color[1]).max(color[2]);
+        let target_scale = 1.0 / max.clamp(0.07, 1.0);
+        let target_scale_max = 1.0 / max;
+        for c in color.iter_mut() {
+            let scale = if max != *c {
+                target_scale
+            } else {
+                target_scale_max
+            };
+            *c += (*c * scale - *c) * brighten;
+        }
     }
     let mut fog = FogData {
         color: [color[0], color[1], color[2], 1.0],

@@ -2110,6 +2110,10 @@ fn server_ai_step(
         };
         custom_server_ai_step(m, &mut cx);
     }
+    // `ServerEntity.sendChanges` clears `hurtMarked` every tick after the
+    // entity ticks (and sends the motion packet): a mark set by a hurt is
+    // visible to this tick's brain and gone before the next one.
+    m.hurt_marked = false;
     if frozen {
         m.ai.jumping = false;
         return;

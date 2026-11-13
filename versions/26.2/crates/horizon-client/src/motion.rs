@@ -136,7 +136,18 @@ impl MotionResources {
                 suppresses_bounce: tag("minecraft:suppresses_bounce")?,
             })?,
             climbable: tag("minecraft:climbable")?,
-            causes_suffocation: tag("minecraft:causes_suffocation")?,
+            // `causes_suffocation` is a 26.3 addition; 26.2 has no such
+            // tag, so it loads as empty here (as the game-entry path in
+            // world_entry.rs already does). That leaves 26.2's default
+            // suffocation rule — shape-based `isSuffocating`, not
+            // tag-based — unported: with an empty tag, no default-rule
+            // block suffocates. A proper 26.2 suffocation port is still
+            // owed; this only keeps resource loading from failing.
+            causes_suffocation: built
+                .tags
+                .get("minecraft:causes_suffocation")
+                .map(|t| t.iter().cloned().collect())
+                .unwrap_or_default(),
             soul_speed_blocks: tag("minecraft:soul_speed_blocks")?,
             climbing,
             fall_reset: tag("minecraft:fall_damage_resetting")?,

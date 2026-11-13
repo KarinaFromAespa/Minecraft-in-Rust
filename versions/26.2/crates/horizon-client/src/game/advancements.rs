@@ -1786,10 +1786,15 @@ impl Game<'_> {
         });
     }
     /// `BrewedPotionTrigger`: the potion contents of a stack taken from a
-    /// brewing stand.
+    /// brewing stand. 26.2's `PotionSlot.onTake` fires only when the
+    /// stack's `PotionContents` holds a potion — a glass bottle (or a
+    /// potion with the component stripped) triggers nothing, so a bare
+    /// `brewed_potion` criterion must not match it.
     pub(super) fn trigger_brewed_potion(&mut self, stack: &ItemStack) {
+        let Some(potion) = stack.potion().map(str::to_owned) else {
+            return;
+        };
         let me = self.player_entity_for("minecraft:brewed_potion");
-        let potion = stack.potion().map(str::to_owned);
         self.trigger("minecraft:brewed_potion", move |c, w| {
             let pctx = adv::Entities {
                 this: Some(&me),
@@ -1798,7 +1803,7 @@ impl Game<'_> {
                 block_pos: None,
             };
             adv::conditions(&c["player"], &pctx, w)
-                && adv::potions(&c["potion"], potion.as_deref(), w)
+                && adv::potions(&c["potion"], Some(potion.as_str()), w)
         });
     }
     /// `TradeTrigger`: the villager and the item the trade gave.
