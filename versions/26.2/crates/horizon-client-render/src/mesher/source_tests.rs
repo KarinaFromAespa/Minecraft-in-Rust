@@ -112,7 +112,7 @@ fn fixture() -> (Scratch, Assets, RenderAssets, MeshTables, Biomes) {
             (false, true, false, false),
         ]),
         material_states: [BlockStateId(0); 6],
-        blocks_fluid_flow: Default::default(),
+        blocks_fluid_flow: Arc::from(vec![false; 3]),
     };
     let air = Info {
         solid: false,

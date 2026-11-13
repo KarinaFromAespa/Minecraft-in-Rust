@@ -24,7 +24,8 @@ pub struct FluidResources {
     states: FluidStateTable,
     /// `isFaceSturdy(FULL)` per `Direction` (bit = ordinal).
     sturdy: Vec<u8>,
-    /// `#minecraft:blocks_fluid_flow` membership.
+    /// Per-state `BlockState.blocksMotion()` (26.2 has no
+    /// `blocks_fluid_flow` tag; fluid flow reads the same rule).
     blocks_flow: Vec<bool>,
     /// `IceBlock` and its subclasses.
     ice: Vec<bool>,
@@ -36,11 +37,12 @@ impl FluidResources {
     pub fn new(assets: &Assets, facts: &crate::blocks::BlockFacts) -> Result<Self> {
         Self::from_registry(assets.registry, facts, &assets.blocks_fluid_flow)
     }
-    /// Build fluid queries from the same registry, block facts and flow tag as the scene.
+    /// Build fluid queries from the same registry, block facts and
+    /// per-state `blocksMotion()` table as the scene.
     pub fn from_registry(
         registry: &horizon_world::registry::BlockRegistry,
         facts: &crate::blocks::BlockFacts,
-        blocks_fluid_flow: &BTreeSet<String>,
+        blocks_fluid_flow: &[bool],
     ) -> Result<Self> {
         Ok(Self {
             states: FluidStateTable::new(registry)?,
@@ -48,7 +50,8 @@ impl FluidResources {
             blocks_flow: facts
                 .states
                 .iter()
-                .map(|s| blocks_fluid_flow.contains(&*s.name))
+                .enumerate()
+                .map(|(i, _)| blocks_fluid_flow.get(i).copied().unwrap_or(false))
                 .collect(),
             ice: facts
                 .states
@@ -67,7 +70,7 @@ impl FluidResources {
             .get(state.0 as usize)
             .is_some_and(|s| s & 1 << d as u8 != 0)
     }
-    /// `#minecraft:blocks_fluid_flow` membership.
+    /// Per-state `BlockState.blocksMotion()`.
     pub fn blocks_flow(&self, state: BlockStateId) -> bool {
         self.blocks_flow
             .get(state.0 as usize)

@@ -402,17 +402,10 @@ pub fn gift_table(m: &Mob) -> String {
 }
 // ---- Gossip, food, breeding and golems.
 
-/// `VillagerFood` nutrition (`DataComponents.VILLAGER_FOOD`).
-///
-/// The item registry's value: a data pack's or a mod's item with the component
-/// counts, as one with vanilla's four does. Until a registry is loaded (tests)
-/// those four.
+/// `Villager.FOOD_POINTS` nutrition (26.2): bread 4, potato, carrot and
+/// beetroot 1, everything else 0.
 pub fn food_points(item: &str) -> i32 {
-    horizon_items::items::villager_food(item).unwrap_or(match item {
-        "minecraft:bread" => 4,
-        "minecraft:potato" | "minecraft:carrot" | "minecraft:beetroot" => 1,
-        _ => 0,
-    })
+    horizon_items::items::villager_food(item)
 }
 /// The farmer's `requestedItems` (`VillagerProfession.FARMER`). Food is picked
 /// up and traded separately, through its villager food value.

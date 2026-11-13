@@ -105,18 +105,14 @@ impl Providers {
             floats: HashMap::new(),
         }
     }
-    pub fn burn_time(&self, items: &Items, stack: &ItemStack, fast: bool) -> i32 {
-        items
-            .get(&stack.item)
-            .and_then(|i| i.fuel.as_ref())
-            .map_or(0, |(time, _)| Self::eval(time, fast, &self.ints, 0) as i32)
+    /// `FuelValues.vanillaBurnTimes` (26.2): the hardcoded burn-time table.
+    /// The `fast` flag is 26.3's provider context; 26.2 burn time is the
+    /// same in every furnace.
+    pub fn burn_time(&self, items: &Items, stack: &ItemStack, _fast: bool) -> i32 {
+        crate::items::burn_time(items, &stack.item)
     }
-    pub fn speed(&self, items: &Items, stack: &ItemStack, fast: bool) -> f32 {
-        items
-            .get(&stack.item)
-            .and_then(|i| i.fuel.as_ref())
-            .map_or(1.0, |(_, speed)| {
-                Self::eval(speed, fast, &self.floats, 0) as f32
-            })
+    /// 26.2 fuel has no speed effect: always 1.0.
+    pub fn speed(&self, _items: &Items, _stack: &ItemStack, _fast: bool) -> f32 {
+        1.0
     }
 }

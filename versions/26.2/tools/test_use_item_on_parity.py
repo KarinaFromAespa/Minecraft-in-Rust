@@ -8,13 +8,13 @@ for blocks placed where mobs and armor stands stand, for respawn anchors, for
 beds in the Nether and the End, and for doors, trapdoors and fence gates, which a
 hand opens unless their material cannot be (`BlockSetType.canOpenByHand`).
 
-Axe, hoe and shovel clicks use the data-driven `minecraft:block_transformer`
-registry (`ItemStack.useOn` -> `Item.useOn` -> `BlockTransformer.transformBlock`):
-logs stripped and copper scraped, waxed or unwaxed, a double copper chest's other
-half told of the change, copper doors and trapdoors, farmland and dirt paths, and
-the hanging roots a hoe leaves on rooted dirt's clicked face. The states those
-transforms produce are compared by `test_block_transformer_parity.py`; here the
-click that uses one is.
+Axe, hoe and shovel clicks use the hardcoded tables of `AxeItem`, `HoeItem`
+and `ShovelItem` (`ItemStack.useOn` -> `Item.useOn`): logs stripped and
+copper scraped, waxed or unwaxed, a double copper chest's other half told of
+the change, copper doors and trapdoors, farmland and dirt paths, and the
+hanging roots a hoe leaves on rooted dirt's clicked face. The states those
+transforms produce are compared by `test_block_transformer_parity.py`; here
+the click that uses one is.
 
 Dragon eggs, which a click moves somewhere else nearby
 (`DragonEggBlock.useWithoutItem`).

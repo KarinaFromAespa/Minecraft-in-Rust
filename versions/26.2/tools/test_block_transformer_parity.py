@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare the data-driven axe/hoe/shovel block transformers with vanilla.
+"""Compare the hardcoded axe/hoe/shovel block transformers with vanilla.
 
-The Java oracle (VanillaBlockTransformerOracle) evaluates the registry's
-BlockStateProviders on a stand-in level; the Rust example
+The Java oracle (VanillaBlockTransformerOracle) evaluates AxeItem, HoeItem,
+ShovelItem and HoneycombItem's tables; the Rust example
 (block_transform_fixture) evaluates horizon_client::block_transform. Cases are
-every block state any transformer mentions (plus a random sample of all states)
+every block state any table mentions (plus a random sample of all states)
 under each transformer, with a few blocks above and three clicked faces.
 """
 import argparse
@@ -30,18 +30,24 @@ def main():
     vanilla.compile('ParityData', 'VanillaBlockTransformerOracle')
     vanilla.run('VanillaBlockTransformerOracle', 'dump', work / 'states.txt')
     states = (work / 'states.txt').read_text().splitlines()
-    mentioned = set()
-    for path in (lib.RESOURCES / 'data/minecraft/block_transformer').glob('*.json'):
-        text = path.read_text()
-        for name in set(__import__('re').findall(r'"minecraft:([a-z_0-9]+)"', text)):
-            mentioned.add('minecraft:' + name)
-    tags = set()
-    for tag in ['turns_into_farmland', 'turns_into_dirt_path', 'air']:
-        for name in __import__('json').loads((lib.RESOURCES / 'data/minecraft/tags/block' / (tag + '.json')).read_text())['values']:
-            if not name.startswith('#'):
-                tags.add(name)
+    # 26.2 has no block_transformer data and no turns_into_* tags: the
+    # cases come from the hardcoded tables (strip/till/flatten blocks, the
+    # copper families, campfires) plus a random sample of all states.
+    mentioned = {
+        'minecraft:oak_wood', 'minecraft:oak_log', 'minecraft:dark_oak_wood',
+        'minecraft:dark_oak_log', 'minecraft:pale_oak_wood', 'minecraft:pale_oak_log',
+        'minecraft:acacia_wood', 'minecraft:acacia_log', 'minecraft:cherry_wood',
+        'minecraft:cherry_log', 'minecraft:birch_wood', 'minecraft:birch_log',
+        'minecraft:jungle_wood', 'minecraft:jungle_log', 'minecraft:spruce_wood',
+        'minecraft:spruce_log', 'minecraft:warped_stem', 'minecraft:warped_hyphae',
+        'minecraft:crimson_stem', 'minecraft:crimson_hyphae', 'minecraft:mangrove_wood',
+        'minecraft:mangrove_log', 'minecraft:bamboo_block', 'minecraft:grass_block',
+        'minecraft:dirt_path', 'minecraft:dirt', 'minecraft:coarse_dirt',
+        'minecraft:rooted_dirt', 'minecraft:podzol', 'minecraft:mycelium',
+        'minecraft:campfire', 'minecraft:soul_campfire',
+    }
     rng = random.Random(args.seed)
-    chosen = [s for s in states if s.split('|')[0] in mentioned or s.split('|')[0] in tags or 'copper' in s or 'lightning_rod' in s]
+    chosen = [s for s in states if s.split('|')[0] in mentioned or 'copper' in s or 'lightning_rod' in s]
     chosen += rng.sample(states, args.sample)
     cases = []
     for transformer in ['axe', 'hoe', 'shovel', 'honeycomb']:

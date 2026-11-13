@@ -7929,11 +7929,17 @@ impl Game<'_> {
                 })
             }
         }
-        let id = self
-            .res
-            .items()
-            .get(&stack.item)
-            .and_then(|i| i.block_transformer.clone())?;
+        // 26.2 has no `block_transformer` component: the tool class is the
+        // item — every axe, hoe and shovel transforms blocks.
+        let id = if stack.item.ends_with("_axe") {
+            "minecraft:axe"
+        } else if stack.item.ends_with("_hoe") {
+            "minecraft:hoe"
+        } else if stack.item.ends_with("_shovel") {
+            "minecraft:shovel"
+        } else {
+            return None;
+        };
         // playerHasBlockingItemUseIntent: a shield in the off hand is raised
         // instead, unless sneaking.
         let shield = self
@@ -12436,12 +12442,11 @@ fn load_world_rest(
         if !draws {
             return Ok(Default::default());
         }
-        let mut renderer = BlockEntityRenderer::load_with_visibility_models_and_defaults(
+        let mut renderer = BlockEntityRenderer::load_with_visibility_models(
             root,
             registry,
             visibility,
             entity_models.as_ref().map(|document| document.value()),
-            item_defaults,
         )?;
         renderer.add_mod_signs(facts, registry);
         Ok(renderer)

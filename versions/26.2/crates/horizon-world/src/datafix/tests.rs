@@ -7,7 +7,7 @@ fn snbt(s: &str) -> Tag {
 
 #[test]
 fn current_data_is_left_alone() {
-    let mut tag = snbt("{DataVersion: 5023, Status: \"minecraft:full\"}");
+    let mut tag = snbt("{DataVersion: 4903, Status: \"minecraft:full\"}");
     let before = tag.clone();
     update_chunk(&mut tag, "minecraft:overworld", Some("minecraft:noise"));
     assert_eq!(tag, before);
@@ -63,7 +63,10 @@ fn level_data_of_1_20_moves_to_the_new_fields() {
 }
 
 #[test]
-fn block_states_take_their_new_field_names() {
+fn current_block_states_keep_their_field_names() {
+    // In 26.2 a chunk's palette entries still use `Name`/`Properties`: the
+    // rename to `id`/`properties` is the 5006 fix, which 26.2 predates. A
+    // chunk at the current version is left alone.
     let mut chunk = snbt(
         "{DataVersion: 4903, Status: \"minecraft:full\", sections: [{Y: 0b, block_states: \
          {palette: [{Name: \"minecraft:chain\", Properties: {axis: \"y\"}}]}}]}",
@@ -72,10 +75,28 @@ fn block_states_take_their_new_field_names() {
     let section = &dynamic::stream(chunk.get("sections"))[0];
     let state = &dynamic::stream(section.get("block_states").and_then(|b| b.get("palette")))[0];
     assert_eq!(
-        dynamic::as_str(state.get("id")).as_deref(),
+        dynamic::as_str(state.get("Name")).as_deref(),
         Some("minecraft:chain")
     );
-    assert!(state.get("properties").is_some());
+    assert!(state.get("Properties").is_some());
+    assert!(state.get("id").is_none());
+    assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
+}
+
+#[test]
+fn carving_masks_become_the_carving_mask() {
+    // `CarvingStepRemoveFix` (4057): a chunk's `CarvingMasks.AIR` bitset
+    // becomes its `carving_mask`, and `CarvingMasks` goes.
+    let mut chunk = snbt(
+        "{DataVersion: 4056, Status: \"minecraft:full\", CarvingMasks: {AIR: [L; 1L, 2L]}, \
+         sections: [{Y: 0b, block_states: {palette: [{Name: \"minecraft:stone\"}]}}]}",
+    );
+    update_chunk(&mut chunk, "minecraft:overworld", Some("minecraft:noise"));
+    assert_eq!(
+        chunk.get("carving_mask"),
+        Some(&Tag::LongArray(vec![1, 2]))
+    );
+    assert!(chunk.get("CarvingMasks").is_none());
     assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
 }
 

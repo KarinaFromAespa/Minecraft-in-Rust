@@ -107,7 +107,9 @@ impl<'de> Deserialize<'de> for Properties {
     }
 }
 
-/// A state as BlockState::from_nbt reads it: a name, or `{"id", "properties"}`.
+/// A state as BlockState::from_nbt reads it: a name, or `{"id", "properties"}` —
+/// or 26.2's `BlockState.CODEC` form, `{"Name", "Properties"}`, which is what
+/// the facts exporter writes for this release.
 struct State(BlockState);
 
 impl<'de> Deserialize<'de> for State {
@@ -128,12 +130,18 @@ impl<'de> Deserialize<'de> for State {
                 let (mut id, mut properties) = (None, None);
                 while let Some(key) = map.next_key::<std::borrow::Cow<'de, str>>()? {
                     match &*key {
-                        "id" if id.is_some() => return Err(de::Error::duplicate_field("id")),
-                        "id" => id = Some(map.next_value::<String>()?),
-                        "properties" if properties.is_some() => {
-                            return Err(de::Error::duplicate_field("properties"));
+                        "id" | "Name" => {
+                            if id.is_some() {
+                                return Err(de::Error::duplicate_field("id"));
+                            }
+                            id = Some(map.next_value::<String>()?);
                         }
-                        "properties" => properties = Some(map.next_value::<Properties>()?.0),
+                        "properties" | "Properties" => {
+                            if properties.is_some() {
+                                return Err(de::Error::duplicate_field("properties"));
+                            }
+                            properties = Some(map.next_value::<Properties>()?.0);
+                        }
                         _ => {
                             map.next_value::<IgnoredAny>()?;
                         }
@@ -162,15 +170,19 @@ mod tests {
 
     #[test]
     fn reads_states_and_defaults() {
-        let json = br#"{"defaults": {"minecraft:air": 0, "minecraft:oak_slab": 2},
+        let json = br#"{"defaults": {"minecraft:air": 0, "minecraft:oak_slab": 2, "minecraft:grass_block": 3},
             "states": [
               ["minecraft:air", true, false, "Block{minecraft:air}", "minecraft:air"],
               ["minecraft:oak_slab", false, false, "x", {"id": "minecraft:oak_slab", "properties": {"type": "top"}}, "extra"],
-              ["minecraft:oak_slab", false, true, "x", {"id": "minecraft:oak_slab", "properties": {"type": "bottom"}}]
+              ["minecraft:oak_slab", false, true, "x", {"id": "minecraft:oak_slab", "properties": {"type": "bottom"}}],
+              ["minecraft:grass_block", false, false, "x", {"Name": "minecraft:grass_block", "Properties": {"snowy": "true"}}]
             ], "other": [1, 2]}"#;
         let (registry, flags) = BlockRegistry::from_facts_json_with_flags(&json[..]).unwrap();
-        assert_eq!(registry.len(), 3);
-        assert_eq!(flags, [(true, false), (false, false), (false, true)]);
+        assert_eq!(registry.len(), 4);
+        assert_eq!(
+            flags,
+            [(true, false), (false, false), (false, true), (false, false)]
+        );
         assert_eq!(
             registry.default_state("minecraft:oak_slab"),
             Some(BlockStateId(2))
@@ -180,6 +192,11 @@ mod tests {
             properties: [("type".into(), "top".into())].into(),
         };
         assert_eq!(registry.id(&top), Some(BlockStateId(1)));
+        let snowy = BlockState {
+            name: "minecraft:grass_block".into(),
+            properties: [("snowy".into(), "true".into())].into(),
+        };
+        assert_eq!(registry.id(&snowy), Some(BlockStateId(3)));
         // A default naming another block, a short row, a missing default.
         for bad in [
             &br#"{"defaults": {"minecraft:air": 1}, "states": [["minecraft:air", true, false, "", "minecraft:air"], ["minecraft:stone", false, false, "", "minecraft:stone"]]}"#[..],

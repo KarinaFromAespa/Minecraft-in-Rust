@@ -997,7 +997,7 @@ pub struct BlockEntityRenderer {
     /// What draws: `vanilla`, or the packs' custom entity models over it.
     shapes: RwLock<Arc<BlockEntityShapes>>,
     kinds: Vec<Kind>,
-    /// Item id to its `PROVIDES_POTTERY_PATTERN` side texture (`Sheets.DECORATED_POT_MAPPER`).
+    /// Item id to its decorated-pot side texture (`Sheets.DECORATED_POT_MAPPER`).
     pot_patterns: HashMap<String, String>,
     /// `Block.shouldRenderFace` for End gateway faces (its occlusion pair cache needs a lock).
     visibility: Option<Mutex<FaceVisibility>>,
@@ -1459,20 +1459,18 @@ impl BlockEntityRenderer {
         registry: &BlockRegistry,
         visibility: FaceVisibility,
     ) -> Result<Self> {
-        Self::load_with_visibility_inner(root, registry, visibility, None, None)
+        Self::load_with_visibility_inner(root, registry, visibility, None)
     }
 
     /// Load from what the client startup batch already decoded: its entity-model
-    /// document (none reads `entity-models.json`) and the item defaults, avoiding a
-    /// second read and decode of either.
-    pub fn load_with_visibility_models_and_defaults(
+    /// document (none reads `entity-models.json`).
+    pub fn load_with_visibility_models(
         root: &Path,
         registry: &BlockRegistry,
         visibility: FaceVisibility,
         models: Option<&Value>,
-        defaults: &horizon_world::item_defaults::Defaults,
     ) -> Result<Self> {
-        Self::load_with_visibility_inner(root, registry, visibility, models, Some(defaults))
+        Self::load_with_visibility_inner(root, registry, visibility, models)
     }
 
     fn load_with_visibility_inner(
@@ -1480,7 +1478,6 @@ impl BlockEntityRenderer {
         registry: &BlockRegistry,
         visibility: FaceVisibility,
         models: Option<&Value>,
-        defaults: Option<&horizon_world::item_defaults::Defaults>,
     ) -> Result<Self> {
         let owned_models = if models.is_none() {
             Some(serde_json::from_slice(&std::fs::read(
@@ -1498,33 +1495,39 @@ impl BlockEntityRenderer {
         renderer.visibility = Some(Mutex::new(visibility));
         // The packs' custom entity models (`.jem` files), before anything draws.
         renderer.set_shapes(renderer.shapes_for(root));
-        // Sherd items: provides_pottery_pattern -> decorated_pot_pattern asset id.
-        let owned_defaults = if defaults.is_none() {
-            Some(match horizon_world::item_defaults::read(root) {
-                Ok(items) => items,
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Default::default(),
-                Err(e) => return Err(e.into()),
-            })
-        } else {
-            None
-        };
-        let items = defaults.or(owned_defaults.as_ref()).unwrap();
-        for (item, components) in items {
-            let Some(pattern) = components["minecraft:provides_pottery_pattern"].as_str() else {
-                continue;
-            };
-            let name = pattern.strip_prefix("minecraft:").unwrap_or(pattern);
-            let file = root.join(format!("data/minecraft/decorated_pot_pattern/{name}.json"));
-            let Ok(def) = std::fs::read(file) else {
-                continue;
-            };
-            let def: Value = serde_json::from_slice(&def)?;
-            if let Some(asset) = def["asset_id"].as_str() {
-                let asset = asset.strip_prefix("minecraft:").unwrap_or(asset);
-                renderer
-                    .pot_patterns
-                    .insert(item.clone(), format!("entity/decorated_pot/{asset}"));
-            }
+        // Sherd items: `DecoratedPotPatterns.itemToPatternMappings` (26.2)
+        // maps each sherd to its pattern, whose asset id is
+        // `<name>_pottery_pattern`. Brick maps to the blank pattern: no
+        // entry, so a brick side draws the blank side texture.
+        for name in [
+            "angler",
+            "archer",
+            "arms_up",
+            "blade",
+            "brewer",
+            "burn",
+            "danger",
+            "explorer",
+            "flow",
+            "friend",
+            "guster",
+            "heart",
+            "heartbreak",
+            "howl",
+            "miner",
+            "mourner",
+            "plenty",
+            "prize",
+            "scrape",
+            "sheaf",
+            "shelter",
+            "skull",
+            "snort",
+        ] {
+            renderer.pot_patterns.insert(
+                format!("minecraft:{name}_pottery_sherd"),
+                format!("entity/decorated_pot/{name}_pottery_pattern"),
+            );
         }
         Ok(renderer)
     }

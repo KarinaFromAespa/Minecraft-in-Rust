@@ -25,9 +25,8 @@ type Result<T> = std::result::Result<T, DecodeError>;
 
 /// `BuiltInRegistries.DATA_COMPONENT_TYPE`, which `has_component` and the
 /// `component` select validate against (checked by the harness).
-pub const DATA_COMPONENT_TYPES: [&str; 122] = [
+pub const DATA_COMPONENT_TYPES: [&str; 111] = [
     "minecraft:additional_trade_cost",
-    "minecraft:attack_animation",
     "minecraft:attack_range",
     "minecraft:attribute_modifiers",
     "minecraft:axolotl/variant",
@@ -36,10 +35,8 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:bees",
     "minecraft:block_entity_data",
     "minecraft:block_state",
-    "minecraft:block_transformer",
     "minecraft:blocks_attacks",
     "minecraft:break_sound",
-    "minecraft:brewing_fuel",
     "minecraft:bucket_entity_data",
     "minecraft:bundle_contents",
     "minecraft:can_break",
@@ -50,15 +47,12 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:charged_projectiles",
     "minecraft:chicken/sound_variant",
     "minecraft:chicken/variant",
-    "minecraft:compostable",
     "minecraft:consumable",
     "minecraft:container",
     "minecraft:container_loot",
-    "minecraft:cooking_fuel",
     "minecraft:cow/sound_variant",
     "minecraft:cow/variant",
     "minecraft:creative_slot_lock",
-    "minecraft:cushion/color",
     "minecraft:custom_data",
     "minecraft:custom_model_data",
     "minecraft:custom_name",
@@ -83,7 +77,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:horse/variant",
     "minecraft:instrument",
     "minecraft:intangible_projectile",
-    "minecraft:interact_animation",
     "minecraft:item_model",
     "minecraft:item_name",
     "minecraft:jukebox_playable",
@@ -92,13 +85,13 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:lock",
     "minecraft:lodestone_tracker",
     "minecraft:lore",
+    "minecraft:map_color",
     "minecraft:map_decorations",
     "minecraft:map_id",
     "minecraft:map_post_processing",
     "minecraft:max_damage",
     "minecraft:max_stack_size",
     "minecraft:minimum_attack_charge",
-    "minecraft:mob_visibility",
     "minecraft:mooshroom/variant",
     "minecraft:note_block_sound",
     "minecraft:ominous_bottle_amplifier",
@@ -112,7 +105,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:potion_duration_scale",
     "minecraft:profile",
     "minecraft:provides_banner_patterns",
-    "minecraft:provides_pottery_pattern",
     "minecraft:provides_trim_material",
     "minecraft:rabbit/variant",
     "minecraft:rarity",
@@ -122,11 +114,10 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:salmon/size",
     "minecraft:sheep/color",
     "minecraft:shulker/color",
-    "minecraft:sign_text_back",
-    "minecraft:sign_text_front",
     "minecraft:stored_enchantments",
     "minecraft:sulfur_cube_content",
     "minecraft:suspicious_stew_effects",
+    "minecraft:swing_animation",
     "minecraft:tool",
     "minecraft:tooltip_display",
     "minecraft:tooltip_style",
@@ -139,8 +130,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:use_effects",
     "minecraft:use_remainder",
     "minecraft:villager/variant",
-    "minecraft:villager_food",
-    "minecraft:waxed",
     "minecraft:weapon",
     "minecraft:wolf/collar",
     "minecraft:wolf/sound_variant",
@@ -612,12 +601,21 @@ impl SwitchCase {
 #[derive(Clone, Debug, PartialEq)]
 pub enum TintSource {
     Constant(i32),
-    CustomModelData { index: i32, default: i32 },
+    CustomModelData {
+        index: i32,
+        default: i32,
+    },
     Dye(i32),
-    Grass { temperature: f32, downfall: f32 },
+    Grass {
+        temperature: f32,
+        downfall: f32,
+    },
     Firework(i32),
     Potion(i32),
     Team(i32),
+    /// The filled map's `minecraft:map_color` component (26.2; the component
+    /// was removed in 26.3, so this variant is 26.2-only).
+    Map(i32),
 }
 impl TintSource {
     fn decode(v: &Value) -> Result<Self> {
@@ -645,6 +643,7 @@ impl TintSource {
             "minecraft:firework" => Self::Firework(default()?),
             "minecraft:potion" => Self::Potion(default()?),
             "minecraft:team" => Self::Team(default()?),
+            "minecraft:map_color" => Self::Map(default()?),
             // A mod's own tint source, which its Java code computes: untinted here.
             other if foreign::is_foreign(other) => Self::Constant(-1),
             _ => return Err(err("unknown item tint source")),
@@ -1706,6 +1705,10 @@ impl Resolve<'_> {
                     .and_then(|o| o.team_color)
                     .unwrap_or(*default),
             ),
+            TintSource::Map(default) => self
+                .component("minecraft:map_color")
+                .and_then(|v| int(v).ok())
+                .map_or(opaque(*default), opaque),
         }
     }
 }

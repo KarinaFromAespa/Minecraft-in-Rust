@@ -3179,9 +3179,10 @@ impl PlayerView {
     }
     /// `LivingEntity.getVisibilityPercent`: 1, ×0.8 while discrete
     /// (`isShiftKeyDown`), ×0.7×armor cover (at least 0.1) while invisible,
-    /// then each worn stack's `minecraft:mob_visibility` when its equippable
-    /// slot matches and `targeting` is in `targetingEntityTypes`. Clamped to
-    /// 0..=10 (`Mth.clamp`). `targeting` is null when nobody is looking.
+    /// then ×0.5 when the head slot holds the targeting mob's own head
+    /// (skeleton, zombie, piglin or creeper — 26.2's hardcoded rule; piglin
+    /// brutes are not fooled). Clamped to 0..=10 (`Mth.clamp`). `targeting`
+    /// is null when nobody is looking.
     pub fn visibility_percent(
         &self,
         targeting: Option<&str>,
@@ -6545,60 +6546,14 @@ mod silent_voice_tests {
 #[cfg(test)]
 mod visibility_percent_tests {
     use super::*;
-    use serde_json::json;
 
-    /// The four heads `Items` registers, with the component JSON vanilla writes.
-    fn heads() -> crate::items::Items {
-        let mut items = crate::items::Items::for_tests(HashMap::new());
-        items.insert_mob_visibility_component(
-            "minecraft:skeleton_skull",
-            &json!({
-                "minecraft:equippable": {"slot": "head", "swappable": false},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:skeleton",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:zombie_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:zombie",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:creeper_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": "minecraft:creeper",
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items.insert_mob_visibility_component(
-            "minecraft:piglin_head",
-            &json!({
-                "minecraft:equippable": {"slot": "head"},
-                "minecraft:mob_visibility": {
-                    "targeting_entity_types": ["minecraft:piglin", "minecraft:piglin_brute"],
-                    "visibility": 0.5
-                }
-            }),
-        );
-        items
-    }
-
-    /// `LivingEntity.getVisibilityPercent` halves the range for the mob named
-    /// on the worn head, and leaves every other mob at full range. A skull
-    /// held in the hand does not count: its equippable slot is the head.
+    /// `LivingEntity.getVisibilityPercent` halves the range for the mob whose
+    /// head is worn, and leaves every other mob at full range. A skull held
+    /// in the hand does not count: the rule reads the head slot only. Piglin
+    /// brutes are not fooled by a piglin head (26.2 checks `PIGLIN` only).
     #[test]
     fn worn_mob_heads_halve_that_mobs_detection_range() {
-        let items = heads();
+        let items = crate::items::Items::for_tests(HashMap::new());
         let see = |head: &str, mob: &str| {
             let mut player = world::test_player(Vec3::ZERO);
             player.head = Some(Arc::from(head));
@@ -6608,7 +6563,7 @@ mod visibility_percent_tests {
         assert_eq!(see("minecraft:zombie_head", "minecraft:zombie"), 0.5);
         assert_eq!(see("minecraft:creeper_head", "minecraft:creeper"), 0.5);
         assert_eq!(see("minecraft:piglin_head", "minecraft:piglin"), 0.5);
-        assert_eq!(see("minecraft:piglin_head", "minecraft:piglin_brute"), 0.5);
+        assert_eq!(see("minecraft:piglin_head", "minecraft:piglin_brute"), 1.0);
         assert_eq!(see("minecraft:skeleton_skull", "minecraft:zombie"), 1.0);
         assert_eq!(
             see("minecraft:piglin_head", "minecraft:zombified_piglin"),
