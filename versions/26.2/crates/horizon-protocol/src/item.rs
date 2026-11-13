@@ -121,12 +121,6 @@ pub mod component {
     pub const CONTAINER: i32 = 75;
     pub const SULFUR_CUBE_CONTENT: i32 = 78;
     pub const PAINTING_VARIANT: i32 = 103;
-    /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Not
-    /// pinned components (26.3 additions). The negative values are internal
-    /// markers only, so the arms that name them can never match a canonical
-    /// id here.
-    pub const SIGN_TEXT_FRONT: i32 = -1001;
-    pub const SIGN_TEXT_BACK: i32 = -1002;
 }
 
 /// A written book's content (`WrittenBookContent.STREAM_CODEC`). The raw title
@@ -1044,9 +1038,9 @@ fn skip_dropped(name: &str, _r: &mut Reader) -> Result<()> {
         // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 26.2 no
         // longer has (fire_resistant became damage_resistant; the two hide
         // flags folded into tooltip_display).
-        "minecraft:fire_resistant" | "minecraft:hide_tooltip" | "minecraft:hide_additional_tooltip" => {
-            Ok(())
-        }
+        "minecraft:fire_resistant"
+        | "minecraft:hide_tooltip"
+        | "minecraft:hide_additional_tooltip" => Ok(()),
         _ => Err(crate::Error::new(format!(
             "{name}: a component the pinned version no longer has"
         ))),

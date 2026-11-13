@@ -170,21 +170,19 @@ impl Pages {
                 if official =>
             {
                 let fast = station != Some("minecraft:furnace");
-                // AnyFuel uses DataComponentLookup: first occurrence of each
-                // component value sets the group order, then registry order within it.
-                let mut groups: Vec<(_, Vec<_>)> = Vec::new();
+                // AnyFuel groups fuels by burn time: first occurrence of each
+                // time sets the group order, then registry order within it.
+                let mut groups: Vec<(i32, Vec<_>)> = Vec::new();
                 for id in &items.registry_order {
-                    let Some(fuel) = items.get(id).and_then(|item| item.fuel.as_ref()) else {
-                        continue;
-                    };
                     let stack = ItemStack::new(id.as_ref(), 1);
-                    if providers.burn_time(items, &stack, fast) <= 0 {
+                    let time = providers.burn_time(items, &stack, fast);
+                    if time <= 0 {
                         continue;
                     }
-                    if let Some((_, group)) = groups.iter_mut().find(|(value, _)| *value == fuel) {
+                    if let Some((_, group)) = groups.iter_mut().find(|(t, _)| *t == time) {
                         group.push(stack);
                     } else {
-                        groups.push((fuel, vec![stack]));
+                        groups.push((time, vec![stack]));
                     }
                 }
                 groups.into_iter().flat_map(|(_, group)| group).collect()

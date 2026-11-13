@@ -563,19 +563,18 @@ impl Book {
                         items: stacks(ingredient),
                     });
                     if fuel_empty {
-                        // `SlotDisplay.AnyFuel`: every item with a cooking fuel
-                        // component, the registry's component lookup listing the
-                        // items of one component value together, the values in
-                        // the order of their first item.
-                        let mut groups: Vec<(String, Vec<ItemStack>)> = Vec::new();
+                        // `SlotDisplay.AnyFuel`: every item with a burn time,
+                        // in registry order, grouped by burn time, the groups
+                        // in the order of their first item.
+                        let mut groups: Vec<(i32, Vec<ItemStack>)> = Vec::new();
                         for item in &items.registry_order {
-                            let Some(fuel) = items.get(item).and_then(|i| i.fuel.as_ref()) else {
+                            let time = horizon_items::items::burn_time(items, item);
+                            if time <= 0 {
                                 continue;
-                            };
-                            let key = format!("{fuel:?}");
-                            match groups.iter_mut().find(|g| g.0 == key) {
+                            }
+                            match groups.iter_mut().find(|g| g.0 == time) {
                                 Some(group) => group.1.push(ItemStack::new(item, 1)),
-                                None => groups.push((key, vec![ItemStack::new(item, 1)])),
+                                None => groups.push((time, vec![ItemStack::new(item, 1)])),
                             }
                         }
                         let fuels = groups.into_iter().flat_map(|g| g.1).collect();

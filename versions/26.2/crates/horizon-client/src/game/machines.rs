@@ -421,10 +421,7 @@ impl Containers<'_> {
         match slot {
             2 => false,
             1 => {
-                let fuel = self
-                    .items
-                    .get(&stack.item)
-                    .is_some_and(|i| i.fuel.is_some());
+                let fuel = horizon_items::items::burn_time(self.items, &stack.item) > 0;
                 let current_bucket = self
                     .get(view, 1)
                     .is_some_and(|s| &*s.item == "minecraft:bucket");
@@ -1731,7 +1728,7 @@ mod brewing_fuel_transfer_tests {
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn hopper_brewing_fuel_transfer_respects_stack_components() {
+    fn hopper_brewing_fuel_transfer_accepts_only_tagged_fuel() {
         let mut game = server_game();
         let hopper_pos = (8, 64, 8);
         let stand_pos = (9, 64, 8);
@@ -1742,21 +1739,10 @@ mod brewing_fuel_transfer_tests {
             let state = game.pack.assets.registry.default_state(block).unwrap();
             game.world.set(pos.0, pos.1, pos.2, state).unwrap();
         }
-        let default = ItemStack::new("minecraft:blaze_powder", 2);
-        let mut custom = ItemStack::new("minecraft:stone", 2);
-        custom.data_mut().set_loot_component(
-            "minecraft:brewing_fuel",
-            &serde_json::json!({"uses": 7, "speed_multiplier": 2.5}),
-        );
-        let mut removed = default.clone();
-        removed.data_mut().set_other(
-            "!minecraft:brewing_fuel",
-            Some(horizon_world::nbt::Tag::Compound(Default::default())),
-        );
+        // 26.2 fuel is the `minecraft:brewing_fuel` tag (blaze powder); a
+        // stone is never fuel, whatever its components say.
         for (stack, accepted) in [
-            (default, true),
-            (custom, true),
-            (removed, false),
+            (ItemStack::new("minecraft:blaze_powder", 2), true),
             (ItemStack::new("minecraft:stone", 2), false),
         ] {
             game.world

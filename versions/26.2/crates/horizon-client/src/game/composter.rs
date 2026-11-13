@@ -2,9 +2,9 @@
 //! through its input container (hoppers, droppers, crafters above), and the
 //! fill feedback of level event 1500 (`handleFill`). Emptying a full
 //! composter by hand is `useWithoutItem` in horizon-world.
-use super::{Game, commands::compute::ComputeContext};
+use super::Game;
 use horizon_client::{
-    items::ItemStack,
+    items::{ItemStack, compost_chance},
     mobs::villager,
     particles::{ParticleOptions, ParticleType},
 };
@@ -20,22 +20,16 @@ impl Game<'_> {
         }
         s.properties.get("level")?.parse().ok()
     }
-    /// The item's `compostable` layers provider.
-    fn compostable(&self, stack: &ItemStack) -> Option<serde_json::Value> {
-        self.items().get(&stack.item)?.compostable.clone()
+    /// The item's `COMPOSTABLES` chance, or None when it is not compostable.
+    fn compostable(&self, stack: &ItemStack) -> Option<f32> {
+        compost_chance(&stack.item)
     }
-    /// `ComposterBlock.addLayer` and level event 1500: the provider is
-    /// evaluated in the composter's block-interaction loot context (its
-    /// state; the level random), then the layer is added. True when it was.
-    fn composter_add(&mut self, pos: [i32; 3], layers: &serde_json::Value) -> bool {
-        let context = ComputeContext {
-            block: Some(pos),
-            target: None,
-        };
-        let layers = self.provider_int(layers, &context, 0).unwrap_or(0);
+    /// `ComposterBlock.addItem` and level event 1500: the chance roll runs
+    /// in the level (its random), then the layer is added. True when it was.
+    fn composter_add(&mut self, pos: [i32; 3], chance: f32) -> bool {
         let before = self.world.block(pos[0], pos[1], pos[2]);
         let at = BlockPos::new(pos[0], pos[1], pos[2]);
-        let after = self.with_level(|b, level, ticks| b.composter_insert(level, ticks, at, layers));
+        let after = self.with_level(|b, level, ticks| b.composter_insert(level, ticks, at, chance));
         self.world.modified.insert((pos[0] >> 4, pos[2] >> 4));
         // The game event and level event 1500 happen here, before the caller goes on.
         let _ = self.process_level_events();
@@ -51,14 +45,14 @@ impl Game<'_> {
         let Some(stack) = held else {
             return false;
         };
-        let Some(layers) = self.compostable(stack) else {
+        let Some(chance) = self.compostable(stack) else {
             return false;
         };
         if level >= 8 {
             return false;
         }
         if level < 7 {
-            self.composter_add(pos, &layers);
+            self.composter_add(pos, chance);
             self.native_compost_item(pos, &stack.item);
             self.award_stat("used", &stack.item, 1);
             self.consume_held();
@@ -71,12 +65,7 @@ impl Game<'_> {
     /// compostable and the composter at `pos` below level 8 (SUCCESS).
     pub(super) fn composter_takes(&self, pos: [i32; 3], held: Option<&ItemStack>) -> bool {
         self.composter_level(pos).is_some_and(|level| level < 8)
-            && held.is_some_and(|stack| {
-                self.res
-                    .items()
-                    .get(&stack.item)
-                    .is_some_and(|i| i.compostable.is_some())
-            })
+            && held.is_some_and(|stack| compost_chance(&stack.item).is_some())
     }
     /// `HopperBlockEntity.addItem` into the composter's `InputContainer`
     /// (levels 0 to 6; one item, compostable, from above): the remainder.
@@ -92,13 +81,13 @@ impl Game<'_> {
         if !from_above || level >= 7 {
             return Some(stack);
         }
-        let Some(layers) = self.compostable(&stack) else {
+        let Some(chance) = self.compostable(&stack) else {
             return Some(stack);
         };
         // InputContainer.getMaxStackSize is 1: one item goes in, and its
         // setChanged composts it at once.
         stack.count -= 1;
-        self.composter_add(pos, &layers);
+        self.composter_add(pos, chance);
         (stack.count > 0).then_some(stack)
     }
     /// `WorkAtComposter.compostItems` for the villager at `mob`: a full
@@ -159,16 +148,11 @@ impl Game<'_> {
         if self.composter_level(pos).is_none_or(|level| level >= 7) {
             return;
         }
-        let Some(layers) = self.compostable(stack) else {
+        let Some(chance) = self.compostable(stack) else {
             return;
         };
-        let context = ComputeContext {
-            block: Some(pos),
-            target: None,
-        };
-        let layers = self.provider_int(&layers, &context, 0).unwrap_or(0);
         let at = BlockPos::new(pos[0], pos[1], pos[2]);
-        self.with_level(|b, level, ticks| b.composter_layer(level, ticks, at, layers));
+        self.with_level(|b, level, ticks| b.composter_layer(level, ticks, at, chance));
         self.world.modified.insert((pos[0] >> 4, pos[2] >> 4));
         let _ = self.process_level_events();
         let inventory = &mut villager::ext_mut(&mut self.mobs[mob]).inventory;

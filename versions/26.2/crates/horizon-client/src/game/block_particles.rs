@@ -175,6 +175,7 @@ impl Game<'_> {
             "scrape" => self.level_event_at(3005, pos, 0),
             "wax_on" => self.level_event_at(3003, pos, 0),
             "wax_off" => self.level_event_at(3004, pos, 0),
+            "dowse" => self.level_event_at(1009, pos, 0),
             _ => {}
         }
     }

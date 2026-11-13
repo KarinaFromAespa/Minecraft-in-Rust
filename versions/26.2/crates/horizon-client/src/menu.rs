@@ -1430,7 +1430,7 @@ impl Menu {
     }
 
     fn is_fuel(env: &Env, stack: &ItemStack) -> bool {
-        env.items.get(&stack.item).is_some_and(|i| i.fuel.is_some())
+        horizon_items::items::burn_time(env.items, &stack.item) > 0
     }
 
     // ---- Slot ----
@@ -3509,10 +3509,18 @@ pub(crate) mod tests {
         test(&env, &mut menu);
     }
 
-    /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same component.
+    /// `BrewingStandMenu.FuelSlot` and `quickMoveStack` use the same rule:
+    /// the `minecraft:brewing_fuel` tag (blaze powder).
     #[test]
-    fn brewing_fuel_slot_and_quick_move_use_stack_components() {
-        let items = Items::for_tests(Default::default());
+    fn brewing_fuel_slot_and_quick_move_use_the_fuel_tag() {
+        let items = Items::for_tests(
+            [(
+                "minecraft:brewing_fuel".to_owned(),
+                ["minecraft:blaze_powder".to_owned()].into_iter().collect(),
+            )]
+            .into_iter()
+            .collect(),
+        );
         let root = std::path::Path::new("");
         let recipes = Recipes::empty();
         let brewing = Brewing::load(root, &items, &PackOverlay::NONE);
@@ -3533,11 +3541,7 @@ pub(crate) mod tests {
             limited_crafting: false,
             known_recipes: None,
         };
-        let mut fuel = ItemStack::new("minecraft:stone", 2);
-        fuel.data_mut().set_loot_component(
-            "minecraft:brewing_fuel",
-            &serde_json::json!({"uses": 7, "speed_multiplier": 2.5}),
-        );
+        let fuel = ItemStack::new("minecraft:blaze_powder", 2);
         let mut menu = Menu::new(Kind::Brewing);
         assert!(menu.may_place(&env, 4, &fuel));
         menu.set_slot(&env, 5, Some(fuel));

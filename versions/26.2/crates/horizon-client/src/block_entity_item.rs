@@ -149,8 +149,6 @@ enum Part {
     Items(usize),
     /// `LootTable` and `LootTableSeed` as `minecraft:container_loot`.
     Loot,
-    /// `is_waxed` as `minecraft:waxed`.
-    Waxed,
     /// A decorated pot's `item` as `minecraft:container`.
     PotItem,
     /// Left out of the item's data, with no component.
@@ -188,10 +186,12 @@ fn parts(id: &str) -> &'static [Part] {
             Part::Same("sherds", "minecraft:pot_decorations"),
             Part::PotItem,
         ],
+        // 26.2 has no `sign_text_front`/`sign_text_back` or `waxed`
+        // component: a sign's text and wax are lost when it becomes an item.
         "minecraft:sign" | "minecraft:hanging_sign" => &[
-            Part::Same("front_text", "minecraft:sign_text_front"),
-            Part::Same("back_text", "minecraft:sign_text_back"),
-            Part::Waxed,
+            Part::Drop("front_text"),
+            Part::Drop("back_text"),
+            Part::Drop("is_waxed"),
         ],
         "minecraft:skull" => &[
             Part::Same("profile", "minecraft:profile"),
@@ -227,10 +227,6 @@ fn collect(part: Part, tag: &Tag) -> Option<(&'static str, Option<Tag>)> {
             });
             ("minecraft:container_loot", loot)
         }
-        Part::Waxed => (
-            "minecraft:waxed",
-            crate::entity_nbt::flag(tag, "is_waxed").then(|| Tag::Compound(Compound::new())),
-        ),
         Part::PotItem => {
             let slots = match tag.get("item") {
                 Some(Tag::Compound(item)) => Some(container_slot(0, item.clone())),
@@ -248,9 +244,6 @@ fn unset(component: &str) -> Option<Tag> {
     Some(match component {
         "minecraft:bees" | "minecraft:banner_patterns" => Tag::List(Vec::new()),
         "minecraft:pot_decorations" => Tag::Compound(Compound::new()),
-        "minecraft:sign_text_front" | "minecraft:sign_text_back" => {
-            block_entity_nbt::sign_side(None)
-        }
         _ => return None,
     })
 }
@@ -290,9 +283,6 @@ fn item_default(component: &str) -> Option<Tag> {
                 ("left", brick()),
                 ("right", brick()),
             ])
-        }
-        "minecraft:sign_text_front" | "minecraft:sign_text_back" => {
-            block_entity_nbt::sign_side(None)
         }
         _ => return None,
     })
@@ -346,7 +336,6 @@ pub fn pick(saved: &Tag) -> Compound {
                 data.remove(&JavaString::from("LootTableSeed"));
                 "LootTable"
             }
-            Part::Waxed => "is_waxed",
             Part::PotItem => "item",
         };
         data.remove(&JavaString::from(key));
@@ -444,13 +433,6 @@ pub fn place(saved: &Tag, components: &Compound, game_master: bool) -> Tag {
                     set("LootTable", loot.get("loot_table").cloned());
                     set("LootTableSeed", loot.get("seed").cloned());
                 }
-            }
-            Part::Waxed => {
-                read.push("minecraft:waxed");
-                set(
-                    "is_waxed",
-                    Some(Tag::Byte(i8::from(get("minecraft:waxed").is_some()))),
-                );
             }
             Part::PotItem => {
                 read.push(CONTAINER);
@@ -728,16 +710,18 @@ mod tests {
         )));
     }
 
+    /// 26.2 has no `sign_text_front`/`sign_text_back` or `waxed` component:
+    /// a written, waxed sign picked up gives a plain sign — its text and
+    /// wax are lost.
     #[test]
-    fn a_written_sign_gives_its_text_and_wax() {
+    fn a_written_sign_gives_a_plain_sign() {
         let sign = saved(
             "{id:\"minecraft:sign\",x:0,y:0,z:0,is_waxed:1b,\
              front_text:{messages:[\"a\",\"b\",\"\",\"\"]}}",
         );
         let patch = pick(&sign);
-        let keys: Vec<String> = patch.keys().map(|k| k.to_string_lossy()).collect();
-        assert_eq!(keys, ["minecraft:sign_text_front", "minecraft:waxed"]);
+        assert!(patch.is_empty());
         let fresh = saved("{id:\"minecraft:sign\",x:0,y:0,z:0}");
-        assert_eq!(place(&fresh, &patch, false), sign);
+        assert_eq!(place(&fresh, &patch, false), fresh);
     }
 }

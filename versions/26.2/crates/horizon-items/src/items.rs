@@ -170,12 +170,6 @@ pub struct ItemInfo {
     /// Main-hand `attack_damage` / `attack_speed` modifier amounts.
     pub attack_damage: f32,
     pub attack_speed: f32,
-    /// `cooking_fuel`: burn-time and speed-multiplier provider references.
-    pub fuel: Option<(Value, Value)>,
-    /// `brewing_fuel`: uses and speed-multiplier provider references.
-    pub brewing_fuel: Option<(Value, Value)>,
-    /// `compostable.layers`: the layers provider (`ComposterBlock.addLayer`).
-    pub compostable: Option<Value>,
     /// Item left behind after crafting/fuel use (e.g. bucket).
     pub remainder: Option<String>,
     /// `equippable.slot` (head, chest, legs, feet, ...).
@@ -193,8 +187,6 @@ pub struct ItemInfo {
     pub disable_blocking_seconds: f32,
     /// `weapon.item_damage_per_attack`, when the item is a weapon.
     pub weapon_damage: Option<u32>,
-    /// `villager_food.nutrition`: what a villager gets from eating it.
-    pub villager_food: Option<i32>,
     /// `use_effects.speed_multiplier` (UseEffects.DEFAULT: 0.2).
     pub use_speed: f32,
     /// `use_effects.can_sprint` (default false): sprinting may start while the
@@ -222,8 +214,6 @@ pub struct ItemInfo {
     pub dye: Option<String>,
     /// `cushion/color`: the DyeColor name of a cushion item.
     pub cushion_color: Option<String>,
-    /// `block_transformer`: the registry entry an axe, hoe or shovel uses on blocks.
-    pub block_transformer: Option<String>,
     /// Has a default `bundle_contents` (the bundles, `BundleItem`).
     pub bundle: bool,
     /// The ids of the item's default components (its prototype's keys).
@@ -374,9 +364,6 @@ thread_local! {
 }
 pub struct Items {
     pub items: HashMap<Arc<str>, ItemInfo>,
-    /// Default `minecraft:mob_visibility` by item id, with the `equippable`
-    /// slot it applies in (`LivingEntity.getVisibilityPercent`).
-    mob_visibility: HashMap<Arc<str>, (String, MobVisibility)>,
     pub order: Vec<Arc<str>>,
     /// The same items in item registry (network id) order, as vanilla lists
     /// them; sorted by name when the registry export is missing.
@@ -614,79 +601,229 @@ fn entity_spec(tags: &HashMap<String, HashSet<String>>, spec: &str) -> HashSet<S
         None => HashSet::from([spec.to_owned()]),
     }
 }
-/// `MobVisibility`: entity types a worn item hides its wearer from, and the
-/// factor `LivingEntity.getVisibilityPercent` multiplies by.
-#[derive(Clone, Debug)]
-pub struct MobVisibility {
-    pub targeting: HashSet<String>,
-    pub visibility: f32,
+/// `Villager.FOOD_POINTS` (26.2): the hardcoded table — bread 4, potato,
+/// carrot and beetroot 1, everything else 0. 26.2 has no `villager_food`
+/// component; the table lives in the mob, not the registry.
+pub fn villager_food(item: &str) -> i32 {
+    match item {
+        "minecraft:bread" => 4,
+        "minecraft:potato" | "minecraft:carrot" | "minecraft:beetroot" => 1,
+        _ => 0,
+    }
 }
-/// `minecraft:mob_visibility` (`targeting_entity_types` is one id, a `#tag`,
-/// or a list) when the object is present and names at least one type.
-fn parse_mob_visibility(
-    v: &Value,
-    tags: &HashMap<String, HashSet<String>>,
-) -> Option<MobVisibility> {
-    if !v.is_object() {
-        return None;
-    }
-    let visibility = v.get("visibility")?.as_f64()? as f32;
-    let targeting = match v.get("targeting_entity_types")? {
-        Value::String(spec) => entity_spec(tags, spec),
-        Value::Array(list) => list
-            .iter()
-            .filter_map(Value::as_str)
-            .flat_map(|spec| entity_spec(tags, spec))
-            .collect(),
+
+/// `ComposterBlock.COMPOSTABLES` (26.2): the hardcoded chance an item adds
+/// a layer when composted, or `None` when it is not compostable. 26.2 has
+/// no `compostable` component; the table lives in the block.
+pub fn compost_chance(item: &str) -> Option<f32> {
+    Some(match item {
+        "minecraft:acacia_leaves"
+        | "minecraft:acacia_sapling"
+        | "minecraft:azalea_leaves"
+        | "minecraft:beetroot_seeds"
+        | "minecraft:birch_leaves"
+        | "minecraft:birch_sapling"
+        | "minecraft:bush"
+        | "minecraft:cactus_flower"
+        | "minecraft:cherry_leaves"
+        | "minecraft:cherry_sapling"
+        | "minecraft:dark_oak_leaves"
+        | "minecraft:dark_oak_sapling"
+        | "minecraft:dried_kelp"
+        | "minecraft:firefly_bush"
+        | "minecraft:glow_berries"
+        | "minecraft:hanging_roots"
+        | "minecraft:jungle_leaves"
+        | "minecraft:jungle_sapling"
+        | "minecraft:kelp"
+        | "minecraft:leaf_litter"
+        | "minecraft:mangrove_leaves"
+        | "minecraft:mangrove_propagule"
+        | "minecraft:mangrove_roots"
+        | "minecraft:melon_seeds"
+        | "minecraft:moss_carpet"
+        | "minecraft:oak_leaves"
+        | "minecraft:oak_sapling"
+        | "minecraft:pale_hanging_moss"
+        | "minecraft:pale_moss_carpet"
+        | "minecraft:pale_oak_leaves"
+        | "minecraft:pale_oak_sapling"
+        | "minecraft:pink_petals"
+        | "minecraft:pitcher_pod"
+        | "minecraft:pumpkin_seeds"
+        | "minecraft:seagrass"
+        | "minecraft:short_dry_grass"
+        | "minecraft:short_grass"
+        | "minecraft:small_dripleaf"
+        | "minecraft:spruce_leaves"
+        | "minecraft:spruce_sapling"
+        | "minecraft:sweet_berries"
+        | "minecraft:tall_dry_grass"
+        | "minecraft:torchflower_seeds"
+        | "minecraft:wheat_seeds"
+        | "minecraft:wildflowers" => 0.3,
+        "minecraft:cactus"
+        | "minecraft:dried_kelp_block"
+        | "minecraft:flowering_azalea_leaves"
+        | "minecraft:glow_lichen"
+        | "minecraft:melon_slice"
+        | "minecraft:nether_sprouts"
+        | "minecraft:sugar_cane"
+        | "minecraft:tall_grass"
+        | "minecraft:twisting_vines"
+        | "minecraft:vine"
+        | "minecraft:weeping_vines" => 0.5,
+        "minecraft:allium"
+        | "minecraft:apple"
+        | "minecraft:azalea"
+        | "minecraft:azure_bluet"
+        | "minecraft:beetroot"
+        | "minecraft:big_dripleaf"
+        | "minecraft:blue_orchid"
+        | "minecraft:brown_mushroom"
+        | "minecraft:carrot"
+        | "minecraft:carved_pumpkin"
+        | "minecraft:closed_eyeblossom"
+        | "minecraft:cocoa_beans"
+        | "minecraft:cornflower"
+        | "minecraft:crimson_fungus"
+        | "minecraft:crimson_roots"
+        | "minecraft:dandelion"
+        | "minecraft:fern"
+        | "minecraft:large_fern"
+        | "minecraft:lilac"
+        | "minecraft:lily_of_the_valley"
+        | "minecraft:lily_pad"
+        | "minecraft:melon"
+        | "minecraft:moss_block"
+        | "minecraft:mushroom_stem"
+        | "minecraft:nether_wart"
+        | "minecraft:open_eyeblossom"
+        | "minecraft:orange_tulip"
+        | "minecraft:oxeye_daisy"
+        | "minecraft:pale_moss_block"
+        | "minecraft:peony"
+        | "minecraft:pink_tulip"
+        | "minecraft:poppy"
+        | "minecraft:potato"
+        | "minecraft:pumpkin"
+        | "minecraft:red_mushroom"
+        | "minecraft:red_tulip"
+        | "minecraft:rose_bush"
+        | "minecraft:sea_pickle"
+        | "minecraft:shroomlight"
+        | "minecraft:spore_blossom"
+        | "minecraft:sunflower"
+        | "minecraft:warped_fungus"
+        | "minecraft:warped_roots"
+        | "minecraft:wheat"
+        | "minecraft:white_tulip"
+        | "minecraft:wither_rose" => 0.65,
+        "minecraft:baked_potato"
+        | "minecraft:bread"
+        | "minecraft:brown_mushroom_block"
+        | "minecraft:cookie"
+        | "minecraft:flowering_azalea"
+        | "minecraft:hay_block"
+        | "minecraft:nether_wart_block"
+        | "minecraft:pitcher_plant"
+        | "minecraft:red_mushroom_block"
+        | "minecraft:torchflower"
+        | "minecraft:warped_wart_block" => 0.85,
+        "minecraft:cake" | "minecraft:pumpkin_pie" => 1.0,
         _ => return None,
-    };
-    if targeting.is_empty() {
-        return None;
-    }
-    Some(MobVisibility {
-        targeting,
-        visibility,
     })
 }
-/// The item's `equippable.slot` and `mob_visibility`, when both are set.
-/// `getVisibilityPercent` multiplies only when the stack is in that slot.
-fn worn_mob_visibility(
-    components: &Value,
-    tags: &HashMap<String, HashSet<String>>,
-) -> Option<(String, MobVisibility)> {
-    let slot = components
-        .get("minecraft:equippable")?
-        .get("slot")?
-        .as_str()?
-        .to_owned();
-    Some((
-        slot,
-        parse_mob_visibility(components.get("minecraft:mob_visibility")?, tags)?,
-    ))
-}
-/// Every item of the last item registry loaded with its `villager_food`
-/// nutrition (0 without the component): what the mobs' villagers read, since
-/// a mob does not hold the registry (`None` until one is loaded).
-static VILLAGER_FOOD: std::sync::RwLock<Option<HashMap<Arc<str>, i32>>> =
-    std::sync::RwLock::new(None);
-fn set_villager_food(items: &HashMap<Arc<str>, ItemInfo>) {
-    let food = items
-        .values()
-        .map(|i| (i.id.clone(), i.villager_food.unwrap_or(0)))
-        .collect();
-    *VILLAGER_FOOD
-        .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(food);
-}
-/// `item`'s `villager_food` nutrition (`DataComponents.VILLAGER_FOOD`): its
-/// value in the loaded registry (0 for an item without the component), or
-/// `None` while no registry is loaded or the loaded one lacks the item (a
-/// test's content root without the vanilla items).
-pub fn villager_food(item: &str) -> Option<i32> {
-    let food = VILLAGER_FOOD
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    food.as_ref().and_then(|f| f.get(item).copied())
+
+/// `FuelValues.vanillaBurnTimes` (26.2): the hardcoded burn-time table,
+/// base unit 200. 26.2 has no `cooking_fuel` component and no fuel speed
+/// effect; smoker/blast-furnace speed comes from the recipes' own times.
+/// Items in `minecraft:non_flammable_wood` (crimson/warped wood) burn
+/// for nothing, whatever tag else they sit in. 0 when the item is not fuel.
+pub fn burn_time(items: &Items, item: &str) -> i32 {
+    if items.item_in_tag("minecraft:non_flammable_wood", item) {
+        return 0;
+    }
+    match item {
+        "minecraft:lava_bucket" => return 20000,
+        "minecraft:coal_block" => return 16000,
+        "minecraft:blaze_rod" => return 2400,
+        "minecraft:coal" | "minecraft:charcoal" => return 1600,
+        "minecraft:dried_kelp_block" => return 4001,
+        "minecraft:bamboo" | "minecraft:scaffolding" => return 50,
+        "minecraft:stick"
+        | "minecraft:bowl"
+        | "minecraft:dead_bush"
+        | "minecraft:short_dry_grass"
+        | "minecraft:tall_dry_grass"
+        | "minecraft:azalea"
+        | "minecraft:flowering_azalea"
+        | "minecraft:leaf_litter" => return 100,
+        "minecraft:wooden_shovel"
+        | "minecraft:wooden_sword"
+        | "minecraft:wooden_spear"
+        | "minecraft:wooden_hoe"
+        | "minecraft:wooden_axe"
+        | "minecraft:wooden_pickaxe" => return 200,
+        "minecraft:bamboo_mosaic"
+        | "minecraft:bamboo_mosaic_stairs"
+        | "minecraft:note_block"
+        | "minecraft:bookshelf"
+        | "minecraft:chiseled_bookshelf"
+        | "minecraft:lectern"
+        | "minecraft:jukebox"
+        | "minecraft:chest"
+        | "minecraft:trapped_chest"
+        | "minecraft:crafting_table"
+        | "minecraft:daylight_detector"
+        | "minecraft:bow"
+        | "minecraft:fishing_rod"
+        | "minecraft:ladder"
+        | "minecraft:crossbow"
+        | "minecraft:loom"
+        | "minecraft:barrel"
+        | "minecraft:cartography_table"
+        | "minecraft:fletching_table"
+        | "minecraft:smithing_table"
+        | "minecraft:composter"
+        | "minecraft:mangrove_roots" => return 300,
+        "minecraft:bamboo_mosaic_slab" => return 150,
+        _ => {}
+    }
+    // No item sits in two of these tags with different times, so the
+    // order below does not matter; it follows the table's own order.
+    if items.item_in_tag("minecraft:boats", item) {
+        1200
+    } else if items.item_in_tag("minecraft:hanging_signs", item) {
+        800
+    } else if items.item_in_tag("minecraft:logs", item)
+        || items.item_in_tag("minecraft:bamboo_blocks", item)
+        || items.item_in_tag("minecraft:planks", item)
+        || items.item_in_tag("minecraft:wooden_stairs", item)
+        || items.item_in_tag("minecraft:wooden_trapdoors", item)
+        || items.item_in_tag("minecraft:wooden_pressure_plates", item)
+        || items.item_in_tag("minecraft:wooden_shelves", item)
+        || items.item_in_tag("minecraft:wooden_fences", item)
+        || items.item_in_tag("minecraft:fence_gates", item)
+        || items.item_in_tag("minecraft:banners", item)
+    {
+        300
+    } else if items.item_in_tag("minecraft:signs", item)
+        || items.item_in_tag("minecraft:wooden_doors", item)
+    {
+        200
+    } else if items.item_in_tag("minecraft:wooden_slabs", item) {
+        150
+    } else if items.item_in_tag("minecraft:wool", item)
+        || items.item_in_tag("minecraft:wooden_buttons", item)
+        || items.item_in_tag("minecraft:saplings", item)
+    {
+        100
+    } else if items.item_in_tag("minecraft:wool_carpets", item) {
+        67
+    } else {
+        0
+    }
 }
 
 impl Items {
@@ -813,7 +950,6 @@ impl Items {
         };
         let mut items = HashMap::new();
         let mut order = Vec::new();
-        let mut mob_visibility = HashMap::new();
         for (name, c) in raw.iter() {
             let id: Arc<str> = Arc::from(name.as_str());
             let tool = c["minecraft:tool"]["rules"]
@@ -939,7 +1075,6 @@ impl Items {
                     jukebox_song: c["minecraft:jukebox_playable"].as_str().map(str::to_owned),
                     dye: c["minecraft:dye"].as_str().map(str::to_owned),
                     cushion_color: c["minecraft:cushion/color"].as_str().map(str::to_owned),
-                    block_transformer: c["minecraft:block_transformer"].as_str().map(str::to_owned),
                     bundle: c.get("minecraft:bundle_contents").is_some(),
                     components: c
                         .as_object()
@@ -962,9 +1097,6 @@ impl Items {
                         .find(|(item, _)| *item == name)
                         .map(|(_, rest)| (*rest).to_owned())
                         .or_else(|| mod_remainders.get(name).cloned()),
-                    villager_food: c["minecraft:villager_food"]["nutrition"]
-                        .as_i64()
-                        .map(|n| n as i32),
                     use_speed: c["minecraft:use_effects"]["speed_multiplier"]
                         .as_f64()
                         .unwrap_or(0.2) as f32,
@@ -1006,13 +1138,6 @@ impl Items {
                             ))
                         })
                         .collect(),
-                    fuel: c
-                        .get("minecraft:cooking_fuel")
-                        .map(|f| (f["burn_time"].clone(), f["speed_multiplier"].clone())),
-                    brewing_fuel: c
-                        .get("minecraft:brewing_fuel")
-                        .map(|f| (f["uses"].clone(), f["speed_multiplier"].clone())),
-                    compostable: c.get("minecraft:compostable").map(|f| f["layers"].clone()),
                     remainder: c["minecraft:use_remainder"]["id"]
                         .as_str()
                         .or(c["minecraft:crafting_remainder"]["id"].as_str())
@@ -1022,9 +1147,6 @@ impl Items {
                     attack_speed: modifier("minecraft:attack_speed"),
                 },
             );
-            if let Some(parsed) = worn_mob_visibility(c, &entity_tags) {
-                mob_visibility.insert(id.clone(), parsed);
-            }
             order.push(id);
         }
         // Every loot table, keyed by its id (blocks/stone, entities/sheep/white,
@@ -1033,10 +1155,8 @@ impl Items {
         // game's own: one map with the loot data of the same root and packs.
         let loot = horizon_world::loot::shared_tables(root, overlay)?;
         let registry_order = registry_order(root, &order);
-        set_villager_food(&items);
         Ok(Self {
             items,
-            mob_visibility,
             order,
             registry_order,
             block_tags: load_tags(root, "block", overlay)?,
@@ -1058,21 +1178,22 @@ impl Items {
     /// `ItemStack.get(DataComponents.MOB_VISIBILITY).visibility()` when the
     /// prototype's equippable slot is `slot` and `targeting` is in
     /// `targetingEntityTypes`. None otherwise (`getVisibilityPercent` skips it).
+    /// `LivingEntity.getVisibilityPercent` (26.2), the head-slot half: a
+    /// skeleton/zombie/piglin/creeper sees a wearer of its own head at half
+    /// range, and only in the head slot. 26.2 has no `mob_visibility`
+    /// component; the rule is hardcoded (piglin brutes are NOT fooled).
     pub fn worn_visibility(&self, item: &str, slot: &str, targeting: &str) -> Option<f32> {
-        let (equip, vis) = self.mob_visibility.get(item)?;
-        if equip == slot && vis.targeting.contains(targeting) {
-            Some(vis.visibility)
-        } else {
-            None
+        if slot != "head" {
+            return None;
         }
-    }
-    /// Record one prototype's `equippable` and `mob_visibility` the way `load`
-    /// reads them from the default-component report.
-    #[cfg(any(test, feature = "test-support"))]
-    pub fn insert_mob_visibility_component(&mut self, id: &str, components: &Value) {
-        if let Some(parsed) = worn_mob_visibility(components, &HashMap::new()) {
-            self.mob_visibility.insert(Arc::from(id), parsed);
-        }
+        let matches = match targeting {
+            "minecraft:skeleton" => item == "minecraft:skeleton_skull",
+            "minecraft:zombie" => item == "minecraft:zombie_head",
+            "minecraft:piglin" => item == "minecraft:piglin_head",
+            "minecraft:creeper" => item == "minecraft:creeper_head",
+            _ => false,
+        };
+        matches.then_some(0.5)
     }
     /// The instrument a goat horn plays: its `instrument` component's
     /// registry entry or inline instrument.
@@ -1090,7 +1211,6 @@ impl Items {
     pub fn tags_only(root: &Path, overlay: &PackOverlay) -> Result<Self> {
         Ok(Self {
             items: HashMap::new(),
-            mob_visibility: HashMap::new(),
             order: Vec::new(),
             registry_order: Vec::new(),
             block_tags: load_tags(root, "block", overlay)?,
@@ -1107,7 +1227,6 @@ impl Items {
     pub fn for_tests(item_tags: HashMap<String, HashSet<String>>) -> Self {
         Self {
             items: HashMap::new(),
-            mob_visibility: HashMap::new(),
             order: Vec::new(),
             registry_order: Vec::new(),
             block_tags: HashMap::new(),
@@ -3892,34 +4011,87 @@ mod held_drop_tests {
 mod villager_food_tests {
     use super::*;
 
-    /// A villager's food is the item's `villager_food` component, read from the registry:
+    /// A villager's food is the hardcoded `Villager.FOOD_POINTS` table (26.2):
     /// vanilla's four (bread 4, the rest 1) and nothing else.
     #[test]
-    fn the_registry_tells_a_villagers_food() {
-        let Some(items) = prepared_items() else {
-            return;
-        };
-        let food: Vec<(&str, Option<i32>)> = [
-            "minecraft:bread",
-            "minecraft:carrot",
-            "minecraft:potato",
-            "minecraft:beetroot",
-            "minecraft:apple",
+    fn the_hardcoded_table_tells_a_villagers_food() {
+        assert_eq!(villager_food("minecraft:bread"), 4);
+        assert_eq!(villager_food("minecraft:carrot"), 1);
+        assert_eq!(villager_food("minecraft:potato"), 1);
+        assert_eq!(villager_food("minecraft:beetroot"), 1);
+        assert_eq!(villager_food("minecraft:apple"), 0);
+    }
+}
+
+#[cfg(test)]
+mod fuel_and_compost_tests {
+    use super::*;
+
+    /// `FuelValues.vanillaBurnTimes` spot checks (base unit 200): exact
+    /// items, one tag member per time, and the non-flammable-wood exclusion.
+    #[test]
+    fn burn_times_match_the_vanilla_table() {
+        let tags: HashMap<String, HashSet<String>> = [
+            ("minecraft:logs", &["minecraft:oak_log"][..]),
+            ("minecraft:planks", &["minecraft:oak_planks"][..]),
+            ("minecraft:wooden_slabs", &["minecraft:oak_slab"][..]),
+            ("minecraft:signs", &["minecraft:oak_sign"][..]),
+            (
+                "minecraft:hanging_signs",
+                &["minecraft:oak_hanging_sign"][..],
+            ),
+            ("minecraft:boats", &["minecraft:oak_boat"][..]),
+            ("minecraft:wool", &["minecraft:white_wool"][..]),
+            ("minecraft:wool_carpets", &["minecraft:white_carpet"][..]),
+            ("minecraft:saplings", &["minecraft:oak_sapling"][..]),
+            (
+                "minecraft:non_flammable_wood",
+                &["minecraft:crimson_stem", "minecraft:warped_planks"][..],
+            ),
         ]
-        .map(|i| (i, items.get(i).and_then(|i| i.villager_food)))
-        .into();
-        assert_eq!(
-            food,
-            [
-                ("minecraft:bread", Some(4)),
-                ("minecraft:carrot", Some(1)),
-                ("minecraft:potato", Some(1)),
-                ("minecraft:beetroot", Some(1)),
-                ("minecraft:apple", None),
-            ]
-        );
-        // Loading the registry hands the mobs the same table.
-        assert_eq!(villager_food("minecraft:bread"), Some(4));
-        assert_eq!(villager_food("minecraft:apple"), Some(0));
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), v.iter().map(|s| s.to_string()).collect()))
+        .collect();
+        let items = Items::for_tests(tags);
+        assert_eq!(burn_time(&items, "minecraft:lava_bucket"), 20000);
+        assert_eq!(burn_time(&items, "minecraft:coal_block"), 16000);
+        assert_eq!(burn_time(&items, "minecraft:blaze_rod"), 2400);
+        assert_eq!(burn_time(&items, "minecraft:coal"), 1600);
+        assert_eq!(burn_time(&items, "minecraft:charcoal"), 1600);
+        assert_eq!(burn_time(&items, "minecraft:dried_kelp_block"), 4001);
+        assert_eq!(burn_time(&items, "minecraft:bamboo"), 50);
+        assert_eq!(burn_time(&items, "minecraft:scaffolding"), 50);
+        assert_eq!(burn_time(&items, "minecraft:stick"), 100);
+        assert_eq!(burn_time(&items, "minecraft:wooden_sword"), 200);
+        assert_eq!(burn_time(&items, "minecraft:oak_log"), 300);
+        assert_eq!(burn_time(&items, "minecraft:oak_planks"), 300);
+        assert_eq!(burn_time(&items, "minecraft:oak_slab"), 150);
+        assert_eq!(burn_time(&items, "minecraft:oak_sign"), 200);
+        assert_eq!(burn_time(&items, "minecraft:oak_hanging_sign"), 800);
+        assert_eq!(burn_time(&items, "minecraft:oak_boat"), 1200);
+        assert_eq!(burn_time(&items, "minecraft:white_wool"), 100);
+        assert_eq!(burn_time(&items, "minecraft:white_carpet"), 67);
+        assert_eq!(burn_time(&items, "minecraft:oak_sapling"), 100);
+        // Crimson and warped wood never burn, whatever tag they sit in.
+        assert_eq!(burn_time(&items, "minecraft:crimson_stem"), 0);
+        assert_eq!(burn_time(&items, "minecraft:warped_planks"), 0);
+        assert_eq!(burn_time(&items, "minecraft:stone"), 0);
+    }
+
+    /// `ComposterBlock.COMPOSTABLES` spot checks, one per chance tier.
+    #[test]
+    fn compost_chances_match_the_vanilla_table() {
+        assert_eq!(compost_chance("minecraft:oak_leaves"), Some(0.3));
+        assert_eq!(compost_chance("minecraft:wheat_seeds"), Some(0.3));
+        assert_eq!(compost_chance("minecraft:cactus"), Some(0.5));
+        assert_eq!(compost_chance("minecraft:melon_slice"), Some(0.5));
+        assert_eq!(compost_chance("minecraft:apple"), Some(0.65));
+        assert_eq!(compost_chance("minecraft:carrot"), Some(0.65));
+        assert_eq!(compost_chance("minecraft:hay_block"), Some(0.85));
+        assert_eq!(compost_chance("minecraft:bread"), Some(0.85));
+        assert_eq!(compost_chance("minecraft:cake"), Some(1.0));
+        assert_eq!(compost_chance("minecraft:pumpkin_pie"), Some(1.0));
+        assert_eq!(compost_chance("minecraft:stone"), None);
+        assert_eq!(compost_chance("minecraft:dirt"), None);
     }
 }

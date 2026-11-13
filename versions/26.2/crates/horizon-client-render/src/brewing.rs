@@ -420,29 +420,35 @@ impl BrewingStand {
 }
 /// `ItemStack.get(BREWING_FUEL)`: the stack's providers (uses, speed_multiplier),
 /// respecting component patches before falling back to the item's defaults.
+/// `BrewingStandBlockEntity` (26.2): fuel is any item in the
+/// `minecraft:brewing_fuel` tag (blaze powder), 20 uses (`FUEL_USES`), brew
+/// speed 1.0 (the brew time is a flat 400 ticks). 26.2 has no
+/// `brewing_fuel` component.
 pub fn brewing_fuel(items: &Items, stack: &ItemStack) -> Option<(Value, Value)> {
-    if let Some(data) = stack.data() {
-        if data.other("!minecraft:brewing_fuel").is_some() {
-            return None;
-        }
-        if let Some(own) = data.other("minecraft:brewing_fuel") {
-            let component = horizon_client_core::scoreboard::tag_to_json(own);
-            return Some((
-                component["uses"].clone(),
-                component["speed_multiplier"].clone(),
-            ));
-        }
+    if items.item_in_tag("minecraft:brewing_fuel", &stack.item) {
+        Some((Value::from(20), Value::from(1.0)))
+    } else {
+        None
     }
-    items.get(&stack.item).and_then(|i| i.brewing_fuel.clone())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// `BrewingStandBlockEntity` (26.2): blaze powder — the only item in the
+    /// `minecraft:brewing_fuel` tag — loads 20 uses and brews in a flat 400
+    /// ticks; anything else is not fuel.
     #[test]
-    fn stack_fuel_controls_brew_duration_and_consumption() {
-        let items = Items::for_tests(Default::default());
+    fn blaze_powder_fuel_brews_in_400_ticks_for_20_uses() {
+        let items = Items::for_tests(
+            [(
+                "minecraft:brewing_fuel".to_owned(),
+                ["minecraft:blaze_powder".to_owned()].into_iter().collect(),
+            )]
+            .into_iter()
+            .collect(),
+        );
         let brewing = Brewing {
             reagents: ["minecraft:nether_wart".to_owned()].into_iter().collect(),
             inputs: HashSet::new(),
@@ -459,20 +465,18 @@ mod tests {
                 output: ItemStack::new("minecraft:potion", 1).with_potion("minecraft:awkward"),
             }],
         };
-        let mut fuel = ItemStack::new("minecraft:stone", 2);
-        fuel.data_mut().set_loot_component(
-            "minecraft:brewing_fuel",
-            &serde_json::json!({"uses": 7, "speed_multiplier": 2.5}),
-        );
         let mut stand = BrewingStand::new();
         stand.items[0] = Some(ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water"));
         stand.items[3] = Some(ItemStack::new("minecraft:nether_wart", 1));
-        stand.items[4] = Some(fuel);
+        stand.items[4] = Some(ItemStack::new("minecraft:blaze_powder", 2));
         let providers = Providers::empty();
         stand.tick(&brewing, &items, &providers);
-        assert_eq!((stand.brew_time, stand.fuel, stand.total_fuel), (160, 6, 7));
+        assert_eq!(
+            (stand.brew_time, stand.fuel, stand.total_fuel),
+            (400, 19, 20)
+        );
         assert_eq!(stand.items[4].as_ref().unwrap().count, 1);
-        for _ in 1..160 {
+        for _ in 1..400 {
             assert!(!stand.tick(&brewing, &items, &providers).brewed);
         }
         assert!(stand.tick(&brewing, &items, &providers).brewed);
@@ -480,8 +484,16 @@ mod tests {
             stand.items[0].as_ref().unwrap().potion(),
             Some("minecraft:awkward")
         );
-        assert_eq!(stand.fuel, 6);
+        assert_eq!(stand.fuel, 19);
         assert_eq!(stand.items[4].as_ref().unwrap().count, 1);
+
+        // Stone is not fuel: the stand never starts.
+        let mut stand = BrewingStand::new();
+        stand.items[0] = Some(ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water"));
+        stand.items[3] = Some(ItemStack::new("minecraft:nether_wart", 1));
+        stand.items[4] = Some(ItemStack::new("minecraft:stone", 1));
+        stand.tick(&brewing, &items, &providers);
+        assert_eq!((stand.brew_time, stand.fuel), (0, 0));
     }
 
     #[test]
