@@ -11,6 +11,10 @@ use std::{collections::BTreeMap, fmt, io};
 pub enum FallDefinition {
     Default,
     Hay,
+    /// `BedBlock.fallOn`: `super.fallOn(..., fallDistance * 0.5)` — no
+    /// bounce, the fall counts half as far. (26.2 only; 26.3 has no
+    /// `BedBlock` landing family.)
+    Bed,
     Honey { volume: f32, pitch: f32 },
     Slime,
     PowderSnow,
@@ -27,6 +31,7 @@ pub struct LandingDefinition {
 enum Rule {
     Default,
     Hay,
+    Bed,
     Honey { volume: f32, pitch: f32 },
     Slime,
     PowderSnow,
@@ -188,6 +193,7 @@ impl BlockLandingRegistry {
             let rule = match &definition.fall {
                 FallDefinition::Default => Rule::Default,
                 FallDefinition::Hay => Rule::Hay,
+                FallDefinition::Bed => Rule::Bed,
                 FallDefinition::Honey { volume, pitch } => Rule::Honey {
                     volume: *volume,
                     pitch: *pitch,
@@ -353,6 +359,20 @@ impl BlockLandingRegistry {
                     LandingDamage::Fall,
                     distance,
                     0.2,
+                )?;
+                return Ok(());
+            }
+            Rule::Bed => {
+                // `BedBlock.fallOn` halves the distance it hands to
+                // `Block.fallOn` (entity-owned fall source, multiplier 1.0) —
+                // unlike `HayBlock`, which passes a 0.2 multiplier to
+                // `causeFallDamage` against the level's sources.
+                cause(
+                    world,
+                    DamageSourceOwner::Entity,
+                    LandingDamage::Fall,
+                    distance * 0.5,
+                    1.0,
                 )?;
                 return Ok(());
             }

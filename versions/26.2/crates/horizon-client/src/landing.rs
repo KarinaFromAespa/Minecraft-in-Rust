@@ -53,6 +53,7 @@ pub fn load(root: &Path, properties: &MovementProperties<'_>) -> Result<BlockLan
         let fall = match d["fall"].as_str().ok_or("missing landing family")? {
             "Block" => FallDefinition::Default,
             "HayBlock" => FallDefinition::Hay,
+            "BedBlock" => FallDefinition::Bed,
             "HoneyBlock" => FallDefinition::Honey {
                 volume: float("volume")?,
                 pitch: float("pitch")?,
