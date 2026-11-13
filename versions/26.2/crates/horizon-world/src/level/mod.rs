@@ -972,6 +972,17 @@ impl Behaviours {
     pub fn is_solid(&self, state: BlockStateId) -> bool {
         self.has_flag(state, data::state_flags::SOLID)
     }
+    /// `BlockState.blocksMotion`: the state is solid, unless the block is a
+    /// cobweb or a bamboo sapling. 26.2 has no `blocks_motion` tag (26.3
+    /// added the tag family), so the heightmap, fluid flow and ice melt
+    /// all read this per-state rule instead.
+    pub fn blocks_motion(&self, state: BlockStateId) -> bool {
+        if !self.is_solid(state) {
+            return false;
+        }
+        let block = self.block(state);
+        block != self.named.cobweb && block != self.named.bamboo_sapling
+    }
     pub fn is_replaceable(&self, state: BlockStateId) -> bool {
         self.has_flag(state, data::state_flags::REPLACEABLE)
     }

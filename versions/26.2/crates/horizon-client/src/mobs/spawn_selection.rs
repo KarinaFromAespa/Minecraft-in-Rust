@@ -408,21 +408,22 @@ impl Heightmap {
 }
 
 /// `Heightmap.Types`' predicates: WORLD_SURFACE (not air), OCEAN_FLOOR
-/// (`#blocks_motion_in_heightmap`), MOTION_BLOCKING (that or a fluid) and
-/// MOTION_BLOCKING_NO_LEAVES (`#blocks_motion_in_heightmap_no_leaves` or a fluid).
+/// (`blocksMotion()`), MOTION_BLOCKING (that or a fluid) and
+/// MOTION_BLOCKING_NO_LEAVES (`blocksMotion()` on a non-leaves block, or a
+/// fluid). 26.2 has no `blocks_motion*` tags (26.3 added them); the
+/// per-state rule is solid (`isSolid`) except cobweb and bamboo saplings.
 pub fn heightmap_blocks<L: SpawnLevel>(l: &L, kind: Heightmap, x: i32, y: i32, z: i32) -> bool {
     let state = l.state(x, y, z);
     let f = l.facts().get(state);
     let fluid = f.fluid != crate::blocks::Fluid::None;
+    let motion = f.legacy_solid
+        && &*f.name != "minecraft:cobweb"
+        && &*f.name != "minecraft:bamboo_sapling";
     match kind {
         Heightmap::WorldSurface => !l.facts().is_air(state),
-        Heightmap::OceanFloor => l.block_tag("minecraft:blocks_motion_in_heightmap", &f.name),
-        Heightmap::MotionBlocking => {
-            fluid || l.block_tag("minecraft:blocks_motion_in_heightmap", &f.name)
-        }
-        Heightmap::MotionBlockingNoLeaves => {
-            fluid || l.block_tag("minecraft:blocks_motion_in_heightmap_no_leaves", &f.name)
-        }
+        Heightmap::OceanFloor => motion,
+        Heightmap::MotionBlocking => fluid || motion,
+        Heightmap::MotionBlockingNoLeaves => fluid || (motion && !f.has_class("LeavesBlock")),
     }
 }
 /// `LevelReader.getLightLevelDependentMagicValue`.

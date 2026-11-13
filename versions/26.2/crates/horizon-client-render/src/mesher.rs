@@ -960,7 +960,7 @@ impl MeshTables {
                     s.solid_render,
                     s.full_collision,
                 ),
-                blocks_flow: assets.blocks_fluid_flow.contains(&*s.name),
+                blocks_flow: assets.blocks_fluid_flow[id],
                 ice: s.has_class("IceBlock"),
                 opaque_ice: s.has_class("IceBlock") && !s.has_class("FrostedIceBlock"),
                 sturdy: s.sturdy_full,

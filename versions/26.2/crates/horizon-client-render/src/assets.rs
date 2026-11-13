@@ -70,8 +70,10 @@ pub struct Assets {
     pub registry: &'static BlockRegistry,
     pub properties: Properties,
     pub material_states: [BlockStateId; 6],
-    /// Block names in `#minecraft:blocks_fluid_flow` (fluid flow vectors).
-    pub blocks_fluid_flow: BTreeSet<String>,
+    /// Per-state `BlockState.blocksMotion()` (fluid flow vectors), indexed by
+    /// `BlockStateId.0`. 26.2 has no `blocks_fluid_flow` tag; fluid flow
+    /// reads the same per-state rule as the heightmap.
+    pub blocks_fluid_flow: Arc<[bool]>,
 }
 /// The block models and their baked sprites, read from the pack at `root` over
 /// an existing block registry: everything the mesher and renderer need.
@@ -207,27 +209,43 @@ impl Assets {
         if !built.missing.is_empty() {
             return Err(invalid("unresolved block tags").into());
         }
-        let motion: BTreeSet<_> = built
-            .tags
-            .get("minecraft:blocks_motion_in_heightmap")
-            .ok_or_else(|| invalid("missing motion tag"))?
+        // 26.2 has no `blocks_motion*`/`blocks_fluid_flow` tags (26.3 added
+        // them): `BlockState.blocksMotion()` is a per-state rule — solid
+        // (`isSolid`, bit 0 of the exported behaviour flags), except cobweb
+        // and bamboo saplings — and the heightmap and fluid flow both read
+        // it. Leaves are the blocks whose class chain holds `LeavesBlock`
+        // (`Heightmap.Types.MOTION_BLOCKING_NO_LEAVES` excludes them).
+        let behaviours: Value =
+            horizon_world::json_file::read(&root.join("block-behaviours.json"))?;
+        let behaviour_states = behaviours["states"]
+            .as_array()
+            .filter(|s| s.len() == registry.len())
+            .ok_or_else(|| invalid("block behaviour facts do not match the block registry"))?;
+        let leaves: BTreeSet<&str> = behaviours["blocks"]
+            .as_array()
+            .ok_or_else(|| invalid("missing block behaviour classes"))?
             .iter()
-            .map(String::as_str)
+            .filter(|b| {
+                b["class"]
+                    .as_array()
+                    .is_some_and(|chain| chain.iter().any(|c| c.as_str() == Some("LeavesBlock")))
+            })
+            .filter_map(|b| b["name"].as_str())
             .collect();
-        let no_leaves: BTreeSet<_> = built
-            .tags
-            .get("minecraft:blocks_motion_in_heightmap_no_leaves")
-            .ok_or_else(|| invalid("missing no-leaves motion tag"))?
+        let blocks_motion: Vec<bool> = behaviour_states
             .iter()
-            .map(String::as_str)
-            .collect();
-        let blocks_fluid_flow = built
-            .tags
-            .get("minecraft:blocks_fluid_flow")
-            .ok_or_else(|| invalid("missing fluid flow tag"))?
-            .iter()
-            .cloned()
-            .collect();
+            .enumerate()
+            .map(|(i, row)| {
+                if row[1].as_u64().unwrap_or(0) & 1 == 0 {
+                    return Ok(false);
+                }
+                let name = &registry
+                    .state(BlockStateId(i as u32))
+                    .ok_or_else(|| invalid("missing registry state"))?
+                    .name;
+                Ok(name != "minecraft:cobweb" && name != "minecraft:bamboo_sapling")
+            })
+            .collect::<Result<_>>()?;
         let properties = Properties(Arc::new(
             flags
                 .iter()
@@ -237,12 +255,13 @@ impl Assets {
                         .state(BlockStateId(i as u32))
                         .ok_or_else(|| invalid("missing registry state"))?
                         .name;
+                    let motion = blocks_motion[i];
                     Ok(StateFacts {
                         air,
                         fluid,
                         air_block: name == "minecraft:air",
-                        motion: motion.contains(name.as_str()),
-                        no_leaves: no_leaves.contains(name.as_str()),
+                        motion,
+                        no_leaves: motion && !leaves.contains(name.as_str()),
                     })
                 })
                 .collect::<Result<_>>()?,
@@ -261,7 +280,7 @@ impl Assets {
             registry,
             properties,
             material_states,
-            blocks_fluid_flow,
+            blocks_fluid_flow: blocks_motion.into(),
         })
     }
     /// The models and sprites of another resource root over these blocks
