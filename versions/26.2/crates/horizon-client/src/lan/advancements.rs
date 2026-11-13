@@ -889,7 +889,7 @@ mod tests {
             extra: None,
         })];
         let (found, _) = recipes
-            .find_with(&grid, 1, &|_| None)
+            .find_with(&grid, 1, &|_| None, &|_| false)
             .unwrap_or_else(|| panic!("{name}: the recipe matches a grid"));
         assert_eq!(
             found, name,

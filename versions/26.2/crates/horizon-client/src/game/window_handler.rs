@@ -77,13 +77,14 @@ impl Game<'_> {
             return;
         }
         follow_keymap(&mut event);
-        // MacosUtil.setCtrlClickEmulatesRightClick: Control + left click is a right click.
+        // 26.2 has no ctrlClickEmulatesRightClick option: on macOS,
+        // Control + left click is a right click, as GLFW delivers it.
         if let WindowEvent::MouseInput { state, button, .. } = &mut event
             && *button == MouseButton::Left
             && self.right_click_emulation.is_right_click(
                 *state == ElementState::Pressed,
                 self.modifiers.control_key(),
-                cfg!(target_os = "macos") && self.settings.ctrl_click_emulates_right_click,
+                cfg!(target_os = "macos"),
             )
         {
             *button = MouseButton::Right;

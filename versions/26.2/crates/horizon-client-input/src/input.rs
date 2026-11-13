@@ -71,8 +71,8 @@ fn square_movement(v: [f32; 2]) -> [f32; 2] {
 
 /// The platform's window-closing keyboard shortcut, held or not (the key
 /// combination of 26.3's `InputQuirks.isQuitShortcutDown`; 26.2 has no such
-/// method, but the shortcut itself is a platform convention the Horizon
-/// `quit_shortcuts` setting gates, not vanilla behaviour).
+/// method and no option gating it — the shortcut itself is a platform
+/// convention, and a close request always closes).
 /// - On macOS: Command (`super_key()`) + `Q`.
 /// - On Windows / Linux / other: Alt (`alt_key()`) + `F4`.
 pub fn is_quit_shortcut_down(modifiers: ModifiersState, keys: &HashSet<KeyCode>) -> bool {

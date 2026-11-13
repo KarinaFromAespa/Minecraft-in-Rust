@@ -10225,14 +10225,8 @@ impl Game<'_> {
         if self.pending_save.is_some() {
             match event {
                 WindowEvent::CloseRequested => {
-                    if !self.settings.quit_shortcuts
-                        && horizon_client::input::is_quit_shortcut_down(
-                            self.modifiers,
-                            &self.physical_keys,
-                        )
-                    {
-                        return;
-                    }
+                    // 26.2 has no quitShortcuts option: a close request
+                    // (the platform shortcut included) always closes.
                     self.pending_save.as_mut().unwrap().quit = true;
                 }
                 WindowEvent::Focused(focused) => {
@@ -10400,14 +10394,8 @@ impl Game<'_> {
             self.key_focus_mouse_press(&event);
             match event {
                 WindowEvent::CloseRequested => {
-                    if !self.settings.quit_shortcuts
-                        && horizon_client::input::is_quit_shortcut_down(
-                            self.modifiers,
-                            &self.physical_keys,
-                        )
-                    {
-                        return Ok(());
-                    }
+                    // 26.2 has no quitShortcuts option: a close request
+                    // (the platform shortcut included) always closes.
                     self.agent_cancel("the game window was closed; the game saves and exits");
                     self.begin_closing_save(true)?;
                 }

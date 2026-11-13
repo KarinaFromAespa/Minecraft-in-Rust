@@ -283,6 +283,15 @@ impl MapData {
             texture_dirty: true,
         }
     }
+    /// `MapItemSavedData.isExplorationMap` (26.2 only; 26.3 dropped the
+    /// flag): any carried decoration is an exploration-map element. A map
+    /// never carried has no decorations yet, so it reads as not one —
+    /// the same quirk as vanilla's `tickCarried` merge.
+    pub(super) fn is_exploration_map(&self) -> bool {
+        self.decorations
+            .iter()
+            .any(|d| is_exploration_decoration(d.sprite))
+    }
     /// The whole picture replaced by a mod (`native_paint_map`): saved with
     /// the maps and sent in full to everyone carrying it or seeing it framed,
     /// as `update_color` would over every pixel (`setColorsDirty`).
@@ -388,11 +397,18 @@ impl MapData {
             return;
         };
         let spinning = self.dimension == "minecraft:the_nether" && game_time.is_some();
+        // 26.2's `playerDecorationTypeAndRotation` returns rotation 0 for
+        // the outside-map markers (26.3 rotates them with the player).
+        let rot = if sprite == PLAYER_OFF_MAP || sprite == PLAYER_OFF_LIMITS {
+            0
+        } else {
+            decoration_rotation(spinning, game_time.unwrap_or(0), y_rot)
+        };
         let decoration = Decoration {
             sprite,
             x: clamp_map_coordinate(dx),
             y: clamp_map_coordinate(dz),
-            rot: decoration_rotation(spinning, game_time.unwrap_or(0), y_rot),
+            rot,
             name,
             key,
         };
@@ -822,6 +838,26 @@ fn tracks_count(sprite: &str) -> bool {
             )
     })
 }
+/// `MapDecorationType.explorationMapElement` (26.2 only; 26.3 dropped the
+/// flag): the mansion, the monument, the villages, the jungle temple, the
+/// swamp hut and the trial chambers mark a map as an exploration map.
+fn is_exploration_decoration(sprite: &str) -> bool {
+    decoration_type(sprite).is_some_and(|t| {
+        matches!(
+            t,
+            "mansion"
+                | "monument"
+                | "village_desert"
+                | "village_plains"
+                | "village_savanna"
+                | "village_snowy"
+                | "village_taiga"
+                | "jungle_temple"
+                | "swamp_hut"
+                | "trial_chambers"
+        )
+    })
+}
 /// The sprite of a decoration type that a `minecraft:map_decorations`
 /// entry or a server's packet names.
 fn decoration_sprite(id: &str) -> Option<&'static str> {
@@ -873,6 +909,21 @@ fn static_decorations(stack: &ItemStack) -> Vec<StaticDecoration> {
             ))
         })
         .collect()
+}
+/// `MapDecorationType.mapColor` of an exploration-map decoration type
+/// (26.2 only; 26.3 dropped the colour): the mansion, the monument, the
+/// villages, the jungle temple, the swamp hut and the trial chambers
+/// carry one. The villages, temple and hut share
+/// `MapColor.COLOR_LIGHT_GRAY.col` (0x999999).
+fn exploration_map_color(decoration: &str) -> Option<i32> {
+    match decoration.trim_start_matches("minecraft:") {
+        "mansion" => Some(5393476),
+        "monument" => Some(3830373),
+        "village_desert" | "village_plains" | "village_savanna" | "village_snowy"
+        | "village_taiga" | "jungle_temple" | "swamp_hut" => Some(10066329),
+        "trial_chambers" => Some(12741452),
+        _ => None,
+    }
 }
 /// `MapItemSavedData.addTargetDecoration`: the `"+"` entry of
 /// `minecraft:map_decorations`, rotation 180.
@@ -1074,6 +1125,12 @@ impl Game<'_> {
             "minecraft:map_decorations".into(),
             target_decoration(&map.decoration, at),
         ));
+        // `MapItemSavedData.addTargetDecoration` also sets MAP_COLOR from
+        // the decoration type (a bare int; 26.2 only).
+        d.other.retain(|(k, _)| k != "minecraft:map_color");
+        if let Some(rgb) = exploration_map_color(&map.decoration) {
+            d.other.push(("minecraft:map_color".into(), Tag::Int(rgb)));
+        }
         true
     }
     /// The unsearched exploration maps of a container being opened
@@ -1105,8 +1162,9 @@ impl Game<'_> {
             }
         }
     }
-    /// `MapItem.renderBiomePreviewMap`: the map's biomes at sea level, water
+    /// `MapItem.renderBiomePreviewMap`: the map's biomes at Y 0, water
     /// outlines (`#water_on_map_outlines`) drawn in orange and brown.
+    /// 26.2 samples the biome at Y 0; 26.3 moved it to sea level.
     pub(super) fn render_biome_preview(&mut self, id: i32) {
         let Some(terrain) = self.end.locator() else {
             return;
@@ -1126,13 +1184,13 @@ impl Game<'_> {
         let scale = 1i32 << m.scale;
         let start_x = m.center[0] / scale - 64;
         let start_z = m.center[1] / scale - 64;
-        let sea_level = 63;
+        let sample_y = 0;
         let quarts: Vec<[i32; 3]> = (0..128)
             .flat_map(|row| {
                 (0..128).map(move |column| {
                     zoom.quart_at_block(horizon_core::position::BlockPos::new(
                         (start_x + column) * scale,
-                        sea_level,
+                        sample_y,
                         (start_z + row) * scale,
                     ))
                 })

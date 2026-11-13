@@ -351,7 +351,8 @@ pub struct RightClickEmulation {
 }
 impl RightClickEmulation {
     /// Whether the left button's `pressed` or released event is a right click.
-    /// `enabled` is the option on macOS.
+    /// `enabled` is the platform behaviour on macOS (Control-click is a
+    /// right click there; 26.2 has no option for it).
     pub fn is_right_click(&mut self, pressed: bool, control: bool, enabled: bool) -> bool {
         if pressed {
             self.emulating = enabled && control;

@@ -123,25 +123,18 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::HighContrastBlockOutlines,
 ];
 
-/// `ControlsScreen.options`: the controls added by Java Edition 26.3, in
-/// their vanilla order. The macOS-only Control-click switch is omitted on
-/// other platforms just as `InputQuirks.EMULATE_RIGHT_CLICK_WITH_CTRL_KEY`
-/// does in Java.
+/// `ControlsScreen.options`: the controls added by Java Edition 26.2, in
+/// their vanilla order.
 pub(crate) fn vanilla_control_options() -> Vec<Opt> {
-    let mut options = vec![
+    vec![
         Opt::ToggleCrouch,
         Opt::ToggleSprint,
         Opt::ToggleAttack,
         Opt::ToggleUse,
         Opt::AutoJump,
         Opt::SprintWindow,
-        Opt::QuitShortcuts,
-    ];
-    if cfg!(target_os = "macos") {
-        options.push(Opt::CtrlClickEmulatesRightClick);
-    }
-    options.push(Opt::OperatorItemsTab);
-    options
+        Opt::OperatorItemsTab,
+    ]
 }
 
 /// `MouseSettingsScreen.options` in Java Edition 26.3, in vanilla order.
@@ -196,8 +189,6 @@ impl Opt {
             Opt::MusicFrequency => "musicFrequency",
             Opt::SoundDevice => "soundDevice",
             Opt::OperatorItemsTab => "operatorItemsTab",
-            Opt::QuitShortcuts => "quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "ctrlClickEmulatesRightClick",
             Opt::ModelPart(i) => MODEL_PART_KEYS[i],
             Opt::AllowServerListing => "allowServerListing",
             Opt::RealmsNotifications => "realmsNotifications",
@@ -258,8 +249,6 @@ impl Opt {
             Opt::ToggleUse => "key.use",
             Opt::AutoJump => "options.autoJump",
             Opt::SprintWindow => "options.sprintWindow",
-            Opt::QuitShortcuts => "options.quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "options.ctrlClickEmulatesRightClick",
             Opt::OperatorItemsTab => "options.operatorItemsTab",
             Opt::ChatVisibility => "options.chat.visibility",
             Opt::ChatColors => "options.chat.color",
@@ -811,8 +800,6 @@ impl Opt {
                 "options.key.hold"
             }),
             Opt::AutoJump => on_off(s.auto_jump),
-            Opt::QuitShortcuts => on_off(s.quit_shortcuts),
-            Opt::CtrlClickEmulatesRightClick => on_off(s.ctrl_click_emulates_right_click),
             Opt::OperatorItemsTab => on_off(s.operator_items_tab),
             Opt::ChatVisibility => tr([
                 "options.chat.visibility.full",
@@ -1101,10 +1088,6 @@ impl Opt {
             Opt::ToggleAttack => s.toggle_attack = !s.toggle_attack,
             Opt::ToggleUse => s.toggle_use = !s.toggle_use,
             Opt::AutoJump => s.auto_jump = !s.auto_jump,
-            Opt::QuitShortcuts => s.quit_shortcuts = !s.quit_shortcuts,
-            Opt::CtrlClickEmulatesRightClick => {
-                s.ctrl_click_emulates_right_click = !s.ctrl_click_emulates_right_click
-            }
             Opt::OperatorItemsTab => s.operator_items_tab = !s.operator_items_tab,
             Opt::ChatVisibility => s.chat_visibility = next(s.chat_visibility, 3),
             Opt::ChatColors => s.chat_colors = !s.chat_colors,
@@ -5415,27 +5398,12 @@ mod tests {
         let mut settings = Settings::default();
         set_slider(Opt::SprintWindow, &mut settings, 0.5);
         settings.operator_items_tab = true;
-        settings.quit_shortcuts = false;
-        settings.ctrl_click_emulates_right_click = true;
         settings.toggle_attack = true;
         settings.toggle_use = true;
         let loaded = Settings::parse(&settings.serialize());
         assert_eq!(loaded.sprint_window, 5);
         assert!(loaded.operator_items_tab);
-        assert!(!loaded.quit_shortcuts);
-        assert!(loaded.ctrl_click_emulates_right_click);
         assert!(loaded.toggle_attack && loaded.toggle_use);
-    }
-
-    #[test]
-    fn quit_shortcuts_option_can_be_switched() {
-        assert!(Opt::QuitShortcuts.available());
-        let s = Settings::default();
-        assert_eq!(Opt::QuitShortcuts.caption(), "options.quitShortcuts");
-        assert_eq!(
-            Opt::QuitShortcuts.tooltip_key(&s),
-            "options.quitShortcuts.tooltip"
-        );
     }
 
     /// The gating is for genuinely unread keys only: every option a system
@@ -5448,7 +5416,6 @@ mod tests {
             Opt::ChatDelay,
             Opt::SaveChatDrafts,
             Opt::MusicToast,
-            Opt::CtrlClickEmulatesRightClick,
         ] {
             assert!(opt.available(), "{opt:?} is read and must be clickable");
         }

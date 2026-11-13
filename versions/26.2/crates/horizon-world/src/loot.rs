@@ -229,11 +229,17 @@ impl ExplorationMap {
     /// skipping known structures).
     pub fn from_json(f: &Value) -> Self {
         Self {
-            destination: f["destination"]
-                .as_str()
-                .unwrap_or("#minecraft:on_treasure_maps")
-                .trim_start_matches('#')
-                .to_owned(),
+            // 26.2's codec is TagKey: a tag string only (absent: the
+            // default). A list (26.3's holderSet form) fails to parse in
+            // 26.2, so it matches nothing instead of defaulting.
+            destination: match f.get("destination") {
+                None => "minecraft:on_treasure_maps".to_owned(),
+                Some(v) => v
+                    .as_str()
+                    .unwrap_or("")
+                    .trim_start_matches('#')
+                    .to_owned(),
+            },
             decoration: f["decoration"]
                 .as_str()
                 .unwrap_or("minecraft:mansion")

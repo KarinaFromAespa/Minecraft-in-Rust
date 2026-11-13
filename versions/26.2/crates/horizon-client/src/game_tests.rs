@@ -121,43 +121,34 @@ fn falling_block_does_not_descend_through_scaffolding() {
 }
 
 #[test]
-fn quit_shortcut_blocks_window_close_when_option_disabled() {
+fn quit_shortcut_is_the_platform_close_combination() {
     use winit::keyboard::ModifiersState;
 
     let mut keys = HashSet::new();
-    let alt = ModifiersState::ALT;
-    let super_key = ModifiersState::SUPER;
-
-    let quit_shortcuts_enabled = true;
-    let quit_shortcuts_disabled = false;
-
     keys.insert(if cfg!(target_os = "macos") {
         KeyCode::KeyQ
     } else {
         KeyCode::F4
     });
     let mods = if cfg!(target_os = "macos") {
-        super_key
+        ModifiersState::SUPER
     } else {
-        alt
+        ModifiersState::ALT
     };
 
-    let should_ignore =
-        |quit_shortcuts: bool, modifiers: ModifiersState, keys: &HashSet<KeyCode>| {
-            !quit_shortcuts && horizon_client::input::is_quit_shortcut_down(modifiers, keys)
-        };
-
-    // When enabled, close requests from shortcuts proceed normally.
-    assert!(!should_ignore(quit_shortcuts_enabled, mods, &keys));
-
-    // When disabled and the quit shortcut is held, close requests are ignored.
-    assert!(should_ignore(quit_shortcuts_disabled, mods, &keys));
-
-    // When disabled but shortcut NOT held (e.g. 'X' button clicked), close request proceeds.
-    assert!(!should_ignore(
-        quit_shortcuts_disabled,
+    // The platform quit shortcut, held: Cmd+Q on macOS, Alt+F4 elsewhere.
+    assert!(horizon_client::input::is_quit_shortcut_down(
+        mods, &keys
+    ));
+    // Not held: no modifiers, no keys.
+    assert!(!horizon_client::input::is_quit_shortcut_down(
         ModifiersState::empty(),
         &HashSet::new()
+    ));
+    // The key alone, without the modifier, is not the shortcut.
+    assert!(!horizon_client::input::is_quit_shortcut_down(
+        ModifiersState::empty(),
+        &keys
     ));
 }
 

@@ -103,6 +103,11 @@ pub trait Maps {
     /// `MapItem.getSavedData`: whether map `id` is locked, and its scale;
     /// None when the level has no such map.
     fn state(&self, id: i32) -> Option<(bool, u8)>;
+    /// `MapItemSavedData.isExplorationMap` (26.2 only): whether map `id`
+    /// carries an exploration-map decoration; false without the map.
+    fn is_exploration_map(&self, _id: i32) -> bool {
+        false
+    }
     /// `MapItem.scaleMap` (`scale`) or `lockMap`: the copy of map `id` the
     /// level makes under a new id (`getFreeMapId`), None without the map.
     fn derive(&self, id: i32, scale: bool) -> Option<i32>;
@@ -1808,11 +1813,16 @@ impl Menu {
         }
         let result = env
             .recipes
-            .find_with(&self.containers[GRID], self.grid_size, &|id| {
-                env.maps
-                    .and_then(|maps| maps.state(id))
-                    .map(|(_, scale)| scale)
-            })
+            .find_with(
+                &self.containers[GRID],
+                self.grid_size,
+                &|id| {
+                    env.maps
+                        .and_then(|maps| maps.state(id))
+                        .map(|(_, scale)| scale)
+                },
+                &|id| env.maps.is_some_and(|maps| maps.is_exploration_map(id)),
+            )
             .and_then(|(id, stack)| {
                 if env.limited_crafting {
                     // `RecipeCraftingHolder.setRecipeUsed`: special recipes or known recipes craft.
@@ -1953,14 +1963,19 @@ impl Menu {
                 .and_then(|maps| maps.state(id))
                 .map(|(_, scale)| scale)
         };
-        if let Some((id, _)) = env.recipes.find_with(&grid, n, &map_scale) {
+        let map_is_exploration =
+            |id| env.maps.is_some_and(|maps| maps.is_exploration_map(id));
+        if let Some((id, _)) = env
+            .recipes
+            .find_with(&grid, n, &map_scale, &map_is_exploration)
+        {
             self.crafted.push((format!("minecraft:{id}"), grid.clone()));
             self.item_crafted
                 .push((format!("minecraft:{id}"), taken.clone()));
         }
         let remaining = env
             .recipes
-            .find_with(&grid, n, &map_scale)
+            .find_with(&grid, n, &map_scale, &map_is_exploration)
             .map(|(id, _)| env.recipes.remainders(id, &grid, n))
             .unwrap_or_else(|| {
                 // CraftingRecipe.defaultCraftingReminder
