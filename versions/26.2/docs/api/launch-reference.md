@@ -31,8 +31,8 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
   "content": {
     "datapack": {
       "format": [
-        121,
-        0
+        107,
+        1
       ]
     },
     "index": {
@@ -53,8 +53,8 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
     },
     "resourcepack": {
       "format": [
-        97,
-        1
+        88,
+        0
       ]
     },
     "shader": {
@@ -73,7 +73,7 @@ Prints one JSON object on stdout and exits 0. `horizon` is the build's version; 
   ],
   "horizon": "<version>",
   "launch_api": "0.1.0",
-  "minecraft": "26.3",
+  "minecraft": "26.2",
   "options": [
     {
       "name": "--resources",
