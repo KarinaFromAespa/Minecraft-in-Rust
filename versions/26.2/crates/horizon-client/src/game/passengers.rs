@@ -20,7 +20,9 @@ const CHICKEN_JOCKEY_ODDS: f32 = 0.05;
 const TRAP_LIFETIME: i32 = 18000;
 /// `SkeletonTrapGoal`: a player this close springs the trap.
 const TRAP_RANGE: f64 = 10.0;
-/// Ticks of invulnerability the trap's riders and horses start with.
+/// `SkeletonTrapGoal`: the trap's riders and horses start with
+/// `invulnerableTime` 60 — in 26.2 that field is the hurt cooldown, so a
+/// hit within it deals only the damage above the last hit.
 const TRAP_INVULNERABLE: i32 = 60;
 
 fn zombie_kind(s: Species) -> bool {
@@ -705,7 +707,7 @@ impl Game<'_> {
                 self.world.random.triangle(0.0, 1.1485),
             );
             if let Some(h) = self.mobs.iter_mut().find(|m| m.id == other) {
-                h.invulnerable_time = TRAP_INVULNERABLE;
+                h.invulnerable = TRAP_INVULNERABLE;
                 h.extra.tame = true;
                 h.extra.age = 0;
                 h.velocity = Vec3::new(h.velocity.x + dx, h.velocity.y, h.velocity.z + dz);
@@ -720,7 +722,7 @@ impl Game<'_> {
     fn trap_skeleton(&mut self, at: [f64; 3]) -> Option<u32> {
         let id = self.spawn_mob("minecraft:skeleton", at, true)?;
         let m = self.mobs.iter_mut().find(|m| m.id == id)?;
-        m.invulnerable_time = TRAP_INVULNERABLE;
+        m.invulnerable = TRAP_INVULNERABLE;
         if m.extra.head.is_none() {
             m.extra.head = Some("minecraft:iron_helmet".into());
         }

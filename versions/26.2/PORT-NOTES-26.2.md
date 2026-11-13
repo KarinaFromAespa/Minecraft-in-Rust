@@ -408,8 +408,22 @@ save_roundtrip failed with the facts.json `missing field 'id'` parse
 error — fixed on behaviour/26.2 since (NBT-form codec accepted), so the
 next profile should move.
 
-## CI profile — port-verify v6.6, run 43379593930 (2026-11-13, in flight)
+## CI profile — port-verify v6.6, run 43379593930 (2026-11-13)
 
-Dispatched on behaviour/26.2@42cb47fe (rank 1 closed, 7/7): the first
-profile of the behaviour-ported tree. Profile to be recorded here when
-the run completes.
+Dispatched on behaviour/26.2@42cb47fe (rank 1 closed, 7/7; rank 2 at
+0/410 — batches 1–5 landed after the dispatch, in bccbf9ac..48b3fe71):
+the first profile of the behaviour-ported tree. Completed
+2026-11-13T08:39:43Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**3 pass / 0 oracle / 14 fail** — identical to the v6.6 baseline on main
+and to run 43352941442: food, lan, resource_pack pass; the other 14
+fail. D1 pass, D2 pass (0 errors, 0 warnings; protocol tests 445, none
+failing — the 7 un-ignored tests from the re-base are in); D3 fail
+(rank 2: 410/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. The rank-1 work moved no harness, as expected at
+this stage. The facts.json `missing field 'id'` parse error seen in
+43352941442 did not recur in this run's harness logs (the NBT-form
+codec fix is in), but the affected harnesses still fail on their own
+differentials. Artifacts kept at
+`~/workspace/mcir-work/26.2-behaviour/ci-runs/43379593930/`.

@@ -196,9 +196,6 @@ pub struct ArrowState {
     pub was_eye_in_water: bool,
     pub first_tick: bool,
     pub has_been_shot: bool,
-    /// `Projectile.canBreak`: the decoded top-level projectile predicate,
-    /// independent of its pickup item and firing weapon.
-    pub can_break: Option<horizon_world::nbt::Tag>,
     /// `ThrownTrident.dealtDamage`: it has hit an entity (or sat in a block
     /// for over 4 ticks) and hits no more.
     pub dealt_damage: bool,
@@ -260,7 +257,6 @@ impl ArrowState {
             was_eye_in_water: false,
             first_tick: true,
             has_been_shot: false,
-            can_break: None,
             dealt_damage: false,
             removed: false,
             random,
@@ -624,15 +620,15 @@ pub enum EntityHit {
     /// flies on and falls to the ground.
     Dodged,
 }
-/// `ProjectileDeflection.REVERSE` with power `0.2`: each axis of the movement
-/// is multiplied by `-0.2 * 0.5` (`-0.1`), and the yaw turns `170 + nextFloat * 20`
-/// degrees. No hit sound. One left almost still (`lengthSqr < 1e-7`) drops its
-/// pickup when that is ALLOWED, then is discarded.
+/// `AbstractArrow.onHitEntity` on a refused hit: `deflect(REVERSE)` turns the
+/// movement by `-0.5` per axis, then the velocity is scaled by `0.2` — each
+/// axis ends up multiplied by `-0.1` — and the yaw turns
+/// `170 + nextFloat * 20` degrees. No hit sound. One left almost still
+/// (`lengthSqr < 1e-7`) drops its pickup when that is ALLOWED, then is discarded.
 pub fn deflect_reverse(velocity: &mut Vec3, yaw: &mut f32, st: &mut ArrowState) {
-    let power = 0.2;
     let rotation = 170.0 + st.random.next_float() * 20.0;
     let v = *velocity;
-    let k = -power * 0.5;
+    let k = -0.5 * 0.2;
     *velocity = Vec3::new(v.x * k, v.y * k, v.z * k);
     *yaw += rotation;
     if velocity.length_squared() < 1.0e-7 {
@@ -1027,8 +1023,9 @@ impl Ticker<'_, '_, '_, '_> {
         });
     }
     /// `ThrownTrident.onHitEntity` after the hurt, whether it landed or not:
-    /// the hit sound, then `deflect(REVERSE, ..., (0.02, 0.2, 0.02))`. The
-    /// trident keeps flying (it has dealt its damage) and falls.
+    /// the hit sound, then `deflect(REVERSE, ...)` and a
+    /// `(0.02, 0.2, 0.02)` multiply. The trident keeps flying (it has dealt
+    /// its damage) and falls.
     fn trident_bounce(&mut self) {
         self.st.dealt_damage = true;
         self.st.events.push(ArrowEvent::Sound {
@@ -1042,9 +1039,9 @@ impl Ticker<'_, '_, '_, '_> {
         self.p.velocity = Vec3::new(v.x * (-0.02 * 0.5), v.y * (-0.2 * 0.5), v.z * (-0.02 * 0.5));
         self.p.yaw += rotation;
     }
-    /// `onHitEntity` when the entity took no damage: `deflect(REVERSE, 0.2)`,
-    /// a half turn give or take ten degrees at a tenth of the speed; one
-    /// left almost still drops its pickup (ALLOWED) and is discarded.
+    /// `onHitEntity` when the entity took no damage: `deflect(REVERSE)` and
+    /// a `0.2` scale, a half turn give or take ten degrees at a tenth of the
+    /// speed; one left almost still drops its pickup (ALLOWED) and is discarded.
     fn turn_back(&mut self) {
         deflect_reverse(&mut self.p.velocity, &mut self.p.yaw, self.st);
     }

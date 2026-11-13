@@ -15,6 +15,10 @@ struct Case {
     velocity: [f64; 3],
     spin: f32,
     keys: [bool; 4],
+    // 26.2's AbstractBoat has no handleEntityEvent, so 71/72 do nothing
+    // (the oracle calls the same no-op): the field is only read by the
+    // deserializer.
+    #[allow(dead_code)]
     event: i8,
 }
 impl Game<'_> {
@@ -66,9 +70,7 @@ impl Game<'_> {
                     7,
                 )?;
                 let packets = self.remote_vehicle_packets();
-                if case.event != 0 {
-                    self.remote_boat_event(3, case.event);
-                }
+                // No boat entity event: 26.2 ignores 71/72 (see `Case::event`).
                 let boat = &self.boats[0];
                 steps.push(json!({
                     "controlled": self.remote.as_ref().unwrap().first_passenger,

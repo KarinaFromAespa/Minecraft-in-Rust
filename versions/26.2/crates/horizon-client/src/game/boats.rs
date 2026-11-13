@@ -119,10 +119,6 @@ pub(super) const CHEST_SLOTS: usize = 27;
 /// `AbstractBoat.BUBBLE_TIME`: the ticks over a bubble column before it
 /// lifts or drags the boat.
 const BUBBLE_TIME: i32 = 60;
-/// `EntityEvent` 71 and 72, which `AbstractBoat.tickBubbleColumn` broadcasts
-/// for a down and an up column.
-pub(super) const BUBBLE_DOWN_EVENT: i8 = 71;
-pub(super) const BUBBLE_UP_EVENT: i8 = 72;
 /// What `PowderSnowBlock.entityInside` passes to `makeStuckInBlock`.
 fn powder_snow_stuck() -> Vec3 {
     Vec3::new(f64::from(0.9_f32), 1.5, f64::from(0.9_f32))
@@ -1153,20 +1149,6 @@ impl Game<'_> {
         };
         self.post_game_event("minecraft:splash", [p.x, p.y, p.z], ctx);
     }
-    /// `AbstractBoat.handleBubbleColumnEffect`: an up column throws the boat
-    /// up at 0.6, a down column pulls it down by 0.7.
-    pub(super) fn handle_bubble_column_effect(&mut self, i: usize, drag_down: bool) {
-        if !self.boat_can_simulate_movement(self.boats[i].id) {
-            return;
-        }
-        let v = &mut self.boats[i].velocity;
-        if drag_down {
-            // movement.add(0.0, -0.7, 0.0)
-            v.y += -0.7;
-        } else {
-            v.y = 0.6;
-        }
-    }
     /// `Entity.ejectPassengers`: the mobs get out here, this window's player
     /// gets out, and a server's player is asked to
     /// (`guest_vehicle_tick` lets it out through its client).
@@ -1179,22 +1161,26 @@ impl Game<'_> {
             self.boats[i].eject_riders = true;
         }
     }
-    /// `AbstractBoat.tickBubbleColumn`: on the server, a boat that stays over
-    /// a column for `BUBBLE_TIME` ticks is thrown up or pulled down (a down
-    /// column lets the riders out first), and every client is told.
+    /// `AbstractBoat.tickBubbleColumn` on the server: a boat that stays over
+    /// a column for `BUBBLE_TIME` ticks is thrown up or pulled down. An up
+    /// column throws it at 2.7 with a player aboard, 0.6 without; a down
+    /// column pulls it down by 0.7 and lets the riders out. 26.2 applies the
+    /// effect server-side only, with no entity event: the 71/72 broadcasts
+    /// (and the client's `handleBubbleColumnEffect`) are 26.3's.
     fn tick_boat_bubble_column(&mut self, i: usize) {
         if let Some(down) = self.boats[i].tick_bubble_countdown() {
-            let (id, p) = (self.boats[i].id, self.boats[i].position);
-            let event = if down {
-                BUBBLE_DOWN_EVENT
-            } else {
-                BUBBLE_UP_EVENT
-            };
             if down {
+                // movement.add(0.0, -0.7, 0.0)
+                self.boats[i].velocity.y += -0.7;
                 self.eject_boat_riders(i);
+            } else {
+                let up = if self.boat_players(self.boats[i].id) > 0 {
+                    2.7
+                } else {
+                    0.6
+                };
+                self.boats[i].velocity.y = up;
             }
-            self.lan_entity_event(id as i32, event, [p.x, p.y, p.z]);
-            self.handle_bubble_column_effect(i, down);
         }
     }
     /// `AbstractBoat.tick`: the end of it on the server for boat `i`, the two
@@ -1435,11 +1421,11 @@ impl Game<'_> {
         self.riding = None;
         // `AbstractBoat.tick`'s non-authoritative branch: the copy of a boat
         // that no player of this side drives drops its cached motion
-        // (`setDeltaMovement(Vec3.ZERO)`, `deltaRotation = 0`) and is not
-        // moved, so a boat is at a standstill when its rider gets out instead
-        // of coasting on the velocity of the ride that just ended.
+        // (`setDeltaMovement(Vec3.ZERO)`) and is not moved, so a boat is at
+        // a standstill when its rider gets out instead of coasting on the
+        // velocity of the ride that just ended. 26.2 keeps `deltaRotation`:
+        // zeroing it is 26.3's.
         self.boats[i].velocity = Vec3::ZERO;
-        self.boats[i].delta_rotation = 0.0;
         if self.dismount_in_portal(self.boats[i].position) {
             return;
         }

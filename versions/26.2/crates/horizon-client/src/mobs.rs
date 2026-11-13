@@ -1535,12 +1535,11 @@ pub struct Mob {
     pub gear_knockback_resistance: Option<f64>,
     pub health: f32,
     pub hurt_time: i32,
-    /// `LivingEntity.damageCooldownTime`: the hurt cooldown, 20 after a hit;
-    /// transient, never saved.
+    /// `LivingEntity.invulnerableTime`: the hurt cooldown, 20 after a hit;
+    /// transient, never saved. (26.3 renamed it `damageCooldownTime` and
+    /// repurposed `invulnerableTime` as a saved temporary-invulnerability
+    /// timer; 26.2 has no such timer.)
     pub invulnerable: i32,
-    /// `Entity.invulnerableTime`, saved as `invulnerable_time`: while above 0
-    /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
-    pub invulnerable_time: i32,
     pub death_time: i32,
     /// `LivingEntity.currentImpulseContextResetGraceTime`: ticks left to keep
     /// the impulse context after a wind charge or mace impulse.
@@ -3408,7 +3407,6 @@ impl Mob {
             gear_knockback_resistance: None,
             hurt_time: 0,
             invulnerable: 0,
-            invulnerable_time: 0,
             death_time: 0,
             impulse_grace_time: 0,
             age: 0,
@@ -3682,9 +3680,11 @@ impl Mob {
             || self.removed
             || (self.is_invulnerable() && !source.kind.bypasses_invulnerability())
     }
-    /// `Entity.isInvulnerable`: `Invulnerable`, or `invulnerable_time` left.
+    /// `Entity.isInvulnerable`: the `Invulnerable` flag alone. 26.2 has no
+    /// temporary-invulnerability timer; its `invulnerableTime` is the hurt
+    /// cooldown, which never makes a mob invulnerable.
     pub fn is_invulnerable(&self) -> bool {
-        self.invulnerable_flag || self.invulnerable_time > 0
+        self.invulnerable_flag
     }
     /// `LivingEntity.hurtServer`'s partial mob adapter, with health reductions inline.
     /// `damage` by a source with a weapon: `armor_effectiveness` runs the

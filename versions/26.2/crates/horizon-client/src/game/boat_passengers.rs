@@ -435,7 +435,8 @@ impl Game<'_> {
                     // AbstractBoat's box is 1.375 wide.
                     let offset = riders::vehicle_attachment(m, 1.375);
                     let index = players + n;
-                    // calculatePassengerBodyYRot.
+                    // positionRider's animal rule: a full boat's animals
+                    // face 90/270 degrees off by entity id parity.
                     let turn = match (animal && full, m.id.is_multiple_of(2)) {
                         (false, _) => 0.0,
                         (true, true) => 90.0,
@@ -450,7 +451,7 @@ impl Game<'_> {
                         offset,
                         b.seat(index, count, animal, offset, false),
                         b.seat(index, count, animal, offset, true),
-                        turns.then_some((b.yaw + turn, b.previous_yaw + turn)),
+                        turns.then_some((b.yaw + turn, b.previous_yaw + turn, turn)),
                     )
                 })
                 .collect();
@@ -464,18 +465,22 @@ impl Game<'_> {
                 m.on_ground = false;
                 m.extra.passenger = true;
                 m.ai.nav.stop();
-                let Some((body, previous_body)) = facing else {
+                let Some((body, previous_body, turn)) = facing else {
                     continue;
                 };
-                m.head_yaw += delta;
+                // 26.2's positionRider + clampRotation: the yaw turns with
+                // the boat, then clamps to +-105 degrees around the boat's
+                // yaw (the previous yaw moves with it); the head snaps to
+                // the yaw, then takes the animal offset. (26.3 snaps a mob's
+                // yaw to its body and clamps the head to the body instead.)
+                m.yaw += delta;
+                let d = wrap_degrees(m.yaw - b.yaw);
+                let adjust = d.clamp(-105.0, 105.0) - d;
+                m.yaw += adjust;
+                m.previous_yaw += adjust;
                 m.body_yaw = body;
                 m.previous_body_yaw = previous_body;
-                m.yaw = body;
-                m.previous_yaw = previous_body;
-                // Mob.clampHeadRotationToBody.
-                let limit = m.kind.max_head_y_rot;
-                let d = wrap_degrees(body - m.head_yaw);
-                m.head_yaw += d - d.clamp(-limit, limit);
+                m.head_yaw = m.yaw + turn;
             }
         }
     }

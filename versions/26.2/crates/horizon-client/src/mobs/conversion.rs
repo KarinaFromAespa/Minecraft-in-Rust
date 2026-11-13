@@ -12,8 +12,8 @@ pub struct Params {
     pub preserve_can_pick_up_loot: bool,
 }
 impl Params {
-    /// `ConversionParams.single(mob, true, true)`, what `ConversionTracker`
-    /// uses (zombie to drowned, husk to zombie, skeleton to stray).
+    /// `ConversionParams.single(mob, true, true)`, what the water and frost
+    /// conversions use (zombie to drowned, husk to zombie, skeleton to stray).
     pub const KEEP_ALL: Self = Self {
         keep_equipment: true,
         preserve_can_pick_up_loot: true,
@@ -92,9 +92,10 @@ pub fn single(from: &Mob, to: &mut Mob, params: Params) {
     to.no_ai = from.no_ai;
     to.persistent |= from.persistent;
     to.name_visible = from.name_visible;
+    // ConversionType.convertCommon: `setInvulnerable(from.isInvulnerable())`
+    // copies the flag alone; the hurt cooldown is not copied, and 26.2 has
+    // no temporary-invulnerability timer to copy.
     to.invulnerable_flag = from.invulnerable_flag;
-    // setInvulnerableTime(getInvulnerableTime()); the hurt cooldown is not copied.
-    to.invulnerable_time = from.invulnerable_time;
     to.no_gravity = from.no_gravity;
     to.silent = from.silent;
     // COMPONENTS_TO_COPY: the custom name.
