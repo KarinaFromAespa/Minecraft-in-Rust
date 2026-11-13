@@ -357,7 +357,26 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         false
     }
     fn can_hold_any_fluid(&self, state: BlockStateId) -> bool {
-        self.is_liquid_container(state) || self.b.in_set(state, &self.b.tags.washed_away_by_fluids)
+        // 26.2's `canHoldAnyFluid`: a liquid container, or a state that does
+        // not block motion and is none of the listed blocks (26.3 replaced
+        // the list with the `#washed_away_by_fluids` tag, which 26.2 lacks).
+        if self.is_liquid_container(state) {
+            return true;
+        }
+        if self.b.blocks_motion(state) {
+            return false;
+        }
+        let data = self.b.data(state);
+        let block = self.b.block(state);
+        !data.is(Class::Door)
+            && !data.is(Class::Sign)
+            && block != self.b.named.ladder
+            && block != self.b.named.sugar_cane
+            && block != self.b.named.bubble_column
+            && !data.is(Class::NetherPortal)
+            && !data.is(Class::EndPortal)
+            && !data.is(Class::EndGateway)
+            && !data.is(Class::StructureVoid)
     }
     fn can_hold_specific_fluid(&self, state: BlockStateId, fluid: FluidKind) -> bool {
         if self.is_liquid_container(state) {
@@ -774,11 +793,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         self.set_block_and_update(test, fire);
                         return;
                     }
-                } else if self
-                    .b
-                    .tag("minecraft:blocks_lava_fire_spread")
-                    .is_some_and(|tag| self.b.in_set(state, tag))
-                {
+                } else if self.b.blocks_motion(state) {
+                    // 26.2 stops the lava-fire walk at a motion-blocking
+                    // state; 26.3 reads the `#blocks_lava_fire_spread` tag.
                     return;
                 }
             }
