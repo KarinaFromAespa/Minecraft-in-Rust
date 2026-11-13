@@ -486,7 +486,7 @@ mod tests {
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
             assert_eq!(
                 (p.particle.id, p.sound.0, p.play_sound),
-                (particle, 703, true)
+                (particle, 699, true)
             );
             if destroy {
                 for pos in [[2, 64, -4], [0, 65, -2]] {

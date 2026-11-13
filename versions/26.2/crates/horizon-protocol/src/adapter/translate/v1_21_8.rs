@@ -128,7 +128,7 @@ mod tests {
         else {
             panic!("spawn");
         };
-        assert_eq!((e.id, e.kind, e.position), (42, 52, [1.0, 64.0, -2.0]));
+        assert_eq!((e.id, e.kind, e.position), (42, 51, [1.0, 64.0, -2.0]));
         assert_eq!((e.pitch, e.yaw, e.head_yaw, e.data), (-64, 32, -128, 0));
         assert!((e.velocity[0] + 1.0).abs() < 0.001);
         assert!((e.velocity[1] - 0.5).abs() < 0.001);
@@ -309,18 +309,18 @@ mod tests {
             data: vec![],
         };
         let new = super::super::renumber_states(ids, &old, 16);
-        assert_eq!(new.get(0), 9980);
-        assert_eq!(ids.block_state.down(9980), Some(7016));
+        assert_eq!(new.get(0), 8246);
+        assert_eq!(ids.block_state.down(8246), Some(7016));
         let sent = [3, 0xfa, 0x02, 0, 0]; // Three chain items, old id 378.
         let stack = {
             let _up = ids::renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (473, 3));
+        assert_eq!((stack.item, stack.count), (427, 3));
         let mut w = Writer::new();
         {
             let _down = ids::renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(473, 3)), &mut w);
+            Slot::write(&Some(Stack::new(427, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
@@ -329,9 +329,9 @@ mod tests {
     fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_6() {
         use crate::item::{Slot, Stack};
         let ids = ServerVersion::V1_21_6.ids().unwrap();
-        // Vanilla reports: cat is 1250 -> 1461; pigstep is 1266 -> 1479. The newer lava chicken
-        // disc occupies pinned id 1468, with no 1.21.6 counterpart (1.21.8 has it at 1256).
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1461), ([3, 0xf2, 0x09, 0, 0], 1479)] {
+        // Vanilla reports: cat is 1250 -> 1340; pigstep is 1266 -> 1358. The newer lava chicken
+        // disc occupies pinned id 1347, with no 1.21.6 counterpart (1.21.8 has it at 1256).
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1340), ([3, 0xf2, 0x09, 0, 0], 1358)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -344,18 +344,18 @@ mod tests {
             }
             assert_eq!(w.data, sent);
         }
-        assert_eq!(ids.item.down(1468), None);
+        assert_eq!(ids.item.down(1347), None);
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().item.down(1468),
+            ServerVersion::V1_21_8.ids().unwrap().item.down(1347),
             Some(1256)
         );
-        assert_eq!(ids.block_state.up(7016), Some(9980)); // inherited chain axis=x, waterlogged=true
+        assert_eq!(ids.block_state.up(7016), Some(8246)); // inherited chain axis=x, waterlogged=true
     }
 
     #[test]
     fn a_1_21_6_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1321.
+        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1317.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -370,13 +370,13 @@ mod tests {
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1321, None));
+        assert_eq!(p.sound, (1317, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1321),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1317),
             Some(1180)
         );
     }
