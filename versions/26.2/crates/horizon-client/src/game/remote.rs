@@ -6424,9 +6424,7 @@ impl Game<'_> {
         // handleMovePlayer: a passenger keeps its own position and look (its vehicle
         // carries it), so a vehicle a datapack teleports every tick doesn't snap the
         // rider's view; the teleport is still accepted, with where the player is.
-        if self.riding.is_some()
-            && let Some(player) = self.player.as_ref()
-        {
+        if self.riding.is_some() && self.player.is_some() {
             self.send(S::AcceptTeleportation(play::AcceptTeleportation {
                 id: p.teleport,
             }));

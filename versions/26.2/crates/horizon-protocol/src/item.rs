@@ -1037,8 +1037,9 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
 }
 
 /// Reads past the value of `name`, a data component an older server sent that the pinned version lacks
-/// ([`ids::dropped_component`]), as that server writes it.
-fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
+/// ([`ids::dropped_component`]), as that server writes it. Every component 26.2 lacks is Unit
+/// (zero bytes on the wire), so the reader is never consumed.
+fn skip_dropped(name: &str, _r: &mut Reader) -> Result<()> {
     match name {
         // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 26.2 no
         // longer has (fire_resistant became damage_resistant; the two hide

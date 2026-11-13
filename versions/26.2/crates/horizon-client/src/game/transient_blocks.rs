@@ -11,6 +11,10 @@ use std::{
 };
 
 /// `TransientBlock.DEFAULT_TIME_TO_LIVE`, in seconds.
+/// The feeder (`add_transient_block` -> `queue`) is dead in 26.2: 26.2 has no
+/// add-transient-block packet, so nothing ever queues a block. The module is
+/// kept inert rather than deleted, so the drain/render path stays intact.
+#[allow(dead_code)]
 const DEFAULT_TIME_TO_LIVE: f64 = 1.0;
 
 /// `TransientBlock`: a block queued by the packet.
@@ -39,7 +43,9 @@ pub(super) struct TransientBlocks {
 }
 
 impl TransientBlocks {
-    /// `LevelExtractor.queueTransientBlock`.
+    /// `LevelExtractor.queueTransientBlock`. Dead in 26.2 (no packet feeds
+    /// it); kept with the rest of the inert module.
+    #[allow(dead_code)]
     fn queue(&mut self, pos: [i32; 3], state: BlockStateId) {
         self.queue.push_back(Queued {
             pos,
@@ -75,7 +81,10 @@ fn shows_block(created: u64, compile_start: Option<u64>, upload_pending: bool) -
     !upload_pending && compile_start.is_some_and(|start| created < start)
 }
 impl Game<'_> {
-    /// `ClientPacketListener.handleAddTransientBlockPacket`.
+    /// `ClientPacketListener.handleAddTransientBlockPacket`. Dead in 26.2:
+    /// 26.2 has no add-transient-block packet; a landed falling block arrives
+    /// as the plain block update.
+    #[allow(dead_code)]
     pub(super) fn add_transient_block(&mut self, pos: [i32; 3], state: i32) {
         self.transient_blocks.queue(pos, BlockStateId(state as u32));
     }

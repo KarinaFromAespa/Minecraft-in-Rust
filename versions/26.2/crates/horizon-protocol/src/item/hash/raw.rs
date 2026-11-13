@@ -115,12 +115,6 @@ pub(super) fn template_code(r: &mut Reader, names: &dyn Names) -> Option<HashCod
     let stack = <Template as Codec<Stack>>::read(r).ok()?;
     template(&stack, names)
 }
-/// `ByteBufCodecs.fixedSizeList(4)` of text components.
-fn four_texts(r: &mut Reader) -> Option<(Vec<Tag>, HashCode)> {
-    let tags: Vec<Tag> = (0..4).map(|_| r.nbt().ok()).collect::<Option<_>>()?;
-    let code = HashOps::create_list(tags.iter().map(text));
-    Some((tags, code))
-}
 
 /// `MobEffectInstance.Details.MAP_CODEC` (the fields of a record, flattened into
 /// `rec`) from `STREAM_CODEC`: amplifier, duration, ambient, show_particles,
