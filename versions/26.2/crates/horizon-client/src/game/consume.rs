@@ -115,14 +115,13 @@ impl Game<'_> {
         let dim = self.dim;
         let Ok(_) = teleport.apply(&mut Teleporter(self), dim);
     }
-    /// `LivingEntity.randomTeleport(x, y, z, true, avoid)`: down to the first
-    /// block entities can teleport onto, inside the border, in a loaded chunk.
-    fn random_teleport(&mut self, target: Vec3, avoid: &str) -> bool {
-        let [min_x, min_z, max_x, max_z] = self.border.bounds();
-        // WorldBorder.clampVec3ToBound (Mth.clamp, 1.0E-5F inside the far edge).
-        let clamp = |v: f64, low: f64, high: f64| if v < low { low } else { v.min(high) };
-        let x = clamp(target.x, min_x, max_x - f64::from(1.0e-5_f32));
-        let z = clamp(target.z, min_z, max_z - f64::from(1.0e-5_f32));
+    /// `LivingEntity.randomTeleport(x, y, z, true)` in 26.2: down to the
+    /// first block that blocks motion, in a loaded chunk. No world-border
+    /// clamp, no `entities_can_teleport_to` scan and no avoidance tag —
+    /// those are 26.3 (`randomTeleport` with a predicate, and
+    /// `checkPositionAndTeleport`, which 26.2 does not have).
+    fn random_teleport(&mut self, target: Vec3) -> bool {
+        let (x, z) = (target.x, target.z);
         let mut y = target.y;
         let mut pos = BlockPos::containing(Vec3::new(x, y, z));
         if !self.world.loaded(pos.x, pos.z) {
@@ -131,24 +130,27 @@ impl Game<'_> {
         while pos.y > self.world.shape.min_y {
             pos.y -= 1;
             let state = self.world.block(pos.x, pos.y, pos.z);
-            if self.state_in_tag("minecraft:entities_can_teleport_to", state) {
-                return self.check_position_and_teleport(Vec3::new(x, y, z), state, avoid);
+            if self.blocks_motion(state) {
+                return self.check_position_and_teleport(Vec3::new(x, y, z));
             }
             y -= 1.0;
         }
         false
     }
-    /// `LivingEntity.checkPositionAndTeleport`, then `ServerPlayer.teleportTo`
-    /// (the motion and rotation kept) and entity event 46.
-    fn check_position_and_teleport(
-        &mut self,
-        at: Vec3,
-        ground: horizon_world::registry::BlockStateId,
-        avoid: &str,
-    ) -> bool {
-        if self.state_in_tag(avoid, ground) {
-            return false;
-        }
+    /// `BlockState.blocksMotion`: solid, unless the block is a cobweb or a
+    /// bamboo sapling (26.2 has no `blocks_motion` tag; 26.3 added the tag
+    /// family).
+    fn blocks_motion(&self, state: horizon_world::registry::BlockStateId) -> bool {
+        let f = self.res.facts().get(state);
+        f.legacy_solid && &*f.name != "minecraft:cobweb" && &*f.name != "minecraft:bamboo_sapling"
+    }
+    /// The landing check of 26.2's `randomTeleport`: `noCollision` and
+    /// `!containsAnyLiquid` at the new position, then `teleportTo` (the
+    /// motion and rotation kept) and entity event 46. Vanilla teleports
+    /// first and rolls back to the old position on failure; the predicate
+    /// is evaluated at the same position either way and nothing observes
+    /// the intermediate position, so checking before moving is identical.
+    fn check_position_and_teleport(&mut self, at: Vec3) -> bool {
         let entities = self.player_entity_collisions();
         let Some(player) = self.player.as_mut() else {
             return false;
@@ -165,19 +167,22 @@ impl Game<'_> {
         }
         .no_player_collision(bounds)
         .unwrap_or(false);
-        // LevelReader.containsAnyLiquid and findBlocksIn: the blocks from the
-        // box's minimum corner to the one holding its maximum corner.
+        // LevelReader.containsAnyLiquid in 26.2: the blocks from the floor
+        // of the box's minimum corner up to (not including) the ceiling of
+        // its maximum corner. 26.3's findBlocksIn form instead includes the
+        // block holding an exactly-integral maximum corner.
+        let min = bounds.min_position();
+        let max = bounds.max_position();
         let (lo, hi) = (
-            BlockPos::containing(bounds.min_position()),
-            BlockPos::containing(bounds.max_position()),
+            [min.x.floor() as i32, min.y.floor() as i32, min.z.floor() as i32],
+            [max.x.ceil() as i32, max.y.ceil() as i32, max.z.ceil() as i32],
         );
-        let blocks = (lo.x..=hi.x)
-            .flat_map(|x| (lo.y..=hi.y).flat_map(move |y| (lo.z..=hi.z).map(move |z| (x, y, z))));
-        let states: Vec<_> = blocks.map(|(x, y, z)| self.world.block(x, y, z)).collect();
-        let liquid = states
-            .iter()
-            .any(|&s| self.res.facts().get(s).fluid != horizon_client::blocks::Fluid::None);
-        if !free || liquid || states.iter().any(|&s| self.state_in_tag(avoid, s)) {
+        let blocks = (lo[0]..hi[0])
+            .flat_map(|x| (lo[1]..hi[1]).flat_map(move |y| (lo[2]..hi[2]).map(move |z| (x, y, z))));
+        let liquid = blocks
+            .map(|(x, y, z)| self.world.block(x, y, z))
+            .any(|s| self.res.facts().get(s).fluid != horizon_client::blocks::Fluid::None);
+        if !free || liquid {
             return false;
         }
         if let Some(p) = self.player.as_mut() {
@@ -193,14 +198,6 @@ impl Game<'_> {
             self.portal_particles();
         }
         true
-    }
-    fn state_in_tag(&self, tag: &str, state: horizon_world::registry::BlockStateId) -> bool {
-        let name = &self.res.facts().get(state).name;
-        self.res
-            .items()
-            .block_tags
-            .get(tag)
-            .is_some_and(|s| s.contains(&**name))
     }
     /// `LivingEntity.handleEntityEvent(46)` for this client: 128 portal
     /// particles from the old position to the new one. The local player's
@@ -394,9 +391,7 @@ impl TeleportConsumeWorld for Teleporter<'_, '_> {
         Ok(!cancel)
     }
     fn random_teleport(&mut self, target: Vec3) -> Result<bool, Infallible> {
-        Ok(self
-            .0
-            .random_teleport(target, "minecraft:consumable_does_not_teleport_to"))
+        Ok(self.0.random_teleport(target))
     }
     fn teleport_event(&mut self, _: Dim, old: Vec3) -> Result<(), Infallible> {
         let ctx = self.0.who_context(Some(Who::Player), None);

@@ -31,7 +31,9 @@ pub trait TeleportConsumeWorld {
         let _ = target;
         Ok(true)
     }
-    /// showParticles=true and forbidden tag=CONSUMABLE_DOES_NOT_TELEPORT_TO.
+    /// `LivingEntity.randomTeleport(x, y, z, true)` in 26.2: showParticles,
+    /// no avoidance tag (26.3 added the `CONSUMABLE_DOES_NOT_TELEPORT_TO`
+    /// predicate form).
     fn random_teleport(&mut self, position: Vec3) -> Result<bool, Self::Error>;
     /// Level TELEPORT event, old position, context containing this actor.
     fn teleport_event(&mut self, level: Self::Level, old_position: Vec3)
