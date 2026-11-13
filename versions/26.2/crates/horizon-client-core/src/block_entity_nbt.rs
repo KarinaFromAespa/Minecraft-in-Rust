@@ -456,9 +456,8 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:sign" | "minecraft:hanging_sign" => {
-            if flag(tag.get("allow_op_features")) == Some(true) {
-                f.put("allow_op_features", boolean(true));
-            }
+            // 26.2 signs carry no `allow_op_features` (datafix 5002 adds
+            // it): the tag, if present, is dropped.
             f.put("front_text", sign_side(tag.get("front_text")));
             f.put("back_text", sign_side(tag.get("back_text")));
             f.flag("is_waxed", false);

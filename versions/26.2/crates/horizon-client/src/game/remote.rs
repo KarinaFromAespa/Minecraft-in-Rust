@@ -8782,17 +8782,15 @@ impl Game<'_> {
                 .and_then(|old| self.res.transformers().waxed(registry, old))
                 .is_some();
             if waxes {
+                // The events carry the wax-on sound in 26.2
+                // (LevelEventHandler 3003); no explicit play.
                 self.level_event_at(3003, hit.pos, 0);
-                self.audio
-                    .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
-                // The other half of a double chest: its particles, and a second
-                // sound from the clicked block.
+                // The other half of a double chest: its own event (with its
+                // own sound, at the other half).
                 if let Some(other) =
                     old.and_then(|old| super::storage::chest_connected_pos(old, hit.pos))
                 {
                     self.level_event_at(3003, other, 0);
-                    self.audio
-                        .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
                 }
             }
             waxes

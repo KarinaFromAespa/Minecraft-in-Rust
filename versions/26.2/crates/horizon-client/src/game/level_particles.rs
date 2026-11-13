@@ -40,6 +40,15 @@ impl Game<'_> {
             3005 => ParticleType::Scrape,
             _ => return,
         };
+        // 26.2's 3003 also plays the wax-on sound (`playLocalSound`, no
+        // distance delay); 26.3 moved it to the item code. Unshared: each
+        // client plays it from the event packet, so the serving game must
+        // not capture it as a sound packet too.
+        if id == 3003 {
+            let at = [pos.x, pos.y, pos.z].map(|v| f64::from(v) + 0.5);
+            self.audio
+                .play_unshared("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
+        }
         let p = [pos.x, pos.y, pos.z];
         let mut spawned = Vec::new();
         let random = self.particles.level_random();

@@ -2218,6 +2218,8 @@ impl Game<'_> {
         };
         set_success("honeycomb", true);
         self.level_set([target.0, target.1, target.2], waxed)?;
+        // The event carries the wax-on sound in 26.2 (LevelEventHandler
+        // 3003); no explicit play.
         self.level_events
             .push(horizon_world::level::LevelEvent::LevelEvent {
                 id: 3003,
@@ -2225,12 +2227,6 @@ impl Game<'_> {
                 data: 0,
             });
         self.process_level_events()?;
-        self.audio.play(
-            "minecraft:item.honeycomb.wax_on",
-            Some(Self::center(target)),
-            1.0,
-            1.0,
-        );
         Ok((shrink(stack), CLICK))
     }
     fn dispense_potion(

@@ -510,8 +510,6 @@ pub struct SignData {
     pub front: SignText,
     pub back: SignText,
     pub waxed: bool,
-    /// `allow_op_features`: the sign's click events may run commands.
-    pub allow_op_features: bool,
 }
 /// `VibrationInfo`.
 #[derive(Clone, Copy, Debug, PartialEq)]

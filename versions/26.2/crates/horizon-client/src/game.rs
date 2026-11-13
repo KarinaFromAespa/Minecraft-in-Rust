@@ -8021,18 +8021,6 @@ impl Game<'_> {
         }
         Ok(true)
     }
-    /// `HoneycombItem.useOn`'s `Level.playSound(player, ...)`: the actor's client
-    /// already played it in `predict_item_on_block`.
-    fn wax_on_sound(&mut self, at: [f64; 3]) {
-        let sound = "minecraft:item.honeycomb.wax_on";
-        if self.lan_acting.is_some() {
-            self.audio.play_unshared(sound, Some(at), 1.0, 1.0);
-            self.guest_block_sounds
-                .push((sound.to_owned(), at, 1.0, 1.0));
-        } else {
-            self.audio.play(sound, Some(at), 1.0, 1.0);
-        }
-    }
     /// `BlockTransformer.transformBlock`'s `COPPER_CHEST` extra: a double
     /// chest's other half hears a block change and gets the same particle.
     fn transform_copper_chest_neighbour(
@@ -8331,10 +8319,11 @@ impl Game<'_> {
             {
                 let other = old.and_then(|old| storage::chest_connected_pos(old, hit.pos));
                 // HoneycombItem.useOn: ITEM_USED_ON_BLOCK before the swap.
+                // The event carries the wax-on sound in 26.2
+                // (LevelEventHandler 3003); no explicit play.
                 self.trigger_block("minecraft:item_used_on_block", hit.pos, stack);
                 self.level_set(hit.pos, state)?;
                 self.level_event_at(3003, hit.pos, 0);
-                self.wax_on_sound(at(hit.pos));
                 // HoneycombItem.useOn's game event, and ItemStack.useOn's used statistic.
                 self.post_block_game_event(
                     "minecraft:block_change",
@@ -8342,8 +8331,8 @@ impl Game<'_> {
                     self.sculk_actor(),
                     Some(state),
                 );
-                // A double chest's other half: its game event and particles, and
-                // a second sound from the clicked block.
+                // A double chest's other half: its game event, and its own
+                // event (with its own sound, at the other half).
                 if let Some(other) = other {
                     let now = self.world.block(other[0], other[1], other[2]);
                     self.post_block_game_event(
@@ -8353,7 +8342,6 @@ impl Game<'_> {
                         Some(now),
                     );
                     self.level_event_at(3003, other, 0);
-                    self.wax_on_sound(at(hit.pos));
                 }
                 self.award_stat("used", &stack.item, 1);
                 if !self.creative {

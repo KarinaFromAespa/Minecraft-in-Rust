@@ -143,15 +143,15 @@ impl Game<'_> {
     }
     /// `SignBlockEntity.executeClickCommandsIfPresent`: every line of the
     /// side whose style has a `run_command`, `show_dialog` or `custom` click
-    /// event runs it as the acting player when the sign allows op features;
-    /// otherwise the player is told click actions are disabled. Whether any
-    /// line had one.
+    /// event runs it as the acting player. Whether any line had one. 26.2
+    /// runs them unconditionally: the `allow_op_features` gate (and its
+    /// `sign.click_actions_disabled` message) is 26.3's, added by datafix
+    /// 5002.
     fn execute_sign_click_commands(&mut self, pos: [i32; 3], front: bool) -> bool {
         let key = (pos[0], pos[1], pos[2]);
         let Some(BlockEntity::Sign(sign)) = self.world.block_entities.get(&key) else {
             return false;
         };
-        let allow_op_features = sign.allow_op_features;
         let side = if front { &sign.front } else { &sign.back };
         // The side as it was when the loop began: a command may change it.
         let events: Vec<_> = side.click.iter().flatten().cloned().collect();
@@ -159,49 +159,22 @@ impl Game<'_> {
         for event in &events {
             match click_action(event) {
                 Some(ClickAction::RunCommand(command)) => {
-                    if allow_op_features {
-                        self.run_sign_command(pos, &command);
-                    }
+                    self.run_sign_command(pos, &command);
                     any_click_command = true;
                 }
                 Some(ClickAction::ShowDialog(dialog)) => {
-                    if allow_op_features {
-                        self.show_click_dialog(dialog);
-                    }
+                    self.show_click_dialog(dialog);
                     any_click_command = true;
                 }
                 // MinecraftServer.handleCustomClickAction only logs it.
                 Some(ClickAction::Custom { id, payload }) => {
-                    if allow_op_features {
-                        log::debug!("Received custom click action {id} with payload {payload:?}");
-                    }
+                    log::debug!("Received custom click action {id} with payload {payload:?}");
                     any_click_command = true;
                 }
                 None => {}
             }
         }
-        if !allow_op_features && any_click_command {
-            self.sign_click_actions_disabled();
-        }
         any_click_command
-    }
-    /// `Player.sendOverlayMessage(CLICK_ACTIONS_DISABLED)`: red text on the
-    /// action bar. A guest gets a packet, so its own client translates it.
-    fn sign_click_actions_disabled(&mut self) {
-        const KEY: &str = "sign.click_actions_disabled";
-        if self.lan_acting.is_some() {
-            let message = horizon_client::text::Text::translate(KEY, &[])
-                .with_color(horizon_client::text::RED);
-            self.guest_packets.push(C::SystemChat(play::SystemChat {
-                content: horizon_client::lan::data::component_nbt(&message.component()),
-                overlay: true,
-            }));
-        } else {
-            self.message = Some((
-                self.translate(KEY, "Click actions are disabled for this sign"),
-                std::time::Instant::now(),
-            ));
-        }
     }
     /// `SignBlock.useWithoutItem` (the block's `OpenMenu` effect): the side
     /// the player faces runs its click commands first; then a waxed sign
@@ -272,8 +245,10 @@ impl Game<'_> {
         let centre = pos.map(|v| f64::from(v) + 0.5);
         let sound = if item == "minecraft:honeycomb" {
             // HoneycombItem.tryApplyToSign: waxes any sign, empty or not.
+            // 26.2 plays no sound here: the wax-on sound comes from the
+            // level event (LevelEventHandler 3003), not from the item.
             sign.waxed = true;
-            "minecraft:item.honeycomb.wax_on"
+            None
         } else {
             let side = if front {
                 &mut sign.front
@@ -287,15 +262,15 @@ impl Game<'_> {
             match colour {
                 Some(c) if side.color != c as u8 => {
                     side.color = c as u8;
-                    "minecraft:item.dye.use"
+                    Some("minecraft:item.dye.use")
                 }
                 None if item == "minecraft:glow_ink_sac" && !side.glowing => {
                     side.glowing = true;
-                    "minecraft:item.glow_ink_sac.use"
+                    Some("minecraft:item.glow_ink_sac.use")
                 }
                 None if item == "minecraft:ink_sac" && side.glowing => {
                     side.glowing = false;
-                    "minecraft:item.ink_sac.use"
+                    Some("minecraft:item.ink_sac.use")
                 }
                 _ => return false,
             }
@@ -303,7 +278,9 @@ impl Game<'_> {
         if item == "minecraft:honeycomb" {
             self.level_event_at(3003, pos, 0);
         }
-        self.audio.play(sound, Some(centre), 1.0, 1.0);
+        if let Some(sound) = sound {
+            self.audio.play(sound, Some(centre), 1.0, 1.0);
+        }
         self.mark_block_entity_updated(key);
         self.execute_sign_click_commands(pos, front);
         let state = self.world.block(pos[0], pos[1], pos[2]);
