@@ -71,14 +71,9 @@ pub fn spawn_egg_op_warning(stack: &crate::items::ItemStack) -> bool {
 }
 
 /// `SpawnEggItem.useOn` on a spawner: the type it sets (`getType`: the egg's
-/// entity data id, else the egg's own type) and, for an op
-/// (`PlayerList.isOp`), that entity data for `Spawner.setEntityData`; anyone
-/// else sets only the type (`setEntityId`).
-/// `SpawnEggItem.getType`: the type a spawn egg selects for a spawner (or a
-/// dispenser): the stack's entity data `id` when it has one, else the egg's
-/// own type. 26.2's `SpawnEggItem.useOn` always calls `setEntityId(type)` —
-/// the egg's entity data is never applied (the op-gated `setEntityData`
-/// path is 26.3-only), so this returns only the id.
+/// entity data id, else the egg's own type). 26.2's `useOn` always calls
+/// `setEntityId(type)` — the egg's entity data is never applied (the
+/// op-gated `setEntityData` path is 26.3-only), so this returns only the id.
 pub fn spawn_egg_on_spawner(stack: &crate::items::ItemStack) -> String {
     let data = match stack.data().and_then(|d| d.other("minecraft:entity_data")) {
         Some(Tag::Compound(c)) => Some(c),

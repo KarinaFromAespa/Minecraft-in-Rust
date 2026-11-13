@@ -597,13 +597,11 @@ impl Game<'_> {
             }
             // EntityRenderer.shouldRender: the item's 0.25 box, grown by 0.5,
             // in the view frustum. Checked before its model is resolved.
+            // 26.2's getBoundingBoxForCulling is the plain getBoundingBox;
+            // the interpolated box is 26.3's.
             if entity && let Some(view) = &self.view_frustum {
-                let (lo, hi) = dropped_item_cull_box(
-                    glam::DVec3::new(item.previous.x, item.previous.y, item.previous.z),
-                    glam::DVec3::new(q.x, q.y, q.z),
-                    alpha,
-                    camera,
-                );
+                let (lo, hi) =
+                    dropped_item_cull_box(glam::DVec3::new(q.x, q.y, q.z), camera);
                 if !view.intersects(lo, hi) {
                     continue;
                 }
@@ -716,13 +714,8 @@ impl Game<'_> {
 /// `Entity.getInterpolatedBoundingBox(partialTick)` - the item's 0.25 box at
 /// the position the frame draws, `ItemEntity` overriding neither - grown by 0.5
 /// all round before the frustum test.
-fn dropped_item_cull_box(
-    previous: glam::DVec3,
-    position: glam::DVec3,
-    alpha: f64,
-    camera: glam::DVec3,
-) -> (glam::Vec3, glam::Vec3) {
-    let feet = (previous.lerp(position, alpha) - camera).as_vec3();
+fn dropped_item_cull_box(position: glam::DVec3, camera: glam::DVec3) -> (glam::Vec3, glam::Vec3) {
+    let feet = (position - camera).as_vec3();
     let half = glam::Vec3::new(0.125 + 0.5, 0.5, 0.125 + 0.5);
     (
         feet - half,
@@ -744,34 +737,22 @@ mod tests {
 
     /// `EntityRenderer.shouldRender` culls with `getBoundingBoxForCulling(entity,
     /// partialTick)`, which is `Entity.getInterpolatedBoundingBox(partialTick)`:
-    /// an item's 0.25 box at the position the frame draws, grown by 0.5. The box
-    /// was built from the tick's own position, so an item crossing the frustum
-    /// edge mid-tick disappeared for the frames before it got there.
+    /// `EntityRenderer.getBoundingBoxForCulling` in 26.2 is the plain
+    /// `getBoundingBox`: an item's 0.25 box at its current position, grown
+    /// by 0.5 — no interpolation (the interpolated box is 26.3's).
     #[test]
-    fn a_dropped_item_is_culled_at_the_frame_s_position() {
+    fn a_dropped_item_is_culled_at_its_current_position() {
         let camera = glam::DVec3::ZERO;
-        let previous = glam::DVec3::new(0.0, 64.0, 0.0);
         let position = glam::DVec3::new(1.0, 64.0, 0.0);
-        let bounds = |alpha: f64| {
-            let (lo, hi) = dropped_item_cull_box(previous, position, alpha, camera);
-            (lo.to_array(), hi.to_array())
-        };
-        // The frame's start: the box stands at the item's previous position.
-        assert_eq!(bounds(0.0), ([-0.625, 63.5, -0.625], [0.625, 64.75, 0.625]));
-        // Halfway through the tick the box has travelled half the block.
-        assert_eq!(bounds(0.5), ([-0.125, 63.5, -0.625], [1.125, 64.75, 0.625]));
-        // And at its end it is where the old code put it on every frame.
-        assert_eq!(bounds(1.0), ([0.375, 63.5, -0.625], [1.625, 64.75, 0.625]));
-        // A falling item moves in y the same way: halfway down a 66 -> 65 drop
-        // the box's floor is at 65.0, where the old code had the tick's 64.5.
-        let (lo, hi) = dropped_item_cull_box(
-            glam::DVec3::new(0.0, 66.0, 0.0),
-            glam::DVec3::new(0.0, 65.0, 0.0),
-            0.5,
-            camera,
+        let (lo, hi) = dropped_item_cull_box(position, camera);
+        assert_eq!(
+            (lo.to_array(), hi.to_array()),
+            ([0.375, 63.5, -0.625], [1.625, 64.75, 0.625])
         );
-        assert!((lo.y - 65.0).abs() < 1e-6);
-        assert!((hi.y - 66.25).abs() < 1e-6);
+        // A falling item: the box's floor is half a block below its position.
+        let (lo, hi) = dropped_item_cull_box(glam::DVec3::new(0.0, 65.0, 0.0), camera);
+        assert!((lo.y - 64.5).abs() < 1e-6);
+        assert!((hi.y - 65.75).abs() < 1e-6);
     }
 
     #[test]
