@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Compare every registered block landing/bounce family with pinned vanilla."""
+"""Compare every registered block landing family with pinned vanilla.
+
+26.2 scope: 26.2 has no Block.bounceOn — ShelfMushroomBlock is a 26.3
+addition, and the 26.2 oracle hardcodes bounce=false for every entry —
+so the corpus covers bounce=False only; bounce=true rows are 26.3-only
+and are dropped here, not faked. Registry pins are 26.2's own numbers
+(32,366 states / 1,196 definitions)."""
 import json
 import math
 import os
@@ -23,7 +29,7 @@ def corpus(states, definitions):
         f.update(kw);return f
     for state in states:
         for kind in range(8):
-            for bounce in [False,True]:yield row(state['id'],kind,bounce=bounce)
+            yield row(state['id'],kind)
     special=[s for s in states if definitions[s['name']]['fall']!='Block' or definitions[s['name']]['bounce']]
     distances=[-math.inf,-1.,-0.,0.,.5,math.nextafter(.75,0),.75,math.nextafter(.75,1),1.,math.nextafter(4.,0),4.,math.nextafter(4.,5),math.nextafter(7.,0),7.,math.nextafter(7.,8),1e40,math.inf,math.nan]
     for state in special:
@@ -33,8 +39,7 @@ def corpus(states, definitions):
             for flag in ['damage','suppress','protected','griefing','write']:
                 for value in [False,True]:
                     for fail in range(-1,18):yield row(state['id'],kind,**{flag:value,'fail':fail})
-            for bounce in [False,True]:
-                for fail in range(-1,4):yield row(state['id'],kind,bounce=bounce,fail=fail)
+            for fail in range(-1,4):yield row(state['id'],kind,fail=fail)
     rng=random.Random(0x4c414e44494e47)
     for _ in range(18000):
         state=rng.choice(special);p=rng.choice([[0,0,0],[17,-64,-33],[2147483647,0,-2147483648]])
@@ -64,7 +69,7 @@ def main():
     run(['javac','--release',lock['minecraft']['java_major'],'-proc:none','-sourcepath',str(lab.ROOT/'mods/horizon/src/test/java'),'-cp',str(jars['server'])+os.pathsep+dependencies,'-d',classes,*oracles],'compile-java')
     def java(side,mode):run(['java','-Xmx768M','-cp',os.pathsep.join([str(classes),str(jars[side]),dependencies]),'dev.horizonlab.parity.VanillaBlockLandingOracle',mode,build],side+'-'+mode)
     java('server','export');states=json.loads((build/'landing-states.json').read_text());definitions=json.loads((build/'landing-definitions.json').read_text())
-    if len(states)!=35723 or len(definitions)!=1286:raise AssertionError('Incomplete pinned registry')
+    if len(states)!=32366 or len(definitions)!=1196:raise AssertionError('Incomplete pinned registry')
     count=0
     with (build/'inputs.txt').open('w') as output:
         for f in corpus(states,definitions):output.write(json.dumps(f,separators=(',',':'))+'\n');count+=1
@@ -75,7 +80,7 @@ def main():
     for side,jar in jars.items():
         java(side,side);matched=base.compare(build/(side+'.txt'),build/'rust.txt');references.append(dict(side=side,jar_sha256=lab.digest(jar,'sha256'),output_sha256=lab.digest(build/(side+'.txt'),'sha256'),matched_output_lines=matched));print(f'{side}: {matched:,} registered block landing lines match',flush=True)
     base.ensure_sources_unchanged(sources,tested);base.ensure_sources_unchanged(fixture_paths,fixtures)
-    report=dict(schema=1,minecraft=lock['minecraft']['version'],manifest_sha1=lock['minecraft']['manifest_sha1'],platform=platform.platform(),java=subprocess.check_output(['java','--version'],text=True).splitlines()[0],rustc=subprocess.check_output(['rustc','--version'],text=True).strip(),registry_states=len(states),registry_blocks=len(definitions),fixtures=count,sources_sha256=tested,fixtures_sha256=fixtures,rust_output_sha256=lab.digest(build/'rust.txt','sha256'),references=references,scope='Actual registered Block.fallOn and bounceOn across all states and eight entity class families, plus client/server distinctions, damage return, bounce suppression, protection/rules, random boundaries, NaN/infinity and failures at each observable callback. Farmland replacement uses native registered collision shapes and ordered occupant pushes; turtle egg changes preserve hatch and compare write flags, event order and effects after failed writes. Entity damage, randomness, selected entities, sounds, world writes and events are controlled providers. Live health, entity storage, network, audio and full movement lifecycle integration remain separate work.')
+    report=dict(schema=1,minecraft=lock['minecraft']['version'],manifest_sha1=lock['minecraft']['manifest_sha1'],platform=platform.platform(),java=subprocess.check_output(['java','--version'],text=True).splitlines()[0],rustc=subprocess.check_output(['rustc','--version'],text=True).strip(),registry_states=len(states),registry_blocks=len(definitions),fixtures=count,sources_sha256=tested,fixtures_sha256=fixtures,rust_output_sha256=lab.digest(build/'rust.txt','sha256'),references=references,scope='Actual registered Block.fallOn across all states and eight entity class families, plus client/server distinctions, damage return, bounce suppression, protection/rules, random boundaries, NaN/infinity and failures at each observable callback. 26.2 has no bounceOn (ShelfMushroomBlock is a 26.3 addition), so bounce=true rows are out of scope for this version. Farmland replacement uses native registered collision shapes and ordered occupant pushes; turtle egg changes preserve hatch and compare write flags, event order and effects after failed writes. Entity damage, randomness, selected entities, sounds, world writes and events are controlled providers. Live health, entity storage, network, audio and full movement lifecycle integration remain separate work.')
     lab.write_json(report_path,report);print(f'Scoped registered landing parity passed: {report_path}',flush=True)
 
 
