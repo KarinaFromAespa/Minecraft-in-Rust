@@ -249,7 +249,15 @@ pub fn draw_overlay(batch: &mut HudBatch, atlas: &HudAtlas) {
         bottom = caret.y - 4.0 - line;
     }
     let top = bottom - line;
-    s.area = Some([left, top, right, bottom]);
+    // `IMEPreeditOverlay.extractRenderState` in 26.2 reports the union of
+    // the preedit and the input field, grown by `HOT_AREA_MARGIN` (2px), as
+    // the text input area; 26.3 reports the preedit rect alone.
+    s.area = Some([
+        left.min(caret.x) - 2.0,
+        top.min(caret.y) - 2.0,
+        right + 2.0,
+        bottom.max(input_bottom) + 2.0,
+    ]);
     drop(s);
     nine_slice(
         batch,
