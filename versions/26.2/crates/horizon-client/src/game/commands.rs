@@ -3522,6 +3522,10 @@ impl Game<'_> {
                 )));
             }
             // AdvancementCommands.performCriterion: each selected player's own turn.
+            // 26.2 has no CommandResponseTracker: one/many branches on the
+            // number of target players (26.3's tracker counts the changed
+            // ones), and the many count is the changed players on success
+            // but all targets on failure.
             let results = self.advancement_turns(&targets, |g| {
                 i32::from(if grant {
                     g.grant_advancement(i, Some(criterion))
@@ -3529,15 +3533,17 @@ impl Game<'_> {
                     g.revoke_advancement(i, Some(criterion))
                 })
             });
-            let (who, many) = self.advancement_subject(&results);
+            let changed = results.iter().filter(|r| r.1 != 0).count();
+            let (who_fail, who_ok, many) = self.advancement_subject(&targets, changed);
             let to = if many { "many" } else { "one" };
-            let args = [Text::literal(criterion.clone()), name, who];
             if results.iter().map(|r| r.1).sum::<i32>() == 0 {
+                let args = [Text::literal(criterion.clone()), name, who_fail];
                 return Err(CommandError::new(Text::translate(
                     &format!("commands.advancement.{key}.criterion.to.{to}.failure"),
                     &args,
                 )));
             }
+            let args = [Text::literal(criterion.clone()), name, who_ok];
             self.feedback(Text::translate(
                 &format!("commands.advancement.{key}.criterion.to.{to}.success"),
                 &args,
@@ -3588,20 +3594,31 @@ impl Game<'_> {
             count
         });
         let total: i32 = results.iter().map(|r| r.1).sum();
-        let (who, many) = self.advancement_subject(&results);
+        let changed = results.iter().filter(|r| r.1 != 0).count();
+        let (who_fail, who_ok, many) = self.advancement_subject(&targets, changed);
         let to = if many { "many" } else { "one" };
-        let (what, first) = if list.len() == 1 {
-            ("one", super::advancements::adv_name(&tree.list[list[0]]))
+        // 26.2's many.*.success prints the number actually changed
+        // (advancementCount); the failure prints the number targeted
+        // (advancements.size()). 26.3's tracker passes the targeted count
+        // in both cases.
+        let (what, first_fail, first_ok) = if list.len() == 1 {
+            let n = super::advancements::adv_name(&tree.list[list[0]]);
+            ("one", n.clone(), n)
         } else {
-            ("many", Text::literal(list.len().to_string()))
+            (
+                "many",
+                Text::literal(list.len().to_string()),
+                Text::literal(total.to_string()),
+            )
         };
-        let args = [first, who];
         if total == 0 {
+            let args = [first_fail, who_fail];
             return Err(CommandError::new(Text::translate(
                 &format!("commands.advancement.{key}.{what}.to.{to}.failure"),
                 &args,
             )));
         }
+        let args = [first_ok, who_ok];
         self.feedback(Text::translate(
             &format!("commands.advancement.{key}.{what}.to.{to}.success"),
             &args,
@@ -3623,16 +3640,20 @@ impl Game<'_> {
     /// The player argument of the advancement feedback: with the tracker's
     /// NON_ZERO elements on success and every element on failure, the one
     /// player's name, else the count (CommandResponseTracker.dispatch).
-    fn advancement_subject(&self, results: &[(Target, i32)]) -> (Text, bool) {
-        let changed: Vec<Target> = results.iter().filter(|r| r.1 != 0).map(|r| r.0).collect();
-        let picked: Vec<Target> = if changed.is_empty() {
-            results.iter().map(|r| r.0).collect()
+    /// `AdvancementCommands`' player subject in 26.2: one/many by the number
+    /// of target players; the subject is the single target's display name,
+    /// or the changed-player count on success and the target count on
+    /// failure. Returns (failure subject, success subject, many).
+    fn advancement_subject(&self, targets: &[Target], changed: usize) -> (Text, Text, bool) {
+        if targets.len() == 1 {
+            let name = self.target_name(targets[0]);
+            (name.clone(), name, false)
         } else {
-            changed
-        };
-        match picked.as_slice() {
-            [t] => (self.target_name(*t), false),
-            _ => (Text::literal(picked.len().to_string()), true),
+            (
+                Text::literal(targets.len().to_string()),
+                Text::literal(changed.to_string()),
+                true,
+            )
         }
     }
     fn cmd_experience(&mut self, ctx: &Context) -> R<i32> {
@@ -4104,31 +4125,32 @@ impl Game<'_> {
         let max = Self::int(ctx, "maxCount").unwrap_or(-1);
         let counting = max == 0;
         // ClearInventoryCommands.clearInventory: each player on their own.
+        // 26.2 has no CommandResponseTracker: single/multiple branches on
+        // the number of target players (26.3's tracker counts the non-zero
+        // ones), and the single failure names the player with getName()
+        // (26.3's ERROR_DISPATCH uses getDisplayName()); success messages
+        // use the display name in both versions.
         let mut removed = 0i32;
-        let mut found = Vec::new();
         for &t in &targets {
-            let n = self
+            removed += self
                 .for_player(t, |g| g.clear_matching(&predicate, max))
                 .unwrap_or(0);
-            removed += n;
-            if n != 0 {
-                found.push(t);
-            }
         }
         if removed == 0 {
             return Err(if targets.len() == 1 {
                 CommandError::new(Text::translate(
                     "clear.failed.single",
-                    &[self.target_name(targets[0])],
+                    &[self.target_plain_name(targets[0])],
                 ))
             } else {
                 err("clear.failed.multiple", &[&targets.len()])
             });
         }
         let kind = if counting { "test" } else { "success" };
-        let (key, who) = match found[..] {
-            [only] => ("single", self.target_name(only)),
-            _ => ("multiple", Text::literal(found.len().to_string())),
+        let (key, who) = if targets.len() == 1 {
+            ("single", self.target_name(targets[0]))
+        } else {
+            ("multiple", Text::literal(targets.len().to_string()))
         };
         self.feedback(Text::translate(
             &format!("commands.clear.{kind}.{key}"),

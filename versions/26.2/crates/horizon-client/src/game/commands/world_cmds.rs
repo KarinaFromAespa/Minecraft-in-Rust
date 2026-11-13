@@ -68,39 +68,37 @@ impl Game<'_> {
             }
             _ => self.all_recipe_ids(),
         };
-        let mut tracker = Tracker::default();
+        // 26.2's giveRecipes/takeRecipes (no CommandResponseTracker there):
+        // fail when nothing was awarded at all, single/multiple by the
+        // number of target players (not the number awarded to — 26.3's
+        // tracker counts non-zero elements), messages print
+        // `recipes.size()` — the collection passed in, specials included —
+        // while returning the awarded count.
+        let mut total = 0i32;
         for &t in &targets {
-            let h = holder(self.target_name(t));
             // ServerPlayer.awardRecipes / resetRecipes on the target's own
             // ServerRecipeBook: a guest's is swapped in for the call, and the
             // packets go to its client.
-            let n = self
+            total += self
                 .for_player(t, |g| g.change_recipes(give, &recipes))
                 .unwrap_or(0);
-            tracker.track(&h, n);
         }
         let verb = if give { "give" } else { "take" };
-        // 26.2's giveRecipes/takeRecipes print `recipes.size()` — the
-        // collection passed in, specials included — while returning the
-        // awarded count; the tracker carries the awarded total, so the
-        // closures take the count from the collection instead.
+        if total == 0 {
+            return Err(err(&format!("commands.recipe.{verb}.failed"), &[]));
+        }
         let shown = num(recipes.len() as i32);
-        let (message, total) = tracker.message(
-            false,
-            Some(err(&format!("commands.recipe.{verb}.failed"), &[])),
-            |h, _| {
-                Text::translate(
-                    &format!("commands.recipe.{verb}.success.single"),
-                    &[shown.clone(), h.text.clone()],
-                )
-            },
-            |count, _| {
-                Text::translate(
-                    &format!("commands.recipe.{verb}.success.multiple"),
-                    &[shown.clone(), num(count)],
-                )
-            },
-        )?;
+        let message = if targets.len() == 1 {
+            Text::translate(
+                &format!("commands.recipe.{verb}.success.single"),
+                &[shown, self.target_name(targets[0])],
+            )
+        } else {
+            Text::translate(
+                &format!("commands.recipe.{verb}.success.multiple"),
+                &[shown, num(targets.len())],
+            )
+        };
         self.feedback(message);
         Ok(total)
     }
