@@ -376,11 +376,12 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     match id.as_str() {
         "minecraft:furnace" | "minecraft:smoker" | "minecraft:blast_furnace" => {
             f.base_container();
-            f.int("cooking_time_spent", 0);
-            f.int("cooking_total_time", 0);
-            f.int("lit_time_remaining", 0);
-            f.int("lit_total_time", 0);
-            f.float("speed_multiplier", 1.0);
+            // 26.2 saves the furnace times as shorts, with no speed
+            // multiplier (int times + speed_multiplier are 26.3's format).
+            f.short("cooking_time_spent", 0);
+            f.short("cooking_total_time", 0);
+            f.short("lit_time_remaining", 0);
+            f.short("lit_total_time", 0);
             f.items(3, true);
             let used: Compound = match tag.get("RecipesUsed") {
                 Some(Tag::Compound(c)) => c
@@ -871,8 +872,12 @@ mod tests {
     #[test]
     fn furnace_defaults_match_vanilla() {
         let out = canon("{id:\"minecraft:furnace\",x:1,y:2,z:3}");
-        assert_eq!(out.get("cooking_total_time"), Some(&Tag::Int(0)));
-        assert_eq!(out.get("speed_multiplier"), Some(&f32_tag(1.0)));
+        // 26.2 saves the furnace times as shorts, with no speed multiplier.
+        assert_eq!(out.get("cooking_total_time"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("cooking_time_spent"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("lit_time_remaining"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("lit_total_time"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("speed_multiplier"), None);
         assert_eq!(out.get("Items"), Some(&Tag::List(vec![])));
         assert_eq!(
             out.get("RecipesUsed"),

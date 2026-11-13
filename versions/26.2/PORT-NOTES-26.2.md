@@ -330,6 +330,12 @@ blocked earlier, at VanillaHeightmapOracle.
   `ServerboundAcceptTeleportationPacket` gains a parameter.
 - game_loop: `LocalPlayer` constructor, `MouseHandler.onMove` / `onScroll`
   access, and the input `Type.KEYBOARD` constant all differ.
+- furnace: `VanillaFurnaceOracle` still reflects 26.3's
+  `AbstractFurnaceBlockEntity.speedMultiplier` (set + read) and the
+  driver still sends/expects a SPEED field; 26.2 has no fuel speed.
+  The Rust side is ported (rank-2 item 154) and the fixture accepts
+  and ignores SPEED, but the harness cannot run against 26.2 until
+  the oracle + driver drop speed.
 - tab_list (`tools/test_tab_list_parity.py`, outside the port harness set):
   authlib 9.0.75 has no `MinecraftServicesSessionService` /
   `MinecraftServicesDiscoveryService`; the session service is

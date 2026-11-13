@@ -111,8 +111,4 @@ impl Providers {
     pub fn burn_time(&self, items: &Items, stack: &ItemStack, _fast: bool) -> i32 {
         crate::items::burn_time(items, &stack.item)
     }
-    /// 26.2 fuel has no speed effect: always 1.0.
-    pub fn speed(&self, _items: &Items, _stack: &ItemStack, _fast: bool) -> f32 {
-        1.0
-    }
 }

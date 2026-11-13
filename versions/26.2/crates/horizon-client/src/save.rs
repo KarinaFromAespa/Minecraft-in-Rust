@@ -671,11 +671,12 @@ pub fn encode_block_entity(
         }
         BlockEntity::Furnace(f) => {
             entries.push(("Items", encode_items(&f.items)));
-            entries.push(("lit_time_remaining", Tag::Int(f.lit_remaining)));
-            entries.push(("lit_total_time", Tag::Int(f.lit_total)));
-            entries.push(("cooking_time_spent", Tag::Int(f.cooking_timer)));
-            entries.push(("cooking_total_time", Tag::Int(f.cooking_total)));
-            entries.push(("speed_multiplier", Tag::Float(f.speed.to_bits())));
+            // 26.2 saves the furnace times as shorts, with no speed
+            // multiplier (both are 26.3's save format).
+            entries.push(("lit_time_remaining", Tag::Short(f.lit_remaining as i16)));
+            entries.push(("lit_total_time", Tag::Short(f.lit_total as i16)));
+            entries.push(("cooking_time_spent", Tag::Short(f.cooking_timer as i16)));
+            entries.push(("cooking_total_time", Tag::Short(f.cooking_total as i16)));
             let used: Compound = f
                 .recipes_used
                 .iter()
@@ -1038,10 +1039,8 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
             f.lit_total = int("lit_total_time").unwrap_or(0);
             f.cooking_timer = int("cooking_time_spent").unwrap_or(0);
             f.cooking_total = int("cooking_total_time").unwrap_or(0);
-            if let Some(speed) = float(tag.get("speed_multiplier")) {
-                f.speed = speed as f32;
-            }
-            // A save without it owes nothing: the field is newer than some worlds.
+            // A 26.3 save's speed_multiplier is ignored: 26.2 furnaces
+            // have no fuel speed.
             if let Some(Tag::Compound(used)) = tag.get("RecipesUsed") {
                 for (id, count) in used {
                     let count = match count {

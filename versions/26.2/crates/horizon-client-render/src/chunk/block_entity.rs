@@ -34,7 +34,6 @@ pub struct Furnace {
     pub lit_total: i32,
     pub cooking_timer: i32,
     pub cooking_total: i32,
-    pub speed: f32,
     /// `AbstractFurnaceBlockEntity.recipesUsed`: how many of each recipe this furnace has
     /// made since a player last took from its output. The experience is owed per recipe
     /// rather than per item, and a save keeps it as the `RecipesUsed` compound.
