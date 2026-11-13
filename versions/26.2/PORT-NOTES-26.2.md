@@ -427,3 +427,24 @@ this stage. The facts.json `missing field 'id'` parse error seen in
 codec fix is in), but the affected harnesses still fail on their own
 differentials. Artifacts kept at
 `~/workspace/mcir-work/26.2-behaviour/ci-runs/43379593930/`.
+
+## CI profile — port-verify v6.6, run 43405337919 (2026-11-13)
+
+Dispatched on behaviour/26.2@afe697ed (the occlusion.nbt
+`BlockState::from_nbt` fix; rank 2 at 65/410 — item 104 landed after
+the dispatch, in e345f3ce). Completed 2026-11-13T11:59:31Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, **light**, resource_pack
+pass; the other 13 fail. **Light moved from fail to pass**: the
+`from_nbt` fix unblocked the launch crash (`NBT at byte 1975826:
+invalid table state`), so the light harness finally runs. command_exec
+and save_roundtrip still fail — save_roundtrip has the separate
+vanilla-side scene-command serialization errors (decorated_pot sherds,
+BlockState "No key Name") noted with the fix, and both need behaviour
+work, not just launch. D1 pass, D2 pass (0 errors, 0 warnings;
+protocol tests 445, none failing); D3 fail (rank 2: 345/410 neither
+closed nor accepted at this commit); D4–D6 blocked as before.
+Artifacts kept at
+`~/workspace/mcir-work/26.2-behaviour/ci-runs/43405337919/`.
