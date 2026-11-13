@@ -22,25 +22,10 @@ impl Game<'_> {
             "block/destroy_stage_8",
             "block/destroy_stage_9",
         ];
-        // `ModelBakery.DESTROY_STAGES_OIT`: with improved transparency the cracks are
-        // ordinary translucent quads (`OIT_CRUMBLING`) and use their own sprites.
-        const DESTROY_STAGES_OIT: [&str; 10] = [
-            "block/destroy_oit_stage_0",
-            "block/destroy_oit_stage_1",
-            "block/destroy_oit_stage_2",
-            "block/destroy_oit_stage_3",
-            "block/destroy_oit_stage_4",
-            "block/destroy_oit_stage_5",
-            "block/destroy_oit_stage_6",
-            "block/destroy_oit_stage_7",
-            "block/destroy_oit_stage_8",
-            "block/destroy_oit_stage_9",
-        ];
-        let names = if self.settings.improved_transparency {
-            &DESTROY_STAGES_OIT
-        } else {
-            &DESTROY_STAGES
-        };
+        // 26.2 has no improved-transparency pipeline and no OIT destroy
+        // stages (`ModelBakery.DESTROY_STAGES_OIT` is 26.3-only); the cracks
+        // always use the plain stages.
+        let names = &DESTROY_STAGES;
         let mut stages: Vec<([i32; 3], u32)> = Vec::new();
         let mut add = |pos: [i32; 3], stage: u32| match stages.iter_mut().find(|c| c.0 == pos) {
             Some(c) => c.1 = c.1.max(stage),
