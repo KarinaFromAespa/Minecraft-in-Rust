@@ -135,17 +135,13 @@ fn write_particle(ids: &'static Ids, p: &Particle, w: &mut Writer) {
 }
 
 /// 26.1: flags, position, spread, one max speed, an Int count, then the particle. 26.2 sends the particle
-/// first, a speed per axis, a VarInt count and how the spread is drawn, which 26.1 can't be told (it always
-/// draws a gaussian spread). Of the three speeds the largest goes.
+/// first, one max speed and a VarInt count. 26.1 always draws a gaussian spread, as 26.2 does.
 fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     let p = play::LevelParticles::read(&mut Reader::new(payload))?;
     let Some(particle) = particle_down(ids, &p.particle) else {
         return Ok(Sent::Dropped);
     };
-    let speed = p
-        .max_speed
-        .into_iter()
-        .fold(0.0f32, |a, v| if v.abs() > a.abs() { v } else { a });
+    let speed = p.max_speed;
     let mut w = Writer::new();
     w.bool(p.override_limiter);
     w.bool(p.always_show);
@@ -422,9 +418,8 @@ mod tests {
                 always_show: false,
                 pos: [1.5, 64.0, -3.25],
                 dist: [0.5, 0.25, 0.5],
-                max_speed: [0.1; 3],
+                max_speed: 0.1,
                 count: 12,
-                randomization: 0,
             };
             let old = rewritten(
                 down(
@@ -478,7 +473,7 @@ mod tests {
     }
 
     #[test]
-    fn of_three_speeds_the_largest_goes() {
+    fn a_single_speed_goes_down_unchanged() {
         let ids = ids();
         let p = play::LevelParticles {
             particle: Particle {
@@ -489,9 +484,8 @@ mod tests {
             always_show: false,
             pos: [0.0; 3],
             dist: [0.0; 3],
-            max_speed: [0.1, -0.4, 0.2],
+            max_speed: -0.4,
             count: 0,
-            randomization: 1,
         };
         let old = rewritten(
             down(

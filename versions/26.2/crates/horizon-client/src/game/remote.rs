@@ -8175,9 +8175,9 @@ impl Game<'_> {
                 r.destroying_item = held;
                 r.is_destroying = true;
             }
-            // startDestroyBlock plays the first hit and crack itself; the
-            // server's level events 2019 and 2020 do the rest.
-            self.breaking_block_effects(hit.pos, hit.face, true);
+            // 26.2's startDestroyBlock plays nothing: the hit sound comes
+            // from continueDestroyBlock's every-fourth-tick schedule below,
+            // and there are no crack particles while digging (no 2019/2020).
             self.mining = Some(Mining {
                 pos: hit.pos,
                 progress: 0.0,
@@ -8192,6 +8192,13 @@ impl Game<'_> {
         let done = done + progress;
         self.tutorial_destroy(state, done.clamp(0.0, 1.0));
         let ticks = self.mining.as_ref().map_or(0, |m| m.ticks) + 1;
+        // `MultiPlayerGameMode.continueDestroyBlock`: the hit sound on
+        // destroy ticks 0, 4, 8, ... — `ticks` here is 1-based (0 at START),
+        // so it lands on 1, 5, 9, ... — before the break check, so a
+        // fourth-tick break still sounds.
+        if (ticks - 1).is_multiple_of(4) {
+            self.breaking_block_sound(pos);
+        }
         if done >= 1.0 {
             let seq = self.next_sequence();
             // DebugStickItem.canDestroyBlock: the server selects the property

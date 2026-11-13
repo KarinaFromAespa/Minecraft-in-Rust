@@ -3053,17 +3053,23 @@ impl Game<'_> {
         for e in events {
             match e {
                 horizon_world::level::LevelEvent::LevelEvent { id, pos, data } => {
+                    // 2015 is not a 26.2 packet: the egg's teleport particles
+                    // are the actor's own client-side branch, rendered from
+                    // the local prediction. Never broadcast it — a bystander
+                    // in 26.2 sees no particles.
+                    if *id == 2015 {
+                        continue;
+                    }
                     let own = *id == 2001 && own_break;
                     if own && self.lan_break_pos == Some([pos.x, pos.y, pos.z]) {
                         own_break = false;
                     }
                     // The acting guest does not predict these, and the vanilla
                     // call names no excluded player (`levelEvent(id, pos, data)`
-                    // passes null): the composter fill (1500), the egg's
-                    // teleport, bone meal's growth, anvil result sounds, a
-                    // finished brushing or an eye inserted in a portal frame,
-                    // a zombie's infection and a finished cure (1026, 1027),
-                    // and the digger's own crack and hit sound (2019, 2020).
+                    // passes null): the composter fill (1500), bone meal's
+                    // growth, anvil result sounds, a finished brushing or an
+                    // eye inserted in a portal frame, a zombie's infection and
+                    // a finished cure (1026, 1027).
                     let except = level_event_except(
                         *id,
                         self.lan_acting,
@@ -3239,9 +3245,8 @@ impl Game<'_> {
                         always_show: false,
                         pos: at,
                         dist: [0.25, 0.0625, 0.25],
-                        max_speed: [0.05; 3],
+                        max_speed: 0.05,
                         count: 10,
-                        randomization: 0,
                     }),
                     None,
                 );

@@ -922,9 +922,8 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
             always_show,
             pos,
             dist,
-            max_speed: [speed; 3],
+            max_speed: speed,
             count,
-            randomization: 0,
         },
         &mut w,
     );

@@ -733,9 +733,8 @@ impl Game<'_> {
                 state: None,
                 at,
                 spread: [0.0; 3],
-                speed: [1.0; 3],
+                speed: 1.0,
                 count: 1,
-                randomization: 0,
             });
         }
         self.audio
@@ -1914,7 +1913,9 @@ impl Game<'_> {
     /// `AbstractThrownPotion.onHit` with `ThrownSplashPotion.onHitAsPotion`, or
     /// `ThrownLingeringPotion.onHitAsPotion` for a lingering potion, read from
     /// the stack's `potion_contents`; `mob` is where it hit a mob, `hit` the
-    /// block and face it hit, `age` its age, `silent` its Silent flag, `motion` its motion as it hit.
+    /// block and face it hit, `age` its age, `motion` its motion as it hit.
+    /// `_silent` is the projectile's Silent flag: 26.2's onHit does not gate
+    /// the splash on it (26.3's 1053/1054 sound events did).
     pub(super) fn splash(
         &mut self,
         stack: &ItemStack,
@@ -1923,17 +1924,15 @@ impl Game<'_> {
         hit: Option<([i32; 3], Direction)>,
         age: u32,
         owner: &PotionOwner,
-        silent: bool,
+        _silent: bool,
         motion: Vec3,
     ) {
         let block = [at.x, at.y, at.z].map(|v| v.floor() as i32);
         if &*stack.item == "minecraft:experience_bottle" {
             // ThrownExperienceBottle.onHit: the water-coloured splash (level
-            // event 2002, its sound 1053) and 3 to 11 experience.
+            // event 2002, whose handler plays the break sound in 26.2) and
+            // 3 to 11 experience.
             self.level_event_at(2002, block, 0xFF38_5DC6u32 as i32);
-            if !silent {
-                self.level_event_at(1053, block, 0);
-            }
             let r = &mut self.world.random;
             let value = 3 + r.next_int_bound(5).unwrap_or(0) + r.next_int_bound(5).unwrap_or(0);
             // awardWithDirection: away from the face it hit, or back along
@@ -1953,8 +1952,9 @@ impl Game<'_> {
         }
         self.affect_entities_around(stack, at, owner.player);
         let lingering = &*stack.item == "minecraft:lingering_potion";
-        // AbstractThrownPotion.onHit: level event 2007 and sound 1054 for a
-        // potion with instant effects, 2002 and 1053 otherwise.
+        // AbstractThrownPotion.onHit: level event 2007 for a potion with
+        // instant effects, 2002 otherwise; the handler plays the break sound
+        // in 26.2 (26.3 split it into events 1054/1053).
         let potion = stack.potion().and_then(brewing::potion);
         let instant = potion.is_some_and(|d| {
             d.effects
@@ -1963,9 +1963,6 @@ impl Game<'_> {
         });
         let color = brewing::potion_color(stack.potion());
         self.level_event_at(if instant { 2007 } else { 2002 }, block, color as i32);
-        if !silent {
-            self.level_event_at(if instant { 1054 } else { 1053 }, block, 0);
-        }
         // AbstractThrownPotion.affectEntitiesAround: a water potion (the only
         // #rehydrates_axolotls) refills the air of the axolotls in the
         // projectile's box inflated by 4, 2 and 4 (Axolotl.rehydrate, 1800).

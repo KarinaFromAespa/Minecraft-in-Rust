@@ -7143,9 +7143,8 @@ impl Game<'_> {
                     state: None,
                     at,
                     spread: [0.0, 1.0, 0.0],
-                    speed: [0.0, yv, 0.0],
+                    speed: yv,
                     count: 0,
-                    randomization: 0,
                 });
             }
         }

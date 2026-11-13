@@ -1337,9 +1337,11 @@ impl Game<'_> {
             .is_some_and(|tag| horizon_client::entity_nbt::flag(tag, "Invulnerable"));
         !invulnerable && self.hurt_boat(i, damage, false)
     }
-    /// `PowderSnowBlock.entityInside`'s `ServerLevel.sendParticles`: a boat that moved
-    /// horizontally in powder snow throws snowflakes the players around see. `AbstractBoat.tick`
-    /// calls `applyEffectsFromBlocks` twice.
+    /// `PowderSnowBlock.entityInside`: a boat that moved horizontally in
+    /// powder snow throws snowflakes the players around see (26.2 spawns
+    /// them client-side; the count-0 packet below is how the serving game
+    /// reaches the window). `AbstractBoat.tick` calls
+    /// `applyEffectsFromBlocks` twice.
     fn boat_powder_snow_snowflakes(&mut self, i: usize) {
         let b = &self.boats[i];
         let cells = self.boat_powder_snow_cells(b);

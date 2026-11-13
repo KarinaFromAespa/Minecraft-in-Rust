@@ -73,7 +73,7 @@ mod tests {
         assert!(!p.always_show);
         assert_eq!(p.pos, [1.0, 2.0, -3.0]);
         assert_eq!(p.dist, [0.25, 0.5, 0.75]);
-        assert_eq!(p.max_speed, [1.5; 3]);
+        assert_eq!(p.max_speed, 1.5);
         assert_eq!(p.count, 12);
         assert_eq!(p.particle.id, 1);
         assert_eq!(

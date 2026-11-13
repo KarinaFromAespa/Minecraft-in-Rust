@@ -5418,7 +5418,8 @@ impl Game<'_> {
                     }
                 }
                 // PowderSnowBlock.entityInside: every player around sees the
-                // snowflake (`ServerLevel.sendParticles`).
+                // snowflake (26.2 spawns it client-side; the count-0 packet
+                // below is how the serving game reaches the window).
                 MotionEvent::Snowflake { position, velocity } => {
                     super::lan_particles::send_snowflake_particle(
                         host,

@@ -416,19 +416,6 @@ impl TeleportConsumeWorld for Teleporter<'_, '_> {
         );
         Ok(())
     }
-    fn block_position(&mut self) -> Result<BlockPos, Infallible> {
-        Ok(BlockPos::containing(self.at()))
-    }
-    fn directional_particles(
-        &mut self,
-        _: Dim,
-        origin: BlockPos,
-        offset: i32,
-    ) -> Result<(), Infallible> {
-        self.0
-            .level_event_at(2017, [origin.x, origin.y, origin.z], offset);
-        Ok(())
-    }
     fn reset_fall_distance(&mut self) -> Result<(), Infallible> {
         if let Some(p) = self.0.player.as_mut() {
             p.fall_distance = 0.0;

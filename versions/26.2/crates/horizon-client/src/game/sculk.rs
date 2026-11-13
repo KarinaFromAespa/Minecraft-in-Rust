@@ -1768,9 +1768,8 @@ impl Game<'_> {
             state: None,
             at: from,
             spread: [0.0; 3],
-            speed: [0.0; 3],
+            speed: 0.0,
             count: 1,
-            randomization: 0,
         });
     }
     /// A vibration travelling to a warden (`MobEvent::Vibration`).

@@ -164,18 +164,14 @@ fn consume_effect(r: &mut Reader, names: &dyn Names) -> Option<HashCode> {
                 .field("effects", holder_set("minecraft:mob_effect", names, r)?),
             2 => rec.field("type", string("minecraft:clear_all_effects")),
             3 => {
+                // 26.2's `TeleportRandomlyConsumeEffect` stream codec is the
+                // diameter alone (26.3 added the directional_particles bool).
                 let diameter = float(r)?;
-                let particles = boolean(r)?;
-                bool_or(
-                    float_or(
-                        rec.field("type", string("minecraft:teleport_randomly")),
-                        "diameter",
-                        diameter,
-                        16.0,
-                    ),
-                    "directional_particles",
-                    particles,
-                    true,
+                float_or(
+                    rec.field("type", string("minecraft:teleport_randomly")),
+                    "diameter",
+                    diameter,
+                    16.0,
                 )
             }
             4 => rec

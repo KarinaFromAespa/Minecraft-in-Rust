@@ -907,9 +907,8 @@ impl Game<'_> {
             state: None,
             at,
             spread,
-            speed: [speed; 3],
+            speed,
             count: count as i32,
-            randomization: 0,
         });
     }
     /// `FishingHook.tick`.

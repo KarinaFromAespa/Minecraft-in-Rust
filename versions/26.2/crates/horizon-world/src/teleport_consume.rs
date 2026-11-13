@@ -1,15 +1,13 @@
 //! Random teleport consumable: candidate draws, bounds and success effects.
-use horizon_core::{geometry::Vec3, position::BlockPos, random::RandomSource};
+use horizon_core::{geometry::Vec3, random::RandomSource};
 #[derive(Clone, Copy, Debug)]
 pub struct TeleportConsume {
     pub diameter: f32,
-    pub directional_particles: bool,
 }
 impl PartialEq for TeleportConsume {
     fn eq(&self, other: &Self) -> bool {
         let bits = |v: f32| if v.is_nan() { 0x7fc00000 } else { v.to_bits() };
         bits(self.diameter) == bits(other.diameter)
-            && self.directional_particles == other.directional_particles
     }
 }
 pub trait TeleportConsumeWorld {
@@ -47,14 +45,6 @@ pub trait TeleportConsumeWorld {
         position: Vec3,
         fox: bool,
     ) -> Result<(), Self::Error>;
-    fn block_position(&mut self) -> Result<BlockPos, Self::Error>;
-    /// Native level event 2017, at the origin, carrying the packed offset.
-    fn directional_particles(
-        &mut self,
-        level: Self::Level,
-        origin: BlockPos,
-        offset: i32,
-    ) -> Result<(), Self::Error>;
     fn reset_fall_distance(&mut self) -> Result<(), Self::Error>;
     fn reset_impulse(&mut self) -> Result<(), Self::Error>;
 }
@@ -68,10 +58,6 @@ fn clamp(v: f64, low: f64, high: f64) -> f64 {
     } else {
         v.min(high)
     }
-}
-fn packed_offset(a: BlockPos, b: BlockPos) -> i32 {
-    let axis = |a: i32, b: i32| b.wrapping_sub(a).clamp(-127, 127) + 127;
-    (axis(a.x, b.x) << 16) | (axis(a.y, b.y) << 8) | axis(a.z, b.z)
 }
 impl TeleportConsume {
     pub fn apply<W: TeleportConsumeWorld>(
@@ -106,19 +92,6 @@ impl TeleportConsume {
                 world.teleport_event(level, old)?;
                 let fox = world.is_fox();
                 world.teleport_sound(level, world.position_field(), fox)?;
-                if self.directional_particles {
-                    let origin = BlockPos::new(
-                        old.x.floor() as i32,
-                        old.y.floor() as i32,
-                        old.z.floor() as i32,
-                    );
-                    let destination = world.block_position()?;
-                    world.directional_particles(
-                        level,
-                        origin,
-                        packed_offset(origin, destination),
-                    )?;
-                }
                 world.reset_fall_distance()?;
                 world.reset_impulse()?;
                 return Ok(true);
@@ -189,12 +162,6 @@ mod tests {
         fn teleport_sound(&mut self, (): (), _: Vec3, _: bool) -> Result<(), Infallible> {
             Ok(())
         }
-        fn block_position(&mut self) -> Result<BlockPos, Infallible> {
-            Ok(BlockPos::new(0, 0, 0))
-        }
-        fn directional_particles(&mut self, (): (), _: BlockPos, _: i32) -> Result<(), Infallible> {
-            Ok(())
-        }
         fn reset_fall_distance(&mut self) -> Result<(), Infallible> {
             Ok(())
         }
@@ -211,10 +178,7 @@ mod tests {
             tried: Vec::new(),
         }
     }
-    const CHORUS: TeleportConsume = TeleportConsume {
-        diameter: 16.0,
-        directional_particles: false,
-    };
+    const CHORUS: TeleportConsume = TeleportConsume { diameter: 16.0 };
 
     #[test]
     fn a_refused_attempt_ends_the_effect_without_teleporting() {

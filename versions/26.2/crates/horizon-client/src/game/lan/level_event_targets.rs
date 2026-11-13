@@ -15,7 +15,7 @@ pub(super) fn level_event_except(
 ) -> Option<u32> {
     if matches!(
         id,
-        2015 | 1500
+        1500
             | 1501
             | 1503
             | 1505
@@ -25,8 +25,6 @@ pub(super) fn level_event_except(
             | 1030
             | 1045
             | 1052
-            | 2019
-            | 2020
             | 3000
             | 3008
     ) || collateral_break

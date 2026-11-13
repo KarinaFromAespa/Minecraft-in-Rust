@@ -1068,10 +1068,9 @@ impl Codec<SetObjective> for SetObjective {
 }
 /// ClientboundLevelParticlesPacket: a particle, whether it ignores the
 /// client's particle setting (`overrideLimiter`) and its distance limit
-/// (`alwaysShow`), where, the spread and the speed on each axis, how many
-/// (0: one, moving by speed times spread) and the randomization type
-/// (0 default: gaussian spread and speed; 1 ALTERNATIVE: nextDouble times
-/// spread, the packet's max speed as velocity).
+/// (`alwaysShow`), where, the spread and the speed, how many (0: one,
+/// moving by speed times spread). 26.2 has one scalar max speed and no
+/// randomization type (26.3 split the speed per axis and added it).
 #[derive(Clone, Debug, PartialEq)]
 pub struct LevelParticles {
     pub particle: Particle,
@@ -1079,9 +1078,8 @@ pub struct LevelParticles {
     pub always_show: bool,
     pub pos: [f64; 3],
     pub dist: [f32; 3],
-    pub max_speed: [f32; 3],
+    pub max_speed: f32,
     pub count: i32,
-    pub randomization: i32,
 }
 impl Codec<LevelParticles> for LevelParticles {
     fn read(r: &mut Reader) -> Result<Self> {
@@ -1091,9 +1089,8 @@ impl Codec<LevelParticles> for LevelParticles {
             always_show: r.bool()?,
             pos: Vec3d::read(r)?,
             dist: [r.f32()?, r.f32()?, r.f32()?],
-            max_speed: [r.f32()?, r.f32()?, r.f32()?],
+            max_speed: r.f32()?,
             count: r.varint()?,
-            randomization: r.varint()?,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
@@ -1101,11 +1098,10 @@ impl Codec<LevelParticles> for LevelParticles {
         w.bool(v.override_limiter);
         w.bool(v.always_show);
         Vec3d::write(&v.pos, w);
-        for f in v.dist.iter().chain(&v.max_speed) {
+        for f in v.dist.iter().chain(std::iter::once(&v.max_speed)) {
             w.f32(*f);
         }
         w.varint(v.count);
-        w.varint(v.randomization);
     }
 }
 /// `ExplosionParticleInfo` in a `WeightedList`: a particle the blast

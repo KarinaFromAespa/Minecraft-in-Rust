@@ -579,9 +579,8 @@ fn clientbound_round_trips() {
             always_show: false,
             pos: [0.5, 101.0, 3.0],
             dist: [0.2, 0.0, 0.2],
-            max_speed: [0.0; 3],
+            max_speed: 0.0,
             count: 60,
-            randomization: 0,
         }),
         Clientbound::Explode(Explode {
             center: [1.0, 2.0, 3.0],

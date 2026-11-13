@@ -10168,9 +10168,8 @@ impl GameLevel<'_> {
                 state,
                 at,
                 spread,
-                speed: [speed; 3],
+                speed,
                 count,
-                randomization: 0,
             });
         true
     }

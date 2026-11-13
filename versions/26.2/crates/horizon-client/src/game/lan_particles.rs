@@ -25,11 +25,10 @@ pub(super) struct QueuedParticle {
     pub state: Option<BlockStateId>,
     pub at: [f64; 3],
     pub spread: [f64; 3],
-    /// Per-axis maximum speed used by the packet's ALTERNATIVE randomization.
-    pub speed: [f64; 3],
+    /// The packet's single maximum speed (26.2's `ClientboundLevelParticlesPacket`
+    /// has one scalar, not 26.3's per-axis speeds).
+    pub speed: f64,
     pub count: i32,
-    /// The packet's `RandomizationType` (0 DEFAULT, 1 ALTERNATIVE).
-    pub randomization: i32,
 }
 
 /// `PowderSnowBlock.entityInside`'s server roll. The branch and both float
@@ -70,29 +69,17 @@ fn mod_particle_only_for_horizon(particle: &Particle) -> bool {
     matches!(particle.data, Some(ParticleData::Mod(_)))
 }
 
-/// One of a packet's `count` particles (`handleParticleEvent`): its position
-/// and speed. DEFAULT (0) draws both from a Gaussian; ALTERNATIVE (1) and
-/// ALTERNATIVE_WITH_SPEED (2) spread over `[0, dist)`, the first keeping
-/// the speeds as they are, the second scaling each by `nextDouble`.
+/// `ClientPacketListener.handleParticleEvent` for a count above zero:
+/// each particle is spread and sped up by gaussians on each axis, off the
+/// packet's single maximum speed. 26.2 has no randomization type.
 fn spread(
     r: &mut impl RandomSource,
-    randomization: i32,
     pos: [f64; 3],
     dist: [f64; 3],
-    speed: [f64; 3],
+    speed: f64,
 ) -> ([f64; 3], [f64; 3]) {
-    if matches!(randomization, 1 | 2) {
-        let at = [0, 1, 2].map(|k| pos[k] + r.next_double() * dist[k]);
-        let v = if randomization == 2 {
-            [0, 1, 2].map(|k| speed[k] * r.next_double())
-        } else {
-            speed
-        };
-        (at, v)
-    } else {
-        let at = [0, 1, 2].map(|k| pos[k] + r.next_gaussian() * dist[k]);
-        (at, [0, 1, 2].map(|k| r.next_gaussian() * speed[k]))
-    }
+    let at = [0, 1, 2].map(|k| pos[k] + r.next_gaussian() * dist[k]);
+    (at, [0, 1, 2].map(|_| r.next_gaussian() * speed))
 }
 
 /// An ARGB colour as the options' RGBA.
@@ -135,9 +122,8 @@ pub(super) fn send_soul_particle(host: &super::lan::LanHost, at: [f64; 3], veloc
         always_show: false,
         pos: at,
         dist: velocity.map(|v| v as f32),
-        max_speed: [1.0; 3],
+        max_speed: 1.0,
         count: 0,
-        randomization: 0,
     });
     for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
         let distance: f64 = (0..3)
@@ -158,8 +144,13 @@ impl Game<'_> {
     }
 }
 
-/// `PowderSnowBlock.entityInside`'s `ServerLevel.sendParticles` of one
-/// snowflake (`count` 1, no spread, `RandomizationType.ALTERNATIVE`).
+/// `PowderSnowBlock.entityInside`'s snowflake: 26.2 spawns it client-side,
+/// so there is no `sendParticles` call to make. The serving game still has
+/// to reach the window, which only learns of server-thread events through
+/// packets, so the flake travels as a count-0 packet (its spread carries
+/// the velocity, the scalar speed is 1.0) — the same shape as the soul
+/// particle, and the receiving client's count-0 branch rebuilds the exact
+/// velocity. No 26.2 packet can carry the 26.3 ALTERNATIVE form.
 pub(super) fn send_snowflake_particle(
     host: &super::lan::LanHost,
     at: [f64; 3],
@@ -176,10 +167,9 @@ pub(super) fn send_snowflake_particle(
         override_limiter: false,
         always_show: false,
         pos: at,
-        dist: [0.0; 3],
-        max_speed: velocity.map(|v| v as f32),
-        count: 1,
-        randomization: 1,
+        dist: velocity.map(|v| v as f32),
+        max_speed: 1.0,
+        count: 0,
     });
     for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
         let distance: f64 = (0..3)
@@ -211,9 +201,8 @@ pub(super) fn send_hub_level_particles(
         always_show: false,
         pos: at,
         dist: spread.map(|d| d as f32),
-        max_speed: [speed as f32; 3],
+        max_speed: speed as f32,
         count: count as i32,
-        randomization: 0,
     });
     for g in hub.guests.iter().filter(|g| hub.here(g)) {
         if horizon_only && g.brand != "horizon" {
@@ -242,9 +231,8 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: [0.0; 3],
-            max_speed: [0.0; 3],
+            max_speed: 0.0,
             count: 0,
-            randomization: 0,
         });
         for g in host.hub.guests.iter().filter(|g| host.hub.here(g)) {
             // ServerLevel compares the player's block centre, strictly within 32.
@@ -323,9 +311,8 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: [0.0; 3],
-            max_speed: [speed as f32; 3],
+            max_speed: speed as f32,
             count,
-            randomization: 0,
         });
         for g in hub.guests.iter().filter(|g| hub.here(g)) {
             // ServerLevel compares the player's block centre, strictly within 32.
@@ -377,6 +364,9 @@ impl Game<'_> {
     }
 
     /// Locally draw the level's own particle, then send it to LAN players.
+    /// The LAN queue is a count-0 packet (the spread carries the velocity,
+    /// the scalar speed is 1.0): 26.2's client-side snowflake has no packet
+    /// of its own, and no 26.2 packet can carry 26.3's ALTERNATIVE form.
     pub(super) fn snowflake_particle(&mut self, at: [f64; 3], velocity: [f64; 3]) {
         let options = ParticleOptions::simple(ParticleType::Snowflake);
         if self.options.execution_role.is_client() {
@@ -387,10 +377,9 @@ impl Game<'_> {
             options,
             state: None,
             at,
-            spread: [0.0; 3],
-            speed: velocity,
-            count: 1,
-            randomization: 1,
+            spread: velocity,
+            speed: 1.0,
+            count: 0,
         });
     }
 
@@ -563,9 +552,9 @@ impl Game<'_> {
         }
     }
 
-    /// `ClientPacketListener.handleParticleEvent`: no count is one particle
-    /// moving by speed times spread; otherwise each is spread and sped up by
-    /// gaussians on each axis.
+    /// `ClientPacketListener.handleParticleEvent`: count zero is one particle
+    /// moving by the single speed times the spread; otherwise each is spread
+    /// and sped up by gaussians on each axis.
     pub(super) fn remote_level_particles(&mut self, p: &play::LevelParticles) {
         let Some(options) = self.received_particle(&p.particle, p.pos) else {
             return;
@@ -574,7 +563,7 @@ impl Game<'_> {
         if self.settings.extras.pvp.combat.hides_particle(options.ty) {
             return;
         }
-        let (d, s) = (p.dist.map(f64::from), p.max_speed.map(f64::from));
+        let (d, s) = (p.dist.map(f64::from), f64::from(p.max_speed));
         // ClientLevel.addParticle: the camera's 32 blocks and the Particles
         // option, unless the packet or the type overrides the limiter.
         let add = |particles: &mut horizon_client::particles::ParticleEngine, at, v| {
@@ -584,12 +573,12 @@ impl Game<'_> {
             add(
                 &mut self.particles,
                 p.pos,
-                [s[0] * d[0], s[1] * d[1], s[2] * d[2]],
+                [s * d[0], s * d[1], s * d[2]],
             );
             return;
         }
         for _ in 0..p.count {
-            let (at, v) = spread(self.particles.random(), p.randomization, p.pos, d, s);
+            let (at, v) = spread(self.particles.random(), p.pos, d, s);
             add(&mut self.particles, at, v);
         }
     }
@@ -649,7 +638,6 @@ impl Game<'_> {
             spread,
             speed,
             count,
-            randomization,
         } = request;
         let Some(particle) = self.network_particle(&options, state) else {
             return;
@@ -664,9 +652,8 @@ impl Game<'_> {
             always_show: false,
             pos: at,
             dist: spread.map(|d| d as f32),
-            max_speed: speed.map(|v| v as f32),
+            max_speed: speed as f32,
             count,
-            randomization,
         })
         .encode();
         // BlockPos.closerToCenterThan(at, 32): from the centre of the
@@ -712,17 +699,19 @@ impl Game<'_> {
     }
 
     /// `BucketItem.emptyContents` where water evaporates: `sendParticles(
-    /// LARGE_SMOKE, x, y, z, 8, 1, 1, 1, 0, ALTERNATIVE)` from the block's
-    /// corner, so each puff lands inside the block. The window draws its own.
+    /// LARGE_SMOKE, x, y, z, 8, 1, 1, 1, 0)` — count 8, spread 1, no speed.
+    /// 26.2's client spreads each puff by gaussians on each axis, so they
+    /// land around the block's corner, not inside it from the corner (that
+    /// is 26.3's ALTERNATIVE draw). The window draws its own the same way.
     pub(super) fn evaporation_smoke(&mut self, pos: [i32; 3]) {
         let options = ParticleOptions::simple(ParticleType::LargeSmoke);
         let at = pos.map(f64::from);
         for _ in 0..8 {
             let r = self.particles.random();
             let p = [
-                at[0] + r.next_double(),
-                at[1] + r.next_double(),
-                at[2] + r.next_double(),
+                at[0] + r.next_gaussian(),
+                at[1] + r.next_gaussian(),
+                at[2] + r.next_gaussian(),
             ];
             self.particles.add(&options, p, [0.0; 3]);
         }
@@ -732,9 +721,8 @@ impl Game<'_> {
             state: None,
             at,
             spread: [1.0; 3],
-            speed: [0.0; 3],
+            speed: 0.0,
             count: 8,
-            randomization: 1,
         });
     }
 
@@ -926,25 +914,27 @@ mod tests {
         );
     }
 
-    /// The Nether's evaporation smoke (ALTERNATIVE, dist 1, speed 0) lands
-    /// inside the block from its corner and stands still; DEFAULT spreads
-    /// both ways.
+    /// 26.2's `handleParticleEvent` spreads every particle by gaussians on
+    /// each axis, off the packet's single maximum speed: the Nether's
+    /// evaporation smoke (dist 1, speed 0) lands around the block's corner
+    /// and stands still, on both sides of it.
     #[test]
-    fn alternative_particles_spread_from_the_corner_over_dist() {
+    fn particles_spread_by_gaussians_around_the_position() {
         let mut r = LegacyRandom::new(1);
         let mut below = false;
+        let mut above = false;
         for _ in 0..200 {
-            let (at, v) = spread(&mut r, 1, [3.0, 64.0, -7.0], [1.0; 3], [0.0; 3]);
-            assert!((3.0..4.0).contains(&at[0]), "{at:?}");
-            assert!((64.0..65.0).contains(&at[1]), "{at:?}");
-            assert!((-7.0..-6.0).contains(&at[2]), "{at:?}");
+            let (at, v) = spread(&mut r, [3.0, 64.0, -7.0], [1.0; 3], 0.0);
             assert_eq!(v, [0.0; 3]);
-            let (_, v) = spread(&mut r, 2, [0.0; 3], [0.0; 3], [0.5, 0.0, 2.0]);
-            assert!((0.0..0.5).contains(&v[0]) && v[1] == 0.0 && (0.0..2.0).contains(&v[2]));
-            let (at, _) = spread(&mut r, 0, [0.0; 3], [1.0; 3], [0.0; 3]);
-            below |= at.iter().any(|&c| c < 0.0);
+            below |= at[0] < 3.0 || at[1] < 64.0 || at[2] < -7.0;
+            above |= at[0] > 3.0 || at[1] > 64.0 || at[2] > -7.0;
+            let (_, v) = spread(&mut r, [0.0; 3], [0.0; 3], 0.5);
+            assert!(v.iter().any(|&c| c != 0.0), "a speed spreads the velocity");
         }
-        assert!(below, "DEFAULT is a Gaussian around the position");
+        assert!(
+            below && above,
+            "a Gaussian spreads both ways around the position"
+        );
     }
 
     /// `PowderSnowBlock.entityInside`: vertical-only movement skips the roll;
@@ -1088,7 +1078,7 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 15);
         assert_eq!(p.dist, [0.2, 0.2, 0.2]);
-        assert_eq!(p.max_speed, [0.0; 3]);
+        assert_eq!(p.max_speed, 0.0);
         assert_eq!(p.pos, at);
         assert_eq!(p.particle.id, 0);
     }
@@ -1114,8 +1104,7 @@ mod tests {
         let p = level_particles(&rx_near);
         assert_eq!(p.count, 1, "one signal");
         assert_eq!(p.dist, [0.0; 3]);
-        assert_eq!(p.max_speed, [0.0; 3]);
-        assert_eq!(p.randomization, 0, "DEFAULT");
+        assert_eq!(p.max_speed, 0.0);
         assert_eq!(p.pos, at);
         assert_eq!(p.particle.id, 55);
         assert_eq!(

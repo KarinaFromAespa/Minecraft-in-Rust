@@ -1,9 +1,9 @@
 //! Level events whose client handler (`LevelEventHandler`) spawns particles
-//! on a block: bone meal's growth (1505), dragon egg teleportation (2015), a
-//! consumable's teleport (2017), an enderman's (2018), electric sparks (3002),
-//! waxing (3003), wax off (3004) and scraping (3005), plus the smoke, drips,
-//! egg and dragon fireball particles of 1501, 1502, 1504, 2006, 2009, 2012
-//! and 3009.
+//! on a block: bone meal's growth (1505), a dragon egg's teleport (2015, kept
+//! as the sim's internal channel for 26.2's client-side particle loop —
+//! there is no 2015 packet in 26.2), electric sparks (3002), waxing (3003),
+//! wax off (3004) and scraping (3005), plus the smoke, drips, egg and dragon
+//! fireball particles of 1501, 1502, 1504, 2006, 2009, 2012 and 3009.
 use super::Game;
 use horizon_client::items::ItemStack;
 use horizon_client::particles::{self, ParticleOptions, ParticleType};
@@ -14,21 +14,6 @@ use horizon_world::registry::BlockStateId;
 impl Game<'_> {
     pub(super) fn dragon_egg_particles(&mut self, pos: [i32; 3], data: i32) {
         self.particles.block_teleportation(pos, data, [16, 8, 16]);
-    }
-    /// Event 2016: `Shulker.teleportSomewhere`'s particles between the
-    /// shell's old and new cells.
-    pub(super) fn shulker_teleport_particles(&mut self, pos: [i32; 3], data: i32) {
-        self.particles.block_teleportation(pos, data, [8, 8, 8]);
-    }
-    /// Event 2017: `TeleportRandomlyConsumeEffect`'s directional particles.
-    pub(super) fn consume_teleport_particles(&mut self, pos: [i32; 3], data: i32) {
-        self.particles
-            .block_teleportation(pos, data, [127, 127, 127]);
-    }
-    /// Event 2018: an enderman's portal trail.
-    pub(super) fn enderman_teleport_particles(&mut self, pos: [i32; 3], data: i32) {
-        self.particles
-            .enderman_teleportation(pos, data, self.settings.particles);
     }
     /// `LevelEventHandler.levelEvent` 3002 to 3005, drawing from the client
     /// level's random.
@@ -357,29 +342,23 @@ impl Game<'_> {
         // Each guest plays it from the global packet.
         self.audio.play_unshared(sound, at, volume, 1.0);
     }
-    /// `ClientLevel.addBreakingBlockEffects`: the block's hit sound (only for
-    /// `play_sound`) and one crumb on the face being mined; nothing for air.
-    pub(super) fn breaking_block_effects(
-        &mut self,
-        pos: [i32; 3],
-        face: [i32; 3],
-        play_sound: bool,
-    ) {
+    /// `ClientLevel.addBreakingBlockEffect`'s particle alone: one crumb on the
+    /// face being mined; nothing for air. 26.2 never calls it while digging
+    /// (no 2019/2020 events): the digger's client only plays the hit sound.
+    pub(super) fn breaking_block_sound(&mut self, pos: [i32; 3]) {
         let state = self.world.block(pos[0], pos[1], pos[2]);
         if self.res.facts().is_air(state) {
             return;
         }
-        if play_sound {
-            let sounds = self.res.facts().get(state).sounds.clone();
-            // Each guest plays it from the level event itself.
-            self.audio.play_unshared(
-                &sounds.hit,
-                Some(pos.map(|v| f64::from(v) + 0.5)),
-                (sounds.volume + 1.0) / 8.0,
-                sounds.pitch * 0.5,
-            );
-        }
-        self.crack_particle(pos, face, state);
+        let sounds = self.res.facts().get(state).sounds.clone();
+        // `MultiPlayerGameMode.continueDestroyBlock`: the block's hit sound,
+        // every fourth destroy tick, at the block.
+        self.audio.play_unshared(
+            &sounds.hit,
+            Some(pos.map(|v| f64::from(v) + 0.5)),
+            (sounds.volume + 1.0) / 8.0,
+            sounds.pitch * 0.5,
+        );
     }
     /// `LevelEventHandler.potionSplashParticles` (2002 with `Effect`, 2007
     /// with `InstantEffect`): eight splash potion crumbs, and a hundred
@@ -442,6 +421,16 @@ impl Game<'_> {
                 velocity,
             );
         }
+        // 26.2's 2002/2007 case plays the break sound itself, after the
+        // particles (26.3 split it into events 1053/1054): the pitch draws
+        // from the client level's random, after the particle draws.
+        let pitch = self.particles.level_random().next_float() * 0.1 + 0.9;
+        self.audio.play_unshared(
+            "minecraft:entity.splash_potion.break",
+            Some([f64::from(pos.x) + 0.5, f64::from(pos.y) + 0.5, f64::from(pos.z) + 0.5]),
+            1.0,
+            pitch,
+        );
     }
     /// Queue and play level event `id` at `pos` (`Level.levelEvent`).
     pub(super) fn level_event_at(&mut self, id: i32, pos: [i32; 3], data: i32) {

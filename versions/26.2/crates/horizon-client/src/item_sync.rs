@@ -737,15 +737,13 @@ fn consume_effect_tag(r: &mut Reader, builtin: &Builtin, depth: u32) -> Option<T
             ));
         }
         2 => fields.push(("type", Tag::String("minecraft:clear_all_effects".into()))),
-        // teleport_randomly: diameter, directional particles.
+        // teleport_randomly: diameter only in 26.2 (26.3 added the
+        // directional_particles flag to the stream codec).
         3 => {
             fields.push(("type", Tag::String("minecraft:teleport_randomly".into())));
             let diameter = r.f32().ok()?;
             if diameter.to_bits() != 16.0f32.to_bits() {
                 fields.push(("diameter", Tag::Float(diameter.to_bits())));
-            }
-            if !r.bool().ok()? {
-                fields.push(("directional_particles", Tag::Byte(0)));
             }
         }
         // play_sound.

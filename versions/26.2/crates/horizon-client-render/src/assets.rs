@@ -502,10 +502,7 @@ mod tests {
         assert_eq!(
             chorus.consumable.as_ref().unwrap().effects,
             [ConsumeEffect::TeleportRandomly(
-                horizon_world::teleport_consume::TeleportConsume {
-                    diameter: 16.0,
-                    directional_particles: true,
-                }
+                horizon_world::teleport_consume::TeleportConsume { diameter: 16.0 }
             )]
         );
         let chicken = items.get("minecraft:chicken").unwrap();
