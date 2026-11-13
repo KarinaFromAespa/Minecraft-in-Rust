@@ -1591,6 +1591,7 @@ impl Game<'_> {
         self.tick_apparition();
         self.guardian_bubbles();
         self.villager_reputation_tick();
+        self.villager_merchant_tick();
         self.villager_item_sense();
         self.villager_pickups();
         laps.lap("creature_villagers");
@@ -5930,10 +5931,12 @@ impl Game<'_> {
                         self.spawn_mob_raw("minecraft:endermite", [from.x, from.y, from.z], false);
                     }
                     // ServerPlayer.teleport: removeVehicle before the placement.
+                    // 26.2 teleports with Relative DELTA and a zero delta, so
+                    // the velocity is kept (26.3 zeroes it); the fall distance
+                    // still resets, as does the impulse context.
                     self.stop_riding();
                     if let Some(pl) = self.player.as_mut() {
                         pl.position = to;
-                        pl.velocity = Vec3::ZERO;
                         pl.fall_distance = 0.0;
                         pl.impulse.reset();
                         pl.teleported = true;

@@ -292,8 +292,11 @@ impl Game<'_> {
                     continue;
                 }
                 let item = &e.stack.item;
-                let wants = villager::food_points(item) > 0
-                    || picks_up.as_ref().is_some_and(|t| t.contains(&**item))
+                // `Villager.wantsToPickUp`: the tag or the profession's
+                // requested items only — 26.2 has no food check (26.3
+                // added the VILLAGER_FOOD component, which also pulls in
+                // potatoes and carrots).
+                let wants = picks_up.as_ref().is_some_and(|t| t.contains(&**item))
                     || requested.contains(&&**item);
                 let fits =
                     villager::ext(m).is_none_or(|x| x.can_add(&e.stack, self.item_max_stack(item)));
@@ -360,8 +363,9 @@ impl Game<'_> {
                     continue;
                 }
                 let item = e.stack.item.clone();
-                let wants = villager::food_points(&item) > 0
-                    || picks_up.as_ref().is_some_and(|t| t.contains(&*item))
+                // `Villager.wantsToPickUp`: the tag or the profession's
+                // requested items only (see the scan above).
+                let wants = picks_up.as_ref().is_some_and(|t| t.contains(&*item))
                     || requested.contains(&&*item);
                 if !wants {
                     j += 1;
@@ -445,6 +449,29 @@ impl Game<'_> {
             self.mob_event_particles(id, 13);
         }
     }
+    /// `Villager.customServerAiStep`'s merchant timer: while the villager
+    /// is not trading, the 40 ticks run down; at 0 the deferred level-up
+    /// applies (`increaseMerchantCareer` + Regeneration 200).
+    pub(super) fn villager_merchant_tick(&mut self) {
+        let mut due = Vec::new();
+        for (i, m) in self.mobs.iter_mut().enumerate() {
+            if m.species() != Species::Villager || !m.alive() || m.extra.flag2 {
+                continue;
+            }
+            let Some(e) = m.extra.villager.as_mut() else {
+                continue;
+            };
+            if e.update_merchant_timer > 0 {
+                e.update_merchant_timer -= 1;
+                if e.update_merchant_timer <= 0 {
+                    due.push(i);
+                }
+            }
+        }
+        for i in due {
+            self.villager_level_up(i);
+        }
+    }
     /// `Villager.tellWitnessesThatIWasMurdered`: the villagers that saw a
     /// player kill one remember it as a major wrong.
     /// `killer` is the guest connection that last hurt it (None: the host).
@@ -504,27 +531,9 @@ impl Game<'_> {
         );
         // Villager.customServerAiStep after a trade: entity event 14.
         self.mob_event_particles(id, 14);
-        // onReputationEventFrom refreshes the current trading player's prices.
-        if self
-            .station
-            .as_ref()
-            .and_then(|s| s.merchant.as_ref())
-            .is_some_and(|m| m.mob == Some(id))
-        {
-            let reputation = self.villager_reputation(id);
-            self.menu_session(|menu, env, _| {
-                if let Some(session) = menu.merchant.as_mut() {
-                    session.reputation = reputation;
-                    session.update_special_prices();
-                }
-                menu.merchant_update(env);
-                Some(true)
-            });
-        }
-        if let Some(mut host) = self.lan.take() {
-            self.lan_merchant_reputation(&mut host, id);
-            self.lan = Some(host);
-        }
+        // 26.2's `onReputationEventFrom` does NOT refresh the trading
+        // player's prices (26.3 added that): open prices stay until the
+        // next trade open.
     }
     /// `Villager.getPlayerReputation` of the local player.
     pub(super) fn villager_reputation(&self, id: u32) -> i32 {

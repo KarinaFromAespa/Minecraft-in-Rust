@@ -278,6 +278,13 @@ pub struct Ext {
     /// `Villager.lastTradedPlayer`: the most recent trader, consumed by the
     /// next customServerAiStep. This is runtime state, not saved gossip.
     pub last_traded_player: Option<[i32; 4]>,
+    /// `Villager.updateMerchantTimer`: ticks down (40) only while the
+    /// villager is not trading; at 0 the deferred level-up applies.
+    /// Runtime state, not saved.
+    pub update_merchant_timer: i32,
+    /// `Villager.increaseProfessionLevelOnUpdate`: the timer's expiry
+    /// raises the career a level (26.2 defers it; 26.3 levels up at once).
+    pub increase_profession_level_on_update: bool,
     pub last_gossip_time: i64,
     pub last_gossip_decay: i64,
     /// `foodLevel`: eaten but not yet digested, in food points.

@@ -103,12 +103,16 @@ impl Trader {
 }
 
 /// `Villager.updateSpecialPrices`: the reputation and Hero of the Village
-/// discounts of a player, from scratch.
+/// discounts of a player, ADDED to the offer's current special price diff.
+/// 26.2 does not reset first (26.3's `resetSpecialPrices` call is new):
+/// the diffs are zeroed by `Villager.stopTrading` instead, so a trade
+/// opened after a clean close starts from 0 and this is the only write.
+/// The Hero modifier is a double in 26.2 (`0.3 + 0.0625 * amplifier`),
+/// not 26.3's float widened to double.
 pub fn update_special_prices(offers: &mut [MerchantOffer], reputation: i32, hero: Option<i32>) {
-    // 0.3F + 0.0625F * amplifier, widened from float.
-    let hero_modifier = hero.map_or(0.0, |a| f64::from(0.3f32 + 0.0625f32 * a as f32));
+    // 0.3 + 0.0625 * amplifier, in double.
+    let hero_modifier = hero.map_or(0.0, |a| 0.3 + 0.0625 * f64::from(a));
     for offer in offers {
-        offer.special_price_diff = 0;
         if reputation != 0 {
             offer.special_price_diff -= (reputation as f32 * offer.price_multiplier).floor() as i32;
         }
@@ -331,6 +335,12 @@ pub struct Session {
     pub ambient_sound_time: i32,
     /// `Villager.lastTradedPlayer` is set: the TRADE reputation event is due.
     pub last_traded: bool,
+    /// `Villager.rewardTradeXp` crossed the level threshold: the level-up
+    /// is due, but 26.2 defers it — `updateMerchantTimer` (40 ticks) runs
+    /// down only while the villager is not trading, and only then does
+    /// `increaseMerchantCareer` run (26.3 levels up at once, in the trade).
+    /// The game moves this to the mob when the session closes.
+    pub level_up_pending: bool,
     pub events: Vec<Event>,
 }
 impl Session {
@@ -352,6 +362,7 @@ impl Session {
             future_xp: 0,
             ambient_sound_time: 0,
             last_traded: false,
+            level_up_pending: false,
             events: Vec::new(),
         }
     }
@@ -373,8 +384,10 @@ impl Session {
         }
     }
     /// `AbstractVillager.notifyTrade`: the offer's use, then `rewardTradeXp`
-    /// (and a level-up with its offers). True when the special prices were
-    /// recomputed (the menu then updates its result).
+    /// (a level-up is only MARKED due: 26.2 defers it 40 ticks past the
+    /// trade — the game applies it in `villager_level_up`). True when the
+    /// special prices were recomputed — never at trade time in 26.2 (26.3
+    /// recomputed them on a mid-trade level-up).
     pub fn notify_trade(
         &mut self,
         index: usize,
@@ -389,23 +402,15 @@ impl Session {
         self.ambient_sound_time = -80;
         self.events
             .push(Event::Traded(index, Box::new(offer.clone())));
-        let mut prices = false;
         if self.villager {
             let mut pop = 3 + self.random.next_int_bound(4).unwrap_or(0);
             self.xp += offer.xp;
             self.last_traded = true;
             if can_level_up(self.level) && self.xp >= max_xp(self.level) {
-                self.level += 1;
-                if let Some(env) = env {
-                    let set = Trades::set_for(&self.profession, self.level);
-                    if env.trades.sets.contains_key(&set) {
-                        let more = self.offers_from_set(env, items, &set);
-                        self.offers.extend(more);
-                        self.update_special_prices();
-                        prices = true;
-                    }
-                }
-                self.events.push(Event::LevelUp(self.level));
+                // `Villager.rewardTradeXp`: the timer and flag, not the
+                // level-up itself — the career increases only once the
+                // villager is not trading and 40 ticks have passed.
+                self.level_up_pending = true;
                 pop += 5;
             }
             if offer.reward_exp {
@@ -415,30 +420,10 @@ impl Session {
             let pop = 3 + self.random.next_int_bound(4).unwrap_or(0);
             self.events.push(Event::Orb(pop));
         }
-        prices
-    }
-    fn offers_from_set(
-        &mut self,
-        env: &TradeEnv<'_>,
-        items: &Items,
-        set: &str,
-    ) -> Vec<MerchantOffer> {
-        let Some(sequence) = env.trades.sequence(set) else {
-            return Vec::new();
-        };
-        let Some(mut random) = self.sequences.remove(&sequence) else {
-            return Vec::new();
-        };
-        let ctx = TradeContext {
-            items,
-            enchantments: env.enchantments,
-            variant: &self.variant,
-            origin: self.origin,
-            maps: env.maps,
-        };
-        let out = env.trades.offers_from_set(&ctx, set, &mut random);
-        self.sequences.insert(sequence, random);
-        out
+        // No prices change at trade time in 26.2: the level-up (and its
+        // new offers) is deferred past the trade.
+        let _ = (env, items);
+        false
     }
     /// `AbstractVillager.notifyTradeUpdated`.
     pub fn notify_trade_updated(&mut self, has_result: bool) {
@@ -1164,28 +1149,37 @@ mod tests {
     #[test]
     fn reputation_and_heroes_lower_prices() {
         let items = items();
-        let mut offers = vec![offer(10, None), offer(1, None)];
         // Reputation 50 with a 0.2 multiplier: 10 off, floored per offer.
+        let mut offers = vec![offer(10, None), offer(1, None)];
         update_special_prices(&mut offers, 50, None);
         assert_eq!(offers[0].special_price_diff, -10);
         assert_eq!(offers[0].cost_a_count(&items), 1);
         assert_eq!(offers[1].special_price_diff, -10);
         // Bad reputation raises the price (-30 * 0.2 = -6 floors to -6).
+        let mut offers = vec![offer(10, None), offer(1, None)];
         update_special_prices(&mut offers, -30, None);
         assert_eq!(offers[0].special_price_diff, 6);
         assert_eq!(offers[0].cost_a_count(&items), 16);
         // Hero of the Village I: 0.3 * 10 = 3 off, at least 1.
+        let mut offers = vec![offer(10, None), offer(1, None)];
         update_special_prices(&mut offers, 0, Some(0));
         assert_eq!(offers[0].special_price_diff, -3);
         assert_eq!(offers[1].special_price_diff, -1);
         // Level III: 0.3 + 0.125 = 0.425 -> 4 off a ten emerald price.
+        let mut offers = vec![offer(10, None), offer(1, None)];
         update_special_prices(&mut offers, 0, Some(2));
         assert_eq!(offers[0].special_price_diff, -4);
-        // Both stack, from scratch each time.
+        // Both stack.
+        let mut offers = vec![offer(10, None), offer(1, None)];
         update_special_prices(&mut offers, 25, Some(0));
         assert_eq!(offers[0].special_price_diff, -5 - 3);
+        // 26.2 adds to the existing diff: a second call accumulates
+        // (the reset is stopTrading's job, not this call's), and a
+        // no-reputation, no-hero call leaves it alone.
+        update_special_prices(&mut offers, 25, Some(0));
+        assert_eq!(offers[0].special_price_diff, 2 * (-5 - 3));
         update_special_prices(&mut offers, 0, None);
-        assert_eq!(offers[0].special_price_diff, 0);
+        assert_eq!(offers[0].special_price_diff, 2 * (-5 - 3));
     }
     #[test]
     fn offers_follow_the_trade_data() {

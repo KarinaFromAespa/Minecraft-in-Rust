@@ -476,10 +476,8 @@ fn trade(
                     sess.last_traded = false;
                     gossips.add(PLAYER, GossipType::Trading, 2);
                     sess.reputation = gossips.reputation(PLAYER);
-                    if open_menu {
-                        sess.update_special_prices();
-                        menu.merchant_update(env);
-                    }
+                    // 26.2's `onReputationEventFrom` does NOT refresh the
+                    // open menu's prices (26.3 added that).
                 }
             }
             "close" if open_menu => {

@@ -314,8 +314,11 @@ impl Game<'_> {
         });
         Ok(true)
     }
-    /// `Villager.setTradingPlayer(null)`: the session goes back to the mob
-    /// (special prices stay as they were), the borrowed sequences to the world.
+    /// `Villager.setTradingPlayer(null)` / `stopTrading`: the session goes
+    /// back to the mob, the borrowed sequences to the world. A villager's
+    /// special prices are RESET here (26.2's `resetSpecialPrices`, called
+    /// from `stopTrading` — 26.3 keeps them and resets at the next open),
+    /// and a level-up marked due during the trade starts its 40-tick timer.
     pub(super) fn merchant_closed(&mut self, state: &mut MerchantState) {
         let session = &mut state.session;
         for (id, r) in std::mem::take(&mut session.sequences) {
@@ -327,6 +330,11 @@ impl Game<'_> {
         };
         if session.villager {
             m.extra.variant3 = session.level.clamp(1, 5) as u8;
+            if session.level_up_pending {
+                let e = villager::ext_mut(m);
+                e.update_merchant_timer = 40;
+                e.increase_profession_level_on_update = true;
+            }
         }
         m.extra.flag2 = false;
         m.random = session.random.clone();
@@ -334,6 +342,44 @@ impl Game<'_> {
         let trade = m.extra.trade.get_or_insert_default();
         trade.xp = session.xp;
         trade.offers = session.offers.clone();
+        if session.villager {
+            // `Villager.stopTrading` resets the special prices.
+            for o in &mut trade.offers {
+                o.special_price_diff = 0;
+            }
+        }
+    }
+    /// `Villager.increaseMerchantCareer` at the deferred level-up's timer
+    /// expiry: the level rises one and the new level's trade set joins
+    /// the offers; the villager regenerates for 200 ticks either way.
+    pub(super) fn villager_level_up(&mut self, index: usize) {
+        let m = &self.mobs[index];
+        let level = i32::from(m.extra.variant3.max(1)).min(5);
+        let profession = format!(
+            "minecraft:{}",
+            PROFESSIONS[m.extra.variant2 as usize % PROFESSIONS.len()]
+        );
+        let variant = format!(
+            "minecraft:{}",
+            VILLAGER_TYPES[m.extra.variant as usize % VILLAGER_TYPES.len()]
+        );
+        let origin = [m.position.x, m.position.y, m.position.z];
+        let raise = {
+            let e = villager::ext_mut(&mut self.mobs[index]);
+            let raise = e.increase_profession_level_on_update;
+            e.increase_profession_level_on_update = false;
+            raise
+        };
+        if raise && merchant::can_level_up(level) {
+            let new_level = level + 1;
+            let set = merchant::Trades::set_for(&profession, new_level);
+            let offers = self.offers_from_set(&set, &variant, origin);
+            let m = &mut self.mobs[index];
+            m.extra.variant3 = new_level.clamp(1, 5) as u8;
+            m.extra.trade.get_or_insert_default().offers.extend(offers);
+        }
+        // The regeneration applies whenever the timer expires, flag or not.
+        self.mobs[index].add_effect("minecraft:regeneration", 200, 0);
     }
     /// Opens a merchant menu without a mob (horizon-ctl `trade`).
     pub(super) fn open_merchant(&mut self, profession: &str, variant: &str, level: i32) {
