@@ -1014,7 +1014,7 @@ impl Game<'_> {
         facing: Direction,
         stack: ItemStack,
     ) -> Result<Dispensed> {
-        let (kind, _) = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack, false);
+        let kind = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack);
         let front = offset(pos, facing);
         let Some(id) = self.spawn_mob_at(&kind, front, facing != Direction::Up) else {
             return Ok((Some(stack), CLICK));

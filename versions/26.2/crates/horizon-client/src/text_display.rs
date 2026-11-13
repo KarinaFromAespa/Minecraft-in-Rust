@@ -512,7 +512,9 @@ pub const CORNERS: [usize; 4] = [5, 2, 1, 0];
 
 /// `TextDisplayRenderer.submitInner` after its `translate(1 - width / 2,
 /// -height, 0)`: the background and each line, in text units, each quad's
-/// `depth` its z (the background 0.01 behind, `Font.prepareBackground`).
+/// `depth` its z (the background 0.01 behind, the inlined background at
+/// `TEXT_BACKGROUND_OFFSET`; 26.3 factored it out as
+/// `Font.prepareBackground`).
 /// `default_background` is `Options.getBackgroundOpacity(0.25)` as a colour.
 pub fn draw(
     batch: &mut crate::hud::HudBatch,

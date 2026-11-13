@@ -7544,12 +7544,10 @@ impl Game<'_> {
             self.use_failed = true;
             return Ok(true);
         }
-        // SpawnEggItem.useOn on a spawner sets its mob (and an op's egg data).
-        let (spawner_id, data) = horizon_client::block_entity_item::spawn_egg_on_spawner(
-            stack,
-            self.acting_player_is_op(),
-        );
-        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id, data.as_ref()) {
+        // SpawnEggItem.useOn on a spawner sets its mob; the egg's entity
+        // data is ignored in 26.2 (setEntityData is 26.3-only).
+        let spawner_id = horizon_client::block_entity_item::spawn_egg_on_spawner(stack);
+        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id) {
             if done {
                 self.swing_arm();
                 self.award_stat("used", &stack.item, 1);

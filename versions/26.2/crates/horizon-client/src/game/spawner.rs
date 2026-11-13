@@ -420,14 +420,14 @@ impl Game<'_> {
         };
         self.res.mob_types().contains_key(&id).then_some(id)
     }
-    /// `SpawnEggItem.useOn` on a spawner: the egg sets its mob, and an op's
-    /// egg its entity `data` too (`block_entity_item::spawn_egg_on_spawner`).
-    /// None when the clicked block has no spawner.
+    /// `SpawnEggItem.useOn` on a spawner: the egg sets its mob
+    /// (`setEntityId`); the egg's entity data is ignored in 26.2
+    /// (`setEntityData` is 26.3-only). None when the clicked block has no
+    /// spawner.
     pub(super) fn use_spawn_egg_on_spawner(
         &mut self,
         pos: [i32; 3],
         kind: &str,
-        data: Option<&horizon_world::nbt::Compound>,
     ) -> Option<bool> {
         let key = (pos[0], pos[1], pos[2]);
         let trial = match self.world.block_entities.get(&key) {
@@ -443,13 +443,10 @@ impl Game<'_> {
             return Some(false);
         }
         if trial {
-            // TrialSpawnerBlockEntity.setEntityId and setEntityData:
-            // overrideEntityToSpawn, which ends in setState(INACTIVE).
+            // TrialSpawnerBlockEntity.setEntityId: overrideEntityToSpawn,
+            // which ends in setState(INACTIVE).
             if let Some(BlockEntity::TrialSpawner(t)) = self.world.block_entities.get_mut(&key) {
-                match data {
-                    Some(data) => t.override_entity_data(kind, data),
-                    None => t.override_entity(kind),
-                }
+                t.override_entity(kind);
             }
             let ominous = self.trial_spawner_block(key).is_some_and(|(_, o)| o);
             let _ = self.set_trial_spawner_state(key, TrialState::Inactive, ominous);
@@ -460,10 +457,7 @@ impl Game<'_> {
                 horizon_core::random::LegacyRandom::new(0),
             );
             if let Some(BlockEntity::Spawner(s)) = self.world.block_entities.get_mut(&key) {
-                match data {
-                    Some(data) => s.set_entity_data(kind, data, &mut random, &mut events),
-                    None => s.set_entity_id(kind, &mut random, &mut events),
-                }
+                s.set_entity_id(kind, &mut random, &mut events);
             }
             self.world.random = random;
             let _ = self.apply_spawner_events(key, events, &HashMap::new(), None);

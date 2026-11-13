@@ -195,10 +195,12 @@ impl Game<'_> {
             Hand::Off => self.offhand.as_ref(),
         };
         let item = stack.map_or("", |s| &*s.item);
-        // NameTagItem.interactLivingEntity: only a named tag answers (SUCCESS);
-        // an unnamed one passes on to the trader's trading (SUCCESS_SERVER).
+        // NameTagItem.interactLivingEntity: a named tag answers SUCCESS; an
+        // unnamed one passes on to the trader's trading, which is SUCCESS
+        // in 26.2 too (26.3 changed it to SUCCESS_SERVER). Either way the
+        // hand swings.
         if m.species() == Species::WanderingTrader && item == "minecraft:name_tag" {
-            return stack.is_some_and(|s| s.custom_name().is_some());
+            return true;
         }
         mob_swings(m, item)
     }
@@ -296,11 +298,14 @@ fn mob_swings(m: &Mob, item: &str) -> bool {
         // bamboo answers SUCCESS_SERVER.
         Species::Panda if panda::is_on_back(m) => return true,
         Species::Panda if food => return false,
-        // WanderingTrader.mobInteract: trading answers SUCCESS_SERVER, and so
-        // does a spawn egg (Mob.checkAndHandleImportantInteractions). A lead is
-        // CONSUME on the client (Entity.interact: a trader can't be leashed), so
-        // nothing swings; a named name tag is decided by the caller.
-        Species::WanderingTrader if item != "minecraft:name_tag" => return false,
+        // WanderingTrader.mobInteract: trading answers SUCCESS in 26.2, so
+        // it swings (26.3 changed it to SUCCESS_SERVER). A spawn egg is
+        // SUCCESS_SERVER (Mob.checkAndHandleImportantInteractions) and a
+        // lead is CONSUME on the client (Entity.interact: a trader can't
+        // be leashed), so neither swings; a name tag is decided by the caller.
+        Species::WanderingTrader if item != "minecraft:name_tag" => {
+            return !item.ends_with("_spawn_egg") && item != "minecraft:lead";
+        }
         // Cat.mobInteract: food tames an untamed cat, and heals a hurt
         // tame one: SUCCESS before Animal.mobInteract is reached.
         Species::Cat if food && (!m.extra.tame || hurt) => return true,
@@ -386,6 +391,19 @@ mod tests {
         assert!(
             !mob_swings(&horse, "minecraft:apple"),
             "AbstractHorse.fedFood: SUCCESS_SERVER"
+        );
+        let trader = mob("minecraft:wandering_trader").unwrap();
+        assert!(
+            mob_swings(&trader, ""),
+            "WanderingTrader trading is SUCCESS in 26.2, so it swings"
+        );
+        assert!(
+            !mob_swings(&trader, "minecraft:lead"),
+            "a lead is CONSUME on the client"
+        );
+        assert!(
+            !mob_swings(&trader, "minecraft:wandering_trader_spawn_egg"),
+            "a spawn egg is SUCCESS_SERVER"
         );
         let cow = mob("minecraft:cow").unwrap();
         assert!(!mob_swings(&cow, "minecraft:wheat"), "adult: CONSUME");
