@@ -1,0 +1,31 @@
+{
+ "generated_from": "4c5e53135253c4f92a9bd2dfcb1027faa2740f2d42773c00398954f48a698a3c",
+ "note": "Mechanical-layer publish: the pin, tables, packet set, adapter ladder and oracle rework are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+ "rank1": {
+  "accepted": [],
+  "closed": 0,
+  "total": 7
+ },
+ "rank2": {
+  "accepted": [],
+  "closed": 0,
+  "total": 410
+ },
+ "rank3": {
+  "accepted": [],
+  "closed": 0,
+  "total": 177
+ },
+ "rank3plus": "Inherits the 26.3 base answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
+ "rank4": {
+  "accepted": [],
+  "closed": 0,
+  "total": 55
+ },
+ "rank5": {
+  "accepted": [],
+  "closed": 0,
+  "total": 2
+ },
+ "release": "26.2"
+}
