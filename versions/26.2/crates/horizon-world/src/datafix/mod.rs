@@ -1,6 +1,6 @@
 //! Vanilla's DataFixers (`net.minecraft.util.datafix`, DataVersion 99 on):
-//! the data of worlds saved by 1.8 to 26.2 brought to the 26.3 format exactly
-//! as 26.3 does when it reads them, and the file fixes it runs when it opens
+//! the data of worlds saved by 1.8 to 26.2 brought to the 26.2 format exactly
+//! as 26.2 does when it reads them, and the file fixes it runs when it opens
 //! such a world (`net.minecraft.util.filefix`).
 //!
 //! DataFixerUpper reads the data once with the schema of its version (running

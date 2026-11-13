@@ -29,6 +29,19 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
     out.push((key(4055, 0), |cx| {
         attributes_rename(cx, true, &attribute_id_prefix)
     }));
+    // `CarvingStepRemoveFix`: a chunk's `CarvingMasks.AIR` bitset becomes its
+    // `carving_mask`, and `CarvingMasks` goes. (26.3 dropped the fix class, so
+    // the 26.3 tree never carried it; 26.2 still runs it.)
+    out.push((key(4057, 0), |cx| {
+        cx.each(Ty::Chunk, |c| {
+            if let Some(masks) = c.get("CarvingMasks").cloned()
+                && let Some(air) = masks.get("AIR").cloned()
+            {
+                set(c, "carving_mask", air);
+            }
+            remove(c, "CarvingMasks");
+        });
+    }));
     out.push((key(4059, 0), food_to_consumable));
     out.push((key(4061, 0), trial_spawner_config_in_registry));
     out.push((key(4064, 0), |cx| {

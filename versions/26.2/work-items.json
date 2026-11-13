@@ -1,9 +1,9 @@
 {
  "generated_from": "4c5e53135253c4f92a9bd2dfcb1027faa2740f2d42773c00398954f48a698a3c",
- "note": "Mechanical-layer publish: the pin, tables, packet set, adapter ladder and oracle rework are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+ "note": "Behaviour port in progress (behaviour/26.2). Rank 1: 6 of 7 closed. Closed: #2 regen-failed (fresh full regen exit 0, all six generators; vanilla_order.rs byte-identical, see regen-determinism.json); #3 protocol (ids.rs regenerated, 26.3-only packets rewired, protocol tests 443/2); #4 save-format (fix chain key-filtered to 4903; missing CarvingStepRemoveFix 4057 implemented + tested; all 5 added fix classes' registrations audited; 34/34 datafix tests pass); #5 facts (version.rs verified: protocol 776, data 4903, resource pack 88.0, data pack 107.1); #6 report-format (blocks.json 'definition' field is unconsumed metadata: the only reader, states(), reads only 'states'; no Rust code reads the field); #7 prepare-failed (completion pass verified horizon-prepare: ok; no prepare-path file changed since; CI re-verifies as a gate). Open: #1 components (+2 -13 data component types) \u2014 the behaviour port's largest rank-1 item, in progress.",
  "rank1": {
   "accepted": [],
-  "closed": 0,
+  "closed": 6,
   "total": 7
  },
  "rank2": {
