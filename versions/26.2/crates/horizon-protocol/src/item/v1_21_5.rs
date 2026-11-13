@@ -99,7 +99,7 @@ fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Option<Vec<u8>>> {
             }
             if up {
                 w.bool(false); // Equippable's default canBeSheared.
-                w.varint(1448); // Pinned item.shears.snip (1447) as a sound holder.
+                w.varint(1444); // Pinned item.shears.snip (1443) as a sound holder.
             } else {
                 r.bool()?;
                 sound(r, &mut Writer::new())?;
@@ -140,43 +140,43 @@ mod tests {
 
     #[test]
     fn vanilla_1_21_5_component_stacks_match_the_pinned_oracle_and_go_back() {
-        // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.5 and 26.3.
+        // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.5 and 26.2.
         // Covers multiple modifiers, bare/list/direct-sound equippables and a following damage value.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01a40801001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
+                "01ce0701001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "equip_bare",
                 "01f80601001c034700000001010100",
-                "01a40801002003470000000101010000a80b",
+                "01ce0701002003470000000101010000a40b",
             ),
             (
                 "equip_list",
                 "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
-                "01a4080100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c75720103659a010000000100a80b",
+                "01ce070100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036497010000000100a40b",
             ),
             (
                 "equip_direct",
                 "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
-                "01a40801002004000e6d696e6563726166743a7465737401408000000000000101010000a80b",
+                "01ce0701002004000e6d696e6563726166743a7465737401408000000000000101010000a40b",
             ),
             (
                 "combined",
                 "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
-                "01a40803001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a80b",
+                "01ce0703001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a40b",
             ),
             (
                 "profile",
                 "01f80601003d010b486f72697a6f6e576972650000",
-                "01a40801004800010b486f72697a6f6e57697265000000000000",
+                "01ce0701004600010b486f72697a6f6e57697265000000000000",
             ),
             (
                 "container",
                 "01f80601004206030100000000000002fa020000",
-                "01a40801004d0601010300000000000001d903020000",
+                "01ce0701004b0601010300000000000001ab03020000",
             ),
         ] {
             let old = bytes(old);

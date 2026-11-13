@@ -536,47 +536,59 @@ mod tests {
         assert!(!ServerVersion::V26_2.at_most(ServerVersion::V26_1));
     }
 
-    // The ladder's tables are still keyed to the previous pin (26.3), so a 26.2
-    // id reaches that pin's id here; re-based with the ladder (PORT-NOTES-26.2.md).
     #[test]
-    fn renumbered_clientbound_play_packets_reach_their_26_3_ids() {
+    fn renumbered_clientbound_play_packets_reach_their_pinned_ids() {
         let v = ServerVersion::V26_2;
-        // keep_alive 44 -> 45, login 49 -> 50, respawn 82 -> 84, clear_dialog 139 -> 142.
-        assert_eq!(v.clientbound_id(State::Play, 44), Some(45));
-        assert_eq!(v.clientbound_id(State::Play, 49), Some(50));
-        assert_eq!(v.clientbound_id(State::Play, 82), Some(84));
-        assert_eq!(v.clientbound_id(State::Play, 139), Some(142));
-        // Unchanged before the first insertion (add_transient_block at 37).
+        // The pin is 26.2, so a 26.2 server's ids reach the pinned ids unchanged:
+        // keep_alive 44, login 49, respawn 82, clear_dialog 139.
+        assert_eq!(
+            v.clientbound_id(State::Play, 44),
+            Some(ids::play::clientbound::KEEP_ALIVE)
+        );
+        assert_eq!(
+            v.clientbound_id(State::Play, 49),
+            Some(ids::play::clientbound::LOGIN)
+        );
+        assert_eq!(
+            v.clientbound_id(State::Play, 82),
+            Some(ids::play::clientbound::RESPAWN)
+        );
+        assert_eq!(
+            v.clientbound_id(State::Play, 139),
+            Some(ids::play::clientbound::CLEAR_DIALOG)
+        );
         assert_eq!(v.clientbound_id(State::Play, 0), Some(0));
         // Past 26.2's 141 packets.
         assert_eq!(v.clientbound_id(State::Play, 141), None);
-        // Configuration: store_cookie 10 -> 11 (post_effects took 10).
-        assert_eq!(v.clientbound_id(State::Configuration, 10), Some(11));
+        // Configuration: store_cookie 10.
+        assert_eq!(
+            v.clientbound_id(State::Configuration, 10),
+            Some(ids::configuration::clientbound::STORE_COOKIE)
+        );
     }
 
-    // Its premise (a pinned packet 26.2 lacks, its swing gone) inverted with the
-    // pin change; the body stands as the spec for the ladder's re-base.
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
-    fn serverbound_packets_26_2_lacks_are_not_sent() {
-        let v = ServerVersion::V26_2;
-        // punch is new in 26.3; swing, which 26.2 has at 63, is gone.
+    fn serverbound_packets_1_21_11_lacks_are_not_sent() {
+        let v = ServerVersion::V1_21_11;
+        // 1.21.11 has no packet named attack (its attacks are Interact actions);
+        // the name table pairs nothing for it, and the session adapters convert
+        // it by hand.
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            v.serverbound_id(State::Play, ids::play::serverbound::ATTACK),
             None
         );
-        // resource_pack 50 -> 49, spectator_action 63 -> 62, keep_alive unchanged.
+        // resource_pack 49 -> 48, swing 63 -> 60, keep_alive 28 -> 27.
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::RESOURCE_PACK),
-            Some(49)
+            Some(48)
         );
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SPECTATOR_ACTION),
-            Some(62)
+            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            Some(60)
         );
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::KEEP_ALIVE),
-            Some(ids::play::serverbound::KEEP_ALIVE)
+            Some(27)
         );
         assert_eq!(
             v.serverbound_id(State::Handshake, ids::handshake::serverbound::INTENTION),
@@ -587,16 +599,24 @@ mod tests {
     #[test]
     fn serverbound_bodies_keep_their_payload_under_the_new_id() {
         let v = ServerVersion::V26_2;
-        // The ladder's pinned resource_pack is 50; 26.2's is 49 (PORT-NOTES-26.2.md).
+        // The pin is 26.2, so a 26.2 server's ids are the pinned ids:
+        // resource_pack 49 and swing 63 pass through with their payload.
         let mut body = Vec::new();
-        write_varint(&mut body, 50);
+        write_varint(&mut body, ids::play::serverbound::RESOURCE_PACK);
         body.extend_from_slice(&[1, 2, 3]);
         assert_eq!(
             v.serverbound_body(State::Play, &body).unwrap(),
             Some(vec![49, 1, 2, 3])
         );
-        // The dropped-packet leg (a pinned packet 26.2 lacks) is specified by
-        // serverbound_packets_26_2_lacks_are_not_sent, ignored until the re-base.
+        let mut swing = Vec::new();
+        write_varint(&mut swing, ids::play::serverbound::SWING);
+        swing.push(0);
+        assert_eq!(
+            v.serverbound_body(State::Play, &swing).unwrap(),
+            Some(vec![63, 0])
+        );
+        // No pinned packet is dropped for a 26.2 server: the pin is 26.2.
+        // The dropped-packet leg lives in the legacy-server tests.
         let mut current = Vec::new();
         write_varint(&mut current, ids::play::serverbound::RESOURCE_PACK);
         current.extend_from_slice(&[1, 2, 3]);

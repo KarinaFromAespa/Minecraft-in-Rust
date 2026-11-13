@@ -195,17 +195,6 @@ fn swing(r: &mut Reader) -> Option<HashCode> {
     Some(int_or(rec, "duration", duration, 6).build())
 }
 
-/// `ResolvableInt` / `ResolvableFloat`: a constant, or a context provider's key.
-fn resolvable(r: &mut Reader, constant: fn(&mut Reader) -> Option<HashCode>) -> Option<HashCode> {
-    if boolean(r)? { constant(r) } else { ident(r) }
-}
-fn fixed_int(r: &mut Reader) -> Option<HashCode> {
-    Some(HashOps::create_int(r.i32().ok()?))
-}
-fn fixed_float(r: &mut Reader) -> Option<HashCode> {
-    Some(HashOps::create_f32(float(r)?))
-}
-
 /// `KineticWeapon.Condition`.
 fn kinetic_condition(r: &mut Reader) -> Option<HashCode> {
     let ticks = int(r)?;
@@ -575,35 +564,15 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
                 .optional("hit_sound", hit.map(|s| s.code))
                 .build()
         }
-        40 | 41 => swing(r)?,
+        40 => swing(r)?,
         // `JukeboxSong.CODEC` is a `RegistryFixedCodec`: a direct song cannot be
         // encoded (vanilla's client would throw), so only a reference hashes.
-        66 => match int(r)? {
+        64 => match int(r)? {
             0 => return None,
             id => entry(names, "minecraft:jukebox_song", id - 1)?,
         },
-        67 => holder_set("minecraft:banner_pattern", names, r)?,
-        83 => sound(r, names)?.code,
-        84 => RecordHash::new()
-            .field("layers", resolvable(r, fixed_int)?)
-            .build(),
-        // CookingFuel (burnTime, speedMultiplier), BrewingFuel (uses, speedMultiplier).
-        85 | 86 => {
-            let first = resolvable(r, fixed_int)?;
-            let speed = resolvable(r, fixed_float)?;
-            RecordHash::new()
-                .field(if kind == 85 { "burn_time" } else { "uses" }, first)
-                .field("speed_multiplier", speed)
-                .build()
-        }
-        // MobVisibility: targetingEntityTypes, visibility.
-        87 => {
-            let types = holder_set("minecraft:entity_type", names, r)?;
-            RecordHash::new()
-                .field("targeting_entity_types", types)
-                .field("visibility", HashOps::create_f32(float(r)?))
-                .build()
-        }
+        65 => holder_set("minecraft:banner_pattern", names, r)?,
+        81 => sound(r, names)?.code,
         // AdventureModePredicate (can_place_on, can_break): `compactListCodec`
         // writes one predicate as itself and `nonEmptyList` refuses none.
         14 | 15 => {

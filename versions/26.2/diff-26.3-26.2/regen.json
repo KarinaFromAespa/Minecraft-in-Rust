@@ -1,0 +1,55 @@
+{
+  "old": "26.3",
+  "new": "26.2",
+  "candidate": "/home/hatch/workspace/mcir-work/26.2/ports/26.2",
+  "commit": "bc828164ccdca53a88095c87fdb883876b3bf5ae",
+  "generators": {
+    "version_consts": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "stat": {}
+    },
+    "packet_ids": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-protocol/src/ids.rs"
+      ],
+      "stat": {}
+    },
+    "entity_tracking": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/tracking.rs"
+      ],
+      "stat": {}
+    },
+    "lan_command_order": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/command_order.rs"
+      ],
+      "stat": {}
+    },
+    "command_suggestions": {
+      "status": "unchanged",
+      "outputs": [
+        "crates/horizon-client/src/lan/command_suggestions.rs"
+      ],
+      "stat": {}
+    },
+    "vanilla_command_order": {
+      "status": "regenerated",
+      "outputs": [
+        "crates/horizon-command/src/vanilla_order.rs"
+      ],
+      "stat": {
+        "crates/horizon-command/src/vanilla_order.rs": [
+          5,
+          24
+        ]
+      }
+    }
+  }
+}

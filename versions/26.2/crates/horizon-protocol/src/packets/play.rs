@@ -1887,7 +1887,7 @@ impl Codec<TrackedWaypoint> for TrackedWaypoint {
 
 // ---- serverbound -------------------------------------------------------
 
-packet!(AcceptTeleportation { id: i32 => VarInt, x: f64 => Double, y: f64 => Double, z: f64 => Double, yaw: f32 => Float, pitch: f32 => Float });
+packet!(AcceptTeleportation { id: i32 => VarInt });
 packet!(Attack { id: i32 => VarInt });
 packet!(TeleportToEntity { uuid: u128 => Uuid });
 packet!(

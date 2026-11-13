@@ -946,11 +946,6 @@ fn status_and_join() {
                     assert_eq!(p.position[0], 8.5);
                     bot.send(S::AcceptTeleportation(play::AcceptTeleportation {
                         id: p.teleport,
-                        x: p.position[0],
-                        y: p.position[1],
-                        z: p.position[2],
-                        yaw: 0.0,
-                        pitch: 0.0,
                     }));
                     teleported = true;
                 }
@@ -1090,11 +1085,6 @@ fn guests_see_each_other_and_the_world_entities() {
                     at = Some(p.position);
                     bot.send(S::AcceptTeleportation(play::AcceptTeleportation {
                         id: p.teleport,
-                        x: p.position[0],
-                        y: p.position[1],
-                        z: p.position[2],
-                        yaw: 0.0,
-                        pitch: 0.0,
                     }))
                 }
                 C::AddEntity(a) if a.id == 500 => zombies += 1,
@@ -1125,11 +1115,6 @@ fn guests_see_each_other_and_the_world_entities() {
             {
                 bot.send(S::AcceptTeleportation(play::AcceptTeleportation {
                     id: p.teleport,
-                    x: p.position[0],
-                    y: p.position[1],
-                    z: p.position[2],
-                    yaw: 0.0,
-                    pitch: 0.0,
                 }));
             }
             x += 0.2;
@@ -1355,11 +1340,6 @@ fn changed_biomes_reach_the_players_that_see_the_column() {
                 C::PlayerPosition(p) => {
                     bot.send(S::AcceptTeleportation(play::AcceptTeleportation {
                         id: p.teleport,
-                        x: p.position[0],
-                        y: p.position[1],
-                        z: p.position[2],
-                        yaw: 0.0,
-                        pitch: 0.0,
                     }))
                 }
                 C::LevelChunkWithLight(l) if (l.x, l.z) == (0, 0) => seen = true,
@@ -1609,11 +1589,6 @@ fn a_synced_mod_block_entity_reaches_the_chunks_players_once_a_tick() {
                 C::PlayerPosition(p) => {
                     bot.send(S::AcceptTeleportation(play::AcceptTeleportation {
                         id: p.teleport,
-                        x: p.position[0],
-                        y: p.position[1],
-                        z: p.position[2],
-                        yaw: 0.0,
-                        pitch: 0.0,
                     }))
                 }
                 C::LevelChunkWithLight(l) if (l.x, l.z) == (0, 0) => {
@@ -2056,11 +2031,6 @@ fn a_26_2_client_joins_only_a_server_that_accepts_older_clients() {
                 C::PlayerPosition(p) => bot.send(
                     S::AcceptTeleportation(play::AcceptTeleportation {
                         id: p.teleport,
-                        x: p.position[0],
-                        y: p.position[1],
-                        z: p.position[2],
-                        yaw: 0.0,
-                        pitch: 0.0,
                     })
                     .encode(),
                 )?,

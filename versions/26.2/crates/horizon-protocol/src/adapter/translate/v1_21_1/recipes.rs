@@ -555,7 +555,7 @@ mod tests {
     }
     fn setup() -> Session {
         let session = Session::new(ServerVersion::V1_21_1);
-        session.trim_patterns.lock().unwrap().insert(1580, 7); // synced sentry pattern deliberately reordered
+        session.trim_patterns.lock().unwrap().insert(1459, 7); // synced sentry pattern deliberately reordered
         clientbound(&session, cb::UPDATE_RECIPES, &bytes(VANILLA_RECIPES)).unwrap();
         session
     }
@@ -612,14 +612,14 @@ mod tests {
         };
         assert_eq!((*width, *height), (2, 1));
         assert_eq!(ingredients.len(), 2);
-        assert_eq!(*station, SlotDisplay::Item(405));
+        assert_eq!(*station, SlotDisplay::Item(360));
         let SlotDisplay::ItemStack(stack) = result else {
             panic!("result")
         };
-        assert_eq!((stack.item, stack.count), (473, 2));
+        assert_eq!((stack.item, stack.count), (427, 2));
         assert_eq!(
             shaped.requirements,
-            [HolderSet::Items(vec![1018]), HolderSet::Items(vec![1018])]
+            [HolderSet::Items(vec![932]), HolderSet::Items(vec![932])]
         );
         assert!(!shaped.notify);
         let Some(RecipeDisplay::Smithing { result, .. }) =
@@ -645,7 +645,7 @@ mod tests {
         };
         assert_eq!(
             (*duration, *experience, station.clone()),
-            (120, 0.75, SlotDisplay::Item(1508))
+            (120, 0.75, SlotDisplay::Item(1387))
         );
         let properties = state.properties();
         let mut r = Reader::new(&properties);
@@ -657,13 +657,13 @@ mod tests {
             let list = (0..n).map(|_| r.varint().unwrap()).collect::<Vec<_>>();
             sets.insert(name, list);
         }
-        assert_eq!(sets["minecraft:furnace_input"], [95]);
+        assert_eq!(sets["minecraft:furnace_input"], [93]);
         assert_eq!(r.varint().unwrap(), 1);
         assert_eq!(HolderSet::read(&mut r).unwrap(), HolderSet::Items(vec![1]));
         let SlotDisplay::ItemStack(stack) = SlotDisplay::read(&mut r).unwrap() else {
             panic!("stonecutting")
         };
-        assert_eq!((stack.item, stack.count), (355, 2));
+        assert_eq!((stack.item, stack.count), (311, 2));
         assert_eq!(r.remaining(), 0);
     }
 
@@ -818,7 +818,7 @@ mod tests {
             "1713686f72697a6f6e5f776972653a736861706564000c686f72697a6f6e5f776972650302010101aa0600000101aa06000002e40200000016686f72697a6f6e5f776972653a73686170656c657373010c686f72697a6f6e5f776972650002010101000002011c0000012300000301000019686f72697a6f6e5f776972653a73746f6e6563757474696e67130c686f72697a6f6e5f77697265010101000002880200001f686f72697a6f6e5f776972653a736d697468696e675f7472616e73666f726d140101f20900000101e40600000101af06000001ec0600001a686f72697a6f6e5f776972653a736d697468696e675f7472696d150101f30900000101e40600000101ae06000015686f72697a6f6e5f776972653a736d656c74696e670f0c686f72697a6f6e5f7769726501010140000001aa0600003f4000007815686f72697a6f6e5f776972653a626c617374696e67100c686f72697a6f6e5f7769726501010140000001aa0600003f4000007814686f72697a6f6e5f776972653a736d6f6b696e67110c686f72697a6f6e5f7769726501010140000001aa0600003f400000781d686f72697a6f6e5f776972653a63616d70666972655f636f6f6b696e67120c686f72697a6f6e5f7769726501010140000001aa0600003f4000007826686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f61726d6f72647965020329686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f626f6f6b636c6f6e696e67030328686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f6d6170636c6f6e696e6704032a686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f6d6170657874656e64696e6705032d686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f66697265776f726b5f726f636b657406032b686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f66697265776f726b5f73746172070330686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f66697265776f726b5f737461725f66616465080329686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f7469707065646172726f7709032d686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f62616e6e65726475706c69636174650a032e686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f736869656c646465636f726174696f6e0b0330686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f7368756c6b6572626f78636f6c6f72696e670c032c686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f737573706963696f7573737465770d0328686f72697a6f6e5f776972653a6372616674696e675f7370656369616c5f7265706169726974656d0e0323686f72697a6f6e5f776972653a6372616674696e675f6465636f72617465645f706f741603",
         );
         let session = Session::new(ServerVersion::V1_20_6);
-        session.trim_patterns.lock().unwrap().insert(1580, 7);
+        session.trim_patterns.lock().unwrap().insert(1459, 7);
         let properties = clientbound(&session, cb::UPDATE_RECIPES, &old)
             .unwrap()
             .unwrap();
@@ -842,10 +842,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (473, 2));
+            assert_eq!((stack.item, stack.count), (427, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![1018]), HolderSet::Items(vec![1018])]
+                [HolderSet::Items(vec![932]), HolderSet::Items(vec![932])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -912,7 +912,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_3);
         let _names = ids::legacy_registries(session.legacy_registries.lock().unwrap().clone());
         let _items = ids::legacy_items(session.legacy_items.clone());
-        session.trim_patterns.lock().unwrap().insert(1580, 7);
+        session.trim_patterns.lock().unwrap().insert(1459, 7);
         let properties = clientbound(&session, cb::UPDATE_RECIPES, &old)
             .unwrap()
             .unwrap();
@@ -936,10 +936,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (473, 2));
+            assert_eq!((stack.item, stack.count), (427, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![1018]), HolderSet::Items(vec![1018])]
+                [HolderSet::Items(vec![932]), HolderSet::Items(vec![932])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -1007,7 +1007,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_2);
         let _names = ids::legacy_registries(session.legacy_registries.lock().unwrap().clone());
         let _items = ids::legacy_items(session.legacy_items.clone());
-        session.trim_patterns.lock().unwrap().insert(1580, 7);
+        session.trim_patterns.lock().unwrap().insert(1459, 7);
         let properties = clientbound(&session, cb::UPDATE_RECIPES, &old)
             .unwrap()
             .unwrap();
@@ -1036,10 +1036,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (473, 2));
+            assert_eq!((stack.item, stack.count), (427, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![1018]), HolderSet::Items(vec![1018])]
+                [HolderSet::Items(vec![932]), HolderSet::Items(vec![932])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display

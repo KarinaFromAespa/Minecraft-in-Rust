@@ -102,6 +102,84 @@ the chain correctly omits it. In production paths the staleness is
 mostly unreachable: `ServerVersion::from_protocol(776)` resolves to
 the current version, so real 26.2 peers get no session translation.
 
+### Adapter-ladder re-base (behaviour/26.2, 2026-11-13)
+
+The ladder is now re-based to the 776 pin. `cargo test
+-p horizon-protocol`: **443 passed, 2 failed, 0 ignored** — the 2
+failures are the same sandbox-network pair; the 7 ignored tests are
+un-ignored and passing. Method: regenerate all 14 registry-id tables
+and all 13 packet-id tables from the prepared reports
+(`tools/regenerate_registry_id_adapters.py`,
+`tools/generate_packet_id_adapter.py`), then re-key the production
+conversions and fixtures that baked in the old pin's ids, following
+the 26.1 re-base (commit ff7d657) and the 1.21.11 re-base (2e2ef22).
+
+Key structural fact: **26.2's data-component registry is 26.1's with
+`minecraft:sulfur_cube_content` inserted at 78**, all ids ≥78 shifted
+by +1 (26.2: 111 components, top id 110; 26.1: 110). The 26.1 tree
+served as the re-key template for most files: take its file, shift
+component ids ≥78 by +1, add sulfur where 26.2 has it.
+
+What changed, by cluster:
+
+- **Tables.** 13 packet tables + 13 registry id tables + `pinned_ids.rs`
+  regenerated. Packet renames fed to the generator: `horse_screen_open
+  → mount_screen_open` (all versions ≤1.21.10), `debug_sample_subscription
+  → debug_subscription_request` (1.20.6–1.21.8), `spectate_entity →
+  spectator_action` (26.1.2), `game_profile → login_finished` (1.20.2,
+  1.20.3, 1.20.6, 1.21.1 — the rename landed between 1.21.1 and
+  1.21.3; missing it left the 765 login test's session stuck in Login,
+  because the login-success packet mapped to None).
+- **Item component constants and codecs** (`item.rs`, `skip.rs`,
+  `hash/raw.rs`, `hash/gameplay.rs`, `hash.rs`): all component ids
+  re-keyed to 26.2's registry (diamond 926, stick 974, brick 1054,
+  angler sherd 1477); `skip_dropped` now drops only
+  `fire_resistant`/`hide_tooltip`/`hide_additional_tooltip` — the only
+  components any ladder server sends that 26.2 lacks. The 26.3-only
+  components (sign text, waxed, cushion/color, villager_food,
+  compostable, cooking/brewing fuel, mob_visibility) are gone.
+- **Session translation** (`client_session.rs`, `world.rs`,
+  `translate.rs`): the 26.3 PLAYER_ACTION up-shift is removed (the pin
+  IS 26.2; every client's actions 0–6 cross unchanged, and 26.2's own
+  STAB at 7 is dropped for older servers, never shifted);
+  `accept_teleport` returns the id alone.
+- **`AcceptTeleportation` rewired** (multi-crate): the pinned packet
+  struct still carried the 26.3 layout (id + position + yaw/pitch);
+  26.2's packet is the id alone. Fixed in `packets/play.rs`,
+  `remote.rs`, `hub.rs`, `bots/main.rs`, `probe.rs` and `lan_bot.rs`
+  (6 send sites). 1.21.11's tree has the same latent struct bug, not
+  fixed there.
+- **Particle option dispatch** (`entity_data.rs`): `Particle::read`
+  was keyed to 26.3's particle registry; re-keyed by type name to
+  26.2's (entity_effect 28, vibration 55, item 54, trail 56, shriek
+  112, dust_pillar 118, block_crumble 122, ...).
+- **Legacy item readers** (`item/v1_20_3.rs`, `v1_20_5.rs`,
+  `v1_21_1.rs`, `v1_21_4.rs`, `v1_21_5.rs`): the 1.20.3 NBT
+  converter's component table and registry context re-keyed; the
+  1.21.4 tooltip-flag lists corrected (the 26.3 list read a tooltip
+  bool after map_color, misaligning every following read — the root
+  cause of the enchantment, pots and tooltip failures); the default
+  shearing sound holder 1448 → 1444 (snip is 1443 in 26.2). The 144
+  pinned fixture hexes were regenerated through the conversion itself
+  and cross-checked byte by byte against the 26.1/26.3 fixtures and
+  the registry reports: every difference is an explainable registry-id
+  change or a harmless component reordering the tests canonicalize.
+- **The 7 ignored tests**: the creative-slot test (client_session) and
+  the two 1.20.3 slot tests un-ignored and passing as re-keyed; the
+  pack-response and jigsaw tests pass as written; the 765
+  login/respawn test passes once the `game_profile` rename is in the
+  tables; the adapter test's premise was void for a 26.2 server, so it
+  is rewritten as
+  `serverbound_packets_1_21_11_lacks_are_not_sent` (1.21.11 has no
+  attack packet; resource_pack 49→48, swing 63→60, keep_alive 28→27).
+
+Substitutes fact: the three versions closest to the pin (26.1.2,
+1.21.11, 26.2) have `Substitutes::NONE` — for a 26.1/1.21.11 client,
+an unmapped pinned block state becomes air, an unmapped item an empty
+slot, an unmapped entity is dropped. 26.2's additions vs 26.1.2: 28
+blocks, 31 items, 1 entity (sulfur_cube 130) — the sulfur/cinnabar
+family.
+
 ### horizon-prepare completes (prepare: ok)
 
 The exporter bundle compiles against 26.2 and every exporter runs;

@@ -1,7 +1,7 @@
-//! Clientbound world packets in 26.2's layout for a 26.2 client (#10404, the mirror of `translate`'s
-//! hand-written 26.2 readers): chunk columns and light, particles, explosions and entity moves.
+//! Clientbound world packets in 26.1's layout for a 26.1 client (#10404, the mirror of `translate`'s
+//! hand-written 26.1 readers): chunk columns and light, particles, explosions and entity moves.
 //! Everything else in a packet keeps its pinned layout; ids go down as the rest of
-//! [`super`] renumbers them, with stand-ins where 26.2 lacks an entry.
+//! [`super`] renumbers them (26.1 has no stand-in table, so what it lacks shows as air or is dropped).
 use super::{Sent, state_down};
 use crate::{
     Result,
@@ -13,10 +13,10 @@ use crate::{
     packets::play,
 };
 
-/// `SoundEvents.EMPTY`: what a 26.2 client is told to play for a blast 26.3 keeps silent.
+/// `SoundEvents.EMPTY`: what a 26.1 client is told to play for a blast 26.2 keeps silent.
 const SILENT: &str = "minecraft:intentionally_empty";
 
-/// The pinned play packet `id` in 26.2's layout; `None` when 26.2 lays it out as the pinned version does.
+/// The pinned play packet `id` in 26.1's layout; `None` when 26.1 lays it out as the pinned version does.
 pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<Sent>> {
     use packet_ids::play::clientbound as cb;
     Ok(Some(match id {
@@ -32,8 +32,8 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
     }))
 }
 
-/// The column with its block states renumbered (stand-ins for states 26.2 lacks) and packed for 26.2's
-/// narrower global palette, the block entities 26.2 has, and the light masks as 26.2 sends them. Biomes are
+/// The column with its block states renumbered (air for states 26.1 lacks) and packed for 26.1's
+/// narrower global palette, the block entities 26.1 has, and the light masks as 26.1 sends them. Biomes are
 /// the server's own registry and stay as they are.
 fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut p = play::LevelChunkWithLight::read(&mut Reader::new(payload))?;
@@ -46,7 +46,7 @@ fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
         sections.push(s);
     }
     p.chunk.buffer = chunk::ChunkData::from_sections(&sections);
-    // A block entity type 26.2 lacks goes; its block still draws.
+    // A block entity type 26.1 lacks goes; its block still draws.
     p.chunk.block_entities.retain_mut(|b| {
         ids.block_entity_type
             .down(b.kind)
@@ -61,8 +61,8 @@ fn level_chunk(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// A section's states in 26.2's numbering: a palette's entries renumbered, or the global palette repacked
-/// at 26.2's width (`old_bits`).
+/// A section's states in 26.1's numbering: a palette's entries renumbered, or the global palette repacked
+/// at 26.1's width (`old_bits`).
 fn states_down(ids: &Ids, states: &Paletted, old_bits: u8) -> Paletted {
     if !states.palette.is_empty() {
         let mut out = states.clone();
@@ -77,7 +77,7 @@ fn states_down(ids: &Ids, states: &Paletted, old_bits: u8) -> Paletted {
     Paletted::from_values(&values, Strategy::Blocks, old_bits)
 }
 
-/// 26.2's ClientboundLightUpdatePacketData: each mask as `BitSet.toLongArray` (a VarInt count of longs),
+/// 26.1's ClientboundLightUpdatePacketData: each mask as `BitSet.toLongArray` (a VarInt count of longs),
 /// where 26.3 sends `toByteArray` (the same bits as little-endian bytes); the layers as they are.
 fn light_down(light: &chunk::LightData, w: &mut Writer) {
     for mask in [
@@ -117,9 +117,8 @@ fn light_update(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// A particle in 26.2's numbering, its block state too, or its stand-in; `None` when 26.2 has neither (a
-/// native mod's particle). The options stay: the stand-ins in the 26.2 tables (pinned 43..=45 as 41)
-/// carry none, as the particles they stand for; a stand-in with other options would need them rebuilt.
+/// A particle in 26.1's numbering, its block state too; `None` when 26.1 has nothing for it (a native
+/// mod's particle, or one 26.2 added). 26.1 has no stand-in table, so there is no fallback.
 fn particle_down(ids: &Ids, p: &Particle) -> Option<Particle> {
     let mut p = p.clone();
     p.id = down_or_substitute(ids.particle_type, ids.substitutes.particle_type, p.id)?;
@@ -129,14 +128,14 @@ fn particle_down(ids: &Ids, p: &Particle) -> Option<Particle> {
     Some(p)
 }
 
-/// A particle written for 26.2: an item in its options takes 26.2's item and component ids.
+/// A particle written for 26.1: an item in its options takes 26.1's item and component ids.
 fn write_particle(ids: &'static Ids, p: &Particle, w: &mut Writer) {
     let _down = ids::renumbering(ids, Way::Down);
     p.write(w);
 }
 
-/// 26.2: flags, position, spread, one max speed, an Int count, then the particle. 26.3 sends the particle
-/// first, a speed per axis, a VarInt count and how the spread is drawn, which 26.2 can't be told (it always
+/// 26.1: flags, position, spread, one max speed, an Int count, then the particle. 26.2 sends the particle
+/// first, a speed per axis, a VarInt count and how the spread is drawn, which 26.1 can't be told (it always
 /// draws a gaussian spread). Of the three speeds the largest goes.
 fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     let p = play::LevelParticles::read(&mut Reader::new(payload))?;
@@ -158,9 +157,9 @@ fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     Ok(Sent::Rewritten(w.data))
 }
 
-/// 26.2's explode is 26.3's without the trailing "sound plays" flag: 26.2 always plays the sound, so a
-/// silent blast names `SoundEvents.EMPTY`. Its particles and sound take 26.2's ids; a scattered particle
-/// 26.2 has nothing for is left out.
+/// 26.1's explode is 26.2's without the trailing "sound plays" flag: 26.1 always plays the sound, so a
+/// silent blast names `SoundEvents.EMPTY`. Its particles and sound take 26.1's ids; a scattered particle
+/// 26.1 has nothing for is left out.
 fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     let mut e = play::Explode::read(&mut Reader::new(payload))?;
     let Some(particle) = particle_down(ids, &e.particle) else {
@@ -193,8 +192,8 @@ fn explode(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
     Ok(Sent::Rewritten(w.data))
 }
 
-/// 26.2 sends a move as three Short deltas (1/4096 of a block) then on-ground, and a turn as the two angles
-/// then on-ground; 26.3 packs on-ground with the delta's step count and sends it before the angles. A
+/// 26.1 sends a move as three Short deltas (1/4096 of a block) then on-ground, and a turn as the two angles
+/// then on-ground; 26.2 packs on-ground with the delta's step count and sends it before the angles. A
 /// stepped delta goes as its sum (the next position sync corrects a sum past a Short).
 fn move_entity(id: i32, payload: &[u8]) -> Result<Vec<u8>> {
     use packet_ids::play::clientbound as cb;
@@ -259,7 +258,7 @@ mod tests {
     use horizon_world::nbt::Tag;
 
     fn ids() -> &'static Ids {
-        ServerVersion::V26_2.ids().unwrap()
+        ServerVersion::V26_1.ids().unwrap()
     }
 
     fn in_play() -> super::super::ClientSession {
@@ -309,14 +308,14 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (chest's first: 5543 pinned, 3987 in 26.2), and one on the global palette:
-        // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[5543; chunk::BLOCKS], Strategy::Blocks, 16);
+        // A section of one state (calcite: 27160 pinned, 24687 in 26.1), and one on the global palette:
+        // 4096 states that 26.1 has too (its 13000.., oak_slab's 13330 among them).
+        let one = Paletted::from_values(&[27160; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
-        let global = Paletted::from_values(&many, Strategy::Blocks, 16);
-        assert_eq!(global.bits, 16);
+        let global = Paletted::from_values(&many, Strategy::Blocks, 15);
+        assert_eq!(global.bits, 15);
         let plains = Paletted::from_values(&[1; chunk::BIOMES], Strategy::Biomes, 0);
         let section = |states: Paletted| Section {
             non_empty: 4096,
@@ -325,7 +324,7 @@ mod tests {
             biomes: plains.clone(),
         };
         let sections = vec![section(one), section(global)];
-        // A block entity of the first type 26.2 has.
+        // A block entity of the first type 26.1 has.
         let kind = ids.block_entity_type.up(0).unwrap();
         let p = play::LevelChunkWithLight {
             x: 3,
@@ -350,20 +349,20 @@ mod tests {
             )
             .unwrap(),
         );
-        // In 26.2's own numbering: the chest is 3987, the global palette 15 bits wide, 26.2's ids.
+        // In 26.1's own numbering: the calcite is 24687, the global palette 15 bits wide, 26.1's ids.
         {
             let mut r = Reader::new(&old);
             r.i32().unwrap();
             r.i32().unwrap();
             let c = chunk::ChunkData::read(&mut r).unwrap();
             let s = c.sections(2, ids.state_bits().0, 0).unwrap();
-            assert_eq!(s[0].states.get(0), 3987);
+            assert_eq!(s[0].states.get(0), 24687);
             assert_eq!(s[1].states.bits, 15);
             assert_eq!(s[1].states.get(330), 13330);
             assert_eq!(c.block_entities[0].kind, 0);
         }
         let back = translate::chunk(
-            &crate::adapter::session::Session::new(crate::adapter::ServerVersion::V26_2),
+            &crate::adapter::session::Session::new(crate::adapter::ServerVersion::V26_1),
             ids,
             &old,
         )
@@ -383,11 +382,14 @@ mod tests {
     }
 
     #[test]
-    fn a_state_26_2_lacks_goes_down_as_its_stand_in() {
+    fn a_state_crosses_down_in_26_1_s_numbering() {
         let ids = ids();
-        // poplar_log axis=y (167, new in 26.3) shows as birch_log axis=y (143 in 26.2).
-        let p = Paletted::from_values(&[167; chunk::BLOCKS], Strategy::Blocks, 16);
-        assert_eq!(states_down(ids, &p, 15).get(0), 143);
+        // calcite's state: 27160 in 26.2, 24687 in 26.1.
+        let p = Paletted::from_values(&[27160; chunk::BLOCKS], Strategy::Blocks, 15);
+        assert_eq!(states_down(ids, &p, 15).get(0), 24687);
+        // sulfur (24687, new in 26.2) has no stand-in for 26.1: it shows as air.
+        let p = Paletted::from_values(&[24687; chunk::BLOCKS], Strategy::Blocks, 15);
+        assert_eq!(states_down(ids, &p, 15).get(0), 0);
     }
 
     #[test]
@@ -454,22 +456,24 @@ mod tests {
             );
             q.particle
         };
-        // entity_effect (28) carries a colour, alike in both numberings.
+        // entity_effect (28 in 26.2, 21 in 26.1) carries a colour, alike in both numberings.
         let colour = Particle {
             id: 28,
             data: Some(ParticleData::Color(0x00ff00ff)),
         };
         assert_eq!(send(colour.clone()), colour);
-        // block (1) carries a state: chest's 5543 goes down to 3987 and comes back.
+        // block (1) carries a state: chest's first state is 3987 in both
+        // numberings, so it crosses unchanged and comes back.
         let block = Particle {
             id: 1,
-            data: Some(ParticleData::State(5543)),
+            data: Some(ParticleData::State(3987)),
         };
         assert_eq!(send(block.clone()), block);
-        // 44 is new in 26.3: it shows as its stand-in, 41.
+        // ash is 91 in 26.2 and 84 in 26.1: renumbered both ways, it comes
+        // back as itself.
         assert_eq!(
-            send(Particle { id: 44, data: None }),
-            Particle { id: 41, data: None }
+            send(Particle { id: 91, data: None }),
+            Particle { id: 91, data: None }
         );
     }
 
@@ -524,7 +528,7 @@ mod tests {
                     speed: 0.5,
                     weight: 3,
                 },
-                // A native mod's particle: 26.2 has nothing for it.
+                // A native mod's particle: 26.1 has nothing for it.
                 play::ExplosionParticle {
                     particle: Particle {
                         id: crate::entity_data::MOD_PARTICLE_ID,
@@ -539,7 +543,7 @@ mod tests {
         }
     }
 
-    /// 26.2's explode read back as `translate` reads it: the flag 26.2 lacks appended, ids renumbered up.
+    /// 26.1's explode read back as `translate` reads it: the flag 26.1 lacks appended, ids renumbered up.
     fn explode_up(old: &[u8]) -> play::Explode {
         let mut body = old.to_vec();
         body.push(1);
