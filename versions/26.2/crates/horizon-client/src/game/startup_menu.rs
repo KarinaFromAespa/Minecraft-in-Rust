@@ -244,7 +244,7 @@ impl StartupMenu {
             self.modifiers.control_key()
         };
         clipboard::edit_shortcut(
-            clipboard::shortcut_letter(&event.logical_key, event.physical_key),
+            clipboard::shortcut_letter(event.physical_key),
             edit,
             self.modifiers.shift_key(),
             self.modifiers.alt_key(),
@@ -697,7 +697,7 @@ impl Loading {
 
     /// `Game::narrator_hotkey` on the startup menu's screens.
     fn menu_narrator_hotkey(&mut self, event: &KeyEvent) {
-        let letter = clipboard::shortcut_letter(&event.logical_key, event.physical_key);
+        let letter = clipboard::shortcut_letter(event.physical_key);
         if letter != Some('b') {
             return;
         }
