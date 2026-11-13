@@ -90,7 +90,8 @@ pub struct Conditions<'a, 'b> {
     /// The biome's attributes at the position: the noise biome, or the block's biome for
     /// attributes with full-resolution biomes.
     pub biome: &'b dyn Fn(bool) -> Option<&'a AttributeMap>,
-    /// `ClockManager.getInstance(clock).totalTicks()` for a `WorldClock` id.
+    /// `ClockManager.getTotalTicks(clock)` for a `WorldClock` id (26.2;
+    /// 26.3 returns a `ClockInstance` whose `totalTicks()` is read instead).
     pub clock: &'b dyn Fn(&str) -> i64,
     /// A second biome group that applies after the weather (resource packs' biome
     /// `post_process` layers): its mix and the map at the position, as for the biome layer.

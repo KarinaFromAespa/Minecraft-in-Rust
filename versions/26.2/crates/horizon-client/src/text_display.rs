@@ -532,7 +532,8 @@ pub fn draw(
         let start = batch.vertices.len();
         batch.fill(
             atlas,
-            // submitTextBackground(-1, -1, width, height): corners, not a size.
+            // The background quad (-1, -1, width, height): corners, not a
+            // size; 26.2 inlines it as custom geometry at TEXT_BACKGROUND_OFFSET.
             -1.0,
             -1.0,
             width + 1.0,

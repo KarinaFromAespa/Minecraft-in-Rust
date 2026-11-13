@@ -75,8 +75,9 @@ fn grid_state(count: u32, mut x: i32, mut z: i32) -> u32 {
 impl ChunkGenerator for DebugTerrain {
     type Worker = ();
     fn worker(&self) {}
-    /// `DebugLevelSource.buildTerrain` builds nothing; `applyBiomeDecoration`
-    /// writes the barriers and the grid.
+    /// `DebugLevelSource.fillFromNoise` returns the chunk unchanged (and its
+    /// `buildSurface` is empty); `applyBiomeDecoration` writes the barriers
+    /// and the grid.
     fn proto(&self, _: &mut (), cx: i32, cz: i32) -> crate::streaming::Proto {
         let mut chunk = Chunk::with_layout(cx, cz, self.shape.column());
         for s in &mut chunk.sections {
