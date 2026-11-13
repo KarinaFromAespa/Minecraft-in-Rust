@@ -1419,13 +1419,15 @@ impl Hub {
     }
 
     /// The permission level a player gets: an integrated server gives every
-    /// guest the game masters' level when commands are allowed
-    /// (IntegratedServer.setGuestCommandAccess); a dedicated server its
-    /// operators' level (`ops`).
+    /// guest the owner's level when commands are allowed for them
+    /// (`MinecraftServer.getProfilePermissions`: a singleplayer non-owner
+    /// with `allowCommandsForAllPlayers` gets OWNER); a dedicated server
+    /// its operators' level (`ops`).
     fn default_permission(&self, uuid: u128) -> u8 {
         if self.config.integrated {
-            // IntegratedServer.getProfilePermissions / getCustomPermissionLevel.
-            let guests = if self.config.guest_commands { 2 } else { 0 };
+            // 26.2's OWNER set is level 4; 26.3 demoted guests to the
+            // game masters' level 2 (getCustomPermissionLevel).
+            let guests = if self.config.guest_commands { 4 } else { 0 };
             self.ops.get(&uuid).copied().unwrap_or(guests)
         } else {
             self.ops.get(&uuid).copied().unwrap_or(0)

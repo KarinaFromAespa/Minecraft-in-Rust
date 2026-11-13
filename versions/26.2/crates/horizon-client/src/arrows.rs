@@ -981,8 +981,10 @@ impl Ticker<'_, '_, '_, '_> {
         }
     }
     /// `ProjectileUtil.getManyEntityHitResult` for one entity box: where the
-    /// path enters it, else where it enters the box grown by `margin`, if a
-    /// line from there towards the centre (stopped by blocks) reaches the box.
+    /// path enters it, else where the line from the margin box's entry
+    /// towards the centre (stopped by blocks) meets the box. 26.2 always
+    /// records the surface hit; 26.3's `projectSurfaceHitLocation=false`
+    /// (what arrows pass) records the margin box's entry instead.
     fn entity_hit(&self, b: &Aabb, from: Vec3, to: Vec3, margin: f64) -> Option<Vec3> {
         if let Some(at) = b.clip(from, to) {
             return Some(at);
@@ -998,7 +1000,7 @@ impl Ticker<'_, '_, '_, '_> {
             .scene
             .clip(outside, centre, None)
             .map_or(centre, |h| h.0);
-        b.clip(outside, towards).map(|_| outside)
+        b.clip(outside, towards)
     }
     /// `playSound(soundEvent, 1, 1.2 / (random * 0.2 + 0.9))`.
     fn hit_sound(&mut self) {

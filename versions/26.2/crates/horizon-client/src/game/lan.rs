@@ -232,6 +232,16 @@ pub(super) struct LanHost {
     /// The mods heard that everyone still here leaves with the server.
     pub players_told_left: bool,
     pub settings: LanSettings,
+    /// `IntegratedServer.gameTypeForOtherPlayers` (26.2): the game mode a
+    /// published world forces on its guests, or None while unset (the
+    /// world's default then applies). 26.3 replaced it with the force
+    /// game mode toggle.
+    pub game_type_for_other_players: Option<i32>,
+    /// `IntegratedServer.commandsAllowedForOtherPlayers` (26.2): whether
+    /// guests may use commands, or None while unset (the world's Allow
+    /// Commands then applies). 26.3 replaced it with the guest command
+    /// access flag ANDed with the world's setting.
+    pub commands_allowed_for_other_players: Option<bool>,
     pub play: HashMap<u32, super::lan_actions::GuestPlay>,
     /// Blocks broken this tick (their sound is a level event for the guests).
     pub broken: Vec<[f64; 3]>,
@@ -1224,9 +1234,9 @@ pub const HELP: &[&str] = &[
 ];
 
 /// With the game mode forced, the guests online take the default mode
-/// (setting a mode does nothing when it is already theirs). A world open to
-/// LAN is an integrated server, which leaves out the players who have game
-/// master permission; a dedicated server does not.
+/// (setting a mode does nothing when it is already theirs). Dedicated
+/// servers only: an integrated server enforces its own rule
+/// ([`apply_world_game_type`], [`forced_game_type`]).
 fn enforce_guest_game_mode(
     host: &mut LanHost,
     world: &World,
@@ -1236,16 +1246,59 @@ fn enforce_guest_game_mode(
         return;
     }
     let mode = host.hub.config.default_game_mode;
-    let spares_operators = host.hub.config.integrated;
     let stale: Vec<u32> = host
         .hub
         .guests
         .iter()
-        .filter(|g| g.game_mode != mode && !(spares_operators && g.permission >= 2))
+        .filter(|g| g.game_mode != mode)
         .map(|g| g.conn)
         .collect();
     for conn in stale {
         host.hub.set_game_mode(conn, mode, world, Some(collision));
+    }
+}
+
+/// `IntegratedServer.getForcedGameType` (26.2): the mode a published,
+/// non-hardcore world forces on its guests — the type set for other
+/// players, or the world's default while unset. None while unpublished
+/// or in hardcore.
+fn forced_game_type(host: &LanHost) -> Option<i32> {
+    if !host.hub.config.integrated
+        || !host.hub.config.force_game_mode
+        || host.hub.config.hardcore
+    {
+        return None;
+    }
+    Some(
+        host.game_type_for_other_players
+            .unwrap_or(host.hub.config.default_game_mode),
+    )
+}
+
+/// `IntegratedServer.setWorldGameType` (26.2): the owner takes the new
+/// default mode, and so do the other players online — unless a type was
+/// set for them, which they keep.
+fn apply_world_game_type(
+    host: &mut LanHost,
+    mode: i32,
+    world: &World,
+    collision: &BlockCollisionRegistry<'_>,
+) {
+    let owner = host.owner.as_ref().map(|o| o.uuid);
+    let others = host
+        .game_type_for_other_players
+        .unwrap_or(host.hub.config.default_game_mode);
+    let stale: Vec<(u32, i32)> = host
+        .hub
+        .guests
+        .iter()
+        .filter_map(|g| {
+            let want = if Some(g.uuid) == owner { mode } else { others };
+            (g.game_mode != want).then_some((g.conn, want))
+        })
+        .collect();
+    for (conn, want) in stale {
+        host.hub.set_game_mode(conn, want, world, Some(collision));
     }
 }
 
@@ -1458,6 +1511,8 @@ impl Game<'_> {
             players_told_left: false,
             hub,
             settings: LanSettings { port, ..settings },
+            game_type_for_other_players: None,
+            commands_allowed_for_other_players: None,
             play: HashMap::new(),
             broken: Vec::new(),
             mob_state: HashMap::new(),
@@ -1842,18 +1897,68 @@ impl Game<'_> {
         self.level.creative = mode == 1;
         if let Some(host) = self.lan.as_mut() {
             host.hub.config.default_game_mode = mode;
-            // `setWorldGameType` and `DefaultGameModeCommands.setMode`: a
-            // world that forces its mode puts the guests online in it.
-            enforce_guest_game_mode(host, &self.world, self.collision);
+            if host.hub.config.integrated {
+                // `IntegratedServer.setWorldGameType`: the owner takes the
+                // new mode, and so do the other players unless a type was
+                // set for them.
+                apply_world_game_type(host, mode, &self.world, self.collision);
+            } else {
+                // `DefaultGameModeCommands.setMode`: a world that forces
+                // its mode puts the guests online in it.
+                enforce_guest_game_mode(host, &self.world, self.collision);
+            }
         }
     }
 
     /// Apply the default mode to connected players when forcing it is enabled.
+    /// Dedicated servers only: 26.2's integrated server has no force toggle
+    /// (it enforces the others' type while published instead), so the toggle
+    /// does nothing there.
     pub(super) fn set_force_game_mode(&mut self, force: bool) {
         if let Some(host) = self.lan.as_mut() {
             host.settings.force_game_mode = force;
+            if host.hub.config.integrated {
+                return;
+            }
             host.hub.config.force_game_mode = force;
             enforce_guest_game_mode(host, &self.world, self.collision);
+        }
+    }
+
+    /// `IntegratedServer.setGameTypeForOtherPlayers`: the type a published
+    /// world forces on its guests, applied to the other players online now.
+    /// The screen's mode selector (rank 3) calls it at publish.
+    #[allow(dead_code)]
+    pub(super) fn set_game_type_for_other_players(&mut self, mode: i32) {
+        let Some(host) = self.lan.as_mut() else {
+            return;
+        };
+        host.game_type_for_other_players = Some(mode);
+        let owner = host.owner.as_ref().map(|o| o.uuid);
+        let stale: Vec<u32> = host
+            .hub
+            .guests
+            .iter()
+            .filter(|g| Some(g.uuid) != owner && g.game_mode != mode)
+            .map(|g| g.conn)
+            .collect();
+        for conn in stale {
+            host.hub.set_game_mode(conn, mode, &self.world, Some(self.collision));
+        }
+    }
+
+    /// `IntegratedServer.updateCommandsAllowedForOtherPlayers`: the guests'
+    /// command access, re-derived from the type set for them (or the
+    /// world's Allow Commands while unset), and every player's level sent
+    /// again.
+    pub(super) fn update_commands_allowed_for_other_players(&mut self) {
+        let world_allows = self.allow_commands();
+        if let Some(host) = self.lan.as_mut() {
+            let allowed = host
+                .commands_allowed_for_other_players
+                .unwrap_or(world_allows);
+            host.hub.config.guest_commands = allowed;
+            host.hub.resend_commands();
         }
     }
 
@@ -1912,13 +2017,16 @@ impl Game<'_> {
             server.call(move |g| g.lan_apply_settings(guest_commands, force));
             return;
         }
-        // An integrated server gives guests commands only where the world
-        // allows them (IntegratedServer.getCustomPermissionLevel).
-        let effective = guest_commands && (!self.serving() || self.allow_commands());
+        // `IntegratedServer.setCommandsAllowedForOtherPlayers`: the choice
+        // stands on its own — a world without cheats can still give its
+        // guests commands (26.3 ANDed it with the world's setting).
         if let Some(host) = self.lan.as_mut() {
             host.settings.guest_commands = guest_commands;
-            host.hub.config.guest_commands = effective;
+            host.commands_allowed_for_other_players = Some(guest_commands);
         }
+        self.update_commands_allowed_for_other_players();
+        // 26.2's integrated server has no force toggle; the setting is
+        // kept for the screen until its own port (rank 3).
         self.set_force_game_mode(force);
         self.resend_commands_filtered();
     }
@@ -2912,6 +3020,10 @@ impl Game<'_> {
     ) {
         let default_mode = host.hub.config.default_game_mode;
         let force = host.hub.config.force_game_mode;
+        // `IntegratedServer.getForcedGameType`: a published, non-hardcore
+        // world forces its guests into the type set for them (or the
+        // world's default), whatever their saved mode was.
+        let forced = forced_game_type(host);
         let root = self.world_root.clone();
         let in_place = host.hub.config.dimension.clone();
         let owner = host.owner.as_mut();
@@ -2932,7 +3044,9 @@ impl Game<'_> {
         // PrepareSpawnTask: with no saved rotation the player faces the world
         // spawn's angle (`/setworldspawn ... <angle>`).
         playerdata::face_world_spawn(g, known, self.level.world_spawn_angle);
-        if !known || force {
+        if let Some(mode) = forced {
+            g.game_mode = mode;
+        } else if !known || force {
             g.game_mode = default_mode;
         }
         if !known {
@@ -3758,6 +3872,8 @@ mod tests {
                 guest_commands: false,
                 force_game_mode: false,
             },
+            game_type_for_other_players: None,
+            commands_allowed_for_other_players: None,
             play: Default::default(),
             broken: Default::default(),
             mob_state: Default::default(),

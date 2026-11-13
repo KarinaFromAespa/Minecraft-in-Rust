@@ -1125,22 +1125,28 @@ impl Game<'_> {
         let (Some(pending), owner) = (s.pending.take(), s.owner) else {
             return;
         };
-        let allow_commands = self.allow_commands();
-        let Some(host) = self.lan.as_mut() else {
-            return;
-        };
         match pending {
             Publish::Open(listener, settings) => {
-                if let Err(e) = host.hub.lan.listen_on(listener, true) {
-                    log::error!("Horizon: Open to LAN: {e}");
+                if let Some(host) = self.lan.as_mut() {
+                    if let Err(e) = host.hub.lan.listen_on(listener, true) {
+                        log::error!("Horizon: Open to LAN: {e}");
+                    }
+                    // `IntegratedServer.publishServer`: the guests' command
+                    // access is the choice made at publish (26.2's field stands
+                    // on its own — a world without cheats can still give its
+                    // guests commands), and a published, non-hardcore world
+                    // enforces the type set for other players on its guests.
+                    host.commands_allowed_for_other_players = Some(settings.guest_commands);
+                    host.hub.config.force_game_mode = !host.hub.config.hardcore;
+                    host.settings = settings;
                 }
-                host.settings = settings;
-                host.hub.config.force_game_mode = settings.force_game_mode;
-                // IntegratedServer.setGuestCommandAccess, then updatePermissions.
-                host.hub.config.guest_commands = settings.guest_commands && allow_commands;
-                host.hub.resend_commands();
+                self.update_commands_allowed_for_other_players();
             }
             Publish::Close => {
+                let Some(host) = self.lan.as_mut() else {
+                    return;
+                };
+                host.hub.config.force_game_mode = false;
                 host.hub.lan.stop_listening();
                 log::info!(
                     "Unpublishing integrated server (was on port {})",
@@ -1200,12 +1206,13 @@ impl Game<'_> {
         }
     }
     /// `IntegratedServer.setWorldAllowCommands`: the owner is an operator
-    /// while the world allows commands; everyone's level is sent again.
+    /// while the world allows commands; the guests' access is re-derived
+    /// from the type set for them (or the new world setting while unset)
+    /// and everyone's level is sent again.
     pub(super) fn owner_allow_commands(&mut self, allow: bool) {
         let Some((owner, flags)) = self.serving.as_ref().map(|s| (s.owner, s.flags.clone())) else {
             return;
         };
-        let published = self.published_port().is_some();
         if let Some(host) = self.lan.as_mut() {
             let level = if allow { 4 } else { 0 };
             host.hub.ops.insert(owner, level);
@@ -1213,11 +1220,8 @@ impl Game<'_> {
             for &seat in flags.split_players.lock().unwrap().iter() {
                 host.hub.ops.insert(seat, level);
             }
-            if published {
-                host.hub.config.guest_commands = allow && host.settings.guest_commands;
-            }
-            host.hub.resend_commands();
         }
+        self.update_commands_allowed_for_other_players();
     }
 }
 
