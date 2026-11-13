@@ -247,7 +247,7 @@ fn decorations(c: &Value, atlas: &HudAtlas) -> Vec<GuiDraw> {
             regeneration: has("minecraft:regeneration"),
             hunger: has("minecraft:hunger"),
             hardcore: c["hardcore"].as_bool().unwrap_or(false),
-            damage_cooldown: int("damageCooldown", 0) > 0,
+            hurt_cooldown: int("damageCooldown", 0) > 0,
             air: int("air", 300),
             max_air: int("maxAir", 300),
             under_water: c["underWater"].as_bool().unwrap_or(false),

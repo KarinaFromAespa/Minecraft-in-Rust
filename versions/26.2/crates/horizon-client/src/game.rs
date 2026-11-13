@@ -6119,7 +6119,7 @@ impl Game<'_> {
                     regeneration: effects.get("regeneration").is_some(),
                     hunger: effects.get("hunger").is_some(),
                     hardcore: self.level.hardcore,
-                    damage_cooldown: p.health.hurt.cooldown > 0,
+                    hurt_cooldown: p.health.hurt.cooldown > 0,
                     air: p.air,
                     max_air: 300,
                     under_water,

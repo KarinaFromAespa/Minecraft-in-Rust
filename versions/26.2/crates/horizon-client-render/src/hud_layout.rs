@@ -521,8 +521,9 @@ pub struct HealthInputs {
     pub regeneration: bool,
     pub hunger: bool,
     pub hardcore: bool,
-    /// `damageCooldownTime > 0`.
-    pub damage_cooldown: bool,
+    /// `invulnerableTime > 0` — the hurt cooldown (26.2's name for the
+    /// field 26.3 renamed `damageCooldownTime`).
+    pub hurt_cooldown: bool,
     /// `getAirSupply`, `getMaxAirSupply`, `isEyeInFluid(WATER)`.
     pub air: i32,
     pub max_air: i32,
@@ -643,10 +644,10 @@ impl HealthHud {
         let tick = i64::from(i.tick);
         let current = ceil(i.health);
         let blink = self.health_blink_time > tick && (self.health_blink_time - tick) / 3 % 2 == 1;
-        if current < self.last_health && i.damage_cooldown {
+        if current < self.last_health && i.hurt_cooldown {
             self.last_health_time = i.millis;
             self.health_blink_time = tick + 20;
-        } else if current > self.last_health && i.damage_cooldown {
+        } else if current > self.last_health && i.hurt_cooldown {
             self.last_health_time = i.millis;
             self.health_blink_time = tick + 10;
         }

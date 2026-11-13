@@ -653,7 +653,9 @@ impl Game<'_> {
     }
     /// `Hud.canRenderCrosshairForSpectator` for the nearest hit in reach: an
     /// entity that is a `MenuProvider` (a chest or hopper minecart, a chest
-    /// boat), or a block whose `showAsInteractableInSpectatorMode` holds.
+    /// boat), or a block with a menu provider. 26.2 has no portal branch —
+    /// 26.3's `showAsInteractableInSpectatorMode` added `|| block instanceof
+    /// Portal`, so a spectator looking at a portal gets no crosshair here.
     pub(super) fn spectator_crosshair(&self) -> bool {
         let cart = self.cart_hit().map(|(i, d)| {
             let kind = &self.carts[i].kind;
@@ -681,13 +683,12 @@ impl Game<'_> {
         self.pick()
             .is_some_and(|hit| self.block_interactable_for_spectator(&hit))
     }
-    /// `BlockBehaviour.showAsInteractableInSpectatorMode`: a block with a menu, or a portal.
+    /// `Hud.canRenderCrosshairForSpectator`'s block branch in 26.2:
+    /// `level.getBlockState(pos).getMenuProvider(level, pos) != null` — a
+    /// block with a menu only, no portal branch (26.3's
+    /// `showAsInteractableInSpectatorMode` added portals).
     fn block_interactable_for_spectator(&self, hit: &super::Hit) -> bool {
-        let block = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
-        matches!(
-            &*self.res.facts().get(block).name,
-            "minecraft:nether_portal" | "minecraft:end_portal" | "minecraft:end_gateway"
-        ) || self.block_opens_menu(hit)
+        self.block_opens_menu(hit)
     }
     /// A lectern with no book (`LecternBlock.useWithoutItem` consumes the click and does nothing).
     pub(super) fn block_is_empty_lectern(&self, hit: &super::Hit) -> bool {
