@@ -2842,10 +2842,7 @@ mod tests {
 mod legacy_registry_tests {
     use super::*;
 
-    // The 765 step resolves synced registries in the previous pin's numbering;
-    // re-based with the ladder.
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
     fn vanilla_765_login_and_respawn_resolve_the_synced_dimension_type() {
         use horizon_world::nbt::Tag;
         let session = Session::new(ServerVersion::V1_20_3);

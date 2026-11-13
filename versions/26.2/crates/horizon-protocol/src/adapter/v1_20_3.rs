@@ -23,7 +23,7 @@ const STATUS_SERVERBOUND: &[Option<u8>] = &[
 ];
 #[rustfmt::skip]
 const LOGIN_CLIENTBOUND: &[Option<u8>] = &[
-    Some(0), Some(1), None, Some(3), Some(4),
+    Some(0), Some(1), Some(2), Some(3), Some(4),
 ];
 #[rustfmt::skip]
 const LOGIN_SERVERBOUND: &[Option<u8>] = &[

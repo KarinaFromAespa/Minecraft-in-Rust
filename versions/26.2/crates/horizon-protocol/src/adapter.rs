@@ -567,29 +567,28 @@ mod tests {
         );
     }
 
-    // Its premise (a pinned packet 26.2 lacks, its swing gone) inverted with the
-    // pin change; the body stands as the spec for the ladder's re-base.
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
-    fn serverbound_packets_26_2_lacks_are_not_sent() {
-        let v = ServerVersion::V26_2;
-        // punch is new in 26.3; swing, which 26.2 has at 63, is gone.
+    fn serverbound_packets_1_21_11_lacks_are_not_sent() {
+        let v = ServerVersion::V1_21_11;
+        // 1.21.11 has no packet named attack (its attacks are Interact actions);
+        // the name table pairs nothing for it, and the session adapters convert
+        // it by hand.
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            v.serverbound_id(State::Play, ids::play::serverbound::ATTACK),
             None
         );
-        // resource_pack 50 -> 49, spectator_action 63 -> 62, keep_alive unchanged.
+        // resource_pack 49 -> 48, swing 63 -> 60, keep_alive 28 -> 27.
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::RESOURCE_PACK),
-            Some(49)
+            Some(48)
         );
         assert_eq!(
-            v.serverbound_id(State::Play, ids::play::serverbound::SPECTATOR_ACTION),
-            Some(62)
+            v.serverbound_id(State::Play, ids::play::serverbound::SWING),
+            Some(60)
         );
         assert_eq!(
             v.serverbound_id(State::Play, ids::play::serverbound::KEEP_ALIVE),
-            Some(ids::play::serverbound::KEEP_ALIVE)
+            Some(27)
         );
         assert_eq!(
             v.serverbound_id(State::Handshake, ids::handshake::serverbound::INTENTION),

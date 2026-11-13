@@ -358,9 +358,7 @@ mod tests {
         }
     }
 
-    // The step's packet tables are keyed to the previous pin; re-based with the ladder.
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
     fn pack_responses_keep_the_single_slot_across_configuration_and_play() {
         let session = Session::new(ServerVersion::V1_20_2);
         assert_eq!(
@@ -423,7 +421,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
     fn vanilla_jigsaw_priorities_are_removed_after_the_last_old_field() {
         let session = Session::new(ServerVersion::V1_20_2);
         let new = fixture("jigsaw", true);
