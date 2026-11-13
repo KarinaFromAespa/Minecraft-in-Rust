@@ -5208,6 +5208,10 @@ impl Game<'_> {
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
     /// server's guest also gets `ClientboundCooldownPacket`
     /// (`ServerItemCooldowns.onCooldownStarted`), queued for their turn's end.
+    /// In 26.2 only `finishUsingItem` and `releaseUsing` call it: an instantly
+    /// used item (an ender pearl, a wind charge, a 0-tick consumable) and a
+    /// placed block start no cooldown — 26.3 wired `ItemStack.use` and
+    /// `useOn` to apply the side effects, 26.2 did not.
     pub(super) fn apply_use_cooldown(&mut self, stack: &ItemStack) {
         let default = self
             .res

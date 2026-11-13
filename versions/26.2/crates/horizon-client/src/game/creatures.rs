@@ -7116,29 +7116,38 @@ impl Game<'_> {
         }
         if let Some(fresh) = stew_particles {
             // `SpellParticleOption.create(EFFECT, -1, 1)` is the plain white
-            // effect particle; the smoke is the already-fed answer.
+            // effect particle; the smoke is the already-fed answer. 26.2's
+            // MushroomCow.mobInteract loops `level.addParticle` per particle
+            // (26.3 switched to one `sendParticles` broadcast): each sits at
+            // `x + nextDouble()/2`, `getY(0.5)`, `z + nextDouble()/2` with
+            // velocity `(0, nextDouble()/5, 0)` — the offset is one-sided,
+            // never negative. The LAN side mirrors it with one count-0 packet
+            // per particle, whose velocity is its speed times its spread.
             let ty = if fresh {
                 ParticleType::Effect
             } else {
                 ParticleType::Smoke
             };
             let options = ParticleOptions::simple(ty);
-            let at = [feet[0], feet[1] + 0.5, feet[2]];
-            let (spread, count) = ([0.5, 0.0, 0.5], if fresh { 4 } else { 2 });
-            // shortcut: scalar speed models DEFAULT randomization; 26.3 sends
-            // ALTERNATIVE_WITH_SPEED with a per-axis maximum speed.
-            self.particles
-                .send_particles(&options, at, spread, 0.2, count);
-            self.lan_send_particles(super::lan_particles::QueuedParticle {
-                dimension: self.dim.id(),
-                options,
-                state: None,
-                at,
-                spread,
-                speed: [0.2; 3],
-                count: count as i32,
-                randomization: 0,
-            });
+            let count = if fresh { 4 } else { 2 };
+            for _ in 0..count {
+                let r = self.particles.level_random();
+                let x = feet[0] + r.next_double() / 2.0;
+                let z = feet[2] + r.next_double() / 2.0;
+                let yv = r.next_double() / 5.0;
+                let at = [x, feet[1] + 0.5, z];
+                self.particles.add(&options, at, [0.0, yv, 0.0]);
+                self.lan_send_particles(super::lan_particles::QueuedParticle {
+                    dimension: self.dim.id(),
+                    options: options.clone(),
+                    state: None,
+                    at,
+                    spread: [0.0, 1.0, 0.0],
+                    speed: [0.0, yv, 0.0],
+                    count: 0,
+                    randomization: 0,
+                });
+            }
         }
         // PlayerInteractTrigger: the item used on the mob, once the interaction took.
         if let Some(stack) = &held {
@@ -7364,13 +7373,7 @@ impl Game<'_> {
             "minecraft:snowball" => ProjectileKind::Snowball,
             "minecraft:egg" | "minecraft:blue_egg" | "minecraft:brown_egg" => ProjectileKind::Egg,
             "minecraft:ender_pearl" => ProjectileKind::EnderPearl,
-            "minecraft:wind_charge" => {
-                let thrown = self.throw_wind_charge()?;
-                if thrown {
-                    self.apply_use_cooldown(stack);
-                }
-                return Ok(thrown);
-            }
+            "minecraft:wind_charge" => return self.throw_wind_charge(),
             _ if item.ends_with("_spawn_egg") => return self.use_spawn_egg(stack),
             _ => match horizon_client::projectiles::thrown_by_item(item) {
                 Some(t) => ProjectileKind::Thrown(t),
@@ -7412,10 +7415,10 @@ impl Game<'_> {
         );
         self.add_projectile(proj);
         // SnowballItem.use / EggItem.use / EnderpearlItem.use: awardStat(ITEM_USED).
+        // 26.2's ItemStack.use does not apply the `use_cooldown` component, so
+        // a thrown pearl or wind charge starts no cooldown here (26.3 added
+        // the side-effects call to ItemStack.use).
         self.award_stat("used", item, 1);
-        // ItemStack.use's applyAfterUseComponentSideEffects: the pearl's
-        // second is the `use_cooldown` component, as for any thrown item.
-        self.apply_use_cooldown(stack);
         let sound = match kind {
             ProjectileKind::Snowball | ProjectileKind::Thrown(_) => {
                 "minecraft:entity.snowball.throw"

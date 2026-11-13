@@ -9302,13 +9302,9 @@ impl Game<'_> {
         if self.with_hand(hand, |g| g.use_finds_no_target(&held)) {
             return false;
         }
-        // It runs the use here too: ItemStack.use starts the `use_cooldown`
-        // of an item with no use time, and the server's
-        // ClientboundCooldownPacket confirms it; one held in use starts it at
-        // finishUsingItem (remote_complete_using).
-        if !info.consumable.as_ref().is_some_and(|c| c.ticks() > 0) {
-            self.apply_use_cooldown(&held);
-        }
+        // 26.2's ItemStack.use does not apply the `use_cooldown` component:
+        // an instantly used item starts no cooldown. One held in use starts
+        // it at finishUsingItem (remote_complete_using).
         if self.with_hand(hand, |g| g.remote_use_book(&held)) {
             // WritableBookItem.use's SUCCESS (SwingSource.CLIENT).
             self.with_hand(hand, Game::swing_arm);
