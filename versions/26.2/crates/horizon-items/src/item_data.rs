@@ -798,7 +798,8 @@ fn canonical_other_component(id: &str, tag: &Tag) -> Tag {
     value
 }
 /// The saved `DataComponentPatch.CODEC` compound, or None when default.
-/// A filled map's empty decorations equal its prototype (`Items.mapProperties`).
+/// A filled map's empty decorations equal its prototype (26.2 registers
+/// FILLED_MAP with MAP_DECORATIONS EMPTY inline, plus MAP_COLOR DEFAULT).
 pub fn encode_components(stack: &ItemStack) -> Option<Tag> {
     let mut components = components_tag(stack.damage, stack.data())?;
     // MobEffectInstance.Details' codec always saves the resolved icon flag.

@@ -241,8 +241,11 @@ impl Game<'_> {
         }
     }
     /// `Display.shouldRenderAtSqrDistance` and, when width and height are set,
-    /// `EntityRenderer.shouldRender` with `Display.getInterpolatedBoundingBox`
-    /// inflated by 0.5. Width or height 0 is `noCulling`: distance only.
+    /// `EntityRenderer.shouldRender` with `Display.getBoundingBoxForCulling`
+    /// inflated by 0.5. 26.2 culls at the tick position: there is no
+    /// `getInterpolatedBoundingBox` (26.3 added it), so the caller passes
+    /// the tick position, not the interpolated render position. Width or
+    /// height 0 is `noCulling`: distance only.
     fn display_in_view(
         &self,
         camera: glam::DVec3,
@@ -281,7 +284,7 @@ impl Game<'_> {
                 display.last_progress = display.progress(partial as f32);
                 let d = display.shown.blend(&display.from, display.last_progress);
                 let position = display.previous.lerp(display.position, partial);
-                if !self.display_in_view(camera, position, &d, scale) {
+                if !self.display_in_view(camera, display.position, &d, scale) {
                     continue;
                 }
                 let rotation = std::array::from_fn(|i| {
@@ -351,7 +354,7 @@ impl Game<'_> {
             display.last_progress = display.progress(partial as f32);
             let d = display.shown.blend(&display.from, display.last_progress);
             let position = display.previous.lerp(display.position, partial);
-            if d.text.is_empty() || !self.display_in_view(camera, position, &d, scale) {
+            if d.text.is_empty() || !self.display_in_view(camera, display.position, &d, scale) {
                 // Out of view: its glyphs stay cached for when it comes back.
                 continue;
             }
