@@ -734,14 +734,7 @@ fn delete_chat_decodes_a_packed_signature() {
 fn serverbound_round_trips() {
     let packets = vec![
         Serverbound::PingRequest(crate::packets::status::Ping { time: -7 }),
-        Serverbound::AcceptTeleportation(AcceptTeleportation {
-            id: 1,
-            x: 0.5,
-            y: 64.0,
-            z: 0.5,
-            yaw: 0.0,
-            pitch: 0.0,
-        }),
+        Serverbound::AcceptTeleportation(AcceptTeleportation { id: 1 }),
         Serverbound::Chat(Chat {
             message: "hello".into(),
             timestamp: 1,

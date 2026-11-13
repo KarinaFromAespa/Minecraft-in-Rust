@@ -4087,15 +4087,9 @@ impl Hub {
                     if let Some((id, at)) = g.awaiting_teleport
                         && id == p.id
                     {
-                        if p.x.is_nan()
-                            || p.y.is_nan()
-                            || p.z.is_nan()
-                            || !p.yaw.is_finite()
-                            || !p.pitch.is_finite()
-                        {
-                            self.kick(conn, invalid_movement());
-                            continue;
-                        }
+                        // The packet is the id alone: the client confirms the
+                        // teleport, and where it lands is the teleport's own
+                        // target, with the guest's current rotation.
                         g.position = at;
                         g.awaiting_teleport = None;
                         // The prediction's replay starts again where the client now is.
@@ -4106,8 +4100,8 @@ impl Hub {
                                 .get_or_insert_default()
                                 .teleported(at, kept);
                         }
-                        let rot = (p.yaw, p.pitch);
-                        self.position_change(i, [p.x, p.y, p.z], rot, 0, ctx, events);
+                        let rot = (g.yaw, g.pitch);
+                        self.position_change(i, at, rot, 0, ctx, events);
                     }
                 }
                 // handlePlayerAbilities: the client flies only if it may.

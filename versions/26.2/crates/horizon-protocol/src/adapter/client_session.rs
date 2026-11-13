@@ -246,15 +246,6 @@ impl ClientSession {
         use packet_ids::play::serverbound as sb;
         let payload = match (state, pinned) {
             (State::Play, sb::ACCEPT_TELEPORTATION) => self.accept_teleport(&payload)?,
-            // 26.3 inserted CHANGE_DESTROY_DIRECTION at 1: 26.2's actions past 0 are one up.
-            (State::Play, sb::PLAYER_ACTION) => {
-                let mut r = Reader::new(&payload);
-                let action = r.varint()?;
-                let mut w = Writer::new();
-                w.varint(if action == 0 { 0 } else { action + 1 });
-                w.bytes(r.rest());
-                w.data
-            }
             (State::Play, sb::SET_CARRIED_ITEM) => {
                 self.hold(i32::from(Reader::new(&payload).i16()?));
                 payload
@@ -639,13 +630,10 @@ impl ClientSession {
                 *place = t.applied(*place);
             }
         }
+        // The packet is the id alone; where it lands is the session's own
+        // tracking, settled above.
         let mut w = Writer::new();
         w.varint(id);
-        for v in place.position {
-            w.f64(v);
-        }
-        w.f32(place.yaw);
-        w.f32(place.pitch);
         Ok(w.data)
     }
 }
@@ -877,7 +865,16 @@ mod tests {
         s
     }
 
-    // Expected ids are read off the 26.2 and 26.3 packets and registries reports by hand, not from the
+    // A 26.1 client in play: the pin has things it lacks (the sulfur and
+    // cinnabar family, the sulfur cube), so the down-mapping tests use it.
+    fn in_play_26_1() -> ClientSession {
+        let s = ClientSession::new(ServerVersion::V26_1);
+        s.reading.store(to_u8(State::Play), Ordering::Release);
+        s.writing.store(to_u8(State::Play), Ordering::Release);
+        s
+    }
+
+    // Expected ids are read off the 26.1 and 26.2 packets and registries reports by hand, not from the
     // generated tables.
 
     #[test]
@@ -991,9 +988,11 @@ mod tests {
     #[test]
     fn packets_are_renumbered_both_ways_and_unknown_ones_dropped() {
         let s = in_play();
-        // keep_alive: the ladder's pinned clientbound 45 is 26.2's 44; serverbound 28 in both.
-        // (The adapter ladder is still keyed to the previous pin; see PORT-NOTES-26.2.md.)
-        let sent = s.clientbound(&body(45, &[0; 8])).unwrap().unwrap();
+        // keep_alive: clientbound 44 and serverbound 28 in both.
+        let sent = s
+            .clientbound(&body(packet_ids::play::clientbound::KEEP_ALIVE, &[0; 8]))
+            .unwrap()
+            .unwrap();
         assert_eq!(sent[0], 44);
         assert_eq!(
             s.serverbound(28, vec![0; 8]).unwrap(),
@@ -1001,8 +1000,11 @@ mod tests {
         );
         // An id outside the release's table (200, no such play packet) is not sent.
         assert_eq!(s.clientbound(&body(200, &[0; 9])).unwrap(), None);
-        // 26.2's resource_pack (49) is the ladder's pinned 50.
-        assert_eq!(s.serverbound(49, vec![7]).unwrap(), Some((50, vec![7])));
+        // 26.2's resource_pack (49) is the pin's 49 too.
+        assert_eq!(
+            s.serverbound(49, vec![7]).unwrap(),
+            Some((packet_ids::play::serverbound::RESOURCE_PACK, vec![7]))
+        );
     }
 
     #[test]
@@ -1021,7 +1023,7 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_digging_action_past_0_is_one_up() {
+    fn a_26_2_digging_actions_cross_unchanged() {
         let s = in_play();
         let action = |n: i32| {
             let mut w = Writer::new();
@@ -1041,13 +1043,14 @@ mod tests {
             }
         };
         assert_eq!(action(0), 0); // start destroying
-        assert_eq!(action(1), 2); // abort: 1 in 26.2, 2 in 26.3
-        assert_eq!(action(2), 3); // stop destroying
-        assert_eq!(action(6), 7); // swap held items
+        assert_eq!(action(1), 1); // abort
+        assert_eq!(action(2), 2); // stop destroying
+        assert_eq!(action(6), 6); // swap held items
+        assert_eq!(action(7), 7); // stab, 26.2's own
     }
 
     #[test]
-    fn a_26_2_teleport_confirmation_states_where_the_teleport_put_the_client() {
+    fn a_26_2_teleport_confirmation_is_the_id_alone() {
         use play::relative as rel;
         let s = in_play();
         let teleport = |id: i32, position: [f64; 3], yaw: f32, relatives: i32| {
@@ -1068,15 +1071,12 @@ mod tests {
             let (pinned, payload) = s.serverbound(0, w.data).unwrap().unwrap();
             assert_eq!(pinned, packet_ids::play::serverbound::ACCEPT_TELEPORTATION);
             match play::Serverbound::decode(pinned, &payload).unwrap() {
-                play::Serverbound::AcceptTeleportation(p) => {
-                    assert_eq!(p.id, id);
-                    ([p.x, p.y, p.z], p.yaw, p.pitch)
-                }
+                play::Serverbound::AcceptTeleportation(p) => p.id,
                 other => panic!("{other:?}"),
             }
         };
         teleport(1, [8.5, -60.0, 8.5], 90.0, 0);
-        assert_eq!(accept(1), ([8.5, -60.0, 8.5], 90.0, 30.0));
+        assert_eq!(accept(1), 1);
         // The client walks (move_player_pos: 30 in both), then is moved by (1, 2, 3) and turned by 10.
         let mut w = Writer::new();
         for v in [10.0, -60.0, 10.0] {
@@ -1090,14 +1090,14 @@ mod tests {
             10.0,
             rel::X | rel::Y | rel::Z | rel::Y_ROT,
         );
-        assert_eq!(accept(2), ([11.0, -58.0, 13.0], 100.0, 30.0));
-        // An unknown id: where the client last was.
-        assert_eq!(accept(7), ([11.0, -58.0, 13.0], 100.0, 30.0));
+        assert_eq!(accept(2), 2);
+        // An unknown id crosses as itself too.
+        assert_eq!(accept(7), 7);
     }
 
     #[test]
     fn block_states_the_client_lacks_get_a_stand_in() {
-        let s = in_play();
+        let s = in_play_26_1();
         let update = |state: i32| {
             let p = play::Clientbound::BlockUpdate(play::BlockUpdate {
                 pos: [1, 2, 3],
@@ -1112,20 +1112,19 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         };
-        // chest's first state: 5543 in 26.3, 3987 in 26.2; grass_block 8 in both.
-        assert_eq!(update(5543), 3987);
+        // chest's first state is 3987 in both; grass_block 8 in both.
+        assert_eq!(update(3987), 3987);
         assert_eq!(update(8), 8);
-        // poplar_log axis=y (167, new in 26.3) shows as birch_log axis=y (146 in 26.3, 143 in 26.2).
-        assert_eq!(update(167), 143);
-        // shelf_mushroom (11227, new in 26.3) is solid: it shows as a brown_mushroom_block (9500 in 26.3, 7766 in
-        // 26.2), not as the brown mushroom players would fall through.
-        assert_eq!(update(11227), 7766);
+        // calcite's state is renumbered: 27160 in 26.2, 24687 in 26.1.
+        assert_eq!(update(27160), 24687);
+        // sulfur (24687, new in 26.2) has no stand-in for 26.1: it shows as air.
+        assert_eq!(update(24687), 0);
     }
 
     #[test]
     fn items_take_the_clients_ids_and_stand_ins() {
         use crate::item::Stack;
-        let s = in_play();
+        let s = in_play_26_1();
         let slot = |item: i32| {
             let p = play::Clientbound::SetCursorItem(play::SetCursorItem {
                 item: Some(Stack::new(item, 3)),
@@ -1134,19 +1133,21 @@ mod tests {
             let mut r = Reader::new(&sent);
             r.varint().unwrap();
             let mut payload = Reader::new(r.rest());
-            crate::item::Slot::read(&mut payload).unwrap().unwrap().item
+            crate::item::Slot::read(&mut payload)
+                .unwrap()
+                .map(|stack| stack.item)
         };
-        // diamond: 1012 in 26.3, 926 in 26.2.
-        assert_eq!(slot(1012), 926);
-        // poplar_planks (72, new in 26.3) shows as birch_planks (65 in both).
-        assert_eq!(slot(72), 65);
-        // ocean_monument_map (1239, new in 26.3) is a filled map: filled_map (1238 in 26.3, 1133 in 26.2).
-        assert_eq!(slot(1239), 1133);
+        // diamond: 926 in 26.2, 899 in 26.1.
+        assert_eq!(slot(926), Some(899));
+        // filled_map: 1133 in 26.2, 1105 in 26.1.
+        assert_eq!(slot(1133), Some(1105));
+        // sulfur (26, new in 26.2) has no stand-in for 26.1: the slot arrives empty.
+        assert_eq!(slot(26), None);
     }
 
     #[test]
     fn an_entity_the_client_lacks_is_not_spawned() {
-        let s = in_play();
+        let s = in_play_26_1();
         let add = |kind: i32| {
             play::Clientbound::AddEntity(play::AddEntity {
                 id: 5,
@@ -1161,26 +1162,23 @@ mod tests {
             })
             .encode()
         };
-        // cushion (33, new in 26.3) has no stand-in; poplar_boat (106) sails as birch_boat (12).
-        assert_eq!(s.clientbound(&add(33)).unwrap(), None);
-        let sent = s.clientbound(&add(106)).unwrap().unwrap();
+        // sulfur_cube (130, new in 26.2) has no stand-in for 26.1: it is not spawned.
+        assert_eq!(s.clientbound(&add(130)).unwrap(), None);
+        // The tadpole is renumbered (131 in 26.2, 130 in 26.1).
+        let sent = s.clientbound(&add(131)).unwrap().unwrap();
         let mut r = Reader::new(&sent);
         // add_entity: 1 in both.
         assert_eq!(r.varint().unwrap(), 1);
         match play::Clientbound::decode(1, r.rest()).unwrap() {
-            play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 12),
+            play::Clientbound::AddEntity(e) => assert_eq!(e.kind, 130),
             other => panic!("{other:?}"),
         }
     }
 
-    // The expectations below are the ladder's previous-pin numbering (26.3's
-    // set_creative_mode_slot 57, diamond 1012); they hold again once the adapter
-    // ladder is re-based to the 26.2 pin (PORT-NOTES-26.2.md).
     #[test]
-    #[ignore = "adapter ladder still keyed to the previous pin; see PORT-NOTES-26.2.md"]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 26.3's 57. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 56 in both. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1188,7 +1186,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((1012, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((926, 3)));
             }
             other => panic!("{other:?}"),
         }

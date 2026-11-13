@@ -1060,11 +1060,6 @@ fn read(
                     send(
                         play::Serverbound::AcceptTeleportation(play::AcceptTeleportation {
                             id: p.teleport,
-                            x: pos[0],
-                            y: pos[1],
-                            z: pos[2],
-                            yaw: p.yaw,
-                            pitch: p.pitch,
                         })
                         .encode(),
                     )
