@@ -275,9 +275,11 @@ impl Transformers {
             ("minecraft:mangrove_log", "minecraft:stripped_mangrove_log"),
             ("minecraft:bamboo_block", "minecraft:stripped_bamboo_block"),
         ]);
-        // `WeatheringCopper.PREVIOUS_BY_BLOCK`: each stage to the one before
-        // it, waxed and unwaxed. `HoneycombItem.WAX_OFF_BY_BLOCK`: each waxed
-        // stage to its unwaxed twin.
+        // `WeatheringCopper.PREVIOUS_BY_BLOCK`: each unwaxed stage to the
+        // one before it — built from the 15 unwaxed base blocks only, so a
+        // waxed block has no previous and the axe waxes it off instead.
+        // `HoneycombItem.WAX_OFF_BY_BLOCK`: each waxed stage to its
+        // unwaxed twin.
         let mut scrape = Vec::new();
         let mut wax_off = Vec::new();
         for stages in copper_stages() {
@@ -289,10 +291,6 @@ impl Transformers {
             for pair in stages.windows(2) {
                 let (from, to) = (&pair[1], &pair[0]);
                 if let Some(rule) = map_rule(registry, from, to) {
-                    scrape.push(rule);
-                }
-                let (from, to) = (waxed(from), waxed(to));
-                if let Some(rule) = map_rule(registry, &from, &to) {
                     scrape.push(rule);
                 }
             }
