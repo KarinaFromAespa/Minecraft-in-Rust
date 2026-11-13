@@ -1947,7 +1947,59 @@ fn compute_path(
 /// `AnimalPanic.getPanicPos`: on land 5 blocks out and 4 up or down, or
 /// for a flyer the air and water around it ahead (water first when burning
 /// is not reproduced: no fire reaches these scenarios).
+/// `AnimalPanic.lookForWater` (26.2): the closest water within Manhattan
+/// (5 horizontal, 1 vertical) of the mob, in `BlockPos.findClosestMatch`
+/// order — by distance, then x, y, then positive/negative z. A mob two
+/// blocks wide (`Mth.ceil(getBbWidth()) == 2`) needs the whole 2x2
+/// south-east square wet (`BlockPos.squareOutSouthEast`). No search when
+/// the mob's own block has a collision shape (it is inside a block).
+/// 26.3 rewrote this with `findBlocksInBoxByManhattanDistance` and a
+/// matcher; the outcome is the same set of cells in the same order.
+fn look_for_water(m: &Mob, w: &MobWorld) -> Option<[i32; 3]> {
+    let p = block_of(m.position);
+    if w.collision_bounds(p).is_some() {
+        return None;
+    }
+    let wide = m.dims().0.ceil() as i32 == 2;
+    let wet = |q: [i32; 3]| w.fluid(q[0], q[1], q[2]) == crate::blocks::Fluid::Water;
+    for distance in 0..=11i32 {
+        for x in -5..=5i32 {
+            for y in -1..=1i32 {
+                let z = distance - x.abs() - y.abs();
+                if !(0..=5).contains(&z) {
+                    continue;
+                }
+                for s in [1, -1] {
+                    if z == 0 && s < 0 {
+                        continue;
+                    }
+                    let q = [p[0] + x, p[1] + y, p[2] + s * z];
+                    if !wet(q) {
+                        continue;
+                    }
+                    if wide
+                        && (!wet([q[0], q[1], q[2] + 1])
+                            || !wet([q[0] + 1, q[1], q[2]])
+                            || !wet([q[0] + 1, q[1], q[2] + 1]))
+                    {
+                        continue;
+                    }
+                    return Some(q);
+                }
+            }
+        }
+    }
+    None
+}
 fn panic_pos(m: &mut Mob, w: &MobWorld, fly: bool) -> Option<[f64; 3]> {
+    // `AnimalPanic.getPanicPos`: a burning animal runs for the nearest
+    // water first, and only falls back to a random position.
+    if m.is_on_fire()
+        && let Some(q) = look_for_water(m, w)
+    {
+        // `Vec3.atBottomCenterOf`.
+        return Some([f64::from(q[0]) + 0.5, f64::from(q[1]), f64::from(q[2]) + 0.5]);
+    }
     if fly {
         let view = m.view_vector();
         m.air_and_water_random_pos(w, 5, 4, 0, view[0], view[2])

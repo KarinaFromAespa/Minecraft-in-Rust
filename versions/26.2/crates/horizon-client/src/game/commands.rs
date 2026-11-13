@@ -804,6 +804,25 @@ impl Game<'_> {
             }
         }
     }
+    /// `Entity.getName`: the plain name, without team formatting or the
+    /// display name's click/hover events — what 26.2's `AttributeCommand`
+    /// puts in every one of its messages (26.3 switched them all to
+    /// `getDisplayName`). Item, falling-block and other targets already
+    /// carry no team formatting, so they delegate to `target_name`.
+    pub(super) fn target_plain_name(&self, t: Target) -> Text {
+        match t {
+            Target::Player => Text::literal(self.acting_player_name()),
+            Target::Guest(conn) => match self.command_guest(conn) {
+                Some(g) => Text::literal(g.name.clone()),
+                None => Text::empty(),
+            },
+            Target::Mob(id) => self.mobs.iter().find(|m| m.id == id).map_or_else(
+                || Text::translate("entity.", &[]),
+                |m| m.command_name(),
+            ),
+            other => self.target_name(other),
+        }
+    }
     /// EntitySelector.findEntities.
     pub(super) fn select(&mut self, s: &Selector) -> Vec<Target> {
         if let Some(name) = &s.player_name {
