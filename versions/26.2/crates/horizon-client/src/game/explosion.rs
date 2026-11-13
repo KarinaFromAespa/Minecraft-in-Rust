@@ -875,7 +875,7 @@ impl Game<'_> {
             if !super::armor_stands::spared_by_blast(a)
                 && blast_reaches(center, diameter, [p.x, p.y, p.z])
             {
-                self.break_armor_stand_with_source(i, self.explosion_kill_credit());
+                self.break_armor_stand_by_anything(i);
             } else {
                 i += 1;
             }

@@ -1398,13 +1398,12 @@ pub(super) fn player_preview_quads_no_cull(
 pub(super) type PreviewGlint = ([[f32; 3]; 4], [[f32; 2]; 4], [[f32; 2]; 4], bool);
 
 /// `EquipmentLayerRenderer.renderLayers`' glint on a GUI model: the faces of
-/// the layers drawn with a glint render type because their stack `hasFoil`,
-/// `armorCutoutNoCullGlint` and the trim's `trimmedArmorGlint`
-/// (`mobs::render::ARMOR_GLINT`, which `armor_layers` gives a foil piece's
-/// trim too; the model UV in `glint_uv`, scrolled here by
-/// `ARMOR_ENTITY_GLINT_TEXTURING`), and the items' glint (overlays 7, 8 and
-/// 33; `glint_uv` already transformed). Each face is culled and turned as
-/// `player_preview_quads_no_cull` does with it.
+/// the layers drawn with a glint render type because their stack `hasFoil`
+/// (`mobs::render::ARMOR_GLINT` on the first layer; 26.2 gives the trim no
+/// glint — 26.3's `trimmedArmorGlint`; the model UV in `glint_uv`, scrolled
+/// here by `ARMOR_ENTITY_GLINT_TEXTURING`), and the items' glint (overlays 7,
+/// 8 and 33; `glint_uv` already transformed). Each face is culled and turned
+/// as `player_preview_quads_no_cull` does with it.
 pub(super) fn preview_glint_quads(
     verts: &[horizon_client::mesher::Vertex],
     gui: glam::Mat4,
