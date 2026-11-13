@@ -689,19 +689,18 @@ pub struct StructureAt {
 /// `NetherFortressStructure.FORTRESS_ENEMIES`.
 pub fn fortress_enemies() -> &'static [SpawnEntry] {
     static ENEMIES: std::sync::LazyLock<Vec<SpawnEntry>> = std::sync::LazyLock::new(|| {
-        let e = |entity: &str, weight, min, max, constant| SpawnEntry {
+        let e = |entity: &str, weight, min, max| SpawnEntry {
             entity: entity.to_owned(),
             weight,
             min,
             max,
-            constant,
         };
         vec![
-            e("minecraft:blaze", 10, 2, 3, false),
-            e("minecraft:zombified_piglin", 5, 4, 4, true),
-            e("minecraft:wither_skeleton", 8, 5, 5, true),
-            e("minecraft:skeleton", 2, 5, 5, true),
-            e("minecraft:magma_cube", 3, 4, 4, true),
+            e("minecraft:blaze", 10, 2, 3),
+            e("minecraft:zombified_piglin", 5, 4, 4),
+            e("minecraft:wither_skeleton", 8, 5, 5),
+            e("minecraft:skeleton", 2, 5, 5),
+            e("minecraft:magma_cube", 3, 4, 4),
         ]
     });
     &ENEMIES
@@ -779,19 +778,16 @@ pub fn weighted_pick(list: &[SpawnEntry], random: &mut impl RandomSource) -> Opt
     None
 }
 
-/// `SpawnerData.count().sample(random)`: a constant draws nothing.
+/// `SpawnerData`: `minCount + random.nextInt(1 + maxCount - minCount)` — a
+/// draw even when the two are equal, so a 4-4 group still consumes one.
 pub fn sample_count(entry: &SpawnEntry, random: &mut impl RandomSource) -> u32 {
-    if entry.constant {
-        entry.min
-    } else {
-        let span = entry.max.saturating_sub(entry.min) as i32 + 1;
-        entry.min + random.next_int_bound(span).unwrap_or(0) as u32
-    }
+    let span = entry.max.saturating_sub(entry.min) as i32 + 1;
+    entry.min + random.next_int_bound(span).unwrap_or(0) as u32
 }
-/// `SpawnerData.equals`: the type and the count provider (the weight is not
-/// part of it; a constant and a one-value uniform differ).
+/// `SpawnerData.equals`: the type and the count range (the weight is not
+/// part of it).
 fn same_spawner(a: &SpawnEntry, b: &SpawnEntry) -> bool {
-    a.entity == b.entity && a.constant == b.constant && a.min == b.min && a.max == b.max
+    a.entity == b.entity && a.min == b.min && a.max == b.max
 }
 
 /// An entity counted by `NaturalSpawner.createState`.
