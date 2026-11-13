@@ -2238,7 +2238,7 @@ impl Game<'_> {
         let target = offset(pos, facing);
         let water = stack.potion() == Some("minecraft:water");
         let name = self.dispenser_block_name(target);
-        if !water || !self.in_block_tag("minecraft:convertible_to_mud", &name) {
+        if !water || !self.in_block_tag("minecraft:convertable_to_mud", &name) {
             // The inner default behaviour dispenses, then the potion's own
             // events play on top.
             return Ok((self.dispense_default(pos, facing, stack), CLICK));

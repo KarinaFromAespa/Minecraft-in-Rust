@@ -458,7 +458,7 @@ tags! {
     enables_bubble_column_drag_down = "enables_bubble_column_drag_down",
     shulker_boxes = "shulker_boxes",
     pale_oak_logs = "pale_oak_logs",
-    convertible_to_mud = "convertible_to_mud",
+    convertable_to_mud = "convertable_to_mud",
     grows_crops = "grows_crops",
     candles = "candles",
     candle_cakes = "candle_cakes",

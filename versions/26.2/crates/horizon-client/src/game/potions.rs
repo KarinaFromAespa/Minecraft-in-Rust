@@ -696,7 +696,7 @@ impl Game<'_> {
         }
     }
     /// `PotionItem.useOn`: a water bottle used on a block that turns to mud
-    /// (`#convertible_to_mud`), not on its underside, is poured out and the
+    /// (`#convertable_to_mud`), not on its underside, is poured out and the
     /// block becomes mud.
     pub(super) fn use_water_bottle_on_block(
         &mut self,
@@ -707,7 +707,7 @@ impl Game<'_> {
         if &*stack.item != "minecraft:potion"
             || stack.potion() != Some("minecraft:water")
             || face == [0, -1, 0]
-            || !self.block_in_tag("minecraft:convertible_to_mud", &self.block_name(pos))
+            || !self.block_in_tag("minecraft:convertable_to_mud", &self.block_name(pos))
         {
             return Ok(false);
         }
@@ -1912,15 +1912,16 @@ impl Game<'_> {
     }
     /// `AbstractThrownPotion.onHit` with `ThrownSplashPotion.onHitAsPotion`, or
     /// `ThrownLingeringPotion.onHitAsPotion` for a lingering potion, read from
-    /// the stack's `potion_contents`; `mob` is where it hit a mob, `hit` the
-    /// block and face it hit, `age` its age, `motion` its motion as it hit.
-    /// `_silent` is the projectile's Silent flag: 26.2's onHit does not gate
-    /// the splash on it (26.3's 1053/1054 sound events did).
+    /// the stack's `potion_contents`; `_mob` is where it hit a mob (26.2's
+    /// cloud sits at the potion, not the mob it hit — 26.3 centers it on the
+    /// hit entity), `hit` the block and face it hit, `age` its age, `motion`
+    /// its motion as it hit. `_silent` is the projectile's Silent flag: 26.2's
+    /// onHit does not gate the splash on it (26.3's 1053/1054 sound events did).
     pub(super) fn splash(
         &mut self,
         stack: &ItemStack,
         at: Vec3,
-        mob: Option<Vec3>,
+        _mob: Option<Vec3>,
         hit: Option<([i32; 3], Direction)>,
         age: u32,
         owner: &PotionOwner,
@@ -1994,11 +1995,10 @@ impl Game<'_> {
             return;
         };
         if lingering {
-            // The cloud sits at the mob it hit (its feet), else the impact;
-            // radius 3, wait 10, 600 ticks, shrinking to nothing, and a
-            // potion with no effects leaves none.
+            // The cloud sits at the potion's own position (26.2); radius 3,
+            // wait 10, 600 ticks, shrinking to nothing, and a potion with no
+            // effects leaves none.
             if !def.effects.is_empty() {
-                let at = mob.unwrap_or(at);
                 let id = self.take_entity_id();
                 self.breath_clouds.push(Breath {
                     id,

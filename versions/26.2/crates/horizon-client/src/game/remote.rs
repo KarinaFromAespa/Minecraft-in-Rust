@@ -8382,20 +8382,17 @@ impl Game<'_> {
                         self.boat_has_room(i),
                     )
                 });
-            let (cart_passes, is_rideable_cart) = self
+            let cart_passes = self
                 .carts
                 .iter()
                 .find(|c| c.id as i32 == hit.id)
                 .map(|c| {
                     let ridden = self.riding == Some(c.id)
                         || self.mobs.iter().any(|m| m.extra.mount == Some(c.id));
-                    (
-                        c.kind
-                            .interact_passes(sneaking, ridden, self.can_use_game_master_blocks()),
-                        c.kind == super::minecarts::CartKind::Rideable,
-                    )
+                    c.kind
+                        .interact_passes(sneaking, ridden, self.can_use_game_master_blocks())
                 })
-                .unwrap_or((false, false));
+                .unwrap_or(false);
             // Cushion.interact on a client: PASS when sneaked at or when
             // something already sits on it, CONSUME (no swing) otherwise.
             let is_cushion = self.cushions.iter().any(|c| c.id as i32 == hit.id);
@@ -8437,11 +8434,11 @@ impl Game<'_> {
             }) {
                 self.open_cart_command_block(hit.id as u32);
             }
-            // Minecart.interact boards the cart and answers CONSUME on the client,
-            // which ends the click without an arm swing. AbstractBoat.interact
-            // answers SUCCESS there, which swings. Cushion.interact answers
-            // CONSUME there too.
-            if remote_object_swings(response, is_rideable_cart || is_cushion) {
+            // Minecart.interact boards the cart and answers SUCCESS on the
+            // client in 26.2, which swings the arm (26.3 changed it to
+            // CONSUME). AbstractBoat.interact answers SUCCESS there too.
+            // Cushion.interact answers CONSUME there, no swing.
+            if remote_object_swings(response, is_cushion) {
                 self.with_hand(hand, Game::swing_arm);
             }
             return true;
@@ -8671,7 +8668,7 @@ impl Game<'_> {
                 && &*stack.item == "minecraft:potion"
                 && stack.potion() == Some("minecraft:water")
                 && hit.face != [0, -1, 0]
-                && self.block_in_tag("minecraft:convertible_to_mud", &self.block_name(hit.pos))
+                && self.block_in_tag("minecraft:convertable_to_mud", &self.block_name(hit.pos))
                 && (self.may_build()
                     || self.with_hand(hand, |g| g.can_place_on_in_adventure(hit.pos)))
             {
@@ -11466,8 +11463,8 @@ fn remote_use_swings(held: &ItemStack, consumable: bool) -> bool {
 
 /// Whether an object interaction on the client predicts a hand swing (`InteractionResult.SUCCESS`).
 /// Boarding a minecart answers CONSUME and does not swing.
-fn remote_object_swings(response: Option<bool>, is_boarding: bool) -> bool {
-    response.unwrap_or(!is_boarding)
+fn remote_object_swings(response: Option<bool>, answers_consume: bool) -> bool {
+    response.unwrap_or(!answers_consume)
 }
 
 /// Whether right-clicking an item frame passes (`InteractionResult.PASS`).
@@ -12412,9 +12409,10 @@ mod tests {
         assert!(boat_interact_passes(true, false, true, true));
         assert!(!boat_interact_passes(true, false, true, false));
 
-        // Swings: boarding a rideable cart answers CONSUME (no swing).
+        // Swings: sitting on a cushion answers CONSUME (no swing).
         assert!(!remote_object_swings(None, true));
-        // Swings: other object interactions, a boat's boarding too, answer SUCCESS.
+        // Swings: other object interactions, a boat's and a cart's boarding
+        // too, answer SUCCESS.
         assert!(remote_object_swings(None, false));
         // Interaction entities honor response.
         assert!(remote_object_swings(Some(true), false));
