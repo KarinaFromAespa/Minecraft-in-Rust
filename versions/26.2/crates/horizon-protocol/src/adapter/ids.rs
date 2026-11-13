@@ -619,7 +619,7 @@ mod tests {
         let ids = crate::adapter::ServerVersion::V1_21_5.ids().unwrap();
         let raw = |kind: i32| ids.data_component_type.down(kind).unwrap();
         // A stone as 1.21.5 sends it, with two attribute modifiers (holders: armor is 0 in 1.21.5, 1 in
-        // 26.3, so the holder is its id plus one, 1 and 3; attack damage is 2 and 3 in 26.3, so 3 and 4)
+        // 26.2, so the holder is its id plus one, 1 and 3; attack damage is 2 and 3 in 26.2, so 3 and 4)
         // and an equippable for the chest: no display, no shearing fields.
         let mut sent = Writer::new();
         sent.varint(1);
@@ -670,7 +670,7 @@ mod tests {
         for b in [false, false, false, true, true, true, false, false] {
             equippable.bool(b);
         }
-        equippable.varint(1448);
+        equippable.varint(1444);
         assert_eq!(
             stack.added,
             [
@@ -717,7 +717,7 @@ mod tests {
         for b in [false, false, false, true, true, true, false, false] {
             sent.bool(b);
         }
-        sent.varint(1448);
+        sent.varint(1297);
         let sent = sent.data;
         let stack = {
             let _up = renumbering(ids, Way::Up);

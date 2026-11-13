@@ -9,10 +9,10 @@ pub(super) fn reading() -> bool {
 pub(super) fn writing() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_5)
 }
-pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 13, 14, 15, 16, 45, 47, 58, 64];
+pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 13, 14, 15, 16, 42, 44, 56, 62];
 // The old hide_additional_tooltip hid item-specific tooltip providers.
 pub(super) const ADDITIONAL: &[i32] = &[
-    74, 79, 62, 78, 52, 51, 77, 82, 70, 71, 63, 48, 109, 76, 53, 95, 57,
+    72, 77, 60, 76, 50, 49, 75, 80, 68, 69, 61, 46, 103, 74, 51, 89, 55,
 ];
 
 pub(super) fn tooltip_ids() -> (i32, i32) {
@@ -299,7 +299,8 @@ mod tests {
     #[test]
     fn legacy_pots_and_removed_map_colors_keep_the_following_component_aligned() {
         // Raw ids from each official registry report. PotDecorations writes four item ids;
-        // MapItemColor writes an INT and has no pinned counterpart. Stone is item 1 throughout.
+        // MapItemColor writes an INT and round-trips (it is a real component in 26.2).
+        // Stone is item 1 throughout.
         for (version, pot, map_color, sherd, brick) in [
             (ServerVersion::V1_20_6, 50, 25, 1285, 921),
             (ServerVersion::V1_21_1, 51, 25, 1288, 921),
@@ -328,9 +329,9 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{version:?}");
             let mut expected = Writer::new();
-            expected.bytes(&[1, 1, 2, 0, 76, 1]);
-            expected.varint(1598); // Pinned angler_pottery_sherd.
-            expected.bytes(&[1, 0, 0, 0, 0, 0, 3, 17]);
+            expected.bytes(&[1, 1, 3, 1, 45, 0x12, 0x34, 0x56, 0x78, 74, 1]);
+            expected.varint(1477); // Pinned angler_pottery_sherd.
+            expected.bytes(&[1, 0, 0, 0, 0, 0, 3, 17, 45]);
             let expected = Slot::read(&mut Reader::new(&expected.data)).unwrap();
             assert_eq!(stack, expected, "{version:?}");
 
@@ -348,15 +349,19 @@ mod tests {
                 let _down = ids::renumbering(version.ids().unwrap(), Way::Down);
                 Slot::write(&stack, &mut down);
             }
-            // Only the removed map color is lost; the old pot's item ids and damage survive.
+            // The removed map color round-trips (it is a real component in 26.2);
+            // the old pot's item ids and damage survive.
             let mut expected_old = Writer::new();
-            expected_old.bytes(&[1, 1, 2, 0]);
+            expected_old.bytes(&[1, 1, 3, 1]);
+            expected_old.varint(map_color);
+            expected_old.bytes(&[0x12, 0x34, 0x56, 0x78]);
             expected_old.varint(pot);
             expected_old.varint(4);
             for item in [sherd, brick, brick, brick] {
                 expected_old.varint(item);
             }
             expected_old.bytes(&[3, 17]);
+            expected_old.varint(map_color);
             assert_eq!(down.data, expected_old.data, "{version:?}");
         }
     }
@@ -404,7 +409,7 @@ mod tests {
                 .component(component::TOOLTIP_DISPLAY),
             Some(&Component::TooltipDisplay {
                 hide: true,
-                hidden: vec![4, 13, 47]
+                hidden: vec![4, 13, 44]
             })
         );
         let mut w = Writer::new();
@@ -431,10 +436,10 @@ mod tests {
                 let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                 Template::read(&mut Reader::new(&old.data)).unwrap()
             };
-            assert_eq!((stack.item, stack.count), (473, 3));
+            assert_eq!((stack.item, stack.count), (427, 3));
             let mut pinned = Writer::new();
             Template::write(&stack, &mut pinned);
-            assert_eq!(pinned.data, [0xd9, 3, 3, 0, 0]);
+            assert_eq!(pinned.data, [0xab, 0x03, 3, 0, 0]);
             let mut down = Writer::new();
             {
                 let _down = ids::renumbering(version.ids().unwrap(), Way::Down);
@@ -446,63 +451,63 @@ mod tests {
 
     #[test]
     fn vanilla_1_21_4_component_stacks_match_the_pinned_oracle_and_go_back() {
-        // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.4 and 26.3.
+        // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.4 and 26.2.
         // Covers multiple modifiers, bare/list/direct-sound equippables and a following damage value.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01a40801001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
+                "01ce0701001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "equip_bare",
                 "01ef0601001c0347000000010101",
-                "01a40801002003470000000101010000a80b",
+                "01ce0701002003470000000101010000a40b",
             ),
             (
                 "equip_list",
                 "01ef0601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e8f01000000",
-                "01a4080100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c75720103659a010000000000a80b",
+                "01ce070100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036497010000000000a40b",
             ),
             (
                 "equip_direct",
                 "01ef0601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01a40801002004000e6d696e6563726166743a7465737401408000000000000101010000a80b",
+                "01ce0701002004000e6d696e6563726166743a7465737401408000000000000101010000a40b",
             ),
             (
                 "combined",
                 "01ef0603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01a40803001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a80b",
+                "01ce0703001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a40b",
             ),
             (
                 "tool",
                 "01ef0601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01a40801001c020301900301408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01ce0701001c020301de0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
             ),
             (
                 "profile",
                 "01ef06010039010b486f72697a6f6e576972650000",
-                "01a40801004800010b486f72697a6f6e57697265000000000000",
+                "01ce0701004600010b486f72697a6f6e57697265000000000000",
             ),
             (
                 "color_hidden",
                 "01ef0601002200ff000000",
-                "01a40802002f00ff00001200012f",
+                "01ce0702002c00ff00001200012c",
             ),
             (
                 "unbreakable_hidden",
                 "01ef0601000400",
-                "01a40802000412000104",
+                "01ce0702000412000104",
             ),
             (
                 "container",
                 "01ef0601003e06030100000000000002f3020000",
-                "01a40801004d0601010300000000000001d903020000",
+                "01ce0701004b0601010300000000000001ab03020000",
             ),
             (
                 "can_break_hidden",
                 "01ef0601000c01010201000000",
-                "01a40802001200010f0f0101020100000000",
+                "01ce0702000f01010201000000001200010f",
             ),
         ] {
             let old = bytes(old);
@@ -546,72 +551,72 @@ mod tests {
             (
                 "attributes",
                 "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01a40801001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
+                "01ce0701001002030b6d696e6563726166743a783ff80000000000000001001a0b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "equip_bare",
                 "01e60601001c0347000000010101",
-                "01a40801002003470000000101010000a80b",
+                "01ce0701002003470000000101010000a40b",
             ),
             (
                 "equip_list",
                 "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-                "01a4080100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c75720103659a010000000000a80b",
+                "01ce070100200448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201036497010000000000a40b",
             ),
             (
                 "equip_direct",
                 "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01a40801002004000e6d696e6563726166743a7465737401408000000000000101010000a80b",
+                "01ce0701002004000e6d696e6563726166743a7465737401408000000000000101010000a40b",
             ),
             (
                 "combined",
                 "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01a40803001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a80b",
+                "01ce0703001001010b6d696e6563726166743a7a400800000000000000000003112003470000000101010000a40b",
             ),
             (
                 "model",
                 "01e60602000eb9600311",
-                "01a408020011014640e4000000000311",
+                "01ce07020011014640e4000000000311",
             ),
             (
                 "model_negative",
                 "01e60601000eefffffff0f",
-                "01a40801001101c1880000000000",
+                "01ce0701001101c1880000000000",
             ),
             (
                 "model_large",
                 "01e60601000e80808008",
-                "01a408010011014b800000000000",
+                "01ce07010011014b800000000000",
             ),
             (
                 "tool",
                 "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01a40801001c020301900301408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01ce0701001c020301de0201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
             ),
             (
                 "profile",
                 "01e606010039010b486f72697a6f6e576972650000",
-                "01a40801004800010b486f72697a6f6e57697265000000000000",
+                "01ce0701004600010b486f72697a6f6e57697265000000000000",
             ),
             (
                 "color_hidden",
                 "01e60601002200ff000000",
-                "01a40802002f00ff00001200012f",
+                "01ce0702002c00ff00001200012c",
             ),
             (
                 "unbreakable_hidden",
                 "01e60601000400",
-                "01a40802000412000104",
+                "01ce0702000412000104",
             ),
             (
                 "container",
                 "01e60601003e06030100000000000002f1020000",
-                "01a40801004d0601010300000000000001d903020000",
+                "01ce0701004b0601010300000000000001ab03020000",
             ),
             (
                 "can_break_hidden",
                 "01e60601000c01010201000000",
-                "01a40802001200010f0f0101020100000000",
+                "01ce0702000f01010201000000001200010f",
             ),
         ] {
             let old = bytes(old);
@@ -650,4 +655,5 @@ mod tests {
             );
         }
     }
+
 }
