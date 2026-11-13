@@ -329,7 +329,7 @@ mod tests {
             if display {
                 w.nbt(&horizon_world::nbt::Tag::String("T".into()));
                 w.nbt(&horizon_world::nbt::Tag::String("D".into()));
-                crate::item::Template::write(&crate::item::Stack::new(1012, 1), &mut w);
+                crate::item::Template::write(&crate::item::Stack::new(926, 1), &mut w);
                 w.varint(0);
                 w.i32(2);
             }
@@ -417,13 +417,13 @@ mod tests {
         let mut w = Writer::new();
         play::AwardStats::write(
             &play::AwardStats {
-                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)],
+                stats: vec![(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 926, 2)],
             },
             &mut w,
         );
         let out = award_stats(ids, &w.data).unwrap();
         let p = play::AwardStats::read(&mut Reader::new(&out)).unwrap();
-        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 1012, 2)]
+        let expected: Vec<_> = [(STAT_CUSTOM, 0, 5), (STAT_CUSTOM, 77, 1), (1, 926, 2)]
             .into_iter()
             .filter_map(|(k, v, n)| {
                 let v = match k {
@@ -434,7 +434,7 @@ mod tests {
             })
             .collect();
         assert_eq!(p.stats, expected);
-        // diamond: 1012 pinned, 926 in 26.2.
+        // diamond: 926 in both.
         assert!(p.stats.contains(&(1, 926, 2)));
     }
 
@@ -442,18 +442,18 @@ mod tests {
     fn pot_sides_and_container_slots_take_26_2_s_layout_and_ids() {
         use crate::item::{Component, Stack, Template, component};
         let v26_2 = ids();
-        // A pot with a diamond (1012 pinned, 926 in 26.2) at the back, the rest undecorated, and a
+        // A pot with a diamond (926 in both) at the back, the rest undecorated, and a
         // container holding three diamonds and an empty slot: their pinned bytes.
         let mut pot = Writer::new();
         pot.bool(true);
-        Template::write(&Stack::new(1012, 1), &mut pot);
+        Template::write(&Stack::new(926, 1), &mut pot);
         (0..3).for_each(|_| pot.bool(false));
         let mut container = Writer::new();
         container.varint(2);
         container.bool(true);
-        Template::write(&Stack::new(1012, 3), &mut container);
+        Template::write(&Stack::new(926, 3), &mut container);
         container.bool(false);
-        let mut stack = Stack::new(1012, 1);
+        let mut stack = Stack::new(926, 1);
         for (kind, bytes) in [
             (component::POT_DECORATIONS, &pot.data),
             (component::CONTAINER, &container.data),
@@ -471,7 +471,7 @@ mod tests {
             let _up = ids::renumbering(v26_2, Way::Up);
             Template::read(&mut Reader::new(&w.data)).unwrap()
         };
-        assert_eq!(back.item, 1012);
+        assert_eq!(back.item, 926);
         for (kind, bytes) in [
             (component::POT_DECORATIONS, &pot.data),
             (component::CONTAINER, &container.data),
@@ -497,10 +497,10 @@ mod tests {
         let tag = SlotDisplay::Tag(HolderSet::Tag("minecraft:planks".into()));
         assert_eq!(round(&tag), tag);
         // Items have no TagSlotDisplay form in 26.2: a composite of the items.
-        let items = SlotDisplay::Tag(HolderSet::Items(vec![1012]));
+        let items = SlotDisplay::Tag(HolderSet::Items(vec![926]));
         assert_eq!(
             round(&items),
-            SlotDisplay::Composite(vec![SlotDisplay::Item(1012)])
+            SlotDisplay::Composite(vec![SlotDisplay::Item(926)])
         );
     }
 }
