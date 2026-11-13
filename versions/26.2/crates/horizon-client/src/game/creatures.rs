@@ -5508,17 +5508,37 @@ impl Game<'_> {
                     Who::Player => Some("minecraft:player".to_owned()),
                 };
                 let amount = self.shot_damage(&mut trident, victim.as_deref());
+                let mut dodged = false;
                 let hurt = match who {
                     Who::Player => self.mob_hits_player(
                         amount,
                         [p.previous.x, p.previous.y, p.previous.z],
                         "minecraft:trident",
                     ),
-                    Who::Mob(id) => self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
-                        m.damage_projectile(amount, source, aim, [p.velocity.x, p.velocity.z])
-                    }),
+                    Who::Mob(id) => {
+                        let hurt =
+                            self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
+                                m.damage_projectile(
+                                    amount,
+                                    source,
+                                    aim,
+                                    [p.velocity.x, p.velocity.z],
+                                )
+                            });
+                        dodged = !hurt
+                            && self.mobs.iter().find(|m| m.id == id).is_some_and(|m| {
+                                m.species() == Species::Enderman
+                                    && horizon_client::mobs::enderman::dodges(m, &source)
+                            });
+                        hurt
+                    }
                 };
-                let outcome = if hurt {
+                // ThrownTrident.onHitEntity in 26.2 returns before the
+                // deflect and the hit sound when the target is an enderman
+                // that teleported away: the trident flies on.
+                let outcome = if dodged {
+                    EntityHit::Dodged
+                } else if hurt {
                     self.shot_post_attack(p, who, "minecraft:trident", "minecraft:trident");
                     EntityHit::Hurt
                 } else {
@@ -5555,8 +5575,18 @@ impl Game<'_> {
                     Who::Player => None,
                 };
                 let mut dodged = false;
-                // AbstractArrow.onHitEntity: a burning arrow sets its target alight.
-                if p.arrow.as_ref().is_some_and(|a| a.on_fire()) {
+                // AbstractArrow.onHitEntity: a burning arrow sets its target
+                // alight — unless it is an enderman, which 26.2 never ignites
+                // (`isOnFire() && !isEnderman`).
+                let enderman_target = match who {
+                    Who::Mob(id) => self
+                        .mobs
+                        .iter()
+                        .find(|m| m.id == id)
+                        .is_some_and(|m| m.species() == Species::Enderman),
+                    _ => false,
+                };
+                if p.arrow.as_ref().is_some_and(|a| a.on_fire()) && !enderman_target {
                     self.handle_mob_events(vec![MobEvent::Ignite {
                         target: who,
                         seconds: 5,
