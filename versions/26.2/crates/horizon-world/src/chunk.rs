@@ -212,11 +212,16 @@ impl BlockState {
                 properties: BlockProperties::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
+        // The 26.2 exporter writes block states in the NBT form
+        // `{"Name": ..., "Properties": ...}` (occlusion.nbt, cached-collision.nbt,
+        // movement-properties.nbt), so accept those keys as aliases for the
+        // `{"id": ..., "properties": ...}` form — the same aliasing the JSON
+        // facts reader does (registry/facts.rs).
+        let Some(Tag::String(name)) = tag.get("id").or_else(|| tag.get("Name")) else {
             return Err(invalid("block state is missing id"));
         };
         let mut properties = Vec::new();
-        if let Some(tag) = tag.get("properties") {
+        if let Some(tag) = tag.get("properties").or_else(|| tag.get("Properties")) {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };
