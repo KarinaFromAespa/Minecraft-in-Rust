@@ -2073,8 +2073,10 @@ impl<R: RandomSource> Context<'_, R> {
         self.create(&chosen, sink);
     }
     /// LootPoolEntryContainer.expand: the singleton entries that can run.
+    /// In 26.2 an entry carries a `conditions` list (all must pass —
+    /// `compositeCondition`); the single `condition` is 26.3's form.
     fn expand<'v>(&mut self, entry: &'v Value, out: &mut Vec<Choice<'v>>) -> bool {
-        if !entry["condition"].is_null() && !self.condition(&entry["condition"]) {
+        if !self.condition(&entry["conditions"]) {
             return false;
         }
         let children = || entry["children"].as_array().into_iter().flatten();
@@ -2123,12 +2125,12 @@ impl<R: RandomSource> Context<'_, R> {
             _ => false,
         }
     }
-    /// LootPoolEntry.createItemStack with the entry's modifier.
+    /// LootPoolEntry.createItemStack. In 26.2 an entry has no modifier
+    /// (the per-entry `modifier` and the anonymous wrapper class that
+    /// applies it are 26.3-only); the stack is created plain.
     fn create(&mut self, choice: &Choice<'_>, sink: &mut Sink<'_, R>) {
         let entry = choice.entry;
-        let modifier = &entry["modifier"];
         let mut out = |c: &mut Context<'_, R>, stack: LootStack| {
-            let stack = c.modify(modifier, stack);
             sink(c, stack);
         };
         match entry["type"].as_str().unwrap_or("") {
@@ -2295,15 +2297,16 @@ mod namespace_tests {
     fn set_custom_model_data_applies_each_list_operation() {
         let root = std::env::temp_dir().join(format!("horizon-loot-cmd-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick",
-            "modifier": [
+        // In 26.2 an entry has no modifier — the functions live on the pool
+        // (item 101 renames the pool key to `functions`).
+        let table = r#"{"pools": [{"rolls": 1, "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:custom_model_data": {"floats": [1.0], "strings": ["old"]}}},
                 {"type": "minecraft:set_custom_model_data",
                  "floats": {"mode": "append", "values": [{"type": "minecraft:constant", "value": 2.0}]},
                  "flags": {"mode": "replace_all", "values": [true]},
                  "strings": {"mode": "replace_all", "values": ["new"]},
                  "colors": {"mode": "insert", "offset": 0, "values": [{"type": "minecraft:constant", "value": 16711680}]}}
-            ]}]}]}"#;
+            ], "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:stick": {}}"#),
             ("data/minecraft/loot_table/chests/model.json", table),
@@ -2359,11 +2362,12 @@ mod namespace_tests {
     fn set_lore_appends_and_replaces_the_lore_lines() {
         let root = std::env::temp_dir().join(format!("horizon-loot-lore-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick",
-            "modifier": [
+        // In 26.2 an entry has no modifier — the functions live on the pool
+        // (item 101 renames the pool key to `functions`).
+        let table = r#"{"pools": [{"rolls": 1, "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:lore": [{"text": "old"}]}},
                 {"type": "minecraft:set_lore", "mode": "append", "lore": [{"text": "new"}]}
-            ]}]}]}"#;
+            ], "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:stick": {}}"#),
             ("data/minecraft/loot_table/chests/lore.json", table),
@@ -2411,12 +2415,12 @@ mod namespace_tests {
     fn set_banner_pattern_writes_the_layers() {
         let root = std::env::temp_dir().join(format!("horizon-loot-banner-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:white_banner",
+        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:white_banner"}],
             "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:banner_patterns": [{"pattern": "minecraft:stripe_bottom", "color": "red"}]}},
                 {"type": "minecraft:set_banner_pattern", "append": true,
                  "patterns": [{"pattern": "minecraft:border", "color": "blue"}]}
-            ]}]}]}"#;
+            ]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:white_banner": {}}"#),
             ("data/minecraft/loot_table/chests/banner.json", table),
@@ -2471,11 +2475,11 @@ mod namespace_tests {
     fn set_book_cover_titles_the_written_book() {
         let root = std::env::temp_dir().join(format!("horizon-loot-book-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book",
+        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book"}],
             "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:written_book_content": {"title": {"raw": "Old"}, "author": "Nobody", "pages": [{"raw": "page one"}]}}},
                 {"type": "minecraft:set_book_cover", "title": {"raw": "A Guide"}, "author": "Cartographer", "generation": 2}
-            ]}]}]}"#;
+            ]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:written_book": {}}"#),
             ("data/minecraft/loot_table/chests/book.json", table),
@@ -2511,11 +2515,11 @@ mod namespace_tests {
     fn set_written_book_pages_applies_the_page_operation() {
         let root = std::env::temp_dir().join(format!("horizon-loot-pages-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book",
+        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book"}],
             "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:written_book_content": {"title": {"raw": "A Guide"}, "author": "Cartographer", "pages": [{"raw": "page one"}]}}},
                 {"type": "minecraft:set_written_book_pages", "mode": "append", "pages": [{"raw": "page two"}]}
-            ]}]}]}"#;
+            ]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:written_book": {}}"#),
             ("data/minecraft/loot_table/chests/pages.json", table),
@@ -2572,8 +2576,8 @@ mod namespace_tests {
     fn set_instrument_picks_one_of_its_options() {
         let root = std::env::temp_dir().join(format!("horizon-loot-horn-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:goat_horn",
-            "modifier": [{"type": "minecraft:set_instrument", "options": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]}]}]}]}"##;
+        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:goat_horn"}],
+            "modifier": [{"type": "minecraft:set_instrument", "options": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]}]}]}"##;
         let files = [
             ("items.json", r#"{"minecraft:goat_horn": {}}"#),
             ("data/minecraft/loot_table/chests/horn.json", table),
@@ -2663,11 +2667,11 @@ mod namespace_tests {
         let root =
             std::env::temp_dir().join(format!("horizon-loot-tooltip-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick",
+        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}],
             "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:tooltip_display": {"hidden_components": ["minecraft:enchantments"]}}},
                 {"type": "minecraft:toggle_tooltips", "toggles": {"minecraft:enchantments": true, "minecraft:lore": false}}
-            ]}]}]}"#;
+            ]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:stick": {}}"#),
             ("data/minecraft/loot_table/chests/tooltip.json", table),
@@ -2701,12 +2705,12 @@ mod namespace_tests {
     fn set_custom_data_merges_into_the_component() {
         let root = std::env::temp_dir().join(format!("horizon-loot-data-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick",
+        let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}],
             "modifier": [
                 {"type": "minecraft:set_components", "components": {"minecraft:custom_data": {"a": {"b": 1}, "c": 1}}},
                 {"type": "minecraft:set_custom_data", "tag": {"a": {"d": 2}, "c": 2}},
                 {"type": "minecraft:set_custom_data", "tag": "{a:{e:3b},f:\"x\"}"}
-            ]}]}]}"#;
+            ]}]}"#;
         let files = [
             ("items.json", r#"{"minecraft:stick": {}}"#),
             ("data/minecraft/loot_table/chests/data.json", table),
@@ -2773,7 +2777,7 @@ mod native_kinds_tests {
     fn fishing_roll_splits_oversized_stacks() {
         let data = table(
             "fishing_split",
-            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:cod","modifier":[{"type":"minecraft:set_count","count":130}]}]}]}"#,
+            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:cod"}],"modifier":[{"type":"minecraft:set_count","count":130}]}]}"#,
         );
         let mut random = LegacyRandom::new(1);
         let counts: Vec<_> = data
@@ -2941,7 +2945,7 @@ mod location_check_biome_tests {
         fs::create_dir_all(&dir).unwrap();
         let json = format!(
             r#"{{"pools":[{{"rolls":1,"entries":[{{"type":"minecraft:item","name":"minecraft:stone",
-                "condition":{{"type":"minecraft:location_check","predicate":{{"biomes":{biomes}}}}}}}]}}]}}"#
+                "conditions":[{{"type":"minecraft:location_check","predicate":{{"biomes":{biomes}}}}}]}}]}}]}}"#
         );
         fs::write(dir.join("test.json"), json).unwrap();
         let tags = root.join("data/minecraft/tags/worldgen/biome");
@@ -3166,7 +3170,7 @@ mod custom_data_predicate_tests {
             .iter()
             .map(|(wool, pattern)| {
                 format!(
-                    r#"{{"rolls":1,"entries":[{{"type":"minecraft:item","name":"minecraft:{wool}_wool","modifier":[{set}{{"type":"minecraft:filtered","item_filter":{{"items":"minecraft:{wool}_wool","predicates":{{"minecraft:custom_data":{pattern}}}}},"on_pass":{{"type":"minecraft:set_count","count":2}}}}]}}]}}"#
+                    r#"{{"rolls":1,"entries":[{{"type":"minecraft:item","name":"minecraft:{wool}_wool"}}],"modifier":[{set}{{"type":"minecraft:filtered","item_filter":{{"items":"minecraft:{wool}_wool","predicates":{{"minecraft:custom_data":{pattern}}}}},"on_pass":{{"type":"minecraft:set_count","count":2}}}}]}}"#
                 )
             })
             .collect();

@@ -376,8 +376,10 @@ pub fn generate(
             palette,
         } => {
             let (w, h, pixels) = load(texture, "textures")?;
-            let (_, _, key) = load(palette_key, "textures/palettes")?;
-            let (_, _, target) = load(palette, "textures/palettes")?;
+            // 26.2's `PalettedPermutations` palette ids are texture paths
+            // (`trims/color_palettes/trim_palette`), not palette ids.
+            let (_, _, key) = load(palette_key, "textures")?;
+            let (_, _, target) = load(palette, "textures")?;
             let mut mapped = argb(&pixels);
             let key = argb(&key);
             let target = argb(&target);

@@ -76,8 +76,10 @@ impl Sprites {
                 // PalettedPermutations: the base texture through PaletteMapping.
                 let p = self.permutations.iter().find_map(|s| s.find(sprite))?;
                 let (w, h, mut pixels) = Self::argb(&self.png(p.base, "textures"))?;
-                let (_, _, key) = Self::argb(&self.png(p.palette_key, "textures/palettes"))?;
-                let (_, _, target) = Self::argb(&self.png(p.palette, "textures/palettes"))?;
+                // 26.2's `PalettedPermutations` palette ids are texture paths
+                // (`trims/color_palettes/trim_palette`), not palette ids.
+                let (_, _, key) = Self::argb(&self.png(p.palette_key, "textures"))?;
+                let (_, _, target) = Self::argb(&self.png(p.palette, "textures"))?;
                 apply_palette(&mut pixels, &key, &target)?;
                 (w, h, pixels)
             }

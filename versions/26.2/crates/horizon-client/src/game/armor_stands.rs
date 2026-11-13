@@ -12,7 +12,7 @@ use horizon_client::{
     items::ItemStack,
     mesher::Vertex,
     mobs::{Mob, Part, anim::Poses},
-    trims::{TrimOverride, TrimRegistry, TrimTexture},
+    trims::{TrimRegistry, TrimTexture},
 };
 use horizon_core::{
     geometry::{Aabb, Vec3},
@@ -89,8 +89,6 @@ pub(super) struct ArmorStandAssets {
     pub player: HashMap<&'static str, Part>,
     /// asset id -> layer kind (humanoid / humanoid_leggings) -> each layer's (texture, undyed colour), in order.
     pub equipment: HashMap<String, HashMap<String, Vec<(String, Option<u32>)>>>,
-    /// asset id -> `trim_overrides`.
-    pub trim_overrides: HashMap<String, Vec<TrimOverride>>,
     pub trims: TrimRegistry,
     /// The resources the trim textures are made from.
     pub root: PathBuf,
@@ -122,7 +120,6 @@ impl ArmorStandAssets {
             }
         }
         let mut equipment = HashMap::new();
-        let mut trim_overrides = HashMap::new();
         // EquipmentAssetManager reads every namespace: vanilla's and the content mods'.
         let namespaces = std::iter::once("minecraft".to_owned())
             .chain(horizon_client::mod_content::namespaces(root));
@@ -168,7 +165,6 @@ impl ArmorStandAssets {
                         kinds.insert(kind.to_owned(), layers);
                     }
                 }
-                trim_overrides.insert(id.clone(), TrimOverride::list(&v));
                 equipment.insert(id, kinds);
             }
         }
@@ -178,7 +174,6 @@ impl ArmorStandAssets {
             layers,
             player,
             equipment,
-            trim_overrides,
             trims: TrimRegistry::load(root),
             root: root.to_owned(),
         }
@@ -186,7 +181,6 @@ impl ArmorStandAssets {
     /// Trim data of reloaded resources (the models stay).
     pub fn reload_trims(&mut self, root: &std::path::Path) {
         let fresh = Self::load(root, None);
-        self.trim_overrides = fresh.trim_overrides;
         self.trims = fresh.trims;
         self.root = fresh.root;
     }
@@ -195,11 +189,7 @@ impl ArmorStandAssets {
     fn trim_texture(&self, asset: &str, kind: &str, stack: &ItemStack) -> Option<TrimTexture> {
         let (material, pattern) =
             horizon_client::item_data::trim::named(stack.extra.as_ref()?.trim.as_ref()?)?;
-        let overrides = self
-            .trim_overrides
-            .get(asset)
-            .map_or(&[][..], Vec::as_slice);
-        TrimTexture::resolve(&self.trims, overrides, material, pattern, kind)
+        TrimTexture::resolve(&self.trims, asset, material, pattern, kind)
     }
 }
 impl Game<'_> {

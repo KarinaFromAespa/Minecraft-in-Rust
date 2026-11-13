@@ -3284,7 +3284,7 @@ impl Game<'_> {
             {
                 return;
             }
-            // A fishing hook keeps a LinearInterpolationHandler: eased towards the
+            // A fishing hook keeps an InterpolationHandler: eased towards the
             // update over three ticks, on top of its own movement (`tick_remote_hooks`).
             if path.is_some() {
                 if let Some(h) = self.hook.as_mut().filter(|h| h.id() == id as u32) {
