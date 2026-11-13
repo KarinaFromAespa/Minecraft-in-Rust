@@ -623,12 +623,12 @@ impl Game<'_> {
     }
     /// `Strider.finalizeSpawn`: one strider in thirty carries a zombified
     /// piglin holding a warped fungus on a stick (and wears a saddle), one in
-    /// ten of the rest a baby strider.
+    /// ten of the rest a baby strider. In 26.2 the piglin roll stands alone:
+    /// the `isSpawningMonsters()` gate is 26.3-only, and `EntityType.create`
+    /// itself never blocks a monster in peaceful, so a strider can carry a
+    /// piglin jockey with monster spawning off.
     fn spawn_strider_jockey(&mut self, id: u32, at: [f64; 3]) {
         if self.world.random.next_int_bound(30).unwrap_or(1) == 0 {
-            if !self.ui.rules.bool("spawn_mobs") {
-                return;
-            }
             if let Some(piglin) = self.spawn_mob("minecraft:zombified_piglin", at, false) {
                 let baby = self.world.random.next_float() < CHICKEN_JOCKEY_ODDS;
                 if let Some(p) = self.mobs.iter_mut().find(|m| m.id == piglin) {

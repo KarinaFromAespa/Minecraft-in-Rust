@@ -1260,7 +1260,7 @@ mod tests {
     }
 
     /// `BlendingData.pack` of an old chunk whose border columns a new chunk's
-    /// generation calculated (`getOrUpdateBlendingData`), as the official 26.3
+    /// generation calculated (`getOrUpdateBlendingData`), as the official 26.2
     /// server saves it: a constructed 1.20.4 world (full old chunks, their
     /// partial ring removed, `H077_OLD_WORLD`) where chunk (13, 0) is new.
     #[test]
@@ -1314,10 +1314,10 @@ mod tests {
             Some(Tag::List(list)) => Some(
                 list.iter()
                     .map(|v| match v {
-                        Tag::Float(bits) => *bits,
+                        Tag::Double(bits) => *bits,
                         other => panic!("height {other:?}"),
                     })
-                    .collect::<Vec<u32>>(),
+                    .collect::<Vec<u64>>(),
             ),
             _ => None,
         };
@@ -1328,8 +1328,8 @@ mod tests {
             )
         };
         let mut failures = Vec::new();
-        let mut want = vec![f32::MAX.to_bits(); 12];
-        want.extend([70.0f32, 70.0, 69.0, 68.0].map(f32::to_bits));
+        let mut want = vec![f64::MAX.to_bits(); 12];
+        want.extend([70.0f64, 70.0, 69.0, 68.0].map(f64::to_bits));
         match blending(12, 0) {
             Some(tag) => {
                 if heights(&tag) != Some(want.clone()) {
@@ -1397,15 +1397,15 @@ mod tests {
         }
         assert!(loaded, "the new chunk (13, 0) was not generated");
         assert_eq!(game.dim, Dim::Overworld);
-        let mut want = vec![f32::MAX.to_bits(); 12];
-        want.extend([70.0f32, 70.0, 69.0, 68.0].map(f32::to_bits));
+        let mut want = vec![f64::MAX.to_bits(); 12];
+        want.extend([70.0f64, 70.0, 69.0, 68.0].map(f64::to_bits));
         let edge = game
             .save
             .calculated_blending(12, 0)
             .expect("(12, 0) was calculated");
         let (min, max, heights) = edge.pack();
         assert_eq!((min, max), (-4, 20));
-        assert_eq!(heights.map(|h| h.map(f32::to_bits).to_vec()), Some(want));
+        assert_eq!(heights.map(|h| h.map(f64::to_bits).to_vec()), Some(want));
         // (11, 0) borders no new chunk: the generation's calculation adds no height
         // to it (it may have an entry), so it packs without heights, as vanilla's.
         let inner = game.save.calculated_blending(11, 0);

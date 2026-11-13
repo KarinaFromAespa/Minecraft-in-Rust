@@ -782,6 +782,14 @@ impl<'a> Game<'a> {
     /// then `tickSpawningChunk` in the shuffled spawning chunks of every
     /// player: inhabited time, then `spawnForChunk`.
     pub(super) fn spawn_natural(&mut self) {
+        // `ServerChunkCache.tickChunks` (26.2): inhabited time accrues by
+        // the game-time difference since the last chunk tick, not by 1 — a
+        // `/time set` jump counts (26.3's `incrementInhabitedTime()` adds
+        // 1 unconditionally). The stamp advances here, before the debug
+        // and no-player gates, as vanilla updates it at the top of
+        // `tickChunks()` even when nothing spawns.
+        let time_diff = self.world.game_time - self.world.last_inhabited_update;
+        self.world.last_inhabited_update = self.world.game_time;
         // `tickChunks` does nothing in a Debug world.
         if self.world_debug {
             return;
@@ -808,7 +816,7 @@ impl<'a> Game<'a> {
         let spawnable = self.spawning_chunks(&players, &mut scratch);
         laps.lap("sn_candidates");
         for &key in &scratch.candidates {
-            *self.world.inhabited.entry(key).or_insert(0) += 1;
+            *self.world.inhabited.entry(key).or_insert(0) += time_diff;
         }
         laps.lap("sn_inhabited");
         let spawn_mobs = self.ui.rules.bool("spawn_mobs");
@@ -1129,6 +1137,9 @@ mod tests {
         game.world.inhabited.clear();
         game.border.set_size(2.0);
         game.world.random = LegacyRandom::new(12345);
+        // One tick passed since the first call (game time advances before
+        // the chunk tick), so inhabited time accrues by 1.
+        game.world.game_time = 1;
         game.spawn_natural();
         // No shuffle draw for one candidate, and no attempt draws for a
         // rejected chunk. Inhabited time still advances before the gate.
@@ -1137,6 +1148,10 @@ mod tests {
             game.world.random.next_long(),
             LegacyRandom::new(12345).next_long()
         );
+        // A `/time set` jump accrues in full (26.2's timeDiff, not +1).
+        game.world.game_time = 11;
+        game.spawn_natural();
+        assert_eq!(game.world.inhabited.get(&(0, 0)), Some(&11));
     }
     fn player(x: f64, y: f64, z: f64, spectator: bool) -> LevelPlayer {
         LevelPlayer {

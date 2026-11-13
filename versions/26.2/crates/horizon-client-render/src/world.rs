@@ -106,6 +106,10 @@ pub struct World {
     /// `ChunkAccess.inhabitedTime` of resident chunks: ticks a player spent
     /// within spawning range (local difficulty).
     pub inhabited: FxHashMap<(i32, i32), i64>,
+    /// `ServerChunkCache.lastInhabitedUpdate` (26.2): the game time of the
+    /// last chunk tick, so inhabited time accrues by the time difference
+    /// since then rather than by 1 (a `/time set` jump counts).
+    pub last_inhabited_update: i64,
     pub game_time: i64,
     pub day_time: i64,
     /// The End's world clock (`WorldClocks.THE_END`, the End sky flash's), saved apart from
@@ -239,6 +243,7 @@ impl World {
             watched: Vec::new(),
             watched_writes: Vec::new(),
             inhabited: FxHashMap::default(),
+            last_inhabited_update: 0,
             game_time: 0,
             day_time: 1000,
             end_clock: 0,

@@ -18,8 +18,8 @@ const COLUMN_INSIDE_COUNT: i32 = 2 * MAX_INSIDE + 1;
 const COLUMN_OUTSIDE_COUNT: i32 = 2 * MAX_OUTSIDE + 1;
 /// `BlendingData.CELL_COLUMN_COUNT`: the length of a saved `heights` array.
 pub const CELL_COLUMN_COUNT: usize = (COLUMN_INSIDE_COUNT + COLUMN_OUTSIDE_COUNT) as usize;
-/// `BlendingData.NO_VALUE` (`Float.MAX_VALUE`).
-pub const NO_VALUE: f32 = f32::MAX;
+/// `BlendingData.NO_VALUE` (`Double.MAX_VALUE`).
+pub const NO_VALUE: f64 = f64::MAX;
 /// `Blender.HEIGHT_BLENDING_RANGE_CELLS`: `QuartPos.fromSection(7) - 1`.
 const HEIGHT_BLENDING_RANGE_CELLS: i32 = 4 * 7 - 1;
 /// `Blender.HEIGHT_BLENDING_RANGE_CHUNKS`: `QuartPos.toSection(cells + 3)`.
@@ -27,7 +27,9 @@ pub const HEIGHT_BLENDING_RANGE_CHUNKS: i32 = (HEIGHT_BLENDING_RANGE_CELLS + 3) 
 /// `Blender.DENSITY_BLENDING_RANGE_CHUNKS`: `QuartPos.toSection(5)`.
 const DENSITY_BLENDING_RANGE_CHUNKS: i32 = 5 >> 2;
 
-/// `CompositeDirection.Direction8` in its declaration order.
+/// `Direction8` in its declaration order (26.2's top-level
+/// `net.minecraft.core.Direction8`; 26.3 nested it under
+/// `CompositeDirection`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Direction8 {
     North,
@@ -101,8 +103,8 @@ pub trait OldChunk {
 pub struct BlendingData {
     min_section: i32,
     max_section: i32,
-    heights: [f32; CELL_COLUMN_COUNT],
-    densities: [Option<Vec<f32>>; CELL_COLUMN_COUNT],
+    heights: [f64; CELL_COLUMN_COUNT],
+    densities: [Option<Vec<f64>>; CELL_COLUMN_COUNT],
     biomes: [Option<Vec<BiomeId>>; CELL_COLUMN_COUNT],
 }
 
@@ -129,9 +131,9 @@ fn index_z(index: usize) -> i32 {
     }
     MAX_OUTSIDE - zero_if_negative(index - COLUMN_INSIDE_COUNT - MAX_OUTSIDE)
 }
-fn floor_f32(value: f32) -> i32 {
+fn floor_f64(value: f64) -> i32 {
     let truncated = value as i32;
-    if value < truncated as f32 {
+    if value < truncated as f64 {
         truncated - 1
     } else {
         truncated
@@ -141,7 +143,7 @@ fn floor_f32(value: f32) -> i32 {
 impl BlendingData {
     /// `BlendingData.unpack`: the saved `blending_data` (`min_section`,
     /// `max_section` and the optional `heights`).
-    pub fn unpack(min_section: i32, max_section: i32, heights: Option<&[f32]>) -> Option<Self> {
+    pub fn unpack(min_section: i32, max_section: i32, heights: Option<&[f64]>) -> Option<Self> {
         let mut all = [NO_VALUE; CELL_COLUMN_COUNT];
         if let Some(heights) = heights {
             if heights.len() != CELL_COLUMN_COUNT {
@@ -158,7 +160,7 @@ impl BlendingData {
         })
     }
     /// `BlendingData.pack`: the saved form, `heights` only when one is set.
-    pub fn pack(&self) -> (i32, i32, Option<[f32; CELL_COLUMN_COUNT]>) {
+    pub fn pack(&self) -> (i32, i32, Option<[f64; CELL_COLUMN_COUNT]>) {
         let has_height = self.heights.iter().any(|h| *h != NO_VALUE);
         (
             self.min_section,
@@ -235,10 +237,10 @@ impl BlendingData {
 
     fn add_values_for_column(&mut self, index: usize, chunk: &dyn OldChunk, x: i32, z: i32) {
         if self.heights[index] == NO_VALUE {
-            self.heights[index] = self.height_at_xz(chunk, x, z) as f32;
+            self.heights[index] = self.height_at_xz(chunk, x, z) as f64;
         }
         self.densities[index] =
-            Some(self.density_column(chunk, x, z, floor_f32(self.heights[index])));
+            Some(self.density_column(chunk, x, z, floor_f64(self.heights[index])));
         self.biomes[index] = Some(self.biome_column(chunk, x, z));
     }
 
@@ -259,20 +261,20 @@ impl BlendingData {
         min_y
     }
 
-    fn density_column(&self, chunk: &dyn OldChunk, x: i32, z: i32, height: i32) -> Vec<f32> {
+    fn density_column(&self, chunk: &dyn OldChunk, x: i32, z: i32, height: i32) -> Vec<f64> {
         let count = self.cell_count_per_column();
-        let mut densities = vec![-1.0f32; count];
+        let mut densities = vec![-1.0f64; count];
         let mut y = self.max_y() + 1;
         let read1 = |y: &mut i32| {
             *y -= 1;
             if chunk.is_ground(x, *y, z) {
-                1.0f32
+                1.0f64
             } else {
-                -1.0f32
+                -1.0f64
             }
         };
         let read7 = |y: &mut i32| {
-            let mut sum = 0.0f32;
+            let mut sum = 0.0f64;
             for _ in 0..7 {
                 sum += read1(y);
             }
@@ -282,16 +284,16 @@ impl BlendingData {
         for cell in (0..count - 1).rev() {
             let one = read1(&mut y);
             let current7 = read7(&mut y);
-            densities[cell] = (last7 + one + current7) / 15.0f32;
+            densities[cell] = (last7 + one + current7) / 15.0f64;
             last7 = current7;
         }
         let highest = self.cell_y_index(height.div_euclid(8));
         if highest >= 0 && (highest as usize) < count - 1 {
-            let in_cell = (height as f32 + 0.5f32) % 8.0f32 / 8.0f32;
-            let amplitude = (1.0f32 - in_cell) / in_cell;
-            let max = amplitude.max(1.0f32) * 0.25f32;
+            let in_cell = (height as f64 + 0.5f64) % 8.0f64 / 8.0f64;
+            let amplitude = (1.0f64 - in_cell) / in_cell;
+            let max = amplitude.max(1.0f64) * 0.25f64;
             densities[highest as usize + 1] = -amplitude / max;
-            densities[highest as usize] = 1.0f32 / max;
+            densities[highest as usize] = 1.0f64 / max;
         }
         densities
     }
@@ -304,7 +306,7 @@ impl BlendingData {
     }
 
     /// `getHeight(cellX, cellY, cellZ)`.
-    fn height(&self, cell_x: i32, _cell_y: i32, cell_z: i32) -> f32 {
+    fn height(&self, cell_x: i32, _cell_y: i32, cell_z: i32) -> f64 {
         if cell_x == MAX_OUTSIDE || cell_z == MAX_OUTSIDE {
             self.heights[outside_index(cell_x, cell_z)]
         } else if cell_x != 0 && cell_z != 0 {
@@ -313,21 +315,21 @@ impl BlendingData {
             self.heights[inside_index(cell_x, cell_z)]
         }
     }
-    fn column_density(&self, column: Option<&Vec<f32>>, cell_y: i32) -> f32 {
+    fn column_density(&self, column: Option<&Vec<f64>>, cell_y: i32) -> f64 {
         let Some(column) = column else {
             return NO_VALUE;
         };
         let index = self.cell_y_index(cell_y);
         if index >= 0 && (index as usize) < column.len() {
-            column[index as usize] * 0.1f32
+            column[index as usize] * 0.1f64
         } else {
             NO_VALUE
         }
     }
     /// `getDensity(cellX, cellY, cellZ)`.
-    fn density(&self, cell_x: i32, cell_y: i32, cell_z: i32) -> f32 {
+    fn density(&self, cell_x: i32, cell_y: i32, cell_z: i32) -> f64 {
         if cell_y == self.min_cell_y() {
-            0.1f32
+            0.1f64
         } else if cell_x == MAX_OUTSIDE || cell_z == MAX_OUTSIDE {
             self.column_density(
                 self.densities[outside_index(cell_x, cell_z)].as_ref(),
@@ -369,7 +371,7 @@ impl BlendingData {
         &self,
         min_cell_x: i32,
         min_cell_z: i32,
-        mut consumer: impl FnMut(i32, i32, f32),
+        mut consumer: impl FnMut(i32, i32, f64),
     ) {
         for (i, height) in self.heights.iter().enumerate() {
             if *height != NO_VALUE {
@@ -383,7 +385,7 @@ impl BlendingData {
         min_cell_z: i32,
         from_cell_y: i32,
         to_cell_y: i32,
-        mut consumer: impl FnMut(i32, i32, i32, f32),
+        mut consumer: impl FnMut(i32, i32, i32, f64),
     ) {
         let min_cell_y = self.column_min_y();
         let min_index = 0.max(from_cell_y - min_cell_y);
@@ -392,7 +394,7 @@ impl BlendingData {
             let Some(column) = column else { continue };
             let (x, z) = (min_cell_x + index_x(i), min_cell_z + index_z(i));
             for y in min_index..max_index {
-                consumer(x, y + min_cell_y, z, column[y as usize] * 0.1f32);
+                consumer(x, y + min_cell_y, z, column[y as usize] * 0.1f64);
             }
         }
     }
@@ -521,7 +523,7 @@ impl Blender {
         if fixed != NO_VALUE {
             return BlendingOutput {
                 alpha: 0.0,
-                offset: height_to_offset(f64::from(fixed)) as f32,
+                offset: height_to_offset(fixed) as f32,
             };
         }
         let mut total_weight = 0.0f64;
@@ -535,7 +537,7 @@ impl Blender {
                         closest = distance;
                     }
                     let weight = 1.0 / (distance * distance * distance * distance);
-                    weighted_heights += f64::from(height) * weight;
+                    weighted_heights += height * weight;
                     total_weight += weight;
                 }
             });
@@ -565,7 +567,9 @@ impl Blender {
         let cell_z = block_z >> 2;
         let fixed = self.blending_value(cell_x, cell_y, cell_z, BlendingData::density);
         if fixed != NO_VALUE {
-            return fixed;
+            // `Blender` itself is still the 26.3 float form (item 110);
+            // only the data it reads is 26.2's double form.
+            return fixed as f32;
         }
         let mut total_weight = 0.0f64;
         let mut weighted = 0.0f64;
@@ -587,7 +591,7 @@ impl Blender {
                             closest = distance;
                         }
                         let weight = 1.0 / (distance * distance * distance * distance);
-                        weighted += f64::from(density) * weight;
+                        weighted += density * weight;
                         total_weight += weight;
                     }
                 },
@@ -606,8 +610,8 @@ impl Blender {
         cell_x: i32,
         cell_y: i32,
         cell_z: i32,
-        getter: fn(&BlendingData, i32, i32, i32) -> f32,
-    ) -> f32 {
+        getter: fn(&BlendingData, i32, i32, i32) -> f64,
+    ) -> f64 {
         let chunk_x = cell_x >> 2;
         let chunk_z = cell_z >> 2;
         let min_x = cell_x & 3 == 0;
@@ -630,13 +634,13 @@ impl Blender {
     }
     fn value_in(
         &self,
-        getter: fn(&BlendingData, i32, i32, i32) -> f32,
+        getter: fn(&BlendingData, i32, i32, i32) -> f64,
         chunk_x: i32,
         chunk_z: i32,
         cell_x: i32,
         cell_y: i32,
         cell_z: i32,
-    ) -> f32 {
+    ) -> f64 {
         match self
             .height_and_biome
             .get(ChunkPos::new(chunk_x, chunk_z).pack())
