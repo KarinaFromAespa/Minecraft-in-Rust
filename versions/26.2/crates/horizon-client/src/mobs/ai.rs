@@ -2301,11 +2301,18 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
     if w.difficulty.effective == 0.0 && !super::spawn_rules::allowed_in_peaceful(m.species()) {
         return false;
     }
+    // 26.2 resets a persistent mob's no-action time on every despawn check
+    // (its final else branch); 26.3 leaves it growing. A mob that later
+    // loses persistence (dropping a picked-up item) would otherwise despawn
+    // at once on the next roll.
+    if m.persistent || requires_custom_persistence(m) {
+        m.ai.no_action_time = 0;
+        return true;
+    }
     let Some(p) = w.nearest_player else {
         return true;
     };
     let d = m.distance_sqr(p);
-    let persistent = m.persistent || requires_custom_persistence(m);
     // removeWhenFarAway: animals, villagers, golems, patrols and raiders,
     // zombie villagers being cured and ridden mobs stay, bar the two felines.
     let creature = m.kind.category == "creature";
@@ -2321,11 +2328,10 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
     } else {
         128.0
     };
-    if !persistent && d > despawn * despawn && removable {
+    if d > despawn * despawn && removable {
         return false;
     }
-    if !persistent
-        && m.ai.no_action_time > 600
+    if m.ai.no_action_time > 600
         && m.random.next_int_bound(800).unwrap_or(1) == 0
         && d > 32.0 * 32.0
         && removable

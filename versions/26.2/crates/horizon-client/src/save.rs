@@ -2785,7 +2785,8 @@ impl SaveDir {
     }
     /// The chunks of a region file that an older version generated, as
     /// `IOWorker.createOldDataForRegion` finds them (bit `x + z * 32`): saved
-    /// before DataVersion 4997, or with `blending_data`.
+    /// before DataVersion 4882 (26.2; 26.3 raised the cutoff to 4997), or
+    /// with `blending_data`.
     pub fn old_chunk_bits(&self, rx: i32, rz: i32) -> [u64; 16] {
         let mut bits = [0u64; 16];
         let Ok(region) = RegionFile::open(self.region_path("region", rx, rz)) else {
@@ -5482,11 +5483,11 @@ impl<G: ChunkGenerator> ChunkGenerator for Persistent<G> {
     }
 }
 
-/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4997, or
-/// with `blending_data`.
+/// `IOWorker.createOldDataForRegion`'s test of one record: saved before DataVersion 4882, or
+/// with `blending_data` (26.2's cutoff; 26.3 raised it to 4997).
 fn record_is_old(root: &NamedTag) -> bool {
     let before_blending = match root.tag.get("DataVersion") {
-        Some(Tag::Int(version)) => *version < 4997,
+        Some(Tag::Int(version)) => *version < 4882,
         _ => true,
     };
     before_blending || root.tag.get("blending_data").is_some()
@@ -8599,7 +8600,7 @@ mod tests {
         );
         // A 1.20.1 Nether chunk: upgraded it has no `blending_data` (only Overworld
         // chunks blend) and the current DataVersion, so only the saved record says
-        // it is older than blending (4997), as `IOWorker.isOldChunk` reads it.
+        // it is older than blending (4882 in 26.2), as `IOWorker.isOldChunk` reads it.
         write_old_record(
             &nether,
             "region",
