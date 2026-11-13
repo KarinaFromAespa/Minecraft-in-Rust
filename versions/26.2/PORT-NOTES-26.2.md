@@ -346,16 +346,23 @@ blocked earlier, at VanillaHeightmapOracle.
   tree against 26.2: 1,136 errors in 156 files before triage; every error is
   attributable to one of the families named in this document.
 
-### Behaviour work from the diff (not started)
+### Behaviour work from the diff (rank 1 closed 2026-11-13)
 
-The diff's ranked items beyond the packet work: DataFixers for data versions
-4996–5016 (26.3's fixers that 26.2 predates), the sign block-entity split
-(`sign_text_front` / `sign_text_back` components return in 26.2), cooking fuel
-and compostable data components (26.2 has `Level.fuelValues()` instead),
-26.3-only content absent in 26.2 (~90 blocks, ~121 items, the shelf mushroom
-and cushion among them), and the registry/worldgen shifts the regenerated
-tables already encode. `docs/version-ports.md` in this tree describes the
-order to take them in.
+Rank 1 (7/7) closed and merged to main (e9980f99, branch
+behaviour/26.2). The largest item, #1 components (+2/−13 data component
+types), is ported and verified: 111-component table, `map_color` tint,
+furnace fuel from `FuelValues`, tag-based brewing fuel (20 uses, 400
+ticks), the 115-entry compost table, sign text/wax dropped on item form
+and across the wire, hardcoded villager food and mob visibility
+(piglin brutes are NOT fooled), 23 hardcoded pottery patterns, and the
+block transformer rebuilt from 26.2 tables (strip 23, scrape 45
+unwaxed-only, wax-off 60, till, flatten, dowse) — block-transformer
+parity 70932/70932. Two supporting fixes: facts.json accepts the 26.2
+NBT-form block-state codec, and the 26.3-only motion tags were replaced
+with per-state `blocksMotion()` (`isSolid` except cobweb/bamboo
+sapling; 27,816 of 32,366 states). Rank 2 (410 items) is next, in
+batches of ~50, triaged by intersecting each item's named methods with
+the actually-changed methods in the store's diff.json.
 
 ## CI profile — port-verify v5, run 43086869031 (2026-11-11)
 
@@ -382,3 +389,21 @@ mismatches, with the Rust suggestion list still offering `compute` where
 vanilla does not; block_properties' world_probe fixture exits 1. These
 are the next behaviour/oracle work for this tree, not verification gaps.
 Artifacts kept at `~/workspace/mcir-ci/26.2v5-completed/`.
+
+## CI profile — port-verify v6.6, runs 43342783340 / 43352941442 (2026-11-13)
+
+Pre-behaviour baseline, measured twice with the same result: **3 pass /
+0 oracle / 14 fail** (food, lan, resource_pack pass; protocol tests
+438/0 on the runner). Run 43342783340 on main@b16d58da; run 43352941442
+on behaviour/26.2@e8310c4f (post-ladder, pre-behaviour). Artifacts for
+43352941442 kept at `~/workspace/mcir-work/26.2-behaviour/ci-runs/43352941442/`.
+Harness-log finding from 43352941442: command_exec, light and
+save_roundtrip failed with the facts.json `missing field 'id'` parse
+error — fixed on behaviour/26.2 since (NBT-form codec accepted), so the
+next profile should move.
+
+## CI profile — port-verify v6.6, run 43379593930 (2026-11-13, in flight)
+
+Dispatched on behaviour/26.2@42cb47fe (rank 1 closed, 7/7): the first
+profile of the behaviour-ported tree. Profile to be recorded here when
+the run completes.
