@@ -315,59 +315,56 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
     let r = &mut r;
     let code = match kind {
         // `Unit.CODEC`: an empty map.
-        34 | 120 => HashOps::empty_map(),
+        34 => HashOps::empty_map(),
         // Persistent codecs only: the stream form is the codec's NBT.
         // intangible_projectile, map_decorations, debug_stick_state, recipes,
         // lock (an `ItemPredicate`) and container_loot.
-        22 | 49 | 59 | 68 | 81 | 82 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        22 | 47 | 57 | 66 | 79 | 80 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `Codec.FLOAT`: minimum_attack_charge, potion_duration_scale.
-        7 | 54 => float(r)?,
+        7 | 52 => float(r)?,
         // `Identifier.CODEC`: tooltip_style, note_block_sound.
-        35 | 73 => string(&r.string(32767).ok()?),
-        // `Enchantable`, `VillagerFood`.
+        35 | 71 => string(&r.string(32767).ok()?),
+        // `Enchantable`.
         31 => int_record("value", r)?,
-        44 => int_record("nutrition", r)?,
         // `DyeColor.CODEC`: dye, wolf/collar, tropical_fish/base_color and
         // pattern_color, cat/collar, sheep/color, shulker/color, cushion/color.
-        46 | 91 | 96 | 97 | 114 | 115 | 116 | 121 => dye(r.varint().ok()?)?,
+        43 | 85 | 90 | 91 | 108 | 109 | 110 => dye(r.varint().ok()?)?,
         8 => registry_entry("minecraft:damage_type", names, r)?,
-        43 => registry_entry("minecraft:block_transformer", names, r)?,
-        88 => registry_entry("minecraft:villager_type", names, r)?,
-        89 => registry_entry("minecraft:wolf_variant", names, r)?,
-        90 => registry_entry("minecraft:wolf_sound_variant", names, r)?,
-        100 => registry_entry("minecraft:pig_variant", names, r)?,
-        101 => registry_entry("minecraft:pig_sound_variant", names, r)?,
-        102 => registry_entry("minecraft:cow_variant", names, r)?,
-        103 => registry_entry("minecraft:cow_sound_variant", names, r)?,
-        104 => registry_entry("minecraft:chicken_variant", names, r)?,
-        105 => registry_entry("minecraft:chicken_sound_variant", names, r)?,
-        106 => registry_entry("minecraft:zombie_nautilus_variant", names, r)?,
-        107 => registry_entry("minecraft:frog_variant", names, r)?,
-        112 => registry_entry("minecraft:cat_variant", names, r)?,
-        113 => registry_entry("minecraft:cat_sound_variant", names, r)?,
-        117 => registry_entry("minecraft:decorated_pot_pattern", names, r)?,
+        82 => registry_entry("minecraft:villager_type", names, r)?,
+        83 => registry_entry("minecraft:wolf_variant", names, r)?,
+        84 => registry_entry("minecraft:wolf_sound_variant", names, r)?,
+        94 => registry_entry("minecraft:pig_variant", names, r)?,
+        95 => registry_entry("minecraft:pig_sound_variant", names, r)?,
+        96 => registry_entry("minecraft:cow_variant", names, r)?,
+        97 => registry_entry("minecraft:cow_sound_variant", names, r)?,
+        98 => registry_entry("minecraft:chicken_variant", names, r)?,
+        99 => registry_entry("minecraft:chicken_sound_variant", names, r)?,
+        100 => registry_entry("minecraft:zombie_nautilus_variant", names, r)?,
+        101 => registry_entry("minecraft:frog_variant", names, r)?,
+        106 => registry_entry("minecraft:cat_variant", names, r)?,
+        107 => registry_entry("minecraft:cat_sound_variant", names, r)?,
         // The mob variants that are enums.
-        92 => named(&FOX, r)?,
-        93 => named(&SALMON, r)?,
-        94 => named(&PARROT, r)?,
-        95 => {
+        86 => named(&FOX, r)?,
+        87 => named(&SALMON, r)?,
+        88 => named(&PARROT, r)?,
+        89 => {
             let id = r.varint().ok()?;
             string(TROPICAL.iter().find(|(packed, _)| *packed == id)?.1)
         }
-        98 => named(&MOOSHROOM, r)?,
-        99 => match r.varint().ok()? {
+        92 => named(&MOOSHROOM, r)?,
+        93 => match r.varint().ok()? {
             99 => string("evil"),
             id => pick(&RABBIT, id)?,
         },
-        108 => named(&HORSE, r)?,
-        110 => named(&LLAMA, r)?,
-        111 => named(&AXOLOTL, r)?,
+        102 => named(&HORSE, r)?,
+        104 => named(&LLAMA, r)?,
+        105 => named(&AXOLOTL, r)?,
         // `TypedEntityData` (entity_data, block_entity_data) and `CustomData`.
-        60 => typed_data("minecraft:entity_type", names, r)?,
-        62 => typed_data("minecraft:block_entity_type", names, r)?,
-        61 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        58 => typed_data("minecraft:entity_type", names, r)?,
+        60 => typed_data("minecraft:block_entity_type", names, r)?,
+        59 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `BlockItemStateProperties`: a string map.
-        78 => {
+        76 => {
             let n = r.count(r.remaining()).ok()?;
             let mut entries = Vec::with_capacity(n);
             for _ in 0..n {
@@ -379,7 +376,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         // `ArmorTrim`, `InstrumentComponent`, `provides_trim_material` and
         // `BannerPatternLayers` holders (a reference stays typed in Horizon but
         // a direct one comes here).
-        58 => {
+        56 => {
             let material = holder_or("minecraft:trim_material", names, r, trim_material)?;
             let pattern = holder_or("minecraft:trim_pattern", names, r, trim_pattern)?;
             RecordHash::new()
@@ -387,9 +384,9 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
                 .field("pattern", pattern)
                 .build()
         }
-        63 => holder_or("minecraft:instrument", names, r, |r| instrument(r, names))?,
-        64 => holder_or("minecraft:trim_material", names, r, trim_material)?,
-        74 => list(r, |r| {
+        61 => holder_or("minecraft:instrument", names, r, |r| instrument(r, names))?,
+        62 => holder_or("minecraft:trim_material", names, r, trim_material)?,
+        72 => list(r, |r| {
             let pattern = holder_or("minecraft:banner_pattern", names, r, banner_pattern)?;
             let color = dye(r.varint().ok()?)?;
             Some(
@@ -399,10 +396,8 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
                     .build(),
             )
         })?,
-        // `SulfurCubeContent`: one template.
-        80 => template_code(r, names)?,
         // `PotDecorations`: back, left, right, front.
-        76 => {
+        74 => {
             let mut rec = RecordHash::new();
             for side in ["back", "left", "right", "front"] {
                 rec = rec.optional(side, optional(r, |r| template_code(r, names))?);
@@ -410,7 +405,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             rec.build()
         }
         // `ItemContainerContents`: the occupied slots as `{slot, item}`.
-        77 => {
+        75 => {
             let n = r.count(256).ok()?;
             let mut slots = Vec::new();
             for slot in 0..n {
@@ -425,8 +420,10 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             }
             HashOps::create_list(slots)
         }
+        // `SulfurCubeContent`: one template.
+        78 => template_code(r, names)?,
         // `Bees`: occupants.
-        79 => list(r, |r| {
+        77 => list(r, |r| {
             let data = typed_data("minecraft:entity_type", names, r)?;
             let ticks = r.varint().ok()?;
             let min = r.varint().ok()?;
@@ -438,25 +435,6 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
                     .build(),
             )
         })?,
-        // `SignText`: messages, the filtered ones when they differ, colour, glow.
-        118 | 119 => {
-            let (messages, code) = four_texts(r)?;
-            // `filteredMessagesForSerialization`: absent when equal to the messages.
-            let filtered = if r.bool().ok()? {
-                let (tags, code) = four_texts(r)?;
-                (tags != messages).then_some(code)
-            } else {
-                None
-            };
-            let color = dye(r.varint().ok()?)?;
-            let glow = r.bool().ok()?;
-            RecordHash::new()
-                .field("messages", code)
-                .optional("filtered_messages", filtered)
-                .field("color", color)
-                .field("has_glowing_text", HashOps::create_boolean(glow))
-                .build()
-        }
         _ => super::gameplay::code(kind, r, names)?,
     };
     (r.remaining() == 0).then_some(code)
@@ -467,15 +445,15 @@ mod tests {
     use super::*;
     use crate::item::Component;
 
-    /// The ids vanilla 26.3 gave the names the cases use.
+    /// The ids vanilla 26.2 gave the names the cases use.
     struct Pinned;
     impl Names for Pinned {
         fn name(&self, registry: &str, id: i32) -> Option<String> {
             let name = match (registry, id) {
                 ("minecraft:item", 1) => "minecraft:stone",
-                ("minecraft:item", 1009) => "minecraft:arrow",
-                ("minecraft:item", 1060) => "minecraft:stick",
-                ("minecraft:item", 1142) => "minecraft:brick",
+                ("minecraft:item", 923) => "minecraft:arrow",
+                ("minecraft:item", 974) => "minecraft:stick",
+                ("minecraft:item", 1054) => "minecraft:brick",
                 ("minecraft:mob_effect", 0) => "minecraft:speed",
                 ("minecraft:mob_effect", 1) => "minecraft:slowness",
                 ("minecraft:potion", 13) => "minecraft:swiftness",
@@ -508,18 +486,18 @@ mod tests {
                 ("minecraft:sound_event", 50) => "minecraft:block.anvil.land",
                 ("minecraft:sound_event", 70) => "minecraft:item.armor.equip_generic",
                 ("minecraft:sound_event", 71) => "minecraft:item.armor.equip_gold",
-                ("minecraft:sound_event", 702) => "minecraft:entity.generic.eat",
-                ("minecraft:sound_event", 1314) => "minecraft:entity.player.burp",
-                ("minecraft:sound_event", 1447) => "minecraft:item.shears.snip",
-                ("minecraft:sound_event", 1459) => "minecraft:item.shield.block",
+                ("minecraft:sound_event", 698) => "minecraft:entity.generic.eat",
+                ("minecraft:sound_event", 1310) => "minecraft:entity.player.burp",
+                ("minecraft:sound_event", 1443) => "minecraft:item.shears.snip",
+                ("minecraft:sound_event", 1455) => "minecraft:item.shield.block",
                 ("minecraft:mob_effect", 18) => "minecraft:poison",
                 ("minecraft:block", 1) => "minecraft:stone",
                 ("minecraft:block", 9) => "minecraft:dirt",
-                ("minecraft:item", 1006) => "minecraft:bowl",
-                ("minecraft:item", 1018) => "minecraft:iron_ingot",
+                ("minecraft:item", 920) => "minecraft:bowl",
+                ("minecraft:item", 932) => "minecraft:iron_ingot",
                 ("minecraft:entity_type", 32) => "minecraft:creeper",
-                ("minecraft:entity_type", 101) => "minecraft:pig",
-                ("minecraft:entity_type", 154) => "minecraft:zombie",
+                ("minecraft:entity_type", 100) => "minecraft:pig",
+                ("minecraft:entity_type", 151) => "minecraft:zombie",
                 _ => return None,
             };
             Some(name.to_owned())
@@ -532,129 +510,117 @@ mod tests {
             .collect()
     }
 
-    /// The stream bytes and hashes vanilla 26.3 printed for components built from
+    /// The stream bytes and hashes vanilla 26.2 printed for components built from
     /// their codecs (`STREAM_CODEC.encode`, then `TypedDataComponent.encodeValue`
     /// through `HashOps.CRC32C_INSTANCE`).
     #[test]
     fn components_read_past_hash_as_vanilla_does() {
-        let cases: [(&str, i32, &str, i32); 48] = [
+        let cases: [(&str, i32, &str, i32); 43] = [
             (
                 "potion_contents",
-                53,
+                51,
                 "010d01000000ff020001c8010001000001000000010100010178",
                 568571899,
             ),
-            ("potion_contents", 53, "0000010000000100000000", -1716828889),
-            ("potion_contents", 53, "00000001026e6d", -1256264264),
+            ("potion_contents", 51, "0000010000000100000000", -1716828889),
+            ("potion_contents", 51, "00000001026e6d", -1256264264),
             (
                 "profile",
-                72,
+                70,
                 "010000000100000002000000030000000405537465766501087465787475726573036162630103736967010d6d696e6563726166743a666f6f010e6d696e6563726166743a63617065000101",
                 1753620268,
             ),
-            ("profile", 72, "0001054e6f746368000000000000", -1744970702),
+            ("profile", 70, "0001054e6f746368000000000000", -1744970702),
             (
                 "profile",
-                72,
+                70,
                 "000001fffffffb000000060000000700000008000000000100",
                 -196647545,
             ),
             (
                 "profile",
-                72,
+                70,
                 "010000000100000001000000010000000101610108746578747572657301760000000000",
                 -1883525005,
             ),
             (
                 "entity_data",
-                60,
+                58,
                 "1e0a0100044e6f4149010300034167650000000500",
                 1343601188,
             ),
             (
                 "block_entity_data",
-                62,
+                60,
                 "010a0800044c6f636b00017800",
                 -1404731534,
             ),
             (
                 "bucket_entity_data",
-                61,
+                59,
                 "0a0500064865616c7468404000000100044e6f41490100",
                 2142887662,
             ),
             (
                 "container",
-                77,
-                "0601a4080300000000000001f1070101000304",
+                75,
+                "0601ce0703000000000000019b070101000304",
                 92591498,
             ),
-            ("container", 77, "00", -1978007022),
+            ("container", 75, "00", -1978007022),
             (
                 "pot_decorations",
-                76,
-                "01f60801000000000101020000",
+                74,
+                "019e0801000000000101020000",
                 1078935147,
             ),
             (
                 "block_state",
-                78,
+                76,
                 "02036c6974047472756506666163696e67056e6f727468",
                 1069123732,
             ),
-            ("bees", 79, "010b0a030003416765000000030003d804", -122152224),
-            ("sulfur_cube_content", 80, "01040000", 231192959),
-            (
-                "sign_text_front",
-                118,
-                "08000161080000080000080000000e01",
-                -837409994,
-            ),
-            (
-                "sign_text_back",
-                119,
-                "0800016108000008000008000001080001620800000800000800000f00",
-                450855835,
-            ),
+            ("bees", 77, "010b0a030003416765000000030003d804", -122152224),
+            ("sulfur_cube_content", 78, "01040000", 231192959),
             (
                 "lock",
-                81,
+                79,
                 "0a0800056974656d73000f6d696e6563726166743a737469636b00",
                 791108361,
             ),
             (
                 "container_loot",
-                82,
+                80,
                 "0a04000473656564000000000000000508000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
                 33155076,
             ),
             (
                 "container_loot",
-                82,
+                80,
                 "0a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
                 -2040272502,
             ),
             (
                 "map_decorations",
-                49,
+                47,
                 "0a0a000161050008726f746174696f6e40400000060001783ff00000000000000600017a40000000000000000800047479706500106d696e6563726166743a706c617965720000",
                 1757442925,
             ),
             (
                 "debug_stick_state",
-                59,
+                57,
                 "0a0800146d696e6563726166743a6f616b5f7374616972730006666163696e6700",
                 -1281127558,
             ),
             (
                 "recipes",
-                68,
+                66,
                 "090800000001000f6d696e6563726166743a737469636b",
                 -533729841,
             ),
             ("intangible_projectile", 22, "0a00", -982207288),
             ("minimum_attack_charge", 7, "3f000000", -1631070359),
-            ("potion_duration_scale", 54, "40000000", -1320370368),
+            ("potion_duration_scale", 52, "40000000", -1320370368),
             (
                 "tooltip_style",
                 35,
@@ -663,29 +629,26 @@ mod tests {
             ),
             (
                 "note_block_sound",
-                73,
+                71,
                 "106d696e6563726166743a637573746f6d",
                 1404676026,
             ),
             ("enchantable", 31, "05", -1577171417),
-            ("villager_food", 44, "03", 18785838),
             ("glider", 34, "", -982207288),
-            ("waxed", 120, "", -982207288),
-            ("dye", 46, "0e", -1939582294),
-            ("wolf/collar", 91, "0b", 199633461),
-            ("sheep/color", 115, "05", -1201809287),
-            ("cushion/color", 121, "0f", 1821130656),
-            ("villager/variant", 88, "00", 1867638223),
-            ("fox/variant", 92, "01", -1511535024),
-            ("salmon/size", 93, "02", -886537313),
-            ("parrot/variant", 94, "04", -727074367),
-            ("tropical_fish/pattern", 95, "8108", 312926869),
-            ("mooshroom/variant", 98, "01", -541737949),
-            ("rabbit/variant", 99, "63", 1619861300),
-            ("rabbit/variant", 99, "05", 359467842),
-            ("horse/variant", 108, "06", -337512376),
-            ("llama/variant", 110, "03", -727074367),
-            ("axolotl/variant", 111, "04", 199633461),
+            ("dye", 43, "0e", -1939582294),
+            ("wolf/collar", 85, "0b", 199633461),
+            ("sheep/color", 109, "05", -1201809287),
+            ("villager/variant", 82, "00", 1867638223),
+            ("fox/variant", 86, "01", -1511535024),
+            ("salmon/size", 87, "02", -886537313),
+            ("parrot/variant", 88, "04", -727074367),
+            ("tropical_fish/pattern", 89, "8108", 312926869),
+            ("mooshroom/variant", 92, "01", -541737949),
+            ("rabbit/variant", 93, "63", 1619861300),
+            ("rabbit/variant", 93, "05", 359467842),
+            ("horse/variant", 102, "06", -337512376),
+            ("llama/variant", 104, "03", -727074367),
+            ("axolotl/variant", 105, "04", 199633461),
         ];
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
@@ -699,34 +662,34 @@ mod tests {
     /// The same for the components that tune an item's behaviour.
     #[test]
     fn gameplay_components_hash_as_vanilla_does() {
-        let cases: [(&str, i32, &str, i32); 52] = [
+        let cases: [(&str, i32, &str, i32); 45] = [
             (
                 "trim",
-                58,
+                56,
                 "000b6d696e6563726166743a700800034d6174000b6d696e6563726166743a610a080005636f6c6f7200037265640800047465787400035061740001",
                 58182709,
             ),
             (
                 "instrument",
-                63,
+                61,
                 "00000d6d696e6563726166743a666f6f004000000042c8000000080004486f726e",
                 -2003793539,
             ),
             (
                 "instrument",
-                63,
-                "00bf054000000042c80000030a080004746578740004486f726e010004626f6c640100",
+                61,
+                "00bb054000000042c80000030a080004746578740004486f726e010004626f6c640100",
                 -1995771085,
             ),
             (
                 "provides_trim_material",
-                64,
+                62,
                 "000b6d696e6563726166743a7108000164",
                 167259767,
             ),
             (
                 "banner_patterns",
-                74,
+                72,
                 "02000b6d696e6563726166743a62016b0e000b6d696e6563726166743a63016c0b",
                 -178464072,
             ),
@@ -750,11 +713,11 @@ mod tests {
             ),
             ("food", 23, "044020000001", 1478675052),
             ("food", 23, "010000000000", -72303299),
-            ("consumable", 24, "3fcccccd01bf050100", -982207288),
+            ("consumable", 24, "3fcccccd01bb050100", -982207288),
             (
                 "consumable",
                 24,
-                "4040000002a30a00050001000064000101003f0000000102120203410000000104000d6d696e6563726166743a666f6f0140800000",
+                "40400000029f0a00050001000064000101003f0000000102120203410000000104000d6d696e6563726166743a666f6f0140800000",
                 -1668265051,
             ),
             (
@@ -763,7 +726,7 @@ mod tests {
                 "3fcccccd01000d6d696e6563726166743a626172000100",
                 1520278491,
             ),
-            ("use_remainder", 25, "ee07010000", -1449413585),
+            ("use_remainder", 25, "9807010000", -1449413585),
             (
                 "use_cooldown",
                 26,
@@ -783,26 +746,26 @@ mod tests {
             (
                 "equippable",
                 32,
-                "0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201029a010001010001a80b",
+                "0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c7572010297010001010001a40b",
                 -1318691560,
             ),
-            ("equippable", 32, "00470000000101010000a80b", -352294351),
+            ("equippable", 32, "00470000000101010000a40b", -352294351),
             (
                 "equippable",
                 32,
-                "0547000001031e650100000100a80b",
+                "0547000001031e640100000100a40b",
                 696858640,
             ),
             ("equippable", 32, "0747000000010101000033", -1214114539),
-            ("equippable", 32, "06470000000101010000a80b", 1294431019),
-            ("repairable", 33, "02fa07", -646002763),
-            ("repairable", 33, "03fa07ee07", 1894900226),
+            ("equippable", 32, "06470000000101010000a40b", 1294431019),
+            ("repairable", 33, "02a407", -646002763),
+            ("repairable", 33, "03a4079807", 1894900226),
             ("death_protection", 36, "0102", 1103435691),
             ("death_protection", 36, "00", -982207288),
             (
                 "blocks_attacks",
                 37,
-                "3f0000003f8000000142340000003f8000003f000000404000003f8000003e4ccccd0001b40b00",
+                "3f0000003f8000000142340000003f8000003f000000404000003f8000003e4ccccd0001b00b00",
                 -1535582378,
             ),
             (
@@ -823,12 +786,12 @@ mod tests {
                 "000000003f800000003f800000000000003f800000000000",
                 354948751,
             ),
-            ("piercing_weapon", 38, "010101bf0500", 1744160152),
+            ("piercing_weapon", 38, "010101bb0500", 1744160152),
             ("piercing_weapon", 38, "01000000", -982207288),
             (
                 "kinetic_weapon",
                 39,
-                "050001143f8000000000000000003f0000003f80000001bf0500",
+                "050001143f8000000000000000003f0000003f80000001bb0500",
                 775699335,
             ),
             (
@@ -837,21 +800,9 @@ mod tests {
                 "0a00000000000000003f8000000000",
                 -982207288,
             ),
-            ("attack_animation", 40, "020a", -2140542379),
-            ("interact_animation", 41, "0106", -982207288),
-            ("interact_animation", 41, "0006", -178357229),
-            ("break_sound", 83, "bf05", 1901640159),
-            ("break_sound", 83, "000b6d696e6563726166743a7100", 924623336),
-            ("compostable", 84, "0100000003", -1585875247),
-            (
-                "compostable",
-                84,
-                "000e6d696e6563726166743a736f6d65",
-                190800813,
-            ),
-            ("cooking_fuel", 85, "01000000c8013fc00000", -1393125704),
-            ("brewing_fuel", 86, "01000000050140000000", -1389039553),
-            ("mob_visibility", 87, "02203f000000", 1234665895),
+            ("swing_animation", 40, "020a", -2140542379),
+            ("break_sound", 81, "bb05", 1901640159),
+            ("break_sound", 81, "000b6d696e6563726166743a7100", 924623336),
         ];
         for (name, kind, hex, expected) in cases {
             let bytes = unhex(hex);
@@ -865,15 +816,15 @@ mod tests {
     #[test]
     fn what_vanilla_cannot_hash_or_horizon_cannot_name_stays_out() {
         // additional_trade_cost has no persistent codec (vanilla's client would throw).
-        assert_eq!(Component::Raw(vec![3]).hash(42, &Pinned), None);
+        assert_eq!(Component::Raw(vec![3]).hash(41, &Pinned), None);
         // A registry id with no name.
-        assert_eq!(Component::Raw(vec![9]).hash(88, &Pinned), None);
+        assert_eq!(Component::Raw(vec![9]).hash(82, &Pinned), None);
         // Bytes left over after the value.
         assert_eq!(Component::Raw(vec![0, 0]).hash(34, &Pinned), None);
     }
 
     /// Block predicates with an `nbt` or partial component predicates, and books
-    /// with filtered text: stream bytes and hashes vanilla 26.3 printed (the same
+    /// with filtered text: stream bytes and hashes vanilla 26.2 printed (the same
     /// driver as above, SNBT through the component's codec). The `container` and
     /// `bundle_contents` predicates whose nested item predicate holds exact `components` are
     /// hashed too, when every byte in them is a named `Codec.BOOL`.
@@ -1003,19 +954,19 @@ mod tests {
             ),
             (
                 "written_filtered",
-                57,
+                55,
                 "01540101460161010208000170010a08000474657874000171010004626f6c640100080005706c61696e0001",
                 Some(1884774986),
             ),
             (
                 "written_plain",
-                57,
+                55,
                 "01540001610001080001700000",
                 Some(100213250),
             ),
             (
                 "writable_filtered",
-                56,
+                54,
                 "03036f6e6501022a2a0374776f000133010133",
                 Some(1192237218),
             ),
@@ -1032,7 +983,7 @@ mod tests {
     /// Item predicates inside a `container` or `bundle_contents` predicate with
     /// exact `components`: each component's value is NBT whose booleans (found
     /// by that component's codec) hash as booleans. Stream bytes and hashes
-    /// vanilla 26.3 printed (a throwaway driver on the real jars: SNBT through
+    /// vanilla 26.2 printed (a throwaway driver on the real jars: SNBT through
     /// `can_place_on`'s codec, `STREAM_CODEC.encode`, `encodeValue` through
     /// `HashOps.CRC32C_INSTANCE`).
     #[test]
@@ -1153,3 +1104,4 @@ mod tests {
         }
     }
 }
+
