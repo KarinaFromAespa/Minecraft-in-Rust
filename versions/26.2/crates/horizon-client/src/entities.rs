@@ -2001,7 +2001,9 @@ pub struct ItemFrame {
     pub fixed: bool,
     pub invisible: bool,
     pub check_interval: u32,
-    /// `Entity.getCustomName` (`CustomName`), copied onto the dropped frame.
+    /// `Entity.getCustomName` (`CustomName`). In 26.2 it stays on the entity:
+    /// the dropped frame item does not carry it (26.3's
+    /// `getFrameItemStackWithData` added the copy).
     pub custom_name: Option<horizon_world::nbt::Tag>,
     pub random: LegacyRandom,
 }
@@ -2033,15 +2035,11 @@ impl ItemFrame {
             std::array::from_fn(|i| c[i] + size[i] / 2.0),
         )
     }
-    /// `ItemFrame.getFrameItemStackWithData`: `getFrameItemStack` (a glow
-    /// frame's own item), then `DataComponents.CUSTOM_NAME` from
-    /// `getCustomName`.
-    pub fn item_stack_with_data(&self) -> ItemStack {
-        let mut item_stack = ItemStack::new(self.kind(), 1);
-        if let Some(name) = &self.custom_name {
-            item_stack.data_mut().custom_name = Some(name.clone());
-        }
-        item_stack
+    /// `ItemFrame.getFrameItemStack`: the frame's own item (a glow frame's
+    /// own item), plain — in 26.2 the custom name is not copied onto it
+    /// (26.3's `getFrameItemStackWithData` added that).
+    pub fn item_stack(&self) -> ItemStack {
+        ItemStack::new(self.kind(), 1)
     }
 }
 /// An armor stand (`ArmorStand`).

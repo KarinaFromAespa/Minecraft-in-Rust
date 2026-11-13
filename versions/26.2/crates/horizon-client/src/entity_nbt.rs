@@ -8107,10 +8107,12 @@ mod fireball_nbt_tests {
     }
 
     #[test]
-    fn a_named_frame_drops_with_its_custom_name() {
-        // `ItemFrame.getFrameItemStackWithData`: the frame item, then
-        // `DataComponents.CUSTOM_NAME` from `getCustomName`. Glow frames
-        // share it through `GlowItemFrame.getFrameItemStack`.
+    fn a_named_frame_drops_without_its_custom_name() {
+        // `ItemFrame.getFrameItemStack`: the plain frame item. The custom
+        // name stays on the entity (and in its saved NBT); it is not copied
+        // onto the dropped item in 26.2 (26.3's `getFrameItemStackWithData`
+        // added the copy). Glow frames share it through
+        // `GlowItemFrame.getFrameItemStack`.
         for id in ["minecraft:item_frame", "minecraft:glow_item_frame"] {
             let tag = Tag::compound([
                 ("id", string(id)),
@@ -8119,10 +8121,10 @@ mod fireball_nbt_tests {
                 ("CustomName", string("Gallery")),
             ]);
             let frame = item_frame_from_nbt(&tag, 1).unwrap();
-            let stack = frame.item_stack_with_data();
+            let stack = frame.item_stack();
             assert_eq!(&*stack.item, id);
             assert_eq!(stack.count, 1);
-            assert_eq!(stack.custom_name().as_deref(), Some("Gallery"));
+            assert!(stack.custom_name().is_none());
             let saved = item_frame_to_nbt(&frame, [1, 2, 3, 4], None);
             assert_eq!(text(saved.get("CustomName")).as_deref(), Some("Gallery"));
         }
@@ -8133,7 +8135,7 @@ mod fireball_nbt_tests {
         ]);
         let frame = item_frame_from_nbt(&bare, 2).unwrap();
         assert!(frame.custom_name.is_none());
-        assert!(frame.item_stack_with_data().custom_name().is_none());
+        assert!(frame.item_stack().custom_name().is_none());
         assert!(
             item_frame_to_nbt(&frame, [1, 2, 3, 4], Some(&bare))
                 .get("CustomName")

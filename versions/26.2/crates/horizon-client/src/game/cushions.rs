@@ -114,11 +114,17 @@ impl Game<'_> {
     /// slabs (`NEAR_PLANE_INTERSECTS_OUTLINE`) block when the near plane
     /// touches a box of their shape, snow only at eight layers, anything else
     /// when it is suffocating.
+    /// `BlockStateBase.isViewBlocking` (26.2's two-argument form: no
+    /// near-plane box). Snow with 8 layers blocks the view; anything else
+    /// falls through to `isSuffocating`. In 26.2 stairs and slabs have no
+    /// override, so they take the default too — and a stair or slab is
+    /// never a full collision block, so it never blocks the view (26.3 gave
+    /// them `NEAR_PLANE_INTERSECTS_OUTLINE`, testing the outline boxes
+    /// against the frustum's near-plane bounds).
     pub(super) fn state_view_blocking(
         &self,
         state: horizon_world::registry::BlockStateId,
-        pos: [i32; 3],
-        near_plane: Aabb,
+        _pos: [i32; 3],
     ) -> bool {
         let name = self.res.facts().get(state).name.as_ref();
         if name == "minecraft:snow" {
@@ -129,14 +135,6 @@ impl Game<'_> {
                 .state(state)
                 .and_then(|s| s.properties.get("layers"))
                 .is_some_and(|l| l.parse::<i32>().is_ok_and(|l| l >= 8));
-        }
-        if (name.ends_with("_stairs") || name.ends_with("_slab"))
-            && name != "minecraft:petrified_oak_slab"
-        {
-            return self
-                .outline_boxes(pos)
-                .iter()
-                .any(|b| aabb(([b[0], b[1], b[2]], [b[3], b[4], b[5]])).intersects(near_plane));
         }
         self.state_suffocating(state)
     }

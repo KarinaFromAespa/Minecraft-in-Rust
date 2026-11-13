@@ -436,8 +436,9 @@ impl Game<'_> {
         let at = [c[0] + s[0] * 0.15, c[1], c[2] + s[2] * 0.15];
         let mut drops = Vec::new();
         if with_frame {
-            // `ItemFrame.getFrameItemStackWithData` (glow frames share it).
-            drops.push(f.item_stack_with_data());
+            // `ItemFrame.getFrameItemStack` (glow frames share it): the plain
+            // frame item, without the frame's custom name.
+            drops.push(f.item_stack());
         }
         if let Some(item) = f.item.clone()
             && f.random.next_float() < f.drop_chance

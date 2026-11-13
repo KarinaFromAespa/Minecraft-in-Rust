@@ -286,36 +286,14 @@ impl Game<'_> {
             p.position.y + f64::from(p.dimensions.eye_height),
             p.position.z,
         ];
-        // `LevelExtractor.getViewBlockingState`: 8 points around the eye, each
-        // tested with `BlockState.isViewBlocking` against the near plane.
-        // ScreenEffectRenderer: none of it for a spectator (noPhysics).
+        // `ScreenEffectRenderer.getViewBlockingState`: 8 points around the
+        // eye, each tested with `BlockState.isViewBlocking` (26.2's
+        // two-argument form — no near-plane box; 26.3 added the frustum's
+        // near-plane bounds as a third argument). ScreenEffectRenderer:
+        // none of it for a spectator (noPhysics).
         let spectator = self.spectator();
         let mut block_overlay = None;
         if !spectator {
-            // Frustum.getNearPlaneBounds, moved to the eye.
-            let (near_min, near_max) = horizon_client::camera::near_plane_bounds(
-                self.fov_degrees(partial, eye),
-                size[0] as f32,
-                size[1] as f32,
-                self.yaw,
-                self.pitch,
-                horizon_client::camera::depth_far(
-                    self.terrain_distance(),
-                    self.settings.cloud_range,
-                ),
-            );
-            let near_plane = horizon_core::geometry::Aabb::new(
-                horizon_core::geometry::Vec3::new(
-                    near_min[0] + eye[0],
-                    near_min[1] + eye[1],
-                    near_min[2] + eye[2],
-                ),
-                horizon_core::geometry::Vec3::new(
-                    near_max[0] + eye[0],
-                    near_max[1] + eye[1],
-                    near_max[2] + eye[2],
-                ),
-            );
             // The test points use float maths: `(i % 2 - 0.5F) * width * 0.8F`.
             // The height spread is `0.1F * getScale()`: a tiny player's eye is
             // closer to the ground than 0.05.
@@ -336,7 +314,7 @@ impl Game<'_> {
                 let state = self.world.block(pos[0], pos[1], pos[2]);
                 if self.res.facts().get(state).render_shape
                     != horizon_client::blocks::RenderShape::Invisible
-                    && self.state_view_blocking(state, pos, near_plane)
+                    && self.state_view_blocking(state, pos)
                 {
                     // ScreenEffectRenderer: the block's particle material.
                     block_overlay = Self::block_particle_sprite(&self.pack, state);

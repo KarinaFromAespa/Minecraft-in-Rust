@@ -1,9 +1,12 @@
 //! `AbstractThrownPotion`: what a splash or lingering potion does around where
-//! it lands besides its effects. A potion in `#minecraft:douses_fire` puts out
-//! the fire, candles and campfires next to the block it hit; one in
-//! `#minecraft:hurts_water_sensitive_entities` hurts the water-sensitive mobs
-//! near it and one in `#minecraft:extinguishes_entities` puts out burning
-//! entities. Only plain water is in those tags in vanilla.
+//! it lands besides its effects. In 26.2 only plain water does any of it
+//! (`potion.is(Potions.WATER)`): it puts out the fire, candles and campfires
+//! next to the block it hit, hurts the water-sensitive mobs near it, puts out
+//! burning entities, and refills the air of nearby axolotls. (26.3 moved the
+//! water checks into potion tags — `#douses_fire`,
+//! `#hurts_water_sensitive_entities`, `#extinguishes_entities`,
+//! `#rehydrates_axolotls` — each holding only water; 26.2's data has no such
+//! tags, so a tag lookup here would silently do nothing.)
 use super::Game;
 use horizon_client::{
     items::ItemStack,
@@ -36,28 +39,20 @@ pub(super) fn thrown_block_hit(start: Vec3, end: Vec3, velocity: Vec3) -> ([i32;
 }
 
 impl Game<'_> {
-    /// `PotionContents.is`: the potion of `stack` is in the potion tag `tag`
-    /// (`minecraft:douses_fire` and the others, read from the data pack's
-    /// `tags/potion`). A stack with no potion is in no tag.
-    pub(super) fn potion_in_tag(&self, stack: &ItemStack, tag: &str) -> bool {
-        stack.potion().is_some_and(|potion| {
-            self.res
-                .stations()
-                .trades
-                .potion_tags
-                .get(tag)
-                .is_some_and(|members| members.iter().any(|m| m.as_str() == potion))
-        })
+    /// `PotionContents.is(Potions.WATER)`: the stack's potion is plain water.
+    /// A stack with no potion is not water.
+    pub(super) fn is_water_potion(stack: &ItemStack) -> bool {
+        stack.potion() == Some("minecraft:water")
     }
 
-    /// `AbstractThrownPotion.onHitBlock` on the server: a potion (the stack's
-    /// `potion_contents`) in `#douses_fire` douses the cell in front of the
-    /// face it hit, the cell behind that (the block it hit) and the four
-    /// horizontal neighbours of the cell in front. `hit` is the block and
-    /// `face` the face it was hit on.
+    /// `AbstractThrownPotion.onHitBlock` on the server: a water potion (the
+    /// stack's `potion_contents`) dowses the cell in front of the face it
+    /// hit, the cell behind that (the block it hit) and the four horizontal
+    /// neighbours of the cell in front. `hit` is the block and `face` the
+    /// face it was hit on.
     pub(super) fn potion_hit_block(&mut self, stack: &ItemStack, hit: [i32; 3], face: Direction) {
-        // `PotionContents.is(PotionTags.DOUSES_FIRE)` on the stack's `potion_contents`.
-        if !self.potion_in_tag(stack, "minecraft:douses_fire") {
+        // `PotionContents.is(Potions.WATER)` on the stack's `potion_contents`.
+        if !Self::is_water_potion(stack) {
             return;
         }
         let relative = |pos: [i32; 3], direction: Direction| {
@@ -65,8 +60,8 @@ impl Game<'_> {
             [pos[0] + n[0], pos[1] + n[1], pos[2] + n[2]]
         };
         let effect = relative(hit, face);
-        self.douse_fire(effect);
-        self.douse_fire(relative(effect, face.opposite()));
+        self.dowse_fire(effect);
+        self.dowse_fire(relative(effect, face.opposite()));
         // Direction.Plane.HORIZONTAL.
         for direction in [
             Direction::North,
@@ -74,14 +69,14 @@ impl Game<'_> {
             Direction::South,
             Direction::West,
         ] {
-            self.douse_fire(relative(effect, direction));
+            self.dowse_fire(relative(effect, direction));
         }
     }
 
-    /// `AbstractThrownPotion.douseFire`: a fire block is destroyed without
+    /// `AbstractThrownPotion.dowseFire`: a fire block is destroyed without
     /// drops, a lit candle or candle cake goes out, and a lit campfire goes
     /// out after level event 1009 and its block-change game event.
-    fn douse_fire(&mut self, pos: [i32; 3]) {
+    fn dowse_fire(&mut self, pos: [i32; 3]) {
         let at = BlockPos::new(pos[0], pos[1], pos[2]);
         let state = self.world.block(pos[0], pos[1], pos[2]);
         let name = self.res.facts().get(state).name.clone();
@@ -97,7 +92,7 @@ impl Game<'_> {
             && let Some(mut lit) = self.lit_campfire(state, &name)
         {
             self.level_event_at(1009, pos, 0);
-            // CampfireBlock.douse: the block-change game event, whose source
+            // CampfireBlock.dowse: the block-change game event, whose source
             // is the potion's owner (not tracked here).
             self.post_block_game_event("minecraft:block_change", pos, None, None);
             lit.properties.insert("lit".into(), "false".into());
@@ -122,17 +117,18 @@ impl Game<'_> {
             .cloned()
     }
 
-    /// `AbstractThrownPotion.affectEntitiesAround`: the living entities whose
-    /// box meets the potion's box grown by (4, 2, 4) and that are less than 4
-    /// blocks from it. A potion in `#hurts_water_sensitive_entities` hurts
-    /// the water-sensitive ones for 1 (`indirectMagic`, the owner being a
-    /// player when `by_player`), an Enderman then trying to teleport
-    /// (`Enderman.hurtServer`); one in `#extinguishes_entities` puts out
-    /// those that burn; one in `#rehydrates_axolotls` refills the air of
-    /// the axolotls in the box.
-    pub(super) fn affect_entities_around(&mut self, stack: &ItemStack, at: Vec3, by_player: bool) {
-        let hurts = self.potion_in_tag(stack, "minecraft:hurts_water_sensitive_entities");
-        let extinguishes = self.potion_in_tag(stack, "minecraft:extinguishes_entities");
+    /// `AbstractThrownPotion.onHitAsWater`: a water potion's effect on the
+    /// living entities whose box meets the potion's box grown by (4, 2, 4)
+    /// and that are less than 4 blocks from it. It hurts the water-sensitive
+    /// ones for 1 (`indirectMagic`, the owner being a player when
+    /// `by_player`), an Enderman then trying to teleport
+    /// (`Enderman.hurtServer`); it puts out those that burn; and it refills
+    /// the air of the axolotls in the box. Any other potion does none of
+    /// this (26.3 split the water check into potion tags).
+    pub(super) fn on_hit_as_water(&mut self, stack: &ItemStack, at: Vec3, by_player: bool) {
+        if !Self::is_water_potion(stack) {
+            return;
+        }
         // The potion's box is 0.25 wide and high.
         let reach = Aabb::new(
             Vec3::new(at.x - 0.125, at.y, at.z - 0.125),
@@ -143,7 +139,7 @@ impl Game<'_> {
             let (dx, dy, dz) = (p.x - at.x, p.y - at.y, p.z - at.z);
             dx * dx + dy * dy + dz * dz < 16.0
         };
-        if hurts || extinguishes {
+        {
             let source =
                 Damage::indirect_magic(by_player.then_some(Who::Player), [at.x, at.y, at.z]);
             for m in self.mobs.iter_mut().filter(|m| !m.removed) {
@@ -155,7 +151,7 @@ impl Game<'_> {
                 {
                     continue;
                 }
-                if hurts && sensitive {
+                if sensitive {
                     let invulnerable = m.invulnerable_flag;
                     m.damage(1.0, source);
                     // `Enderman.hurtServer` for a thrown potion: the hit is
@@ -171,12 +167,12 @@ impl Game<'_> {
                         m.extra.counter2 = 64;
                     }
                 }
-                if extinguishes && m.is_on_fire() && m.alive() {
+                if m.is_on_fire() && m.alive() {
                     m.extinguish_fire();
                 }
             }
         }
-        if extinguishes {
+        {
             self.for_each_player(|g| g.extinguish_player_in_splash(reach, at));
             // Armor stands are living entities too.
             let mut put_out = Vec::new();
@@ -194,7 +190,7 @@ impl Game<'_> {
                 self.extinguish_sound(stand_at);
             }
         }
-        if self.potion_in_tag(stack, "minecraft:rehydrates_axolotls") {
+        {
             // Axolotl.rehydrate: 1800 more air, up to the maximum.
             let (lo, hi) = (
                 [at.x - 0.125 - 4.0, at.y - 2.0, at.z - 0.125 - 4.0],
