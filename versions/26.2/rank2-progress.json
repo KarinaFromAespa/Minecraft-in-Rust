@@ -524,6 +524,83 @@
    "bucket": "B",
    "verdict": "ported",
    "evidence": "Pufferfish playerTouch/touch: 26.3 gates the sting behind doTeamsAllowDamage; 26.2 has no team check \u2014 teammates sting too. Ported: removed the teams_allow_damage check from both the player-touch path (pufferfish_player.rs) and the mob-touch path (aquatic.rs sting_touching_mobs), with the now-unused import and team lookup removed."
+  },
+  {
+   "id": 195,
+   "module": "crates/horizon-client/src/mobs/shulker.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Shulker: teleportSomewhere identical. createInterpolationHandler is 26.3-only and returns NO_OP; 26.2 has no such method. The Rust already treats a move packet as a snap to setPos with no interpolation, which is the same observable behaviour. Comments updated to cite the 26.2 form."
+  },
+  {
+   "id": 198,
+   "module": "crates/horizon-client/src/game/screens.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "WinScreen: extractBackground identical. keyPressed/keyReleased differ only in key encoding \u2014 26.2 event.key() 341/345 (GLFW left/right control) vs 26.3 event.shortcutKey() 1073742048/1073742052 (SDL left/right control): the same physical keys. The Rust win_screen.rs Key enum admits only Up/Space/LeftControl/RightControl (from_code returns None otherwise), so only control keys ever reach speedup_modifiers, matching both versions."
+  },
+  {
+   "id": 200,
+   "module": "crates/horizon-client-render/src/auth.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AccountProfileKeyPairManager.fetchProfileKeyPair differs only in the authlib import (com.mojang.authlib.services.response in 26.3 vs yggdrasil.response in 26.2) \u2014 same class, moved package; the method body is identical. ClientHandshakePacketListenerImpl.authenticateServer differs only in a log line ('Authentication failed: {}' vs the bare message). The Rust auth.rs is HTTP-level code, unaffected by the Java package move."
+  },
+  {
+   "id": 201,
+   "module": "crates/horizon-client/src/game/copper_golems.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CopperGolem: turnToStatue identical. mobInteract: 26.3 adds an explicit HONEYCOMB_WAX_ON playSound on waxing; 26.2 fires only level event 3003. The Rust already implements the 26.2 form (level_event_at(3003) with the comment 'The event carries the wax-on sound in 26.2; no explicit play')."
+  },
+  {
+   "id": 203,
+   "module": "crates/horizon-client/src/game/sniffers.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Sniffer.isTempted: 26.2 reads the IS_TEMPTED boolean memory, which FollowTemptation sets on start and erases on stop (verified by scanning the jars: only FollowTemptation, MemoryModuleType and Sniffer reference it in 26.2); 26.3 reads TEMPTING_PLAYER presence, true whenever a tempting player is sensed \u2014 including during the 100-tick temptation cooldown. Ported: added an is_tempted memory slot (animal_brain.rs), set in FollowTemptation try_start (with the VALUE_ABSENT start guard) and cleared in do_stop; is_tempted now reads it. emitDiggingParticles: no change needed \u2014 the Rust already plays the hit sound positionally at the sniffer (26.2's coords form with distanceDelay=false), and a digging sniffer does not move, so 26.3's entity-bound form is equivalent."
+  },
+  {
+   "id": 204,
+   "module": "crates/horizon-client/src/mobs/undead.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Drowned.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel) (a 26.3-only RangedAttackMob method); 26.2 inlines 14 - difficulty.getId() * 4. The Rust ranged_attack_uncertainty already computes 14.0 - 4.0 * difficulty and the drowned throw uses it."
+  },
+  {
+   "id": 211,
+   "module": "crates/horizon-client-render/src/tab_list.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PlayerTabOverlay and PlayerFaceExtractor: the decompiled sources are byte-identical between 26.3 and 26.2 (extractPingIcon and all extractRenderState overloads). The triage hit is a bytecode-level flag with no source-visible difference."
+  },
+  {
+   "id": 216,
+   "module": "crates/horizon-client/src/game/fireworks.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "FireworkRocketEntity: onHitBlock differs only in the immutable-copy spelling (getBlockPos().immutable() vs new BlockPos(...)) \u2014 same value. handleEntityEvent: 26.3 passes !isSilent() to createFireworks; 26.2 calls the 7-arg form, and ClientLevel.createFireworks in 26.2 always builds the Starter, which always bangs. The Rust Starter has no play_sound flag and always plays the blast sound \u2014 the 26.2 form already."
+  },
+  {
+   "id": 220,
+   "module": "crates/horizon-client/src/projectiles.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ThrowableProjectile.handleFirstTickBubbleColumn: 26.3 findBlocksIn vs 26.2 betweenClosed over the same box \u2014 the same set of blocks. Each bubble_column_push only adds to the Y velocity (commutative) and records surface blocks for particles only, so iteration order is unobservable. LlamaSpit.tick: findBlocksIn(...).filterState(isAir).noneMatched() vs getBlockStates(...).noneMatch(isAir) \u2014 same discard condition. Comment updated to cite the 26.2 betweenClosed form."
+  },
+  {
+   "id": 221,
+   "module": "crates/horizon-client-render/src/level_loading.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "LoadingOverlay.extractRenderState identical. WaitingForPlayerChunk.isReady: 26.2 requires BOTH the player's Y and the camera's Y inside build height before waiting for the player section; 26.3 dropped the player-Y check. Ported: PlayerCheck split into player_outside_build_height + camera_outside_build_height, tick_client_load requires both inside, remote.rs computes both Y values, and the tracker test gained a player-outside case."
+  },
+  {
+   "id": 225,
+   "module": "crates/horizon-client/src/game/crossbow.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AbstractSkeleton.performRangedAttack: 26.3 calls rangedAttackUncertainty(serverLevel); 26.2 inlines 14 - difficulty.getId() * 4. The Rust shoots with (14 - id * 4) as f32 \u2014 the 26.2 formula. CrossbowItem.performShooting: 26.3 materializes charged.itemCopies().toList() before shoot; 26.2 passes the stream \u2014 same projectiles, same order; API-shape only."
   }
  ],
  "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 120 (all named==0, no method-level evidence) / B 142 / C 58 / D 90. B hits: 332 changed, 55 removed, 53 added+removed (signature swaps), 4 added. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank2-triage.{py,json}."
