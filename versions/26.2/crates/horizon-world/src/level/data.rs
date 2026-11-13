@@ -265,6 +265,7 @@ named_blocks! {
     stone = "stone",
     cobblestone = "cobblestone",
     obsidian = "obsidian",
+    crying_obsidian = "crying_obsidian",
     basalt = "basalt",
     soul_soil = "soul_soil",
     blue_ice = "blue_ice",
@@ -368,6 +369,7 @@ named_blocks! {
     bee_nest = "bee_nest",
     composter = "composter",
     respawn_anchor = "respawn_anchor",
+    reinforced_deepslate = "reinforced_deepslate",
     end_portal_frame = "end_portal_frame",
     crafter = "crafter",
     copper_bulb = "copper_bulb",
@@ -881,11 +883,13 @@ fn build_with_gameplay<G: GameplayStateSource>(
             emission: game.unsigned("emission") as u8,
             dampening: game.unsigned("dampening") as u8,
             hardness: game.number("hardness") as f32,
+            // `PushReaction` was renamed in 26.3; the 26.2 facts carry the
+            // old names (NORMAL, DESTROY, BLOCK, IGNORE, PUSH_ONLY).
             push: match game.text("push") {
-                "PUSH" => PushReaction::Push,
-                "POPPED" => PushReaction::Popped,
-                "IMMOVEABLE" => PushReaction::Immoveable,
-                "IGNORE_ENTITY" => PushReaction::IgnoreEntity,
+                "PUSH" | "PUSH_ONLY" => PushReaction::Push,
+                "POPPED" | "DESTROY" => PushReaction::Popped,
+                "IMMOVEABLE" | "BLOCK" => PushReaction::Immoveable,
+                "IGNORE_ENTITY" | "IGNORE" => PushReaction::IgnoreEntity,
                 _ => PushReaction::PushPull,
             },
             instrument: instrument_index(row.get(8).and_then(Value::as_str).unwrap_or("HARP")),

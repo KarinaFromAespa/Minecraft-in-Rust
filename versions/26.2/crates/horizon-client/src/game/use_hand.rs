@@ -85,7 +85,7 @@ impl Game<'_> {
                 self.swing_arm();
                 return Ok(true);
             }
-            if self.use_campfire_douse(hit.pos, held.as_ref())? {
+            if self.use_campfire_douse(hit.pos, held.as_ref(), hit.face)? {
                 self.swing_arm();
                 return Ok(true);
             }
