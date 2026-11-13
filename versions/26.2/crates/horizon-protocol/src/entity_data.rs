@@ -207,10 +207,12 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 26.3.
+        // `minecraft:particle_type` registry order as of 26.2: block,
+        // block_marker, falling_dust, dust_pillar and block_crumble carry a
+        // block state; entity_effect, tinted_leaves and flash a colour.
         let data = match id {
-            1 | 2 | 36 | 121 | 125 => Some(ParticleData::State(ids::block_state(r.varint()?))),
-            28 | 46 | 52 => Some(ParticleData::Color(r.i32()?)),
+            1 | 2 | 36 | 118 | 122 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            28 | 43 | 49 => Some(ParticleData::Color(r.i32()?)),
             21 => {
                 let color = if ids::quirks().components_before_1_21_2 {
                     legacy_rgb(r)?
@@ -238,7 +240,7 @@ impl Particle {
                     },
                 ))
             }
-            23 | 56 => {
+            23 | 53 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -247,9 +249,9 @@ impl Particle {
                 }
             }
             15 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
-            15 | 48 => Some(ParticleData::Scalar(r.f32()?)),
-            115 => Some(ParticleData::Delay(r.varint()?)),
-            59 => {
+            15 | 45 => Some(ParticleData::Scalar(r.f32()?)),
+            112 => Some(ParticleData::Delay(r.varint()?)),
+            56 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -259,8 +261,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            57 => Some(ParticleData::Item(Template::read(r)?)),
-            58 => {
+            54 => Some(ParticleData::Item(Template::read(r)?)),
+            55 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -605,7 +607,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 58);
+                assert_eq!(p.id, 55);
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -734,7 +736,7 @@ mod tests {
             for (pinned, expected) in [
                 (15, ParticleData::Scalar(1.0)),
                 (23, ParticleData::ColorPower(-1, 1.0)),
-                (56, ParticleData::ColorPower(-1, 1.0)),
+                (53, ParticleData::ColorPower(-1, 1.0)),
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
@@ -848,7 +850,7 @@ mod tests {
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (26.3 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (26.2 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
     /// still decodes.
     #[test]
@@ -863,7 +865,7 @@ mod tests {
             (23, Some(ParticleData::ColorPower(-1, 2.0))),
             (28, Some(ParticleData::Color(0x7f00ff00))),
             (
-                57,
+                54,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -878,14 +880,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                58,
+                55,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                58,
+                55,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -894,8 +896,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (59, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (115, Some(ParticleData::Delay(6))),
+            (56, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
+            (112, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });

@@ -504,19 +504,14 @@ pub fn serverbound(
             w.varint(r.varint()?);
             renumbered(id, w.data)
         }
-        // 26.3 inserted CHANGE_DESTROY_DIRECTION at 1; 26.2 has no such action.
-        (State::Play, sb::PLAYER_ACTION) => {
+        // 26.2 appended STAB (7) to player_action; older releases' actions end at
+        // 6, so a stab is dropped (the rest cross with their own numbers).
+        (State::Play, sb::PLAYER_ACTION) if session.version.at_most(ServerVersion::V26_1) => {
             let mut r = Reader::new(payload);
-            let action = r.varint()?;
-            let action = match action {
-                0 => 0,
-                1 => return Ok(None),
-                n => n - 1,
-            };
-            let mut w = Writer::new();
-            w.varint(action);
-            w.bytes(r.rest());
-            renumbered(id, w.data)
+            if r.varint()? == 7 {
+                return Ok(None);
+            }
+            renumbered(id, payload.to_vec())
         }
         (State::Play, sb::INTERACT) if session.version.at_most(ServerVersion::V1_21_11) => {
             v1_21_11::interact(session, payload)
@@ -2588,11 +2583,14 @@ mod tests {
 
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
+        // 1.21.11 has 157 entity types (ids 0..=156), so 157 is unknown to every
+        // pin; the sulfur cube (130 in 26.2) shifts the types past it up by one.
         let session = Session::new(ServerVersion::V1_21_11);
         for (kind, data, expected) in [
             (157, 0, None),
             (0, 0, Some((0, 0))),
-            (51, 27, Some((52, 28))), // falling block, with a state whose id changed
+            (51, 1381, Some((51, 1581))), // falling block, with a state whose id changed
+            (130, 0, Some((131, 0))),     // tadpole, shifted by the sulfur cube
         ] {
             let packet = play::Clientbound::AddEntity(play::AddEntity {
                 id: 7,
@@ -2722,25 +2720,26 @@ mod tests {
     }
 
     fn ids() -> &'static Ids {
-        super::super::ServerVersion::V26_2.ids().unwrap()
+        super::super::ServerVersion::V26_1.ids().unwrap()
     }
 
     #[test]
-    fn a_26_2_chunk_section_on_the_global_palette_is_repacked_wider() {
+    fn a_26_1_chunk_section_on_the_global_palette_is_renumbered() {
         let ids = ids();
-        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits.
+        // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits —
+        // the width both numberings use (26.1 has 29,873 states, 26.2 has 32,366).
         let values: Vec<i32> = (0..4096).map(|i| 13000 + i).collect();
         let old = Paletted::from_values(&values, Strategy::Blocks, 15);
         assert_eq!(old.bits, 15);
-        let new = renumber_states(ids, &old, 16);
-        assert_eq!(new.bits, 16);
-        // oak_slab's first state, 13330 in 26.2, is 15177 in 26.3.
-        assert_eq!(new.get(330), 15177);
+        let new = renumber_states(ids, &old, 15);
+        assert_eq!(new.bits, 15);
+        // oak_slab type=top waterlogged=true is 13330 in both numberings.
+        assert_eq!(new.get(330), 13330);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 
     #[test]
-    fn a_26_2_move_reads_as_26_3s() {
+    fn a_26_1_move_reads_as_26_2s() {
         let mut w = Writer::new();
         w.varint(7);
         w.i16(4096);
@@ -2790,7 +2789,7 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_light_mask_of_longs_becomes_26_3s_bytes() {
+    fn a_26_1_light_mask_of_longs_becomes_26_2s_bytes() {
         let mut w = Writer::new();
         w.varint(3);
         w.varint(-2);
@@ -2814,15 +2813,14 @@ mod tests {
     }
 
     #[test]
-    fn a_26_3_destroy_direction_change_is_not_sent_to_26_2() {
-        let session = Session::new(super::super::ServerVersion::V26_2);
-        let action = |n: i32| {
+    fn a_26_2_stab_is_not_sent_to_older_releases() {
+        let action = |session: &Session, n: i32| {
             let mut w = Writer::new();
             w.varint(n);
             w.i64(0);
             w.u8(1);
             serverbound(
-                &session,
+                session,
                 State::Play,
                 packet_ids::play::serverbound::PLAYER_ACTION,
                 &w.data,
@@ -2830,9 +2828,13 @@ mod tests {
             .unwrap()
             .map(|(_, payload)| payload[0])
         };
-        assert_eq!(action(0), Some(0)); // start destroying
-        assert_eq!(action(1), None); // change_destroy_direction, new in 26.3
-        assert_eq!(action(3), Some(2)); // stop destroying: 3 in 26.3, 2 in 26.2
+        let session = Session::new(super::super::ServerVersion::V26_1);
+        assert_eq!(action(&session, 0), Some(0)); // start destroying
+        assert_eq!(action(&session, 6), Some(6)); // swap item with offhand
+        assert_eq!(action(&session, 7), None); // stab, new in 26.2
+        // A 26.2 server takes the stab as it stands.
+        let session = Session::new(super::super::ServerVersion::V26_2);
+        assert_eq!(action(&session, 7), Some(7));
     }
 }
 
