@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 23/100 items, 13 changed, 10 no-change, 127 minutes on changed
+**rate sample: 24/100 items, 14 changed, 10 no-change, 247 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -532,6 +532,7 @@ log; it stays in agreement with the tally line above.
 | 407 | no-change | — | ClockInstance 26.3-only; Rust already uses 26.2 ClockManager.getTotalTicks (item 105) |
 | 267 | changed | 14 | classes table gains DirtPathBlock + RedStoneWireBlock aliases (both classes never matched in 26.2); survival tables updated |
 | 247 | changed | 6 | eyeblossom neighbour scan to 26.2 betweenClosed order (x, y, z), not 26.3 section-major |
+| 177 | changed | 120 | brewing to 26.2 PotionBrewing mixes (65) + BrewOutput model; stand to flat 26.2 form (no totals/speed); both harnesses reworked (5,386 + 20 lines match); shared block-update oracle to 26.2 (blockscan/ClockInstance/ServerChunkCache); merchant float-number fix; spans the investigation (pre-compaction) + implementation |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 

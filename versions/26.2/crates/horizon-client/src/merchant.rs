@@ -655,22 +655,34 @@ pub trait MapMaker {
 }
 /// An `exploration_map` function's settings.
 pub use horizon_world::loot::ExplorationMap;
+/// A JSON number as an integer: 26.2's data writes whole numbers as floats
+/// (`"amount": 2.0`, `"count": 5.0`, `"max_uses": 12.0`, `"xp": 3.0`) where
+/// 26.3 writes ints, and Mojang's number codec reads both
+/// (`JsonPrimitive.getAsInt` truncates toward zero, as Rust's `as` does).
+/// `serde_json::Number::as_i64` returns None for a float, so read through
+/// f64 when there is no i64.
+fn num_i64(v: &Value) -> i64 {
+    match v {
+        Value::Number(n) => n
+            .as_i64()
+            .or_else(|| n.as_f64().map(|f| f as i64))
+            .unwrap_or(0),
+        _ => 0,
+    }
+}
 fn int_provider<R: RandomSource>(v: &Value, random: &mut R) -> i32 {
     match v {
-        Value::Number(n) => n.as_i64().unwrap_or(0) as i32,
+        Value::Number(_) => num_i64(v) as i32,
         Value::Object(o) => match o.get("type").and_then(Value::as_str).unwrap_or("") {
             "minecraft:uniform" => {
-                let (min, max) = (
-                    o["min"].as_i64().unwrap_or(0) as i32,
-                    o["max"].as_i64().unwrap_or(0) as i32,
-                );
+                let (min, max) = (num_i64(&o["min"]) as i32, num_i64(&o["max"]) as i32);
                 if min >= max {
                     min
                 } else {
                     min + random.next_int_bound(max - min + 1).unwrap_or(0)
                 }
             }
-            "minecraft:constant" => o["value"].as_i64().unwrap_or(0) as i32,
+            "minecraft:constant" => num_i64(&o["value"]) as i32,
             // Sum: inputs in order, summed in a long and clamped.
             "minecraft:add" => {
                 let mut total = 0i64;
@@ -684,7 +696,7 @@ fn int_provider<R: RandomSource>(v: &Value, random: &mut R) -> i32 {
                 let p = float_provider(&o["p"], random);
                 (0..n).filter(|_| random.next_float() < p).count() as i32
             }
-            _ => o.get("value").and_then(Value::as_i64).unwrap_or(0) as i32,
+            _ => o.get("value").map_or(0, num_i64) as i32,
         },
         _ => 0,
     }
@@ -747,7 +759,7 @@ impl Trades {
         let gives = &t["gives"];
         let mut result = ItemStack::new(
             gives["id"].as_str()?,
-            gives["count"].as_u64().unwrap_or(1) as u32,
+            gives.get("count").map_or(1, |v| num_i64(v).max(0) as u32),
         );
         let mut additional = 0;
         // 26.2's `given_item_modifiers` (a list; 26.3 renamed it to the

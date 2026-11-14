@@ -1,6 +1,6 @@
 //! Brewing parity (tools/test_brewing_parity.py): reads "input reagent
-//! candidate" lines of item SNBT and prints the three brewing-slot filters,
-//! the matching recipe and its assembled result; "tick" lines build a
+//! candidate" lines of item SNBT and prints the three brewing-slot filters
+//! and the matching mix's assembled result; "tick" lines build a
 //! BrewingStand, run it for their tick count, and print the same state the
 //! real BrewingStandBlockEntity.serverTick oracle prints.
 //!
@@ -10,7 +10,6 @@ use horizon_client::{
     item_data::{canon_stack, parse_stack},
     items::{ItemStack, Items},
 };
-use horizon_client_render::providers::Providers;
 use horizon_world::loot::PackOverlay;
 use std::sync::Arc;
 use std::{fmt::Write as _, fs};
@@ -25,7 +24,6 @@ pub fn main() -> horizon_client::Result<()> {
         .ok_or("no #resources line")?;
     let items = Items::catalog(&root, &PackOverlay::NONE)?;
     let brewing = Brewing::load(&root, &items, &PackOverlay::NONE);
-    let providers = Providers::load(&root);
     let mut out = String::new();
     for (n, line) in input
         .lines()
@@ -43,13 +41,10 @@ pub fn main() -> horizon_client::Result<()> {
             stand.items = slots;
             stand.brew_time = f[7].parse()?;
             stand.fuel = f[8].parse()?;
-            stand.total_brew_time = f[9].parse()?;
-            stand.total_fuel = f[10].parse()?;
-            stand.speed = f[11].parse()?;
-            stand.ingredient = (f[12] != "-").then(|| Arc::<str>::from(f[12]));
+            stand.ingredient = (f[9] != "-").then(|| Arc::<str>::from(f[9]));
             let mut brews = 0;
             for _ in 0..ticks {
-                brews += stand.tick(&brewing, &items, &providers).brewed as u32;
+                brews += stand.tick(&brewing, &items).brewed as u32;
             }
             let bits: String = stand.items[..3]
                 .iter()
@@ -57,7 +52,7 @@ pub fn main() -> horizon_client::Result<()> {
                 .collect();
             writeln!(
                 out,
-                "{n} s0={} s1={} s2={} s3={} s4={} time={} fuel={} total={} totalfuel={} speed={:.3} bits={bits} ing={} brews={brews}",
+                "{n} s0={} s1={} s2={} s3={} s4={} time={} fuel={} bits={bits} ing={} brews={brews}",
                 canon_stack(stand.items[0].as_ref()),
                 canon_stack(stand.items[1].as_ref()),
                 canon_stack(stand.items[2].as_ref()),
@@ -65,9 +60,6 @@ pub fn main() -> horizon_client::Result<()> {
                 canon_stack(stand.items[4].as_ref()),
                 stand.brew_time,
                 stand.fuel,
-                stand.total_brew_time,
-                stand.total_fuel,
-                stand.speed,
                 stand.ingredient.as_deref().unwrap_or("-"),
             )?;
             continue;
@@ -77,19 +69,14 @@ pub fn main() -> horizon_client::Result<()> {
         let candidate = parse_stack(f[2])?;
         let potion_slot = candidate.as_ref().is_some_and(|s| brewing.is_bottle(s));
         let reagent_slot = candidate.as_ref().is_some_and(|s| brewing.is_reagent(s));
-        let fuel_slot = candidate
-            .as_ref()
-            .is_some_and(|s| brewing_fuel(&items, s).is_some());
-        let found = match (input.as_ref(), reagent.as_ref()) {
-            (Some(input), Some(reagent)) => brewing.find(input, reagent),
-            _ => None,
+        let fuel_slot = candidate.as_ref().is_some_and(|s| brewing_fuel(&items, s));
+        let result = match (input.as_ref(), reagent.as_ref()) {
+            (Some(input), Some(reagent)) => brewing
+                .find(input, reagent)
+                .map_or_else(|| "-".to_owned(), |r| canon_stack(Some(&r.apply(input)))),
+            _ => "-".to_owned(),
         };
-        let result = found.map_or_else(|| "-".to_owned(), |r| canon_stack(Some(&r.output)));
-        let id = found.map_or_else(|| "-".to_owned(), |r| r.id.clone());
-        writeln!(
-            out,
-            "{n} {potion_slot} {reagent_slot} {fuel_slot} {result} {id}"
-        )?;
+        writeln!(out, "{n} {potion_slot} {reagent_slot} {fuel_slot} {result}")?;
     }
     fs::write(args.get(2).ok_or("missing OUTPUT")?, out)?;
     Ok(())

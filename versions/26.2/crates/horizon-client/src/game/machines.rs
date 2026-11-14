@@ -400,18 +400,14 @@ impl Containers<'_> {
                 && self.get(view, slot).is_none();
         }
         if view.kind == Kind::Brewing {
-            // BrewingStandBlockEntity.canPlaceItem
+            // BrewingStandBlockEntity.canPlaceItem (26.2): fuel by tag,
+            // reagent by PotionBrewing.isIngredient, bottles by item.
             return match slot {
-                4 => horizon_client::brewing::brewing_fuel(self.items, stack).is_some(),
+                4 => horizon_client::brewing::brewing_fuel(self.items, stack),
                 3 => self.brewing.is_some_and(|b| b.is_reagent(stack)),
                 _ => {
-                    let input = self.brewing.is_some_and(|b| b.is_bottle(stack))
-                        || self
-                            .items
-                            .item_tags
-                            .get("minecraft:brewing_potion_inputs")
-                            .is_some_and(|m| m.contains(&*stack.item));
-                    input && self.get(view, slot).is_none()
+                    self.brewing.is_some_and(|b| b.is_bottle(stack))
+                        && self.get(view, slot).is_none()
                 }
             };
         }

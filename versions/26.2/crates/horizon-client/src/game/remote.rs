@@ -5173,12 +5173,10 @@ impl Game<'_> {
                         Ok(9) => c.triggered = v == 1,
                         _ => {}
                     },
-                    // BrewingStandBlockEntity.dataAccess.
+                    // BrewingStandBlockEntity.dataAccess (26.2: 2 slots).
                     Some(BlockEntity::Brewing(b)) => match p.id {
                         0 => b.brew_time = v,
                         1 => b.fuel = v,
-                        2 => b.total_brew_time = v,
-                        3 => b.total_fuel = v,
                         _ => {}
                     },
                     _ => {}

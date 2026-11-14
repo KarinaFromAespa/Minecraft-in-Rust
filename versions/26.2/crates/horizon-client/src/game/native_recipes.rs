@@ -368,7 +368,27 @@ impl Game<'_> {
             };
             let mut r = recipe(b.id.clone(), RecipeKind::Brewing);
             r.slots = vec![potion(&b.input), potion(&b.reagent)];
-            r.results = index.of(&b.output).into_iter().collect();
+            // A 26.2 mix preserves one half of the input: a potion mix
+            // yields each input container of the new potion; a container
+            // mix yields the new container with the input's potion, shown
+            // plain like its input (the potion is whatever went in).
+            r.results = match &b.output {
+                horizon_client::brewing::BrewOutput::Potion(to) => b
+                    .input
+                    .items
+                    .iter()
+                    .filter_map(|item| {
+                        index.stack(
+                            item,
+                            1,
+                            format!("[minecraft:potion_contents={{potion:\"{to}\"}}]"),
+                        )
+                    })
+                    .collect(),
+                horizon_client::brewing::BrewOutput::Container(to) => {
+                    index.stack(to, 1, String::new()).into_iter().collect()
+                }
+            };
             out.push(r);
         }
         Recipes {

@@ -198,14 +198,9 @@ fn mouse(c: &Value, out: &mut impl Write) -> Result<()> {
     writeln!(out, "mouse")?;
     for op in c["ops"].as_array().unwrap() {
         match op[0].as_str().unwrap() {
-            "move" => handler.on_move(
-                db(&op[1]),
-                db(&op[2]),
-                db(&op[3]),
-                db(&op[4]),
-                active,
-                grabbed,
-            ),
+            // 26.2's onMove takes only the absolute position (op[1..2]);
+            // op[3..4] are 26.3's relative motion, which 26.2 ignores.
+            "move" => handler.on_move(db(&op[1]), db(&op[2]), active),
             "ignore" => handler.set_ignore_first_move(),
             "frame" => {
                 if let Some((xo, yo)) =

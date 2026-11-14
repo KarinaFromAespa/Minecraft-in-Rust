@@ -92,6 +92,10 @@ impl<'a> Fields<'a> {
         let v = int(self.input.get(key)).map_or(default, |v| v as i16);
         self.put(key, Tag::Short(v));
     }
+    fn byte(&mut self, key: &str, default: i8) {
+        let v = int(self.input.get(key)).map_or(default, |v| v as i8);
+        self.put(key, Tag::Byte(v));
+    }
     fn long(&mut self, key: &str, default: i64) {
         let v = long(self.input.get(key)).unwrap_or(default);
         self.put(key, Tag::Long(v));
@@ -508,12 +512,11 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
         }
         "minecraft:brewing_stand" => {
             f.base_container();
-            f.int("BrewTime", 0);
-            f.int("total_brew_time", 400);
+            // 26.2 saves BrewTime as a short and Fuel as a byte, with no
+            // total_brew_time, total_fuel or speed_multiplier (26.3's format).
+            f.short("BrewTime", 0);
             f.items(5, true);
-            f.int("Fuel", 0);
-            f.int("total_fuel", 20);
-            f.float("speed_multiplier", 1.0);
+            f.byte("Fuel", 0);
         }
         "minecraft:enchanting_table" => f.component("CustomName"),
         "minecraft:beacon" => {

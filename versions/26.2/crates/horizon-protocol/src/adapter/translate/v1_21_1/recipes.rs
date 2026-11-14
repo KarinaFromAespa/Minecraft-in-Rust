@@ -317,6 +317,7 @@ impl Recipes {
         Some(key)
     }
     fn properties(&self) -> Vec<u8> {
+        // 1.21.1 has no brewing property sets (added in 26.3).
         const NAMES: &[&str] = &[
             "smithing_addition",
             "smithing_base",
@@ -325,8 +326,6 @@ impl Recipes {
             "blast_furnace_input",
             "smoker_input",
             "campfire_input",
-            "brewing_input",
-            "brewing_reagent",
         ];
         let mut sets: BTreeMap<&str, BTreeSet<i32>> =
             NAMES.iter().map(|name| (*name, BTreeSet::new())).collect();

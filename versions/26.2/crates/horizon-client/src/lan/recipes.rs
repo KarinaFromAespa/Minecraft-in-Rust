@@ -12,7 +12,9 @@ use std::{
 };
 
 /// RecipeManager.RECIPE_PROPERTY_SETS: each set and the ingredients it takes
-/// from a recipe of the given type.
+/// from a recipe of the given type. 26.2 has no brewing sets — the
+/// `brewing_input`/`brewing_reagent` keys are 26.3-only (the brewing stand's
+/// slots are governed by `PotionBrewing` in 26.2, not by property sets).
 const PROPERTY_SETS: &[(&str, &str, &[&str])] = &[
     ("smithing_addition", "smithing", &["addition"]),
     ("smithing_base", "smithing", &["base"]),
@@ -25,8 +27,6 @@ const PROPERTY_SETS: &[(&str, &str, &[&str])] = &[
         "minecraft:campfire_cooking",
         &["ingredient"],
     ),
-    ("brewing_input", "minecraft:brewing", &["input"]),
-    ("brewing_reagent", "minecraft:brewing", &["reagent"]),
 ];
 
 /// An ingredient as its HolderSet: a tag, or the items listed.

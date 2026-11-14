@@ -314,40 +314,8 @@ public final class VanillaBlockUpdateOracle {
         @Override public boolean shouldTickBlocksAt(long p) { return true; }
         @Override public boolean canSpreadFireAround(BlockPos p) { return true; }
         @Override public net.minecraft.world.Difficulty getDifficulty() { return net.minecraft.world.Difficulty.NORMAL; }
-        // 26.3 block scans read chunk sections; this level has none, so scan
-        // the same positions in the same order through getBlockState.
-        @Override public net.minecraft.world.level.blockscan.BlockMatcher findBlocksIn(BlockPos from, BlockPos to) {
-            return new Scan(this, boxOrder(from, to));
-        }
-        @Override public net.minecraft.world.level.blockscan.OrderedBlockMatcher findBlocksIn(Iterable<BlockPos> positions) {
-            return new Scan(this, positions);
-        }
-        /** BlockScanUtils.sectionBasedScan's order: sections by x, z, y, then y, z, x inside; then below and above the world. */
-        List<BlockPos> boxOrder(BlockPos from, BlockPos to) {
-            int minX = Math.min(from.getX(), to.getX()), minY = Math.min(from.getY(), to.getY()), minZ = Math.min(from.getZ(), to.getZ());
-            int maxX = Math.max(from.getX(), to.getX()), maxY = Math.max(from.getY(), to.getY()), maxZ = Math.max(from.getZ(), to.getZ());
-            List<BlockPos> out = new ArrayList<>();
-            for (int sx = minX >> 4; sx <= maxX >> 4; sx++) {
-                for (int sz = minZ >> 4; sz <= maxZ >> 4; sz++) {
-                    for (int sy = Math.max(getMinSectionY(), minY >> 4); sy <= Math.min(getMaxSectionY(), maxY >> 4); sy++) {
-                        for (int y = Math.max(sy << 4, minY); y <= Math.min((sy << 4) + 15, maxY); y++) {
-                            for (int z = Math.max(sz << 4, minZ); z <= Math.min((sz << 4) + 15, maxZ); z++) {
-                                for (int x = Math.max(sx << 4, minX); x <= Math.min((sx << 4) + 15, maxX); x++) {
-                                    out.add(new BlockPos(x, y, z));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            if (minY < getMinY()) {
-                for (BlockPos q : BlockPos.betweenClosed(minX, minY, minZ, maxX, getMinY() - 1, maxZ)) out.add(q.immutable());
-            }
-            if (maxY > getMaxY()) {
-                for (BlockPos q : BlockPos.betweenClosed(minX, getMaxY() + 1, minZ, maxX, maxY, maxZ)) out.add(q.immutable());
-            }
-            return out;
-        }
+        // 26.2 has no Level.findBlocksIn (the blockscan package is 26.3-only);
+        // scans use BlockPos.betweenClosed through getBlockState instead.
         // Allocated without a constructor, so the sound seed generator, attribute
         // system and chunk source are missing. Sound seeds never touch the level
         // RNG, the overworld keeps every attribute default and entity ids are not
@@ -360,7 +328,7 @@ public final class VanillaBlockUpdateOracle {
         @Override public net.minecraft.world.attribute.EnvironmentAttributeSystem environmentAttributes() {
             if (attributes == null) {
                 var builder = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addConstantLayer(OVERWORLD_TYPE.attributes());
-                OVERWORLD_TYPE.timelines().forEach(timeline -> builder.addTimelineLayer(timeline, clock -> DAY));
+                OVERWORLD_TYPE.timelines().forEach(timeline -> builder.addTimelineLayer(timeline, clock -> 6000L));
                 attributes = builder.build();
             }
             return attributes;
@@ -390,7 +358,7 @@ public final class VanillaBlockUpdateOracle {
         }
         /** The overworld (fire in an obsidian frame lights a portal here). */
         @Override public net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension() { return dimensionKey != null ? dimensionKey : net.minecraft.world.level.Level.OVERWORLD; }
-        @Override public long getOverworldClockTime() { return DAY.totalTicks(); }
+        @Override public long getOverworldClockTime() { return 6000L; }
         @Override public float getMoonBrightness(BlockPos p) {
             return net.minecraft.world.level.dimension.DimensionType.MOON_BRIGHTNESS_PER_PHASE[environmentAttributes().getValue(net.minecraft.world.attribute.EnvironmentAttributes.MOON_PHASE, p).index()];
         }
@@ -407,52 +375,7 @@ public final class VanillaBlockUpdateOracle {
         }
     }
 
-    /** A block matcher over explicit positions; outside the build height every block reads as air. */
-    static final class Scan extends net.minecraft.world.level.blockscan.OrderedBlockMatcher {
-        final World world;
-        Iterable<BlockPos> positions;
-        Scan(World world, Iterable<BlockPos> positions) {
-            super(world, positions);
-            this.world = world;
-            this.positions = positions;
-        }
-        @Override public Scan filterPos(java.util.function.Predicate<? super BlockPos> predicate) {
-            positions = com.google.common.collect.Iterables.filter(positions, predicate::test);
-            return this;
-        }
-        @Override public Scan filterState(java.util.function.Predicate<BlockState> predicate) {
-            super.filterState(predicate);
-            return this;
-        }
-        boolean scan(java.util.function.Predicate<BlockState> predicate, net.minecraft.world.level.blockscan.BlockStateConsumer consumer) {
-            for (BlockPos p : positions) {
-                BlockState s = p.getY() >= world.getMinY() && p.getY() <= world.getMaxY() ? world.getBlockState(p) : AIR;
-                if (predicate.test(s) && consumer.apply(p, s).shouldAbort()) return true;
-            }
-            return false;
-        }
-        @Override public boolean atLeastMatched(int n) {
-            int[] count = {0};
-            return scan(statePredicate, (p, s) -> net.minecraft.util.Continuation.abortIf(++count[0] >= n));
-        }
-        @Override protected boolean anyMatched(java.util.function.Predicate<BlockState> predicate) {
-            return scan(predicate, (p, s) -> net.minecraft.util.Continuation.ABORT);
-        }
-        @Override public void forEach(java.util.function.BiConsumer<BlockPos, BlockState> consumer) {
-            scan(statePredicate, (p, s) -> { consumer.accept(p, s); return net.minecraft.util.Continuation.CONTINUE; });
-        }
-        @Override public boolean forEachUntil(net.minecraft.world.level.blockscan.BlockStateConsumer consumer) {
-            return scan(statePredicate, consumer);
-        }
-    }
-
     static net.minecraft.world.level.dimension.DimensionType OVERWORLD_TYPE;
-    static final net.minecraft.world.clock.ClockInstance DAY = new net.minecraft.world.clock.ClockInstance() {
-        @Override public long totalTicks() { return 6000L; }
-        @Override public float partialTick() { return 0f; }
-        @Override public float rate() { return 1f; }
-        @Override public boolean isPaused() { return false; }
-    };
     static final net.minecraft.world.level.storage.ServerLevelData LEVEL_DATA = (net.minecraft.world.level.storage.ServerLevelData) java.lang.reflect.Proxy.newProxyInstance(
         VanillaBlockUpdateOracle.class.getClassLoader(), new Class<?>[] {net.minecraft.world.level.storage.ServerLevelData.class}, (proxy, method, values) -> {
             Class<?> type = method.getReturnType();
@@ -618,7 +541,7 @@ public final class VanillaBlockUpdateOracle {
         static net.minecraft.world.level.chunk.ChunkGenerator generator;
 
         private Chunks() {
-            super(null, null, null, null, null, null, 0, 0, false, null);
+            super(null, null, null, null, null, null, 0, 0, false, null, null);
         }
 
         @Override

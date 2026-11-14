@@ -686,11 +686,10 @@ pub fn encode_block_entity(
         }
         BlockEntity::Brewing(b) => {
             entries.push(("Items", encode_items(&b.items)));
-            entries.push(("BrewTime", Tag::Int(b.brew_time)));
-            entries.push(("total_brew_time", Tag::Int(b.total_brew_time)));
-            entries.push(("Fuel", Tag::Int(b.fuel)));
-            entries.push(("total_fuel", Tag::Int(b.total_fuel)));
-            entries.push(("speed_multiplier", Tag::Float(b.speed.to_bits())));
+            // 26.2 saves BrewTime as a short and Fuel as a byte, with no
+            // total_brew_time, total_fuel or speed_multiplier (26.3's format).
+            entries.push(("BrewTime", Tag::Short(b.brew_time as i16)));
+            entries.push(("Fuel", Tag::Byte(b.fuel as i8)));
         }
         BlockEntity::Sign(sign) => entries.extend(sign.encode()),
         BlockEntity::Jukebox(j) => {
@@ -1064,13 +1063,12 @@ pub fn decode_block_entity(tag: &Tag) -> Option<((i32, i32, i32), crate::contain
                 items[4].clone(),
             ];
             b.brew_time = int("BrewTime").unwrap_or(0);
-            b.total_brew_time = int("total_brew_time").unwrap_or(400);
             if b.brew_time > 0 {
                 b.ingredient = b.items[3].as_ref().map(|s| s.item.clone());
             }
             b.fuel = int("Fuel").unwrap_or(0);
-            b.total_fuel = int("total_fuel").unwrap_or(20);
-            b.speed = float(tag.get("speed_multiplier")).map_or(1.0, |v| v as f32);
+            // A 26.3 save's total_brew_time, total_fuel and
+            // speed_multiplier are ignored: 26.2 stands have no such state.
         }
         BlockEntity::Brushable(b) => {
             b.loot_table = tag.get("LootTable").cloned();

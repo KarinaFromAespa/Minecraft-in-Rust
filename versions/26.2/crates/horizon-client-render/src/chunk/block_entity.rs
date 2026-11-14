@@ -472,14 +472,13 @@ impl Jukebox {
     }
 }
 /// `BrewingStandBlockEntity` state. Slots: 0-2 bottles, 3 ingredient, 4 fuel.
+/// 26.2 has no total-brew/total-fuel fields and no speed multiplier (26.3's
+/// `BrewingFuel` component): fuel is 20 uses, a brew is a flat 400 ticks.
 #[derive(Clone, Debug, Default)]
 pub struct BrewingStand {
     pub items: [Option<ItemStack>; 5],
     pub brew_time: i32,
-    pub total_brew_time: i32,
     pub fuel: i32,
-    pub total_fuel: i32,
-    pub speed: f32,
     pub ingredient: Option<Arc<str>>,
     pub last_bottles: Option<[bool; 3]>,
 }

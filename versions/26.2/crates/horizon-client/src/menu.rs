@@ -1466,19 +1466,12 @@ impl Menu {
             Role::Potion => {
                 // 26.2's `PotionSlot.mayPlaceItem`: potion, splash and
                 // lingering potion plus the glass bottle — the brewing
-                // recipes' inputs plus the bottle. The
-                // `brewing_potion_inputs` tag arm is 26.3's
-                // `PotionIngredient.isPotionInput`; the tag does not exist
-                // in 26.2's data, so it never matches here.
+                // mixes' inputs plus the bottle. (26.3's
+                // `brewing_potion_inputs` tag does not exist in 26.2.)
                 env.brewing.is_bottle(stack)
-                    || env
-                        .items
-                        .item_tags
-                        .get("minecraft:brewing_potion_inputs")
-                        .is_some_and(|m| m.contains(&*stack.item))
             }
             Role::Ingredient => env.brewing.is_reagent(stack),
-            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack).is_some(),
+            Role::BrewFuel => crate::brewing::brewing_fuel(env.items, stack),
             Role::LoomBanner => Self::is_banner(stack),
             Role::LoomDye => env.banners.loom_dye(env.items, stack).is_some(),
             Role::LoomPattern => env.banners.is_pattern_item(env.items, stack),
@@ -1963,8 +1956,7 @@ impl Menu {
                 .and_then(|maps| maps.state(id))
                 .map(|(_, scale)| scale)
         };
-        let map_is_exploration =
-            |id| env.maps.is_some_and(|maps| maps.is_exploration_map(id));
+        let map_is_exploration = |id| env.maps.is_some_and(|maps| maps.is_exploration_map(id));
         if let Some((id, _)) = env
             .recipes
             .find_with(&grid, n, &map_scale, &map_is_exploration)
@@ -2346,7 +2338,7 @@ impl Menu {
                     if !self.move_to(env, &mut stack, 5, 41, true) {
                         return None;
                     }
-                } else if crate::brewing::brewing_fuel(env.items, &clicked).is_some() {
+                } else if crate::brewing::brewing_fuel(env.items, &clicked) {
                     let moved = self.move_to(env, &mut stack, 4, 5, false);
                     if moved
                         || (env.brewing.is_reagent(&stack)
