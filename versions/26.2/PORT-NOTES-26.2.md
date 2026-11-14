@@ -1996,3 +1996,172 @@ Eleven no-change, one changed (387). Rank 2 374/410 -> 386/410. CI run
 
 - 1 class, 0 named. `DefaultAttributes`: `EnderMan` (26.2) vs
   `Enderman` (26.3) — the class rename.
+
+## Batch of 23 rank-2 A items closed (2026-11-15) — 392, 394, 395, 396, 398, 399, 400, 401, 402, 403, 404, 405, 406, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417
+
+Twenty-two no-change, one changed (402). Rank 2 386/410 -> 409/410.
+Bucket A is now complete; only item 127 (parked, D bucket) remains open
+in rank 2. CI run 43646940294 still in flight on the 338/410 tree.
+
+## Item 392 no-change (2026-11-15) — world/chunk.rs
+
+- 1 class, 0 named. `ZeroBitStorage.fill(int)` is 26.3-only (the item-358
+  pattern). The Rust's paletted storage has no `fill` method.
+
+## Item 394 no-change (2026-11-15) — worldgen/structure/processor.rs
+
+- 1 class, 0 named. `IntProviders`: 26.3 registers
+  `very_biased_to_bottom`. The Rust's height provider handles that type,
+  but it is only invoked when the data names it — and 26.2's data never
+  does, so the extra handler is dead code for 26.2 (the DYE_COLOR
+  pattern from item 366).
+
+## Item 395 no-change (2026-11-15) — client/gui/components/events
+
+- 1 class, 0 named. `GuiEventListener.capturesInput()` is 26.3-only
+  (the item-373 pattern).
+
+## Item 396 no-change (2026-11-15) — client/gui
+
+- 1 class, 0 named. `Gui$1` (synthetic) has no diff at all.
+
+## Item 398 no-change (2026-11-15) — client/renderer/block/dispatch
+
+- 1 class, 0 named. `BlockStateModelDispatcher$SimpleModelSelectors`:
+  the model-selection loop is identical; only the log line differs
+  (26.3 includes the exception message). The Rust's model dispatcher is
+  its own.
+
+## Item 399 no-change (2026-11-15) — realmsclient/client/worldupload
+
+- 1 class, 0 named. `RealmsCreateWorldFlow`: a log-message format
+  difference only. The Rust does not run Realms.
+
+## Item 400 no-change (2026-11-15) — core/particles
+
+- 1 class, 0 named. `ParticleTypes`: the `red/orange/yellow_poplar_leaves`
+  particles are 26.3-only, and the particle-options codec dispatch gains
+  the `"type"` key in 26.2. The Rust's `ParticleType` enum carries the
+  three poplar variants, but particle ids resolve by NAME through the
+  adapter's remap tables (data-driven from the 26.2 registry), and no
+  26.2 data ever names them — unreachable on 26.2 (the DYE_COLOR pattern).
+
+## Item 401 no-change (2026-11-15) — core/registries
+
+- 1 class, 0 named. `Registries`: the 26.3 type-registry rework
+  (`MapCodec<? extends X>` type registries vs 26.2's instance
+  registries) plus 26.3-only keys (`block_transformer`,
+  `context_key_set`, `slot_source`, `context_float/int_provider`,
+  `worldgen/carver_type`, `worldgen/feature_type`,
+  `worldgen/material_condition/rule_type`, `worldgen/noise` as
+  NormalNoise). The Rust loads registries by data path from the 26.2
+  files; the 26.3-only datapack registries (`context_int_provider`,
+  `context_float_provider`, `slot_source`) do not exist in 26.2's data
+  at all (0 entries in the 26.2 jar vs 37 in 26.3's), and the Rust's
+  loaders no-op on their absence (`load_dir` returns on a missing
+  directory). No 26.2 wire or data difference.
+
+## Item 402 changed (2026-11-15) — server/dedicated
+
+- 1 class, 0 named. `DedicatedServerProperties`: `white-list` defaults
+  to `true` in 26.3 and `false` in 26.2. The Rust's
+  `horizon-server-files/src/properties.rs` used the 26.3 default
+  (`r.boolean("white-list", true)`), which flows into
+  `lists.use_whitelist` — a dedicated server started without
+  `white-list` in server.properties would enforce the whitelist in the
+  Rust but not in vanilla 26.2. Fixed to `false`, with the 26.2 default
+  documented. The existing `defaults_match_vanilla_init_settings` test
+  pinned the 26.3 value in its stored-output suffix; updated to
+  `white-list=false` with an explicit `assert!(!p.white_list)`.
+
+## Item 403 no-change (2026-11-15) — server/network
+
+- 1 class, 0 named. `ServerGamePacketListenerImpl$1` is the compiler
+  switch map over `ServerboundPlayerActionPacket.Action` — the ordinals
+  differ by one for CHANGE_DESTROY_DIRECTION and friends, the item-12
+  PlayerAction ordinal shift, already ported (client sends + host
+  dispatch to 26.2 ordinals).
+
+## Item 404 no-change (2026-11-15) — stats
+
+- 1 class, 0 named. `Stats`: `SLEEP_IN_STRAW_BED` is 26.3-only. No Rust
+  reference.
+
+## Item 405 no-change (2026-11-15) — util/random
+
+- 1 class, 0 named. `WeightedList$Builder.addAll` is 26.3-only. The
+  Rust's weighted list has no `add_all`.
+
+## Item 406 no-change (2026-11-15) — world/attribute
+
+- 1 class, 0 named. `EnvironmentAttributeReader`: 26.3 reads the ORIGIN
+  with `getOptional` and falls back to the attribute default when it is
+  absent; 26.2 reads it with `getParameter` (throws when absent). The
+  Rust's environment system takes a position directly for positional
+  attributes (no loot-context path), so the optional-vs-required
+  distinction has no Rust surface.
+
+## Item 408 no-change (2026-11-15) — world/entity/ai/behavior
+
+- 1 class, 0 named. `MeleeAttack`: `swingForAttack` (26.3) vs `swing`
+  (26.2). The Rust's melee attack uses `swing` (ai.rs).
+
+## Item 409 no-change (2026-11-15) — world/entity/animal/goat
+
+- 1 class, 0 named. `GoatAi`: only the IDLE activity's memory
+  requirements changed — 26.3 wants `RAM_COOLDOWN_TICKS` +
+  `LONG_JUMP_COOLDOWN_TICKS` VALUE_PRESENT; 26.2 wants `RAM_TARGET` +
+  `LONG_JUMP_MID_JUMP` VALUE_ABSENT. The RAM and LONG_JUMP activities
+  are identical in both. The Rust has no brain activities; its goat
+  gating faithfully implements 26.2's order — RAM first (its cooldown
+  absent), LONG_JUMP when RAM is on cooldown (`ram_cooldown > 0`) with
+  TEMPTING_PLAYER/BREED_TARGET/WALK_TARGET absent and its own cooldown
+  absent (`jump_cooldown(m).is_none()` in frog.rs).
+
+## Item 410 no-change (2026-11-15) — world/entity/animal/nautilus
+
+- 1 class, 0 named. `AbstractNautilus`: `calculateViewVector` is a
+  static call in 26.3 and an instance call (`this.calculateViewVector`)
+  in 26.2 — the same math.
+
+## Item 411 no-change (2026-11-15) — world/entity/decoration
+
+- 1 class, 0 named. `Mannequin`: 26.2's `aiStep` calls
+  `updateSwingTime()`; 26.3's does not. The Rust's mob tick calls
+  `tick_swing(m)` for every mob including mannequins (ai.rs:793) — the
+  26.2 form.
+
+## Item 412 no-change (2026-11-15) — world/entity/item
+
+- 1 class, 0 named. `ItemEntity.getMoveSimulationType` returning
+  SERVER_AND_CLIENT is 26.3-only (the item-377 pattern).
+
+## Item 413 no-change (2026-11-15) — world/item/consume_effects
+
+- 1 class, 0 named. `RemoveStatusEffectsConsumeEffect`: `holderSet` ->
+  `homogeneousList` for the `effects` field — the same JSON shape.
+
+## Item 414 no-change (2026-11-15) — world/level/block/entity/vault
+
+- 1 class, 0 named. `VaultBlockEntity$Server`: 26.3 calls
+  `setBlockAndUpdate`; 26.2 calls `setBlock(pos, state, 3)` — and
+  `Level.setBlockAndUpdate` IS `setBlock(pos, state, 3)` in both
+  versions, so the two forms are identical. The Rust's `set_vault_state`
+  goes through the general `level_set` path.
+
+## Item 415 no-change (2026-11-15) — world/level/gameevent
+
+- 1 class, 0 named. `GameEvent`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 416 no-change (2026-11-15) — world/level/levelgen/structure/pieces
+
+- 1 class, 0 named. `StructurePieceSerializationContext`:
+  `getStructureTemplateManager` (26.3) vs `getStructureManager` (26.2)
+  — rename only.
+
+## Item 417 no-change (2026-11-15) — world/level/storage/loot/parameters
+
+- 1 class, 0 named. `LootContextParams`: the `CONTAINER` ContextKey
+  (SlotProvider) is 26.3-only. The Rust's loot context has no CONTAINER
+  key (it uses ORIGIN and BLOCK_ENTITY).

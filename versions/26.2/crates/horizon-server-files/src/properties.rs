@@ -340,7 +340,8 @@ impl ServerProperties {
         let text_filtering_version = r.int("text-filtering-version", 0);
         let player_idle_timeout = r.int("player-idle-timeout", 0);
         let status_heartbeat_interval = r.int("status-heartbeat-interval", 0);
-        let white_list = r.boolean("white-list", true);
+        // 26.2 defaults white-list to false (26.3 flipped it to true).
+        let white_list = r.boolean("white-list", false);
         let enforce_secure_profile = r.boolean("enforce-secure-profile", true);
         let log_ips = r.boolean("log-ips", true);
         let pause_when_empty_seconds = r.int("pause-when-empty-seconds", 60);
@@ -655,10 +656,12 @@ mod tests {
             stored
                 .contains("\nmanagement-server-secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
         );
-        assert!(stored.ends_with("\nview-distance=10\nwhite-list=true\n"));
+        assert!(stored.ends_with("\nview-distance=10\nwhite-list=false\n"));
         assert_eq!(stored.lines().count(), 71);
         assert!(p.random_seed);
         assert_eq!(p.seed, 7);
+        // 26.2 defaults white-list to false (26.3 flipped it to true).
+        assert!(!p.white_list);
     }
     #[test]
     fn parses_like_vanilla() {
