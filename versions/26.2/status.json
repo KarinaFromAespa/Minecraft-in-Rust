@@ -1,7 +1,7 @@
 {
  "behaviour": {
   "closed": 7,
-  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 218/410 on behaviour/26.2 (tip 894a3092); bucket C closed, bucket B has only item 106 open.",
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 220/410 on behaviour/26.2 (tip fb73d370); bucket C closed, bucket B has only item 106 open. Items 88/231 closed 2026-11-14 (worldgen settings + carvers); spawn_origin passes end to end.",
   "total": 651
  },
  "harness": {
@@ -18,7 +18,7 @@
  },
  "last_ci_commit": "bc530de6",
  "last_ci_run": 43535967019,
- "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 218/410 on behaviour/26.2.",
+ "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 220/410 on behaviour/26.2.",
  "profile_recorded": "2026-11-14",
  "protocol": 776,
  "protocol_tests": {
