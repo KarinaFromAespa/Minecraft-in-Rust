@@ -9356,7 +9356,7 @@ impl Game<'_> {
             return false;
         }
         let gliding = self.player.as_ref().is_some_and(|p| p.fall_flying);
-        // FireworkRocketItem.use while gliding: SUCCESS (SwingSource.PREDICTED),
+        // FireworkRocketItem.use while gliding: SUCCESS (SwingSource.CLIENT),
         // so startUseItem swings this hand itself; a vanilla server swings it
         // for the other players only.
         if gliding && &*held.item == "minecraft:firework_rocket" {
@@ -9938,7 +9938,6 @@ impl Game<'_> {
             self.reset_attack_strength();
         }
         self.swing_arm();
-        self.send(S::Swing(Empty));
         instant
     }
 
@@ -10057,14 +10056,12 @@ impl Game<'_> {
             if let Some(swing) = canceled {
                 if swing {
                     self.swing_arm();
-                    self.send(S::Swing(Empty));
                 }
             } else if self.remote_break_restricted(hit.pos) {
                 // continueDestroyBlock returned false: no swing.
             } else if !air {
                 self.remote_mining(false);
                 self.swing_arm();
-                self.send(S::Swing(Empty));
             } else {
                 if let Some(r) = self.remote.as_mut() {
                     r.destroying = None;
@@ -10215,8 +10212,9 @@ impl Game<'_> {
             self.send_signed_chat(message);
         }
     }
-    /// MultiPlayerGameMode.dropItem (key.drop): predict the removal, then send
-    /// the action; swing only if a nonempty stack was removed.
+    /// `LocalPlayer.drop` (key.drop): predict the removal, then send
+    /// the action; swing only if a nonempty stack was removed (the swing
+    /// itself sends the swing packet, 26.2's `LocalPlayer.swing`).
     pub(super) fn remote_drop(&mut self, all: bool) {
         // ensureHasSentCarriedItem: the server drops from the slot just chosen.
         self.remote_send_carried();
@@ -11472,7 +11470,8 @@ fn use_ends_click(info: &horizon_client::items::ItemInfo, fall_flying: bool) -> 
 }
 
 /// Whether `Item.use` of this item answers SUCCESS on this client, which
-/// swings (`MultiPlayerGameMode.useItem`'s `result.shouldSwing()`), rather
+/// swings (26.2's `MultiPlayerGameMode.useItem` returns the result and
+/// `Minecraft.startUseItem` swings on `swingSource() == SwingSource.CLIENT`), rather
 /// than CONSUME, which only ends the click: a bow, crossbow, trident or
 /// spear starting its charge, `ItemUtils.startUsingInstantly`'s food, drink,
 /// spyglass, shield and goat horn, and the ender eye's SUCCESS_SERVER (the
@@ -12754,7 +12753,7 @@ mod tests {
         );
     }
 
-    /// `MultiPlayerGameMode.useItem`'s `shouldSwing`: the SUCCESS answers
+    /// `Minecraft.startUseItem`'s `swingSource() == SwingSource.CLIENT`: the SUCCESS answers
     /// swing, CONSUME's do not (#6425).
     #[test]
     fn a_thrown_item_swinging_on_a_server_and_a_charge_not() {

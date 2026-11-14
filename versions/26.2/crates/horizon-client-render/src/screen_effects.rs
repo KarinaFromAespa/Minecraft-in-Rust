@@ -122,7 +122,7 @@ impl ScreenEffects {
         };
         self.portal = (self.portal + step).clamp(0.0, 1.0);
     }
-    /// `LocalPlayer.tickSpinningEffect` and Nausea's blend. `nausea` is `None`
+    /// `GameRenderer`'s spinning-effect tick and Nausea's blend. `nausea` is `None`
     /// without the effect, else whether it is past its blend-out point
     /// (`!endsWithin(60)`, `MobEffects.NAUSEA`).
     pub fn tick_spinning(&mut self, nausea: Option<bool>) {

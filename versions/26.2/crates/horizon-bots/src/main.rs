@@ -1264,7 +1264,7 @@ fn run_bot(
                             // The client sends the attack, then swings the arm.
                             let sent = send(
                                 play::Serverbound::Attack(play::Attack { id: victim }).encode(),
-                            ) && send(play::Serverbound::Swing(Empty).encode());
+                            ) && send(play::Serverbound::Swing(play::Swing { hand: 0 }).encode());
                             if sent {
                                 bot.attacks.fetch_add(1, Ordering::Relaxed);
                             }
@@ -1368,7 +1368,7 @@ fn run_bot(
                 send(play::Serverbound::Attack(play::Attack { id }).encode());
                 // Minecraft.startAttack swings right after the attack.
                 if !o.no_swing {
-                    send(play::Serverbound::Swing(Empty).encode());
+                    send(play::Serverbound::Swing(play::Swing { hand: 0 }).encode());
                 }
                 bot.attacks.fetch_add(1, Ordering::Relaxed);
             }

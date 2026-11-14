@@ -908,7 +908,7 @@ impl EntityObstructionWorld for BuildingObstruction {
 /// Whether a block's successful use is `InteractionResult.SUCCESS_SERVER`,
 /// which a client does not predict: `useWithoutItem` of a bed, a light
 /// block, a charged respawn anchor or a sign. Every other block use the
-/// level answers with SUCCESS is `SUCCESS` (`SwingSource.PREDICTED`).
+/// level answers with SUCCESS is `SUCCESS` (`SwingSource.CLIENT`).
 fn server_only_block_use(
     block: &horizon_items::blocks::StateFacts,
     branch: horizon_world::level::UseBranch,
@@ -2546,7 +2546,7 @@ struct Game<'a> {
     /// fields, not 26.3's `LivingEntity.SwingState`) and how many swings started.
     swing: horizon_client::first_person::SwingState,
     swings_started: u32,
-    /// Swings of uses whose client predicts them (`SwingSource.PREDICTED`):
+    /// Swings of uses whose client predicts them (`SwingSource.CLIENT`):
     /// a server does not send these back to the player who swung.
     predicted_swings: u32,
     /// The first-person equip heights and the items the hands show (with

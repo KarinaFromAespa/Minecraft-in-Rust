@@ -802,7 +802,7 @@ pub trait HandWorld {
     fn use_on_entity(&mut self, hand: Hand) -> Option<UseResult>;
     fn use_on_block(&mut self, hand: Hand) -> UseResult;
     fn use_item(&mut self, hand: Hand) -> UseResult;
-    /// `LocalPlayer.itemUsed`.
+    /// `ItemInHandRenderer.itemUsed`.
     fn item_used(&mut self, hand: Hand);
     /// `MultiPlayerGameMode.releaseUsingItem`.
     fn release_using(&mut self);

@@ -12,6 +12,7 @@ use horizon_client::{
     items::ItemStack,
 };
 use horizon_core::geometry::{Aabb, Vec3};
+use horizon_protocol::packets::play::{Serverbound as S, Swing};
 
 /// The point a `ServerboundInteractPacket` carries: `EntityHitResult.getLocation()
 /// - entity.position()`, measured from the entity's feet, as
@@ -195,7 +196,9 @@ impl Game<'_> {
     /// `LivingEntity.swing` with `getCurrentSwingDuration`: the duration
     /// comes from the item in the swinging arm (a kinetic weapon's attack
     /// animation, else DEFAULT), shortened by dig speed or lengthened by
-    /// mining fatigue.
+    /// mining fatigue. `LocalPlayer.swing` sends the swing to the server
+    /// whether or not a swing starts (its `super.swing` gate only starts
+    /// the animation), so the packet goes out unconditionally.
     pub(super) fn swing_hand(&mut self, hand: Hand) {
         let duration = self.current_swing_duration();
         if self.swing.start_if_able(hand, duration) {
@@ -212,6 +215,9 @@ impl Game<'_> {
                 r.session.record_clientbound(&pkt);
             }
         }
+        self.send(S::Swing(Swing {
+            hand: hand as i32,
+        }));
     }
     /// `LivingEntity.getCurrentSwingDuration`: the swing animation of the
     /// item in the swinging arm — a kinetic weapon's attack animation for
@@ -246,7 +252,7 @@ impl Game<'_> {
     pub(super) fn swing_arm(&mut self) {
         self.swing_hand(self.hand);
     }
-    /// `swing_arm` for a use whose result is `SwingSource.PREDICTED`: the
+    /// `swing_arm` for a use whose result is `SwingSource.CLIENT`: the
     /// player's client swings by itself, so a server keeps it to the others.
     pub(super) fn swing_arm_predicted(&mut self) {
         let before = self.swings_started;
@@ -525,7 +531,7 @@ impl Game<'_> {
     }
     /// `MultiPlayerGameMode.startUseItem`'s bookkeeping around the game's
     /// use: nothing starts while a block is being broken or the hands are
-    /// busy, and `LocalPlayer.itemUsed` drops the hand after a use that
+    /// busy, and `ItemInHandRenderer.itemUsed` drops the hand after a use that
     /// swung and spent (or, with infinite materials, kept) the item, or that
     /// started using it.
     pub(super) fn use_with_hand(&mut self) -> Result<()> {

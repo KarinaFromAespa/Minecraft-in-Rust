@@ -800,7 +800,7 @@ fn serverbound_round_trips() {
         }),
         Serverbound::PlayerInput(PlayerInput { flags: 0b0101_0001 }),
         Serverbound::PlayerLoaded(Empty),
-        Serverbound::Swing(Empty),
+        Serverbound::Swing(Swing { hand: 1 }),
         Serverbound::SetCarriedItem(SetCarriedItem { slot: 4 }),
         Serverbound::UseItemOn(UseItemOn {
             hand: 0,

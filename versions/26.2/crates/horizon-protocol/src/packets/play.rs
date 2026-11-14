@@ -2234,6 +2234,10 @@ packet!(
 packet!(SetCarriedItem { slot: i16 => Short });
 packet!(SetCreativeModeSlot { slot: i16 => Short, item: Option<Stack> => DelimitedSlot });
 packet!(UseItem { hand: i32 => VarInt, sequence: i32 => VarInt, yaw: f32 => Float, pitch: f32 => Float });
+/// ServerboundSwingPacket: the hand (InteractionHand, 0 main, 1 off).
+/// 26.3 replaced this with the handless ServerboundPunchPacket; 26.2 and
+/// older carry the hand, and this tree never speaks 26.3.
+packet!(Swing { hand: i32 => VarInt });
 packet!(UseItemOn {
     hand: i32 => VarInt,
     pos: [i32; 3] => Pos,
@@ -2305,7 +2309,7 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     RenameItem(RenameItem) = RENAME_ITEM,
     SeenAdvancements(SeenAdvancements) = SEEN_ADVANCEMENTS,
     ContainerSlotStateChanged(ContainerSlotStateChanged) = CONTAINER_SLOT_STATE_CHANGED,
-    Swing(Empty) = SWING,
+    Swing(Swing) = SWING,
     JigsawGenerate(JigsawGenerate) = JIGSAW_GENERATE,
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectBundleItem(SelectBundleItem) = BUNDLE_ITEM_SELECTED,

@@ -338,7 +338,7 @@ impl Game<'_> {
             if Some(id) == driven {
                 return;
             }
-            // AbstractBoat keeps a LinearInterpolationHandler: the new yaw is
+            // AbstractBoat keeps an InterpolationHandler: the new yaw is
             // the target of the three-tick lerp (`tick_remote_objects`), not
             // the boat's yaw at once.
             let _ = yaw;

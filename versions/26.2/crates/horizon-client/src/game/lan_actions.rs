@@ -2474,17 +2474,22 @@ impl Game<'_> {
             // with the held item's attack animation (mining, attacking, a
             // click on nothing), seen by the players around, and the attack
             // strength starts again.
-            S::Swing(_) => {
+            S::Swing(p) => {
                 let (player, name) = {
                     let g = &host.hub.guests[gi];
                     (g.uuid, g.name.clone())
                 };
+                let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
                 self.as_guest(host, conn, |g| {
-                    g.swing_hand(Hand::Main);
+                    g.swing_hand(hand);
                     g.reset_attack_strength();
                 });
                 self.native_player_attack_cooldown_reset(player, &name);
-                self.native_player_arm_swing(player, &name, "mainhand");
+                self.native_player_arm_swing(
+                    player,
+                    &name,
+                    if hand == Hand::Off { "offhand" } else { "mainhand" },
+                );
             }
             S::UseItemOn(p) => {
                 host.hub.ack(conn, p.sequence);
@@ -6188,7 +6193,7 @@ impl Game<'_> {
     }
 
     /// A use the server ran swung the guest's hand: their own client is told
-    /// too (`swing(hand, true)` for a result that is not SwingSource.PREDICTED).
+    /// too (`swing(hand, true)` for a result that is not SwingSource.CLIENT).
     /// A predicted swing (a block placed, a block's own SUCCESS) is the
     /// client's own: sent back, it arrived after the first half of that swing
     /// on a slow connection and swung the arm again (#9887).
