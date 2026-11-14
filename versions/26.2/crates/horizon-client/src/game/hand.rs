@@ -1,7 +1,8 @@
 //! The local player's hand: clicks and held attack through
 //! `horizon_client::first_person` (`Minecraft.startAttack` /
 //! `continueAttack`, `MultiPlayerGameMode` block breaking), the arm swing
-//! (`LivingEntity.SwingState`) and the first-person equip heights
+//! (26.2's plain `swinging`/`swingTime`/`swingingArm` fields) and the
+//! first-person equip heights
 //! (`FirstPersonHandsAndItems`) with the item swap ticker they read.
 use super::{Game, Mining, Screen, minecarts::CartKind};
 use horizon_client::{

@@ -1780,10 +1780,8 @@ impl Game<'_> {
         );
         for b in &self.boats {
             // EntityRenderer.shouldRender.
-            let (previous, position) = (at(b.previous), at(b.position));
-            if !self.standing_entity_in_view(
-                camera, previous, position, alpha, WIDTH, HEIGHT, range, 0.0,
-            ) {
+            let position = at(b.position);
+            if !self.standing_entity_in_view(camera, position, WIDTH, HEIGHT, range, 0.0) {
                 continue;
             }
             let culling = self.entity_cull_decision(b, alpha);

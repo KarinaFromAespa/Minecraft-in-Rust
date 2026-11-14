@@ -1252,8 +1252,8 @@ pub struct Extra {
     pub swim: SwimAnimation,
     /// `ClientAvatarState` of a player: the cloak, bob and walked distance its cape swings with.
     pub avatar: crate::camera::AvatarBob,
-    /// The arm the current swing moves (`currentSwing.hand().asArm`): `Some(true)`
-    /// for the right arm.
+    /// The arm the current swing moves (`ArmedEntityRenderState.attackArm`):
+    /// `Some(true)` for the right arm.
     pub swing_right_arm: Option<bool>,
     /// The current swing is a STAB (`SwingAnimationType` 2): a spear's jab.
     pub swing_stab: bool,

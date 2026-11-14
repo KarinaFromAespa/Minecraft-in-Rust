@@ -290,7 +290,7 @@ impl Game<'_> {
                 glam::DVec3::new(m.position.x, m.position.y, m.position.z).distance_squared(camera);
             // Match the model's renderer-specific box, not the tag anchor: the
             // name must survive when only the entity's feet are in view.
-            let (lo, hi) = super::entity_culling::cull_box(m, alpha);
+            let (lo, hi) = super::entity_culling::cull_box(m);
             let inflate = glam::DVec3::splat(0.5);
             if !name_tag_in_view(
                 frustum,

@@ -709,10 +709,10 @@ impl Game<'_> {
 }
 
 /// `EntityRenderer.shouldRender`'s box for a dropped item, in camera space:
-/// `EntityRenderer.getBoundingBoxForCulling(entity, partialTick)` is
-/// `Entity.getInterpolatedBoundingBox(partialTick)` - the item's 0.25 box at
-/// the position the frame draws, `ItemEntity` overriding neither - grown by 0.5
-/// all round before the frustum test.
+/// `EntityRenderer.getBoundingBoxForCulling(entity)` is the plain
+/// `Entity.getBoundingBox` in 26.2 — the item's 0.25 box at its current
+/// position (`ItemEntity` overrides neither), grown by 0.5 all round before
+/// the frustum test. (The interpolated box is 26.3's.)
 fn dropped_item_cull_box(position: glam::DVec3, camera: glam::DVec3) -> (glam::Vec3, glam::Vec3) {
     let feet = (position - camera).as_vec3();
     let half = glam::Vec3::new(0.125 + 0.5, 0.5, 0.125 + 0.5);
@@ -734,11 +734,10 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    /// `EntityRenderer.shouldRender` culls with `getBoundingBoxForCulling(entity,
-    /// partialTick)`, which is `Entity.getInterpolatedBoundingBox(partialTick)`:
-    /// `EntityRenderer.getBoundingBoxForCulling` in 26.2 is the plain
-    /// `getBoundingBox`: an item's 0.25 box at its current position, grown
-    /// by 0.5 — no interpolation (the interpolated box is 26.3's).
+    /// `EntityRenderer.shouldRender` culls with `getBoundingBoxForCulling`,
+    /// which in 26.2 is the plain `getBoundingBox`: an item's 0.25 box at
+    /// its current position, grown by 0.5 — no interpolation (the
+    /// interpolated box is 26.3's).
     #[test]
     fn a_dropped_item_is_culled_at_its_current_position() {
         let camera = glam::DVec3::ZERO;

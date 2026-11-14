@@ -1795,9 +1795,7 @@ impl Game<'_> {
             }
             if !self.standing_entity_in_view(
                 camera,
-                super::entity_culling::at(t.previous),
                 super::entity_culling::at(t.position),
-                alpha,
                 0.25,
                 0.25,
                 64.0,

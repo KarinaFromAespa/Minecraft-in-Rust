@@ -487,7 +487,8 @@ impl Game<'_> {
             .map_or(25, |s| Self::charge_ticks(s).max(1)) as i32;
         let attack = (self.swing.o_attack_anim, self.swing.attack_anim);
         let swinging = self.swing.swinging();
-        // currentSwing.hand().asArm(mainArm).
+        // `ArmedEntityRenderState.attackArm`: the swinging hand as an arm
+        // (`swingingArm != OFF_HAND ? mainArm : mainArm.getOpposite()`).
         let swing_right_arm = swinging.then(|| {
             (self.swing.attack_hand() == horizon_client::first_person::Hand::Main)
                 != self.settings.main_hand_left

@@ -7859,12 +7859,13 @@ impl Game<'_> {
                 continue;
             }
             let beam = horizon_client::mobs::guardian::beam(mob, alpha as f32);
-            // EntityRenderer.shouldRender: the renderer's interpolated culling box,
-            // grown by 0.5 (GuardianRenderer also draws while its beam is out).
+            // EntityRenderer.shouldRender: the renderer's culling box at the
+            // tick position, grown by 0.5 (GuardianRenderer also draws while
+            // its beam is out).
             if let Some(view) = &self.view_frustum
                 && beam.is_none()
             {
-                let (lo, hi) = super::entity_culling::cull_box(mob, alpha);
+                let (lo, hi) = super::entity_culling::cull_box(mob);
                 let (lo, hi) = (
                     (lo - camera - glam::DVec3::splat(0.5)).as_vec3(),
                     (hi - camera + glam::DVec3::splat(0.5)).as_vec3(),

@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 60/100 items, 31 changed, 29 no-change, 1902 minutes on changed
+**rate sample: 61/100 items, 32 changed, 29 no-change, 1992 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -569,6 +569,7 @@ log; it stays in agreement with the tally line above.
 | 161 | changed | 120 (est.) | EntityFluidInteraction + FloatGoal (joint rework with 157): tick answers inWater \|\| inLava; mob eye check to the plain top; FloatGoal verified already 26.2 (no code change); entity-fluid harness reworked (oracle reflects trackerByFluid, sets the Fluid holder field 26.2's getTrackerFor reads) and bit-exact on 560,630 lines against both 26.2 jars |
 | 117 | changed | 90 (est.) | TreeGrower to the 26.2 secondary-chance model (oak 0.1, spruce 0.5, mangrove 0.85); poplar removed; canGrow removed (lone dark oak takes the meal); mega square cleared to air/260, single sapling to legacy block/260; MushroomBlock verified equivalent; 3 picker unit tests |
 | 163 | changed | 60 (est.) | Cat goals to the 26.2 forms: can_sit_on hardcoded (chest/furnace/bed-foot, no #cats_can_sit_on tag); CatLieOnBlock renamed CatLieOnBed, checks #beds; RelaxOnOwner bed check to #beds; giveMorningGift to the 26.2 4-arg randomTeleport via a shared helper extracted from enderman.rs (leash-holder origin added); CatRenderer setupRotations and BiomeCheck verified no-change |
+| 92 | changed | 90 (est.) | Entity culling to the 26.2 tick-position form (no getInterpolatedBoundingBox): cull_box + standing_entity_in_view drop interpolation, 8 call sites updated; stale SwingState/currentSwing citations fixed (swing model already 26.2 under 241); 26 renderer/layer classes verified no-change (rotate renames, submitModel null arg, render-type plumbing) |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.

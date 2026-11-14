@@ -1376,9 +1376,7 @@ impl Game<'_> {
                 .is_some_and(|i| &*i.item == "minecraft:dragon_head");
             if !self.standing_entity_in_view(
                 camera,
-                super::entity_culling::at(a.previous),
                 super::entity_culling::at(a.position),
-                alpha,
                 width,
                 height,
                 range,

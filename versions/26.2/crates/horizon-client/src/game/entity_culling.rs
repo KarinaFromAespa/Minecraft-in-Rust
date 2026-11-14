@@ -430,27 +430,24 @@ fn grown_box(
     )
 }
 
-/// `LivingEntityRenderer.getBoundingBoxForCulling` for the mob's interpolated
-/// position, including renderer-specific growth for mirrors, riders and heads.
-pub(super) fn cull_box(mob: &horizon_client::mobs::Mob, alpha: f64) -> (glam::DVec3, glam::DVec3) {
+/// `LivingEntityRenderer.getBoundingBoxForCulling` for the mob's tick
+/// position, including renderer-specific growth for mirrors, riders and
+/// heads. (26.2 culls at the tick position: there is no
+/// `getInterpolatedBoundingBox` — 26.3 added it.)
+pub(super) fn cull_box(mob: &horizon_client::mobs::Mob) -> (glam::DVec3, glam::DVec3) {
     let (width, height, _) = mob.dims();
     let grow = CullGrow::of(
         mob.species(),
         height,
         mob.extra.head.as_deref() == Some("minecraft:dragon_head"),
     );
-    let pos = glam::DVec3::new(
-        mob.previous.x + (mob.position.x - mob.previous.x) * alpha,
-        mob.previous.y + (mob.position.y - mob.previous.y) * alpha,
-        mob.previous.z + (mob.position.z - mob.previous.z) * alpha,
-    );
-    grown_box(pos, width, height, grow)
+    grown_box(at(mob.position), width, height, grow)
 }
 
 impl Game<'_> {
     /// EntityRenderer.shouldRender: the entity within `range` blocks of the
     /// camera, measured from its current `position`, and its culling box
-    /// (`lo`..`hi`, interpolated, in world space) grown by 0.5 in the view.
+    /// (`lo`..`hi`, in world space) grown by 0.5 in the view.
     pub(super) fn entity_in_view(
         &self,
         camera: glam::DVec3,
@@ -477,25 +474,22 @@ pub(super) fn at(p: horizon_core::geometry::Vec3) -> glam::DVec3 {
 }
 
 impl Game<'_> {
-    /// `entity_in_view` for an entity whose box stands on its position,
-    /// `width` wide and `height` tall, interpolated by `alpha` and grown by
-    /// `grow` (a renderer's getBoundingBoxForCulling).
-    #[allow(clippy::too_many_arguments)]
+    /// `entity_in_view` for an entity whose box stands on its tick position,
+    /// `width` wide and `height` tall, grown by `grow` (a renderer's
+    /// getBoundingBoxForCulling). 26.2 culls at the tick position, not the
+    /// interpolated render position.
     pub(super) fn standing_entity_in_view(
         &self,
         camera: glam::DVec3,
-        previous: glam::DVec3,
         position: glam::DVec3,
-        alpha: f64,
         width: f64,
         height: f64,
         range: f64,
         grow: f64,
     ) -> bool {
-        let p = previous.lerp(position, alpha);
         let half = glam::DVec3::new(width / 2.0 + grow, grow, width / 2.0 + grow);
-        let lo = p - half;
-        let hi = p + glam::DVec3::new(half.x, height + grow, half.z);
+        let lo = position - half;
+        let hi = position + glam::DVec3::new(half.x, height + grow, half.z);
         self.entity_in_view(camera, position, range, lo, hi)
     }
 }

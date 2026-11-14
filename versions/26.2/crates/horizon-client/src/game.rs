@@ -2542,7 +2542,8 @@ struct Game<'a> {
     xp_delay: u32,
     ordered: ordered_tick::OrderedTicks,
     level_up_sound: horizon_client::entities::LevelUpSound,
-    /// The arm swing (`LivingEntity.SwingState`) and how many swings started.
+    /// The arm swing (26.2's plain `swinging`/`swingTime`/`swingingArm`
+    /// fields, not 26.3's `LivingEntity.SwingState`) and how many swings started.
     swing: horizon_client::first_person::SwingState,
     swings_started: u32,
     /// Swings of uses whose client predicts them (`SwingSource.PREDICTED`):

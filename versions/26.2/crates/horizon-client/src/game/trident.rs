@@ -1274,9 +1274,7 @@ impl Game<'_> {
                 // EntityRenderer.shouldRender; ThrownTridentRenderer grows the box by 1.5.
                 self.standing_entity_in_view(
                     camera,
-                    super::entity_culling::at(t.previous),
                     super::entity_culling::at(t.position),
-                    alpha,
                     2.0 * HALF,
                     2.0 * HALF,
                     range,

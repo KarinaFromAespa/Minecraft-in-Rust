@@ -130,8 +130,8 @@ pub fn no_culling(width: f32, height: f32) -> bool {
     width == 0.0 || height == 0.0
 }
 
-/// `Display.updateCulling` / `getInterpolatedBoundingBox` at an interpolated
-/// origin: the AABB from `(x − width/2, y, z − width/2)` to
+/// `Display.updateCulling` / `getBoundingBox` at the tick origin: the AABB
+/// from `(x − width/2, y, z − width/2)` to
 /// `(x + width/2, y + height, z + width/2)`.
 pub fn culling_box(origin: glam::DVec3, width: f32, height: f32) -> (glam::DVec3, glam::DVec3) {
     let half = f64::from(width) * 0.5;

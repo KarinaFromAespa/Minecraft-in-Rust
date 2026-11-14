@@ -792,9 +792,7 @@ impl Game<'_> {
             // EntityRenderer.shouldRender: its 0.25 box in the view.
             if !self.standing_entity_in_view(
                 camera,
-                super::entity_culling::at(r.previous),
                 super::entity_culling::at(r.position),
-                alpha,
                 0.25,
                 0.25,
                 64.0,
