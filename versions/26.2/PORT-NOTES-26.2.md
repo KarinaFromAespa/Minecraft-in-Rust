@@ -1625,3 +1625,93 @@ All no-change. Rank 2 326/410 -> 338/410.
 Dispatched on the ~50-item cadence (previous run 43609469257 was the
 285/410 tree). Profile pending — the run takes ~2h; porting continues
 while it runs. Artifacts to `~/workspace/mcir-ci/26.2-338/` when done.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 337, 338, 339, 340, 341, 343, 344, 345, 346, 347, 348, 349
+
+All no-change. Rank 2 338/410 -> 350/410. CI run 43646940294 is in
+flight on the 338/410 tree.
+
+## Item 337 no-change (2026-11-15) — game/wind.rs
+
+- 1 class, 0 named. `FenceGateBlock` carries a `MapCodec` (with a
+  `wood_type` field) in 26.2, removed in 26.3 (the item-309 pattern —
+  the Rust does not use Mojang block codecs).
+
+## Item 338 no-change (2026-11-15) — lan/hub/chat.rs
+
+- 1 class, 0 named. `SignedMessageBody$Packed`: 26.3's `STREAM_CODEC`
+  (ByteBuf) vs 26.2's FriendlyByteBuf constructor/`write` — the same
+  wire format (content utf8 256, instant, long salt, lastSeen Packed),
+  the item-301 pattern.
+
+## Item 339 no-change (2026-11-15) — climbing_fixture.rs
+
+- 1 class, 0 named. `TrapDoorBlock` carries a `MapCodec` (with a
+  `block_set_type` field) in 26.2, removed in 26.3 (item-309 pattern).
+
+## Item 340 no-change (2026-11-15) — level/mod.rs
+
+- 2 classes, 0 named. `ComparatorBlock` carries a `MapCodec` in 26.2,
+  removed in 26.3; `BaseEntityBlock` declares the abstract `codec()`
+  in 26.2 (item-309 pattern).
+
+## Item 341 no-change (2026-11-15) — client/gui/screens/inventory
+
+- 2 classes, 0 named. `AnvilScreen` and `CraftingScreen` have no diff
+  at all.
+
+## Item 343 no-change (2026-11-15) — client/resources
+
+- 1 class, 0 named. `ClientPackSource`: 26.3's
+  `createVanillaPack(ResourcesSupplier)` vs 26.2's
+  `createVanillaPack(PackResources)` + `fixedResources` — the item-329
+  pack-supplier rework. The Rust's pack loading is its own.
+
+## Item 344 no-change (2026-11-15) — blaze3d/platform/cursor
+
+- 1 class, 0 named. `CursorType.select`: SDL (`SDLMouse`) in 26.3 vs
+  GLFW (`glfwSetCursor`/`glfwCreateStandardCursor`) in 26.2 — the
+  item-310/334 platform split. The Rust uses winit (GLFW-style).
+
+## Item 345 no-change (2026-11-15) — world/entity/vehicle/minecart
+
+- 1 class, 0 named. `AbstractMinecart`: 26.3's
+  `createInterpolationHandler()` (LinearInterpolationHandler or NO_OP
+  for experimental movement) vs 26.2's `getInterpolation()` from the
+  behavior (the 3-step handler). The Rust's minecart movement is
+  ported from `NewMinecartBehavior` (per-step rotation and
+  interpolation weight) and renders at the tick position (the item-92
+  form); it does not implement 26.3's LinearInterpolationHandler.
+
+## Item 346 no-change (2026-11-15) — world/level/block/piston
+
+- 2 classes, 0 named. `MovingPistonBlock` carries a `MapCodec` in
+  26.2, removed in 26.3 (item-309 pattern). `PistonBaseBlock$1` is the
+  compiler switch map over `PushReaction` — IMMOVEABLE/POPPED/PUSH
+  (26.3) vs BLOCK/DESTROY/PUSH_ONLY (26.2), the established enum
+  rename; the Rust's piston logic is ported against the 26.2 behaviour.
+
+## Item 347 no-change (2026-11-15) — world/level/levelgen/structure/pools
+
+- 2 classes, 0 named. `JigsawPlacement$Placer`: 26.3 reads the
+  `JigsawBlockInfo` record's `.pos()`/`.state()` directly; 26.2 reads
+  them through `StructureBlockInfo` (`.info()`) — the item-214 rename
+  story. The Rust's jigsaw code uses its own `JigsawInfo` struct with
+  `pos`/`state` fields. `StructureTemplatePool`: `RegistryCodecs.holder`
+  -> `RegistryFileCodec.create` rename.
+
+## Item 348 no-change (2026-11-15) — client-render/breaking.rs
+
+- 1 class, 0 named. `SheetedDecalTextureGenerator`: 26.3 adds `setUv3`
+  and the static `setSheetedDecalUv` (the uv3/glint path, used by
+  `putBakedQuadWithGlint`). 26.2's `setNormal` computes the decal UV
+  inline and calls `delegate.setUv` (uv0) with the identical transform
+  (rotateY(PI), rotateX(-PI/2), direction rotation, negate) — the
+  Rust's breaking.rs implements exactly that transform. The 26.3-only
+  part is the uv3 slot, which the Rust does not use.
+
+## Item 349 no-change (2026-11-15) — gfx/lightning/tests
+
+- 1 class, 0 named. `VertexConsumer`: 26.3 adds `setUv3` and the
+  default `putBakedQuadWithGlint` (the uv3/glint path from item 348).
+  Mojang's vertex-consumer interface; the Rust's is its own wgpu code.
