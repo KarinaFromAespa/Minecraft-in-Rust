@@ -35,5 +35,10 @@
   "tree": "d2aa9a03",
   "rank2": "338/410",
   "profile": "pending"
+ },
+ "rank2": "409/410",
+ "remaining": {
+  "item": 127,
+  "reason": "26.2 noise-model port (oracle + engine rework, see PORT-NOTES-26.2.md)"
  }
 }

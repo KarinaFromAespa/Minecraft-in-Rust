@@ -2165,3 +2165,42 @@ in rank 2. CI run 43646940294 still in flight on the 338/410 tree.
 - 1 class, 0 named. `LootContextParams`: the `CONTAINER` ContextKey
   (SlotProvider) is 26.3-only. The Rust's loot context has no CONTAINER
   key (it uses ORIGIN and BLOCK_ENTITY).
+
+## Item 127 — the one remaining rank-2 item (2026-11-15)
+
+Rank 2 stands at 409/410 with bucket A complete. Item 127
+(`world/level/levelgen/synth`, 12 classes, 0 named) is the only open
+rank-2 item, and it is NOT closable as no-change: the Rust's noise
+engine mirrors 26.3's noise model, and 26.2's is a different one.
+
+The 26.2 synth package has 9 classes: BlendedNoise, ImprovedNoise,
+NoiseUtils, NormalNoise (+NoiseParameters), PerlinNoise,
+PerlinSimplexNoise, SimplexNoise. The 26.3 package has 19: it adds
+BlendedNoise$FbmSet, GradientNoise (+Gradient), LegacyFbmInitializer,
+Noise, NoiseStack (+Builder/Layer/Perlin/SmearedPerlin),
+NormalNoise$Builder/Normalization/OctaveInfo/Parameters and
+SmearedPerlinNoise, and removes ImprovedNoise and PerlinSimplexNoise.
+26.2's NormalNoise is built from NoiseParameters ({firstOctave,
+amplitudes} only); 26.3's is built from a builder around a NoiseStack.
+
+The Rust's noise engine (`crates/horizon-core/src/noise/`, 1,776 lines:
+mod.rs, normal.rs, perlin.rs, simplex.rs, stack.rs, volume.rs) is the
+26.3 model (NoiseStack, DensityVolume). The 26.3 oracle
+(`VanillaNoiseOracle.java`, 149 lines) is built entirely on 26.3-only
+classes — GradientNoise, Noise, NoiseStack, NormalNoise (builder form),
+PerlinNoise/SimplexNoise/SmearedPerlinNoise, plus DensityBuffer and
+DensityVolume from the `densityfunction` package, which does not exist
+in 26.2 — so it does not compile against the 26.2 jar at all.
+
+Closing 127 needs, in order: (1) port the noise engine to the 26.2
+model (ImprovedNoise, PerlinSimplexNoise, the old NormalNoise and
+BlendedNoise); (2) rewrite VanillaNoiseOracle.java against 26.2's
+synth API; (3) rewrite the driver (`tools/test_noise_parity.py`) and
+the Rust probe to the 26.2 cases; (4) re-run and clear the 792-fixture
+noise_based_count placement divergence this item owns (vanilla 26.2's
+`Biome.BIOME_INFO_NOISE`, old Perlin-based NormalNoise, vs the Rust
+engine mirroring 26.3's noise system). That is a large, high-risk job
+— a wrong noise port regresses chunk_generation, the biome harnesses
+and placement — and it needs its own session with careful verification,
+not a rushed close. It is recorded here as the precise blocker for
+410/410, not hidden.
