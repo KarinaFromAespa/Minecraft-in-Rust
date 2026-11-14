@@ -445,7 +445,15 @@ impl PlayerEffects {
             f *= 1.0 + (a + 1) as f32 * 0.2;
         }
         if let Some(a) = self.amplifier("mining_fatigue") {
-            f *= horizon_core::jmath::pow(0.3, f64::from(a + 1)) as f32;
+            // `Player.getDestroySpeed` in 26.2 is a hardcoded table, not
+            // 26.3's `pow(0.3, amplifier + 1)`: fatigue III is 0.0027, not
+            // 0.027, and IV and above is 0.00081, not 0.0081.
+            f *= match a {
+                0 => 0.3,
+                1 => 0.09,
+                2 => 0.0027,
+                _ => 0.00081,
+            };
         }
         f
     }
@@ -792,6 +800,11 @@ mod tests {
         fx.add(EffectInstance::new("haste", 100, 1));
         assert!((fx.mining_speed_factor() - 1.4).abs() < 1e-6);
         assert_eq!(fx.modifiers().len(), 1);
+        // 26.2's fatigue scale is a hardcoded table, not pow(0.3, amp + 1):
+        // III is 0.0027, not 0.027.
+        let mut fx = PlayerEffects::default();
+        fx.add(EffectInstance::new("mining_fatigue", 100, 2));
+        assert!((fx.mining_speed_factor() - 0.0027).abs() < 1e-6);
     }
 
     #[test]

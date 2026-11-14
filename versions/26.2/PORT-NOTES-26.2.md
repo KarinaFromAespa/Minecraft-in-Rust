@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 65/100 items, 36 changed, 29 no-change, 2592 minutes on changed
+**rate sample: 66/100 items, 37 changed, 29 no-change, 2892 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -574,6 +574,7 @@ log; it stays in agreement with the tally line above.
 | 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
+| 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -683,3 +684,48 @@ Restored the two names and corrected the comment. Local
 `cargo test -p horizon-protocol --lib` is now **442 pass / 2 fail**
 (the two remaining failures are the pre-existing sandbox-network pair);
 the recipe test passes. status.json `protocol_tests` updated.
+
+## Item 8 closed (2026-11-14) — remote.rs / first person
+
+Rank 2 now 284/410. The item's real changes, all verified against the
+26.2 jars by decompilation:
+
+- **Swing packet carries the hand**: 26.2's `ServerboundSwingPacket`
+  has a hand VarInt; 26.3 replaced it with the handless
+  `ServerboundPunchPacket`. The Rust sent an empty swing, so a 26.2
+  server could not read the hand. Now `Swing { hand: i32 => VarInt }`,
+  sent on every `LocalPlayer.swing` (unconditional, as vanilla does).
+- **Login takes the previous game type**: `setLocalMode(gameType,
+  previousGameType)` (2-arg form) — the Rust kept the default as the
+  previous mode instead of the server's.
+- **Wall nudge**: 26.2 `aiStep` runs `moveTowardsClosestSpace` under
+  `!noPhysics` alone; 26.3 added `!isPassenger()`. The passenger
+  exclusion is removed.
+- **F4 shader toggle**: `key.toggleSpectatorShaderEffects` was registered
+  but never consumed. `GameRenderer.togglePostEffect` (26.3 renamed it
+  `toggleSpectatorPostEffect`) flips `effectActive`; the Rust now has
+  the flag, set on `setPostEffect`, cleared on `clearPostEffect`.
+- **Pause keeps the dig**: 26.2 `pauseGame` does not call
+  `stopDestroyBlock` (26.3 added it); F3+Escape no longer drops `mining`.
+- **Creative entity attack sets no destroy delay**: 26.3 added
+  `destroyDelay = 5` to `MultiPlayerGameMode.attack`; 26.2 sets the delay
+  only in `startDestroyBlock` / `continueDestroyBlock` (creative, and
+  on break completion).
+- **Mining fatigue table**: 26.2 `Player.getDestroySpeed` uses the
+  hardcoded 0.3 / 0.09 / 0.0027 / 0.00081 table, not 26.3's
+  `pow(0.3, amplifier + 1)` (fatigue III is 0.0027, not 0.027).
+  Fixed in `Effects::mining_speed_factor` and the first-person probe,
+  with a test pinning the table.
+- **First-person oracle reworked to 26.2**: `ItemInHandRenderer` under
+  `GameRenderer.itemInHandRenderer` instead of the 26.3-only
+  `FirstPersonHandsAndItems`; `LocalPlayer` 8-arg constructor; the
+  singular `addBreakingBlockEffect(pos, direction)` (26.3's plural
+  `addBreakingBlockEffects` with the sound flag does not exist in 26.2);
+  a `SoundManager` shell swallowing the destroy hit sound every fourth
+  tick. Harness: **4,205 first-person cases match the pinned client
+  (382,720 output lines)**.
+- Verified no-change: explosion knockback is `addDeltaMovement` (the
+  adapter already appends `play_sound=true` for 26.2); particle
+  randomization is 26.2's single-max-speed gaussian; chat signatures
+  pass directly; `getViewYRot` passenger interpolation; underwater loop
+  fade math (+1/−2, 40 cap) identical in both versions.

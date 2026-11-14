@@ -943,13 +943,12 @@ impl Clicks {
         let mut end = false;
         let mut miss = false;
         match w.hit() {
-            // MultiPlayerGameMode.attack.
+            // MultiPlayerGameMode.attack: no destroy delay here (26.3 added
+            // `destroyDelay = 5` for a creative attack; 26.2's attack only
+            // sends the packet, attacks and resets the ticker).
             Hit::Entity => {
                 if w.attack_entity() {
                     w.reset_attack_strength();
-                    if w.instabuild() {
-                        self.destroying.delay = 5;
-                    }
                 }
             }
             Hit::Block { pos, face } if !w.is_air(pos) => {

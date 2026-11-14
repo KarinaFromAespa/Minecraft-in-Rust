@@ -197,7 +197,14 @@ impl HandWorld for Probe<'_> {
             speed *= 1.0 + (amp as i32 + 1) as f32 * 0.2;
         }
         if let Some(amp) = self.case["fatigue"].as_i64() {
-            speed *= horizon_core::jmath::pow(0.3, f64::from(amp as i32 + 1)) as f32;
+            // `Player.getDestroySpeed` in 26.2 is a hardcoded table, not
+            // 26.3's `pow(0.3, amplifier + 1)`.
+            speed *= match amp {
+                0 => 0.3,
+                1 => 0.09,
+                2 => 0.0027,
+                _ => 0.00081,
+            };
         }
         let harvest = !b[1].as_bool().unwrap() || correct;
         speed / hardness / if harvest { 30.0 } else { 100.0 }

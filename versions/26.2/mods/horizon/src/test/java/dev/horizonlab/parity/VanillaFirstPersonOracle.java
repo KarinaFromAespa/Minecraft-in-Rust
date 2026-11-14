@@ -11,9 +11,13 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.multiplayer.prediction.BlockStatePredictionHandler;
-import net.minecraft.client.player.FirstPersonHandsAndItems;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundEngine.PlayResult;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.tutorial.Tutorial;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -45,7 +49,7 @@ import net.minecraft.world.phys.*;
  * stopDestroyBlock, destroyBlock and attack, LivingEntity.swing with its
  * swing fields (swinging/swingTime/swingingArm, attackAnim/oAttackAnim)
  * and getCurrentSwingDuration, Player's attack strength and item
- * swap tickers and getItemSwapScale, and FirstPersonHandsAndItems.tick and
+ * swap tickers and getItemSwapScale, and ItemInHandRenderer.tick and
  * itemUsed, tick by tick over scripted clicks and crosshair targets. The
  * player is a LocalPlayer shell with a real Inventory and attributes; the
  * level, connection and item model resolver are shells answering what these
@@ -122,7 +126,7 @@ public final class VanillaFirstPersonOracle {
         @Override public void destroyBlockProgress(int id, BlockPos pos, int progress) {
             events.add("stage " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " " + progress);
         }
-        @Override public void addBreakingBlockEffects(BlockPos pos, Direction direction, boolean sound) { }
+        @Override public void addBreakingBlockEffect(BlockPos pos, Direction direction) { }
         @Override public FeatureFlagSet enabledFeatures() { return FeatureFlags.REGISTRY.allFlags(); }
     }
 
@@ -150,7 +154,7 @@ public final class VanillaFirstPersonOracle {
         boolean inRange;
 
         Player0() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, Input.EMPTY, false, null);
         }
 
         @Override public AttributeMap getAttributes() { return attributes; }
@@ -180,9 +184,32 @@ public final class VanillaFirstPersonOracle {
             oAttackAnim = attackAnim;
             updateSwingTime();
         }
+    }
+
+    static final class ItemInHandRenderer0 extends ItemInHandRenderer {
+        ItemInHandRenderer0(Minecraft minecraft, ItemModelResolver resolver) {
+            super(minecraft, null, resolver);
+        }
+
+        // 26.2's startUseItem calls GameRenderer.itemInHandRenderer.itemUsed,
+        // not LocalPlayer.itemUsed (which does not exist in 26.2).
         @Override public void itemUsed(InteractionHand hand) {
             events.add("used " + hand(hand));
             super.itemUsed(hand);
+        }
+    }
+
+    static final class SoundManager0 extends SoundManager {
+        // Never constructed (allocated by Unsafe); only here so the class
+        // compiles against SoundManager's Options constructor.
+        SoundManager0() {
+            super(null);
+        }
+
+        // continueDestroyBlock plays the destroy hit sound every fourth
+        // tick; the shell swallows it (allocated, never constructed).
+        @Override public PlayResult play(SoundInstance instance) {
+            return PlayResult.STARTED;
         }
     }
 
@@ -250,16 +277,15 @@ public final class VanillaFirstPersonOracle {
         Field attackTicker = field(LivingEntity.class, "attackStrengthTicker");
         Field swapTicker = field(LivingEntity.class, "itemSwapTicker");
         Field lastItem = field(Player.class, "lastItemInMainHand");
-        Field hands = field(LocalPlayer.class, "firstPersonHandsAndItems");
         Field handsBusy = field(LocalPlayer.class, "handsBusy");
         Field using = field(LocalPlayer.class, "startedUsingItem");
         Field destroyDelay = field(MultiPlayerGameMode.class, "destroyDelay");
         Field destroying = field(MultiPlayerGameMode.class, "isDestroying");
         Field progress = field(MultiPlayerGameMode.class, "destroyProgress");
-        Field mainHeight = field(FirstPersonHandsAndItems.class, "mainHandHeight");
-        Field oMainHeight = field(FirstPersonHandsAndItems.class, "oMainHandHeight");
-        Field offHeight = field(FirstPersonHandsAndItems.class, "offHandHeight");
-        Field oOffHeight = field(FirstPersonHandsAndItems.class, "oOffHandHeight");
+        Field mainHeight = field(ItemInHandRenderer.class, "mainHandHeight");
+        Field oMainHeight = field(ItemInHandRenderer.class, "oMainHandHeight");
+        Field offHeight = field(ItemInHandRenderer.class, "offHandHeight");
+        Field oOffHeight = field(ItemInHandRenderer.class, "oOffHandHeight");
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8));
              var lines = Files.lines(Path.of(args[0]))) {
             int n = 0;
@@ -290,7 +316,15 @@ public final class VanillaFirstPersonOracle {
                 abilities.instabuild = creative;
                 field(Player.class, "abilities").set(player, abilities);
                 lastItem.set(player, ItemStack.EMPTY);
-                hands.set(player, new FirstPersonHandsAndItems());
+                // 26.2 keeps the hand heights in GameRenderer.itemInHandRenderer
+                // (26.3 moved them to LocalPlayer.firstPersonHandsAndItems).
+                var resolver = make(Resolver.class);
+                var renderer = new ItemInHandRenderer0(mc, resolver);
+                var gameRenderer = make(GameRenderer.class);
+                field(GameRenderer.class, "itemInHandRenderer").set(gameRenderer, renderer);
+                field(Minecraft.class, "gameRenderer").set(mc, gameRenderer);
+                field(Minecraft.class, "itemModelResolver").set(mc, resolver);
+                field(Minecraft.class, "soundManager").set(mc, make(SoundManager0.class));
                 player.input = new net.minecraft.client.player.ClientInput();
                 var effects = new HashMap<Holder<MobEffect>, MobEffectInstance>();
                 if (!c.get("haste").isJsonNull()) {
@@ -306,7 +340,6 @@ public final class VanillaFirstPersonOracle {
                 field(Minecraft.class, "player").set(mc, player);
                 field(Minecraft.class, "level").set(mc, level);
                 field(Minecraft.class, "tutorial").set(mc, make(Tutorial.class));
-                field(Minecraft.class, "itemModelResolver").set(mc, make(Resolver.class));
                 var gameMode = new GameMode0(mc, connection);
                 field(MultiPlayerGameMode.class, "localPlayerMode").set(gameMode, creative ? GameType.CREATIVE : GameType.SURVIVAL);
                 field(Minecraft.class, "gameMode").set(mc, gameMode);
@@ -367,7 +400,7 @@ public final class VanillaFirstPersonOracle {
                     }
                     // LocalPlayer.tick: LivingEntity.baseTick's swing, the equipment's
                     // attribute modifiers, Player.tick's tickers, then
-                    // FirstPersonHandsAndItems.tick.
+                    // ItemInHandRenderer.tick (26.2's hand heights live there).
                     player.tickSwing();
                     // LivingEntity.tick's detectEquipmentUpdates: the main hand's modifiers.
                     player.attributes = attributes(player.getMainHandItem());
@@ -387,8 +420,7 @@ public final class VanillaFirstPersonOracle {
                         player.setYRot(Float.intBitsToFloat(Integer.parseUnsignedInt(rot.get(1).getAsString(), 16)));
                     }
                     player.applyInput();
-                    var fp = (FirstPersonHandsAndItems) hands.get(player);
-                    fp.tick(player);
+                    renderer.tick();
                     for (var ev : events) {
                         out.println(ev);
                     }
@@ -397,8 +429,8 @@ public final class VanillaFirstPersonOracle {
                         + " " + player.swingTime + " " + fb(player.attackAnim) + " " + fb(player.oAttackAnim)
                         + " " + fb(player.getAttackAnim(0.5F))
                         + " " + attackTicker.getInt(player) + " " + swapTicker.getInt(player) + " " + fb(player.getItemSwapScale(1.0F))
-                        + " " + fb(mainHeight.getFloat(fp)) + " " + fb(oMainHeight.getFloat(fp))
-                        + " " + fb(offHeight.getFloat(fp)) + " " + fb(oOffHeight.getFloat(fp))
+                        + " " + fb(mainHeight.getFloat(renderer)) + " " + fb(oMainHeight.getFloat(renderer))
+                        + " " + fb(offHeight.getFloat(renderer)) + " " + fb(oOffHeight.getFloat(renderer))
                         + " " + missTime.getInt(mc) + " " + rightClickDelay.getInt(mc) + " " + destroyDelay.getInt(gameMode)
                         + " " + destroying.getBoolean(gameMode) + " " + fb(progress.getFloat(gameMode))
                         + " " + fb(player.xBob) + " " + fb(player.yBob) + " " + fb(player.xBobO) + " " + fb(player.yBobO));
