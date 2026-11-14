@@ -440,7 +440,7 @@ def check_d3(tree: Path, pin: Path, release: str):
     report = read_json(report_path) if report_path else None
     if report is None:
         return check_stop("no diff-<prev>-<release>/report.json: run `version_port.py report`")
-    if "ranks" not in report and "items" not in report:
+    if "ranks" not in report and "items" not in report and "summary" not in report:
         return check_bad("report.json holds no ranks or items — not a port report", [str(report_path)])
     # version_port.py's report step nests the rank totals under
     # summary.ranks and lists the items at top level; no real report
@@ -448,16 +448,22 @@ def check_d3(tree: Path, pin: Path, release: str):
     # (back-compat), then summary.ranks (the tool's own totals), then
     # derive the totals from the items list. Reading only the top
     # level made every rank total 0 and failed D3 on any real pin.
+    source = "top-level ranks"
     ranks = {str(k): int(v) for k, v in (report.get("ranks") or {}).items()}
     if not ranks:
+        source = "summary.ranks"
         summary = report.get("summary")
         if isinstance(summary, dict):
             ranks = {str(k): int(v) for k, v in (summary.get("ranks") or {}).items()}
     if not ranks and isinstance(report.get("items"), list):
+        source = "items"
         from collections import Counter
         ranks = {str(k): v for k, v in Counter(
             str(i.get("rank")) for i in report["items"]
             if isinstance(i, dict) and i.get("rank") is not None).items()}
+    if not ranks:
+        return check_bad("report.json holds no rank totals in ranks, summary.ranks or items "
+                         "— not a port report", [str(report_path)])
     ledger_path = pin / "work-items.json"
     ledger = read_json(ledger_path)
     if ledger is None:
@@ -487,6 +493,7 @@ def check_d3(tree: Path, pin: Path, release: str):
                 evidence,
             )
         notes.append(f"rank-{rank}: {entry.get('closed', 0)} closed, {len(accepted)} accepted, {total} total")
+    notes.append(f"totals read from {source}")
     if ranks.get("1", 0) == 0:
         notes.append("report has no rank-1 items (mechanically identical release)")
     inherited = ledger.get("rank3plus")
@@ -582,33 +589,45 @@ def commit_agrees(stamped: str, actual: str) -> bool:
     return stamped[:short][:7] == actual[:7] or actual.startswith(stamped) or stamped.startswith(actual)
 
 
-def _parity_state(tree: Path, pin: Path, commit: str = ""):
+def _parity_state(tree: Path, pin: Path, commit: str = "", allow_local: bool = False):
     """Published profile first (the frozen record), then the local run state.
 
     Returns (state, path, reason). A profile stamped with another commit is not
-    evidence about this tree, so it is refused rather than downgraded.
+    evidence about this tree, so by default it is refused rather than downgraded:
+    a stale green profile must never be quietly replaced by fresh local scratch.
+    `allow_local` (--local-evidence) is the active-porting escape: it says the
+    local sweep is the evidence, and the reason travels into the verdict so the
+    reader can see that it was scratch, not a published profile.
     """
     profile = pin / "profile.json"
     if not profile.exists():
         profile = pin / "ci-out" / "profile.json"
+    stale = ""
     if profile.exists():
         raw = read_json(profile)
         stamped = (raw or {}).get("commit") or ""
-        if not commit_agrees(stamped, commit):
-            return None, profile, (
-                f"{profile.name} is stamped for commit {stamped[:12]}, HEAD is {commit[:12]} "
-                "— re-record the sweep for this tree"
+        if commit_agrees(stamped, commit):
+            state = normalise_profile(raw or {})
+            if state:
+                return state, profile, ""
+        else:
+            stale = (
+                f"{profile.name} is stamped for commit {stamped[:12]}, HEAD is {commit[:12]}"
             )
-        state = normalise_profile(raw or {})
-        if state:
-            return state, profile, ""
+            if not allow_local:
+                return None, profile, stale + " — re-record the sweep for this tree"
     for candidate in (tree / ".local/parity-runner/state.json", pin / "ci-out/state.json"):
         raw = read_json(candidate)
         if raw:
             state = normalise_profile(raw)
             if state:
+                if stale:
+                    return state, candidate, (
+                        "local evidence (.local/parity-runner/state.json), not a published "
+                        f"profile: {stale}"
+                    )
                 return state, candidate, ""
-    return None, None, ""
+    return None, None, stale + " — re-record the sweep for this tree" if stale else ""
 
 
 def _judge_harnesses(state, names, exempt):
@@ -624,7 +643,8 @@ def _judge_harnesses(state, names, exempt):
     return failing, unknown
 
 
-def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = ""):
+def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = "",
+             allow_local: bool = False):
     """D4 — data compatibility: datafix ladder and save round-trip."""
     exempt = allowed(pin)
     if run:
@@ -634,7 +654,7 @@ def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int, commi
         )
         if code != 0:
             return check_bad(f"parity.py {DATA_CHECKS} exited {code}: {first_line(output)}")
-    state, path, reason = _parity_state(tree, pin, commit)
+    state, path, reason = _parity_state(tree, pin, commit, allow_local)
     if state is None:
         return check_stop(reason or "no profile.json or .local/parity-runner/state.json; "
                                   "rerun with --run", [str(path)] if path else [])
@@ -643,10 +663,14 @@ def check_d4(tree: Path, pin: Path, release: str, run: bool, timeout: int, commi
         return check_stop(f"not measured: {', '.join(unknown)}", [str(path)])
     if failing:
         return check_bad(f"data compatibility failing: {', '.join(failing)}", [str(path)])
-    return check_ok([f"{', '.join(DATA_CHECKS)}: pass"], [str(path)])
+    notes = [f"{', '.join(DATA_CHECKS)}: pass"]
+    if reason:
+        notes.append(reason)
+    return check_ok(notes, [str(path)])
 
 
-def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = ""):
+def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int, commit: str = "",
+             allow_local: bool = False):
     """D5 — this era's regression subset is green (or exempted with cause and owner)."""
     subset_path = pin / "harness-subset.txt"
     if not subset_path.exists():
@@ -667,7 +691,7 @@ def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int, commi
         )
         if code != 0 and not (tree / ".local/parity-runner/state.json").exists():
             return check_bad(f"parity.py exited {code}: {first_line(output)}")
-    state, path, reason = _parity_state(tree, pin, commit)
+    state, path, reason = _parity_state(tree, pin, commit, allow_local)
     if state is None:
         return check_stop(reason or "no profile.json or .local/parity-runner/state.json; "
                                   "rerun with --run", [str(path)] if path else [])
@@ -679,7 +703,10 @@ def check_d5(tree: Path, pin: Path, release: str, run: bool, timeout: int, commi
         return check_bad(f"{len(failing)} of {len(names)} subset harnesses failing: "
                          + ", ".join(failing[:4]), [str(path)])
     exempted = sum(1 for name in names if any(token in name for token in exempt))
-    return check_ok([f"{len(names)}/{len(names)} subset harnesses pass"],
+    notes = [f"{len(names)}/{len(names)} subset harnesses pass"]
+    if reason:
+        notes.append(reason)
+    return check_ok(notes,
                     [str(path), str(subset_path)],
                     {"suite_pass": len(names) - exempted, "suite_total": len(names),
                      "suite_exempt": exempted})
@@ -768,6 +795,27 @@ def print_index(roots) -> int:
 CHECK_ORDER = ("D1", "D2", "D3", "D4", "D5", "D6")
 
 
+def _repo_root(start: Path) -> Path:
+    """The checkout a verdict's paths should be written relative to."""
+    proc = subprocess.run(["git", "-C", str(start), "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True)
+    if proc.returncode == 0 and proc.stdout.strip():
+        return Path(proc.stdout.strip())
+    for parent in (start, *start.parents):
+        if (parent / ".git").exists():
+            return parent
+    return Path.cwd()
+
+
+def _rel(path, root: Path) -> str:
+    """A path as written in a verdict: repo-relative, so the file is committable."""
+    try:
+        rel = os.path.relpath(str(path), str(root))
+    except ValueError:
+        return str(path)
+    return str(path) if rel.startswith("..") else rel.replace(os.sep, "/")
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Decide whether one Minecraft release meets the delta bar (D1–D6).",
@@ -783,6 +831,9 @@ def main(argv=None) -> int:
                              "reading recorded output")
     parser.add_argument("--download", action="store_true", help="with --run: re-download the jars")
     parser.add_argument("--timeout", type=int, default=1800, help="seconds per harness")
+    parser.add_argument("--local-evidence", action="store_true",
+                        help="D4/D5: judge the local sweep when the published profile is "
+                             "stamped for another commit (active porting; recorded in the verdict)")
     parser.add_argument("--check", action="append", choices=CHECK_ORDER,
                         help="only these checks (repeatable)")
     parser.add_argument("--json", action="store_true", help="print the verdict to stdout")
@@ -804,8 +855,10 @@ def main(argv=None) -> int:
         "D1": lambda: check_d1(tree, pin, args.release, args.run, args.download),
         "D2": lambda: check_d2(tree, pin, args.release, args.run, args.timeout),
         "D3": lambda: check_d3(tree, pin, args.release),
-        "D4": lambda: check_d4(tree, pin, args.release, args.run, args.timeout, commit),
-        "D5": lambda: check_d5(tree, pin, args.release, args.run, args.timeout, commit),
+        "D4": lambda: check_d4(tree, pin, args.release, args.run, args.timeout, commit,
+                               args.local_evidence),
+        "D5": lambda: check_d5(tree, pin, args.release, args.run, args.timeout, commit,
+                               args.local_evidence),
         "D6": lambda: check_d6(pin, args.release, commit),
     }
     checks = {}
@@ -848,15 +901,19 @@ def main(argv=None) -> int:
         "schema": SCHEMA,
         "release": args.release,
         "commit": commit,
-        "tree": str(tree),
-        "pin": str(pin),
+        "tree": _rel(tree, _repo_root(pin)),
+        "pin": _rel(pin, _repo_root(pin)),
         "mode": "run" if args.run else "recorded",
         "verified": verdict_state == "verified",
         "state": verdict_state,
         "checked_at": checked_at,
         "scalars": scalars,
         "index_line": index_line,
-        "checks": checks,
+        "checks": {
+            name: {**entry, "evidence": [_rel(p, _repo_root(pin))
+                                          for p in (entry.get("evidence") or [])]}
+            for name, entry in checks.items()
+        },
     }
     out = pin / "delta-verdict.json"
     out.parent.mkdir(parents=True, exist_ok=True)
