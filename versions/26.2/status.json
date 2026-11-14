@@ -1,7 +1,7 @@
 {
  "behaviour": {
   "closed": 7,
-  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 220/410 on behaviour/26.2 (tip fb73d370); bucket C closed, bucket B has only item 106 open. Items 88/231 closed 2026-11-14 (worldgen settings + carvers); spawn_origin passes end to end.",
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 246/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 238/357/361/362 closed 2026-11-14 (density decoder arms, material-rule ore_vein arm removed; noise stack + clay bands verified no-change).",
   "total": 651
  },
  "harness": {

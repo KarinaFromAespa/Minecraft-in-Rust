@@ -13,8 +13,7 @@
 use super::*;
 use horizon_core::{
     density::{
-        BlendedNoise, CubicSpline, DistanceMetric, RoundMode, ShiftNoiseKind, SplinePoint,
-        TilingMode, WorldField,
+        BlendedNoise, CubicSpline, RoundMode, ShiftNoiseKind, SplinePoint, TilingMode, WorldField,
         graph::{DensityGraph, FunctionId, GraphBinary, GraphNode, GraphUnary, NoiseId},
     },
     geometry::Axis,
@@ -509,11 +508,10 @@ impl Loader {
                     inside: self.input(&object, "when_in_range", depth)?,
                     outside: self.input(&object, "when_out_of_range", depth)?,
                 },
-                "minecraft:lerp" => GraphNode::Lerp {
-                    alpha: self.input(&object, "alpha", depth)?,
-                    first: self.input(&object, "first", depth)?,
-                    second: self.input(&object, "second", depth)?,
-                },
+                // No minecraft:lerp arm: LerpFunction is 26.3-only (26.2's
+                // DensityFunctions.bootstrap does not register it), so a
+                // lerp in 26.2 data falls through to the unknown-type error
+                // below, as vanilla 26.2 rejects it.
                 "minecraft:interval_select" => {
                     let thresholds: Vec<Box<RawValue>> =
                         serde_json::from_str(required(&object, "thresholds")?.get())?;
@@ -543,22 +541,10 @@ impl Loader {
                         branches,
                     }
                 }
-                "minecraft:distance_to_point" => {
-                    let raw: Vec<Box<RawValue>> =
-                        serde_json::from_str(required(&object, "point")?.get())?;
-                    if raw.len() != 3 {
-                        return Err(DecodeError::Field("point"));
-                    }
-                    let point = [integer(&raw[0])?, integer(&raw[1])?, integer(&raw[2])?];
-                    let metric = match string(required(&object, "metric")?)?.as_str() {
-                        "euclidean" => DistanceMetric::Euclidean,
-                        "euclidean_squared" => DistanceMetric::EuclideanSquared,
-                        "manhattan" => DistanceMetric::Manhattan,
-                        "chebyshev" => DistanceMetric::Chebyshev,
-                        _ => return Err(DecodeError::Field("metric")),
-                    };
-                    GraphNode::DistanceToPoint { point, metric }
-                }
+                // No minecraft:distance_to_point arm: DistanceToPointFunction
+                // and DistanceMetric are 26.3-only (26.2's
+                // DensityFunctions.bootstrap does not register it), so it
+                // falls through to the unknown-type error below.
                 "minecraft:spline" => {
                     GraphNode::Spline(self.spline(required(&object, "spline")?, depth + 1)?)
                 }

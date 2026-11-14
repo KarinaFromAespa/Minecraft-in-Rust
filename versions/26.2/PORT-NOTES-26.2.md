@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 24/100 items, 14 changed, 10 no-change, 247 minutes on changed
+**rate sample: 28/100 items, 16 changed, 12 no-change, 277 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -533,6 +533,10 @@ log; it stays in agreement with the tally line above.
 | 267 | changed | 14 | classes table gains DirtPathBlock + RedStoneWireBlock aliases (both classes never matched in 26.2); survival tables updated |
 | 247 | changed | 6 | eyeblossom neighbour scan to 26.2 betweenClosed order (x, y, z), not 26.3 section-major |
 | 177 | changed | 120 | brewing to 26.2 PotionBrewing mixes (65) + BrewOutput model; stand to flat 26.2 form (no totals/speed); both harnesses reworked (5,386 + 20 lines match); shared block-update oracle to 26.2 (blockscan/ClockInstance/ServerChunkCache); merchant float-number fix; spans the investigation (pre-compaction) + implementation |
+| 238 | changed | 10 (est.) | lerp + distance_to_point decoder arms removed (26.2 bootstrap registers neither); 18 density-compiler classes 26.3-only |
+| 357 | no-change | — | Rust Noise trait / NoiseStack is Horizon's own engine; Interval mentions are comments on float edge-cases; range semantics belong to item 127 |
+| 361 | changed | 20 (est.) | minecraft:ore_vein decoder arm removed (26.2 MATERIAL_RULE has only bandlands/block/sequence/condition); Definition::Ore + roots plumbing removed; MaterialRule::OreVein stays for the generator's 26.2 vein application |
+| 362 | no-change | — | ClayBands matches 26.2 SurfaceSystem.generateBands/makeBands exactly (verified line by line); comment reworded to name SurfaceSystem |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 
