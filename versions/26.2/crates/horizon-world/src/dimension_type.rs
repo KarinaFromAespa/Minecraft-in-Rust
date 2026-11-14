@@ -84,7 +84,12 @@ impl BedRule {
         Ok(Self {
             can_sleep: rule("can_sleep")?,
             can_set_spawn: rule("can_set_spawn")?,
-            destroy_on_use: v["destroy_on_use"].as_bool().unwrap_or(false),
+            // 26.2's BedRule codec names this field `explodes`; 26.3
+            // renamed it `destroy_on_use` and added `destroy_on_leave`.
+            destroy_on_use: v["destroy_on_use"]
+                .as_bool()
+                .or_else(|| v["explodes"].as_bool())
+                .unwrap_or(false),
             destroy_on_leave: v["destroy_on_leave"].as_bool().unwrap_or(false),
         })
     }
@@ -430,6 +435,26 @@ mod tests {
         assert!(!BedRuleTest::WhenDark.test(false));
         assert!(BedRuleTest::Always.test(false));
         assert!(!BedRuleTest::Never.test(true));
+    }
+
+    #[test]
+    fn bed_rule_accepts_the_26_2_explodes_field() {
+        let explodes = BedRule::from_json(
+            &serde_json::json!({"can_sleep": "never", "can_set_spawn": "never", "explodes": true}),
+        )
+        .unwrap();
+        assert!(explodes.destroy_on_use);
+        assert!(!explodes.destroy_on_leave);
+        let destroy = BedRule::from_json(
+            &serde_json::json!({"can_sleep": "never", "can_set_spawn": "never", "destroy_on_use": true}),
+        )
+        .unwrap();
+        assert!(destroy.destroy_on_use);
+        let calm = BedRule::from_json(
+            &serde_json::json!({"can_sleep": "when_dark", "can_set_spawn": "always"}),
+        )
+        .unwrap();
+        assert!(!calm.destroy_on_use);
     }
 
     #[test]

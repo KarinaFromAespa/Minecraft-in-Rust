@@ -363,25 +363,22 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     Success
                 }
                 Class::AbstractBed => {
+                    // 26.2's BedBlock.useWithoutItem redirects a foot click
+                    // to the head and requires only that the head is this
+                    // bed; a head click needs no foot check at all. (26.3's
+                    // AbstractBedBlock added the pair check.)
                     let part = table.text(state, p.part).to_owned();
-                    let facing = b.facing(state);
-                    let other_dir = if part == "foot" {
-                        facing
-                    } else {
-                        facing.opposite()
-                    };
-                    let other = self.state(super::update::rel(pos, other_dir));
-                    if b.is_block(other, block) && table.text(other, p.part) != part {
-                        let head = if part == "head" {
-                            pos
-                        } else {
-                            super::update::rel(pos, facing)
-                        };
+                    if part == "foot" {
+                        let head = super::update::rel(pos, b.facing(state));
                         let head_state = self.state(head);
+                        if !b.is_block(head_state, block) {
+                            return Consume;
+                        }
                         self.player_effect(head, head_state, PlayerEffect::Sleep);
                         Success
                     } else {
-                        Consume
+                        self.player_effect(pos, state, PlayerEffect::Sleep);
+                        Success
                     }
                 }
                 Class::RespawnAnchor => {

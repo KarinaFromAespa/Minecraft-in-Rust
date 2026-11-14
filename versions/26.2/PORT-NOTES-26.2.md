@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 5/100 items, 2 changed, 3 no-change, 0 minutes on changed
+**rate sample: 6/100 items, 3 changed, 3 no-change, 3 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -514,6 +514,7 @@ log; it stays in agreement with the tally line above.
 | 133 | no-change | — | 26.3 densityfunction/op package absent from 26.2 |
 | 152 | no-change | — | 4 util classes 26.3-only, no Rust references |
 | 153 | no-change | — | CarverOutput/Filter/Visitor 26.3-only |
+| 102 | changed | 3 | bed pair check removed (26.2 form), BedRule explodes alias |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 
