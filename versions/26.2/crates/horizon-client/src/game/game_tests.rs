@@ -369,14 +369,8 @@ pub(super) fn verify_batches(infos: &[Info], mut next_id: impl FnMut() -> u32) -
             let copies = (0..100)
                 .map(|_| {
                     let pos = info.has_pos.then_some(info.pos);
-                    Info::new(
-                        next_id(),
-                        info.key.clone(),
-                        info.def.clone(),
-                        pos,
-                        rotation,
-                    )
-                    .with_retry(Retry::new(1, true))
+                    Info::new(next_id(), info.key.clone(), info.def.clone(), pos, rotation)
+                        .with_retry(Retry::new(1, true))
                 })
                 .collect();
             batches.push(Batch {
@@ -498,10 +492,7 @@ impl Grid {
 enum Out {
     /// `sendSuccess(.., broadcast)`, `sendFailure` or `sendSystemMessage` of
     /// the server's command source.
-    Console {
-        text: Text,
-        broadcast: bool,
-    },
+    Console { text: Text, broadcast: bool },
     /// `ReportGameListener.say`: the players in the test's level.
     Players(Text),
     Source {

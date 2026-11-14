@@ -212,7 +212,9 @@ impl Game<'_> {
         // 26.2 has no dimension on a test: it runs in the level in place.
         let rotation = rotation_for_steps(steps).ok_or_else(|| err("command.failed", &[]))?;
         let id = self.game_tests.next_id();
-        Ok(Some(Info::new(id, key, def, None, rotation).with_retry(retry)))
+        Ok(Some(
+            Info::new(id, key, def, None, rotation).with_retry(retry),
+        ))
     }
 
     /// The column `createTestPositionAround` starts from: the source's.

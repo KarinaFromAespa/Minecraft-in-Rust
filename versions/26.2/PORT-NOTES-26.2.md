@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 70/100 items, 41 changed, 29 no-change, 3672 minutes on changed
+**rate sample: 71/100 items, 42 changed, 29 no-change, 3792 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -573,6 +573,7 @@ log; it stays in agreement with the tally line above.
 | 87 | changed | 180 (est.) | See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change |
 | 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
+| 109 | changed | 120 (est.) | GameTest to the 26.2 single-level/single-grid form: TestDef.dimension and Info.dim removed, Runner holds its level, Grid is one state, onBatchStart does NOT reset the row count, say is level-scoped via broadcast_level, summary coordinate links removed (26.3-only) |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
@@ -915,3 +916,51 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   `entity_die_tests` 2/2, `stand_command_hurt_tests` 12/12,
   `kill_die_vibration_tests` 1/1, `vibration_tests` 6/6,
   `lan_particles` 5/5.
+
+## Item 109 closed (2026-11-14) — game/game_tests.rs / GameTest framework
+
+- **26.2 has no per-dimension GameTest model**: `TestData` has no
+  dimension field (26.3 added it with codec default Overworld);
+  `GameTestRunner` holds a `ServerLevel` (26.3: `MinecraftServer`);
+  `GameTestBatchFactory` groups by environment only (`BatchKey` is
+  26.3-only); `StructureGridSpawner` is a single flat grid (26.3:
+  per-dimension `DimensionGridState` grids).
+- **Rework**: `TestDef.dimension` removed (parse, describe row,
+  sample); `Info.dim` removed (`new`, `copy_reset`,
+  `verify_batches`, `test_info_at`, `test_info_for`, `run_test_at`);
+  the `Runner` gains its `level` (set at `track_and_start` from the
+  level in place) and `last_batch` is now `Vec<Pos>`;
+  `Grid.states` / `DimGrid` collapsed to a single
+  `Option<GridState>`; `run_batch`'s `onBatchStart` resets the corner
+  and the row bounds but NOT the row count (26.2 does not reset
+  `currentRowCount`); `tick_game_tests` ticks only while the runner's
+  level is in place; `spawn_test` no longer switches levels
+  (`in_test_level` removed); `has_tests_in` is the runner's level
+  with tests pending.
+- **Say is level-scoped**: `ReportGameListener.say` reaches only the
+  players in the test's level (26.3 tells the whole server). The
+  flush now uses `hub.broadcast_level`
+  (`PlayerList.broadcastAll(packet, dimension)`) and defers `Players`
+  lines until the runner's level is in place; with no runner left
+  (a halt cleared it) they go to the level in place.
+- **Summary coordinate links are 26.3-only**:
+  `TestCommand.outputPlayerCoordinates` / `outputTestCoordinates`
+  do not exist in 26.2 and `TestSummaryDisplayer` is a record with no
+  dimensions set. `Out::Coordinates`, `summary_coordinates` and
+  `output_test_summary_coordinates` are removed; the
+  coordinate-feedback E2E test is reworked to a summary-only test.
+  `TestInstanceBlockEntity.runTest` itself is identical in both
+  versions.
+- Checks: `cargo check -p horizon-client --all-targets` clean (only
+  the two pre-existing warnings); `game_tests` unit tests 10/10;
+  summary E2E (ignored) passes.
+- **Pre-existing failure, NOT caused by this item** (verified by
+  bisect on `c03452c8` — identical failure, same line and values):
+  `added_issuer_actor_missing_guest_and_restoration_controls` fails
+  at `test_summary_context_tests.rs:187` (`game.dim` Overworld vs
+  Nether after `test_source_output` to a guest while in the Nether;
+  no level-open error logged). Needs a follow-up in the
+  `for_player` / guest-turn level-restore path, outside the GameTest
+  framework.
+- WIP-checkpoint rule applied: the rework was committed and pushed
+  as `b9f704d9` once it compiled, before test verification.
