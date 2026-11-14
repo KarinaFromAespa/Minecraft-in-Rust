@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 21/100 items, 11 changed, 10 no-change, 107 minutes on changed
+**rate sample: 23/100 items, 13 changed, 10 no-change, 127 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -530,6 +530,8 @@ log; it stays in agreement with the tally line above.
 | 393 | no-change | — | Rust DensityVolume is Horizon's own volume index math, not a port of the 26.3 class |
 | 397 | no-change | — | InputQuirks$1 is the synthetic switch-map for 26.3's keyboard display overrides; Rust has none |
 | 407 | no-change | — | ClockInstance 26.3-only; Rust already uses 26.2 ClockManager.getTotalTicks (item 105) |
+| 267 | changed | 14 | classes table gains DirtPathBlock + RedStoneWireBlock aliases (both classes never matched in 26.2); survival tables updated |
+| 247 | changed | 6 | eyeblossom neighbour scan to 26.2 betweenClosed order (x, y, z), not 26.3 section-major |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 

@@ -6,19 +6,16 @@ use crate::registry::BlockStateId;
 use horizon_core::{position::BlockPos, random::RandomSource};
 use std::sync::Arc;
 
-/// `BlockScanUtils.findBlocks` order: sections by x, z, y; blocks by y, z, x.
-pub(crate) fn box_scan_order(min: BlockPos, max: BlockPos) -> Vec<BlockPos> {
+/// `BlockPos.betweenClosed(min, max)` (26.2): x innermost, then y, then z —
+/// the flat index is `x + width * (y + height * z)`. 26.3's `findBlocksIn`
+/// scans section by section instead, which assigns the per-neighbour random
+/// draws in a different order.
+pub(crate) fn between_closed(min: BlockPos, max: BlockPos) -> Vec<BlockPos> {
     let mut out = Vec::new();
-    for sx in (min.x >> 4)..=(max.x >> 4) {
-        for sz in (min.z >> 4)..=(max.z >> 4) {
-            for sy in (min.y >> 4)..=(max.y >> 4) {
-                for y in (sy * 16).max(min.y)..=(sy * 16 + 15).min(max.y) {
-                    for z in (sz * 16).max(min.z)..=(sz * 16 + 15).min(max.z) {
-                        for x in (sx * 16).max(min.x)..=(sx * 16 + 15).min(max.x) {
-                            out.push(BlockPos::new(x, y, z));
-                        }
-                    }
-                }
+    for z in min.z..=max.z {
+        for y in min.y..=max.y {
+            for x in min.x..=max.x {
+                out.push(BlockPos::new(x, y, z));
             }
         }
     }
@@ -89,7 +86,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let min = pos.offset(-3, -2, -3);
         let max = pos.offset(3, 2, 3);
         let block = b.block(state);
-        for near in box_scan_order(min, max) {
+        for near in between_closed(min, max) {
             if self.state(near) != state {
                 continue;
             }
@@ -233,5 +230,37 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         {
             self.schedule_tick(pos, block, 5000);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `BlockPos.betweenClosed` order (26.2's `BlockPos$4`): x innermost,
+    /// then y, then z — the flat index is `x + width * (y + height * z)`.
+    /// A section-major order (26.3's `findBlocksIn`) would assign the
+    /// eyeblossom neighbour delays differently.
+    #[test]
+    fn between_closed_scans_x_then_y_then_z() {
+        let min = BlockPos::new(0, 0, 0);
+        let max = BlockPos::new(1, 1, 1);
+        let got: Vec<[i32; 3]> = between_closed(min, max)
+            .iter()
+            .map(|p| [p.x, p.y, p.z])
+            .collect();
+        assert_eq!(
+            got,
+            vec![
+                [0, 0, 0],
+                [1, 0, 0],
+                [0, 1, 0],
+                [1, 1, 0],
+                [0, 0, 1],
+                [1, 0, 1],
+                [0, 1, 1],
+                [1, 1, 1],
+            ]
+        );
     }
 }

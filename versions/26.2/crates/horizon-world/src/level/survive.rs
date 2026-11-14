@@ -279,7 +279,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.sturdy(rel(pos, facing.opposite()), facing)
             }
             Class::RedstoneWire => {
-                // `RedstoneWireBlock.canSurvive`'s `canSurviveOn`, through
+                // `RedStoneWireBlock.canSurvive`'s `canSurviveOn`, through
                 // `support_state` so a retracting piston's moving base still
                 // holds its dust (#4728).
                 let below = below(pos);

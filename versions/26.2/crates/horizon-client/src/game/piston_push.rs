@@ -503,7 +503,7 @@ impl Game<'_> {
     }
 
     /// `Block.pushEntitiesUp(old, new, level, pos)` for the block now at `pos`
-    /// (`FarmlandBlock.turnToBaseBlock`, `PathBlock.turnToBaseBlock`): every body
+    /// (`FarmlandBlock.turnToBaseBlock`, `DirtPathBlock.turnToBaseBlock`): every body
     /// touching the collision that the new state adds over `old` is lifted
     /// onto it with `teleportRelative`, no collision scan.
     pub(super) fn push_entities_up(

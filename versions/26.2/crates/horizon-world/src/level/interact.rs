@@ -486,7 +486,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         Pass
     }
 
-    /// `RedstoneWireBlock.useWithoutItem`: toggle between dot and cross.
+    /// `RedStoneWireBlock.useWithoutItem`: toggle between dot and cross.
     fn wire_use(
         &mut self,
         pos: BlockPos,
