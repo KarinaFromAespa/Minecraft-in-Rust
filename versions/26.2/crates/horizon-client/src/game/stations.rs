@@ -2302,13 +2302,15 @@ impl Game<'_> {
             for run in charged.chunk_by(|a, b| a.same_item_same_components(b)) {
                 let projectile = &run[0];
                 let name = self.stack_hover_name(projectile);
+                // `getDisplayName`: `[name]` in the rarity colour, italic
+                // when custom-named. 26.2 uses it for both the single and
+                // the multiple line; 26.3 dropped it from the multiple one.
+                let mut shown = horizon_client::text::Text::literal(format!("[{name}]"))
+                    .with_color(rgb_of(self.rarity_color(projectile)));
+                if projectile.custom_name().is_some() {
+                    shown = shown.italic();
+                }
                 let line = if run.len() == 1 {
-                    // `getDisplayName`: `[name]` in the rarity colour.
-                    let mut shown = horizon_client::text::Text::literal(format!("[{name}]"))
-                        .with_color(rgb_of(self.rarity_color(projectile)));
-                    if projectile.custom_name().is_some() {
-                        shown = shown.italic();
-                    }
                     horizon_client::text::format_translation(
                         &self.translate(
                             "item.minecraft.crossbow.projectile.single",
@@ -2324,7 +2326,7 @@ impl Game<'_> {
                         ),
                         &[
                             horizon_client::text::Text::literal(run.len().to_string()),
-                            horizon_client::text::Text::literal(name),
+                            shown,
                         ],
                     )
                 };

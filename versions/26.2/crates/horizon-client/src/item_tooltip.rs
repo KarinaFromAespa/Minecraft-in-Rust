@@ -1148,8 +1148,9 @@ pub fn firework_lines(
     lines
 }
 
-/// `ItemContainerContents.addToTooltip`: "count x name" for the first five
-/// stacks, by slot, then how many more there are (an italic line).
+/// `ItemContainerContents.addToTooltip`: "name x count" for the first five
+/// stacks, by slot, then how many more there are (an italic line). 26.2
+/// passes the hover name first and the count second; 26.3 swapped them.
 pub fn container_lines(
     stack: &ItemStack,
     name: &dyn Fn(&ItemStack) -> String,
@@ -1164,7 +1165,7 @@ pub fn container_lines(
     let mut lines: Vec<String> = slots
         .iter()
         .take(5)
-        .map(|(_, s)| horizon_protocol::text::format_java(&count, &[s.count.to_string(), name(s)]))
+        .map(|(_, s)| horizon_protocol::text::format_java(&count, &[name(s), s.count.to_string()]))
         .collect();
     if slots.len() > 5 {
         let more =
@@ -1704,18 +1705,19 @@ mod tests {
         assert_eq!(
             container_lines(&chest, &name, &lang),
             [
-                "1 x stone",
-                "2 x stone",
-                "3 x stone",
-                "4 x stone",
-                "5 x stone",
+                "stone x 1",
+                "stone x 2",
+                "stone x 3",
+                "stone x 4",
+                "stone x 5",
                 "and 2 more..."
             ]
         );
         assert!(container_lines(&ItemStack::new("minecraft:chest", 1), &name, &lang).is_empty());
-        // German writes the count after the name: "%2$s× %1$s".
+        // German writes the count after the name: "%1$s× %2$s" (name first,
+        // count second, as 26.2 passes them).
         let german = |k: &str| match k {
-            "item.container.item_count" => Some("%2$s× %1$s".to_owned()),
+            "item.container.item_count" => Some("%1$s× %2$s".to_owned()),
             other => lang(other),
         };
         assert_eq!(container_lines(&chest, &name, &german)[0], "stone× 1");

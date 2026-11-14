@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 10/100 items, 6 changed, 4 no-change, 48 minutes on changed
+**rate sample: 12/100 items, 8 changed, 4 no-change, 62 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -519,6 +519,8 @@ log; it stays in agreement with the tally line above.
 | 105 | changed | 35 | environment colors to 26.2 packed-int formulas; 4 oracles + 4 harnesses pass |
 | 135 | changed | 4 | VillagerTrade reads given_item_modifiers (plural) |
 | 136 | no-change | — | tryPlaceLeaf plumbing only; Rust already matches 26.2 |
+| 134 | changed | 3 | port-pack gating: 26.2 series copies as-is, 26.3 packs not brought over; install() fresh-dir fix |
+| 140 | changed | 11 | container tooltip args (name, count); crossbow multiple line uses getDisplayName |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 
