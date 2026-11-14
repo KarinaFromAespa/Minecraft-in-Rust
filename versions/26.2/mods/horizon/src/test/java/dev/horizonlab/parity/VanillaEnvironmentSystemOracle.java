@@ -24,11 +24,10 @@ import net.minecraft.world.attribute.SpatialAttributeInterpolator;
 import net.minecraft.world.attribute.WeatherAttributes;
 import net.minecraft.world.attribute.modifier.AttributeModifier;
 import net.minecraft.world.timeline.AttributeTrack;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.KeyframeTrackSampler;
 import java.util.Optional;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3fc;
-import org.joml.Vector4fc;
 
 /**
  * Builds the pinned game's EnvironmentAttributeSystem per case (a dimension's attributes, the
@@ -139,8 +138,8 @@ public final class VanillaEnvironmentSystemOracle {
                 continue;
             }
             var attribute = (EnvironmentAttribute<Object>) raw;
-            output.add(BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getKey(raw) + "\t" + format(system.getValue(attribute, position, blend))
-                + "\t" + format(system.getDimensionValue(attribute)));
+            output.add(BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getKey(raw) + "\t" + format(system.getValue(attribute, position, blend), attribute)
+                + "\t" + format(system.getDimensionValue(attribute), attribute));
         }
     }
 
@@ -161,15 +160,15 @@ public final class VanillaEnvironmentSystemOracle {
         return String.format("%08x", Float.floatToRawIntBits(f));
     }
 
-    private static String format(Object value) {
+    private static String format(Object value, EnvironmentAttribute<?> attribute) {
         if (value instanceof Float f) {
             return bits(f);
         }
-        if (value instanceof Vector4fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z()) + " " + bits(v.w());
-        }
-        if (value instanceof Vector3fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z());
+        if (value instanceof Integer color) {
+            // A packed int, printed as the float bits of its channels (RGB: 3, ARGB: 4).
+            String rgb = bits(ARGB.redFloat(color)) + " " + bits(ARGB.greenFloat(color)) + " " + bits(ARGB.blueFloat(color));
+            String type = BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString();
+            return type.equals("minecraft:argb_color") ? rgb + " " + bits(ARGB.alphaFloat(color)) : rgb;
         }
         return String.valueOf(value);
     }

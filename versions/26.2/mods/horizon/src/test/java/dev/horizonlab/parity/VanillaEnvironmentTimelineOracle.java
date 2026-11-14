@@ -10,13 +10,12 @@ import net.minecraft.SharedConstants;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.util.ARGB;
 import net.minecraft.util.EasingType;
 import net.minecraft.util.KeyframeTrackSampler;
 import net.minecraft.world.attribute.EnvironmentAttribute;
 import net.minecraft.world.attribute.modifier.AttributeModifier;
 import net.minecraft.world.timeline.AttributeTrack;
-import org.joml.Vector3fc;
-import org.joml.Vector4fc;
 
 /**
  * Easings through EasingType.CODEC, and attribute tracks through AttributeTrack's codec and
@@ -64,7 +63,7 @@ public final class VanillaEnvironmentTimelineOracle {
             if (!out.isEmpty()) {
                 out.append(';');
             }
-            out.append(format(modifier.apply(base, sampler.sample(Long.parseLong(t)))));
+            out.append(format(modifier.apply(base, sampler.sample(Long.parseLong(t))), attribute));
         }
         return out.toString();
     }
@@ -73,15 +72,15 @@ public final class VanillaEnvironmentTimelineOracle {
         return String.format("%08x", Float.floatToRawIntBits(f));
     }
 
-    private static String format(Object value) {
+    private static String format(Object value, EnvironmentAttribute<?> attribute) {
         if (value instanceof Float f) {
             return bits(f);
         }
-        if (value instanceof Vector4fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z()) + " " + bits(v.w());
-        }
-        if (value instanceof Vector3fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z());
+        if (value instanceof Integer color) {
+            // A packed int, printed as the float bits of its channels (RGB: 3, ARGB: 4).
+            String rgb = bits(ARGB.redFloat(color)) + " " + bits(ARGB.greenFloat(color)) + " " + bits(ARGB.blueFloat(color));
+            String type = BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString();
+            return type.equals("minecraft:argb_color") ? rgb + " " + bits(ARGB.alphaFloat(color)) : rgb;
         }
         return String.valueOf(value);
     }

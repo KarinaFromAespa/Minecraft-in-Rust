@@ -22,8 +22,7 @@ import net.minecraft.world.clock.*;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.phys.Vec3;
-import org.joml.Vector3fc;
-import org.joml.Vector4fc;
+import net.minecraft.util.ARGB;
 
 /**
  * Original oracle: builds the vanilla EnvironmentAttributeSystem (dimension
@@ -32,9 +31,13 @@ import org.joml.Vector4fc;
  * fixture lines "dimension ticks rain thunder biome".
  */
 public final class VanillaEnvironmentOracle {
-    private static String fmt(Object v) {
-        if (v instanceof Vector3fc c) return String.format("[%s,%s,%s]", c.x(), c.y(), c.z());
-        if (v instanceof Vector4fc c) return String.format("[%s,%s,%s,%s]", c.x(), c.y(), c.z(), c.w());
+    private static String fmt(Object v, EnvironmentAttribute<?> attribute) {
+        if (v instanceof Integer color) {
+            // A packed int, printed as the float channels of its bytes (RGB: 3, ARGB: 4).
+            String rgb = ARGB.redFloat(color) + "," + ARGB.greenFloat(color) + "," + ARGB.blueFloat(color);
+            String type = BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString();
+            return "[" + (type.equals("minecraft:argb_color") ? rgb + "," + ARGB.alphaFloat(color) : rgb) + "]";
+        }
         if (v instanceof Float f) return f.toString();
         if (v instanceof Boolean b) return b.toString();
         if (v instanceof Enum<?> e) return "\"" + e.name() + "\"";
@@ -68,12 +71,7 @@ public final class VanillaEnvironmentOracle {
                 long ticks = Long.parseLong(f[1]);
                 float rain = Float.parseFloat(f[2]), thunder = Float.parseFloat(f[3]);
                 Biome biome = biomes.getOrThrow(ResourceKey.create(Registries.BIOME, Identifier.withDefaultNamespace(f[4]))).value();
-                ClockManager clocks = h -> new ClockInstance() {
-                    public long totalTicks() { return ticks; }
-                    public float partialTick() { return 0.0F; }
-                    public float rate() { return 1.0F; }
-                    public boolean isPaused() { return false; }
-                };
+                ClockManager clocks = h -> ticks;
                 var b = EnvironmentAttributeSystem.builder();
                 b.addConstantLayer(dim.attributes());
                 for (EnvironmentAttribute<?> attr : biome.getAttributes().keySet()) addBiome(b, attr, biome);
@@ -88,7 +86,7 @@ public final class VanillaEnvironmentOracle {
                 StringBuilder sb = new StringBuilder("{\"case\":\"" + line + "\"");
                 for (var entry : BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.entrySet()) {
                     EnvironmentAttribute<?> attr = entry.getValue();
-                    String s = fmt(system.getValue(attr, Vec3.ZERO));
+                    String s = fmt(system.getValue(attr, Vec3.ZERO, null), attr);
                     if (s != null) sb.append(",\"").append(entry.getKey().identifier()).append("\":").append(s);
                 }
                 w.println(sb.append("}"));

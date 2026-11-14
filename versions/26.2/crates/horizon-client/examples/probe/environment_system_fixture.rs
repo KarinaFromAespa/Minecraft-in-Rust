@@ -89,7 +89,7 @@ fn run(
             |w, m| blend.accumulate(w, m),
         );
     }
-    let biome = |_full: bool| Some(here);
+    let biome = || Some(here);
     let conditions = Conditions {
         rain: case["rain"].as_f64().ok_or("rain")? as f32,
         thunder: case["thunder"].as_f64().ok_or("thunder")? as f32,

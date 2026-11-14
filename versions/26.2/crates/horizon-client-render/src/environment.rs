@@ -950,9 +950,9 @@ impl Environment {
     /// a biome.
     pub fn value(&self, id: &str, at: &Sample) -> Option<Value> {
         let attribute = attribute(id)?;
-        let biome = |_full_resolution: bool| at.biome;
+        let biome = || at.biome;
         let clock = |_clock: &str| at.day_time;
-        let post_biome = |_full_resolution: bool| at.post_biome;
+        let post_biome = || at.post_biome;
         let conditions = Conditions {
             rain: at.rain,
             thunder: at.thunder,

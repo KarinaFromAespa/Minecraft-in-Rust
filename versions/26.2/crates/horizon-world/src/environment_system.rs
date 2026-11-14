@@ -87,16 +87,17 @@ pub struct Conditions<'a, 'b> {
     pub thunder: f32,
     /// The biomes around the position, for spatially interpolated attributes.
     pub blend: Option<&'b BiomeBlend<'a>>,
-    /// The biome's attributes at the position: the noise biome, or the block's biome for
-    /// attributes with full-resolution biomes.
-    pub biome: &'b dyn Fn(bool) -> Option<&'a AttributeMap>,
+    /// The biome's attributes at the position: the noise biome. (26.3
+    /// added full-resolution biomes for `natural_mob_spawns`; 26.2 has
+    /// neither the flag nor that attribute.)
+    pub biome: &'b dyn Fn() -> Option<&'a AttributeMap>,
     /// `ClockManager.getTotalTicks(clock)` for a `WorldClock` id (26.2;
     /// 26.3 returns a `ClockInstance` whose `totalTicks()` is read instead).
     pub clock: &'b dyn Fn(&str) -> i64,
     /// A second biome group that applies after the weather (resource packs' biome
     /// `post_process` layers): its mix and the map at the position, as for the biome layer.
     pub post_blend: Option<&'b BiomeBlend<'a>>,
-    pub post_biome: Option<&'b dyn Fn(bool) -> Option<&'a AttributeMap>>,
+    pub post_biome: Option<&'b dyn Fn() -> Option<&'a AttributeMap>>,
 }
 
 enum Layer {
@@ -289,7 +290,7 @@ impl Sampler {
                     Some(blend) if attribute.spatially_interpolated() => {
                         blend.apply(attribute, &result)
                     }
-                    _ => match (conditions.biome)(attribute.full_resolution_biomes()) {
+                    _ => match (conditions.biome)() {
                         Some(map) => map.apply(attribute, &result),
                         None => result,
                     },
@@ -302,10 +303,7 @@ impl Sampler {
                     Some(blend) if attribute.spatially_interpolated() => {
                         blend.apply(attribute, &result)
                     }
-                    _ => match conditions
-                        .post_biome
-                        .and_then(|f| f(attribute.full_resolution_biomes()))
-                    {
+                    _ => match conditions.post_biome.and_then(|f| f()) {
                         Some(map) => map.apply(attribute, &result),
                         None => result,
                     },
