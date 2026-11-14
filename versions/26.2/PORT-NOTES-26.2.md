@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 71/100 items, 42 changed, 29 no-change, 3792 minutes on changed
+**rate sample: 72/100 items, 43 changed, 29 no-change, 3882 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -574,6 +574,7 @@ log; it stays in agreement with the tally line above.
 | 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
 | 109 | changed | 120 (est.) | GameTest to the 26.2 single-level/single-grid form: TestDef.dimension and Info.dim removed, Runner holds its level, Grid is one state, onBatchStart does NOT reset the row count, say is level-scoped via broadcast_level, summary coordinate links removed (26.3-only) |
+| 106 | changed | 90 (est.) | Natural spawning: quart-origin spawn costs; fresh pufferfish 0.35 (puff state 0); obstruction predicate kept (blocksBuilding) |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
@@ -964,3 +965,43 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   framework.
 - WIP-checkpoint rule applied: the rework was committed and pushed
   as `b9f704d9` once it compiled, before test verification.
+
+## Item 106 closed (2026-11-15) — mobs/spawn_selection.rs / natural spawning
+
+- 3 of 15,620 harness lines diverged (`tools/test_natural_spawn_parity.py`,
+  artifacts in `.local/rust-natural-spawn-parity/`). Two root causes, both
+  in the probe / shared spawn-selection code:
+- **Quart-origin spawn costs.** The probe's `spawn_cost` read the biome at
+  block coords, but vanilla's `SpawnState.canSpawn` goes through
+  `getRoughBiome` — the chunk's *noise* biome at the quart cell's origin
+  block (the oracle's `getNoiseBiome` samples `biomeAt((x>>2)<<2, ...)`).
+  A test at a biome boundary can sit in a quart cell whose origin is
+  across it: at `(2,43,3)` and `(3,30,9)` the origin block is crimson
+  forest (no skeleton spawn cost, so `canSpawn` is true) while the block
+  itself is soul sand valley (cost 0.7, energy over the 0.15 budget).
+  Fixed the probe's `spawn_cost` to the quart-origin biome; the real
+  `GameLevel` already used `zoomed_biome`. Verified numerically before
+  the fix (block-coord energies 0.2534 / 0.3124 false vs quart-origin
+  no-cost true, matching vanilla).
+- **Fresh pufferfish dimensions.** A fresh pufferfish is puff state 0, so
+  `Pufferfish.getScale(0)` = 0.5 makes it 0.35 wide, not the registry 0.7.
+  The 0.7 box falsely overlapped the spider's spawn box at `(9,75,8)` and
+  `checkSpawnObstruction` failed it. Added `fresh_dimensions` (pufferfish
+  x0.5), used by `mob_type` in both impls, the probe's case-entity boxes,
+  and `neutral_box`.
+- **Wrong turn, reverted in full.** The obstruction predicate was first
+  narrowed to `canBeCollidedWith`-only (boats / happy ghasts / shulkers),
+  which regressed the harness to 387 differing lines: vanilla's
+  `isUnobstructed` counts every non-spectator entity with `blocksBuilding`
+  (true for all living entities — `LivingEntity` sets it), and the run's
+  own spawns DO block repeats at the same spot (squid / sheep / enderman
+  cases). `canBeCollidedWith` is `noCollision`'s rule, a different method.
+  The doc comment on `spawn_obstruction` now records the distinction.
+- Harness: all 15,620 natural spawn cases match vanilla (97,604 attempts,
+  14,068 type checks passed, 10,850 spawns).
+- WIP checkpoints `35afa6d1` and `d0b1b62d` pushed mid-batch.
+- Environment notes: the fast-profile `client_probe` link failed once with
+  rust-lld "undefined hidden symbol" from stale incremental artifacts —
+  fixed by `cargo clean -p horizon-client-lib --profile fast`; the
+  driver's 900 s build timeout was worked around by pre-building the fast
+  probe first.
