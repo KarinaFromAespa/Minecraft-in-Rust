@@ -2246,3 +2246,22 @@ i64-saturation divergence from the float wrap at huge magnitudes), the
 single-octave PerlinSimplexNoise identity, the old value-factor formula,
 BlendedNoise construction, and legacy-init throw order. `cargo test -p
 horizon-core --lib noise::` 12/12; fmt + clippy clean for the new file.
+
+(b)+(c) Noise oracle, probe and driver rewritten for 26.2 (2026-11-15):
+`VanillaNoiseOracle.java` now drives the 26.2 synth API (ImprovedNoise,
+PerlinNoise, SimplexNoise, PerlinSimplexNoise, NormalNoise, BlendedNoise,
+NoiseUtils) with `SharedConstants.tryDetectVersion()` + `Bootstrap
+.bootStrap()` at startup — touching `DensityFunction.FunctionContext`
+for `BlendedNoise.compute` initializes `DensityFunctions`, which needs
+the registries. `crates/horizon-core/src/bin/noise_parity.rs` drives
+the synth module over the same protocol; `tools/test_noise_parity.py`
+has a 26.2 corpus (wrap incl. long-floor saturation, bias, improved
++ local queries, perlin new/legacy direct + octave-set forms with
+error draw-state cases, simplex, perlin-simplex incl. positive-octave
+seeding, normal incl. legacy Nether biome, blended seeded + unseeded).
+`python3 tools/test_noise_parity.py` PASSES: 6,032 output lines match
+Rust bit-exactly on BOTH the client and server jars. Two driver bugs
+found on the way: the legacy PerlinNoise init fails (count check) when
+a nonzero amplitude sits above the zero octave — e.g. firstOctave 0
+with [1.0, 1.0] — so the driver now mirrors the throw order instead
+of assuming only firstOctave-1 cases fail.

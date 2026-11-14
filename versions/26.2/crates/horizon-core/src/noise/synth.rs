@@ -884,6 +884,20 @@ impl PerlinSimplexNoise {
         })
     }
 
+    /// The octave levels, for the parity probe (vanilla exposes them only
+    /// through reflection).
+    pub fn levels(&self) -> &[Option<SimplexNoise>] {
+        &self.noise_levels
+    }
+
+    pub fn highest_freq_input_factor(&self) -> f64 {
+        self.highest_freq_input_factor
+    }
+
+    pub fn highest_freq_value_factor(&self) -> f64 {
+        self.highest_freq_value_factor
+    }
+
     pub fn get_value(&self, x: f64, y: f64, use_noise_start: bool) -> f64 {
         let mut value = 0.0;
         let mut factor = self.highest_freq_input_factor;
