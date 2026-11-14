@@ -498,8 +498,10 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 98/100 items, 46 changed, 52 no-change, 4132 minutes on changed
-items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
+**rate sample: 100/100 items COMPLETE, 47 changed, 53 no-change, 4162 minutes on changed
+items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT) and closes at rank 2
+326/410 (2026-11-15). The last two closes were 322 (changed, 30 min est.) and the
+nine no-change items of batch 4.
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
 (excluded from the minutes total). Item 89 was already closed before
@@ -607,6 +609,17 @@ log; it stays in agreement with the tally line above.
 | 86 | changed | 240 (est.) | Farmland trample + turtle-egg destroy drop 26.3's spawn-protection gate (26.2 players always trample/destroy); bucket evaporate smoke to 26.2 addParticle x8 uniform in-cube, acting client only, LAN send removed; spectator block outline over menu blocks; spinning/OIT/post-effect citations to the 26.2 locations. cargo check clean; lan_particles 5/5; block-landing harness block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server) |
 | 147 | changed | 120 (est.) | BlockAttachedEntity.kill is Entity.kill(level) in 26.2 (unattributed death); painting/frame ENTITY_DIE now unattributed on player and blast breaks; explosion_kill_credit() + crystal_blast_player() removed; explosion-broken frame BLOCK_CHANGE now attributed to the blast's direct source entity (exploding mob) via explosion_direct_source(). entity_die_explosions updated to the 26.2 truth (4 events, all self-sourced; no item event); stand hurt test renamed + fixed (same 26.3 attribution lag). entity_die 2/2, stand 12/12, kill_die 1/1, vibration 6/6, lan_particles 5/5 |
 | 374 | changed | 120 (est.) | Cushion/CushionItem/CushionRenderer 26.3-only (0 entries in either 26.2 jar): entity/item/renderer, dye_index, Target::Cushion, minecraft:cushion load/save, LAN states, seats/rides, blast/thunder handling and the placement probe removed; generic logic moved (dismount helpers to passengers.rs, suffocation/view-blocking to render_tick.rs). cushion_placement harness n/a for 26.2 (oracle imports the 26.3-only blockscan package); driver + oracle left in place |
+| 312 | no-change | — | GameType -1 sentinel already the Rust form (item 8); BaseSpawner.setEntityData 26.3-only; SpawnPredicate no ServerLevel param in 26.2 (item 106 form) |
+| 313 | no-change | — | RegistryOps/HolderLookupAdapter HolderOwner rework; no Rust surface |
+| 314 | no-change | — | MaterialBaker concrete-vs-abstract; Material.withSuffix 26.3-only |
+| 315 | no-change | — | EndCrystalRenderer submitModel null arg + beam-target shouldRender 26.3-only |
+| 317 | no-change | — | CreateWorldScreen datapackWorldRegistries -> datapackWorldgen rename |
+| 318 | no-change | — | DisplayRenderer culling is the item-92 tick-position form |
+| 319 | no-change | — | ProjectileDeflection 3-arg + REVERSE -0.5 already Rust form; ShulkerBullet redirect 26.3-only |
+| 320 | no-change | — | Enchantment holderSet/homogeneousList same JSON shapes; Builder Holder.direct 26.3-only |
+| 322 | changed | 30 (est.) | PortalShape.FRAME is obsidian, not the 26.3-only #nether_portal_frame tag; portal_frame fixed to is_block(obsidian). Nether-portal harness repaired (state_properties: NBT `Properties` vs JSON `properties`) and passes 2626/2626 |
+| 323 | no-change | — | TrialSpawnerConfig codec rename only; BlockEntity log arg order cosmetic |
+
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -1396,3 +1409,109 @@ All ten no-change (verified against the jars, no code change). Rank 2
   26.3-only; the rest of the diffs are 0-2 lines (AbstractButton,
   AbstractScrollArea, BossHealthOverlay, CycleButton, ImageButton have
   no diff at all).
+
+## Batch of 10 rank-2 A items closed (2026-11-15) — 312, 313, 314, 315, 317, 318, 319, 320, 322, 323
+
+Nine no-change, one changed (322). Rank 2 316/410 -> 326/410. Rate
+sample: 98 -> 100 items (complete — see the tally note below).
+
+## Item 312 no-change (2026-11-15) — world/level
+
+- 3 classes, 0 named. `GameType`: 26.3 has an `OPTIONAL_STREAM_CODEC`
+  (ByteBuf); 26.2 has `getNullableId` with a -1 sentinel. The Rust's
+  26.2 adapter already uses the -1 sentinel (`layout_26_2.rs` writes
+  `previous_game_type.map_or(-1, ...)`, `translate.rs` reads
+  `(previous >= 0).then_some(...)`) — the item-8 login fix.
+  `BaseSpawner.setEntityData(TypedEntityData, ...)` is 26.3-only; 26.2's
+  spawner has no such method. `NaturalSpawner$SpawnPredicate.test`
+  takes a `ServerLevel` in 26.3, not in 26.2 — the Rust's spawn
+  selection (item 106, harness-passing) already uses the 26.2 form.
+
+## Item 313 no-change (2026-11-15) — protocol/item/hash.rs
+
+- 2 classes, 0 named. `RegistryOps` / `HolderLookupAdapter`: the
+  `owner()` / `getter()` / `elementsLifecycle()` HolderOwner rework.
+  The Rust does not port the class (only a doc comment in `hash.rs`
+  mentions it); its registry ops are its own. No Rust surface.
+
+## Item 314 no-change (2026-11-15) — client/resources/model/sprite
+
+- 2 classes, 0 named. `MaterialBaker`: 26.3 is a concrete class with
+  block/item atlas Preparations; 26.2 is abstract with just a missing
+  sprite. `Material.withSuffix` is 26.3-only. The Rust's sprite baking
+  is its own implementation.
+
+## Item 315 no-change (2026-11-15) — end_crystal.rs
+
+- 1 class, 0 named. `EndCrystalRenderer`: 26.2's `submitModel` call
+  carries an extra trailing `null` argument (a 26.2-only parameter
+  slot); 26.3's `shouldRender` additionally returns true when the
+  crystal has a beam target (26.3-only — in 26.2 a culled crystal does
+  not render, beam or not). The Rust has no beam-target render gate,
+  matching 26.2; entity culling is the item-92 tick-position form.
+
+## Item 317 no-change (2026-11-15) — client/gui/screens/worldselection
+
+- 1 class, 0 named. `CreateWorldScreen`: `datapackWorldRegistries()`
+  -> `datapackWorldgen()` rename only.
+
+## Item 318 no-change (2026-11-15) — client/renderer/entity
+
+- 1 class, 0 named. `DisplayRenderer`: 26.3's
+  `getBoundingBoxForCulling(entity, partialTicks)` with
+  `getInterpolatedBoundingBox` vs 26.2's `getBoundingBoxForCulling(entity)`
+  with `getBoundingBoxForCulling()` — the item-92 tick-position culling
+  form, already ported. `rotate` -> `mulPose` rename.
+
+## Item 319 no-change (2026-11-15) — world/entity/projectile
+
+- 2 classes, 0 named. `ProjectileDeflection`: 26.3's deflect lambdas
+  take a `power` (Vec3) parameter; 26.2's take only (projectile,
+  entity, random). REVERSE: 26.3 multiplies by `-power * 0.5` per
+  component; 26.2 scales by -0.5. The Rust's `deflect_reverse` and
+  `wind::reverse` both use the 26.2 -0.5 form, and 26.2's Breeze
+  deflection is REVERSE (with the sound), not AIM_DEFLECT.
+  `ShulkerBullet.onRedirectProjectile` (MOMENTUM_DEFLECT) is 26.3-only;
+  26.2's shulker bullets have no such method, and the Rust correctly
+  has none.
+
+## Item 320 no-change (2026-11-15) — world/item/enchantment
+
+- 3 classes, 0 named. `Enchantment`: `RegistryCodecs.holderSet` ->
+  `homogeneousList` for `exclusive_set` (and `supported_items` /
+  `primary_items` in the definition) and `RegistryFixedCodec.create`
+  for `CODEC` — the same JSON shapes (a `#tag` string or a list), which
+  the Rust's `parse_entry` already accepts in both forms.
+  `Enchantment$Builder` drops the `Holder.direct` wrapping (26.3-only).
+
+## Item 323 no-change (2026-11-15) — chunk/block_entity.rs
+
+- 3 classes, 0 named. `TrialSpawnerConfig`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` rename; the record field order is the same
+  in both versions. `BlockEntity`: the two log lines swap their
+  state/pos arguments — cosmetic only. `TrialSpawnerBlockEntity` diff
+  is 10 lines of the same codec rename.
+
+## Item 322 changed (2026-11-15) — level/portal.rs
+
+- 2 classes, 0 named. `PortalShape.FRAME` is `state.is(#nether_portal_frame)`
+  in 26.3 vs `state.is(Blocks.OBSIDIAN)` in 26.2. The tag file exists
+  only in the 26.3 jar (46 bytes, contains only `minecraft:obsidian`);
+  the real 26.2 `block-tags.json` (265 tags) has `minecraft:fire` but NOT
+  `minecraft:nether_portal_frame`. The Rust's `portal_frame` (tag lookup
+  via `b.tag(...)`, `None` -> false) was therefore always false under
+  26.2 data — portal detection broken. Fixed in
+  `crates/horizon-world/src/level/portal.rs` to
+  `self.b.is_block(state, self.b.named.obsidian)` (named.obsidian exists
+  at `level/data.rs:267`). `cargo check -p horizon-world` clean,
+  rustfmt clean.
+- Verification: the nether_portal harness had never run on 26.2 — it
+  failed at case generation with `KeyError: ('minecraft:nether_portal',
+  {'axis': 'z'})`. Root cause: the shared `States` helper in
+  `tools/test_dispenser_parity.py` reads the state properties from
+  `state[4]['properties']` (the 26.3 JSON form), but the 26.2 facts.json
+  stores the NBT form (`Properties`). Fixed with a `state_properties`
+  helper that accepts both forms (three call sites). Harness now runs
+  and passes: **2626/2626 cases match (0 oracle errors)** — vanilla
+  linked to an existing portal 725 times, built one 775 times, 1126 of
+  them PortalShape frame searches.
