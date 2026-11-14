@@ -332,7 +332,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let Some(g) = b.data(state).feature.as_deref().and_then(grower) else {
                     return false;
                 };
-                if b.live_features().is_none() || !self.tree_can_grow(g, pos, state) {
+                // 26.2's isValidBonemealTarget is only the height check:
+                // canGrow (the 2x2 requirement for a mega-only grower) is
+                // 26.3-only, so a lone dark oak sapling takes the meal.
+                if b.live_features().is_none() {
                     return false;
                 }
                 let height = self.tree_minimum_height(g);

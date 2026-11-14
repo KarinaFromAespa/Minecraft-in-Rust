@@ -1,7 +1,7 @@
 {
  "behaviour": {
-  "closed": 283,
-  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 276/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 192/233 closed 2026-11-14 (EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework to the 26.2 classic model, harness bit-exact on 135,742 lines; tracker reworked; powder-snow to the 26.2 client-side form). Items 180/185/187/205/296/302/305/306/307/311/316/321/333/342 closed 2026-11-14 (cooking defaults; predicate-cycle warnings-only; dolphin goals merged to the single 26.2 PlayWithItemsGoal + blocksMotion jump; Panic withinManhattan order + MeleeAttack reach 1; enderman teleport to the 26.2 two-scan blocksMotion form). Items 157/161 closed 2026-11-14 (EntityFluidInteraction to the 26.2 per-tag Tracker model: void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; entity_fluid_tick answers inWater || inLava; getHeightForCamera removed; FloatGoal verified already 26.2; entity-fluid harness bit-exact on 560,630 lines against both 26.2 jars).",
+  "closed": 284,
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 277/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 192/233 closed 2026-11-14 (EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework to the 26.2 classic model, harness bit-exact on 135,742 lines; tracker reworked; powder-snow to the 26.2 client-side form). Items 180/185/187/205/296/302/305/306/307/311/316/321/333/342 closed 2026-11-14 (cooking defaults; predicate-cycle warnings-only; dolphin goals merged to the single 26.2 PlayWithItemsGoal + blocksMotion jump; Panic withinManhattan order + MeleeAttack reach 1; enderman teleport to the 26.2 two-scan blocksMotion form). Items 157/161 closed 2026-11-14 (EntityFluidInteraction to the 26.2 per-tag Tracker model: void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; entity_fluid_tick answers inWater || inLava; getHeightForCamera removed; FloatGoal verified already 26.2; entity-fluid harness bit-exact on 560,630 lines against both 26.2 jars). Item 117 closed 2026-11-14 (TreeGrower to the 26.2 secondary-chance model, poplar removed, canGrow removed; MushroomBlock verified equivalent).",
   "total": 651
  },
  "harness": {
@@ -18,7 +18,7 @@
  },
  "last_ci_commit": "bc42387a",
  "last_ci_run": 43575017292,
- "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 276/410 on behaviour/26.2. D2 newly failing in 43575017292: the vanilla_recipe_serializers protocol test (properties count 7 vs 9) \u2014 a pre-existing regression from the 218-258 batches, needs a bisect.",
+ "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 277/410 on behaviour/26.2. D2 newly failing in 43575017292: the vanilla_recipe_serializers protocol test (properties count 7 vs 9) \u2014 a pre-existing regression from the 218-258 batches, needs a bisect.",
  "profile_recorded": "2026-11-14",
  "protocol": 776,
  "protocol_tests": {

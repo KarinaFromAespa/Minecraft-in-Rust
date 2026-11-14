@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 58/100 items, 29 changed, 29 no-change, 1752 minutes on changed
+**rate sample: 59/100 items, 30 changed, 29 no-change, 1842 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -567,6 +567,7 @@ log; it stays in agreement with the tally line above.
 | 192 | changed | 60 (est.) | powder-snow entityInside to the 26.2 client-side form (xOld/zOld gate, addParticle); interpolation half closes with 233 (minutes counted there) |
 | 157 | changed | 120 (est.) | EntityFluidInteraction to the 26.2 per-tag Tracker model (joint rework with 161): void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; getHeightForCamera removed from the trait + 4 implementors; stale ServerEntity/UpdateInterval comments fixed |
 | 161 | changed | 120 (est.) | EntityFluidInteraction + FloatGoal (joint rework with 157): tick answers inWater \|\| inLava; mob eye check to the plain top; FloatGoal verified already 26.2 (no code change); entity-fluid harness reworked (oracle reflects trackerByFluid, sets the Fluid holder field 26.2's getTrackerFor reads) and bit-exact on 560,630 lines against both 26.2 jars |
+| 117 | changed | 90 (est.) | TreeGrower to the 26.2 secondary-chance model (oak 0.1, spruce 0.5, mangrove 0.85); poplar removed; canGrow removed (lone dark oak takes the meal); mega square cleared to air/260, single sapling to legacy block/260; MushroomBlock verified equivalent; 3 picker unit tests |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.

@@ -1058,7 +1058,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if self.rand_int(25) != 0 {
             return;
         }
-        // canSpread: at most four of this mushroom within a 9x3x9 box.
+        // The spread check, inline as in 26.2's randomTick: at most four of
+        // this mushroom within a 9x3x9 box (26.3 factored it into canSpread).
         let block = b.block(state);
         let mut max = 5;
         for x in -4..=4 {
