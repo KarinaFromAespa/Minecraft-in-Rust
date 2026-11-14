@@ -1619,3 +1619,9 @@ All no-change. Rank 2 326/410 -> 338/410.
   `overrideEntityToSpawn(TypedEntityData, level)` is 26.3-only. The
   Rust's trial spawner reads the ominous flag from the block state and
   has no `setBlock` call for it; its config override is its own.
+
+## CI run 43646940294 (dispatched 2026-11-15, tree d2aa9a03, 338/410)
+
+Dispatched on the ~50-item cadence (previous run 43609469257 was the
+285/410 tree). Profile pending — the run takes ~2h; porting continues
+while it runs. Artifacts to `~/workspace/mcir-ci/26.2-338/` when done.

@@ -29,5 +29,11 @@
   "pass": 442
  },
  "role": "era release",
- "version": "26.2"
+ "version": "26.2",
+ "ci": {
+  "run": 43646940294,
+  "tree": "d2aa9a03",
+  "rank2": "338/410",
+  "profile": "pending"
+ }
 }
