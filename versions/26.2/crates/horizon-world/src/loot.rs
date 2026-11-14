@@ -1480,7 +1480,9 @@ impl<R: RandomSource> Context<'_, R> {
             _ => false,
         }
     }
-    /// An item modifier (typed object, inline list or registry reference).
+    /// An item function (typed object, inline list or registry reference).
+    /// In 26.2 a function's own conditions are the `conditions` list
+    /// (`LootItemConditionalFunction`); the single `condition` is 26.3's form.
     fn modify(&mut self, m: &Value, stack: LootStack) -> LootStack {
         let data = self.data;
         match m {
@@ -1491,7 +1493,7 @@ impl<R: RandomSource> Context<'_, R> {
                 None => stack,
             },
             Value::Object(_) => {
-                if !m["condition"].is_null() && !self.condition(&m["condition"]) {
+                if !m["conditions"].is_null() && !self.condition(&m["conditions"]) {
                     return stack;
                 }
                 self.run(m, stack)
@@ -2013,15 +2015,18 @@ impl<R: RandomSource> Context<'_, R> {
                 .holder_set("enchantment", &eb.exclusive)
                 .contains(&ea.name)
     }
-    /// LootTable.getRandomItemsRaw.
+    /// LootTable.getRandomItemsRaw. In 26.2 the table and each pool carry
+    /// `functions` and `conditions` lists (composed: all conditions must
+    /// pass, functions apply in order); the single `modifier` and
+    /// `condition` are 26.3's forms.
     fn table_raw(&mut self, name: &str, table: &Value, sink: &mut Sink<'_, R>) {
         if self.visited.iter().any(|v| v == name) {
             return;
         }
         self.visited.push(name.to_owned());
-        let table_modifier = &table["modifier"];
+        let table_functions = &table["functions"];
         for pool in table["pools"].as_array().into_iter().flatten() {
-            if !pool["condition"].is_null() && !self.condition(&pool["condition"]) {
+            if !pool["conditions"].is_null() && !self.condition(&pool["conditions"]) {
                 continue;
             }
             let bonus = if pool["bonus_rolls"].is_null() {
@@ -2032,8 +2037,8 @@ impl<R: RandomSource> Context<'_, R> {
             let rolls = self.int(&pool["rolls"]) + (bonus * self.luck).floor() as i32;
             for _ in 0..rolls {
                 self.add_random_item(pool, &mut |c, stack| {
-                    let stack = c.modify(&pool["modifier"], stack);
-                    let stack = c.modify(table_modifier, stack);
+                    let stack = c.modify(&pool["functions"], stack);
+                    let stack = c.modify(table_functions, stack);
                     sink(c, stack);
                 });
             }
@@ -2125,12 +2130,14 @@ impl<R: RandomSource> Context<'_, R> {
             _ => false,
         }
     }
-    /// LootPoolEntry.createItemStack. In 26.2 an entry has no modifier
-    /// (the per-entry `modifier` and the anonymous wrapper class that
-    /// applies it are 26.3-only); the stack is created plain.
+    /// LootPoolEntry.createItemStack. In 26.2 a leaf entry carries a
+    /// `functions` list (`LootPoolSingletonContainer`), applied to each
+    /// stack it creates before the pool and table functions run (the
+    /// single per-entry `modifier` is 26.3's form).
     fn create(&mut self, choice: &Choice<'_>, sink: &mut Sink<'_, R>) {
         let entry = choice.entry;
         let mut out = |c: &mut Context<'_, R>, stack: LootStack| {
+            let stack = c.modify(&entry["functions"], stack);
             sink(c, stack);
         };
         match entry["type"].as_str().unwrap_or("") {
@@ -2297,9 +2304,9 @@ mod namespace_tests {
     fn set_custom_model_data_applies_each_list_operation() {
         let root = std::env::temp_dir().join(format!("horizon-loot-cmd-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        // In 26.2 an entry has no modifier — the functions live on the pool
-        // (item 101 renames the pool key to `functions`).
-        let table = r#"{"pools": [{"rolls": 1, "modifier": [
+        // In 26.2 the pool's functions live under `functions` (a list);
+        // the single `modifier` is 26.3's form.
+        let table = r#"{"pools": [{"rolls": 1, "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:custom_model_data": {"floats": [1.0], "strings": ["old"]}}},
                 {"type": "minecraft:set_custom_model_data",
                  "floats": {"mode": "append", "values": [{"type": "minecraft:constant", "value": 2.0}]},
@@ -2362,9 +2369,9 @@ mod namespace_tests {
     fn set_lore_appends_and_replaces_the_lore_lines() {
         let root = std::env::temp_dir().join(format!("horizon-loot-lore-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        // In 26.2 an entry has no modifier — the functions live on the pool
-        // (item 101 renames the pool key to `functions`).
-        let table = r#"{"pools": [{"rolls": 1, "modifier": [
+        // In 26.2 the pool's functions live under `functions` (a list);
+        // the single `modifier` is 26.3's form.
+        let table = r#"{"pools": [{"rolls": 1, "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:lore": [{"text": "old"}]}},
                 {"type": "minecraft:set_lore", "mode": "append", "lore": [{"text": "new"}]}
             ], "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}]}]}"#;
@@ -2416,7 +2423,7 @@ mod namespace_tests {
         let root = std::env::temp_dir().join(format!("horizon-loot-banner-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:white_banner"}],
-            "modifier": [
+            "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:banner_patterns": [{"pattern": "minecraft:stripe_bottom", "color": "red"}]}},
                 {"type": "minecraft:set_banner_pattern", "append": true,
                  "patterns": [{"pattern": "minecraft:border", "color": "blue"}]}
@@ -2476,7 +2483,7 @@ mod namespace_tests {
         let root = std::env::temp_dir().join(format!("horizon-loot-book-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book"}],
-            "modifier": [
+            "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:written_book_content": {"title": {"raw": "Old"}, "author": "Nobody", "pages": [{"raw": "page one"}]}}},
                 {"type": "minecraft:set_book_cover", "title": {"raw": "A Guide"}, "author": "Cartographer", "generation": 2}
             ]}]}"#;
@@ -2516,7 +2523,7 @@ mod namespace_tests {
         let root = std::env::temp_dir().join(format!("horizon-loot-pages-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:written_book"}],
-            "modifier": [
+            "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:written_book_content": {"title": {"raw": "A Guide"}, "author": "Cartographer", "pages": [{"raw": "page one"}]}}},
                 {"type": "minecraft:set_written_book_pages", "mode": "append", "pages": [{"raw": "page two"}]}
             ]}]}"#;
@@ -2577,7 +2584,7 @@ mod namespace_tests {
         let root = std::env::temp_dir().join(format!("horizon-loot-horn-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:goat_horn"}],
-            "modifier": [{"type": "minecraft:set_instrument", "options": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]}]}]}"##;
+            "functions": [{"type": "minecraft:set_instrument", "options": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]}]}]}"##;
         let files = [
             ("items.json", r#"{"minecraft:goat_horn": {}}"#),
             ("data/minecraft/loot_table/chests/horn.json", table),
@@ -2668,7 +2675,7 @@ mod namespace_tests {
             std::env::temp_dir().join(format!("horizon-loot-tooltip-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}],
-            "modifier": [
+            "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:tooltip_display": {"hidden_components": ["minecraft:enchantments"]}}},
                 {"type": "minecraft:toggle_tooltips", "toggles": {"minecraft:enchantments": true, "minecraft:lore": false}}
             ]}]}"#;
@@ -2706,7 +2713,7 @@ mod namespace_tests {
         let root = std::env::temp_dir().join(format!("horizon-loot-data-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let table = r#"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}],
-            "modifier": [
+            "functions": [
                 {"type": "minecraft:set_components", "components": {"minecraft:custom_data": {"a": {"b": 1}, "c": 1}}},
                 {"type": "minecraft:set_custom_data", "tag": {"a": {"d": 2}, "c": 2}},
                 {"type": "minecraft:set_custom_data", "tag": "{a:{e:3b},f:\"x\"}"}
@@ -2777,7 +2784,7 @@ mod native_kinds_tests {
     fn fishing_roll_splits_oversized_stacks() {
         let data = table(
             "fishing_split",
-            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:cod"}],"modifier":[{"type":"minecraft:set_count","count":130}]}]}"#,
+            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:cod"}],"functions":[{"type":"minecraft:set_count","count":130}]}]}"#,
         );
         let mut random = LegacyRandom::new(1);
         let counts: Vec<_> = data
@@ -2788,13 +2795,29 @@ mod native_kinds_tests {
         assert_eq!(counts, [64, 64, 2]);
     }
 
+    /// A leaf entry's `functions` apply to the stack it creates, before
+    /// the pool and table functions run (`LootPoolSingletonContainer`'s
+    /// composite decorates `createItemStack`'s output; the pool and table
+    /// decorate further out).
+    #[test]
+    fn entry_functions_apply_before_pool_and_table_functions() {
+        let data = table(
+            "entry_functions",
+            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:stone","functions":[{"type":"minecraft:set_count","count":2}]}],"functions":[{"type":"minecraft:set_count","count":3,"add":true}]}],"functions":[{"type":"minecraft:set_count","count":10,"add":true}]}"#,
+        );
+        let mut random = horizon_core::random::LegacyRandom::new(42);
+        let items = data.roll("minecraft:test", &mut random, 0.0, None, None);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].count, 15);
+    }
+
     /// An unclaimed condition fails (the pool drops nothing) and an
     /// unclaimed function leaves the stack's count as it was.
     #[test]
     fn unclaimed_kinds_fail_the_condition_and_leave_the_stack() {
         let data = table(
             "cond",
-            r#"{"pools":[{"rolls":1,"condition":{"type":"mymod:always_true"},
+            r#"{"pools":[{"rolls":1,"conditions":[{"type":"mymod:always_true"}],
                 "entries":[{"type":"minecraft:item","name":"minecraft:stone"}]}]}"#,
         );
         let mut random = horizon_core::random::LegacyRandom::new(42);
@@ -2804,7 +2827,7 @@ mod native_kinds_tests {
         let data = table(
             "func",
             r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:stone"}],
-                "modifier":[{"type":"mymod:duplicate","factor":2}]}]}"#,
+                "functions":[{"type":"mymod:duplicate","factor":2}]}]}"#,
         );
         let mut random = horizon_core::random::LegacyRandom::new(42);
         let items = data.roll("minecraft:test", &mut random, 0.0, None, None);
@@ -2833,7 +2856,7 @@ mod native_kinds_tests {
         let modded = table(
             "seed_mod",
             r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:stone"}],
-                "modifier":[{"type":"lootmod:x"}]}]}"#,
+                "functions":[{"type":"lootmod:x"}]}]}"#,
         );
         let mut r3 = horizon_core::random::LegacyRandom::new(100);
         let mut r4 = horizon_core::random::LegacyRandom::new(100);
@@ -2899,7 +2922,7 @@ mod native_kinds_tests {
             (
                 "place_mod",
                 r#"{"pools":[{"rolls":2,"entries":[{"type":"minecraft:item","name":"minecraft:stone"}],
-                    "modifier":[{"type":"lootmod:x"}]}]}"#,
+                    "functions":[{"type":"lootmod:x"}]}]}"#,
             ),
         ] {
             let data = table(name, json);
@@ -2919,7 +2942,7 @@ mod native_kinds_tests {
         let data = table(
             "vanilla",
             r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:item","name":"minecraft:stone"}],
-                "modifier":[{"type":"minecraft:future_function"},{"type":"minecraft:set_count","count":5}]}]}"#,
+                "functions":[{"type":"minecraft:future_function"},{"type":"minecraft:set_count","count":5}]}]}"#,
         );
         let mut random = horizon_core::random::LegacyRandom::new(42);
         let items = data.roll("minecraft:test", &mut random, 0.0, None, None);
@@ -3170,7 +3193,7 @@ mod custom_data_predicate_tests {
             .iter()
             .map(|(wool, pattern)| {
                 format!(
-                    r#"{{"rolls":1,"entries":[{{"type":"minecraft:item","name":"minecraft:{wool}_wool"}}],"modifier":[{set}{{"type":"minecraft:filtered","item_filter":{{"items":"minecraft:{wool}_wool","predicates":{{"minecraft:custom_data":{pattern}}}}},"on_pass":{{"type":"minecraft:set_count","count":2}}}}]}}"#
+                    r#"{{"rolls":1,"entries":[{{"type":"minecraft:item","name":"minecraft:{wool}_wool"}}],"functions":[{set}{{"type":"minecraft:filtered","item_filter":{{"items":"minecraft:{wool}_wool","predicates":{{"minecraft:custom_data":{pattern}}}}},"on_pass":{{"type":"minecraft:set_count","count":2}}}}]}}"#
                 )
             })
             .collect();

@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 62/100 items, 33 changed, 29 no-change, 2172 minutes on changed
+**rate sample: 63/100 items, 34 changed, 29 no-change, 2322 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -571,6 +571,7 @@ log; it stays in agreement with the tally line above.
 | 163 | changed | 60 (est.) | Cat goals to the 26.2 forms: can_sit_on hardcoded (chest/furnace/bed-foot, no #cats_can_sit_on tag); CatLieOnBlock renamed CatLieOnBed, checks #beds; RelaxOnOwner bed check to #beds; giveMorningGift to the 26.2 4-arg randomTeleport via a shared helper extracted from enderman.rs (leash-holder origin added); CatRenderer setupRotations and BiomeCheck verified no-change |
 | 92 | changed | 90 (est.) | Entity culling to the 26.2 tick-position form (no getInterpolatedBoundingBox): cull_box + standing_entity_in_view drop interpolation, 8 call sites updated; stale SwingState/currentSwing citations fixed (swing model already 26.2 under 241); 26 renderer/layer classes verified no-change (rotate renames, submitModel null arg, render-type plumbing) |
 | 87 | changed | 180 (est.) | See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change |
+| 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
