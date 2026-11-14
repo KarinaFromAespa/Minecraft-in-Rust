@@ -2099,7 +2099,7 @@ impl Game<'_> {
             e.velocity = place.velocity;
             e.needs_sync = m.needs_sync;
             e.sync_position = m.sync_position;
-            e.stepped = true;
+            e.fall_flying = m.extra.fall_flying;
             (e.idle, e.bare) = (idle, bare);
             e.leash = leash;
             if bare {
@@ -2143,11 +2143,8 @@ impl Game<'_> {
             let stack = hub.stack(&Some(d.stack.clone()));
             // `ServerEntity.getRequiresPrecisePosition` is false for an item:
             // `needs_sync` asks for its data again, not for an exact position.
-            // The collision case is `full_precision_required` in the tracker.
             e.precise = false;
             e.needs_sync = d.needs_sync;
-            e.vertical_collision = d.vertical_collision;
-            e.horizontal_collision = d.horizontal_collision;
             // Entity.DATA_SHARED_FLAGS_ID: glowing 0x40 (the Glowing tag).
             if self.entity_glowing(d.id) {
                 e.meta.push((0, serializer::BYTE, Value::Byte(0x40)));
@@ -2827,8 +2824,8 @@ impl Game<'_> {
                     cart.lerp_steps.clear();
                 }
             }
-            // ServerEntity.sendChanges clears needsSync once it has looked.
-            // SteppedInterpolationTracker.updateTracking clears syncPosition.
+            // ServerEntity.sendChanges clears needsSync once it has looked,
+            // and syncPosition once it has moved the update clock.
             for m in &mut self.mobs {
                 m.needs_sync = false;
                 m.sync_position = false;

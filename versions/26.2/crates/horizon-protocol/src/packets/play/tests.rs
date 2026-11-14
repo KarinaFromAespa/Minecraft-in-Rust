@@ -402,9 +402,12 @@ fn clientbound_round_trips() {
         }),
         Clientbound::EntityPositionSync(EntityPositionSync {
             id: 1,
-            path: PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 0), ([1.5, 2.0, 3.0], 2)]),
-            yaw: 1.0,
-            pitch: 2.0,
+            values: PositionMoveRotation {
+                position: [1.5, 2.0, 3.0],
+                delta_movement: [0.1, -0.2, 0.0],
+                yaw: 1.0,
+                pitch: 2.0,
+            },
             on_ground: true,
         }),
         Clientbound::ChunksBiomes(ChunksBiomes {
@@ -462,13 +465,13 @@ fn clientbound_round_trips() {
         }),
         Clientbound::MoveEntityPos(MoveEntityPos(MoveEntity {
             id: 3,
-            delta: Some(VecDelta::Linear([4096, 0, -4096])),
+            delta: Some(VecDelta([4096, 0, -4096])),
             rotation: None,
             on_ground: true,
         })),
         Clientbound::MoveEntityPosRot(MoveEntityPosRot(MoveEntity {
             id: 3,
-            delta: Some(VecDelta::Stepped(vec![([1, 2, 3], 1), ([0, 0, 1], 2)])),
+            delta: Some(VecDelta([1, 2, 3])),
             rotation: Some((10, -10)),
             on_ground: false,
         })),
@@ -689,6 +692,8 @@ fn clientbound_round_trips() {
                     show_toast: false,
                     hidden: false,
                     background: Some("minecraft:block/stone".into()),
+                    x: 1.5,
+                    y: -0.5,
                 }),
                 requirements: vec![vec!["crafting_table".into()]],
                 telemetry: false,
@@ -940,18 +945,11 @@ fn change_game_mode_uses_the_game_type_varint() {
 #[test]
 fn move_entity_deltas_decode_like_vec_delta_codec() {
     let base = [10.0, 64.0, -3.5];
-    assert_eq!(
-        VecDelta::Linear([4096, 0, -2048]).end(base),
-        [11.0, 64.0, -4.0]
-    );
+    assert_eq!(VecDelta([4096, 0, -2048]).end(base), [11.0, 64.0, -4.0]);
     // Zero deltas keep unquantized base coordinates exactly.
     assert_eq!(
-        VecDelta::Linear([0, 0, 0]).end([0.123_456_789, 1.0, 2.0]),
+        VecDelta([0, 0, 0]).end([0.123_456_789, 1.0, 2.0]),
         [0.123_456_789, 1.0, 2.0]
-    );
-    assert_eq!(
-        VecDelta::Stepped(vec![([4096, 0, 0], 1), ([4096, 0, 0], 2)]).end(base),
-        [12.0, 64.0, -3.5]
     );
 }
 
@@ -1124,7 +1122,8 @@ fn map_item_data_carries_a_server_patch() {
 
 #[test]
 fn sign_packets_match_vanilla_stream_codecs() {
-    // ClientboundOpenSignEditorPacket: BlockPos, then SignTextSlot as a VarInt (FRONT is 1).
+    // ClientboundOpenSignEditorPacket: BlockPos, then isFrontText as a bool
+    // (26.3 sends the side as a SignTextSlot varint instead).
     let open = Clientbound::OpenSignEditor(OpenSignEditor {
         pos: [1, 2, 3],
         front: true,
@@ -1136,14 +1135,16 @@ fn sign_packets_match_vanilla_stream_codecs() {
     );
     assert_eq!(body[9..], [1]);
     round_trip(open, Clientbound::encode, Clientbound::decode);
-    // ServerboundSignUpdatePacket: BlockPos, four strings with no count, then the slot.
+    // ServerboundSignUpdatePacket: BlockPos, the side as a bool, then the
+    // four strings with no count (26.3 sends the lines first and the side
+    // as a SignTextSlot varint).
     let update = Serverbound::SignUpdate(SignUpdate {
         pos: [-4, 70, 9],
         lines: ["Hi".into(), String::new(), "x".into(), String::new()],
         front: false,
     });
     let body = update.encode();
-    assert_eq!(body[9..], [2, b'H', b'i', 0, 1, b'x', 0, 0]);
+    assert_eq!(body[9..], [0, 2, b'H', b'i', 0, 1, b'x', 0]);
     round_trip(update, Serverbound::encode, Serverbound::decode);
 }
 

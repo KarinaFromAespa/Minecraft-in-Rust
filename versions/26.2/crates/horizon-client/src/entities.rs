@@ -2306,7 +2306,7 @@ impl ArmorStand {
     }
     /// A server's stand on its client, each tick:
     /// `setOldPosAndRot` (`ClientLevel.tickNonPassenger`), then the step of
-    /// its `SteppedInterpolationHandler` (`step`: the position and yaw it is
+    /// its `InterpolationHandler` (`step`: the position and yaw it is
     /// put at, when one is due). The yaw
     /// turns the short way and stays continuous, so a frame between ticks
     /// never spins it.

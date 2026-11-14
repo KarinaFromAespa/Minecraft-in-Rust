@@ -202,9 +202,9 @@ pub(crate) fn finish(session: &Session, id: i32, payload: Vec<u8>) -> Result<(i3
             }
             play::Clientbound::EntityPositionSync(p) => {
                 if let Some(boat) = boats.get_mut(&p.id) {
-                    boat.spawn.position = p.path.end();
-                    boat.spawn.yaw = angle(p.yaw);
-                    boat.spawn.pitch = angle(p.pitch);
+                    boat.spawn.position = p.values.position;
+                    boat.spawn.yaw = angle(p.values.yaw);
+                    boat.spawn.pitch = angle(p.values.pitch);
                 }
             }
             play::Clientbound::TeleportEntity(p) => {
@@ -335,7 +335,7 @@ mod tests {
         for packet in [
             play::Clientbound::MoveEntityPosRot(play::MoveEntityPosRot(play::MoveEntity {
                 id: 42,
-                delta: Some(play::VecDelta::Linear([4096, 0, -4096])),
+                delta: Some(play::VecDelta([4096, 0, -4096])),
                 rotation: Some((64, -32)),
                 on_ground: true,
             })),

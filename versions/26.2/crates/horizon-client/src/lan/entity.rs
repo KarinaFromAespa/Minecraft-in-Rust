@@ -12,8 +12,8 @@ use horizon_protocol::{
     item::Stack,
     packets::play::{
         self, AddEntity, AttributeSnapshot, EntityPositionSync, MoveEntity, MoveEntityPos,
-        MoveEntityPosRot, MoveEntityRot, PositionPath, RotateHead, SetEntityData, SetEntityLink,
-        SetEntityMotion, SetEquipment, SetPassengers, UpdateAttributes, VecDelta,
+        MoveEntityPosRot, MoveEntityRot, PositionMoveRotation, RotateHead, SetEntityData,
+        SetEntityLink, SetEntityMotion, SetEquipment, SetPassengers, UpdateAttributes, VecDelta,
     },
 };
 use std::sync::Arc;
@@ -67,21 +67,14 @@ pub struct EntityState {
     /// `Entity.getRequiresPrecisePosition` (primed TNT and falling blocks
     /// touching a block): moves are sent as full position syncs.
     pub precise: bool,
-    /// `Entity.verticalCollision` and `Entity.horizontalCollision`: the last
-    /// move's stops. An item that stopped on a block gets a full position
-    /// sync rather than a 1/4096 delta whose decoded point is not the one it
-    /// came to rest at (`ServerEntity.isFullPrecisionEncodingRequired`).
-    pub vertical_collision: bool,
-    pub horizontal_collision: bool,
     /// `Entity.needsSync`: send its changes this tick, due or not.
     pub needs_sync: bool,
-    /// `Entity.syncPosition`: a living entity bounced this tick; where it is
-    /// becomes a step of the next move sent (`SteppedInterpolationTracker`).
+    /// `Entity.syncPosition`: a living entity bounced this tick, so its
+    /// update clock moves onto its next send tick and the move goes out now.
     pub sync_position: bool,
-    /// `LivingEntity.createInterpolationHandler`: a `SteppedInterpolationTracker`
-    /// on the server, so its moves are sent as stepped paths. Every other entity
-    /// has a no-op tracker and sends a linear one.
-    pub stepped: bool,
+    /// `LivingEntity.isFallFlying`: its motion is synced even when its type
+    /// doesn't track velocity.
+    pub fall_flying: bool,
     /// Outside `DistanceManager.inEntityTickingRange`: `ChunkMap.tick` sends
     /// its changes only if it changed section or needs sync (its lead aside,
     /// which `Leashable` sends at once).
@@ -123,11 +116,9 @@ impl EntityState {
         self.equipment.clear();
         self.attributes.clear();
         self.precise = false;
-        self.vertical_collision = false;
-        self.horizontal_collision = false;
         self.needs_sync = false;
         self.sync_position = false;
-        self.stepped = false;
+        self.fall_flying = false;
         self.idle = false;
         self.bare = false;
         self.leash = None;
@@ -261,11 +252,6 @@ struct ServerEntity {
     velocity: [f64; 3],
     /// NewMinecartBehavior.lerpSteps accumulated across tracking intervals.
     minecart_steps: Vec<play::MinecartStep>,
-    /// SteppedInterpolationTracker: the positions where it bounced since the
-    /// last move sent, with the ticks between them, and the ticks since the
-    /// last one (-1 before the first update).
-    tracked_steps: Vec<([f64; 3], i32)>,
-    ticks_since_step: i32,
     /// trackedDataValues: the entity data the clients hold.
     meta: Vec<(u8, i32, Value)>,
     equipment: Vec<(u8, Option<Stack>)>,
@@ -308,57 +294,13 @@ fn encode(v: f64) -> i64 {
     horizon_core::jmath::round(v * 4096.0)
 }
 
-/// `VecDeltaCodec.tryEncode`: the path as deltas from `base`, a stepped one
-/// step by step from the step before; None when a delta is too big for a short.
-fn try_encode(base: [f64; 3], path: &PositionPath) -> Option<VecDelta> {
-    let delta = |from: [f64; 3], to: [f64; 3]| {
-        let d = [0, 1, 2].map(|k| encode(to[k]) - encode(from[k]));
-        d.iter()
-            .all(|v| i16::try_from(*v).is_ok())
-            .then(|| d.map(|v| v as i16))
-    };
-    match path {
-        PositionPath::Linear(p) => delta(base, *p).map(VecDelta::Linear),
-        PositionPath::Stepped(steps) => {
-            let mut from = base;
-            let mut out = Vec::with_capacity(steps.len());
-            for (p, ticks) in steps {
-                out.push((delta(from, *p)?, *ticks));
-                from = *p;
-            }
-            Some(VecDelta::Stepped(out))
-        }
-    }
-}
-
-/// `VecDelta.hasDeltaX` and `hasDeltaZ` (any step's, for a stepped delta), as
-/// the nonzero x and z `full_precision_required` reads.
-fn delta_axes(delta: &VecDelta) -> [i64; 3] {
-    match delta {
-        VecDelta::Linear(d) => d.map(i64::from),
-        VecDelta::Stepped(steps) => [
-            i64::from(steps.iter().any(|(d, _)| d[0] != 0)),
-            0,
-            i64::from(steps.iter().any(|(d, _)| d[2] != 0)),
-        ],
-    }
-}
-
-/// `ServerEntity.isFullPrecisionEncodingRequired`: an item whose last move was
-/// stopped by a block rests where the collision solver left it, which is not on
-/// the 1/4096 grid a delta decodes to; vanilla sends its exact position instead.
-/// The axis pairs are vanilla's own: a vertical stop looks at x and z, a
-/// horizontal one at z and x.
-fn full_precision_required(e: &EntityState, delta: [i64; 3]) -> bool {
-    if e.kind != "minecraft:item" {
-        return false;
-    }
-    let loss = |v: f64| encode(v) as f64 / 4096.0 - v;
-    let vertical =
-        delta[0] != 0 && loss(e.position[0]) != 0.0 || delta[2] != 0 && loss(e.position[2]) != 0.0;
-    let horizontal =
-        delta[0] != 0 && loss(e.position[2]) != 0.0 || delta[2] != 0 && loss(e.position[0]) != 0.0;
-    e.vertical_collision && vertical || e.horizontal_collision && horizontal
+/// `VecDeltaCodec.tryEncode`: the position as deltas from `base`; None when
+/// a delta is too big for a short.
+fn try_encode(base: [f64; 3], to: [f64; 3]) -> Option<VecDelta> {
+    let d = [0, 1, 2].map(|k| encode(to[k]) - encode(base[k]));
+    d.iter()
+        .all(|v| i16::try_from(*v).is_ok())
+        .then(|| VecDelta(d.map(|v| v as i16)))
 }
 
 impl ServerEntity {
@@ -381,8 +323,6 @@ impl ServerEntity {
             head: pack_degrees(e.head_yaw),
             velocity: e.velocity,
             minecart_steps: e.minecart_steps.clone().unwrap_or_default(),
-            tracked_steps: Vec::new(),
-            ticks_since_step: -1,
             meta: e.meta.clone(),
             equipment: e.equipment.clone(),
             attributes: e.attributes.clone(),
@@ -456,15 +396,6 @@ impl ServerEntity {
         }
     }
 
-    /// `SteppedInterpolationTracker.addStep`: a step at `position` with the
-    /// ticks since the last one, if any passed.
-    fn add_step(&mut self, position: [f64; 3]) {
-        if self.ticks_since_step > 0 {
-            self.tracked_steps.push((position, self.ticks_since_step));
-            self.ticks_since_step = 0;
-        }
-    }
-
     /// Changes since the last update (ServerEntity.sendChanges): movement and
     /// rotation every update interval (positions at least every 60 ticks, a
     /// full position sync every 400 or when the entity lands or leaves the
@@ -482,15 +413,6 @@ impl ServerEntity {
             self.passengers.extend_from_slice(passengers);
         }
         self.send_leash(e, out);
-        // SteppedInterpolationTracker.updateTracking: a tick more since the
-        // last step, and a step where the entity bounced (Entity.syncPosition,
-        // which only living entities' movement sets).
-        if e.stepped {
-            self.ticks_since_step += 1;
-            if e.sync_position {
-                self.add_step(e.position);
-            }
-        }
         // ServerEntity.sendChanges: a bounce moves the update clock onto its next
         // send tick (UpdateInterval.nextInterval; 0 for NEVER), so it goes out now.
         if e.sync_position {
@@ -521,9 +443,7 @@ impl ServerEntity {
                     )));
                     self.rotation = rotation;
                 }
-                // interpolationTracker.clear: a passenger's steps are never sent.
-                self.tracked_steps.clear();
-                self.ticks_since_step = 0;
+                // A passenger's position isn't synced.
                 self.base = e.position;
                 self.was_riding = true;
                 self.send_dirty(e, dirty, out);
@@ -543,25 +463,19 @@ impl ServerEntity {
             self.teleport_delay += 1;
             let d: f64 = (0..3).map(|k| (e.position[k] - self.base[k]).powi(2)).sum();
             let send_position = self.arrow || d >= 7.629_394_5e-6 || self.tick.is_multiple_of(60);
-            // SteppedInterpolationTracker.getPositionPath, then clear: the
-            // current position is the last step of a bounced path.
-            if e.stepped {
-                self.add_step(e.position);
-            }
-            let path = if self.tracked_steps.is_empty() {
-                PositionPath::Linear(e.position)
-            } else {
-                PositionPath::Stepped(std::mem::take(&mut self.tracked_steps))
-            };
-            self.ticks_since_step = 0;
+            // ClientboundEntityPositionSyncPacket.of: the tracking position,
+            // the known movement and the angles.
             let sync = EntityPositionSync {
                 id: e.id,
-                path: path.clone(),
-                yaw: e.yaw,
-                pitch: e.pitch,
+                values: PositionMoveRotation {
+                    position: e.position,
+                    delta_movement: e.velocity,
+                    yaw: e.yaw,
+                    pitch: e.pitch,
+                },
                 on_ground: e.on_ground,
             };
-            // ServerEntity.createMovePacket.
+            // ServerEntity.sendChanges (inline: no createMovePacket in 26.2).
             let packet = if e.precise
                 || self.teleport_delay > 400
                 || self.was_riding
@@ -572,9 +486,7 @@ impl ServerEntity {
                 self.was_riding = false;
                 Some(play::Clientbound::EntityPositionSync(sync))
             } else if send_position {
-                let delta = try_encode(self.base, &path)
-                    .filter(|d| !full_precision_required(e, delta_axes(d)));
-                if let Some(delta) = delta {
+                if let Some(delta) = try_encode(self.base, e.position) {
                     let m = MoveEntity {
                         id: e.id,
                         delta: Some(delta),
@@ -587,6 +499,7 @@ impl ServerEntity {
                         play::Clientbound::MoveEntityPos(MoveEntityPos(m))
                     })
                 } else {
+                    // deltaTooBig: a delta past a short's range.
                     Some(play::Clientbound::EntityPositionSync(sync))
                 }
             } else if rotate {
@@ -601,7 +514,7 @@ impl ServerEntity {
             } else {
                 None
             };
-            if self.track_deltas || e.needs_sync {
+            if self.track_deltas || e.needs_sync || e.fall_flying {
                 let diff: f64 = (0..3)
                     .map(|k| (e.velocity[k] - self.velocity[k]).powi(2))
                     .sum();
@@ -1519,11 +1432,9 @@ mod tests {
             equipment: Vec::new(),
             attributes: Vec::new(),
             precise: false,
-            vertical_collision: false,
-            horizontal_collision: false,
             needs_sync: false,
             sync_position: false,
-            stepped: false,
+            fall_flying: false,
             idle: false,
             bare: false,
             leash: None,
@@ -1693,57 +1604,23 @@ mod tests {
         ));
     }
 
-    /// `ServerEntity.isFullPrecisionEncodingRequired`: an item that came to
-    /// rest against a block gets its exact position, because a delta decodes
-    /// to the 1/4096 grid. Vanilla's axis pairs cross over, and another kind
-    /// of entity that collided is not an item.
+    /// 26.2 has no `isFullPrecisionEncodingRequired`: an item that came to
+    /// rest against a wall still goes out as a delta, quantised to the
+    /// 1/4096 grid, not as a position sync carrying its exact point.
     #[test]
-    fn an_item_stopped_by_a_block_needs_full_precision() {
-        let mut item = state(0.0);
-        item.kind = "minecraft:item".into();
-        item.position = [0.3, 64.0, 0.3];
-        assert!(!full_precision_required(&item, [1, 0, 0]));
-        item.vertical_collision = true;
-        assert!(full_precision_required(&item, [1, 0, 0]));
-        item.vertical_collision = false;
-        item.horizontal_collision = true;
-        // A horizontal stop pairs an x delta with z, exactly as vanilla does.
-        assert!(full_precision_required(&item, [1, 0, 0]));
-        item.position[2] = 0.5;
-        assert!(!full_precision_required(&item, [1, 0, 0]));
-        // A drop that only moved in y says nothing about x and z.
-        item.position[2] = 0.3;
-        assert!(!full_precision_required(&item, [0, 9, 0]));
-        item.kind = "minecraft:zombie".into();
-        assert!(!full_precision_required(&item, [1, 0, 0]));
-    }
-
-    /// The same through `send_changes`: a slow item stopped by a wall would
-    /// have its resting point rounded to the delta grid, so at its next update
-    /// (an item's is every 20 ticks) it goes out as a position sync carrying
-    /// the exact point; one that hit nothing keeps the quantised delta.
-    #[test]
-    fn a_slow_item_stopped_by_a_wall_syncs_its_exact_position() {
-        let stop = |collision: bool| {
-            let mut e = state(0.0);
-            e.kind = "minecraft:item".into();
-            let mut s = added(&e);
-            changes(&mut s, &e);
-            e.position = [0.3, 64.0, 0.3];
-            e.horizontal_collision = collision;
-            for _ in 0..19 {
-                assert!(changes(&mut s, &e).is_empty());
-            }
-            changes(&mut s, &e)
-        };
-        let out = stop(true);
-        assert!(
-            matches!(&out[..], [play::Clientbound::EntityPositionSync(p)]
-                if p.path.end() == [0.3, 64.0, 0.3]),
-            "{out:?}"
-        );
-        let out = stop(false);
-        assert!(matches!(&out[..], [play::Clientbound::MoveEntityPos(_)]));
+    fn a_slow_item_stopped_by_a_wall_still_goes_out_as_a_delta() {
+        let mut e = state(0.0);
+        e.kind = "minecraft:item".into();
+        let mut s = added(&e);
+        changes(&mut s, &e);
+        e.position = [0.3, 64.0, 0.3];
+        for _ in 0..19 {
+            assert!(changes(&mut s, &e).is_empty());
+        }
+        assert!(matches!(
+            changes(&mut s, &e)[..],
+            [play::Clientbound::MoveEntityPos(_)]
+        ));
     }
 
     #[test]
@@ -2143,7 +2020,7 @@ mod tests {
         c.tick(&mut level, &[&e]);
         let moved = MoveEntityPos(MoveEntity {
             id: 7,
-            delta: Some(VecDelta::Linear([4096, 0, 0])),
+            delta: Some(VecDelta([4096, 0, 0])),
             rotation: None,
             on_ground: true,
         });
@@ -2219,7 +2096,7 @@ mod tests {
         let moved = body(play::Clientbound::MoveEntityPos(MoveEntityPos(
             MoveEntity {
                 id: 7,
-                delta: Some(VecDelta::Linear([4096, 0, 0])),
+                delta: Some(VecDelta([4096, 0, 0])),
                 rotation: None,
                 on_ground: true,
             },
@@ -2242,7 +2119,7 @@ mod tests {
             body(play::Clientbound::MoveEntityPos(MoveEntityPos(
                 MoveEntity {
                     id: 7,
-                    delta: Some(VecDelta::Linear([0, dy, 0])),
+                    delta: Some(VecDelta([0, dy, 0])),
                     rotation: None,
                     on_ground: true,
                 },

@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 54/100 items, 25 changed, 29 no-change, 1032 minutes on changed
+**rate sample: 56/100 items, 27 changed, 29 no-change, 1512 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -563,13 +563,18 @@ log; it stays in agreement with the tally line above.
 | 321 | no-change | — | MaterialRuleContext 26.3-only; 26.2 uses SurfaceRules |
 | 333 | no-change | — | level/blockscan package 26.3-only; cushion oracle's blockscan import belongs to items 147/374 |
 | 342 | no-change | — | OIT entirely 26.3-only; Rust OIT mentions are comments + opt-in tagging |
+| 233 | changed | 420 (est.) | EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework (double alpha, bitwise angle compare); tracker reworked; harness bit-exact on 135,742 lines. Outlier: multi-crate rework + harness |
+| 192 | changed | 60 (est.) | powder-snow entityInside to the 26.2 client-side form (xOld/zOld gate, addParticle); interpolation half closes with 233 (minutes counted there) |
 
-Item 192 is HELD OPEN (not counted in the sample yet): its powder-snow
-half is done and committed (26.2 client-side entityInside gate,
-xOld/zOld movement, ~60 min estimated — log with the item when it
-closes), but its `SteppedInterpolationHandler` half is coupled to item
-233's wire-format fix (26.2 `PositionMoveRotation` vs 26.3 `PositionPath`
-+ yaw/pitch) and closes with 233.
+Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
+in 14aacfc3 and its interpolation half is 233's rework.
+
+Follow-up debt from item 233: 26.2's `hurtMarked` motion packet
+(`SetEntityMotion` at the end of `sendChanges` when `hurtMarked` is set,
+to tracking players AND self) has no Rust plumbing — needs a `hurt_marked`
+flag from Mob through EntityState. The client's advancement tree layout
+computes positions itself and does not use the packet x/y yet (26.2's
+client positions widgets from DisplayInfo x/y).
 
 Follow-up debt from item 305: other `nav_move_to_entity` call sites
 passing reach 0 for goals that call the 2-arg `moveTo(Entity, speed)`
@@ -610,7 +615,22 @@ missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
 blocked as before. Artifacts kept at
 `~/workspace/mcir-ci/26.2-218/`.
 
-## CI run 43575017292 (2026-11-14, dispatched, pending)
+## CI profile — port-verify v6.6, run 43575017292 (2026-11-14)
 
-Dispatched on behaviour/26.2@bc42387a (rank 2 at 258/410). Profile to
-be recorded when it completes (runs take ~2h).
+Dispatched on behaviour/26.2@bc42387a (rank 2 at 258/410). Completed
+2026-11-14T10:21:07Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43535967019. D1 pass; D2
+now FAILS (it passed on 43535967019): one protocol test fails without
+an accepted gap —
+`adapter::translate::v1_21_1::recipes::tests::vanilla_recipe_serializers_become_pinned_displays_with_canonical_item_ids`
+(properties count 7, expected 9). Verified pre-existing on the
+stashed 14aacfc3 base (2026-11-14), so the regression landed in one of
+the batches between 218/410 and 258/410 — needs a bisect, not yet
+done. (Locally the same run shows 441 pass / 3 fail: the recipe test
+plus the two sandbox-network tests, which also fail on the base.) D3
+fail (rank 2: 152/410 neither closed nor accepted at this commit);
+D4–D6 blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-258/`.

@@ -213,33 +213,21 @@ fn move_entity(id: i32, payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// A delta as one linear step, clamped to a Short per axis.
+/// A delta as one linear step: 26.2's move packets carry a single delta.
 fn delta_sum(delta: Option<&play::VecDelta>) -> [i16; 3] {
-    match delta {
-        None => [0; 3],
-        Some(play::VecDelta::Linear(d)) => *d,
-        Some(play::VecDelta::Stepped(steps)) => {
-            let mut sum = [0i32; 3];
-            for (d, _) in steps {
-                for (s, v) in sum.iter_mut().zip(d) {
-                    *s += i32::from(*v);
-                }
-            }
-            sum.map(|v| v.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16)
-        }
-    }
+    delta.map_or([0; 3], |d| d.0)
 }
 
-/// 26.2: the entity, PositionMoveRotation (position, motion, the two angles), on-ground. 26.3 sends where it
-/// goes as a path, which 26.2 is told the end of, and no motion (zero).
+/// 26.2: the entity, PositionMoveRotation (position, motion, the two angles), on-ground — the same form
+/// 26.1 takes, so the packet goes down as it stands.
 fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     let p = play::EntityPositionSync::read(&mut Reader::new(payload))?;
     let mut w = Writer::new();
     w.varint(p.id);
-    p.path.end().iter().for_each(|v| w.f64(*v));
-    (0..3).for_each(|_| w.f64(0.0));
-    w.f32(p.yaw);
-    w.f32(p.pitch);
+    p.values.position.iter().for_each(|v| w.f64(*v));
+    p.values.delta_movement.iter().for_each(|v| w.f64(*v));
+    w.f32(p.values.yaw);
+    w.f32(p.values.pitch);
     w.bool(p.on_ground);
     Ok(w.data)
 }
@@ -597,7 +585,7 @@ mod tests {
             rotation,
             on_ground: true,
         };
-        let pos = play::MoveEntityPos(m(Some(play::VecDelta::Linear([4096, 0, -2048])), None));
+        let pos = play::MoveEntityPos(m(Some(play::VecDelta([4096, 0, -2048])), None));
         let old = rewritten(down(ids, cb::MOVE_ENTITY_POS, &encode(&pos)).unwrap());
         assert_eq!(old.len(), 1 + 6 + 1);
         let back = translate::move_entity(&old, true, false).unwrap();
@@ -607,7 +595,7 @@ mod tests {
         );
 
         let pos_rot =
-            play::MoveEntityPosRot(m(Some(play::VecDelta::Linear([1, 2, 3])), Some((10, -20))));
+            play::MoveEntityPosRot(m(Some(play::VecDelta([1, 2, 3])), Some((10, -20))));
         let old = rewritten(down(ids, cb::MOVE_ENTITY_POS_ROT, &encode(&pos_rot)).unwrap());
         let back = translate::move_entity(&old, true, true).unwrap();
         assert_eq!(
@@ -626,23 +614,16 @@ mod tests {
     }
 
     #[test]
-    fn a_stepped_move_goes_down_as_its_sum() {
-        let stepped = play::VecDelta::Stepped(vec![
-            ([100, 0, -5], 1),
-            ([200, 30000, -5], 2),
-            ([0, 30000, 0], 3),
-        ]);
-        assert_eq!(delta_sum(Some(&stepped)), [300, i16::MAX, -10]);
-    }
-
-    #[test]
     fn a_position_sync_goes_down_and_back_up() {
         let ids = ids();
         let p = play::EntityPositionSync {
             id: 42,
-            path: play::PositionPath::Linear([100.5, 64.0, -20.25]),
-            yaw: 90.0,
-            pitch: -10.0,
+            values: play::PositionMoveRotation {
+                position: [100.5, 64.0, -20.25],
+                delta_movement: [0.25, -0.5, 0.0],
+                yaw: 90.0,
+                pitch: -10.0,
+            },
             on_ground: false,
         };
         let old = rewritten(
@@ -659,22 +640,6 @@ mod tests {
             play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap(),
             p
         );
-        // A stepped path goes as where it ends.
-        let stepped = play::EntityPositionSync {
-            path: play::PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 1), ([4.0, 5.0, 6.0], 2)]),
-            ..p
-        };
-        let old = rewritten(
-            down(
-                ids,
-                packet_ids::play::clientbound::ENTITY_POSITION_SYNC,
-                &encode(&stepped),
-            )
-            .unwrap(),
-        );
-        let back = translate::position_sync(&old).unwrap();
-        let q = play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap();
-        assert_eq!(q.path, play::PositionPath::Linear([4.0, 5.0, 6.0]));
     }
 
     #[test]

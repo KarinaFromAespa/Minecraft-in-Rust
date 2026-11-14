@@ -281,52 +281,33 @@ packet!(
 );
 packet!(DisguisedChat { message: Tag => Nbt, chat_type: ChatTypeBound => ChatTypeBound });
 packet!(EntityEvent { id: i32 => Int, event: i8 => Byte });
-/// PositionPath: Linear(end position) or Stepped(list of (position, tick offset)).
+/// `PositionMoveRotation`: a position, the delta movement, yaw and pitch —
+/// what 26.2's `ClientboundEntityPositionSyncPacket` carries (26.3 replaced
+/// it with `PositionPath` + yaw/pitch).
 #[derive(Clone, Debug, PartialEq)]
-pub enum PositionPath {
-    Linear([f64; 3]),
-    Stepped(Vec<([f64; 3], i32)>),
+pub struct PositionMoveRotation {
+    pub position: [f64; 3],
+    pub delta_movement: [f64; 3],
+    pub yaw: f32,
+    pub pitch: f32,
 }
-impl PositionPath {
-    pub fn end(&self) -> [f64; 3] {
-        match self {
-            Self::Linear(p) => *p,
-            Self::Stepped(steps) => steps.last().map_or([0.0; 3], |s| s.0),
-        }
-    }
-}
-impl Codec<PositionPath> for PositionPath {
+impl Codec<PositionMoveRotation> for PositionMoveRotation {
     fn read(r: &mut Reader) -> Result<Self> {
-        Ok(match r.varint()? {
-            1 => {
-                let n = r.count(r.remaining() / 25)?;
-                Self::Stepped(
-                    (0..n)
-                        .map(|_| Ok((Vec3d::read(r)?, r.varint()?)))
-                        .collect::<Result<_>>()?,
-                )
-            }
-            _ => Self::Linear(Vec3d::read(r)?),
+        Ok(Self {
+            position: Vec3d::read(r)?,
+            delta_movement: Vec3d::read(r)?,
+            yaw: r.f32()?,
+            pitch: r.f32()?,
         })
     }
     fn write(v: &Self, w: &mut Writer) {
-        match v {
-            Self::Linear(p) => {
-                w.varint(0);
-                Vec3d::write(p, w);
-            }
-            Self::Stepped(steps) => {
-                w.varint(1);
-                w.varint(steps.len() as i32);
-                for (p, t) in steps {
-                    Vec3d::write(p, w);
-                    w.varint(*t);
-                }
-            }
-        }
+        Vec3d::write(&v.position, w);
+        Vec3d::write(&v.delta_movement, w);
+        w.f32(v.yaw);
+        w.f32(v.pitch);
     }
 }
-packet!(EntityPositionSync { id: i32 => VarInt, path: PositionPath => PositionPath, yaw: f32 => Float, pitch: f32 => Float, on_ground: bool => Bool });
+packet!(EntityPositionSync { id: i32 => VarInt, values: PositionMoveRotation => PositionMoveRotation, on_ground: bool => Bool });
 packet!(ForgetLevelChunk { pos: [i32; 2] => ChunkPos });
 packet!(
     /// ClientboundChunksBiomesPacket.ChunkBiomeData: a column and its
@@ -454,12 +435,10 @@ packet!(MapItemData {
     decorations: Option<Vec<MapDecoration>> => Opt<List<MapDecoration>>,
     patch: Option<MapPatch> => MapPatchOpt,
 });
-/// VecDelta: per-axis deltas in 1/4096 blocks, linear or in timed steps.
-#[derive(Clone, Debug, PartialEq)]
-pub enum VecDelta {
-    Linear([i16; 3]),
-    Stepped(Vec<([i16; 3], i32)>),
-}
+/// VecDelta: per-axis deltas in 1/4096 blocks. 26.2's move packets carry
+/// one delta of three shorts; the stepped form is 26.3-only.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct VecDelta(pub [i16; 3]);
 impl VecDelta {
     /// VecDeltaCodec.decode against a base position: zero deltas keep the
     /// base coordinate exactly, others add to its 1/4096 quantization.
@@ -474,45 +453,9 @@ impl VecDelta {
         }
         out
     }
-    /// The final position after all steps.
+    /// The position after the delta.
     pub fn end(&self, base: [f64; 3]) -> [f64; 3] {
-        match self {
-            Self::Linear(d) => Self::apply(base, *d),
-            Self::Stepped(steps) => steps.iter().fold(base, |p, (d, _)| Self::apply(p, *d)),
-        }
-    }
-    fn read(r: &mut Reader, steps: usize) -> Result<Self> {
-        if steps == 0 {
-            return Ok(Self::Linear([r.i16()?, r.i16()?, r.i16()?]));
-        }
-        if steps > r.remaining() / 7 {
-            return Err(Error::new("VecDelta with too many steps"));
-        }
-        Ok(Self::Stepped(
-            (0..steps)
-                .map(|_| {
-                    let ticks = r.varint()?;
-                    Ok(([r.i16()?, r.i16()?, r.i16()?], ticks))
-                })
-                .collect::<Result<_>>()?,
-        ))
-    }
-    fn steps(&self) -> usize {
-        match self {
-            Self::Linear(_) => 0,
-            Self::Stepped(s) => s.len(),
-        }
-    }
-    fn write(&self, w: &mut Writer) {
-        match self {
-            Self::Linear(d) => d.iter().for_each(|v| w.i16(*v)),
-            Self::Stepped(steps) => {
-                for (d, ticks) in steps {
-                    w.varint(*ticks);
-                    d.iter().for_each(|v| w.i16(*v));
-                }
-            }
-        }
+        Self::apply(base, self.0)
     }
 }
 /// ClientboundMoveEntityPacket.Pos / PosRot / Rot.
@@ -538,39 +481,35 @@ macro_rules! move_entity {
         impl $name {
             fn read_inner(r: &mut Reader) -> Result<MoveEntity> {
                 let id = r.varint()?;
-                if !$pos {
-                    let on_ground = r.bool()?;
-                    let rotation = Some((r.i8()?, r.i8()?));
-                    return Ok(MoveEntity {
-                        id,
-                        delta: None,
-                        rotation,
-                        on_ground,
-                    });
-                }
-                let properties = r.varint()?;
-                let delta = Some(VecDelta::read(r, (properties as u32 >> 1) as usize)?);
+                // 26.2's forms: Pos is three shorts then on-ground; PosRot
+                // adds the two rotation bytes before it; Rot is the rotation
+                // bytes then on-ground. (26.3 packs on-ground and a step
+                // count into a properties varint ahead of the delta.)
+                let delta = if $pos {
+                    Some(VecDelta([r.i16()?, r.i16()?, r.i16()?]))
+                } else {
+                    None
+                };
                 let rotation = if $rot { Some((r.i8()?, r.i8()?)) } else { None };
+                let on_ground = r.bool()?;
                 Ok(MoveEntity {
                     id,
                     delta,
                     rotation,
-                    on_ground: properties & 1 != 0,
+                    on_ground,
                 })
             }
             fn write_inner(v: &MoveEntity, w: &mut Writer) {
                 w.varint(v.id);
-                if !$pos {
-                    w.bool(v.on_ground);
-                } else {
-                    let delta = v.delta.clone().unwrap_or(VecDelta::Linear([0; 3]));
-                    w.varint(i32::from(v.on_ground) | (delta.steps() as i32) << 1);
-                    delta.write(w);
+                if $pos {
+                    let delta = v.delta.unwrap_or(VecDelta([0; 3]));
+                    delta.0.iter().for_each(|d| w.i16(*d));
                 }
                 if let Some((y, x)) = v.rotation.filter(|_| $rot) {
                     w.i8(y);
                     w.i8(x);
                 }
+                w.bool(v.on_ground);
             }
         }
     };
@@ -584,7 +523,7 @@ packet!(OpenScreen { container: i32 => VarInt, menu: i32 => VarInt, title: Tag =
 packet!(MountScreenOpen { container: i32 => VarInt, columns: i32 => VarInt, entity: i32 => Int });
 packet!(
     /// ClientboundOpenSignEditorPacket: the sign whose side the player edits.
-    OpenSignEditor { pos: [i32; 3] => Pos, front: bool => SignSide }
+    OpenSignEditor { pos: [i32; 3] => Pos, front: bool => Bool }
 );
 packet!(
     /// ClientboundOpenBookPacket: the hand (InteractionHand, 0 main, 1 off)
@@ -1331,11 +1270,13 @@ pub struct AdvancementDisplay {
     pub show_toast: bool,
     pub hidden: bool,
     pub background: Option<String>,
+    /// The tree position (`DisplayInfo.x/y`, 26.2 sends it; 26.3 dropped it).
+    pub x: f32,
+    pub y: f32,
 }
 /// One added advancement in `ClientboundUpdateAdvancementsPacket`: the
-/// `AdvancementHolder`, with no position — 26.2 lays the tree out
-/// client-side (`AdvancementTree.repositionNodes`); positioned
-/// advancements are 26.3's form.
+/// `AdvancementHolder`. 26.2's `DisplayInfo` carries the tree position
+/// (x/y floats after the background); 26.3 dropped it from the wire.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Advancement {
     pub id: String,
@@ -1379,6 +1320,8 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                 } else {
                     None
                 };
+                let x = r.f32()?;
+                let y = r.f32()?;
                 Some(AdvancementDisplay {
                     title,
                     description,
@@ -1387,6 +1330,8 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                     show_toast: flags & 2 != 0,
                     hidden: flags & 4 != 0,
                     background,
+                    x,
+                    y,
                 })
             } else {
                 None
@@ -1453,6 +1398,8 @@ impl Codec<UpdateAdvancements> for UpdateAdvancements {
                 if let Some(b) = &d.background {
                     w.string(b);
                 }
+                w.f32(d.x);
+                w.f32(d.y);
             }
             w.varint(a.requirements.len() as i32);
             for g in &a.requirements {
@@ -2035,8 +1982,10 @@ packet!(
     RenameItem { name: String => Str }
 );
 packet!(
-    /// ServerboundSignUpdatePacket: the four lines the player wrote on a side.
-    SignUpdate { pos: [i32; 3] => Pos, lines: [String; 4] => SignLines, front: bool => SignSide }
+    /// ServerboundSignUpdatePacket: the side the player wrote on, then the
+    /// four lines (26.2's order; 26.3 sends the lines first and the side as
+    /// a `SignTextSlot` varint).
+    SignUpdate { pos: [i32; 3] => Pos, front: bool => Bool, lines: [String; 4] => SignLines }
 );
 packet!(
     /// ServerboundSetJigsawBlockPacket: the jigsaw block's edit screen. The
@@ -2219,17 +2168,6 @@ impl Codec<Vec<String>> for BookPages {
     }
     fn write(v: &Vec<String>, w: &mut Writer) {
         List::<StrN<1024>>::write(v, w);
-    }
-}
-/// SignTextSlot.STREAM_CODEC: VarInt 0 for the back, 1 for the front (any
-/// other id reads as the back, ByIdMap's ZERO strategy).
-pub struct SignSide;
-impl Codec<bool> for SignSide {
-    fn read(r: &mut Reader) -> Result<bool> {
-        Ok(r.varint()? == 1)
-    }
-    fn write(v: &bool, w: &mut Writer) {
-        w.varint(i32::from(*v));
     }
 }
 /// `stringUtf8(384)` in `fixedSizeList(4)`: four lines, no count.
