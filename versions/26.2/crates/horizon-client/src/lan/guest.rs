@@ -420,9 +420,6 @@ pub struct Guest {
     pub attachments: horizon_world::attachments::Attachments,
     /// `ServerPlayer.seenCredits`: the end poem has been shown.
     pub seen_credits: bool,
-    /// `ServerPlayer.postEffects` and `postEffectsDirty`.
-    pub post_effects: Vec<String>,
-    pub post_effects_dirty: bool,
     /// `ServerPlayer.recipeBook`.
     pub recipe_book: crate::recipe_book::Settings,
     /// `PlayerAdvancements.lastSelectedTab`: the advancement tab the player
@@ -602,8 +599,6 @@ impl Guest {
             saved: None,
             attachments: Default::default(),
             seen_credits: false,
-            post_effects: Vec::new(),
-            post_effects_dirty: true,
             recipe_book: Default::default(),
             selected_tab: None,
             advancements: Default::default(),

@@ -313,7 +313,7 @@ impl Serving {
     }
 }
 enum Publish {
-    Open(TcpListener, LanSettings),
+    Open(TcpListener, LanSettings, Option<i32>),
     Close,
 }
 
@@ -1059,7 +1059,11 @@ impl Game<'_> {
     /// `IntegratedServer.publishServer`: listen on `settings.port` (0 picks
     /// one) and announce the world. The socket is bound at once so a busy
     /// port fails here; the hub starts listening once it is at hand.
-    pub(super) fn publish(&mut self, settings: LanSettings) -> std::result::Result<u16, String> {
+    pub(super) fn publish(
+        &mut self,
+        settings: LanSettings,
+        game_type: Option<i32>,
+    ) -> std::result::Result<u16, String> {
         let Some(s) = self.serving.as_mut() else {
             return Err("not an integrated server".into());
         };
@@ -1070,7 +1074,11 @@ impl Game<'_> {
         let port = listener.local_addr().map_err(|e| e.to_string())?.port();
         log::info!("Published LAN server on port {port}");
         s.flags.published.store(port, Ordering::Relaxed);
-        s.pending = Some(Publish::Open(listener, LanSettings { port, ..settings }));
+        s.pending = Some(Publish::Open(
+            listener,
+            LanSettings { port, ..settings },
+            game_type,
+        ));
         self.apply_publish();
         Ok(port)
     }
@@ -1126,7 +1134,7 @@ impl Game<'_> {
             return;
         };
         match pending {
-            Publish::Open(listener, settings) => {
+            Publish::Open(listener, settings, game_type) => {
                 if let Some(host) = self.lan.as_mut() {
                     if let Err(e) = host.hub.lan.listen_on(listener, true) {
                         log::error!("Horizon: Open to LAN: {e}");
@@ -1137,6 +1145,12 @@ impl Game<'_> {
                     // guests commands), and a published, non-hardcore world
                     // enforces the type set for other players on its guests.
                     host.commands_allowed_for_other_players = Some(settings.guest_commands);
+                    // A gamemode given at publish sets the type for other
+                    // players (`setGameTypeForOtherPlayers`); absent, the
+                    // world's default applies.
+                    if let Some(mode) = game_type {
+                        host.game_type_for_other_players = Some(mode);
+                    }
                     host.hub.config.force_game_mode = !host.hub.config.hardcore;
                     host.settings = settings;
                 }

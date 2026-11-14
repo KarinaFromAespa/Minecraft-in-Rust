@@ -1278,7 +1278,6 @@ impl Game<'_> {
             "spectate" => self.cmd_spectate(ctx),
             id if id.starts_with("waypoint.") => self.cmd_waypoint(id, ctx),
             id if id.starts_with("dialog.") => self.cmd_dialog(id, ctx),
-            id if id.starts_with("posteffect.") => self.cmd_posteffect(id, ctx),
             "kick" => self.cmd_kick(ctx),
             "op" | "deop" | "ban" | "pardon" => self.cmd_profiles(id, ctx),
             "ban-ip" | "pardon-ip" => self.cmd_ip_bans(id, ctx),

@@ -12054,7 +12054,7 @@ mod tests {
         let start = [5.0, 64.0, 7.0];
         game.spawn_entity(target, "minecraft:player", start, [0.0; 3]);
         game.particles.requested = Some(Vec::new());
-        for action in [1, 2] {
+        for action in [4, 5] {
             game.handle_packet(C::Animate(play::Animate { id: target, action }))
                 .unwrap();
         }

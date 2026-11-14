@@ -2665,9 +2665,6 @@ struct Game<'a> {
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
     /// none when it drew from vanilla's.
     posed_rotation: Option<(f32, f32)>,
-    /// `LocalPlayer.postEffects`: the chains the server has the screen run
-    /// (`ClientboundPostEffectsPacket`), in order.
-    post_effects: Vec<String>,
     /// The game time (ticks and partial) of the last frame, for `PolyDeltaTime`.
     polytone_post_ticks: f64,
     /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
@@ -3122,7 +3119,7 @@ struct Game<'a> {
     /// A dedicated server's operator, whitelist and ban lists, for `/op`,
     /// `/ban` and friends (`DedicatedPlayerList`).
     server_lists: Option<std::sync::Arc<std::sync::Mutex<dedicated::Lists>>>,
-    /// State of `/spectate`, `/posteffect`, `/debug`, `/waypoint` and friends.
+    /// State of `/spectate`, `/debug`, `/waypoint` and friends.
     cmds: commands::extra::CommandExtras,
     ui: chat::UiState,
     combat: combat::CombatTracker,
@@ -8623,6 +8620,15 @@ impl Game<'_> {
             }
             return;
         }
+        // ServerPlayer.startSleepInBed (26.2): a bed whose rule neither sets
+        // the spawn nor lets the player sleep refuses at once, before the
+        // range check (`rule.asProblem()`); 26.3 dropped this early check and
+        // goes straight to the range. The rule's own error message is not
+        // modelled, so the refusal carries none — as for a rule without one.
+        let rule = self.dimension_type().bed_rule;
+        if !self.bed_sets_spawn(state) && !rule.can_sleep.test(self.dark_outside()) {
+            return;
+        }
         // ServerPlayer.bedInRange / isReachableBedBlock: within 3 blocks
         // sideways and 2 vertically of the head or the foot.
         let reachable = |bed: [i32; 3]| {
@@ -12024,7 +12030,6 @@ impl<'a> Game<'a> {
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,
-            post_effects: Vec::new(),
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
             experience_display: Default::default(),

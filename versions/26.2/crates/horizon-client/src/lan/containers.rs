@@ -229,9 +229,12 @@ impl Hub {
     /// animation to the players tracking the attacker and the attacker
     /// themselves (`sendToTrackingPlayersAndSelf`).
     pub fn critical_hit(&self, attacker: i32, target: i32, magic: bool) {
+        // `ClientboundAnimatePacket` (26.2): CRITICAL_HIT is 4 and
+        // MAGIC_CRITICAL_HIT is 5 — 0/1/2/3 are the swings and WAKE_UP.
+        // 26.3 renumbered the enum (critical 1, magic 2).
         let body = C::Animate(play::Animate {
             id: target,
-            action: if magic { 2 } else { 1 },
+            action: if magic { 5 } else { 4 },
         })
         .encode();
         for g in self.guests.iter().filter(|g| {

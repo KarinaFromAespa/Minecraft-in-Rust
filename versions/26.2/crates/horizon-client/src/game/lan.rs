@@ -1415,10 +1415,10 @@ impl Game<'_> {
         let port = if let Some(server) = &self.integrated {
             // ShareToLanScreen: IntegratedServer.publishServer.
             server
-                .call(move |g| g.publish(settings))
+                .call(move |g| g.publish(settings, None))
                 .ok_or(super::integrated::NO_ANSWER)??
         } else if self.serving() {
-            return self.publish(settings).map(drop).map_err(Into::into);
+            return self.publish(settings, None).map(drop).map_err(Into::into);
         } else {
             return Err("no world of this game to open".into());
         };

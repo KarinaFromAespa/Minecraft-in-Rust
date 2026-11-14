@@ -3653,11 +3653,11 @@ impl Hub {
             }));
         }
         let (id, at) = (g.entity_id, g.position);
-        // ClientboundAnimatePacket.WAKE_UP.
+        // `ClientboundAnimatePacket.WAKE_UP` (26.2: 2; 26.3 renumbered it 0).
         self.broadcast_near(
             at,
             128.0,
-            &C::Animate(play::Animate { id, action: 0 }),
+            &C::Animate(play::Animate { id, action: 2 }),
             None,
         );
     }
@@ -3932,8 +3932,6 @@ impl Hub {
             && self.guests[i].sent_health.is_some()
         {
             self.flush_advancements(i, true);
-            // 26.2 sends no post effects; the dirty flag just clears.
-            self.guests[i].post_effects_dirty = false;
         }
     }
     fn flush_advancements(&mut self, i: usize, show: bool) {
@@ -5110,7 +5108,6 @@ impl Hub {
             total: xp.2,
         }));
         g.sent_xp = Some(xp);
-        g.post_effects_dirty = false;
         self.send_level_info(i, ctx, true);
         self.send_permission_level(i);
         // ServerLevel.addRespawnedPlayer: the chunk tracking starts again at the player.
@@ -5219,7 +5216,6 @@ impl Hub {
             slot: g.selected as i32,
         }));
         self.send_active_effects(i);
-        self.guests[i].post_effects_dirty = false;
         let g = &mut self.guests[i];
         // lastSentExp, lastSentHealth and lastSentFood; the client's new
         // player starts with the default air and no absorption.

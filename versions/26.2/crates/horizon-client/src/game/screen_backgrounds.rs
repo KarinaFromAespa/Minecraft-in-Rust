@@ -85,14 +85,14 @@ impl Game<'_> {
         }
     }
     /// `GameRenderer.update`'s `requestedPostEffects`: `end_of_frame` (a resource
-    /// pack's own chain), then the server's `LocalPlayer.postEffects`. Only the
-    /// world is drawn through them.
+    /// pack's own chain), then the spectated entity's shader. Only the world
+    /// is drawn through them. (26.3 added the server's `LocalPlayer.postEffects`
+    /// list between them; 26.2 has no such list.)
     pub(super) fn requested_post_effects(&self) -> Vec<String> {
         if self.title.is_some() || self.player.is_none() {
             return Vec::new();
         }
         std::iter::once("minecraft:end_of_frame".to_owned())
-            .chain(self.post_effects.iter().cloned())
             .chain(self.spectated_post_effect.map(str::to_owned))
             .collect()
     }
