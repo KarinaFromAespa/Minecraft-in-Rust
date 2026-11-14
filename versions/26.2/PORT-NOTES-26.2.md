@@ -509,3 +509,20 @@ with the tally line above.
 
 | item | changed? | minutes | note |
 | --- | --- | --- | --- |
+
+## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
+
+Dispatched on behaviour/26.2@bc530de6 (rank 2 at 218/410). Completed
+2026-11-14T02:48:03Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43519358480: the rank-2
+behaviour items landed so far move no harness in the 17-harness
+subset, as expected — the launch crash still blocks command_exec and
+save_roundtrip, and the other failures are oracle compiles, the
+missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
+(0 errors, 0 warnings; protocol tests 445, none failing); D3 fail
+(rank 2: 192/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-218/`.

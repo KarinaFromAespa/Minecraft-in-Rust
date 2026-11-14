@@ -39,12 +39,17 @@ impl<'a> BlockStateJsonCodec<'a> {
     }
     /// `full` selects FULL_CODEC, which requires the object representation.
     /// Invalid/missing properties keep their defaults, as vanilla's codec does.
+    /// 26.2's BlockState.CODEC is the NBT form, so `Name`/`Properties` are
+    /// accepted as aliases for `id`/`properties` (as in BlockState::from_nbt).
     pub fn decode(&self, json: &str, full: bool) -> io::Result<BlockStateId> {
         let value: Value = serde_json::from_str(json).map_err(|e| invalid(e.to_string()))?;
         let name = if !full && value.is_string() {
             value.as_str()
         } else {
-            value.get("id").and_then(Value::as_str)
+            value
+                .get("id")
+                .or_else(|| value.get("Name"))
+                .and_then(Value::as_str)
         }
         .ok_or_else(|| invalid("missing block identifier"))?;
         let (namespace, path) = name.split_once(':').unwrap_or(("minecraft", name));
@@ -61,7 +66,11 @@ impl<'a> BlockStateJsonCodec<'a> {
             .default_state(&name)
             .ok_or_else(|| invalid("unknown block identifier"))?;
         let mut state = self.registry.state(default).unwrap().clone();
-        if let Some(properties) = value.get("properties").and_then(Value::as_object) {
+        if let Some(properties) = value
+            .get("properties")
+            .or_else(|| value.get("Properties"))
+            .and_then(Value::as_object)
+        {
             for (key, raw) in properties {
                 if !state.properties.contains_key(key) {
                     continue;

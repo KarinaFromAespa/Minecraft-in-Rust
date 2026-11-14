@@ -1075,8 +1075,9 @@ type LatticeCache = Mutex<HashMap<(i32, i32), Arc<Vec<LatticeSamples>>>>;
 /// ~33 KB a chunk in To The Max; misses only resample.
 const LATTICE_CACHE_LIMIT: usize = 1024;
 
-/// `NoiseGeneratorSettings`' `default_block` and `default_fluid`: a block state
-/// in 26.3's form, the id alone or `{"id", "properties"}`.
+/// `NoiseGeneratorSettings`' `default_block` and `default_fluid`: a block state,
+/// the id alone or `{"id", "properties"}` — 26.2 writes the NBT form
+/// (`{"Name", "Properties"}`), which the codec accepts as an alias.
 fn state(
     codec: &crate::registry::BlockStateJsonCodec<'_>,
     raw: &Value,

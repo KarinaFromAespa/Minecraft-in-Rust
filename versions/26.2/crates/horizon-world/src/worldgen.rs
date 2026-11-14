@@ -83,7 +83,7 @@ pub mod vegetation;
 pub mod vines;
 pub mod weighted;
 pub mod write_zone;
-use horizon_core::noise::{NoiseBuildError, NormalNoise, Normalization};
+use horizon_core::noise::{NoiseBuildError, NormalNoise};
 use serde_json::value::RawValue;
 use std::collections::BTreeMap;
 
@@ -220,51 +220,22 @@ fn double_range(
     }
 }
 
-/// Decode Java Edition 26.3's direct normal-noise parameters from strict JSON.
-/// Numeric tokens retain their decimal text; all rounding occurs at the target
-/// numeric width. Unknown object fields are ignored, as in vanilla's codec.
+/// Decode Java Edition 26.2's normal-noise parameters from strict JSON:
+/// `{"firstOctave": int, "amplitudes": [double, ...]}`. Numeric tokens retain
+/// their decimal text; all rounding occurs at the target numeric width.
+/// Unknown object fields are ignored, as in vanilla's codec. The codec is
+/// plain `Codec.INT` / `Codec.DOUBLE.listOf()`: no range check on either
+/// field, and an empty amplitudes list fails only at noise construction.
 pub fn decode_noise(json: &str) -> Result<NormalNoise, DecodeError> {
     let object: Object = serde_json::from_str(json)?;
-    let base = int_range(required(&object, "base_octave")?, "base_octave", -32, 32)?;
-    let count = optional(&object, "octave_count")
-        .map(|raw| int_range(raw, "octave_count", 1, 32))
-        .transpose()?
-        .unwrap_or(1);
-    let amplitude = optional(&object, "base_amplitude")
-        .map(|raw| double_range(raw, "base_amplitude", 1e-5f32 as f64, 1e6))
-        .transpose()?
-        .unwrap_or(1.0);
-    let normalize = match optional(&object, "normalize") {
-        None => Normalization::Enabled,
-        Some(raw) => match raw.get() {
-            "true" => Normalization::Enabled,
-            "false" => Normalization::Disabled,
-            text if text.starts_with('"') && serde_json::from_str::<String>(text)? == "legacy" => {
-                Normalization::Legacy
-            }
-            _ => return Err(DecodeError::Field("normalize")),
-        },
-    };
-    let modifiers: Vec<Box<RawValue>> = optional(&object, "amplitude_modifiers")
-        .map(|raw| serde_json::from_str(raw.get()))
-        .transpose()?
-        .unwrap_or_default();
-    if modifiers.len() > 32 || (!modifiers.is_empty() && modifiers.len() != count as usize) {
-        return Err(DecodeError::Field("amplitude_modifiers"));
+    let base = integer(required(&object, "firstOctave")?)?;
+    let amplitudes: Vec<Box<RawValue>> =
+        serde_json::from_str(required(&object, "amplitudes")?.get())?;
+    let mut values = Vec::with_capacity(amplitudes.len());
+    for raw in &amplitudes {
+        values.push(double(raw)?);
     }
-    let mut builder = NormalNoise::builder();
-    builder
-        .set_base_octave(base)
-        .set_base_amplitude(amplitude)
-        .set_normalization(normalize);
-    builder.set_octave_count(count)?;
-    for (index, modifier) in modifiers.iter().enumerate() {
-        builder.set_amplitude_modifier(
-            index as i32,
-            double_range(modifier, "amplitude_modifiers", 0.0, 1e6)?,
-        )?;
-    }
-    Ok(builder.build()?)
+    Ok(NormalNoise::create_parity(base, &values)?)
 }
 
 #[cfg(test)]
@@ -288,25 +259,23 @@ mod tests {
     }
     #[test]
     fn a_muted_octave_decodes_to_a_silent_noise() {
-        let noise = decode_noise(r#"{"base_octave":0,"amplitude_modifiers":[0.0]}"#).unwrap();
+        let noise = decode_noise(r#"{"firstOctave":0,"amplitudes":[0.0]}"#).unwrap();
         assert!(noise.octaves().is_empty());
         assert_eq!(noise.normalization_factor(), 0.0);
         assert_eq!(noise.range(), [0.0, 0.0]);
     }
     #[test]
-    fn codec_defaults_and_empty_modifiers_match_explicit_parameters() {
-        let a = decode_noise(r#"{"base_octave":-7}"#).unwrap();
-        let b = decode_noise(r#"{"base_octave":-7,"base_amplitude":1,"octave_count":1,"normalize":true,"amplitude_modifiers":[],"unknown":42}"#).unwrap();
+    fn first_octave_and_amplitudes_decode_and_unknown_fields_are_ignored() {
+        let a = decode_noise(r#"{"firstOctave":-7,"amplitudes":[1.0]}"#).unwrap();
+        let b = decode_noise(r#"{"firstOctave":-7,"amplitudes":[1.0],"unknown":42}"#).unwrap();
         assert_eq!(a.range(), b.range());
         assert_eq!(a.normalization_factor(), b.normalization_factor());
         assert_eq!(a.octaves().len(), b.octaves().len());
-        assert!(decode_noise(r#"{"base_octave":-7,"octave_count":0}"#).is_err());
-        assert!(decode_noise(r#"{"base_octave":-7,"normalize":0}"#).is_err());
-        assert!(decode_noise(r#"{"base_octave":-7,"amplitude_modifiers":[-0]}"#).is_err());
-        assert!(decode_noise(r#"{"base_octave":-7,"amplitude_modifiers":[-0.0]}"#).is_err());
-        assert!(
-            decode_noise(r#"{"base_octave":-7,"octave_count":2,"amplitude_modifiers":[1]}"#)
-                .is_err()
-        );
+        assert!(decode_noise(r#"{"amplitudes":[1.0]}"#).is_err());
+        assert!(decode_noise(r#"{"firstOctave":-7}"#).is_err());
+        assert!(decode_noise(r#"{"firstOctave":-7,"amplitudes":[]}"#).is_err());
+        assert!(decode_noise(r#"{"firstOctave":"-7","amplitudes":[1.0]}"#).is_err());
+        assert!(decode_noise(r#"{"firstOctave":-7,"amplitudes":["1"]}"#).is_err());
+        assert!(decode_noise(r#"{"firstOctave":-7,"amplitudes":1}"#).is_err());
     }
 }

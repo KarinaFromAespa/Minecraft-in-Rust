@@ -16,9 +16,9 @@
   ],
   "total": 17
  },
- "last_ci_commit": "7379b0a5",
- "last_ci_run": 43519358480,
- "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 218/410 on behaviour/26.2.",
+ "last_ci_commit": "bc530de6",
+ "last_ci_run": 43535967019,
+ "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 218/410 on behaviour/26.2.",
  "profile_recorded": "2026-11-14",
  "protocol": 776,
  "protocol_tests": {

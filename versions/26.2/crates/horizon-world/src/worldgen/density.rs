@@ -751,7 +751,10 @@ mod tests {
     }
     #[test]
     fn shift_forms_accept_a_noise_name_or_an_argument() {
-        let noises = BTreeMap::from([("minecraft:offset".into(), r#"{"base_octave":0}"#.into())]);
+        let noises = BTreeMap::from([(
+            "minecraft:offset".into(),
+            r#"{"firstOctave":0,"amplitudes":[1.0]}"#.into(),
+        )]);
         let densities = BTreeMap::from([
             (
                 "minecraft:shift_a".into(),
