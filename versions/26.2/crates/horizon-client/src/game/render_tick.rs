@@ -278,12 +278,15 @@ impl Game<'_> {
     /// `ScreenEffectRenderer` + `Hud` camera overlays for this frame.
     /// `scale` is the player's `LivingEntity.getScale`.
     /// `BlockBehaviour.Properties.isSuffocating` of a state: the block's
-    /// explicit predicate, else `causes_suffocation` with a full collision
-    /// shape.
+    /// explicit predicate, else the 26.2 default `blocksMotion()` with a
+    /// full collision shape. 26.2 has no `#causes_suffocation` tag
+    /// (26.3-only); the tag form always reads false under 26.2 data, so
+    /// the default uses `legacy_solid` (with the cobweb / bamboo-sapling
+    /// exclusion, the `blocksMotion` rule) and the full-collision fact.
     pub(super) fn state_suffocating(&self, state: horizon_world::registry::BlockStateId) -> bool {
         let facts = self.res.facts().get(state);
         let name = facts.name.as_ref();
-        // Blocks' explicit predicates, then the default causes_suffocation/full-shape rule.
+        // Blocks' explicit predicates, then the default blocksMotion/full-shape rule.
         match name {
             "minecraft:dirt_path"
             | "minecraft:farmland"
@@ -306,11 +309,10 @@ impl Game<'_> {
             // here is rare enough to count as closed.
             _ if name.ends_with("shulker_box") => true,
             _ => {
-                facts.full_collision
-                    && self
-                        .res
-                        .items()
-                        .block_in_tag("minecraft:causes_suffocation", name)
+                facts.legacy_solid
+                    && name != "minecraft:cobweb"
+                    && name != "minecraft:bamboo_sapling"
+                    && facts.full_collision
             }
         }
     }

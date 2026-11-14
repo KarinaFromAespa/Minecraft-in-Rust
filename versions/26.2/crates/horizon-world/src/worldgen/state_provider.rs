@@ -180,7 +180,9 @@ impl<'r> StateProviderBindings<'r> {
 }
 impl PredicateBlockResolver for StateProviderBindings<'_> {
     fn predicate_state(&self, json: &str) -> Result<BlockStateId, DecodeError> {
-        self.state(json, false)
+        // `would_survive`'s `state` field is BlockState.CODEC: in 26.2 the
+        // object-only NBT form (Name/Properties), not the compact form.
+        self.state(json, true)
     }
     fn predicate_property(
         &self,
@@ -390,11 +392,14 @@ impl BlockStateProvider {
                 Node::Noise(Box::new(NoiseProvider::decode(&object, bindings, &kind)?))
             }
             "minecraft:simple" => {
-                Node::Simple(bindings.state(required(&object, "state")?.get(), false)?)
+                // SimpleStateProvider's `state` is BlockState.CODEC: the
+                // 26.2 object-only form.
+                Node::Simple(bindings.state(required(&object, "state")?.get(), true)?)
             }
             "minecraft:weighted" => {
                 Node::Weighted(WeightedList::decode(required(&object, "entries")?, |v| {
-                    bindings.state(v.get(), false)
+                    // WeightedStateProvider entries are BlockState.CODEC.
+                    bindings.state(v.get(), true)
                 })?)
             }
             "minecraft:random_block" => {
