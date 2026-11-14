@@ -100,7 +100,7 @@ def main():
     build=lab.LOCAL/'rust-material-stage-parity';build.mkdir(parents=True,exist_ok=True);report_path=build/'report.json';report_path.unlink(missing_ok=True)
     if args.prepare:lab.prepare()
     lock,jars,libraries=base.verify_artifacts();bundle={}
-    for field,kind in [('noises','noise'),('densities','density_function'),('rules','material_rule'),('settings','noise_settings'),('carvers','carver')]:
+    for field,kind in [('noises','noise'),('densities','density_function'),('rules','material_rule'),('settings','noise_settings'),('carvers','configured_carver')]:
         values=worldgen.registry_resources(jars['server'],kind)
         if not values or values!=worldgen.registry_resources(jars['client'],kind):raise ValueError('reference '+kind+' resources differ')
         prefix='data/minecraft/worldgen/'+kind+'/';bundle[field]={'minecraft:'+name[len(prefix):-5]:raw for name,raw in values.items()}

@@ -18,7 +18,7 @@ except ImportError:
 def corpus(resources):
     encode=lambda value:json.dumps(value,separators=(',',':'))
     wrap=lambda value:((value+2**31)%2**32)-2**31
-    configs=[(name,json.loads(raw)) for name,raw in sorted(resources.items()) if json.loads(raw)['type']=='minecraft:cave']
+    configs=[(name,json.loads(raw)) for name,raw in sorted(resources.items()) if json.loads(raw)['type'] in ('minecraft:cave','minecraft:nether_cave')]
     for name,config in configs:
         context=[0,128,32] if 'nether' in name else [-64,384,63]
         for legacy in [False,True]:
@@ -26,16 +26,22 @@ def corpus(resources):
                 for cx,cz,dx,dz in [(0,0,0,0),(-1,2,1,-1),(107,-59,-4,3),(1875000,-1875000,0,0),(-2**31,2**31-1,0,0),(0,0,8,-8)]:
                     yield {'definition':encode(config),'context':context,'legacy':legacy,'seed':seed,'target':[cx,cz],'origin':[wrap(cx+dx),wrap(cz+dz)],'repeats':2,'fail':-1}
         for mode in range(12):
-            custom={**config,'count':3,'thickness':6 if mode%3==0 else 1,'weird_thickness_bias':bool(mode%2),'y':{'absolute':40},'floor_level':[-1,-0.7,0,1][mode%4]}
+            cfg={**config['config'],'y':{'absolute':40},'floor_level':[-1,-0.7,0,1][mode%4],'yScale':[0.5,1,3,0.25][mode%4]}
+            custom={**config,'config':cfg}
             yield {'definition':encode(custom),'context':context,'legacy':bool(mode%2),'seed':mode*971,'target':[0,0],'origin':[0,0],'repeats':2,'fail':[-1,0,1,63][mode//3]}
-    base={**configs[0][1],'count':0}
+    base=configs[0][1]
     bad=[None,False,0,[],{}, {'type':'missing'}, {**base,'type':':cave'}]
     for field in list(base):
         bad.append({k:v for k,v in base.items() if k!=field})
         for value in [None,False,[],{},'0']:
             bad.append({**base,field:value})
-    for field in ['probability','thickness','floor_level']:
-        for value in [-1,-0.0,0,1,2,1e100,-1e100,-1e-100]:bad.append({**base,field:value})
+    for field in list(base['config']):
+        bad.append({**base,'config':{k:v for k,v in base['config'].items() if k!=field}})
+        # '0' names no block: vanilla rejects it at decode via the registry lookup, but the Rust decoder is registry-free and the load step (validate_replaceable) rejects it instead, so the string case for this field uses an identifier that is malformed in both.
+        for value in [None,False,[],{},'A' if field=='replaceable' else '0']:
+            bad.append({**base,'config':{**base['config'],field:value}})
+    for field in ['probability','floor_level']:
+        for value in [-1,-0.0,0,1,2,1e100,-1e100,-1e-100]:bad.append({**base,'config':{**base['config'],field:value}})
     for value in bad:
         yield {'definition':encode(value),'context':[-64,384,63],'legacy':False,'seed':0,'target':[0,0],'origin':[0,0],'repeats':1,'fail':63}
 
@@ -47,19 +53,21 @@ def main():
     if args.prepare:lab.prepare()
     lock,jars,libraries=base.verify_artifacts()
     oracle=lab.ROOT/"mods/horizon/src/test/java/dev/horizonlab/parity/VanillaCaveCarverOracle.java"
-    helper=oracle.with_name("VanillaAnchorOracle.java")
-    sources=[oracle,helper,Path(__file__),lab.ROOT/"tools/test_worldgen_parity.py",lab.ROOT/"tools/test_rust_parity.py",lab.ROOT/"tools/lab.py",lab.ROOT/"Cargo.toml",lab.ROOT/"Cargo.lock",lab.ROOT/"crates/horizon-core/Cargo.toml",lab.ROOT/"crates/horizon-world/Cargo.toml",
+    sources=[oracle,Path(__file__),lab.ROOT/"tools/test_worldgen_parity.py",lab.ROOT/"tools/test_rust_parity.py",lab.ROOT/"tools/lab.py",lab.ROOT/"Cargo.toml",lab.ROOT/"Cargo.lock",lab.ROOT/"crates/horizon-core/Cargo.toml",lab.ROOT/"crates/horizon-world/Cargo.toml",
              *sorted((lab.ROOT/"crates/horizon-core/src").rglob("*.rs")),*sorted((lab.ROOT/"crates/horizon-world/src").rglob("*.rs")),lab.ROOT/"crates/horizon-world/examples/probe/cave_carver_fixture.rs"]
     tested_sources=base.source_hashes(sources)
-    resources=worldgen.registry_resources(jars['server'],'carver')
-    if not resources or resources!=worldgen.registry_resources(jars['client'],'carver'):raise ValueError('reference carver resources differ')
+    resources=worldgen.registry_resources(jars['server'],'configured_carver')
+    if not resources or resources!=worldgen.registry_resources(jars['client'],'configured_carver'):raise ValueError('reference carver resources differ')
     resources_path=build/'carvers.json';resources_path.write_text(json.dumps(resources,separators=(',',':')),encoding='utf-8')
+    tags=worldgen.tag_resources(jars['server'])
+    if not tags or tags!=worldgen.tag_resources(jars['client']):raise ValueError('reference block tags differ')
+    tags_path=build/'tags.json';tags_path.write_text(json.dumps(tags,separators=(',',':')),encoding='utf-8')
     fixtures=list(corpus(resources));inputs=build/"inputs.txt";inputs.write_text("".join(json.dumps(f,separators=(",",":"))+"\n" for f in fixtures),encoding="utf-8")
-    fixture_paths=[inputs,resources_path];tested_fixtures=base.source_hashes(fixture_paths);classes=build/"classes";classes.mkdir(exist_ok=True)
+    fixture_paths=[inputs,resources_path,tags_path];tested_fixtures=base.source_hashes(fixture_paths);classes=build/"classes";classes.mkdir(exist_ok=True)
     def run(command,name):
         with (build/(name+".log")).open("w",encoding="utf-8") as log:base.run(list(map(str,command)),stdout=log,stderr=subprocess.STDOUT)
     dependency_path=os.pathsep.join(map(str,libraries))
-    run(["javac","--release",lock["minecraft"]["java_major"],"-proc:none","-cp",str(jars["server"])+os.pathsep+dependency_path,"-d",classes,oracle,helper],"compile-java")
+    run(["javac","--release",lock["minecraft"]["java_major"],"-proc:none","-cp",str(jars["server"])+os.pathsep+dependency_path,"-d",classes,oracle],"compile-java")
     run(["cargo","build","--release","-p","horizon-world","--example","world_probe"],"compile-rust")
     metadata=json.loads(subprocess.check_output(["cargo","metadata","--no-deps","--format-version","1"],cwd=lab.ROOT,text=True))
     binary=Path(metadata["target_directory"])/"release/examples"/("world_probe.exe" if os.name=="nt" else "world_probe")
@@ -76,7 +84,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "fixtures":len(fixtures),"carve_attempts":sum(f["repeats"] for f in fixtures),"bundled_cave_definitions":3,
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Actual WorldCarver.DIRECT_CODEC, CaveWorldCarver.isStartChunk and CaveWorldCarver.carve using all three independently authenticated bundled cave definitions. Compares ordered output cells including duplicates, partial output failures, resulting mask intervals and subsequent random longs across repeated invocations. Covers both outer random modes, local legacy tunnel streams, rooms, branching, thickness bias, floor thresholds, negative/distant/extreme target coordinates and adjacent/far origin chunks. Explicit custom distributions force path and failure branches; malformed selected codec fields are tested. Gaussian/weighted provider codecs, canyon paths, neighbor-carver seeding/biome selection, blending and complete generated worlds remain outside this scope. Rust bounds count to 4096 and total candidates to 2^24 per invocation."}
+            "scope":"Actual ConfiguredWorldCarver.DIRECT_CODEC, ConfiguredWorldCarver.isStartChunk and CaveWorldCarver.carve using all three independently authenticated bundled cave definitions (cave, cave_extra_underground, nether_cave). Compares ordered first-claim output cells, partial output failures, resulting mask intervals and subsequent random longs across repeated invocations. Covers both outer random modes, local legacy tunnel streams, rooms, branching, thickness bias, floor thresholds, negative/distant/extreme target coordinates and adjacent/far origin chunks. Explicit custom distributions force path and failure branches; malformed selected codec fields are tested. Gaussian/weighted provider codecs, canyon paths, neighbor-carver seeding/biome selection, blending and complete generated worlds remain outside this scope. Rust bounds total candidates to 2^24 per invocation; the cave count is the triple-nested bound draw (at most 14)."}
 
     lab.write_json(report_path,report);print(f"Scoped cave-carver parity passed: {report_path}")
 

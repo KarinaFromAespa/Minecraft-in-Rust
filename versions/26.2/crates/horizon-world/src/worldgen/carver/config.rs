@@ -29,9 +29,8 @@ impl BlockSetRef {
         }
         if raw.get().trim_start().starts_with('[') {
             let names: Vec<String> = serde_json::from_str(raw.get())?;
-            if names.is_empty() {
-                return Err(DecodeError::Field("replaceable"));
-            }
+            // An empty list decodes to an empty set in vanilla
+            // (HolderSetCodec accepts it); it simply replaces nothing.
             return names
                 .into_iter()
                 .map(|name| identifier(&name))
