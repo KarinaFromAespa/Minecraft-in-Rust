@@ -448,3 +448,42 @@ protocol tests 445, none failing); D3 fail (rank 2: 345/410 neither
 closed nor accepted at this commit); D4–D6 blocked as before.
 Artifacts kept at
 `~/workspace/mcir-work/26.2-behaviour/ci-runs/43405337919/`.
+
+## CI profile — port-verify v6.6, run 43435321313 (2026-11-13)
+
+Dispatched on behaviour/26.2@576d4a93 (the BedBlock landing-family
+fix; rank 2 at 66/410). Completed 2026-11-13T15:46:04Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. The BedBlock fix worked: no "unsupported
+landing family" in the logs, and the occlusion crash stays gone. But
+command_exec and save_roundtrip still fail on a NEW unknown launch
+crash: the client exits 1 at launch before opening the control socket,
+and the crash report stayed on the runner, so its cause is not in the
+artifacts. Diagnosing it by local reproduction is a second track
+alongside the rank-2 port. save_roundtrip separately still shows the
+vanilla-side scene-command serialization errors (decorated_pot sherds,
+BlockState "No key Name"). D1 pass, D2 pass (0 errors, 0 warnings;
+protocol tests 445, none failing); D3 fail (rank 2: 344/410 neither
+closed nor accepted at this commit); D4–D6 blocked as before.
+Artifacts kept at `~/workspace/mcir-ci/26.2-bedfix/`.
+
+## CI profile — port-verify v6.6, run 43519358480 (2026-11-13–14)
+
+Dispatched on behaviour/26.2@7379b0a5 (rank 2 at 151/410 — items
+19–21 landed last). Completed 2026-11-14T00:31:23Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43435321313: the rank-2
+behaviour items landed so far move no harness in the 17-harness
+subset, as expected — the launch crash still blocks command_exec and
+save_roundtrip, and the other failures are oracle compiles, the
+missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
+(0 errors, 0 warnings; protocol tests 445, none failing); D3 fail
+(rank 2: 259/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-151/`.

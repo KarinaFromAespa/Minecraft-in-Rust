@@ -1,1 +1,32 @@
-{"behaviour":{"closed":7,"note":"Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13: data-component behaviour port, block-transformer parity 70932/70932, NBT-form facts.json codec, per-state blocksMotion(). Rank 2 (410 items) in progress.","total":651},"harness":{"fail":14,"oracle_fail":0,"pass":3,"passing":["food","lan","resource_pack"],"total":17},"last_ci_commit":"42cb47fe","last_ci_run":43379593930,"notes":"Profile 3/17 is the pre-behaviour baseline (runs 43342783340, 43352941442); run 43379593930 (rank-1 tree, behaviour/26.2) in flight 2026-11-13. Adapter ladder re-based to the 776 pin 2026-11-13.","profile_recorded":"2026-11-13","protocol":776,"protocol_tests":{"fail":2,"ignored":0,"note":"2 failures are the pre-existing sandbox-network pair; ladder re-based, 0 ignored.","pass":443},"role":"era release","version":"26.2"}
+{
+ "behaviour": {
+  "closed": 7,
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 218/410 on behaviour/26.2 (tip 894a3092); bucket C closed, bucket B has only item 106 open.",
+  "total": 651
+ },
+ "harness": {
+  "fail": 13,
+  "oracle_fail": 0,
+  "pass": 4,
+  "passing": [
+   "food",
+   "lan",
+   "light",
+   "resource_pack"
+  ],
+  "total": 17
+ },
+ "last_ci_commit": "7379b0a5",
+ "last_ci_run": 43519358480,
+ "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 218/410 on behaviour/26.2.",
+ "profile_recorded": "2026-11-14",
+ "protocol": 776,
+ "protocol_tests": {
+  "fail": 2,
+  "ignored": 0,
+  "note": "2 failures are the pre-existing sandbox-network pair; ladder re-based, 0 ignored.",
+  "pass": 443
+ },
+ "role": "era release",
+ "version": "26.2"
+}
