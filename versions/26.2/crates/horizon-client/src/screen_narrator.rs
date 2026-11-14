@@ -11,7 +11,7 @@
 //! it when due. The frames only record while the narrator can speak
 //! (`shouldRunNarration`), whatever its status.
 use crate::widgets::{self, ElementType, ListKind, Narratable, Narration, ScreenInfo, What};
-use horizon_narrator::screen::{Output, Priority, ScreenNarration, Trigger, find_narratable};
+use horizon_narrator::screen::{Output, Priority, ScreenNarration, find_narratable};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -78,7 +78,7 @@ pub struct ScreenNarrator {
     /// is the screen already open, which vanilla narrated silently all along.
     adopt: Option<u64>,
     /// `updateNarratorStatus` before that screen was read.
-    pending_status: Option<(i64, bool, Trigger)>,
+    pending_status: Option<(i64, bool)>,
 }
 
 impl Default for ScreenNarrator {
@@ -422,17 +422,16 @@ fn narrate(
         }
         What::ContainerList { rows, hovered_row } => {
             // ContainerObjectSelectionList.updateWidgetNarration: the row
-            // under the mouse for the mouse and the system, else the focused
-            // one; its widget one level deeper, the row's position here.
+            // under the mouse when there is one, else the focused one; its
+            // widget one level deeper, the row's position here. (26.3 only
+            // takes the hovered row for a mouse or system trigger.)
             let list = n.identity();
             let hovered_row = hovered_row.filter(|_| !ctx.init);
-            let row = match (out.trigger(), hovered_row) {
-                (Trigger::Mouse | Trigger::System, Some(row)) => Some(row),
-                _ => ctx
-                    .children(list)
+            let row = hovered_row.or_else(|| {
+                ctx.children(list)
                     .find(|c| ctx.focused(c))
-                    .and_then(|c| c.parent.map(|(_, row)| row)),
-            };
+                    .and_then(|c| c.parent.map(|(_, row)| row))
+            });
             if let Some(row) = row {
                 let children: Vec<&Narratable> = ctx
                     .children(list)
@@ -491,12 +490,12 @@ fn narrate_row(
 }
 
 /// `Screen.runNarration`: what to say now (empty for nothing).
-fn run(open: &mut Open, ctx: &Ctx<'_>, only_changed: bool, trigger: Trigger) -> String {
+fn run(open: &mut Open, ctx: &Ctx<'_>, only_changed: bool) -> String {
     let Open {
         state, row_last, ..
     } = open;
     let mut last = state.last_narratable;
-    let said = state.run(only_changed, trigger, |out| {
+    let said = state.run(only_changed, |out| {
         update_narration_state(out, ctx, &mut last, row_last);
     });
     state.last_narratable = last;
@@ -569,13 +568,13 @@ impl ScreenNarrator {
             open.state.after_keyboard_action(now);
         }
     }
-    /// `Screen.updateNarratorStatus(wasDisabled, trigger)`: once the narrator
+    /// `Screen.updateNarratorStatus(wasDisabled)`: once the narrator
     /// is turned on, the open screen is narrated two seconds later.
-    pub fn status_changed(&mut self, was_disabled: bool, trigger: Trigger) {
+    pub fn status_changed(&mut self, was_disabled: bool) {
         let now = self.now();
         match &mut self.open {
-            Some(open) => open.state.after_status_change(now, was_disabled, trigger),
-            None => self.pending_status = Some((now, was_disabled, trigger)),
+            Some(open) => open.state.after_status_change(now, was_disabled),
+            None => self.pending_status = Some((now, was_disabled)),
         }
     }
 
@@ -715,10 +714,10 @@ impl ScreenNarrator {
         if opened || resized {
             // Screen.init: `triggerImmediateNarration(false)`, then the
             // suppression (until the next key for a keyboard user).
-            let text = run(open, &ctx(true), false, Trigger::System);
+            let text = run(open, &ctx(true), false);
             if adopting {
-                if let Some((at, was_disabled, trigger)) = pending {
-                    open.state.after_status_change(at, was_disabled, trigger);
+                if let Some((at, was_disabled)) = pending {
+                    open.state.after_status_change(at, was_disabled);
                 }
             } else {
                 said.push(text);
@@ -731,10 +730,10 @@ impl ScreenNarrator {
                 .is_some_and(|ms| now - open.last_repeat > i64::from(ms))
         {
             open.last_repeat = now;
-            said.push(run(open, &ctx(false), true, Trigger::System));
+            said.push(run(open, &ctx(false), true));
         }
-        if let Some(trigger) = open.state.due(now) {
-            said.push(run(open, &ctx(false), true, trigger));
+        if open.state.due(now) {
+            said.push(run(open, &ctx(false), true));
         }
         said.retain(|s| !s.is_empty());
         said
@@ -1232,7 +1231,7 @@ mod tests {
         // Ctrl+B before the frames record: the screen open is taken as it
         // is, silently, then narrated 2 s after the key.
         h.n.recording = false;
-        h.at(1000).status_changed(true, Trigger::Keyboard);
+        h.at(1000).status_changed(true);
         h.n.turned_on(h.n.generation);
         h.cursor = (150.0, 110.0);
         assert!(h.draw(1016, &screen, &items).is_empty());

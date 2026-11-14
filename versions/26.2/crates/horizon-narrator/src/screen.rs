@@ -18,15 +18,6 @@ pub enum ElementType {
     Usage,
 }
 
-/// `NarrationTrigger`: what scheduled the narration.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum Trigger {
-    Mouse,
-    Keyboard,
-    #[default]
-    System,
-}
-
 /// `NarratableEntry.NarrationPriority`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Priority {
@@ -61,12 +52,11 @@ pub struct Collector {
 
 impl Collector {
     /// `update`: a new generation, filled by `updater`.
-    pub fn update(&mut self, trigger: Trigger, updater: impl FnOnce(&mut Output<'_>)) {
+    pub fn update(&mut self, updater: impl FnOnce(&mut Output<'_>)) {
         self.generation += 1;
         updater(&mut Output {
             collector: self,
             depth: 0,
-            trigger,
         });
     }
 
@@ -112,7 +102,6 @@ impl Collector {
 pub struct Output<'a> {
     collector: &'a mut Collector,
     depth: u32,
-    trigger: Trigger,
 }
 
 impl Output<'_> {
@@ -131,11 +120,7 @@ impl Output<'_> {
         Output {
             collector: self.collector,
             depth: self.depth + 1,
-            trigger: self.trigger,
         }
-    }
-    pub fn trigger(&self) -> Trigger {
-        self.trigger
     }
 }
 
@@ -147,15 +132,15 @@ pub const DELAY_MOUSE_ACTION_MS: i64 = 200;
 pub const DELAY_KEYBOARD_ACTION_MS: i64 = 200;
 
 /// A screen's narration state (`Screen`'s `narrationState`,
-/// `narrationSuppressTime`, `nextNarrationTime`, `nextNarrationTriggeredBy`
-/// and `lastNarratable`). A new screen starts a new one. Times are
-/// milliseconds on any steady clock (`Util.getMillis`).
+/// `narrationSuppressTime`, `nextNarrationTime` and `lastNarratable`). A new
+/// screen starts a new one. Times are milliseconds on any steady clock
+/// (`Util.getMillis`). In 26.2 there is no `NarrationTrigger`: scheduling
+/// takes only a delay and whether to ignore suppression.
 #[derive(Debug)]
 pub struct ScreenNarration {
     pub collector: Collector,
     suppress_time: i64,
     next_time: i64,
-    next_trigger: Trigger,
     /// The widget narrated last, by the caller's identity for it.
     pub last_narratable: Option<u64>,
 }
@@ -166,7 +151,6 @@ impl Default for ScreenNarration {
             collector: Collector::default(),
             suppress_time: i64::MIN,
             next_time: i64::MAX,
-            next_trigger: Trigger::System,
             last_narratable: None,
         }
     }
@@ -184,55 +168,49 @@ impl ScreenNarration {
         };
     }
 
-    /// `scheduleNarration(delay, ignoreSuppression, trigger)`.
-    pub fn schedule(&mut self, now: i64, delay: i64, ignore_suppression: bool, trigger: Trigger) {
+    /// `scheduleNarration(delay, ignoreSuppression)`.
+    pub fn schedule(&mut self, now: i64, delay: i64, ignore_suppression: bool) {
         self.next_time = now.saturating_add(delay);
-        self.next_trigger = trigger;
         if ignore_suppression {
             self.suppress_time = i64::MIN;
         }
     }
     /// `scheduleNarration()`: as soon as the screen next ticks.
     pub fn schedule_now(&mut self, now: i64) {
-        self.schedule(now, 0, true, Trigger::System);
+        self.schedule(now, 0, true);
     }
     pub fn after_mouse_move(&mut self, now: i64) {
-        self.schedule(now, DELAY_MOUSE_MOVE_MS, false, Trigger::Mouse);
+        self.schedule(now, DELAY_MOUSE_MOVE_MS, false);
     }
     pub fn after_mouse_action(&mut self, now: i64) {
-        self.schedule(now, DELAY_MOUSE_ACTION_MS, true, Trigger::Mouse);
+        self.schedule(now, DELAY_MOUSE_ACTION_MS, true);
     }
     pub fn after_keyboard_action(&mut self, now: i64) {
-        self.schedule(now, DELAY_KEYBOARD_ACTION_MS, true, Trigger::Keyboard);
+        self.schedule(now, DELAY_KEYBOARD_ACTION_MS, true);
     }
     /// `updateNarratorStatus`'s scheduling: once the narrator is turned on,
     /// the screen is narrated two seconds later.
-    pub fn after_status_change(&mut self, now: i64, was_disabled: bool, trigger: Trigger) {
+    pub fn after_status_change(&mut self, now: i64, was_disabled: bool) {
         if was_disabled {
-            self.schedule(now, SUPPRESS_AFTER_INIT_MS, false, trigger);
+            self.schedule(now, SUPPRESS_AFTER_INIT_MS, false);
         }
     }
 
-    /// `handleDelayedNarration`'s test: the trigger of a narration due now
+    /// `handleDelayedNarration`'s test: whether a narration is due now
     /// (only changed elements are said), which is then no longer pending.
-    pub fn due(&mut self, now: i64) -> Option<Trigger> {
+    pub fn due(&mut self, now: i64) -> bool {
         if now > self.next_time && now > self.suppress_time {
             self.next_time = i64::MAX;
-            Some(self.next_trigger)
+            true
         } else {
-            None
+            false
         }
     }
 
     /// `runNarration`: rebuilds the narration and returns what to say now
     /// (`saySystemNow`), empty for nothing.
-    pub fn run(
-        &mut self,
-        only_changed: bool,
-        trigger: Trigger,
-        updater: impl FnOnce(&mut Output<'_>),
-    ) -> String {
-        self.collector.update(trigger, updater);
+    pub fn run(&mut self, only_changed: bool, updater: impl FnOnce(&mut Output<'_>)) -> String {
+        self.collector.update(updater);
         self.collector.collect(!only_changed)
     }
 }
@@ -272,12 +250,11 @@ mod tests {
         only_changed: bool,
         items: &[(ElementType, u32, &str)],
     ) -> String {
-        n.run(only_changed, Trigger::System, |out| {
+        n.run(only_changed, |out| {
             for &(kind, depth, text) in items {
                 let mut out = Output {
                     collector: out.collector,
                     depth,
-                    trigger: Trigger::System,
                 };
                 out.add(kind, text);
             }
@@ -287,7 +264,7 @@ mod tests {
     #[test]
     fn elements_are_read_by_type_then_depth() {
         let mut n = ScreenNarration::default();
-        let said = n.run(false, Trigger::System, |out| {
+        let said = n.run(false, |out| {
             out.add(Title, "Options");
             out.add(Position, "Screen element 2 out of 9");
             out.add(Usage, "Use Tab to navigate");
@@ -336,7 +313,7 @@ mod tests {
     #[test]
     fn lines_are_one_element_read_as_sentences() {
         let mut n = ScreenNarration::default();
-        let said = n.run(false, Trigger::System, |out| {
+        let said = n.run(false, |out| {
             out.add_lines(Title, vec!["First".into(), "".into(), "Third".into()]);
         });
         assert_eq!(said, "First. . Third");
@@ -345,18 +322,18 @@ mod tests {
     #[test]
     fn narration_waits_for_its_delay_and_the_suppression() {
         let mut n = ScreenNarration::default();
-        assert_eq!(n.due(0), None);
+        assert!(!n.due(0));
         n.after_init(1000, false);
         n.after_mouse_move(1000);
         // Due at 1750 but suppressed until 3000.
-        assert_eq!(n.due(2000), None);
-        assert_eq!(n.due(3001), Some(Trigger::Mouse));
-        assert_eq!(n.due(4000), None);
+        assert!(!n.due(2000));
+        assert!(n.due(3001));
+        assert!(!n.due(4000));
         // A click lifts the suppression.
         n.after_init(5000, false);
         n.after_mouse_action(5000);
-        assert_eq!(n.due(5200), None);
-        assert_eq!(n.due(5201), Some(Trigger::Mouse));
+        assert!(!n.due(5200));
+        assert!(n.due(5201));
     }
 
     #[test]
@@ -364,19 +341,19 @@ mod tests {
         let mut n = ScreenNarration::default();
         n.after_init(0, true);
         n.after_mouse_move(0);
-        assert_eq!(n.due(1_000_000), None);
+        assert!(!n.due(1_000_000));
         n.after_keyboard_action(10);
-        assert_eq!(n.due(211), Some(Trigger::Keyboard));
+        assert!(n.due(211));
     }
 
     #[test]
     fn turning_the_narrator_on_narrates_the_screen_two_seconds_later() {
         let mut n = ScreenNarration::default();
-        n.after_status_change(0, false, Trigger::Keyboard);
-        assert_eq!(n.due(10_000), None);
-        n.after_status_change(0, true, Trigger::Keyboard);
-        assert_eq!(n.due(2000), None);
-        assert_eq!(n.due(2001), Some(Trigger::Keyboard));
+        n.after_status_change(0, false);
+        assert!(!n.due(10_000));
+        n.after_status_change(0, true);
+        assert!(!n.due(2000));
+        assert!(n.due(2001));
     }
 
     #[test]

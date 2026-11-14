@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 64/100 items, 35 changed, 29 no-change, 2442 minutes on changed
+**rate sample: 65/100 items, 36 changed, 29 no-change, 2592 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -573,6 +573,7 @@ log; it stays in agreement with the tally line above.
 | 87 | changed | 180 (est.) | See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change |
 | 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
+| 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -666,3 +667,19 @@ plus the two sandbox-network tests, which also fail on the base.) D3
 fail (rank 2: 152/410 neither closed nor accepted at this commit);
 D4–D6 blocked as before. Artifacts kept at
 `~/workspace/mcir-ci/26.2-258/`.
+
+**D2 regression fixed 2026-11-14 (item 129 batch).** Bisected by git log
+on the file: the only horizon-protocol commit in the 218–258 range was
+`f7e99ff1` (item 177, brewing), which removed `brewing_input` /
+`brewing_reagent` from the fixed names in `Recipes::properties()` with
+the comment "1.21.1 has no brewing property sets (added in 26.3)". That
+confused the source with the target: the adapter outputs the 26.3
+pinned form, and 26.3's `RecipePropertySet` registry defines nine
+vanilla keys — verified by decompiling the class from both jars (26.3
+has `BREWING_INPUTS` / `BREWING_REAGENTS`, 26.2 has only the seven).
+A 1.21.1 server contributes no brewing recipes, so both sets are empty,
+but they must still be written because the 26.3 client reads all nine.
+Restored the two names and corrected the comment. Local
+`cargo test -p horizon-protocol --lib` is now **442 pass / 2 fail**
+(the two remaining failures are the pre-existing sandbox-network pair);
+the recipe test passes. status.json `protocol_tests` updated.
