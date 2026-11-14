@@ -137,18 +137,6 @@ impl FluidInteractionWorld for World<'_> {
         self.query(format!("height {}", pos(p)))?;
         Ok(single(&self.cell(p)["height"]))
     }
-    fn camera_height(&mut self, s: FluidState, p: BlockPos) -> io::Result<f32> {
-        if matches!(s.kind(), FluidKind::Water | FluidKind::Lava) {
-            self.query(format!(
-                "block {}",
-                pos(BlockPos::new(p.x, p.y.wrapping_add(1), p.z))
-            ))?;
-            if self.op["sturdy"].as_bool().unwrap() {
-                return Ok(1.0);
-            }
-        }
-        self.fluid_height(s, p)
-    }
     fn flow(&mut self, _: FluidState, p: BlockPos) -> io::Result<Vec3> {
         self.query(format!("flow {}", pos(p)))?;
         Ok(vector(&self.cell(p)["flow"]))
@@ -288,10 +276,21 @@ fn limit_checks(template: &Value, states: [FluidState; 5]) {
         Err(FluidInteractionError::BudgetExceeded)
     ));
     assert_eq!(world.calls, 10);
-    assert!(interaction.trackers().is_empty());
-    assert!(interaction.update(&mut world, false, 9).unwrap());
+    // The per-tag trackers persist across failed updates, reset to empty —
+    // 26.2 never prunes them (26.3 dropped a tracker its reset found empty).
     assert_eq!(interaction.trackers().len(), 1);
-    assert_eq!(interaction.currents()[0].1.count, 1);
+    let t = &interaction.trackers()[0].1;
+    assert_eq!(interaction.trackers()[0].0, FluidTagId(0));
+    assert_eq!(t.height, 0.0);
+    assert!(!t.eyes_inside);
+    assert_eq!(t.current.count, 0);
+    interaction.update(&mut world, false, 9).unwrap();
+    assert_eq!(interaction.trackers().len(), 1);
+    let t = &interaction.trackers()[0].1;
+    // One water block at height 0.8, the eye at 0.5 inside it, one flow sample.
+    assert_eq!(t.height, f64::from(0.8f32));
+    assert!(t.eyes_inside);
+    assert_eq!(t.current.count, 1);
     let mut invalid = op.clone();
     invalid["bounds"][0] = format!("{:016x}", f64::NAN.to_bits()).into();
     world.op = &invalid;
@@ -302,14 +301,19 @@ fn limit_checks(template: &Value, states: [FluidState; 5]) {
     ));
     assert_eq!(world.calls, 1);
     assert_eq!(interaction.trackers().len(), 1);
-    assert_eq!(interaction.trackers()[0].height, 0.0);
-    assert!(!interaction.trackers()[0].eyes_inside);
-    assert_eq!(interaction.currents()[0].1.count, 0);
+    let t = &interaction.trackers()[0].1;
+    assert_eq!(t.height, 0.0);
+    assert!(!t.eyes_inside);
+    assert_eq!(t.current.count, 0);
     let mut absent = op.clone();
     absent["bounds"] = Value::Null;
     world.op = &absent;
-    assert!(!interaction.update(&mut world, false, 0).unwrap());
-    assert!(interaction.trackers().is_empty());
+    interaction.update(&mut world, false, 0).unwrap();
+    assert_eq!(interaction.trackers().len(), 1);
+    let t = &interaction.trackers()[0].1;
+    assert_eq!(t.height, 0.0);
+    assert!(!t.eyes_inside);
+    assert_eq!(t.current.count, 0);
 }
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arg = crate::args().nth(1).expect("private fixture directory");
@@ -414,12 +418,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                     1_000_000,
                 );
                 match result {
-                    Ok(v) => writeln!(w.out, "result {v}")?,
+                    Ok(()) => writeln!(w.out, "result ok")?,
                     Err(_) => writeln!(w.out, "error")?,
                 }
             } else if op["mode"].as_str().unwrap() == "update" {
                 match interaction.update(&mut w, op["ignore"].as_bool().unwrap(), 1_000_000) {
-                    Ok(v) => writeln!(w.out, "result {v}")?,
+                    Ok(()) => writeln!(w.out, "result ok")?,
                     Err(_) => writeln!(w.out, "error")?,
                 }
             } else {
@@ -433,30 +437,22 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             writeln!(w.out, "trackers {}", interaction.trackers().len())?;
-            for t in interaction.trackers() {
+            for (tag, t) in interaction.trackers() {
                 writeln!(
                     w.out,
-                    "tracker {} {:016x} {}",
-                    t.fluid.index() as u8,
-                    f64_bits(t.height),
-                    t.eyes_inside
-                )?;
-            }
-            for (tag, c) in interaction.currents() {
-                writeln!(
-                    w.out,
-                    "current {} {:016x} {} {}",
+                    "tracker {} {:016x} {} {} {}",
                     tag.0,
-                    f64_bits(c.height),
-                    show(c.accumulated),
-                    c.count
+                    f64_bits(t.height),
+                    t.eyes_inside,
+                    show(t.current.accumulated),
+                    t.current.count
                 )?;
             }
             for t in 0..4 {
                 let tag = FluidTagId(t);
-                let height = interaction.fluid_height(&w, tag);
-                let inside = interaction.is_in_fluid(&w, tag);
-                let eyes = interaction.is_eye_in_fluid(&w, tag);
+                let height = interaction.fluid_height(tag);
+                let inside = interaction.is_in_fluid(tag);
+                let eyes = interaction.is_eye_in_fluid(tag);
                 writeln!(w.out, "tag {t} {:016x} {inside} {eyes}", f64_bits(height))?;
             }
             writeln!(w.out, "final {}", show(w.velocity))?;

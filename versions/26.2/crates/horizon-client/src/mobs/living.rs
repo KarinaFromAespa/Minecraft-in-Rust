@@ -203,26 +203,16 @@ impl MobWorld<'_> {
             }
         }
         // EntityFluidInteraction.update: the eyes are in a fluid block of
-        // the box in the entity's column, between its bottom and its height
-        // for the camera.
+        // the box in the entity's column, between its bottom and its top
+        // (26.2 reads the plain fluid top; 26.3's `getHeightForCamera`, a
+        // source under a sturdy block counting as full height, does not
+        // exist here).
         for y in lo.y.floor() as i32..=(hi.y.ceil() as i32 - 1) {
             let (fluid, h) = self.fluid_height(ex, y, ez);
             if fluid != Fluid::Water || f64::from(y) + h < lo.y || eye_y < f64::from(y) {
                 continue;
             }
-            let state = self.world.block(ex, y, ez);
-            let source = self
-                .registry
-                .state(state)
-                .and_then(|s| s.properties.get("level"))
-                .is_none_or(|l| l == "0");
-            let above = self.facts.get(self.world.block(ex, y + 1, ez));
-            let camera = if source && above.sturdy_full & 1 != 0 {
-                1.0
-            } else {
-                h
-            };
-            if eye_y <= f64::from(y) + camera {
+            if eye_y <= f64::from(y) + h {
                 out.eye_in_water = true;
             }
         }

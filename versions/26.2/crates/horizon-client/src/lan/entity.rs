@@ -414,7 +414,8 @@ impl ServerEntity {
         }
         self.send_leash(e, out);
         // ServerEntity.sendChanges: a bounce moves the update clock onto its next
-        // send tick (UpdateInterval.nextInterval; 0 for NEVER), so it goes out now.
+        // send tick (the entity type's update interval; 0 means never), so it
+        // goes out now.
         if e.sync_position {
             self.tick = self
                 .tick

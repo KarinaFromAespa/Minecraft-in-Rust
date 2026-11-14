@@ -230,8 +230,6 @@ pub struct ItemEntity {
     /// `Entity.noGravity` (`NoGravity` in its save): `applyGravity` does nothing.
     pub no_gravity: bool,
     /// `Entity.verticalCollision`: the last move was stopped vertically.
-    /// `ServerEntity.isFullPrecisionEncodingRequired` reads it for items, whose
-    /// resting position is exact while a 1/4096 delta is not.
     pub vertical_collision: bool,
     /// `Entity.horizontalCollision`: the last move was stopped on x or z.
     pub horizontal_collision: bool,

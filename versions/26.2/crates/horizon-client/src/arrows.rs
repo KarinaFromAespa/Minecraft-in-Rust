@@ -846,7 +846,7 @@ impl Ticker<'_, '_, '_, '_> {
             }
             self.st.has_been_shot = true;
         }
-        self.st.was_eye_in_water = self.st.fluids.is_eye_in_fluid(&Tags, WATER);
+        self.st.was_eye_in_water = self.st.fluids.is_eye_in_fluid(WATER);
         let mut fluids = std::mem::take(&mut self.st.fluids);
         let _ = entity_fluid_tick::update(&mut fluids, self, WATER, LAVA, 1_000_000);
         self.st.fluids = fluids;
@@ -855,7 +855,7 @@ impl Ticker<'_, '_, '_, '_> {
         } else if self.st.fire_ticks > 0 {
             self.st.fire_ticks -= 1;
         }
-        if !self.st.first_tick && self.st.fluids.is_in_fluid(&Tags, LAVA) {
+        if !self.st.first_tick && self.st.fluids.is_in_fluid(LAVA) {
             self.st.fall_distance *= 0.5;
         }
         if self.position().y < f64::from(self.scene.world.bottom_y() - 64) {
@@ -1484,9 +1484,6 @@ impl FluidInteractionWorld for Ticker<'_, '_, '_, '_> {
     }
     fn fluid_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
         f.height_at(self, [p.x, p.y, p.z])
-    }
-    fn camera_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
-        f.camera_height_at(self, [p.x, p.y, p.z])
     }
     fn flow(&mut self, f: FluidState, p: BlockPos) -> Result<Vec3, Error> {
         flow_at(self, f, p)

@@ -100,11 +100,11 @@ pub fn update_entity_fluids(
     if interaction.update(&mut scene, false, 4096).is_err() {
         return (0.0, 0.0, false);
     }
-    let water_height = interaction.fluid_height(&scene, WATER);
-    let lava_height = interaction.fluid_height(&scene, LAVA);
+    let water_height = interaction.fluid_height(WATER);
+    let lava_height = interaction.fluid_height(LAVA);
     // `updateFluidOnEyes`'s answer, kept by the interaction's trackers:
     // whether the entity's eye is inside the water it scanned.
-    let eye_in_water = interaction.is_eye_in_fluid(&FluidTags, WATER);
+    let eye_in_water = interaction.is_eye_in_fluid(WATER);
     let _ = interaction.apply_current(&mut scene, WATER, 0.014);
     let _ = interaction.apply_current(
         &mut scene,
@@ -227,9 +227,6 @@ impl FluidInteractionWorld for EntityFluidWorld<'_> {
     }
     fn fluid_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
         f.height_at(self, [p.x, p.y, p.z])
-    }
-    fn camera_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
-        f.camera_height_at(self, [p.x, p.y, p.z])
     }
     fn flow(&mut self, f: FluidState, p: BlockPos) -> Result<Vec3, Error> {
         flow_at(self, f, p)

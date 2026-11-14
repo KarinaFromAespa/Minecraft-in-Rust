@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 56/100 items, 27 changed, 29 no-change, 1512 minutes on changed
+**rate sample: 58/100 items, 29 changed, 29 no-change, 1752 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -565,6 +565,8 @@ log; it stays in agreement with the tally line above.
 | 342 | no-change | — | OIT entirely 26.3-only; Rust OIT mentions are comments + opt-in tagging |
 | 233 | changed | 420 (est.) | EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework (double alpha, bitwise angle compare); tracker reworked; harness bit-exact on 135,742 lines. Outlier: multi-crate rework + harness |
 | 192 | changed | 60 (est.) | powder-snow entityInside to the 26.2 client-side form (xOld/zOld gate, addParticle); interpolation half closes with 233 (minutes counted there) |
+| 157 | changed | 120 (est.) | EntityFluidInteraction to the 26.2 per-tag Tracker model (joint rework with 161): void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; getHeightForCamera removed from the trait + 4 implementors; stale ServerEntity/UpdateInterval comments fixed |
+| 161 | changed | 120 (est.) | EntityFluidInteraction + FloatGoal (joint rework with 157): tick answers inWater \|\| inLava; mob eye check to the plain top; FloatGoal verified already 26.2 (no code change); entity-fluid harness reworked (oracle reflects trackerByFluid, sets the Fluid holder field 26.2's getTrackerFor reads) and bit-exact on 560,630 lines against both 26.2 jars |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -581,6 +583,21 @@ passing reach 0 for goals that call the 2-arg `moveTo(Entity, speed)`
 (fox, frog, goat, illager, panda, piglin, riders, spear_use, tempt)
 need the same reach-1 check in their own items — the 2-arg form builds
 the path with `createPath(target, 1)` in both versions.
+
+Entity-fluid harness (2026-11-14, local run): the reworked
+`test_entity_fluid_parity.py` passes bit-exact — 560,630 lines,
+byte-identical against both 26.2 jars (server-game + client). The
+driver's release `world_probe` build exceeds its own 900 s timeout on
+this VM (1.5 shared CPUs, LTO thin + codegen-units=1); the run was done
+in pieces — the orphaned rustc finished the binary, then the fixture
+and both oracle sides were run by hand and compared with
+`test_rust_parity.compare`. Pre-build the release probe before running
+a parity driver here, or the driver times out at the build step. The
+oracle needed one 26.2-specific fix beyond the tracker reflection:
+26.2's `getTrackerFor` calls `Fluid.is(tag)`, which reads the
+`builtInRegistryHolder` field directly, so the oracle now sets that
+field on its Unsafe-allocated Fluids (26.3's check goes through the
+holder, which the method override already covered).
 
 ## Placement harness known gaps (2026-11-14, local run)
 
