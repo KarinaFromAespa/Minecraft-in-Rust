@@ -23,15 +23,10 @@ fn fixture(
         Err(_) => writeln!(out, "decode error")?,
         Ok(rule) => {
             writeln!(out, "decode ok")?;
-            let mut index = 0;
-            let heights = f["heights"].as_array().unwrap();
             for _ in 0..f["repeats"].as_u64().unwrap() {
                 for state in f["states"].as_array().unwrap() {
-                    let y = heights[index % heights.len()].as_i64().unwrap() as i32;
-                    index += 1;
                     let result = rule.test(
                         BlockStateId(state.as_u64().unwrap() as u32),
-                        [17, y, -33],
                         &mut random,
                     );
                     writeln!(out, "test {result} {}", random.next_long())?;

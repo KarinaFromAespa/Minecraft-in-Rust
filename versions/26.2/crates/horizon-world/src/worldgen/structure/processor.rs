@@ -1144,11 +1144,11 @@ fn process_block<W: PlacementContext>(
                 info.pos[2],
             )));
             for rule in rules {
-                if !rule.input.test(info.state, info.pos, &mut random) {
+                if !rule.input.test(info.state, &mut random) {
                     continue;
                 }
                 let located = world.block_state(info.pos)?;
-                if !rule.location.test(located, info.pos, &mut random) {
+                if !rule.location.test(located, &mut random) {
                     continue;
                 }
                 let position_ok = rule

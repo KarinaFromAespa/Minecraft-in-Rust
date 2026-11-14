@@ -1,6 +1,6 @@
 //! Registry-bound replacement predicates with ordered short-circuit evaluation.
 use super::{
-    DecodeError, Object, block_feature::FeatureBlockBindings, density::identifier, integer,
+    DecodeError, Object, block_feature::FeatureBlockBindings, density::identifier,
     number_text, required,
 };
 use crate::{
@@ -9,7 +9,6 @@ use crate::{
     registry::BlockStateId,
 };
 use horizon_core::random::RandomSource;
-use serde_json::value::RawValue;
 use std::{collections::BTreeSet, sync::Arc};
 
 #[derive(Clone, Debug)]
@@ -17,14 +16,10 @@ pub struct RuleTest(Node);
 #[derive(Clone, Debug)]
 enum Node {
     True,
-    Not(Box<RuleTest>),
-    All(Vec<RuleTest>),
-    Any(Vec<RuleTest>),
     States(Arc<BTreeSet<BlockStateId>>),
     State(BlockStateId),
     RandomStates(Arc<BTreeSet<BlockStateId>>, f32),
     RandomState(BlockStateId, f32),
-    Height(i32, i32),
     Phase(Box<MatterPhase>),
 }
 /// `horizon:matter_phase`: Repurposed Structures' MatterPhaseRuleTest, which
@@ -161,32 +156,6 @@ impl RuleTest {
             ),
             "minecraft:random_block_match" => Node::RandomStates(block()?, probability()?),
             "minecraft:random_blockstate_match" => Node::RandomState(state()?, probability()?),
-            "minecraft:height_match" => Node::Height(
-                integer(required(&object, "min_inclusive")?)?,
-                integer(required(&object, "max_inclusive")?)?,
-            ),
-            "minecraft:not" => Node::Not(Box::new(Self::decode(
-                required(&object, "rule")?.get(),
-                bindings,
-                depth + 1,
-                remaining,
-            )?)),
-            kind @ ("minecraft:all_of" | "minecraft:any_of") => {
-                let values: Vec<Box<RawValue>> =
-                    serde_json::from_str(required(&object, "rules")?.get())?;
-                if values.len() > 8192 {
-                    return Err(DecodeError::Field("replacement rule list"));
-                }
-                let values = values
-                    .iter()
-                    .map(|v| Self::decode(v.get(), bindings, depth + 1, remaining))
-                    .collect::<Result<_, _>>()?;
-                if kind == "minecraft:all_of" {
-                    Node::All(values)
-                } else {
-                    Node::Any(values)
-                }
-            }
             "horizon:matter_phase" => {
                 Node::Phase(Box::new(MatterPhase::decode(&object, bindings)?))
             }
@@ -194,36 +163,22 @@ impl RuleTest {
         };
         Ok(Self(node))
     }
-    /// The Y ranges of its height tests (its only use of the position),
-    /// or `None` when a test draws from the random source: then the result
-    /// is not a function of the state and those ranges alone.
-    pub(crate) fn pure_heights(&self, out: &mut Vec<(i32, i32)>) -> Option<()> {
+    /// Whether the test draws from the random source. 26.2 has no height
+    /// test, so there are no Y ranges to collect; the `Option` only reports
+    /// whether the rule is a pure function of the state.
+    pub(crate) fn pure_heights(&self) -> Option<()> {
         match &self.0 {
             Node::True | Node::States(_) | Node::State(_) | Node::Phase(_) => Some(()),
             Node::RandomStates(..) | Node::RandomState(..) => None,
-            Node::Height(min, max) => {
-                if !out.contains(&(*min, *max)) {
-                    out.push((*min, *max));
-                }
-                Some(())
-            }
-            Node::Not(rule) => rule.pure_heights(out),
-            Node::All(rules) | Node::Any(rules) => {
-                rules.iter().try_for_each(|rule| rule.pure_heights(out))
-            }
         }
     }
-    pub fn test(
-        &self,
-        state: BlockStateId,
-        position: [i32; 3],
-        random: &mut impl RandomSource,
-    ) -> bool {
+    /// 26.2's `RuleTest.test` takes no position: there is no height test and
+    /// no `allOf`/`anyOf`/`not` combinator in 26.2, so no reachable rule
+    /// reads the position. The 26.3 forms (`height_match`, `not`,
+    /// `all_of`, `any_of`) decode-error here, matching 26.2's registry.
+    pub fn test(&self, state: BlockStateId, random: &mut impl RandomSource) -> bool {
         match &self.0 {
             Node::True => true,
-            Node::Not(rule) => !rule.test(state, position, random),
-            Node::All(rules) => rules.iter().all(|rule| rule.test(state, position, random)),
-            Node::Any(rules) => rules.iter().any(|rule| rule.test(state, position, random)),
             Node::States(states) => states.contains(&state),
             Node::State(expected) => state == *expected,
             Node::RandomStates(states, probability) => {
@@ -232,7 +187,6 @@ impl RuleTest {
             Node::RandomState(expected, probability) => {
                 state == *expected && random.next_float() < *probability
             }
-            Node::Height(min, max) => *min <= position[1] && position[1] <= *max,
             Node::Phase(phase) => phase.test(state),
         }
     }

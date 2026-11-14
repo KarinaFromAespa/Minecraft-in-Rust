@@ -436,7 +436,7 @@ impl ReplaceBlockFeature {
     ) -> Result<bool, BlockFeatureError<W::Error>> {
         for (rule, state) in &self.targets {
             let current = world.block(origin).map_err(BlockFeatureError::World)?;
-            if rule.test(current, origin, random) {
+            if rule.test(current, random) {
                 world
                     .set_block(origin, *state, 2)
                     .map_err(BlockFeatureError::World)?;
