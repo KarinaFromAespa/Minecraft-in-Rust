@@ -8093,8 +8093,10 @@ impl Game<'_> {
         };
         let state = self.world.block(pos[0], pos[1], pos[2]);
         self.tutorial_destroy(state, -1.0);
+        // ABORT_DESTROY_BLOCK is 1 in 26.2 (26.3 inserted
+        // CHANGE_DESTROY_DIRECTION at 1, so its abort is 2).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 2,
+            action: 1,
             pos,
             direction: 0,
             sequence: 0,
@@ -8188,7 +8190,7 @@ impl Game<'_> {
                 let old_state = self.world.block(old[0], old[1], old[2]);
                 self.tutorial_destroy(old_state, -1.0);
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 2,
+                    action: 1,
                     pos: old,
                     direction: face,
                     sequence: 0,
@@ -8228,7 +8230,7 @@ impl Game<'_> {
             });
             return;
         }
-        let Some((pos, last_face, done)) = self.remote.as_ref().and_then(|r| r.destroying) else {
+        let Some((pos, _last_face, done)) = self.remote.as_ref().and_then(|r| r.destroying) else {
             return;
         };
         let done = done + progress;
@@ -8249,7 +8251,7 @@ impl Game<'_> {
                 self.predict_break(pos, state, seq);
             }
             self.send(S::PlayerAction(play::PlayerAction {
-                action: 3,
+                action: 2,
                 pos,
                 direction: face,
                 sequence: seq,
@@ -8264,14 +8266,9 @@ impl Game<'_> {
             }
             self.mining = None;
         } else {
-            if last_face != face {
-                self.send(S::PlayerAction(play::PlayerAction {
-                    action: 1,
-                    pos,
-                    direction: face,
-                    sequence: 0,
-                }));
-            }
+            // 26.2 has no direction-change packet (26.3's
+            // CHANGE_DESTROY_DIRECTION): the face is kept locally and rides
+            // on the STOP when the dig completes.
             if let Some(r) = self.remote.as_mut() {
                 r.destroying = Some((pos, face, done));
             }
@@ -9628,8 +9625,9 @@ impl Game<'_> {
                 self.brush_dust(hit, slot == super::shield::OFFHAND_SLOT);
             }
             if hit.is_none() && in_hand {
+                // RELEASE_USE_ITEM is 5 in 26.2 (26.3's 6).
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 6,
+                    action: 5,
                     pos: [0; 3],
                     direction: 0,
                     sequence: 0,
@@ -9880,9 +9878,9 @@ impl Game<'_> {
         // stabs, this client swings, plays the sound and starts its charge
         // again.
         if let Some(kinetic) = spear {
-            // ServerboundPlayerActionPacket.Action.STAB.
+            // ServerboundPlayerActionPacket.Action.STAB is 7 in 26.2 (26.3's 8).
             self.send(S::PlayerAction(play::PlayerAction {
-                action: 8,
+                action: 7,
                 pos: [0; 3],
                 direction: 0,
                 sequence: 0,
@@ -10178,8 +10176,9 @@ impl Game<'_> {
     /// player itself). Vanilla reaches it both when the use key is let go and,
     /// in the same tick, when a keybind opens a screen.
     fn release_remote_use(&mut self) {
+        // RELEASE_USE_ITEM is 5 in 26.2 (26.3's 6).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 6,
+            action: 5,
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10227,7 +10226,8 @@ impl Game<'_> {
         let dropped =
             horizon_client::items::take_held_drop(&mut self.inventory[self.selected], all, false);
         self.send(S::PlayerAction(play::PlayerAction {
-            action: if all { 4 } else { 5 },
+            // DROP_ALL_ITEMS is 3 and DROP_ITEM 4 in 26.2 (26.3's 4 and 5).
+            action: if all { 3 } else { 4 },
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10240,8 +10240,9 @@ impl Game<'_> {
     /// (ServerboundPlayerActionPacket SWAP_ITEM_WITH_OFFHAND at BlockPos.ZERO, facing down) and
     /// sends both slots back; nothing is predicted.
     pub(super) fn remote_swap_hands(&mut self) {
+        // SWAP_ITEM_WITH_OFFHAND is 6 in 26.2 (26.3's 7).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 7,
+            action: 6,
             pos: [0; 3],
             direction: 0,
             sequence: 0,

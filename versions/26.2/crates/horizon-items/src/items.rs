@@ -1185,7 +1185,7 @@ impl Items {
         let matches = match targeting {
             "minecraft:skeleton" => item == "minecraft:skeleton_skull",
             "minecraft:zombie" => item == "minecraft:zombie_head",
-            "minecraft:piglin" => item == "minecraft:piglin_head",
+            "minecraft:piglin" | "minecraft:piglin_brute" => item == "minecraft:piglin_head",
             "minecraft:creeper" => item == "minecraft:creeper_head",
             _ => false,
         };

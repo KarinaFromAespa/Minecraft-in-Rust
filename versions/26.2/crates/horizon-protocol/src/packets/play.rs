@@ -2212,9 +2212,10 @@ packet!(
 packet!(PickItemFromBlock { pos: [i32; 3] => Pos, include_data: bool => Bool });
 packet!(PickItemFromEntity { id: i32 => VarInt, include_data: bool => Bool });
 packet!(
-    /// ServerboundPlayerActionPacket.Action: 0 start destroy, 1 change destroy
-    /// direction, 2 abort, 3 stop destroy, 4 drop all, 5 drop item, 6 release
-    /// use item, 7 swap offhand, 8 stab. Direction is the 3D data value.
+    /// ServerboundPlayerActionPacket.Action: 0 start destroy, 1 abort, 2 stop
+    /// destroy, 3 drop all, 4 drop item, 5 release use item, 6 swap offhand,
+    /// 7 stab. 26.3 inserted CHANGE_DESTROY_DIRECTION at 1, shifting the rest
+    /// by one. Direction is the 3D data value.
     PlayerAction { action: i32 => VarInt, pos: [i32; 3] => Pos, direction: u8 => UByte, sequence: i32 => VarInt }
 );
 packet!(

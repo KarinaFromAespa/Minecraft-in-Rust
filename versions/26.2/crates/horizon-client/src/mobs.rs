@@ -3188,9 +3188,10 @@ impl PlayerView {
     /// `LivingEntity.getVisibilityPercent`: 1, ×0.8 while discrete
     /// (`isShiftKeyDown`), ×0.7×armor cover (at least 0.1) while invisible,
     /// then ×0.5 when the head slot holds the targeting mob's own head
-    /// (skeleton, zombie, piglin or creeper — 26.2's hardcoded rule; piglin
-    /// brutes are not fooled). Clamped to 0..=10 (`Mth.clamp`). `targeting`
-    /// is null when nobody is looking.
+    /// (skeleton, zombie, piglin or piglin brute, or creeper — 26.2's
+    /// hardcoded rule). 26.2 has no clamp (`Mth.clamp(..., 0, 10)` is
+    /// 26.3's); the value stays in 0.028..1.0 anyway. `targeting` is null
+    /// when nobody is looking.
     pub fn visibility_percent(
         &self,
         targeting: Option<&str>,
@@ -3211,12 +3212,7 @@ impl PlayerView {
                 }
             }
         }
-        // `Mth.clamp`: value < min ? min : Math.min(value, max).
-        if visibility < 0.0 {
-            0.0
-        } else {
-            visibility.min(10.0)
-        }
+        visibility
     }
     /// `LivingEntity.hasEffect`, by id without namespace.
     pub fn has_effect(&self, effect: &str) -> bool {
