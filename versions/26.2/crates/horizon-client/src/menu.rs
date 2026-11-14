@@ -1508,24 +1508,18 @@ impl Menu {
         stack.item.ends_with("_banner")
     }
 
-    fn may_pickup(&self, env: &Env, s: usize) -> bool {
+    fn may_pickup(&self, _env: &Env, s: usize) -> bool {
         match self.slots[s].role {
             Role::Inert | Role::Hidden => false,
             // AnvilMenu.mayPickup: the levels to pay, and a price.
             Role::CombineResult if self.kind == Kind::Anvil => {
                 (self.creative || self.levels >= self.data[0]) && self.data[0] > 0
             }
-            Role::MerchantResult => self
-                .merchant
-                .as_ref()
-                .and_then(|m| m.offers.get(m.active?))
-                .is_some_and(|o| {
-                    let (a, b) = (
-                        self.containers[MAIN][0].as_ref(),
-                        self.containers[MAIN][1].as_ref(),
-                    );
-                    o.satisfied_by(env.items, a, b) || o.satisfied_by(env.items, b, a)
-                }),
+            // 26.2's MerchantResultSlot has no mayPickup override (26.3 added
+            // the offer-satisfied gate): the take is allowed even when the
+            // offer is not satisfied — onTake then runs offer.take (which
+            // fails without consuming) and overrideXp, a no-op for villagers.
+            Role::MerchantResult => true,
             Role::Armor(_) | Role::MountEquip(_) => match self.slot(s) {
                 Some(stack) => {
                     self.creative || stack.enchantment_level("minecraft:binding_curse") == 0
@@ -3641,6 +3635,61 @@ pub(crate) mod tests {
             assert!(menu.slot(0).is_none());
             assert!(menu.slot(2).is_none());
         }
+    }
+
+    /// 26.2's MerchantResultSlot has no mayPickup gate (26.3 added it):
+    /// a result left showing after the offer stops being satisfied can
+    /// still be taken, and the take consumes nothing.
+    #[test]
+    fn an_unsatisfied_merchant_result_can_still_be_taken() {
+        let items = Items::for_tests(Default::default());
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        let offer = crate::merchant::MerchantOffer {
+            base_cost_a: crate::merchant::ItemCost {
+                stack: ItemStack::new("minecraft:emerald", 4),
+            },
+            cost_b: None,
+            result: ItemStack::new("minecraft:glass", 3),
+            uses: 0,
+            max_uses: 100,
+            reward_exp: false,
+            special_price_diff: 0,
+            demand: 0,
+            price_multiplier: 0.0,
+            xp: 1,
+        };
+        let mut menu = Menu::new(Kind::Merchant);
+        menu.merchant = Some(Box::new(crate::merchant::Session::new(vec![offer], true)));
+        menu.set_slot(&env, 0, stack("emerald", 4));
+        assert_eq!(menu.slot(2).map(|s| s.count), Some(3));
+        // The offer stops being satisfied without the menu noticing: the
+        // payment is swapped for fewer emeralds directly in the
+        // container, so no merchant_update runs (a restock repricing the
+        // offer does the same while the menu is open).
+        menu.containers[MAIN][0] = stack("emerald", 3);
+        menu.click(&env, 2, 0, Input::Pickup).unwrap();
+        assert_eq!(menu.carried.as_ref().map(|s| s.count), Some(3));
+        assert!(menu.slot(2).is_none());
+        assert_eq!(menu.slot(0).map(|s| s.count), Some(3));
+        assert_eq!(menu.merchant.as_ref().unwrap().offers[0].uses, 0);
     }
 
     /// The Mouse Tweaks wheel's targets: vanilla's routing of one item.

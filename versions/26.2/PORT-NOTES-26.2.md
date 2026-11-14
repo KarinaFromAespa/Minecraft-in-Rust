@@ -1805,3 +1805,103 @@ flight on the 338/410 tree.
   (26.2) in the bounds check — server-side vanilla behaviour; the
   Rust client never builds it (it decodes `ClientboundSetEntityDataPacket`
   entries by index).
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 367, 368, 369, 370, 371, 372, 373, 375, 376, 377, 378, 379
+
+Eleven no-change, one changed (371). Rank 2 362/410 -> 374/410. CI run
+43646940294 still in flight on the 338/410 tree.
+
+## Item 367 no-change (2026-11-15) — sounds
+
+- 2 classes, 0 named. `SoundEvent`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` rename. `SoundEvents`: 26.3 registers some
+  sounds with `registerForHolder` (returning `Reference<SoundEvent>`)
+  where 26.2 uses plain `register` — a holder-vs-direct distinction
+  with no wire effect. The 26.3-only sounds (CUSHION_*, SHELF_MUSHROOM_*,
+  POPLAR_LEAVES_*, STRAW_BED_*, RED_SHRUB_*) have no Rust references;
+  the Rust's sound table is data-driven from the 26.2 registry.
+
+## Item 368 no-change (2026-11-15) — world/attribute/modifier
+
+- 1 class, 0 named. `AttributeModifier`: 26.3's ColorModifier libraries
+  are generic over `Vector3fc`/`Vector4fc` (RGB/ARGB variants); 26.2's
+  are `Integer`-based with the plain ADD/SUBTRACT/BLEND_TO_GRAY/ALPHA_BLEND
+  names. 26.3 adds `MOB_SPAWN_SETTINGS_LIBRARY` and `listLibrary`
+  (ListModifier) — both 26.3-only. The Rust does not port the
+  color-modifier libraries.
+
+## Item 369 no-change (2026-11-15) — world/entity/monster/cubemob
+
+- 1 class, 0 named. `MagmaCube`: `canDealDamage` (26.3) vs
+  `isDealsDamage` (26.2) — a rename. 26.2's returns `isEffectiveAi()`;
+  the Rust's `can_deal_damage` (cube.rs) returns true for magma cubes
+  and the call sites check `m.no_ai` separately, reproducing the same
+  effective behaviour.
+
+## Item 370 no-change (2026-11-15) — world/entity/monster/hoglin
+
+- 1 class, 0 named. `Hoglin.blockedByItem` takes a `fullyBlocked`
+  parameter in 26.3 (4-arg) that 26.2's 3-arg form lacks, and
+  `handleEntityEvent` carries a `@Value` annotation in 26.3 only. The
+  Rust has no `blocked_by_item` implementation for hoglins.
+
+## Item 371 changed (2026-11-15) — world/inventory
+
+- 2 classes, 0 named. `MerchantResultSlot.mayPickup` is 26.3-only: it
+  blocks taking the result unless the active offer is satisfied by the
+  buy slots. 26.2's slot has no such override, so `Slot.mayPickup`
+  (true) applies — the take is allowed even when the offer is not
+  satisfied, and `onTake` then runs `offer.take` (which fails without
+  consuming) plus `overrideXp` — which is an empty method on
+  `AbstractVillager`, so no XP either. The Rust's `may_pickup` had the
+  26.3 gate (`Role::MerchantResult` arm requiring `satisfied_by`).
+  Fixed in `crates/horizon-client/src/menu.rs`: the arm now returns
+  true, with the 26.2 form documented; `merchant_take` already matches
+  26.2's `onTake` (nothing happens when `take` fails). `StonecutterMenu`:
+  `player.drop(stack, false, Prediction.PREDICTED)` in 26.3 vs
+  `player.drop(stack, false)` in 26.2 — `Prediction` is 26.3-only; the
+  Rust's stonecutter uses its own `drop_stack` with no prediction
+  parameter.
+
+## Item 372 no-change (2026-11-15) — beehive.rs
+
+- 1 class, 0 named. `HorizontalDirectionalBlock` declares the abstract
+  `codec()` in 26.2 (item-309 pattern).
+
+## Item 373 no-change (2026-11-15) — container_screen.rs
+
+- 1 class, 0 named. `AbstractRecipeBookScreen.isInputCaptured` is
+  26.3-only (`Screen.isInputCaptured` does not exist in 26.2).
+
+## Item 375 no-change (2026-11-15) — dialog.rs
+
+- 1 class, 0 named. `Dialog`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` and `holderSet` -> `homogeneousList` for
+  `LIST_CODEC` — the same JSON shapes.
+
+## Item 376 no-change (2026-11-15) — game/campfire.rs
+
+- 1 class, 0 named. `RecipeType.BREWING` is 26.3-only. The Rust has no
+  BREWING recipe type (26.2 brewing is via the brewing stand, not a
+  recipe type).
+
+## Item 377 no-change (2026-11-15) — game/entity.rs
+
+- 1 class, 0 named. `Entity$1` is the compiler switch map over
+  `MoveSimulationType` (SERVER_AND_CLIENT / AUTHORITATIVE_SIDE /
+  AUTHORITATIVE_SIDE_AND_SERVER) — the 26.3 movement-simulation enum.
+  The Rust's server-side player travel (`server_travel`, fall-distance
+  reset on climbables) matches 26.2's actual behaviour; the two
+  comments citing the 26.3 enum name are citations only.
+
+## Item 378 no-change (2026-11-15) — game/game_mode.rs
+
+- 1 class, 0 named. `InventoryScreen` has no diff at all.
+
+## Item 379 no-change (2026-11-15) — game/lan_mobs.rs
+
+- 1 class, 0 named. `OwnerHurtByTargetGoal`: 26.3 gates the retaliation
+  on `!lastDamageSource.is(DamageTypeTags.NO_WOLF_RETALIATION)`; 26.2
+  has no such check. The Rust's `OwnerHurtBy.can_use` (tame.rs) checks
+  only the owner's `hurt_by` and `wants_to_attack` — the 26.2 form.
+  No `#no_wolf_retaliation` reference exists in the Rust.
