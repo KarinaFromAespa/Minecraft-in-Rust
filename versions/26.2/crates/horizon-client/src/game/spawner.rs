@@ -250,6 +250,7 @@ impl Game<'_> {
             planned.push(Planned::Loaded(tag, r.equipment.cloned()));
             bounds
         };
+        l.pending.borrow_mut().push(bounds);
         l.pending_ids.borrow_mut().push((r.id.to_owned(), bounds));
         Some(SpawnerAdded {
             id: u32::MAX - (planned.len() as u32 - 1),

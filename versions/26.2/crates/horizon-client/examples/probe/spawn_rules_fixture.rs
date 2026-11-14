@@ -311,7 +311,8 @@ pub fn main() -> horizon_client::Result<()> {
                 kind.width as f32,
                 kind.height as f32,
             );
-            let obstruction = spawn_selection::spawn_obstruction(s, &level, bounds, x0, y, z0);
+            let obstruction =
+                spawn_selection::spawn_obstruction(s, &level, bounds, Some(&[]), x0, y, z0);
             let _ = writeln!(out, "{name} {obstruction}");
             continue;
         }

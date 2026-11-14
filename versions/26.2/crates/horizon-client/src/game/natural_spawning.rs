@@ -15,6 +15,7 @@ use horizon_client::{
         spawn_selection::{
             self, Category, Counted, Heightmap, NaturalLevel, PlayerSquares, SpawnCost,
             SpawnPlayer, SpawnRequest, SpawnState, Spawned, StructureAt, StructureSpawns,
+            fresh_dimensions,
         },
     },
 };
@@ -308,6 +309,8 @@ pub(super) struct GameLevel<'g, 'a> {
     /// `nearest` by square, built when a spawn start first asks with more
     /// than [`PLAYERS_SCANNED`] players.
     pub(super) player_squares: std::cell::OnceCell<PlayerSquares>,
+    /// Boxes of the mobs this pass created, not yet in the game's list.
+    pub(super) pending: std::cell::RefCell<Vec<Aabb>>,
     /// The types and boxes of what a spawner created this tick.
     pub(super) pending_ids: std::cell::RefCell<Vec<(String, Aabb)>>,
     /// The game's mobs by box, built once a pass has asked more than
@@ -321,10 +324,8 @@ pub(super) struct GameLevel<'g, 'a> {
     pub(super) costed: Vec<&'g str>,
 }
 const SCANNED_QUERIES: u32 = 8;
-/// A mob not removed: its index in `Game::mobs`, box, alive, and whether it
-/// can be collided with — a living shulker or happy ghast, the only mobs
-/// that override `canBeCollidedWith` (boats do too, but they are vehicles,
-/// not mobs, so they never reach `mobs_near`).
+/// A mob not removed: its index in `Game::mobs`, box, alive, and whether
+/// it is a living shulker.
 type MobBox = (usize, Aabb, bool, bool);
 fn mob_box(i: usize, m: &Mob) -> MobBox {
     let alive = m.alive();
@@ -332,7 +333,7 @@ fn mob_box(i: usize, m: &Mob) -> MobBox {
         i,
         m.bounds(),
         alive,
-        alive && matches!(m.species(), Species::Shulker | Species::HappyGhast),
+        alive && m.species() == Species::Shulker,
     )
 }
 /// The boxes of the game's mobs not removed, and a grid over them.
@@ -489,12 +490,8 @@ impl NaturalLevel for GameLevel<'_, '_> {
     }
     fn mob_type(&self, entity: &str) -> Option<(Species, f32, f32, Category)> {
         let t = self.game.res.mob_types().get(entity)?;
-        Some((
-            t.species,
-            t.width as f32,
-            t.height as f32,
-            Category::from_name(&t.category),
-        ))
+        let (width, height) = fresh_dimensions(t.species, t.width as f32, t.height as f32);
+        Some((t.species, width, height, Category::from_name(&t.category)))
     }
     // The `natural_mob_spawns` attribute reads the zoomed biome
     // (fullResolutionBiomes), the spawn probability the noise cell.
@@ -566,26 +563,28 @@ impl NaturalLevel for GameLevel<'_, '_> {
             binding: self.w.collision,
             subject: None,
         };
-        // getEntityCollisions(null, box): only boats, happy ghasts and
-        // living shulkers are solid (canBeCollidedWith); boats are vehicles,
-        // not mobs, so they never reach mobs_near.
+        // getEntityCollisions(null, box): living shulkers are solid.
         let grown = bounds.inflate(Vec3::new(1e-7, 1e-7, 1e-7));
         no_collision_empty(&mut scene, bounds)
             && !self
                 .mobs_near(grown)
-                .any(|(_, b, _, collidable)| collidable && b.intersects(grown))
-            && !self.pending_ids.borrow().iter().any(|(id, b)| {
-                (id == "minecraft:shulker" || id == "minecraft:happy_ghast") && b.intersects(grown)
-            })
+                .any(|(_, b, _, shulker)| shulker && b.intersects(grown))
+            && !self
+                .pending_ids
+                .borrow()
+                .iter()
+                .any(|(id, b)| id == "minecraft:shulker" && b.intersects(grown))
     }
     fn unobstructed(&self, bounds: Aabb) -> bool {
-        // Mob.checkSpawnObstruction -> Level.isUnobstructed ->
-        // getEntityCollisions with source::canCollideWith: only boats, happy
-        // ghasts and shulkers ever count, so no player, no ordinary mob and
-        // none of this pass's own spawns ever blocks a spawn.
-        !self
-            .mobs_near(bounds)
-            .any(|(_, b, alive, collidable)| alive && collidable && b.intersects(bounds))
+        let player = self
+            .players
+            .iter()
+            .any(|p| p.alive && !p.spectator && p.bounds.intersects(bounds));
+        !player
+            && !self.pending.borrow().iter().any(|b| b.intersects(bounds))
+            && !self
+                .mobs_near(bounds)
+                .any(|(_, b, alive, _)| alive && b.intersects(bounds))
     }
     fn spawn_mobs(&self) -> bool {
         self.game.ui.rules.bool("spawn_mobs")
@@ -661,6 +660,7 @@ impl<'a> Game<'a> {
             players,
             nearest,
             player_squares: Default::default(),
+            pending: Default::default(),
             pending_ids: Default::default(),
             boxes: Default::default(),
             box_queries: Default::default(),
@@ -872,8 +872,13 @@ impl<'a> Game<'a> {
                     if !level.can_spawn_in_chunk(chunk.0, chunk.1) {
                         continue;
                     }
-                    let mut spawn =
-                        |l: &GameLevel, r: &SpawnRequest| l.game.finalize_spawned(r, &mut pending);
+                    let mut spawn = |l: &GameLevel, r: &SpawnRequest| {
+                        let spawned = l.game.finalize_spawned(r, &mut pending);
+                        if let Some(s) = &spawned {
+                            l.pending.borrow_mut().push(s.bounds);
+                        }
+                        spawned
+                    };
                     spawn_selection::spawn_for_chunk(
                         &level,
                         &mut random,

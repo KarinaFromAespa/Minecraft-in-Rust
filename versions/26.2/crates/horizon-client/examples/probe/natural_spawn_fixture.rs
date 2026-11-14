@@ -34,7 +34,7 @@ use horizon_client::{
         spawn_selection::{
             self, Category, Counted, Event, GenEvent, Heightmap, NaturalLevel, SpawnCost,
             SpawnPlayer, SpawnRequest, SpawnState, Spawned, StructureAt, StructureSpawns,
-            spawn_box,
+            fresh_dimensions, spawn_box,
         },
         spawner::{
             SpawnDataExt, Spawner, SpawnerAdded, SpawnerEvent, SpawnerExt, SpawnerLevel,
@@ -159,18 +159,6 @@ impl World<'_> {
             .map_or((self.sky, self.light), |(_, s, b)| (*s, *b))
     }
 }
-/// `Entity.canBeCollidedWith(other)` in 26.2: false for every ordinary mob;
-/// only boats, happy ghasts and shulkers override it, so only those ever
-/// count in `getEntityCollisions` — for both `noCollision` and
-/// `checkSpawnObstruction`.
-fn collidable_entity(id: &str) -> bool {
-    id == "minecraft:shulker"
-        || id == "minecraft:happy_ghast"
-        || id
-            .strip_prefix("minecraft:")
-            .is_some_and(|n| n.ends_with("_boat") || n.ends_with("_raft"))
-}
-
 impl SpawnLevel for World<'_> {
     fn within_world_border(&self, x: i32, z: i32) -> bool {
         self.border
@@ -271,12 +259,8 @@ impl NaturalLevel for World<'_> {
     }
     fn mob_type(&self, entity: &str) -> Option<(Species, f32, f32, Category)> {
         let t = self.s.types.types.get(entity)?;
-        Some((
-            t.species,
-            t.width as f32,
-            t.height as f32,
-            Category::from_name(&t.category),
-        ))
+        let (width, height) = fresh_dimensions(t.species, t.width as f32, t.height as f32);
+        Some((t.species, width, height, Category::from_name(&t.category)))
     }
     fn biome_spawns(&self, x: i32, y: i32, z: i32) -> Option<&HashMap<String, Vec<SpawnEntry>>> {
         self.biome_info(x, y, z).map(|b| &b.spawns)
@@ -345,22 +329,21 @@ impl NaturalLevel for World<'_> {
             block: &lookup,
             binding: self.s.collision,
         };
-        // getEntityCollisions(null, box): only boats, happy ghasts and
-        // living shulkers are solid (canBeCollidedWith).
+        // getEntityCollisions(null, box): living shulkers are solid.
         let grown = bounds.inflate(horizon_core::geometry::Vec3::new(1e-7, 1e-7, 1e-7));
         no_collision_empty(&mut world, bounds)
             && !self
                 .entities
                 .borrow()
                 .iter()
-                .any(|(id, b)| collidable_entity(id) && b.intersects(grown))
+                .any(|(id, b)| id == "minecraft:shulker" && b.intersects(grown))
     }
     fn unobstructed(&self, bounds: Aabb) -> bool {
         !self
             .entities
             .borrow()
             .iter()
-            .any(|(id, b)| collidable_entity(id) && b.intersects(bounds))
+            .any(|(_, b)| b.intersects(bounds))
     }
     fn spawn_mobs(&self) -> bool {
         self.spawn_mobs
@@ -502,6 +485,7 @@ fn neutral_box(l: &World, r: &SpawnRequest) -> Aabb {
         Species::Salmon => (w, h) = (w * 0.5, h * 0.5),
         _ => {}
     }
+    (w, h) = fresh_dimensions(r.species, w, h);
     let [x, y, z] = r.position;
     spawn_box(x, y, z, w, h)
 }
@@ -773,10 +757,8 @@ pub fn main() -> horizon_client::Result<()> {
                         let t = types.types.get(id)?;
                         // Entity.setPos (a shulker sits at its block's centre).
                         let p = horizon_client::mobs::spawner::entity_position(t.species, *p);
-                        Some((
-                            id.clone(),
-                            spawn_box(p[0], p[1], p[2], t.width as f32, t.height as f32),
-                        ))
+                        let (w, h) = fresh_dimensions(t.species, t.width as f32, t.height as f32);
+                        Some((id.clone(), spawn_box(p[0], p[1], p[2], w, h)))
                     })
                     .collect(),
             ),
