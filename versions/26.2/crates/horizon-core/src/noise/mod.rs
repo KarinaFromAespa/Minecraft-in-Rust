@@ -7,6 +7,7 @@ mod normal;
 mod perlin;
 mod simplex;
 mod stack;
+pub mod synth;
 mod volume;
 
 pub use normal::{
@@ -64,7 +65,9 @@ impl GradientTable {
 
 // Perlin's 16-direction table includes four repeated directions. Simplex uses
 // the first twelve directions, selecting them with remainder instead of masking.
-const GRADIENTS: [[i32; 3]; 16] = [
+// Shared with the 26.2 double-precision synth module: it is vanilla's
+// `SimplexNoise.GRADIENT` in both models.
+pub(crate) const GRADIENTS: [[i32; 3]; 16] = [
     [1, 1, 0],
     [-1, 1, 0],
     [1, -1, 0],

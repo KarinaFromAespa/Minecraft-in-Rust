@@ -2212,3 +2212,37 @@ version=26.2 --ref behaviour/26.2` on dbeb88e3 (rank 2 409/410), run
 43653524277, in progress. Run 43646940294 is still in flight on the
 older 338/410 tree (d2aa9a03); this run measures the 409/410 state.
 Porting continues while CI runs.
+
+## Item 127 — noise-model port, in progress (2026-11-15)
+
+The 26.2 synth package (9 classes) is the classic double-precision model:
+ImprovedNoise, PerlinNoise (octave FBM, new + legacy init), SimplexNoise
+(no offsets in `getValue`), PerlinSimplexNoise, NormalNoise over
+NoiseParameters `{firstOctave, amplitudes}`, BlendedNoise, NoiseUtils.
+Verified against the 26.2 jars: `Biome.BIOME_INFO_NOISE` is a
+PerlinSimplexNoise (seed 2345, octaves [0]) — the earlier placement note
+calling it an "old Perlin-based NormalNoise" was wrong; TEMPERATURE_NOISE
+(seed 1234, [0]) and FROZEN_TEMPERATURE_NOISE (seed 3456, [-2,-1,0]) are
+PerlinSimplexNoise too. `WorldgenRandom` delegates `next(bits)` straight
+through to the wrapped legacy source, so the Biome noises run on plain
+LegacyRandom streams.
+
+Design: the float sampler engine (`noise::{PerlinNoise, SimplexNoise,
+NoiseStack, NormalNoise}`) stays — it is Horizon's own scaffolding, its
+octave structure and seed consumption already match 26.2, and the density
+graph built on it is f32 end to end (converting that engine is the
+programme-level double rework recorded under item 115, not this item).
+What this item adds is the faithful f64 port alongside it, used where
+vanilla 26.2 computes in double and the value feeds a discrete decision.
+
+(a) `crates/horizon-core/src/noise/synth.rs` (new, ~1,300 lines):
+ImprovedNoise, PerlinNoise, SimplexNoise, PerlinSimplexNoise,
+NormalNoise + NoiseParameters, BlendedNoise, NoiseUtils — all f64, with
+Java's wrapping int arithmetic, `Mth.lfloor` (long floor) in `wrap`,
+the `float` literal `1.0E-7F` in the smear, and the `float` literal
+`9.223372E18F` in the positive-octave seed. Six unit tests pin the
+shared seeding with the float engine, wrap edge cases (including the
+i64-saturation divergence from the float wrap at huge magnitudes), the
+single-octave PerlinSimplexNoise identity, the old value-factor formula,
+BlendedNoise construction, and legacy-init throw order. `cargo test -p
+horizon-core --lib noise::` 12/12; fmt + clippy clean for the new file.
