@@ -463,8 +463,6 @@ impl SpawnerExt for Spawner {
         let Some(data) = self.next_data().cloned() else {
             return;
         };
-        // Boxes of what this tick added, for the obstruction test.
-        let mut added: Vec<Aabb> = Vec::new();
         for _ in 0..self.spawn_count {
             // EntityType.by: an unknown type delays.
             let Some(id) = data.id().filter(|id| l.entity_exists(id)) else {
@@ -565,15 +563,7 @@ impl SpawnerExt for Spawner {
             let rules_ok = data.custom_spawn_rules.is_some()
                 || spawn_selection::mob_spawn_rules(s, l, own[0], own[1], own[2]);
             if !rules_ok
-                || !spawn_selection::spawn_obstruction(
-                    s,
-                    l,
-                    bounds,
-                    Some(&added),
-                    own[0],
-                    own[1],
-                    own[2],
-                )
+                || !spawn_selection::spawn_obstruction(s, l, bounds, own[0], own[1], own[2])
             {
                 continue;
             }
@@ -590,7 +580,6 @@ impl SpawnerExt for Spawner {
                 self.delay(random, events);
                 return;
             };
-            added.push(result.bounds);
             events.push(SpawnerEvent::LevelEvent(2004));
             events.push(SpawnerEvent::EntityPlace(result.id, block));
             if result.mob {

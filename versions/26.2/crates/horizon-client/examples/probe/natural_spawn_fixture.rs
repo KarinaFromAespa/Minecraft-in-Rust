@@ -159,6 +159,18 @@ impl World<'_> {
             .map_or((self.sky, self.light), |(_, s, b)| (*s, *b))
     }
 }
+/// `Entity.canBeCollidedWith(other)` in 26.2: false for every ordinary mob;
+/// only boats, happy ghasts and shulkers override it, so only those ever
+/// count in `getEntityCollisions` — for both `noCollision` and
+/// `checkSpawnObstruction`.
+fn collidable_entity(id: &str) -> bool {
+    id == "minecraft:shulker"
+        || id == "minecraft:happy_ghast"
+        || id
+            .strip_prefix("minecraft:")
+            .is_some_and(|n| n.ends_with("_boat") || n.ends_with("_raft"))
+}
+
 impl SpawnLevel for World<'_> {
     fn within_world_border(&self, x: i32, z: i32) -> bool {
         self.border
@@ -270,7 +282,13 @@ impl NaturalLevel for World<'_> {
         self.biome_info(x, y, z).map(|b| &b.spawns)
     }
     fn spawn_cost(&self, entity: &str, x: i32, y: i32, z: i32) -> Option<SpawnCost> {
-        self.biome_info(x, y, z)?.spawn_costs.get(entity).copied()
+        // NaturalSpawner.getRoughBiome: the chunk's noise biome at the quart
+        // cell's origin block, not the block's own biome — a test at a
+        // biome boundary can sit in a quart cell whose origin is across it.
+        self.biome_info((x >> 2) << 2, (y >> 2) << 2, (z >> 2) << 2)?
+            .spawn_costs
+            .get(entity)
+            .copied()
     }
     fn creature_probability(&self, x: i32, y: i32, z: i32) -> f32 {
         self.biome_info(x, y, z)
@@ -327,21 +345,22 @@ impl NaturalLevel for World<'_> {
             block: &lookup,
             binding: self.s.collision,
         };
-        // getEntityCollisions(null, box): living shulkers are solid.
+        // getEntityCollisions(null, box): only boats, happy ghasts and
+        // living shulkers are solid (canBeCollidedWith).
         let grown = bounds.inflate(horizon_core::geometry::Vec3::new(1e-7, 1e-7, 1e-7));
         no_collision_empty(&mut world, bounds)
             && !self
                 .entities
                 .borrow()
                 .iter()
-                .any(|(id, b)| id == "minecraft:shulker" && b.intersects(grown))
+                .any(|(id, b)| collidable_entity(id) && b.intersects(grown))
     }
     fn unobstructed(&self, bounds: Aabb) -> bool {
         !self
             .entities
             .borrow()
             .iter()
-            .any(|(_, b)| b.intersects(bounds))
+            .any(|(id, b)| collidable_entity(id) && b.intersects(bounds))
     }
     fn spawn_mobs(&self) -> bool {
         self.spawn_mobs
