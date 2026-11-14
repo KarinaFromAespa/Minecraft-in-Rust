@@ -37,7 +37,6 @@ mod container_title_fixture;
 mod conversion_tags_fixture;
 mod creative_mining_probe;
 mod creative_search_fixture;
-mod cushion_placement_probe;
 mod emitter_particles_probe;
 mod enchant_durability_fixture;
 mod enchanting_fixture;
@@ -147,7 +146,6 @@ probes! {
     squid_client_probe,
     creative_mining_probe,
     stack_mining_probe,
-    cushion_placement_probe,
     cauldron_fixture,
     lava_cauldron_item_fixture,
     chat_screen_fixture,

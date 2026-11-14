@@ -277,6 +277,69 @@ impl Game<'_> {
     }
     /// `ScreenEffectRenderer` + `Hud` camera overlays for this frame.
     /// `scale` is the player's `LivingEntity.getScale`.
+    /// `BlockBehaviour.Properties.isSuffocating` of a state: the block's
+    /// explicit predicate, else `causes_suffocation` with a full collision
+    /// shape.
+    pub(super) fn state_suffocating(&self, state: horizon_world::registry::BlockStateId) -> bool {
+        let facts = self.res.facts().get(state);
+        let name = facts.name.as_ref();
+        // Blocks' explicit predicates, then the default causes_suffocation/full-shape rule.
+        match name {
+            "minecraft:dirt_path"
+            | "minecraft:farmland"
+            | "minecraft:mud"
+            | "minecraft:soul_sand" => true,
+            "minecraft:piston" | "minecraft:sticky_piston" => self
+                .pack
+                .assets
+                .registry
+                .state(state)
+                .is_some_and(|s| s.properties.get("extended").is_some_and(|p| p == "false")),
+            "minecraft:mangrove_roots" | "minecraft:moving_piston" => false,
+            _ if name.ends_with("_leaves")
+                || name.ends_with("glass")
+                || name.ends_with("copper_grate") =>
+            {
+                false
+            }
+            // ShulkerBoxBlock: suffocating while closed; a box seen open
+            // here is rare enough to count as closed.
+            _ if name.ends_with("shulker_box") => true,
+            _ => {
+                facts.full_collision
+                    && self
+                        .res
+                        .items()
+                        .block_in_tag("minecraft:causes_suffocation", name)
+            }
+        }
+    }
+
+    /// `BlockStateBase.isViewBlocking` (26.2's two-argument form: no
+    /// near-plane box). Snow with 8 layers blocks the view; anything else
+    /// falls through to `isSuffocating`. In 26.2 stairs and slabs have no
+    /// override, so they take the default too — and a stair or slab is
+    /// never a full collision block, so it never blocks the view (26.3 gave
+    /// them `NEAR_PLANE_INTERSECTS_OUTLINE`, testing the outline boxes
+    /// against the frustum's near-plane bounds).
+    pub(super) fn state_view_blocking(
+        &self,
+        state: horizon_world::registry::BlockStateId,
+        _pos: [i32; 3],
+    ) -> bool {
+        let name = self.res.facts().get(state).name.as_ref();
+        if name == "minecraft:snow" {
+            return self
+                .pack
+                .assets
+                .registry
+                .state(state)
+                .and_then(|s| s.properties.get("layers"))
+                .is_some_and(|l| l.parse::<i32>().is_ok_and(|l| l >= 8));
+        }
+        self.state_suffocating(state)
+    }
+
     pub(super) fn screen_quads(&self, partial: f32, size: [u32; 2], scale: f32) -> Vec<ScreenQuad> {
         let Some(p) = self.player.as_ref() else {
             return Vec::new();

@@ -1128,13 +1128,6 @@ impl Game<'_> {
     pub(super) fn acting_player(&self) -> FightWho {
         self.lan_acting.map_or(FightWho::Host, FightWho::Guest)
     }
-    /// The causing player shared by the crystal/deflected-fireball blast.
-    pub(super) fn crystal_blast_player(&self) -> Option<super::commands::Target> {
-        self.fight.blast_by.map(|who| match who {
-            FightWho::Host => super::commands::Target::Player,
-            FightWho::Guest(conn) => super::commands::Target::Guest(conn),
-        })
-    }
     /// Names the acting player behind the blast about to go off (a large
     /// fireball they shot), or no one, for the dragon's kill credit.
     pub(super) fn set_blast_by_player(&mut self, by_player: bool) {

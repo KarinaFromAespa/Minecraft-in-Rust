@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 68/100 items, 39 changed, 29 no-change, 3432 minutes on changed
+**rate sample: 70/100 items, 41 changed, 29 no-change, 3672 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -577,6 +577,8 @@ log; it stays in agreement with the tally line above.
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
 | 86 | changed | 240 (est.) | Farmland trample + turtle-egg destroy drop 26.3's spawn-protection gate (26.2 players always trample/destroy); bucket evaporate smoke to 26.2 addParticle x8 uniform in-cube, acting client only, LAN send removed; spectator block outline over menu blocks; spinning/OIT/post-effect citations to the 26.2 locations. cargo check clean; lan_particles 5/5; block-landing harness block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server) |
+| 147 | changed | 120 (est.) | BlockAttachedEntity.kill is Entity.kill(level) in 26.2 (unattributed death); painting/frame ENTITY_DIE now unattributed on player and blast breaks; explosion_kill_credit() + crystal_blast_player() removed; explosion-broken frame BLOCK_CHANGE now attributed to the blast's direct source entity (exploding mob) via explosion_direct_source(). entity_die_explosions updated to the 26.2 truth (4 events, all self-sourced; no item event); stand hurt test renamed + fixed (same 26.3 attribution lag). entity_die 2/2, stand 12/12, kill_die 1/1, vibration 6/6, lan_particles 5/5 |
+| 374 | changed | 120 (est.) | Cushion/CushionItem/CushionRenderer 26.3-only (0 entries in either 26.2 jar): entity/item/renderer, dye_index, Target::Cushion, minecraft:cushion load/save, LAN states, seats/rides, blast/thunder handling and the placement probe removed; generic logic moved (dismount helpers to passengers.rs, suffocation/view-blocking to render_tick.rs). cushion_placement harness n/a for 26.2 (oracle imports the 26.3-only blockscan package); driver + oracle left in place |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -689,8 +691,26 @@ the recipe test passes. status.json `protocol_tests` updated.
 
 ## CI profile — port-verify v6.6, run 43609469257 (2026-11-14)
 
-- Dispatched 2026-11-14T15:18:31Z on `1a8bd427` (285/410 tree), in progress
-  at dispatch. Profile to be recorded here when it completes.
+Dispatched 2026-11-14T15:18:31Z on `1a8bd427` (285/410 tree). Completed
+2026-11-14T17:28:06Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**5 pass / 0 oracle / 12 fail** — first_person, food, lan, light,
+resource_pack pass; the other 12 fail. First_person is new since run
+43575017292 (the item-8 first-person oracle rework landed in this
+tree). D1 pass (all 6 generators clean, tables reproduce). D2 FAILS
+but only on the warning count: protocol tests are **444 pass / 0
+fail** in CI (the recipe test fixed in the item-129 batch passes; the
+two local sandbox-network failures pass on CI, which has network) —
+the gate counts 6 warnings against a 0/0 bar, and all six are the two
+pre-existing warnings counted across targets (the
+`unused_doc_comments` at `horizon-protocol/src/packets/play.rs:2238`
+and the `unused_mut` at `game/creatures.rs:1361`, each in lib +
+lib-test). D3 fail (rank 2: 125/410 neither closed nor accepted at
+this commit); D4 blocked (profile stamped for `1a8bd427`, HEAD is
+`28def2627f44` — re-record the sweep for this tree); D5 blocked (no
+harness-subset.txt); D6 blocked (no playtest.md). Artifacts kept at
+`~/workspace/mcir-ci/26.2-285/`.
 
 ## Item 8 closed (2026-11-14) — remote.rs / first person
 
@@ -835,3 +855,63 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   -p horizon-client-render --all-targets` clean (only the pre-existing
   `unused_mut` at `game/creatures.rs:1361`); `lan_particles` tests 5/5.
   Block-landing parity harness vs the 26.2 oracle: block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server)
+
+## Items 147 + 374 closed (2026-11-14) — game/cushions.rs, cushion.rs / BlockAttachedEntity, Cushion
+
+- **Cushion is 26.3-only**: 0 cushion entries in either 26.2 jar
+  (server-game.jar and client.jar). `Cushion`, `CushionItem` and
+  `CushionRenderer` removed in 26.2; `BlockAttachedEntity` exists in
+  26.2 (144 lines decompiled) as the base for paintings, item frames
+  and leash knots; `Vec3.atCenterOfWithY` is 26.3-only.
+- **Removal (item 374)**: the Cushion entity/item/renderer, its
+  `dye_index`, `Target::Cushion`, the `minecraft:cushion` load/save
+  paths, LAN cushion states, cushion seats/rides, cushion blast and
+  thunder handling, and the `cushion_placement` probe are gone.
+  Generic logic that lived in `cushions.rs` moved, not deleted:
+  `dismount_in_portal` / `dismount_removed_vehicle` to `passengers.rs`
+  (portal dismount applies to any vehicle) and `state_suffocating` /
+  `state_view_blocking` (26.2's two-arg `BlockState.isViewBlocking`)
+  to `render_tick.rs`.
+- **Real fix (item 147)**: 26.2's `BlockAttachedEntity.kill` is
+  `Entity.kill(level)` — the death is the entity's own event,
+  unattributed. 26.3's `kill(level, entity)` attributes it to the
+  killer (and adds `onKilled` / `tickAtCheckInterval`). Painting and
+  frame `ENTITY_DIE` are now unattributed on player breaks and on
+  blast breaks; `explosion_kill_credit()` is removed (its only uses
+  were those two sites) along with `crystal_blast_player()` (its only
+  caller was the kill credit; `blast_by` itself stays — it is read at
+  `dragon.rs:3780` for chain-blasting crystals). The tick gate was
+  already the 26.2 `checkInterval++ == 100` form (fires tick 101).
+- **Frame `BLOCK_CHANGE` keeps its causedBy**: 26.2's
+  `ItemFrame.dropItem(level, causedBy)` posts `BLOCK_CHANGE` attributed
+  to `causedBy`, and `BlockAttachedEntity.hurtServer` passes the
+  damage source's entity — so an explosion-broken frame's
+  `BLOCK_CHANGE` is attributed to the blast's direct source entity
+  (the exploding mob), via the new `explosion_direct_source()`; a
+  primed-TNT or end-crystal blast has no `Who` and stays
+  unattributed. (Paintings post no `BLOCK_CHANGE`:
+  `Painting.dropItem` is sound + item only.)
+- **Two tests pinned 26.3 behaviour and are updated to the 26.2
+  truth**: `entity_die_explosions` expected a fifth event for the
+  dropped item (26.2's `ItemEntity.hurtServer` just discards — no
+  `ENTITY_DIE`, in both versions) and mob attribution for
+  stand/painting/frame; it now asserts 4 events, all self-sourced, in
+  both the caused and uncaused blast iterations. The stand test
+  `a_hit_from_damage_posts_entity_damage_then_entity_die_for_its_causing_entity`
+  pinned the same 26.3 attribution and was already failing on the
+  branch (its code, `armor_stands.rs`, was fixed to 26.2 in the
+  earlier stand batch; only the expectation lagged) — renamed to
+  `..._entity_damage_attributed_then_entity_die_unattributed` and now
+  asserts an attributed `ENTITY_DAMAGE` then an unattributed
+  `ENTITY_DIE`.
+- **Cushion-placement harness**: `test_cushion_placement_parity.py`
+  is not applicable to 26.2 — its oracle imports the 26.3-only
+  `blockscan` package and will not compile against the 26.2 jar, and
+  the Rust probe was removed with the feature. The driver and oracle
+  stay in place for the 26.3 tree (parity harnesses are never
+  deleted); the harness is not in CI's 17-harness profile.
+- Checks: `cargo check -p horizon-client -p horizon-world
+  --all-targets` clean (only the two pre-existing warnings);
+  `entity_die_tests` 2/2, `stand_command_hurt_tests` 12/12,
+  `kill_die_vibration_tests` 1/1, `vibration_tests` 6/6,
+  `lan_particles` 5/5.

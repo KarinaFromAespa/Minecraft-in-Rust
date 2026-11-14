@@ -171,7 +171,6 @@ impl Game<'_> {
         }
         if self.attack_frame()
             || self.attack_armor_stand()
-            || self.attack_cushion()
             || self.attack_boat()
             || self.attack_cart()
             || self.attack_dragon()

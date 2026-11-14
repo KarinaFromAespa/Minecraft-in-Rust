@@ -57,7 +57,6 @@ pub(super) struct Parked {
     paintings: Vec<horizon_client::entities::Painting>,
     item_frames: Vec<horizon_client::entities::ItemFrame>,
     armor_stands: horizon_client::join_seq::JoinList<horizon_client::entities::ArmorStand>,
-    cushions: Vec<horizon_client::entities::Cushion>,
     others: Vec<commands::OtherEntity>,
     fangs: super::fangs::FangState,
     pub(super) boats: horizon_client::join_seq::JoinList<boats::Boat>,
@@ -191,7 +190,6 @@ impl Levels {
                 + l.paintings.len()
                 + l.item_frames.len()
                 + l.armor_stands.len()
-                + l.cushions.len()
                 + l.tridents.len()
                 + l.rockets.len()
                 + l.tnts.len(),
@@ -264,7 +262,6 @@ impl Game<'_> {
             paintings: Vec::new(),
             item_frames: Vec::new(),
             armor_stands: Default::default(),
-            cushions: Vec::new(),
             others: Vec::new(),
             fangs: Default::default(),
             boats: Default::default(),
@@ -414,7 +411,6 @@ impl Game<'_> {
         swap(&mut self.paintings, &mut p.paintings);
         swap(&mut self.item_frames, &mut p.item_frames);
         swap(&mut self.armor_stands, &mut p.armor_stands);
-        swap(&mut self.cushions, &mut p.cushions);
         swap(&mut self.others, &mut p.others);
         swap(&mut self.fangs, &mut p.fangs);
         swap(&mut self.boats, &mut p.boats);

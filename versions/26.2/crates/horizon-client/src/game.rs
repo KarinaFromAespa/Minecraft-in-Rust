@@ -117,7 +117,6 @@ mod creative_hotbar;
 mod creative_screen;
 mod creatures;
 mod crossbow;
-pub(crate) mod cushions;
 mod custom_sky;
 mod debug_keys;
 mod debug_lines;
@@ -2650,8 +2649,6 @@ struct Game<'a> {
     armor_stands: horizon_client::join_seq::JoinList<horizon_client::entities::ArmorStand>,
     /// Worn armor as of the last `collectEquipmentChanges` look (frost walker).
     location_armor: [Option<ItemStack>; 4],
-    /// `Cushion` decoration entities (game/cushions.rs).
-    cushions: Vec<horizon_client::entities::Cushion>,
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
@@ -2684,8 +2681,6 @@ struct Game<'a> {
     boat_models: boats::BoatModels,
     /// EndCrystalModel's baked layer.
     crystal_model: Option<horizon_client::mobs::Part>,
-    /// CushionModel's baked layer.
-    cushion_model: Option<horizon_client::mobs::Part>,
     /// Models drawn only once such an entity shows up (lead knots, wind charges...).
     entity_models: EntityModels,
     carts: horizon_client::join_seq::JoinList<minecarts::Minecart>,
@@ -3015,7 +3010,6 @@ struct Game<'a> {
     /// Jukebox level events 1010 (song name) and 1011 (`None`) for the guests;
     /// the song's network id is only known once the hub is in hand.
     lan_songs: Vec<([i32; 3], Option<String>)>,
-    lan_cushion_breaks: Vec<(horizon_world::registry::BlockStateId, [f64; 3])>,
     /// Block events (position, b0, b1, state) and entity events (id, event,
     /// position) for the guests.
     lan_block_events: Vec<([i32; 3], i32, i32, u32)>,
@@ -5649,7 +5643,6 @@ impl Game<'_> {
             self.tick_summoned_eyes();
             self.ordered_before(ordered_tick::Batch::ArmorStands)?;
             horizon_client::spans::time("tick_armor_stands", || self.tick_armor_stands())?;
-            horizon_client::spans::time("tick_cushions", || self.tick_cushions());
             // ServerLevel.tick: the arrivals of this server tick are in the level
             // (`addDuringTeleport`), and each vehicle handles its portal as its
             // own tick opens.
@@ -7235,7 +7228,6 @@ impl Game<'_> {
         self.mark_entity(out.len(), "minecraft:armor_stand");
         self.armor_stand_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
-        self.cushion_geometry(camera, &mut out);
         self.mark_entity(out.len(), "minecraft:oak_boat");
         self.boat_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
@@ -7755,7 +7747,6 @@ impl Game<'_> {
         self.boats.clear();
         self.carts.clear();
         self.armor_stands.clear();
-        self.cushions.clear();
         self.item_frames.clear();
         self.paintings.clear();
         self.others.clear();
@@ -12031,7 +12022,6 @@ impl<'a> Game<'a> {
             glow_map_frame_model: prepared.glow_map_frame_model,
             armor_stands: Default::default(),
             location_armor: Default::default(),
-            cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
             waypoint_styles: prepared.waypoint_styles,
@@ -12048,7 +12038,6 @@ impl<'a> Game<'a> {
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,
             crystal_model: prepared.crystal_model,
-            cushion_model: prepared.cushion_model,
             entity_models: prepared.entity_models,
             carts: Default::default(),
             watched_vehicles: Vec::new(),
@@ -12229,7 +12218,6 @@ impl<'a> Game<'a> {
             guest_inventory_resend: false,
             lan_events: Vec::new(),
             lan_songs: Vec::new(),
-            lan_cushion_breaks: Vec::new(),
             lan_block_events: Vec::new(),
             lan_entity_events: Vec::new(),
             lan_critical_hits: Vec::new(),

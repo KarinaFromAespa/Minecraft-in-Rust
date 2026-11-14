@@ -541,7 +541,7 @@ impl Game<'_> {
                 m.body_yaw +=
                     wrap(horizon_client::mobs::riders::solve_body_rot(yaw, body) - m.body_yaw);
             }
-            // A minecart's, a cushion's: the body turns as on foot.
+            // A minecart's: the body turns as on foot.
             None => {
                 let mut target = m.body_yaw;
                 if dx * dx + dz * dz > 0.002_500_000_2 {
@@ -695,7 +695,7 @@ impl Game<'_> {
         }
     }
     /// What the player rides that sets their body's yaw: a boat's yaw, or a
-    /// living vehicle's body yaw. Minecarts and cushions leave it to the
+    /// living vehicle's body yaw. Minecarts leave it to the
     /// player's own turn.
     fn ridden_body(&self) -> Option<RiddenBody> {
         let id = self.riding?;

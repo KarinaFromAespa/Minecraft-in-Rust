@@ -37,9 +37,6 @@ pub(super) struct Bolt {
     hit: Vec<u32>,
     /// The dropped items in the strike box (`hitEntities` holds every entity).
     hit_items: Vec<u32>,
-    /// Items a cushion dropped under it, spared for 20 ticks
-    /// (`Cushion.dropItem`: `setInvulnerableTime(20)`).
-    spared: Vec<u32>,
     /// Blocks it set on fire (`blocksSetOnFire`).
     fires: i32,
     /// The player who channelled it (`LightningBolt.cause`): `Some(None)` for
@@ -268,7 +265,6 @@ impl Game<'_> {
             converted: Vec::new(),
             hit: Vec::new(),
             hit_items: Vec::new(),
-            spared: Vec::new(),
             fires: 0,
             cause: None,
         });
@@ -303,7 +299,6 @@ impl Game<'_> {
             converted: Vec::new(),
             hit: Vec::new(),
             hit_items: Vec::new(),
-            spared: Vec::new(),
             fires: 0,
             cause: None,
         });
@@ -672,20 +667,6 @@ impl Game<'_> {
         for entity in powered {
             self.native_creeper_power(entity, [at[0], at[1], at[2]]);
         }
-        // Cushion.thunderHit: a cushion whose box meets the strike box breaks and drops its item
-        // (the bolt is no player, so no creative spare). Last first, since
-        // break_cushion removes the entry.
-        for i in (0..self.cushions.len()).rev() {
-            let (lo, hi) = self.cushions[i].bounds();
-            if strike.intersects(Aabb::new(
-                Vec3::new(lo[0], lo[1], lo[2]),
-                Vec3::new(hi[0], hi[1], hi[2]),
-            )) {
-                let before = self.dropped.len();
-                self.break_cushion(i, false);
-                b.spared.extend(self.dropped[before..].iter().map(|e| e.id));
-            }
-        }
         // Vehicles, then orbs: `VehicleEntity.hurtServer` for 5 damage (x 10
         // over the 40 a vehicle takes) destroys them. Lightning is no fire
         // source, so a TNT cart does not prime. `ExperienceOrb.hurtServer`:
@@ -745,7 +726,7 @@ impl Game<'_> {
             left -= 1;
             let e = &self.dropped[i];
             b.hit_items.push(e.id);
-            if !(e.stack.item.contains("netherite") || (e.age < 20 && b.spared.contains(&e.id))) {
+            if !e.stack.item.contains("netherite") {
                 self.dropped.remove(i);
             }
         }
