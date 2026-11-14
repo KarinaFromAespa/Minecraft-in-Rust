@@ -12,7 +12,6 @@ pub const WAIT_SPREAD: i32 = 2401;
 /// `MAX_SPECIAL_BLOCKS_COUNT` and `SPECIAL_BLOCK_RADIUS`.
 const MAX_SPECIAL_BLOCKS: i32 = 14;
 const RADIUS: i32 = 4;
-const SPEEDS_UP_CURING: &str = "minecraft:speeds_up_zombie_villager_curing";
 
 /// A cure under way: ticks left and the player who started it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -77,6 +76,14 @@ pub fn start_converting(
     });
 }
 
+/// Whether the block at (x, y, z) speeds up a cure: 26.2 has no
+/// #speeds_up_zombie_villager_curing tag (26.3 only; iron_bars + #beds),
+/// so the check is iron bars or any bed block.
+fn speeds_up_curing(w: &MobWorld, x: i32, y: i32, z: i32) -> bool {
+    let name = w.block_name(x, y, z);
+    name == "minecraft:iron_bars" || w.has_tag("minecraft:beds", name)
+}
+
 /// `getConversionProgress`: 1 per tick, plus a chance per nearby iron bars or
 /// bed (up to 14 of them) found on one tick in a hundred.
 fn progress(m: &mut Mob, w: &MobWorld) -> i32 {
@@ -95,7 +102,7 @@ fn progress(m: &mut Mob, w: &MobWorld) -> i32 {
                     if special >= MAX_SPECIAL_BLOCKS {
                         break 'scan;
                     }
-                    if w.has_tag(SPEEDS_UP_CURING, w.block_name(x, y, z)) {
+                    if speeds_up_curing(w, x, y, z) {
                         if m.random.next_float() < 0.3 {
                             amount += 1;
                         }
@@ -211,6 +218,31 @@ mod tests {
         let mut map = Compound::new();
         put_cure(&mut map, Some(cure));
         assert_eq!(parse_cure(&Tag::Compound(map)), Some(cure));
+    }
+
+    /// 26.2 has no #speeds_up_zombie_villager_curing tag (26.3 only): iron
+    /// bars and beds speed a cure, stone does not.
+    #[test]
+    fn iron_bars_and_beds_speed_a_cure() {
+        let build = |world: &mut crate::world::World,
+                     registry: &horizon_world::registry::BlockRegistry| {
+            world.chunks.insert(
+                (0, 0),
+                std::sync::Arc::new(crate::chunk::Chunk::empty(0, 0)),
+            );
+            let iron = registry.default_state("minecraft:iron_bars").unwrap();
+            world.set(0, 64, 0, iron).unwrap();
+            let bed = registry.default_state("minecraft:white_bed").unwrap();
+            world.set(1, 64, 0, bed).unwrap();
+            let stone = registry.default_state("minecraft:stone").unwrap();
+            world.set(2, 64, 0, stone).unwrap();
+        };
+        let ran = crate::mobs::world::with_built_test_world(&[], build, |w, _| {
+            assert!(speeds_up_curing(w, 0, 64, 0));
+            assert!(speeds_up_curing(w, 1, 64, 0));
+            assert!(!speeds_up_curing(w, 2, 64, 0));
+        });
+        assert!(ran);
     }
     /// `ZombieVillager.tick` counts the cure down before `Zombie.tick`,
     /// whatever the AI: a `NoAI` zombie villager finishes curing too (#3429).

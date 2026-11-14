@@ -1905,3 +1905,94 @@ Eleven no-change, one changed (371). Rank 2 362/410 -> 374/410. CI run
   has no such check. The Rust's `OwnerHurtBy.can_use` (tame.rs) checks
   only the owner's `hurt_by` and `wants_to_attack` — the 26.2 form.
   No `#no_wolf_retaliation` reference exists in the Rust.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391
+
+Eleven no-change, one changed (387). Rank 2 374/410 -> 386/410. CI run
+43646940294 still in flight on the 338/410 tree.
+
+## Item 380 no-change (2026-11-15) — game/mob_gear.rs
+
+- 1 class, 0 named. `EnchantmentsByCostWithDifficulty`: `holderSet` ->
+  `homogeneousList` for the `enchantments` field — the same JSON shape.
+
+## Item 381 no-change (2026-11-15) — game/native_panel_recipes.rs
+
+- 1 class, 0 named. `SlotDisplay$AnyFuel`: 26.3 reads fuel items from
+  `DataComponents.COOKING_FUEL` via the item registry; 26.2 reads them
+  from `FuelValues` (`SlotDisplayContext.FUEL_VALUES`). The Rust's
+  AnyFuel is every item with a burn time from the 26.2 fuel data
+  (`burn_time`), grouped by burn time — the 26.2 source.
+
+## Item 382 no-change (2026-11-15) — game/remote_mob_data.rs
+
+- 1 class, 0 named. `RopesLayer`: 26.2's `submitModel` call carries the
+  extra trailing `null` argument (the item-315 pattern).
+
+## Item 383 no-change (2026-11-15) — game/storage.rs
+
+- 1 class, 0 named. `ShulkerBoxScreen` has no diff at all.
+
+## Item 384 no-change (2026-11-15) — mobs/camel.rs
+
+- 1 class, 0 named. `Camel.mobInteract`: 26.3's else-chain vs 26.2's
+  flattened fall-through — the same outcomes (non-baby with <2
+  passengers rides and returns CONSUME in both; a baby holding a golden
+  dandelion goes to `super.mobInteract`, otherwise FAIL). The Rust's
+  camel interact goes through the shared mount path with the same
+  outcomes.
+
+## Item 385 no-change (2026-11-15) — mobs/finalize.rs
+
+- 1 class, 0 named. `VillagerType`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 386 no-change (2026-11-15) — mobs/nav.rs
+
+- 1 class, 0 named. `GroundPathNavigation`: 26.3 checks
+  `isInFloatableFluid()` and `state.getFluidState().is(#entity_floatable)`;
+  26.2 checks `isInWater()` and `state.is(Blocks.WATER)`. The Rust's
+  `surface_y` uses `fluid == Fluid::Water` and `navigation_in_water()`
+  — the 26.2 forms. `#entity_floatable` is 26.3-only (item 331).
+
+## Item 387 changed (2026-11-15) — mobs/zombie_villager.rs
+
+- 1 class, 0 named. `ZombieVillager` curing: 26.3 checks
+  `state.is(#speeds_up_zombie_villager_curing)`; 26.2 checks
+  `state.is(Blocks.IRON_BARS) || state.getBlock() instanceof BedBlock`.
+  The tag file exists only in the 26.3 jar (iron_bars + #beds); the
+  26.2 `block-tags.json` (265 tags) does not have it — so the Rust's
+  `has_tag` lookup was always false and the curing speedup never fired.
+  Fixed in `crates/horizon-client/src/mobs/zombie_villager.rs`: the
+  check is now iron bars or any bed (via the `#minecraft:beds` tag,
+  which exists in 26.2 with all 16 beds), extracted as
+  `speeds_up_curing`. Regression test
+  `iron_bars_and_beds_speed_a_cure` passes with the fix and fails with
+  the old tag lookup.
+
+## Item 388 no-change (2026-11-15) — mod_content_biomes.rs
+
+- 1 class, 0 named. `FeatureSorter`: `Reference2IntMap` (26.3) vs
+  `Object2IntMap` (26.2) for the feature index — identity vs equals
+  map. The Rust has no FeatureSorter equivalent (placed features are
+  looked up by name).
+
+## Item 389 no-change (2026-11-15) — horizon-items/enchant.rs
+
+- 1 class, 0 named. `Enchantments` bootstrap: the same conditions and
+  values built through different Java APIs (`TagPredicate.is(damageTypes,
+  tag)` vs `TagPredicate.is(tag)`; `ContextFloatProviders` vs
+  `EnchantmentLevelProvider`; `matchesTag(Direction.UP, ...)` vs
+  `matchesTag(Vec3i(0,1,0), ...)`; `BlockStateProvider.holderOf` vs
+  `simple`). The Rust reads enchantments from the registry data, not
+  from the bootstrap Java — the data is the same.
+
+## Item 390 no-change (2026-11-15) — damage_catalog_probe.rs
+
+- 1 class, 0 named. `DamageType`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 391 no-change (2026-11-15) — attributes/entity.rs
+
+- 1 class, 0 named. `DefaultAttributes`: `EnderMan` (26.2) vs
+  `Enderman` (26.3) — the class rename.
