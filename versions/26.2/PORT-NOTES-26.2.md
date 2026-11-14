@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 63/100 items, 34 changed, 29 no-change, 2322 minutes on changed
+**rate sample: 64/100 items, 35 changed, 29 no-change, 2442 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -572,6 +572,7 @@ log; it stays in agreement with the tally line above.
 | 92 | changed | 90 (est.) | Entity culling to the 26.2 tick-position form (no getInterpolatedBoundingBox): cull_box + standing_entity_in_view drop interpolation, 8 call sites updated; stale SwingState/currentSwing citations fixed (swing model already 26.2 under 241); 26 renderer/layer classes verified no-change (rotate renames, submitModel null arg, render-type plumbing) |
 | 87 | changed | 180 (est.) | See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change |
 | 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
+| 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -588,6 +589,15 @@ passing reach 0 for goals that call the 2-arg `moveTo(Entity, speed)`
 (fox, frog, goat, illager, panda, piglin, riders, spear_use, tempt)
 need the same reach-1 check in their own items — the 2-arg form builds
 the path with `createPath(target, 1)` in both versions.
+
+Follow-up debt from item 115: the Rust density engine samples in float
+(26.3's `DensitySampler` model), but 26.2's density functions compute in
+double (`DensityFunction.compute`). The Beardifier's formulas match
+exactly; only the arithmetic precision differs (bury: 26.2
+`clampedMap(length, 0, 6, 1, 0)` in double vs 26.3 `1 - sqrt(sq)/6` in
+float; beard: same shape, double vs float). A faithful 26.2 port needs
+the density engine in double — a programme-level rework, not one item's
+change.
 
 Entity-fluid harness (2026-11-14, local run): the reworked
 `test_entity_fluid_parity.py` passes bit-exact — 560,630 lines,
