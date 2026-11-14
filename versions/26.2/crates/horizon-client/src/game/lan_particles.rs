@@ -697,32 +697,29 @@ impl Game<'_> {
         }
     }
 
-    /// `BucketItem.emptyContents` where water evaporates: `sendParticles(
-    /// LARGE_SMOKE, x, y, z, 8, 1, 1, 1, 0)` — count 8, spread 1, no speed.
-    /// 26.2's client spreads each puff by gaussians on each axis, so they
-    /// land around the block's corner, not inside it from the corner (that
-    /// is 26.3's ALTERNATIVE draw). The window draws its own the same way.
+    /// `BucketItem.emptyContents` where water evaporates: 26.2 calls
+    /// `level.addParticle` eight times, each puff at the block's corner plus
+    /// a uniform `nextFloat()` on each axis — inside the block, not around
+    /// it. `Level.addParticle` is a no-op on a server, so nothing is sent:
+    /// only the acting player's own client draws the puffs (26.3 sends one
+    /// `sendParticles` packet instead, which its client spreads by
+    /// gaussians around the corner). The serving game — a guest's turn, a
+    /// dispenser — draws nothing.
     pub(super) fn evaporation_smoke(&mut self, pos: [i32; 3]) {
+        if self.serving.is_some() {
+            return;
+        }
         let options = ParticleOptions::simple(ParticleType::LargeSmoke);
         let at = pos.map(f64::from);
         for _ in 0..8 {
             let r = self.particles.random();
             let p = [
-                at[0] + r.next_gaussian(),
-                at[1] + r.next_gaussian(),
-                at[2] + r.next_gaussian(),
+                at[0] + f64::from(r.next_float()),
+                at[1] + f64::from(r.next_float()),
+                at[2] + f64::from(r.next_float()),
             ];
             self.particles.add(&options, p, [0.0; 3]);
         }
-        self.lan_send_particles(QueuedParticle {
-            dimension: self.dim.id(),
-            options,
-            state: None,
-            at,
-            spread: [1.0; 3],
-            speed: 0.0,
-            count: 8,
-        });
     }
 
     /// The particles guests' turns put off.

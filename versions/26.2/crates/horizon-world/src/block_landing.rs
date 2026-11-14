@@ -310,13 +310,11 @@ impl BlockLandingRegistry {
         {
             return Ok(());
         }
-        let allowed = if entity == LandingEntityKind::Player {
-            !world
-                .under_spawn_protection(position)
-                .map_err(LandingError::World)?
-        } else {
-            entity.living() && world.mob_griefing().map_err(LandingError::World)?
-        };
+        // 26.2's `TurtleEggBlock.canDestroyEgg`: players always destroy; other
+        // living entities only with mobGriefing. 26.3 added a spawn-protection
+        // check for players here (`canDestroyEgg(level, pos, entity)`).
+        let allowed = entity == LandingEntityKind::Player
+            || entity.living() && world.mob_griefing().map_err(LandingError::World)?;
         if allowed && world.random_int(randomness).map_err(LandingError::World)? == 0 {
             let sound = world.known_sound(LandingSound::TurtleEggBreak);
             let pitch = 0.9f32 + world.random_float().map_err(LandingError::World)? * 0.2f32;
@@ -439,13 +437,11 @@ impl BlockLandingRegistry {
                         < distance - 0.5
                     && entity.living()
                 {
-                    let allowed = if entity == LandingEntityKind::Player {
-                        !world
-                            .under_spawn_protection(position)
-                            .map_err(LandingError::World)?
-                    } else {
-                        world.mob_griefing().map_err(LandingError::World)?
-                    };
+                    // 26.2's `FarmlandBlock.fallOn`: players always trample;
+                    // other living entities only with mobGriefing. 26.3 checks
+                    // spawn protection for players instead.
+                    let allowed = entity == LandingEntityKind::Player
+                        || world.mob_griefing().map_err(LandingError::World)?;
                     if allowed {
                         let (width, height) = world.entity_dimensions();
                         if width * width * height > 0.512f32

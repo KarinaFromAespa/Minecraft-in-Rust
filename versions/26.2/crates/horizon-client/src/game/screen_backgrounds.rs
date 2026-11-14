@@ -84,12 +84,13 @@ impl Game<'_> {
             Reason::EndPortal => batch.fill(atlas, 0.0, 0.0, w, h, rgba(20, 20, 20, 255)),
         }
     }
-    /// `GameRenderer.update`'s `requestedPostEffects`: `end_of_frame` (a resource
-    /// pack's own chain), then the spectated entity's shader when it is
-    /// active (`GameRenderer` renders it only if `postEffectId != null
-    /// && effectActive`). Only the world is drawn through them. (26.3 added
-    /// the server's `LocalPlayer.postEffects` list between them; 26.2 has no
-    /// such list.)
+    /// The post effects `GameRenderer.render` applies after the entity
+    /// outline (`postEffectId != null && effectActive`): `end_of_frame` (a
+    /// resource pack's own chain), then the spectated entity's shader when
+    /// it is active. Only the world is drawn through them. (26.3 added the
+    /// server's `LocalPlayer.postEffects` list between them, built in its
+    /// `GameRenderer.update`; 26.2 has no such list, and its `update` only
+    /// moves the camera.)
     pub(super) fn requested_post_effects(&self) -> Vec<String> {
         if self.title.is_some() || self.player.is_none() {
             return Vec::new();

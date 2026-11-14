@@ -9593,8 +9593,10 @@ impl Renderer {
             );
             entities = &self.pack_entity_rest;
         }
-        // GameRenderer.useImprovedTransparency. A shader pack keeps its own
-        // path.
+        // `GameRenderState.useShaderTransparency`: the improved-transparency
+        // option, off for the panorama (26.3 renamed it
+        // `GameRenderer.useImprovedTransparency` and gates on the wireframe
+        // instead). A shader pack keeps its own path.
         let oit_on = self.improved_transparency
             && !frame.title
             && !warp_on

@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 67/100 items, 38 changed, 29 no-change, 3192 minutes on changed
+**rate sample: 68/100 items, 39 changed, 29 no-change, 3432 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -576,6 +576,7 @@ log; it stays in agreement with the tally line above.
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
+| 86 | changed | 240 (est.) | Farmland trample + turtle-egg destroy drop 26.3's spawn-protection gate (26.2 players always trample/destroy); bucket evaporate smoke to 26.2 addParticle x8 uniform in-cube, acting client only, LAN send removed; spectator block outline over menu blocks; spinning/OIT/post-effect citations to the 26.2 locations. cargo check clean; lan_particles 5/5; block-landing harness block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server) |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -686,6 +687,11 @@ Restored the two names and corrected the comment. Local
 (the two remaining failures are the pre-existing sandbox-network pair);
 the recipe test passes. status.json `protocol_tests` updated.
 
+## CI profile — port-verify v6.6, run 43609469257 (2026-11-14)
+
+- Dispatched 2026-11-14T15:18:31Z on `1a8bd427` (285/410 tree), in progress
+  at dispatch. Profile to be recorded here when it completes.
+
 ## Item 8 closed (2026-11-14) — remote.rs / first person
 
 Rank 2 now 284/410. The item's real changes, all verified against the
@@ -772,3 +778,60 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   swing, `startUsingItem` (no 26.3 equipment update),
   `onEquippedItemBroken` (effects stop via per-tick
   `collectEquipmentChanges`), Team join on load, `teleport_rider`.
+
+## Item 86 closed (2026-11-14) — game.rs / Farmland, TurtleEgg, Bucket, GameRenderer
+
+- **Farmland trample used 26.3's spawn-protection gate**: 26.2's
+  `FarmlandBlock.fallOn` tramples for every player (mobGriefing only
+  gates mobs). Fixed `Rule::Farmland` to
+  `allowed = entity == Player || mob_griefing()`.
+- **Turtle-egg destroy used the same 26.3 gate**: 26.2's
+  `canDestroyEgg(level, entity)` lets every player destroy (Turtle/Bat
+  never, non-living never, other living only with mobGriefing). Fixed
+  `destroy_egg` the same way.
+- **Bucket evaporate smoke was the 26.3 form**: 26.2 calls
+  `level.addParticle` eight times at the block corner plus a uniform
+  `nextFloat()` on each axis, and `Level.addParticle` is a no-op on a
+  server (no `ServerLevel` override in the 26.2 jar), so nothing is
+  sent. Fixed `evaporation_smoke` to draw 8 uniform in-cube puffs on the
+  acting client only (the serving game returns early: a guest's turn and
+  a dispenser draw nothing) and removed the LAN `sendParticles` packet.
+  The `spread()` helper + test (26.2's `handleParticleEvent` gaussian
+  spread of a received packet) is a different mechanism and stays.
+- **Spectator block outline**: the Rust never showed one; 26.2's
+  `shouldRenderBlockOutline` shows it over a block with a menu provider
+  (`getMenuProvider != null`). `can_build` now includes spectators and
+  the pick filter is mode-aware (spectator -> `block_opens_menu`).
+- Citation fixes: the spinning-effect state lives in `GameRenderer`
+  (26.3 moved it to `LocalPlayer`); the OIT gate is
+  `GameRenderState.useShaderTransparency()` (26.3 renamed it
+  `useImprovedTransparency`); the post-effect list is what
+  `GameRenderer.render` applies after `doEntityOutline` (26.2's `update`
+  is camera-only; no `LocalPlayer.postEffects` list).
+- Verified no-change: bobHurt/bobView (rename only), checkEntityPostEffect
+  (`setPostEffect`/`clearPostEffect`), render/renderLevel/tick/update/
+  resetData (spinning in `GameRenderer.tick`, post-effect inline after
+  `doEntityOutline`), `preparePostEffects`/`render3dHud`/
+  `spectatedEntityPostEffect` (26.3-only), `Block.fallOn` (no
+  `getFallDistanceReduction` in 26.2; all 1,196 blocks export 0.0; Hay
+  0.2 / Bed 0.5 / Honey 0.2+event 54 / Slime 0.0 / PowderSnow sound-only /
+  DripstoneTip distance+2.5 x2.0 match the 26.2 overrides), `Level.setBlock`
+  4-arg bodies identical (the mdiff 48-line diff was an overload
+  mismatch), `Level.destroyBlock` (2001 unless BaseFireBlock),
+  `playerDestroy` (signature only), `playerWillDestroy` (plain 2001),
+  `spawnDestroyParticles` (2001), `withPropertiesOf` (hasProperty guard),
+  `dropFromBlockInteractLootTable` (visibility), `getEntities`/`playSound`
+  identical, `EnderDragonFight.setDragonKilled` (same podium; no leaves
+  in the End), `Gui.addInitialScreens` (platform rename),
+  `openChatAndAddText` (sole caller always passes COMMAND),
+  `FallingBlockRenderer.shouldRender` (state != cell), `CakeBlock.eat`
+  (bites<6 setBlock flags 3; food 2, saturation 2*0.1*2=0.4),
+  `LilyPadBlock.entityInside`, `RconConsoleSource` (level 4, named Rcon,
+  spawn lower corner), `BucketItem.emptyContents` placement logic.
+- Known gap (not fixed): `Gui.tick` wraps `screen.tick()` in a try/catch
+  -> CrashReport "Ticking screen"; the Rust has no equivalent screen-tick
+  crash wrapper (panics propagate; no Minecraft-style crash report).
+- Checks: `cargo check -p horizon-client -p horizon-world
+  -p horizon-client-render --all-targets` clean (only the pre-existing
+  `unused_mut` at `game/creatures.rs:1361`); `lan_particles` tests 5/5.
+  Block-landing parity harness vs the 26.2 oracle: block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server)

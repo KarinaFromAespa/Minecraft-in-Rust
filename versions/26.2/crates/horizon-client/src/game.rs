@@ -9489,11 +9489,13 @@ impl Game<'_> {
         let mut outline_after_terrain = false;
         // GameRenderer.shouldRenderBlockOutline: not with the HUD hidden (F1), and only for a
         // player who may build. Adventure players only get one with a CAN_BREAK or
-        // CAN_PLACE_ON item matching the block, and spectators with a menu block; Horizon
-        // does not open menus for spectators, so those never show it. An open
+        // CAN_PLACE_ON item matching the block, and spectators only over a block
+        // with a menu (`getMenuProvider != null`, 26.3's
+        // `showAsInteractableInSpectatorMode` also counts portals). An open
         // screen does not hide it: vanilla checks the HUD and the game mode, not the screen.
         let adventure = self.mode == horizon_client::command::args::GameMode::Adventure;
-        let can_build = self.may_build() || adventure;
+        let spectator = self.spectator();
+        let can_build = self.may_build() || adventure || spectator;
         let outline = if block_outline_drawn(
             self.ui.hide_gui,
             self.entity_targeted(),
@@ -9502,9 +9504,13 @@ impl Game<'_> {
         ) {
             self.pick()
                 .filter(|h| {
-                    self.may_build()
-                        || !self.block_action_restricted(h.pos)
-                        || self.can_place_on_in_adventure(h.pos)
+                    if spectator {
+                        self.block_opens_menu(h)
+                    } else {
+                        self.may_build()
+                            || !self.block_action_restricted(h.pos)
+                            || self.can_place_on_in_adventure(h.pos)
+                    }
                 })
                 .filter(|h| {
                     let state = self.world.block(h.pos[0], h.pos[1], h.pos[2]);

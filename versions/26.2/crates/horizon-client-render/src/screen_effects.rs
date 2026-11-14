@@ -79,7 +79,9 @@ pub struct ScreenEffects {
     /// Nausea's `MobEffectInstance.BlendState` factor and the previous tick's.
     pub nausea: f32,
     pub o_nausea: f32,
-    /// `LocalPlayer.spinningEffectTime` and `spinningEffectSpeed` (degrees).
+    /// `GameRenderer`'s spinning-effect state (degrees): the time and speed
+    /// `GameRenderer.tick` updates from the portal and Nausea intensities
+    /// (26.3 moved them to `LocalPlayer`).
     pub spinning_time: f32,
     pub spinning_speed: f32,
 }
