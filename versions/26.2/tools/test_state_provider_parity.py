@@ -163,12 +163,12 @@ def corpus(facts,tags,provider_resources=None,catalog_resources=None,fluid_tags=
             f=dict(f,positions=positions)
             yield f
             yield dict(f,query_fail=1,fail=1)
-    anchors=[{kind:v} for kind in ['absolute','above_bottom','below_top','relative_to_sea_level'] for v in [-2032,-64,0,63,2031]]
-    for minimum in anchors:
-        for maximum in anchors:
-            yield from predicate_cases({'type':'height_range','min_inclusive':minimum,'max_inclusive':maximum},wide=False)
-    for invalid in [None,1,{}, {'absolute':2032}, {'below_top':-2033}, {'absolute':0,'above_bottom':0}]:
-        yield from predicate_cases({'type':'height_range','min_inclusive':invalid,'max_inclusive':{'absolute':0}},wide=False)
+    # 26.2 has no height_range predicate (26.3-only); the Y-bound sweep below
+    # uses inside_world_bounds offsets instead, including the strict <16 bound.
+    for y in [-17,-16,-15,-1,0,1,15,16,17]:
+        yield from predicate_cases({'type':'inside_world_bounds','offset':[0,y,0]},wide=False)
+    for invalid in [None,1,{},[16,0,0],[-16,0,0],[0,0,16],[0,0,-16]]:
+        yield from predicate_cases({'type':'inside_world_bounds','offset':invalid},wide=False)
     for tag in [*sorted(tags),'missing',':','#minecraft:logs','UPPERCASE',None,False]:
         yield from predicate_cases({'type':'matching_block_tag','tag':tag},list(facts['defaults'].values()),wide=False)
     for name in facts['defaults']:
@@ -183,25 +183,27 @@ def corpus(facts,tags,provider_resources=None,catalog_resources=None,fluid_tags=
     biome_indices=list(range(len(biomes or {'minecraft:plains':{}})))
     for selected in [*sorted(biomes or {}),*['#'+name for name in sorted(biome_tags or {})],[],['plains','desert','plains'],'plains','missing','#missing',['#minecraft:is_badlands'],False,None]:
         predicate={'type':'matching_biomes','biomes':selected}
-        for condition in [predicate,{'type':'not','predicate':predicate}, {'type':'volume_match','min':[0,0,0],'max':[1,0,1],'match':predicate}]:
+        for condition in [predicate,{'type':'not','predicate':predicate}, {'type':'all_of','predicates':[predicate,inside]}]:
             for f in predicate_cases(condition,[0]*len(biome_indices),wide=False):yield dict(f,biomes=biome_indices)
     for selected in ['plains','#horizon:ordered',[]]:
         for f in predicate_cases({'type':'any_of','predicates':[{'type':'matching_biomes','biomes':selected},inside]},[0]*len(biome_indices)):
             yield dict(f,biomes=biome_indices)
     for offset in [None,[0,0,0],[1,-1,16],[17,18,-19],[2147483647,-2147483648,2147483647],[4294967297,0,0],[1.9,-1.9,0],[],[1],[1,2,3,4],False,{}]:
         predicate={'type':'unobstructed','offset':offset}
-        for condition in [predicate,{'type':'not','predicate':predicate},{'type':'volume_match','min':[-1,0,-1],'max':[1,0,1],'match':predicate}]:
+        for condition in [predicate,{'type':'not','predicate':predicate},{'type':'all_of','predicates':[predicate,inside]}]:
             for f in predicate_cases(condition):
                 yield dict(f,unobstructed=True)
                 yield dict(f,unobstructed=False)
     for offset in [[0,0,0],[16,-16,1],[-2147483648,0,-2147483648],[17,0,0],[],None]:
         yield from predicate_cases({'type':'matching_block_tag','tag':'minecraft:logs','offset':offset})
-    for minimum,maximum in [([0,0,0],[0,0,0]),([-1,-1,-1],[1,1,1]),([-16,0,0],[16,1,1]),([1,0,0],[0,0,0]),([-17,0,0],[0,0,0]),([-2147483648,0,0],[-2147483648,0,0])]:
-        for child in [true,false,inside,{'type':'height_range','min_inclusive':{'above_bottom':0},'max_inclusive':{'below_top':0}}, {'type':'matching_block_tag','tag':'minecraft:logs'}, {'type':'not','predicate':{'type':'matching_block_tag','tag':'minecraft:logs'}}]:
-            yield from predicate_cases({'type':'volume_match','min':minimum,'max':maximum,'match':child})
+    # 26.2 has no volume_match predicate (26.3-only); nested composition is
+    # covered with all_of instead, and the 26.3-only height_range child with
+    # inside_world_bounds.
+    for child in [true,false,inside,{'type':'inside_world_bounds','offset':[0,0,0]}, {'type':'matching_block_tag','tag':'minecraft:logs'}, {'type':'not','predicate':{'type':'matching_block_tag','tag':'minecraft:logs'}}]:
+        yield from predicate_cases({'type':'all_of','predicates':[child,inside]})
     for depth in [1,2,3]:
         child={'type':'not','predicate':{'type':'matching_block_tag','tag':'minecraft:logs'}}
-        for _ in range(depth):child={'type':'volume_match','min':[0,0,0],'max':[1,1,1],'match':child}
+        for _ in range(depth):child={'type':'all_of','predicates':[child]}
         yield from predicate_cases(child)
     for definition in (provider_resources or {}).values():
         if definition.get('type') == 'minecraft:rule_based':
@@ -217,7 +219,7 @@ def corpus(facts,tags,provider_resources=None,catalog_resources=None,fluid_tags=
             for f in cases(definition,[0,1],wide=True):
                 yield dict(f,fail=0,positions=positions)
                 yield dict(f,fail=1,positions=positions)
-        for condition in [{'type':'all_of','predicates':[false,{'type':kind}]},{'type':'any_of','predicates':[true,{'type':kind}]},{'type':'not','predicate':{'type':kind}},{'type':'volume_match','min':[-1,0,-1],'max':[1,0,1],'match':{'type':kind}}]:
+        for condition in [{'type':'all_of','predicates':[false,{'type':kind}]},{'type':'any_of','predicates':[true,{'type':kind}]},{'type':'not','predicate':{'type':kind}},{'type':'all_of','predicates':[{'type':kind},inside]}]:
             definition={'type':'rule_based','fallback':empty,'rules':[{'if_true':condition,'then':empty},{'if_true':{'type':kind},'then':{'id':'stone'}}]}
             for f in cases(definition,list(facts['defaults'].values()),wide=True):
                 yield f
@@ -249,7 +251,7 @@ def corpus(facts,tags,provider_resources=None,catalog_resources=None,fluid_tags=
                     yield dict(f,positions=positions,fail=0)
                     yield dict(f,positions=positions,query_fail=0)
             condition={'type':'would_survive','state':state}
-            for combined in [{'type':'all_of','predicates':[false,condition]},{'type':'any_of','predicates':[true,condition]},{'type':'not','predicate':condition},{'type':'volume_match','min':[-1,0,-1],'max':[1,0,1],'match':condition}]:
+            for combined in [{'type':'all_of','predicates':[false,condition]},{'type':'any_of','predicates':[true,condition]},{'type':'not','predicate':condition},{'type':'all_of','predicates':[condition,inside]}]:
                 definition={'type':'rule_based','rules':[{'if_true':combined,'then':empty},{'if_true':condition,'then':{'id':'stone'}}]}
                 for f in cases(definition,neighbors,wide=True):
                     yield f
@@ -393,7 +395,7 @@ def main():
         print(f'{side}: {matched:,} state-provider output lines match Rust',flush=True)
     base.ensure_sources_unchanged(sources,tested_sources)
     survival.load_checkpoint(checkpoint_path,tested_sources,environment)
-    report={'schema':1,**{key:value for key,value in environment.items() if key!='dependencies'},**checkpoint['counts'],'sources_sha256':tested_sources,'fixtures_sha256':{str(Path(name).relative_to(lab.ROOT)):digest for name,digest in checkpoint['fixtures_sha256'].items()},'rust_output_sha256':lab.digest(build/'rust.txt','sha256'),'references':references,'scope':'Actual BlockStateProvider DIRECT_CODEC/TYPED_CODEC and simple, weighted, random_block, rotated, copy_properties, randomized_int three noise-based providers and rule_based over the pinned state registry. All states and block defaults, full-state versus typed exclusive decoding, ordered holder sets/tags, duplicates, empty optional results versus world-state fallback, zero/overflow weights, query failures, every state across six fixed rotations, nested random rotations, property copying for every target state against representatives of every compatible property value, integer-property ranges/missing properties, composed transforms and subsequent random consumption. Native property equality families are checked for ambiguity; Rust validates Cartesian state tables and uses compact property strides. Both legacy/xoroshiro streams execute directly and through WorldgenRandom. Noise comparisons include every bundled provider definition, independent legacy seeding, float/double scaling, dual-noise variety selection, threshold draw order and coordinate/codec boundaries. Rule-based comparisons cover true/not/all_of/any_of/inside_world_bounds/height_range/volume_match/matching_block_tag/matching_blocks/matching_fluids/matching_biomes/unobstructed/solid/replaceable/has_sturdy_face/would_survive predicates, ordered optional results, fallbacks, nested rules and world-query failures. Every pinned block-state fluid identity, amount, falling/source flag and own-height bits are derived from descriptors and compared. Fluid-holder sets and all bundled fluid tags are tested against every state. Biome-holder membership and all bundled biome tags are compared across every pinned biome identity, including empty sets, missing names, ordered world queries and short-circuit composition. Unobstructed predicates compare null excluded entities, exact translated unit-shape bounds, ignored-but-validated offsets, true/false world results and failures. Named holder versus direct/typed decoding, nested named providers, missing names, inline ambiguity, ordered resource registration and all bundled named definitions are compared. Solidity and replacement predicates cover every block state, offset wrapping/validation, empty-child fallthrough, composed predicates and query failures using privately imported definition flags and Rust-calculated collision solidity. Has-sturdy-face predicates cover all 35,723 states through unified cached/dynamic support dispatch across six directions, native offset rules, failed state reads, block-entity query failures and ordered optional-child/boolean composition. Block entities are absent in this integration corpus; shulker animation-state shape selection is separately tested and active moving-piston shape generation is tested separately. Would-survive decodes candidate states and bounded offsets, evaluates all supported candidate states and each rule against every neighbor state, and preserves world read/entity failures and short-circuit/optional-child behavior. All pinned survival families are bound through the recorded definition inputs. Complete registry loading/reloading, full block placement behavior and full feature generation remain pending.'}
+    report={'schema':1,**{key:value for key,value in environment.items() if key!='dependencies'},**checkpoint['counts'],'sources_sha256':tested_sources,'fixtures_sha256':{str(Path(name).relative_to(lab.ROOT)):digest for name,digest in checkpoint['fixtures_sha256'].items()},'rust_output_sha256':lab.digest(build/'rust.txt','sha256'),'references':references,'scope':'Actual BlockStateProvider DIRECT_CODEC/TYPED_CODEC and simple, weighted, random_block, rotated, copy_properties, randomized_int three noise-based providers and rule_based over the pinned state registry. All states and block defaults, full-state versus typed exclusive decoding, ordered holder sets/tags, duplicates, empty optional results versus world-state fallback, zero/overflow weights, query failures, every state across six fixed rotations, nested random rotations, property copying for every target state against representatives of every compatible property value, integer-property ranges/missing properties, composed transforms and subsequent random consumption. Native property equality families are checked for ambiguity; Rust validates Cartesian state tables and uses compact property strides. Both legacy/xoroshiro streams execute directly and through WorldgenRandom. Noise comparisons include every bundled provider definition, independent legacy seeding, float/double scaling, dual-noise variety selection, threshold draw order and coordinate/codec boundaries. Rule-based comparisons cover true/not/all_of/any_of/inside_world_bounds/matching_block_tag/matching_blocks/matching_fluids/matching_biomes/unobstructed/solid/replaceable/has_sturdy_face/would_survive predicates, ordered optional results, fallbacks, nested rules and world-query failures. Every pinned block-state fluid identity, amount, falling/source flag and own-height bits are derived from descriptors and compared. Fluid-holder sets and all bundled fluid tags are tested against every state. Biome-holder membership and all bundled biome tags are compared across every pinned biome identity, including empty sets, missing names, ordered world queries and short-circuit composition. Unobstructed predicates compare null excluded entities, exact translated unit-shape bounds, ignored-but-validated offsets, true/false world results and failures. Named holder versus direct/typed decoding, nested named providers, missing names, inline ambiguity, ordered resource registration and all bundled named definitions are compared. Solidity and replacement predicates cover every block state, offset wrapping/validation, empty-child fallthrough, composed predicates and query failures using privately imported definition flags and Rust-calculated collision solidity. Has-sturdy-face predicates cover all 35,723 states through unified cached/dynamic support dispatch across six directions, native offset rules, failed state reads, block-entity query failures and ordered optional-child/boolean composition. Block entities are absent in this integration corpus; shulker animation-state shape selection is separately tested and active moving-piston shape generation is tested separately. Would-survive decodes candidate states and bounded offsets, evaluates all supported candidate states and each rule against every neighbor state, and preserves world read/entity failures and short-circuit/optional-child behavior. All pinned survival families are bound through the recorded definition inputs. Complete registry loading/reloading, full block placement behavior and full feature generation remain pending.'}
     lab.write_json(report_path,report);print(f'Scoped state-provider parity passed: {report_path}')
 
 

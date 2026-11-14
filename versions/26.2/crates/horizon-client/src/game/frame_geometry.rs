@@ -398,11 +398,19 @@ impl Game<'_> {
                     )
                 }
                 _ if spinning => ItemPose::SpinAttack,
-                // ItemInHandRenderer: a STAB swing of this hand jabs.
-                _ if self
-                    .swing
-                    .current
-                    .is_some_and(|c| c.hand == hand && c.animation.kind == 2) =>
+                // ItemInHandRenderer: a STAB swing of this hand jabs. 26.2
+                // keeps no per-swing description, so the kind is read live
+                // from the item in the hand (a kinetic weapon's attack
+                // animation, else DEFAULT's whack).
+                _ if self.swing.swinging()
+                    && self.swing.attack_hand() == hand
+                    && horizon_client::spear::Kinetic::of(&stack.item)
+                        .map_or(
+                            horizon_client::first_person::SwingAnimation::DEFAULT,
+                            |k| k.attack_animation(),
+                        )
+                        .kind
+                        == 2 =>
                 {
                     ItemPose::Stab
                 }

@@ -743,7 +743,6 @@ mod tests {
             "prismarine",
             "magma",
             "kelp",
-            "straw_bed",
         ] {
             sprites
                 .insert(&root, &format!("minecraft:block/{name}"))

@@ -10,22 +10,6 @@ use horizon_world::{
     },
 };
 
-#[test]
-fn negative_cuboid_extent_skips_empty_loops_even_with_huge_other_extents() {
-    let modifier = PlacementModifier::Cuboid {
-        xz_size: IntProvider::Constant(i32::MAX),
-        y_size: IntProvider::Constant(-1),
-        include_edges: true,
-        include_interior: true,
-    };
-    let result = modifier.modify(
-        WorldGenerationContext::new(0, 16, 8),
-        &mut LegacyRandom::new(0),
-        [0, 0, 0],
-        |_, _| -> Result<(), ()> { panic!("empty cuboid emitted") },
-    );
-    assert!(result.is_ok());
-}
 struct UnboundedColumn {
     reads: usize,
 }

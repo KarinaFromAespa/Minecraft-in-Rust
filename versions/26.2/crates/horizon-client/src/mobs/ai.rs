@@ -93,7 +93,7 @@ pub struct Ai {
     /// Swing animation progress (attackAnim) and ticks.
     pub swing_time: i32,
     pub swinging: bool,
-    /// The current swing's `SwingDescription.durationTicks`; 0 is the default 6.
+    /// The current swing's duration (`getCurrentSwingDuration`); 0 is the default 6.
     pub swing_duration: i32,
     /// Walked distance and the next footstep.
     pub steps: super::living::Steps,
@@ -123,7 +123,7 @@ impl Mob {
             6
         }
     }
-    /// `SwingState.startIfAble`: a swing past the first half of the current
+    /// `LivingEntity.swing`: a swing past the first half of the current
     /// one restarts it.
     fn start_swing(&mut self, duration: i32) -> bool {
         let half = self.swing_duration() / 2;
@@ -142,8 +142,8 @@ impl Mob {
             self.extra.swing_stab = false;
         }
     }
-    /// `LivingEntity.swing(hand, animation, false)` for a swing of `duration`
-    /// ticks (`getModifiedSwingDuration`): the arm is `hand.asArm(mainArm)`.
+    /// `LivingEntity.swing(hand)` for a swing of `duration` ticks
+    /// (`getCurrentSwingDuration`): the arm is `hand.asArm(mainArm)`.
     pub fn swing_hand(&mut self, off_hand: bool, duration: i32) {
         if self.start_swing(duration) {
             self.extra.swing_right_arm = Some(!off_hand != self.main_arm_left());
@@ -152,7 +152,7 @@ impl Mob {
     }
     /// `swing_hand` for a swing of `animation`, lengthened or shortened by
     /// this mob's haste, conduit power or mining fatigue
-    /// (`LivingEntity.getModifiedSwingDuration`).
+    /// (`LivingEntity.getCurrentSwingDuration`).
     pub fn swing_hand_modified(
         &mut self,
         off_hand: bool,

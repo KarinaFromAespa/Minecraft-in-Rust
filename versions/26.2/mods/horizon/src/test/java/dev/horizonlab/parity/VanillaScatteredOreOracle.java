@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 
 /** Invokes native block-writing features through an observable mutable world. */
@@ -33,7 +34,7 @@ public final class VanillaScatteredOreOracle {
             for(var line:Files.readAllLines(dir.resolve("inputs.txt"))) {
                 var f=JsonParser.parseString(line).getAsJsonObject();long seed=f.get("seed").getAsLong();
                 RandomSource random=f.get("legacy").getAsBoolean()?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
-                var decoded=Feature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(f.get("definition").getAsString())).result();
+                var decoded=ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(f.get("definition").getAsString())).result();
                 if(decoded.isEmpty())out.println("decode error");else {
                     out.println("decode ok");int[] calls={0};int fail=f.get("fail").getAsInt(),reject=f.get("reject").getAsInt();
                     var states=new TreeMap<BlockPos,BlockState>(Comparator.<BlockPos>comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));

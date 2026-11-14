@@ -17,7 +17,7 @@ except ImportError:
 def definitions():
     placed=lambda kind,mods=[]:{'feature':{'type':kind},'placement':mods}
     noop=placed('no_op');false=placed('no_op',[{'type':'count','count':0}]);island=placed('end_island')
-    platform=placed('end_platform',[{'type':'offset','x':1,'y':2,'z':-1}])
+    platform=placed('end_platform',[{'type':'random_offset','xz_spread':1,'y_spread':2}])
     yield {'type':'no_op'}
     for kind in ['sequence','overlay','simple_random_selector']:
         for features in [[],[noop],[false],[island],[false,island],[island,false],[false,false],[noop,false,island,platform],[noop,island,platform],None,noop]:
@@ -99,7 +99,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "fixtures":len(fixtures),"basic_features":3,"composition_features":7,"definitions":len(list(definitions())),"block_states":5,"composed_fixtures":sum("placement" in f for f in fixtures),"requested_placements":sum(f["repeats"] for f in fixtures),
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Actual Feature.DIRECT_CODEC and native no-op, sequence, overlay, random-boolean-selector, simple-random-selector and chance-based random-selector and weighted-random-selector features compose three native block-writing features through inline PlacedFeature holders and actual nested FeaturePlacer calls. Ordered writes, reads, flags, accumulated states, boolean results, rejected writes, partial failures, shared randomness and top-level modifier chains are compared. Overlay exhaustive ordered execution with accumulated success, sequence short-circuiting, selector return propagation and empty/all-zero weighted choices without random draws are included. Named registry holders/tags, encoders, full feature registries and complete generated worlds remain pending. Rust bounds decode depth/nodes/lists, nested execution depth and feature/placed-feature visits; nested modifier-chain execution shares the feature work budget."}
+            "scope":"Actual ConfiguredFeature.DIRECT_CODEC and native no-op, sequence, overlay, random-boolean-selector, simple-random-selector and chance-based random-selector and weighted-random-selector features compose three native block-writing features through inline PlacedFeature holders and actual nested PlacedFeature.place calls. Ordered writes, reads, flags, accumulated states, boolean results, rejected writes, partial failures, shared randomness and top-level modifier chains are compared. Overlay exhaustive ordered execution with accumulated success, sequence short-circuiting, selector return propagation and empty/all-zero weighted choices without random draws are included. Named registry holders/tags, encoders, full feature registries and complete generated worlds remain pending. Rust bounds decode depth/nodes/lists, nested execution depth and feature/placed-feature visits; nested modifier-chain execution shares the feature work budget."}
 
 
     lab.write_json(report_path,report);print(f"Scoped feature-graph parity passed: {report_path}")

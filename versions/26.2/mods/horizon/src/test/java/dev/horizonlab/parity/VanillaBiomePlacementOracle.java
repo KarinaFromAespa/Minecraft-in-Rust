@@ -14,7 +14,10 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.*;
 
 /** Native biome-filter queries and per-invocation placed-feature context. */
@@ -36,19 +39,20 @@ public final class VanillaBiomePlacementOracle {
                 var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));
                 var generator=((PlacementContext)contextMethod.invoke(null,bounds)).generator();
                 var biomes=List.of(Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:a"))),Holder.Reference.createStandAlone(new HolderOwner<Biome>(){},ResourceKey.create(Registries.BIOME,Identifier.parse("horizon:b"))));
-                var leaf=new Feature(){
-                    public MapCodec<? extends Feature> codec(){return MapCodec.unit(this);}
-                    public boolean place(WorldGenLevel world,ChunkGenerator gen,RandomSource rng,BlockPos p){
+                var leaf=new Feature<NoneFeatureConfiguration>(NoneFeatureConfiguration.CODEC){
+                    public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context){
+                        WorldGenLevel world=context.level();ChunkGenerator gen=context.chunkGenerator();RandomSource rng=context.random();BlockPos p=context.origin();
                         out.println("feature "+p.getX()+" "+p.getY()+" "+p.getZ());
                         if(f.get("draw").getAsBoolean())out.println("draw "+rng.nextLong());
                         if(calls[0]++==featureFail)throw new Stop();
-                        if(f.get("nested").getAsBoolean())return new FeaturePlacer(world,gen).place(new PlacedFeature(Holder.direct(this),List.of(BiomeFilter.biome())),rng,p);
+                        if(f.get("nested").getAsBoolean())return new PlacedFeature(Holder.direct(new ConfiguredFeature<>(this,NoneFeatureConfiguration.INSTANCE)),List.of(BiomeFilter.biome())).place(world,gen,rng,p);
                         return f.get("return_mode").getAsInt()==0||(f.get("return_mode").getAsInt()==2&&Math.floorMod(p.getX()+p.getY()+p.getZ(),2)==0);
                     }
                 };
-                var root=new PlacedFeature(Holder.direct(leaf),modifiers);
+                var leafConfigured=new ConfiguredFeature<>(leaf,NoneFeatureConfiguration.INSTANCE);
+                var root=new PlacedFeature(Holder.direct(leafConfigured),modifiers);
                 var copy=new PlacedFeature(root.feature(),root.placement());
-                var other=new PlacedFeature(Holder.direct(new Feature(){public MapCodec<? extends Feature> codec(){return MapCodec.unit(this);}public boolean place(WorldGenLevel w,ChunkGenerator g,RandomSource r,BlockPos p){return true;}}),modifiers);
+                var other=new PlacedFeature(Holder.direct(new ConfiguredFeature<>(new Feature<NoneFeatureConfiguration>(NoneFeatureConfiguration.CODEC){public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context){return true;}},NoneFeatureConfiguration.INSTANCE)),modifiers);
                 var settings=new ArrayList<BiomeGenerationSettings>();
                 for(var value:f.getAsJsonArray("membership")) {
                     int mode=value.getAsInt();var values=mode==0?List.<Holder<PlacedFeature>>of():List.of(Holder.direct(mode==1?root:mode==2?copy:other));
@@ -64,12 +68,12 @@ public final class VanillaBiomePlacementOracle {
                 });
                 var p=f.getAsJsonArray("origin");var origin=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());
                 boolean top=f.get("top").getAsBoolean(),direct=f.get("direct").getAsBoolean();
-                var context=new PlacementContext(world,generator,top?Optional.of(root):Optional.empty());var placer=new FeaturePlacer(world,generator);
+                var context=new PlacementContext(world,generator,top?Optional.of(root):Optional.empty());
                 for(int repeat=0;repeat<3;repeat++) {
                     queries[0]=0;calls[0]=0;
                     try {
-                        if(direct){final RandomSource rng=random;modifiers.get(0).modify(context,random,origin,q->leaf.place(world,generator,rng,q));out.println("place true");}
-                        else out.println("place "+(top?placer.placeWithBiomeCheck(root,random,origin):placer.place(root,random,origin)));
+                        if(direct){final RandomSource rng=random;modifiers.get(0).getPositions(context,random,origin).forEach(q->leaf.place(NoneFeatureConfiguration.INSTANCE,world,generator,rng,q));out.println("place true");}
+                        else out.println("place "+(top?root.placeWithBiomeCheck(world,generator,random,origin):root.place(world,generator,random,origin)));
                     } catch(Stop|IllegalStateException|IndexOutOfBoundsException error){out.println("place error");}
                     out.println("next "+random.nextLong());
                 }

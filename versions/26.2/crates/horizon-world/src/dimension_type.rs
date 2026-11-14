@@ -54,7 +54,6 @@ pub struct BedRule {
     pub can_sleep: BedRuleTest,
     pub can_set_spawn: BedRuleTest,
     pub destroy_on_use: bool,
-    pub destroy_on_leave: bool,
 }
 
 impl BedRule {
@@ -62,19 +61,11 @@ impl BedRule {
         can_sleep: BedRuleTest::WhenDark,
         can_set_spawn: BedRuleTest::Always,
         destroy_on_use: false,
-        destroy_on_leave: false,
     };
     pub const DESTROY_ON_USE: Self = Self {
         can_sleep: BedRuleTest::Never,
         can_set_spawn: BedRuleTest::Never,
         destroy_on_use: true,
-        destroy_on_leave: false,
-    };
-    pub const DESTROY_ON_LEAVE: Self = Self {
-        can_sleep: BedRuleTest::WhenDark,
-        can_set_spawn: BedRuleTest::Never,
-        destroy_on_use: false,
-        destroy_on_leave: true,
     };
 
     fn from_json(v: &Value) -> Result<Self, String> {
@@ -85,12 +76,12 @@ impl BedRule {
             can_sleep: rule("can_sleep")?,
             can_set_spawn: rule("can_set_spawn")?,
             // 26.2's BedRule codec names this field `explodes`; 26.3
-            // renamed it `destroy_on_use` and added `destroy_on_leave`.
+            // renamed it `destroy_on_use`. 26.3's second boolean,
+            // `destroy_on_leave`, does not exist in 26.2.
             destroy_on_use: v["destroy_on_use"]
                 .as_bool()
                 .or_else(|| v["explodes"].as_bool())
                 .unwrap_or(false),
-            destroy_on_leave: v["destroy_on_leave"].as_bool().unwrap_or(false),
         })
     }
 }
@@ -120,7 +111,6 @@ pub struct DimensionFacts {
     pub can_start_raid: bool,
     pub sky_light_level: f32,
     pub bed_rule: BedRule,
-    pub straw_bed_rule: BedRule,
 }
 
 const VANILLA_TYPES: [&str; 4] = [
@@ -167,7 +157,6 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         can_start_raid: true,
         sky_light_level: 15.0,
         bed_rule: BedRule::CAN_SLEEP_WHEN_DARK,
-        straw_bed_rule: BedRule::DESTROY_ON_LEAVE,
     };
     let overworld_type = overworld("minecraft:overworld", false);
     let caves = overworld("minecraft:overworld_caves", true);
@@ -199,7 +188,6 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         can_start_raid: false,
         sky_light_level: 4.0,
         bed_rule: BedRule::DESTROY_ON_USE,
-        straw_bed_rule: BedRule::DESTROY_ON_USE,
         ..overworld_type.clone()
     };
     let end = DimensionFacts {
@@ -221,7 +209,6 @@ static VANILLA: LazyLock<[DimensionFacts; 4]> = LazyLock::new(|| {
         timelines: vec!["minecraft:villager_schedule".to_owned()],
         nether_portal_spawns_piglin: false,
         bed_rule: BedRule::DESTROY_ON_USE,
-        straw_bed_rule: BedRule::DESTROY_ON_USE,
         ..overworld_type.clone()
     };
     [overworld_type, caves, nether, end]
@@ -324,7 +311,6 @@ impl DimensionFacts {
             can_start_raid: bool_attr("can_start_raid", true),
             sky_light_level: attribute("sky_light_level").as_f64().unwrap_or(15.0) as f32,
             bed_rule: bed("bed_rule", BedRule::CAN_SLEEP_WHEN_DARK)?,
-            straw_bed_rule: bed("straw_bed_rule", BedRule::DESTROY_ON_LEAVE)?,
         })
     }
 
@@ -444,7 +430,6 @@ mod tests {
         )
         .unwrap();
         assert!(explodes.destroy_on_use);
-        assert!(!explodes.destroy_on_leave);
         let destroy = BedRule::from_json(
             &serde_json::json!({"can_sleep": "never", "can_set_spawn": "never", "destroy_on_use": true}),
         )

@@ -1,7 +1,7 @@
 {
  "behaviour": {
   "closed": 7,
-  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 246/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 238/357/361/362 closed 2026-11-14 (density decoder arms, material-rule ore_vein arm removed; noise stack + clay bands verified no-change).",
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 258/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 182/191/199/208/228/230/232/235/240/241/242/276 closed 2026-11-14 (straw beds + SwingState + placement-modifier rework to 26.2; offsetCodec strict bound; height_range/volume_match predicates removed).",
   "total": 651
  },
  "harness": {

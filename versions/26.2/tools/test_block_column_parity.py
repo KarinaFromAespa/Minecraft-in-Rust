@@ -49,7 +49,7 @@ def corpus(facts, placement):
         yield case(feature([provider],allowed={'type':'not','predicate':{'type':'true'}}))
     for tip in [False,True]:
         column=feature(tip=tip,allowed={'type':'matching_blocks','blocks':'air'})
-        placed={'feature':column,'placement':[{'type':'count','count':2},{'type':'offset','x':1,'y':0,'z':-1}]}
+        placed={'feature':column,'placement':[{'type':'count','count':2},{'type':'random_offset','xz_spread':1,'y_spread':0}]}
         for legacy,seed,fail,reject in itertools.product([False,True],[0,-1],[-1,0,3,8],[0,1,3]):
             yield case(placed,mode='placed',legacy=legacy,seed=seed,fail=fail,reject=reject)
             yield case({'type':'sequence','features':[placed,{'feature':'horizon:moss','placement':[]}]},legacy=legacy,seed=seed,fail=fail,reject=reject)

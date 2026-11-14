@@ -387,7 +387,7 @@ impl Game<'_> {
         // swingAndResetAttackStrength (ServerPlayer): a swing that starts
         // resets the attack strength.
         let swings = self.swings_started;
-        self.swing_hand(Hand::Main, kinetic.attack_animation());
+        self.swing_hand(Hand::Main);
         if self.swings_started != swings {
             self.reset_attack_strength();
         }

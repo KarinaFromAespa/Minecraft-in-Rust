@@ -191,15 +191,13 @@ impl Game<'_> {
         self.request_remote_mining_stop();
         self.mining = None;
     }
-    /// `LivingEntity.swing` with `getModifiedSwingDuration`.
-    pub(super) fn swing_hand(&mut self, hand: Hand, animation: SwingAnimation) {
-        let effects = &self.potions.effects;
-        let dig_speed = effects
-            .amplifier("haste")
-            .max(effects.amplifier("conduit_power"));
-        let fatigue = effects.amplifier("mining_fatigue");
-        let duration = swing_duration(animation, dig_speed, fatigue);
-        if self.swing.start_if_able(hand, animation, duration) {
+    /// `LivingEntity.swing` with `getCurrentSwingDuration`: the duration
+    /// comes from the item in the swinging arm (a kinetic weapon's attack
+    /// animation, else DEFAULT), shortened by dig speed or lengthened by
+    /// mining fatigue.
+    pub(super) fn swing_hand(&mut self, hand: Hand) {
+        let duration = self.current_swing_duration();
+        if self.swing.start_if_able(hand, duration) {
             self.swings_started += 1;
             if let Some(r) = self.remote.as_ref()
                 && r.session.is_recording()
@@ -214,9 +212,38 @@ impl Game<'_> {
             }
         }
     }
+    /// `LivingEntity.getCurrentSwingDuration`: the swing animation of the
+    /// item in the swinging arm — a kinetic weapon's attack animation for
+    /// the main hand, DEFAULT otherwise (the off hand never holds a
+    /// kinetic weapon here) — adjusted by the dig-speed and fatigue
+    /// effects. Read live on every tick, as vanilla reads it. In a
+    /// guest's turn the inventory is not swapped in, so the main hand's
+    /// item is `attack_item` (refreshed from the guest's inventory each
+    /// tick); the effects are swapped in, so they are the guest's.
+    pub(super) fn current_swing_duration(&self) -> i32 {
+        let main_item = if self.lan_acting.is_some() {
+            self.attack_item.as_deref()
+        } else {
+            self.held().map(|s| &*s.item)
+        };
+        let animation = match self.swing.attack_hand() {
+            Hand::Main => main_item
+                .and_then(horizon_client::spear::Kinetic::of)
+                .map_or(SwingAnimation::DEFAULT, |k| k.attack_animation()),
+            Hand::Off => SwingAnimation::DEFAULT,
+        };
+        let effects = &self.potions.effects;
+        swing_duration(
+            animation,
+            effects
+                .amplifier("haste")
+                .max(effects.amplifier("conduit_power")),
+            effects.amplifier("mining_fatigue"),
+        )
+    }
     /// `swing(hand)` for the hand that acts, with the default animation.
     pub(super) fn swing_arm(&mut self) {
-        self.swing_hand(self.hand, SwingAnimation::DEFAULT);
+        self.swing_hand(self.hand);
     }
     /// `swing_arm` for a use whose result is `SwingSource.PREDICTED`: the
     /// player's client swings by itself, so a server keeps it to the others.
@@ -532,7 +559,7 @@ impl Game<'_> {
         if self.player.is_some() {
             self.sway.tick_wrapped(self.pitch, self.yaw);
         }
-        self.swing.tick();
+        self.swing.tick(self.current_swing_duration());
         let main = self.inventory[self.selected].clone();
         // Player.tick: a different item resets the attack strength; any change
         // of the stack (`!ItemStack.matches`, e.g. another Efficiency level on
@@ -889,14 +916,7 @@ impl HandWorld for GameHands<'_, '_> {
     fn piercing_weapon(&mut self) -> bool {
         self.attack_kinetic().is_some()
     }
-    fn attack_animation(&mut self) -> SwingAnimation {
-        self.attack_kinetic()
-            .map_or(SwingAnimation::DEFAULT, |k| k.attack_animation())
-    }
-    fn interact_animation(&mut self, _: Hand) -> SwingAnimation {
-        SwingAnimation::DEFAULT
-    }
-    fn piercing_attack(&mut self, _: SwingAnimation) {
+    fn piercing_attack(&mut self) {
         // The server's part (`PiercingWeapon.attack`), then the client's:
         // the sound `MultiPlayerGameMode.piercingAttack` plays.
         if let Some(sound) = self.game.jab() {
@@ -946,8 +966,8 @@ impl HandWorld for GameHands<'_, '_> {
         self.game.main_hand_key()
     }
     fn destroy_stage(&mut self, _: [i32; 3], _: Option<i32>) {}
-    fn swing(&mut self, hand: Hand, animation: SwingAnimation) {
-        self.game.swing_hand(hand, animation);
+    fn swing(&mut self, hand: Hand) {
+        self.game.swing_hand(hand);
     }
     fn reset_attack_strength(&mut self) {
         self.game.reset_attack_strength();

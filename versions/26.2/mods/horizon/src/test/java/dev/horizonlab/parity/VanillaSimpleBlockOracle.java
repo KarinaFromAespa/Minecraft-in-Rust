@@ -134,10 +134,10 @@ public final class VanillaSimpleBlockOracle {
   }
   VanillaHeightmapOracle.bindTags(JsonParser.parseString(Files.readString(dir.resolve("tags.json"))).getAsJsonObject());
   var bind=VanillaBlockSurvivalOracle.class.getDeclaredMethod("bindFluidTags",JsonObject.class);bind.setAccessible(true);bind.invoke(null,JsonParser.parseString(Files.readString(dir.resolve("fluid-tags.json"))).getAsJsonObject());
-  var features=new MappedRegistry<Feature<?>>((ResourceKey<? extends Registry<Feature<?>>>)(ResourceKey<?>)Registries.FEATURE,com.mojang.serialization.Lifecycle.stable());
+  var features=new MappedRegistry<ConfiguredFeature<?,?>>((ResourceKey<? extends Registry<ConfiguredFeature<?,?>>>)(ResourceKey<?>)Registries.CONFIGURED_FEATURE,com.mojang.serialization.Lifecycle.stable());
   var placed=new MappedRegistry<PlacedFeature>(Registries.PLACED_FEATURE,com.mojang.serialization.Lifecycle.stable());
   var ops=RegistryOps.create(JsonOps.INSTANCE,new RegistryOps.RegistryInfoLookup(){public <T> Optional<RegistryOps.RegistryInfo<T>> lookup(ResourceKey<? extends Registry<? extends T>> key){
-   if(key.equals(Registries.FEATURE))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(features));
+   if(key.equals(Registries.CONFIGURED_FEATURE))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(features));
    if(key.equals(Registries.PLACED_FEATURE))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(placed));
    if(key.equals(Registries.FLUID))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(BuiltInRegistries.FLUID));
    return key.equals(Registries.BLOCK)?(Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(BuiltInRegistries.BLOCK)):Optional.empty();
@@ -147,7 +147,7 @@ public final class VanillaSimpleBlockOracle {
    BlockStateProvider.CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
   }
   var bundle=JsonParser.parseString(Files.readString(dir.resolve("feature-catalog.json"))).getAsJsonObject();
-  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.FEATURE,Identifier.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow().feature(),RegistrationInfo.BUILT_IN);
+  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.CONFIGURED_FEATURE,Identifier.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   features.freeze();
   for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   placed.freeze();

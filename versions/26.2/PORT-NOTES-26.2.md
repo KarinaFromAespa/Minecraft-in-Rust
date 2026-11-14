@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 28/100 items, 16 changed, 12 no-change, 277 minutes on changed
+**rate sample: 40/100 items, 20 changed, 20 no-change, 657 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -537,6 +537,34 @@ log; it stays in agreement with the tally line above.
 | 357 | no-change | — | Rust Noise trait / NoiseStack is Horizon's own engine; Interval mentions are comments on float edge-cases; range semantics belong to item 127 |
 | 361 | changed | 20 (est.) | minecraft:ore_vein decoder arm removed (26.2 MATERIAL_RULE has only bandlands/block/sequence/condition); Definition::Ore + roots plumbing removed; MaterialRule::OreVein stays for the generator's 26.2 vein application |
 | 362 | no-change | — | ClayBands matches 26.2 SurfaceSystem.generateBands/makeBands exactly (verified line by line); comment reworded to name SurfaceSystem |
+| 182 | no-change | — | RandomState$2 is a 26.3-only anonymous DensitySamplerSet impl; Rust SeededContext is Horizon's own holder |
+| 191 | no-change | — | ItemContainerContents$Mutable, TooltipProvider$Getter 26.3-only; Rust mentions are comments |
+| 199 | no-change | — | DynamicGpuData + inners, GameRenderer$1, LevelRenderer$ChunkDrawGroup absent from 26.2 client jar; no Rust references |
+| 208 | no-change | — | SignBlockEntity$1, SignText$Mutable 26.3-only; no Rust references |
+| 228 | changed | 20 (est.) | minecraft:gradient decoder arm removed (26.2 bootstrap registers only y_clamped_gradient); 22 generator classes 26.3-only |
+| 230 | no-change | — | VanillaPackResources$1 26.3-only; only Rust mention is a comment |
+| 232 | no-change | — | material/condition/* is a pure rename of SurfaceRules conditions; both registries register the identical 11 types |
+| 235 | no-change | — | BrewingFuel/CookingFuel/ResolvableFloat/ResolvableInt 26.3-only; Rust component table verified against 26.2 DataComponents order |
+| 240 | changed | 90 (est.) | Straw beds removed (26.3-only): flat 0.6875 setPosToBed, no sleep-height check, no destroy-on-leave, no straw_bed stat/sprite/POI |
+| 241 | changed | 90 (est.) | SwingState removed: 26.2 plain-field swing model (swingTime/attackAnim, live getCurrentSwingDuration); oracle reworked |
+| 242 | changed | 180 (est.) | Placement modifiers to 26.2: random_offset replaces offset/cuboid/random_chance/randomly_selected; FeaturePlacer→PlacedFeature.place; 13 oracles + 11 drivers reworked; offsetCodec strict-<16 bound; height_range/volume_match predicates removed (26.3-only). Placement harness 1,674→882/18,780 mismatches |
+| 276 | no-change | — | BrewingInput 26.3-only; zero Rust references |
+
+## Placement harness known gaps (2026-11-14, local run)
+
+`tools/test_placement_parity.py` against the 26.2 jar: 882/18,780 fixtures
+mismatch (down from 1,674 after the offsetCodec fix in item 242). The
+remaining two groups are pre-existing and out of item 242's scope:
+
+- noise_based_count (792): counts diverge at extreme ratios — vanilla 26.2's
+  `Biome.BIOME_INFO_NOISE` (old Perlin-based NormalNoise) vs the Rust engine
+  mirroring 26.3's noise system. Belongs to item 127 (parked: noise-oracle
+  rewrite).
+- count_on_every_layer (90): identical positions and queries, different
+  interleave order — vanilla 26.2's builder-based `getPositions` (full column
+  scan before any position is consumed) vs the Rust stack-loop placer emitting
+  a position as soon as its column scan completes. Needs a pull-order
+  investigation, not a decoder fix.
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 

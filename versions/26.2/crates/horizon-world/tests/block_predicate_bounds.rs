@@ -71,22 +71,3 @@ fn predicate_trees_share_decode_and_evaluation_budgets() {
         Err(PlacementQueryError::WorkLimit)
     ));
 }
-
-#[test]
-fn oversized_volume_keeps_early_exit_and_bounds_total_work() {
-    let mut world = UnboundedWorld(0);
-    let volume = |predicate| BlockPredicate::Volume {
-        min: [i32::MIN; 3],
-        max: [i32::MAX; 3],
-        predicate: Box::new(predicate),
-    };
-    assert!(
-        !volume(BlockPredicate::Not(Box::new(BlockPredicate::True)))
-            .test(&mut world, [0; 3])
-            .unwrap()
-    );
-    assert!(matches!(
-        volume(BlockPredicate::True).test(&mut world, [0; 3]),
-        Err(PlacementQueryError::WorkLimit)
-    ));
-}

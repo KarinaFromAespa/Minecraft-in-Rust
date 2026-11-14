@@ -16,7 +16,7 @@ use horizon_client::{
     command::vanilla,
     containers::BlockEntity,
     entities::Experience,
-    first_person::{Hand, SwingAnimation},
+    first_person::{Hand, SwingAnimation, swing_duration},
     items::ItemStack,
     lan::{
         guest::SPECTATOR,
@@ -2480,7 +2480,7 @@ impl Game<'_> {
                     (g.uuid, g.name.clone())
                 };
                 self.as_guest(host, conn, |g| {
-                    g.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+                    g.swing_hand(Hand::Main);
                     g.reset_attack_strength();
                 });
                 self.native_player_attack_cooldown_reset(player, &name);
@@ -6199,9 +6199,9 @@ impl Game<'_> {
         let (Some(g), Some(play)) = (host.hub.guest(conn), host.play.get(&conn)) else {
             return;
         };
-        if let Some(c) = play.swing.current {
+        if play.swing.swinging() {
             host.hub
-                .send_to(conn, &swing_packet(g.entity_id, c.hand, c.animation));
+                .send_to(conn, &swing_packet(g.entity_id, play.swing.attack_hand()));
         }
     }
 
@@ -6214,13 +6214,31 @@ impl Game<'_> {
                 continue;
             };
             let (id, at, here) = (g.entity_id, g.position, host.hub.here(g));
+            // The guest's own effects (kept on the hub guest between turns),
+            // read before the broadcast below borrows the hub mutably.
+            let dig_speed = g
+                .effects
+                .amplifier("haste")
+                .max(g.effects.amplifier("conduit_power"));
+            let fatigue = g.effects.amplifier("mining_fatigue");
             let play = host.play.get_mut(&conn).expect("play");
             let swung = std::mem::take(&mut play.swings) > 0;
-            if let (true, true, Some(c)) = (swung, here, play.swing.current) {
-                let packet = swing_packet(id, c.hand, c.animation);
+            if swung && here && play.swing.swinging() {
+                let packet = swing_packet(id, play.swing.attack_hand());
                 host.hub.broadcast_near(at, 128.0, &packet, Some(conn));
             }
-            play.swing.tick();
+            // `getCurrentSwingDuration` for the guest: the main hand's item
+            // (`attack_item`, refreshed from their inventory each tick) for
+            // a main-hand swing, DEFAULT for the off hand.
+            let animation = match play.swing.attack_hand() {
+                Hand::Main => play
+                    .attack_item
+                    .as_deref()
+                    .and_then(horizon_client::spear::Kinetic::of)
+                    .map_or(SwingAnimation::DEFAULT, |k| k.attack_animation()),
+                Hand::Off => SwingAnimation::DEFAULT,
+            };
+            play.swing.tick(swing_duration(animation, dig_speed, fatigue));
         }
     }
 }
@@ -6235,7 +6253,7 @@ fn captured_block_break(sound: &horizon_client::audio::CapturedSound, blocks: &[
 /// ClientboundAnimatePacket: the swing as an animate action (0 main hand,
 /// 3 off hand). The animation itself stays with the swinger's client: 26.2's
 /// wire has no swing kind or duration to send.
-fn swing_packet(id: i32, hand: Hand, _animation: SwingAnimation) -> C {
+fn swing_packet(id: i32, hand: Hand) -> C {
     C::Animate(play::Animate {
         id,
         action: if hand == Hand::Off { 3 } else { 0 },

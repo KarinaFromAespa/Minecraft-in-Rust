@@ -24,7 +24,7 @@ def catalog():
         'horizon:a_noop':{'feature':'horizon:no_op','placement':[]},
         'horizon:b_false':{'feature':'horizon:no_op','placement':[{'type':'count','count':0}]},
         'horizon:c_island':{'feature':'horizon:island','placement':[{'type':'in_square'}]},
-        'horizon:d_platform':{'feature':'horizon:platform','placement':[{'type':'offset','x':1,'y':2,'z':-1}]},
+        'horizon:d_platform':{'feature':'horizon:platform','placement':[{'type':'random_offset','xz_spread':1,'y_spread':2}]},
         'horizon:e_nested':{'feature':{'type':'simple_random_selector','features':['horizon:c_island','horizon:d_platform','horizon:b_false']},'placement':[{'type':'count','count':2}]},
         'minecraft:noop':{'feature':'minecraft:noop','placement':[]},
         'horizon:h_scatter':{'feature':'horizon:scatter','placement':[]},
@@ -33,13 +33,13 @@ def catalog():
     }
     placed['horizon:i_filtered']={'feature':'horizon:replace','placement':[{'type':'count','count':3},{'type':'block_predicate_filter','predicate':{'type':'matching_blocks','blocks':['stone','oak_log']}}]}
     placed['horizon:j_scan']={'feature':'horizon:replace','placement':[{'type':'environment_scan','direction_of_search':'down','target_condition':{'type':'matching_blocks','blocks':'stone'},'allowed_search_condition':{'type':'not','predicate':{'type':'matching_blocks','blocks':'obsidian'}},'max_steps':8}]}
-    placed['horizon:k_volume']={'feature':'horizon:no_op','placement':[{'type':'block_predicate_filter','predicate':{'type':'volume_match','min':[-1,0,-1],'max':[1,1,1],'match':{'type':'not','predicate':{'type':'matching_blocks','blocks':'air'}}}}]}
+    placed['horizon:k_not_air']={'feature':'horizon:no_op','placement':[{'type':'block_predicate_filter','predicate':{'type':'not','predicate':{'type':'matching_blocks','blocks':'air'}}}]}
     placed['horizon:l_fluids']={'feature':{'type':'replace_single_block','targets':[{'target':{'predicate_type':'block_match','block':'water'},'state':'stone'}]},'placement':[{'type':'count','count':3},{'type':'block_predicate_filter','predicate':{'type':'matching_fluids','fluids':['flowing_water']}}]}
     placed['horizon:m_fluid_sequence']={'feature':{'type':'sequence','features':[{'feature':{'type':'fill_layer','height':128,'state':{'id':'water','properties':{'level':'1'}}},'placement':[]},'horizon:l_fluids']},'placement':[]}
     tags={
         'horizon:nonempty':{'values':['horizon:a_noop','horizon:c_island','horizon:d_platform','horizon:c_island']},
         'horizon:empty':{'values':[]},
-        'horizon:nested':{'values':['#horizon:nonempty','horizon:e_nested','horizon:f_fill','horizon:g_replace','horizon:h_scatter','horizon:i_filtered','horizon:j_scan','horizon:k_volume','horizon:m_fluid_sequence']},
+        'horizon:nested':{'values':['#horizon:nonempty','horizon:e_nested','horizon:f_fill','horizon:g_replace','horizon:h_scatter','horizon:i_filtered','horizon:j_scan','horizon:k_not_air','horizon:m_fluid_sequence']},
         'horizon:optional':{'values':[{'id':'horizon:missing','required':False},'horizon:a_noop']},
         'horizon:invalid':{'values':['horizon:missing']},
     }

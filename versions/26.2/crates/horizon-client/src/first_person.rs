@@ -1,5 +1,5 @@
-//! The local player's hand: the arm swing (`LivingEntity.SwingState`,
-//! `getModifiedSwingDuration`), the first-person equip heights
+//! The local player's hand: the arm swing (`LivingEntity`'s swing fields
+//! and `getCurrentSwingDuration`), the first-person equip heights
 //! (`FirstPersonHandsAndItems.tick` and `itemUsed`), and the click handling
 //! that starts swings: `Minecraft.startAttack`, `continueAttack`,
 //! `startUseItem` and `handleKeybinds`' attack and use part, with
@@ -485,80 +485,82 @@ impl SwingAnimation {
     };
 }
 
-/// `LivingEntity.SwingDescription`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct SwingDescription {
-    pub hand: Hand,
-    pub animation: SwingAnimation,
-    pub duration_ticks: i32,
-}
-
-/// `LivingEntity.SwingState`.
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+/// `LivingEntity`'s swing state (26.2): plain fields, not a class —
+/// 26.3 extracted them into `LivingEntity.SwingState` with a cached
+/// `SwingDescription`, but 26.2 keeps `swinging`/`swingTime`/`swingingArm`
+/// plus the attack-animation pair, and reads the swing's duration live
+/// from the item in the swinging arm (`getCurrentSwingDuration`).
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SwingState {
-    pub current: Option<SwingDescription>,
-    pub ticks: i32,
-    pub old_animation: f32,
-    pub animation: f32,
+    pub swing_time: i32,
+    pub swinging: bool,
+    pub swinging_arm: Hand,
+    pub o_attack_anim: f32,
+    pub attack_anim: f32,
+}
+impl Default for SwingState {
+    fn default() -> Self {
+        SwingState {
+            swing_time: 0,
+            swinging: false,
+            swinging_arm: Hand::Main,
+            o_attack_anim: 0.0,
+            attack_anim: 0.0,
+        }
+    }
 }
 impl SwingState {
-    /// `startIfAble`: a swing restarts unless the current one is in its
-    /// first half (past its first tick).
-    pub fn start_if_able(&mut self, hand: Hand, animation: SwingAnimation, duration: i32) -> bool {
-        if let Some(c) = self.current
-            && self.ticks <= c.duration_ticks / 2
-            && self.ticks > 0
-        {
-            return false;
+    /// `LivingEntity.swing`: a swing restarts unless the current one is in
+    /// its first half (`swingTime` at 0 or above but below half the
+    /// duration). A restart sets `swingTime` to -1, so the next tick
+    /// brings the animation back to 0; nothing else is reset.
+    pub fn start_if_able(&mut self, hand: Hand, duration: i32) -> bool {
+        if !self.swinging || self.swing_time >= duration / 2 || self.swing_time < 0 {
+            self.swing_time = -1;
+            self.swinging = true;
+            self.swinging_arm = hand;
+            return true;
         }
-        let swing = SwingDescription {
-            hand,
-            animation,
-            duration_ticks: duration,
-        };
-        if self.current != Some(swing) {
-            self.old_animation = 0.0;
-            self.animation = 0.0;
-        }
-        self.current = Some(swing);
-        self.ticks = 0;
-        true
+        false
     }
-    /// `tick` (from `LivingEntity.baseTick`).
-    pub fn tick(&mut self) {
-        self.old_animation = self.animation;
-        if let Some(c) = self.current {
-            if c.duration_ticks > 0 {
-                self.animation = (self.ticks as f32 / c.duration_ticks as f32).min(1.0);
-            }
-            let ticks = self.ticks;
-            self.ticks += 1;
-            if ticks > c.duration_ticks {
-                self.current = None;
-                self.animation = 0.0;
+    /// `LivingEntity.baseTick`'s `oAttackAnim = attackAnim`, then
+    /// `updateSwingTime` with the duration read live from the swinging
+    /// arm's item: the time advances and clears at the duration, and the
+    /// animation is the plain ratio — it never reaches 1.0, because the
+    /// time resets to 0 at the duration (26.3's state machine holds 1.0
+    /// for an extra tick).
+    pub fn tick(&mut self, duration: i32) {
+        self.o_attack_anim = self.attack_anim;
+        if self.swinging {
+            self.swing_time += 1;
+            if self.swing_time >= duration {
+                self.swing_time = 0;
+                self.swinging = false;
             }
         } else {
-            self.animation = 0.0;
+            self.swing_time = 0;
         }
+        self.attack_anim = self.swing_time as f32 / duration as f32;
     }
-    /// `getAnimation(partialTicks)`: a restarted swing keeps moving forward.
+    /// `LivingEntity.getAttackAnim`: the interpolated attack animation,
+    /// wrapping forward when the animation restarted behind it.
     pub fn animation(&self, partial: f32) -> f32 {
-        if self.animation >= self.old_animation {
-            crate::camera::lerp(partial, self.old_animation, self.animation)
-        } else {
-            crate::camera::lerp(partial, self.old_animation, self.animation + 1.0)
+        let mut diff = self.attack_anim - self.o_attack_anim;
+        if diff < 0.0 {
+            diff += 1.0;
         }
+        self.o_attack_anim + diff * partial
     }
     pub fn swinging(&self) -> bool {
-        self.current.is_some()
+        self.swinging
     }
-    /// The hand of the current swing (`state.attackHand`), main by default.
+    /// The hand of the current swing (`swingingArm`), main by default.
     pub fn attack_hand(&self) -> Hand {
-        self.current.map_or(Hand::Main, |c| c.hand)
+        self.swinging_arm
     }
 }
 
-/// `LivingEntity.getModifiedSwingDuration`: `dig_speed` is
+/// `LivingEntity.getCurrentSwingDuration`: `dig_speed` is
 /// `MobEffectUtil.getDigSpeedAmplification` while haste or conduit power is
 /// active, `fatigue` the mining fatigue amplifier.
 pub fn swing_duration(
@@ -762,10 +764,8 @@ pub trait HandWorld {
     fn cannot_attack(&mut self) -> bool;
     /// The main-hand item is a `PIERCING_WEAPON`.
     fn piercing_weapon(&mut self) -> bool;
-    fn attack_animation(&mut self) -> SwingAnimation;
-    fn interact_animation(&mut self, hand: Hand) -> SwingAnimation;
     /// `MultiPlayerGameMode.piercingAttack`.
-    fn piercing_attack(&mut self, animation: SwingAnimation);
+    fn piercing_attack(&mut self);
     /// `Player.attack` on the targeted entity when the item's attack range
     /// allows it; false when out of range.
     fn attack_entity(&mut self) -> bool;
@@ -789,8 +789,9 @@ pub trait HandWorld {
     }
     /// Breaking progress shown (`destroyBlockProgress`), or cleared with `None`.
     fn destroy_stage(&mut self, pos: [i32; 3], stage: Option<i32>);
-    /// `player.swing(hand, animation, false)`.
-    fn swing(&mut self, hand: Hand, animation: SwingAnimation);
+    /// `player.swing(hand)`: the duration comes from the item in the
+    /// swinging arm (`getCurrentSwingDuration`), not from a parameter.
+    fn swing(&mut self, hand: Hand);
     /// `Player.resetAttackStrengthTicker`.
     fn reset_attack_strength(&mut self);
     /// The targeted entity's block position is inside the world border.
@@ -935,9 +936,8 @@ impl Clicks {
         if !w.item_enabled(Hand::Main) || w.cannot_attack() {
             return false;
         }
-        let animation = w.attack_animation();
         if w.piercing_weapon() {
-            w.piercing_attack(animation);
+            w.piercing_attack();
             return true;
         }
         let mut end = false;
@@ -964,7 +964,7 @@ impl Clicks {
             }
             w.reset_attack_strength();
         }
-        w.swing(Hand::Main, animation);
+        w.swing(Hand::Main);
         end
     }
     /// `Minecraft.continueAttack`.
@@ -975,11 +975,10 @@ impl Clicks {
         if self.miss_time > 0 || w.using_item() || w.piercing_weapon() {
             return;
         }
-        let animation = w.attack_animation();
         match w.hit() {
             Hit::Block { pos, face } if down => {
                 if !w.is_air(pos) && self.destroying.continue_destroy(w, pos, face) {
-                    w.swing(Hand::Main, animation);
+                    w.swing(Hand::Main);
                 }
             }
             _ => self.destroying.stop(w),
@@ -998,7 +997,6 @@ impl Clicks {
             if !w.item_enabled(hand) {
                 return;
             }
-            let animation = w.interact_animation(hand);
             match w.hit() {
                 Hit::Entity => {
                     if !w.entity_within_border() {
@@ -1006,7 +1004,7 @@ impl Clicks {
                     }
                     if let Some(UseResult::Success { swing }) = w.use_on_entity(hand) {
                         if swing {
-                            w.swing(hand, animation);
+                            w.swing(hand);
                         }
                         return;
                     }
@@ -1016,7 +1014,7 @@ impl Clicks {
                     match w.use_on_block(hand) {
                         UseResult::Success { swing } => {
                             if swing {
-                                w.swing(hand, animation);
+                                w.swing(hand);
                                 if !w.held_empty(hand)
                                     && (w.held_count(hand) != count || w.infinite_materials())
                                 {
@@ -1035,7 +1033,7 @@ impl Clicks {
                 && let UseResult::Success { swing } = w.use_item(hand)
             {
                 if swing {
-                    w.swing(hand, animation);
+                    w.swing(hand);
                 }
                 w.item_used(hand);
                 return;
@@ -1190,39 +1188,31 @@ mod tests {
     #[test]
     fn a_swing_lasts_its_duration_and_restarts_after_half() {
         let mut s = SwingState::default();
-        assert!(s.start_if_able(Hand::Main, SwingAnimation::DEFAULT, 6));
+        assert!(s.start_if_able(Hand::Main, 6));
         let mut seen = Vec::new();
         for _ in 0..9 {
-            s.tick();
-            seen.push(s.animation);
+            s.tick(6);
+            seen.push(s.attack_anim);
         }
+        // 26.2's animation never reaches 1.0: the time resets to 0 at the
+        // duration (26.3's state machine holds 1.0 for an extra tick).
         assert_eq!(
             seen,
-            [
-                0.0,
-                1.0 / 6.0,
-                2.0 / 6.0,
-                0.5,
-                4.0 / 6.0,
-                5.0 / 6.0,
-                1.0,
-                0.0,
-                0.0
-            ]
+            [0.0, 1.0 / 6.0, 2.0 / 6.0, 0.5, 4.0 / 6.0, 5.0 / 6.0, 0.0, 0.0, 0.0]
         );
         assert!(!s.swinging());
-        s.start_if_able(Hand::Main, SwingAnimation::DEFAULT, 6);
-        s.tick();
-        s.tick();
-        assert!(!s.start_if_able(Hand::Main, SwingAnimation::DEFAULT, 6));
-        s.tick();
-        s.tick();
-        assert!(s.start_if_able(Hand::Main, SwingAnimation::DEFAULT, 6));
-        s.tick();
+        s.start_if_able(Hand::Main, 6);
+        s.tick(6);
+        s.tick(6);
+        assert!(!s.start_if_able(Hand::Main, 6));
+        s.tick(6);
+        s.tick(6);
+        assert!(s.start_if_able(Hand::Main, 6));
+        s.tick(6);
         // Restarting the same swing wraps forward rather than snapping back.
         assert_eq!(
             s.animation(0.5),
-            (s.old_animation + s.animation + 1.0) / 2.0
+            (s.o_attack_anim + s.attack_anim + 1.0) / 2.0
         );
     }
     #[test]

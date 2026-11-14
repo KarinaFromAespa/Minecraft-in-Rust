@@ -10,10 +10,13 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
+import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
+import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.levelgen.placement.*;
 
-/** Actual FeaturePlacer executing native modifiers and an observable feature sink. */
+/** Actual PlacedFeature.place (26.2's stream pipeline) executing native modifiers and an observable feature sink. */
 public final class VanillaFeaturePlacementOracle {
     private static final class Stop extends RuntimeException {}
     public static void main(String[] args) throws Exception {
@@ -30,19 +33,19 @@ public final class VanillaFeaturePlacementOracle {
                 }
                 if(!valid)out.println("decode error");else {
                     out.println("decode ok");int[] count={0};int fail=f.get("fail").getAsInt();boolean draw=f.get("draw").getAsBoolean();int mode=f.get("result").getAsInt();
-                    var feature=new Feature() {
-                        public com.mojang.serialization.MapCodec<? extends Feature> codec(){return com.mojang.serialization.MapCodec.unit(this);}
-                        public boolean place(WorldGenLevel level,ChunkGenerator generator,RandomSource rng,BlockPos p) {
+                    var feature=new Feature<NoneFeatureConfiguration>(NoneFeatureConfiguration.CODEC) {
+                        public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> context) {
+                            BlockPos p=context.origin();RandomSource rng=context.random();
                             if(count[0]++==fail)throw new Stop();
                             out.println("feature "+p.getX()+" "+p.getY()+" "+p.getZ());
                             long value=p.getX()+p.getY()+p.getZ();if(draw){value=rng.nextLong();out.println("consumer "+value);}
                             boolean result=mode==1||(mode==2&&(value&1)==0);out.println("result "+result);return result;
                         }
                     };
-                    var placed=new PlacedFeature(Holder.direct(feature),modifiers);var placer=new FeaturePlacer(context.getLevel(),context.generator());
+                    var placed=new PlacedFeature(Holder.direct(new ConfiguredFeature<>(feature,NoneFeatureConfiguration.INSTANCE)),modifiers);
                     for(var value:f.getAsJsonArray("positions")) {
                         var p=value.getAsJsonArray();var position=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());count[0]=0;
-                        try {out.println("place "+placer.place(placed,random,position));}catch(Stop|IllegalArgumentException error){out.println("place error");}
+                        try {out.println("place "+placed.place(context.getLevel(),context.generator(),random,position));}catch(Stop|IllegalArgumentException error){out.println("place error");}
                         out.println("next "+random.nextLong());
                     }
                 }

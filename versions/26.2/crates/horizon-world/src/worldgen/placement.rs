@@ -5,7 +5,7 @@ mod layer;
 use super::block_predicate::{BlockPredicate, PredicateBlockResolver};
 use super::{
     DecodeError, Object, anchor::WorldGenerationContext, biome_temperature::biome_info_noise,
-    density::identifier, double, height_provider::HeightProvider, int_range, integer, number_text,
+    density::identifier, double, height_provider::HeightProvider, int_range, integer,
     optional, required, value_provider::IntProvider,
 };
 use crate::heightmap::HeightmapType;
@@ -45,18 +45,13 @@ pub enum PlacementModifier {
         above: i32,
     },
     InSquare,
-    Cuboid {
-        xz_size: IntProvider,
-        y_size: IntProvider,
-        include_edges: bool,
-        include_interior: bool,
+    RandomOffset {
+        xz_spread: IntProvider,
+        y_spread: IntProvider,
     },
-    Offset([IntProvider; 3]),
     HeightRange(HeightProvider),
     Rarity(i32),
-    RandomChance(f32),
     Fixed(Vec<[i32; 3]>),
-    RandomlySelected(Vec<Self>),
 }
 #[derive(Debug)]
 pub enum PlacementError<E> {
@@ -205,23 +200,13 @@ impl PlacementModifier {
             }
             "minecraft:count" => Ok(Self::Count(provider("count", 0, 4096)?)),
             "minecraft:in_square" => Ok(Self::InSquare),
-            "minecraft:cuboid" => Ok(Self::Cuboid {
-                xz_size: provider("xz_size", 1, 16)?,
-                y_size: provider("y_size", 1, 16)?,
-                include_edges: optional(&object, "include_edges")
-                    .map(|raw| serde_json::from_str(raw.get()))
-                    .transpose()?
-                    .unwrap_or(true),
-                include_interior: optional(&object, "include_interior")
-                    .map(|raw| serde_json::from_str(raw.get()))
-                    .transpose()?
-                    .unwrap_or(true),
+            // 26.2's random_offset: two providers, the xz spread sampled
+            // once for X and once for Z (26.3 renamed it `offset` with
+            // three independent providers x/y/z).
+            "minecraft:random_offset" => Ok(Self::RandomOffset {
+                xz_spread: provider("xz_spread", -16, 16)?,
+                y_spread: provider("y_spread", -16, 16)?,
             }),
-            "minecraft:offset" => Ok(Self::Offset([
-                provider("x", -16, 16)?,
-                provider("y", -16, 16)?,
-                provider("z", -16, 16)?,
-            ])),
             "minecraft:height_range" => Ok(Self::HeightRange(HeightProvider::from_json(
                 required(&object, "height")?.get(),
             )?)),
@@ -231,15 +216,9 @@ impl PlacementModifier {
                 1,
                 i32::MAX,
             )?)),
-            "minecraft:random_chance" => {
-                let chance: f32 = number_text(required(&object, "chance")?)?
-                    .parse()
-                    .map_err(|_| DecodeError::Field("chance"))?;
-                if !(0. ..=1.).contains(&chance) || chance.is_sign_negative() {
-                    return Err(DecodeError::Field("chance"));
-                }
-                Ok(Self::RandomChance(chance))
-            }
+            // No minecraft:random_chance, minecraft:randomly_selected or
+            // minecraft:cuboid arms: RandomChancePlacement,
+            // RandomlySelectedPlacement and CuboidPlacement are 26.3-only.
             "minecraft:fixed_placement" => {
                 let values: Vec<Box<RawValue>> =
                     serde_json::from_str(required(&object, "positions")?.get())?;
@@ -259,19 +238,6 @@ impl PlacementModifier {
                     ]);
                 }
                 Ok(Self::Fixed(positions))
-            }
-            "minecraft:randomly_selected" => {
-                let values: Vec<Box<RawValue>> =
-                    serde_json::from_str(required(&object, "placements")?.get())?;
-                if values.is_empty() || values.len() > 8192 {
-                    return Err(DecodeError::Field("selected placements"));
-                }
-                Ok(Self::RandomlySelected(
-                    values
-                        .iter()
-                        .map(|v| Self::decode_with_blocks(v.get(), depth + 1, remaining, blocks))
-                        .collect::<Result<_, _>>()?,
-                ))
             }
             _ => Err(DecodeError::Field("placement modifier type")),
         }
@@ -420,52 +386,21 @@ impl PlacementModifier {
                     emit(random, position).map_err(PlacementError::Output)?;
                 }
             }
-            Self::Cuboid {
-                xz_size,
-                y_size,
-                include_edges,
-                include_interior,
-            } => {
-                let ny = y_size.sample(random)?;
-                let nx = xz_size.sample(random)?;
-                let nz = xz_size.sample(random)?;
-                if nx < 0 || ny < 0 || nz < 0 {
-                    return Ok(());
-                }
-                for dx in 0..=nx {
-                    for dy in 0..=ny {
-                        for dz in 0..=nz {
-                            if *remaining == 0 {
-                                return Err(PlacementError::WorkLimit);
-                            }
-                            *remaining -= 1;
-                            let bx = dx == 0 || dx == nx;
-                            let by = dy == 0 || dy == ny;
-                            let bz = dz == 0 || dz == nz;
-                            if !include_edges && (u8::from(bx) + u8::from(by) + u8::from(bz)) >= 2 {
-                                continue;
-                            }
-                            if !(*include_interior || bx || by || bz) {
-                                continue;
-                            }
-                            emit(
-                                random,
-                                [x.wrapping_add(dx), y.wrapping_add(dy), z.wrapping_add(dz)],
-                            )
-                            .map_err(PlacementError::Output)?;
-                        }
-                    }
-                }
-            }
             Self::InSquare => {
                 let x = x.wrapping_add(random.next_int_bound(16)?);
                 let z = z.wrapping_add(random.next_int_bound(16)?);
                 emit(random, [x, y, z]).map_err(PlacementError::Output)?;
             }
-            Self::Offset(offsets) => {
-                let x = x.wrapping_add(offsets[0].sample(random)?);
-                let y = y.wrapping_add(offsets[1].sample(random)?);
-                let z = z.wrapping_add(offsets[2].sample(random)?);
+            // 26.2's RandomOffsetPlacement.getPositions: the xz spread
+            // sampled for X, the y spread for Y, then the xz spread again
+            // for Z — in that draw order.
+            Self::RandomOffset {
+                xz_spread,
+                y_spread,
+            } => {
+                let x = x.wrapping_add(xz_spread.sample(random)?);
+                let y = y.wrapping_add(y_spread.sample(random)?);
+                let z = z.wrapping_add(xz_spread.sample(random)?);
                 emit(random, [x, y, z]).map_err(PlacementError::Output)?;
             }
             Self::HeightRange(height) => {
@@ -474,11 +409,6 @@ impl PlacementModifier {
             }
             Self::Rarity(chance) => {
                 if random.next_float() < 1. / *chance as f32 {
-                    emit(random, position).map_err(PlacementError::Output)?;
-                }
-            }
-            Self::RandomChance(chance) => {
-                if random.next_float() < *chance {
                     emit(random, position).map_err(PlacementError::Output)?;
                 }
             }
@@ -491,13 +421,6 @@ impl PlacementModifier {
                         emit(random, *p).map_err(PlacementError::Output)?;
                     }
                 }
-            }
-            Self::RandomlySelected(placements) => {
-                if placements.len() > 8192 {
-                    return Err(PlacementError::WorkLimit);
-                }
-                let index = random.next_int_bound(placements.len() as i32)? as usize;
-                placements[index].modify_inner(context, random, position, emit, remaining)?;
             }
         }
         Ok(())

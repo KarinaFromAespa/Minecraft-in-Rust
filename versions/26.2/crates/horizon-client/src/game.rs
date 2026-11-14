@@ -514,7 +514,7 @@ use horizon_client::{
     creative::{Creative, Names},
     entities::{Experience, ExperienceOrb, ItemEntity},
     environment::Environment,
-    first_person::{Hand, SwingAnimation},
+    first_person::Hand,
     furnace::FurnaceCooking,
     gfx::{Frame, Renderer},
     graphics::EntityCullingMode,
@@ -3715,7 +3715,7 @@ impl Game<'_> {
         };
         // LivingEntity.drop: every drop swings the main hand, a menu's
         // THROW and a creative tab's drop included.
-        self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+        self.swing_hand(Hand::Main);
         // Player.drop: the drop statistics.
         self.award_stat("dropped", &thrown.item, thrown.count as i32);
         self.award_custom_stat("drop", 1);
@@ -8626,7 +8626,7 @@ impl Game<'_> {
         // goes straight to the range. The rule's own error message is not
         // modelled, so the refusal carries none — as for a rule without one.
         let rule = self.dimension_type().bed_rule;
-        if !self.bed_sets_spawn(state) && !rule.can_sleep.test(self.dark_outside()) {
+        if !self.bed_sets_spawn() && !rule.can_sleep.test(self.dark_outside()) {
             return;
         }
         // ServerPlayer.bedInRange / isReachableBedBlock: within 3 blocks
@@ -8658,8 +8658,7 @@ impl Game<'_> {
         // RespawnConfig(the head, the player's yaw), not forced). It replaces
         // an anchor or a spawnpoint; respawning checks the bed is still there
         // and finds where to stand up (findRespawnAndUseSpawnBlock).
-        // Straw beds never set it (`straw_bed_rule`).
-        if problem.is_none() && self.bed_sets_spawn(state) {
+        if problem.is_none() && self.bed_sets_spawn() {
             let config = respawn_anchor::RespawnConfig::wrapped(self.dim, head, yaw, false);
             // ServerPlayer.setRespawnPosition: the chat message only when the
             // point moved (`isSamePosition`).
@@ -8773,13 +8772,9 @@ impl Game<'_> {
                 return;
             }
         }
-        // LivingEntity.startSleeping: the shape the bed gives the player to
-        // lie on (`getSleepHeight`). A straw bed's head answers with its
-        // foot's shape, and with no foot of its own there is none, so the
-        // player stays up as `startSleeping` returning false leaves them.
-        let Some(at) = self.sleeping_position(head) else {
-            return;
-        };
+        // LivingEntity.startSleeping (26.2): void, no sleep-height check.
+        // The sleeper always lies at the flat bed height (setPosToBed).
+        let at = self.sleeping_position(head);
         // LivingEntity.startSleeping: stopRiding once the bed is valid.
         self.stop_riding();
         self.stop_mining();
@@ -8855,11 +8850,11 @@ impl Game<'_> {
                 self.wake_up();
                 return;
             }
-            // setPosToBed: the bed's top (`getSleepHeight`) and 0.125 above
-            // it. A sleeper whose bed no longer gives a shape to lie on stays
-            // where it is: vanilla only ever places a sleeper when it starts.
+            // setPosToBed: the flat 26.2 height, 0.6875 above the head
+            // block's base. Vanilla only ever places a sleeper when it
+            // starts; re-applying each tick keeps the sleeper pinned here.
             let at = self.sleeping_position(head);
-            if let (Some(p), Some(at)) = (self.player.as_mut(), at) {
+            if let Some(p) = self.player.as_mut() {
                 p.position = at;
                 p.velocity = Vec3::ZERO;
                 p.pitch = 0.0;

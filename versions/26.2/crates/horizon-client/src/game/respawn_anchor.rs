@@ -267,29 +267,14 @@ impl Game<'_> {
         ];
         self.block_explosion(center, in_water.then_some(pos))
     }
-    /// `StrawBedBlock.destroyBed`: the break sound, then the bed is air.
-    pub(super) fn destroy_straw_bed(&mut self, head: [i32; 3]) -> Result<()> {
-        let center = [
-            f64::from(head[0]) + 0.5,
-            f64::from(head[1]) + 0.5,
-            f64::from(head[2]) + 0.5,
-        ];
-        self.audio.play(
-            "minecraft:block.straw_bed.break_leave",
-            Some(center),
-            1.0,
-            1.0,
-        );
-        self.level_set(head, self.world.air)
-    }
-    /// `BedRule.destroyOnUse` of the dimension's `bed_rule` and
-    /// `straw_bed_rule`: true in the Nether and the End.
+    /// `BedRule.destroyOnUse` of the dimension's `bed_rule`: true in the
+    /// Nether and the End.
     pub(super) fn beds_destroy_on_use(&self) -> bool {
         self.dimension_type().bed_rule.destroy_on_use
     }
-    /// `AbstractBedBlock.useWithoutItem` where the bed rule destroys on use
-    /// (the bed's head at `head`): `BedBlock.destroyOnUse` removes both
-    /// halves and explodes; `StrawBedBlock` just falls apart.
+    /// `BedBlock.useWithoutItem` where the bed rule destroys on use (the
+    /// bed's head at `head`): `BedBlock.destroyOnUse` removes both halves
+    /// and explodes.
     pub(super) fn destroy_bed_on_use(&mut self, head: [i32; 3]) -> Result<()> {
         let state = self.world.block(head[0], head[1], head[2]);
         let name = self.res.facts().get(state).name.clone();
@@ -298,9 +283,6 @@ impl Game<'_> {
             f64::from(head[1]) + 0.5,
             f64::from(head[2]) + 0.5,
         ];
-        if &*name == "minecraft:straw_bed" {
-            return self.destroy_straw_bed(head);
-        }
         // removeBlock(head), then the foot behind it if it is still this bed.
         let facing = self
             .pack
@@ -464,18 +446,10 @@ impl Game<'_> {
                 .map(String::as_str),
         )
     }
-    /// `BedRule.canSetSpawn` of the bed's rule attribute (`bed_rule`,
-    /// `straw_bed_rule`): only the Overworld's beds set the spawn, straw
-    /// beds never.
-    pub(super) fn bed_sets_spawn(&self, state: BlockStateId) -> bool {
-        let straw = &*self.res.facts().get(state).name == "minecraft:straw_bed";
-        let facts = self.dimension_type();
-        let rule = if straw {
-            facts.straw_bed_rule
-        } else {
-            facts.bed_rule
-        };
-        rule.can_set_spawn.test(self.dark_outside())
+    /// `BedRule.canSetSpawn` of the dimension's `bed_rule`: only the
+    /// Overworld's beds set the spawn.
+    pub(super) fn bed_sets_spawn(&self) -> bool {
+        self.dimension_type().bed_rule.can_set_spawn.test(self.dark_outside())
     }
     /// `ServerPlayer.findRespawnAndUseSpawnBlock` for a config in the loaded
     /// dimension: the position and yaw, using an anchor's charge; a bed's
@@ -492,7 +466,7 @@ impl Game<'_> {
             && self.anchor_works())
         {
             // A bed where its bed rule lets it set the spawn.
-            if self.is_bed(state) && self.bed_sets_spawn(state) {
+            if self.is_bed(state) && self.bed_sets_spawn() {
                 let facing = self.bed_forward(state);
                 let stand = self.bed_stand_up(c.pos, facing, c.yaw);
                 return Ok(stand.map(|p| (p, look_at_yaw(p, c.pos))));

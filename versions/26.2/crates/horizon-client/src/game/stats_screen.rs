@@ -68,7 +68,6 @@ const CUSTOM: &[(&str, Format)] = &[
     ("interact_with_crafting_table", Format::Default),
     ("open_chest", Format::Default),
     ("sleep_in_bed", Format::Default),
-    ("sleep_in_straw_bed", Format::Default),
     ("open_shulker_box", Format::Default),
     ("open_barrel", Format::Default),
     ("interact_with_blast_furnace", Format::Default),

@@ -4862,7 +4862,7 @@ impl Game<'_> {
             C::Animate(p) if p.action == 0 || p.action == 3 => {
                 let hand = if p.action == 3 { Hand::Off } else { Hand::Main };
                 if self.remote.as_ref().is_some_and(|r| r.entity_id == p.id) {
-                    self.swing_hand(hand, SwingAnimation::DEFAULT);
+                    self.swing_hand(hand);
                 } else if let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32) {
                     m.swing_hand_modified(hand == Hand::Off, SwingAnimation::DEFAULT);
                 }
@@ -8322,7 +8322,7 @@ impl Game<'_> {
         // ends the whole click, the off hand gets no turn.
         if let Some(swing) = self.native_interaction(1, Hand::Main) {
             if swing {
-                self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+                self.swing_hand(Hand::Main);
             }
             return;
         }
@@ -9521,7 +9521,7 @@ impl Game<'_> {
         // The off hand's turn: the event again, then the entity or the block.
         if let Some(swing) = self.native_interaction(1, Hand::Off) {
             if swing {
-                self.swing_hand(Hand::Off, SwingAnimation::DEFAULT);
+                self.swing_hand(Hand::Off);
             }
             return;
         }
@@ -9832,8 +9832,7 @@ impl Game<'_> {
         // an attack: a cancel ends it there, swinging unless the mod said not to.
         if let Some(swing) = self.native_interaction(0, Hand::Main) {
             if swing {
-                let animation = spear.map_or(SwingAnimation::DEFAULT, |k| k.attack_animation());
-                self.swing_hand(Hand::Main, animation);
+                self.swing_hand(Hand::Main);
             }
             return false;
         }
@@ -9849,7 +9848,7 @@ impl Game<'_> {
                 sequence: 0,
             }));
             self.hand_strength.reset_attack();
-            self.swing_hand(Hand::Main, kinetic.attack_animation());
+            self.swing_hand(Hand::Main);
             self.play_at_feet(kinetic.attack_sound);
             return true;
         }
@@ -10196,7 +10195,7 @@ impl Game<'_> {
             sequence: 0,
         }));
         if dropped.is_some() {
-            self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+            self.swing_hand(Hand::Main);
         }
     }
     /// Minecraft.handleKeybinds, key.swapOffhand: the server swaps the hands
@@ -10327,7 +10326,7 @@ impl Game<'_> {
         // LivingEntity.drop(.., Prediction.PREDICTED): the client swings its own
         // main hand; the server shows the swing only to the other players.
         if threw {
-            self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+            self.swing_hand(Hand::Main);
         }
         true
     }

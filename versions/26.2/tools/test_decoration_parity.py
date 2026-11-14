@@ -18,7 +18,7 @@ except ImportError:
 
 def fixture(biomes, seed=0, mode=0, present=None):
     count=max((v for b in biomes for s in b for v in s),default=-1)+1
-    chains=[[],[{'type':'count','count':3},{'type':'in_square'}],[{'type':'count','count':3},{'type':'in_square'},{'type':'biome'}],[{'type':'biome'},{'type':'random_chance','chance':0.5},{'type':'count','count':2}]]
+    chains=[[],[{'type':'count','count':3},{'type':'in_square'}],[{'type':'count','count':3},{'type':'in_square'},{'type':'biome'}],[{'type':'biome'},{'type':'rarity_filter','chance':2},{'type':'count','count':2}]]
     if present is None:present=list(range(len(biomes)+1))
     if not present:present=[len(biomes)]
     return {'biomes':biomes,'placements':[chains[mode%len(chains)] for _ in range(count)],'palettes':[present[i%len(present):]+present[:i%len(present)] for i in range(9)],'seed':seed,'cx':0,'cz':0,'min':-64,'height':32,'biome_offset':0,'chunk_fail':-1,'notify_fail':-1,'query_fail':-1,'feature_fail':-1,'return_mode':0}

@@ -463,8 +463,8 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
         "nether_portal" => ("minecraft:nether_portal", 0),
         "lodestone" => ("minecraft:lodestone", 0),
         "test_instance_block" => ("minecraft:test_instance", 0),
-        // PoiTypes.BEDS is the sixteen colours: no straw bed.
-        bed if bed.ends_with("_bed") && bed != "straw_bed" => {
+        // PoiTypes.BEDS is the sixteen colours (26.2 has no straw bed).
+        bed if bed.ends_with("_bed") => {
             if state.properties.get("part").map(String::as_str) != Some("head") {
                 return None;
             }
@@ -5610,7 +5610,6 @@ mod tests {
         chunk.set(1, 70, 2, state("minecraft:red_bed", &[("part", "foot")]));
         chunk.set(5, 71, 5, state("minecraft:bell", &[]));
         chunk.set(6, 71, 5, state("minecraft:stone", &[]));
-        chunk.set(9, 70, 9, state("minecraft:straw_bed", &[("part", "head")]));
         assert!(encode_poi(&Chunk::empty(0, 0), &tables).is_none());
         let saved = encode_poi(&chunk, &tables).expect("records");
         let Some(Tag::Compound(sections)) = saved.tag.get("Sections") else {
