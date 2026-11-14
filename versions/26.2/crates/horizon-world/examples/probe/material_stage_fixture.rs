@@ -261,7 +261,7 @@ where
         .transpose()?;
     let rule = library.rule(f["rule"].as_str().unwrap())?;
     let preliminary = if let Some(ref router) = router {
-        router.get(RouterField::ChunkSurfaceLevel).clone()
+        router.get(RouterField::PreliminarySurfaceLevel).clone()
     } else if let Some(name) = f["preliminary"].as_str() {
         library.named_density(name)?
     } else {

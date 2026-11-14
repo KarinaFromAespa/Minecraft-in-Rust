@@ -1137,7 +1137,7 @@ where
             .as_str()
             .ok_or_else(|| resource("material_rule"))?;
         let rule = library.rule(rule_name)?;
-        let preliminary = router.get(RouterField::ChunkSurfaceLevel).clone();
+        let preliminary = router.get(RouterField::PreliminarySurfaceLevel).clone();
         let spawn_target = match settings_json.get("spawn_target") {
             Some(Value::Array(points)) => points
                 .iter()
