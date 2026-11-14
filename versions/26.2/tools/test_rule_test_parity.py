@@ -70,7 +70,7 @@ def main():
     for side in jars:java(side,'export',build/f'facts-{side}.json')
     facts=json.loads((build/'facts-server.json').read_text())
     if facts!=json.loads((build/'facts-client.json').read_text()):raise ValueError('client/server registry metadata differs')
-    if len(facts['states'])!=35723:raise ValueError('incomplete pinned state registry')
+    if len(facts['states'])!=32366:raise ValueError('incomplete pinned state registry')
     fixtures=list(corpus(facts,tags));inputs=build/'inputs.txt';inputs.write_text(''.join(json.dumps(value,separators=(',',':'))+'\n' for value in fixtures),encoding='utf-8')
     fixture_paths=[inputs,build/'tags.json',build/'facts-client.json',build/'facts-server.json'];tested_fixtures=base.source_hashes(fixture_paths)
     run(['cargo','build','--release','-p','horizon-world','--example','world_probe'],'compile-rust')

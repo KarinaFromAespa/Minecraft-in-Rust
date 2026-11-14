@@ -1,7 +1,7 @@
 //! Registry-bound replacement predicates with ordered short-circuit evaluation.
 use super::{
-    DecodeError, Object, block_feature::FeatureBlockBindings, density::identifier,
-    number_text, required,
+    DecodeError, Object, block_feature::FeatureBlockBindings, density::identifier, number_text,
+    required,
 };
 use crate::{
     block_properties::BoundBlockProperty,
@@ -121,9 +121,13 @@ impl RuleTest {
             )?)
         };
         let state = || {
+            // 26.2's BlockState.CODEC is the object form only (26.3's
+            // FULL_CODEC): a bare block-id string decode-errors in 26.2,
+            // while 26.3's CODEC accepts it via the Either<Block, BlockState>
+            // form. So this decodes with full=true, not the compact form.
             bindings
                 .codec
-                .decode(required(&object, "block_state")?.get(), false)
+                .decode(required(&object, "block_state")?.get(), true)
                 .map_err(|e| DecodeError::Registry(e.to_string()))
         };
         let block = || {

@@ -1005,3 +1005,94 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   fixed by `cargo clean -p horizon-client-lib --profile fast`; the
   driver's 900 s build timeout was worked around by pre-building the fast
   probe first.
+
+## Batch of 8 rank-2 A items closed (2026-11-15) — 131, 171, 214, 236, 239, 244, 246, 248
+
+Seven no-change (verified against the jars, no code change) and one changed
+(214, the RuleTest rework). Rank 2 290/410 -> 298/410.
+
+## Item 131 no-change (2026-11-15) — mesher/fluid.rs / world_border_render
+
+- `crates/horizon-client-render/src/mesher/fluid.rs`, 4 classes, 0 named.
+  The RenderSystem diffs are the 26.3 SDL/RenderPearl vs 26.2 GLFW/GLX
+  platform rework; the Rust's fluid mesher names none of the 67 changed
+  methods (only a comment mentions RenderSystem, line 199).
+- Follow-up: the `world_border_render` oracle
+  (`VanillaWorldBorderRenderOracle.java`) does NOT compile against 26.2 —
+  it uses 26.3-only API (`RenderPass`, `DynamicGpuData`, `GpuBuffer`,
+  `WorldBorderRenderer.prepare(state, cam, distance, depthFar)`; 28
+  compile errors). It needs a 26.3->26.2 oracle rework (same class as
+  item 127's noise oracle). Not run on this branch.
+
+## Item 171 no-change (2026-11-15) — world/level/biome
+
+- 9 classes, 0 named. Sampling math is identical; the diffs are the API
+  rework: `BiomeResolver.getNoiseBiome` takes the `Sampler` in 26.2 (no
+  `@FunctionalInterface` / `createResolver` / `getBiomesWithin`);
+  `Climate$Sampler` uses `DensityFunction` double `compute` in 26.2 vs
+  `DensitySampler.Bound` float `sampleValue` in 26.3 (the known item-115
+  precision debt); `ParameterList` uses `RTree.create(values)` in 26.2 vs
+  the 19-children constructor in 26.3; `Parameter.distance` is public in
+  26.2; `ParameterPoint.fitness` is private in 26.2 vs public in 26.3;
+  codec renames `RegistryCodecs.holder` -> `RegistryFileCodec.create`,
+  `codec()` return widened.
+- Follow-ups: (1) 26.2-only gap — `Sampler.spawnTarget` /
+  `findSpawnPosition` (called only by `MinecraftServer:480` for the
+  dedicated-server spawn chunk search) is not implemented in the Rust;
+  documented gap, not a sampling change. (2) None of the biome harnesses
+  (biome_generation, biome_source, biome_source_codec, datapack_worldgen,
+  flat_generation, material_stage, structure_layout, worldgen) has been
+  run on the 26.2 branch — no harness artifacts exist in `.local/` and
+  none are mentioned in PORT-NOTES.
+
+## Item 236 no-change (2026-11-15) — core (Holder / Vec3i / Direction)
+
+- 11 classes, 0 named. Diffs are renames / inlined helpers with identical
+  semantics: `Holder.getRegisteredNameIfPresent` inlined into its one
+  caller; `Vec3i.offsetCodec` strict `<` in 26.2 vs `<=` in 26.3 (already
+  handled, item 242) and `differsHorizontally` is 26.3-only;
+  `Direction` drops the `Directional` interface, `getStep` ->
+  `getUnitVec3i` rename; `HolderOwner.canSerialize` ->
+  `canSerializeIn` with the `HolderGetter` / `RegistryLookup` interface
+  hierarchy reshuffled; `BlockPos$MutableBlockPos` constructs
+  `new BlockPos(this)` instead of `(x, y, z)`. `Direction$Axis` (46
+  lines): 26.2 enum constants carry `(name, ordinal, lowercase)` and
+  `getPositive` / `getNegative` / `choose` are abstract per-constant
+  methods vs 26.3's concrete switch methods — identical semantics.
+
+## Item 239 no-change (2026-11-15) — gfx/core_sky.rs / translucency
+
+- 2 classes, 0 named. `ColorTargetState` is NOT in either 26.3 jar at
+  `com/mojang/blaze3d/pipeline/` — in 26.3 it moved to
+  `com/mojang/renderpearl/api/pipeline/ColorTargetState`. The diff is the
+  RenderPearl-vs-Blaze3D package move only; the Rust's sky rendering
+  uses its own pipeline and names none of the changed methods.
+
+## Item 244 no-change (2026-11-15) — gfx/entity_batch.rs / block_entity_render
+
+- 1 class, 0 named. `RenderType` diff is the RenderPearl-vs-Blaze3D
+  import move plus the outline-texture lookup (26.3 uses the named
+  outline texture binding; 26.2 uses the first texture) and a removed
+  `hasBlending` field. The Rust's entity batching does not use Mojang's
+  `RenderType` (own render types); no behaviour the Rust depends on
+  changes.
+
+## Item 246 no-change (2026-11-15) — cosmetics/item.rs
+
+- 1 class, 0 named. `Item$Properties` (64 lines): 26.3-only `villagerFood`
+  and `potPattern` methods removed in 26.2; components `VillagerFood`,
+  `BrewingFuel`, `CookingFuel`, `Compostable`, `MobVisibility`,
+  `BlockTransformers` absent in 26.2. The shared methods
+  (`usingConvertsTo`, `repairable`, `componentInitializer`) are
+  identical. The Rust's cosmetics/item.rs does not reference the
+  26.3-only methods.
+
+## Item 248 no-change (2026-11-15) — util/context
+
+- 2 classes, 0 named. `ContextMap$Builder` diff is a map-implementation
+  swap (`Reference2ObjectOpenHashMap` in 26.3 vs `IdentityHashMap` in
+  26.2) with renamed methods (`set`/`get` in 26.3 vs
+  `withParameter`/`withOptionalParameter`/`getParameter` in 26.2);
+  `ContextMap` itself is `final` with a static `EMPTY` and `builder()`
+  factory in 26.3 vs a plain class in 26.2. Semantics identical; the
+  Rust's context code does not call these methods.
