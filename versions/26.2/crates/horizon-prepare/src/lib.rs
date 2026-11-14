@@ -1466,10 +1466,12 @@ const WORLDGEN_BUNDLES: [(&str, &str); 19] = [
     ("rules", "worldgen/material_rule"),
     ("conditions", "worldgen/material_condition"),
     ("settings", "worldgen/noise_settings"),
-    ("carvers", "worldgen/carver"),
+    // 26.2 names: `configured_carver` and `configured_feature` (26.3
+    // renamed both registries, dropping the `configured_` prefix).
+    ("carvers", "worldgen/configured_carver"),
     ("biomes", "worldgen/biome"),
     ("world_presets", "worldgen/world_preset"),
-    ("features", "worldgen/feature"),
+    ("features", "worldgen/configured_feature"),
     ("placed_features", "worldgen/placed_feature"),
     ("state_providers", "worldgen/block_state_provider"),
     ("biome_tags", "tags/worldgen/biome"),
