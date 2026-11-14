@@ -1715,3 +1715,93 @@ flight on the 338/410 tree.
 - 1 class, 0 named. `VertexConsumer`: 26.3 adds `setUv3` and the
   default `putBakedQuadWithGlint` (the uv3/glint path from item 348).
   Mojang's vertex-consumer interface; the Rust's is its own wgpu code.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 350, 351, 352, 353, 354, 358, 359, 360, 363, 364, 365, 366
+
+All no-change. Rank 2 350/410 -> 362/410. CI run 43646940294 still in
+flight on the 338/410 tree.
+
+## Item 350 no-change (2026-11-15) — game/paintings.rs
+
+- 2 classes, 0 named. `PaintingRenderer`: `rotateDegrees` -> `mulPose`
+  rename. `PaintingVariant`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 351 no-change (2026-11-15) — gossip.rs
+
+- 1 class, 0 named. `GossipContainer.transferFrom` returns the picked
+  count (`int`) in 26.3 and `void` in 26.2. The Rust's `transfer_from`
+  returns the count, but its only non-test caller (villager.rs:675)
+  discards it — the 26.2 void form is honoured in effect; the return
+  is a test-only convenience. The transfer itself (selection, decay
+  per transfer, discard threshold) is identical.
+
+## Item 352 no-change (2026-11-15) — mobs/breeze.rs
+
+- 1 class, 0 named. `Breeze.PROJECTILE_DEFLECTION`: 26.3's 4-arg
+  lambda (with `power`) vs 26.2's 3-arg form — the item-319 story.
+  The Rust's `deflect(REVERSE)` already uses the 26.2 -0.5-per-axis
+  form (arrows.rs).
+
+## Item 353 no-change (2026-11-15) — mobs/landing.rs
+
+- 1 class, 0 named. `HayBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (item-309 pattern).
+
+## Item 354 no-change (2026-11-15) — mobs/llama.rs
+
+- 1 class, 0 named. `Llama`: 26.3's `rangedAttackUncertainty(level)`
+  returns 10.0F; 26.2 inlines the literal 10.0F in the spit call. The
+  Rust's spit passes the literal `10.0` — the same value.
+
+## Item 358 no-change (2026-11-15) — horizon-core/paletted.rs
+
+- 2 classes, 0 named. `BitStorage.fill(int)` is 26.3-only (interface
+  method + `SimpleBitStorage` implementation, the bit-replication
+  fill). The Rust's paletted storage has no `fill` method.
+
+## Item 359 no-change (2026-11-15) — world/dimension_type.rs
+
+- 1 class, 0 named. `DimensionType`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` and `holderSet` -> `homogeneousList` for
+  `infiniburn`/`timelines` — the same JSON shapes. The Rust's
+  `DimensionFacts.infiniburn` reads the tag string
+  (`#minecraft:infiniburn_overworld`/`_nether` defaults).
+
+## Item 360 no-change (2026-11-15) — level/data.rs
+
+- 1 class, 0 named. `WallBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (item-309 pattern).
+
+## Item 363 no-change (2026-11-15) — advancements
+
+- 1 class, 0 named. `AdvancementHolder`: 26.3's
+  `register(BootstrapContext)` (server-side bootstrap) vs 26.2's
+  `LIST_STREAM_CODEC` (the packet list form). The Rust decodes
+  `ClientboundUpdateAdvancementsPacket` as a list — the 26.2 form.
+
+## Item 364 no-change (2026-11-15) — client/gui/screens
+
+- 2 classes, 0 named. `DeathScreen` has no diff.
+  `LoadingOverlay$LogoTexture`: `asResourceManager()` (26.3) vs
+  `asProvider()` (26.2) — rename only.
+
+## Item 365 no-change (2026-11-15) — client/renderer/state
+
+- 1 class, 0 named. `GameRenderState`: 26.3 adds the
+  `requestedPostEffects` list and the `shouldRenderLevel` /
+  `readyForLevelRendering` flags; 26.2 has the `useShaderTransparency()`
+  method instead. The post-effect/transparency rework; the Rust's
+  render state is its own wgpu code.
+
+## Item 366 no-change (2026-11-15) — network/syncher
+
+- 2 classes, 0 named. `EntityDataSerializers`: 26.3 registers a
+  `DYE_COLOR` serializer at id 43; 26.2's table ends at `HUMANOID_ARM`
+  (id 42). The Rust's table has the same 0-42 order and the extra
+  DYE_COLOR arm at 43 — unreachable from a 26.2 server, which never
+  sends id 43, so no 26.2 wire difference.
+  `SynchedEntityData$Builder`: `id >= length` (26.3) vs `id > length`
+  (26.2) in the bounds check — server-side vanilla behaviour; the
+  Rust client never builds it (it decodes `ClientboundSetEntityDataPacket`
+  entries by index).
