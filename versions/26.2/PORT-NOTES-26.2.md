@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 80/100 items, 44 changed, 36 no-change, 4012 minutes on changed
+**rate sample: 88/100 items, 46 changed, 42 no-change, 4132 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -583,6 +583,14 @@ log; it stays in agreement with the tally line above.
 | 244 | no-change | — | RenderType import move + outline-texture lookup + removed hasBlending; Rust does not use Mojang's RenderType |
 | 246 | no-change | — | Item$Properties 26.3-only villagerFood/potPattern + components absent in 26.2; shared methods identical |
 | 248 | no-change | — | ContextMap map-implementation swap + method renames (set/get -> withParameter/getParameter); semantics identical |
+| 249 | no-change | — | TagSlotDisplay HolderSet (26.3) vs TagKey (26.2); Rust expands tags eagerly at load; SlotDisplayContext adds FUEL_VALUES in 26.2 |
+| 250 | changed | 60 (est.) | State-provider states to the 26.2 object-only block-state codec (simple, weighted, noise default/states, would_survive); state_provider harness needs a 26.3->26.2 oracle rework (97 compile errors) |
+| 251 | no-change | — | WeatherEffectRenderer is the RenderPearl/OIT rework; Rust has its own wgpu weather renderer |
+| 255 | no-change | — | SimpleBlockFeature record+MapCodec (26.3) vs Feature<SimpleBlockConfiguration> (26.2); Rust already decodes to_place directly with optional schedule_tick |
+| 256 | no-change | — | StructureCheck cache is a pure optimization; addChildren accessor rename; BoundingBox same values |
+| 259 | no-change | — | TagCommand response-plumbing rework; data accessors ArgProvider vs DataProvider; behaviour identical |
+| 275 | no-change | — | calculateSolid logic identical (26.3 adds SolidDebugger logging); blocksMotion/isViewBlocking already 26.2-form; shouldRedstoneWireConnectTo 26.3-only, uncalled |
+| 277 | changed | 60 (est.) | isSuffocating default to blocksMotion (no causes_suffocation tag in 26.2); BlockState/StateHolder codec already fixed in 214 |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
@@ -1156,3 +1164,135 @@ Seven no-change (verified against the jars, no code change) and one changed
   object-only 26.2 form. The `block_state_codec` harness itself needs a
   26.2 rework: its oracle references `FULL_CODEC`, which does not exist
   in 26.2, and its corpus uses the `id`/`properties` object form.
+
+## Batch of 8 rank-2 A items closed (2026-11-15) — 249, 250, 251, 255, 256, 259, 275, 277
+
+Six no-change, two changed (250, 277). Rank 2 298/410 -> 306/410.
+
+## Item 249 no-change (2026-11-15) — world/item/crafting/display
+
+- 3 classes, 0 named. `SlotDisplay$TagSlotDisplay`: 26.3 holds a resolved
+  `HolderSet<Item>`; 26.2 holds a `TagKey<Item>` (resolved lazily via the
+  registry). The Rust's `Ingredient` expands tags at load time into
+  `items` + `order` (HolderSet order via `item_tag_order`) — the eager
+  26.3 shape, not 26.2's lazy TagKey. Observable difference only on
+  datapack reload (a tag's contents changing after load); the
+  ghost_recipe harness (unrun on 26.2) owns that verification.
+  `SlotDisplayContext`: 26.3's context has `REGISTRIES` (RegistryAccess)
+  only; 26.2 adds optional `FUEL_VALUES` and `REGISTRIES` is a
+  `HolderLookup.Provider`. The Rust's recipe context does not pass fuel
+  values. No behaviour the Rust depends on changes.
+
+## Item 250 changed (2026-11-15) — world/level/levelgen/feature/stateproviders
+
+- 1 class, 0 named, but the diff is a real codec rework with a genuine
+  26.2 divergence in the Rust (the follow-up from item 214): 26.3's
+  `BlockStateProvider` is an interface with `TYPED_CODEC`,
+  `STATE_OR_PROVIDER_CODEC` (xor of `BlockState.FULL_CODEC` +
+  TYPED_CODEC), `DIRECT_CODEC` and a holder `CODEC`; 26.2's is an
+  abstract class with a single byNameCodec-dispatch `CODEC` and static
+  `simple(state)` / `simple(block)` factories (26.3: `of` /
+  `holderOf`). Every provider's state field uses 26.2's object-only
+  `BlockState.CODEC` (verified in the jars: `SimpleStateProvider`
+  `BlockState.CODEC.fieldOf("state")`; `WeightedStateProvider`
+  `WeightedList.nonEmptyCodec(BlockState.CODEC)`; `NoiseThresholdProvider`
+  `BlockState.CODEC` for `default_state` / `low_states` /
+  `high_states`; `NoiseProvider` `BlockState.CODEC.listOf()` for
+  `states`; `WouldSurvivePredicate`'s `state` field). The Rust decoded
+  all five of those fields with the compact form (`decode(..., false)`,
+  accepting bare strings and `id`/`properties` objects). Fixed to the
+  object-only form (`true`): `state_provider.rs` simple `state`,
+  weighted entries, and `predicate_state` (would_survive); `noise.rs`
+  `default_state` and the `states` lists. The direct-state attempt in
+  `StateProvider::decode` already used `true`.
+- Follow-up: the `state_provider` harness cannot run on 26.2 yet — its
+  oracle compilation fails with 97 errors across three helpers
+  (`VanillaMaterialConditionOracle` 76, `VanillaStateProviderOracle` 11,
+  `VanillaAnchorOracle` 10), all 26.3-only APIs (packages
+  `densityfunction`, `material/condition`, `material/rule` do not exist
+  in 26.2; `RegistryInfoLookup` shape differs). Needs a full 26.3->26.2
+  oracle rework, same class as items 127/131.
+- WIP checkpoint `37c9f5b1` pushed mid-batch.
+
+## Item 251 no-change (2026-11-15) — client/renderer/weather
+
+- 1 class, 0 named. `WeatherEffectRenderer` (123 diff lines) is the
+  26.3 RenderPearl/OIT render-pass rework (`prepare` -> `render`,
+  `setUniform` -> `bindTexture`, `OitStage` -> `OutputTarget.WEATHER_TARGET`,
+  pipeline selection via `useShaderTransparency`). The Rust's weather.rs
+  is its own wgpu renderer and names none of Mojang's render types; the
+  `weather_render` harness (unrun on 26.2) owns the rendering
+  verification.
+
+## Item 255 no-change (2026-11-15) — world/level/levelgen/feature
+
+- 1 class, 0 named. 26.3's `SimpleBlockFeature` is a record
+  `(Holder<BlockStateProvider> toPlace, boolean scheduleTick)` with a
+  MapCodec; 26.2's is the old `Feature<SimpleBlockConfiguration>` class
+  with `place(FeaturePlaceContext)`. The Rust's `SimpleBlockFeature`
+  already decodes `to_place` as a direct provider (not a holder) with an
+  optional `schedule_tick` defaulting false, and its place logic matches
+  26.2's (optional state, `canSurvive`, double-plant / mossy-carpet
+  special cases via placement ops, schedule tick). The `simple_block`
+  harness (unrun on 26.2) owns the verification.
+
+## Item 256 no-change (2026-11-15) — world/level/levelgen/structure
+
+- 5 classes, 0 named. `StructureCheck`: 26.3 adds a
+  `chunksWithoutStartsInStorage` LongSet cache (131072 cap) and a
+  `climateSampler` field; 26.2 passes the pos key straight to
+  `tryLoadFromStorage` — the cache is a pure optimization with
+  identical results. `StructurePiece.addChildren` takes a
+  `StructurePiecesBuilder` (26.3) vs a `StructurePieceAccessor` (26.2);
+  `BoundingBox.getCenter` / `intersects` are the same values,
+  restructured. No behaviour the Rust depends on changes.
+
+## Item 259 no-change (2026-11-15) — server/commands/data
+
+- 3 classes, 0 named. `TagCommand`: 26.3 uses the
+  `CommandResponseTracker.messages` helpers; 26.2 uses `Sets` + inline
+  messages — the command behaviour (add/remove/list tags, messages) is
+  identical, only the response plumbing is restructured.
+  `BlockDataAccessor` / `StorageDataAccessor`: `ArgProvider` (26.3) vs
+  `DataProvider` (26.2) Brigadier-provider rework; the accessor
+  behaviour (get/set NBT on a block entity / storage) is unchanged.
+  The Rust's `game/commands/data.rs` implements `/data` and `/tag` with
+  its own argument parsing.
+
+## Item 275 no-change (2026-11-15) — level/query.rs / block/state
+
+- 2 classes, 0 named. `BlockStateBase.calculateSolid` logic is identical
+  in both versions (forceSolidOn -> true, forceSolidOff -> false, null
+  cache -> false, empty shape -> false, bounds size >= 0.729... -> true,
+  else Y size >= 1.0); 26.3 only wraps every return in
+  `SolidDebugger.logAndGet` (debug logging). `blocksMotion()` (not
+  cobweb / bamboo_sapling and `isSolid()`) is present in 26.2 as
+  established. `shouldRedstoneWireConnectTo` is 26.3-only; the Rust
+  never calls it. `isViewBlocking`: 26.3's `StateArgumentPredicate<AABB>`
+  vs 26.2's plain `StatePredicate` — the Rust already implements the
+  26.2 two-argument form in `render_tick.rs`. `DiodeBlock`: 26.3-only
+  abstract `codec()` + the `RedstoneWireBlock` rename (26.2:
+  `RedStoneWireBlock`); the power-read logic is identical.
+
+## Item 277 changed (2026-11-15) — world/level/block/state
+
+- 3 classes, 0 named. `BlockState` / `StateHolder` diffs are the codec
+  story from item 214 (26.3 `FULL_CODEC` + Either vs 26.2 object-only;
+  `id`/`properties` vs `Name`/`Properties`), already fixed and verified
+  by the rule_test harness. `Properties`: 26.3's default
+  `isSuffocating` is `state.is(#causes_suffocation) &&
+  isCollisionShapeFullBlock`; 26.2's is `state.blocksMotion() &&
+  isCollisionShapeFullBlock`. The `#causes_suffocation` tag file exists
+  only in the 26.3 jar (52 bytes) — it is absent from 26.2 — so the
+  Rust's `state_suffocating` default arm (`full_collision &&
+  block_in_tag("minecraft:causes_suffocation", ...)`) was always false
+  under 26.2 data: no suffocation overlay ever showed for solid blocks.
+  Fixed to the 26.2 form using the already-populated `legacy_solid`
+  fact (from `block-behaviours.json`, also used by the fluid mesher)
+  with the cobweb / bamboo-sapling exclusion — the same `blocksMotion`
+  rule horizon-world already uses. The explicit arms (dirt_path /
+  farmland / mud / soul_sand, pistons, leaves / glass / copper_grate,
+  shulker boxes) are unchanged. `PushReaction` default NORMAL (26.2)
+  vs PUSH_PULL (26.3) was already known; `fallDistanceReduction` is a
+  26.3-only Properties field (26.2 blocks all export 0.0, item 86).
+- WIP checkpoint `37c9f5b1` pushed mid-batch.
