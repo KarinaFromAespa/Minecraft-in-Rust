@@ -213,11 +213,8 @@ pub struct Guest {
     /// `Entity.verticalCollisionBelow` of the player's own body: its last
     /// accepted move came down onto something.
     pub rests_on_ground: bool,
-    /// `ServerGamePacketListenerImpl.lastSupportedBlocksSend`: the connection
-    /// tick the blocks under the player were last force-sent.
-    pub support_blocks_sent: u64,
-    /// A position move arrived since the client's last ClientTickEnd
-    /// (receivedPositionThisTick): a second one is a protocol error.
+    /// Whether a position move arrived this tick, for the known movement the
+    /// tick's end clears when none did (`handlePlayerKnownMovement`).
     pub position_this_tick: bool,
     /// Violation levels and the checks' state (the anticheat, when on).
     pub anticheat: horizon_anticheat::Player,
@@ -509,7 +506,6 @@ impl Guest {
             vehicle_gravity: 0.0,
             vehicle_rests: false,
             rests_on_ground: false,
-            support_blocks_sent: 0,
             position_this_tick: false,
             anticheat: Default::default(),
             replay: None,

@@ -3084,7 +3084,8 @@ impl Game<'_> {
             S::Unknown(id, payload)
                 if id == horizon_protocol::ids::play::serverbound::COMMAND_SUGGESTION =>
             {
-                // ServerCommandSuggestionsProvider.request, then trySchedule.
+                // 26.2 parses the suggestion request inline here (no
+                // ServerCommandSuggestionsProvider, which is 26.3's).
                 host.play.entry(conn).or_default().suggestion = Some(payload);
                 self.guest_try_suggestions(host, conn);
             }
@@ -4002,7 +4003,9 @@ impl Game<'_> {
         reg.banned_players = own_banned;
         reg.banned_ips = own_banned_ips;
         reg.whitelisted = own_whitelisted;
-        // ServerCommandSuggestionsProvider.limitSuggestionCount.
+        // 26.2 caps the suggestions at 1000 inline in
+        // handleCustomCommandSuggestions (26.3's provider method is
+        // limitSuggestionCount).
         suggestions.truncate(1000);
         let utf16 = |byte: usize| command[..byte.min(command.len())].encode_utf16().count() as i32;
         let mut w = horizon_protocol::buf::Writer::new();

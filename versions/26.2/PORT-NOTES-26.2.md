@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 66/100 items, 37 changed, 29 no-change, 2892 minutes on changed
+**rate sample: 67/100 items, 38 changed, 29 no-change, 3192 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -575,6 +575,7 @@ log; it stays in agreement with the tally line above.
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
+| 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
 
 Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
 in 14aacfc3 and its interpolation half is 233's rework.
@@ -729,3 +730,45 @@ Rank 2 now 284/410. The item's real changes, all verified against the
   randomization is 26.2's single-max-speed gaussian; chat signatures
   pass directly; `getViewYRot` passenger interpolation; underwater loop
   fade math (+1/−2, 40 cap) identical in both versions.
+
+## Item 12 closed (2026-11-14) — lan_actions.rs / LivingEntity, Entity, Player
+
+- **PlayerAction ordinals are 26.3-shifted** (wire bug, both directions):
+  26.3 inserted `CHANGE_DESTROY_DIRECTION` at ordinal 1; 26.2 is 0 START,
+  1 ABORT, 2 STOP, 3 DROP_ALL, 4 DROP_ITEM, 5 RELEASE_USE, 6 SWAP, 7 STAB
+  (verified with `javap` on both client jars). Fixed the client sends
+  (`remote.rs`), the host dispatch (`lan_actions.rs`) and the packet doc;
+  removed the face-change send (26.2's `continueDestroyBlock` sends no
+  direction-change packet). New ignored regression test
+  `a_26_2_guest_abort_and_stop_use_26_2_ordinals` passes.
+- **Glide start bars water only in 26.2**: `tryToStartFallFlying` is
+  `!isFallFlying() && canGlide() && !isInWater()`; removed the lava arm
+  from `lan_start_gliding` (26.3's `!isInLiquid()`).
+- **Visibility**: `worn_visibility` gains `minecraft:piglin_brute` (26.2
+  fools brutes with a piglin head); removed the 26.3 0..10 clamp from
+  `visibility_percent`.
+- **Restitution**: the bounce gate is strict `<` in 26.2
+  (`movement_restitution.rs`).
+- **Collide**: the entity query is `aabb.expandTowards(movement)` only;
+  26.3 adds the maxUpStep expansion (`geometry/movement.rs`).
+- **hurtServer knockback**: 26.2 knocks back whenever the source is not
+  `NO_KNOCKBACK`, even when fully blocked (26.3 added the
+  `fullyBlocked` skip). Dropped the gate in `living_hurt.rs` and flipped
+  the health test to assert knockback on a fully-blocked hit (14/14 pass).
+- **forceSendPlayerSupportBlocks is 26.3-only**: removed the function, its
+  call and `Guest.support_blocks_sent`. 26.2 never resends support blocks.
+- **Duplicate-position kick is 26.3-only** (`receivedPositionThisTick`):
+  removed the kick; `position_this_tick` stays for `known_movement`
+  bookkeeping.
+- Verified no-change: swing-back echo, `handleMovePlayer` inline impulse
+  reset, suggestions inline parse with the 1000 cap, sign-update bool,
+  `flushDirty` unpositioned holders, BedRule / `try_sleep`, unconditional
+  blocked knockback, `isPushable` without the ticking gate,
+  `teams_allow_damage` inline form, no 2019/2020 dig events, server-side
+  `aiStep` interpolation dead, `canSimulateMovement`, `handlePortal`,
+  single-boolean `Invulnerable`, water-only ridden float,
+  `handleMoveVehicle` direct fields, creative-slot drop, `noBlocksAround`,
+  `createWitherRose` flags 3, `drop` randomly=false with unconditional
+  swing, `startUsingItem` (no 26.3 equipment update),
+  `onEquippedItemBroken` (effects stop via per-tick
+  `collectEquipmentChanges`), Team join on load, `teleport_rider`.

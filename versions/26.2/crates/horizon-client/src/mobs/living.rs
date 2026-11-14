@@ -1744,11 +1744,12 @@ impl Mob {
         {
             self.velocity.y = f64::from(0.3_f32);
         }
-        // `LivingEntity.travelInFluid` ends with
-        // `floatInLiquidWhileRidden(FluidTags.ENTITY_FLOATABLE)`: a mount with
-        // a passenger that is in `minecraft:can_float_while_ridden` and deeper
+        // `LivingEntity.floatInWaterWhileRidden` (26.2): a mount with a
+        // passenger that is in `minecraft:can_float_while_ridden` and deeper
         // in the water than its jump threshold rises 0.04 a tick, which is
-        // what keeps a ridden horse and its rider afloat.
+        // what keeps a ridden horse and its rider afloat. 26.3 renamed it
+        // `floatInLiquidWhileRidden(ENTITY_FLOATABLE)`, but that tag holds
+        // only water, so the behaviour is the same.
         if (self.rider.is_some() || self.extra.rider.is_some())
             && w.data
                 .entity_has("minecraft:can_float_while_ridden", &self.kind.id)

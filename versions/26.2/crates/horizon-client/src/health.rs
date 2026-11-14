@@ -1172,7 +1172,10 @@ mod tests {
             .hurt_caused_by(health, rules, id, 4.0, Some(shield), true, 0)
             .unwrap();
         assert_eq!(o.blocked, 3.0, "Easy scales 4 to 3 before the shield");
-        assert!(o.fully_blocked && !o.knockback);
+        // 26.2 knocks back even when the hit was fully blocked (26.3 skips
+        // the knockback when `blocked && damage <= 0`); the shield still
+        // absorbs the whole hit.
+        assert!(o.fully_blocked && o.knockback);
     }
 
     /// #7309: on Hard a mob's 4 is scaled to 6 (`Player.hurtServer`), on
