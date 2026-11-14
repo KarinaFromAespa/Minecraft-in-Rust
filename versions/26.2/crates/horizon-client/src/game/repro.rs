@@ -1297,7 +1297,7 @@ impl Game<'_> {
                 true
             }
             TraceKind::Motion { x, y } => {
-                self.mouse.on_move(0.0, 0.0, x, y, true, true);
+                self.mouse.add_motion(x, y);
                 self.last_input = Instant::now();
                 true
             }

@@ -356,12 +356,14 @@ impl ApplicationHandler for Game<'_> {
             if x != 0.0 || y != 0.0 {
                 self.pad_yield_input(event_loop);
             }
-            // MouseHandler.onMove with the pointer grabbed; applied once per frame.
+            // 26.2's `MouseHandler.onMove` computes the motion from two
+            // consecutive absolute positions; winit's device motion is that
+            // delta directly, so it goes through `add_motion`.
             self.note_input(
                 input_trace::InputOrigin::User,
                 input_trace::TraceKind::Motion { x, y },
             );
-            self.mouse.on_move(0.0, 0.0, x, y, true, true);
+            self.mouse.add_motion(x, y);
             self.last_input = Instant::now();
         }
     }

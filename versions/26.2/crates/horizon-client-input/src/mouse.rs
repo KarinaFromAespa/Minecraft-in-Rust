@@ -1,4 +1,4 @@
-//! Mouse look and scrolling of 26.3: `MouseHandler` (accumulated movement,
+//! Mouse look and scrolling of 26.2: `MouseHandler` (accumulated movement,
 //! sensitivity curve, cinematic smoothing, inversion), `SmoothDouble`,
 //! `ScrollWheelHandler` and `Entity.turn`.
 
@@ -178,38 +178,28 @@ impl MouseLook {
         self.ignore_first_move = true;
     }
 
-    /// `onMove`: relative motion counts while the pointer is grabbed, absolute
-    /// motion otherwise.
-    pub fn on_move(
-        &mut self,
-        xpos: f64,
-        ypos: f64,
-        xrel: f64,
-        yrel: f64,
-        window_active: bool,
-        grabbed: bool,
-    ) {
+    /// `onMove`: the motion is the change in the absolute position since the
+    /// last move, grabbed or not. 26.3's SDL form takes relative motion while
+    /// the pointer is grabbed; 26.2's GLFW form has no such parameters.
+    pub fn on_move(&mut self, xpos: f64, ypos: f64, window_active: bool) {
         if self.ignore_first_move {
             self.xpos = xpos;
             self.ypos = ypos;
             self.ignore_first_move = false;
         } else {
             if window_active {
-                if grabbed {
-                    self.accumulated_dx += xrel;
-                    self.accumulated_dy += yrel;
-                } else {
-                    self.accumulated_dx += xpos - self.xpos;
-                    self.accumulated_dy += ypos - self.ypos;
-                }
+                self.accumulated_dx += xpos - self.xpos;
+                self.accumulated_dy += ypos - self.ypos;
             }
             self.xpos = xpos;
             self.ypos = ypos;
         }
     }
 
-    /// `onMove` with the pointer grabbed, for relative motion an agent makes
-    /// (`horizon-ctl mouse-move`): added to the frame's accumulated movement.
+    /// Relative motion with the pointer grabbed: winit's device motion, or a
+    /// move an agent makes (`horizon-ctl mouse-move`). It is the delta 26.2's
+    /// `onMove` would compute from two consecutive absolute positions, added
+    /// to the frame's accumulated movement.
     pub fn add_motion(&mut self, dx: f64, dy: f64) {
         self.accumulated_dx += dx;
         self.accumulated_dy += dy;
@@ -328,7 +318,9 @@ pub fn ease_in_out(t: f64) -> f64 {
 /// window's centre whenever the pointer's grab state changes, so a screen
 /// opened from gameplay starts with the cursor in the middle. A release of
 /// an already free pointer (or a grab of an already grabbed one) leaves the
-/// position where it is, as vanilla does.
+/// position where it is, as vanilla does. 26.2 divides the integer size by
+/// two before scaling, so an odd width centres half a pixel left of 26.3's
+/// float division.
 pub fn mouse_position_after_grab_change(
     grab: bool,
     was_grabbed: bool,
@@ -338,7 +330,7 @@ pub fn mouse_position_after_grab_change(
     if grab == was_grabbed {
         None
     } else {
-        Some((size[0] as f32 / 2.0 / scale, size[1] as f32 / 2.0 / scale))
+        Some(((size[0] / 2) as f32 / scale, (size[1] / 2) as f32 / scale))
     }
 }
 
@@ -495,8 +487,8 @@ mod tests {
     #[test]
     fn default_sensitivity_turns_point_fifteen_degrees_per_count_at_one() {
         let mut look = MouseLook::default();
-        look.on_move(0.0, 0.0, 0.0, 0.0, true, true);
-        look.on_move(1.0, 0.0, 1.0, 0.0, true, true);
+        look.on_move(0.0, 0.0, true);
+        look.on_move(1.0, 0.0, true);
         let (xo, _) = look
             .handle_accumulated_movement(
                 1.0,
@@ -538,6 +530,12 @@ mod tests {
         assert_eq!(
             mouse_position_after_grab_change(false, true, [1920, 1080], 2.0),
             Some((480.0, 270.0))
+        );
+        // 26.2 divides the integer size: an odd width centres on the pixel
+        // below the true middle, not half a pixel past it.
+        assert_eq!(
+            mouse_position_after_grab_change(true, false, [1921, 1081], 1.0),
+            Some((960.0, 540.0))
         );
         // Without a change of the grab state the position stays where it is.
         assert_eq!(

@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 12/100 items, 8 changed, 4 no-change, 62 minutes on changed
+**rate sample: 14/100 items, 9 changed, 5 no-change, 68 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -521,6 +521,8 @@ log; it stays in agreement with the tally line above.
 | 136 | no-change | — | tryPlaceLeaf plumbing only; Rust already matches 26.2 |
 | 134 | changed | 3 | port-pack gating: 26.2 series copies as-is, 26.3 packs not brought over; install() fresh-dir fix |
 | 140 | changed | 11 | container tooltip args (name, count); crossbow multiple line uses getDisplayName |
+| 119 | changed | 6 | onMove to 26.2 absolute-delta form; grab centre integer division |
+| 99 | no-change | — | crumbling already the 26.2 parameter form; rest is API-only or has no Rust counterpart |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 
