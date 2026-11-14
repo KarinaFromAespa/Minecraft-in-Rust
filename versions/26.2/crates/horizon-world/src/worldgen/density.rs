@@ -1,5 +1,15 @@
 //! Bounded decoding of density registries into the immutable core graph.
 //! Named registry holders and raw numeric tokens preserve compilation behavior.
+//!
+//! The decoder reads both JSON forms: 26.2 writes single operands as
+//! `argument` (and binary operands as `argument1`/`argument2`), while 26.3
+//! renamed them to `input` (`left`/`right`). 26.2-only types
+//! (`cache_2d`, `cache_once`, `flat_cache`, `y_clamped_gradient`,
+//! `end_islands`, `shifted_noise`, and `shift_a`/`shift_b` with an
+//! `argument` noise name) decode to their graph equivalents. 26.2's
+//! `interpolated` carries no cell sizes — it is vanilla's
+//! `Marker(Type.Interpolated)`, sampled over the noise chunk's cell — so
+//! the cell falls back to the settings' cell, passed in at load time.
 use super::*;
 use horizon_core::{
     density::{
@@ -61,14 +71,32 @@ pub struct DensityRegistry {
     graph: DensityGraph,
     values: BTreeMap<String, FunctionId>,
     noises: BTreeMap<String, NoiseId>,
+    /// The noise chunk's cell for this settings' pipeline, in blocks
+    /// `(xz, y)`. 26.2's `interpolated` carries no cell sizes, so decoded
+    /// nodes fall back to this; 26.3 data always names its own.
+    interpolated_cell: (i32, i32),
 }
 impl DensityRegistry {
     /// Input keys are registry identifiers, and values contain original JSON.
     /// This API accepts acyclic registries, at most 256 nested graph levels and
     /// at most 256 interval branches. Inline noise holders are not yet supported.
+    /// `interpolated` nodes without cell sizes fall back to the overworld cell
+    /// (4, 8); use [`Self::from_json_with_interpolated_cell`] when the
+    /// settings' cell differs (the end and floating islands use (8, 4)).
     pub fn from_json(
         noises: &BTreeMap<String, String>,
         densities: &BTreeMap<String, String>,
+    ) -> Result<Self, DecodeError> {
+        Self::from_json_with_interpolated_cell(noises, densities, 4, 8)
+    }
+    /// As [`Self::from_json`], with the noise chunk cell this settings'
+    /// pipeline interpolates over: `size_horizontal * 4` by
+    /// `size_vertical * 4` (`NoiseSettings.getCellWidth/Height`).
+    pub fn from_json_with_interpolated_cell(
+        noises: &BTreeMap<String, String>,
+        densities: &BTreeMap<String, String>,
+        cell_xz: i32,
+        cell_y: i32,
     ) -> Result<Self, DecodeError> {
         let mut loader = Loader {
             graph: DensityGraph::new(),
@@ -76,6 +104,7 @@ impl DensityRegistry {
             definitions: BTreeMap::new(),
             values: BTreeMap::new(),
             active: BTreeSet::new(),
+            interpolated_cell: (cell_xz, cell_y),
         };
         for (name, json) in noises {
             let name = identifier(name)?;
@@ -101,7 +130,16 @@ impl DensityRegistry {
             graph: loader.graph,
             values: loader.values,
             noises: loader.noises,
+            interpolated_cell: (cell_xz, cell_y),
         })
+    }
+    /// Insert a synthetic node built by the caller rather than decoded from
+    /// JSON, and return its id. Vanilla 26.2 derives some functions from the
+    /// router instead of naming them in data (the aquifer's deep-dark
+    /// exclusion, the ore veins' density functions, the debug line's
+    /// peaks-and-valleys), so the generator synthesizes their graph nodes.
+    pub fn insert(&mut self, node: GraphNode) -> Result<FunctionId, DecodeError> {
+        Ok(self.graph.insert(node)?)
     }
     pub fn graph(&self) -> &DensityGraph {
         &self.graph
@@ -128,6 +166,7 @@ impl DensityRegistry {
             definitions: BTreeMap::new(),
             values: BTreeMap::new(),
             active: BTreeSet::new(),
+            interpolated_cell: self.interpolated_cell,
         };
         let roots = json
             .iter()
@@ -146,6 +185,7 @@ struct Loader {
     definitions: BTreeMap<String, Box<RawValue>>,
     values: BTreeMap<String, FunctionId>,
     active: BTreeSet<String>,
+    interpolated_cell: (i32, i32),
 }
 impl Loader {
     fn resolve(&mut self, name: &str, depth: usize) -> Result<FunctionId, DecodeError> {
@@ -190,6 +230,51 @@ impl Loader {
             Some(raw) => self.decode(raw, depth + 1),
             None => Ok(self.graph.insert(GraphNode::Constant(fallback))?),
         }
+    }
+    /// The single operand of a unary op, `blend_density`, `interpolated` or
+    /// a cache: `input` in 26.3, `argument` in 26.2. The 26.3 name wins when
+    /// both are present (never in vanilla data).
+    fn input_either(&mut self, object: &Object, depth: usize) -> Result<FunctionId, DecodeError> {
+        if object.contains_key("input") {
+            self.input(object, "input", depth)
+        } else {
+            self.input(object, "argument", depth)
+        }
+    }
+    /// The two operands of a binary op: `left`/`right` in 26.3,
+    /// `argument1`/`argument2` in 26.2.
+    fn binary_inputs(
+        &mut self,
+        object: &Object,
+        depth: usize,
+    ) -> Result<(FunctionId, FunctionId), DecodeError> {
+        if object.contains_key("left") {
+            Ok((
+                self.input(object, "left", depth)?,
+                self.input(object, "right", depth)?,
+            ))
+        } else {
+            Ok((
+                self.input(object, "argument1", depth)?,
+                self.input(object, "argument2", depth)?,
+            ))
+        }
+    }
+    /// The noise a shift op offsets by: `noise` in 26.3, `argument` holding
+    /// the noise name in 26.2 (`singleArgumentCodec(NoiseHolder.CODEC)`).
+    fn shift_noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
+        if object.contains_key("noise") {
+            return self.noise(object);
+        }
+        let raw = required(object, "argument")?;
+        if !raw.get().starts_with('"') {
+            return Err(DecodeError::Field("shift noise"));
+        }
+        let name = identifier(&string(raw)?)?;
+        self.noises
+            .get(&name)
+            .copied()
+            .ok_or_else(|| DecodeError::Registry(format!("unknown noise reference: {name}")))
     }
     fn noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
         let raw = required(object, "noise")?;
@@ -240,14 +325,11 @@ impl Loader {
         let node = if let Some(kind) = unary {
             GraphNode::Unary {
                 kind,
-                input: self.input(&object, "input", depth)?,
+                input: self.input_either(&object, depth)?,
             }
         } else if let Some(kind) = binary {
-            GraphNode::Binary {
-                kind,
-                left: self.input(&object, "left", depth)?,
-                right: self.input(&object, "right", depth)?,
-            }
+            let (left, right) = self.binary_inputs(&object, depth)?;
+            GraphNode::Binary { kind, left, right }
         } else {
             match kind.as_str() {
                 "minecraft:constant" => {
@@ -256,11 +338,31 @@ impl Loader {
                 "minecraft:blend_alpha" => GraphNode::WorldField(WorldField::BlendAlpha),
                 "minecraft:blend_offset" => GraphNode::WorldField(WorldField::BlendOffset),
                 "minecraft:beardifier" => GraphNode::WorldField(WorldField::Beardifier),
-                "minecraft:end_outer_islands" => GraphNode::EndIslands,
+                "minecraft:end_outer_islands" | "minecraft:end_islands" => GraphNode::EndIslands,
                 "minecraft:cache" => GraphNode::Cache(self.input(&object, "input", depth)?),
-                "minecraft:blend_density" => {
-                    GraphNode::BlendDensity(self.input(&object, "input", depth)?)
+                // 26.2's three cache flavours: Cache2D caches per (x, z),
+                // FlatCache precomputes at y = 0 over a region, CacheOnce
+                // caches per NoiseChunk interpolation counter. Every cached
+                // input in the 26.2 data is y-independent and the Rust's
+                // per-position Cache is value-identical to a passthrough
+                // for them, so all three decode to Cache.
+                "minecraft:cache_2d" | "minecraft:cache_once" | "minecraft:flat_cache" => {
+                    GraphNode::Cache(self.input_either(&object, depth)?)
                 }
+                "minecraft:blend_density" => {
+                    GraphNode::BlendDensity(self.input_either(&object, depth)?)
+                }
+                // 26.2's y-clamped gradient: Mth.clampedMap(y, fromY, toY,
+                // fromValue, toValue) — the same clamped lerp the Y-axis
+                // ClampToEdge gradient sampler computes.
+                "minecraft:y_clamped_gradient" => GraphNode::Gradient {
+                    axis: Axis::Y,
+                    tiling: TilingMode::ClampToEdge,
+                    from: integer(required(&object, "from_y")?)?,
+                    to: integer(required(&object, "to_y")?)?,
+                    low: noise_value(required(&object, "from_value")?)?,
+                    high: noise_value(required(&object, "to_value")?)?,
+                },
                 "minecraft:pow" => GraphNode::Power {
                     base: self.input(&object, "base", depth)?,
                     exponent: self.input(&object, "exponent", depth)?,
@@ -302,17 +404,20 @@ impl Loader {
                         high: noise_value(required(&object, "to_value")?)?,
                     }
                 }
-                "minecraft:noise" => GraphNode::Noise {
+                "minecraft:noise" | "minecraft:shifted_noise" => GraphNode::Noise {
                     noise: self.noise(&object)?,
                     xz_scale: double(required(&object, "xz_scale")?)?,
                     y_scale: double(required(&object, "y_scale")?)?,
+                    // 26.2's shifted_noise always names its three shifts
+                    // (and the compiler lowers a shifted Noise to the same
+                    // ShiftedNoiseSampler); plain noise omits them.
                     shift_x: self.optional_input(&object, "shift_x", 0.0, depth)?,
                     shift_y: self.optional_input(&object, "shift_y", 0.0, depth)?,
                     shift_z: self.optional_input(&object, "shift_z", 0.0, depth)?,
                 },
                 "minecraft:shift" | "minecraft:shift_a" | "minecraft:shift_b" => {
                     GraphNode::OffsetNoise {
-                        noise: self.noise(&object)?,
+                        noise: self.shift_noise(&object)?,
                         kind: match kind.as_str() {
                             "minecraft:shift" => ShiftNoiseKind::Shift,
                             "minecraft:shift_a" => ShiftNoiseKind::ShiftA,
@@ -353,19 +458,18 @@ impl Loader {
                     input: self.input(&object, "input", depth)?,
                 },
                 "minecraft:interpolated" => GraphNode::Interpolated {
-                    input: self.input(&object, "input", depth)?,
-                    xz: int_range(
-                        required(&object, "cell_size_xz")?,
-                        "cell_size_xz",
-                        1,
-                        i32::MAX,
-                    )?,
-                    y: int_range(
-                        required(&object, "cell_size_y")?,
-                        "cell_size_y",
-                        1,
-                        i32::MAX,
-                    )?,
+                    input: self.input_either(&object, depth)?,
+                    // 26.3 names the cell sizes; 26.2's form is a bare
+                    // Marker over the noise chunk's cell, so the settings'
+                    // cell (passed to from_json) applies.
+                    xz: match optional(&object, "cell_size_xz") {
+                        Some(raw) => int_range(raw, "cell_size_xz", 1, i32::MAX)?,
+                        None => self.interpolated_cell.0,
+                    },
+                    y: match optional(&object, "cell_size_y") {
+                        Some(raw) => int_range(raw, "cell_size_y", 1, i32::MAX)?,
+                        None => self.interpolated_cell.1,
+                    },
                 },
                 "minecraft:find_top_surface" => GraphNode::Surface {
                     density: self.input(&object, "density", depth)?,
@@ -573,6 +677,102 @@ mod tests {
                 .is_err(),
                 "{json}"
             );
+        }
+    }
+    #[test]
+    fn argument_forms_decode_and_sample_like_the_renamed_inputs() {
+        let densities = BTreeMap::from([
+            (
+                "minecraft:abs".into(),
+                r#"{"type":"abs","argument":-0.5}"#.into(),
+            ),
+            (
+                "minecraft:add".into(),
+                r#"{"type":"add","argument1":0.25,"argument2":0.5}"#.into(),
+            ),
+            (
+                "minecraft:cache_2d".into(),
+                r#"{"type":"cache_2d","argument":2.5}"#.into(),
+            ),
+            (
+                "minecraft:cache_once".into(),
+                r#"{"type":"cache_once","argument":2.5}"#.into(),
+            ),
+            (
+                "minecraft:flat_cache".into(),
+                r#"{"type":"flat_cache","argument":2.5}"#.into(),
+            ),
+            (
+                "minecraft:gradient".into(),
+                r#"{"type":"y_clamped_gradient","from_y":-64,"to_y":-40,"from_value":0,"to_value":1}"#.into(),
+            ),
+            (
+                "minecraft:interpolated".into(),
+                r#"{"type":"interpolated","argument":3.0}"#.into(),
+            ),
+            ("minecraft:islands".into(), r#"{"type":"end_islands"}"#.into()),
+        ]);
+        let registry = DensityRegistry::from_json_with_interpolated_cell(
+            &BTreeMap::new(),
+            &densities,
+            8,
+            4,
+        )
+        .unwrap();
+        let abs = registry.value("minecraft:abs").unwrap();
+        let add = registry.value("minecraft:add").unwrap();
+        let cache_2d = registry.value("minecraft:cache_2d").unwrap();
+        let cache_once = registry.value("minecraft:cache_once").unwrap();
+        let flat_cache = registry.value("minecraft:flat_cache").unwrap();
+        let gradient = registry.value("minecraft:gradient").unwrap();
+        let interpolated = registry.value("minecraft:interpolated").unwrap();
+        let islands = registry.value("minecraft:islands");
+        let mut compiler = DensityCompiler::new(registry.into_graph());
+        let mut context = SamplerContext::default();
+        // get_sampler, not compile_raw: cache nodes need the prepared path.
+        let mut sample = |compiler: &mut DensityCompiler, id, at: [i32; 3]| {
+            compiler
+                .get_sampler(id)
+                .unwrap()
+                .sample_value(&mut context, at)
+                .unwrap()
+        };
+        assert_eq!(sample(&mut compiler, abs, [0; 3]), 0.5);
+        assert_eq!(sample(&mut compiler, add, [0; 3]), 0.75);
+        for (name, id) in [
+            ("cache_2d", cache_2d),
+            ("cache_once", cache_once),
+            ("flat_cache", flat_cache),
+        ] {
+            assert_eq!(sample(&mut compiler, id, [0; 3]), 2.5, "{name}");
+        }
+        assert_eq!(sample(&mut compiler, gradient, [0, -64, 0]), 0.0);
+        assert_eq!(sample(&mut compiler, gradient, [0, -52, 0]), 0.5);
+        assert_eq!(sample(&mut compiler, gradient, [0, -40, 0]), 1.0);
+        assert_eq!(sample(&mut compiler, gradient, [0, 0, 0]), 1.0);
+        assert_eq!(sample(&mut compiler, interpolated, [0; 3]), 3.0);
+        assert!(islands.is_some());
+    }
+    #[test]
+    fn shift_forms_accept_a_noise_name_or_an_argument() {
+        let noises = BTreeMap::from([("minecraft:offset".into(), r#"{"base_octave":0}"#.into())]);
+        let densities = BTreeMap::from([
+            (
+                "minecraft:shift_a".into(),
+                r#"{"type":"shift_a","argument":"minecraft:offset"}"#.into(),
+            ),
+            (
+                "minecraft:shift_b".into(),
+                r#"{"type":"shift_b","noise":"minecraft:offset"}"#.into(),
+            ),
+            (
+                "minecraft:shifted".into(),
+                r#"{"type":"shifted_noise","noise":"minecraft:offset","xz_scale":0.25,"y_scale":0,"shift_x":"minecraft:shift_a","shift_y":0,"shift_z":"minecraft:shift_b"}"#.into(),
+            ),
+        ]);
+        let registry = DensityRegistry::from_json(&noises, &densities).unwrap();
+        for name in ["minecraft:shift_a", "minecraft:shift_b", "minecraft:shifted"] {
+            assert!(registry.value(name).is_some(), "{name}");
         }
     }
 }
