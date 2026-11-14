@@ -1012,7 +1012,6 @@ impl Game<'_> {
                     a.previous,
                     a.position,
                     a.bounds(),
-                    a.velocity,
                     true,
                 );
             }

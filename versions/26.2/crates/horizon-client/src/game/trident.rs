@@ -1201,7 +1201,7 @@ impl Game<'_> {
                     t.position.add_vector(Vec3::new(half, 0.5, half)),
                 );
                 self.entity_powder_snow_particles(
-                    t.previous, t.position, bounds, t.velocity, false,
+                    t.previous, t.position, bounds, false,
                 );
             }
             // The stuck branch returns before Entity.baseTick. A flight that

@@ -1185,7 +1185,7 @@ impl Game<'_> {
                 h.velocity = Vec3::ZERO;
             }
         }
-        self.entity_powder_snow_particles(h.previous, h.position, h.bounds(), h.velocity, false);
+        self.entity_powder_snow_particles(h.previous, h.position, h.bounds(), false);
         h.velocity = Vec3::new(
             h.velocity.x * 0.92,
             h.velocity.y * 0.92,

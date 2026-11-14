@@ -1,7 +1,7 @@
 {
  "behaviour": {
-  "closed": 7,
-  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 258/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 182/191/199/208/228/230/232/235/240/241/242/276 closed 2026-11-14 (straw beds + SwingState + placement-modifier rework to 26.2; offsetCodec strict bound; height_range/volume_match predicates removed).",
+  "closed": 279,
+  "note": "Rank 1 closed 7/7 and merged to main (e9980f99) 2026-11-13. Rank 2 at 272/410 on behaviour/26.2; bucket C closed, bucket B has only item 106 open. Items 180/185/187/205/296/302/305/306/307/311/316/321/333/342 closed 2026-11-14 (cooking defaults; predicate-cycle warnings-only; dolphin goals merged to the single 26.2 PlayWithItemsGoal + blocksMotion jump; Panic withinManhattan order + MeleeAttack reach 1; enderman teleport to the 26.2 two-scan blocksMotion form). Item 192 held open: powder-snow half done, SteppedInterpolationHandler half closes with item 233.",
   "total": 651
  },
  "harness": {
@@ -18,7 +18,7 @@
  },
  "last_ci_commit": "bc530de6",
  "last_ci_run": 43535967019,
- "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 220/410 on behaviour/26.2.",
+ "notes": "Profile 4/17 (runs 43405337919, 43435321313, 43519358480, 43535967019): food, lan, light, resource_pack pass. BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). Rank 2 at 272/410 on behaviour/26.2. CI run 43575017292 (258/410 tree) in progress.",
  "profile_recorded": "2026-11-14",
  "protocol": 776,
  "protocol_tests": {

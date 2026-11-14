@@ -155,10 +155,10 @@ impl Game<'_> {
                     let invulnerable = m.invulnerable_flag;
                     m.damage(1.0, source);
                     // `Enderman.hurtServer` for a thrown potion: the hit is
-                    // `Enderman.hurtWithCleanWater`, then
-                    // `Enderman.repeatedlyTryToTeleport`, which does nothing
-                    // while it rides or once it is dead (`teleport` needs
-                    // `isAlive`) and which the AI step runs.
+                    // `Enderman.hurtWithCleanWater`, then the 64-try teleport
+                    // loop, which does nothing while it rides or once it is
+                    // dead (`teleport` needs `isAlive`) and which the AI
+                    // step runs.
                     if m.species() == Species::Enderman
                         && !invulnerable
                         && m.alive()

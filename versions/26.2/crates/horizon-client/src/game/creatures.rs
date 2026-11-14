@@ -1014,7 +1014,6 @@ impl Game<'_> {
             collision: self.collision,
             suffocation: self.mob_suffocation(),
             data: self.res.mob_data(),
-            controlling_player_movement: None,
             nearest_player: player.as_ref().filter(|p| !p.spectator).map(|p| p.position),
             player,
             others,
@@ -1328,20 +1327,6 @@ impl Game<'_> {
                     keep.push(kept);
                     continue;
                 }
-                let controlling_player_movement = horizon_client::mobs::equine::controlled(m)
-                    .then(|| {
-                        base.player
-                            .as_ref()
-                            .filter(|p| p.riding_vehicle == Some(m.id))
-                            .map(|p| p.velocity)
-                            .or_else(|| {
-                                guests
-                                    .iter()
-                                    .find(|(_, p)| p.riding_vehicle == Some(m.id))
-                                    .map(|(_, p)| p.velocity)
-                            })
-                    })
-                    .flatten();
                 // A mod canceled its tick: it stays as it is.
                 if round.canceled(m.id) {
                     keep.push(true);
@@ -1385,7 +1370,6 @@ impl Game<'_> {
                     teams: std::sync::Arc::clone(&base.teams),
                     ..base
                 };
-                w.controlling_player_movement = controlling_player_movement;
                 ticked.insert(mobs[i].id);
                 // `horizon-report`'s cost by mob type (tick_profile.rs).
                 let sampled = super::tick_profile::start().map(|t| (t, mobs[i].kind.clone()));
@@ -4716,7 +4700,11 @@ impl Game<'_> {
                         false,
                         |at| w.block_name(at.x, at.y, at.z) == "minecraft:powder_snow",
                     ) {
-                        snow_contacts.push((block, p.position, p.velocity));
+                        // 26.2's gate is horizontal movement
+                        // (`xOld != x || zOld != z`), not known movement.
+                        let moving =
+                            p.previous.x != p.position.x || p.previous.z != p.position.z;
+                        snow_contacts.push((block, p.position, moving));
                     }
                 }
                 if shooter.is_some() {
@@ -4814,8 +4802,8 @@ impl Game<'_> {
             }
         }
         self.creatures.pickable_projectile_targets = winds;
-        for (block, position, movement) in snow_contacts {
-            self.powder_snow_particle(block, position, movement);
+        for (block, position, moving) in snow_contacts {
+            self.powder_snow_particle(block, position, moving);
         }
         let listed = keep_flags.clone();
         let mut idx = 0;
@@ -9169,7 +9157,6 @@ mod pearl_tests {
             suffocation: &suffocation,
             data: &data,
             player: None,
-            controlling_player_movement: None,
             nearest_player: None,
             others: &[],
             dragon: None,

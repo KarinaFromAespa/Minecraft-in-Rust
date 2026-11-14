@@ -34,10 +34,10 @@ pub(super) struct QueuedParticle {
 /// `PowderSnowBlock.entityInside`'s server roll. The branch and both float
 /// draws follow Java's `getKnownMovement`/`randomBetween` order.
 pub(super) fn powder_snow_velocity(
-    known: Vec3,
+    moving: bool,
     random: &mut impl RandomSource,
 ) -> Option<[f64; 3]> {
-    horizon_client::powder_snow::particle_velocity(known, random)
+    horizon_client::powder_snow::particle_velocity(moving, random)
 }
 
 fn send_native_nearby(
@@ -331,33 +331,35 @@ impl Game<'_> {
         previous: Vec3,
         position: Vec3,
         bounds: Aabb,
-        known_movement: Vec3,
         living: bool,
     ) {
+        // 26.2 `PowderSnowBlock.entityInside`: the gate is the entity's own
+        // horizontal position delta (xOld/zOld vs x/z), not known movement.
         // `particle_velocity` refuses no horizontal movement before any draw,
         // so a resting entity skips the sweep (most items, orbs and carts).
-        if self.remote.is_some() || (known_movement.x == 0.0 && known_movement.z == 0.0) {
+        let moving = previous.x != position.x || previous.z != position.z;
+        if self.remote.is_some() || !moving {
             return;
         }
         let snow = horizon_client::powder_snow::contacts(previous, position, bounds, living, |p| {
             &*self.res.facts().get(self.world.block(p.x, p.y, p.z)).name == "minecraft:powder_snow"
         });
         for block in snow {
-            self.powder_snow_particle(block, position, known_movement);
+            self.powder_snow_particle(block, position, moving);
         }
     }
 
-    /// `PowderSnowBlock.entityInside` for an entity with known movement.
+    /// `PowderSnowBlock.entityInside` for an entity that moved horizontally.
     pub(super) fn powder_snow_particle(
         &mut self,
         block: BlockPos,
         position: Vec3,
-        known_movement: Vec3,
+        moving: bool,
     ) {
         if self.remote.is_some() {
             return;
         }
-        let Some(velocity) = powder_snow_velocity(known_movement, &mut self.world.random) else {
+        let Some(velocity) = powder_snow_velocity(moving, &mut self.world.random) else {
             return;
         };
         self.snowflake_particle([position.x, f64::from(block.y + 1), position.z], velocity);
@@ -933,16 +935,13 @@ mod tests {
         );
     }
 
-    /// `PowderSnowBlock.entityInside`: vertical-only movement skips the roll;
-    /// horizontal movement uses nextBoolean, then X and Z floats in order.
+    /// `PowderSnowBlock.entityInside`: a stationary entity skips the roll;
+    /// a horizontally moving one uses nextBoolean, then X and Z floats in order.
     #[test]
     fn powder_snow_snowflakes_use_the_vanilla_movement_gate_and_random_order() {
         let mut stationary = LegacyRandom::new(1);
         let mut untouched = LegacyRandom::new(1);
-        assert_eq!(
-            powder_snow_velocity(Vec3::new(0.0, 1.0, 0.0), &mut stationary),
-            None
-        );
+        assert_eq!(powder_snow_velocity(false, &mut stationary), None);
         assert_eq!(stationary.next_int(), untouched.next_int());
 
         let seed = (0..1000)
@@ -957,10 +956,7 @@ mod tests {
         let z = (vanilla.next_float() * 2.0 - 1.0) * 0.083_333_336_f32;
         let expected = [f64::from(x), f64::from(0.05_f32), f64::from(z)];
         let mut random = LegacyRandom::new(seed);
-        assert_eq!(
-            powder_snow_velocity(Vec3::new(-0.2, 0.0, 0.0), &mut random),
-            Some(expected)
-        );
+        assert_eq!(powder_snow_velocity(true, &mut random), Some(expected));
     }
 
     /// A hub whose `minecraft:particle_type` registry holds `particle_names`

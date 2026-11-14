@@ -1508,7 +1508,7 @@ impl Game<'_> {
         // Entity.checkInsideBlocks runs once after the cart tick, sweeping every
         // movement through powder snow. PowderSnowBlock uses getKnownMovement,
         // which is getDeltaMovement for a minecart.
-        self.entity_powder_snow_particles(c.previous, c.position, c.bounds(), c.velocity, false);
+        self.entity_powder_snow_particles(c.previous, c.position, c.bounds(), false);
         // Variants.
         match c.kind {
             CartKind::Furnace => {

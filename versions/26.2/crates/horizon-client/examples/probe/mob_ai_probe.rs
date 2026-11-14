@@ -1202,7 +1202,6 @@ pub fn main() -> horizon_client::Result<()> {
                     suffocation: &suffocation,
                     data: &data,
                     player: player.clone(),
-                    controlling_player_movement: None,
                     nearest_player: player.as_ref().filter(|p| !p.spectator).map(|p| p.position),
                     others: $snapshot,
                     dragon: None,

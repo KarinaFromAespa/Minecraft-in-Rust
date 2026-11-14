@@ -499,7 +499,6 @@ impl Game<'_> {
                 r.previous,
                 r.position,
                 r.bounds(),
-                r.velocity,
                 false,
             );
             // hitTargetOrDeflectSelf on an entity: a breeze turns it back

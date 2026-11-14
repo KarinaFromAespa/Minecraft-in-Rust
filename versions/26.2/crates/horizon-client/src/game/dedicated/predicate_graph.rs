@@ -1,8 +1,11 @@
 //! A partial check of the world's predicate graph before a dedicated server is Ready.
 //!
 //! Vanilla refuses to start a world whose packs' predicates reference a predicate no pack defines
-//! (`MappedRegistry.freeze`: "Unbound values in registry"), or reference each other in a cycle
-//! (`ReloadableServerRegistries.validateLootRegistries`: a reference "is recursively called").
+//! (`MappedRegistry.freeze`: "Unbound values in registry"). A cycle is only a warning in 26.2
+//! (`ReloadableServerRegistries.validateLootRegistries` logs each problem and carries on —
+//! `hasFatalProblems` and the `IllegalStateException` are 26.3 additions); 26.2 reports it through
+//! the single `ValidationContext$RecursiveReferenceProblem`, where 26.3 split it into element and
+//! tag problems.
 //!
 //! This is new, partial validation, not a port of `RegistryDataLoader` or `ValidationContext`. It
 //! follows a predicate's holders only where the condition codecs hold one: `all_of` and `any_of`
@@ -236,7 +239,8 @@ mod tests {
         ]);
         let mut lines = check(&predicates).unwrap_err().lines();
         lines.sort();
-        // The two cycle lines are the ones vanilla 26.3 logged for this pack.
+        // The two cycle lines are the ones vanilla 26.2 logged for this pack
+        // (`RecursiveReferenceProblem.description`, same text as 26.3).
         assert_eq!(
             lines,
             [

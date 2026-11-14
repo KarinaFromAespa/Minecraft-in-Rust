@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 40/100 items, 20 changed, 20 no-change, 657 minutes on changed
+**rate sample: 54/100 items, 25 changed, 29 no-change, 1032 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -549,6 +549,33 @@ log; it stays in agreement with the tally line above.
 | 241 | changed | 90 (est.) | SwingState removed: 26.2 plain-field swing model (swingTime/attackAnim, live getCurrentSwingDuration); oracle reworked |
 | 242 | changed | 180 (est.) | Placement modifiers to 26.2: random_offset replaces offset/cuboid/random_chance/randomly_selected; FeaturePlacer→PlacedFeature.place; 13 oracles + 11 drivers reworked; offsetCodec strict-<16 bound; height_range/volume_match predicates removed (26.3-only). Placement harness 1,674→882/18,780 mismatches |
 | 276 | no-change | — | BrewingInput 26.3-only; zero Rust references |
+| 180 | changed | 60 (est.) | cooking defaults to 26.2 (smelting 200, blasting/smoking/campfire 100); TransmuteResult 26.3-only, Rust Template already the 26.2 form |
+| 185 | changed | 45 (est.) | recursive predicate cycles are warnings-only in 26.2 (no hasFatalProblems throw); only Unbound refuses the start |
+| 187 | no-change | — | DecoratedPot/ChestRenderer submit plumbing only; animation state unchanged; BlockTags additions all 26.3-only |
+| 205 | no-change | — | VillagerFood 26.3-only; Rust already the 26.2 FOOD_POINTS form; take_half_stack exact |
+| 296 | no-change | — | TrimTextureKey$1 26.3-only; CustomHeadLayer Transforms 5 vs 3 fields, Rust mentions are comments |
+| 302 | changed | 90 (est.) | dolphin goals merged to the single 26.2 PlayWithItemsGoal (ItemGoal/MoveToItemGoal do not exist in 26.2); Jump goal to blocksMotion(); 2-arg moveTo reach 1 |
+| 305 | changed | 60 (est.) | Panic water search to withinManhattan order (depth shells, x, y, +z/-z); MeleeAttack tick reach 1 (2-arg moveTo) |
+| 306 | no-change | — | StreamCodec$20/$21 26.3-only; zero Rust references |
+| 307 | no-change | — | BlockTransformer 26.3-only; block_transform.rs already 26.2 |
+| 311 | no-change | — | levelgen/material/rule/* 26.3-only; 26.2 uses SurfaceRules |
+| 316 | changed | 120 (est.) | enderman teleport to the 26.2 two-scan blocksMotion form (no #entities_can_teleport_to, no avoidance tag, no border clamp, no level event 2018); EnderMan rename; 64-try loop inline |
+| 321 | no-change | — | MaterialRuleContext 26.3-only; 26.2 uses SurfaceRules |
+| 333 | no-change | — | level/blockscan package 26.3-only; cushion oracle's blockscan import belongs to items 147/374 |
+| 342 | no-change | — | OIT entirely 26.3-only; Rust OIT mentions are comments + opt-in tagging |
+
+Item 192 is HELD OPEN (not counted in the sample yet): its powder-snow
+half is done and committed (26.2 client-side entityInside gate,
+xOld/zOld movement, ~60 min estimated — log with the item when it
+closes), but its `SteppedInterpolationHandler` half is coupled to item
+233's wire-format fix (26.2 `PositionMoveRotation` vs 26.3 `PositionPath`
++ yaw/pitch) and closes with 233.
+
+Follow-up debt from item 305: other `nav_move_to_entity` call sites
+passing reach 0 for goals that call the 2-arg `moveTo(Entity, speed)`
+(fox, frog, goat, illager, panda, piglin, riders, spear_use, tempt)
+need the same reach-1 check in their own items — the 2-arg form builds
+the path with `createPath(target, 1)` in both versions.
 
 ## Placement harness known gaps (2026-11-14, local run)
 

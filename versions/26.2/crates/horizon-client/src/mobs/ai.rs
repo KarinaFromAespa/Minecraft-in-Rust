@@ -961,10 +961,14 @@ fn effects_from_blocks(
                                 m.stuck_multiplier =
                                     Vec3::new(f64::from(0.9_f32), 1.5, f64::from(0.9_f32));
                             }
-                            let known_movement =
-                                w.controlling_player_movement.unwrap_or(m.velocity);
+                            // 26.2 `PowderSnowBlock.entityInside`: the gate
+                            // is the mob's own horizontal position delta
+                            // (xOld/zOld vs x/z), not known movement and not
+                            // the controlling player's movement (26.3).
+                            let moving =
+                                m.previous.x != m.position.x || m.previous.z != m.position.z;
                             if let Some(velocity) =
-                                powder_snow_particle_velocity(known_movement, level_random)
+                                powder_snow_particle_velocity(moving, level_random)
                             {
                                 events.push(MobEvent::PowderSnowParticle {
                                     at: [m.position.x, f64::from(y + 1), m.position.z],
@@ -985,21 +989,21 @@ fn effects_from_blocks(
 mod powder_snow_particle_tests {
     use super::*;
 
-    /// A ridden mount uses the controlling player's known movement for the
-    /// powder-snow roll, even when the mount's own delta is zero.
+    /// 26.2 `PowderSnowBlock.entityInside`: the gate is the mob's own
+    /// horizontal position delta. A ridden mount that did not move emits no
+    /// snowflake even with a nonzero velocity (26.3 gates on known movement,
+    /// which for a ridden mount is the controlling player's).
     #[test]
     #[ignore = "requires prepared vanilla resources in .local/horizon-client"]
-    fn a_controlled_mount_uses_its_riders_known_movement() {
+    fn a_mount_that_did_not_move_emits_no_powder_snow_particle() {
         let seed = (0..1000)
             .find(|seed| {
                 let mut random = LegacyRandom::new(*seed);
                 random.next_boolean()
             })
             .unwrap();
-        let player_movement = Vec3::new(0.2, 0.0, 0.0);
         let mut expected_random = LegacyRandom::new(seed);
-        let expected =
-            powder_snow_particle_velocity(player_movement, &mut expected_random).unwrap();
+        let expected = powder_snow_particle_velocity(true, &mut expected_random).unwrap();
 
         let ran = crate::mobs::world::with_built_test_world(
             &[],
@@ -1022,17 +1026,26 @@ mod powder_snow_particle_tests {
                     .unwrap();
             },
             |w, types| {
-                let mut w = w.clone();
-                w.controlling_player_movement = Some(player_movement);
                 let kind = std::sync::Arc::new(types.types["minecraft:horse"].clone());
                 let mut horse = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
                 horse.extra.saddled = true;
                 horse.rider = Some(crate::mobs::equine::Rider::default());
+                horse.velocity = Vec3::new(0.2, 0.0, 0.0);
                 let mut random = LegacyRandom::new(seed);
                 let mut events = Vec::new();
 
                 effects_from_blocks(&mut horse, &w, &mut random, &mut events);
+                assert!(!events.iter().any(|event| matches!(
+                    event,
+                    MobEvent::PowderSnowParticle { .. }
+                )));
 
+                // The same horse, moved sideways since last tick: the roll
+                // runs and the snowflake matches the expected velocity.
+                horse.previous = Vec3::new(0.3, 64.0, 0.5);
+                let mut random = LegacyRandom::new(seed);
+                let mut events = Vec::new();
+                effects_from_blocks(&mut horse, &w, &mut random, &mut events);
                 assert!(events.iter().any(|event| matches!(
                     event,
                     MobEvent::PowderSnowParticle { velocity, .. } if *velocity == expected

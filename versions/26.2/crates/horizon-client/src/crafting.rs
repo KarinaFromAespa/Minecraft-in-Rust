@@ -1740,6 +1740,14 @@ impl Recipes {
                 | "minecraft:smoking"
                 | "minecraft:campfire_cooking") => {
                     if let (Some(ingredient), Some(result)) = (ing("ingredient"), result()) {
+                        // 26.2 cookingMapCodec takes a per-type default
+                        // (smelting 200, blasting/smoking/campfire 100) and
+                        // cookingtime is optional; 26.3 requires the field.
+                        let default_time = if kind == "minecraft:smelting" {
+                            200
+                        } else {
+                            100
+                        };
                         cooking.push(Cooking {
                             id: name.clone(),
                             category: text("category"),
@@ -1748,7 +1756,7 @@ impl Recipes {
                             ingredient,
                             result: result.create(),
                             experience: v["experience"].as_f64().unwrap_or(0.0) as f32,
-                            time: v["cookingtime"].as_u64().unwrap_or(200) as u32,
+                            time: v["cookingtime"].as_u64().unwrap_or(default_time) as u32,
                         });
                     }
                     None

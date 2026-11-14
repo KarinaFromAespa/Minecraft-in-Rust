@@ -945,21 +945,36 @@ impl Goal for Panic {
                 m.position.z.floor() as i32,
             );
             if cx.w.data.state(cx.w.world.block(bx, by, bz)).top == 0.0 {
-                // findBlocksInBoxByManhattanDistance(pos, range, 1) for water.
-                let mut best: Option<([i32; 3], i32)> = None;
-                for dy in -1i32..=1 {
-                    for dx in -range..=range {
-                        for dz in -range..=range {
-                            let d = dx.abs() + dy.abs() + dz.abs();
-                            if cx.w.fluid(bx + dx, by + dy, bz + dz) == crate::blocks::Fluid::Water
-                                && best.is_none_or(|b| d < b.1)
-                            {
-                                best = Some(([bx + dx, by + dy, bz + dz], d));
+                // `BlockPos.findClosestMatch`: `withinManhattan` order —
+                // expanding depth shells, x ascending, y ascending, +z then
+                // -z within each (x, y); the first water match wins. (26.3
+                // uses `findBlocksInBoxByManhattanDistance` instead.)
+                let mut found = None;
+                'search: for depth in 0..=(2 * range + 1) {
+                    let max_x = range.min(depth);
+                    for x in -max_x..=max_x {
+                        let max_y = 1.min(depth - x.abs());
+                        for y in -max_y..=max_y {
+                            let zz = depth - x.abs() - y.abs();
+                            if zz > range {
+                                continue;
+                            }
+                            // +z first, then -z; once when zz is 0.
+                            for z in [zz, -zz] {
+                                if cx.w.fluid(bx + x, by + y, bz + z)
+                                    == crate::blocks::Fluid::Water
+                                {
+                                    found = Some([bx + x, by + y, bz + z]);
+                                    break 'search;
+                                }
+                                if zz == 0 {
+                                    break;
+                                }
                             }
                         }
                     }
                 }
-                if let Some((p, _)) = best {
+                if let Some(p) = found {
                     self.pos = [f64::from(p[0]), f64::from(p[1]), f64::from(p[2])];
                     return true;
                 }
@@ -1479,7 +1494,10 @@ impl Goal for MeleeAttack {
             } else if d > 256.0 {
                 self.recalc += 5;
             }
-            if !m.nav_move_to_entity(cx.w, self.path_target, 0, self.speed) {
+            // 26.2 `moveTo(target, speed)` is the 2-arg form, which builds
+            // the path with reach 1; 26.3's `moveTo(target, 0, speed)` uses
+            // reach 0.
+            if !m.nav_move_to_entity(cx.w, self.path_target, 1, self.speed) {
                 self.recalc += 15;
             }
             self.recalc = adjusted(true, self.recalc);

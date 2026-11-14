@@ -415,7 +415,6 @@ impl Game<'_> {
     /// for primed TNT `i`, also run when `limitPistonMovement` left no push.
     pub(super) fn tnt_piston_block_effects(&mut self, i: usize, from: Vec3) {
         let t = &mut self.tnts[i];
-        let known = t.velocity;
         let tops = t.apply_effects_from_blocks(
             &self.world,
             &self.pack.assets,
@@ -425,7 +424,7 @@ impl Game<'_> {
             None,
         );
         let (to, bounds) = (t.position, t.bounds());
-        self.entity_powder_snow_particles(from, to, bounds, known, false);
+        self.entity_powder_snow_particles(from, to, bounds, false);
         for pos in tops {
             self.bubble_column_particles(pos);
         }
@@ -448,8 +447,8 @@ impl Game<'_> {
             Some(&self.res.motion().blocks),
             entities,
         )?;
-        let snow = (t.previous, t.position, t.bounds(), t.velocity);
-        self.entity_powder_snow_particles(snow.0, snow.1, snow.2, snow.3, false);
+        let snow = (t.previous, t.position, t.bounds());
+        self.entity_powder_snow_particles(snow.0, snow.1, snow.2, false);
         for pos in tops {
             self.bubble_column_particles(pos);
         }

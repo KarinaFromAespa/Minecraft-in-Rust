@@ -218,9 +218,15 @@ impl Goal for Jump {
         let w = cx.w;
         [0, 1, 4, 5, 6, 7].into_iter().all(|i| {
             let (x, z) = (bx + sx * i, bz + sz * i);
-            // waterIsClear, then surfaceIsClear.
+            // waterIsClear, then surfaceIsClear. 26.2 checks
+            // `!blockState.blocksMotion()` (cobweb and bamboo saplings aside,
+            // the legacy-solid flag); 26.3 checks the blocks_dolphin_jump tag.
+            let name = w.block_name(x, by, z);
+            let blocks_motion = name != "minecraft:cobweb"
+                && name != "minecraft:bamboo_sapling"
+                && w.facts.get(w.world.block(x, by, z)).legacy_solid;
             w.fluid(x, by, z) == Fluid::Water
-                && !w.has_tag("minecraft:blocks_dolphin_jump", w.block_name(x, by, z))
+                && !blocks_motion
                 && w.facts.is_air(w.world.block(x, by + 1, z))
                 && w.facts.is_air(w.world.block(x, by + 2, z))
         })
@@ -408,7 +414,7 @@ impl Goal for FollowPlayerRidden {
 pub fn set_item_at(m: &mut Mob, at: Option<[f64; 3]>) {
     m.extra.point = at;
 }
-/// `Dolphin.ItemGoal.drop` of the item in the mouth (`dropItem`): thrown from the eye, in
+/// `Dolphin.PlayWithItemsGoal.drop` of the item in the mouth (`dropItem`): thrown from the eye, in
 /// the direction it faces, with a pickup delay of 40. False when the mouth is empty.
 fn drop_item(m: &mut Mob, events: &mut Vec<MobEvent>) -> bool {
     let Some(stack) = super::finalize::item_stack(m, super::equip::Slot::MainHand.index()) else {
@@ -435,13 +441,16 @@ fn drop_item(m: &mut Mob, events: &mut Vec<MobEvent>) -> bool {
     m.extra.set_main_hand_stack(None);
     true
 }
-/// `Dolphin.MoveToItemGoal`: swim to a floating item, playing a sound; drops what it holds
-/// when it stops and rests for up to 100 ticks.
+/// `Dolphin.PlayWithItemsGoal` (26.2): the standalone goal — 26.3 split it
+/// into `ItemGoal`/`MoveToItemGoal`/`PlayWithItemsGoal`, but 26.2 has only
+/// this one. It starts when an item floats nearby or the mouth is full, swims
+/// to the first item, throws what it holds, and rests for up to 100 ticks
+/// after dropping on stop.
 #[derive(Clone, Debug, Default)]
-pub struct MoveToItem {
+pub struct PlayWithItems {
     cooldown: i64,
 }
-impl Goal for MoveToItem {
+impl Goal for PlayWithItems {
     goal_clone!();
     fn flags(&self) -> u8 {
         MOVE
@@ -450,7 +459,7 @@ impl Goal for MoveToItem {
         if self.cooldown > cx.w.game_time {
             return false;
         }
-        m.extra.point.is_some()
+        m.extra.point.is_some() || m.extra.main_hand.is_some()
     }
     fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
         if drop_item(m, cx.events) {
@@ -459,7 +468,10 @@ impl Goal for MoveToItem {
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
         if let Some(at) = m.extra.point {
-            m.nav_move_to_entity(cx.w, at, 0, f64::from(1.2_f32));
+            // `moveTo(item, 1.2F)` is the 2-arg form: reach 1, in both
+            // versions (26.2 `PathNavigation.moveTo(Entity, double)` builds
+            // the path with `createPath(target, 1)`).
+            m.nav_move_to_entity(cx.w, at, 1, f64::from(1.2_f32));
             cx.events.push(MobEvent::Sound(
                 "entity.dolphin.play",
                 [m.position.x, m.position.y, m.position.z],
@@ -470,27 +482,11 @@ impl Goal for MoveToItem {
         self.cooldown = 0;
     }
     fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
-        if let Some(at) = m.extra.point {
-            m.nav_move_to_entity(cx.w, at, 0, f64::from(1.2_f32));
+        if m.extra.main_hand.is_some() {
+            drop_item(m, cx.events);
+        } else if let Some(at) = m.extra.point {
+            m.nav_move_to_entity(cx.w, at, 1, f64::from(1.2_f32));
         }
-    }
-}
-/// `Dolphin.PlayWithItemsGoal`: a dolphin that holds something throws it away.
-#[derive(Clone, Debug, Default)]
-pub struct PlayWithItems;
-impl Goal for PlayWithItems {
-    goal_clone!();
-    fn flags(&self) -> u8 {
-        0
-    }
-    fn can_use(&mut self, m: &mut Mob, _cx: &mut Cx) -> bool {
-        m.extra.main_hand.is_some()
-    }
-    fn stop(&mut self, m: &mut Mob, cx: &mut Cx) {
-        drop_item(m, cx.events);
-    }
-    fn tick(&mut self, m: &mut Mob, cx: &mut Cx) {
-        drop_item(m, cx.events);
     }
 }
 
@@ -509,7 +505,7 @@ mod item_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `Dolphin.ItemGoal.dropItem`: a dolphin facing south (yaw 0, level) throws the item
+    /// `Dolphin.PlayWithItemsGoal.drop`: a dolphin facing south (yaw 0, level) throws the item
     /// forward (+Z) at 0.3, off by at most 0.02 sideways, with a pickup delay of 40, and
     /// its mouth is empty after. An empty mouth throws nothing.
     #[test]

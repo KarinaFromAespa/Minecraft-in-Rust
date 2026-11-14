@@ -71,12 +71,15 @@ pub fn stared_at(m: &Mob, w: &MobWorld) -> bool {
             Vec3::new(m.position.x, m.eye_y(), m.position.z),
         )
 }
-/// `Enderman.teleport(x, y, z)`: never while riding something, then
-/// `LivingEntity.randomTeleport(x, y, z, true, #enderman_does_not_teleport_to)`:
-/// the first `#entities_can_teleport_to` block below the spot is the ground,
-/// and the enderman lands at the spot's own height less the blocks it went
-/// down (`checkPositionAndTeleport`), unless the ground or a block in its new
-/// box is one it does not teleport to, the box collides or holds a liquid.
+/// `Enderman.teleport(x, y, z)` (26.2): never while riding something. It
+/// first scans down from the spot for the first block that `blocksMotion()`
+/// and refuses when that ground holds water; then `LivingEntity.randomTeleport`
+/// scans down again for the first blocks-motion block below the spot, lands
+/// one block above it, and refuses when the new box collides or holds a
+/// liquid. (26.3 replaced both scans with the `#entities_can_teleport_to`
+/// tag, added the `#enderman_does_not_teleport_to` avoidance predicate, the
+/// world-border clamp and the level event 2018 portal trail; none of those
+/// exist in 26.2.)
 pub fn teleport_to(
     m: &mut Mob,
     w: &MobWorld,
@@ -88,38 +91,41 @@ pub fn teleport_to(
     if m.extra.passenger {
         return false;
     }
-    // WorldBorder.clampVec3ToBound keeps the target inside the border
-    // (Mth.clamp, 1.0E-5F inside the far edges).
-    let (x, z) = match w.border {
-        Some(border) => {
-            let [min_x, min_z, max_x, max_z] = border.bounds(0.0);
-            let clamp = |v: f64, low: f64, high: f64| if v < low { low } else { v.min(high) };
-            (
-                clamp(x, min_x, max_x - f64::from(1.0e-5_f32)),
-                clamp(z, min_z, max_z - f64::from(1.0e-5_f32)),
-            )
-        }
-        None => (x, z),
-    };
     let (bx, bz) = (x.floor() as i32, z.floor() as i32);
     if !w.world.loaded(bx, bz) {
         return false;
     }
-    let refused = |name: &str| w.has_tag("minecraft:enderman_does_not_teleport_to", name);
-    let mut by = y.floor() as i32;
-    let mut ny = y;
-    let ground = loop {
-        if by <= w.world.bottom_y() {
-            return false;
-        }
-        by -= 1;
+    // `BlockState.blocksMotion()`: not cobweb or a bamboo sapling, and
+    // legacy-solid.
+    let blocks_motion = |bx: i32, by: i32, bz: i32| {
         let name = w.block_name(bx, by, bz);
-        if w.has_tag("minecraft:entities_can_teleport_to", name) {
-            break name;
-        }
-        ny -= 1.0;
+        name != "minecraft:cobweb"
+            && name != "minecraft:bamboo_sapling"
+            && w.facts.get(w.world.block(bx, by, bz)).legacy_solid
     };
-    if refused(ground) {
+    // `Enderman.teleport`'s own scan: the first blocks-motion block at or
+    // below the spot, which must not hold water.
+    let mut gy = y.floor() as i32;
+    while gy > w.world.bottom_y() && !blocks_motion(bx, gy, bz) {
+        gy -= 1;
+    }
+    if !blocks_motion(bx, gy, bz) || w.fluid(bx, gy, bz) == Fluid::Water {
+        return false;
+    }
+    // `LivingEntity.randomTeleport`: scan down from the spot, landing one
+    // block above the first blocks-motion block below it.
+    let mut ny = y;
+    let mut py = y.floor() as i32;
+    let mut landed = false;
+    while !landed && py > w.world.bottom_y() {
+        if blocks_motion(bx, py - 1, bz) {
+            landed = true;
+        } else {
+            ny -= 1.0;
+            py -= 1;
+        }
+    }
+    if !landed {
         return false;
     }
     let half = f64::from(m.width()) / 2.0;
@@ -130,29 +136,19 @@ pub fn teleport_to(
     if !w.no_collision(b) {
         return false;
     }
-    // LevelReader.containsAnyLiquid and findBlocksIn: the same closed range of
-    // cells, from BlockPos.containing(min) to BlockPos.containing(max).
+    // `LevelReader.containsAnyLiquid` over the box's closed range of cells,
+    // from `BlockPos.containing(min)` to `BlockPos.containing(max)`.
     let (lo, hi) = (b.min_position(), b.max_position());
     for cx in lo.x.floor() as i32..=hi.x.floor() as i32 {
         for cy in lo.y.floor() as i32..=hi.y.floor() as i32 {
             for cz in lo.z.floor() as i32..=hi.z.floor() as i32 {
-                if w.fluid(cx, cy, cz) != Fluid::None || refused(w.block_name(cx, cy, cz)) {
+                if w.fluid(cx, cy, cz) != Fluid::None {
                     return false;
                 }
             }
         }
     }
-    // Enderman.canRandomlyTeleportTo: not onto ground that holds water
-    // (a waterlogged slab, leaves or roots).
-    if w.fluid(bx, by, bz) == Fluid::Water {
-        return false;
-    }
     let old = m.position;
-    let old_block = [
-        m.position.x.floor() as i32,
-        m.position.y.floor() as i32,
-        m.position.z.floor() as i32,
-    ];
     // Entity.teleportTo -> snapTo: the old position moves too, the motion stays.
     m.position = Vec3::new(x, ny, z);
     m.previous = m.position;
@@ -171,17 +167,9 @@ pub fn teleport_to(
         state: horizon_world::registry::BlockStateId(0),
     });
     if !m.silent {
-        // Level event 2018: the portal trail, from the old block to the new
-        // one, packed as `BlockUtil.clampedPackDifferenceInPosition` does.
-        let new_block = [x.floor() as i32, ny.floor() as i32, z.floor() as i32];
-        let packed = |k: usize| ((new_block[k] - old_block[k]).clamp(-127, 127) + 127) & 255;
-        events.push(MobEvent::LevelEvent {
-            id: 2018,
-            pos: old_block,
-            data: packed(0) << 16 | packed(1) << 8 | packed(2),
-        });
         // Both sounds are at the new feet: `xo` was moved by snapTo, and
-        // Entity.playSound plays at the position.
+        // Entity.playSound plays at the position. (26.3 also fires the
+        // level event 2018 portal trail; 26.2 has no such event here.)
         let at = [m.position.x, m.position.y, m.position.z];
         events.push(MobEvent::Sound("entity.enderman.teleport", at, 1.0, 1.0));
         events.push(MobEvent::Sound("entity.enderman.teleport", at, 1.0, 1.0));
@@ -253,7 +241,11 @@ pub fn dodges(m: &Mob, source: &Damage) -> bool {
 /// Enderman.hurtServer: projectiles miss (teleport away), others may teleport.
 pub fn on_damage(m: &mut Mob, source: &Damage) -> bool {
     if dodges(m, source) {
-        // repeatedlyTryToTeleport is applied by the next AI step.
+        // The 64-try teleport loop (`repeatedlyTryToTeleport` in 26.3; inline
+        // in 26.2's hurtServer) is applied by the next AI step. 26.2 returns
+        // true when the loop teleports and false otherwise, but the deferred
+        // teleport runs after the hurt returns, so the outcome is not known
+        // here; the hurt itself is refused either way.
         m.extra.counter2 = 64;
         return false;
     }
@@ -262,8 +254,8 @@ pub fn on_damage(m: &mut Mob, source: &Damage) -> bool {
 pub fn after_hurt(m: &mut Mob, source: &Damage) {
     // A thrown potion's hit (`indirect_magic` with the potion as the direct
     // entity, `Mob::damage_by`) and a projectile it dodges leave
-    // `Enderman.hurtServer` before the random chance:
-    // `repeatedlyTryToTeleport` replaces it.
+    // `Enderman.hurtServer` before the random chance: the 64-try teleport
+    // loop replaces it.
     if !dodges(m, source) && source.kind != super::DamageKind::IndirectMagic {
         teleport_chance(m, source);
     }
@@ -280,14 +272,13 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     m.ai.jumping = false;
     run_pending_teleports(m, w, events);
 }
-/// The teleports `hurtServer` asked for (`teleport()`, or
-/// `repeatedlyTryToTeleport`: up to 64 tries).
+/// The teleports `hurtServer` asked for (`teleport()`, or the 64-try loop).
 pub fn run_pending_teleports(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     if m.extra.counter2 > 0 {
         let tries = m.extra.counter2;
         m.extra.counter2 = 0;
-        // repeatedlyTryToTeleport (64 tries) returns before any draw while riding;
-        // a single `teleport()` still draws its target first.
+        // The 64-try loop returns before any draw while riding; a single
+        // `teleport()` still draws its target first.
         let tries = if tries > 1 && m.extra.passenger {
             0
         } else {
@@ -596,7 +587,7 @@ mod tests {
 
     /// Enderman.teleport(x, y, z) fails for a passenger (#4865: one in a boat
     /// played the teleport sound every tick and snapped back to its seat).
-    /// `repeatedlyTryToTeleport` returns before drawing; `teleport()` still
+    /// The 64-try loop returns before drawing; `teleport()` still
     /// draws its three values first.
     #[test]
     fn a_seated_enderman_never_teleports() {
@@ -650,11 +641,12 @@ mod tests {
         });
     }
 
-    /// LivingEntity.randomTeleport clamps the target into the world border
-    /// (`WorldBorder.clampVec3ToBound`), so an enderman never lands outside
-    /// it (#7080). A border of size 10 around the origin ends at x = 5.
+    /// 26.2's `LivingEntity.randomTeleport` has no world-border clamp (the
+    /// `WorldBorder.clampVec3ToBound` call is 26.3-only), so an enderman
+    /// teleports outside the border. A border of size 10 around the origin
+    /// ends at x = 5; the target at x = 20.5 is reached unclamped.
     #[test]
-    fn an_enderman_teleports_inside_the_world_border() {
+    fn an_enderman_teleports_outside_the_world_border() {
         let build = |world: &mut crate::world::World, registry: &BlockRegistry| {
             let stone = registry.default_state("minecraft:stone").unwrap();
             for cx in -2..2 {
@@ -674,10 +666,6 @@ mod tests {
             horizon_core::geometry::border::BorderGeometry::new([0.0, 0.0], 10.0, 29_999_984)
                 .unwrap();
         crate::mobs::world::with_built_test_world(&[], build, |w, _| {
-            let mut free = enderman();
-            assert!(teleport_to(&mut free, w, 20.5, 0.0, 0.5, &mut Vec::new()));
-            assert_eq!(free.position, Vec3::new(20.5, 0.0, 0.5), "no border");
-
             let w = MobWorld {
                 border: Some(&border),
                 ..w.clone()
@@ -691,9 +679,7 @@ mod tests {
                 -20.5,
                 &mut Vec::new()
             ));
-            // Mth.clamp to [min, max - 1.0E-5F] on x and z.
-            let edge = 5.0 - f64::from(1.0e-5_f32);
-            assert_eq!(bounded.position, Vec3::new(edge, 0.0, -5.0));
+            assert_eq!(bounded.position, Vec3::new(20.5, 0.0, -20.5));
         });
     }
 
