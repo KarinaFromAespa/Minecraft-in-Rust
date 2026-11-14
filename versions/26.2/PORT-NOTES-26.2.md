@@ -2204,3 +2204,11 @@ engine mirroring 26.3's noise system). That is a large, high-risk job
 and placement — and it needs its own session with careful verification,
 not a rushed close. It is recorded here as the precise blocker for
 410/410, not hidden.
+
+## CI run 43653524277 dispatched on the 409/410 tree (2026-11-15)
+
+Continuation agent's first act: `gh workflow run port-verify.yml -f
+version=26.2 --ref behaviour/26.2` on dbeb88e3 (rank 2 409/410), run
+43653524277, in progress. Run 43646940294 is still in flight on the
+older 338/410 tree (d2aa9a03); this run measures the 409/410 state.
+Porting continues while CI runs.

@@ -31,10 +31,11 @@
  "role": "era release",
  "version": "26.2",
  "ci": {
-  "run": 43646940294,
-  "tree": "d2aa9a03",
-  "rank2": "338/410",
-  "profile": "pending"
+  "run": 43653524277,
+  "tree": "dbeb88e3",
+  "rank2": "409/410",
+  "profile": "pending",
+  "note": "Run 43646940294 still in flight on the 338/410 tree (d2aa9a03); this run measures the 409/410 state."
  },
  "rank2": "409/410",
  "remaining": {
