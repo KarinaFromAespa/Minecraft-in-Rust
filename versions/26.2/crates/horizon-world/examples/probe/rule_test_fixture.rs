@@ -25,10 +25,8 @@ fn fixture(
             writeln!(out, "decode ok")?;
             for _ in 0..f["repeats"].as_u64().unwrap() {
                 for state in f["states"].as_array().unwrap() {
-                    let result = rule.test(
-                        BlockStateId(state.as_u64().unwrap() as u32),
-                        &mut random,
-                    );
+                    let result =
+                        rule.test(BlockStateId(state.as_u64().unwrap() as u32), &mut random);
                     writeln!(out, "test {result} {}", random.next_long())?;
                 }
             }

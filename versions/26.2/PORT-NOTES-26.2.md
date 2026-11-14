@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 72/100 items, 43 changed, 29 no-change, 3882 minutes on changed
+**rate sample: 80/100 items, 44 changed, 36 no-change, 4012 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -575,6 +575,14 @@ log; it stays in agreement with the tally line above.
 | 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
 | 109 | changed | 120 (est.) | GameTest to the 26.2 single-level/single-grid form: TestDef.dimension and Info.dim removed, Runner holds its level, Grid is one state, onBatchStart does NOT reset the row count, say is level-scoped via broadcast_level, summary coordinate links removed (26.3-only) |
 | 106 | changed | 90 (est.) | Natural spawning: quart-origin spawn costs; fresh pufferfish 0.35 (puff state 0); obstruction predicate kept (blocksBuilding) |
+| 131 | no-change | — | RenderSystem diffs are the SDL/RenderPearl vs GLFW/GLX platform rework; fluid mesher names none of the changed methods; world_border_render oracle needs a 26.3->26.2 rework (26.3-only API) |
+| 171 | no-change | — | Biome sampling math identical; diffs are API rework (Sampler arg, double compute, RTree.create, codec renames); spawnTarget/findSpawnPosition is a 26.2-only dedicated-server gap, not a sampling change |
+| 214 | changed | 130 (est.) | RuleTest to the 26.2 2-arg form (height/not/all_of/any_of removed); BlockState.CODEC object-only NBT names (Name/Properties); rule_test harness reworked and passing (1,251,780 lines match, both jars) |
+| 236 | no-change | — | Core renames/inlines with identical semantics (Holder, Vec3i strict <, Direction, canSerializeIn, MutableBlockPos); Axis per-constant abstract methods |
+| 239 | no-change | — | ColorTargetState package move (Blaze3D -> RenderPearl) only |
+| 244 | no-change | — | RenderType import move + outline-texture lookup + removed hasBlending; Rust does not use Mojang's RenderType |
+| 246 | no-change | — | Item$Properties 26.3-only villagerFood/potPattern + components absent in 26.2; shared methods identical |
+| 248 | no-change | — | ContextMap map-implementation swap + method renames (set/get -> withParameter/getParameter); semantics identical |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
@@ -1096,3 +1104,55 @@ Seven no-change (verified against the jars, no code change) and one changed
   `ContextMap` itself is `final` with a static `EMPTY` and `builder()`
   factory in 26.3 vs a plain class in 26.2. Semantics identical; the
   Rust's context code does not call these methods.
+
+## Item 214 changed (2026-11-15) — world/level/levelgen/structure/templatesystem / rule_test
+
+- 3 classes, 0 named, but the diff is a real API rework with two genuine
+  26.2 divergences in the Rust, both found by the reworked harness:
+- **RuleTest is 2-arg in 26.2.** 26.3's `test(state, pos, random)` (with
+  `height_match`, `not`, `all_of`, `any_of` rule types) vs 26.2's
+  `test(state, random)` with only six registered types
+  (`always_true`, `block_match`, `blockstate_match`, `tag_match`,
+  `random_block_match`, `random_blockstate_match`). The Rust accepted all
+  four 26.3-only types and carried a position parameter used only by the
+  `Height` node. Removed the four decode arms and `Not`/`All`/`Any`/
+  `Height` nodes, dropped the position parameter from `RuleTest::test`
+  (callers in `block_feature.rs`, `ore_feature.rs`,
+  `structure/processor.rs`, and the fixture updated), and simplified
+  `pure_heights` (no Y ranges to collect in 26.2; the `Option` only
+  reports whether the rule draws from random — the ore-feature cache
+  stays correct with the empty ranges). 26.3-only definitions now
+  decode-error on both sides.
+- **26.2's `BlockState.CODEC` is object-only with NBT names.** 26.3's
+  `CODEC` is an `Either<Block, BlockState>` accepting a bare block id or
+  a full object with `id`/`properties`; 26.2's `CODEC` is the object form
+  with `Name`/`Properties` only (26.3's `FULL_CODEC`). Probed directly
+  against the 26.2 oracle: bare `"air"` and `{"id":...}` forms
+  decode-error, `{"Name":...}` decodes ok; probability -1 is accepted
+  in both. Fixed `BlockStateJsonCodec::decode(json, full=true)` to read
+  `Name`/`Properties` only (the `full=false` compact form is unchanged,
+  26.3-model), and `RuleTest`'s `block_state` field now decodes with
+  `full=true`. `JigsawBlockInfo` has no Rust counterpart: 26.3's record
+  is `(pos, state, jointType, @Nullable name, ...)` with a `parse(info)`
+  factory; 26.2 holds the whole `StructureBlockInfo` with a non-null
+  `name` and an `of(info)` factory — a rename only.
+- Harness: `tools/test_rule_test_parity.py` reworked for 26.2 (oracle
+  2-arg call; driver `rule_types` 10 -> 6 with the scope text updated;
+  pinned state count 35723 -> 32366) and now passes: **1,251,780
+  replacement-rule output lines match Rust on both the client and the
+  server jars** (68,956 codec inputs, 1,660,472 requested tests). The
+  first two runs each found one real divergence (above), so the harness
+  earned its keep.
+- WIP checkpoints `d69ec30a`, `092b0d3d`, `3d1f8ef8` pushed mid-batch.
+- Follow-up debt (same class, other harnesses own them): `decode(...,
+  false)` — the 26.3 compact block-state form — is still used for vanilla
+  `BlockState.CODEC` fields at `state_provider.rs:183,393,397` (simple /
+  weighted / noise providers), `generator.rs:1086`
+  (`NoiseGeneratorSettings` default_block/default_fluid — its comment
+  claims the id-alone form is accepted in 26.2, which the probe above
+  disproves for `BlockState.CODEC`), and
+  `material_condition/library.rs:195` (`result_state`). Each needs its
+  own harness to confirm whether the field's vanilla codec is the
+  object-only 26.2 form. The `block_state_codec` harness itself needs a
+  26.2 rework: its oracle references `FULL_CODEC`, which does not exist
+  in 26.2, and its corpus uses the `id`/`properties` object form.

@@ -142,9 +142,7 @@ impl OreFeature {
         if !(0.0..=1.0).contains(&discard) || discard.is_sign_negative() {
             return Err(DecodeError::Field("ore air exposure"));
         }
-        let pure = targets
-            .iter()
-            .try_for_each(|(rule, _)| rule.pure_heights());
+        let pure = targets.iter().try_for_each(|(rule, _)| rule.pure_heights());
         let heights = (pure.is_some() && targets.len() <= 32).then_some(Vec::new());
         Ok(Self {
             targets,
