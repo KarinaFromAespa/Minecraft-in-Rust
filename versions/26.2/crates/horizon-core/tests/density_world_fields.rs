@@ -17,9 +17,9 @@ impl DensityBlender for SpatialBlender {
         self.calls.lock().unwrap().push(None);
         false
     }
-    fn blend_density(&self, [x, y, z]: [i32; 3], input: f32) -> f32 {
+    fn blend_density(&self, [x, y, z]: [i32; 3], input: f64) -> f64 {
         self.calls.lock().unwrap().push(Some([x, y, z]));
-        input + (x * 100 + y * 10 + z) as f32
+        input + (x * 100 + y * 10 + z) as f64
     }
 }
 
