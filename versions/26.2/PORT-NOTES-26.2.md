@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 88/100 items, 46 changed, 42 no-change, 4132 minutes on changed
+**rate sample: 98/100 items, 46 changed, 52 no-change, 4132 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -591,6 +591,16 @@ log; it stays in agreement with the tally line above.
 | 259 | no-change | — | TagCommand response-plumbing rework; data accessors ArgProvider vs DataProvider; behaviour identical |
 | 275 | no-change | — | calculateSolid logic identical (26.3 adds SolidDebugger logging); blocksMotion/isViewBlocking already 26.2-form; shouldRedstoneWireConnectTo 26.3-only, uncalled |
 | 277 | changed | 60 (est.) | isSuffocating default to blocksMotion (no causes_suffocation tag in 26.2); BlockState/StateHolder codec already fixed in 214 |
+| 297 | no-change | — | SetNameFunction list predicates (item 101); ExplorationMap already the 26.2 TagKey form |
+| 298 | no-change | — | TrimMaterial 26.2 assets form (item 61); BannerPattern codec rename |
+| 299 | no-change | — | AtlasGlyphProvider import move only |
+| 300 | no-change | — | CuboidModelElement shade bool already read (both forms) |
+| 301 | no-change | — | MessageSignature buffer API only; wire format identical |
+| 303 | no-change | — | LootTable$Builder list form (item 101); LootContext rename |
+| 304 | no-change | — | ChunkSectionLayer import move + multidraw variant removed |
+| 308 | no-change | — | ServerConnectionListener queue vs direct accept; Rust has its own listener |
+| 309 | no-change | — | Sign block MapCodec present in 26.2, removed in 26.3; Rust does not use block codecs |
+| 310 | no-change | — | isValidClickButton SDL 1 vs GLFW 0 (same left click); getScrollAmount 26.3-only |
 | 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
 | 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
 | 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
@@ -1296,3 +1306,93 @@ Six no-change, two changed (250, 277). Rank 2 298/410 -> 306/410.
   vs PUSH_PULL (26.3) was already known; `fallDistanceReduction` is a
   26.3-only Properties field (26.2 blocks all export 0.0, item 86).
 - WIP checkpoint `37c9f5b1` pushed mid-batch.
+
+## Batch of 10 rank-2 A items closed (2026-11-15) — 297, 298, 299, 300, 301, 303, 304, 308, 309, 310
+
+All ten no-change (verified against the jars, no code change). Rank 2
+306/410 -> 316/410. Rate sample: 88 -> 98 items.
+
+## Item 297 no-change (2026-11-15) — world/level/storage/loot/functions
+
+- 2 classes, 0 named. `SetNameFunction`: 26.3's single
+  `Optional<Holder<LootItemCondition>> condition` vs 26.2's
+  `List<LootItemCondition> predicates` — the loot list form already
+  ported in item 101; `context.getOptional` -> `getOptionalParameter`
+  is the ContextMap rename (item 248). `ExplorationMapFunction$Builder`:
+  26.3 takes a `HolderSet<Structure>` destination in the constructor;
+  26.2 holds a `TagKey<Structure>` with a `setDestination` setter and a
+  `DEFAULT_DESTINATION`. The Rust's `ExplorationMap::from_json` already
+  implements the 26.2 form (tag string, default
+  `minecraft:on_treasure_maps`, documented in the code).
+
+## Item 298 no-change (2026-11-15) — item/hash/raw.rs
+
+- 2 classes, 0 named. `TrimMaterial`: 26.3's record is `(Identifier
+  paletteId, ...)`; 26.2's is `(MaterialAssetGroup assets, ...)` — the
+  trim palette rework already ported in item 61 (asset_name +
+  override_armor_assets, trims/color_palettes/trim_palette).
+  `BannerPattern`: `RegistryCodecs.holder` -> `RegistryFileCodec.create`
+  rename only.
+
+## Item 299 no-change (2026-11-15) — client/gui/font
+
+- 2 classes, 0 named. `AtlasGlyphProvider$Instance` diff is the
+  RenderPearl -> Blaze3D import move only; `$1` (synthetic) has no diff
+  at all.
+
+## Item 300 no-change (2026-11-15) — client/resources/model/cuboid
+
+- 2 classes, 0 named. `CuboidModelElement`: 26.3's record field is
+  `@Nullable Direction shadeDirectionOverride`; 26.2's is `boolean shade`
+  (default true, with a type check throwing on a non-boolean). The Rust's
+  `Element::decode` already reads both (`shade` bool defaulting true,
+  plus `shade_direction_override`), with the 26.2/26.3 split documented
+  in the field comment.
+
+## Item 301 no-change (2026-11-15) — network/chat
+
+- 2 classes, 0 named. `MessageSignature` / `Packed`: 26.3 uses Netty
+  `ByteBuf` + `VarInt` StreamCodec; 26.2 uses `FriendlyByteBuf` — the
+  buffer API only, same wire format (Packed id + 1, 256-byte signature,
+  as the Rust's `play.rs` documents and its test pins).
+
+## Item 303 no-change (2026-11-15) — world/level/storage/loot
+
+- 2 classes, 0 named. `LootTable$Builder`: 26.3 `apply(Holder<...>)`
+  vs 26.2 `apply(LootItemFunction.Builder)` + `build()` — the loot
+  list form already ported in item 101. `LootContext`: `getOptional` ->
+  `getParameter` (getOrThrow) / `getOptionalParameter` is the ContextMap
+  rename (item 248); the Rust's value-based context lookups have the
+  same outcomes.
+
+## Item 304 no-change (2026-11-15) — gfx/pack_atlas.rs
+
+- 2 classes, 0 named. `ChunkSectionLayer`: RenderPearl -> Blaze3D
+  imports; 26.3's enum constants carry an extra MULTIDRAW pipeline
+  variant (removed in 26.2). `SectionCompiler` diff is 2 lines. The
+  Rust's section mesh uses its own layers.
+
+## Item 308 no-change (2026-11-15) — lan/conn.rs
+
+- 4 classes, 0 named. `ServerConnectionListener`: 26.3 holds a
+  `pendingConnections` ConcurrentLinkedQueue; 26.2 accepts channels
+  directly via `acceptChannel`. The Rust's `lan/conn.rs` is its own
+  Netty-free listener; connection-acceptance order is the same. The
+  login-listener classes differ by 2-3 lines (inner-class plumbing).
+
+## Item 309 no-change (2026-11-15) — horizon-items/blocks.rs
+
+- 2 classes, 0 named. `WallHangingSignBlock` / `WallSignBlock`: 26.2
+  carries a `CODEC` with a `wood_type` field; 26.3 removed the per-block
+  codec. The Rust does not use Mojang's block codecs for signs (block
+  types come from the registry data); sign behaviour is unchanged.
+
+## Item 310 no-change (2026-11-15) — client/gui/components
+
+- 7 classes, 0 named. `AbstractWidget.isValidClickButton`: 26.3 checks
+  `button() == 1`, 26.2 `button() == 0` — the same left click under
+  different numbering (SDL is 1-based, GLFW/winit 0-based). The Rust's
+  UI activates on left click. `ScrollableLayout.getScrollAmount` is
+  26.3-only; the rest of the diffs are 0-2 lines (AbstractButton,
+  AbstractScrollArea, BossHealthOverlay, CycleButton, ImageButton have
+  no diff at all).
