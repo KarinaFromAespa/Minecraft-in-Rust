@@ -1515,3 +1515,107 @@ sample: 98 -> 100 items (complete — see the tally note below).
   and passes: **2626/2626 cases match (0 oracle errors)** — vanilla
   linked to an existing portal 725 times, built one 775 times, 1126 of
   them PortalShape frame searches.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 324, 325, 326, 327, 328, 329, 330, 331, 332, 334, 335, 336
+
+All no-change. Rank 2 326/410 -> 338/410.
+
+## Item 324 no-change (2026-11-15) — client-render/skins.rs
+
+- 3 classes, 0 named. `PlayerSkinRenderCache$RenderInfo`: RenderPearl ->
+  Blaze3D `GpuTextureView` import move only. `SkinManager` has no diff.
+  The Rust's skins.rs is its own renderer.
+
+## Item 325 no-change (2026-11-15) — client-render/vault.rs
+
+- 3 classes, 0 named. `VaultBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (the item-309 pattern — the Rust does not use Mojang block
+  codecs). `VaultRenderer`: `rotateDegrees` -> `mulPose` rename.
+  `BuiltInLootTables`: four tables are 26.3-only (`till/rooted_dirt`,
+  `barrels/abandoned_camp_barrel`, `chests/abandoned_camp_common_chest`,
+  `chests/abandoned_camp_secret_chest`); no Rust references to them (the
+  `abandoned_camp` hits in maps.rs are map decorations).
+
+## Item 326 no-change (2026-11-15) — game/beacon.rs
+
+- 4 classes, 0 named. `BeaconScreen` and its three button classes have
+  no diff at all.
+
+## Item 327 no-change (2026-11-15) — game/machines.rs
+
+- 3 classes, 0 named. `DropperBlock` carries a `MapCodec` in 26.2,
+  removed in 26.3 (item-309 pattern). `DispenserScreen` and
+  `HopperScreen` have no diff.
+
+## Item 328 no-change (2026-11-15) — game/ominous_item_spawner.rs
+
+- 2 classes, 0 named. `OminousItemSpawner.getPistonPushReaction`:
+  `IGNORE_ENTITY` (26.3) vs `IGNORE` (26.2) — the PushReaction rename
+  already established (26.2 IGNORE = 26.3 IGNORE_ENTITY). The Rust's
+  ominous spawner is a lightweight game struct, not an entity in the
+  piston system, so the reaction never applies. Renderer:
+  `rotateDegrees` -> `mulPose` rename.
+
+## Item 329 no-change (2026-11-15) — shaders/pack.rs
+
+- 1 class, 0 named. `Pack$ResourcesSupplier`: 26.3's
+  `openMetadata`/`openResources` (Stream) vs 26.2's `openPrimary`/
+  `openFull`. Mojang's pack-supplier interface; the Rust's pack loading
+  is its own and does not implement it.
+
+## Item 330 no-change (2026-11-15) — client/multiplayer
+
+- 1 class, 0 named. `ClientSuggestionProvider`: 26.3 adds
+  `getAvailablePostEffects` (post-effect suggestions, a 26.3-only
+  shader feature) and `suggestRegistryElements` takes a `Predicate<E>`
+  filter in 26.3 that 26.2's form lacks. The Rust has no such method.
+
+## Item 331 no-change (2026-11-15) — tags
+
+- 4 classes, 0 named. `ItemTags`: 26.3-only tags (WOOL_STAIRS/SLABS,
+  POPLAR_LOGS, CONCRETE_STAIRS/SLABS via `BlockItemTags`;
+  MUSHROOMS/CLONABLE_MAPS/EXTENDABLE_MAPS/CUSHIONS/DOUSES_CAMPFIRES/
+  BREWING_POTION_INPUTS/FURNACE_FUEL_BOTTOM_TAKEABLE) and the 26.2-only
+  `BREWING_FUEL` (bind; the Rust's brewing code already uses the
+  `minecraft:brewing_fuel` tag). `FluidTags`: four 26.3-only tags
+  (`axolotl_tries_to_find`, `dolphin_tries_to_find`,
+  `frog_tries_to_find_land_near`, `entity_floatable`).
+  `DamageTypeTags`/`EntityTypeTags`: 1 line each, tag-name renames.
+  Tags are data-driven from the 26.2 tag files; the Rust already
+  documents the 26.2 absences (`campfire_douse.rs`,
+  `menu.rs` on `brewing_potion_inputs`).
+
+## Item 332 no-change (2026-11-15) — world/item
+
+- 3 classes, 0 named. `SwingAnimationType`: 26.3's `CODEC` is an
+  `EnumCodec` with a `byName(name, default)` helper; 26.2's is a plain
+  `Codec`. The Rust references the type by ordinal only (STAB = 2) —
+  no wire effect. `ItemStackTemplate.fromNonEmptyStack` is 26.3-only;
+  the Rust's `Template::from_non_empty_stack` is an internal helper
+  with the same semantics, used only by its own fixtures. `JukeboxSong`:
+  `RegistryCodecs.holder` -> `RegistryFixedCodec.create` rename.
+
+## Item 334 no-change (2026-11-15) — client-render/widgets.rs
+
+- 2 classes, 0 named. `RecipeButton`: `button() == 1 || == 3` (26.3
+  SDL) vs `== 0 || == 1` (26.2 GLFW) — the same left/right clicks
+  under the item-310 numbering split. `CursorTypes`: SDL standard
+  cursor ids (0, 1, 3, 11, 8, 7, 9, 10) vs GLFW ids (221185+). The
+  Rust's cursor is symbolic (`Cursor::Arrow/PointingHand/NotAllowed`),
+  with no numeric ids.
+
+## Item 335 no-change (2026-11-15) — game/sheep_dye.rs
+
+- 1 class, 0 named. `DyeItem.tryApplyToSign`: 26.3 takes a
+  `SignTextSlot`; 26.2 takes a boolean `isFrontText`. The Rust's
+  `use_sign_applicator` already uses the 26.2 form (`facing_sign_front`
+  -> `sign.front` / `sign.back`).
+
+## Item 336 no-change (2026-11-15) — game/trial_spawner.rs
+
+- 1 class, 0 named. `TrialSpawner`: 26.3 sets the OMINOUS flag with
+  `level.setBlockAndUpdate`; 26.2 uses `level.setBlock(pos, state, 3)`
+  (the 26.2 form already documented in `chiseled_bookshelf.rs`).
+  `overrideEntityToSpawn(TypedEntityData, level)` is 26.3-only. The
+  Rust's trial spawner reads the ominous flag from the block state and
+  has no `setBlock` call for it; its config override is its own.
