@@ -1,15 +1,16 @@
 //! Seeded carver paths using pinned scalar providers and shared mask geometry.
+//! 26.2 carvers are `ConfiguredWorldCarver`s: a `type` plus a nested `config`
+//! (`CaveCarverConfiguration` / `CanyonCarverConfiguration`); the nether cave
+//! is its own type with its own bound, thickness and y scale.
 mod canyon;
+mod config;
 mod generation;
-use super::{
-    DecodeError, Object,
-    anchor::WorldGenerationContext,
-    density::identifier,
-    height_provider::HeightProvider,
-    number_text, optional, required,
-    value_provider::{FloatProvider, IntProvider},
+use super::{DecodeError, Object, anchor::WorldGenerationContext, density::identifier, required};
+pub use canyon::CanyonCarver;
+pub use config::{
+    BlockSetRef, CanyonCarverConfiguration, CanyonShapeConfiguration, CarverConfiguration,
+    CarverDebugSettings, CaveCarverConfiguration,
 };
-pub use canyon::{CanyonCarver, CanyonShape};
 pub use generation::{
     CarverCatalog, MaskGenerationError, WorldCarver, generate_carving_mask, large_feature_random,
 };
@@ -20,18 +21,45 @@ use horizon_core::{
     random::{InvalidBound, LegacyRandom, RandomSource},
 };
 
+/// `CaveWorldCarver` against `NetherWorldCarver`: the cave bound (15/10),
+/// the thickness formula (random sum, with the nether's doubling and no
+/// weird-bias branch) and the tunnel y scale (1.0/5.0).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaveKind {
+    Cave,
+    Nether,
+}
+impl CaveKind {
+    fn bound(self) -> i32 {
+        match self {
+            Self::Cave => 15,
+            Self::Nether => 10,
+        }
+    }
+    fn y_scale(self) -> f64 {
+        match self {
+            Self::Cave => 1.0,
+            Self::Nether => 5.0,
+        }
+    }
+    fn thickness(self, random: &mut impl RandomSource) -> Result<f32, InvalidBound> {
+        let mut thickness = random.next_float() * 2. + random.next_float();
+        match self {
+            Self::Cave => {
+                if random.next_int_bound(10)? == 0 {
+                    thickness *= random.next_float() * random.next_float() * 3. + 1.;
+                }
+            }
+            Self::Nether => thickness *= 2.,
+        }
+        Ok(thickness)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CaveCarver {
-    pub probability: f32,
-    pub y: HeightProvider,
-    pub count: IntProvider,
-    pub thickness: FloatProvider,
-    pub weird_thickness_bias: bool,
-    pub room_vertical_radius_multiplier: FloatProvider,
-    pub horizontal_radius_multiplier: FloatProvider,
-    pub vertical_radius_multiplier: FloatProvider,
-    pub start_vertical_radius_multiplier: FloatProvider,
-    pub floor_level: FloatProvider,
+    pub config: CaveCarverConfiguration,
+    pub kind: CaveKind,
 }
 #[derive(Debug)]
 pub enum CarverError<E> {
@@ -67,54 +95,26 @@ impl CaveCarver {
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?;
-        if kind != "minecraft:cave" {
-            return Err(DecodeError::Field("cave carver type"));
-        }
-        let probability: f32 = number_text(required(&object, "probability")?)?
-            .parse()
-            .map_err(|_| DecodeError::Field("carver probability"))?;
-        if !(0.0..=1.0).contains(&probability) || probability.is_sign_negative() {
-            return Err(DecodeError::Field("carver probability"));
-        }
-        let count = IntProvider::from_json(required(&object, "count")?.get())?;
-        if count.bounds()[0] < 0 {
-            return Err(DecodeError::Field("carver count"));
-        }
-        let provider = |name| FloatProvider::from_json(required(&object, name)?.get());
-        let thickness = provider("thickness")?;
-        if thickness.bounds()[0] < 0. {
-            return Err(DecodeError::Field("carver thickness"));
-        }
-        let floor_level = provider("floor_level")?;
-        if floor_level.bounds()[0] < -1. || floor_level.bounds()[1] > 1. {
-            return Err(DecodeError::Field("carver floor"));
-        }
+        let kind = match kind.as_str() {
+            "minecraft:cave" => CaveKind::Cave,
+            "minecraft:nether_cave" => CaveKind::Nether,
+            _ => return Err(DecodeError::Field("cave carver type")),
+        };
+        let config = config::config_object(json)?;
         Ok(Self {
-            probability,
-            y: HeightProvider::from_json(required(&object, "y")?.get())?,
-            count,
-            thickness,
-            weird_thickness_bias: optional(&object, "weird_thickness_bias")
-                .map(|v| serde_json::from_str(v.get()))
-                .transpose()?
-                .unwrap_or(false),
-            room_vertical_radius_multiplier: provider("room_vertical_radius_multiplier")?,
-            horizontal_radius_multiplier: provider("horizontal_radius_multiplier")?,
-            vertical_radius_multiplier: provider("vertical_radius_multiplier")?,
-            start_vertical_radius_multiplier: optional(&object, "start_vertical_radius_multiplier")
-                .map(|v| FloatProvider::from_json(v.get()))
-                .transpose()?
-                .unwrap_or(FloatProvider::Constant(1.)),
-            floor_level,
+            config: CaveCarverConfiguration::from_json(&config)?,
+            kind,
         })
     }
     pub fn is_start_chunk(&self, random: &mut impl RandomSource) -> bool {
-        random.next_float() <= self.probability
+        random.next_float() <= self.config.base.probability
     }
     /// Carve one origin chunk's paths into the target output. The caller performs
     /// start-chunk selection separately. Local tunnel RNGs always use the legacy
-    /// algorithm, regardless of the caller's RNG. At most 4096 starts and 2^24
-    /// candidate cells are allowed; errors preserve random draws and prior output.
+    /// algorithm, regardless of the caller's RNG. At most 2^24 candidate cells
+    /// are allowed; errors preserve random draws and prior output. The cave
+    /// count is the triple-nested bound draw (`nextInt(nextInt(nextInt(15)+1)+1)`,
+    /// bound 10 for the nether), so at most 14 starts.
     pub fn carve<O: CarverOutput>(
         &self,
         context: WorldGenerationContext,
@@ -123,10 +123,10 @@ impl CaveCarver {
         origin: ChunkPos,
         output: &mut O,
     ) -> Result<bool, CarverError<O::Error>> {
-        let count = self.count.sample(random)?;
-        if count > 4096 {
-            return Err(CarverError::IterationLimit);
-        }
+        let bound = self.kind.bound();
+        let count = random.next_int_bound(bound)? + 1;
+        let count = random.next_int_bound(count)? + 1;
+        let count = random.next_int_bound(count)?;
         let mut budget = 1 << 24;
         for _ in 0..count {
             let x = f64::from(
@@ -135,17 +135,16 @@ impl CaveCarver {
                     .wrapping_shl(4)
                     .wrapping_add(random.next_int_bound(16)?),
             );
-            let y = f64::from(self.y.sample(random, context)?);
+            let y = f64::from(self.config.base.y.sample(random, context)?);
             let z = f64::from(
                 origin
                     .z
                     .wrapping_shl(4)
                     .wrapping_add(random.next_int_bound(16)?),
             );
-            let horizontal = f64::from(self.horizontal_radius_multiplier.sample(random));
-            let vertical = f64::from(self.vertical_radius_multiplier.sample(random));
-            let start_vertical = f64::from(self.start_vertical_radius_multiplier.sample(random));
-            let floor = f64::from(self.floor_level.sample(random));
+            let horizontal = f64::from(self.config.horizontal_radius_multiplier.sample(random));
+            let vertical = f64::from(self.config.vertical_radius_multiplier.sample(random));
+            let floor = f64::from(self.config.floor_level.sample(random));
             let mut run = CaveRun {
                 target,
                 output,
@@ -156,7 +155,7 @@ impl CaveCarver {
             };
             let mut tunnels = 1;
             if random.next_int_bound(4)? == 0 {
-                let multiplier = f64::from(self.room_vertical_radius_multiplier.sample(random));
+                let multiplier = f64::from(self.config.base.y_scale.sample(random));
                 let thickness = 1. + random.next_float() * 6.;
                 let radius =
                     1.5 + f64::from(sin(f64::from(std::f32::consts::FRAC_PI_2)) * thickness);
@@ -166,10 +165,7 @@ impl CaveCarver {
             for _ in 0..tunnels {
                 let yaw = random.next_float() * std::f32::consts::TAU;
                 let pitch = (random.next_float() - 0.5) / 4.;
-                let mut thickness = self.thickness.sample(random);
-                if self.weird_thickness_bias && random.next_int_bound(10)? == 0 {
-                    thickness *= random.next_float() * random.next_float() * 3. + 1.;
-                }
+                let thickness = self.kind.thickness(random)?;
                 let end = 112 - random.next_int_bound(28)?;
                 run.tunnel(Tunnel {
                     seed: random.next_long(),
@@ -179,7 +175,7 @@ impl CaveCarver {
                     pitch,
                     start: 0,
                     end,
-                    vertical_scale: start_vertical,
+                    vertical_scale: self.kind.y_scale(),
                 })?;
             }
         }

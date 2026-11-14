@@ -8,7 +8,11 @@
 //! ridges. The vein synthesis follows Mojang's own 26.3 translation of
 //! `OreVeinifier` into density functions (the 26.3 `ore_vein/*` functions),
 //! with the mask read off the router's `vein_ridged` field.
-use super::{DecodeError, density::DensityRegistry, router::{NoiseRouter, RouterField}};
+use super::{
+    DecodeError,
+    density::DensityRegistry,
+    router::{NoiseRouter, RouterField},
+};
 use horizon_core::{
     density::{
         TilingMode,
@@ -141,7 +145,11 @@ impl VeinKind {
     /// (ore, raw ore, filler) block names.
     pub(crate) fn blocks(self) -> [&'static str; 3] {
         match self {
-            Self::Copper => ["minecraft:copper_ore", "minecraft:raw_copper_block", "minecraft:granite"],
+            Self::Copper => [
+                "minecraft:copper_ore",
+                "minecraft:raw_copper_block",
+                "minecraft:granite",
+            ],
             Self::Iron => [
                 "minecraft:deepslate_iron_ore",
                 "minecraft:raw_iron_block",

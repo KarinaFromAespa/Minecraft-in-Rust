@@ -712,13 +712,9 @@ mod tests {
             ),
             ("minecraft:islands".into(), r#"{"type":"end_islands"}"#.into()),
         ]);
-        let registry = DensityRegistry::from_json_with_interpolated_cell(
-            &BTreeMap::new(),
-            &densities,
-            8,
-            4,
-        )
-        .unwrap();
+        let registry =
+            DensityRegistry::from_json_with_interpolated_cell(&BTreeMap::new(), &densities, 8, 4)
+                .unwrap();
         let abs = registry.value("minecraft:abs").unwrap();
         let add = registry.value("minecraft:add").unwrap();
         let cache_2d = registry.value("minecraft:cache_2d").unwrap();
@@ -771,7 +767,11 @@ mod tests {
             ),
         ]);
         let registry = DensityRegistry::from_json(&noises, &densities).unwrap();
-        for name in ["minecraft:shift_a", "minecraft:shift_b", "minecraft:shifted"] {
+        for name in [
+            "minecraft:shift_a",
+            "minecraft:shift_b",
+            "minecraft:shifted",
+        ] {
             assert!(registry.value(name).is_some(), "{name}");
         }
     }

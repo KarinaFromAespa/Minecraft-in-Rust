@@ -29,6 +29,12 @@ impl<W: Write> CarverOutput for Output<'_, W> {
         self.mask.max_y()
     }
     fn carve(&mut self, x: i32, y: i32, z: i32) -> Result<(), ()> {
+        // 26.2's carveEllipsoid claims each cell once: a cell already in the
+        // mask is skipped before any write, so duplicates never reach the
+        // trace and never count toward the failure injection.
+        if self.mask.get(x, y, z) {
+            return Ok(());
+        }
         writeln!(self.out, "cell {x} {y} {z}").unwrap();
         let previous = self.calls;
         self.calls += 1;

@@ -15,7 +15,7 @@ use horizon_world::{
     registry::{BlockRegistry, BlockStateId, BlockStateJsonCodec},
     worldgen::{
         DecodeError,
-        anchor::WorldGenerationContext,
+        anchor::{VerticalAnchor, WorldGenerationContext},
         aquifer::{
             AquiferConfig, AquiferError, DisabledAquifer, GlobalFluidPicker, NoiseBasedAquifer,
             RegistryAquiferBlockStates,
@@ -24,7 +24,7 @@ use horizon_world::{
         biome_source::{BiomeSourceCatalog, BiomeSourceResolver},
         biome_temperature::{BiomeTemperature, BiomeTemperatureSettings},
         carver::{CarverCatalog, WorldCarver, generate_carving_mask},
-        carving::{CarvingBlocks, apply_carving_mask},
+        carving::{CarveProfile, CarvingBlocks, apply_carving_mask},
         decode_noise,
         density::DensityRegistry,
         material_condition::{
@@ -172,6 +172,7 @@ struct Data {
     integers: BTreeSet<(String, String)>,
     properties: Vec<State>,
     carving_blocks: CarvingBlocks,
+    carve_lava_anchor: Option<VerticalAnchor>,
     biome_carvers: BTreeMap<String, Vec<Arc<WorldCarver>>>,
     conditions: MaterialConditionRegistry,
     noises: BTreeMap<String, String>,
@@ -489,6 +490,13 @@ where
                 },
                 &mut traced,
                 &data.carving_blocks,
+                CarveProfile {
+                    nether: false,
+                    lava_y: data
+                        .carve_lava_anchor
+                        .map(|anchor| anchor.resolve(generation))
+                        .unwrap_or(generation.min_y),
+                },
                 |_| true,
             )
         };
@@ -526,12 +534,13 @@ where
     };
     for mode in carving["filters"].as_array().unwrap() {
         let mode = n(mode);
+        let generation = WorldGenerationContext::new(min, height, n(&f["sea"]));
         let result = apply_carving_mask(
             &mut chunk,
             &mask,
             rule.clone(),
             TopMaterialInputs::<R, _> {
-                generation: WorldGenerationContext::new(min, height, n(&f["sea"])),
+                generation,
                 root: root.clone(),
                 surface: &mut surface,
                 preliminary_surface: preliminary.clone(),
@@ -539,6 +548,13 @@ where
             },
             &mut traced,
             &data.carving_blocks,
+            CarveProfile {
+                nether: false,
+                lava_y: data
+                    .carve_lava_anchor
+                    .map(|anchor| anchor.resolve(generation))
+                    .unwrap_or(generation.min_y),
+            },
             |[x, y, z]| {
                 if mode == 0 {
                     return true;
@@ -781,12 +797,17 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let carving_blocks = CarvingBlocks::from_registry(
         &registry,
-        &block_tags.tags["minecraft:uncarvable"]
+        &block_tags.tags["minecraft:overworld_carver_replaceables"]
+            .iter()
+            .cloned()
+            .collect(),
+        &block_tags.tags["minecraft:nether_carver_replaceables"]
             .iter()
             .cloned()
             .collect(),
     )?;
     let carvers = CarverCatalog::from_json(&read("carvers")?)?;
+    let carve_lava_anchor = carvers.lava_anchor().copied();
     let mut biome_carvers = BTreeMap::new();
     for (name, json) in &biomes {
         let value: Value = serde_json::from_str(json)?;
@@ -798,6 +819,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = Data {
         biome_carvers,
         carving_blocks,
+        carve_lava_anchor,
         registry,
         integers,
         properties,

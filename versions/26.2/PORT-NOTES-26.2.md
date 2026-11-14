@@ -487,3 +487,25 @@ missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
 (rank 2: 259/410 neither closed nor accepted at this commit); D4–D6
 blocked as before. Artifacts kept at
 `~/workspace/mcir-ci/26.2-151/`.
+
+## Rate sample — changed vs no-change (Freebuff, from 2026-11-14)
+
+Over the next 100 rank-2 items closed starting at 218/410 (items
+219–318 of rank 2), record the split: CHANGED (needed a real port) vs
+NO-CHANGE (verified against the jars with no code change). Time ONLY
+the changed items, in wall-clock minutes. The sample decides whether
+the 874 delta port-days figure is right or ~3× too high, so the
+changed/no-change split and the minutes on changed items are the
+numbers that matter; no-change verifications are counted, not timed.
+
+**rate sample: 0/100 items, 0 changed, 0 no-change, 0 minutes on changed
+items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
+Items 88, 89 and 231 are in flight and close next; their work predates
+the sample, so when they close they count as the first three sample
+entries (changed, minutes "pre-sample", excluded from the minutes
+total). Timing starts with the first item begun after the sample
+started. The table below is the running log; it stays in agreement
+with the tally line above.
+
+| item | changed? | minutes | note |
+| --- | --- | --- | --- |

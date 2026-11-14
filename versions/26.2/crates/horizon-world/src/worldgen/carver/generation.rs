@@ -1,7 +1,13 @@
 //! Biome-selected neighboring carvers and their per-entry legacy seeds.
-use super::{CanyonCarver, CarverError, CaveCarver};
-use crate::worldgen::{
-    DecodeError, Object, anchor::WorldGenerationContext, density::identifier, required,
+use super::{CanyonCarver, CarverConfiguration, CarverError, CaveCarver, CaveKind};
+use crate::{
+    registry::BlockRegistry,
+    worldgen::{
+        DecodeError, Object,
+        anchor::{VerticalAnchor, WorldGenerationContext},
+        density::identifier,
+        required,
+    },
 };
 use horizon_core::{
     carving::{CarverOutput, CarvingMask, CarvingMaskError},
@@ -23,10 +29,25 @@ impl WorldCarver {
         )?)?
         .as_str()
         {
-            "minecraft:cave" => Ok(Self::Cave(CaveCarver::from_json(json)?)),
+            "minecraft:cave" | "minecraft:nether_cave" => {
+                Ok(Self::Cave(CaveCarver::from_json(json)?))
+            }
             "minecraft:canyon" => Ok(Self::Canyon(CanyonCarver::from_json(json)?)),
             _ => Err(DecodeError::Field("world carver type")),
         }
+    }
+    /// The shared base configuration (probability, height, y scale, lava level,
+    /// debug settings, replaceable set) of either carver kind.
+    pub fn base_config(&self) -> &CarverConfiguration {
+        match self {
+            Self::Cave(c) => &c.config.base,
+            Self::Canyon(c) => &c.config.base,
+        }
+    }
+    /// Whether this is a nether cave carver (its own type in 26.2, deleted in
+    /// 26.3): it carves with the nether profile, not the overworld one.
+    pub fn is_nether(&self) -> bool {
+        matches!(self, Self::Cave(c) if c.kind == CaveKind::Nether)
     }
     pub fn is_start_chunk(&self, random: &mut impl RandomSource) -> bool {
         match self {
@@ -71,6 +92,57 @@ impl CarverCatalog {
         Ok(Self {
             definitions: result,
         })
+    }
+    /// Every carver's replaceable set must resolve: tags against the block
+    /// tags, direct ids against the registry. Vanilla rejects unknown tags
+    /// and ids at registry load; a carver whose set cannot resolve is a
+    /// load error, not a silent empty set.
+    pub fn validate_replaceable(
+        &self,
+        block_tags: &BTreeMap<String, Vec<String>>,
+        registry: &BlockRegistry,
+    ) -> Result<(), DecodeError> {
+        for carver in self.definitions.values() {
+            match &carver.base_config().replaceable {
+                super::BlockSetRef::Tag(tag) => {
+                    if !block_tags.contains_key(tag) {
+                        return Err(DecodeError::Registry(format!(
+                            "unknown carver replaceable tag {tag}"
+                        )));
+                    }
+                }
+                super::BlockSetRef::Blocks(names) => {
+                    for name in names {
+                        if registry.default_state(name).is_none() {
+                            return Err(DecodeError::Registry(format!(
+                                "unknown carver replaceable block {name}"
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+    /// The lava level of the first non-nether carver in name order, or `None`
+    /// when the catalog holds only nether carvers (or is empty). All vanilla
+    /// overworld carvers agree on `above_bottom 8`; the loader warns when
+    /// configurations disagree, and the apply phase uses this one level for
+    /// every non-nether dimension.
+    pub fn lava_anchor(&self) -> Option<&VerticalAnchor> {
+        self.definitions
+            .values()
+            .find(|carver| !carver.is_nether())
+            .map(|carver| &carver.base_config().lava_level)
+    }
+    /// Every non-nether carver's lava level, in name order, for the loader's
+    /// disagreement warning.
+    pub fn non_nether_lava_levels(&self) -> Vec<VerticalAnchor> {
+        self.definitions
+            .values()
+            .filter(|carver| !carver.is_nether())
+            .map(|carver| carver.base_config().lava_level)
+            .collect()
     }
     pub fn decode_set(&self, json: &str) -> Result<Vec<Arc<WorldCarver>>, DecodeError> {
         use serde_json::value::RawValue;

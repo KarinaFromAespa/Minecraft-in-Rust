@@ -77,7 +77,10 @@ fn fitness(
     z: i32,
 ) -> Result<Candidate, SampleError> {
     let sampled = sampler.sample(context, [x >> 2, 0, z >> 2])?;
-    let target = TargetPoint { depth: 0, ..sampled };
+    let target = TargetPoint {
+        depth: 0,
+        ..sampled
+    };
     let mut best = i64::MAX;
     for point in targets {
         best = best.min(point.fitness(target));
@@ -92,8 +95,8 @@ fn fitness(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::climate::Parameter;
+    use super::*;
     use horizon_core::density::{ConstantSampler, DensitySampler};
     use std::sync::Arc;
 

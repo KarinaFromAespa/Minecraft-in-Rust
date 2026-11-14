@@ -83,6 +83,20 @@ impl CarvingMask {
         self.used_words = self.used_words.max(word + 1);
         Ok(())
     }
+    /// Whether the cell is already carved. Out-of-range coordinates read as
+    /// uncarved; vanilla's 26.2 ellipsoid checks the mask before each write,
+    /// so a claimed cell is never written twice.
+    pub fn get(&self, x: i32, y: i32, z: i32) -> bool {
+        let index = y
+            .wrapping_sub(self.min_y)
+            .wrapping_add(z.wrapping_add(x.wrapping_shl(4)).wrapping_mul(self.height));
+        if index < 0 || index >= 1 << 24 {
+            return false;
+        }
+        let index = index as usize;
+        let word = index / 64;
+        word < self.words.len() && self.words[word] & (1 << (index & 63)) != 0
+    }
     /// Traverse ascending packed runs, splitting each run at column boundaries.
     /// No per-cell or per-column allocation is required.
     pub fn columns(&self) -> impl Iterator<Item = CarvingColumn> + '_ {

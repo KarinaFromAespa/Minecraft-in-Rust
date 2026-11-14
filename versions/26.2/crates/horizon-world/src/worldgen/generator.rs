@@ -9,7 +9,7 @@
 //! whatever feature algorithms are implemented; structures are not generated.
 use super::{
     DecodeError,
-    anchor::WorldGenerationContext,
+    anchor::{VerticalAnchor, WorldGenerationContext},
     aquifer::{
         AquiferConfig, AquiferField, AquiferSamplers, DisabledAquifer, GlobalFluidPicker,
         NoiseBasedAquifer, RegistryAquiferBlockStates,
@@ -20,7 +20,7 @@ use super::{
     biome_source::{BiomeSourceCatalog, ResolvedBiomeSource},
     biome_temperature::{BiomeTemperature, BiomeTemperatureSettings},
     carver::{CarverCatalog, WorldCarver, generate_carving_mask},
-    carving::{CarvingBlocks, apply_carving_mask_shared},
+    carving::{CarveProfile, CarvingBlocks, apply_carving_mask_shared},
     climate::{ClimateSampler, ParameterPoint, decode_parameter_point, quantize},
     decode_noise,
     density::DensityRegistry,
@@ -190,6 +190,11 @@ pub struct GeneratorData {
     temperatures: Vec<BiomeTemperatureSettings>,
     biome_carvers: Vec<Vec<Arc<WorldCarver>>>,
     carving_blocks: CarvingBlocks,
+    /// The lava level of the first non-nether carver (all vanilla overworld
+    /// carvers agree on `above_bottom 8`); the carving stage resolves it
+    /// against the dimension's build range. `None` when the catalog holds
+    /// only nether carvers or is empty.
+    carve_lava_anchor: Option<VerticalAnchor>,
     pub(super) block_tags: BTreeMap<String, Vec<String>>,
     /// `block_tags` bound to block states, once for the feature bindings of
     /// decoration, structures and live features (`feature_block_bindings`).
@@ -475,6 +480,19 @@ impl GeneratorData {
         let source_catalog =
             BiomeSourceCatalog::new(&biome_set, &biome_tags, &presets.keys().cloned().collect())?;
         let carvers = CarverCatalog::from_json(&read_bundle(dir, ov, "carvers")?)?;
+        carvers.validate_replaceable(&block_tags, registry)?;
+        // The apply phase uses one lava level per dimension; all vanilla
+        // overworld carvers agree, so a disagreement is a warning, not an error.
+        let carve_lava_anchor = carvers.lava_anchor().copied();
+        if carvers
+            .non_nether_lava_levels()
+            .into_iter()
+            .any(|level| Some(level) != carve_lava_anchor)
+        {
+            warnings.push(
+                "carvers: lava_level differs between configurations; using the first".to_owned(),
+            );
+        }
         let mut biome_names = Vec::new();
         let mut biome_ids = BTreeMap::new();
         let mut biome_json = Vec::new();
@@ -488,9 +506,15 @@ impl GeneratorData {
             biome_carvers.push(carvers.decode_set(&value["carvers"].to_string())?);
             biome_json.push(json.clone());
         }
+        // 26.2 has no `minecraft:uncarvable` tag (26.3 added it): carvers
+        // declare their replaceable sets, one per dimension in vanilla data.
         let carving_blocks = CarvingBlocks::from_registry(
             registry,
-            &tag_set("minecraft:uncarvable")?
+            &tag_set("minecraft:overworld_carver_replaceables")?
+                .into_iter()
+                .map(str::to_owned)
+                .collect(),
+            &tag_set("minecraft:nether_carver_replaceables")?
                 .into_iter()
                 .map(str::to_owned)
                 .collect(),
@@ -542,10 +566,7 @@ impl GeneratorData {
                     air_block: state.name == "minecraft:air",
                     fluid: flags[i].1,
                     motion,
-                    no_leaves: motion
-                        && !facts
-                            .data(id)
-                            .is(crate::level::classes::Class::Leaves),
+                    no_leaves: motion && !facts.data(id).is(crate::level::classes::Class::Leaves),
                 }
             })
             .collect::<Vec<_>>();
@@ -573,6 +594,7 @@ impl GeneratorData {
             temperatures,
             biome_carvers,
             carving_blocks,
+            carve_lava_anchor,
             block_tags,
             biome_tags,
             feature_resources,
@@ -1133,10 +1155,7 @@ where
         let peaks_valleys = peaks_and_valleys(&router, &mut densities)?;
         // 26.2 has no `aquifers` config object: `NoiseBasedAquifer` takes its
         // functions from the router when `aquifers_enabled` is set.
-        let aquifers = if settings_json["aquifers_enabled"]
-            .as_bool()
-            .unwrap_or(false)
-        {
+        let aquifers = if settings_json["aquifers_enabled"].as_bool().unwrap_or(false) {
             Some(AquiferConfig::from_router(&router, &mut densities)?)
         } else {
             None
@@ -1146,7 +1165,10 @@ where
         // vein fields now, while the registry is still owned here; the
         // rules themselves are built after the library exists.
         let mut veins = Vec::new();
-        if settings_json["ore_veins_enabled"].as_bool().unwrap_or(false) {
+        if settings_json["ore_veins_enabled"]
+            .as_bool()
+            .unwrap_or(false)
+        {
             for kind in VeinKind::ALL {
                 veins.push((kind, vein_roots(&router, &mut densities, kind)?));
             }
@@ -1160,10 +1182,7 @@ where
         let rule_name = match settings_json.get("surface_rule") {
             Some(Value::String(name)) => name.clone(),
             Some(rule) => {
-                rules.insert(
-                    INLINE_SURFACE_RULE.to_owned(),
-                    rule.to_string(),
-                );
+                rules.insert(INLINE_SURFACE_RULE.to_owned(), rule.to_string());
                 INLINE_SURFACE_RULE.to_owned()
             }
             None => return Err(resource("surface_rule")),
@@ -1333,8 +1352,12 @@ where
         let position = if self.spawn_target.is_empty() {
             [0, 0]
         } else {
-            find_spawn_position(&self.spawn_target, &self.climate, &mut SamplerContext::cached())
-                .map_err(|e| GeneratorError::Stage("spawn search", e.to_string()))?
+            find_spawn_position(
+                &self.spawn_target,
+                &self.climate,
+                &mut SamplerContext::cached(),
+            )
+            .map_err(|e| GeneratorError::Stage("spawn search", e.to_string()))?
         };
         Ok(*self.spawn_position.get_or_init(|| position))
     }
@@ -1936,6 +1959,20 @@ where
                     self.router.get(RouterField::Erosion).as_ref(),
                 );
                 let mut biome_context = SamplerContext::default();
+                // The nether carves with its own profile: lava at or below
+                // minY+31, cave air above, no aquifer. Every other dimension
+                // uses the carvers' lava level (above_bottom 8 in vanilla).
+                let nether = self.dimension == "minecraft:the_nether";
+                let profile = CarveProfile {
+                    nether,
+                    lava_y: if nether {
+                        generation.min_y.wrapping_add(31)
+                    } else {
+                        data.carve_lava_anchor
+                            .map(|anchor| anchor.resolve(generation))
+                            .unwrap_or(generation.min_y)
+                    },
+                };
                 apply_carving_mask_shared(
                     &mut chunk,
                     &mask,
@@ -1956,6 +1993,7 @@ where
                     },
                     aquifer.as_mut(),
                     &data.carving_blocks,
+                    profile,
                     |[x, y, z]| blender.carving_filter(x, y, z).unwrap_or(true),
                 )
                 .map_err(stage("carvers"))?;
