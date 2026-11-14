@@ -600,8 +600,7 @@ impl Game<'_> {
             // 26.2's getBoundingBoxForCulling is the plain getBoundingBox;
             // the interpolated box is 26.3's.
             if entity && let Some(view) = &self.view_frustum {
-                let (lo, hi) =
-                    dropped_item_cull_box(glam::DVec3::new(q.x, q.y, q.z), camera);
+                let (lo, hi) = dropped_item_cull_box(glam::DVec3::new(q.x, q.y, q.z), camera);
                 if !view.intersects(lo, hi) {
                     continue;
                 }

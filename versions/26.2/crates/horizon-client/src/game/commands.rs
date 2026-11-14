@@ -816,10 +816,11 @@ impl Game<'_> {
                 Some(g) => Text::literal(g.name.clone()),
                 None => Text::empty(),
             },
-            Target::Mob(id) => self.mobs.iter().find(|m| m.id == id).map_or_else(
-                || Text::translate("entity.", &[]),
-                |m| m.command_name(),
-            ),
+            Target::Mob(id) => self
+                .mobs
+                .iter()
+                .find(|m| m.id == id)
+                .map_or_else(|| Text::translate("entity.", &[]), |m| m.command_name()),
             other => self.target_name(other),
         }
     }

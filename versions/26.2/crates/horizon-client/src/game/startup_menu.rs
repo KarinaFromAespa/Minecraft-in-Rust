@@ -481,13 +481,8 @@ impl Loading {
                 .fullscreen_resolution
                 .as_deref()
                 .and_then(horizon_client::window::VideoMode::read);
-            self.fullscreen.apply(
-                &window,
-                self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
-                preferred,
-                false,
-            );
+            self.fullscreen
+                .apply(&window, self.settings.fullscreen, preferred, false);
         }
         self.update_menu_cursor();
     }
@@ -1370,7 +1365,7 @@ mod tests {
             boot: horizon_client::hud::HudAtlas::boot(),
             gui: None,
             settings: Settings::default(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             options: None,
             vanilla_root: PathBuf::new(),

@@ -137,9 +137,7 @@ fn quit_shortcut_is_the_platform_close_combination() {
     };
 
     // The platform quit shortcut, held: Cmd+Q on macOS, Alt+F4 elsewhere.
-    assert!(horizon_client::input::is_quit_shortcut_down(
-        mods, &keys
-    ));
+    assert!(horizon_client::input::is_quit_shortcut_down(mods, &keys));
     // Not held: no modifiers, no keys.
     assert!(!horizon_client::input::is_quit_shortcut_down(
         ModifiersState::empty(),

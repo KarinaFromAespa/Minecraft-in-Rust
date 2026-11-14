@@ -498,7 +498,7 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 14/100 items, 9 changed, 5 no-change, 68 minutes on changed
+**rate sample: 15/100 items, 10 changed, 5 no-change, 79 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT).
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
@@ -523,6 +523,7 @@ log; it stays in agreement with the tally line above.
 | 140 | changed | 11 | container tooltip args (name, count); crossbow multiple line uses getDisplayName |
 | 119 | changed | 6 | onMove to 26.2 absolute-delta form; grab centre integer division |
 | 99 | no-change | — | crumbling already the 26.2 parameter form; rest is API-only or has no Rust counterpart |
+| 90 | changed | 11 | VideoMode to 26.2 int-rate string form; fullscreen no-adopt, exclusive at construction; throttle iconified-only; FifoRelaxed vsync |
 
 ## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
 

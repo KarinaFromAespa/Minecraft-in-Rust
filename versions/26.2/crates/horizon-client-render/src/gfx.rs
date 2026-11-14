@@ -5679,6 +5679,7 @@ impl Renderer {
             .iter()
             .filter_map(|m| match m {
                 wgpu::PresentMode::Fifo => Some(PresentMode::Fifo),
+                wgpu::PresentMode::FifoRelaxed => Some(PresentMode::FifoRelaxed),
                 wgpu::PresentMode::Mailbox => Some(PresentMode::Mailbox),
                 wgpu::PresentMode::Immediate => Some(PresentMode::Immediate),
                 _ => None,
@@ -5693,6 +5694,7 @@ impl Renderer {
         let mode = match chosen_present_mode(&supported, vsync, setting) {
             Some(PresentMode::Mailbox) => wgpu::PresentMode::Mailbox,
             Some(PresentMode::Immediate) => wgpu::PresentMode::Immediate,
+            Some(PresentMode::FifoRelaxed) => wgpu::PresentMode::FifoRelaxed,
             _ => wgpu::PresentMode::Fifo,
         };
         if self.config.present_mode != mode && self.surface.is_some() {

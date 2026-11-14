@@ -6603,8 +6603,7 @@ mod swing_echo_tests {
                 for body in bodies {
                     let mut r = horizon_protocol::buf::Reader::new(&body);
                     let packet_id = r.varint().unwrap();
-                    if let Ok(Clientbound::Animate(p)) =
-                        Clientbound::decode(packet_id, r.rest())
+                    if let Ok(Clientbound::Animate(p)) = Clientbound::decode(packet_id, r.rest())
                         && p.id == id
                     {
                         n += 1;

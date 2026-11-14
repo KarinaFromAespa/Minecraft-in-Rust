@@ -208,7 +208,7 @@ pub fn position(
     ]
 }
 
-/// `VideoMode.refreshRateLabel`: whole rates without decimals.
+/// A refresh rate in hertz for the debug display: whole rates without decimals.
 pub fn refresh_rate_label(hz: f64) -> String {
     if hz == hz.round() {
         format!("{}", hz as i64)

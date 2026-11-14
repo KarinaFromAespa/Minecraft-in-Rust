@@ -174,8 +174,16 @@ impl Game<'_> {
         let min = bounds.min_position();
         let max = bounds.max_position();
         let (lo, hi) = (
-            [min.x.floor() as i32, min.y.floor() as i32, min.z.floor() as i32],
-            [max.x.ceil() as i32, max.y.ceil() as i32, max.z.ceil() as i32],
+            [
+                min.x.floor() as i32,
+                min.y.floor() as i32,
+                min.z.floor() as i32,
+            ],
+            [
+                max.x.ceil() as i32,
+                max.y.ceil() as i32,
+                max.z.ceil() as i32,
+            ],
         );
         let blocks = (lo[0]..hi[0])
             .flat_map(|x| (lo[1]..hi[1]).flat_map(move |y| (lo[2]..hi[2]).map(move |z| (x, y, z))));

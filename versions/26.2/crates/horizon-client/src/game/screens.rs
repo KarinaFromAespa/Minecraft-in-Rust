@@ -182,20 +182,18 @@ fn pause_buttons(
             ),
         ]);
     }
-    v.extend([
-        (
-            x0 + 4.0,
-            y0 + 146.0 + down,
-            204.0,
-            if remote {
-                "menu.disconnect"
-            } else {
-                "menu.returnToMenu"
-            },
-            2,
-            true,
-        ),
-    ]);
+    v.extend([(
+        x0 + 4.0,
+        y0 + 146.0 + down,
+        204.0,
+        if remote {
+            "menu.disconnect"
+        } else {
+            "menu.returnToMenu"
+        },
+        2,
+        true,
+    )]);
     v
 }
 

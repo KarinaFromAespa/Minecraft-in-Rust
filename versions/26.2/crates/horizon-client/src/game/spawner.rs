@@ -424,11 +424,7 @@ impl Game<'_> {
     /// (`setEntityId`); the egg's entity data is ignored in 26.2
     /// (`setEntityData` is 26.3-only). None when the clicked block has no
     /// spawner.
-    pub(super) fn use_spawn_egg_on_spawner(
-        &mut self,
-        pos: [i32; 3],
-        kind: &str,
-    ) -> Option<bool> {
+    pub(super) fn use_spawn_egg_on_spawner(&mut self, pos: [i32; 3], kind: &str) -> Option<bool> {
         let key = (pos[0], pos[1], pos[2]);
         let trial = match self.world.block_entities.get(&key) {
             Some(BlockEntity::Spawner(_)) => false,

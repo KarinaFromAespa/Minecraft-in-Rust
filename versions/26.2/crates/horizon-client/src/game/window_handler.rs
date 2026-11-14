@@ -273,7 +273,9 @@ impl ApplicationHandler for Game<'_> {
         // The Window constructor: created fullscreen when options.txt or --fullscreen says so.
         let fullscreen = self.settings.fullscreen || self.options.fullscreen;
         let size = self.options.window_size.map(f64::from);
-        self.fullscreen = horizon_client::window::FullscreenState::new(fullscreen);
+        // 26.2 reads the exclusive option once, at window creation.
+        let exclusive = self.settings.file.bool("exclusiveFullscreen");
+        self.fullscreen = horizon_client::window::FullscreenState::new(fullscreen, exclusive);
         let attributes = horizon_client::window::with_horizon_icon(
             Window::default_attributes().with_title("Horizon"),
         );

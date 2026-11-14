@@ -279,7 +279,7 @@ pub(super) fn run_loading(
         boot: horizon_client::hud::HudAtlas::boot(),
         gui: None,
         settings,
-        fullscreen: horizon_client::window::FullscreenState::new(false),
+        fullscreen: horizon_client::window::FullscreenState::new(false, false),
         video_modes: Default::default(),
         options: Some(options),
         vanilla_root,

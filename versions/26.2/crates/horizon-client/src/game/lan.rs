@@ -1263,10 +1263,7 @@ fn enforce_guest_game_mode(
 /// players, or the world's default while unset. None while unpublished
 /// or in hardcore.
 fn forced_game_type(host: &LanHost) -> Option<i32> {
-    if !host.hub.config.integrated
-        || !host.hub.config.force_game_mode
-        || host.hub.config.hardcore
-    {
+    if !host.hub.config.integrated || !host.hub.config.force_game_mode || host.hub.config.hardcore {
         return None;
     }
     Some(
@@ -1943,7 +1940,8 @@ impl Game<'_> {
             .map(|g| g.conn)
             .collect();
         for conn in stale {
-            host.hub.set_game_mode(conn, mode, &self.world, Some(self.collision));
+            host.hub
+                .set_game_mode(conn, mode, &self.world, Some(self.collision));
         }
     }
 

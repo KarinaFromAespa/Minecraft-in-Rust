@@ -5517,15 +5517,9 @@ impl Game<'_> {
                         "minecraft:trident",
                     ),
                     Who::Mob(id) => {
-                        let hurt =
-                            self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
-                                m.damage_projectile(
-                                    amount,
-                                    source,
-                                    aim,
-                                    [p.velocity.x, p.velocity.z],
-                                )
-                            });
+                        let hurt = self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
+                            m.damage_projectile(amount, source, aim, [p.velocity.x, p.velocity.z])
+                        });
                         dodged = !hurt
                             && self.mobs.iter().find(|m| m.id == id).is_some_and(|m| {
                                 m.species() == Species::Enderman

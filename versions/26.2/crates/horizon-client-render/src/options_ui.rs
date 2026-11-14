@@ -589,12 +589,7 @@ impl Opt {
                     c,
                     Text::tr(
                         "options.fullscreen.entry",
-                        &[
-                            &mode.width,
-                            &mode.height,
-                            &mode.refresh_rate_label(),
-                            &mode.bits(),
-                        ],
+                        &[&mode.width, &mode.height, &mode.refresh_rate, &mode.bits()],
                     ),
                 ),
                 _ => generic(c, tr("options.fullscreen.current")),
@@ -5913,7 +5908,7 @@ mod tests {
         assert_eq!(saved.keys_of("zoom"), vec![("zoom", "key.keyboard.r")]);
     }
 
-    fn mode(width: i32, rate: f32) -> crate::window::VideoMode {
+    fn mode(width: i32, rate: i32) -> crate::window::VideoMode {
         crate::window::VideoMode {
             width,
             height: width * 9 / 16,
@@ -5965,7 +5960,7 @@ mod tests {
         // No monitor mode: the slider changes nothing.
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(s.file.fullscreen_resolution, None);
-        s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
+        s.video_modes = vec![mode(1280, 60), mode(1920, 144), mode(2560, 59)];
         assert_eq!(s.video_mode_index(), -1);
         // IntRange(-1, 2): the slider's thirds are -1, 0, 1, 2.
         Opt::ExclusiveMode.set_slider(&mut s, 2.0 / 3.0);
@@ -6284,7 +6279,7 @@ mod tests {
         lang::set(lang::Language::load(&[&root], "en_us"));
         let mut s = Settings::default();
         assert_eq!(Opt::ExclusiveMode.label(&s).plain(), "Setting unavailable");
-        s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
+        s.video_modes = vec![mode(1280, 60), mode(1920, 144), mode(2560, 59)];
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
             "Exclusive Fullscreen Mode: Current"
@@ -6297,7 +6292,7 @@ mod tests {
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 2560x1440@59.94 (24bit)"
+            "Exclusive Fullscreen Mode: 2560x1440@59 (24bit)"
         );
         s.horizon.api = GraphicsApi::Vulkan;
         assert_eq!(

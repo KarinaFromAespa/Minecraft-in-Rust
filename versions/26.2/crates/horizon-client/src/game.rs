@@ -4494,15 +4494,7 @@ impl Game<'_> {
                         };
                         if matches!(
                             id,
-                            1019 | 1021
-                                | 1026
-                                | 1027
-                                | 1029
-                                | 1030
-                                | 1045
-                                | 1052
-                                | 1501
-                                | 1503
+                            1019 | 1021 | 1026 | 1027 | 1029 | 1030 | 1045 | 1052 | 1501 | 1503
                         ) {
                             // Clients play these sounds from their level events;
                             // capturing it also sends a duplicate sound packet.
@@ -10411,7 +10403,6 @@ impl Game<'_> {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
                     }
-                    self.observe_fullscreen();
                 }
                 WindowEvent::Focused(focused) => {
                     self.focused = focused;
@@ -11347,7 +11338,6 @@ impl Game<'_> {
                 }
                 WindowEvent::RedrawRequested => {
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
-                    self.observe_fullscreen();
                     self.sync_ime();
                     let now = Instant::now();
                     let frame_cpu = self
@@ -11830,7 +11820,7 @@ impl<'a> Game<'a> {
             ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
             agent_pointer: false,
@@ -12996,13 +12986,13 @@ mod golem_defense_tests;
 #[cfg(test)]
 mod hoglin_repeat_attack_tests;
 #[cfg(test)]
+mod hurt_cooldown_tests;
+#[cfg(test)]
 mod inline_feature_parse_tests;
 #[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]
 mod interaction_data_tests;
-#[cfg(test)]
-mod hurt_cooldown_tests;
 #[cfg(test)]
 mod kill_die_cancel_tests;
 #[cfg(test)]

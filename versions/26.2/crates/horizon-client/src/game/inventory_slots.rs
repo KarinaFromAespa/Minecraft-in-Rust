@@ -350,8 +350,12 @@ impl Game<'_> {
         let n = self.craft_size;
         let grid: Vec<Option<ItemStack>> = (0..n * n).map(|i| self.craft_grid[i].clone()).collect();
         let scale = |id: i32| self.maps.data.get(&id).map(|m| m.scale);
-        let is_exploration =
-            |id: i32| self.maps.data.get(&id).is_some_and(|m| m.is_exploration_map());
+        let is_exploration = |id: i32| {
+            self.maps
+                .data
+                .get(&id)
+                .is_some_and(|m| m.is_exploration_map())
+        };
         // The world's table, the one taking the result (`menu_click`) crafts from.
         self.recipes()
             .find_with(&grid, n, &scale, &is_exploration)

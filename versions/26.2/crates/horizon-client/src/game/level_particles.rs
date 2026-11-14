@@ -427,7 +427,11 @@ impl Game<'_> {
         let pitch = self.particles.level_random().next_float() * 0.1 + 0.9;
         self.audio.play_unshared(
             "minecraft:entity.splash_potion.break",
-            Some([f64::from(pos.x) + 0.5, f64::from(pos.y) + 0.5, f64::from(pos.z) + 0.5]),
+            Some([
+                f64::from(pos.x) + 0.5,
+                f64::from(pos.y) + 0.5,
+                f64::from(pos.z) + 0.5,
+            ]),
             1.0,
             pitch,
         );
