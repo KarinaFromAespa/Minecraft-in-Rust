@@ -307,6 +307,9 @@ impl Loader {
             "minecraft:half_negative" => Some(GraphUnary::HalfNegative),
             "minecraft:quarter_negative" => Some(GraphUnary::QuarterNegative),
             "minecraft:reciprocal" => Some(GraphUnary::Reciprocal),
+            // 26.2's name for the same Mapped type (1.0 / input); 26.3
+            // renamed it to `reciprocal`.
+            "minecraft:invert" => Some(GraphUnary::Reciprocal),
             "minecraft:negate" => Some(GraphUnary::Negate),
             "minecraft:squeeze" => Some(GraphUnary::Squeeze),
             "minecraft:log" => Some(GraphUnary::Log),
