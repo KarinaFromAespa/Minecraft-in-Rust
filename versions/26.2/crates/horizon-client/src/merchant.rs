@@ -750,7 +750,9 @@ impl Trades {
             gives["count"].as_u64().unwrap_or(1) as u32,
         );
         let mut additional = 0;
-        let modifiers: Vec<&Value> = match &t["given_item_modifier"] {
+        // 26.2's `given_item_modifiers` (a list; 26.3 renamed it to the
+        // singular `given_item_modifier` and made it one optional value).
+        let modifiers: Vec<&Value> = match &t["given_item_modifiers"] {
             Value::Array(a) => a.iter().collect(),
             v @ Value::Object(_) => vec![v],
             _ => vec![],
@@ -1267,7 +1269,7 @@ mod tests {
             origin: [0.0; 3],
             maps: None,
         };
-        let trade = json!({"gives":{"id":"minecraft:book", "count":2}, "wants":{"id":"minecraft:emerald", "count":{"type":"minecraft:constant", "value":7}}, "additional_wants":{"id":"minecraft:book", "count":{"type":"minecraft:constant", "value":2}}, "given_item_modifier":[{"function":"minecraft:set_enchantments", "enchantments":{"minecraft:sharpness":3}}, {"function":"minecraft:set_enchantments", "enchantments":{"minecraft:sharpness":2}, "add":true}]});
+        let trade = json!({"gives":{"id":"minecraft:book", "count":2}, "wants":{"id":"minecraft:emerald", "count":{"type":"minecraft:constant", "value":7}}, "additional_wants":{"id":"minecraft:book", "count":{"type":"minecraft:constant", "value":2}}, "given_item_modifiers":[{"function":"minecraft:set_enchantments", "enchantments":{"minecraft:sharpness":3}}, {"function":"minecraft:set_enchantments", "enchantments":{"minecraft:sharpness":2}, "add":true}]});
         let o = t
             .offer_from(&ctx, &trade, &mut sequence_random(1, "x"))
             .unwrap();
