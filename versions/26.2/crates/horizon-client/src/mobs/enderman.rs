@@ -71,54 +71,41 @@ pub fn stared_at(m: &Mob, w: &MobWorld) -> bool {
             Vec3::new(m.position.x, m.eye_y(), m.position.z),
         )
 }
-/// `Enderman.teleport(x, y, z)` (26.2): never while riding something. It
-/// first scans down from the spot for the first block that `blocksMotion()`
-/// and refuses when that ground holds water; then `LivingEntity.randomTeleport`
-/// scans down again for the first blocks-motion block below the spot, lands
-/// one block above it, and refuses when the new box collides or holds a
-/// liquid. (26.3 replaced both scans with the `#entities_can_teleport_to`
-/// tag, added the `#enderman_does_not_teleport_to` avoidance predicate, the
-/// world-border clamp and the level event 2018 portal trail; none of those
-/// exist in 26.2.)
-pub fn teleport_to(
+/// `BlockState.blocksMotion()`: not cobweb or a bamboo sapling, and
+/// legacy-solid.
+fn blocks_motion(w: &MobWorld, bx: i32, by: i32, bz: i32) -> bool {
+    let name = w.block_name(bx, by, bz);
+    name != "minecraft:cobweb"
+        && name != "minecraft:bamboo_sapling"
+        && w.facts.get(w.world.block(bx, by, bz)).legacy_solid
+}
+
+/// `LivingEntity.randomTeleport` (26.2): the drawn point drops to the first
+/// motion-blocking ground below it and the entity lands one block above it,
+/// staying only if its box there is free and holds no liquid. On failure it
+/// stays where it was. (26.3 replaced the blocks-motion scan with the
+/// `#entities_can_teleport_to` tag and added an avoidance predicate; neither
+/// exists in 26.2.)
+pub fn random_teleport(
     m: &mut Mob,
     w: &MobWorld,
     x: f64,
     y: f64,
     z: f64,
+    show_particles: bool,
     events: &mut Vec<MobEvent>,
 ) -> bool {
-    if m.extra.passenger {
-        return false;
-    }
     let (bx, bz) = (x.floor() as i32, z.floor() as i32);
     if !w.world.loaded(bx, bz) {
         return false;
     }
-    // `BlockState.blocksMotion()`: not cobweb or a bamboo sapling, and
-    // legacy-solid.
-    let blocks_motion = |bx: i32, by: i32, bz: i32| {
-        let name = w.block_name(bx, by, bz);
-        name != "minecraft:cobweb"
-            && name != "minecraft:bamboo_sapling"
-            && w.facts.get(w.world.block(bx, by, bz)).legacy_solid
-    };
-    // `Enderman.teleport`'s own scan: the first blocks-motion block at or
-    // below the spot, which must not hold water.
-    let mut gy = y.floor() as i32;
-    while gy > w.world.bottom_y() && !blocks_motion(bx, gy, bz) {
-        gy -= 1;
-    }
-    if !blocks_motion(bx, gy, bz) || w.fluid(bx, gy, bz) == Fluid::Water {
-        return false;
-    }
-    // `LivingEntity.randomTeleport`: scan down from the spot, landing one
-    // block above the first blocks-motion block below it.
+    // Scan down from the spot, landing one block above the first
+    // blocks-motion block below it.
     let mut ny = y;
     let mut py = y.floor() as i32;
     let mut landed = false;
     while !landed && py > w.world.bottom_y() {
-        if blocks_motion(bx, py - 1, bz) {
+        if blocks_motion(w, bx, py - 1, bz) {
             landed = true;
         } else {
             ny -= 1.0;
@@ -148,17 +135,58 @@ pub fn teleport_to(
             }
         }
     }
-    let old = m.position;
     // Entity.teleportTo -> snapTo: the old position moves too, the motion stays.
     m.position = Vec3::new(x, ny, z);
     m.previous = m.position;
     m.ai.nav.stop();
-    // `randomTeleport(..., true)` broadcasts entity event 46.
-    events.push(MobEvent::EntityEvent {
-        mob: m.id,
-        event: 46,
-        at: [m.position.x, m.position.y, m.position.z],
-    });
+    if show_particles {
+        // `randomTeleport(..., true)` broadcasts entity event 46.
+        events.push(MobEvent::EntityEvent {
+            mob: m.id,
+            event: 46,
+            at: [m.position.x, m.position.y, m.position.z],
+        });
+    }
+    true
+}
+
+/// `Enderman.teleport(x, y, z)` (26.2): never while riding something. It
+/// first scans down from the spot for the first block that `blocksMotion()`
+/// and refuses when that ground holds water; then `random_teleport` scans
+/// down again for the first blocks-motion block below the spot, lands one
+/// block above it, and refuses when the new box collides or holds a
+/// liquid. (26.3 replaced both scans with the `#entities_can_teleport_to`
+/// tag, added the `#enderman_does_not_teleport_to` avoidance predicate, the
+/// world-border clamp and the level event 2018 portal trail; none of those
+/// exist in 26.2.)
+pub fn teleport_to(
+    m: &mut Mob,
+    w: &MobWorld,
+    x: f64,
+    y: f64,
+    z: f64,
+    events: &mut Vec<MobEvent>,
+) -> bool {
+    if m.extra.passenger {
+        return false;
+    }
+    let (bx, bz) = (x.floor() as i32, z.floor() as i32);
+    if !w.world.loaded(bx, bz) {
+        return false;
+    }
+    // `Enderman.teleport`'s own scan: the first blocks-motion block at or
+    // below the spot, which must not hold water.
+    let mut gy = y.floor() as i32;
+    while gy > w.world.bottom_y() && !blocks_motion(w, bx, gy, bz) {
+        gy -= 1;
+    }
+    if !blocks_motion(w, bx, gy, bz) || w.fluid(bx, gy, bz) == Fluid::Water {
+        return false;
+    }
+    let old = m.position;
+    if !random_teleport(m, w, x, y, z, true, events) {
+        return false;
+    }
     // Enderman.teleport: GameEvent.TELEPORT where it was, silent or not.
     events.push(MobEvent::GameEvent {
         event: "minecraft:teleport",
