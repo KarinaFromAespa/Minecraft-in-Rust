@@ -582,3 +582,8 @@ missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
 (rank 2: 192/410 neither closed nor accepted at this commit); D4–D6
 blocked as before. Artifacts kept at
 `~/workspace/mcir-ci/26.2-218/`.
+
+## CI run 43575017292 (2026-11-14, dispatched, pending)
+
+Dispatched on behaviour/26.2@bc42387a (rank 2 at 258/410). Profile to
+be recorded when it completes (runs take ~2h).
