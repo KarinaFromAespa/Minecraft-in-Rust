@@ -89,7 +89,8 @@ fn anchor(v: &Value) -> VerticalAnchor {
         0 => VerticalAnchor::Absolute(n),
         1 => VerticalAnchor::AboveBottom(n),
         2 => VerticalAnchor::BelowTop(n),
-        3 => VerticalAnchor::RelativeToSeaLevel(n),
+        // 3 was `relative_to_sea_level`, 26.3-only: the harness driver still
+        // sends it until its 26.2 re-pinning, and the fixture panics on it.
         _ => panic!("unknown anchor"),
     }
 }

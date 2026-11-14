@@ -30,7 +30,10 @@ public final class VanillaHeightmapOracle {
             var entry=new JsonArray();
             entry.add(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());
             entry.add(state.isAir());entry.add(!state.getFluidState().isEmpty());
-            entry.add(state.toString());entry.add(BlockState.CODEC.encodeStart(JsonOps.INSTANCE,state).getOrThrow());states.add(entry);
+            entry.add(state.toString());entry.add(BlockState.CODEC.encodeStart(JsonOps.INSTANCE,state).getOrThrow());
+            // 26.2 has no `blocks_motion*` tags (26.3 added them): the
+            // heightmap facts are the per-state rule and the leaves class.
+            entry.add(state.blocksMotion());entry.add(state.getBlock() instanceof LeavesBlock);states.add(entry);
         }
         for(var id:new TreeSet<>(BuiltInRegistries.BLOCK.keySet()))
             defaults.addProperty(id.toString(),Block.getId(BuiltInRegistries.BLOCK.getValue(id).defaultBlockState()));

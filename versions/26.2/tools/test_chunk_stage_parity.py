@@ -67,7 +67,7 @@ def main():
     for side in jars:java(side,"export",build/f"facts-{side}.json")
     facts=json.loads((build/"facts-server.json").read_text())
     if facts!=json.loads((build/"facts-client.json").read_text()):raise ValueError("client/server state facts differ")
-    if len(facts["states"])!=35723:raise ValueError("incomplete pinned state table")
+    if len(facts["states"])!=32366:raise ValueError("incomplete pinned state table")
     fixtures=list(corpus(facts));inputs=build/"inputs.txt"
     inputs.write_text("".join(json.dumps(value,separators=(",",":"))+"\n" for value in fixtures),encoding="utf-8")
     (build/"tags.json").write_text(json.dumps(tags,separators=(",",":")),encoding="utf-8")
@@ -88,7 +88,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "block_states":len(facts["states"]),"block_tag_files":len(tags),"fixtures":len(fixtures),"operation_counts":dict(Counter(op[0] for fixture in fixtures for op in fixture["ops"])),
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Actual ProtoChunk.setBlockState, direct section reads, heightmap presence/packed data and pre-light persisted-status assignments for empty, structure starts, structure references, biomes, terrain and features. Every pinned block state is inserted/removed under both heightmap groups. Forward/backward status assignments, untouched stale maps, missing-map priming, explicit priming, empty-section AIR writes, cave/void-air collapse, outside-height writes and wrapped X/Z coordinates are compared. Facts are independently exported from both authenticated JARs; block tags are resolved in Rust. This covers stage-dependent mutation and map selection, not the scheduler, persisted metadata, retro-generation, block entities, lighting, whole region behavior or a complete generated world."}
+            "scope":"Actual ProtoChunk.setBlockState, direct section reads, heightmap presence/packed data and pre-light persisted-status assignments for empty, structure starts, structure references, biomes, terrain and features. Every pinned block state is inserted/removed under both heightmap groups. Forward/backward status assignments, untouched stale maps, missing-map priming, explicit priming, empty-section AIR writes, cave/void-air collapse, outside-height writes and wrapped X/Z coordinates are compared. Facts, including the per-state motion/leaves heightmap facts, are independently exported from both authenticated JARs. This covers stage-dependent mutation and map selection, not the scheduler, persisted metadata, retro-generation, block entities, lighting, whole region behavior or a complete generated world."}
 
     lab.write_json(report_path,report);print(f"Scoped chunk-stage parity passed: {report_path}")
 

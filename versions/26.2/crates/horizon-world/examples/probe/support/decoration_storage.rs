@@ -6,7 +6,7 @@ use horizon_world::{
     worldgen::{tags::TagDefinitions, terrain::TerrainBlockStates},
 };
 use serde_json::Value;
-use std::{collections::BTreeSet, fs, path::Path};
+use std::{fs, path::Path};
 #[derive(Clone, Copy)]
 pub struct State {
     air: bool,
@@ -74,26 +74,21 @@ pub fn load(dir: &Path) -> Result<(BlockRegistry, Vec<State>), Box<dyn std::erro
     }
     let built = definitions.build(|id, _| facts["defaults"].get(id).map(|_| id.to_owned()))?;
     assert!(built.missing.is_empty());
-    let motion: BTreeSet<_> = built.tags["minecraft:blocks_motion_in_heightmap"]
-        .iter()
-        .map(String::as_str)
-        .collect();
-    let no_leaves: BTreeSet<_> = built.tags["minecraft:blocks_motion_in_heightmap_no_leaves"]
-        .iter()
-        .map(String::as_str)
-        .collect();
+    // 26.2 has no `blocks_motion*` tags (26.3 added them): the motion
+    // and leaves facts are exported per state by the oracle (entries 5 and 6).
     let states: Vec<_> = facts["states"]
         .as_array()
         .unwrap()
         .iter()
         .map(|a| {
             let name = a[0].as_str().unwrap();
+            let motion = a[5].as_bool().unwrap();
             State {
                 air: a[1].as_bool().unwrap(),
                 air_block: name == "minecraft:air",
                 fluid: a[2].as_bool().unwrap(),
-                motion: motion.contains(name),
-                no_leaves: no_leaves.contains(name),
+                motion,
+                no_leaves: motion && !a[6].as_bool().unwrap(),
             }
         })
         .collect();

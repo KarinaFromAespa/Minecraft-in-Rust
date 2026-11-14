@@ -2469,8 +2469,8 @@ fn exploration_maps_skip_the_structures_maps_pointed_at() {
     let _ = fs::remove_dir_all(&scratch);
 }
 
-/// `NoiseBasedChunkGenerator.addDebugScreenInfo`: F3's `Density` line lists
-/// the noise settings' `debug_functions` with three decimals.
+/// `NoiseBasedChunkGenerator.addDebugScreenInfo`: F3's `NoiseRouter` line lists
+/// the nine router labels with three decimals.
 #[test]
 #[ignore = "full content root: CI and pr_ready run it"]
 fn debug_density_line_lists_the_noise_settings_functions() {
@@ -2488,7 +2488,7 @@ fn debug_density_line_lists_the_noise_settings_functions() {
     .unwrap();
     let line = terrain.density_debug_line([0, 70, 0]).unwrap();
     let labels: Vec<&str> = line
-        .strip_prefix("Density ")
+        .strip_prefix("NoiseRouter ")
         .unwrap()
         .split(' ')
         .step_by(2)

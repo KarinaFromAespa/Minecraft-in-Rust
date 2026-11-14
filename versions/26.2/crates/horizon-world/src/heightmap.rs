@@ -1,7 +1,9 @@
-//! Packed column heights and the six Java 26.3 heightmap predicates.
+//! Packed column heights and the six Java heightmap predicates.
 //!
-//! Block behavior supplies air/fluid facts and resolved block-tag membership.
-//! Heightmaps do not infer those facts from collision shapes or block names.
+//! Block behavior supplies air/fluid facts and the per-state motion rule
+//! (`BlockState.blocksMotion()`); the leaves exclusion is the block's class
+//! chain holding `LeavesBlock`. Heightmaps do not infer those facts from
+//! collision shapes or block names.
 use horizon_core::storage::{PackedStorage, StorageError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

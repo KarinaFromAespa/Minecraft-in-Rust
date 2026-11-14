@@ -2126,7 +2126,7 @@ struct Game<'a> {
     res: Arc<Resources>,
     rest_loader: Option<WorldRestLoader>,
     pending_entry: Option<PendingWorldEntry>,
-    /// `DebugEntryChunkGeneration`'s `lastPos` and `result`: F3's `Density` line is sampled
+    /// `DebugEntryChunkGeneration`'s `lastPos` and `result`: F3's `NoiseRouter` line is sampled
     /// again only when the feet block (or the dimension) changes.
     debug_density: RefCell<debug_keys::DensityCache>,
     pending_pack_reload: bool,
@@ -7491,7 +7491,7 @@ impl Game<'_> {
 
     fn finish_open_world(&mut self, prepared: world_loading::PreparedWorld) -> Result<()> {
         self.reset_tutorial();
-        // Another world: its generator, not the last one's Density line.
+        // Another world: its generator, not the last one's NoiseRouter line.
         self.debug_density.borrow_mut().clear();
         let world_loading::PreparedWorld {
             save_root,

@@ -744,26 +744,21 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let block_tags = block_tags.build(|id, _| facts["defaults"].get(id).map(|_| id.to_owned()))?;
     assert!(block_tags.missing.is_empty());
-    let motion: BTreeSet<_> = block_tags.tags["minecraft:blocks_motion_in_heightmap"]
-        .iter()
-        .map(String::as_str)
-        .collect();
-    let no_leaves: BTreeSet<_> = block_tags.tags["minecraft:blocks_motion_in_heightmap_no_leaves"]
-        .iter()
-        .map(String::as_str)
-        .collect();
+    // 26.2 has no `blocks_motion*` tags (26.3 added them): the motion
+    // and leaves facts are exported per state by the oracle (entries 5 and 6).
     let properties = facts["states"]
         .as_array()
         .unwrap()
         .iter()
         .map(|v| {
             let name = v[0].as_str().unwrap();
+            let motion = v[5].as_bool().unwrap();
             State {
                 air: v[1].as_bool().unwrap(),
                 air_block: name == "minecraft:air",
                 fluid: v[2].as_bool().unwrap(),
-                motion: motion.contains(name),
-                no_leaves: no_leaves.contains(name),
+                motion,
+                no_leaves: motion && !v[6].as_bool().unwrap(),
             }
         })
         .collect();
