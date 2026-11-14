@@ -104,8 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 let y_scale = double(&mut args)?;
                 let y_fudge = double(&mut args)?;
-                let mut derivative =
-                    [double(&mut args)?, double(&mut args)?, double(&mut args)?];
+                let mut derivative = [double(&mut args)?, double(&mut args)?, double(&mut args)?];
                 let [x, y, z] = point;
                 let value = noise.noise(x, y, z);
                 let smeared = noise.noise_smeared(x, y, z, y_scale, y_fudge);
@@ -350,13 +349,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .collect::<Result<Vec<_>, _>>()?;
                 let point_count: usize = read(&mut args)?;
                 let points = (0..point_count)
-                    .map(|_| {
-                        Ok([
-                            double(&mut args)?,
-                            double(&mut args)?,
-                            double(&mut args)?,
-                        ])
-                    })
+                    .map(|_| Ok([double(&mut args)?, double(&mut args)?, double(&mut args)?]))
                     .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
                 macro_rules! build {
                     ($random:expr) => {{
@@ -385,7 +378,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 )?;
                                 writeln!(out, "normal-config {}", noise.parity_config_string())?;
                                 for &[x, y, z] in &points {
-                                    writeln!(out, "normal-query {}", dbits(noise.get_value(x, y, z)))?;
+                                    writeln!(
+                                        out,
+                                        "normal-query {}",
+                                        dbits(noise.get_value(x, y, z))
+                                    )?;
                                 }
                                 writeln!(out, "normal-parent {}", random.next_long())?;
                                 normal.push(noise);
@@ -432,7 +429,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         ($random:expr) => {{
                             let mut random = $random;
                             match BlendedNoise::new(
-                                &mut random, xz_scale, y_scale, xz_factor, y_factor, smear,
+                                &mut random,
+                                xz_scale,
+                                y_scale,
+                                xz_factor,
+                                y_factor,
+                                smear,
                             ) {
                                 Err(_) => {
                                     writeln!(out, "blended error {}", random.next_long())?;
@@ -444,9 +446,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         dbits(noise.max_value()),
                                         dbits(noise.min_value())
                                     )?;
-                                    writeln!(out, "blended-config {}", noise.parity_config_string())?;
+                                    writeln!(
+                                        out,
+                                        "blended-config {}",
+                                        noise.parity_config_string()
+                                    )?;
                                     for &[x, y, z] in &points {
-                                        writeln!(out, "blended-query {}", dbits(noise.compute(x, y, z)))?;
+                                        writeln!(
+                                            out,
+                                            "blended-query {}",
+                                            dbits(noise.compute(x, y, z))
+                                        )?;
                                     }
                                     writeln!(out, "blended-parent {}", random.next_long())?;
                                     blended.push(noise);

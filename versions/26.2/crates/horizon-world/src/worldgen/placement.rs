@@ -5,8 +5,8 @@ mod layer;
 use super::block_predicate::{BlockPredicate, PredicateBlockResolver};
 use super::{
     DecodeError, Object, anchor::WorldGenerationContext, biome_temperature::biome_info_noise,
-    density::identifier, double, height_provider::HeightProvider, int_range, integer,
-    optional, required, value_provider::IntProvider,
+    density::identifier, double, height_provider::HeightProvider, int_range, integer, optional,
+    required, value_provider::IntProvider,
 };
 use crate::heightmap::HeightmapType;
 pub use chain::{FeaturePlacementError, FeaturePlacer};
@@ -257,10 +257,11 @@ impl PlacementModifier {
                 factor,
                 offset,
             } => {
-                let noise = f64::from(biome_info_noise(
-                    f64::from(x) / factor,
-                    f64::from(z) / factor,
-                ));
+                // Vanilla 26.2 `NoiseBasedCountPlacement.count`, in double:
+                // `(int) Math.ceil((BIOME_INFO_NOISE + offset) * ratio)`.
+                // The noise must stay double — an f32 rounding flips the
+                // ceil at extreme ratios.
+                let noise = biome_info_noise(f64::from(x) / factor, f64::from(z) / factor);
                 Some(((noise + offset) * f64::from(*ratio)).ceil() as i32)
             }
             Self::NoiseThresholdCount {
@@ -268,7 +269,7 @@ impl PlacementModifier {
                 below,
                 above,
             } => {
-                let noise = f64::from(biome_info_noise(f64::from(x) / 200., f64::from(z) / 200.));
+                let noise = biome_info_noise(f64::from(x) / 200., f64::from(z) / 200.);
                 Some(if noise < *level { *below } else { *above })
             }
             _ => None,

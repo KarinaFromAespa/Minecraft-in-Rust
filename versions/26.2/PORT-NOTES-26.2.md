@@ -2265,3 +2265,13 @@ found on the way: the legacy PerlinNoise init fails (count check) when
 a nonzero amplitude sits above the zero octave — e.g. firstOctave 0
 with [1.0, 1.0] — so the driver now mirrors the throw order instead
 of assuming only firstOctave-1 cases fail.
+
+(d) Biome noises to the f64 synth port (2026-11-15): `TemperatureNoises`
+is now three `synth::PerlinSimplexNoise` (1234/[0], 3456/[-2,-1,0],
+2345/[0]) instead of the float simplex/stack; `biome_info_noise`
+returns f64; the frozen modifier and height-adjusted temperature compute
+in double with vanilla's float casts at the exact points
+(`(float)(noise * 8.0)` in the height adjustment); placement's
+NoiseBasedCount/NoiseThresholdCount use the double directly. This is
+the fix for the 792-fixture noise_based_count placement divergence
+(placement harness re-run pending).
