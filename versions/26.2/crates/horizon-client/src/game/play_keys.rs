@@ -212,6 +212,12 @@ impl Game<'_> {
             KeyCode::Slash if self.screen == Screen::Playing => self.open_chat_method("/"),
             // key.toggleGui is a KeyMapping: it clicks only with no screen open.
             KeyCode::F1 if self.screen == Screen::Playing => self.toggle_hide_gui(),
+            // key.toggleSpectatorShaderEffects (`GameRenderer.togglePostEffect`,
+            // 26.3 renamed it `toggleSpectatorPostEffect`): F4 flips whether
+            // the spectated entity's shader applies.
+            KeyCode::F4 if self.screen == Screen::Playing => {
+                self.spectated_effect_active = !self.spectated_effect_active;
+            }
             KeyCode::F11 => self.toggle_fullscreen(),
             KeyCode::F5 if self.screen == Screen::Playing && self.studio_replay.is_none() => {
                 self.cycle_camera()

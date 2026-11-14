@@ -2,7 +2,7 @@
 //! loops with 40-tick cross-fades, random additions, cave mood) driven by the
 //! `minecraft:audio/ambient_sounds` attribute, `UnderwaterAmbientSoundHandler`
 //! and `LocalPlayer.updateIsUnderwater` (enter/exit sounds and the
-//! `UnderLiquidAmbientSoundInstance` loop), played through the sound engine.
+//! `UnderwaterAmbientSoundInstance` loop), played through the sound engine.
 use crate::random_source;
 use crate::sound_engine::{AMBIENT, InstanceId, PLAYERS, SoundInstance, Sounds};
 use horizon_core::random::{LegacyRandom, RandomSource};

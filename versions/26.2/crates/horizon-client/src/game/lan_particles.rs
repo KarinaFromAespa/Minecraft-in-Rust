@@ -604,7 +604,8 @@ impl Game<'_> {
             self.particles
                 .track_explosion(p.center, p.radius, p.block_count.max(0) as usize);
         }
-        // Entity.pushFromExplosion.
+        // `LocalPlayer.addDeltaMovement` (26.2's form; 26.3 renamed the
+        // call to `pushFromExplosion`, which adds the same push).
         if let (Some(push), Some(player)) = (p.knockback, self.player.as_mut()) {
             player.velocity = Vec3::new(
                 player.velocity.x + push[0],

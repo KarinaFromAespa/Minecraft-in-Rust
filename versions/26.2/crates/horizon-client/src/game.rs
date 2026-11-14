@@ -2668,8 +2668,14 @@ struct Game<'a> {
     posed_rotation: Option<(f32, f32)>,
     /// The game time (ticks and partial) of the last frame, for `PolyDeltaTime`.
     polytone_post_ticks: f64,
-    /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
+    /// `GameRenderer.postEffectId` (`checkEntityPostEffect`; 26.3 renamed
+    /// the field `spectatedEntityPostEffect`).
     spectated_post_effect: Option<&'static str>,
+    /// `GameRenderer.effectActive`: whether the spectated entity's shader
+    /// applies (`setPostEffect` turns it on, `clearPostEffect` off, and
+    /// `key.toggleSpectatorShaderEffects` flips it; 26.3 renamed the
+    /// toggle `toggleSpectatorPostEffect`).
+    spectated_effect_active: bool,
     /// `LocalPlayer.experienceDisplayStartTick`: (last progress, seen a change, tick).
     experience_display: (f32, bool, u64),
     boats: horizon_client::join_seq::JoinList<boats::Boat>,
@@ -3567,14 +3573,16 @@ impl Game<'_> {
         self.clip_ray_fluids(origin, dir, reach, false)
     }
     /// `LocalPlayer.moveTowardsClosestSpace` at the body's four corners
-    /// (aiStep, unless a spectator or a passenger): a corner inside a
-    /// suffocating block sets a 0.1 speed towards the nearest side that is
-    /// free, on that side's axis; a later corner overwrites an earlier one.
-    /// Suffocating is a full collision cube that is also a full render cube,
-    /// as `in_wall` has it.
+    /// (aiStep, `!noPhysics` — a spectator's `noPhysics` is set from its
+    /// mode, so the gate is the spectator check alone; 26.3 added
+    /// `!isPassenger()` there, and a passenger still gets the nudge in
+    /// 26.2): a corner inside a suffocating block sets a 0.1 speed towards
+    /// the nearest side that is free, on that side's axis; a later corner
+    /// overwrites an earlier one. Suffocating is a full collision cube that
+    /// is also a full render cube, as `in_wall` has it.
     fn closest_space_nudge(&self) -> [Option<f64>; 2] {
         match self.player.as_ref() {
-            Some(p) if !p.spectator && self.riding.is_none() => {
+            Some(p) if !p.spectator => {
                 closest_space_nudge(p, &self.world, self.res.facts())
             }
             _ => [None; 2],
@@ -12028,6 +12036,7 @@ impl<'a> Game<'a> {
             posed_rotation: None,
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
+            spectated_effect_active: false,
             experience_display: Default::default(),
             boats: Default::default(),
             leash_boats: Vec::new(),

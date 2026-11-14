@@ -2622,6 +2622,12 @@ impl Game<'_> {
         r.position_sender = Default::default();
         r.predictions.clear();
         self.set_mode_id(spawn.game_type);
+        // `MultiPlayerGameMode.setLocalMode(gameType, previousGameType)`:
+        // the server's previous mode replaces whatever `set_mode` kept
+        // (on a login that would be the default, not the server's).
+        self.previous_mode = spawn
+            .previous_game_type
+            .map(super::game_mode::mode_from_id);
         self.dim = Dim::from_id(&spawn.dimension);
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's

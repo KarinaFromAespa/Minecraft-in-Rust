@@ -58,7 +58,9 @@ impl DebugHost for Host<'_, '_> {
             g.pause_focus = None;
             g.screen = Screen::Paused;
             g.capture(false);
-            g.mining = None;
+            // `Minecraft.pauseGame` in 26.2 does not stop the destroy block
+            // (26.3 added `gameMode.stopDestroyBlock()` there): a dig in
+            // progress survives the pause, so `mining` stays.
         }
     }
     fn debug_action(&mut self, action: DebugAction, shift: bool) -> bool {

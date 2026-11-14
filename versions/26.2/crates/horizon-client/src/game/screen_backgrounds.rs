@@ -85,15 +85,22 @@ impl Game<'_> {
         }
     }
     /// `GameRenderer.update`'s `requestedPostEffects`: `end_of_frame` (a resource
-    /// pack's own chain), then the spectated entity's shader. Only the world
-    /// is drawn through them. (26.3 added the server's `LocalPlayer.postEffects`
-    /// list between them; 26.2 has no such list.)
+    /// pack's own chain), then the spectated entity's shader when it is
+    /// active (`GameRenderer` renders it only if `postEffectId != null
+    /// && effectActive`). Only the world is drawn through them. (26.3 added
+    /// the server's `LocalPlayer.postEffects` list between them; 26.2 has no
+    /// such list.)
     pub(super) fn requested_post_effects(&self) -> Vec<String> {
         if self.title.is_some() || self.player.is_none() {
             return Vec::new();
         }
         std::iter::once("minecraft:end_of_frame".to_owned())
-            .chain(self.spectated_post_effect.map(str::to_owned))
+            .chain(
+                self.spectated_effect_active
+                    .then_some(self.spectated_post_effect)
+                    .flatten()
+                    .map(str::to_owned),
+            )
             .collect()
     }
     /// `Screen.extractBlurredBackground` over the panorama or the world and

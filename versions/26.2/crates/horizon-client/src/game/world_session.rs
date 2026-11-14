@@ -254,6 +254,7 @@ impl Game<'_> {
         self.repro_world_closed();
         self.clear_waypoints();
         self.spectated_post_effect = None;
+        self.spectated_effect_active = false;
         if self.external_server() {
             return self.leave_server(None);
         }
