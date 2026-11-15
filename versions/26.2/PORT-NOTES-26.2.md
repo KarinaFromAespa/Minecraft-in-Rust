@@ -3485,3 +3485,13 @@ Local verification (world_probe rebuilt, oracle = 26.2 server jar):
 world was generated fresh by the 26.2 generator; the others were copied
 from the e6-1.21.8 cache (same generator, same scene) to skip the
 jre-legacy runtime download.
+
+## CI run 43766277138 dispatched on main (2026-11-16)
+
+Run 43766277138 dispatched on main@a1602d7a (the datafix merge):
+proves datafix green on CI after the BlendingDataFix re-key (4997 ->
+4882) and the fix_1493 empty region files. Local datafix is 6 worlds
+at 0 differences; D4 needs datafix + save_roundtrip, and save_roundtrip
+is already green, so a green datafix here closes D4's harness leg (the
+stamp quirk still blocks the recorded verdict — see the D4/D5 notes
+above).
