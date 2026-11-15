@@ -783,6 +783,34 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "ItemFeatureRenderer/MaterialInfo: the glint math is identical (same SPECIAL_FOIL_TEXTURE_SCALE, same computeFoilDecalPose); the diff is pass structure (26.2's separate foil pass via getFoilBuffer vs 26.3's inline per-material glint render types), which the Rust's shader-based glint (foil UVs on the same quads) does not model either way. MaterialInfo's shadeDirectionOverride (26.3) vs shade boolean (26.2): the Rust parses both keys and 26.2 assets carry only the boolean, so 26.2 behaviour is identical (override always None); the override is honoured only for 26.3-era packs."
+    },
+    {
+      "id": 449,
+      "module": "crates/horizon-client/src/game/enchant_effects.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Enchant effects: ReplaceDisk differs only by Holder<BlockStateProvider> vs direct provider (bodies identical; the Rust resolves the state from the effect JSON). ApplyEntityImpulse's 26.3 quaternion transform and 26.2's addLocalCoordinates are mathematically the same rotation (26.2 builds the forwards/up/left basis from yaw/pitch trig); the syncVelocity/motion-packet difference is networking plumbing the Rust does not model. UnobstructedPredicate differs only by the LevelAccessor vs WorldGenLevel parameter type; the rest are codec lambda re-shapes."
+    },
+    {
+      "id": 450,
+      "module": "crates/horizon-client/src/game/books.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Books: page keys are PageUp/PageDown in both (shortcutKey vs key API codes only); BookViewScreen mouseClicked is left-click in 26.2 vs right-click in 26.3 and the Rust gates book_click on MouseButton::Left \u2014 already the 26.2 form. BookSignScreen/PageButton diffs are render-state extraction only."
+    },
+    {
+      "id": 453,
+      "module": "crates/horizon-client-render/src/streaming.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Streaming: 26.3 adds compileTaskStartTimeNs tracking; the Rust's compile_started map is Horizon's own stale-mesh sequence clock (a u64 counter, not vanilla nanos) and is invisible to players. 26.3 installs an EMPTY mesh when a section has no block entities; 26.2 always installs the compiled mesh, as the Rust does."
+    },
+    {
+      "id": 454,
+      "module": "crates/horizon-world/src/worldgen/structure/simple.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Igloo/shipwreck pieces: the Builder vs Accessor parameter rename only, plus setBlockAndUpdate vs setBlock(...,3) in the igloo piece post-processing \u2014 the same re-shape as the fortress and mineshaft pieces."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

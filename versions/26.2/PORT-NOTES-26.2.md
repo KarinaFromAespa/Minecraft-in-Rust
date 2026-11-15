@@ -2563,3 +2563,11 @@ rule_test_bounds E0061 — the fix (b232b15b) landed after this
 tree, so the next run measures it. D3 fail: 1 rank-2 item open
 (127, since closed and merged). Run 43656955427 (merged tree
 08403e7f, first run with item 127's noise port) still in flight.
+
+## Rank 3 — bucket B batch 3 (part 1): 116/177 (2026-11-15)
+
+449 enchant effects, 450 books, 453 streaming, 454 igloo/
+shipwreck: all no-change. 449's impulse math is the same
+rotation two ways; 450's book clicks are already left-click;
+453's compile-start clock is Horizon's own; 454 is the
+Builder/Accessor rename.
