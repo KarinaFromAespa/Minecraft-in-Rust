@@ -30,17 +30,18 @@ def vehicle_boolean_flags(cmd):
     # The last case stays in the world for live edits and a real chunk reload.
     cases = [(None, False), ('0b', False), ('-1b', True), ('127b', True),
              ('256s', False), ('-0.5f', True), ('"invalid"', False), ('2b', True)]
-    for index, kind in enumerate(('minecart', 'hopper_minecart', 'spruce_boat', 'cushion'), 1):
+    # 26.2 has no cushion (a 26.3-only BlockAttachedEntity, removed from
+    # the port); the 26.3 corpus summoned it here with expect_result=1,
+    # which aborted the whole harness on the 26.2 server.
+    for index, kind in enumerate(('minecart', 'hopper_minecart', 'spruce_boat'), 1):
         x = 4096 + index * 3
-        y = 300 if kind == 'cushion' else 302
+        y = 302
         pos = f'{x}.5 {y} 4.5'
         saved_pos = f'[{x}.5d,{y}d,4.5d]'
         for serial, (value, enabled) in enumerate(cases, 1):
             label = f'h12523_{index}_{serial}'
             target = f'{case_id:08x}-0000-0000-{index:04x}-{serial:012x}'
             fields = [f'UUID:[I;{case_id},0,{index << 16},{serial}]', f'Tags:["{label}"]']
-            if kind == 'cushion':
-                fields.append(f'block_pos:[I;{x},{y},4]')
             if value is not None:
                 fields.extend(f'{flag}:{value}' for flag in COMMON_FLAGS)
             ops.append(cmd(f'/summon minecraft:{kind} {pos} {{{",".join(fields)}}}',
@@ -51,7 +52,7 @@ def vehicle_boolean_flags(cmd):
             else:
                 ops.append(cmd(f'/kill {target}', expect_result=1))
 
-    vehicles = [(target, pos) for kind, target, _, pos in actors if kind != 'cushion']
+    vehicles = [(target, pos) for kind, target, _, pos in actors]
     ops.append({'op': 'tick', 'n': 2})
     for target, pos in vehicles:
         ops.extend([cmd(f'/execute if data entity {target} {{Pos:{pos}}}', expect_result=1),
@@ -70,7 +71,7 @@ def vehicle_boolean_flags(cmd):
                 cmd('/forceload add 4096 0', expect_result=1),
                 {'op': 'wait_chunks', 'chunks': [[256, 0]]}])
     for kind, target, label, _ in actors:
-        read_flags(target, label, True, on_ground=True if kind == 'cushion' else None)
+        read_flags(target, label, True, on_ground=None)
         ops.append(cmd(f'/kill {target}', expect_result=1))
     ops.append(cmd('/forceload remove 4096 0', expect_result=1))
     return ops

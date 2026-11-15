@@ -3045,3 +3045,12 @@ mode-"map" cases parse via configuredCodec (which needs a "config"
 key) — both are pre-existing 26.2 gaps in that harness, documented,
 not addressed here. The unknown launch crash blocking
 command_exec/save_roundtrip is still undiagnosed (second track).
+
+## CI run 43704536595 dispatched on main (2026-11-15)
+
+Rank 5 merged to main as f56493a6 (all 651 behaviour items closed).
+Run 43704536595 dispatched on main@f56493a6, in progress — first run
+to measure the fully-closed tree (rank-5 ports: config lift, TagEntry
+name form, 10 missing features, provider long-name aliases). Porting
+is complete; remaining work is the second track (unknown launch crash
+blocking command_exec/save_roundtrip) and the D6 human playtest.
