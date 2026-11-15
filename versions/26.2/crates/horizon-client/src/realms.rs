@@ -1,5 +1,5 @@
-//! Minecraft Realms screens: `RealmsMainScreen` with its `RealmsHeader`, the join-code and
-//! pending-invite screens, the owner's open/close, `RealmsPopups.infoPopupScreen` for the
+//! Minecraft Realms screens: `RealmsMainScreen`, the pending-invite screen,
+//! the owner's open/close, `RealmsPopups.infoPopupScreen` for the
 //! questions, `GetServerDetailsTask` under `RealmsLongRunningMcoTaskScreen` for Play, and
 //! `RealmsResetWorldScreen` with its template, local-world and upload screens.
 //! Layout from the vanilla screens' behaviour and the game's own sprites.
@@ -31,9 +31,6 @@ const HEADER_HEIGHT: f32 = 44.0;
 const CONTENT_WIDTH: f32 = 308.0;
 /// `CommonLinks.REALMS_TERMS`: the Realms terms page the terms screen's link opens.
 const REALMS_TERMS_URL: &str = "https://aka.ms/MinecraftRealmsTerms";
-/// `RealmsPdpScreen`'s list: the row width and the text's width beside the picture.
-const PDP_ROW_WIDTH: f32 = 290.0;
-const PDP_TEXT_WIDTH: f32 = 182.0;
 
 const ROW_WIDTH: f32 = 300.0;
 const ROW_HEIGHT: f32 = 36.0;
@@ -48,7 +45,6 @@ const RED: u32 = 0xFF00_00FF;
 /// `RealmsPopups.COLOR_INFO` (8226750).
 const INFO: u32 = 0xFFBE_877D;
 
-const REALMS_INVITE_CODE: crate::clipboard::FieldId = ("realms.invite_code", 0);
 const REALMS_PLAYER_NAME: crate::clipboard::FieldId = ("realms.player_name", 0);
 const REALMS_UPLOAD_SEARCH: crate::clipboard::FieldId = ("realms.upload_search", 0);
 const REALMS_SLOT_NAME: crate::clipboard::FieldId = ("realms.slot_name", 0);
@@ -1045,11 +1041,6 @@ type TemplatePages = Job<Result<(Vec<WorldTemplate>, i32, bool), RealmsError>>;
 #[derive(Clone, Debug)]
 pub enum SubScreen {
     Main,
-    JoinCode {
-        code: String,
-        error: Option<String>,
-        job: Option<Job<Result<(), RealmsError>>>,
-    },
     PendingInvites {
         invites: Option<Result<Vec<PendingInviteDto>, RealmsError>>,
         job: Option<Job<Result<Vec<PendingInviteDto>, RealmsError>>>,
@@ -1273,19 +1264,6 @@ pub enum SubScreen {
         progress: Arc<upload::UploadProgress>,
         job: Option<Job<Result<(), upload::UploadError>>>,
     },
-    /// `RealmsPdpScreen`: the product page behind Add Realm, its picture rows and scroll.
-    AddRealm {
-        scroll: crate::ui::Scroll,
-        /// The list's drawn height, measured in [`Screen::draw`] and read by the wheel.
-        content: std::cell::Cell<f32>,
-        /// The rows as last drawn, in scroll order: the click needs the heights the
-        /// wrapped text gave them.
-        rows: std::cell::RefCell<Vec<[f32; 4]>>,
-        /// `RealmsClient.trialAvailable` (`RealmsDataFetcher.trialAvailabilityTask`): the
-        /// header's trial note is shown only when this says yes.
-        trial: bool,
-        trial_job: Option<Job<Result<bool, RealmsError>>>,
-    },
     Popup(Popup),
     /// `RealmsLongRunningMcoTaskScreen` running `GetServerDetailsTask`: the join request is on
     /// a worker (`joining`); an error stays on screen with a Back button.
@@ -1339,14 +1317,6 @@ pub struct Screen {
     /// (`numberOfPendingInvites`).
     pending_invites: u32,
     pending_invites_job: Option<Job<Result<Vec<PendingInviteDto>, RealmsError>>>,
-    /// `RealmsHeader.createLayout`'s join button width, measured in the draw (text plus 16,
-    /// at most half of the 308 content the logo leaves).
-    join_width: std::cell::Cell<f32>,
-    /// The product page's selected row (`ObjectSelectionList.getSelected`).
-    pub(crate) pdp_row: Option<usize>,
-    /// The last click took a product-page row (`ObjectSelectionList.mouseClicked`): the
-    /// keyboard focus moves to the list.
-    list_clicked: bool,
     /// `ConfirmLinkScreen`'s three buttons as last drawn (`Choice::new` lays them out from
     /// the message's width).
     link_buttons: std::cell::Cell<[(f32, f32); 3]>,
@@ -1392,14 +1362,11 @@ pub struct Screen {
     /// A button press that has to wait for the settings tab's save (`Play`, the open/close
     /// toggle): `RealmsConfigureWorldScreen` saves an active tab before either runs.
     after_save: Option<AfterSave>,
-    /// `RealmsMainScreen.redirectToPdpIfNoRealms`: opened from the title screen, the first
-    /// empty server list opens the product page.
-    redirect_to_pdp: bool,
     /// `mco.template.select.none`'s link segment as last drawn: the empty template list's
     /// link to the content-creation page.
     template_link_rect: std::cell::Cell<[f32; 4]>,
-    /// `RealmsMainScreen.trialAvailable`: the Add Realm button reads "free trial" and the
-    /// product page offers "Try for free".
+    /// `RealmsMainScreen.trialAvailable`: the Add Realm button's trial diamond and the
+    /// popup's Trial button.
     trial: bool,
     trial_job: Option<Job<Result<bool, RealmsError>>>,
     /// `RealmsDataFetcher.liveStatsTask`: each Realm's online players (`getLiveStats`).
@@ -1586,53 +1553,6 @@ fn create_temporary_world(world: &CreatedWorld) -> std::result::Result<PathBuf, 
     }
 }
 
-/// `RealmsPdpScreen`'s list: the trial header (no picture) and the three features, each
-/// with its 80x45 picture and the text beside it. The header's subtitle
-/// (`mco.pdp.trial.description`, with `icon/trial_available`) is shown only when the service
-/// says a trial is available (`trialAvailabilityTask`).
-fn pdp_entries() -> [(&'static str, &'static str, &'static [&'static str]); 4] {
-    [
-        ("", "mco.pdp.trial.title", &["mco.pdp.trial.description"]),
-        (
-            "gui/realms/friends",
-            "mco.pdp.friends.title",
-            &["mco.pdp.friends.description"],
-        ),
-        (
-            "gui/realms/minigames",
-            "mco.pdp.minigames.title",
-            &["mco.pdp.minigames.description"],
-        ),
-        (
-            "gui/realms/private_server",
-            "mco.pdp.private.title",
-            &[
-                "mco.pdp.private.backups",
-                "mco.pdp.private.easyToManage",
-                "mco.pdp.private.worldSlots",
-                "mco.pdp.private.secure",
-            ],
-        ),
-    ]
-}
-
-/// `RealmsPdpScreen.AbstractPdpEntry.getNarration`'s lines: the title and its descriptions,
-/// a line each (`CommonComponents.joinLines`), the trial's only with a trial available.
-fn pdp_row_lines(row: usize, trial: bool) -> Vec<String> {
-    let (_, title, descriptions) = pdp_entries()[row];
-    let mut lines = vec![crate::lang::get(title)];
-    // `PdpList`'s header carries the trial description only with a trial available.
-    if title != "mco.pdp.trial.title" || trial {
-        lines.extend(descriptions.iter().map(|key| crate::lang::get(key)));
-    }
-    lines
-}
-
-/// `RealmsPdpScreen.AbstractPdpEntry.getNarration`: `narrator.select` of those lines.
-fn pdp_row_narration(row: usize, trial: bool) -> String {
-    crate::screen_narrator::translate("narrator.select", &[&pdp_row_lines(row, trial).join("\n")])
-}
-
 /// `RealmsSelectWorldTemplateScreen.fetchTemplates`: one page at a time; the list shows it
 /// as it arrives and the screen chains the next page until the last or an empty one.
 fn fetch_template_page(
@@ -1740,9 +1660,6 @@ impl Screen {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -1761,7 +1678,6 @@ impl Screen {
             settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
@@ -1790,12 +1706,9 @@ impl Screen {
         screen
     }
 
-    /// `new RealmsMainScreen(lastScreen, ...)` from the title screen: vanilla sets
-    /// `redirectToPdpIfNoRealms`, so a first empty list opens the product page.
+    /// `new RealmsMainScreen(lastScreen, ...)` from the title screen.
     pub fn from_title(saves: Option<PathBuf>) -> Self {
-        let mut screen = Self::with_saves(saves);
-        screen.redirect_to_pdp = true;
-        screen
+        Self::with_saves(saves)
     }
 
     /// `RealmsPersistence.getPathToData`: `realms_persistence.json` in the game
@@ -1912,14 +1825,10 @@ impl Screen {
         icon_sprite(batch, atlas, slot, &face)
     }
 
-    /// `RealmsMainScreen.createAddRealmButton`: with a trial available the button reads
-    /// "free trial" instead of "buy".
+    /// `RealmsMainScreen.createAddRealmButton`: 26.2's button always reads "buy" — a
+    /// trial shows as a diamond over the button, not a relabel.
     fn add_realm_label(&self) -> String {
-        if self.trial {
-            crate::lang::get("mco.selectServer.freeTrial")
-        } else {
-            crate::lang::get("mco.selectServer.purchase")
-        }
+        crate::lang::get("mco.selectServer.purchase")
     }
 
     fn servers(&self) -> &[RealmServer] {
@@ -1991,9 +1900,8 @@ impl Screen {
     /// news shows notification/more; the invite button counts the service's pending
     /// invites, notification/1..5 then more. The main screen only (`draw_main`'s header).
     pub fn draw_header_badges(&self, atlas: &HudAtlas, batch: &mut HudBatch, w: f32) {
-        // `RealmsHeader` belongs to the main list and the product page alike: both draw
-        // the pending-invite and news badges on their buttons.
-        if !matches!(self.subscreen, SubScreen::Main | SubScreen::AddRealm { .. }) {
+        // The badges belong to the main list's header (`RealmsMainScreen.createHeader`).
+        if !matches!(self.subscreen, SubScreen::Main) {
             return;
         }
         let cx = (w / 2.0).floor();
@@ -2050,7 +1958,7 @@ impl Screen {
         // `RealmsHeader`'s invite badge counts the service's pending invites
         // (`numberOfPendingInvites`).
         self.pending_invites_job = client().map(|client| spawn(move || client.pending_invites()));
-        // `RealmsDataFetcher.trialAvailabilityTask`: the footer's free-trial button.
+        // `RealmsDataFetcher.trialAvailabilityTask`: the Add Realm button's trial diamond.
         self.trial_job = client().map(|client| spawn(move || client.trial_available()));
         // `RealmsDataFetcher.liveStatsTask`: the rows' online faces.
         self.live_job = client().map(|client| spawn(move || client.live_players()));
@@ -2092,18 +2000,6 @@ impl Screen {
         };
     }
 
-    /// `RealmsMainScreen.openRealmsPdp`: the product page, and its `trialAvailable` check.
-    fn open_pdp(&mut self) {
-        let trial_job = client().map(|client| spawn(move || client.trial_available()));
-        self.subscreen = SubScreen::AddRealm {
-            scroll: crate::ui::Scroll::default(),
-            content: std::cell::Cell::new(0.0),
-            rows: std::cell::RefCell::new(Vec::new()),
-            trial: false,
-            trial_job,
-        };
-    }
-
     /// Picks up what the workers finished; called once a frame.
     pub fn poll(&mut self) -> Outcome {
         // `RealmsDataFetcher`'s `DataFetcher.Subscription.tick`: the main list polls its
@@ -2137,28 +2033,19 @@ impl Screen {
                     client().map(|client| spawn(move || client.notifications()));
             }
         }
-        let mut open_pdp_if_no_realms = false;
         if let FetchState::Loading(job) = &self.state
             && let Some(result) = take(job)
         {
             self.state = match result {
                 // `RealmsServerList.updateServersList` sorts with
-                // `McoServerComparator`; `openPdpIfNoRealms` then runs once.
+                // `McoServerComparator`.
                 Ok(mut servers) => {
                     let owner = session().map(|s| s.name.clone());
                     sort_servers(&mut servers, owner.as_deref());
-                    if self.redirect_to_pdp {
-                        self.redirect_to_pdp = false;
-                        open_pdp_if_no_realms =
-                            servers.is_empty() && matches!(self.subscreen, SubScreen::Main);
-                    }
                     FetchState::Loaded(servers)
                 }
                 Err(e) => FetchState::Error(e),
             };
-        }
-        if open_pdp_if_no_realms {
-            self.open_pdp();
         }
         if let Some(job) = &self.news_job
             && let Some(result) = take(job)
@@ -2186,7 +2073,7 @@ impl Screen {
             && let Some(result) = take(job)
         {
             self.trial_job = None;
-            // `RealmsMainScreen.setTrialAvailable`: a failure keeps the last answer.
+            // `RealmsDataFetcher.trialAvailabilityTask`: a failure keeps the last answer.
             if let Ok(available) = result {
                 self.trial = available;
             }
@@ -2263,20 +2150,6 @@ impl Screen {
         // replaces the screen with the generic error screen.
         let mut fetch_error: Option<RealmsError> = None;
         match &mut self.subscreen {
-            SubScreen::JoinCode { error, job, .. } => {
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        Ok(()) => {
-                            self.subscreen = SubScreen::Main;
-                            refresh = true;
-                        }
-                        Err(_) => {
-                            *error = Some(crate::lang::get("mco.selectServer.joinCode.invalid"));
-                        }
-                    }
-                }
-            }
             SubScreen::PendingInvites { invites, job, .. } => {
                 if let Some(result) = job.as_ref().and_then(take) {
                     *job = None;
@@ -2649,15 +2522,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::AddRealm {
-                trial, trial_job, ..
-            } => {
-                if let Some(result) = trial_job.as_ref().and_then(take) {
-                    *trial_job = None;
-                    // A failed ask leaves the note off, as `trialAvailable` staying false does.
-                    *trial = result.unwrap_or(false);
-                }
-            }
             SubScreen::Uploading {
                 job, error, done, ..
             } => {
@@ -3000,12 +2864,6 @@ impl Screen {
 
     pub fn focused_box(&self, (w, h): (f32, f32)) -> Option<[f32; 4]> {
         match &self.subscreen {
-            SubScreen::JoinCode { .. } => {
-                // The field sits at the draw's content y + 13 (`AbstractRealmsCodeScreen`'s
-                // contentY, min(63, H - 94)); a hard 76 diverged on short windows.
-                let content_y = (h - 94.0).min(63.0);
-                Some([(w / 2.0).floor() - 100.0, content_y + 13.0, 200.0, 20.0])
-            }
             SubScreen::Invite { .. } => Some([(w / 2.0).floor() - 100.0, 76.0, 200.0, 20.0]),
             // `RealmsSelectFileToUploadScreen`: the 200-wide search box at header + 13.
             SubScreen::UploadSelect { .. } => Some([(w / 2.0).floor() - 100.0, 13.0, 200.0, 20.0]),
@@ -3056,10 +2914,6 @@ impl Screen {
 
     pub fn focused_text(&mut self) -> Option<(crate::clipboard::FieldId, &mut String, usize)> {
         match &mut self.subscreen {
-            // `RealmsJoinRealmWithCodeScreen`: `setEditable(false)` while validating.
-            SubScreen::JoinCode { code, job, .. } => {
-                job.is_none().then_some((REALMS_INVITE_CODE, code, 32))
-            }
             // `profileName.setEditable(false)` while the invite is in flight.
             SubScreen::Invite { name, job, .. } => {
                 job.is_none().then_some((REALMS_PLAYER_NAME, name, 32))
@@ -4674,7 +4528,6 @@ impl Screen {
     }
 
     pub fn click(&mut self, hit: Option<u8>, x: f32, y: f32, (w, h): (f32, f32)) -> Outcome {
-        self.list_clicked = false;
         // `RealmsTermsScreen.mouseClicked`: a click on the underlined link opens
         // `CommonLinks.REALMS_TERMS` (the draw recorded the text's box).
         if hit.is_none() && matches!(self.subscreen, SubScreen::Terms { .. }) {
@@ -4723,18 +4576,6 @@ impl Screen {
                 self.leave_clicked(session().map(|s| s.uuid));
                 Outcome::None
             }
-            Some(13) => {
-                self.open_pdp();
-                Outcome::None
-            }
-            Some(14) => {
-                self.subscreen = SubScreen::JoinCode {
-                    code: String::new(),
-                    error: None,
-                    job: None,
-                };
-                Outcome::None
-            }
             Some(15) => {
                 let job = client().map(|c| spawn(move || c.pending_invites()));
                 self.subscreen = SubScreen::PendingInvites {
@@ -4756,22 +4597,6 @@ impl Screen {
             }
             Some(17) => {
                 self.refresh();
-                Outcome::None
-            }
-            Some(20) => {
-                if let SubScreen::JoinCode { code, error, job } = &mut self.subscreen
-                    && job.is_none()
-                    && !code.trim().is_empty()
-                {
-                    match client() {
-                        Some(client) => {
-                            let code = code.trim().to_owned();
-                            *error = None;
-                            *job = Some(spawn(move || client.redeem_invite_code(&code)));
-                        }
-                        None => *error = Some(crate::lang::get("horizon.realms.not_signed_in")),
-                    }
-                }
                 Outcome::None
             }
             // `PopupScreen.onClose`'s Cancel: the background screen returns — the
@@ -4844,7 +4669,7 @@ impl Screen {
                 }
                 Outcome::None
             }
-            Some(21) | Some(22) | Some(32) | Some(41) | Some(52) => {
+            Some(22) | Some(32) | Some(52) => {
                 self.back_to_list();
                 Outcome::None
             }
@@ -5671,17 +5496,6 @@ impl Screen {
                 if let Some(link) = link {
                     self.open_link(link);
                 }
-                Outcome::None
-            }
-            Some(40) => {
-                // RealmsPdpScreen's footer: Try for Free (START_REALMS_TRIAL) when a
-                // trial is available, else Buy (BUY_REALMS).
-                let on_trial = matches!(&self.subscreen, SubScreen::AddRealm { trial: true, .. });
-                self.open_link(if on_trial {
-                    "https://aka.ms/startjavarealmstrial".to_owned()
-                } else {
-                    BUY_REALMS.to_owned()
-                });
                 Outcome::None
             }
             Some(50) => self.popup_continue(),
@@ -6548,19 +6362,6 @@ impl Screen {
                 return Outcome::None;
             }
         }
-        // `ObjectSelectionList.mouseClicked`: a product-page row takes the selection (and
-        // the focus); its rectangles are the ones the draw wrapped the text into.
-        if let SubScreen::AddRealm { rows, .. } = &self.subscreen {
-            let row = rows
-                .borrow()
-                .iter()
-                .position(|[rx, ry, rw, rh]| x >= *rx && x < rx + rw && y >= *ry && y < ry + rh);
-            if let Some(row) = row {
-                self.pdp_row = Some(row);
-                self.list_clicked = true;
-                return Outcome::None;
-            }
-        }
         // `RealmsResetWorldScreen`'s tiles are drawn, not widgets: the click is a rectangle.
         if let SubScreen::ResetWorld {
             server,
@@ -6762,14 +6563,8 @@ impl Screen {
         Outcome::None
     }
 
-    /// The product page's list is on screen: a Tab stop, and the arrows' target while no
-    /// button has the keyboard (`ObjectSelectionList`).
-    pub fn pdp_list(&self) -> bool {
-        matches!(self.subscreen, SubScreen::AddRealm { .. })
-    }
-
     /// A list takes the keyboard while no button has it: the server list on the main
-    /// screen, the product page's rows behind Add Realm.
+    /// screen and the other selection lists.
     pub fn list_stop(&self) -> bool {
         // Every `ObjectSelectionList` is a keyboard stop: its Enter is the row's action.
         matches!(
@@ -6778,7 +6573,7 @@ impl Screen {
                 | SubScreen::UploadSelect { .. }
                 | SubScreen::TemplateList { select: None, .. }
                 | SubScreen::RegionPreference { .. }
-        ) || self.pdp_list()
+        )
     }
 
     /// `ObjectSelectionList.nextFocusPath` over the server list: from no row an arrow takes
@@ -6849,45 +6644,9 @@ impl Screen {
         }
     }
 
-    /// `ObjectSelectionList.nextFocusPath`'s `ArrowNavigation` over the product page: with
-    /// no row selected an arrow takes the near end, as `nextEntry` does.
-    pub fn pdp_arrow(&mut self, up: bool) -> bool {
-        if !self.pdp_list() {
-            return false;
-        }
-        let len = pdp_entries().len();
-        let row = match self.pdp_row {
-            None if up => len - 1,
-            None => 0,
-            Some(row) if up => row.saturating_sub(1),
-            Some(row) => (row + 1).min(len - 1),
-        };
-        self.pdp_row = Some(row);
-        true
-    }
-
-    /// The click just taken was on a product-page row, so the keyboard focus moves to the
-    /// list (`AbstractSelectionList.mouseClicked` → `setFocused`).
-    pub fn take_list_click(&mut self) -> bool {
-        std::mem::take(&mut self.list_clicked)
-    }
-
     /// `AbstractScrollArea.mouseScrolled` over the product page's list, the template and
     /// upload lists.
     pub fn wheel(&mut self, delta: f32, cursor: (f32, f32), (_, h): (f32, f32)) {
-        if let SubScreen::AddRealm {
-            scroll, content, ..
-        } = &mut self.subscreen
-        {
-            // The PdpList fills 44..h-33; `AbstractScrollArea.defaultSettings` scrolls
-            // it by `entryHeight / 2` = 22.
-            let (top, bottom) = (44.0, h - 33.0);
-            if cursor.1 < top || cursor.1 >= bottom {
-                return;
-            }
-            scroll.wheel(delta, 22.0, top, bottom, content.get());
-            return;
-        }
         // `RealmsSettingsTab`'s `ScrollableLayout`: the column scrolls when it is taller
         // than the tab area (`setMaxHeight(getContentHeight())`).
         if let SubScreen::Configure {
@@ -7033,22 +6792,6 @@ impl Screen {
         let mut buttons = Vec::new();
 
         match &self.subscreen {
-            SubScreen::JoinCode { code, job, .. } => {
-                // `RealmsJoinRealmWithCodeScreen.init`: the Join Realm button at
-                // contentY + 41, then the footer's 200-wide Back.
-                let content_y = (h - 94.0).min(63.0);
-                buttons.push((
-                    cx - 100.0,
-                    content_y + 41.0,
-                    200.0,
-                    t("mco.selectServer.joinCode.select"),
-                    !code.trim().is_empty() && job.is_none(),
-                    20,
-                    None,
-                ));
-                // The footer is the default 33 tall: the 20-tall button centres 6 into it.
-                buttons.push((cx - 100.0, h - 27.0, 200.0, t("gui.back"), true, 21, None));
-            }
             SubScreen::PendingInvites {
                 invites,
                 job,
@@ -7563,49 +7306,6 @@ impl Screen {
                 ));
                 buttons.push((cx - 100.0, h - 27.0, 200.0, t("gui.back"), true, 81, None));
             }
-            SubScreen::AddRealm { .. } => {
-                // `RealmsHeader.createLayout`: Join Realm on the left of the 308 content,
-                // the invite and news buttons 4 apart on its right.
-                let signed_in = session().is_some();
-                let join = t("mco.selectServer.joinRealm");
-                buttons.push((
-                    cx - 154.0,
-                    12.0,
-                    self.join_width.get().max(40.0),
-                    join,
-                    signed_in,
-                    14,
-                    None,
-                ));
-                buttons.push((
-                    cx + 154.0 - 20.0 - 20.0 - 4.0,
-                    12.0,
-                    20.0,
-                    String::new(),
-                    signed_in,
-                    15,
-                    Some(("icon/invite", 14.0)),
-                ));
-                buttons.push((
-                    cx + 154.0 - 20.0,
-                    12.0,
-                    20.0,
-                    String::new(),
-                    self.news_link.is_some(),
-                    16,
-                    Some(("icon/news", 14.0)),
-                ));
-                // `RealmsPdpScreen`'s footer: two buttons 8 apart, the buy one carrying the
-                // PDP's own title.
-                // `RealmsPdpScreen.init`: a trial swaps the buy button for
-                // Try for Free (START_REALMS_TRIAL instead of BUY_REALMS).
-                let (_, label) = match &self.subscreen {
-                    SubScreen::AddRealm { trial: true, .. } => (true, t("mco.pdp.tryForFree")),
-                    _ => (false, t("mco.selectServer.purchase")),
-                };
-                buttons.push((cx - 154.0, h - 27.0, 150.0, label, true, 40, None));
-                buttons.push((cx + 4.0, h - 27.0, 150.0, t("gui.back"), true, 41, None));
-            }
             // `PopupScreen.buildButtonRow`: OK and the optional URL button, centered.
             SubScreen::Popup(Popup::Notice { url, .. }) => {
                 // The row the draw laid out: the URL button first, OK last
@@ -7847,17 +7547,8 @@ impl Screen {
             }
             SubScreen::Main => {
                 let signed_in = session().is_some();
-                // `RealmsHeader.createLayout`: join on the left of the 308 content, the
-                // invite and news buttons 4 apart on its right.
-                buttons.push((
-                    left,
-                    12.0,
-                    self.join_width.get().max(40.0),
-                    t("mco.selectServer.joinRealm"),
-                    signed_in,
-                    14,
-                    None,
-                ));
+                // `RealmsMainScreen.createHeader`: the invite and news buttons
+                // 4 apart on the right of the 308 content (26.2 has no Join Realm button).
                 buttons.push((
                     left + CONTENT_WIDTH - 20.0 - 20.0 - 4.0,
                     12.0,
@@ -8010,74 +7701,6 @@ impl Screen {
         crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
 
         match &self.subscreen {
-            SubScreen::JoinCode { code, error, job } => {
-                // `AbstractRealmsCodeScreen`: the band over the default 33-tall header
-                // and footer, with their separators. `RealmsJoinRealmWithCodeScreen`:
-                // header title, the gray "Join Code" label, a 200-wide field, then the
-                // Join Realm button 8 below it.
-                crate::ui::list_background(batch, atlas, 33.0, h - 33.0, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    31.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    h - 33.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                centered(
-                    batch,
-                    atlas,
-                    &t("mco.selectServer.joinCode.title"),
-                    cx,
-                    12.0,
-                    u32::MAX,
-                );
-                let content_y = (h - 94.0).min(63.0);
-                batch.text(
-                    atlas,
-                    &t("mco.selectServer.joinCode"),
-                    cx - 100.0,
-                    content_y,
-                    GREY,
-                    true,
-                );
-                caret.draw(
-                    batch,
-                    atlas,
-                    (REALMS_INVITE_CODE, code, 32),
-                    [cx - 100.0, content_y + 13.0, 200.0, 20.0],
-                    true,
-                    focused_at,
-                );
-                // `EditBox.setHint` draws only while the box is not focused; this screen
-                // focuses the box on open, so the hint never shows.
-                if job.is_some() {
-                    centered(
-                        batch,
-                        atlas,
-                        &t("mco.selectServer.joinCode.validating"),
-                        cx,
-                        content_y + 69.0,
-                        u32::MAX,
-                    );
-                } else if let Some(err) = error {
-                    centered(batch, atlas, err, cx, content_y + 69.0, RED);
-                }
-            }
             SubScreen::PendingInvites {
                 invites,
                 scroll,
@@ -9819,230 +9442,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::AddRealm {
-                scroll,
-                content,
-                rows: row_rects,
-                trial,
-                ..
-            } => {
-                // `RealmsPdpScreen`: the Realms header's logo, then the trial header and
-                // the three feature rows (an 80x45 picture and 182-wide text), scrolling
-                // between the header and the footer.
-                if atlas.sprites.contains_key("gui/title/realms") {
-                    // The header's logo, as `draw_main` draws it.
-                    batch.sprite_region(
-                        atlas,
-                        "gui/title/realms",
-                        [cx - 64.0, 5.0, 128.0, 34.0],
-                        128.0,
-                        64.0,
-                    );
-                } else {
-                    centered(
-                        batch,
-                        atlas,
-                        &t("mco.selectServer.purchase"),
-                        cx,
-                        14.0,
-                        u32::MAX,
-                    );
-                }
-                // The footer is the default 33 tall: the list fills 44..h-33, its first
-                // entry at 46 (`AbstractSelectionList.getFirstEntryY`). The band and its
-                // two separators are the list's own.
-                let (list_top, bottom) = (44.0, h - 33.0);
-                let (top, bottom) = (46.0, bottom);
-                let rx = ((w - PDP_ROW_WIDTH) / 2.0).floor();
-                crate::ui::list_background(batch, atlas, list_top, bottom, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    list_top - 2.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    bottom,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                // `PdpFeatureEntry.entryHeight`: the picture's 45 or the text, plus 16.
-                let mut rows: Vec<(
-                    Option<&'static str>,
-                    &'static str,
-                    usize,
-                    Vec<String>,
-                    bool,
-                    f32,
-                )> = Vec::new();
-                for (image, title, descriptions) in pdp_entries() {
-                    // `PdpList.addHeader`: the trial note (`mco.pdp.trial.description`, with
-                    // its icon) only when the service says a trial is available.
-                    let descriptions = if title == "mco.pdp.trial.title" && !*trial {
-                        &[][..]
-                    } else {
-                        descriptions
-                    };
-                    // The font's lines are 9 apart (`wordWrapHeight`).
-                    let title_lines = wrap_lines(&t(title), atlas, PDP_TEXT_WIDTH);
-                    let mut lines = title_lines.clone();
-                    let mut height = title_lines.len() as f32 * 9.0 + 4.0;
-                    for description in descriptions {
-                        lines.push(String::new());
-                        height += 2.0;
-                        let wrapped = wrap_lines(&t(description), atlas, PDP_TEXT_WIDTH);
-                        height += wrapped.len() as f32 * 9.0;
-                        lines.extend(wrapped);
-                    }
-                    let header = image.is_empty();
-                    let row = if header {
-                        height + 16.0
-                    } else {
-                        height.max(45.0) + 16.0
-                    };
-                    let image = (!image.is_empty()).then_some(image);
-                    rows.push((image, title, title_lines.len(), lines, header, row));
-                }
-                let total: f32 = rows.iter().map(|row| row.5).sum();
-                content.set(total);
-                crate::ui::scrollbar(
-                    batch,
-                    atlas,
-                    rx + PDP_ROW_WIDTH + 8.0,
-                    list_top,
-                    bottom,
-                    total,
-                    scroll.amount,
-                );
-                // `ObjectSelectionList.extractListItems`: what the list draws is clipped to
-                // its rectangle, so text never leaves the border.
-                let first = batch.vertices.len();
-                let mut y = top - scroll.amount;
-                let mut rects: Vec<[f32; 4]> = Vec::new();
-                let mut hovered_row = None;
-                for (row, (image, title_key, title_lines, lines, header, height)) in
-                    rows.iter().enumerate()
-                {
-                    rects.push([rx, y, PDP_ROW_WIDTH, *height]);
-                    if y + height >= top && y <= bottom {
-                        let hovered = crate::ui::hovered(cursor, rx, y, PDP_ROW_WIDTH, *height);
-                        if hovered {
-                            hovered_row = Some(row);
-                        }
-                        if self.pdp_row == Some(row) {
-                            // `AbstractSelectionList.extractSelection`: the row black, its
-                            // outline white with the list focused and grey without.
-                            batch.fill(
-                                atlas,
-                                rx,
-                                y,
-                                PDP_ROW_WIDTH,
-                                *height,
-                                if list_focused {
-                                    0xFFFF_FFFF
-                                } else {
-                                    0xFF80_8080
-                                },
-                            );
-                            batch.fill(
-                                atlas,
-                                rx + 1.0,
-                                y + 1.0,
-                                PDP_ROW_WIDTH - 2.0,
-                                *height - 2.0,
-                                0xFF00_0000,
-                            );
-                        }
-                        if let Some(image) = image {
-                            crate::ui::blit_sprite(
-                                batch,
-                                atlas,
-                                image,
-                                // `getContentX() + 4`, `getContentY() + 4` (the entry's
-                                // content origin is its own +2).
-                                rx + 6.0,
-                                y + 6.0,
-                                80.0,
-                                45.0,
-                                u32::MAX,
-                            );
-                        }
-                        let mut text_y = y + 6.0;
-                        let mut after_gap = false;
-                        // `RealmsPdpScreen`'s constants: the trial title carries
-                        // UNDERLINE, the feature titles BOLD.
-                        let heading = if *title_key == "mco.pdp.trial.title" {
-                            Text::translate(title_key, &[]).underlined()
-                        } else {
-                            Text::translate(title_key, &[]).bold()
-                        };
-                        for (line_index, line) in lines.iter().enumerate() {
-                            if line.is_empty() {
-                                if *header {
-                                    after_gap = true;
-                                }
-                                text_y += 2.0;
-                                continue;
-                            }
-                            let x = if *header {
-                                cx - (HudBatch::text_width(atlas, line) / 2.0).floor()
-                            } else {
-                                rx + 102.0
-                            };
-                            // `PdpHeaderEntry`: the trial subtitle's 8x8
-                            // `icon/trial_available` sits left of it.
-                            if after_gap && *trial {
-                                crate::ui::blit_sprite(
-                                    batch,
-                                    atlas,
-                                    "gui/sprites/icon/trial_available",
-                                    x - 12.0,
-                                    text_y + 1.0,
-                                    8.0,
-                                    8.0,
-                                    u32::MAX,
-                                );
-                            }
-                            after_gap = false;
-                            if line_index < *title_lines {
-                                batch.text_styled(atlas, &heading, x, text_y, u32::MAX, true);
-                            } else {
-                                batch.text(atlas, line, x, text_y, u32::MAX, true);
-                            }
-                            text_y += 9.0;
-                        }
-                    }
-                    y += height;
-                }
-                *row_rects.borrow_mut() = rects;
-                // `ObjectSelectionList.updateWidgetNarration`: the list's position, then the
-                // hovered row's or the selected one (`narrator.select` of its lines).
-                crate::widgets::narratable(|| {
-                    use crate::widgets::{ListKind, Narratable, Row};
-                    let narrate = |row: usize| Row::new(row, pdp_row_narration(row, *trial));
-                    Narratable::list(
-                        ListKind::Object,
-                        rows.len(),
-                        hovered_row.map(narrate),
-                        self.pdp_row.map(narrate),
-                        [rx, top, PDP_ROW_WIDTH, bottom - top],
-                    )
-                    .focused(list_focused)
-                    .key(crate::widgets::key_of(&"realms/pdp"))
-                });
-                batch.clip_since(first, rx, top, rx + PDP_ROW_WIDTH, bottom);
-            }
             // `PopupScreen`: the list behind (`backgroundScreen`), dimmed, then the panel
             // with its 130x64 image, the 214-wide message and the button row.
             SubScreen::Popup(Popup::Notice {
@@ -11205,9 +10604,6 @@ impl Screen {
         } else {
             centered(batch, atlas, &t("mco.title"), cx, 12.0, u32::MAX);
         }
-        let join = t("mco.selectServer.joinRealm");
-        self.join_width
-            .set((HudBatch::text_width(atlas, &join) + 16.0).min(90.0));
         let footer_h = main_footer_h(self.layout_state());
         let (top, bottom) = (HEADER_HEIGHT, h - footer_h);
         // Only the LIST layout has an `ObjectSelectionList`: LOADING and NO_REALMS put a
@@ -11569,10 +10965,9 @@ impl Screen {
         cursor: (f32, f32),
         (w, h): (f32, f32),
     ) {
-        // `RealmsHeader.setPendingInvites`/`setNews` tooltips, and
-        // `RealmsMainScreen.updateButtonStates`' closed-Realm Play hint. Both screens
-        // share the header; only the list has the Play button.
-        if matches!(self.subscreen, SubScreen::Main | SubScreen::AddRealm { .. }) {
+        // `RealmsMainScreen.createHeader`'s invite/news tooltips, and
+        // `RealmsMainScreen.updateButtonStates`' closed-Realm Play hint.
+        if matches!(self.subscreen, SubScreen::Main) {
             let cx = (w / 2.0).floor();
             let invite = [cx + 110.0, 12.0, 20.0, 20.0];
             let news = [cx + 134.0, 12.0, 20.0, 20.0];
@@ -11849,9 +11244,6 @@ mod tests {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -11870,7 +11262,6 @@ mod tests {
             settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
@@ -12151,7 +11542,7 @@ mod tests {
         assert!(matches!(screen.state, FetchState::Unauthenticated));
         let buttons = screen.buttons(800.0, 600.0);
         let enabled = |id| buttons.iter().find(|b| b.5 == id).map(|b| b.4);
-        assert_eq!(enabled(14), Some(false), "Join Realm");
+        assert_eq!(enabled(14), None, "26.2 has no Join Realm button");
         assert_eq!(enabled(15), Some(false), "invites");
     }
 
@@ -12341,9 +11732,6 @@ mod tests {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -12362,7 +11750,6 @@ mod tests {
             settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
@@ -12405,18 +11792,6 @@ mod tests {
             error.as_deref(),
             Some(crate::lang::get("mco.configure.world.players.invite.duplicate").as_str())
         );
-    }
-
-    #[test]
-    fn join_realm_button_navigates_to_join_code_screen() {
-        let mut screen = listed(vec![]);
-        let _ = screen.click(Some(14), 0.0, 0.0, (800.0, 600.0));
-        assert!(matches!(screen.subscreen, SubScreen::JoinCode { .. }));
-        let btns = screen.buttons(800.0, 600.0);
-        let join_btn = btns.iter().find(|b| b.5 == 20).expect("Join button exists");
-        assert!(!join_btn.4, "Join is off while the code is empty");
-        assert!(!screen.escape());
-        assert!(matches!(screen.subscreen, SubScreen::Main));
     }
 
     /// `RealmsConfigureWorldScreen`'s `MenuTabBar`: Worlds, Players, Subscription,
@@ -12574,8 +11949,7 @@ mod tests {
     #[test]
     fn a_link_asks_three_ways_and_returns_to_its_parent() {
         let mut screen = listed(Vec::new());
-        // The product page asks (its news button, `RealmsHeader.openNews`).
-        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        // The main list asks (its news button).
         let url = "https://realms.example/news".to_owned();
         screen.news_link = Some(url.clone());
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
@@ -12589,61 +11963,27 @@ mod tests {
             .map(|b| (b.5, b.2))
             .collect();
         assert_eq!(answers, vec![(53, 100.0), (54, 100.0), (55, 100.0)]);
-        // Cancel returns to the product page.
+        // Cancel returns to the list.
         screen.click(Some(55), 0.0, 0.0, (854.0, 480.0));
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // Copy answers the link and returns there too.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         match screen.click(Some(54), 0.0, 0.0, (854.0, 480.0)) {
             Outcome::Copy(copied) => assert_eq!(copied, url),
             _ => panic!("the copy answer"),
         }
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // So does Open.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         match screen.click(Some(53), 0.0, 0.0, (854.0, 480.0)) {
             Outcome::OpenUri(opened) => assert_eq!(opened, url),
             _ => panic!("the open answer"),
         }
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // Escape is the no button.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         assert!(!screen.escape());
-        assert!(screen.pdp_list());
-    }
-
-    /// `ObjectSelectionList.nextFocusPath`: the arrows move through the product page's
-    /// rows, the first one taking the end it heads to (`nextEntry`'s null start).
-    #[test]
-    fn the_pdp_rows_take_the_arrows_at_their_ends() {
-        let mut screen = listed(Vec::new());
-        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
-        assert!(screen.pdp_arrow(false));
-        assert_eq!(screen.pdp_row, Some(0));
-        assert!(screen.pdp_arrow(false));
-        assert_eq!(screen.pdp_row, Some(1));
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(0));
-        // The ends hold.
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(0));
-        screen.pdp_row = None;
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(pdp_entries().len() - 1));
-        // Another screen has no product page.
-        screen.subscreen = SubScreen::Main;
-        assert!(!screen.pdp_arrow(false));
-    }
-
-    /// `RealmsPdpScreen.AbstractPdpEntry.getNarration`: the title and its descriptions,
-    /// the trial's only when the service says a trial is available (`PdpList`'s header).
-    #[test]
-    fn the_pdp_rows_narrate_their_lines() {
-        let description = crate::lang::get("mco.pdp.friends.description");
-        assert!(pdp_row_lines(1, false).contains(&description));
-        let trial = crate::lang::get("mco.pdp.trial.description");
-        assert!(!pdp_row_lines(0, false).contains(&trial));
-        assert!(pdp_row_lines(0, true).contains(&trial));
+        assert!(matches!(screen.subscreen, SubScreen::Main));
     }
 
     /// `RealmsResetWorldScreen.init`'s grid: 60-wide tiles, 16 padding a side, the spacer row.
