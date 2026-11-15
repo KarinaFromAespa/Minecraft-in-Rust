@@ -246,9 +246,17 @@ def resolve_pin(release: str, given: str | None, tree: Path) -> Path:
     return tree
 
 
-def find_report(tree: Path, release: str) -> Path | None:
-    """version_port.py's ranked report for the diff that produced this pin."""
+def find_report(tree: Path, release: str, pin: Path | None = None) -> Path | None:
+    """version_port.py's ranked report for the diff that produced this pin.
+
+    The report lives beside the diff that produced it: in the tree for
+    releases whose pin is still the tree, in the pin for releases whose
+    metadata moved to pins/<release>/ (26.2 first). The pin is searched
+    after the tree, so a tree-side report still wins where both exist.
+    """
     roots = [tree / ".local", tree, tree.parent / ".local", tree.parent]
+    if pin is not None:
+        roots.append(pin)
     override = os.environ.get("HORIZON_PORTS")
     if override:
         roots.insert(0, Path(override))
@@ -260,11 +268,13 @@ def find_report(tree: Path, release: str) -> Path | None:
     return None
 
 
-def find_sibling(tree: Path, release: str, name: str) -> Path | None:
-    report = find_report(tree, release)
+def find_sibling(tree: Path, release: str, name: str, pin: Path | None = None) -> Path | None:
+    report = find_report(tree, release, pin)
     if report and (report.with_name(name)).exists():
         return report.with_name(name)
     roots = [tree / ".local", tree, tree.parent / ".local", tree.parent]
+    if pin is not None:
+        roots.append(pin)
     for root in roots:
         if not root.is_dir():
             continue
@@ -314,7 +324,7 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     )
     evidence.append(str(version_rs))
 
-    regen_path = find_sibling(tree, release, "regen.json")
+    regen_path = find_sibling(tree, release, "regen.json", pin)
     regen = read_json(regen_path) if regen_path else None
     if regen is None:
         return check_stop("no regen.json: run `version_port.py regen` and keep its output",
@@ -504,7 +514,7 @@ def check_d2(tree: Path, pin: Path, release: str, run: bool, timeout: int):
 
 def check_d3(tree: Path, pin: Path, release: str):
     """D3 — rank-1 and rank-2 work items closed or accepted with a cause and owner."""
-    report_path = find_report(tree, release)
+    report_path = find_report(tree, release, pin)
     report = read_json(report_path) if report_path else None
     if report is None:
         return check_stop("no diff-<prev>-<release>/report.json: run `version_port.py report`")

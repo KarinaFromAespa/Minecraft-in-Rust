@@ -22,17 +22,23 @@ pin's own metadata is malformed. **Blocked is not verified.** That distinction i
 
 ## In this repository today
 
-The tree lives at `versions/<id>/` and holds both the code and this release's metadata, so the gate
-needs no `--pin`:
+The tree lives at `versions/<id>/`. Most releases still hold their metadata beside the code, but
+26.2 — the first release to close under the lines/+pins/ restructure — keeps its pin at
+`pins/26.2/`; the gate resolves `pins/<release>/` first and falls back to the tree, so it needs
+no `--pin` either way:
 
 ```sh
+python3 tools/delta_verify.py 26.2 --tree versions/26.2                 # pin resolves to pins/26.2
 python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11            # judge recorded evidence
 python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11 --check D3 # one check, while working
 python3 tools/delta_verify.py --index                                    # VERSIONS.md rows
 ```
 
-Artifacts land beside the tree: `versions/<id>/{work-items.json, harness-subset.txt,
-allowed-failures.txt, regen-determinism.json, playtest.md, profile.json, ci-out/, delta-verdict.json}`.
+Artifacts land in the pin: `<pin>/{work-items.json, harness-subset.txt,
+allowed-failures.txt, regen-determinism.json, playtest.md, profile.json, ci-out/, delta-verdict.json}`,
+plus the diff report (`diff-<prev>-<release>/{report,regen}.json`) the gate's D1/D3 read from the
+pin when it lives there. `research-lock.json` stays in the tree: D1 reads it there, the workflow
+reads the version's Java major from it, and `version_port.py prepare` needs it beside the code.
 §2 also describes `pins/<release>/`, which is the redraft's target shape (code in `lines/<era>/`,
 metadata in `pins/<release>/`); both layouts work, and `--pin` overrides either.
 

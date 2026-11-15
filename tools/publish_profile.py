@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""publish_profile.py — freeze a harness run into `versions/<id>/profile.json`.
+"""publish_profile.py — freeze a harness run into the release's profile.json.
 
 The delta bar's D4 and D5 judge a published record of which harnesses ran and how
 they ended. `parity.py` keeps that per worktree, unfrozen, in
 `.local/parity-runner/state.json`; this turns it into one committed file per
 release, stamped with the commit it belongs to, so `tools/delta_verify.py` can
 refuse a profile from a different tree instead of judging stale evidence.
+
+The profile lands in the release's pin: pins/<release>/profile.json once the
+release's metadata has moved there (26.2 first), else versions/<release>/profile.json.
 
     python3 tools/publish_profile.py 1.21.10                 # find the state file
     python3 tools/publish_profile.py 1.21.10 --state a.json --state b.json
@@ -152,13 +155,23 @@ def head_commit() -> str:
     return run.stdout.strip() if run.returncode == 0 else ""
 
 
+def default_out(release: str) -> Path:
+    """The release's pin when its metadata has moved, else its tree."""
+    pin = Path("pins") / release / "profile.json"
+    if pin.parent.is_dir():
+        return pin
+    return Path("versions") / release / "profile.json"
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("release")
     parser.add_argument("--state", action="append", default=[],
                         help="a state.json to merge (repeatable; default: find one)")
     parser.add_argument("--commit", default="", help="the commit this run belongs to (default: HEAD)")
-    parser.add_argument("--out", default="", help="default: versions/<release>/profile.json")
+    parser.add_argument("--out", default="",
+                        help="default: pins/<release>/profile.json when the pin exists, "
+                             "else versions/<release>/profile.json")
     args = parser.parse_args(argv)
 
     sources = [Path(path) for path in args.state] or candidates(args.release)
@@ -207,7 +220,7 @@ def main(argv=None) -> int:
         "harnesses": dict(sorted(merged.items())),
     }
 
-    out = Path(args.out or Path("versions") / args.release / "profile.json")
+    out = Path(args.out) if args.out else default_out(args.release)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(profile, indent=2) + "\n", encoding="utf-8")
     print(f"{out}: {len(merged)} harnesses "
