@@ -3387,3 +3387,11 @@ members). These two harnesses are outside the 17-harness CI subset,
 so the CI profile is unchanged by them; their value is the suffocation
 port's oracle proof and the unblocking of the eight harnesses that
 compile the oracle.
+
+## CI run 43738833564 dispatched on main (2026-11-15)
+
+Run 43738833564 dispatched on main@ad9757b6 (the tag-gating merge):
+proves the gated D1 (dead production tags fail, absent tag data
+blocks, pre-1.13 skipped) plus the seven tag ports on CI. Locally the
+audit is clean (0 dead production, 5 dead test-only) and D1 passes
+with the flip; suffocation parity passes on both jars.
