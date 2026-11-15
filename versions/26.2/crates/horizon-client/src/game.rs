@@ -7127,8 +7127,7 @@ impl Game<'_> {
                         uv,
                         // ExperienceOrbRenderer: `RenderTypes.entityTranslucent`; in HDR
                         // output the orbs shine (entity.wgsl fs_hdr_mark).
-                        layer: horizon_client::gfx::OIT_ENTITY
-                            | u32::from(horizon_client::mesher::VERY_BRIGHT) << 16,
+                        layer: u32::from(horizon_client::mesher::VERY_BRIGHT) << 16,
                         color,
                         light: packed,
 

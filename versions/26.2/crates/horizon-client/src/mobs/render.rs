@@ -46,13 +46,6 @@ pub const FULL_BRIGHT: u32 = 240 | 240 << 8;
 /// HDR output, as `mesher::hdr_tier`.
 const EYES_TIER: u8 = crate::mesher::BRIGHT;
 
-/// Tags quads as drawn by a render type vanilla gives an `OitPipelineSet`
-/// (`gfx::OIT_ENTITY`): improved transparency draws them in its stages.
-fn mark_oit(quads: &mut [Vertex]) {
-    for vertex in quads {
-        vertex.layer |= crate::gfx::OIT_ENTITY;
-    }
-}
 /// Whether the species' model is built with `RenderTypes::entityTranslucent`
 /// (`Model.renderType`, which `LivingEntityRenderer.getRenderType` uses for the
 /// body): the allay, the piglins, the breeze, the vex, the player model and the
@@ -2088,7 +2081,6 @@ fn render_visible(
             }
         });
         if body_visible && let Some(uv) = uv {
-            let start = out.len();
             put(
                 skin,
                 &model,
@@ -2114,9 +2106,6 @@ fn render_visible(
                     0,
                     out,
                 );
-            }
-            if translucent_body(m) {
-                mark_oit(&mut out[start..]);
             }
         }
     };
@@ -2216,19 +2205,11 @@ fn render_visible(
                 out,
             );
         }
-        if translucent_layer(m, layer) {
-            mark_oit(&mut out[start..]);
-        }
         // The same marks on what the GPU path posed of the layer (only eyes
-        // layers get there among the marked ones): the tags in the overlay word,
-        // no normal.
+        // layers get there): the tags in the overlay word, no normal.
         if let (Some(skin), Some(first)) = (skin.as_deref_mut(), first_job) {
-            let tagged = translucent_layer(m, layer);
             let eyes = layer.full_bright && m.species() != Species::Warden;
             for job in &mut skin.frame.jobs[first..] {
-                if tagged {
-                    job.overlay |= crate::gfx::OIT_ENTITY;
-                }
                 if eyes {
                     job.overlay |= u32::from(EYES_TIER) << 16;
                     job.mode = crate::gfx::entity_skin::SkinJob::FLAT;

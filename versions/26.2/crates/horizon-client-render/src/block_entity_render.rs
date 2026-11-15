@@ -13,7 +13,6 @@ use crate::{
     breaking::entity_geometry,
     fast_hash::FxHashMap,
     font::{Font, Glyph},
-    gfx::mark_oit,
     hud::Rect,
     mesher::{CULL_BACK, Vertex},
     models::load_visibility,
@@ -2965,7 +2964,6 @@ impl BlockEntityRenderer {
                 } else {
                     None
                 };
-                let has_profile = skin.is_some();
                 // A `.jem` texture stands in for the default skin, not a profile's.
                 let texture = skin
                     .as_deref()
@@ -3003,13 +3001,7 @@ impl BlockEntityRenderer {
                     "right_ear" => p[5] = (f64::from(t * PI * 0.2).cos() + 2.5) as f32 * 0.2,
                     _ => {}
                 };
-                let start = out.len();
                 draw_part(model, "root", m, &anim, paint, out);
-                // `SkullBlockRenderer.resolveSkullRenderType`: a head with a profile takes
-                // the player skin's `entityTranslucent` render type.
-                if has_profile {
-                    mark_oit(&mut out[start..]);
-                }
             }
             Kind::Bell => {
                 let (Some(model), Some(paint)) = (

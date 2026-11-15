@@ -595,7 +595,6 @@ mod tests {
             light_emission: 0,
             cull_back: false,
             translucent: false,
-            oit: false,
         }
     }
 

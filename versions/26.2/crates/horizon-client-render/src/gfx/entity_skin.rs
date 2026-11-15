@@ -661,7 +661,7 @@ mod tests {
                     rect: [0.125, 0.75, 0.25, 0.875],
                     color: 0x80ff_ffff,
                     light: 0xf0f0,
-                    overlay: crate::gfx::OIT_ENTITY | 3 << 16 | 7,
+                    overlay: 3 << 16 | 7,
                     mode: SkinJob::FLAT,
                     cull: 1,
                     ..Default::default()

@@ -8311,7 +8311,6 @@ impl Game<'_> {
                     );
                     // The translucent shell blends over the opaque core
                     // (`RenderTypes.entityTranslucent`).
-                    let shell = out.len();
                     horizon_client::mobs::render::draw(
                         model,
                         base * glam::Mat4::from_scale(glam::Vec3::splat(1.5)),
@@ -8322,7 +8321,6 @@ impl Game<'_> {
                         0,
                         out,
                     );
-                    horizon_client::gfx::mark_oit(&mut out[shell..]);
                 }
                 continue;
             }

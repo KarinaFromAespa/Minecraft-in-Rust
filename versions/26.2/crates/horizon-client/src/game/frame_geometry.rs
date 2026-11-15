@@ -471,12 +471,6 @@ impl Game<'_> {
                 &mut out,
             );
         }
-        // The hand has its own submit storage, which never uses improved
-        // transparency (`LevelRenderer` alone calls `setUseImprovedTransparency`):
-        // a held player head stays classic.
-        for vertex in &mut out {
-            vertex.layer &= !horizon_client::gfx::OIT_ENTITY;
-        }
         (out, runs)
     }
     /// WeatherEffectRenderer: rain and snow columns within the weather radius.

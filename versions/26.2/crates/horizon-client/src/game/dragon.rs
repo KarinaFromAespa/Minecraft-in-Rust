@@ -3468,13 +3468,10 @@ impl Game<'_> {
             0,
             &mut eye_quads,
         );
-        // `RenderTypes.eyes` has an `OitPipelineSet`: improved transparency
-        // moves the tagged quads into its stages (the HDR tier is the eyes'
-        // shine, `mobs::render::EYES_TIER`).
+        // `RenderTypes.eyes` (the HDR tier is the eyes' shine,
+        // `mobs::render::EYES_TIER`).
         for v in &mut eye_quads {
-            v.layer = 2
-                | horizon_client::gfx::OIT_ENTITY
-                | u32::from(horizon_client::mesher::BRIGHT) << 16;
+            v.layer = 2 | u32::from(horizon_client::mesher::BRIGHT) << 16;
         }
         additive.extend(eye_quads);
         if death > 0.0 {
