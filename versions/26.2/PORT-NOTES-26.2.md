@@ -2554,3 +2554,12 @@ identical apart from the package move. 448 item renderer:
 no-change — the glint math is identical; the pass-structure diff
 is unobservable in the Rust's shader glint, and the shade
 override is None on 26.2 assets.
+
+## CI run 43653524277 (2026-11-15, tree dbeb88e3, 409/410)
+
+Profile 5/0/12 — unchanged (first_person, food, lan, light,
+resource_pack). D1 pass. D2 fail: cargo check 2 errors, the
+rule_test_bounds E0061 — the fix (b232b15b) landed after this
+tree, so the next run measures it. D3 fail: 1 rank-2 item open
+(127, since closed and merged). Run 43656955427 (merged tree
+08403e7f, first run with item 127's noise port) still in flight.
