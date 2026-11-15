@@ -2336,3 +2336,20 @@ renderer (signature re-shape), 513 narrator output (trigger removal,
 already done in item 129), 514 zip pack supplier (method renames),
 515 game-rules category entry (Rust already draws the 26.2 centered-text
 form, no focusable widget).
+
+## Rank 3 — bucket A batch 3: 32/177 (2026-11-15)
+
+11 no-change + 1 port. No-change: 516 effects trigger (no trigger
+logic in the Rust), 517 jigsaw (codec + canAttach, unported; Pools
+bootstrap has no Rust surface), 519 gamemode switcher (all three
+classes decompile identically — bytecode artifacts), 520 packs
+(listResources signature re-shape), 521 sulfur cube (archetype codec
+holderSet→homogeneousList; Rust loads items from tags), 522 management
+(worldUpgrade* notifications are 26.3-only), 523 shapes (codecs only),
+525 registries (ResourceArgument accessors are 26.3-only), 526 command
+block (codec only), 527 lightning (constants hoisted; quad bodies,
+draws and loops identical), 528 drop-experience block (codec only).
+PORTED: 518 /tick — 26.2's step/stopSprinting/stopStepping send
+sendFailure and return (step returns 1 even on failure; stops return
+0), where 26.3 throws; cmd_tick's three failure arms now use
+command_failure + Ok(1)/Ok(0)/Ok(0).

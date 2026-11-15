@@ -144,8 +144,11 @@ impl Game<'_> {
                 Ok(1)
             }
             "tick.sprint.stop" => {
+                // 26.2 stopSprinting: failure is sendFailure + return 0, not a
+                // thrown CommandSyntaxException (26.3's ERROR_* form).
                 let Some(report) = self.clock.stop_sprint() else {
-                    return Err(err("commands.tick.sprint.stop.fail", &[]));
+                    self.command_failure(t("commands.tick.sprint.stop.fail", &[]));
+                    return Ok(0);
                 };
                 self.sprint_report(&report);
                 self.feedback(t("commands.tick.sprint.stop.success", &[]));
@@ -171,15 +174,20 @@ impl Game<'_> {
                 Ok(i32::from(freeze))
             }
             "tick.step" => {
+                // 26.2 step: failure is sendFailure and the command still
+                // returns 1 (26.3 throws ERROR_TICK_STEP_NOT_FROZEN).
                 if !self.clock.start_step(time as u32) {
-                    return Err(err("commands.tick.step.fail", &[]));
+                    self.command_failure(t("commands.tick.step.fail", &[]));
+                    return Ok(1);
                 }
                 self.feedback(t("commands.tick.step.success", &[lit(time.to_string())]));
                 Ok(1)
             }
             _ => {
+                // 26.2 stopStepping: failure is sendFailure + return 0.
                 if !self.clock.stop_step() {
-                    return Err(err("commands.tick.step.stop.fail", &[]));
+                    self.command_failure(t("commands.tick.step.stop.fail", &[]));
+                    return Ok(0);
                 }
                 self.feedback(t("commands.tick.step.stop.success", &[]));
                 Ok(1)

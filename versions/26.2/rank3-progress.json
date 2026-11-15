@@ -139,6 +139,90 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "CategoryRuleEntry: 26.3 wraps the label in a FocusableTextWidget (focusable, border-on-focus); 26.2 draws centered text directly with an anonymous narratable and empty children(). The Rust draws centered text + a narratable region \u2014 the 26.2 form; no focus behaviour to remove."
+    },
+    {
+      "id": 516,
+      "module": "crates/horizon-client-render/src/effects.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "EffectsChangedTrigger$TriggerInstance matches/validate/gotEffectsFrom changed, but effects.rs ports no trigger-matching logic (its only 'matches' is an EffectAction::Poison filter); the module is the HUD effects display, citing the trigger in one comment."
+    },
+    {
+      "id": 517,
+      "module": "crates/horizon-client-render/src/jigsaw_block.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "JigsawBlock gains a codec and canAttach changes; Pools.bootstrap changes. The Rust ports JigsawBlockEntity (name/target/pool/joint) and cites getFrontFacing; no can_attach exists in the module or the level placement code. Data bootstrap has no Rust surface."
+    },
+    {
+      "id": 518,
+      "module": "crates/horizon-client/src/game/commands/misc.rs",
+      "bucket": "A",
+      "verdict": "ported",
+      "evidence": "TickCommand step/stopSprinting/stopStepping: 26.3 throws CommandSyntaxException (ERROR_TICK_STEP_NOT_FROZEN etc.); 26.2 sends sendFailure and returns \u2014 step returns 1 even on failure, both stops return 0 on failure. Ported cmd_tick: the three failure arms now call command_failure (red text, silent-aware) and return Ok(1)/Ok(0)/Ok(0). cargo check -p horizon-client clean (only the two pre-existing warnings)."
+    },
+    {
+      "id": 519,
+      "module": "crates/horizon-client/src/game/gamemode_switcher.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "GameModeSwitcherScreen, GameModeSlot and GameModeIcon decompile byte-identically in both versions; the extractSelection/extractSlot/extractBackground/<clinit> 'changed' flags are bytecode artifacts."
+    },
+    {
+      "id": 520,
+      "module": "crates/horizon-client/src/game/packs.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ReloadableResourceManager listResourceStacks/listResources added+removed (signature re-shape); the Rust only cites createReload in a comment."
+    },
+    {
+      "id": 521,
+      "module": "crates/horizon-client/src/mobs/sulfur_cube.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SulfurCubeArchetype's only diff is the codec: items decodes via holderSet in 26.3, homogeneousList in 26.2 (same JSON lists); the Rust loads archetype items from tags, not the codec. SulfurCubeRenderer extractRenderState is GPU plumbing; the Rust cites its scale in a comment."
+    },
+    {
+      "id": 522,
+      "module": "crates/horizon-server/src/management.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "JsonRpcNotificationService worldUpgradeStarted/Progress/Finished/Failed are 26.3-only (removed in 26.2); the Rust only cites broadcastNotification in a comment. No port of the upgrade notifications."
+    },
+    {
+      "id": 523,
+      "module": "crates/horizon-world/src/level/shapes.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "StairBlock and BaseCoralPlantTypeBlock only gain codecs (+ <clinit>/lambda$static); the ported methods (getStairsShape, scanForWater, tryScheduleDieTick) are unchanged."
+    },
+    {
+      "id": 525,
+      "module": "crates/horizon-client-core/src/registries.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ResourceArgument gains getConfiguredFeature/getEntityType/getStructure in 26.3 (26.3-only accessors); the Rust only cites ResourceArgument in a comment."
+    },
+    {
+      "id": 526,
+      "module": "crates/horizon-client-render/src/command_block.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CommandBlock only gains a codec (+ <clinit>/lambda$static); no behaviour method changed."
+    },
+    {
+      "id": 527,
+      "module": "crates/horizon-client-render/src/gfx/lightning.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "LightningBoltRenderer: 26.3 hoists the bolt colour (0.45/0.45/0.5) and the segment/layer/branch counts into constants and takes them as quad parameters in 26.2 \u2014 the call site passes 0.45F/0.45F/0.5F literally; quad bodies, random draws (nextInt(11)-5 offsets, 11/31 branch steps), layer/branch/segment loops identical."
+    },
+    {
+      "id": 528,
+      "module": "crates/horizon-client/src/game/item_entities.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "DropExperienceBlock only gains a codec (+ <clinit>/lambda$static); no behaviour method changed. The Rust cites its XP ranges in a comment."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
