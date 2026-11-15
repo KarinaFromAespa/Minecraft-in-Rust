@@ -1147,6 +1147,13 @@
       "bucket": "D",
       "verdict": "ported",
       "evidence": "Armour trims: already the 26.2 form (attributions fixed). 26.2 renders trims from the armor_trims atlas (TrimSpriteKey -> TextureAtlasSprite via ArmorTrim.layerAssetId, palette-swapped at load by PalettedPermutations); 26.3 replaced it with runtime PalettedTextureManager textures (TrimTextureKey, TrimOverride, palette_id materials). The Rust implements 26.2's mechanism at runtime: TrimRegistry reads 26.2's material format (asset_name + override_armor_assets \u2014 26.3's iron.json has palette_id instead), generate() is PalettedPermutations' mapping keyed on trim_palette, and the (texture, palette) pair is exactly layerAssetId's sprite (pattern path + material suffix). The trim layer already carries no glint (26.2; 26.3's trimmedArmorGlint). VERIFIED no-change: TrimPredicate (26.3 holderSet/tag-or-list vs 26.2 homogeneousList/list-only \u2014 decode_predicate accepts trim unchecked, so unobservable). Fixed three 26.3 attributions (TrimTextureKey/PalettedTextureManager) to the 26.2 names. Tests: trims 7/7."
+    },
+    {
+      "id": 510,
+      "module": "crates/horizon-client/src/game/commands/compute.rs",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "/compute is 26.3-only: ComputeCommand, LootContextSources, ContextFloatProvider and ContextIntProvider are absent from the 26.2 jars (0 matches in the 26.2 server-game.jar; present in 26.3's), and 26.2's DataCommands has no compute source (0 references vs 1 in 26.3's). REMOVED: the whole compute.rs implementation (541 lines, self-contained \u2014 provider_int/provider_float/provider_select have no users outside it), the commands.rs module + dispatch arm, the /compute tree registration, the /data modify compute source, the now-unused context_sources helper, and the command_exec corpus compute() group (~70 cases). The bare 'compute' entry in the parse corpus stays: it now measures the unknown-command error on both sides. Tests: horizon-command 53/53; corpus parses, 197 groups, no compute."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

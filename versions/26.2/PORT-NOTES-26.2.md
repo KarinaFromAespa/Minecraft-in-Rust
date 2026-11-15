@@ -2805,3 +2805,14 @@ materials. Only the attributions needed fixing
 names). Verified no-change: TrimPredicate (the trim
 predicate is accepted unchecked, so its holder-set
 difference is unobservable).
+
+## Rank 3 — bucket D batch 10: 165/177 (2026-11-15)
+
+510 /compute is 26.3-only (ComputeCommand,
+LootContextSources and both context providers are
+absent from the 26.2 jars, and 26.2's DataCommands has
+no compute source): the whole implementation, the tree
+registration, the /data modify compute source, the
+context_sources helper and the exec corpus group are
+removed. The bare 'compute' parse-corpus entry stays —
+it now measures the unknown-command error on both sides.

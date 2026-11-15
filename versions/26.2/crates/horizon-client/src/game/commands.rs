@@ -1,7 +1,6 @@
 //! Command execution (the `execute` side of each vanilla command class):
 //! entity selectors resolved against the game, vanilla feedback and errors.
 mod admin;
-pub(super) mod compute;
 mod data;
 pub(super) use data::place_summoned;
 mod effects;
@@ -1283,7 +1282,6 @@ impl Game<'_> {
             "jfr" => self.cmd_jfr(ctx),
             "version" => self.cmd_version(),
             id if id.starts_with("test.") => self.cmd_test(id, ctx),
-            "compute" => self.cmd_compute(ctx),
             "place" => self.cmd_place(ctx),
             "place.feature" | "place.jigsaw" | "place.structure" => {
                 self.cmd_place_generated(id, ctx)
