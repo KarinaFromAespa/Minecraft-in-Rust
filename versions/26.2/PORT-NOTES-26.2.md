@@ -2484,3 +2484,11 @@ local stub with no real network call. 425 fortress: no-change —
 piece methods differ only by the Builder vs Accessor parameter
 type, and FORTRESS_ENEMIES carries the same values in IntProvider
 vs (min,max) form; the Rust has no enemies-list surface.
+
+## Rank 3 — bucket B batch 1 (part 4): 97/177 (2026-11-15)
+
+431 advancements: ported — 26.2's advancements key always closes
+to the game (26.3 restores the last screen); added
+close_advancements_to_game and routed KeyL to it. Tab selection
+(left-click), DisplayInfo-derived tab icon/title, and onClose are
+already the 26.2 forms; AdvancementWidget is identical.

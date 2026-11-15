@@ -671,6 +671,13 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "NetherFortressPieces/Structure: the piece methods take StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) \u2014 a parameter-type rename with identical bodies (verified on NetherBridgePiece.generatePiece and BridgeCrossing); FORTRESS_ENEMIES uses IntProviders in 26.3 vs plain (min,max) ints in 26.2 with the same values (blaze 2-3/10, piglin 4/5, wither skeleton 5/8, skeleton 5/2, magma cube 4/3). The Rust has no FORTRESS_ENEMIES surface."
+    },
+    {
+      "id": 431,
+      "module": "crates/horizon-client/src/game/advancements_screen.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "AdvancementsScreen: tab selection is already the 26.2 left-click form in the Rust (26.3 switched to right-click), the tab icon/title already derive from DisplayInfo (26.2 form; 26.3 takes them as constructor args), AdvancementWidget decompiles identically, and onClose restores the last screen in both versions. PORTED: keyPressed \u2014 26.2's advancements key always closes to the game and grabs the mouse, 26.3 restores the last screen. The Rust routed the key through close_advancements (the onClose form); added close_advancements_to_game and routed KeyL to it in play_keys.rs."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
