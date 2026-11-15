@@ -23,7 +23,7 @@ pub(super) fn rot_lerp(alpha: f32, from: f32, to: f32) -> f32 {
     from + alpha * d
 }
 
-/// One `LinearInterpolationHandler` step of a yaw with `steps` ticks left:
+/// One `InterpolationHandler` step of a yaw with `steps` ticks left:
 /// a `1 / steps` share of the way to `target`, so the last step lands on it.
 pub(super) fn lerp_yaw_step(yaw: f32, target: f32, steps: u32) -> f32 {
     if steps == 0 {
@@ -382,7 +382,7 @@ impl Game<'_> {
             }
             b.previous = b.position;
             b.previous_yaw = b.yaw;
-            // `LinearInterpolationHandler.interpolate`: the rotation moves a
+            // `InterpolationHandler.interpolate`: the rotation moves a
             // step toward the server's with the position.
             b.yaw = turn(b.id, b.yaw);
             b.position = step(b.id, b.position);

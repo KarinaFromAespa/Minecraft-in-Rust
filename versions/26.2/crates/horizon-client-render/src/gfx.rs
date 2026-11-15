@@ -68,11 +68,10 @@ mod world_text;
 use entity_batch::EntityBatch;
 pub use entity_batch::{
     ADDITIVE_PARTICLE_OVERLAY, DISSOLVE_OVERLAY, DRAGON_RAYS_OVERLAY, ENERGY_SWIRL_OVERLAY,
-    FLUID_OVERLAY, OIT_ENTITY, SHADOW_OVERLAY, TERRAIN_MODEL_CUTOUT_MIPPED_OVERLAY,
+    FLUID_OVERLAY, SHADOW_OVERLAY, TERRAIN_MODEL_CUTOUT_MIPPED_OVERLAY,
     TERRAIN_MODEL_CUTOUT_OVERLAY, TERRAIN_MODEL_SOLID_OVERLAY, TEXT_POLYGON_OFFSET_OVERLAY,
     TRANSLUCENT_GLINT_ITEM_OVERLAY, TRANSLUCENT_ITEM_OVERLAY, TRANSLUCENT_PARTICLE_OVERLAY,
     WATER_MASK_OVERLAY, WORLD_TEXT_OVERLAY, WORLD_TEXT_POLYGON_OFFSET_OVERLAY, is_native_terrain,
-    mark_oit,
 };
 pub use view::{View, ViewSet};
 
@@ -213,8 +212,6 @@ pub mod native_render;
 mod native_shadow;
 mod native_sky;
 mod occlusion;
-mod oit;
-mod oit_features;
 pub(crate) mod output;
 mod output_apply;
 mod pack_atlas;
@@ -1642,10 +1639,6 @@ pub struct Renderer {
     pub gamma: f32,
     /// Optional full-light lightmap (Horizon Extras).
     pub fullbright: bool,
-    /// The Improved transparency option (`GameRenderer.useImprovedTransparency`).
-    pub improved_transparency: bool,
-    /// Its passes and targets, made when first drawn with.
-    oit: Option<oit::Oit>,
     /// Advance animated block textures (Horizon setting; vanilla always does).
     pub animated_textures: bool,
     present_modes: Vec<wgpu::PresentMode>,
@@ -5409,8 +5402,6 @@ impl Renderer {
             screenshot_quality: 1,
             screenshot_halvings: 0,
             gamma: 0.5,
-            improved_transparency: false,
-            oit: None,
             fullbright: false,
             animated_textures: true,
             present_modes,
@@ -7190,13 +7181,11 @@ impl Renderer {
             && self.native.is_none()
     }
 
-    /// Whether the layers tagged `OIT_ENTITY` (the eyes render type's, horse
-    /// markings, a slime's outer cube) may be posed on the GPU too
-    /// (`mobs::skin::SkinModels::tagged`): only with improved transparency off,
-    /// where they are ordinary entity quads. On, `EntityBatch` sorts them into
-    /// its stages by the CPU vertices' `OIT_ENTITY` tag.
+    /// Whether the layers the eyes render type tags (horse markings, a slime's
+    /// outer cube) may be posed on the GPU too (`mobs::skin::SkinModels::tagged`):
+    /// they are ordinary entity quads, so always, where the GPU skin path runs.
     pub fn skins_tagged(&self) -> bool {
-        self.skins_entities() && !self.improved_transparency && self.pack_post.is_none()
+        self.skins_entities() && self.pack_post.is_none()
     }
 
     pub fn frame_generation_share(&self) -> Option<f32> {
@@ -9593,16 +9582,6 @@ impl Renderer {
             );
             entities = &self.pack_entity_rest;
         }
-        // `GameRenderState.useShaderTransparency`: the improved-transparency
-        // option, off for the panorama (26.3 renamed it
-        // `GameRenderer.useImprovedTransparency` and gates on the wireframe
-        // instead). A shader pack keeps its own path.
-        let oit_on = self.improved_transparency
-            && !frame.title
-            && !warp_on
-            && self.pack_post.as_ref().is_none_or(|p| p.1.is_none())
-            && self.native.is_none()
-            && oit::supported(&self.device);
         let [
             entity_quads,
             text_quads,
@@ -9613,7 +9592,6 @@ impl Renderer {
             shadow_quads,
             translucent_particle_quads,
             translucent_item_quads,
-            oit_entity_quads,
             fluid_quads,
             world_text_quads,
             world_text_offset_quads,
@@ -9625,7 +9603,6 @@ impl Renderer {
             frame.additive,
             frame.hand,
             frame.see_through,
-            oit_on,
         );
         self.entity_batch.append_shadow_only(frame.shadow_only);
         // The posed models' vertices come first: the ordinary entities' draw takes them in.
@@ -9645,7 +9622,6 @@ impl Renderer {
             + shadow_quads
             + translucent_particle_quads
             + translucent_item_quads
-            + oit_entity_quads
             + fluid_quads
             + world_text_quads
             + world_text_offset_quads
@@ -9653,10 +9629,9 @@ impl Renderer {
             + native_cutout_quads
             + native_cutout_mipped_quads;
         laps.lap("r_draw_lists");
-        // Where the tail of materials the classic and the improved passes
-        // both draw ends: the shadows, particles and items count back from it.
+        // Where the tail of materials the classic pass draws ends: the shadows,
+        // particles and items count back from it.
         let base_quads = world_quads
-            - oit_entity_quads
             - fluid_quads
             - world_text_quads
             - world_text_offset_quads
@@ -9717,7 +9692,7 @@ impl Renderer {
         }
         let all_entities = &self.entity_batch.combined;
         let hand_quads = (frame.hand.len() / 4) as u32;
-        let additive_quads = (frame.additive.len() / 4) as u32 - self.entity_batch.moved_additive;
+        let additive_quads = (frame.additive.len() / 4) as u32;
         let see_through_quads = (frame.see_through.len() / 4) as u32;
         let shadow_only_quads = (frame.shadow_only.len() / 4) as u32;
         // Glowing entities' silhouettes posed on the GPU go last, past every
@@ -10126,7 +10101,6 @@ impl Renderer {
         // Phase 2 of occlusion culling draws over the depth, and a shader pack or TAA reads it.
         let keep_depth = pack_reads_world
             || (taa && self.world_post.taa)
-            || oit_on
             || native_render::render_needs().world_depth
             || fg;
         // The pack's program reads the vertices this frame's draws bind.
@@ -10197,46 +10171,6 @@ impl Renderer {
             // Frame generation draws the hand over the real and the made frame after the world.
             && fg_frames.is_none()
             && !native_render::world_drawn_hooked();
-        if oit_on {
-            let size = self
-                .world_post
-                .size()
-                .filter(|_| scaled.is_some())
-                .unwrap_or([self.config.width, self.config.height]);
-            let (device, layout, sprites) =
-                (&self.device, &self.terrain_layout, self.terrain_sprites);
-            let clouds = [0, 1].map(|i| self.cloud_pipeline.get_bind_group_layout(i));
-            let format = self.output.frame.format;
-            let flat = self
-                .flat
-                .as_ref()
-                .map(|f| f.translucent.get_bind_group_layout(1));
-            let features = [
-                self.entity_pipeline.get_bind_group_layout(0),
-                self.weather.pipeline().get_bind_group_layout(1),
-                self.border_pipeline.get_bind_group_layout(0),
-            ];
-            self.oit
-                .get_or_insert_with(|| {
-                    oit::Oit::new(
-                        device,
-                        layout,
-                        flat.as_ref(),
-                        [&features[0], &features[1], &features[2]],
-                        [&clouds[0], &clouds[1]],
-                        sprites,
-                        format,
-                    )
-                })
-                .prepare(
-                    &self.device,
-                    &self.queue,
-                    size,
-                    &views.primary().projection,
-                    [water_mask_quads > 0, cloud_quads > 0],
-                );
-        }
-        let oit = self.oit.as_ref().filter(|_| oit_on);
         let cull = self.cull.as_ref().filter(|_| culling && solid_draws > 0);
         let pack_sky_clear = pack_draws_sky
             .then(|| self.pack_post.as_ref().and_then(|p| p.1.as_ref()))
@@ -11095,7 +11029,7 @@ impl Renderer {
                 }
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            if text_quads > 0 && !oit_on {
+            if text_quads > 0 {
                 pass.set_pipeline(warped.map_or(&self.text_polygon_offset_pipeline, |w| &w.text));
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11104,7 +11038,7 @@ impl Renderer {
             }
             // FeatureRenderDispatcher.PreparedFrame.executeTranslucent: the shadows
             // come before the translucent items, which then cover them (#7026).
-            if shadow_quads > 0 && !oit_on {
+            if shadow_quads > 0 {
                 pass.set_pipeline(warped.map_or(&self.shadow_blob_pipeline, |w| &w.entity_shadows));
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11119,7 +11053,7 @@ impl Renderer {
                 );
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            if translucent_item_quads > 0 && !oit_on {
+            if translucent_item_quads > 0 {
                 pass.set_pipeline(
                     warped.map_or(&self.translucent_item_pipeline, |w| &w.translucent_items),
                 );
@@ -11173,20 +11107,20 @@ impl Renderer {
             pass.set_bind_group(0, &self.group, &[]);
             // Still-fluid block entities draw as their own ordinary sorted
             // translucent material, before terrain transparency. This material
-            // always writes depth and never joins the improved-transparency queues.
+            // always writes depth.
             if fluid_quads > 0 {
                 pass.set_pipeline(&self.fluid_pipeline);
                 pass.set_bind_group(0, &self.fluid_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
                 pass.draw_indexed(
                     0..fluid_quads * 6,
-                    ((base_quads + oit_entity_quads) * 4) as i32,
+                    ((base_quads) * 4) as i32,
                     0..1,
                 );
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            // Cracks multiply the existing light; scalar OIT coverage cannot carry that factor.
-            if crumbling_quads > 0 && (!oit_on || hdr_gain) {
+            // Cracks multiply the existing light.
+            if crumbling_quads > 0 {
                 pass.set_pipeline(&self.crumbling_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11199,7 +11133,7 @@ impl Renderer {
             }
             // BoatRenderer's water patch (RenderTypes.waterMask): depth only,
             // before translucent terrain, so no water shows inside the boat.
-            if water_mask_quads > 0 && !oit_on {
+            if water_mask_quads > 0 {
                 pass.set_pipeline(&self.water_mask_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11211,7 +11145,7 @@ impl Renderer {
                 );
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            if !frame.lightning.bolts.is_empty() && !oit_on {
+            if !frame.lightning.bolts.is_empty() {
                 pass.set_pipeline(&self.lightning_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 self.lightning.draw(&mut pass, &frame.lightning);
@@ -11221,7 +11155,7 @@ impl Renderer {
                 }
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            if swirl_quads > 0 && !oit_on {
+            if swirl_quads > 0 {
                 pass.set_pipeline(&self.energy_swirl_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11237,7 +11171,7 @@ impl Renderer {
                 );
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            if additive_quads > 0 && !oit_on {
+            if additive_quads > 0 {
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
                 let mut first = 0;
@@ -11284,9 +11218,9 @@ impl Renderer {
             // 26.2's `PreparedFrame.executeTranslucent` draws the see-through
             // name tags with the translucent features, before translucent
             // terrain (26.3 moved them to `LevelRenderer.executeSeeThrough`,
-            // after the rest of the world). In OIT, flat or pack frames the
-            // late draw below still runs instead.
-            if see_through_quads > 0 && !oit_on && !flat_frame && !pack_draws_water {
+            // after the rest of the world). In flat or pack frames the late
+            // draw below still runs instead.
+            if see_through_quads > 0 && !flat_frame && !pack_draws_water {
                 pass.set_pipeline(&self.see_through_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
@@ -11330,204 +11264,6 @@ impl Renderer {
                 _ if pack_draws_water => {}
                 // LevelRenderer.executeOit in place of the classic blend; what
                 // follows draws over its composite in a pass of its own.
-                flat if let Some(oit) = oit => {
-                    drop(pass);
-                    // LevelRenderer.executeOitWaterMask and CloudRenderer.renderOit.
-                    let mask = |pass: &mut wgpu::RenderPass<'_>| {
-                        pass.set_pipeline(&self.water_mask_pipeline);
-                        pass.set_bind_group(0, &self.entity_group, &[]);
-                        pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
-                        pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                        pass.draw_indexed(
-                            0..water_mask_quads * 6,
-                            ((entity_quads
-                                + text_quads
-                                + crumbling_quads
-                                + translucent_crumbling_quads)
-                                * 4) as i32,
-                            0..1,
-                        );
-                    };
-                    let clouds =
-                        |pass: &mut wgpu::RenderPass<'_>, pipeline: &wgpu::RenderPipeline| {
-                            pass.set_pipeline(pipeline);
-                            pass.set_bind_group(0, &self.entity_group, &[]);
-                            pass.set_bind_group(1, &self.cloud_group, &[]);
-                            pass.set_index_buffer(
-                                self.indices.slice(..),
-                                wgpu::IndexFormat::Uint32,
-                            );
-                            pass.set_vertex_buffer(0, self.cloud_buffer.slice(..));
-                            pass.draw_indexed(0..cloud_quads * 6, 0, 0..1);
-                        };
-                    // "Features, World Border, Weather": what follows the opaque
-                    // world in the classic pass, one stage at a time.
-                    let features = |pass: &mut wgpu::RenderPass<'_>, stage: oit::Stage| {
-                        let f = oit.features();
-                        let s = stage as usize;
-                        pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
-                        pass.set_bind_group(0, &self.entity_group, &[]);
-                        pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                        // Quads of a material, `first` quads into the buffer.
-                        let quads = |pass: &mut wgpu::RenderPass<'_>,
-                                     pipeline: &wgpu::RenderPipeline,
-                                     count: u32,
-                                     first: u32| {
-                            if count > 0 {
-                                pass.set_pipeline(pipeline);
-                                pass.draw_indexed(0..count * 6, (first * 4) as i32, 0..1);
-                            }
-                        };
-                        quads(pass, &f.text[s], text_quads, entity_quads);
-                        if !hdr_gain {
-                            quads(
-                                pass,
-                                &f.crumbling[s],
-                                crumbling_quads,
-                                entity_quads + text_quads,
-                            );
-                            quads(
-                                pass,
-                                &f.crumbling[s],
-                                translucent_crumbling_quads,
-                                entity_quads + text_quads + crumbling_quads,
-                            );
-                        }
-                        quads(
-                            pass,
-                            &f.swirl[s],
-                            swirl_quads,
-                            entity_quads
-                                + text_quads
-                                + crumbling_quads
-                                + translucent_crumbling_quads
-                                + water_mask_quads,
-                        );
-                        quads(
-                            pass,
-                            &f.shadow[s],
-                            shadow_quads,
-                            base_quads
-                                - translucent_item_quads
-                                - translucent_particle_quads
-                                - shadow_quads,
-                        );
-                        quads(
-                            pass,
-                            &f.entity[s],
-                            translucent_particle_quads,
-                            base_quads - translucent_item_quads - translucent_particle_quads,
-                        );
-                        quads(
-                            pass,
-                            &f.entity[s],
-                            translucent_item_quads,
-                            base_quads - translucent_item_quads,
-                        );
-                        // Translucent, emissive, eyes and breeze wind models:
-                        // the same fragment, their light and shading are in
-                        // the vertices.
-                        quads(pass, &f.entity[s], oit_entity_quads, base_quads);
-                        if !frame.lightning.bolts.is_empty() {
-                            pass.set_pipeline(&f.lightning[s]);
-                            self.lightning.draw(pass, &frame.lightning);
-                            pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                        }
-                        quads(pass, &f.additive[s], additive_quads, world_quads);
-                        self.weather
-                            .draw_with(pass, &f.weather[s], &self.entity_group);
-                        if let Some(b) = frame.border.as_ref().filter(|_| !frame.title) {
-                            pass.set_pipeline(&f.border[s]);
-                            pass.set_bind_group(0, &self.border_group, &[]);
-                            pass.set_vertex_buffer(0, self.border_vertices.slice(..));
-                            for &side in &b.sides {
-                                let first = side as u32 * 6;
-                                pass.draw_indexed(first..first + 6, 0, 0..1);
-                            }
-                        }
-                    };
-                    let extras = oit::Extras {
-                        water_mask: (water_mask_quads > 0).then_some(&mask as _),
-                        clouds: (cloud_quads > 0).then_some(&clouds as _),
-                        features: Some(&features),
-                    };
-                    // The draw closure below borrows all of `self`, so the timer is taken out.
-                    let mut own_timing = self.own_timing.take();
-                    oit.run(
-                        &mut encoder,
-                        world_view,
-                        world_depth,
-                        &|pass, stage| {
-                            pass.set_bind_group(0, &self.group, &[]);
-                            // Flat section draws take the flat pipelines.
-                            if let Some((flat, pipeline)) = flat.zip(oit.flat(stage)) {
-                                pass.set_pipeline(pipeline);
-                                flat.draw(
-                                    pass,
-                                    flat.translucent_calls(),
-                                    flat_vertices(&self.arena, self.translucent_arena.as_ref()),
-                                );
-                                return;
-                            }
-                            pass.set_pipeline(oit.terrain(stage));
-                            pass.set_index_buffer(
-                                self.indices.slice(..),
-                                wgpu::IndexFormat::Uint32,
-                            );
-                            pass.set_vertex_buffer(1, self.instances.slice(..));
-                            self.draw_sections(
-                                pass,
-                                &self.indirect,
-                                0,
-                                solid_draws,
-                                translucent_draws,
-                            );
-                        },
-                        &extras,
-                        own_timing.as_mut(),
-                    );
-                    self.own_timing = own_timing;
-                    pass = world_pass_after_culling(
-                        &mut encoder,
-                        world_view,
-                        world_depth,
-                        true,
-                        self.own_timing.as_mut(),
-                        "World after OIT",
-                    );
-                    pass.set_bind_group(0, &self.group, &[]);
-                    pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
-                    if cloud_quads > 0 && !pack_draws_clouds {
-                        self.mark_clouds(&mut pass, cloud_quads);
-                    }
-                    // HDR output's mark on what shines in the stages, as the classic
-                    // pass marks it after drawing it: eyes, the dragon's eyes and rays,
-                    // firework sparks and lightning.
-                    if light_marks(self.output.frame.format, self.hdr.is_some()) {
-                        pass.set_pipeline(&self.hdr_mark_pipeline);
-                        pass.set_bind_group(0, &self.entity_group, &[]);
-                        pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                        for (quads, first) in [
-                            (oit_entity_quads, base_quads),
-                            (additive_quads, world_quads),
-                            (translucent_item_quads, base_quads - translucent_item_quads),
-                            (
-                                translucent_particle_quads,
-                                base_quads - translucent_item_quads - translucent_particle_quads,
-                            ),
-                        ] {
-                            if quads > 0 {
-                                pass.draw_indexed(0..quads * 6, (first * 4) as i32, 0..1);
-                            }
-                        }
-                        if !frame.lightning.bolts.is_empty() {
-                            pass.set_pipeline(&self.hdr_mark_lightning_pipeline);
-                            self.lightning.draw(&mut pass, &frame.lightning);
-                        }
-                        pass.set_bind_group(0, &self.group, &[]);
-                    }
-                    self.mark_translucent_terrain(&mut pass, flat, solid_draws, translucent_draws);
-                }
                 Some(flat) => {
                     pass.set_pipeline(pack_flat.map_or(&flat.translucent, |p| &p.1));
                     flat.draw(
@@ -11573,7 +11309,7 @@ impl Renderer {
             // translucent particle layer draws after translucent terrain —
             // the quads write depth, so before it they would hide the glass
             // or water behind them.
-            if translucent_particle_quads > 0 && !oit_on {
+            if translucent_particle_quads > 0 {
                 pass.set_pipeline(warped.map_or(&self.entity_pipeline, |w| &w.entities));
                 if let Some(group) = warp_group {
                     pass.set_bind_group(2, group, &[]);
@@ -11599,13 +11335,13 @@ impl Renderer {
                 pass.set_bind_group(0, &self.group, &[]);
             }
             // Native world text is an ordinary depth-tested overlay, after
-            // particles (also after the OIT composite) and before the hand.
+            // particles and before the hand.
             // Its own geometry is independent of block-entity lifetime.
             if world_text_quads + world_text_offset_quads > 0 {
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
-                let first = base_quads + oit_entity_quads + fluid_quads;
+                let first = base_quads + fluid_quads;
                 for (pipeline, count, offset) in [
                     (&self.world_text_pipeline, world_text_quads, first),
                     (
@@ -11626,7 +11362,7 @@ impl Renderer {
             if outline_edges > 0 && frame.outline_after_terrain && !pack_draws_outline {
                 self.draw_outline(&mut pass, outline_edges as u32, frame.outline_high_contrast);
             }
-            if translucent_crumbling_quads > 0 && (!oit_on || hdr_gain) {
+            if translucent_crumbling_quads > 0 {
                 pass.set_pipeline(&self.crumbling_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -11636,7 +11372,7 @@ impl Renderer {
                     0..1,
                 );
             }
-            if cloud_quads > 0 && !pack_draws_clouds && !oit_on {
+            if cloud_quads > 0 && !pack_draws_clouds {
                 pass.set_pipeline(&self.cloud_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_bind_group(1, &self.cloud_group, &[]);
@@ -11647,7 +11383,7 @@ impl Renderer {
             // LevelRenderer.executeClassicTransparency: weather after translucent
             // terrain and clouds, so the water behind the rain is drawn first.
             pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
-            if !pack_draws_weather && !oit_on {
+            if !pack_draws_weather {
                 let native_weather = self
                     .native
                     .as_ref()
@@ -11658,7 +11394,7 @@ impl Renderer {
                 pass.set_bind_group(0, &self.group, &[]);
             }
             // LevelRenderer: the world border after translucent terrain and weather.
-            if let Some(b) = frame.border.as_ref().filter(|_| !frame.title && !oit_on) {
+            if let Some(b) = frame.border.as_ref().filter(|_| !frame.title) {
                 pass.set_pipeline(&self.border_pipeline);
                 pass.set_bind_group(0, &self.border_group, &[]);
                 pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
@@ -11673,7 +11409,7 @@ impl Renderer {
             // world. In the classic frame 26.2 draws the see-through name
             // tags with the translucent features instead (above), so the
             // late draw runs only where the early one did not.
-            if see_through_quads > 0 && (oit_on || flat_frame || pack_draws_water) {
+            if see_through_quads > 0 && (flat_frame || pack_draws_water) {
                 pass.set_pipeline(&self.see_through_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -14009,9 +13745,9 @@ mod tests {
         .flat_map(|(layer, id)| quad(layer, id))
         .collect();
         let mut batch = super::EntityBatch::default();
-        let counts = batch.update(&entities, &quad(3, 5), &quad(0, 6), &quad(0, 8), false);
+        let counts = batch.update(&entities, &quad(3, 5), &quad(0, 6), &quad(0, 8));
         let vertices = &batch.combined;
-        assert_eq!(counts, [4, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(counts, [4, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(
             vertices
                 .as_chunks::<4>()
@@ -14150,12 +13886,11 @@ mod tests {
             &mut files,
         );
         assert!(files.len() >= 10, "{files:?}");
-        // Improved transparency's files are appended to terrain.wgsl and entity.wgsl.
         let mut sources: Vec<(std::path::PathBuf, String)> = Vec::new();
         for path in files {
             let text = std::fs::read_to_string(&path).unwrap();
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name == "oit.wgsl" || name == "gpu_occlusion.wgsl" || name == "hdr_light.wgsl" {
+            if name == "gpu_occlusion.wgsl" || name == "hdr_light.wgsl" {
                 // The shared maths: it needs the file it is appended to. GPU culling's
                 // occlusion test is appended to gpu_culling.wgsl, on Vulkan alone.
                 continue;
@@ -14168,23 +13903,11 @@ mod tests {
                 sources.push((path, crate::overlay::wgsl_constants() + &base));
             } else if name == "hdr.wgsl" {
                 sources.push((path, super::hdr::shader()));
-            } else if name == "oit_world.wgsl" {
-                let base = super::terrain_shader() + include_str!("oit.wgsl");
-                sources.push((path, base + &text));
-            } else if name == "oit_features.wgsl" {
-                let base = super::entity_shader() + include_str!("oit.wgsl");
-                sources.push((path, base + &text));
             } else if name == "static_entity.wgsl" {
                 sources.push((path, static_entity_shader()));
             } else if name == "visbuffer.wgsl" {
                 // Appended to terrain.wgsl (gfx/visbuffer.rs).
                 sources.push((path, super::terrain_shader() + &text));
-            } else if name == "oit_border.wgsl" {
-                let base = include_str!("border.wgsl").to_owned() + include_str!("oit.wgsl");
-                sources.push((path, base + &text));
-            } else if name == "oit_clouds.wgsl" {
-                let base = super::entity_shader() + include_str!("oit.wgsl");
-                sources.push((path, base + &text));
             } else if name == "world_warp_fragment.wgsl" {
                 // A world warp's copy of terrain.wgsl (gfx/world_warp.rs), with the plainest warp.
                 let warp = super::world_warp::IDENTITY;

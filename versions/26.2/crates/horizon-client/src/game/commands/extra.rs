@@ -878,15 +878,19 @@ impl Game<'_> {
         Ok(port)
     }
     pub(super) fn cmd_unpublish(&mut self) -> R<i32> {
+        // 26.2 unpublish: failure is sendFailure + return 0, not a thrown
+        // CommandSyntaxException (26.3's ERROR_NOT_PUBLISHED form).
         if self.serving() {
             if !self.unpublish() {
-                return Err(err("commands.unpublish.notPublished", &[]));
+                self.command_failure(Text::translate("commands.unpublish.notPublished", &[]));
+                return Ok(0);
             }
             self.feedback(Text::translate("commands.unpublish.success", &[]));
             return Ok(1);
         }
         if self.lan.is_none() {
-            return Err(err("commands.unpublish.notPublished", &[]));
+            self.command_failure(Text::translate("commands.unpublish.notPublished", &[]));
+            return Ok(0);
         }
         self.lan_close(false);
         self.feedback(Text::translate("commands.unpublish.success", &[]));

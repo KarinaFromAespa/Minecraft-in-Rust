@@ -2277,3 +2277,652 @@ the 18,780 `tail`-delimited blocks — mismatches 882 → 90, and all 792
 noise_based_count fixtures now match; the only remaining 90 are
 count_on_every_layer (the separate pull-order issue, not this item's
 scope). Item 127 CLOSED with this step: rank 2 is 410/410.
+
+## CI run 43646940294 (2026-11-15) — 338/410 tree d2aa9a03
+
+**5 pass / 0 oracle / 12 fail** — first_person, food, lan, light,
+resource_pack (same five as 43609469257). D1 pass; D2 FAIL on a real
+compile error in a test target: `rule_test_bounds.rs:124` still called
+the 3-arg `RuleTest::test(state, [0; 3], random)` after item 214 changed
+the signature to the 26.2 2-arg form — E0061, `horizon-world` test
+`rule_test_bounds` would not compile. Fixed on behaviour/26.2 after the
+run (drop the `[0; 3]` arg; test 3/3 passes). Protocol tests 444/0 in
+CI (D2 recipe regression fix holds). D3 fail (72/410 open at that tree);
+D4–D6 blocked. Artifacts at ~/workspace/mcir-ci/26.2-run-43646940294/.
+
+## Rank 2 merged to main (2026-11-15) — 08403e7f
+
+behaviour/26.2 merged to main: rank 1 (7/7) + rank 2 (410/410),
+417/651 total. CI run 43656955427 dispatched on the merged tree
+(main@08403e7f); it is the first run to measure item 127's noise port.
+Run 43653524277 (409/410 tree dbeb88e3) still in flight. Ranks 3–5
+(234 items) continue on behaviour/26.2.
+
+## Rank 3 started (2026-11-15) — bucket A batch 1: 9/177
+
+Triage (same method-intersection as rank 2): A 90 / B 63 / D 24;
+182 changed-named hits in B. Script + output at
+~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}.
+
+Batch 1 (all no-change, verified against the jars): 430 dripstone
+(record→class + config threading, bodies identical), 435 submit
+(vanilla CommandEncoder is GPU plumbing; Rust uses wgpu's), 452
+entity_outline (GpuFormat enum churn, comment-only Rust mention), 463
+BlendFunction (record re-shape, doc citations only), 468 debug_lines
+(comment-only mentions), 487 loot odds (condition-form + getOptional
+rename; formulas identical), 498 iceberg (record→class + context,
+place body identical), 500 trunk placers (TreeFeature→TreeConfiguration
+param swap, bodies identical), 502 sprite animation (RenderPearl→
+Blaze3D renames; close byte-identical).
+
+Item 451 (scoreboard/team commands) is NOT a no-change: the Rust ports
+the 26.3 CommandResponseTracker form (Tracker::track/mark + send) and
+26.2 uses manual one/many branching on names.size() with different
+counts/returns (e.g. setScore returns value * names.size()). Deferred
+to its own port task.
+
+## Rank 3 — bucket A batch 2: 20/177 (2026-11-15)
+
+All no-change, verified against the jars: 503 waterlogged vegetation
+(config threading, bodies identical), 505 section mesh (record re-shape
++ a timing getter removed, no Rust surface), 506 cuboid item model
+(quad-split hoisting; same quads, same animated condition), 507
+illusioner (rangedAttackUncertainty is 14 - difficulty*4 in both — the
+26.3 default method's bytecode proves it; Rust already uses it), 508
+experimental redstone (entire diff is the RedStoneWireBlock rename),
+509 bots chunk cache (doc comment only), 511 warden tracker command
+(single-player-only Rust, tracker-vs-manual unobservable), 512 sniffer
+renderer (signature re-shape), 513 narrator output (trigger removal,
+already done in item 129), 514 zip pack supplier (method renames),
+515 game-rules category entry (Rust already draws the 26.2 centered-text
+form, no focusable widget).
+
+## Rank 3 — bucket A batch 3: 32/177 (2026-11-15)
+
+11 no-change + 1 port. No-change: 516 effects trigger (no trigger
+logic in the Rust), 517 jigsaw (codec + canAttach, unported; Pools
+bootstrap has no Rust surface), 519 gamemode switcher (all three
+classes decompile identically — bytecode artifacts), 520 packs
+(listResources signature re-shape), 521 sulfur cube (archetype codec
+holderSet→homogeneousList; Rust loads items from tags), 522 management
+(worldUpgrade* notifications are 26.3-only), 523 shapes (codecs only),
+525 registries (ResourceArgument accessors exist in 26.2, absent in 26.3; Rust only cites the class), 526 command
+block (codec only), 527 lightning (constants hoisted; quad bodies,
+draws and loops identical), 528 drop-experience block (codec only).
+PORTED: 518 /tick — 26.2's step/stopSprinting/stopStepping send
+sendFailure and return (step returns 1 even on failure; stops return
+0), where 26.3 throws; cmd_tick's three failure arms now use
+command_failure + Ok(1)/Ok(0)/Ok(0).
+
+## Rank 3 — bucket A batch 4: 44/177 (2026-11-15)
+
+All no-change, verified against the jars: 529 furnace isFuel (Rust
+already uses the FuelValues burn_time table from item 1), 530 leash
+knot renderer (null-arg signature difference), 531 cured-zombie
+trigger (predicate-type change only; same three-way conjunction),
+532 spectator menu icons (identical decompiles), 534 flower block
+(codec only), 535 copper chest (codec only), 536 redstone torch tick
+(setBlockAndUpdate is setBlock(..., 3) in both versions), 537 tree
+decorator context helpers (26.3-only; sole caller is the 26.3-only
+ShelfMushroomDecorator), 538 ban notice (openUri move), 539 inventory
+effects (identical decompiles), 540 test block (codec only), 541 debug
+entries (identical decompiles).
+
+## Rank 3 — bucket A batch 5: 56/177 (2026-11-15)
+
+9 no-change + 3 ports. No-change: 543 config listener (tags() vs
+getTags() rename), 545 tracked entity (identical decompile), 546 shelf
+renderer (static→instance + Vec3/rotate renames, same transforms), 547
+tutorial toast (identical decompile), 548 silverfish goals
+(setBlockAndUpdate ≡ setBlock(..., 3)), 549 carrot block (26.2 codec
+only), 550 server list entry (identical decompile), 552 fluid model
+(Rust already takes materials directly, the 26.2 form), 554 chorus
+plant (26.2 codec only). PORTED: 542 block-editor pause — structure
+and test editors return isPauseScreen=false in 26.2 (26.3 removed the
+overrides), jigsaw/test-instance keep the default true; the Editor
+trait gains a defaulted is_pause_screen(), Game::pauses_game ORs the
+new block_editor_pauses(). 544 /raid check — 26.2's first line keeps
+a trailing space ("Found a started raid! "). 551 /unpublish — failure
+is sendFailure + return 0, not a throw (same pattern as item 518).
+
+CORRECTION (2026-11-15): diff.json's method added/removed run in the
+26.2 direction — "added" means present in 26.2, absent in 26.3 (and
+"removed" the reverse). Two batch-3 evidence lines had the direction
+backwards (525's accessors are 26.2-only, not 26.3-only; the "codec
+only" blocks carry a simpleCodec in 26.2 that 26.3 lacks). Verdicts
+unchanged — no behaviour method changed in any of them — but the
+evidence in rank3-progress.json is corrected.
+
+TOOLING NOTE: never run bare `cargo fmt` (or `cargo fmt -- <paths>`)
+in the 26.2 tree — this toolchain's rustfmt 1.95 reformats ~50 files
+of pre-existing drift (let-else/match-arm collapsing). Format single
+files with `rustfmt --edition 2024 <file>` and check git status after.
+
+## Rank 3 — bucket A batch 6: 68/177 (2026-11-15)
+
+All 12 no-change. 555 pale moss decorator (FEATURE→CONFIGURED_FEATURE
+registry rename only), 557 snowy block / 558 slab / 559 rotated
+pillar / 569 banner (26.2 codec only), 560 screenshot (RenderPearl→
+Blaze3D imports), 561 social screen (toggle-close condition differs
+but the Rust never ports the toggle close — Escape/Done only), 562
+chat visibility (same three values; 26.3 only adds a stream codec),
+563 wind-charge deflect (26.3 adds a power Vec3 to deflect; the Rust
+already implements the 26.2 forms — REVERSE scales -0.5, AIM_DEFLECT
+uses the unit look — and MOMENTUM_DEFLECT is unported), 564
+enchantment predicate / 567 pack entry / 568 checkbox (identical
+decompiles).
+
+## Rank 3 — bucket A batch 7: 80/177 (2026-11-15)
+
+10 no-change + 2 ports. No-change: 570 JSON-RPC logger (same log
+line, builder vs direct call), 571 evoker fangs renderer
+(rotateDegrees vs mulPose, GPU plumbing), 572 enchantment screen /
+574 spectator team icon / 581 profile resolver (identical
+decompiles), 573 criterion validate (predicate-type re-shape;
+validate unported), 575 edit-world screen (Blaze3D.openPath vs
+Util.getPlatform().openPath), 577 allay vibration (pos.immutable()
+vs new BlockPos), 579 turtle egg goal (setBlockAndUpdate ≡
+setBlock(..., 3)), 580 wood type (26.3 adds POPLAR, but the Rust has
+no WoodType enumeration — comments only). PORTED: 578 armadillo
+ball-up — 26.2's checkExtraStartConditions is onGround() only, 26.3
+added !isInLiquid(); dropped the liquid check and the dead helper.
+582 management schema — 26.3's four world/upgrade_* notifications
+are absent in 26.2; removed from METHODS, test count 89 -> 85.
+
+## Rank 3 — bucket A batch 8: 89/177 (2026-11-15)
+
+All 9 no-change — bucket A is now complete except deferred item 451
+(scoreboard/team commands, its own task). 583 biome tags (26.3 adds
+18 HAS_ABANDONED_CAMP_* tags; the Rust only uses the is_* category
+tags, identical in both versions), 584 growing plant (26.2 codec
+only), 586 end city / 587 mansion (26.3 adds a biome pre-check to
+findGenerationPoint; the Rust has no per-structure generation-point
+port), 588 ocean monument (biomeResolver vs biomeSource+sampler —
+same query), 589 jungle temple (RedStoneWireBlock rename), 591 tab
+bar / 592 system toast (identical decompiles), 594 recipe clearGrid
+(26.3-only Prediction param; the Rust models no prediction).
+
+## Rank 3 — item 451: 90/177 (2026-11-15)
+
+Bucket A is now complete (90/90). Item 451, scoreboard/team
+commands, was the deferred real port: 26.3 routes the one/many
+feedback through CommandResponseTracker, which counts only nonzero
+tracks; 26.2 branches manually on names.size() and counts every
+target. Ported: set (branch on the target count — a set to 0 with
+one target is a single success), enable (message by names.size(),
+return the unlocked count), team join/leave (count every member;
+a teamless member still succeeds and counts). add/remove/reset/
+display/numberformat/operation were verified equivalent and are
+unchanged. New regression test pins the three divergences; all 9
+scoreboard_cmd tests pass.
+
+## Rank 3 — bucket B batch 1 (part 1): 92/177 (2026-11-15)
+
+Two ports. 437 /effect + /enchant: same Tracker→manual family as
+item 451 — message choice and multiple-count now use the target
+count; returns stay the success counts; the duration computation
+was already the 26.2 inline form. 423 sculk: canPlaceGrowth now
+checks sensor/shrieker blocks explicitly (the
+sculk_growth_inhibitors tag is 26.3-only — verified absent from the
+26.2 jar); the worldgen cursor now does 26.2's post-move 15-block
+spread check with no stuck-kill (26.3 pre-checked 12 blocks and
+killed stuck cursors). Sculk tests 3/3 pass.
+
+## Rank 3 — bucket B batch 1 (part 2): 94/177 (2026-11-15)
+
+424 /test: no-change — the Rust is already the 26.2 single-level
+form; 26.3's cross-dimension test lookup is unported. 429 /time:
+ported — 26.3's five "already" errors (already-at-time,
+already-at-marker, already-paused/running, already-same-rate) do
+not exist in 26.2; all four checks removed from the /time arms.
+
+## Rank 3 — bucket B batch 1 (part 3): 96/177 (2026-11-15)
+
+422 social: no-change — the diff is the authlib package move plus
+26.3's postPresence try/catch wrap; the Rust's friends service is a
+local stub with no real network call. 425 fortress: no-change —
+piece methods differ only by the Builder vs Accessor parameter
+type, and FORTRESS_ENEMIES carries the same values in IntProvider
+vs (min,max) form; the Rust has no enemies-list surface.
+
+## Rank 3 — bucket B batch 1 (part 4): 97/177 (2026-11-15)
+
+431 advancements: ported — 26.2's advancements key always closes
+to the game (26.3 restores the last screen); added
+close_advancements_to_game and routed KeyL to it. Tab selection
+(left-click), DisplayInfo-derived tab icon/title, and onClose are
+already the 26.2 forms; AdvancementWidget is identical.
+
+## Rank 3 — bucket B batch 1 (part 5): 99/177 (2026-11-15)
+
+427 world options: ACCEPTED GAP — 26.3 merged LAN publishing into
+WorldOptionsScreen; 26.2 keeps WorldOptionsScreen (immediate-apply)
+and the 26.2-only MultiplayerOptionsScreen separate. The Rust ports
+the 26.3 merged screen; the pause menu already wires the 26.2
+Multiplayer Options button to it, and every underlying operation
+matches 26.2. Only the layout differs; splitting the 1,902-line
+screen is deferred to a later UI pass (in-code note,
+screens.rs:455-458). 428 options screens: no-change — all 12
+classes decompile identically.
+
+## Rank 3 — bucket B batch 1 (complete): 102/177 (2026-11-15)
+
+434 GUI render: no-change — PiP differs only in render-pass
+plumbing, the rest identical. 436 title/multiplayer: ACCEPTED GAP
+— the only real divergence is editServerCallback (26.2 keeps the
+old ping state after an edit, 26.3 resets to INITIAL; the Rust
+re-pings, matching 26.3); porting it needs the Edit variant to
+carry the list back, deferred. Everything else in the item is
+identical or the established openUri pattern. 438 screen effects:
+no-change — the item-activation math is identical in both
+versions; submit() differs only by render-state vs direct reads.
+
+## Rank 3 — bucket B batch 2 (part 1): 104/177 (2026-11-15)
+
+439 /place feature: ported — 26.2 takes a configured-feature
+registry key only; the 26.3 inline-feature form (tree arg,
+dispatch branch, place_inline_feature/configured_inline/
+decode_inline, InlineFeatureCheck, codec arm, both test files
+and both harnesses) is removed. 440 mineshaft: no-change — the
+Builder vs Accessor parameter rename only, as with the fortress.
+
+## Rank 3 — bucket B batch 2 (part 2): 108/177 (2026-11-15)
+
+441 beehive, 442 GUI renderer, 443 spike/fill-layer, 444 brush:
+all no-change. 441 is the server-signature re-shape + an unused
+loot pos arg + the unported Prediction flag. 442's UBO order
+differs but the Rust's uniform layout is self-consistent with
+its own shaders. 443 is the record vs class re-shape. 444 is
+setBlockAndUpdate vs setBlock(...,3) + rotateDegrees vs mulPose.
+
+## Rank 3 — bucket B batch 2 (part 3): 109/177 (2026-11-15)
+
+445 gamemode + debug: ported — /gamemode and the debug key set
+the world's default game type for the singleplayer owner (26.2
+only); FPS line loses the 26.3 @Hz suffix; the 26.3-only Terrain
+Rendering and Window debug lines are gone; chart labels back to
+FPS / FPS + TPS; the 26.3-only debugGuiScale option is removed
+(overlay always at GUI scale). Also removed the now-dead
+TimeMarker::occurs_at (item 429's leftover).
+
+## Rank 3 — bucket B batch 2 (complete): 112/177 (2026-11-15)
+
+446 dispenser: no-change — the honeycomb-wax and mud-tag forms
+are already 26.2 in the Rust; the rest is setBlockAndUpdate vs
+setBlock(...,3) or identical. 447 DeviceInfo: no-change —
+identical apart from the package move. 448 item renderer:
+no-change — the glint math is identical; the pass-structure diff
+is unobservable in the Rust's shader glint, and the shade
+override is None on 26.2 assets.
+
+## CI run 43653524277 (2026-11-15, tree dbeb88e3, 409/410)
+
+Profile 5/0/12 — unchanged (first_person, food, lan, light,
+resource_pack). D1 pass. D2 fail: cargo check 2 errors, the
+rule_test_bounds E0061 — the fix (b232b15b) landed after this
+tree, so the next run measures it. D3 fail: 1 rank-2 item open
+(127, since closed and merged). Run 43656955427 (merged tree
+08403e7f, first run with item 127's noise port) still in flight.
+
+## Rank 3 — bucket B batch 3 (part 1): 116/177 (2026-11-15)
+
+449 enchant effects, 450 books, 453 streaming, 454 igloo/
+shipwreck: all no-change. 449's impulse math is the same
+rotation two ways; 450's book clicks are already left-click;
+453's compile-start clock is Horizon's own; 454 is the
+Builder/Accessor rename.
+
+## Rank 3 — bucket B batch 3 (part 2): 120/177 (2026-11-15)
+
+455 piercing weapon, 456 multiline edit, 457 data commands,
+458 title/NBT: all no-change. 455's reset happens in both
+versions via Player.onAttack; 457's compute subcommand is
+26.3-only and unported (the /compute command itself is item
+510); 458's Tracker form tracks every target, so it equals
+26.2's manual branching.
+
+## Rank 3 — bucket B batch 4: 128/177 (2026-11-15)
+
+459 gizmos, 460 ore, 461 bed rule, 462 monster room, 464
+bonus chest, 465 test data, 466 sapling, 467 render section:
+all no-change. 461 and 466 were already ported in earlier
+items (bed_rule_accepts_the_26_2_explodes_field,
+lone_dark_oak_sapling). 459's translucent lines are
+no-depth-write in both versions; 467's fade math is
+identical, field vs parameter only.
+
+## Rank 3 — bucket B batch 5: 136/177 (2026-11-15)
+
+469 ruined portal, 471 cube map, 472 stats screen, 473
+biome builder, 474 ocean ruin, 475 guardian, 476 debug
+charts, 477 transfer. PORTED: 469 (26.2's ruined-portal
+drip columns place netherrack/magma unconditionally; 26.3
+checks replaceability inside placeNetherrackOrMagma) and
+476 (chart gridline labels back to 26.2's uppercase FPS/
+TPS — item 445 had only fixed the titles). The rest are
+no-change: 473's biome-table and spawn-target differences
+are data-driven.
+
+## Rank 3 — bucket B batch 6: 144/177 (2026-11-15)
+
+478 wandering trader, 479 container events, 480 pumpkin,
+482 creaking heart, 483 dragon egg, 484 nether fossil, 486
+locator bar, 488 command minecart. PORTED: 483 (the Rust's
+dragon-egg teleport was missing the world-border check
+both vanilla versions have). 479's drag button is already
+left-click in the Rust; 483's 2015-vs-particles difference
+was already ported (2015 is the sim's internal channel).
+
+## Rank 3 — bucket B batch 7 (COMPLETE): 154/177 (2026-11-15)
+
+489 panda, 490 phantom, 491 trade goal, 492 file
+download, 493 narration, 494 toast, 495 argument types,
+496 bucket, 497 side chain, 499 template piece. Bucket B
+is now CLOSED (63/63). PORTED: 495 (the five 26.3-only
+argument types removed from the id table — verified
+against the 26.2 registry data, 57 entries). 491 and 493
+were already ported in earlier items. Remaining rank 3:
+bucket D, 23 items.
+
+## Rank 3 — bucket D batch 1 (part 1): 155/177 (2026-11-15)
+
+470 CommandResponseTracker: the class is 26.3-only; the
+Rust's Tracker helper was audited use by use. PORTED: /tag
+add/remove/list (26.2 branches on the target count, not
+the changed count). Equivalent as-is: scoreboard,
+/forceload (26.2 branches on changed chunks), /loot,
+/swing, /playsound. The /item sites belong to item 419.
+
+## Rank 3 — bucket D batch 1 (part 2): 156/177 (2026-11-15)
+
+419 /item command: the big one. 26.2's /item is the SPLIT
+form (setBlockItem/setEntityItem/modifyBlockItem/
+modifyEntityItem, one SlotArgument, replace+modify only);
+26.3 unified it behind ItemAccessor + SlotSourceArgument
+with fill/override. The tree, cmd_item, cmd_item_modify
+and the execute `if items` condition are now the 26.2
+forms (single slots, 26.2 error/message keys, slot ints
+from a new args::slot_id mirroring 26.2 SlotRanges);
+`if slots` is gone (26.3-only). The whole 26.3 command
+slot-source apparatus is removed (ArgType::SlotSource,
+the inline/contents machinery, the datapack slot_sources
+store, the item-contents corpus, the structured-item-slots
+exec group, the slot-range-codec harness). The codec's
+slot_source decode arms STAY: minecraft:slot_source_type
+exists in 26.2 — only the minecraft:slot_source registry
+and the command argument type are 26.3-only.
+
+REPORT HOLE (found during 419): ExecuteCommand is absent
+from diff-26.3-26.2/report.json although it genuinely
+differs (118 methods in 26.3 vs 116 in 26.2; javap shows
+26.3 referencing SlotSourceArgument 14 times where 26.2
+references SlotsArgument 6 times). The slot-condition
+part was ported here via SlotSourceArgument, but the
+rest of ExecuteCommand's 26.2 differences (notably the
+data-condition ArgProvider/DataAccessor re-shape) are
+covered by NO work item and invisible to D3.
+
+## Rank 3 — bucket D batch 2: 157/177 (2026-11-15)
+
+418 Realms screens: the big one. 26.2's Realms has no join
+codes, no product page, no tier configuration and no invite
+codes — all four 26.3 surfaces are removed (JoinCode screen
++ header Join button, the whole PDP, the settings tab's
+distance rows + ScrollableLayout scroll view, the
+InviteCodes/EditCode screens + the Players tab's button).
+PORTED: AddRealmPopupScreen (26.2-only, 320x172 popup with
+Buy/Trial/close) + the trial diamond over the Add Realm
+button; saveSettings unconditional (26.2 has no change
+check — 26.3 skips the call when nothing differs), with
+blank-to-empty name/description semantics; RealmsRegion
+back to 26.2's 23 (CanadaCentral, MexicoCentral,
+SouthAfricaNorth, WestUs3 are 26.3-only); CreateRealm
+passes the name/description raw (26.3 trims); region
+preference Done applies only when a region is picked
+(26.2's null-guard). Verified no-change: ConfirmLinkScreen
++ extendRealms, the template screen (parse already
+normalizes "" to None), the news/notification classes
+(URI-to-String re-shapes), the terms/template clicks, the
+subscription tab, RealmsUtil, and all extract* render-state
+classes. KNOWN GAP: the popup's carousel pictures — 26.2's
+client.jar ships no realms namespace, so vanilla draws no
+carousel picture in a standard install either; a resource
+pack adding assets/realms/textures/gui/images/*.png would
+show pictures in vanilla but not here. The client.rs tier
+types + invite-code methods stay for item 421. Two test
+failures pre-date this item (client cookie, optimization
+stamp — both fail at the pre-418 base too).
+
+## Rank 3 — bucket D batch 3: 158/177 (2026-11-15)
+
+421 Realms client: the invite-code service is gone
+(frontendV2Url, the frontend_url field, the x-mojangauth
+header, all five invite-code methods, the InviteCode
+DTOs), and so is the tier configuration (the three
+distance endpoints, both DTOs). PORTED: the Client-Ref
+header is gone — 26.3's addVersionHeaders adds it, 26.2's
+sends only X-NetworkProtocolVersion + Is-Prerelease;
+WorldTemplate link/trailer are plain Strings again
+(26.2's parse uses getStringOr with "" default; 26.3 made
+them nullable URIs), so the template screen checks
+emptiness instead of Some. Verified no-change:
+RealmsClient.execute itself, and the notification
+UrlButton (already a plain String). path_segment stays —
+the invites, template and minigame calls still use it.
+
+## Rank 3 — bucket D batch 4: 159/177 (2026-11-15)
+
+420 Post chains: two std140 ports. 26.2's Std140Builder
+pads a vec3/ivec3 to a full 16-byte slot (26.3 packs it
+as 12), so pack_block now honours the size and a vec3
+followed by a float lands the float at word 4. And
+GlobalSettingsUniform: 26.2's Globals block is
+ivec3/vec3/vec2/float/float/int/int at 56 bytes, 26.3's
+is ivec3/float/vec3/float/vec2 at 48 — correcting item
+442's no-change, the layout IS observable, because
+translated pack shaders declare the block themselves
+and naga lays it out from the declaration; the old
+48-byte block misread GlintAlpha, GameTime, the blur
+radius and UseRgss in 26.2 packs. Globals.bytes() is
+now the 56-byte 26.2 layout, with the core_lines /
+core_sky ripple (signatures, block sizes, fixtures).
+Verified no-change: PostChain, PostPass, SamplerCache
+(renderpearl-to-blaze3d moves and renames), the
+ShaderManager async rework (neither form is modelled;
+#include preprocessing is post_glsl's), and the
+LevelTargetBundle OIT-vs-sorting targets (chains see
+only minecraft:main in both versions).
+
+## Rank 3 — bucket D batch 5: 160/177 (2026-11-15)
+
+426 Transient blocks: already the 26.2 form — the packet
+is absent from the 26.2 jar and the Rust keeps the
+queue/drain/render path inert. Verified no-change: the
+occlusion graph's transient-removal call (inert with the
+module) and its empty-section bookkeeping (unmodelled),
+and LevelExtractor (the drain, extractPlayerState and
+the chunk fade-in option are all 26.3-only or
+unmodelled; the outline condition is the same from a
+different source).
+
+## Rank 3 — bucket D batch 6: 161/177 (2026-11-15)
+
+432 Animate-tick blocks: the poplar trees are 26.3-only
+(0 poplar fields in 26.2's Blocks, 23 in 26.3's), so the
+poplar leaves entries, the Leaves poplar flag, the
+ambient leaves sound and its log table are gone — 26.2
+has no ambient leaves sound at all. Verified no-change:
+the falling-leaves particles (26.2 has them inline in
+LeavesBlock; the per-type chances match 26.2's Blocks
+registration exactly), the bonemeal methods (bodies
+identical, only 26.3's BonemealSource parameter
+differs), the onLand/onPlace/useWithoutItem calls
+(setBlockAndUpdate vs setBlock(...,3)), the repeater
+wire-connection rule (the Rust already is 26.2's static
+form), and the per-block codecs (26.2 has them, 26.3
+removed them — unmodelled).
+
+## Rank 3 — bucket D batch 7: 162/177 (2026-11-15)
+
+433 Codecs: RegistryFileCodec's unknown-element error
+is 26.2's bare form ("Failed to get element {id}";
+26.3 appends " from registry ...") — fixed in codec.rs
+and item.rs, with the inline-loot test's expectation.
+RangeSlotSource requires `source` in 26.2 (an entity or
+block-entity target; "container" is not one — 26.3 made
+the field optional with a container default), so the
+slot_range check now requires and validates it. Verified
+no-change: the loot-condition combinators (the Rust
+already requires inline lists/direct terms, which is
+26.2's DIRECT_CODEC form), the holder-set homogeneity
+check (the Rust does not check holder lists — a
+documented partial-check gap), and the builder/entry
+re-shapes.
+
+## Rank 3 — bucket D batch 8: 163/177 (2026-11-15)
+
+481 Frog lay-spawn: 26.2 uses TryFindLandNearWater,
+26.3 renamed it TryFindLandNearLiquid with a fluid-tag
+parameter (whose tag holds only water). PORTED: the land
+search's water test is now a block test — 26.2 checks
+the block below the neighbour is a water block, while
+26.3's fluid-state test also accepts waterlogged blocks.
+Verified no-change: the Manhattan iteration order (26.2's
+withinManhattan iterator is exactly the Rust's
+manhattan_box), the guard, the cooldown, and the
+lay-spawn behaviour itself.
+
+## Rank 3 — bucket D batch 9: 164/177 (2026-11-15)
+
+485 Armour trims: already the 26.2 form — the Rust
+implements 26.2's atlas mechanism at runtime (the
+material format with asset_name + override_armor_assets,
+PalettedPermutations' mapping keyed on trim_palette, no
+glint on the trim layer), where 26.3 moved to runtime
+PalettedTextureManager textures with palette_id
+materials. Only the attributions needed fixing
+(TrimTextureKey/PalettedTextureManager to the 26.2
+names). Verified no-change: TrimPredicate (the trim
+predicate is accepted unchecked, so its holder-set
+difference is unobservable).
+
+## Rank 3 — bucket D batch 10: 165/177 (2026-11-15)
+
+510 /compute is 26.3-only (ComputeCommand,
+LootContextSources and both context providers are
+absent from the 26.2 jars, and 26.2's DataCommands has
+no compute source): the whole implementation, the tree
+registration, the /data modify compute source, the
+context_sources helper and the exec corpus group are
+removed. The bare 'compute' parse-corpus entry stays —
+it now measures the unknown-command error on both sides.
+
+501 ResourceOrIdArgument: the feature and
+context-provider argument types are 26.3-only; the
+dead context-provider decode arms, provider_fields
+and fixture mappings are removed (the /compute tree
+nodes went in item 510). LootModifierArgument's
+ROOT_CODEC vs DIRECT_CODEC decode identically
+(DFU withAlternative is either + xmap unwrap), so
+the Rust's either-errors stand; /place feature
+already uses the 26.2 ResKey form.
+
+504 ContentsSlotSource: 26.2 has no
+minecraft:slot_source registry and no
+SlotSourceArgument — SlotSources.CODEC is
+withAlternative(typed, inline-list), not a holder
+set. The codec's holder-set helper is replaced by
+a withAlternative helper (no #tag, 2-part either
+error) for the slot_source and item_modifier arms
+alike; the three slot_source tests are re-pinned to
+the 2-part errors. The removed classes
+(ArrayItemProvider, GrowableMutableContainer,
+ComponentSlotCollection) have no Rust references.
+
+524 EmissiveRisingParticle is a pure rename of
+26.2's SoulParticle (behaviour-identical classes,
+same provider registration): the Rust already
+implements the 26.2 form; only the two comments
+were re-attributed.
+
+533 ArgProvider is 26.3's rename of 26.2's
+DataProvider (same tree, same wraps; the only
+other DataCommands delta is the compute source,
+removed in item 510): only the tree_data.rs
+comment was re-attributed.
+
+553 NarrationTrigger is 26.3-only (26.2's
+scheduleNarration takes only delay + suppression):
+the narrator crate is already the 26.2 form, no
+change.
+
+556 The whole blockscan package is 26.3-only;
+26.2's SculkBlock.canPlaceGrowth is a direct
+betweenClosed loop counting sensor/shrieker,
+which the Rust already implements exactly — only
+the comment was re-attributed.
+
+565 DensityFunction$Axes is a 26.3-only empty
+marker annotation (CLASS retention, no members,
+no runtime behaviour): nothing to port.
+
+576 ItemActivation is 26.3's extraction of
+26.2's ScreenEffectRenderer fields; the behaviour
+is identical, and the Rust implements it exactly
+— only the doc attributions were fixed to the
+26.2 names.
+
+585 SpawnTargetPoint (26.3's NoiseSpawnFinder
+record) has no 26.2 equivalent; the Rust already
+implements 26.2's Climate.findSpawnPosition over
+ParameterPoint targets.
+
+Pre-existing horizon-world test failures found
+while running the full suite (not regressions
+from this session): the 18 growth_tests fail at
+fixture setup because the prepared bundle's
+carvers.json is empty ({} since Nov 11);
+doors_beds_and_plants_place_both_halves fails on
+the bed head half (test untouched since
+publication). The aquifer cache test's 26.3-only
+gradient fixture is fixed in 63afd0b6.
+
+590 SteppedInterpolationHandler is 26.3-only
+(26.2 has a single InterpolationHandler, which
+the Rust already implements): only the six
+comments naming 26.3's LinearInterpolationHandler
+were fixed.
+
+593 /test locate was the 26.3 form (cross-
+dimension search, 3 out, /execute in tp,
+dimension suffixes, outputPlayerCoordinates):
+ported to 26.2's same-level search, 2 out, plain
+/tp and numeric distance. TestCommand$Info is
+26.3's playerAndTestInfo bundle; 26.2's
+createTestPositionAround is inline.
+
+566 OIT is entirely 26.3-only: the 26.2 client
+jar has no net/minecraft/client/renderer/oit/
+package at all (26.3 has OitPipelineSet,
+OitRenderPassProvider, OitStage), so the Rust
+OIT implementation came out in four parts:
+(1) game-side OIT tagging dropped; (2) the
+render pipeline deleted — gfx/oit.rs (997
+lines), gfx/oit_features.rs (275 lines) and
+five oit*.wgsl shaders, plus call-site cleanup
+(25 files, +81/−2539); (3) the F3+X improved-
+transparency debug key removed — it is 26.3-
+only (no key.debug.improvedTransparency in
+26.2's lang, zero references in 26.2's
+KeyboardHandler), while the improvedTransparency
+graphics option itself EXISTS in 26.2 and stays;
+(4) warning cleanup to D2's zero-warning bar
+(dead weather pipeline/draw_with, one pre-
+existing unused mut, one unused doc comment).
+Render lib suite: 2045 passed, 1 failed, 66
+ignored (Modrinth test skipped); the failure is
+the pre-existing animate atlas-size assertion,
+unrelated to OIT.
+
+RANK 3 CLOSED 177/177 — see rank3-progress.json
+for per-item evidence.

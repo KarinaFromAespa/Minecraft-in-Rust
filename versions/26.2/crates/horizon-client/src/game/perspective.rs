@@ -789,7 +789,8 @@ impl Game<'_> {
         }
         // A spectator still draws its own model in third person: the poses'
         // visibility (set by player_model_visibility) hides body parts, and
-        // translucent_body marks the body OIT for the ghostly look. Only first
+        // translucent_body draws the body with the translucent render type
+        // for the ghostly look. Only first
         // person and dead players skip it.
         let render = if body || self.spectator() {
             horizon_client::mobs::render::render_with

@@ -367,8 +367,6 @@ mod pick_entity;
 mod pickups;
 mod piglins;
 mod piston_push;
-#[cfg(test)]
-mod place_feature_tests;
 mod play_input;
 mod play_keys;
 mod player_equip;
@@ -2938,8 +2936,6 @@ struct Game<'a> {
     memory_meter: std::cell::RefCell<horizon_client::debug_overlay::MemoryMeter>,
     /// The F3 overlay's vertices between rebuilds (`draw_debug_overlay_under`).
     debug_paint: RefCell<horizon_client::debug_overlay::PaintCache>,
-    /// The F3 overlay's last reading of the refresh rate, and when it was taken.
-    debug_refresh: std::cell::Cell<Option<(Instant, Option<u32>)>>,
     /// `Minecraft.gpuUtilization`: the last timed frame's GPU time over its
     /// CPU time, in percent.
     gpu_utilization: f64,
@@ -3576,9 +3572,7 @@ impl Game<'_> {
     /// is also a full render cube, as `in_wall` has it.
     fn closest_space_nudge(&self) -> [Option<f64>; 2] {
         match self.player.as_ref() {
-            Some(p) if !p.spectator => {
-                closest_space_nudge(p, &self.world, self.res.facts())
-            }
+            Some(p) if !p.spectator => closest_space_nudge(p, &self.world, self.res.facts()),
             _ => [None; 2],
         }
     }
@@ -7133,8 +7127,7 @@ impl Game<'_> {
                         uv,
                         // ExperienceOrbRenderer: `RenderTypes.entityTranslucent`; in HDR
                         // output the orbs shine (entity.wgsl fs_hdr_mark).
-                        layer: horizon_client::gfx::OIT_ENTITY
-                            | u32::from(horizon_client::mesher::VERY_BRIGHT) << 16,
+                        layer: u32::from(horizon_client::mesher::VERY_BRIGHT) << 16,
                         color,
                         light: packed,
 
@@ -12187,7 +12180,6 @@ impl<'a> Game<'a> {
             debug_options: None,
             memory_meter: Default::default(),
             debug_paint: Default::default(),
-            debug_refresh: Default::default(),
             gpu_utilization: 0.0,
             gpu_culling_auto: horizon_client::autotune::GpuCullingAuto::new(),
             rendered_mobs: Default::default(),
@@ -12991,8 +12983,6 @@ mod golem_defense_tests;
 mod hoglin_repeat_attack_tests;
 #[cfg(test)]
 mod hurt_cooldown_tests;
-#[cfg(test)]
-mod inline_feature_parse_tests;
 #[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]

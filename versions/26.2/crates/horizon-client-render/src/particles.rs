@@ -236,7 +236,7 @@ enum Behaviour {
         size: [f32; 2],
         alpha: [f32; 2],
     },
-    /// BaseAshSmokeParticle / Explode / Dust / Snowflake / EmissiveRising: base tick, sprite from age.
+    /// BaseAshSmokeParticle / Explode / Dust / Snowflake / SoulParticle: base tick, sprite from age.
     Animated,
     Lava,
     Drip {

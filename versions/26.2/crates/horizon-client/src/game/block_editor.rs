@@ -135,6 +135,12 @@ pub(super) trait Editor {
     fn enter_confirms(&self) -> bool {
         true
     }
+    /// `Screen.isPauseScreen`: whether this editor stops the world ticking.
+    /// The class default is true; 26.2's `StructureBlockEditScreen` and
+    /// `TestBlockEditScreen` return false (26.3 removed both overrides).
+    fn is_pause_screen(&self) -> bool {
+        true
+    }
     /// The box that has the focus when the screen opens.
     fn initial_focus(&self) -> usize {
         0
@@ -168,6 +174,10 @@ impl BlockEditScreen {
     /// window asks the OS for an input method only then.
     pub(super) fn text_focused(&self) -> bool {
         self.focus.is_some()
+    }
+    /// `Screen.isPauseScreen` for the open editor.
+    pub(super) fn is_pause_screen(&self) -> bool {
+        self.editor.is_pause_screen()
     }
 }
 
@@ -216,6 +226,17 @@ impl Game<'_> {
         self.block_editor = None;
         self.screen = Screen::Playing;
         self.capture(true);
+    }
+
+    /// Whether the open block editor pauses the game (`Screen.isPauseScreen`
+    /// for the editor kind): structure and test editors do not pause in 26.2,
+    /// jigsaw and test-instance editors do (the `Screen` default).
+    pub(super) fn block_editor_pauses(&self) -> bool {
+        self.screen == Screen::BlockEditor
+            && self
+                .block_editor
+                .as_ref()
+                .is_some_and(|b| b.is_pause_screen())
     }
 
     /// Run `f` on the open screen with its block entity; the screen closes

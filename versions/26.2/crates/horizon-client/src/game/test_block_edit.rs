@@ -38,6 +38,11 @@ impl Editor for TestBlockEditor {
         &mut self.edits
     }
 
+    /// 26.2 `TestBlockEditScreen.isPauseScreen` is false.
+    fn is_pause_screen(&self) -> bool {
+        false
+    }
+
     fn items(&self, _entity: &BlockEntity, w: f32, _h: f32) -> Vec<Item> {
         let mid = (w / 2.0).floor();
         let tr = |key: &str| Text::translate(key, &[]);

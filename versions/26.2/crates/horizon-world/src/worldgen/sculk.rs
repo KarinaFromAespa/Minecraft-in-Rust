@@ -63,7 +63,6 @@ pub struct SculkPatchFeature {
     air: BlockStateId,
     replaceable_world_gen: Arc<BTreeSet<BlockStateId>>,
     replaceable: Arc<BTreeSet<BlockStateId>>,
-    inhibitors: Arc<BTreeSet<BlockStateId>>,
     blocks: Arc<TreeBlocks>,
 }
 impl SculkPatchFeature {
@@ -105,7 +104,6 @@ impl SculkPatchFeature {
             air: default("minecraft:air")?,
             replaceable_world_gen: tag("minecraft:sculk_replaceable_world_gen"),
             replaceable: tag("minecraft:sculk_replaceable"),
-            inhibitors: tag("minecraft:sculk_growth_inhibitors"),
             blocks,
         })
     }
@@ -260,17 +258,21 @@ impl SculkPatchFeature {
             self.on_discharged(world, behaviour, state, cursor.pos)?;
             return Ok(());
         }
-        match self.valid_movement(world, random, cursor.pos, origin)? {
-            Some(target) => {
-                self.on_discharged(world, behaviour, state, cursor.pos)?;
-                cursor.pos = target;
-                state = read(world, target)?;
-            }
-            None => {
-                self.on_discharged(world, behaviour, state, cursor.pos)?;
+        if let Some(target) = self.valid_movement(world, random, cursor.pos)? {
+            self.on_discharged(world, behaviour, state, cursor.pos)?;
+            cursor.pos = target;
+            // 26.2's worldgen spread limit is a post-move check: a
+            // cursor further than 15 blocks (horizontally) from the
+            // origin column dies (26.3 checks 12 blocks before the
+            // move instead, and also kills a stuck cursor — 26.2
+            // leaves a stuck cursor in place).
+            let dx = i64::from(target[0].wrapping_sub(origin[0]));
+            let dz = i64::from(target[2].wrapping_sub(origin[2]));
+            if dx * dx + dz * dz >= 225 {
                 cursor.charge = 0;
                 return Ok(());
             }
+            state = read(world, target)?;
         }
         if self.behaviour(state) != Behaviour::Default {
             cursor.facings = Some(
@@ -550,13 +552,16 @@ impl SculkPatchFeature {
             return Ok(false);
         }
         let mut matched = 0;
-        // BoxBlockMatcher iterates BlockPos.betweenClosed (x, then y, then z).
+        // 26.2's SculkBlock.canPlaceGrowth loops BlockPos.betweenClosed
+        // (x, then y, then z); 26.3 replaced the loop with BoxBlockMatcher.
         for dz in -4..=4 {
             for dy in 0..=2 {
                 for dx in -4..=4 {
-                    if self
-                        .inhibitors
-                        .contains(&read(world, tb::offset(pos, dx, dy, dz))?)
+                    let here = read(world, tb::offset(pos, dx, dy, dz))?;
+                    // 26.2 has no sculk_growth_inhibitors tag (26.3 added
+                    // it): the inhibitors are the sensor and the shrieker.
+                    if self.blocks.same_block(here, self.sensor)
+                        || self.blocks.same_block(here, self.shrieker)
                     {
                         matched += 1;
                         if matched >= 3 {
@@ -639,7 +644,6 @@ impl SculkPatchFeature {
         world: &mut W,
         random: &mut R,
         pos: [i32; 3],
-        origin: [i32; 3],
     ) -> TreeResult<Option<[i32; 3]>, W::Error> {
         // NON_CORNER_NEIGHBOURS in betweenClosed order (x, then y, then z).
         let mut offsets = Vec::with_capacity(18);
@@ -656,11 +660,6 @@ impl SculkPatchFeature {
         let mut best = pos;
         for o in offsets {
             let neighbour = tb::offset(pos, o[0], o[1], o[2]);
-            let dx = origin[0].wrapping_sub(neighbour[0]);
-            let dz = origin[2].wrapping_sub(neighbour[2]);
-            if dx.wrapping_mul(dx).wrapping_add(dz.wrapping_mul(dz)) > 144 {
-                continue;
-            }
             let transferee = read(world, neighbour)?;
             if self.behaviour(transferee) == Behaviour::Default
                 || !self.unobstructed_move(world, pos, neighbour)?

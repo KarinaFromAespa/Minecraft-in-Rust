@@ -143,7 +143,6 @@ pub struct Settings {
     pub vignette: bool,
     pub autosave_indicator: bool,
     pub cutout_leaves: bool,
-    pub improved_transparency: bool,
     /// 0 off, 1 crosshair, 2 hotbar.
     pub attack_indicator: u8,
     pub inactivity_fps_limit: String,
@@ -243,7 +242,6 @@ impl Default for Settings {
             vignette: true,
             autosave_indicator: true,
             cutout_leaves: true,
-            improved_transparency: false,
             attack_indicator: 1,
             inactivity_fps_limit: "afk".into(),
             prioritize_chunk_updates: 0,
@@ -480,7 +478,6 @@ impl Settings {
             vignette: f.bool("vignette"),
             autosave_indicator: f.bool("showAutosaveIndicator"),
             cutout_leaves: f.bool("cutoutLeaves"),
-            improved_transparency: f.bool("improvedTransparency"),
             attack_indicator: f.int("attackIndicator") as u8,
             inactivity_fps_limit: f.name("inactivityFpsLimit"),
             prioritize_chunk_updates: f.int("prioritizeChunkUpdates") as u8,
@@ -581,7 +578,6 @@ impl Settings {
         put_b(&mut f, "vignette", self.vignette);
         put_b(&mut f, "showAutosaveIndicator", self.autosave_indicator);
         put_b(&mut f, "cutoutLeaves", self.cutout_leaves);
-        put_b(&mut f, "improvedTransparency", self.improved_transparency);
         put_i(&mut f, "attackIndicator", i32::from(self.attack_indicator));
         put_name(&mut f, "inactivityFpsLimit", &self.inactivity_fps_limit);
         put_i(
@@ -773,7 +769,6 @@ pub enum Opt {
     Vignette,
     Autosave,
     CutoutLeaves,
-    ImprovedTransparency,
     AttackIndicator,
     InactivityFps,
     ChunkBuilder,

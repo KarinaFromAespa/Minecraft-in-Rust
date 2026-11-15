@@ -1,6 +1,6 @@
 //! ResourceOrIdArgument and the data-fixer-upper decoding of inline values
-//! commands accept (loot predicates, item modifiers, slot sources, context
-//! providers, dialogs), reproducing the codec error messages vanilla reports.
+//! commands accept (loot predicates, item modifiers, slot sources,
+//! dialogs), reproducing the codec error messages vanilla reports.
 use super::args::{Registries, is_id_char, parse_identifier, slot_ranges};
 use super::{CmdResult, CommandError, Reader};
 use horizon_world::nbt::{Compound, JavaString, Tag};
@@ -77,36 +77,15 @@ fn require(map: &Compound, t: &Tag, keys: &[&str]) -> Result<(), String> {
         Err(missing.join("; "))
     }
 }
-/// The required fields of each context number provider type, in the
-/// order DataFixerUpper reports them missing (the reverse of the record's).
-fn provider_fields(id: &str, map: &Compound, t: &Tag) -> Result<(), String> {
-    match id.trim_start_matches("minecraft:") {
-        "uniform" => require(map, t, &["max", "min"]),
-        "constant" => require(map, t, &["value"]),
-        "binomial" => require(map, t, &["p", "n"]),
-        "add" | "mul" | "avg" | "max" | "min" | "length" => require(map, t, &["inputs"]),
-        "sub" | "div" | "mod" | "floor_div" | "floor_mod" => require(map, t, &["right", "left"]),
-        "pow" => require(map, t, &["exponent", "base"]),
-        "abs" | "negate" | "from_float" | "from_int" | "floor" | "ceil" | "round" | "sqrt"
-        | "sin" | "cos" | "truncate" => require(map, t, &["input"]),
-        "conditional" => require(map, t, &["on_true", "condition"]),
-        "number_dispatcher" => require(map, t, &["cases"]),
-        "weighted_list" => require(map, t, &["distribution"]),
-        "enchantment_level" => require(map, t, &["amount"]),
-        "score" => require(map, t, &["score", "target"]),
-        _ => Ok(()),
-    }
-}
-/// A holder list codec: a single element, a `#tag`, or a list.
-fn element_or_list(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Result<(), String> {
+
+/// `Codec.withAlternative(TYPED_CODEC, INLINE_CODEC)`: a single typed element
+/// or a list of them, with the either error 26.2 reports when both fail.
+/// 26.2 has no holder registry for these codecs, so `#tag` references are
+/// not admitted (26.3's holder-set form is).
+fn with_alternative(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Result<(), String> {
     let first = match element(t) {
         Ok(()) => return Ok(()),
         Err(e) => e,
-    };
-    let tag_ref = match as_string(t) {
-        Some(s) if s.starts_with('#') => return Ok(()),
-        Some(_) => "Not a tag id".to_owned(),
-        None => "Not a string".to_owned(),
     };
     let list = match t {
         Tag::List(items) => {
@@ -118,8 +97,7 @@ fn element_or_list(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Res
         }
         _ => not_list(t),
     };
-    let last = element(t).err().unwrap_or_default();
-    Err(either(first, either(tag_ref, either(list, last))))
+    Err(either(first, list))
 }
 
 /// CompositeLootItemCondition.createCodec / InvertedLootItemCondition:
@@ -150,153 +128,18 @@ fn predicate_fields(id: &str, map: &Compound, t: &Tag, reg: &Registries) -> Resu
     }
 }
 
-/// ConfiguredFeature.DIRECT_CODEC: validates the feature `type` against
-/// `minecraft:worldgen/feature_type` and checks required configuration keys
-/// with DataFixerUpper error formatting.
-fn check_feature(tag: &Tag, reg: &Registries) -> Result<(), String> {
-    const KNOWN_FEATURE_TYPES: &[&str] = &[
-        "minecraft:no_op",
-        "minecraft:tree",
-        "minecraft:fallen_tree",
-        "minecraft:flower",
-        "minecraft:no_bonemeal_flower",
-        "minecraft:random_patch",
-        "minecraft:block_pile",
-        "minecraft:spring_feature",
-        "minecraft:chorus_plant",
-        "minecraft:replace_single_block",
-        "minecraft:void_start_platform",
-        "minecraft:desert_well",
-        "minecraft:fossil",
-        "minecraft:huge_red_mushroom",
-        "minecraft:huge_brown_mushroom",
-        "minecraft:huge_fungus",
-        "minecraft:ice_spike",
-        "minecraft:glowstone_blob",
-        "minecraft:freeze_top_layer",
-        "minecraft:vines",
-        "minecraft:block_column",
-        "minecraft:vegetation_patch",
-        "minecraft:waterlogged_vegetation_patch",
-        "minecraft:root_system",
-        "minecraft:multiface_growth",
-        "minecraft:underwater_magma",
-        "minecraft:monster_room",
-        "minecraft:blue_ice",
-        "minecraft:iceberg",
-        "minecraft:forest_rock",
-        "minecraft:disk",
-        "minecraft:lake",
-        "minecraft:ore",
-        "minecraft:scattered_ore",
-        "minecraft:end_platform",
-        "minecraft:end_spike",
-        "minecraft:end_island",
-        "minecraft:end_gateway",
-        "minecraft:seagrass",
-        "minecraft:kelp",
-        "minecraft:coral_tree",
-        "minecraft:coral_mushroom",
-        "minecraft:coral_claw",
-        "minecraft:sea_pickle",
-        "minecraft:simple_block",
-        "minecraft:bamboo",
-        "minecraft:geode",
-        "minecraft:dripstone_cluster",
-        "minecraft:large_dripstone",
-        "minecraft:pointed_dripstone",
-        "minecraft:sculk_patch",
-        "minecraft:twisting_vines",
-        "minecraft:weeping_vines",
-        "minecraft:nether_forest_vegetation",
-        "minecraft:basalt_columns",
-        "minecraft:delta_feature",
-        "minecraft:netherrack_replace_blobs",
-        "minecraft:fill_layer",
-        "minecraft:bonus_chest",
-        "minecraft:basalt_pillar",
-        "minecraft:random_selector",
-        "minecraft:simple_random_selector",
-        "minecraft:random_boolean_selector",
-    ];
-    let Tag::Compound(c) = tag else {
-        return Err(not_map(tag));
-    };
-    let Some(ty) = get(c, "type") else {
-        return Err(no_key("type", tag));
-    };
-    let Some(name) = as_string(ty) else {
-        return Err("Not a string".into());
-    };
-    let Some(full) = parse_identifier(&name) else {
-        return Err(format!("Not a valid resource location: {name}"));
-    };
-    let known_ids = reg.ids("minecraft:worldgen/feature_type");
-    let known = if !known_ids.is_empty() {
-        known_ids.contains(&full)
-    } else {
-        KNOWN_FEATURE_TYPES.contains(&full.as_str())
-    };
-    if !known {
-        return Err(format!(
-            "Unknown registry key in ResourceKey[minecraft:root / minecraft:worldgen/feature_type]: {full}"
-        ));
-    }
-    if full == "minecraft:simple_block" {
-        let cfg_tag = get(c, "config").unwrap_or(tag);
-        let Tag::Compound(cfg_map) = cfg_tag else {
-            return Err(not_map(cfg_tag));
-        };
-        if get(cfg_map, "to_place").is_none() {
-            return Err(no_key("to_place", cfg_tag));
-        }
-    }
-    Ok(())
-}
-
-fn dfu_feature_error(tag: &Tag, msg: &str) -> String {
-    if let Some(field) = msg.strip_prefix("invalid world generation field: ") {
-        if field == "basic feature type"
-            && let Some(Tag::String(s)) = tag.get("type")
-        {
-            let raw = s.to_string_lossy();
-            let full = if raw.contains(':') {
-                raw
-            } else {
-                format!("minecraft:{raw}")
-            };
-            return format!(
-                "Unknown registry key in ResourceKey[minecraft:root / minecraft:worldgen/feature_type]: {full}"
-            );
-        }
-        let cfg_tag = tag.get("config").unwrap_or(tag);
-        if matches!(cfg_tag, Tag::Compound(c) if get(c, field).is_none()) {
-            return no_key(field, cfg_tag);
-        }
-    }
-    msg.to_owned()
-}
-
 /// Decode an inline value of a ResourceOrIdArgument registry.
 pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
     match registry {
-        "minecraft:context_int_provider" | "minecraft:context_float_provider" => {
-            if is_number(t) {
-                return Ok(());
-            }
-            let ty = format!("{registry}_type");
-            let second = dispatch(t, reg, &ty, &provider_fields);
-            second.map_err(|e| either("Not a number".into(), e))
-        }
         "minecraft:predicate" => {
             dispatch(t, reg, "minecraft:loot_condition_type", &|id, map, t| {
                 predicate_fields(id, map, t, reg)
             })
         }
-        "minecraft:item_modifier" => element_or_list(t, &|x| {
+        "minecraft:item_modifier" => with_alternative(t, &|x| {
             dispatch(x, reg, "minecraft:loot_function_type", &|_, _, _| Ok(()))
         }),
-        "minecraft:slot_source" => element_or_list(t, &|x| {
+        "minecraft:slot_source" => with_alternative(t, &|x| {
             dispatch(x, reg, "minecraft:slot_source_type", &|id, map, t| {
                 if id == "minecraft:contents" {
                     require(map, t, &["component"])?;
@@ -320,8 +163,25 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                     }
                 } else if id == "minecraft:slot_range" {
                     // RangeSlotSource.MAP_CODEC uses the global SlotRanges.CODEC,
-                    // independently of the eventual target inventory's size.
-                    require(map, t, &["slots"])?;
+                    // independently of the eventual target inventory's size. 26.2's
+                    // codec requires `source` (`LootContextArg.ENTITY_OR_BLOCK`: an
+                    // entity or block-entity target); 26.3 made it optional,
+                    // defaulting to the container.
+                    require(map, t, &["slots", "source"])?;
+                    let source = get(map, "source").expect("required source");
+                    let source = as_string(source).ok_or_else(|| "Not a string".to_owned())?;
+                    if !matches!(
+                        source.as_str(),
+                        "this"
+                            | "attacker"
+                            | "direct_attacker"
+                            | "attacking_player"
+                            | "target_entity"
+                            | "interacting_entity"
+                            | "block_entity"
+                    ) {
+                        return Err(format!("Unknown element id: {source}"));
+                    }
                     let value = get(map, "slots").expect("required slots");
                     let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
                     if !slot_ranges().iter().any(|(known, _)| known == &name) {
@@ -344,14 +204,6 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                 .collect();
             require(map, t, &keys)
         }),
-        // The ConfiguredFeature codec, where the source has the live features.
-        "minecraft:worldgen/feature" => {
-            check_feature(t, reg)?;
-            if let Some(codec) = &reg.inline_feature {
-                return codec.check(t).map_err(|msg| dfu_feature_error(t, &msg));
-            }
-            Ok(())
-        }
         "minecraft:loot_table" => match t {
             Tag::Compound(_) => loot_table_references(t, reg),
             _ => Err(not_map(t)),
@@ -434,7 +286,7 @@ fn loot_table_holder_set(t: &Tag, reg: &Registries) -> Result<(), String> {
                 "Not a tag id".into(),
                 either(
                     not_list(t),
-                    format!("Failed to get element {id} from registry minecraft:loot_table"),
+                    format!("Failed to get element {id}"),
                 ),
             ))
         }
@@ -541,8 +393,8 @@ mod contents_component_tests {
             ]);
             let result = decode("minecraft:slot_source", &raw, &reg);
             if component == "damage" {
-                // Exact outer codec error independently captured from Java.
-                assert_eq!(result, Err(r#"Failed to parse either. First: No items in component; Second: Failed to parse either. First: Not a string; Second: Failed to parse either. First: Not a list: {component:"damage",slot_source:{slots:"container.0",type:"slot_range"},type:"contents"}; Second: No items in component"#.into()));
+                // 26.2's withAlternative error: either(typed, inline-list).
+                assert_eq!(result, Err(r#"Failed to parse either. First: No items in component; Second: Not a list: {component:"damage",slot_source:{slots:"container.0",type:"slot_range"},type:"contents"}"#.into()));
             } else {
                 assert_eq!(result, Ok(()));
             }
@@ -558,7 +410,7 @@ mod slot_range_tests {
     fn inline_range_names_use_the_global_slot_registry() {
         let reg = Registries::default();
         for name in ["container.0", "container.53", "container.*", "hotbar.8"] {
-            let input = format!(r#"{{type:"minecraft:slot_range",slots:"{name}"}}"#);
+            let input = format!(r#"{{type:"minecraft:slot_range",source:"this",slots:"{name}"}}"#);
             let mut reader = Reader::new(&input);
             assert!(
                 resource_or_id(&mut reader, &reg, "minecraft:slot_source").is_ok(),
@@ -567,7 +419,7 @@ mod slot_range_tests {
             assert_eq!(reader.cursor, input.len());
         }
         for name in ["container.54", "container.99"] {
-            let input = format!(r#"{{type:"minecraft:slot_range",slots:"{name}"}}"#);
+            let input = format!(r#"{{type:"minecraft:slot_range",source:"block_entity",slots:"{name}"}}"#);
             let mut reader = Reader::new(&input);
             assert!(
                 resource_or_id(&mut reader, &reg, "minecraft:slot_source").is_err(),
@@ -577,11 +429,33 @@ mod slot_range_tests {
             let message = format!("Unknown element name:{name}");
             assert_eq!(
                 decode("minecraft:slot_source", &raw, &reg),
-                Err(either(
-                    message.clone(),
-                    either("Not a string".into(), either(not_list(&raw), message))
-                ))
+                Err(either(message.clone(), not_list(&raw)))
             );
         }
+    }
+
+    #[test]
+    fn a_slot_range_needs_its_source_in_26_2() {
+        let reg = Registries::default();
+        let decode_text = |text: &str| {
+            let (raw, _) = horizon_world::nbt::parse_snbt(text).unwrap();
+            decode("minecraft:slot_source", &raw, &reg)
+        };
+        // 26.2's RangeSlotSource requires `source`; 26.3 made it optional.
+        assert_eq!(
+            decode_text(r#"{type:"minecraft:slot_range",slots:"container.0"}"#),
+            Err(either(
+                r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
+                r#"Not a list: {slots:"container.0",type:"minecraft:slot_range"}"#.into(),
+            )),
+        );
+        // An unknown source is the id-resolver codec's error.
+        assert_eq!(
+            decode_text(r#"{type:"minecraft:slot_range",source:"container",slots:"container.0"}"#),
+            Err(either(
+                "Unknown element id: container".into(),
+                r#"Not a list: {slots:"container.0",source:"container",type:"minecraft:slot_range"}"#.into(),
+            )),
+        );
     }
 }

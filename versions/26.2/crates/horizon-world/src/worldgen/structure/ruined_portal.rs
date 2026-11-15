@@ -286,25 +286,37 @@ fn replaceable(c: &PieceContext<'_>, props: PortalProps, state: BlockStateId) ->
             .is_some_and(|t| t.contains(name))
         && (props.placement == Vertical::InNether || name != "minecraft:lava")
 }
+/// `RuinedPortalPiece.placeNetherrackOrMagma` in 26.2: unconditional —
+/// the replaceability check lives only at the spread site. 26.3 moved the
+/// check inside, so its drip columns skip air, obsidian and lava; 26.2's
+/// drip columns replace whatever is there (and always draw the magma roll).
+fn place_netherrack_or_magma(
+    c: &mut PieceContext<'_>,
+    props: PortalProps,
+    pos: [i32; 3],
+) -> Result<()> {
+    let block = if !props.cold && c.random.float() < 0.07 {
+        "magma_block"
+    } else {
+        "netherrack"
+    };
+    c.world.set(pos, c.state(block), 3)?;
+    Ok(())
+}
 fn netherrack_or_magma(c: &mut PieceContext<'_>, props: PortalProps, pos: [i32; 3]) -> Result<()> {
     let state = c.world.block(pos)?;
     if replaceable(c, props, state) {
-        let block = if !props.cold && c.random.float() < 0.07 {
-            "magma_block"
-        } else {
-            "netherrack"
-        };
-        c.world.set(pos, c.state(block), 3)?;
+        place_netherrack_or_magma(c, props, pos)?;
     }
     Ok(())
 }
 fn drip_column(c: &mut PieceContext<'_>, props: PortalProps, mut pos: [i32; 3]) -> Result<()> {
-    netherrack_or_magma(c, props, pos)?;
+    place_netherrack_or_magma(c, props, pos)?;
     let mut remaining = 8;
     while remaining > 0 && c.random.float() < 0.5 {
         pos[1] -= 1;
         remaining -= 1;
-        netherrack_or_magma(c, props, pos)?;
+        place_netherrack_or_magma(c, props, pos)?;
     }
     Ok(())
 }

@@ -1,0 +1,1244 @@
+{
+ "closed": [
+  {
+   "id": 430,
+   "module": "crates/horizon-world/src/worldgen/dripstone.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SpeleothemClusterFeature + LargeDripstoneFeature are 26.3 records vs 26.2 classes with a configuration object: place/placeColumn/getSpeleothemHeight/canPlacePool/replaceBlocksWithBaseBlocks/getChanceOfStalagmiteOrStalactite bodies are identical modulo this.x -> config.x() (config threaded as an extra parameter). LargeDripstoneFeature.place + isSuitableForWind follow the same pattern (config param). No behaviour change; the Rust ports the shared bodies."
+  },
+  {
+   "id": 435,
+   "module": "crates/horizon-client-render/src/gfx/submit.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Vanilla CommandEncoder is GPU plumbing (RenderPearl/Blaze3D command recording); the Rust uses wgpu::CommandEncoder and only mentions vanilla's in a comment. No port of the class exists."
+  },
+  {
+   "id": 452,
+   "module": "crates/horizon-client-render/src/gfx/entity_outline.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "GpuFormat/GpuFormat$ComponentType enum churn (values/init/componentType re-shaped); the Rust only cites GpuFormat.RGBA8_UNORM in a comment. No port of the enum."
+  },
+  {
+   "id": 463,
+   "module": "widely named: com/mojang/blaze3d/pipeline",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "BlendFunction record ctor/accessor re-shape (added/removed <init>/alpha/color, equals/hashCode/toString); every Rust mention is a doc citation (TRANSLUCENT/INVERT/ADDITIVE/OVERLAY) \u2014 no Rust code ports the record."
+  },
+  {
+   "id": 468,
+   "module": "crates/horizon-client/src/game/debug_lines.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SectionRenderDispatcher (+RenderSectionBufferSlice record re-shape) and EntitySectionStorage changes are GPU/entity-section internals; the Rust only cites getStats/count in comments. No port of the changed methods."
+  },
+  {
+   "id": 487,
+   "module": "crates/horizon-world/src/loot/odds.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ApplyBonusCount: only the condition form (Optional<Holder<LootItemCondition>> -> List<LootItemCondition>) and getOptional -> getOptionalParameter rename; run + the three bonus formulas byte-identical. MatchTool.test: the same rename only."
+  },
+  {
+   "id": 498,
+   "module": "crates/horizon-world/src/worldgen/iceberg.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "IcebergFeature is a 26.3 record vs a 26.2 Feature<BlockStateConfiguration> class; place takes a FeaturePlaceContext instead of direct args and reads the state from the config \u2014 the place body (sea-level origin, snowOnTop 0.7, shape angle/ellipse) is identical."
+  },
+  {
+   "id": 500,
+   "module": "crates/horizon-world/src/worldgen/tree/trunk.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TrunkPlacer: the TreeFeature parameter becomes TreeConfiguration; provider access changes form (tree.trunkProvider().value() -> config.trunkProvider) with the same value; placeTrunk/placeLog/placeLogIfFree/placeBelowTrunkBlock bodies identical."
+  },
+  {
+   "id": 502,
+   "module": "crates/horizon-client-render/src/gfx/animate.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SpriteContents$AnimationState: RenderPearl -> Blaze3D import paths and setUniform -> bindTexture renames in drawToAtlas; close() byte-identical; AnimatedTexture.createAnimationState a signature re-shape. GPU plumbing only."
+  },
+  {
+   "id": 503,
+   "module": "crates/horizon-world/src/worldgen/vegetation.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "WaterloggedVegetationPatchFeature: ctor/config-class re-shape (26.3 record-style ctor vs 26.2 VegetationPatchConfiguration); placeGroundPatch/placeVegetation bodies identical modulo the config parameter threaded through the super calls. MultifaceSpreadeableBlock only gains a codec. Rust references are comments."
+  },
+  {
+   "id": 505,
+   "module": "widely named: client/renderer/chunk",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SectionMesh$SectionDraw record re-shape (init/indexType/equals/hashCode/toString); SectionMesh loses getCompileTaskStartTime, a timing getter. No Rust module ports either; no Rust surface."
+  },
+  {
+   "id": 506,
+   "module": "crates/horizon-assets/src/item_bake.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CuboidItemModelWrapper: 26.3 pre-splits quads into ItemQuads and caches the animated flag at construction; 26.2 keeps the QuadCollection and calls prepareQuadList().addAll(quads.getAll()) + hasMaterialFlag(2) at update time \u2014 same quads submitted, same animated condition. LayerRenderState setQuads -> prepareQuadList rename. Rust references are doc comments."
+  },
+  {
+   "id": 507,
+   "module": "crates/horizon-client/src/mobs/illusioner.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Illusioner.performRangedAttack: 26.2 inlines the uncertainty as 14 - difficulty.getId()*4; 26.3 calls RangedAttackMob.rangedAttackUncertainty, whose default-method bytecode is exactly 14 - getDifficulty().getId()*4 \u2014 a pure extraction, no behaviour change. The Rust already uses (14 - difficulty.id*4). IllusionerRenderer.getBoundingBoxForCulling is a signature re-shape."
+  },
+  {
+   "id": 508,
+   "module": "crates/horizon-world/src/level/redstone/experimental.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "The entire ExperimentalRedstoneWireEvaluator diff is the RedstoneWireBlock -> RedStoneWireBlock class rename (26.2's name); calculateCurrentChanges, enqueueNeighborWire, isConnected, updatePowerStrength bodies identical."
+  },
+  {
+   "id": 509,
+   "module": "crates/horizon-bots/src/main.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ClientChunkCache$Storage section-emptiness methods (markSectionEmpty/NotEmpty removed, onChunkAdded/Removed/refreshEmptySections changed); the Rust only cites ClientChunkCache in a doc comment. No port of the storage."
+  },
+  {
+   "id": 511,
+   "module": "crates/horizon-client/src/game/sculk.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "WardenSpawnTrackerCommand: 26.3 tracker form vs 26.2 manual one/many branching, and getWardenSpawnTracker() returns Optional in 26.2 (ifPresent) vs direct in 26.3. Unobservable in the Rust: cmd_warden_spawn_tracker is single-player-only (always the .single message, tracker always present)."
+  },
+  {
+   "id": 512,
+   "module": "crates/horizon-client/src/mobs/sniffer.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SnifferRenderer.getBoundingBoxForCulling added+removed (signature re-shape); the Rust only mentions the renderer in a comment."
+  },
+  {
+   "id": 513,
+   "module": "crates/horizon-narrator/src/lib.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ScreenNarrationCollector$Output: the NarrationTrigger field/ctor arg/accessor are 26.3-only; nest() is identical modulo dropping the trigger argument \u2014 the same removal item 129 already applied to the Rust. ScreenNarrationCollector.update is a signature re-shape."
+  },
+  {
+   "id": 514,
+   "module": "crates/horizon-client-render/src/zip.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "FilePackResources$FileResourcesSupplier: openMetadata/openResources renamed openFull/openPrimary (internal supplier API); listResources/getResource unchanged; FilePackResources <init> only. Rust references are comments."
+  },
+  {
+   "id": 515,
+   "module": "crates/horizon-client/src/game_rules_screen.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CategoryRuleEntry: 26.3 wraps the label in a FocusableTextWidget (focusable, border-on-focus); 26.2 draws centered text directly with an anonymous narratable and empty children(). The Rust draws centered text + a narratable region \u2014 the 26.2 form; no focus behaviour to remove."
+  },
+  {
+   "id": 516,
+   "module": "crates/horizon-client-render/src/effects.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EffectsChangedTrigger$TriggerInstance matches/validate/gotEffectsFrom changed, but effects.rs ports no trigger-matching logic (its only 'matches' is an EffectAction::Poison filter); the module is the HUD effects display, citing the trigger in one comment."
+  },
+  {
+   "id": 517,
+   "module": "crates/horizon-client-render/src/jigsaw_block.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "JigsawBlock gains a codec and canAttach changes; Pools.bootstrap changes. The Rust ports JigsawBlockEntity (name/target/pool/joint) and cites getFrontFacing; no can_attach exists in the module or the level placement code. Data bootstrap has no Rust surface."
+  },
+  {
+   "id": 518,
+   "module": "crates/horizon-client/src/game/commands/misc.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "TickCommand step/stopSprinting/stopStepping: 26.3 throws CommandSyntaxException (ERROR_TICK_STEP_NOT_FROZEN etc.); 26.2 sends sendFailure and returns \u2014 step returns 1 even on failure, both stops return 0 on failure. Ported cmd_tick: the three failure arms now call command_failure (red text, silent-aware) and return Ok(1)/Ok(0)/Ok(0). cargo check -p horizon-client clean (only the two pre-existing warnings)."
+  },
+  {
+   "id": 519,
+   "module": "crates/horizon-client/src/game/gamemode_switcher.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "GameModeSwitcherScreen, GameModeSlot and GameModeIcon decompile byte-identically in both versions; the extractSelection/extractSlot/extractBackground/<clinit> 'changed' flags are bytecode artifacts."
+  },
+  {
+   "id": 520,
+   "module": "crates/horizon-client/src/game/packs.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ReloadableResourceManager listResourceStacks/listResources added+removed (signature re-shape); the Rust only cites createReload in a comment."
+  },
+  {
+   "id": 521,
+   "module": "crates/horizon-client/src/mobs/sulfur_cube.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SulfurCubeArchetype's only diff is the codec: items decodes via holderSet in 26.3, homogeneousList in 26.2 (same JSON lists); the Rust loads archetype items from tags, not the codec. SulfurCubeRenderer extractRenderState is GPU plumbing; the Rust cites its scale in a comment."
+  },
+  {
+   "id": 522,
+   "module": "crates/horizon-server/src/management.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "JsonRpcNotificationService worldUpgradeStarted/Progress/Finished/Failed are 26.3-only (removed in 26.2); the Rust only cites broadcastNotification in a comment. No port of the upgrade notifications."
+  },
+  {
+   "id": 523,
+   "module": "crates/horizon-world/src/level/shapes.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "StairBlock and BaseCoralPlantTypeBlock carry simpleCodecs in 26.2 that the 26.3 forms lack (+ <clinit>/lambda$static); the ported methods (getStairsShape, scanForWater, tryScheduleDieTick) are unchanged."
+  },
+  {
+   "id": 525,
+   "module": "crates/horizon-client-core/src/registries.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ResourceArgument has getConfiguredFeature/getEntityType/getStructure in 26.2 (absent in 26.3); the Rust only cites ResourceArgument in a comment and calls none of the accessors."
+  },
+  {
+   "id": 526,
+   "module": "crates/horizon-client-render/src/command_block.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CommandBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); no behaviour method changed."
+  },
+  {
+   "id": 527,
+   "module": "crates/horizon-client-render/src/gfx/lightning.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "LightningBoltRenderer: 26.3 hoists the bolt colour (0.45/0.45/0.5) and the segment/layer/branch counts into constants and takes them as quad parameters in 26.2 \u2014 the call site passes 0.45F/0.45F/0.5F literally; quad bodies, random draws (nextInt(11)-5 offsets, 11/31 branch steps), layer/branch/segment loops identical."
+  },
+  {
+   "id": 528,
+   "module": "crates/horizon-client/src/game/item_entities.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "DropExperienceBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); no behaviour method changed. The Rust cites its XP ranges in a comment."
+  },
+  {
+   "id": 529,
+   "module": "crates/horizon-client/src/game/lan_crafting.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "AbstractFurnaceMenu.isFuel: 26.3 checks DataComponents.COOKING_FUEL, 26.2 uses level.fuelValues().isFuel \u2014 the Rust's menu is_fuel already uses the FuelValues burn_time table (item 1's port). CraftingTableBlock only gains a codec."
+  },
+  {
+   "id": 530,
+   "module": "crates/horizon-client/src/game/leads.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "LeashKnotRenderer.submit differs only by a null 8th argument to submitModel in 26.2 (signature difference); FenceBlock only gains a codec. GPU plumbing; Rust references are comments."
+  },
+  {
+   "id": 531,
+   "module": "crates/horizon-client/src/game/zombie_villagers.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CuredZombieVillagerTrigger$TriggerInstance: the predicate type changes (Holder<LootItemCondition> in 26.3 vs ContextAwarePredicate in 26.2) and validateHolder -> validate, but matches() is the same three-predicate conjunction (player/zombie/villager), which the Rust already evaluates via adv::conditions."
+  },
+  {
+   "id": 532,
+   "module": "crates/horizon-client/src/spectator_menu.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CloseSpectatorItem, ScrollMenuItem and TeleportToPlayerMenuCategory extractIcon decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+  },
+  {
+   "id": 534,
+   "module": "crates/horizon-items/src/flowers.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "FlowerBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); suspiciousStewEffects/makeEffectList unchanged."
+  },
+  {
+   "id": 535,
+   "module": "crates/horizon-world/src/level/tests.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "WeatheringCopperChestBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); randomTick unchanged."
+  },
+  {
+   "id": 536,
+   "module": "crates/horizon-world/src/level/ticks.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "RedstoneTorchBlock.tick: 26.3 calls setBlockAndUpdate, 26.2 calls setBlock(pos, state, 3) \u2014 and setBlockAndUpdate IS setBlock(pos, state, 3) in both versions (established in item 414). Toggle/burnout logic otherwise identical."
+  },
+  {
+   "id": 537,
+   "module": "crates/horizon-world/src/worldgen/tree/decorator.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TreeDecorator$Context.isReplaceable/isWaterOrWaterNearby are 26.3-only helpers (canBeReplaced check; water at/around pos); the only 26.3 caller in the whole treedecorators package is ShelfMushroomDecorator, which is 26.3-only (ShelfMushroomBlock absent in 26.2). No 26.2 decorator uses them and the Rust ports none of it."
+  },
+  {
+   "id": 538,
+   "module": "crates/horizon-client-render/src/ban_notice.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "BanNoticeScreens createNameBan/createSkinBan lambdas differ only by Blaze3D.openUri -> Util.getPlatform().openUri (the URI-opener move). Same links, same screens."
+  },
+  {
+   "id": 539,
+   "module": "crates/horizon-client-render/src/inventory_effects.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EffectsInInventory extractBackground/extractEffects decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+  },
+  {
+   "id": 540,
+   "module": "crates/horizon-client-render/src/test_block.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TestBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+  },
+  {
+   "id": 541,
+   "module": "crates/horizon-client/src/debug_entries.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "DebugEntryCategory and DebugScreenEntries decompile identically in both versions; the <clinit> 'changed' flags are bytecode artifacts (the registration lists are the same)."
+  },
+  {
+   "id": 542,
+   "module": "crates/horizon-client/src/game/block_editor.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "StructureBlockEditScreen and TestBlockEditScreen override isPauseScreen() to false in 26.2 (javap-verified; 26.3 has no override, so they pause); JigsawBlockEditScreen and TestInstanceBlockEditScreen have no override in either version (default true). Ported: Editor trait gains a defaulted is_pause_screen() (true); StructureEditor and TestBlockEditor override to false; BlockEditScreen delegates; Screen::is_pause_screen moves BlockEditor to the false arm and Game::pauses_game ORs the new block_editor_pauses() (the win_screen_pauses pattern). cargo check clean; raid test unaffected."
+  },
+  {
+   "id": 543,
+   "module": "crates/horizon-client/src/game/code_of_conduct.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ClientConfigurationPacketListenerImpl.handleUpdateTags differs only by packet.tags() vs packet.getTags() (accessor rename). The $1 anonymous class's canUseCommandBlocks is 26.3-only; the Rust binds only the Code of Conduct."
+  },
+  {
+   "id": 544,
+   "module": "crates/horizon-client/src/game/commands/raid.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "RaidCommand.check: 26.2 builds the first line with a StringBuilder and keeps a trailing space ('Found a started raid! '); 26.3's literal has none. Ported the feedback literal and the test expectation; raid_check test passes with HORIZON_TEST_RESOURCES."
+  },
+  {
+   "id": 545,
+   "module": "crates/horizon-client/src/game/lan_entities.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ChunkMap$TrackedEntity decompiles identically in both versions; the <init> 'changed' flag is a bytecode artifact. Rust references are comments."
+  },
+  {
+   "id": 546,
+   "module": "crates/horizon-client/src/game/shelf.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ShelfRenderer.submitItem: 26.3's static form inlines the offsets and uses rotateDegrees; 26.2's instance form builds a Vec3 and uses mulPose(rotationDegrees) \u2014 same values, same transform order (translate 0.5, rotate Y, translate offset, scale 0.25)."
+  },
+  {
+   "id": 547,
+   "module": "crates/horizon-client/src/game/tutorial.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TutorialToast and TutorialToast$Icons decompile identically in both versions; the extractRenderState 'changed' flags are bytecode artifacts."
+  },
+  {
+   "id": 548,
+   "module": "crates/horizon-client/src/mobs/hostile.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SilverfishMergeWithStoneGoal.start and SilverfishWakeUpFriendsGoal.tick differ only by setBlockAndUpdate vs setBlock(pos, state, 3) \u2014 identical in both versions (established in item 414)."
+  },
+  {
+   "id": 549,
+   "module": "crates/horizon-client/src/mobs/rabbit.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CarrotBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); MAX_AGE and growth behaviour unchanged."
+  },
+  {
+   "id": 550,
+   "module": "crates/horizon-client/src/multiplayer.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "OnlineServerEntry extractContent/extractIcon decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+  },
+  {
+   "id": 551,
+   "module": "crates/horizon-command/src/tree_extra.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "UnpublishCommand: 26.3 throws ERROR_NOT_PUBLISHED; 26.2 sends sendFailure and returns 0. Ported cmd_unpublish's two failure arms (dedicated-server and LAN-not-published) to command_failure + Ok(0), same pattern as item 518."
+  },
+  {
+   "id": 552,
+   "module": "crates/horizon-mods/src/content/fluid.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "FluidModel$Unbaked.bake: 26.3 validates each material is in the blocks atlas (getAndValidateMaterial, reports a missing reference otherwise); 26.2 takes materials.get directly. The Rust performs no atlas validation \u2014 already the 26.2 form."
+  },
+  {
+   "id": 554,
+   "module": "crates/horizon-world/src/level/place.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ChorusPlantBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); getStateWithConnections unchanged."
+  },
+  {
+   "id": 555,
+   "module": "crates/horizon-world/src/worldgen/feature_catalog.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "PaleMossDecorator.place differs only by the registry rename: 26.3 looks up Registries.FEATURE and casts to Feature, 26.2 looks up Registries.CONFIGURED_FEATURE and casts to ConfiguredFeature; the place call (level, generator, random, origin.above()) is identical."
+  },
+  {
+   "id": 557,
+   "module": "crates/horizon-world/src/worldgen/snow_freeze.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SnowyBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+  },
+  {
+   "id": 558,
+   "module": "crates/horizon-world/src/worldgen/structure.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SlabBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+  },
+  {
+   "id": 559,
+   "module": "crates/horizon-world/src/worldgen/tree_blocks.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "RotatedPillarBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+  },
+  {
+   "id": 560,
+   "module": "launcher/src/screenshots.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Screenshot.takeScreenshot differs only by RenderPearl\u2192Blaze3D import renames (GpuBuffer/GpuTexture); the body is GPU plumbing, unchanged."
+  },
+  {
+   "id": 561,
+   "module": "crates/horizon-client/src/game/social.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SocialInteractionsScreen.keyPressed differs in its close condition (26.2: !searchBox.isFocused(); 26.3: !isInputCaptured()), but the Rust never ports the toggle-key close \u2014 the social screen closes only on Escape (play_keys) or Done \u2014 so the difference is unobservable."
+  },
+  {
+   "id": 562,
+   "module": "crates/horizon-client/src/game/chat.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ChatVisiblity has the same three values (FULL/SYSTEM/HIDDEN) and LEGACY_CODEC in both versions (javap-verified); 26.3 only adds a STREAM_CODEC field."
+  },
+  {
+   "id": 563,
+   "module": "crates/horizon-client/src/game/deflect.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "26.3's Projectile.deflect/ProjectileDeflection take a power Vec3 (REVERSE multiplies by -power*0.5, AIM_DEFLECT scales the look by power); 26.2's take none (REVERSE scales -0.5, AIM_DEFLECT uses the unit look). The Rust already implements the 26.2 forms: wind.rs::reverse scales velocity by -0.5, deflect.rs::aim_deflect sets velocity to the unit look. MOMENTUM_DEFLECT is unported. The WindCharge noDeflectTicks gate is identical in both versions."
+  },
+  {
+   "id": 564,
+   "module": "crates/horizon-assets/src/item_model/component_predicate.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EnchantmentPredicate decompiles identically in both versions; the lambda$static 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 567,
+   "module": "crates/horizon-client-render/src/pack_screen.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TransferableSelectionList$PackEntry.extractContent decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 568,
+   "module": "crates/horizon-client/src/dialog_screen.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Checkbox.extractContents decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 569,
+   "module": "crates/horizon-client/src/game/banners.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "AbstractBannerBlock carries a simpleCodec in 26.2 that the 26.3 form lacks; no behaviour method changed."
+  },
+  {
+   "id": 570,
+   "module": "crates/horizon-client/src/game/dedicated/management.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "JsonRpcLogger.log: 26.3 builds the message with a LoggingEventBuilder, 26.2 calls LOGGER.info directly (with a list prepend when args are present); the emitted line ('RPC Connection #{}: ' + message) is identical. The Rust only cites the class in a comment."
+  },
+  {
+   "id": 571,
+   "module": "crates/horizon-client/src/game/fangs.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EvokerFangsRenderer.submit differs only by rotateDegrees vs mulPose(rotationDegrees) and a trailing null argument to submitModel \u2014 same transform, GPU plumbing."
+  },
+  {
+   "id": 572,
+   "module": "crates/horizon-client/src/game/locator_bar.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EnchantmentScreen.extractBackground decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 573,
+   "module": "crates/horizon-client/src/game/native_criteria.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SimpleCriterionTrigger$SimpleInstance.validate differs only by the player-predicate type (26.3: Optional<Holder<LootItemCondition>> via validateHolder; 26.2: Optional<ContextAwarePredicate> via validate) \u2014 the 26.3 predicate-holder migration. The Rust ports trigger/test, not validate."
+  },
+  {
+   "id": 574,
+   "module": "crates/horizon-client/src/game/spectator.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "TeleportToTeamMenuCategory.extractIcon decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 575,
+   "module": "crates/horizon-client/src/game/window_handler.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EditWorldScreen differs only by Blaze3D.openPath vs Util.getPlatform().openPath (the same rename as item 538) \u2014 platform plumbing."
+  },
+  {
+   "id": 577,
+   "module": "crates/horizon-client/src/mobs/allay.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Allay$VibrationUser.onReceiveVibration differs only by pos.immutable() (26.3) vs new BlockPos(pos) (26.2) \u2014 the same immutable copy passed to AllayAi.hearNoteblock."
+  },
+  {
+   "id": 578,
+   "module": "crates/horizon-client/src/mobs/armadillo.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "ArmadilloAi$ArmadilloBallUp.checkExtraStartConditions: 26.3 requires onGround() && !isInLiquid(); 26.2 requires only onGround(). The Rust had the 26.3 form (&& !liquid(m)); removed the liquid check and the now-unused liquid() helper."
+  },
+  {
+   "id": 579,
+   "module": "crates/horizon-client/src/mobs/turtle.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Turtle$TurtleLayEggGoal.tick differs only by setBlockAndUpdate vs setBlock(pos, state, 3) \u2014 identical in both versions (established in item 414)."
+  },
+  {
+   "id": 580,
+   "module": "crates/horizon-mods/src/content.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "WoodType: 26.3 adds POPLAR (new in 26.3, absent in 26.2). The Rust has no WoodType enumeration \u2014 its only WoodType references are comments \u2014 so there is no surface to port; the poplar tree code in growth/foliage/trunk belongs to the 26.3-only tree feature, not this class."
+  },
+  {
+   "id": 581,
+   "module": "crates/horizon-server-files/src/profiles.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "CachedUserNameToIdResolver.lookupGameProfile decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 582,
+   "module": "crates/horizon-server/src/management_schema.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "OutgoingRpcMethods: 26.3 adds four world-upgrade notifications (world/upgrade_started, upgrade_progress, upgrade_finished, upgrade_failed); 26.2 has none. Removed the four entries from METHODS, updated the module doc to 26.2, and the rpc_discover test's count 89 -> 85 (test passes)."
+  },
+  {
+   "id": 583,
+   "module": "crates/horizon-shaders/src/biomes.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "BiomeTags: 26.3 adds 18 HAS_ABANDONED_CAMP_* tags (the new abandoned-camp structure's per-biome placement tags); everything else is identical. The Rust's biomes.rs only uses the is_* category tags, which are the same in both versions \u2014 it has no has_structure surface."
+  },
+  {
+   "id": 584,
+   "module": "crates/horizon-world/src/level/survive.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "GrowingPlantBlock carries a simpleCodec in 26.2 that the 26.3 form lacks; no behaviour method changed."
+  },
+  {
+   "id": 586,
+   "module": "crates/horizon-world/src/worldgen/structure/end_city.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "EndCityStructure.findGenerationPoint: 26.3 adds a couldValidBiomeExistInTerrainColumn pre-check at chunk offset 7 and inlines getLowestYIn5by5Box; 26.2 calls getLowestYIn5by5BoxOffset7Blocks with no pre-check. The Rust does not port per-structure findGenerationPoint (its start logic is generic) \u2014 the difference is unobservable."
+  },
+  {
+   "id": 587,
+   "module": "crates/horizon-world/src/worldgen/structure/mansion.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "WoodlandMansionStructure.findGenerationPoint: same shape as item 586 \u2014 26.3 adds the biome pre-check at chunk offset 7, 26.2 uses getLowestYIn5by5BoxOffset7Blocks. The Rust does not port per-structure findGenerationPoint."
+  },
+  {
+   "id": 588,
+   "module": "crates/horizon-world/src/worldgen/structure/monument.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "OceanMonumentStructure.findGenerationPoint differs only by the biome-query API: 26.3 uses context.biomeResolver().getBiomesWithin(x, seaLevel, z, 29), 26.2 uses context.biomeSource().getBiomesWithin(x, seaLevel, z, 29, sampler) \u2014 same query, same radius, same REQUIRED_OCEAN_MONUMENT_SURROUNDING check, which the Rust already performs via its biome set."
+  },
+  {
+   "id": 589,
+   "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "JungleTemplePiece.postProcess differs only by the RedstoneWireBlock (26.3) vs RedStoneWireBlock (26.2) class rename (established in item 508); the trap wiring placements are identical."
+  },
+  {
+   "id": 591,
+   "module": "crates/horizon-client/src/game/tabs.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "MenuTabBar.extractWidgetRenderState decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 592,
+   "module": "crates/horizon-client/src/game/toasts.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "SystemToast.extractRenderState decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+  },
+  {
+   "id": 594,
+   "module": "crates/horizon-client/src/game/recipe_book.rs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "ServerPlaceRecipe.clearGrid: 26.3 passes Prediction.SERVER_ONLY to placeItemBackInInventory; 26.2 calls the 2-arg form. The Rust models no inventory prediction (established pattern, menu.rs:924) \u2014 already the 26.2 form."
+  },
+  {
+   "id": 451,
+   "module": "crates/horizon-client/src/scoreboard_cmd.rs",
+   "bucket": "A",
+   "verdict": "ported",
+   "evidence": "ScoreboardCommand/TeamCommand: 26.3 routes the one/many feedback through CommandResponseTracker (counts only nonzero tracks); 26.2 branches manually on names.size() and counts every target. Ported the four divergent paths: (1) set \u2014 branch on the target count (a set to 0 with one target is a single success), return value*names.size(); (2) enable \u2014 message by names.size(), return the unlocked count, throw enable.failed when none unlocked; (3) team join \u2014 count every member, return members.size(); (4) team leave \u2014 a teamless member still succeeds and counts, return members.size(). add/remove/reset/display/numberformat/operation were verified equivalent (their Tracker forms already branch on the target count and return the 26.2 totals) and are unchanged. New regression test twenty_six_two_counts_targets_not_successes pins all three divergences; all 9 scoreboard_cmd tests pass."
+  },
+  {
+   "id": 437,
+   "module": "crates/horizon-client/src/game/commands/effects.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "EffectCommands/EnchantCommand: 26.3 routes the one/many feedback through CommandResponseTracker (counts only successes); 26.2 branches manually on the target count and counts every target. Ported give/clear/enchant: message choice and multiple-count now use the target count; returns stay the success counts; the local Tracker struct is gone. The duration computation was already the 26.2 inline form (instantaneous -> seconds/1, -1 -> -1, else seconds*20, default 600) and is unchanged. The 26.2 getName() (vs 26.3 getDisplayName()) error args are unobservable in the Rust's scope (no team formatting on the handled targets). cargo check clean; no unit tests cover these commands (command_exec harness is the check, blocked by the launch crash)."
+  },
+  {
+   "id": 423,
+   "module": "crates/horizon-world/src/level/sculk.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Sculk: (1) canPlaceGrowth \u2014 26.3 counts the sculk_growth_inhibitors tag (verified present in the 26.3 jar, absent in 26.2); 26.2 counts sculk_sensor/sculk_shrieker blocks explicitly. Both the live (level/sculk.rs) and worldgen (worldgen/sculk.rs) implementations now check the two blocks explicitly; the worldgen inhibitors tag set is gone. (2) ChargeCursor worldgen spread \u2014 26.3 pre-checks 12 blocks (distSq<=144) in getValidMovementPos and kills a stuck cursor; 26.2 checks 15 blocks AFTER the move (closerThan 15.0 of the origin column) and leaves a stuck cursor in place. The worldgen feature now does the post-move 15-block check (dx^2+dz^2>=225) with no stuck-kill; the live cursor already matched 26.2 (no origin check in valid_movement). Sensor/catalyst/shrieker/vein diffs are only setBlockAndUpdate vs setBlock(...,3) plus codecs. sculk tests 3/3 pass."
+  },
+  {
+   "id": 424,
+   "module": "crates/horizon-client/src/game/commands/test_runs.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TestCommand: the entire 26.2-vs-26.3 diff is the cross-dimension re-shape (26.3 looks test blocks up by GlobalPos across dimensions via findSelectedTestPositionsAcrossDimensions; 26.2 uses BlockPos in the source's level only). The Rust is already the 26.2 single-level form (test_runs.rs:212: '26.2 has no dimension on a test'; test_position_in_level; the Finder searches run in the level in place). The 26.3-only finder/display/suggest methods are unported."
+  },
+  {
+   "id": 429,
+   "module": "crates/horizon-client/src/lan/hub.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "ServerClockManager/TimeCommand: 26.3 added five 'already' errors (already_at_time, already_at_time_marker, already_paused, already_running, already_same_rate) and a MoveResult return for moveToTimeMarker; 26.2 has none of them \u2014 set/pause/resume/rate/marker-move all act unconditionally (only a missing marker errors, via the boolean moveToTimeMarker). Removed all four already-checks from the /time arms in game/commands.rs. tick(), addTicks, setTotalTicks, setRate, setPaused and wrapTime are identical in both versions modulo the ClockInstance rename; the no-marker error's message-arg order (marker, clock) was already right."
+  },
+  {
+   "id": 422,
+   "module": "crates/horizon-client-render/src/social.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PlayerSocialManager/PresenceHandler/RemoteFriendListUpdateHandler: the diff is the authlib package move (com.mojang.authlib.services.* in 26.3 vs com.mojang.authlib.yggdrasil.* in 26.2) plus 26.3 wrapping the presence post in a try/catch postPresence helper (26.2 calls the service directly). The Rust models the friends service as a local stub with no real network call, so neither difference is observable; the state machine (flags, presence status, update interval) is identical."
+  },
+  {
+   "id": 425,
+   "module": "crates/horizon-world/src/worldgen/structure/fortress.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "NetherFortressPieces/Structure: the piece methods take StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) \u2014 a parameter-type rename with identical bodies (verified on NetherBridgePiece.generatePiece and BridgeCrossing); FORTRESS_ENEMIES uses IntProviders in 26.3 vs plain (min,max) ints in 26.2 with the same values (blaze 2-3/10, piglin 4/5, wither skeleton 5/8, skeleton 5/2, magma cube 4/3). The Rust has no FORTRESS_ENEMIES surface."
+  },
+  {
+   "id": 431,
+   "module": "crates/horizon-client/src/game/advancements_screen.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "AdvancementsScreen: tab selection is already the 26.2 left-click form in the Rust (26.3 switched to right-click), the tab icon/title already derive from DisplayInfo (26.2 form; 26.3 takes them as constructor args), AdvancementWidget decompiles identically, and onClose restores the last screen in both versions. PORTED: keyPressed \u2014 26.2's advancements key always closes to the game and grabs the mouse, 26.3 restores the last screen. The Rust routed the key through close_advancements (the onClose form); added close_advancements_to_game and routed KeyL to it in play_keys.rs."
+  },
+  {
+   "id": 427,
+   "module": "crates/horizon-client/src/game/lan_screen.rs",
+   "bucket": "B",
+   "verdict": "accepted-gap",
+   "evidence": "WorldOptionsScreen: 26.3 merged LAN publishing into WorldOptionsScreen (37 KB class: generalOptions + multiplayerOptions + publish + port controls + Apply/Cancel snapshot). 26.2 keeps them separate: WorldOptionsScreen (14 KB, immediate-apply game mode/allow-commands/difficulty/game-rules/restrictions + Done) and the 26.2-only MultiplayerOptionsScreen (LAN scope toggle, port box, game mode, allow commands, Apply Changes), reached from the pause menu's Multiplayer Options button. The Rust ports the 26.3 merged screen (lan_screen.rs, 1902 lines) and the pause menu already wires the 26.2 Multiplayer Options button to it (screens.rs:455 notes the layout port outstanding). ACCEPTED GAP: the underlying operations (publishServer, setWorldGameType, setWorldAllowCommands, difficulty, game rules, restrictions) all match 26.2; only the screen layout differs (one merged screen vs two separate screens, snapshot vs immediate apply on the world side). Splitting the screen is a multi-hour rewrite of lan_screen.rs with LAN-flow regression risk; deferred to a later UI pass, tracked by the in-code note at screens.rs:455-458. Owner: behaviour port / UI pass."
+  },
+  {
+   "id": 428,
+   "module": "crates/horizon-client/src/game/options.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Options screens: all 12 classes (OptionsScreen, VideoSettingsScreen, OnlineOptionsScreen, MouseSettingsScreen, ControlsScreen, KeyBindsScreen, KeyBindsList entries, OptionsList + HeaderEntry, GraphicsPreset, PreferredGraphicsApi) decompile identically in 26.3 and 26.2 \u2014 the flagged method diffs are bytecode artifacts. No new 26.3 options."
+  },
+  {
+   "id": 434,
+   "module": "crates/horizon-client-render/src/gfx.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "GUI render: GuiItemAtlas, GuiBannerResultRenderer and GuiBookModelRenderer decompile identically; Lighting differs only by the RenderPearl->Blaze3D import move; PictureInPictureRenderer differs only in render-pass plumbing (26.3 RenderPass/FeatureRenderDispatcher frame API vs 26.2 output-texture overrides) with identical prepare math. The Rust renders through wgpu directly and ports none of the RenderSystem plumbing."
+  },
+  {
+   "id": 436,
+   "module": "crates/horizon-client/src/multiplayer.rs",
+   "bucket": "B",
+   "verdict": "accepted-gap",
+   "evidence": "Title/multiplayer: LogoRenderer, FriendsButton, NoticeWithLinkScreen and both flat-world entries decompile identically modulo imports; Blaze3D.openUri is 26.3-only (26.2 uses Util.getPlatform, established pattern); JoinMultiplayerScreen keyPressed is F5-refresh in both (294 GLFW key vs the 1073741886 shortcut code), unported in the Rust. DIVERGENCE (accepted gap): editServerCallback \u2014 26.2 copies the edited entry back via copyFrom (icon + resource-pack status + type) and KEEPS the old ping state, while 26.3 resets state to INITIAL (re-ping). The Rust's edit-save rebuilds the list fresh (Self::list re-pings everything), matching 26.3. Porting the 26.2 keep-state form needs the Edit variant to carry the list back (the ConfirmDelete pattern) \u2014 a multiplayer-screen lifecycle refactor deferred for a 1-2s re-ping difference; 26.3's reset is arguably the fix for 26.2's stale-ping-after-address-change quirk. Owner: behaviour port / UI pass."
+  },
+  {
+   "id": 438,
+   "module": "crates/horizon-client/src/game/totem.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ScreenEffectRenderer/Lightmap: the item-activation animation math is byte-identical in 26.2 and 26.3 (same 40-tick polynomial, rotations, offsets; only the state source differs \u2014 own fields vs PlayerRenderState) and the Rust ports it in totem.rs. submit() has the same structure, ordering and block-overlay colour (-15132391) in both; 26.3 reads pre-computed render state where 26.2 reads the player directly (getViewBlockingState, isEyeInFluid, isOnFire). The block-overlay submission itself is unported in the Rust against both versions, not a 26.2 divergence. Lightmap decompiles identically."
+  },
+  {
+   "id": 439,
+   "module": "crates/horizon-client/src/game/commands/place.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "PlaceCommand: 26.3's /place feature takes ResourceOrIdArgument (Holder<Feature>, inline values, success.inline message); 26.2 takes ResourceKeyArgument over CONFIGURED_FEATURE only. PORTED: the feature arg is now ResKey(minecraft:worldgen/configured_feature) in tree_world.rs; the inline branch is removed from cmd_place_generated; the now-dead inline machinery is removed (place_inline_feature in bonemeal.rs/growth.rs, configured_inline/decode_inline in live.rs, InlineFeatureCheck in registries.rs + its chat.rs setup, the worldgen/feature codec arm + check_feature/dfu_feature_error in codec.rs); the 26.3-only tests (place_feature_tests.rs, inline_feature_parse_tests.rs) and harnesses (test_place_feature_inline_parity.py, test_inline_feature_parse_parity.py + corpora) are deleted. placeStructure/placeTemplate differ only by the getStructureManager rename. cargo check --all-targets clean for the touched crates. (Caught in review: removing a #[cfg(test)] mod line orphaned its attribute onto mod play_input; fixed.)"
+  },
+  {
+   "id": 440,
+   "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "MineshaftPieces/Structure: every method diff is the StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) parameter rename with identical bodies (verified on createRandomShaftPiece, generateAndAddPiece, MineShaftCorridor.addChildren, MineshaftStructure.generatePiecesAndAdjust) \u2014 the same re-shape as the fortress pieces in item 425."
+  },
+  {
+   "id": 441,
+   "module": "crates/horizon-client/src/game/beehives.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "BeehiveBlock: 26.2 carries the codec (no Rust surface); playerDestroy is the ServerLevel/ServerPlayer vs Level/Player + isClientSide re-shape with the same server-only behaviour; dropHoneycomb's loot call differs only by a pos argument the harvest/beehive table does not use; useItemOn differs by the unported Prediction.PREDICTED drop flag and setBlockAndUpdate vs setBlock(...,3). The Rust's use_beehive matches both forms."
+  },
+  {
+   "id": 442,
+   "module": "crates/horizon-client-render/src/hud/pack_text.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "GuiRenderer/GlobalSettingsUniform: the GuiRenderer diff is GPU plumbing (RenderPass/CommandEncoder vs texture overrides, vertex-buffer index requests); GlobalSettingsUniform differs only in UBO field ORDER (26.3 IVec3/Float/Vec3/Float/Vec2 vs 26.2 IVec3/Vec3/Vec2/Float/Float) with identical values (camera floor + offset, screen size, glint alpha, (gameTime%24000+partial)/24000, blur radius, RGSS). The Rust writes its own uniform layout and its own shaders read it, so the order is unobservable."
+  },
+  {
+   "id": 443,
+   "module": "crates/horizon-world/src/worldgen/generator_decoration.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SpikeFeature/FillLayerFeature: the 26.3 record vs 26.2 class + FeaturePlaceContext re-shape; place bodies are identical modulo this.x -> config.x() (canPlaceOn/canReplace/state for spikes; height/state for fill layers). The Rust drives features through its catalog, so the shape is invisible."
+  },
+  {
+   "id": 444,
+   "module": "crates/horizon-client/src/game/brush.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "BrushableBlockEntity/Renderer: the entity diff is only setBlockAndUpdate vs setBlock(...,3) in brush/brushingCompleted/checkReset; the renderer differs only by rotateDegrees vs mulPose with identical angles (75 deg, (eastWest?90:0)+11)."
+  },
+  {
+   "id": 445,
+   "module": "crates/horizon-client/src/game/debug_keys.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "GameModeCommand + debug entries: PORTED (a) /gamemode: 26.2's setMode/setGameMode call server.setDefaultGameType (worldData.setGameType, no player forcing) for the singleplayer owner; 26.3 dropped it. Added set_default_game_type (lan.rs) and target_is_owner (commands.rs); cmd_gamemode and the debug-key change_game_mode set the default for the owner. (b) FPS line: dropped the 26.3-only @Hz suffix (+ debug_refresh_rate/field, refresh_rate_label). (c) Removed the 26.3-only Terrain Rendering line and the 26.3-only Window system line (the CPU line exists in both). (d) Chart labels back to 26.2's uppercase FPS / FPS + TPS. (e) Removed the 26.3-only debugGuiScale option entirely (overlay always at GUI scale; options default, footer button + cycle fn, scale() option param + tests updated). cargo check --all-targets clean (2 pre-existing warnings only); debug_overlay + debug_options tests pass."
+  },
+  {
+   "id": 446,
+   "module": "crates/horizon-client/src/game/dispenser.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Dispenser: RespawnAnchor charge is codec + setBlockAndUpdate vs setBlock(...,3); DispenseConfig differs only by Optional<Integer> vs OptionalInt; $7/$8 are setBlockAndUpdate vs setBlock(...,3); $11, ProjectileDispenseBehavior and ShearsDispenseItemBehavior are identical; the mud tag is already the 26.2 spelling convertable_to_mud in the Rust; the honeycomb-wax sound difference is already the 26.2 form in the Rust (level event 3003 only, no explicit play \u2014 comment cites 26.2). The 26.3-only poplar boat registrations have no Rust dispenser surface."
+  },
+  {
+   "id": 447,
+   "module": "crates/horizon-client/src/debug_overlay.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "DeviceInfo: the class is byte-identical in both versions apart from the package move (com.mojang.renderpearl.api.device in 26.3 vs com.mojang.blaze3d.systems in 26.2); the Rust's vendor_name mapping is unaffected."
+  },
+  {
+   "id": 448,
+   "module": "crates/horizon-client/src/item_render.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ItemFeatureRenderer/MaterialInfo: the glint math is identical (same SPECIAL_FOIL_TEXTURE_SCALE, same computeFoilDecalPose); the diff is pass structure (26.2's separate foil pass via getFoilBuffer vs 26.3's inline per-material glint render types), which the Rust's shader-based glint (foil UVs on the same quads) does not model either way. MaterialInfo's shadeDirectionOverride (26.3) vs shade boolean (26.2): the Rust parses both keys and 26.2 assets carry only the boolean, so 26.2 behaviour is identical (override always None); the override is honoured only for 26.3-era packs."
+  },
+  {
+   "id": 449,
+   "module": "crates/horizon-client/src/game/enchant_effects.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Enchant effects: ReplaceDisk differs only by Holder<BlockStateProvider> vs direct provider (bodies identical; the Rust resolves the state from the effect JSON). ApplyEntityImpulse's 26.3 quaternion transform and 26.2's addLocalCoordinates are mathematically the same rotation (26.2 builds the forwards/up/left basis from yaw/pitch trig); the syncVelocity/motion-packet difference is networking plumbing the Rust does not model. UnobstructedPredicate differs only by the LevelAccessor vs WorldGenLevel parameter type; the rest are codec lambda re-shapes."
+  },
+  {
+   "id": 450,
+   "module": "crates/horizon-client/src/game/books.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Books: page keys are PageUp/PageDown in both (shortcutKey vs key API codes only); BookViewScreen mouseClicked is left-click in 26.2 vs right-click in 26.3 and the Rust gates book_click on MouseButton::Left \u2014 already the 26.2 form. BookSignScreen/PageButton diffs are render-state extraction only."
+  },
+  {
+   "id": 453,
+   "module": "crates/horizon-client-render/src/streaming.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Streaming: 26.3 adds compileTaskStartTimeNs tracking; the Rust's compile_started map is Horizon's own stale-mesh sequence clock (a u64 counter, not vanilla nanos) and is invisible to players. 26.3 installs an EMPTY mesh when a section has no block entities; 26.2 always installs the compiled mesh, as the Rust does."
+  },
+  {
+   "id": 454,
+   "module": "crates/horizon-world/src/worldgen/structure/simple.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Igloo/shipwreck pieces: the Builder vs Accessor parameter rename only, plus setBlockAndUpdate vs setBlock(...,3) in the igloo piece post-processing \u2014 the same re-shape as the fortress and mineshaft pieces."
+  },
+  {
+   "id": 455,
+   "module": "crates/horizon-client/src/game/hand.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Redstone ore + piercing: the ore differs only by the 26.2 codec and setBlockAndUpdate vs setBlock(...,3). PiercingWeapon.attack's only diff is swing() vs swingAndResetAttackStrength() \u2014 but the attack-strength reset happens in BOTH versions via Player.onAttack (called in both, resets the ticker), and the swing duration comes from getSwingAnimation in both (26.2 via getCurrentSwingDuration). The Rust's jab()+reset matches both."
+  },
+  {
+   "id": 456,
+   "module": "crates/horizon-client-render/src/multiline_edit.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Multiline edit: keyPressed differs only by shortcutKey vs key codes (same keys: Enter, Backspace, Delete, Home/End, arrows \u2014 the Rust handles them by KeyCode). MultiLineEditBox's needsValidCursorPos is capturesInput (26.3) vs preeditOverlay != null (26.2); the position feeds only the IME caret report and the cursor drawing (gated by showCursor in both), and the Rust has no preedit-overlay state to gate on \u2014 the reported caret position is the same either way."
+  },
+  {
+   "id": 457,
+   "module": "crates/horizon-client/src/command_storage.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "DataCommands: the ArgProvider/DataAccessor (26.3) vs DataProvider (26.2) re-shape with identical merge/get/remove/modify semantics. The 26.3-only /data modify ... compute subcommand (ComputeCommand is absent from the 26.2 jar) is unported in the Rust's cmd_data_modify \u2014 no compute branch, no compute surface to remove. /compute itself belongs to item 510 (bucket D)."
+  },
+  {
+   "id": 458,
+   "module": "crates/horizon-client/src/game/commands/text_commands.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Title + NBT contents: TitleCommand is the Tracker family, but 26.3 tracks every target unconditionally, so it is equivalent to 26.2's manual size-branching \u2014 and the Rust's cmd_title already branches on the target count and returns it. NbtContents.resolve's 26.3 resolved-component-count limit has no counterpart in the Rust (which resolves every component, as 26.2 does) and no recursion risk (single-pass resolution)."
+  },
+  {
+   "id": 459,
+   "module": "crates/horizon-client/src/gizmos.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Gizmos: rotate vs mulPose is the same transform; 26.2's linesTranslucent pipeline is DepthStencilState(GREATER_THAN_OR_EQUAL, depthWrite=false) \u2014 the same no-depth-write state as 26.3's linesTranslucentNoDepthWrite, and the Rust's debug_lines pipeline already uses depth_write=false. The hitbox visibility conditions (invisible, frustum, levelExtractor, camera-entity) are the same set in both versions, restructured into isEntityVisible in 26.3; the Rust skips invisible mobs and lets the GPU clip the rest."
+  },
+  {
+   "id": 460,
+   "module": "crates/horizon-world/src/worldgen/ore_feature.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "OreFeature: 26.3 moves place/doPlace/canPlaceOre into AbstractOreFeature with BlockReplacement targets; 26.2 keeps them in OreFeature with OreConfiguration/TargetBlockState. Bodies identical modulo this.size vs config.size; canPlaceOre's discardChanceOnAirExposure + isAdjacentToAir logic is the same. The Rust calls rule.test(state, random) \u2014 the 2-arg form, matching 26.2 (item 214)."
+  },
+  {
+   "id": 461,
+   "module": "crates/horizon-client/src/game/respawn_anchor.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "BedRule: already ported in an earlier item \u2014 dimension_type.rs reads 26.2's `explodes` field (and 26.3's destroy_on_use spelling) into destroy_on_use, documents that destroy_on_leave does not exist in 26.2, and has the bed_rule_accepts_the_26_2_explodes_field test. No destroy_on_leave handling exists anywhere in the Rust."
+  },
+  {
+   "id": 462,
+   "module": "crates/horizon-world/src/level/feature_world.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "MonsterRoomFeature: record re-shape only; the one body difference is the replaceable predicate written as a lambda (26.3) vs Feature.isReplaceable (26.2) \u2014 the same predicate."
+  },
+  {
+   "id": 464,
+   "module": "crates/horizon-client/src/game/initial_spawn.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "BonusChestFeature: record re-shape only; the place body is identical modulo config access and decompiler variable names."
+  },
+  {
+   "id": 465,
+   "module": "crates/horizon-client/src/game/test_instances.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TestData: 26.3 adds a dimension field (default OVERWORLD) to the test record; 26.2 has none. The Rust's TestDef has no dimension field \u2014 already the 26.2 form, consistent with item 424's single-level test runs."
+  },
+  {
+   "id": 466,
+   "module": "crates/horizon-world/src/level/growth_tests.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SaplingBlock: already ported \u2014 the lone_dark_oak_sapling test documents that 26.2's isValidBonemealTarget is only the height check and canGrow (the 2x2 mega-only requirement) is 26.3-only. The BonemealSource parameter is 26.3-only too."
+  },
+  {
+   "id": 467,
+   "module": "crates/horizon-client-render/src/gfx/native_material.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "RenderSection: 26.2 stores fadeDuration/wasPreviouslyEmpty as fields, 26.3 passes the duration to getVisibility as a parameter; the fade math (elapsed >= fade ? 1 : elapsed/fade) is identical, and the Rust's section_visibility implements exactly that formula over its own first-upload map. The previously-empty/far instant rule is a LevelRenderer-side condition; the Rust's fade system is Horizon's own GPU-culling machinery, not a RenderSection field port."
+  },
+  {
+   "id": 469,
+   "module": "crates/horizon-world/src/worldgen/structure/ruined_portal.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Ruined portal: 26.2's placeNetherrackOrMagma places UNCONDITIONALLY; 26.3 moved the replaceability check inside it. The check exists at the spread site in both versions, so the divergence is only the drip columns (26.2 replaces whatever is there, always drawing the magma roll). Ported: new unconditional place_netherrack_or_magma used by drip_column; the checked netherrack_or_magma stays for the spread site. findGenerationPoint differs only by the biomeResolver vs getBiomeSource query (same query)."
+  },
+  {
+   "id": 471,
+   "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CubeMap: the render diff is only the render-pass API (getCompiledPipeline/setUniform vs direct pipeline/bindTexture) \u2014 GPU plumbing; CubeMapTexture.doLoad decompiles identically. The Rust renders panoramas through wgpu directly."
+  },
+  {
+   "id": 472,
+   "module": "crates/horizon-client/src/game/stats_screen.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Stats screen: getNextTabIndex differs only in how the digit is read (getNumericKeyValue vs getDigit) \u2014 the same floorMod(digit-1, 10) formula, which the Rust's tab_key implements as (digit+9)%10. The StatsScreen diffs are extract* render-state methods only."
+  },
+  {
+   "id": 473,
+   "module": "crates/horizon-port-pack/src/upgrade/settings.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "OverworldBiomeBuilder: the DAPPLED_FOREST MIDDLE_BIOMES_VARIANT entry is data (the Rust reads preset biome tables from data; 26.2's data governs). spawnTarget's parameter values are identical (SpawnTargetPoint map vs ParameterPoint positional); the Rust reads spawn_target from the noise settings JSON as ParameterPoints \u2014 the 26.2 form. deepDarkRegion (density function) and isDeepDarkRegion (predicate) are the same condition; settings.rs already builds the 26.2 exclusion."
+  },
+  {
+   "id": 474,
+   "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Ocean ruins: the Builder vs Accessor parameter rename only (addPieces/addClusterRuins/addPiece), same bodies."
+  },
+  {
+   "id": 475,
+   "module": "crates/horizon-client/src/mobs/guardian.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Guardian renderer: shouldRender bodies are identical (26.3 adds a partialTicks parameter it does not use \u2014 both call getPosition with 1.0F); renderBeam differs only by rotateDegrees vs mulPose with the same angles, which the Rust's beam_geometry matches."
+  },
+  {
+   "id": 476,
+   "module": "crates/horizon-client/src/debug_chart.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "Debug charts: 26.2's gridline labels are uppercase ('30 FPS', '60 FPS', '%.1f TPS'); the Rust still had 26.3's lowercase ('30 fps', '60 fps', '{tps:.1} tps') \u2014 item 445 only fixed the chart titles, not the gridlines. Ported: three literals in lines_and_labels."
+  },
+  {
+   "id": 477,
+   "module": "crates/horizon-client/src/game/commands/profiles.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TransferCommand: Tracker family, but 26.3 tracks every player unconditionally, so it equals 26.2's manual form (throw no-players when empty, branch on size==1, return the count) \u2014 which is exactly what the Rust's cmd_transfer does."
+  },
+  {
+   "id": 478,
+   "module": "crates/horizon-client/src/game/wandering_trader.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Wandering trader spawner: the only diff is hasEnoughSpace's iteration style (findBlocksIn+forEachUntil vs a betweenClosed loop) over the same 2x3x2 collision check; spawn is otherwise identical."
+  },
+  {
+   "id": 479,
+   "module": "crates/horizon-client/src/game/pad_menu.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ContainerEventHandler: drag-start/release/drag gate on button 1 (26.3) vs button 0 (26.2) \u2014 the same left-to-right migration as the advancements and book screens. The Rust has no generic container drag state (its dragging flag is never set) and its per-screen drag handlers are all left-button driven \u2014 already the 26.2 form."
+  },
+  {
+   "id": 480,
+   "module": "crates/horizon-client/src/game/pumpkin.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PumpkinBlock.useItemOn: identical modulo the 26.2 codec and one extra pos argument to dropFromBlockInteractLootTable in 26.3 (loot-context position, which the Rust already supplies via native_use_drops). The carve, seeds, sound, damage and stat are the same."
+  },
+  {
+   "id": 482,
+   "module": "crates/horizon-world/src/level/creaking.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CreakingHeartBlock.tick: codec only plus setBlockAndUpdate vs setBlock(...,3)."
+  },
+  {
+   "id": 483,
+   "module": "crates/horizon-world/src/level/interact.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "DragonEggBlock.teleport: the 26.2-vs-26.3 difference (level event 2015 vs the client-side particle loop) was already ported in an earlier item \u2014 2015 is the sim's internal channel, never broadcast (lan.rs/game.rs/level_particles.rs document it). PORTED here: the Rust was missing the world-border check both versions have (worldBorder.isWithinBounds(testPos)); added self.level.within_world_border(test) to dragon_egg_teleport. The search loop, offsets and air/below/height checks match both versions."
+  },
+  {
+   "id": 484,
+   "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Nether fossil: the Builder vs Accessor parameter rename only; NetherFossilStructure decompiles identically (the lambda diff is a bytecode artifact)."
+  },
+  {
+   "id": 486,
+   "module": "crates/horizon-client/src/locator_bar.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "LocatorBar: decompiles identically in both versions \u2014 the extractBackground/lambda diffs are bytecode artifacts."
+  },
+  {
+   "id": 488,
+   "module": "crates/horizon-client/src/game/command_minecarts.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "MinecartCommandBase.createCommandSourceStack: the only diff is the CommandSourceStack constructor's argument list (26.2 passes the name and display name separately); the source itself \u2014 cart position/rotation, GAMEMASTER, server, entity \u2014 is the same, and the Rust builds exactly that."
+  },
+  {
+   "id": 489,
+   "module": "crates/horizon-client/src/mobs/panda.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PandaRenderer.setupRotations: rotateDegrees vs mulPose only, same angles (roll, sit +90, lie-on-back +180, shake)."
+  },
+  {
+   "id": 490,
+   "module": "crates/horizon-client/src/mobs/phantom.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Phantom sweep tick: 26.3's wasHurtRecently() is exactly hurtTime > 0, which is what 26.2 checks and what the Rust already uses (phantom.rs:286)."
+  },
+  {
+   "id": 491,
+   "module": "crates/horizon-client/src/mobs/trader.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TradeWithPlayerGoal.canUse: already ported \u2014 the Rust gates on !hurt_marked with a comment documenting that 26.2 uses hurtMarked (the mark a fresh hit sets, cleared each tick) vs 26.3's hurt window, plus the a_trader_stops_trading_when_hurt_or_out_of_reach test."
+  },
+  {
+   "id": 492,
+   "module": "crates/horizon-client/src/realms/download.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "FileDownload.finishResourcePackDownload: the only diff is the log call (exception object vs its message) \u2014 logging only."
+  },
+  {
+   "id": 493,
+   "module": "crates/horizon-client/src/screen_narrator.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ContainerObjectSelectionList.updateWidgetNarration: already ported \u2014 the Rust takes the hovered row whenever there is one (26.2's unconditional form) and its comment notes 26.3 only takes it for a mouse or system trigger."
+  },
+  {
+   "id": 494,
+   "module": "crates/horizon-client/src/toasts.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "NowPlayingToast: decompiles identically in both versions \u2014 the extractToast diff is a bytecode artifact."
+  },
+  {
+   "id": 495,
+   "module": "crates/horizon-protocol/src/packets/play/commands.rs",
+   "bucket": "B",
+   "verdict": "ported",
+   "evidence": "ArgumentTypeInfos.bootstrap: 26.3 registers five argument types 26.2 lacks \u2014 context_float_provider, context_int_provider, slot_source, feature, swing_animation. Verified against the 26.2 registry data (registries.json: 57 entries, ids 0-56). Ported: removed the five from ARGUMENT_TYPES (now the 26.2 list, 57 entries) and their five arms from network.rs's argument_type; doc comments updated to 26.2. codec.rs's decode arms stay \u2014 they decode inline values by registry name, not argument-type id, and slot_source's ArgType::SlotSource is used by /item's slot parsing (a different surface). Tests: horizon-command network 6/6; horizon-protocol 442 passed + the 2 known sandbox-network failures (444 total, same as CI's 444/0)."
+  },
+  {
+   "id": 496,
+   "module": "crates/horizon-world/src/level/buckets.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SolidBucketItem.emptyContents: setBlockAndUpdate vs setBlock(...,3) only."
+  },
+  {
+   "id": 497,
+   "module": "crates/horizon-world/src/level/shelf.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SideChainPartBlock.setPart: setBlockAndUpdate vs setBlock(...,3) only."
+  },
+  {
+   "id": 499,
+   "module": "crates/horizon-world/src/worldgen/structure/legacy.rs",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TemplateStructurePiece.postProcess: setBlockAndUpdate vs setBlock(...,3) only."
+  },
+  {
+   "id": 470,
+   "module": "widely named: server/commands",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "CommandResponseTracker (+16 inner classes) is 26.3-only, absent in 26.2. The Rust's Tracker helper stays (it has both branch modes), but every use was audited against its 26.2 form. PORTED: /tag add/remove \u2014 26.2 branches single/multiple on the TARGET count and returns the changed count; the Rust branched on the changed count (any=false). Now manual branching like item 451's enable, plus /tag list's empty case now branches on the target count (one tagless target was 'multiple of zero'). VERIFIED EQUIVALENT: scoreboard (set/add/remove any=true from 451; reset/display mark-based), /forceload (26.2 branches on the CHANGED chunk count \u2014 any=false matches), /loot, /swing, /playsound (all mark-based). The /item Tracker sites belong to item 419 (the /item restructure)."
+  },
+  {
+   "id": 419,
+   "module": "crates/horizon-client/src/game/commands/items.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "26.2's /item is the SPLIT form (setBlockItem/setEntityItem/modifyBlockItem/modifyEntityItem, single SlotArgument, replace+modify only); 26.3 unified it behind ItemAccessor + SlotSourceArgument with fill/override. PORTED: tree now replace/modify only, ArgType::Slot, single-entity copy source; cmd_item/cmd_item_modify rewritten to the 26.2 single-slot semantics (block: set.success message + return 1; entities: count changed, throw no_changes/no_changed.known_item when 0, single/multiple by changed count \u2014 modify's multiple takes the count only, set's takes count+item). Error keys are the 26.2 ones (no_changes, no_changed.known_item, no_such_slot with the slot INT via a new args::slot_id mirroring 26.2 SlotRanges; no .unnamed variants). /execute: `if slots` removed (26.3-only), `if items` now takes SlotsArgument (26.2 countItems); condition_items rewritten to range-only counting. REMOVED as 26.3-only: ArgType::SlotSource (parse/suggest/fixture), the command slot-source machinery (command_slots/inline_slots/slot_candidates/select_slot, contents.rs, Slot::Contents/ContentItem, the two registered-slot-source test modules), the datapack slot_sources store + suggestions, the item-contents corpus + slot-codec diagnostic, the structured-item-slots exec group, SLOT_SOURCES from the parse corpus, test_slot_range_codec_parity.py. KEPT: codec.rs slot_source decode arms \u2014 the minecraft:slot_source_type registry EXISTS in 26.2 (6 types); only the minecraft:slot_source registry and the command argument type are 26.3-only. NOTE (report hole): ExecuteCommand itself is ABSENT from diff-26.3-26.2/report.json although it differs (118 vs 116 methods; javap: 26.3 references SlotSourceArgument 14x, 26.2 SlotsArgument 6x) \u2014 the slot-condition part was ported here via SlotSourceArgument, but the rest of ExecuteCommand's 26.2 differences (data conditions etc.) are covered by NO item. horizon-command tests 52/52; cargo check clean (2 pre-existing warnings)."
+  },
+  {
+   "id": 418,
+   "module": "crates/horizon-client/src/realms.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Realms screens to the 26.2 forms. REMOVED as 26.3-only: the JoinCode screen + header Join button (26.2's header is built inline in RealmsMainScreen, no RealmsHeader component, no Join Realm button); the whole PDP (AddRealm variant, pdp rows/entries, open_pdp/open_pdp_if_no_realms); the tier configuration (SettingsDraft distances, changed_distance, settings_rows' tier layout, Configure/CloseWorld/RegionPreference tier fields, the ScrollableLayout scroll view + scrollbar, start_configure_tier, the tier fetch + distance save calls); the invite-code screens (InviteCodes/EditCode variants, EXPIRATIONS, closest_expiration, the Players tab's invite-codes button, poll arms + error redirects). PORTED: AddRealmPopupScreen (26.2-only, 320x172 popup: Buy/Trial/close, trial diamond over the Add Realm button when a trial is available) + the trial diamond on the Main list; saveSettings unconditional (26.2 has no configurationChanged check \u2014 26.3 skips the call when nothing changed) with blank-to-empty name/description semantics (serverData.name takes the raw name, as vanilla does); RealmsRegion back to 26.2's 23 (CanadaCentral/MexicoCentral/SouthAfricaNorth/WestUs3 are 26.3-only); CreateRealm passes the name/description raw (26.3 trims); RegionPreference onDone applies only when a region is picked (26.2 null-guard; Done on an automatic row just closes). VERIFIED no-change: ConfirmLinkScreen + CommonLinks.extendRealms (String-based, same URL shape), template screen (WorldTemplate.parse already normalizes \"\" to None, matching 26.2's empty checks), news manager / VisitUrl / LineSegment / persistence data (URI-to-String re-shapes), InfoPopup + terms click (Blaze3D-to-Util renames), players tab doLayout order, template-list click (identical), subscription tab (extend_link already the 26.2 two-arg form), RealmsUtil (log format), all extract* render-state classes. KNOWN GAP: the popup's carousel pictures \u2014 26.2's client.jar ships no realms namespace, so vanilla draws no carousel picture in a standard install either; a resource pack adding assets/realms/textures/gui/images/*.png would show pictures in vanilla but not here (the pictures cache is minecraft-namespace only). The client.rs tier types + invite-code methods stay for item 421. Tests: realms 69 passed + 1 pre-existing failure (client cookie), title 93 passed + 1 pre-existing failure (optimization stamp) \u2014 both fail at the pre-418 base too."
+  },
+  {
+   "id": 421,
+   "module": "crates/horizon-client/src/realms/client.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Realms client to the 26.2 forms. REMOVED as 26.3-only: the invite-code service (frontendV2Request/frontendV2Url, DEFAULT_FRONTEND_V2_HOST, the frontend_url field + constructor arg, frontend(), redeemInviteCode/inviteCodes/createInviteCode/updateInviteCode/deleteInviteCode, InviteCode/InviteCodeList/InviteCodeRequestDto, the x-mojangauth header) and the tier configuration (getRealmTierConfiguration/updateRenderDistance/updateSimulationDistance, RealmTierConfigurationDto/RealmTierRangeDto + their tests). PORTED: the Client-Ref header is gone (26.3's Request.addVersionHeaders adds it; 26.2's sends only X-NetworkProtocolVersion + Is-Prerelease); WorldTemplate link/trailer are plain Strings again (26.2's parse uses getStringOr with \"\" default; 26.3 made them nullable URIs via getUriNullable) \u2014 uri_or removed, the template screen's button visibility, row icons, button handler and icon click now check emptiness instead of Some. VERIFIED no-change: RealmsClient.execute itself (only its removed callers differ), RealmsNotification.UrlButton (the Rust's url was already a plain String, matching 26.2; only 26.3 wraps it in URI.create), JsonUtils' other removed helpers have no Rust equivalents. path_segment stays (invites accept/reject, template fetch, minigame). Tests: realms 64 passed + 1 pre-existing failure (client cookie), title 93 passed + 1 pre-existing failure (optimization stamp)."
+  },
+  {
+   "id": 420,
+   "module": "crates/horizon-client-render/src/post_chain.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Post chains to the 26.2 forms. PORTED (Std140Builder/Std140SizeCalculator): 26.2's putVec3/putIVec3 pad a vec3/ivec3 to a full 16-byte slot; 26.3 packs it as 12. Uniform::layout is now (16,16) for Vec3/IVec3 and pack_block honours the size (it used to ignore it) \u2014 a vec3 followed by a float now lands the float at word 4. PORTED (GlobalSettingsUniform, correcting item 442's no-change): 26.2's Globals block is ivec3/vec3/vec2/float/float/int/int at 56 bytes (globals.glsl), 26.3's is ivec3/float/vec3/float/vec2 at 48. The layout IS observable \u2014 translated pack shaders declare the block themselves and naga lays it out from the declaration, so the old 48-byte block misread GlintAlpha/GameTime/MenuBlurRadius/UseRgss in 26.2 packs. Globals.bytes() is now the 56-byte 26.2 layout; the ripple (core_lines/core_sky uniforms signatures, bytes[..56], BLOCK_SIZES[0] 48->56, the two globals.glsl test fixtures) is ported with it. VERIFIED no-change: PostChain (renderpearl->blaze3d move; id() accessor, getReferencedExternalTargets extraction, closePersistentTargets extraction, descriptor re-shape), PostPass (hasDepth/useDepth, getCompiledPipeline, setUniform/bindTexture renames), SamplerCache (import move only), ShaderManager (26.3's async compilePipelines/PostChainCache/PendingResults vs 26.2's SimplePreparableReloadListener + GlslPreprocessor \u2014 the Rust models neither; #include preprocessing is post_glsl's, which matches 26.2's load-time form), LevelTargetBundle (26.3's OIT targets vs 26.2's sorting targets \u2014 the Rust exposes only minecraft:main to chains, and MAIN_TARGETS is {main} in both versions). Tests: post_chain 14/14, core_shader 7/7, core_lines 4/4, core_sky 2/2."
+  },
+  {
+   "id": 426,
+   "module": "crates/horizon-client/src/game/transient_blocks.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Transient blocks: already the 26.2 form. Verified ClientboundAddTransientBlockPacket is ABSENT from the 26.2 client.jar (present in 26.3's) and the 26.3-only TransientBlock/TransientBlockRenderState classes are gone with it; the Rust keeps the queue/drain/render path deliberately inert (dead-code feeder, nothing ever queues). VERIFIED no-change: SectionOcclusionGraph (26.3's removeTransientBlocksInSection call is inert with the module; updateUploadTime/setWasPreviouslyEmpty have no Rust counterpart) and LevelExtractor (transientBlockQueue/drainTransientBlockQueue 26.3-only; extractPlayerState/getViewBlockingState 26.3-only with no PlayerRenderState in the Rust; the chunk fade-in option behind 26.3's isEntityVisible/extractVisibleBlockEntities signatures is unmodelled; shouldShowEntityOutlines is the same condition from a different source; the cloud-color Vector4fc-to-Integer API difference and the wireframe/multi-draw-indirect debug flags are unmodelled; worldPartialTicks is a rename). Tests: game::transient_blocks 2/2."
+  },
+  {
+   "id": 432,
+   "module": "crates/horizon-client/src/animate_tick.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Animate-tick blocks to the 26.2 forms. REMOVED as 26.3-only: the poplar trees (0 poplar fields in 26.2's Blocks vs 23 in 26.3's; no poplar particle types in 26.2) \u2014 the three poplar leaves classify entries, the Leaves variant's poplar flag, leaves_ambient_sound + the poplar_leaf_logs table (26.2 has no AmbientLeavesBlockSoundPlayer at all). VERIFIED no-change: falling-leaves particles \u2014 26.2 has them inline in LeavesBlock.makeFallingLeavesParticles (26.3 moved them to the FallingParticlesLeavesBlock subclass) and the Rust's per-type chances match 26.2's Blocks registration exactly (javap: tinted/mangrove/azalea 0.01, cherry 0.1, pale oak 0.02, spruce none; azalea's fixed tint -9399763); bonemeal for firefly bush / hanging moss / short+tall dry grass / mangrove (bodies identical, only 26.3's BonemealSource parameter differs; the Rust has no source concept); ConcretePowderBlock.onLand, RepeaterBlock.useWithoutItem, WetSpongeBlock.onPlace (setBlockAndUpdate vs setBlock(...,3) \u2014 identical); the repeater wire-connection rule (the Rust's should_wire_connect_to IS 26.2's static form: wire true, observer facing, repeater facing-or-opposite, else signal source; 26.3 only refactored it to polymorphic dispatch); the per-block codecs (26.2 HAS them, 26.3 removed them \u2014 unmodelled in the Rust) and the <clinit> changes (the static CODEC fields). Tests: animate_tick 3/3."
+  },
+  {
+   "id": 433,
+   "module": "crates/horizon-command/src/codec.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Codecs to the 26.2 forms. PORTED: RegistryFileCodec's unknown-element error is 26.2's bare form ('Failed to get element {id}'; 26.3 appends ' from registry {registry}') \u2014 fixed in codec.rs (loot_table) and item.rs (enchantment), with the inline-loot test's expected message and its stale 'vanilla 26.3' doc note. PORTED: RangeSlotSource requires `source` in 26.2 (LootContextArg.ENTITY_OR_BLOCK \u2014 this/attacker/direct_attacker/attacking_player/target_entity/interacting_entity/block_entity; unknown names give the id-resolver codec's 'Unknown element id: {name}', verified in ExtraCodecs' constant pool); 26.3 made it optional, defaulting to the container (which is NOT a valid 26.2 source). VERIFIED no-change: the loot-condition combinators \u2014 the Rust already requires inline lists/direct terms, which IS 26.2's DIRECT_CODEC form (26.3 wraps terms in a HolderSet and term in a Holder, allowing tag/reference forms the Rust rejects); HolderSetCodec's homogeneity check and decodeWithoutRegistry (the Rust does not check holder lists at all \u2014 a documented partial-check gap, identical for both versions); the $Builder re-shape (builder API only); NestedLootTable$2 (an anonymous entry class; the Rust only checks the value holder set). Tests: horizon-command 53/53 (incl. the new source-required test); the inline-loot integration tests are #[ignore]d locally and run in CI."
+  },
+  {
+   "id": 481,
+   "module": "crates/horizon-client/src/mobs/frog.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Frog lay-spawn to the 26.2 form. 26.2's FrogAi uses TryFindLandNearWater(8, 1.0); 26.3 renamed it TryFindLandNearLiquid with a fluid-tag parameter (whose 26.3 tag holds only water, so the range/speed/cooldown are identical). PORTED: the land search's water test is now a BLOCK test (the block below the neighbour is minecraft:water) \u2014 26.2 checks getBlockState().is(Blocks.WATER), while 26.3's fluid-state test also accepts waterlogged blocks. VERIFIED no-change: the Manhattan iteration order (26.2's BlockPos$3 withinManhattan iterator is exactly the Rust's manhattan_box: depth, x ascending, y ascending, z then -z), the guard (fluid-based in both), the +40-tick cooldown, and TryLaySpawnOnFluidNearLand (setBlockAndUpdate vs setBlock(...,3) only). Tests: mobs::frog 9/9."
+  },
+  {
+   "id": 485,
+   "module": "crates/horizon-client-render/src/trims.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "Armour trims: already the 26.2 form (attributions fixed). 26.2 renders trims from the armor_trims atlas (TrimSpriteKey -> TextureAtlasSprite via ArmorTrim.layerAssetId, palette-swapped at load by PalettedPermutations); 26.3 replaced it with runtime PalettedTextureManager textures (TrimTextureKey, TrimOverride, palette_id materials). The Rust implements 26.2's mechanism at runtime: TrimRegistry reads 26.2's material format (asset_name + override_armor_assets \u2014 26.3's iron.json has palette_id instead), generate() is PalettedPermutations' mapping keyed on trim_palette, and the (texture, palette) pair is exactly layerAssetId's sprite (pattern path + material suffix). The trim layer already carries no glint (26.2; 26.3's trimmedArmorGlint). VERIFIED no-change: TrimPredicate (26.3 holderSet/tag-or-list vs 26.2 homogeneousList/list-only \u2014 decode_predicate accepts trim unchecked, so unobservable). Fixed three 26.3 attributions (TrimTextureKey/PalettedTextureManager) to the 26.2 names. Tests: trims 7/7."
+  },
+  {
+   "id": 510,
+   "module": "crates/horizon-client/src/game/commands/compute.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "/compute is 26.3-only: ComputeCommand, LootContextSources, ContextFloatProvider and ContextIntProvider are absent from the 26.2 jars (0 matches in the 26.2 server-game.jar; present in 26.3's), and 26.2's DataCommands has no compute source (0 references vs 1 in 26.3's). REMOVED: the whole compute.rs implementation (541 lines, self-contained \u2014 provider_int/provider_float/provider_select have no users outside it), the commands.rs module + dispatch arm, the /compute tree registration, the /data modify compute source, the now-unused context_sources helper, and the command_exec corpus compute() group (~70 cases). The bare 'compute' entry in the parse corpus stays: it now measures the unknown-command error on both sides. Tests: horizon-command 53/53; corpus parses, 197 groups, no compute."
+  },
+  {
+   "id": 501,
+   "module": "crates/horizon-command/src/codec.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "ResourceOrIdArgument: the feature/floatProvider/intProvider factory methods and the ContextFloatProviderArgument, ContextIntProviderArgument and FeatureArgument subclasses are 26.3-only (the context-provider registries have no data in the 26.2 jar; /compute took the tree nodes in item 510). REMOVED the now-dead context-provider decode arms and provider_fields from codec.rs (no tree node passes those registries; decode now reports them as unknown registries) and the dead fixture mapping arms. VERIFIED NO-CHANGE: LootModifierArgument's ROOT_CODEC (26.2) vs DIRECT_CODEC (26.3) decode identically \u2014 DFU's withAlternative is either + xmap unwrap, so the Rust's element_or_list either-errors are correct for both; /place feature already uses ResKey (26.2's ResourceKeyArgument form); the remaining ResourceOrId registries (predicate, dialog, item_modifier, loot_table) all exist in 26.2; the render-crate Providers evaluator is already 26.2-form (burn_time delegates to the hardcoded FuelValues table; speed use removed by rank-2 item 154). Tests: horizon-command 53/53; client_probe (incl. command_parse_fixture) compiles."
+  },
+  {
+   "id": 504,
+   "module": "crates/horizon-command/src/codec.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "ContentsSlotSource: 26.2 holds the nested slot_source directly (26.3 wraps it in a Holder) because 26.2 has NO minecraft:slot_source registry at all \u2014 SlotSources.CODEC is withAlternative(TYPED_CODEC, GroupSlotSource.INLINE_CODEC), a typed object or a plain list (GroupSlotSource takes List<SlotSource> in 26.2, HolderSet in 26.3); 26.3's is RegistryCodecs.holder + holderSet. 26.2 also has no SlotSourceArgument class (only SlotArgument), so no command takes a slot source \u2014 the /item tree already uses SlotArgument (item 419). PORTED the codec: replaced the 26.3 holder-set element_or_list helper (admitted #tag, 4-part nested either error) with with_alternative (single element or list, 2-part either error, no tags) for both the slot_source arm and the item_modifier arm (26.2's LootItemFunctions.ROOT_CODEC is the same withAlternative form, verified in item 501); updated the three slot_source tests to the 2-part expectations; fixed the module doc (context providers left over from item 501). NOTE: the item-501 edit accidentally ate element_or_list's doc comment (no blank line separated it from provider_fields); the new helper restores the doc. VERIFIED NO-CHANGE: ArrayItemProvider, GrowableMutableContainer and ComponentSlotCollection have no Rust references; the nested slot_source field is not decoded by the arm in either version. Tests: horizon-command 53/53."
+  },
+  {
+   "id": 524,
+   "module": "crates/horizon-client-core/src/particle_type.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "EmissiveRisingParticle is a pure rename of 26.2's SoulParticle: the decompiled classes are behaviour-identical (RisingParticle parent, scale 1.5, isGlowing -> block light 15, TRANSLUCENT layer, tick = super + setSpriteFromAge), and ParticleResources registers the same providers in both versions (SCULK_SOUL -> EmissiveProvider, SOUL -> plain Provider). The Rust already implements the 26.2 form exactly: RisingParticle motion, scale 1.5, Animated behaviour, Light::Block15 for SculkSoul only, translucent layer for both. Only the two comments naming EmissiveRisingParticle were fixed to SoulParticle. Tests: cargo check horizon-client-core + horizon-client-render clean."
+  },
+  {
+   "id": 533,
+   "module": "crates/horizon-command/src/tree_data.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "ArgProvider is 26.3's rename of 26.2's DataProvider: the DataCommands diff between the versions is only the ArgProvider->DataProvider rename (Factory + buildList -> Function list + stream map, cast removals) plus the /data modify compute source, which item 510 already removed. The tree built is identical: same merge/get/remove/modify structure with the same entity/block/storage provider wraps. The Rust's providers() helper is the direct equivalent of DataProvider.wrap; only its doc comment named the 26.3 name, now fixed. No other ArgProvider references in the Rust. Tests: horizon-command 53/53."
+  },
+  {
+   "id": 553,
+   "module": "crates/horizon-narrator/src/screen.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "NarrationTrigger (MOUSE/KEYBOARD/SYSTEM enum) and NarrationElementOutput.narrationTrigger() are 26.3-only: 26.2's Screen has scheduleNarration(long, boolean) with no trigger parameter, no nextNarrationTriggeredBy field, runNarration(boolean) and updateNarratorStatus(boolean); 26.3 threads the trigger through all of them. The Rust's screen.rs is already the 26.2 form: Output has add/add_lines/nest with no trigger method, ScreenNarration.schedule takes only (delay, ignore_suppression), and the comment already records that 26.2 has no NarrationTrigger. No trigger code anywhere in the narrator crate. Tests: horizon-narrator 19/19."
+  },
+  {
+   "id": 556,
+   "module": "crates/horizon-world/src/worldgen/sculk.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "The whole blockscan package (BlockMatcher, BlockScanUtils, BoxBlockMatcher, OrderedBlockMatcher, FilteredSectionCache) is 26.3-only; 26.2 has no blockscan package at all. 26.3's SculkBlock.canPlaceGrowth uses findBlocksIn + the sculk_growth_inhibitors tag + atMostMatched(2); 26.2's is a direct BlockPos.betweenClosed loop counting SCULK_SENSOR/SCULK_SHRIEKER, false above 2. The Rust's can_place_growth already implements the 26.2 form exactly (air-or-water-source above, the (-4,0,-4)..(4,2,4) box, sensor/shrieker count, false at 3, x-fastest iteration); only its comment named BoxBlockMatcher, now re-attributed to 26.2's direct loop. SculkSpreader is identical between versions. Tests: comment-only change; horizon-world test binary compiles (full lib suite still running in background at close time)."
+  },
+  {
+   "id": 565,
+   "module": "crates/horizon-client-render/src/fusion.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "DensityFunction$Axes is a 26.3-only marker annotation: an empty annotation interface, CLASS retention, TYPE_USE target, no members, no runtime behaviour, and nothing in the Rust models Java annotations. The Rust's similarly named Axes (OptiFine CTM texture axes in fusion.rs; SliceAxes in the density sampler) are unrelated concepts. No code or comment references the annotation. Tests: cargo check horizon-core clean."
+  },
+  {
+   "id": 576,
+   "module": "crates/horizon-client/src/item_activation.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "ItemActivation is 26.3's extraction of 26.2's ScreenEffectRenderer fields (itemActivationItem/Ticks/OffX/OffY, ITEM_ACTIVATION_ANIMATION_LENGTH = 40): the behaviour is identical in both versions (tick decrements and clears at 0; activate sets ticks 40 and two random offsets in [-1,1); the pose is the same quintic over 40 ticks, 900-degree Y turn, 6-degree X/Z rock, 0.8 scale, light 15728880). 26.2 sets it via GameRenderer.displayItemActivation -> ScreenEffectRenderer.displayItemActivation and ticks it in ScreenEffectRenderer.tick; 26.3 moved it to LocalPlayer's ItemActivation. The Rust implements the behaviour exactly; only the doc attributions were fixed to the 26.2 names (the struct keeps its name as the Rust's bundle for the state). Tests: horizon-client-lib item_activation 4/4. ALSO (separate commit 63afd0b6): fixed the pre-existing aquifer cache test, whose fixture used 26.3-only minecraft:gradient \u2014 now y_clamped_gradient, test passes."
+  },
+  {
+   "id": 585,
+   "module": "crates/horizon-world/src/worldgen/spawn_finder.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "SpawnTargetPoint (26.3's record: density-function -> Climate.Parameter map with sampleFitness, used by NoiseSpawnFinder) has no 26.2 equivalent and no Rust references. 26.2's spawn search is Climate.findSpawnPosition(List<ParameterPoint>, Sampler), which the Rust already implements exactly in spawn_finder.rs (coarse then fine radial search, 0 0 when the target list is empty), wired through generator.rs spawn_column over the noise settings' spawn_target ParameterPoints. Tests: no spawn-finder unit tests exist (covered by the chunk_generation parity harness); cargo check horizon-core clean (item 565)."
+  },
+  {
+   "id": 590,
+   "module": "crates/horizon-world/src/interpolation.rs",
+   "bucket": "D",
+   "verdict": "no-change",
+   "evidence": "SteppedInterpolationHandler (26.3's path-based interpolator, used by LivingEntity) has no 26.2 equivalent and no Rust references: 26.2 has a single InterpolationHandler class, while 26.3 split it into Abstract/Linear/Stepped. The Rust's horizon-world interpolation.rs already implements 26.2's single handler exactly (DEFAULT_INTERPOLATION_STEPS 3, interpolateTo with snap at 0 steps, Objects.equals re-target test, 1/steps lerp with rotLerp, previous-tick delta tracking). Only the six comments naming 26.3's LinearInterpolationHandler were fixed to InterpolationHandler. Tests: interpolation 6/6."
+  },
+  {
+   "id": 593,
+   "module": "crates/horizon-client/src/game/commands/test_locate.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "TestCommand$Info (player/playerPos/testPos/surfaceY record) is 26.3's parameter bundle for playerAndTestInfo; 26.2's createTestPositionAround is inline (source position + the source level's WORLD_SURFACE heightmap, +3 z). PORTED /test locate to the 26.2 form: the Rust had implemented 26.3's cross-dimension search (findSelectedTestPositionsAcrossDimensions over every level, teleport 3 out, /execute in tp, dimension suffix + N/A distance, outputPlayerCoordinates). Now: same-level search within 250 (TestFinder.Builder.byResourceSelection in both versions), teleport 2 out, plain /tp, plain coordinates, always-numeric distance; output_player_coordinates and path_of removed (26.3-only); the playerAndTestInfo comment in test_runs.rs fixed. The run/verify paths were already 26.2-form (single testPos, no dimension on a test). Tests: horizon-client --lib test_locate 2/2; cargo check horizon-client clean."
+  },
+  {
+   "id": 566,
+   "module": "crates/horizon-client-render/src/gfx/oit.rs",
+   "bucket": "D",
+   "verdict": "ported",
+   "evidence": "OIT is entirely 26.3-only: the 26.2 client jar has no net/minecraft/client/renderer/oit/ package at all; 26.3 has OitPipelineSet, OitRenderPassProvider, OitStage. Removed in four parts: (1) b9e89e2e dropped game-side OIT tagging (13 files); (2) 5551989d deleted the render pipeline \u2014 gfx/oit.rs (997 lines), gfx/oit_features.rs (275 lines), oit.wgsl, oit_border.wgsl, oit_clouds.wgsl, oit_features.wgsl, oit_world.wgsl \u2014 plus call-site cleanup (25 files, +81/-2539); (3) the F3+X improved-transparency debug key removed (26.3-only: key.debug.improvedTransparency absent from 26.2 en_us.json, zero references in 26.2 KeyboardHandler; 26.3 toggles options.keyDebugSwitchTranslucencyMode) \u2014 DebugImprovedTransparency out of input actions, keybinds MAPPINGS, debug_keys.rs (20->19), game/debug_keys.rs no-op arm; the improvedTransparency GRAPHICS OPTION itself exists in 26.2 (Options.class strings + lang + screen-shader tooltip) so options_file.rs, options_fixes.rs, perf_bench.py, test_options_parity.py stay; stale OitPipelineSet doc comment in mobs/render.rs rewritten to the 26.2 classic-translucent-pass truth; test_dragon_render_parity.py source_hashes fixed; (4) warning cleanup to D2's zero-warning bar \u2014 weather.rs dead pipeline()/draw_with() (566 fallout, only callers were the OIT weather path), creatures.rs unused mut (pre-existing since 88382ef4), play.rs unused doc comment (item-8 leftover); re-check of all four touched crates --all-targets: 0 errors, 0 warnings. Tests: horizon-client-input lib 127/127; debug_keys 2/2 (horizon-client) + 10/10 (horizon-client-lib); render lib suite 2045 passed / 1 failed / 66 ignored (Modrinth test skipped) \u2014 the 1 failure is gfx::animate atlas-size (32 vs 64), pre-existing and unrelated: animate.rs untouched by any 566 commit and the test builds its own Sprites, never touching RenderAssets."
+  }
+ ],
+ "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
+}

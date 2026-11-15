@@ -1,9 +1,8 @@
 //! The Realms service client: vanilla's `com.mojang.realmsclient.client.RealmsClient` and its
 //! `Request`, for the signed-in player's own Microsoft account only. Every request carries
 //! what `RealmsClient.execute` adds and nothing more: the `sid`, `user` and `version` cookies
-//! and the three version headers. The access token goes only into the `sid` cookie (and the
-//! `x-mojangauth` header vanilla adds for the invite-code service); it is never logged, never
-//! put in an error and never sent anywhere else.
+//! and the two version headers. The access token goes only into the `sid` cookie; it is
+//! never logged, never put in an error and never sent anywhere else.
 use horizon_core::version;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::io::Read;
@@ -12,8 +11,6 @@ use std::time::Duration;
 
 /// `RealmsClient.Environment.PRODUCTION`'s base URL.
 pub const DEFAULT_REALMS_HOST: &str = "https://pc.realms.minecraft.net";
-/// `RealmsClient.Environment.PRODUCTION`'s `frontendV2Url` (invite codes).
-pub const DEFAULT_FRONTEND_V2_HOST: &str = "https://java.frontend.realms.minecraft-services.net";
 
 /// `Request.DEFAULT_CONNECT_TIMEOUT`.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -258,45 +255,9 @@ struct PreferredRegionsResponse {
     region_data: Vec<RegionDataDto>,
 }
 
-/// `RealmTierConfigurationDto`: the Realm tier's two distance ranges.
-#[derive(Clone, Debug, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RealmTierConfiguration {
-    #[serde(default, deserialize_with = "nullable")]
-    pub render_distance: Option<RealmTierRange>,
-    #[serde(default, deserialize_with = "nullable")]
-    pub sim_distance: Option<RealmTierRange>,
-}
-
-/// `RealmTierConfigurationDto.RealmTierRangeDto`: the values a slot's distance may take.
-#[derive(Clone, Debug, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RealmTierRange {
-    #[serde(default, deserialize_with = "nullable")]
-    pub min: i32,
-    #[serde(default, deserialize_with = "nullable")]
-    pub max: i32,
-    #[serde(default, deserialize_with = "nullable")]
-    pub default_value: i32,
-    #[serde(default, deserialize_with = "nullable")]
-    pub current: Option<i32>,
-}
-
-impl RealmTierRange {
-    /// `RealmsSettingsTab.currentOrDefault`.
-    pub fn current_or_default(&self) -> i32 {
-        self.current.unwrap_or(self.default_value)
-    }
-
-    /// `OptionInstance.IntRange`: a slider position to a value in the range.
-    pub fn from_slider(&self, value: f32) -> i32 {
-        self.min + (value * (self.max - self.min) as f32).round() as i32
-    }
-}
-
 /// `RealmsRegion`: each region's `nameId` and its translation key.
 pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
-    const REGIONS: [(&str, &str); 27] = [
+    const REGIONS: [(&str, &str); 23] = [
         (
             "AustraliaEast",
             "realms.configuration.region.australia_east",
@@ -306,10 +267,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
             "realms.configuration.region.australia_southeast",
         ),
         ("BrazilSouth", "realms.configuration.region.brazil_south"),
-        (
-            "CanadaCentral",
-            "realms.configuration.region.canada_central",
-        ),
         ("CentralIndia", "realms.configuration.region.central_india"),
         ("CentralUs", "realms.configuration.region.central_us"),
         ("EastAsia", "realms.configuration.region.east_asia"),
@@ -322,10 +279,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
         ("JapanEast", "realms.configuration.region.japan_east"),
         ("JapanWest", "realms.configuration.region.japan_west"),
         ("KoreaCentral", "realms.configuration.region.korea_central"),
-        (
-            "MexicoCentral",
-            "realms.configuration.region.mexico_central",
-        ),
         (
             "NorthCentralUs",
             "realms.configuration.region.north_central_us",
@@ -340,10 +293,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
             "realms.configuration.region.southeast_asia",
         ),
         (
-            "SouthAfricaNorth",
-            "realms.configuration.region.south_africa_north",
-        ),
-        (
             "SwedenCentral",
             "realms.configuration.region.sweden_central",
         ),
@@ -356,7 +305,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
         ("WestEurope", "realms.configuration.region.west_europe"),
         ("WestUs", "realms.configuration.region.west_us"),
         ("WestUs2", "realms.configuration.region.west_us_2"),
-        ("WestUs3", "realms.configuration.region.west_us_3"),
     ];
     REGIONS
         .iter()
@@ -397,25 +345,6 @@ fn configuration_body(
         },
         "description": { "name": name, "description": description },
     })
-}
-
-/// `InviteCode`: one of the Realm's shareable invite codes.
-#[derive(Clone, Debug, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct InviteCode {
-    #[serde(default, deserialize_with = "nullable")]
-    pub code: String,
-    /// Epoch milliseconds; none never expires.
-    #[serde(default, deserialize_with = "nullable")]
-    pub expiration_date: Option<i64>,
-    #[serde(default, deserialize_with = "nullable")]
-    pub enabled: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, Default)]
-struct InviteCodeListResponse {
-    #[serde(default, deserialize_with = "nullable")]
-    result: Vec<InviteCode>,
 }
 
 /// `Backup`: one of the Realm's automatic backups. `changeList` is not on the wire — the
@@ -495,22 +424,6 @@ pub struct WorldDownload {
     pub resource_pack_hash: String,
 }
 
-impl InviteCode {
-    /// `InviteCodeList.parse`: the answer is an array, or an object whose `result` is one;
-    /// an entry without its code is dropped, as `InviteCode.parse`'s null is.
-    pub fn parse_list(json: &str) -> Vec<Self> {
-        let list = if let Ok(list) = serde_json::from_str::<Vec<Self>>(json) {
-            list
-        } else {
-            serde_json::from_str::<InviteCodeListResponse>(json)
-                .unwrap_or_default()
-                .result
-        };
-        list.into_iter()
-            .filter(|code| !code.code.is_empty())
-            .collect()
-    }
-}
 
 /// `RealmsWorldOptions`: a slot's options. Fields the JSON lacks keep the values of its
 /// constructor (`Default`); `empty` is never in the JSON (`RealmsSlot.defaults` sets it).
@@ -774,14 +687,14 @@ pub struct WorldTemplate {
     pub version: String,
     #[serde(default, deserialize_with = "string_or")]
     pub author: String,
-    /// The publisher's page and the trailer, opened in the browser. `getUriNullable`
-    /// treats an empty string as no link at all.
-    #[serde(default, deserialize_with = "uri_or")]
-    pub link: Option<String>,
+    /// The publisher's page, opened in the browser. 26.2's parse reads it with
+    /// `getStringOr` ("" when the answer has none); 26.3 made it a nullable URI.
+    #[serde(default, deserialize_with = "string_or")]
+    pub link: String,
     #[serde(default, deserialize_with = "option_string_or")]
     pub image: Option<String>,
-    #[serde(default, deserialize_with = "uri_or")]
-    pub trailer: Option<String>,
+    #[serde(default, deserialize_with = "string_or")]
+    pub trailer: String,
     #[serde(default, deserialize_with = "string_or")]
     pub recommended_players: String,
     /// `WorldTemplate.WorldTemplateType`: `WORLD_TEMPLATE` when the answer has none.
@@ -857,11 +770,6 @@ fn option_string_or<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D
     })
 }
 
-/// `JsonUtils.getUriNullable`: absent, null or an empty string is no link (the service
-/// sends `""` for a template without a publisher page or trailer).
-fn uri_or<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
-    Ok(option_string_or(d)?.filter(|text| !text.is_empty()))
-}
 
 /// `JsonUtils.getIntOr`: a number or the decimal text of one.
 fn int_or<'de, D: Deserializer<'de>>(d: D) -> Result<i32, D::Error> {
@@ -1122,7 +1030,6 @@ impl RealmsError {
 #[derive(Clone)]
 pub struct RealmsClient {
     base_url: String,
-    frontend_url: String,
     player_name: String,
     player_uuid: u128,
     access_token: String,
@@ -1141,12 +1048,10 @@ impl std::fmt::Debug for RealmsClient {
 impl RealmsClient {
     pub fn new(
         base_url: &str,
-        frontend_url: &str,
         session: &horizon_client_render::auth::AuthSession,
     ) -> Self {
         Self {
             base_url: base_url.trim_end_matches('/').to_owned(),
-            frontend_url: frontend_url.trim_end_matches('/').to_owned(),
             player_name: session.name.clone(),
             player_uuid: session.uuid,
             access_token: session.access_token().to_owned(),
@@ -1154,7 +1059,7 @@ impl RealmsClient {
     }
     /// The production service.
     pub fn production(session: &horizon_client_render::auth::AuthSession) -> Self {
-        Self::new(DEFAULT_REALMS_HOST, DEFAULT_FRONTEND_V2_HOST, session)
+        Self::new(DEFAULT_REALMS_HOST, session)
     }
 
     /// `RealmsClient.execute`'s cookies (`User.getSessionId`, `getName`,
@@ -1171,7 +1076,6 @@ impl RealmsClient {
                     version::VANILLA_VERSION
                 ),
             ),
-            ("Client-Ref", version::VERSION_ID.to_owned()),
             (
                 "X-NetworkProtocolVersion",
                 version::PROTOCOL_VERSION.to_string(),
@@ -1458,47 +1362,6 @@ impl RealmsClient {
         Self::execute(self.request("POST", &url, READ_TIMEOUT), Some(&body)).map(drop)
     }
 
-    /// `RealmsClient.getRealmTierConfiguration`: `GET worlds/{id}/configuration/tier`. A range
-    /// the answer lacks is a configuration error, as `getRealmTierConfiguration`'s parse makes it.
-    pub fn get_tier_configuration(
-        &self,
-        realm_id: i64,
-    ) -> Result<RealmTierConfiguration, RealmsError> {
-        let url = self.url(&format!("worlds/{realm_id}/configuration/tier"));
-        let json = Self::execute(self.request("GET", &url, READ_TIMEOUT), None)?;
-        let tier: RealmTierConfiguration =
-            serde_json::from_str(&json).map_err(|_| RealmsError::Parse)?;
-        if tier.render_distance.is_some() && tier.sim_distance.is_some() {
-            Ok(tier)
-        } else {
-            Err(RealmsError::Parse)
-        }
-    }
-
-    /// `RealmsClient.updateRenderDistance`: `PUT worlds/{id}/configuration/renderDistance/{n}`.
-    pub fn update_render_distance(
-        &self,
-        realm_id: i64,
-        render_distance: i32,
-    ) -> Result<(), RealmsError> {
-        let url = self.url(&format!(
-            "worlds/{realm_id}/configuration/renderDistance/{render_distance}"
-        ));
-        Self::execute(self.request("PUT", &url, READ_TIMEOUT), Some("")).map(drop)
-    }
-
-    /// `RealmsClient.updateSimulationDistance`: `PUT worlds/{id}/configuration/simDistance/{n}`.
-    pub fn update_simulation_distance(
-        &self,
-        realm_id: i64,
-        simulation_distance: i32,
-    ) -> Result<(), RealmsError> {
-        let url = self.url(&format!(
-            "worlds/{realm_id}/configuration/simDistance/{simulation_distance}"
-        ));
-        Self::execute(self.request("PUT", &url, READ_TIMEOUT), Some("")).map(drop)
-    }
-
     /// `RealmsClient.fetchWorldTemplates`: `GET worlds/templates/{type}?page={page}&pageSize={size}`.
     /// `WorldTemplatePaginatedList.parse` leaves a page it can't read empty rather than failing.
     pub fn fetch_world_templates(
@@ -1730,89 +1593,6 @@ impl RealmsClient {
         }
     }
 
-    /// The invite-code service: `frontendV2Request`, with the token in `x-mojangauth`.
-    fn frontend(
-        &self,
-        method: &str,
-        path: &str,
-        body: Option<&str>,
-    ) -> Result<String, RealmsError> {
-        let url = format!("{}/{path}", self.frontend_url);
-        let request = self
-            .request(method, &url, READ_TIMEOUT)
-            .set("x-mojangauth", &self.access_token)
-            .set("Accept", "application/json");
-        Self::execute(request, body)
-    }
-
-    /// `RealmsClient.redeemInviteCode`: `POST api/v1.0/invite/codes/use/{code}`.
-    pub fn redeem_invite_code(&self, code: &str) -> Result<(), RealmsError> {
-        let code = path_segment(code.trim())?;
-        self.frontend(
-            "POST",
-            &format!("api/v1.0/invite/codes/use/{code}"),
-            Some(""),
-        )
-        .map(drop)
-    }
-
-    /// `RealmsClient.inviteCodes`: `GET api/v1.0/invite/codes?realmId={id}`.
-    pub fn invite_codes(&self, realm_id: i64) -> Result<Vec<InviteCode>, RealmsError> {
-        let json = self.frontend(
-            "GET",
-            &format!("api/v1.0/invite/codes?realmId={realm_id}"),
-            None,
-        )?;
-        Ok(InviteCode::parse_list(&json))
-    }
-
-    /// `RealmsClient.createInviteCode`: `POST api/v1.0/invite/codes` with
-    /// `InviteCodeRequestDto`'s JSON.
-    pub fn create_invite_code(
-        &self,
-        realm_id: i64,
-        enabled: bool,
-        expiration: Option<i64>,
-    ) -> Result<(), RealmsError> {
-        let body = serde_json::json!({
-            "code": null,
-            "realmId": realm_id,
-            "enabled": enabled,
-            "expirationDate": expiration,
-        })
-        .to_string();
-        self.frontend("POST", "api/v1.0/invite/codes", Some(&body))
-            .map(drop)
-    }
-
-    /// `RealmsClient.updateInviteCode`: `POST api/v1.0/invite/codes/update`.
-    pub fn update_invite_code(
-        &self,
-        realm_id: i64,
-        code: &str,
-        enabled: bool,
-        expiration: Option<i64>,
-    ) -> Result<(), RealmsError> {
-        let body = serde_json::json!({
-            "code": code,
-            "realmId": realm_id,
-            "enabled": enabled,
-            "expirationDate": expiration,
-        })
-        .to_string();
-        self.frontend("POST", "api/v1.0/invite/codes/update", Some(&body))
-            .map(drop)
-    }
-
-    /// `RealmsClient.deleteInviteCode`: `DELETE api/v1.0/invite/codes/delete/{code}`.
-    pub fn delete_invite_code(&self, code: &str) -> Result<(), RealmsError> {
-        self.frontend(
-            "DELETE",
-            &format!("api/v1.0/invite/codes/delete/{}", path_segment(code)?),
-            None,
-        )
-        .map(drop)
-    }
 }
 
 /// An id or code that goes into a URL path: vanilla builds those URLs from the server's own
@@ -1912,7 +1692,7 @@ mod tests {
     }
 
     fn client(base: &str) -> RealmsClient {
-        RealmsClient::new(base, base, &AuthSession::new("Steve", UUID, TOKEN))
+        RealmsClient::new(base, &AuthSession::new("Steve", UUID, TOKEN))
     }
 
     fn header<'a>(request: &'a str, name: &str) -> Option<&'a str> {
@@ -1938,7 +1718,6 @@ mod tests {
             )
         );
         assert_eq!(header(&request, "Authorization"), None, "{request}");
-        assert_eq!(header(&request, "Client-Ref"), Some("26.3"));
         assert_eq!(header(&request, "X-NetworkProtocolVersion"), Some("777"));
         assert_eq!(header(&request, "Is-Prerelease"), Some("false"));
         assert_eq!(header(&request, "User-Agent"), Some("Java/25"));
@@ -1999,32 +1778,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn an_invite_code_with_a_path_in_it_is_refused_before_any_request() {
-        // Nothing listens: a request would fail as Connectivity, not as the invalid code.
-        let error = client("http://127.0.0.1:9")
-            .redeem_invite_code("abc/../worlds")
-            .unwrap_err();
-        assert!(
-            matches!(error, RealmsError::Service { status: 400, .. }),
-            "{error:?}"
-        );
-    }
 
-    /// `InviteCodeList.parse`: the answer is an array or `{"result":[...]}`, and an entry
-    /// without its code is dropped.
-    #[test]
-    fn the_invite_code_list_reads_an_array_or_its_result() {
-        let array = r#"[{"code":"A","enabled":true},{"code":"","enabled":true}]"#;
-        let codes = InviteCode::parse_list(array);
-        assert_eq!(codes.len(), 1, "an entry without a code is dropped");
-        assert_eq!(codes[0].code, "A");
-        assert!(codes[0].enabled);
-        let wrapped = r#"{"result":[{"code":"B","expirationDate":17}]}"#;
-        let codes = InviteCode::parse_list(wrapped);
-        assert_eq!(codes.len(), 1);
-        assert_eq!(codes[0].expiration_date, Some(17));
-    }
 
     /// `RealmsNotification.parseList`: the `visitUrl` message and button text, the defaults
     /// for a missing `dismissable`, and no entry without its UUID.
@@ -2232,66 +1986,7 @@ mod tests {
             })
         );
     }
-    #[test]
-    fn the_tier_configuration_names_both_ranges_and_their_default() {
-        let body = r#"{"renderDistance":{"min":2,"max":16,"defaultValue":8,"current":12},"simDistance":{"min":3,"max":12,"defaultValue":6,"current":null}}"#;
-        let answer: &'static str = Box::leak(
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-                body.len()
-            )
-            .into_boxed_str(),
-        );
-        let (base, server) = serve_once(answer);
-        let tier = client(&base).get_tier_configuration(7).unwrap();
-        let request = server.join().unwrap();
-        assert!(
-            request.starts_with("GET /worlds/7/configuration/tier HTTP/1.1"),
-            "{request}"
-        );
-        // `currentOrDefault`: the current value, else the default.
-        assert_eq!(tier.render_distance.unwrap().current_or_default(), 12);
-        let sim = tier.sim_distance.unwrap();
-        assert_eq!(sim.current_or_default(), 6);
-        assert_eq!((sim.min, sim.max), (3, 12));
-        // `getRealmTierConfiguration`: a range it cannot read is a parse error.
-        let short: &'static str = Box::leak(
-            format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{{\"renderDistance\":{{\"min\":2,\"max\":16}}}}",
-                "{\"renderDistance\":{\"min\":2,\"max\":16}}".len()
-            )
-            .into_boxed_str(),
-        );
-        let (base, server) = serve_once(short);
-        assert!(client(&base).get_tier_configuration(7).is_err());
-        server.join().unwrap();
-    }
 
-    #[test]
-    fn a_distance_update_puts_its_value_into_the_path() {
-        for (realm, distance, path) in [
-            (
-                7,
-                8,
-                "PUT /worlds/7/configuration/renderDistance/8 HTTP/1.1",
-            ),
-            (12, 3, "PUT /worlds/12/configuration/simDistance/3 HTTP/1.1"),
-        ] {
-            let (base, server) =
-                serve_once("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-            if path.contains("renderDistance") {
-                client(&base)
-                    .update_render_distance(realm, distance)
-                    .unwrap();
-            } else {
-                client(&base)
-                    .update_simulation_distance(realm, distance)
-                    .unwrap();
-            }
-            let request = server.join().unwrap();
-            assert!(request.starts_with(path), "{request}");
-        }
-    }
 
     /// `Backup.parse`: the date is `lastModifiedDate` (epoch millis), metadata values are
     /// their JSON text and nulls are dropped; `changeList` is local, not on the wire.
@@ -2408,20 +2103,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_slider_position_maps_into_the_range() {
-        // `OptionInstance.IntRange` with min 2, max 16: the ends and the middle snap.
-        let range = RealmTierRange {
-            min: 2,
-            max: 16,
-            default_value: 8,
-            current: None,
-        };
-        assert_eq!(range.from_slider(0.0), 2);
-        assert_eq!(range.from_slider(1.0), 16);
-        assert_eq!(range.from_slider(0.5), 9);
-        assert_eq!(range.current_or_default(), 8);
-    }
 
     /// One HTTP exchange whose whole request (the Content-Length body included) is returned.
     fn serve_request(answer: &'static str) -> (String, std::thread::JoinHandle<String>) {
@@ -2523,9 +2204,9 @@ mod tests {
         let template = &page.templates[0];
         assert_eq!(template.id, "42");
         assert_eq!(template.recommended_players, "4");
-        assert_eq!(template.link.as_deref(), Some("17"));
+        assert_eq!(template.link, "17");
         assert_eq!(template.image.as_deref(), Some("abc"));
-        assert_eq!(template.trailer, None);
+        assert_eq!(template.trailer, "");
         assert_eq!(template.kind, "ADVENTUREMAP");
         assert_eq!((page.page, page.size, page.total), (1, 10, 11));
         // The template list test above keeps the string ids the first answers used.
@@ -2534,12 +2215,12 @@ mod tests {
         );
         assert_eq!(strings.templates[0].id, "1896582");
         assert_eq!(strings.templates[0].recommended_players, "1-4");
-        // `getUriNullable`: an empty link is no link, so no button appears and no empty
-        // URL can be opened.
+        // 26.2's `getStringOr`: an empty link stays "", and the template screen
+        // shows no button for it, so no empty URL can be opened.
         let empty =
             WorldTemplateList::parse(r#"{"templates":[{"id":"1","link":"","trailer":""}]}"#);
-        assert_eq!(empty.templates[0].link, None);
-        assert_eq!(empty.templates[0].trailer, None);
+        assert_eq!(empty.templates[0].link, "");
+        assert_eq!(empty.templates[0].trailer, "");
     }
 
     #[test]

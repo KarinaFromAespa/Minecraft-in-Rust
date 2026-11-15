@@ -1,13 +1,12 @@
 //! `DebugOptionsScreen` (F3+F6): every debug entry with Off / In Overlay /
-//! Always buttons, a search box over them, the two built-in profiles and the
-//! debug overlay's GUI scale. The statuses live in `debug-profile.json`
+//! Always buttons, a search box over them and the two built-in profiles.
+//! The statuses live in `debug-profile.json`
 //! (`horizon_client::debug_entries`).
 //! https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/debug/DebugOptionsScreen
 use super::{Game, Screen};
 use horizon_client::{
     debug_entries::{Category, Entry, Profile, Status, search},
     hud::HudBatch,
-    options_file::V,
     text::Text,
     ui::{self, EditBox, Scroll},
 };
@@ -23,7 +22,7 @@ const ITEM: f32 = 20.0;
 /// `OptionEntry.BUTTON_WIDTH`, at the CycleButtons' 16 pixels high.
 const BUTTON: f32 = 60.0;
 /// The footer: two profile buttons, the GUI scale and Done, 4 pixels apart.
-const FOOTER_BUTTONS: [f32; 4] = [120.0, 120.0, 110.0, 60.0];
+const FOOTER_BUTTONS: [f32; 3] = [120.0, 120.0, 60.0];
 /// `debug.options.warning`'s colour (-2142128) and the buttons' text colours.
 const WARNING: u32 = 0xDF_5050;
 const UNSELECTED: u32 = 0xBA_BABA;
@@ -79,10 +78,10 @@ fn button_xs(content_x: f32) -> [f32; 3] {
     [start, start + BUTTON, start + 2.0 * BUTTON]
 }
 /// The footer buttons' left edges and their row's top.
-fn footer(w: f32, h: f32) -> ([f32; 4], f32) {
-    let total: f32 = FOOTER_BUTTONS.iter().sum::<f32>() + 3.0 * 4.0;
+fn footer(w: f32, h: f32) -> ([f32; 3], f32) {
+    let total: f32 = FOOTER_BUTTONS.iter().sum::<f32>() + 2.0 * 4.0;
     let mut x = ((w - total) / 2.0).floor();
-    let mut xs = [0.0; 4];
+    let mut xs = [0.0; 3];
     for (slot, width) in xs.iter_mut().zip(FOOTER_BUTTONS) {
         *slot = x;
         x += width + 4.0;
@@ -169,35 +168,6 @@ impl Game<'_> {
             .map(|(i, line)| (line, top + 28.0 + i as f32 * 9.0))
             .collect();
         (title_x, top, lines)
-    }
-    /// `debugGuiScale`'s button: `GUI Scale: Unchanged`, `Auto` or the scale.
-    fn debug_gui_scale_label(&self) -> Text {
-        let value = match self.settings.file.int("debugGuiScale") {
-            -1 => Text::translate("options.debugGuiScale.unchanged", &[]),
-            0 => Text::translate("options.guiScale.auto", &[]),
-            n => Text::literal(n.to_string()),
-        };
-        Text::translate(
-            "options.generic_value",
-            &[Text::translate("options.guiScale", &[]), value],
-        )
-    }
-    /// `ClampingLazyMaxIntRange(-1, window.calculateScale(0, unicode))` as a
-    /// CycleButton: the next value, or the previous one with Shift.
-    fn cycle_debug_gui_scale(&mut self, back: bool) {
-        let size = self.renderer.as_ref().map_or([1280, 720], |r| {
-            [r.config.width as i32, r.config.height as i32]
-        });
-        let max = horizon_client::window::calculate_scale(size, 0, self.settings.force_unicode);
-        let current = self.settings.file.int("debugGuiScale").clamp(-1, max);
-        let next = match (back, current) {
-            (false, c) if c >= max => -1,
-            (false, c) => c + 1,
-            (true, -1) => max,
-            (true, c) => c - 1,
-        };
-        self.settings.file.set("debugGuiScale", V::Int(next));
-        self.settings.save(&Self::options_path());
     }
     pub(super) fn draw_debug_options(&mut self, batch: &mut HudBatch) {
         let Some(mut s) = self.debug_options.take() else {
@@ -300,23 +270,22 @@ impl Game<'_> {
             let lw = atlas.font.width_text(line);
             batch.text_styled(atlas, line, ((w - lw) / 2.0).floor(), *y, u32::MAX, true);
         }
-        // The footer.
+        // The footer: the two profile buttons and Done. 26.2 has no
+        // debugGuiScale button (26.3-only).
         let (xs, fy) = footer(w, h);
         let labels = [
             Text::translate(Profile::Default.translation_key(), &[]),
             Text::translate(Profile::Performance.translation_key(), &[]),
-            self.debug_gui_scale_label(),
             Text::translate("gui.done", &[]),
         ];
         let active = [
             !self.debug_entries.is_using_profile(Profile::Default),
             !self.debug_entries.is_using_profile(Profile::Performance),
             true,
-            true,
         ];
         for (i, label) in labels.iter().enumerate() {
             let hover = ui::hovered(self.cursor, xs[i], fy, FOOTER_BUTTONS[i], 20.0);
-            if i == 3 {
+            if i == 2 {
                 horizon_client::widgets::declare_action(
                     horizon_client::widgets::Action::Done,
                     [xs[i], fy, FOOTER_BUTTONS[i], 20.0],
@@ -334,9 +303,6 @@ impl Game<'_> {
                 active[i],
                 hover,
             );
-            if i == 2 && hover {
-                tooltip = Some(Text::translate("options.debugGuiScale.tooltip", &[]));
-            }
         }
         if let Some(tooltip) = tooltip {
             let lines = atlas.font.split(&tooltip, 200.0);
@@ -398,7 +364,7 @@ impl Game<'_> {
         }
         let (xs, fy) = footer(w, h);
         let Some(i) =
-            (0..4).find(|&i| ui::hovered(self.cursor, xs[i], fy, FOOTER_BUTTONS[i], 20.0))
+            (0..3).find(|&i| ui::hovered(self.cursor, xs[i], fy, FOOTER_BUTTONS[i], 20.0))
         else {
             return;
         };
@@ -414,10 +380,6 @@ impl Game<'_> {
                 }
                 self.audio.play_button_click();
                 self.debug_entries.load_profile(profile);
-            }
-            2 => {
-                self.audio.play_button_click();
-                self.cycle_debug_gui_scale(shift);
             }
             _ => {
                 self.audio.play_button_click();
@@ -567,7 +529,7 @@ mod tests {
         // 854x480 at GUI scale 2 is 427x240.
         assert_eq!(row_left(427.0), 38.0);
         assert_eq!(button_xs(40.0), [206.0, 266.0, 326.0]);
-        assert_eq!(footer(427.0, 240.0), ([2.0, 126.0, 250.0, 364.0], 213.0));
+        assert_eq!(footer(427.0, 240.0), ([59.0, 183.0, 307.0], 213.0));
     }
 
     /// F3+F6 interrupts every screen whose Esc would close it
@@ -751,7 +713,7 @@ mod tests {
         game.debug_key(KeyCode::F6, KeyAction::Press);
         let (w, h) = game.gui_size();
         let (xs, y) = footer(w, h);
-        game.cursor = (xs[3] + 1.0, y + 1.0);
+        game.cursor = (xs[2] + 1.0, y + 1.0);
         game.debug_options_click();
         assert!(game.title.is_some() && game.debug_options.is_none());
         assert!(

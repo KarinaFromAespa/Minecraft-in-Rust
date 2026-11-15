@@ -1,5 +1,5 @@
-//! Minecraft Realms screens: `RealmsMainScreen` with its `RealmsHeader`, the join-code and
-//! pending-invite screens, the owner's open/close, `RealmsPopups.infoPopupScreen` for the
+//! Minecraft Realms screens: `RealmsMainScreen`, the pending-invite screen,
+//! the owner's open/close, `RealmsPopups.infoPopupScreen` for the
 //! questions, `GetServerDetailsTask` under `RealmsLongRunningMcoTaskScreen` for Play, and
 //! `RealmsResetWorldScreen` with its template, local-world and upload screens.
 //! Layout from the vanilla screens' behaviour and the game's own sprites.
@@ -15,8 +15,8 @@ pub mod upload;
 use crate::hud::{HudAtlas, HudBatch, rgba};
 use crate::text::Text;
 use client::{
-    Backup, InviteCode, PendingInviteDto, PlayerInfo, RealmAddress, RealmServer, RealmSetting,
-    RealmSlot, RealmTierConfiguration, RealmTierRange, RealmWorldOptions, RealmsClient,
+    Backup, PendingInviteDto, PlayerInfo, RealmAddress, RealmServer, RealmSetting,
+    RealmSlot, RealmWorldOptions, RealmsClient,
     RealmsError, RealmsNotification, RegionDataDto, RegionSelectionPreferenceDto, Subscription,
     WorldDownload, WorldTemplate, WorldTemplateList,
 };
@@ -31,9 +31,6 @@ const HEADER_HEIGHT: f32 = 44.0;
 const CONTENT_WIDTH: f32 = 308.0;
 /// `CommonLinks.REALMS_TERMS`: the Realms terms page the terms screen's link opens.
 const REALMS_TERMS_URL: &str = "https://aka.ms/MinecraftRealmsTerms";
-/// `RealmsPdpScreen`'s list: the row width and the text's width beside the picture.
-const PDP_ROW_WIDTH: f32 = 290.0;
-const PDP_TEXT_WIDTH: f32 = 182.0;
 
 const ROW_WIDTH: f32 = 300.0;
 const ROW_HEIGHT: f32 = 36.0;
@@ -48,7 +45,6 @@ const RED: u32 = 0xFF00_00FF;
 /// `RealmsPopups.COLOR_INFO` (8226750).
 const INFO: u32 = 0xFFBE_877D;
 
-const REALMS_INVITE_CODE: crate::clipboard::FieldId = ("realms.invite_code", 0);
 const REALMS_PLAYER_NAME: crate::clipboard::FieldId = ("realms.player_name", 0);
 const REALMS_UPLOAD_SEARCH: crate::clipboard::FieldId = ("realms.upload_search", 0);
 const REALMS_SLOT_NAME: crate::clipboard::FieldId = ("realms.slot_name", 0);
@@ -72,37 +68,10 @@ const GAME_MODES: [&str; 3] = [
 ];
 const DIFFICULTY_DEFAULT: usize = 2;
 const GAME_MODE_DEFAULT: usize = 0;
-/// `InviteCodeExpiration`: the seven choices, the last one never expiring.
-const EXPIRATIONS: [(&str, Option<i64>); 7] = [
-    (
-        "mco.configure.world.invite_codes.expiration.30_minutes",
-        Some(30 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.1_hour",
-        Some(60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.6_hours",
-        Some(6 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.12_hours",
-        Some(12 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.1_day",
-        Some(24 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.7_days",
-        Some(7 * 24 * 60 * 60),
-    ),
-    ("mco.configure.world.invite_codes.expiration.never", None),
-];
-
 /// `CommonLinks.BUY_REALMS`.
 const BUY_REALMS: &str = "https://aka.ms/BuyJavaRealms";
+/// `CommonLinks.START_REALMS_TRIAL`.
+const START_REALMS_TRIAL: &str = "https://aka.ms/startjavarealmstrial";
 /// `CommonLinks.EXTEND_REALMS_LINK`.
 const EXTEND_REALMS: &str = "https://aka.ms/ExtendJavaRealms";
 /// `CommonLinks.REALMS_CONTENT_CREATION`.
@@ -264,10 +233,6 @@ pub struct SettingsDraft {
     pub region: Option<String>,
     /// The field with the caret: the name (false) or the description (true).
     pub on_description: bool,
-    /// The picked distances, once the tier configuration arrived
-    /// (`RealmsSettingsTab`'s two `OptionInstance`s; none while it hasn't).
-    pub render_distance: Option<i32>,
-    pub simulation_distance: Option<i32>,
 }
 
 impl SettingsDraft {
@@ -289,8 +254,6 @@ impl SettingsDraft {
             preference,
             region,
             on_description: false,
-            render_distance: None,
-            simulation_distance: None,
         }
     }
     /// The preference as `RegionSelectionPreferenceDto`: the region only for `MANUAL`.
@@ -303,12 +266,6 @@ impl SettingsDraft {
                 .filter(|_| self.preference == client::MANUAL),
         }
     }
-}
-
-/// `RealmsSettingsTab.save`'s `updatedRenderDistance`/`updatedSimulationDistance`: a distance
-/// is sent only when the player changed it and the tier answer lets the service configure it.
-fn changed_distance(picked: Option<i32>, range: Option<&RealmTierRange>) -> Option<i32> {
-    picked.filter(|picked| range.is_some_and(|range| *picked != range.current_or_default()))
 }
 
 /// `RealmsServer.shouldPlayButtonBeActive`: open and unexpired, and this client can play
@@ -431,20 +388,13 @@ const SETTINGS_REGION_ROW_HEIGHT: f32 = SETTINGS_LABEL_HEIGHT
     + 2.0 * SETTINGS_CELL_PADDING;
 
 /// `RealmsSettingsTab`'s row tops relative to the column's own top — name, description,
-/// render distance, simulation distance, region, toggle — and the column's height. The
-/// two distance rows exist only once the tier answer is there (`createDistanceOption`).
-fn settings_rows(with_tier: bool) -> ([f32; 6], f32) {
+/// region, toggle — and the column's height. 26.2 has no distance rows (those are
+/// 26.3's `createDistanceOption`): rows 2 and 3 stay 0 and are never used.
+fn settings_rows() -> ([f32; 6], f32) {
     let mut rows = [0.0; 6];
     rows[1] = SETTINGS_ROW_HEIGHT;
-    if with_tier {
-        rows[2] = 2.0 * SETTINGS_ROW_HEIGHT;
-        rows[3] = 3.0 * SETTINGS_ROW_HEIGHT;
-        rows[4] = 4.0 * SETTINGS_ROW_HEIGHT;
-        rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
-    } else {
-        rows[4] = 2.0 * SETTINGS_ROW_HEIGHT;
-        rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
-    }
+    rows[4] = 2.0 * SETTINGS_ROW_HEIGHT;
+    rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
     (
         rows,
         rows[5] + SETTINGS_WIDGET_HEIGHT + 2.0 * SETTINGS_CELL_PADDING,
@@ -473,8 +423,6 @@ fn configure_screen(server: RealmServer, tab: ConfigureTab) -> SubScreen {
         member_job: None,
         settings: None,
         players_scroll: crate::ui::Scroll::default(),
-        tier: None,
-        tier_job: None,
         regions: None,
         regions_job: None,
         saving: None,
@@ -485,6 +433,16 @@ fn configure_screen(server: RealmServer, tab: ConfigureTab) -> SubScreen {
 
 /// `RealmsSettingsTab.isRealmNameValid`: a name that trims to something and has no
 /// leading or trailing whitespace.
+/// `StringUtil.isBlank` → `""`, else the value as-is: `saveSettings`' `finalName` and
+/// `description` (26.2 passes the name and description raw, only blank becomes empty).
+fn blank_to_empty(value: &str) -> String {
+    if value.trim().is_empty() {
+        String::new()
+    } else {
+        value.to_owned()
+    }
+}
+
 fn realm_name_valid(name: &str) -> bool {
     let trimmed = name.trim();
     !trimmed.is_empty() && name.len() == trimmed.len()
@@ -634,26 +592,6 @@ fn icon_sprite(batch: &mut HudBatch, atlas: &HudAtlas, slot: usize, rgba: &[u8])
         rgba: rgba.to_vec(),
     });
     Some(sprite)
-}
-
-/// `InviteCodeExpiration.closestTo`: the choice nearest the time left on the code.
-fn closest_expiration(expiration_millis: i64) -> usize {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0);
-    let left = (expiration_millis - now).max(0) / 1000;
-    let mut best = EXPIRATIONS.len() - 1;
-    let mut best_delta = i64::MAX;
-    for (i, (_, seconds)) in EXPIRATIONS.iter().enumerate() {
-        let Some(seconds) = seconds else { continue };
-        let delta = (left - seconds).abs();
-        if delta < best_delta {
-            best_delta = delta;
-            best = i;
-        }
-    }
-    best
 }
 
 /// `RealmsSubscriptionTab.daysLeftPresentation`: what the days-left line says, in the
@@ -810,9 +748,9 @@ fn start_date_text(epoch_millis: i64) -> String {
     time.format(format).to_string()
 }
 
-/// `RealmsEditInviteCodeScreen.DATE_FORMAT`: `Util.localizedDateFormatter(SHORT)`. The
-/// port has no locale database, so each language's short shape is spelled out with an
-/// ISO fallback (vanilla itself formats per locale).
+/// A short localized date (`Util.localizedDateFormatter(SHORT)`). The port has no
+/// locale database, so each language's short shape is spelled out with an ISO
+/// fallback (vanilla itself formats per locale).
 fn short_date_text(epoch_millis: i64) -> String {
     let Some(time) = chrono::DateTime::from_timestamp_millis(epoch_millis) else {
         return String::new();
@@ -909,7 +847,6 @@ pub enum Popup {
         server: RealmServer,
         settings: SettingsDraft,
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
     },
     /// `ConfirmLinkScreen.confirmLink`: a website the screen would open, asked first. The
     /// parent is the screen the answer returns to (`ConfirmLinkScreen`'s `parentScreen`).
@@ -1045,11 +982,6 @@ type TemplatePages = Job<Result<(Vec<WorldTemplate>, i32, bool), RealmsError>>;
 #[derive(Clone, Debug)]
 pub enum SubScreen {
     Main,
-    JoinCode {
-        code: String,
-        error: Option<String>,
-        job: Option<Job<Result<(), RealmsError>>>,
-    },
     PendingInvites {
         invites: Option<Result<Vec<PendingInviteDto>, RealmsError>>,
         job: Option<Job<Result<Vec<PendingInviteDto>, RealmsError>>>,
@@ -1124,11 +1056,6 @@ pub enum SubScreen {
         settings: Option<SettingsDraft>,
         /// The players tab's list scroll (`InvitedObjectSelectionList`).
         players_scroll: crate::ui::Scroll,
-        /// `RealmsClient.getRealmTierConfiguration`, then its answer: the settings tab's
-        /// distance sliders (`tierConfigurationFetched` keeps it to one fetch).
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
-        tier_job: Option<Job<Result<RealmTierConfiguration, RealmsError>>>,
-        /// `RealmsClient.preferredRegions` for the region preference screen.
         regions: Option<Result<Vec<RegionDataDto>, RealmsError>>,
         regions_job: Option<Job<Result<Vec<RegionDataDto>, RealmsError>>>,
         /// `RealmsClient.updateConfiguration` on a worker.
@@ -1162,28 +1089,6 @@ pub enum SubScreen {
         scroll: crate::ui::Scroll,
         /// The settings tab's data, carried back so its save can run at once.
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
-    },
-    /// `RealmsInviteCodesScreen`: the Realm's shareable codes.
-    InviteCodes {
-        server: RealmServer,
-        codes: Option<Result<Vec<InviteCode>, RealmsError>>,
-        list_job: Option<Job<Result<Vec<InviteCode>, RealmsError>>>,
-        /// `createInviteCode` on a worker.
-        job: Option<Job<Result<(), RealmsError>>>,
-        error: Option<String>,
-        /// The highlighted row (`InviteCodeSelectionList`).
-        selected: Option<usize>,
-    },
-    /// `RealmsEditInviteCodeScreen`: one code's active flag and expiration.
-    EditCode {
-        server: RealmServer,
-        code: InviteCode,
-        active: bool,
-        /// `EXPIRATIONS`' index.
-        expiration: usize,
-        job: Option<Job<Result<(), RealmsError>>>,
-        error: Option<String>,
     },
     /// `RealmsInviteScreen`: a name to invite to the Realm.
     Invite {
@@ -1273,18 +1178,14 @@ pub enum SubScreen {
         progress: Arc<upload::UploadProgress>,
         job: Option<Job<Result<(), upload::UploadError>>>,
     },
-    /// `RealmsPdpScreen`: the product page behind Add Realm, its picture rows and scroll.
-    AddRealm {
-        scroll: crate::ui::Scroll,
-        /// The list's drawn height, measured in [`Screen::draw`] and read by the wheel.
-        content: std::cell::Cell<f32>,
-        /// The rows as last drawn, in scroll order: the click needs the heights the
-        /// wrapped text gave them.
-        rows: std::cell::RefCell<Vec<[f32; 4]>>,
-        /// `RealmsClient.trialAvailable` (`RealmsDataFetcher.trialAvailabilityTask`): the
-        /// header's trial note is shown only when this says yes.
-        trial: bool,
-        trial_job: Option<Job<Result<bool, RealmsError>>>,
+    /// `AddRealmPopupScreen` (26.2 only): the 320x172 popup over the main list
+    /// behind Add Realm — the popup text, Buy, and a Trial button when a trial
+    /// is available. No carousel: the 26.2 client jar ships no `realms`-namespace
+    /// `textures/gui/images`, so vanilla's `updateCarouselImages` finds nothing
+    /// and draws no picture (a pack adding such images is a known gap).
+    AddRealmPopup {
+        /// `AddRealmPopupScreen.trialAvailable`: the Trial button and its diamond.
+        trial_available: bool,
     },
     Popup(Popup),
     /// `RealmsLongRunningMcoTaskScreen` running `GetServerDetailsTask`: the join request is on
@@ -1339,14 +1240,6 @@ pub struct Screen {
     /// (`numberOfPendingInvites`).
     pending_invites: u32,
     pending_invites_job: Option<Job<Result<Vec<PendingInviteDto>, RealmsError>>>,
-    /// `RealmsHeader.createLayout`'s join button width, measured in the draw (text plus 16,
-    /// at most half of the 308 content the logo leaves).
-    join_width: std::cell::Cell<f32>,
-    /// The product page's selected row (`ObjectSelectionList.getSelected`).
-    pub(crate) pdp_row: Option<usize>,
-    /// The last click took a product-page row (`ObjectSelectionList.mouseClicked`): the
-    /// keyboard focus moves to the list.
-    list_clicked: bool,
     /// `ConfirmLinkScreen`'s three buttons as last drawn (`Choice::new` lays them out from
     /// the message's width).
     link_buttons: std::cell::Cell<[(f32, f32); 3]>,
@@ -1380,28 +1273,26 @@ pub struct Screen {
     players_button_rects: std::cell::RefCell<Vec<([f32; 4], u8)>>,
     /// `RealmsBackupScreen.Entry`'s Changes/Restore buttons as last drawn.
     backup_row_buttons: std::cell::RefCell<Vec<([f32; 4], u8)>>,
-    /// The settings tab's `ScrollableLayout`: the column is taller than the tab area on
-    /// short windows (vanilla scrolls it).
-    settings_scroll: crate::ui::Scroll,
-    /// The settings tab's held distance slider (`AbstractSliderButton.dragging`): 0 for
-    /// render distance, 1 for simulation distance.
-    settings_slider: Option<usize>,
-    /// The other held sliders: 1 the slot options' spawn protection, 2 the edit-code
-    /// expiration.
+    /// The other held slider: the slot options' spawn protection.
     other_slider: Option<u8>,
     /// A button press that has to wait for the settings tab's save (`Play`, the open/close
     /// toggle): `RealmsConfigureWorldScreen` saves an active tab before either runs.
     after_save: Option<AfterSave>,
-    /// `RealmsMainScreen.redirectToPdpIfNoRealms`: opened from the title screen, the first
-    /// empty server list opens the product page.
-    redirect_to_pdp: bool,
     /// `mco.template.select.none`'s link segment as last drawn: the empty template list's
     /// link to the content-creation page.
     template_link_rect: std::cell::Cell<[f32; 4]>,
-    /// `RealmsMainScreen.trialAvailable`: the Add Realm button reads "free trial" and the
-    /// product page offers "Try for free".
+    /// `RealmsMainScreen.trialAvailable`: the Add Realm button's trial diamond and the
+    /// popup's Trial button.
     trial: bool,
     trial_job: Option<Job<Result<bool, RealmsError>>>,
+    /// The Add Realm button as last laid out (`createAddRealmButton`), and
+    /// whether it is active: the trial diamond draws over it after the buttons
+    /// (`RealmsMainScreen.extractRenderState`).
+    add_realm_rect: std::cell::Cell<[f32; 4]>,
+    add_realm_active: std::cell::Cell<bool>,
+    /// The popup's Trial button as last laid out: its diamond draws over it
+    /// after the buttons (`AddRealmPopupScreen.extractRenderState`).
+    trial_rect: std::cell::Cell<[f32; 4]>,
     /// `RealmsDataFetcher.liveStatsTask`: each Realm's online players (`getLiveStats`).
     live_players: std::collections::HashMap<i64, Vec<String>>,
     live_job: Option<Job<Result<std::collections::HashMap<i64, Vec<String>>, RealmsError>>>,
@@ -1586,53 +1477,6 @@ fn create_temporary_world(world: &CreatedWorld) -> std::result::Result<PathBuf, 
     }
 }
 
-/// `RealmsPdpScreen`'s list: the trial header (no picture) and the three features, each
-/// with its 80x45 picture and the text beside it. The header's subtitle
-/// (`mco.pdp.trial.description`, with `icon/trial_available`) is shown only when the service
-/// says a trial is available (`trialAvailabilityTask`).
-fn pdp_entries() -> [(&'static str, &'static str, &'static [&'static str]); 4] {
-    [
-        ("", "mco.pdp.trial.title", &["mco.pdp.trial.description"]),
-        (
-            "gui/realms/friends",
-            "mco.pdp.friends.title",
-            &["mco.pdp.friends.description"],
-        ),
-        (
-            "gui/realms/minigames",
-            "mco.pdp.minigames.title",
-            &["mco.pdp.minigames.description"],
-        ),
-        (
-            "gui/realms/private_server",
-            "mco.pdp.private.title",
-            &[
-                "mco.pdp.private.backups",
-                "mco.pdp.private.easyToManage",
-                "mco.pdp.private.worldSlots",
-                "mco.pdp.private.secure",
-            ],
-        ),
-    ]
-}
-
-/// `RealmsPdpScreen.AbstractPdpEntry.getNarration`'s lines: the title and its descriptions,
-/// a line each (`CommonComponents.joinLines`), the trial's only with a trial available.
-fn pdp_row_lines(row: usize, trial: bool) -> Vec<String> {
-    let (_, title, descriptions) = pdp_entries()[row];
-    let mut lines = vec![crate::lang::get(title)];
-    // `PdpList`'s header carries the trial description only with a trial available.
-    if title != "mco.pdp.trial.title" || trial {
-        lines.extend(descriptions.iter().map(|key| crate::lang::get(key)));
-    }
-    lines
-}
-
-/// `RealmsPdpScreen.AbstractPdpEntry.getNarration`: `narrator.select` of those lines.
-fn pdp_row_narration(row: usize, trial: bool) -> String {
-    crate::screen_narrator::translate("narrator.select", &[&pdp_row_lines(row, trial).join("\n")])
-}
-
 /// `RealmsSelectWorldTemplateScreen.fetchTemplates`: one page at a time; the list shows it
 /// as it arrives and the screen chains the next page until the last or an empty one.
 fn fetch_template_page(
@@ -1740,9 +1584,6 @@ impl Screen {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -1757,14 +1598,14 @@ impl Screen {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -1790,12 +1631,9 @@ impl Screen {
         screen
     }
 
-    /// `new RealmsMainScreen(lastScreen, ...)` from the title screen: vanilla sets
-    /// `redirectToPdpIfNoRealms`, so a first empty list opens the product page.
+    /// `new RealmsMainScreen(lastScreen, ...)` from the title screen.
     pub fn from_title(saves: Option<PathBuf>) -> Self {
-        let mut screen = Self::with_saves(saves);
-        screen.redirect_to_pdp = true;
-        screen
+        Self::with_saves(saves)
     }
 
     /// `RealmsPersistence.getPathToData`: `realms_persistence.json` in the game
@@ -1912,14 +1750,10 @@ impl Screen {
         icon_sprite(batch, atlas, slot, &face)
     }
 
-    /// `RealmsMainScreen.createAddRealmButton`: with a trial available the button reads
-    /// "free trial" instead of "buy".
+    /// `RealmsMainScreen.createAddRealmButton`: 26.2's button always reads "buy" — a
+    /// trial shows as a diamond over the button, not a relabel.
     fn add_realm_label(&self) -> String {
-        if self.trial {
-            crate::lang::get("mco.selectServer.freeTrial")
-        } else {
-            crate::lang::get("mco.selectServer.purchase")
-        }
+        crate::lang::get("mco.selectServer.purchase")
     }
 
     fn servers(&self) -> &[RealmServer] {
@@ -1985,15 +1819,37 @@ impl Screen {
         }
     }
 
-    /// `RealmsHeader.NotificationButton.extractNotificationCounter`: the badge sits 8x8
-    /// at the button's top right corner (x + width - 5, y - 3) — drawn on top of the
-    /// button, so [`Self::draw`] cannot have drawn it: the buttons render after. Unread
-    /// news shows notification/more; the invite button counts the service's pending
-    /// invites, notification/1..5 then more. The main screen only (`draw_main`'s header).
+    /// `RealmsMainScreen.NotificationButton.extractNotificationCounter`: the badge
+    /// sits 8x8 at the button's top right corner (x + width - 5, y - 3) — drawn on
+    /// top of the button, so [`Self::draw`] cannot have drawn it: the buttons render
+    /// after. Unread news shows notification/more; the invite button counts the
+    /// service's pending invites, notification/1..5 then more. The main screen only
+    /// (`createHeader`). The same post-buttons draw carries `AddRealmPopupScreen
+    /// .extractDiamond`: the trial diamond over the Add Realm button on the list and
+    /// over the popup's Trial button.
     pub fn draw_header_badges(&self, atlas: &HudAtlas, batch: &mut HudBatch, w: f32) {
-        // `RealmsHeader` belongs to the main list and the product page alike: both draw
-        // the pending-invite and news badges on their buttons.
-        if !matches!(self.subscreen, SubScreen::Main | SubScreen::AddRealm { .. }) {
+        // The popup's Trial button carries the diamond (`AddRealmPopupScreen
+        // .extractRenderState`); the popup has no header badges.
+        if let SubScreen::AddRealmPopup { trial_available } = self.subscreen {
+            if trial_available
+                && atlas.sprites.contains_key("gui/sprites/icon/trial_available")
+            {
+                let [x, y, bw, _] = self.trial_rect.get();
+                crate::ui::blit_sprite(
+                    batch,
+                    atlas,
+                    "gui/sprites/icon/trial_available",
+                    x + bw - 8.0 - 4.0,
+                    y + 10.0 - 4.0,
+                    8.0,
+                    8.0,
+                    u32::MAX,
+                );
+            }
+            return;
+        }
+        // The badges belong to the main list's header (`RealmsMainScreen.createHeader`).
+        if !matches!(self.subscreen, SubScreen::Main) {
             return;
         }
         let cx = (w / 2.0).floor();
@@ -2036,6 +1892,24 @@ impl Screen {
                 u32::MAX,
             );
         }
+        // `RealmsMainScreen.extractRenderState`: a trial available and the Add Realm
+        // button active puts the diamond over it.
+        if self.trial
+            && self.add_realm_active.get()
+            && atlas.sprites.contains_key("gui/sprites/icon/trial_available")
+        {
+            let [x, y, bw, _] = self.add_realm_rect.get();
+            crate::ui::blit_sprite(
+                batch,
+                atlas,
+                "gui/sprites/icon/trial_available",
+                x + bw - 8.0 - 4.0,
+                y + 10.0 - 4.0,
+                8.0,
+                8.0,
+                u32::MAX,
+            );
+        }
     }
 
     /// `RealmsMainScreen.refreshServerList`.
@@ -2047,10 +1921,10 @@ impl Screen {
         self.last_news_refresh = now;
         self.news_job = client().map(|client| spawn(move || client.news_link()));
         self.notifications_job = client().map(|client| spawn(move || client.notifications()));
-        // `RealmsHeader`'s invite badge counts the service's pending invites
+        // `RealmsMainScreen.createHeader`'s invite badge counts the service's pending invites
         // (`numberOfPendingInvites`).
         self.pending_invites_job = client().map(|client| spawn(move || client.pending_invites()));
-        // `RealmsDataFetcher.trialAvailabilityTask`: the footer's free-trial button.
+        // `RealmsDataFetcher.trialAvailabilityTask`: the Add Realm button's trial diamond.
         self.trial_job = client().map(|client| spawn(move || client.trial_available()));
         // `RealmsDataFetcher.liveStatsTask`: the rows' online faces.
         self.live_job = client().map(|client| spawn(move || client.live_players()));
@@ -2092,15 +1966,11 @@ impl Screen {
         };
     }
 
-    /// `RealmsMainScreen.openRealmsPdp`: the product page, and its `trialAvailable` check.
-    fn open_pdp(&mut self) {
-        let trial_job = client().map(|client| spawn(move || client.trial_available()));
-        self.subscreen = SubScreen::AddRealm {
-            scroll: crate::ui::Scroll::default(),
-            content: std::cell::Cell::new(0.0),
-            rows: std::cell::RefCell::new(Vec::new()),
-            trial: false,
-            trial_job,
+    /// `RealmsMainScreen.openTrialAvailablePopup`: the popup over the list, carrying
+    /// the trial answer the service gave.
+    fn open_add_realm_popup(&mut self) {
+        self.subscreen = SubScreen::AddRealmPopup {
+            trial_available: self.trial,
         };
     }
 
@@ -2137,28 +2007,19 @@ impl Screen {
                     client().map(|client| spawn(move || client.notifications()));
             }
         }
-        let mut open_pdp_if_no_realms = false;
         if let FetchState::Loading(job) = &self.state
             && let Some(result) = take(job)
         {
             self.state = match result {
                 // `RealmsServerList.updateServersList` sorts with
-                // `McoServerComparator`; `openPdpIfNoRealms` then runs once.
+                // `McoServerComparator`.
                 Ok(mut servers) => {
                     let owner = session().map(|s| s.name.clone());
                     sort_servers(&mut servers, owner.as_deref());
-                    if self.redirect_to_pdp {
-                        self.redirect_to_pdp = false;
-                        open_pdp_if_no_realms =
-                            servers.is_empty() && matches!(self.subscreen, SubScreen::Main);
-                    }
                     FetchState::Loaded(servers)
                 }
                 Err(e) => FetchState::Error(e),
             };
-        }
-        if open_pdp_if_no_realms {
-            self.open_pdp();
         }
         if let Some(job) = &self.news_job
             && let Some(result) = take(job)
@@ -2186,7 +2047,7 @@ impl Screen {
             && let Some(result) = take(job)
         {
             self.trial_job = None;
-            // `RealmsMainScreen.setTrialAvailable`: a failure keeps the last answer.
+            // `RealmsDataFetcher.trialAvailabilityTask`: a failure keeps the last answer.
             if let Ok(available) = result {
                 self.trial = available;
             }
@@ -2228,14 +2089,10 @@ impl Screen {
         let mut refetch_detail = false;
         let mut slot_options_saved = false;
         let mut open_region_screen = false;
-        let mut saved_code = false;
-        let mut refetch_codes = false;
         let mut back_to_worlds: Option<RealmServer> = None;
         let mut created = false;
         // The settings save finished: a Play or the close toggle continues.
         let mut settings_saved = false;
-        // An invite-code fetch failure: `RealmsGenericErrorScreen` over the players tab.
-        let mut codes_error: Option<(RealmServer, RealmsError)> = None;
         // `RestoreTask`'s failure: the error screen over the configuration screen.
         let mut restore_error: Option<(RealmServer, RealmsError)> = None;
         // `DownloadTask` answered with the links (`RealmsDownloadLatestWorldScreen`), or
@@ -2250,33 +2107,10 @@ impl Screen {
         // `LongRunningTask.error`: a reset or minigame-switch task's failure replaces the
         // screen with the generic error screen.
         let mut task_error: Option<String> = None;
-        // `RealmsEditInviteCodeScreen.handleFailure` keeps the edit screen as its next.
-        let mut edit_error: Option<(RealmServer, InviteCode, bool, usize, RealmsError)> = None;
-        // `RealmsInviteCodesScreen.handleFailure` returns to the loaded codes list.
-        let mut codes_action_error: Option<(
-            RealmServer,
-            Option<Result<Vec<InviteCode>, RealmsError>>,
-            Option<usize>,
-            RealmsError,
-        )> = None;
         // A configure screen's fetch failed: `RealmsConfigureWorldScreen.createErrorScreen`
         // replaces the screen with the generic error screen.
         let mut fetch_error: Option<RealmsError> = None;
         match &mut self.subscreen {
-            SubScreen::JoinCode { error, job, .. } => {
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        Ok(()) => {
-                            self.subscreen = SubScreen::Main;
-                            refresh = true;
-                        }
-                        Err(_) => {
-                            *error = Some(crate::lang::get("mco.selectServer.joinCode.invalid"));
-                        }
-                    }
-                }
-            }
             SubScreen::PendingInvites { invites, job, .. } => {
                 if let Some(result) = job.as_ref().and_then(take) {
                     *job = None;
@@ -2292,8 +2126,6 @@ impl Screen {
                 deleting,
                 member_job,
                 settings,
-                tier,
-                tier_job,
                 regions,
                 regions_job,
                 saving,
@@ -2334,30 +2166,6 @@ impl Screen {
                     }
                     *detail = Some(result);
                 }
-                if let Some(result) = tier_job.as_ref().and_then(take) {
-                    *tier_job = None;
-                    // The tab's sliders take the ranges as they arrived; a draft opened
-                    // before the answer gets its initial values now. `fetchTierConfiguration`'s
-                    // failure replaces the screen.
-                    if let Err(e) = &result {
-                        fetch_error = Some(e.clone());
-                    }
-                    if let Ok(config) = result.as_ref()
-                        && let Some(draft) = settings.as_mut()
-                        && draft.render_distance.is_none()
-                        && draft.simulation_distance.is_none()
-                    {
-                        draft.render_distance = config
-                            .render_distance
-                            .as_ref()
-                            .map(RealmTierRange::current_or_default);
-                        draft.simulation_distance = config
-                            .sim_distance
-                            .as_ref()
-                            .map(RealmTierRange::current_or_default);
-                    }
-                    *tier = Some(result);
-                }
                 if let Some(result) = member_job.as_ref().and_then(take) {
                     *member_job = None;
                     match result {
@@ -2385,25 +2193,12 @@ impl Screen {
                 if let Some(result) = saving.as_ref().and_then(take) {
                     *saving = None;
                     match result {
-                        // `saveSettings` updates the screen's own copy and reads again; the
-                        // saved distances are the tier's new current ones.
+                        // `saveSettings` updates the screen's own copy and reads again.
                         Ok(()) => {
                             if let Some(draft) = settings.as_ref() {
-                                server.name = draft.name.trim().to_owned();
-                                server.motd = draft.description.clone();
+                                server.name = draft.name.clone();
+                                server.motd = blank_to_empty(&draft.description);
                                 server.region_selection_preference = Some(draft.preference_dto());
-                                if let Some(Ok(config)) = tier.as_mut() {
-                                    let update = |range: &mut Option<RealmTierRange>,
-                                                  picked: Option<i32>| {
-                                        if let (Some(range), Some(picked)) =
-                                            (range.as_mut(), picked)
-                                        {
-                                            range.current = Some(picked);
-                                        }
-                                    };
-                                    update(&mut config.render_distance, draft.render_distance);
-                                    update(&mut config.sim_distance, draft.simulation_distance);
-                                }
                             }
                             refetch_detail = true;
                             settings_saved = true;
@@ -2455,8 +2250,6 @@ impl Screen {
                                 member_job: None,
                                 settings: None,
                                 players_scroll: crate::ui::Scroll::default(),
-                                tier: None,
-                                tier_job: None,
                                 regions: None,
                                 regions_job: None,
                                 saving: None,
@@ -2548,37 +2341,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::InviteCodes {
-                server,
-                codes,
-                selected,
-                list_job,
-                job,
-                ..
-            } => {
-                if let Some(result) = list_job.as_ref().and_then(take) {
-                    *list_job = None;
-                    match result {
-                        Ok(list) => *codes = Some(Ok(list)),
-                        // `handleFailure`: the failure replaced the screen with the generic
-                        // error screen, whose next screen is the configuration screen.
-                        Err(e) => codes_error = Some((server.clone(), e)),
-                    }
-                }
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        // A create or delete: the list reads again.
-                        Ok(()) => refetch_codes = true,
-                        // `handleFailure`: the generic error screen, returning to the
-                        // codes list it was over.
-                        Err(e) => {
-                            codes_action_error =
-                                Some((server.clone(), codes.clone(), *selected, e));
-                        }
-                    }
-                }
-            }
             SubScreen::ResetWorld {
                 server,
                 kind,
@@ -2649,15 +2411,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::AddRealm {
-                trial, trial_job, ..
-            } => {
-                if let Some(result) = trial_job.as_ref().and_then(take) {
-                    *trial_job = None;
-                    // A failed ask leaves the note off, as `trialAvailable` staying false does.
-                    *trial = result.unwrap_or(false);
-                }
-            }
             SubScreen::Uploading {
                 job, error, done, ..
             } => {
@@ -2695,28 +2448,6 @@ impl Screen {
                                 detail: crate::lang::get("mco.create.world.failed"),
                                 next: Box::new(Self::reset_screen(request)),
                             };
-                        }
-                    }
-                }
-            }
-            SubScreen::EditCode {
-                server,
-                code,
-                active,
-                expiration,
-                job,
-                ..
-            } => {
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        // The update or delete is saved: back to the list, which reads again.
-                        Ok(()) => saved_code = true,
-                        // `handleFailure`: the generic error screen, whose next is this
-                        // edit screen again.
-                        Err(e) => {
-                            edit_error =
-                                Some((server.clone(), code.clone(), *active, *expiration, e));
                         }
                     }
                 }
@@ -2797,64 +2528,8 @@ impl Screen {
                 speed: std::cell::Cell::new((0, Instant::now(), 0)),
             };
         }
-        if let Some((server, e)) = codes_error {
-            let code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(configure_screen(server, ConfigureTab::Players)),
-            };
-        }
-        if let Some((server, code, active, expiration, e)) = edit_error {
-            let error_code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&error_code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(SubScreen::EditCode {
-                    server,
-                    code,
-                    active,
-                    expiration,
-                    job: None,
-                    error: None,
-                }),
-            };
-        }
-        if let Some((server, codes, selected, e)) = codes_action_error {
-            let error_code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&error_code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(SubScreen::InviteCodes {
-                    server,
-                    codes,
-                    list_job: None,
-                    job: None,
-                    error: None,
-                    selected,
-                }),
-            };
-        }
         if settings_saved && let Some(action) = self.after_save.take() {
             let _ = self.run_after_save(action);
-        }
-        if refetch_codes {
-            self.start_invite_codes();
-        }
-        if saved_code {
-            self.back_to_codes();
         }
         if open_region_screen {
             self.open_region_preference();
@@ -3000,12 +2675,6 @@ impl Screen {
 
     pub fn focused_box(&self, (w, h): (f32, f32)) -> Option<[f32; 4]> {
         match &self.subscreen {
-            SubScreen::JoinCode { .. } => {
-                // The field sits at the draw's content y + 13 (`AbstractRealmsCodeScreen`'s
-                // contentY, min(63, H - 94)); a hard 76 diverged on short windows.
-                let content_y = (h - 94.0).min(63.0);
-                Some([(w / 2.0).floor() - 100.0, content_y + 13.0, 200.0, 20.0])
-            }
             SubScreen::Invite { .. } => Some([(w / 2.0).floor() - 100.0, 76.0, 200.0, 20.0]),
             // `RealmsSelectFileToUploadScreen`: the 200-wide search box at header + 13.
             SubScreen::UploadSelect { .. } => Some([(w / 2.0).floor() - 100.0, 13.0, 200.0, 20.0]),
@@ -3030,22 +2699,18 @@ impl Screen {
             SubScreen::Configure {
                 tab: ConfigureTab::Settings,
                 settings: Some(draft),
-                tier,
                 ..
             } => {
                 let left = (w / 2.0).floor() - 106.0;
-                let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                let (rows, content_h) = settings_rows();
                 let top = settings_column_top(h, content_h);
-                let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                let scroll = self.settings_scroll.amount.min(max_scroll);
                 let row = usize::from(draft.on_description);
                 Some([
                     left,
                     top + rows[row]
                         + SETTINGS_CELL_PADDING
                         + SETTINGS_LABEL_HEIGHT
-                        + SETTINGS_LABEL_SPACING
-                        - scroll,
+                        + SETTINGS_LABEL_SPACING,
                     212.0,
                     20.0,
                 ])
@@ -3056,10 +2721,6 @@ impl Screen {
 
     pub fn focused_text(&mut self) -> Option<(crate::clipboard::FieldId, &mut String, usize)> {
         match &mut self.subscreen {
-            // `RealmsJoinRealmWithCodeScreen`: `setEditable(false)` while validating.
-            SubScreen::JoinCode { code, job, .. } => {
-                job.is_none().then_some((REALMS_INVITE_CODE, code, 32))
-            }
             // `profileName.setEditable(false)` while the invite is in flight.
             SubScreen::Invite { name, job, .. } => {
                 job.is_none().then_some((REALMS_PLAYER_NAME, name, 32))
@@ -3161,7 +2822,6 @@ impl Screen {
             server,
             tab,
             settings,
-            tier,
             ..
         } = &mut self.subscreen
             && wanted.enabled(server.expired)
@@ -3169,17 +2829,7 @@ impl Screen {
             // `RealmsConfigurationTab.onSelected` → `RealmsSettingsTab.updateData`: every
             // selection refills the draft from the service's Realm, not the stale one.
             if wanted == ConfigureTab::Settings {
-                let mut draft = SettingsDraft::of(server);
-                if let Some(Ok(config)) = tier.as_ref() {
-                    draft.render_distance = config
-                        .render_distance
-                        .as_ref()
-                        .map(RealmTierRange::current_or_default);
-                    draft.simulation_distance = config
-                        .sim_distance
-                        .as_ref()
-                        .map(RealmTierRange::current_or_default);
-                }
+                let draft = SettingsDraft::of(server);
                 *settings = Some(draft);
             }
             *tab = wanted;
@@ -3188,21 +2838,9 @@ impl Screen {
         Some(false)
     }
 
-    /// `AbstractSliderButton.onDrag`: the settings tab's held distance slider follows the
-    /// pointer while the button stays down.
-    pub fn drag(&mut self, cursor: (f32, f32), (w, h): (f32, f32)) {
-        // `ScrollableLayout`'s held scrollbar (the settings tab's column).
-        if self.settings_scroll.held()
-            && let SubScreen::Configure {
-                tab: ConfigureTab::Settings,
-                tier,
-                ..
-            } = &self.subscreen
-        {
-            let content = settings_rows(matches!(tier, Some(Ok(_)))).1;
-            self.settings_scroll.drag(cursor.1, 24.0, h - 33.0, content);
-            return;
-        }
+    /// `AbstractSliderButton.onDrag`: a held slider follows the pointer while the
+    /// button stays down.
+    pub fn drag(&mut self, cursor: (f32, f32), (w, _h): (f32, f32)) {
         if let Some(slider) = self.other_slider {
             match slider {
                 // `RealmsSlotOptionsScreen.SettingsSlider`: 0..16 with step 1.
@@ -3219,60 +2857,16 @@ impl Screen {
                             (crate::ui::slider_value(x, 150.0, cursor.0) * 16.0).round() as i32;
                     }
                 }
-                // `RealmsEditInviteCodeScreen.ExpirationSlider`: one choice per step.
-                2 => {
-                    if let SubScreen::EditCode {
-                        active: true,
-                        job: None,
-                        expiration,
-                        ..
-                    } = &mut self.subscreen
-                    {
-                        let left = (w / 2.0).floor() - 154.0;
-                        let value = crate::ui::slider_value(left, 308.0, cursor.0);
-                        *expiration = (value * (EXPIRATIONS.len() - 1) as f32).round() as usize;
-                    }
-                }
                 _ => {}
             }
             return;
         }
-        let Some(which) = self.settings_slider else {
-            return;
-        };
-        let SubScreen::Configure {
-            tab: ConfigureTab::Settings,
-            settings: Some(draft),
-            tier,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        let Some(Ok(config)) = tier.as_ref() else {
-            return;
-        };
-        let range = match which {
-            0 => config.render_distance.as_ref(),
-            _ => config.sim_distance.as_ref(),
-        };
-        let Some(range) = range else {
-            return;
-        };
-        let left = (w / 2.0).floor() - 106.0;
-        let value = range.from_slider(crate::ui::slider_value(left, 212.0, cursor.0));
-        if which == 0 {
-            draft.render_distance = Some(value);
-        } else {
-            draft.simulation_distance = Some(value);
-        }
     }
+
 
     /// `AbstractSliderButton.onRelease`.
     pub fn release(&mut self) {
-        self.settings_slider = None;
         self.other_slider = None;
-        self.settings_scroll.release();
     }
 
     /// Escape: a sub-screen goes back to the list (cancelling a join); the list goes back to
@@ -3308,16 +2902,14 @@ impl Screen {
             server,
             settings,
             detail,
-            tier,
         }) = &self.subscreen
         {
-            let (server, settings, detail, tier) = (
+        let (server, settings, detail) = (
                 server.clone(),
                 settings.clone(),
                 detail.clone(),
-                tier.clone(),
             );
-            self.back_to_settings(server, settings, detail, tier);
+            self.back_to_settings(server, settings, detail);
             return false;
         }
         // The restore question's Escape is its Cancel: the list reads again.
@@ -3404,12 +2996,6 @@ impl Screen {
                 _ => {}
             }
             self.back_to_worlds_tab();
-            return false;
-        }
-        // `RealmsEditInviteCodeScreen.onClose`: Back and Escape return to the codes list
-        // while the back button is active (no request in flight).
-        if matches!(self.subscreen, SubScreen::EditCode { job: None, .. }) {
-            self.back_to_codes();
             return false;
         }
         // `PopupScreen.onClose`: the background screen returns. `RealmsPopups` builds the
@@ -3607,29 +3193,7 @@ impl Screen {
             let id = server.id;
             *detail_job = Some(spawn(move || client.get_own_realm(id)));
         }
-        self.start_configure_tier();
         self.start_configure_regions();
-    }
-
-    /// `RealmsConfigureWorldScreen.init`'s `fetchTierConfiguration`: asked again on every
-    /// entry until it answered (`tierConfigurationFetched`).
-    fn start_configure_tier(&mut self) {
-        let SubScreen::Configure {
-            server,
-            tier,
-            tier_job,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        if tier.is_some() || tier_job.is_some() {
-            return;
-        }
-        if let Some(client) = client() {
-            let id = server.id;
-            *tier_job = Some(spawn(move || client.get_tier_configuration(id)));
-        }
     }
 
     /// `RealmsConfigureWorldScreen.init`'s `fetchRegionData`: the settings tab's region
@@ -3695,7 +3259,6 @@ impl Screen {
         server: RealmServer,
         settings: SettingsDraft,
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
     ) {
         self.subscreen = SubScreen::Configure {
             server,
@@ -3706,8 +3269,6 @@ impl Screen {
             detail_job: None,
             deleting: None,
             member_job: None,
-            tier,
-            tier_job: None,
             settings: Some(settings),
             players_scroll: crate::ui::Scroll::default(),
             regions: None,
@@ -3721,18 +3282,18 @@ impl Screen {
     }
 
     /// `RealmsSettingsTab.onDeselected` → `RealmsConfigureWorldScreen.saveSettings`: the name,
-    /// description and region preference through `RealmsClient.updateConfiguration`, and a
-    /// changed distance through its own PUT — each only when it differs from what the service
-    /// has.
-    /// Whether a save request went out: the buttons that must wait for it
-    /// (`Play`, the open/close toggle) continue immediately when nothing changed.
+    /// description and region preference through `RealmsClient.updateConfiguration`.
+    /// 26.2 saves unconditionally — the change check (`configurationChanged`, returning
+    /// early when nothing differs) is 26.3's `saveSettings`.
+    /// Whether a save request went out: false only when the settings tab isn't open
+    /// (or a save is already in flight); the buttons that must wait for it (`Play`,
+    /// the open/close toggle) continue immediately then.
     fn save_settings_tab(&mut self) -> bool {
         let SubScreen::Configure {
             tab: ConfigureTab::Settings,
             server,
             detail,
             settings: Some(draft),
-            tier,
             saving,
             ..
         } = &mut self.subscreen
@@ -3743,22 +3304,6 @@ impl Screen {
             return false;
         }
         let wanted = draft.preference_dto();
-        let region_changed = server.region_selection_preference.as_ref().map_or(
-            wanted.region_selection_preference != client::AUTOMATIC_OWNER,
-            |p| *p != wanted,
-        );
-        let configuration_changed =
-            draft.name.trim() != server.name || draft.description != server.motd || region_changed;
-        let (render_distance, sim_distance) = match tier.as_ref() {
-            Some(Ok(config)) => (
-                changed_distance(draft.render_distance, config.render_distance.as_ref()),
-                changed_distance(draft.simulation_distance, config.sim_distance.as_ref()),
-            ),
-            _ => (None, None),
-        };
-        if !configuration_changed && render_distance.is_none() && sim_distance.is_none() {
-            return false;
-        }
         let Some(Ok(detail)) = detail else {
             return false;
         };
@@ -3770,26 +3315,18 @@ impl Screen {
         };
         let (id, name, description) = (
             server.id,
-            draft.name.trim().to_owned(),
-            draft.description.clone(),
+            blank_to_empty(&draft.name),
+            blank_to_empty(&draft.description),
         );
         *saving = Some(spawn(move || {
-            if configuration_changed {
-                client.update_configuration(id, &name, &description, &wanted, &slot)?;
-            }
-            if let Some(render_distance) = render_distance {
-                client.update_render_distance(id, render_distance)?;
-            }
-            if let Some(simulation_distance) = sim_distance {
-                client.update_simulation_distance(id, simulation_distance)?;
-            }
+            client.update_configuration(id, &name, &description, &wanted, &slot)?;
             Ok(())
         }));
         true
     }
 
     /// `RealmsSettingsTab.save`'s callers: run `action` after the save request, or at once
-    /// when there is nothing to save.
+    /// when the settings tab isn't open.
     fn save_then(&mut self, action: AfterSave) -> Outcome {
         if self.save_settings_tab() {
             self.after_save = Some(action);
@@ -3834,7 +3371,6 @@ impl Screen {
             settings: Some(draft),
             regions: Some(Ok(list)),
             detail,
-            tier,
             ..
         } = &self.subscreen
         else {
@@ -3849,7 +3385,6 @@ impl Screen {
             selected,
             scroll: crate::ui::Scroll::default(),
             detail: detail.clone(),
-            tier: tier.clone(),
         };
     }
 
@@ -3870,8 +3405,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -3948,46 +3481,6 @@ impl Screen {
             let id = server.id;
             *job = Some(spawn(move || client.update_slot(id, &updated)));
         }
-    }
-
-    /// `RealmsInviteCodesScreen.refreshInviteCodes`: the list reads again.
-    fn start_invite_codes(&mut self) {
-        let SubScreen::InviteCodes {
-            server,
-            list_job,
-            selected,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        if list_job.is_some() {
-            return;
-        }
-        // `refreshInviteCodes` clears the selection before the list reads again.
-        *selected = None;
-        if let Some(client) = client() {
-            let id = server.id;
-            *list_job = Some(spawn(move || client.invite_codes(id)));
-        }
-    }
-
-    /// `RealmsEditInviteCodeScreen`'s save or delete done: back to the codes list, which
-    /// reads again.
-    fn back_to_codes(&mut self) {
-        let SubScreen::EditCode { server, .. } = &self.subscreen else {
-            return;
-        };
-        let server = server.clone();
-        self.subscreen = SubScreen::InviteCodes {
-            server,
-            codes: None,
-            list_job: None,
-            job: None,
-            error: None,
-            selected: None,
-        };
-        self.start_invite_codes();
     }
 
     /// `RealmsBackupScreen.fetchRealmsBackups`: the list reads again.
@@ -4189,37 +3682,6 @@ impl Screen {
         self.start_download(download, world_name, progress);
     }
 
-    /// Back to the players tab from the codes screens.
-    fn back_to_players_tab(&mut self) {
-        let server = match &self.subscreen {
-            SubScreen::InviteCodes { server, .. } | SubScreen::EditCode { server, .. } => {
-                server.clone()
-            }
-            _ => return,
-        };
-        self.subscreen = SubScreen::Configure {
-            server,
-            tab: ConfigureTab::Players,
-            subscription: None,
-            subscription_job: None,
-            detail: None,
-            detail_job: None,
-            deleting: None,
-            member_job: None,
-            settings: None,
-            players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
-            regions: None,
-            regions_job: None,
-            saving: None,
-            error: None,
-            job: None,
-        };
-        self.start_configure_subscription();
-        self.start_configure_detail();
-    }
-
     /// `RealmsInviteScreen.onClose`: back to the players tab.
     fn back_to_players(&mut self) {
         let SubScreen::Invite { server, .. } = &self.subscreen else {
@@ -4237,8 +3699,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4263,8 +3723,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4674,7 +4132,6 @@ impl Screen {
     }
 
     pub fn click(&mut self, hit: Option<u8>, x: f32, y: f32, (w, h): (f32, f32)) -> Outcome {
-        self.list_clicked = false;
         // `RealmsTermsScreen.mouseClicked`: a click on the underlined link opens
         // `CommonLinks.REALMS_TERMS` (the draw recorded the text's box).
         if hit.is_none() && matches!(self.subscreen, SubScreen::Terms { .. }) {
@@ -4699,8 +4156,6 @@ impl Screen {
                         member_job: None,
                         settings: None,
                         players_scroll: crate::ui::Scroll::default(),
-                        tier: None,
-                        tier_job: None,
                         regions: None,
                         regions_job: None,
                         saving: None,
@@ -4724,15 +4179,7 @@ impl Screen {
                 Outcome::None
             }
             Some(13) => {
-                self.open_pdp();
-                Outcome::None
-            }
-            Some(14) => {
-                self.subscreen = SubScreen::JoinCode {
-                    code: String::new(),
-                    error: None,
-                    job: None,
-                };
+                self.open_add_realm_popup();
                 Outcome::None
             }
             Some(15) => {
@@ -4756,22 +4203,6 @@ impl Screen {
             }
             Some(17) => {
                 self.refresh();
-                Outcome::None
-            }
-            Some(20) => {
-                if let SubScreen::JoinCode { code, error, job } = &mut self.subscreen
-                    && job.is_none()
-                    && !code.trim().is_empty()
-                {
-                    match client() {
-                        Some(client) => {
-                            let code = code.trim().to_owned();
-                            *error = None;
-                            *job = Some(spawn(move || client.redeem_invite_code(&code)));
-                        }
-                        None => *error = Some(crate::lang::get("horizon.realms.not_signed_in")),
-                    }
-                }
                 Outcome::None
             }
             // `PopupScreen.onClose`'s Cancel: the background screen returns — the
@@ -4817,17 +4248,15 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     }) => Some((
                         server.clone(),
                         settings.clone(),
                         detail.clone(),
-                        tier.clone(),
                     )),
                     _ => None,
                 };
-                if let Some((server, settings, detail, tier)) = close_world {
-                    self.back_to_settings(server, settings, detail, tier);
+                if let Some((server, settings, detail)) = close_world {
+                    self.back_to_settings(server, settings, detail);
                     return Outcome::None;
                 }
                 let server = match &self.subscreen {
@@ -4844,7 +4273,7 @@ impl Screen {
                 }
                 Outcome::None
             }
-            Some(21) | Some(22) | Some(32) | Some(41) | Some(52) => {
+            Some(22) | Some(32) | Some(52) => {
                 self.back_to_list();
                 Outcome::None
             }
@@ -4857,12 +4286,11 @@ impl Screen {
                         tab: ConfigureTab::Settings,
                         settings: Some(draft),
                         detail,
-                        tier,
                         ..
-                    } => Some((server.clone(), draft.clone(), detail.clone(), tier.clone())),
+                    } => Some((server.clone(), draft.clone(), detail.clone())),
                     _ => None,
                 };
-                let Some((server, settings, detail, tier)) = state else {
+                let Some((server, settings, detail)) = state else {
                     return Outcome::None;
                 };
                 if server.is_open() {
@@ -4870,7 +4298,6 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     });
                 } else {
                     return self.save_then(AfterSave::Open(server.id));
@@ -5204,7 +4631,7 @@ impl Screen {
                     } else {
                         template.link.clone()
                     };
-                    if let Some(link) = link {
+                    if !link.is_empty() {
                         self.open_link(link);
                     }
                 }
@@ -5223,8 +4650,8 @@ impl Screen {
                 {
                     let (server, name, description) = (
                         server.clone(),
-                        name.trim().to_owned(),
-                        description.trim().to_owned(),
+                        name.clone(),
+                        description.clone(),
                     );
                     let slot = server.active_slot;
                     let job = client().map(|client| {
@@ -5408,23 +4835,27 @@ impl Screen {
                 }
                 Outcome::None
             }
-            // RealmsPreferredRegionSelectionScreen.onDone / onClose.
+            // RealmsPreferredRegionSelectionScreen.onDone / onClose. 26.2 applies the
+            // choice only when a region is picked (`selection.region() != null`): Done
+            // on an automatic row just closes, the draft unchanged. 26.3 applies
+            // unconditionally.
             Some(87) => {
                 if let SubScreen::RegionPreference {
                     server,
                     settings,
                     selected,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
-                    && let Some((preference, region)) = selected
+                    && selected.is_some()
                 {
                     let server = server.clone();
                     let mut settings = settings.clone();
-                    settings.preference = *preference;
-                    settings.region = region.clone();
-                    self.back_to_settings(server, settings, detail.clone(), tier.clone());
+                    if let Some((preference, Some(region))) = selected {
+                        settings.preference = *preference;
+                        settings.region = Some(region.clone());
+                    }
+                    self.back_to_settings(server, settings, detail.clone());
                 }
                 Outcome::None
             }
@@ -5433,13 +4864,12 @@ impl Screen {
                     server,
                     settings,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
                 {
                     let server = server.clone();
                     let settings = settings.clone();
-                    self.back_to_settings(server, settings, detail.clone(), tier.clone());
+                    self.back_to_settings(server, settings, detail.clone());
                 }
                 Outcome::None
             }
@@ -5450,7 +4880,6 @@ impl Screen {
                     settings: Some(draft),
                     regions,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
                 {
@@ -5472,7 +4901,6 @@ impl Screen {
                                 selected,
                                 scroll: crate::ui::Scroll::default(),
                                 detail: detail.clone(),
-                                tier: tier.clone(),
                             };
                         }
                     } else if matches!(self.subscreen, SubScreen::Configure { .. }) {
@@ -5482,130 +4910,6 @@ impl Screen {
                         self.start_configure_regions();
                     }
                 }
-                Outcome::None
-            }
-            // RealmsInviteCodesScreen: the Players tab's second button.
-            Some(68) => {
-                if let SubScreen::Configure { server, .. } = &self.subscreen
-                    && let Some(client) = client()
-                {
-                    let id = server.id;
-                    self.subscreen = SubScreen::InviteCodes {
-                        server: server.clone(),
-                        codes: None,
-                        list_job: Some(spawn(move || client.invite_codes(id))),
-                        job: None,
-                        error: None,
-                        selected: None,
-                    };
-                }
-                Outcome::None
-            }
-            // RealmsInviteCodesScreen: Create (160) and Back (161).
-            Some(160) => {
-                if let SubScreen::InviteCodes { server, job, .. } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let id = server.id;
-                    *job = Some(spawn(move || client.create_invite_code(id, true, None)));
-                }
-                Outcome::None
-            }
-            Some(161) => {
-                self.back_to_players_tab();
-                Outcome::None
-            }
-            // RealmsEditInviteCodeScreen: Active (162), Copy (163), Delete (164), Done
-            // (165) and Back (166).
-            Some(162) => {
-                if let SubScreen::EditCode { active, .. } = &mut self.subscreen {
-                    *active = !*active;
-                }
-                Outcome::None
-            }
-            Some(163) => {
-                if let SubScreen::EditCode { code, .. } = &self.subscreen {
-                    return Outcome::Copy(code.code.clone());
-                }
-                Outcome::None
-            }
-            Some(164) => {
-                if let SubScreen::EditCode { job, code, .. } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let code = code.code.clone();
-                    *job = Some(spawn(move || client.delete_invite_code(&code)));
-                }
-                Outcome::None
-            }
-            Some(165) => {
-                // `onSave`: unchanged values just close; a changed expiration is resolved
-                // against the current date, while an unchanged one keeps the stored date.
-                let unchanged = match &self.subscreen {
-                    SubScreen::EditCode {
-                        code,
-                        active,
-                        expiration,
-                        ..
-                    } => {
-                        *active == code.enabled
-                            && *expiration
-                                == code
-                                    .expiration_date
-                                    .map(closest_expiration)
-                                    .unwrap_or(EXPIRATIONS.len() - 1)
-                    }
-                    _ => false,
-                };
-                if unchanged {
-                    self.back_to_codes();
-                    return Outcome::None;
-                }
-                if let SubScreen::EditCode {
-                    server,
-                    code,
-                    active,
-                    expiration,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let (id, code_text) = (server.id, code.code.clone());
-                    let (enabled, index, stored) = (*active, *expiration, code.expiration_date);
-                    let changed = index
-                        != stored
-                            .map(closest_expiration)
-                            .unwrap_or(EXPIRATIONS.len() - 1);
-                    *job = Some(spawn(move || {
-                        // `resolveExpirationDate`: a changed choice becomes now + its
-                        // duration (epoch millis, `Instant.toEpochMilli`); otherwise the
-                        // code keeps the date it had.
-                        let expiration = if changed {
-                            EXPIRATIONS[index.min(EXPIRATIONS.len() - 1)]
-                                .1
-                                .map(|seconds| {
-                                    use std::time::{SystemTime, UNIX_EPOCH};
-                                    let now = SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .map(|d| d.as_millis() as i64)
-                                        .unwrap_or(0);
-                                    now + seconds * 1000
-                                })
-                        } else {
-                            stored
-                        };
-                        client.update_invite_code(id, &code_text, enabled, expiration)
-                    }));
-                }
-                Outcome::None
-            }
-            Some(166) => {
-                // `RealmsEditInviteCodeScreen.onClose`: `parentScreen` is the codes list.
-                self.back_to_codes();
                 Outcome::None
             }
             // RealmsSlotOptionsScreen: cycle, toggle, Done and Cancel.
@@ -5674,14 +4978,19 @@ impl Screen {
                 Outcome::None
             }
             Some(40) => {
-                // RealmsPdpScreen's footer: Try for Free (START_REALMS_TRIAL) when a
-                // trial is available, else Buy (BUY_REALMS).
-                let on_trial = matches!(&self.subscreen, SubScreen::AddRealm { trial: true, .. });
-                self.open_link(if on_trial {
-                    "https://aka.ms/startjavarealmstrial".to_owned()
-                } else {
-                    BUY_REALMS.to_owned()
-                });
+                // `AddRealmPopupScreen.init`: Buy asks before opening BUY_REALMS.
+                self.open_link(BUY_REALMS.to_owned());
+                Outcome::None
+            }
+            Some(41) => {
+                // `AddRealmPopupScreen.init`: Trial asks before opening
+                // START_REALMS_TRIAL.
+                self.open_link(START_REALMS_TRIAL.to_owned());
+                Outcome::None
+            }
+            Some(44) => {
+                // `AddRealmPopupScreen.onClose`: the background screen returns.
+                self.subscreen = SubScreen::Main;
                 Outcome::None
             }
             Some(50) => self.popup_continue(),
@@ -5692,62 +5001,6 @@ impl Screen {
             // `PopupScreen`: OK and the InfoPopup's URL button.
             Some(56) => self.notice_ok(),
             Some(57) => self.notice_url(),
-            // RealmsInviteCodesScreen: Copy, Delete and Edit act on the selected row.
-            Some(180) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    ..
-                } = &self.subscreen
-                    && let Some(code) = selected.and_then(|i| list.get(i))
-                {
-                    return Outcome::Copy(code.code.clone());
-                }
-                Outcome::None
-            }
-            Some(181) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(code) = selected.and_then(|i| list.get(i))
-                    && let Some(client) = client()
-                {
-                    let code = code.code.clone();
-                    *job = Some(spawn(move || client.delete_invite_code(&code)));
-                }
-                Outcome::None
-            }
-            Some(182) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    ..
-                } = &self.subscreen
-                    && let Some(code) = selected.and_then(|i| list.get(i).cloned())
-                {
-                    let expiration = code
-                        .expiration_date
-                        .map(closest_expiration)
-                        .unwrap_or(EXPIRATIONS.len() - 1);
-                    let active = code.enabled;
-                    if let SubScreen::InviteCodes { server, .. } = &self.subscreen {
-                        let server = server.clone();
-                        self.subscreen = SubScreen::EditCode {
-                            server,
-                            code,
-                            active,
-                            expiration,
-                            job: None,
-                            error: None,
-                        };
-                    }
-                }
-                Outcome::None
-            }
             Some(btn @ 100..=200) => {
                 // The button's meaning: a pending invite's answer, or a player row's
                 // Op/Deop/Remove (`RealmsPlayersTab.PlayerEntry`).
@@ -5756,9 +5009,6 @@ impl Screen {
                     Pending(bool, String),
                     Member(bool, i64, String),
                     Uninvite(RealmServer, PlayerInfo),
-                    Copy(String),
-                    Edit(InviteCode),
-                    DeleteCode(String),
                 }
                 let row = match &self.subscreen {
                     SubScreen::PendingInvites { invites, job, .. } if job.is_none() => {
@@ -5770,20 +5020,6 @@ impl Screen {
                                 None => Row::Nothing,
                             },
                             None => Row::Nothing,
-                        }
-                    }
-                    SubScreen::InviteCodes {
-                        codes: Some(Ok(list)),
-                        job,
-                        ..
-                    } => {
-                        let index = usize::from((btn - 130) / 3);
-                        let which = (btn - 130) % 3;
-                        match list.get(index) {
-                            Some(code) if which == 0 => Row::Copy(code.code.clone()),
-                            Some(code) if which == 1 => Row::Edit(code.clone()),
-                            Some(code) if job.is_none() => Row::DeleteCode(code.code.clone()),
-                            _ => Row::Nothing,
                         }
                     }
                     SubScreen::Configure {
@@ -5846,33 +5082,6 @@ impl Screen {
                     Row::Uninvite(server, player) => {
                         self.subscreen = SubScreen::Popup(Popup::Uninvite { server, player });
                     }
-                    Row::Copy(code) => return Outcome::Copy(code),
-                    Row::Edit(code) => {
-                        if let SubScreen::InviteCodes { server, .. } = &self.subscreen {
-                            let server = server.clone();
-                            let expiration = code
-                                .expiration_date
-                                .map(closest_expiration)
-                                .unwrap_or(EXPIRATIONS.len() - 1);
-                            let active = code.enabled;
-                            self.subscreen = SubScreen::EditCode {
-                                server,
-                                code,
-                                active,
-                                expiration,
-                                job: None,
-                                error: None,
-                            };
-                        }
-                    }
-                    Row::DeleteCode(code) => {
-                        if let SubScreen::InviteCodes { job, .. } = &mut self.subscreen
-                            && job.is_none()
-                            && let Some(client) = client()
-                        {
-                            *job = Some(spawn(move || client.delete_invite_code(&code)));
-                        }
-                    }
                 }
                 Outcome::None
             }
@@ -5884,10 +5093,8 @@ impl Screen {
                 self.subscreen,
                 SubScreen::Configure { .. }
                     | SubScreen::RegionPreference { .. }
-                    | SubScreen::EditCode { .. }
                     | SubScreen::SlotOptions { .. }
                     | SubScreen::CreateRealm { .. }
-                    | SubScreen::InviteCodes { .. }
             ) =>
             {
                 let (bar_x, tab_w) = tab_geometry(w);
@@ -5907,7 +5114,6 @@ impl Screen {
                         server,
                         tab,
                         settings,
-                        tier,
                         ..
                     } = &mut self.subscreen
                         && let Some(wanted) = ConfigureTab::ALL.get(index)
@@ -5916,17 +5122,7 @@ impl Screen {
                         // `onSelected` → `updateData`: the tab refills its fields from
                         // the Realm each time it is opened, discarding a stale draft.
                         if *wanted == ConfigureTab::Settings {
-                            let mut draft = SettingsDraft::of(server);
-                            if let Some(Ok(config)) = tier.as_ref() {
-                                draft.render_distance = config
-                                    .render_distance
-                                    .as_ref()
-                                    .map(RealmTierRange::current_or_default);
-                                draft.simulation_distance = config
-                                    .sim_distance
-                                    .as_ref()
-                                    .map(RealmTierRange::current_or_default);
-                            }
+                            let draft = SettingsDraft::of(server);
                             *settings = Some(draft);
                         }
                         *tab = *wanted;
@@ -5934,33 +5130,20 @@ impl Screen {
                     return Outcome::None;
                 }
                 // RealmsSettingsTab's two fields: the click moves the caret between them.
-                // The two distance sliders: a press on the track starts
-                // `AbstractSliderButton`'s drag and snaps the value into the range.
                 if let SubScreen::Configure {
                     tab: ConfigureTab::Settings,
                     settings: Some(draft),
-                    tier,
                     ..
                 } = &mut self.subscreen
                 {
-                    let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                    let (rows, content_h) = settings_rows();
                     let top = settings_column_top(h, content_h);
-                    let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                    let scroll = self.settings_scroll.amount.min(max_scroll);
                     let left = (w / 2.0).floor() - 106.0;
-                    // `ScrollableLayout`'s scrollbar (4 past the 212-wide column, 6 wide).
-                    if self
-                        .settings_scroll
-                        .press((x, y), left + 224.0, 24.0, h - 33.0, content_h)
-                    {
-                        return Outcome::None;
-                    }
                     let widget_y = |row: usize| {
                         top + rows[row]
                             + SETTINGS_CELL_PADDING
                             + SETTINGS_LABEL_HEIGHT
                             + SETTINGS_LABEL_SPACING
-                            - scroll
                     };
                     if (left..left + 212.0).contains(&x) {
                         if (widget_y(0)..widget_y(0) + 20.0).contains(&y) {
@@ -5972,49 +5155,6 @@ impl Screen {
                             return Outcome::None;
                         }
                     }
-                    if let Some(Ok(config)) = tier.as_ref() {
-                        // `OptionInstance`'s slider: the value snaps into the range.
-                        let bands = [
-                            (
-                                config.render_distance.as_ref(),
-                                widget_y(2),
-                                &mut draft.render_distance,
-                            ),
-                            (
-                                config.sim_distance.as_ref(),
-                                widget_y(3),
-                                &mut draft.simulation_distance,
-                            ),
-                        ];
-                        for (which, (range, slider_y, picked)) in bands.into_iter().enumerate() {
-                            let (Some(range), Some(picked)) = (range, picked) else {
-                                continue;
-                            };
-                            if (slider_y..slider_y + 20.0).contains(&y)
-                                && (left..left + 212.0).contains(&x)
-                            {
-                                *picked =
-                                    range.from_slider(crate::ui::slider_value(left, 212.0, x));
-                                self.settings_slider = Some(which);
-                                return Outcome::None;
-                            }
-                        }
-                    }
-                }
-                // `RealmsInviteCodesScreen`: a row takes the selection (`Entry
-                // .mouseClicked`), 28 high from the contents' top.
-                if let SubScreen::InviteCodes {
-                    codes, selected, ..
-                } = &mut self.subscreen
-                    && let Some(Ok(list)) = codes
-                {
-                    let top = 33.0;
-                    let rx = ((w - 308.0) / 2.0).floor();
-                    if x >= rx && x < rx + 308.0 && y >= top {
-                        let row = ((y - top - 2.0) / 28.0).floor() as usize;
-                        *selected = (row < list.len()).then_some(row);
-                    }
-                    return Outcome::None;
                 }
                 // RealmsCreateRealmScreen's two fields: the click moves the caret.
                 if let SubScreen::CreateRealm { on_description, .. } = &mut self.subscreen {
@@ -6059,23 +5199,6 @@ impl Screen {
                         return self.click(Some(87), x, y, (w, h));
                     }
                     return Outcome::None;
-                }
-                if let SubScreen::EditCode {
-                    active,
-                    expiration,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && *active
-                    && job.is_none()
-                {
-                    let left = (w / 2.0).floor() - 154.0;
-                    if (93.0..113.0).contains(&y) && (left..left + 308.0).contains(&x) {
-                        let value = crate::ui::slider_value(left, 308.0, x);
-                        *expiration = (value * (EXPIRATIONS.len() - 1) as f32).round() as usize;
-                        self.other_slider = Some(2);
-                        return Outcome::None;
-                    }
                 }
                 // RealmsSlotOptionsScreen's spawn-protection slider: a click on the track
                 // sets the value (there is no drag event on this screen yet).
@@ -6345,7 +5468,6 @@ impl Screen {
             server,
             settings,
             detail,
-            tier,
         } = &popup
         {
             let id = server.id;
@@ -6353,7 +5475,6 @@ impl Screen {
                 server.clone(),
                 settings.clone(),
                 detail.clone(),
-                tier.clone(),
             );
             return self.save_then(AfterSave::Close(id));
         }
@@ -6401,8 +5522,6 @@ impl Screen {
                     member_job: Some(spawn(move || client.switch_slot(id, slot).map(drop))),
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6437,8 +5556,6 @@ impl Screen {
                     member_job: Some(spawn(move || client.uninvite_player(id, &uuid))),
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6468,8 +5585,6 @@ impl Screen {
                     member_job: None,
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6548,19 +5663,6 @@ impl Screen {
                 return Outcome::None;
             }
         }
-        // `ObjectSelectionList.mouseClicked`: a product-page row takes the selection (and
-        // the focus); its rectangles are the ones the draw wrapped the text into.
-        if let SubScreen::AddRealm { rows, .. } = &self.subscreen {
-            let row = rows
-                .borrow()
-                .iter()
-                .position(|[rx, ry, rw, rh]| x >= *rx && x < rx + rw && y >= *ry && y < ry + rh);
-            if let Some(row) = row {
-                self.pdp_row = Some(row);
-                self.list_clicked = true;
-                return Outcome::None;
-            }
-        }
         // `RealmsResetWorldScreen`'s tiles are drawn, not widgets: the click is a rectangle.
         if let SubScreen::ResetWorld {
             server,
@@ -6605,11 +5707,12 @@ impl Screen {
                     return None;
                 }
                 let template = templates.get(*row)?;
-                if *trailer {
-                    template.trailer.clone()
+                let link = if *trailer {
+                    &template.trailer
                 } else {
-                    template.link.clone()
-                }
+                    &template.link
+                };
+                (!link.is_empty()).then(|| link.clone())
             }),
             _ => None,
         };
@@ -6762,14 +5865,8 @@ impl Screen {
         Outcome::None
     }
 
-    /// The product page's list is on screen: a Tab stop, and the arrows' target while no
-    /// button has the keyboard (`ObjectSelectionList`).
-    pub fn pdp_list(&self) -> bool {
-        matches!(self.subscreen, SubScreen::AddRealm { .. })
-    }
-
     /// A list takes the keyboard while no button has it: the server list on the main
-    /// screen, the product page's rows behind Add Realm.
+    /// screen and the other selection lists.
     pub fn list_stop(&self) -> bool {
         // Every `ObjectSelectionList` is a keyboard stop: its Enter is the row's action.
         matches!(
@@ -6778,7 +5875,7 @@ impl Screen {
                 | SubScreen::UploadSelect { .. }
                 | SubScreen::TemplateList { select: None, .. }
                 | SubScreen::RegionPreference { .. }
-        ) || self.pdp_list()
+        )
     }
 
     /// `ObjectSelectionList.nextFocusPath` over the server list: from no row an arrow takes
@@ -6849,61 +5946,9 @@ impl Screen {
         }
     }
 
-    /// `ObjectSelectionList.nextFocusPath`'s `ArrowNavigation` over the product page: with
-    /// no row selected an arrow takes the near end, as `nextEntry` does.
-    pub fn pdp_arrow(&mut self, up: bool) -> bool {
-        if !self.pdp_list() {
-            return false;
-        }
-        let len = pdp_entries().len();
-        let row = match self.pdp_row {
-            None if up => len - 1,
-            None => 0,
-            Some(row) if up => row.saturating_sub(1),
-            Some(row) => (row + 1).min(len - 1),
-        };
-        self.pdp_row = Some(row);
-        true
-    }
-
-    /// The click just taken was on a product-page row, so the keyboard focus moves to the
-    /// list (`AbstractSelectionList.mouseClicked` → `setFocused`).
-    pub fn take_list_click(&mut self) -> bool {
-        std::mem::take(&mut self.list_clicked)
-    }
-
     /// `AbstractScrollArea.mouseScrolled` over the product page's list, the template and
     /// upload lists.
     pub fn wheel(&mut self, delta: f32, cursor: (f32, f32), (_, h): (f32, f32)) {
-        if let SubScreen::AddRealm {
-            scroll, content, ..
-        } = &mut self.subscreen
-        {
-            // The PdpList fills 44..h-33; `AbstractScrollArea.defaultSettings` scrolls
-            // it by `entryHeight / 2` = 22.
-            let (top, bottom) = (44.0, h - 33.0);
-            if cursor.1 < top || cursor.1 >= bottom {
-                return;
-            }
-            scroll.wheel(delta, 22.0, top, bottom, content.get());
-            return;
-        }
-        // `RealmsSettingsTab`'s `ScrollableLayout`: the column scrolls when it is taller
-        // than the tab area (`setMaxHeight(getContentHeight())`).
-        if let SubScreen::Configure {
-            tab: ConfigureTab::Settings,
-            tier,
-            ..
-        } = &self.subscreen
-        {
-            let content = settings_rows(matches!(tier, Some(Ok(_)))).1;
-            let (top, bottom) = (24.0, h - 33.0);
-            if cursor.1 >= top && cursor.1 < bottom {
-                self.settings_scroll
-                    .wheel(delta, 10.0, top, bottom, content);
-            }
-            return;
-        }
         // `ObjectSelectionList` scrolls: the server list and the pending invites too.
         let scrolled = match &self.subscreen {
             SubScreen::Main => {
@@ -7033,22 +6078,6 @@ impl Screen {
         let mut buttons = Vec::new();
 
         match &self.subscreen {
-            SubScreen::JoinCode { code, job, .. } => {
-                // `RealmsJoinRealmWithCodeScreen.init`: the Join Realm button at
-                // contentY + 41, then the footer's 200-wide Back.
-                let content_y = (h - 94.0).min(63.0);
-                buttons.push((
-                    cx - 100.0,
-                    content_y + 41.0,
-                    200.0,
-                    t("mco.selectServer.joinCode.select"),
-                    !code.trim().is_empty() && job.is_none(),
-                    20,
-                    None,
-                ));
-                // The footer is the default 33 tall: the 20-tall button centres 6 into it.
-                buttons.push((cx - 100.0, h - 27.0, 200.0, t("gui.back"), true, 21, None));
-            }
             SubScreen::PendingInvites {
                 invites,
                 job,
@@ -7100,7 +6129,6 @@ impl Screen {
                 tab,
                 subscription,
                 detail,
-                tier,
                 deleting,
                 job,
                 ..
@@ -7118,51 +6146,40 @@ impl Screen {
                 buttons.push((cx + 4.0, h - 27.0, 150.0, t("gui.back"), true, 32, None));
                 // RealmsSettingsTab: the region preference and the open/close toggle
                 // (vanilla keeps the toggle on this tab), at the row tops the tab's
-                // padded column gives them. Both live inside the `ScrollableLayout`, whose
-                // scissor hides them outside its view; a widget that is only partly in the
-                // view is not offered either, since the button list cannot clip a sprite.
+                // padded column gives them.
                 if *tab == ConfigureTab::Settings {
-                    let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                    let (rows, content_h) = settings_rows();
                     let top = settings_column_top(h, content_h);
-                    let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                    let scroll = self.settings_scroll.amount.min(max_scroll);
-                    let row_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
-                    let (view_top, view_bottom) = (24.0, h - 33.0);
-                    let visible =
-                        |y: f32| y >= view_top && y + SETTINGS_WIDGET_HEIGHT <= view_bottom;
+                    let row_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
                     // The region cell's label, its 13-offset line, then the button 9
                     // under the line.
                     let region_y = row_y(4)
                         + SETTINGS_LABEL_HEIGHT
                         + SETTINGS_LABEL_SPACING
                         + SETTINGS_LABEL_HEIGHT;
-                    if visible(region_y) {
-                        buttons.push((
-                            cx - 106.0,
-                            region_y,
-                            212.0,
-                            t("mco.configure.world.buttons.region_preference"),
-                            true,
-                            89,
-                            None,
-                        ));
-                    }
+                    buttons.push((
+                        cx - 106.0,
+                        region_y,
+                        212.0,
+                        t("mco.configure.world.buttons.region_preference"),
+                        true,
+                        89,
+                        None,
+                    ));
                     let toggle = if server.is_open() {
                         t("mco.configure.world.buttons.close")
                     } else {
                         t("mco.configure.world.buttons.open")
                     };
-                    if visible(row_y(5)) {
-                        buttons.push((
-                            cx - 106.0,
-                            row_y(5),
-                            212.0,
-                            toggle,
-                            job.is_none(),
-                            30,
-                            None,
-                        ));
-                    }
+                    buttons.push((
+                        cx - 106.0,
+                        row_y(5),
+                        212.0,
+                        toggle,
+                        job.is_none(),
+                        30,
+                        None,
+                    ));
                 }
                 // RealmsSubscriptionTab's own two buttons, where the draw centred the
                 // column (Extend, then a 2px spacer over Delete).
@@ -7270,15 +6287,6 @@ impl Screen {
                         t("mco.configure.world.buttons.invite"),
                         true,
                         67,
-                        None,
-                    ));
-                    buttons.push((
-                        cx + 4.0,
-                        h - 60.0,
-                        150.0,
-                        t("mco.configure.world.buttons.invite_codes"),
-                        true,
-                        68,
                         None,
                     ));
                 }
@@ -7430,125 +6438,6 @@ impl Screen {
                 // `RealmsBackupInfoScreen.init`: a default 150-wide Back in the footer.
                 buttons.push((cx - 75.0, h - 27.0, 150.0, t("gui.back"), true, 191, None));
             }
-            SubScreen::InviteCodes {
-                codes,
-                list_job,
-                job,
-                selected,
-                ..
-            } => {
-                // `RealmsInviteCodesScreen`: a footer of two rows, Copy/Delete/Edit 97
-                // wide over Create/Back 150 wide, 8 apart (`FOOTER_HEIGHT` 64).
-                let fetched = matches!(codes, Some(Ok(_)));
-                let count = codes
-                    .as_ref()
-                    .and_then(|r| r.as_ref().ok())
-                    .map_or(0, |list| list.len());
-                let busy = list_job.is_some() || job.is_some();
-                let idle = |enabled: bool| enabled && !busy;
-                let row1 = h - 56.0;
-                let x0 = ((w - 307.0) / 2.0).floor();
-                buttons.push((
-                    x0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.copy"),
-                    idle(selected.is_some()),
-                    180,
-                    None,
-                ));
-                buttons.push((
-                    x0 + 105.0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.delete"),
-                    idle(selected.is_some()),
-                    181,
-                    None,
-                ));
-                buttons.push((
-                    x0 + 210.0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.edit"),
-                    idle(selected.is_some()),
-                    182,
-                    None,
-                ));
-                let x = ((w - 308.0) / 2.0).floor();
-                buttons.push((
-                    x,
-                    h - 28.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.create"),
-                    idle(fetched && count < 5),
-                    160,
-                    None,
-                ));
-                // `onClose` only runs while the back button is active; a fetch or a
-                // create/delete turns it off (`setControlsActive(false)`).
-                buttons.push((x + 158.0, h - 28.0, 150.0, t("gui.back"), !busy, 161, None));
-            }
-            SubScreen::EditCode { active, job, .. } => {
-                let on_off = if *active {
-                    t("options.on")
-                } else {
-                    t("options.off")
-                };
-                // `init`'s Active cycle button: the top grid's second column, 8 past the
-                // 200-wide code column, vertically centred in its 22-tall row (64).
-                buttons.push((
-                    cx - 154.0 + 200.0 + 8.0,
-                    64.0,
-                    100.0,
-                    format!(
-                        "{}: {on_off}",
-                        t("mco.configure.world.invite_codes.edit.active")
-                    ),
-                    job.is_none(),
-                    162,
-                    None,
-                ));
-                // The footer's 2x2 grid of 150-wide buttons in the 64-tall footer: rows
-                // centred 8 in, Copy,Delete over Done,Back.
-                buttons.push((
-                    cx - 154.0,
-                    h - 56.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.copy"),
-                    true,
-                    163,
-                    None,
-                ));
-                buttons.push((
-                    cx + 4.0,
-                    h - 56.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.delete"),
-                    job.is_none(),
-                    164,
-                    None,
-                ));
-                buttons.push((
-                    cx - 154.0,
-                    h - 28.0,
-                    150.0,
-                    t("gui.done"),
-                    job.is_none(),
-                    165,
-                    None,
-                ));
-                // `setControlsActive(false)` turns Back off while a request runs.
-                buttons.push((
-                    cx + 4.0,
-                    h - 28.0,
-                    150.0,
-                    t("gui.back"),
-                    job.is_none(),
-                    166,
-                    None,
-                ));
-            }
             SubScreen::Invite { job, .. } => {
                 // `RealmsInviteScreen.init`: the Invite button 8 under the field (104),
                 // the 200-wide Back in the 33-tall footer (h - 27).
@@ -7563,48 +6452,19 @@ impl Screen {
                 ));
                 buttons.push((cx - 100.0, h - 27.0, 200.0, t("gui.back"), true, 81, None));
             }
-            SubScreen::AddRealm { .. } => {
-                // `RealmsHeader.createLayout`: Join Realm on the left of the 308 content,
-                // the invite and news buttons 4 apart on its right.
-                let signed_in = session().is_some();
-                let join = t("mco.selectServer.joinRealm");
-                buttons.push((
-                    cx - 154.0,
-                    12.0,
-                    self.join_width.get().max(40.0),
-                    join,
-                    signed_in,
-                    14,
-                    None,
-                ));
-                buttons.push((
-                    cx + 154.0 - 20.0 - 20.0 - 4.0,
-                    12.0,
-                    20.0,
-                    String::new(),
-                    signed_in,
-                    15,
-                    Some(("icon/invite", 14.0)),
-                ));
-                buttons.push((
-                    cx + 154.0 - 20.0,
-                    12.0,
-                    20.0,
-                    String::new(),
-                    self.news_link.is_some(),
-                    16,
-                    Some(("icon/news", 14.0)),
-                ));
-                // `RealmsPdpScreen`'s footer: two buttons 8 apart, the buy one carrying the
-                // PDP's own title.
-                // `RealmsPdpScreen.init`: a trial swaps the buy button for
-                // Try for Free (START_REALMS_TRIAL instead of BUY_REALMS).
-                let (_, label) = match &self.subscreen {
-                    SubScreen::AddRealm { trial: true, .. } => (true, t("mco.pdp.tryForFree")),
-                    _ => (false, t("mco.selectServer.purchase")),
-                };
-                buttons.push((cx - 154.0, h - 27.0, 150.0, label, true, 40, None));
-                buttons.push((cx + 4.0, h - 27.0, 150.0, t("gui.back"), true, 41, None));
+            SubScreen::AddRealmPopup { trial_available } => {
+                // `AddRealmPopupScreen.init`: the 320x172 popup centred; Buy 99 wide
+                // at the bottom right, Trial 4 above it when a trial is available,
+                // the 14x14 close cross at the popup's top left.
+                let left = ((w - 320.0) / 2.0).floor();
+                let top = ((h - 172.0) / 2.0).floor();
+                let right = left + 320.0;
+                let bottom = top + 172.0;
+                if *trial_available {
+                    buttons.push((right - 10.0 - 99.0, bottom - 10.0 - 4.0 - 40.0, 99.0, t("mco.selectServer.trial"), true, 41, None));
+                }
+                buttons.push((right - 10.0 - 99.0, bottom - 10.0 - 20.0, 99.0, t("mco.selectServer.buy"), true, 40, None));
+                buttons.push((left + 4.0, top + 4.0, 14.0, String::new(), true, 44, Some(("widget/cross_button", 14.0))));
             }
             // `PopupScreen.buildButtonRow`: OK and the optional URL button, centered.
             SubScreen::Popup(Popup::Notice { url, .. }) => {
@@ -7749,7 +6609,7 @@ impl Screen {
                 // reserved, they just do not draw or focus.
                 let chosen = selected.and_then(|i| templates.get(i));
                 let x = |i: usize| cx - 212.0 + i as f32 * 108.0;
-                if chosen.is_some_and(|template| template.trailer.is_some()) {
+                if chosen.is_some_and(|template| !template.trailer.is_empty()) {
                     buttons.push((
                         x(0),
                         h - 27.0,
@@ -7770,7 +6630,7 @@ impl Screen {
                     None,
                 ));
                 buttons.push((x(2), h - 27.0, 100.0, t("gui.cancel"), true, 78, None));
-                if chosen.is_some_and(|template| template.link.is_some()) {
+                if chosen.is_some_and(|template| !template.link.is_empty()) {
                     buttons.push((
                         x(3),
                         h - 27.0,
@@ -7847,17 +6707,8 @@ impl Screen {
             }
             SubScreen::Main => {
                 let signed_in = session().is_some();
-                // `RealmsHeader.createLayout`: join on the left of the 308 content, the
-                // invite and news buttons 4 apart on its right.
-                buttons.push((
-                    left,
-                    12.0,
-                    self.join_width.get().max(40.0),
-                    t("mco.selectServer.joinRealm"),
-                    signed_in,
-                    14,
-                    None,
-                ));
+                // `RealmsMainScreen.createHeader`: the invite and news buttons
+                // 4 apart on the right of the 308 content (26.2 has no Join Realm button).
                 buttons.push((
                     left + CONTENT_WIDTH - 20.0 - 20.0 - 4.0,
                     12.0,
@@ -7988,6 +6839,15 @@ impl Screen {
                 }
             }
         }
+        // The trial diamonds draw after the buttons, so the rects they sit on are
+        // recorded here: the Add Realm button (13) and the popup's Trial (41).
+        if let Some(b) = buttons.iter().find(|b| b.5 == 13) {
+            self.add_realm_rect.set([b.0, b.1, b.2, 20.0]);
+            self.add_realm_active.set(b.4);
+        }
+        if let Some(b) = buttons.iter().find(|b| b.5 == 41) {
+            self.trial_rect.set([b.0, b.1, b.2, 20.0]);
+        }
         buttons
     }
 
@@ -8010,74 +6870,6 @@ impl Screen {
         crate::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
 
         match &self.subscreen {
-            SubScreen::JoinCode { code, error, job } => {
-                // `AbstractRealmsCodeScreen`: the band over the default 33-tall header
-                // and footer, with their separators. `RealmsJoinRealmWithCodeScreen`:
-                // header title, the gray "Join Code" label, a 200-wide field, then the
-                // Join Realm button 8 below it.
-                crate::ui::list_background(batch, atlas, 33.0, h - 33.0, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    31.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    h - 33.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                centered(
-                    batch,
-                    atlas,
-                    &t("mco.selectServer.joinCode.title"),
-                    cx,
-                    12.0,
-                    u32::MAX,
-                );
-                let content_y = (h - 94.0).min(63.0);
-                batch.text(
-                    atlas,
-                    &t("mco.selectServer.joinCode"),
-                    cx - 100.0,
-                    content_y,
-                    GREY,
-                    true,
-                );
-                caret.draw(
-                    batch,
-                    atlas,
-                    (REALMS_INVITE_CODE, code, 32),
-                    [cx - 100.0, content_y + 13.0, 200.0, 20.0],
-                    true,
-                    focused_at,
-                );
-                // `EditBox.setHint` draws only while the box is not focused; this screen
-                // focuses the box on open, so the hint never shows.
-                if job.is_some() {
-                    centered(
-                        batch,
-                        atlas,
-                        &t("mco.selectServer.joinCode.validating"),
-                        cx,
-                        content_y + 69.0,
-                        u32::MAX,
-                    );
-                } else if let Some(err) = error {
-                    centered(batch, atlas, err, cx, content_y + 69.0, RED);
-                }
-            }
             SubScreen::PendingInvites {
                 invites,
                 scroll,
@@ -8617,7 +7409,6 @@ impl Screen {
                 detail,
                 settings,
                 players_scroll,
-                tier,
                 regions,
                 saving,
                 deleting,
@@ -9156,21 +7947,15 @@ impl Screen {
                         Some(draft) => {
                             // `RealmsSettingsTab`: its `GridLayout` pads every cell by 8,
                             // so the rows are 49 apart (the region cell 58), and the whole
-                            // column is centred at 1/6 of the tab area's leftover height
-                            // inside a `ScrollableLayout` that scrolls a short window.
-                            let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                            // column is centred at 1/6 of the tab area's leftover height.
+                            let (rows, content_h) = settings_rows();
                             let top = settings_column_top(h, content_h);
-                            let view_top = 24.0;
-                            let view_bottom = h - 33.0;
-                            let max_scroll = (content_h - (view_bottom - view_top)).max(0.0);
-                            let scroll = self.settings_scroll.amount.min(max_scroll);
                             let left = cx - 106.0;
                             let label_y =
-                                |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
+                                |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
                             let widget_y = |row: usize| {
                                 label_y(row) + SETTINGS_LABEL_HEIGHT + SETTINGS_LABEL_SPACING
                             };
-                            let first = batch.vertices.len();
                             // `isRealmNameValid`: an empty or space-padded name turns the
                             // field red and carries the validation tooltip.
                             let name_ok = realm_name_valid(&draft.name);
@@ -9210,60 +7995,6 @@ impl Screen {
                                 draft.on_description,
                                 focused_at,
                             );
-                            if let Some(Ok(config)) = tier.as_ref() {
-                                // `createDistanceOption`: a slider over the range, its value
-                                // as `options.chunks`, under its caption. The button's
-                                // `cachedConstantTooltip` is drawn by `draw_tooltip`, after
-                                // the scrollbar and every other widget.
-                                for (row, range, picked, label_key) in [
-                                    (
-                                        2,
-                                        config.render_distance.as_ref(),
-                                        draft.render_distance,
-                                        "mco.configure.world.renderDistance",
-                                    ),
-                                    (
-                                        3,
-                                        config.sim_distance.as_ref(),
-                                        draft.simulation_distance,
-                                        "mco.configure.world.simulationDistance",
-                                    ),
-                                ] {
-                                    let Some((range, picked)) = range.zip(picked) else {
-                                        continue;
-                                    };
-                                    let value = (picked - range.min) as f32
-                                        / (range.max - range.min) as f32;
-                                    // `CommonLayouts.labeledElement`: the caption above, the
-                                    // button showing the value alone (`options.chunks`).
-                                    batch.text(
-                                        atlas,
-                                        &t(label_key),
-                                        left,
-                                        label_y(row),
-                                        GREY,
-                                        true,
-                                    );
-                                    let text = crate::lang::tr(
-                                        "options.chunks",
-                                        &[&picked as &dyn std::fmt::Display],
-                                    );
-                                    let y = widget_y(row);
-                                    let hover = crate::ui::hovered(cursor, left, y, 212.0, 20.0);
-                                    crate::ui::slider(
-                                        batch,
-                                        atlas,
-                                        left,
-                                        y,
-                                        212.0,
-                                        &Text::literal(&text),
-                                        value.clamp(0.0, 1.0),
-                                        hover,
-                                        saving.is_none(),
-                                        false,
-                                    );
-                                }
-                            }
                             // `getTranslatableFromPreference`: the chosen region (or the
                             // automatic mode) in grey; a manual choice shows its
                             // `ServiceQuality` icon 10x8 at the line's end (`202` into the
@@ -9314,22 +8045,8 @@ impl Screen {
                                     atlas,
                                     &t("mco.configure.world.loading"),
                                     cx,
-                                    view_bottom - 12.0,
+                                    h - 33.0 - 12.0,
                                     u32::MAX,
-                                );
-                            }
-                            batch.clip_since(first, 0.0, view_top, w, view_bottom);
-                            // `ScrollableLayout`'s scrollbar sits 4 past the 212-wide
-                            // content (the container reserves 4 + a 6-wide bar).
-                            if content_h > view_bottom - view_top {
-                                crate::ui::scrollbar(
-                                    batch,
-                                    atlas,
-                                    left + 224.0,
-                                    view_top,
-                                    view_bottom,
-                                    content_h,
-                                    scroll,
                                 );
                             }
                         }
@@ -9551,229 +8268,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::InviteCodes {
-                codes,
-                error,
-                selected,
-                ..
-            } => {
-                // `RealmsInviteCodesScreen`: the count in the title once fetched — the
-                // title sits 8 down when the empty list's subtitle joins the header (the
-                // header grows by the subtitle and centres the pair) — then a 28-high row
-                // per code whose selection is `extractSelection`'s, or the loading dots
-                // at the contents' top (63).
-                let loaded = matches!(codes, Some(Ok(_)));
-                let count = codes
-                    .as_ref()
-                    .and_then(|r| r.as_ref().ok())
-                    .map_or(0, |list| list.len());
-                let empty = loaded && count == 0;
-                let subtitle_lines = if empty {
-                    let subtitle = crate::lang::tr(
-                        "mco.configure.world.invite_codes.subtitle",
-                        &[&5usize as &dyn std::fmt::Display],
-                    );
-                    wrap_lines(&subtitle, atlas, 308.0)
-                } else {
-                    Vec::new()
-                };
-                let header_h = 33.0 + subtitle_lines.len() as f32 * 9.0;
-                // `shouldRenderListBackgroundAndSeparators`: only while the list is still
-                // null (the loading state); a loaded list draws no band or separators.
-                if !loaded {
-                    crate::ui::list_background(batch, atlas, header_h, h - 64.0, false);
-                    crate::ui::tiled_sized(
-                        batch,
-                        atlas,
-                        "gui/header_separator",
-                        0.0,
-                        header_h - 2.0,
-                        w,
-                        2.0,
-                        [32.0, 2.0],
-                        u32::MAX,
-                    );
-                    crate::ui::tiled_sized(
-                        batch,
-                        atlas,
-                        "gui/footer_separator",
-                        0.0,
-                        h - 64.0,
-                        w,
-                        2.0,
-                        [32.0, 2.0],
-                        u32::MAX,
-                    );
-                }
-                let title = if loaded {
-                    crate::lang::tr(
-                        "mco.configure.world.invite_codes.title",
-                        &[&count as &dyn std::fmt::Display, &5usize],
-                    )
-                } else {
-                    t("mco.configure.world.buttons.invite_codes")
-                };
-                centered(
-                    batch,
-                    atlas,
-                    &title,
-                    cx,
-                    if empty { 8.0 } else { 12.0 },
-                    u32::MAX,
-                );
-                for (i, line) in subtitle_lines.iter().enumerate() {
-                    centered(batch, atlas, line, cx, 25.0 + i as f32 * 9.0, GREY);
-                }
-                let top = header_h;
-                let bottom = h - 64.0;
-                match codes {
-                    Some(Ok(list)) => {
-                        let rx = ((w - 308.0) / 2.0).floor();
-                        let content = list.len() as f32 * 28.0;
-                        crate::ui::scrollbar(
-                            batch,
-                            atlas,
-                            rx + 308.0 + 2.0,
-                            top,
-                            bottom,
-                            content,
-                            0.0,
-                        );
-                        for (i, code) in list.iter().enumerate() {
-                            let y = top + 2.0 + i as f32 * 28.0;
-                            if y + 28.0 > bottom {
-                                break;
-                            }
-                            if *selected == Some(i) {
-                                // `extractSelection`: the whole 308x28 entry, then its
-                                // one-pixel black inner fill.
-                                batch.fill(
-                                    atlas,
-                                    rx,
-                                    y,
-                                    308.0,
-                                    28.0,
-                                    if list_focused {
-                                        0xFFFF_FFFF
-                                    } else {
-                                        0xFF80_8080
-                                    },
-                                );
-                                batch.fill(atlas, rx + 1.0, y + 1.0, 306.0, 26.0, 0xFF00_0000);
-                            }
-                            // `Entry.extractContent`: the code alone, centred in its row.
-                            batch.text(atlas, &code.code, rx + 10.0, y + 10.0, u32::MAX, true);
-                        }
-                    }
-                    Some(Err(e)) => {
-                        for (i, line) in wrap_lines(&e.text(), atlas, w - 40.0).iter().enumerate() {
-                            centered(batch, atlas, line, cx, 63.0 + i as f32 * 10.0, RED);
-                        }
-                    }
-                    // `init`'s LoadingDotsWidget: the message at the contents' top +2 and
-                    // the grey dots at +17.
-                    None => {
-                        centered(
-                            batch,
-                            atlas,
-                            &t("mco.configure.world.invite_codes.loading"),
-                            cx,
-                            65.0,
-                            u32::MAX,
-                        );
-                        centered(batch, atlas, loading_dots(), cx, 80.0, 0xFF80_8080);
-                    }
-                }
-                if let Some(e) = error {
-                    for (i, line) in wrap_lines(e, atlas, w - 40.0).iter().enumerate() {
-                        centered(batch, atlas, line, cx, h - 76.0 + i as f32 * 10.0, RED);
-                    }
-                }
-            }
-            SubScreen::EditCode {
-                code,
-                active,
-                expiration,
-                job,
-                error,
-                ..
-            } => {
-                // `RealmsEditInviteCodeScreen`: the band over the default header and the
-                // 64-tall footer, then the content stack at 63 — the code, its saved
-                // expiration line 4 under it, the Active cycle button a row below that
-                // and the 308-wide expiration slider under the top row.
-                crate::ui::list_background(batch, atlas, 33.0, h - 64.0, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    31.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    h - 64.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                centered(
-                    batch,
-                    atlas,
-                    &t("mco.configure.world.invite_codes.edit.title"),
-                    cx,
-                    12.0,
-                    u32::MAX,
-                );
-                let left = cx - 154.0;
-                batch.text(atlas, &code.code, left, 63.0, u32::MAX, true);
-                // `getExpiresLabel`: the code's *stored* expiration date (or Never), not
-                // the slider's current choice.
-                let expires = crate::lang::tr(
-                    "mco.configure.world.invite_codes.edit.expires",
-                    &[&match code.expiration_date {
-                        Some(date) => short_date_text(date),
-                        None => t("mco.configure.world.invite_codes.expiration.never"),
-                    } as &dyn std::fmt::Display],
-                );
-                batch.text(atlas, &expires, left, 76.0, GREY, true);
-                // `ExpirationSlider.updateMessage`: `optionNameValue` of its caption and
-                // the current choice.
-                let value = *expiration as f32 / (EXPIRATIONS.len() - 1) as f32;
-                let label = crate::lang::tr(
-                    "options.generic_value",
-                    &[
-                        &t("mco.configure.world.invite_codes.edit.expiration_date")
-                            as &dyn std::fmt::Display,
-                        &t(EXPIRATIONS[*expiration].0) as &dyn std::fmt::Display,
-                    ],
-                );
-                crate::ui::slider(
-                    batch,
-                    atlas,
-                    left,
-                    93.0,
-                    308.0,
-                    &Text::literal(&label),
-                    value,
-                    crate::ui::hovered(cursor, left, 93.0, 308.0, 20.0),
-                    *active && job.is_none(),
-                    false,
-                );
-                if let Some(e) = error {
-                    for (i, line) in wrap_lines(e, atlas, w - 40.0).iter().enumerate() {
-                        centered(batch, atlas, line, cx, 121.0 + i as f32 * 10.0, RED);
-                    }
-                }
-            }
             SubScreen::Invite {
                 name, job, error, ..
             } => {
@@ -9819,229 +8313,48 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::AddRealm {
-                scroll,
-                content,
-                rows: row_rects,
-                trial,
-                ..
-            } => {
-                // `RealmsPdpScreen`: the Realms header's logo, then the trial header and
-                // the three feature rows (an 80x45 picture and 182-wide text), scrolling
-                // between the header and the footer.
-                if atlas.sprites.contains_key("gui/title/realms") {
-                    // The header's logo, as `draw_main` draws it.
-                    batch.sprite_region(
-                        atlas,
-                        "gui/title/realms",
-                        [cx - 64.0, 5.0, 128.0, 34.0],
-                        128.0,
-                        64.0,
-                    );
-                } else {
-                    centered(
+            SubScreen::AddRealmPopup { trial_available } => {
+                // `AddRealmPopupScreen.extractBackground`: the list behind, dimmed,
+                // then the 320x172 popup. No carousel picture: the 26.2 client jar
+                // ships no `realms`-namespace `textures/gui/images`, so vanilla draws
+                // none either.
+                self.draw_main(batch, atlas, cursor, w, h, false);
+                batch.fill(atlas, 0.0, 0.0, w, h, rgba(16, 16, 16, 192));
+                let left = ((w - 320.0) / 2.0).floor();
+                let top = ((h - 172.0) / 2.0).floor();
+                if atlas.sprites.contains_key("gui/sprites/popup/background") {
+                    crate::ui::blit_sprite(
                         batch,
                         atlas,
-                        &t("mco.selectServer.purchase"),
-                        cx,
-                        14.0,
+                        "gui/sprites/popup/background",
+                        left,
+                        top,
+                        320.0,
+                        172.0,
                         u32::MAX,
                     );
+                } else {
+                    batch.fill(atlas, left, top, 320.0, 172.0, rgba(16, 16, 16, 255));
                 }
-                // The footer is the default 33 tall: the list fills 44..h-33, its first
-                // entry at 46 (`AbstractSelectionList.getFirstEntryY`). The band and its
-                // two separators are the list's own.
-                let (list_top, bottom) = (44.0, h - 33.0);
-                let (top, bottom) = (46.0, bottom);
-                let rx = ((w - PDP_ROW_WIDTH) / 2.0).floor();
-                crate::ui::list_background(batch, atlas, list_top, bottom, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    list_top - 2.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    bottom,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                // `PdpFeatureEntry.entryHeight`: the picture's 45 or the text, plus 16.
-                let mut rows: Vec<(
-                    Option<&'static str>,
-                    &'static str,
-                    usize,
-                    Vec<String>,
-                    bool,
-                    f32,
-                )> = Vec::new();
-                for (image, title, descriptions) in pdp_entries() {
-                    // `PdpList.addHeader`: the trial note (`mco.pdp.trial.description`, with
-                    // its icon) only when the service says a trial is available.
-                    let descriptions = if title == "mco.pdp.trial.title" && !*trial {
-                        &[][..]
-                    } else {
-                        descriptions
-                    };
-                    // The font's lines are 9 apart (`wordWrapHeight`).
-                    let title_lines = wrap_lines(&t(title), atlas, PDP_TEXT_WIDTH);
-                    let mut lines = title_lines.clone();
-                    let mut height = title_lines.len() as f32 * 9.0 + 4.0;
-                    for description in descriptions {
-                        lines.push(String::new());
-                        height += 2.0;
-                        let wrapped = wrap_lines(&t(description), atlas, PDP_TEXT_WIDTH);
-                        height += wrapped.len() as f32 * 9.0;
-                        lines.extend(wrapped);
-                    }
-                    let header = image.is_empty();
-                    let row = if header {
-                        height + 16.0
-                    } else {
-                        height.max(45.0) + 16.0
-                    };
-                    let image = (!image.is_empty()).then_some(image);
-                    rows.push((image, title, title_lines.len(), lines, header, row));
-                }
-                let total: f32 = rows.iter().map(|row| row.5).sum();
-                content.set(total);
-                crate::ui::scrollbar(
-                    batch,
-                    atlas,
-                    rx + PDP_ROW_WIDTH + 8.0,
-                    list_top,
-                    bottom,
-                    total,
-                    scroll.amount,
-                );
-                // `ObjectSelectionList.extractListItems`: what the list draws is clipped to
-                // its rectangle, so text never leaves the border.
-                let first = batch.vertices.len();
-                let mut y = top - scroll.amount;
-                let mut rects: Vec<[f32; 4]> = Vec::new();
-                let mut hovered_row = None;
-                for (row, (image, title_key, title_lines, lines, header, height)) in
-                    rows.iter().enumerate()
+                // `AddRealmPopupScreen.init`: the popup text, 100 wide on the right,
+                // in the space the buttons leave (142 less 40 with a trial, 20
+                // without); the font's lines are 9 apart.
+                let text_height: f32 = 142.0 - if *trial_available { 40.0 } else { 20.0 };
+                let max_lines = (text_height / 9.0).floor() as usize;
+                for (i, line) in wrap_lines(&t("mco.selectServer.popup"), atlas, 100.0)
+                    .iter()
+                    .take(max_lines)
+                    .enumerate()
                 {
-                    rects.push([rx, y, PDP_ROW_WIDTH, *height]);
-                    if y + height >= top && y <= bottom {
-                        let hovered = crate::ui::hovered(cursor, rx, y, PDP_ROW_WIDTH, *height);
-                        if hovered {
-                            hovered_row = Some(row);
-                        }
-                        if self.pdp_row == Some(row) {
-                            // `AbstractSelectionList.extractSelection`: the row black, its
-                            // outline white with the list focused and grey without.
-                            batch.fill(
-                                atlas,
-                                rx,
-                                y,
-                                PDP_ROW_WIDTH,
-                                *height,
-                                if list_focused {
-                                    0xFFFF_FFFF
-                                } else {
-                                    0xFF80_8080
-                                },
-                            );
-                            batch.fill(
-                                atlas,
-                                rx + 1.0,
-                                y + 1.0,
-                                PDP_ROW_WIDTH - 2.0,
-                                *height - 2.0,
-                                0xFF00_0000,
-                            );
-                        }
-                        if let Some(image) = image {
-                            crate::ui::blit_sprite(
-                                batch,
-                                atlas,
-                                image,
-                                // `getContentX() + 4`, `getContentY() + 4` (the entry's
-                                // content origin is its own +2).
-                                rx + 6.0,
-                                y + 6.0,
-                                80.0,
-                                45.0,
-                                u32::MAX,
-                            );
-                        }
-                        let mut text_y = y + 6.0;
-                        let mut after_gap = false;
-                        // `RealmsPdpScreen`'s constants: the trial title carries
-                        // UNDERLINE, the feature titles BOLD.
-                        let heading = if *title_key == "mco.pdp.trial.title" {
-                            Text::translate(title_key, &[]).underlined()
-                        } else {
-                            Text::translate(title_key, &[]).bold()
-                        };
-                        for (line_index, line) in lines.iter().enumerate() {
-                            if line.is_empty() {
-                                if *header {
-                                    after_gap = true;
-                                }
-                                text_y += 2.0;
-                                continue;
-                            }
-                            let x = if *header {
-                                cx - (HudBatch::text_width(atlas, line) / 2.0).floor()
-                            } else {
-                                rx + 102.0
-                            };
-                            // `PdpHeaderEntry`: the trial subtitle's 8x8
-                            // `icon/trial_available` sits left of it.
-                            if after_gap && *trial {
-                                crate::ui::blit_sprite(
-                                    batch,
-                                    atlas,
-                                    "gui/sprites/icon/trial_available",
-                                    x - 12.0,
-                                    text_y + 1.0,
-                                    8.0,
-                                    8.0,
-                                    u32::MAX,
-                                );
-                            }
-                            after_gap = false;
-                            if line_index < *title_lines {
-                                batch.text_styled(atlas, &heading, x, text_y, u32::MAX, true);
-                            } else {
-                                batch.text(atlas, line, x, text_y, u32::MAX, true);
-                            }
-                            text_y += 9.0;
-                        }
-                    }
-                    y += height;
+                    batch.text(
+                        atlas,
+                        line,
+                        left + 320.0 - 10.0 - 100.0,
+                        top + 10.0 + i as f32 * 9.0,
+                        u32::MAX,
+                        true,
+                    );
                 }
-                *row_rects.borrow_mut() = rects;
-                // `ObjectSelectionList.updateWidgetNarration`: the list's position, then the
-                // hovered row's or the selected one (`narrator.select` of its lines).
-                crate::widgets::narratable(|| {
-                    use crate::widgets::{ListKind, Narratable, Row};
-                    let narrate = |row: usize| Row::new(row, pdp_row_narration(row, *trial));
-                    Narratable::list(
-                        ListKind::Object,
-                        rows.len(),
-                        hovered_row.map(narrate),
-                        self.pdp_row.map(narrate),
-                        [rx, top, PDP_ROW_WIDTH, bottom - top],
-                    )
-                    .focused(list_focused)
-                    .key(crate::widgets::key_of(&"realms/pdp"))
-                });
-                batch.clip_since(first, rx, top, rx + PDP_ROW_WIDTH, bottom);
             }
             // `PopupScreen`: the list behind (`backgroundScreen`), dimmed, then the panel
             // with its 130x64 image, the 214-wide message and the button row.
@@ -10176,7 +8489,6 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     } => Some(SubScreen::Configure {
                         server: server.clone(),
                         tab: ConfigureTab::Settings,
@@ -10188,8 +8500,6 @@ impl Screen {
                         member_job: None,
                         settings: Some(settings.clone()),
                         players_scroll: crate::ui::Scroll::default(),
-                        tier: tier.clone(),
-                        tier_job: None,
                         regions: None,
                         regions_job: None,
                         saving: None,
@@ -10651,9 +8961,9 @@ impl Screen {
                         // `Entry`: the website and trailer buttons, left of the version.
                         for (trailer, offset) in [(false, 10.0), (true, 15.0 + 15.0)] {
                             let present = if trailer {
-                                template.trailer.is_some()
+                                !template.trailer.is_empty()
                             } else {
-                                template.link.is_some()
+                                !template.link.is_empty()
                             };
                             if !present {
                                 continue;
@@ -11205,9 +9515,6 @@ impl Screen {
         } else {
             centered(batch, atlas, &t("mco.title"), cx, 12.0, u32::MAX);
         }
-        let join = t("mco.selectServer.joinRealm");
-        self.join_width
-            .set((HudBatch::text_width(atlas, &join) + 16.0).min(90.0));
         let footer_h = main_footer_h(self.layout_state());
         let (top, bottom) = (HEADER_HEIGHT, h - footer_h);
         // Only the LIST layout has an `ObjectSelectionList`: LOADING and NO_REALMS put a
@@ -11569,10 +9876,9 @@ impl Screen {
         cursor: (f32, f32),
         (w, h): (f32, f32),
     ) {
-        // `RealmsHeader.setPendingInvites`/`setNews` tooltips, and
-        // `RealmsMainScreen.updateButtonStates`' closed-Realm Play hint. Both screens
-        // share the header; only the list has the Play button.
-        if matches!(self.subscreen, SubScreen::Main | SubScreen::AddRealm { .. }) {
+        // `RealmsMainScreen.createHeader`'s invite/news tooltips, and
+        // `RealmsMainScreen.updateButtonStates`' closed-Realm Play hint.
+        if matches!(self.subscreen, SubScreen::Main) {
             let cx = (w / 2.0).floor();
             let invite = [cx + 110.0, 12.0, 20.0, 20.0];
             let news = [cx + 134.0, 12.0, 20.0, 20.0];
@@ -11601,14 +9907,12 @@ impl Screen {
                 );
             }
         }
-        // `RealmsSettingsTab`'s widget tooltips (`nameEdit.setTooltip`, the distance
-        // options' `cachedConstantTooltip`) and `setTabTooltip(3, ...)`: drawn last, so
-        // the scrollbar and the widgets cannot cover them.
+        // `RealmsSettingsTab`'s widget tooltips (`nameEdit.setTooltip`) and
+        // `setTabTooltip(3, ...)`: drawn last, so the widgets cannot cover them.
         if let SubScreen::Configure {
             server,
             tab: ConfigureTab::Settings,
             settings: Some(draft),
-            tier,
             ..
         } = &self.subscreen
         {
@@ -11623,20 +9927,14 @@ impl Screen {
                     cursor,
                 );
             }
-            let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+            let (rows, content_h) = settings_rows();
             let top = settings_column_top(h, content_h);
-            let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-            let scroll = self.settings_scroll.amount.min(max_scroll);
             let left = (w / 2.0).floor() - 106.0;
-            let label_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
+            let label_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
             let widget_y =
                 |row: usize| label_y(row) + SETTINGS_LABEL_HEIGHT + SETTINGS_LABEL_SPACING;
-            // The `ScrollableLayout` scissor hides a widget outside the view.
-            let (view_top, view_bottom) = (24.0, h - 33.0);
-            let visible = |y: f32| y >= view_top && y + SETTINGS_WIDGET_HEIGHT <= view_bottom;
             let name_y = widget_y(0);
             if !realm_name_valid(&draft.name)
-                && visible(name_y)
                 && crate::ui::hovered(cursor, left, name_y, 212.0, SETTINGS_WIDGET_HEIGHT)
             {
                 crate::ui::tooltip(
@@ -11648,32 +9946,6 @@ impl Screen {
                     )],
                     cursor,
                 );
-            } else if let Some(Ok(config)) = tier.as_ref() {
-                for (row, range, picked, key) in [
-                    (
-                        2,
-                        config.render_distance.as_ref(),
-                        draft.render_distance,
-                        "mco.configure.world.renderDistance.tooltip",
-                    ),
-                    (
-                        3,
-                        config.sim_distance.as_ref(),
-                        draft.simulation_distance,
-                        "mco.configure.world.simulationDistance.tooltip",
-                    ),
-                ] {
-                    if range.is_none() || picked.is_none() {
-                        continue;
-                    }
-                    let y = widget_y(row);
-                    if visible(y)
-                        && crate::ui::hovered(cursor, left, y, 212.0, SETTINGS_WIDGET_HEIGHT)
-                    {
-                        crate::ui::tooltip(batch, atlas, &[Text::translate(key, &[])], cursor);
-                        break;
-                    }
-                }
             }
         }
         // The list's own tooltips only on the list: another screen's widgets may sit over
@@ -11849,9 +10121,6 @@ mod tests {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -11866,14 +10135,14 @@ mod tests {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -12151,24 +10420,8 @@ mod tests {
         assert!(matches!(screen.state, FetchState::Unauthenticated));
         let buttons = screen.buttons(800.0, 600.0);
         let enabled = |id| buttons.iter().find(|b| b.5 == id).map(|b| b.4);
-        assert_eq!(enabled(14), Some(false), "Join Realm");
+        assert_eq!(enabled(14), None, "26.2 has no Join Realm button");
         assert_eq!(enabled(15), Some(false), "invites");
-    }
-
-    /// `InviteCodeExpiration.closestTo`: an existing expiration reads back as the choice
-    /// nearest to the time left.
-    #[test]
-    fn an_expiration_reads_back_as_the_closest_choice() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64;
-        assert_eq!(closest_expiration(now + 30 * 60 * 1000), 0);
-        assert_eq!(closest_expiration(now + 60 * 60 * 1000), 1);
-        assert_eq!(closest_expiration(now + 6 * 24 * 60 * 60 * 1000), 5);
-        // A week is the longest timed choice: anything further reads back as it. (The
-        // "never" row is the fallback for a code with no expiration, not a nearest.)
-        assert_eq!(closest_expiration(now + 30 * 24 * 60 * 60 * 1000), 5);
     }
 
     /// `RealmsSettingsTab.updateData`: the draft starts from the Realm's own name,
@@ -12194,42 +10447,6 @@ mod tests {
         assert_eq!(draft.preference_dto().preferred_region, None);
         let bare = SettingsDraft::of(&RealmServer::default());
         assert_eq!((bare.preference, bare.region), (1, None));
-    }
-
-    /// `ScrollableLayout`'s scissor: the region and open/close buttons live inside the
-    /// scroll view, so one below it must not be drawn (nor clickable) outside the tab.
-    #[test]
-    fn the_settings_buttons_leave_the_scroll_view() {
-        let mut screen = listed(vec![server(7, None)]);
-        let server = server(7, None);
-        screen.subscreen = SubScreen::Configure {
-            server: server.clone(),
-            tab: ConfigureTab::Settings,
-            subscription: None,
-            subscription_job: None,
-            detail: None,
-            detail_job: None,
-            deleting: None,
-            member_job: None,
-            settings: Some(SettingsDraft::of(&server)),
-            players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
-            regions: None,
-            regions_job: None,
-            saving: None,
-            error: None,
-            job: None,
-        };
-        let ids =
-            |h: f32| -> Vec<u8> { screen.buttons(800.0, h).into_iter().map(|b| b.5).collect() };
-        // 230 tall: the toggle (row 5) is past the 24..h-33 view, the region button is in.
-        let short = ids(230.0);
-        assert!(short.contains(&89));
-        assert!(!short.contains(&30), "{short:?}");
-        // Tall enough for the whole column: both are offered.
-        let tall = ids(400.0);
-        assert!(tall.contains(&89) && tall.contains(&30), "{tall:?}");
     }
 
     /// `RealmsWorldOptions.getSlotName`: the player's name, else the empty marker, else
@@ -12341,9 +10558,6 @@ mod tests {
             news_unread: false,
             pending_invites: 0,
             pending_invites_job: None,
-            join_width: std::cell::Cell::new(90.0),
-            pdp_row: None,
-            list_clicked: false,
             link_buttons: std::cell::Cell::new([(0.0, 0.0); 3]),
             terms_link: std::cell::Cell::new([0.0; 4]),
             notifications: Vec::new(),
@@ -12358,14 +10572,14 @@ mod tests {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
-            redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -12405,18 +10619,6 @@ mod tests {
             error.as_deref(),
             Some(crate::lang::get("mco.configure.world.players.invite.duplicate").as_str())
         );
-    }
-
-    #[test]
-    fn join_realm_button_navigates_to_join_code_screen() {
-        let mut screen = listed(vec![]);
-        let _ = screen.click(Some(14), 0.0, 0.0, (800.0, 600.0));
-        assert!(matches!(screen.subscreen, SubScreen::JoinCode { .. }));
-        let btns = screen.buttons(800.0, 600.0);
-        let join_btn = btns.iter().find(|b| b.5 == 20).expect("Join button exists");
-        assert!(!join_btn.4, "Join is off while the code is empty");
-        assert!(!screen.escape());
-        assert!(matches!(screen.subscreen, SubScreen::Main));
     }
 
     /// `RealmsConfigureWorldScreen`'s `MenuTabBar`: Worlds, Players, Subscription,
@@ -12486,26 +10688,6 @@ mod tests {
         crate::lang::tr("mco.configure.world.slot", &[&slot])
     }
 
-    /// `InviteCodeExpiration.closestTo`: the choice nearest the time left on the code.
-    fn closest_expiration(expiration_millis: i64) -> usize {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0);
-        let left = (expiration_millis - now).max(0) / 1000;
-        let mut best = EXPIRATIONS.len() - 1;
-        let mut best_delta = i64::MAX;
-        for (i, (_, seconds)) in EXPIRATIONS.iter().enumerate() {
-            let Some(seconds) = seconds else { continue };
-            let delta = (left - seconds).abs();
-            if delta < best_delta {
-                best_delta = delta;
-                best = i;
-            }
-        }
-        best
-    }
-
     /// `RealmsSubscriptionTab.daysLeftPresentation`, compared with the same translations
     /// so the check reads in any language.
     #[test]
@@ -12545,37 +10727,12 @@ mod tests {
     fn an_unreadable_start_date_is_empty() {
         assert_eq!(start_date_text(i64::MAX), "");
     }
-    /// `RealmsSettingsTab.save`: only a distance the player changed, and only when the tier
-    /// answer names the range, is sent.
-    #[test]
-    fn a_distance_is_saved_only_when_it_differs_from_the_service() {
-        let range = RealmTierRange {
-            min: 2,
-            max: 16,
-            default_value: 8,
-            current: Some(10),
-        };
-        assert_eq!(changed_distance(Some(10), Some(&range)), None);
-        assert_eq!(changed_distance(Some(12), Some(&range)), Some(12));
-        // No tier answer: the slider was never usable, so nothing goes out.
-        assert_eq!(changed_distance(Some(12), None), None);
-        assert_eq!(changed_distance(None, Some(&range)), None);
-        // A range without `current` compares against its default (`currentOrDefault`).
-        let default = RealmTierRange {
-            current: None,
-            ..range
-        };
-        assert_eq!(changed_distance(Some(8), Some(&default)), None);
-        assert_eq!(changed_distance(Some(9), Some(&default)), Some(9));
-    }
-
     /// `ConfirmLinkScreen`: Open in Browser, Copy to Clipboard and Cancel, 100 wide each,
     /// and every answer — Escape's no included — returns to the screen that asked.
     #[test]
     fn a_link_asks_three_ways_and_returns_to_its_parent() {
         let mut screen = listed(Vec::new());
-        // The product page asks (its news button, `RealmsHeader.openNews`).
-        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        // The main list asks (its news button).
         let url = "https://realms.example/news".to_owned();
         screen.news_link = Some(url.clone());
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
@@ -12589,61 +10746,75 @@ mod tests {
             .map(|b| (b.5, b.2))
             .collect();
         assert_eq!(answers, vec![(53, 100.0), (54, 100.0), (55, 100.0)]);
-        // Cancel returns to the product page.
+        // Cancel returns to the list.
         screen.click(Some(55), 0.0, 0.0, (854.0, 480.0));
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // Copy answers the link and returns there too.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         match screen.click(Some(54), 0.0, 0.0, (854.0, 480.0)) {
             Outcome::Copy(copied) => assert_eq!(copied, url),
             _ => panic!("the copy answer"),
         }
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // So does Open.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         match screen.click(Some(53), 0.0, 0.0, (854.0, 480.0)) {
             Outcome::OpenUri(opened) => assert_eq!(opened, url),
             _ => panic!("the open answer"),
         }
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
         // Escape is the no button.
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         assert!(!screen.escape());
-        assert!(screen.pdp_list());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
     }
 
-    /// `ObjectSelectionList.nextFocusPath`: the arrows move through the product page's
-    /// rows, the first one taking the end it heads to (`nextEntry`'s null start).
+    /// `RealmsMainScreen.openTrialAvailablePopup`: Add Realm opens the 26.2 popup
+    /// carrying the trial answer, with Buy, Trial and the close cross; the cross
+    /// and Escape return to the list.
     #[test]
-    fn the_pdp_rows_take_the_arrows_at_their_ends() {
+    fn add_realm_opens_the_popup_with_the_trial_answer() {
+        let mut screen = listed(Vec::new());
+        screen.trial = true;
+        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(
+            screen.subscreen,
+            SubScreen::AddRealmPopup {
+                trial_available: true
+            }
+        ));
+        let ids: Vec<u8> = screen.buttons(854.0, 480.0).iter().map(|b| b.5).collect();
+        assert_eq!(ids, vec![41, 40, 44]);
+        // Buy asks before opening the store link, and the answer returns here.
+        screen.click(Some(40), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(
+            &screen.subscreen,
+            SubScreen::Popup(Popup::OpenLink { .. })
+        ));
+        screen.click(Some(55), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(screen.subscreen, SubScreen::AddRealmPopup { .. }));
+        // The close cross returns to the list.
+        screen.click(Some(44), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(screen.subscreen, SubScreen::Main));
+        // So does Escape.
+        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        assert!(!screen.escape());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
+    }
+
+    /// Without a trial the popup has Buy and the close cross, but no Trial button.
+    #[test]
+    fn add_realm_without_a_trial_has_no_trial_button() {
         let mut screen = listed(Vec::new());
         screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
-        assert!(screen.pdp_arrow(false));
-        assert_eq!(screen.pdp_row, Some(0));
-        assert!(screen.pdp_arrow(false));
-        assert_eq!(screen.pdp_row, Some(1));
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(0));
-        // The ends hold.
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(0));
-        screen.pdp_row = None;
-        assert!(screen.pdp_arrow(true));
-        assert_eq!(screen.pdp_row, Some(pdp_entries().len() - 1));
-        // Another screen has no product page.
-        screen.subscreen = SubScreen::Main;
-        assert!(!screen.pdp_arrow(false));
-    }
-
-    /// `RealmsPdpScreen.AbstractPdpEntry.getNarration`: the title and its descriptions,
-    /// the trial's only when the service says a trial is available (`PdpList`'s header).
-    #[test]
-    fn the_pdp_rows_narrate_their_lines() {
-        let description = crate::lang::get("mco.pdp.friends.description");
-        assert!(pdp_row_lines(1, false).contains(&description));
-        let trial = crate::lang::get("mco.pdp.trial.description");
-        assert!(!pdp_row_lines(0, false).contains(&trial));
-        assert!(pdp_row_lines(0, true).contains(&trial));
+        assert!(matches!(
+            screen.subscreen,
+            SubScreen::AddRealmPopup {
+                trial_available: false
+            }
+        ));
+        let ids: Vec<u8> = screen.buttons(854.0, 480.0).iter().map(|b| b.5).collect();
+        assert_eq!(ids, vec![40, 44]);
     }
 
     /// `RealmsResetWorldScreen.init`'s grid: 60-wide tiles, 16 padding a side, the spacer row.

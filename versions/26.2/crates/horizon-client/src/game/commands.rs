@@ -1,7 +1,6 @@
 //! Command execution (the `execute` side of each vanilla command class):
 //! entity selectors resolved against the game, vanilla feedback and errors.
 mod admin;
-pub(super) mod compute;
 mod data;
 pub(super) use data::place_summoned;
 mod effects;
@@ -1283,7 +1282,6 @@ impl Game<'_> {
             "jfr" => self.cmd_jfr(ctx),
             "version" => self.cmd_version(),
             id if id.starts_with("test.") => self.cmd_test(id, ctx),
-            "compute" => self.cmd_compute(ctx),
             "place" => self.cmd_place(ctx),
             "place.feature" | "place.jigsaw" | "place.structure" => {
                 self.cmd_place_generated(id, ctx)
@@ -1376,6 +1374,28 @@ impl Game<'_> {
             _ => Ok(0),
         }
     }
+    /// Whether the target `t` is the integrated server's owner
+    /// (`MinecraftServer.isSingleplayerOwner`, 26.2): the host's player
+    /// on their own turn, or a guest connection whose uuid is the
+    /// owner's. A dedicated server has no owner.
+    pub(super) fn target_is_owner(&self, t: Target) -> bool {
+        let Some(owner) = self
+            .lan
+            .as_ref()
+            .and_then(|h| h.owner.as_ref().map(|o| o.uuid))
+        else {
+            return false;
+        };
+        match t {
+            Target::Player => self.lan_acting.is_none(),
+            Target::Guest(conn) => self
+                .lan
+                .as_ref()
+                .and_then(|h| h.hub.guest(conn))
+                .is_some_and(|g| g.uuid == owner),
+            _ => false,
+        }
+    }
     pub(super) fn set_game_mode(&mut self, mode: GameMode) -> bool {
         if self.mode == mode {
             return false;
@@ -1410,6 +1430,12 @@ impl Game<'_> {
         let mut count = 0;
         for t in targets {
             let mode_name = Text::translate(&format!("gameMode.{}", mode.name()), &[]);
+            // 26.2 `GameModeCommand.setMode`: the singleplayer owner also
+            // takes the new mode as the world's default, whether or not
+            // their own mode changed. 26.3 dropped the call.
+            if self.target_is_owner(t) {
+                self.set_default_game_type(super::game_mode::mode_id_of(mode));
+            }
             // GameModeCommand.logGamemodeChange: the source's own entity.
             let own = self.source_entity() == Some(t);
             let told = !own && self.ui.rules.bool("send_command_feedback");
@@ -2245,9 +2271,8 @@ impl Game<'_> {
         match id {
             "time.set" => {
                 let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
-                if total == t {
-                    return Err(err("commands.time.set.already_at_time", &[&clock, &t]));
-                }
+                // 26.2 sets unconditionally; the already-at-time error is
+                // 26.3-only.
                 self.jump_clock(&clock, total, t, "command");
                 self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
                 Ok(t as i32)
@@ -2265,12 +2290,9 @@ impl Game<'_> {
                         &[&marker, &clock],
                     ));
                 };
-                if m.occurs_at(total) {
-                    return Err(err(
-                        "commands.time.set.already_at_time_marker",
-                        &[&clock, &marker],
-                    ));
-                }
+                // 26.2 has no already-at-marker error (26.3-only): the
+                // clock moves to the marker's resolved time even when it
+                // is already there.
                 let target = m.resolve(total);
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
@@ -2298,16 +2320,8 @@ impl Game<'_> {
             }
             "time.pause" | "time.resume" => {
                 let pause = id == "time.pause";
-                if self.command_clock_state(&clock).paused == pause {
-                    return Err(err(
-                        if pause {
-                            "commands.time.pause.already_paused"
-                        } else {
-                            "commands.time.pause.already_running"
-                        },
-                        &[&clock],
-                    ));
-                }
+                // 26.2 pauses/resumes unconditionally; the already-paused
+                // and already-running errors are 26.3-only.
                 self.command_clock_state(&clock).paused = pause;
                 self.feedback(Text::tr(
                     if pause {
@@ -2324,12 +2338,8 @@ impl Game<'_> {
                     Some(Arg::Float(r)) => *r,
                     _ => 1.0,
                 };
-                if self.command_clock_state(&clock).rate == rate {
-                    return Err(err(
-                        "commands.time.rate.already_same",
-                        &[&clock, &java_float(f64::from(rate))],
-                    ));
-                }
+                // 26.2 sets the rate unconditionally; the already-same
+                // error is 26.3-only.
                 self.command_clock_state(&clock).rate = rate;
                 self.feedback(Text::tr(
                     "commands.time.rate",

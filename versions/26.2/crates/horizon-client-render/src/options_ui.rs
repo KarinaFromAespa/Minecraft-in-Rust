@@ -238,7 +238,6 @@ impl Opt {
             Opt::Vignette => "options.vignette",
             Opt::Autosave => "options.autosaveIndicator",
             Opt::CutoutLeaves => "options.cutoutLeaves",
-            Opt::ImprovedTransparency => "options.improvedTransparency",
             Opt::AttackIndicator => "options.attackIndicator",
             Opt::InactivityFps => "options.inactivityFpsLimit",
             Opt::ChunkBuilder => "options.prioritizeChunkUpdates",
@@ -753,7 +752,6 @@ impl Opt {
             Opt::Vignette => on_off(s.vignette),
             Opt::Autosave => on_off(s.autosave_indicator),
             Opt::CutoutLeaves => on_off(s.cutout_leaves),
-            Opt::ImprovedTransparency => on_off(s.improved_transparency),
             Opt::AttackIndicator => tr([
                 "options.off",
                 "options.attack.crosshair",
@@ -955,7 +953,6 @@ impl Opt {
                 | Opt::Mipmaps
                 | Opt::WeatherRadius
                 | Opt::CutoutLeaves
-                | Opt::ImprovedTransparency
                 | Opt::MenuBlur
                 | Opt::ChunkBuilder
                 | Opt::TextureFiltering
@@ -1067,7 +1064,6 @@ impl Opt {
             Opt::Vignette => s.vignette = !s.vignette,
             Opt::Autosave => s.autosave_indicator = !s.autosave_indicator,
             Opt::CutoutLeaves => s.cutout_leaves = !s.cutout_leaves,
-            Opt::ImprovedTransparency => s.improved_transparency = !s.improved_transparency,
             Opt::AttackIndicator => s.attack_indicator = next(s.attack_indicator, 3),
             Opt::InactivityFps => {
                 s.inactivity_fps_limit = if s.inactivity_fps_limit == "afk" {
@@ -1231,7 +1227,6 @@ pub fn apply_preset(s: &mut Settings) {
             s.menu_blur = 2;
             s.cloud_range = 32;
             s.cutout_leaves = false;
-            s.improved_transparency = false;
             s.weather_radius = 5;
             set_filtering(s, 1, 0);
         }
@@ -1249,7 +1244,6 @@ pub fn apply_preset(s: &mut Settings) {
             s.menu_blur = 5;
             s.cloud_range = if fabulous { 128 } else { 64 };
             s.cutout_leaves = true;
-            s.improved_transparency = fabulous;
             s.weather_radius = 10;
             // Fabulous takes anisotropic filtering (RGSS on a device with known issues, which
             // wgpu does not report).
@@ -2736,7 +2730,6 @@ impl OptionsUi {
                     Opt::MenuBlur,
                     Opt::CloudRange,
                     Opt::CutoutLeaves,
-                    Opt::ImprovedTransparency,
                     Opt::TextureFiltering,
                     Opt::MaxAnisotropy,
                     Opt::WeatherRadius,
@@ -5407,7 +5400,6 @@ mod tests {
     fn read_options_are_not_greyed_out() {
         for opt in [
             Opt::ChunkFade,
-            Opt::ImprovedTransparency,
             Opt::ChatDelay,
             Opt::SaveChatDrafts,
             Opt::MusicToast,
@@ -5949,7 +5941,7 @@ mod tests {
             ]
         );
         let at = |o| opts.iter().position(|x| *x == o).unwrap();
-        assert_eq!(at(Opt::ImprovedTransparency) + 1, at(Opt::TextureFiltering));
+        assert_eq!(at(Opt::CutoutLeaves) + 1, at(Opt::TextureFiltering));
         assert_eq!(at(Opt::TextureFiltering) + 1, at(Opt::MaxAnisotropy));
         assert_eq!(at(Opt::MaxAnisotropy) + 1, at(Opt::WeatherRadius));
     }

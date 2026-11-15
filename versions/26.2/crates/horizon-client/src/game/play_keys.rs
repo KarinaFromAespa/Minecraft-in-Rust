@@ -184,7 +184,9 @@ impl Game<'_> {
                 self.open_social(false);
                 self.release_use_for_keybind_screen();
             }
-            KeyCode::KeyL if self.screen == Screen::Advancements => self.close_advancements(),
+            KeyCode::KeyL if self.screen == Screen::Advancements => {
+                self.close_advancements_to_game()
+            }
             // key.emote (Horizon's): the emote wheel, a tap again closes it.
             KeyCode::KeyB if self.screen == Screen::Playing && super::cosmetics::enabled() => {
                 self.open_emote_wheel();

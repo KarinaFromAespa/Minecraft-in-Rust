@@ -223,11 +223,14 @@ pub struct TrimTexture {
     pub palette: Option<String>,
 }
 impl TrimTexture {
-    /// `TrimTextureKey.getOrPrepareTexture`: the trim (`material`,
-    /// `pattern` registry ids) on the `layer` (`humanoid`,
+    /// `ArmorTrim.layerAssetId` (`TrimSpriteKey.spriteId`): the trim
+    /// (`material`, `pattern` registry ids) on the `layer` (`humanoid`,
     /// `humanoid_leggings`...) of an equipment `asset`; the material's
     /// `override_armor_assets` picks the darker palette for the asset it
     /// names (iron armour with an iron trim uses `iron_darker`).
+    /// 26.3 replaced the atlas sprite with `TrimTextureKey`'s runtime
+    /// texture (`PalettedTextureManager`); 26.2's atlas builds the
+    /// palette-swapped sprite at load, here generated on demand.
     pub fn resolve(
         registry: &TrimRegistry,
         asset: &str,

@@ -156,7 +156,10 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     d.executes(name, "datapack.disable");
 }
 
-/// `item (replace|fill|override) (entity|block) <target> <slots> (with <item> [<count>] | from ...)`.
+/// `item replace (entity|block) <target> <slot> (with <item> [<count>] | from ...)`
+/// and `item modify (entity|block) <target> <slot> <modifier>`.
+/// 26.2 has no `fill`/`override` and takes one slot (SlotArgument), not a slot
+/// source; the copy source is a single entity (EntityArgument.entity()).
 fn item(d: &mut Dispatcher, root: usize) {
     let item = d.literal(root, "item");
     d.requires(item, GAMEMASTERS);
@@ -168,7 +171,7 @@ fn item(d: &mut Dispatcher, root: usize) {
         } else {
             d.argument(p, "targetPos", ArgType::BlockPos)
         };
-        let slot = d.argument(target, "slot", ArgType::SlotSource);
+        let slot = d.argument(target, "slot", ArgType::Slot);
         let modifier = d.argument(
             slot,
             "modifier",
@@ -176,38 +179,43 @@ fn item(d: &mut Dispatcher, root: usize) {
         );
         d.executes(modifier, "item.modify");
     }
-    for mode in ["replace", "fill", "override"] {
-        let m = d.literal(item, mode);
-        for provider in ["entity", "block"] {
-            let p = d.literal(m, provider);
-            let target = if provider == "entity" {
-                d.argument(p, "target", ENTITIES)
+    let m = d.literal(item, "replace");
+    for provider in ["entity", "block"] {
+        let p = d.literal(m, provider);
+        let target = if provider == "entity" {
+            d.argument(p, "target", ENTITIES)
+        } else {
+            d.argument(p, "targetPos", ArgType::BlockPos)
+        };
+        let slot = d.argument(target, "slot", ArgType::Slot);
+        let with = d.literal(slot, "with");
+        let it = d.argument(with, "item", ArgType::Item);
+        d.executes(it, "item");
+        let count = d.argument(it, "count", ArgType::Integer { min: 1, max: 99 });
+        d.executes(count, "item");
+        let from = d.literal(slot, "from");
+        for src in ["entity", "block"] {
+            let s = d.literal(from, src);
+            let source = if src == "entity" {
+                d.argument(
+                    s,
+                    "source",
+                    ArgType::Entity {
+                        single: true,
+                        players: false,
+                    },
+                )
             } else {
-                d.argument(p, "targetPos", ArgType::BlockPos)
+                d.argument(s, "sourcePos", ArgType::BlockPos)
             };
-            let slots = d.argument(target, "slots", ArgType::SlotSource);
-            let with = d.literal(slots, "with");
-            let it = d.argument(with, "item", ArgType::Item);
-            d.executes(it, "item");
-            let count = d.argument(it, "count", ArgType::Integer { min: 1, max: 99 });
-            d.executes(count, "item");
-            let from = d.literal(slots, "from");
-            for src in ["entity", "block"] {
-                let s = d.literal(from, src);
-                let source = if src == "entity" {
-                    d.argument(s, "source", ENTITIES)
-                } else {
-                    d.argument(s, "sourcePos", ArgType::BlockPos)
-                };
-                let source_slots = d.argument(source, "sourceSlots", ArgType::SlotSource);
-                d.executes(source_slots, "item");
-                let modifier = d.argument(
-                    source_slots,
-                    "modifier",
-                    ArgType::ResourceOrId("minecraft:item_modifier"),
-                );
-                d.executes(modifier, "item");
-            }
+            let source_slot = d.argument(source, "sourceSlot", ArgType::Slot);
+            d.executes(source_slot, "item");
+            let modifier = d.argument(
+                source_slot,
+                "modifier",
+                ArgType::ResourceOrId("minecraft:item_modifier"),
+            );
+            d.executes(modifier, "item");
         }
     }
 }

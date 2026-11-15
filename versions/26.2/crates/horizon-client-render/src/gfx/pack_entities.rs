@@ -837,7 +837,6 @@ fn material_program(span: &EntitySpan, layer: u32, drawn: [bool; PROGRAMS]) -> O
         BLOCK
             if drawn[BLOCK_TRANSLUCENT]
                 && (span.translucent
-                    || layer & super::OIT_ENTITY != 0
                     || matches!(
                         layer & 0xffff,
                         super::TRANSLUCENT_ITEM_OVERLAY | super::TRANSLUCENT_GLINT_ITEM_OVERLAY

@@ -575,7 +575,7 @@ fn execute_tree_covers_vanilla_forms() {
         "execute if predicate a:b",
         "execute if function a:b run say hi",
         "execute if items entity @s hotbar.* minecraft:stone",
-        "execute if slots block 0 0 0 container.*",
+        "execute if items block 0 0 0 container.* minecraft:stone",
         "execute positioned over world_surface run say hi",
         "execute summon minecraft:pig run say hi",
         "execute on vehicle run say hi",
@@ -587,6 +587,8 @@ fn execute_tree_covers_vanilla_forms() {
     assert!(run("execute positioned over nothing run say hi").is_err());
     assert!(run("execute on nobody run say hi").is_err());
     assert!(run("execute store result score @s").is_err());
+    // 26.2 has no `if slots` condition.
+    assert!(run("execute if slots block 0 0 0 container.*").is_err());
 }
 
 #[test]
@@ -622,7 +624,7 @@ fn function_and_misc_trees() {
     );
     assert_eq!(run("bossbar get a:b max").unwrap().0, "bossbar.get");
     assert_eq!(
-        run("item fill block 1 2 3 container.* with minecraft:stone 5")
+        run("item replace block 1 2 3 container.5 with minecraft:stone 5")
             .unwrap()
             .0,
         "item"
@@ -644,6 +646,10 @@ fn function_and_misc_trees() {
     );
     assert!(run("bossbar set a:b value -1").is_err());
     assert!(run("item replace entity @s nowhere.0 with minecraft:stone").is_err());
+    // 26.2 has no `fill`/`override` modes and takes one slot, not a range.
+    assert!(run("item fill block 1 2 3 container.5 with minecraft:stone").is_err());
+    assert!(run("item override block 1 2 3 container.5 with minecraft:stone").is_err());
+    assert!(run("item replace block 1 2 3 container.* with minecraft:stone").is_err());
 }
 
 #[test]

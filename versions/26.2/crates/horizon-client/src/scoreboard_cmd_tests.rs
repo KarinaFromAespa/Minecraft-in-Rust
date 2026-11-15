@@ -330,6 +330,28 @@ fn teams() {
 }
 
 #[test]
+fn twenty_six_two_counts_targets_not_successes() {
+    let mut m = mock();
+    run(&mut m, "scoreboard objectives add pts dummy").unwrap();
+    // Setting one target to 0 is still a single success in 26.2.
+    assert_eq!(
+        run(&mut m, "scoreboard players set Steve pts 0").unwrap(),
+        0
+    );
+    assert!(m.out.last().unwrap().contains("set.success.single"));
+    // Enable: two targets, one already unlocked — the return is the
+    // unlocked count (1) but the message is the multiple form (2 targets).
+    run(&mut m, "scoreboard objectives add t trigger").unwrap();
+    run(&mut m, "scoreboard players enable Steve t").unwrap();
+    assert_eq!(run(&mut m, "scoreboard players enable @e t").unwrap(), 1);
+    assert!(m.out.last().unwrap().contains("enable.success.multiple"));
+    // Leave: a member on no team still succeeds and still counts.
+    run(&mut m, "team add red").unwrap();
+    assert_eq!(run(&mut m, "team leave Alex").unwrap(), 1);
+    assert!(m.out.last().unwrap().contains("leave.success.single"));
+}
+
+#[test]
 fn selector_options_parse() {
     let reg = Registries {
         permission: 4,

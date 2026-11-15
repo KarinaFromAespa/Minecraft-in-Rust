@@ -20,7 +20,7 @@ pub struct CommandNode {
     /// Custom suggestion provider (`minecraft:ask_server`).
     pub suggestions: Option<String>,
 }
-/// The `minecraft:command_argument_type` registry of 26.3 in id order
+/// The `minecraft:command_argument_type` registry of 26.2 in id order
 /// (ArgumentTypeInfos.bootstrap).
 pub const ARGUMENT_TYPES: &[&str] = &[
     "brigadier:bool",
@@ -78,17 +78,12 @@ pub const ARGUMENT_TYPES: &[&str] = &[
     "minecraft:loot_table",
     "minecraft:loot_predicate",
     "minecraft:loot_modifier",
-    "minecraft:context_float_provider",
-    "minecraft:context_int_provider",
-    "minecraft:slot_source",
     "minecraft:dialog",
-    "minecraft:feature",
-    "minecraft:swing_animation",
     "minecraft:uuid",
 ];
 
 /// The properties of an argument parser (`ArgumentTypeInfo.Template`) as
-/// one of the 26.3 parsers decoded from the network.
+/// one of the 26.2 parsers decoded from the network.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ArgumentProperties {
     None,

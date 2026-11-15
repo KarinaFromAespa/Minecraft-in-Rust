@@ -652,7 +652,7 @@ mod tests {
                     ..Default::default()
                 },
                 // An eyes layer: no normal, even over a culled model's encoding; the
-                // tier and OIT tag ride in the overlay word.
+                // the HDR tier rides in the overlay word.
                 SkinJob {
                     first: 24,
                     count: 24,
@@ -661,7 +661,7 @@ mod tests {
                     rect: [0.125, 0.75, 0.25, 0.875],
                     color: 0x80ff_ffff,
                     light: 0xf0f0,
-                    overlay: crate::gfx::OIT_ENTITY | 3 << 16 | 7,
+                    overlay: 3 << 16 | 7,
                     mode: SkinJob::FLAT,
                     cull: 1,
                     ..Default::default()

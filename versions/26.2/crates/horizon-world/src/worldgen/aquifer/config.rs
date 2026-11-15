@@ -119,7 +119,10 @@ mod tests {
     use std::collections::BTreeMap;
     #[test]
     fn bindings_share_named_cache_and_failed_decode_is_atomic() {
-        let mut registry = DensityRegistry::from_json(&BTreeMap::new(), &BTreeMap::from([("minecraft:shared".into(), r#"{"type":"cache","input":{"type":"gradient","axis":"x","from_coordinate":0,"to_coordinate":16,"from_value":0,"to_value":1}}"#.into())])).unwrap();
+        // 26.2 has no minecraft:gradient (26.3's general form); the fixture
+        // uses y_clamped_gradient, which samples 0.25 at y = -54 like the
+        // old x-gradient did at x = 4.
+        let mut registry = DensityRegistry::from_json(&BTreeMap::new(), &BTreeMap::from([("minecraft:shared".into(), r#"{"type":"cache","input":{"type":"y_clamped_gradient","from_y":-58,"to_y":-42,"from_value":0,"to_value":1}}"#.into())])).unwrap();
         let roots: BTreeMap<_, _> = AquiferField::ALL
             .iter()
             .map(|f| (f.name(), "minecraft:shared"))

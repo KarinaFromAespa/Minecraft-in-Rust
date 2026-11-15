@@ -1401,44 +1401,44 @@ impl Game<'_> {
         let num = |n: usize| Text::literal(n.to_string());
         let n = name.clone();
         let (message, total) = match id {
-            "tag.add" => tracker.message(
-                false,
-                Some(err("commands.tag.add.failed", &[])),
-                |h, _| {
+            "tag.add" | "tag.remove" => {
+                // 26.2 branches single/multiple on the TARGET count (and the
+                // multiple message takes it), while the result is the number
+                // of entities that actually changed; 26.3's tracker counts
+                // only the changed ones for both.
+                let verb = if id == "tag.add" { "add" } else { "remove" };
+                let successes = tracker.total();
+                if successes == 0 {
+                    return Err(err(&format!("commands.tag.{verb}.failed"), &[]));
+                }
+                let message = if targets.len() == 1 {
                     Text::translate(
-                        "commands.tag.add.success.single",
-                        &[Text::literal(n.clone()), h.text.clone()],
+                        &format!("commands.tag.{verb}.success.single"),
+                        &[
+                            Text::literal(n.clone()),
+                            targets
+                                .first()
+                                .map(|&t| holder(self, t).text)
+                                .unwrap_or_else(Text::empty),
+                        ],
                     )
-                },
-                |c, _| {
+                } else {
                     Text::translate(
-                        "commands.tag.add.success.multiple",
-                        &[Text::literal(n.clone()), num(c)],
+                        &format!("commands.tag.{verb}.success.multiple"),
+                        &[Text::literal(n.clone()), num(targets.len())],
                     )
-                },
-            ),
-            "tag.remove" => tracker.message(
-                false,
-                Some(err("commands.tag.remove.failed", &[])),
-                |h, _| {
-                    Text::translate(
-                        "commands.tag.remove.success.single",
-                        &[Text::literal(n.clone()), h.text.clone()],
-                    )
-                },
-                |c, _| {
-                    Text::translate(
-                        "commands.tag.remove.success.multiple",
-                        &[Text::literal(n.clone()), num(c)],
-                    )
-                },
-            ),
+                };
+                Ok((message, successes))
+            }
             _ => {
                 let count = all.len();
                 let message = if all.is_empty() {
+                    // 26.2 branches on the target count here too: one
+                    // tagless target is a single empty, not a multiple
+                    // of zero.
                     tracker
                         .message(
-                            false,
+                            true,
                             None,
                             |h, _| {
                                 Text::translate(

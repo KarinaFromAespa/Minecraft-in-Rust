@@ -187,12 +187,6 @@ pub struct TimeMarker {
     pub show: bool,
 }
 impl TimeMarker {
-    pub fn occurs_at(&self, total: i64) -> bool {
-        match self.period {
-            Some(p) => self.ticks == total.rem_euclid(p),
-            None => self.ticks == total,
-        }
-    }
     pub fn resolve(&self, total: i64) -> i64 {
         match self.period {
             Some(p) => {
@@ -838,23 +832,6 @@ impl Game<'_> {
             .map(|(_, d)| d.name.clone())
             .collect();
         self.sync_loot_table_ids();
-        // ResourceOrIdArgument decodes an inline feature while the command is
-        // parsed, with the codec and blocks placement uses (the live features
-        // never change once installed).
-        self.ui.registries.inline_feature =
-            self.res
-                .behaviours()
-                .live_features()
-                .cloned()
-                .map(|features| {
-                    horizon_client_core::registries::InlineFeatureCheck::new(move |tag| {
-                        let json = horizon_client::scoreboard::tag_to_json(tag).to_string();
-                        features
-                            .decode_inline(&json)
-                            .map(drop)
-                            .map_err(|e| e.to_string())
-                    })
-                });
         self.ui.registries.templates = ids.templates.clone();
         self.ui.registries.sounds = self.audio.event_names();
         self.ui.registries.attributes = [

@@ -1,7 +1,7 @@
 //! Original end-to-end material routing, timing and blending control; no pack assets.
 use super::depth_test::{Gpu, SIZE, VERTEX, fixture_frame};
 use super::*;
-use crate::gfx::{OIT_ENTITY, TRANSLUCENT_PARTICLE_OVERLAY, Vertex, pack_draw::EntitySpan};
+use crate::gfx::{TRANSLUCENT_ITEM_OVERLAY, TRANSLUCENT_PARTICLE_OVERLAY, Vertex, pack_draw::EntitySpan};
 use crate::hud::HudBatch;
 use horizon_shaders::render_stage;
 use wgpu::TextureFormat as T;
@@ -11,7 +11,7 @@ use wgpu::TextureFormat as T;
 fn authored_material_programs_render_and_legacy_draws_stay_unsplit() {
     let gpu = Gpu::new().expect("an executed adapter is required for this control");
     let mut vertices = Vec::new();
-    for (i, layer) in [0, OIT_ENTITY, 0, TRANSLUCENT_PARTICLE_OVERLAY]
+    for (i, layer) in [0, TRANSLUCENT_ITEM_OVERLAY, 0, TRANSLUCENT_PARTICLE_OVERLAY]
         .into_iter()
         .enumerate()
     {

@@ -1464,7 +1464,8 @@ fn resting(was: bool, at: Vec3, target: [f64; 3], sent: bool) -> bool {
     sent || (was && target[1] <= at.y + 1.0e-3)
 }
 
-/// `LinearInterpolationHandler`: where a server's update has a hook heading
+/// `InterpolationHandler` (26.3 renamed it `LinearInterpolationHandler`):
+/// where a server's update has a hook heading
 /// and the steps left (`DEFAULT_INTERPOLATION_STEPS` 3).
 #[derive(Default)]
 pub(super) struct HookLerp {
