@@ -8,6 +8,13 @@ except ImportError:
     import test_simple_block_parity as harness
 
 
+def wrap(definition):
+    # 26.2's ConfiguredFeature codec reads the config from a nested
+    # `config` object; the flat form fails with "No key config".
+    return {'type': definition['type'],
+            'config': {k: v for k, v in definition.items() if k != 'type'}}
+
+
 def corpus(facts, placement):
     get = lambda name: facts['defaults']['minecraft:' + name]
     def vegetation(provider, width=8, height=4):
@@ -20,7 +27,7 @@ def corpus(facts, placement):
         {'data': {'Name': 'minecraft:warped_fungus'}, 'weight': 1}]}
     def case(definition=None, **extra):
         origin = extra.pop('origin', [0, 65, 0])
-        value = {'definition': json.dumps(definition if definition is not None else vegetation(simple)),
+        value = {'definition': json.dumps(wrap(definition if definition is not None else vegetation(simple))),
                  'mode': 'feature', 'origin': origin, 'legacy': False, 'seed': 0, 'world_seed': 1,
                  'fail': -1, 'reject': 0, 'brightness': 15, 'height': origin[1], 'fallback': get('air'),
                  'states': [], 'repeats': 1}

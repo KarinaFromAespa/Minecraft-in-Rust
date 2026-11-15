@@ -105,12 +105,13 @@ def run(corpus, build_name, source_file, scope):
     # 26.2 forms: BlockStateProvider.CODEC is a strict dispatch on `type`
     # (no bare-state xor, no provider registry, no 26.3-only
     # RandomBlockProvider), so the bundle uses long-named providers and
-    # inline states. `horizon:empty` keeps its meaning (a placed feature
-    # that runs nothing and returns false) via a count-0 placement; its
-    # feature body never executes.
+    # inline states; ConfiguredFeature.DIRECT_CODEC reads the config from
+    # a nested `config` object, so the bundle wraps it. `horizon:empty`
+    # keeps its meaning (a placed feature that runs nothing and returns
+    # false) via a count-0 placement; its feature body never executes.
     stone_provider={'type':'minecraft:simple_state_provider','state':{'Name':'minecraft:stone'}}
     moss_provider={'type':'minecraft:simple_state_provider','state':{'Name':'minecraft:pale_moss_carpet'}}
-    feature_bundle={'features':{name:json.dumps({'type':'simple_block','to_place':provider,'schedule_tick':True}) for name,provider in [('horizon:moss',moss_provider),('horizon:stone',stone_provider),('horizon:empty',stone_provider)]},'placed':{name:json.dumps({'feature':name,'placement':[{'type':'count','count':0 if name=='horizon:empty' else 2}]}) for name in ['horizon:moss','horizon:stone','horizon:empty']}}
+    feature_bundle={'features':{name:json.dumps({'type':'simple_block','config':{'to_place':provider,'schedule_tick':True}}) for name,provider in [('horizon:moss',moss_provider),('horizon:stone',stone_provider),('horizon:empty',stone_provider)]},'placed':{name:json.dumps({'feature':name,'placement':[{'type':'count','count':0 if name=='horizon:empty' else 2}]}) for name in ['horizon:moss','horizon:stone','horizon:empty']}}
     (build/'feature-catalog.json').write_text(json.dumps(feature_bundle,separators=(',',':')))
     run(['javac','--release' ,lock['minecraft']['java_major'],'-proc:none','-sourcepath',str(lab.ROOT/'mods/horizon/src/test/java'),'-cp',str(jars['server'])+os.pathsep+dependency_path,'-d',classes,oracle,*helpers],'compile-java')
     for side in jars:
