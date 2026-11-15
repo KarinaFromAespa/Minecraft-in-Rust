@@ -12,7 +12,7 @@
    "module": "net/minecraft/world/level/levelgen/feature",
    "bucket": "B",
    "verdict": "no-change",
-   "evidence": "ConfiguredFeature citations are comments on the 26.2 API (bonemeal.rs, growth.rs, live.rs) plus harness scope strings naming ConfiguredFeature.DIRECT_CODEC; CoralFeature struct exists in vegetation.rs with a feature_graph arm. No code change."
+   "evidence": "ConfiguredFeature citations are comments on the 26.2 API (bonemeal.rs, growth.rs, live.rs) plus harness scope strings naming ConfiguredFeature.DIRECT_CODEC; CoralFeature struct exists in vegetation.rs with a feature_graph arm. No code change. AMENDMENT (rank 5, 2026-11-15): this entry was incomplete -- 10 of the 17 classes in this item (BasaltColumnsFeature, BasaltPillarFeature, DesertWellFeature, GlowstoneFeature, KelpFeature, NetherForestVegetationFeature, SeaPickleFeature, SeagrassFeature, TwistingVinesFeature, WeepingVinesFeature) were genuinely unimplemented in Rust at rank-4 close. They are now ported under rank 5 item 650 (37fca9be + harness fixes) with oracle-verified parity harnesses."
   },
   {
    "id": 597,

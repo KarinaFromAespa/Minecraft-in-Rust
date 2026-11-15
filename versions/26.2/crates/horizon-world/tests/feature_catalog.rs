@@ -60,3 +60,28 @@ fn shared_reference_expansion_is_bounded_before_building_a_large_tree() {
     );
     assert!(catalog.feature(&root).is_err());
 }
+
+#[test]
+fn wrapped_26_2_config_entries_expand_their_named_children() {
+    // A 26.2 configured feature wraps its parameters in `config`; the
+    // catalog must expand named references inside the wrapper, not
+    // only at the top level.
+    let features = map(&[
+        (
+            "horizon:sel",
+            r#"{"type":"random_selector","config":{"features":[],"default":"horizon:leaf"}}"#,
+        ),
+        (
+            "horizon:seq",
+            r#"{"type":"sequence","config":{"features":["horizon:leaf"]}}"#,
+        ),
+    ]);
+    let placed = map(&[(
+        "horizon:leaf",
+        r#"{"feature":{"type":"no_op"},"placement":[]}"#,
+    )]);
+    let catalog =
+        FeatureCatalog::from_resources(&features, &placed, &TagDefinitions::default()).unwrap();
+    assert!(catalog.feature(r#""horizon:sel""#).is_ok());
+    assert!(catalog.feature(r#""horizon:seq""#).is_ok());
+}

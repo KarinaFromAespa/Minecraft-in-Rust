@@ -2936,6 +2936,17 @@ dispatched on main@c8c8e835, in progress — first run to measure
 the rank-3-closed tree; expect D2 to clear (E0061 fix + 0
 warnings). Porting continues (ranks 4–5) while CI runs.
 
+## CI run 43688968589 completed (2026-11-15)
+
+Run 43688968589 on main@c8c8e835 completed in 1h30m, conclusion
+success. Profile 5/0/12, unchanged (first_person, food, lan,
+light, resource_pack pass). D1 PASS, D2 PASS, D3 PASS — the first
+run with all three passing together: D2 cleared as expected (the
+E0061 fix and the 0-warning item-566 cleanup are on main).
+D4/D5/D6 blocked (D4/D5 on the known staged-candidate profile
+stamp; D6 needs the human playtest). Verdict: blocked, verified
+false. Artifacts at ~/workspace/mcir-ci/26.2-run-43688968589/.
+
 Rank 4 CLOSED 55/55 (all no-change). The rank-4
 items are packages of classes new in 26.2 (the
 26.3 side dropped or renamed them); each was
@@ -2957,3 +2968,80 @@ top-level enum, synth.rs from item 127, brewing's
 RedStoneWireBlock spellings in classes.rs), or
 name collisions (Sum, IntRange, Mask). No code
 fix anywhere. See rank4-progress.json.
+
+RANK 5 CLOSED 2/2 — ALL 651 ITEMS CLOSED (2026-11-15). See
+rank5-progress.json for per-item evidence.
+
+Item 650 (unported, 1135 classes) PORTED. Three real ports plus a
+systematic decode fix:
+
+- Feature-decode config lift (78cfb3c0): 26.2 wraps configured-feature
+  parameters in `config`; the Rust decoded only the flat form, so every
+  real 26.2 configured feature failed to decode. Fixed with
+  worldgen::lift_config at FeatureDefinition::decode + FeatureCatalog
+  expansion (signal-checked tests).
+- TagEntry `name` form (78cfb3c0): 26.2 names a tag entry's tag in
+  `name`; 26.3 moved it to `items`. The Rust read only `items`, so 26.2
+  tag entries dropped nothing. Fixed with LootData::tag_entry_items
+  (signal-checked test).
+- Ten missing 26.2 features (37fca9be): kelp, seagrass, sea pickle
+  (worldgen/aquatic.rs); basalt columns, basalt pillar, glowstone,
+  nether forest vegetation, twisting vines, weeping vines
+  (worldgen/nether.rs); desert well (worldgen/desert_well.rs). All 10
+  classes are added in 26.2 and had no Rust decode arm. Each place()
+  mirrors its decompiled 26.2 feature, including random-draw order and
+  vanilla quirks; desert well needed a new PlacementContext method
+  (set_block_entity_loot_table_seeded) because vanilla seeds the sus
+  sand with pos.asLong() and draws nothing for it. All 10 parity
+  harnesses pass against the 26.2 oracle on BOTH jars — 769 fixtures,
+  1,617,895 output lines matched (kelp 124/5,768; seagrass 169/3,056;
+  sea pickle 96/6,035; basalt columns 64/384,404; basalt pillar
+  36/14,508; glowstone 40/501,662; nether forest vegetation 88/90,711;
+  twisting vines 68/492,191; weeping vines 36/86,192; desert well
+  48/33,368). Three basalt-columns fixes came out of the harness:
+  Feature.setBlock writes with flag 3 (a861f950), betweenClosed walks
+  x fastest (90d21d13), and the lava-ocean test reads the chunk
+  generator's sea level, not the world's (db9385fc).
+- State-provider long-name aliases (145d4f63): 26.3 shortened the
+  provider type names; 26.2 data uses the long forms (296 uses across
+  8 types) and decode_typed accepted only the short names, so every
+  26.2 configured feature using a provider failed to decode. Long names
+  are now aliases (fields verified identical for all 8 types).
+
+Harness infrastructure fixed on the way: the oracle's
+block-registry.nbt defaults were keyed by the encoded `id` field
+(empty in 26.2 — every default collapsed onto one key), now keyed by
+the block registry key (VanillaCollisionOracle, VanillaWorldOracle);
+the simple-block harness bundle/catalog ported to 26.2 provider forms
++ the wrapped config form + a count-0 horizon:empty (26.3-only
+RandomBlockProvider has no 26.2 equivalent); the oracle's
+getBlockEntity handler answers the typed overload with an entity of
+the requested type (brushables map + reflective loot reads).
+
+Remainder of 650 classified no-change (see rank5-progress.json for the
+full per-class notes): the 30 removed loot number providers, the
+~25 feature classes (whose live-form gap was the config lift),
+BlockPredicate components (no vanilla 26.2 advancement uses it),
+JumpOnBed / SleepInBed / Digging brains (SleepInBed's conditional
+last_slept set is behaviorally identical to 26.2's unconditional one:
+26.2 startSleeping cannot fail and the Rust's false branch is
+unreachable at its single caller), ExecuteCommand countItems (already
+ported as condition_items), RootPlacer + NoiseProvider decode shapes
+(match the 26.2 JSON), and the enchantment ReplaceBlock effect (no
+Rust implementation in either version, no 26.2 vanilla enchantment
+uses it — a documented gap in the base, not a divergence).
+
+Item 651 (new-unported, 75 classes) NO-CHANGE: carver config classes
+already implemented, MapColor a name collision, 2 oracle-only, 65
+zero-hit.
+
+Rank-4 item 596's ledger entry was amended: 10 of its 17 classes were
+genuinely unimplemented at rank-4 close and are now ported under item
+650 (see rank4-progress.json).
+
+Known gaps left open (not rank items): the simple-block harness's own
+corpus still uses random_block providers directly in definitions and
+mode-"map" cases parse via configuredCodec (which needs a "config"
+key) — both are pre-existing 26.2 gaps in that harness, documented,
+not addressed here. The unknown launch crash blocking
+command_exec/save_roundtrip is still undiagnosed (second track).

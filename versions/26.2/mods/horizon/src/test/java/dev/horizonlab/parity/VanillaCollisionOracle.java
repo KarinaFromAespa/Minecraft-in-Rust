@@ -7,6 +7,7 @@ import java.util.*;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.*;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -90,7 +91,9 @@ public final class VanillaCollisionOracle {
             int id = states.size();
             if (Block.BLOCK_STATE_REGISTRY.getId(state) != id) throw new AssertionError("non-dense states");
             Tag encoded = encode(state); states.add(encoded);
-            if (state == state.getBlock().defaultBlockState()) defaults.putInt(((CompoundTag)encoded).getStringOr("id", ""), id);
+            // 26.2's BlockState.CODEC encodes `Name`, not `id`: the block's
+            // registry key is the default's name on either shape.
+            if (state == state.getBlock().defaultBlockState()) defaults.putInt(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(), id);
             VoxelShape shape = cached(state);
             if (shape == null) mapping[id] = -1;
             else {

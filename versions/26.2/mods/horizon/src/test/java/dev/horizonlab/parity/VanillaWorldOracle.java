@@ -6,6 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.IdMapper;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.*;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.level.ChunkPos;
@@ -134,8 +135,9 @@ public final class VanillaWorldOracle {
             check(Block.BLOCK_STATE_REGISTRY.getId(state) == states.size(), "registry IDs are not dense");
             states.add(BlockState.CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow());
             if (state == state.getBlock().defaultBlockState()) {
-                Tag encoded = BlockState.CODEC.encodeStart(NbtOps.INSTANCE, state).getOrThrow();
-                defaults.putInt(((CompoundTag)encoded).getStringOr("id", ""), Block.BLOCK_STATE_REGISTRY.getId(state));
+                // 26.2's BlockState.CODEC encodes `Name`, not `id`: the
+                // block's registry key is the default's name on either shape.
+                defaults.putInt(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(), Block.BLOCK_STATE_REGISTRY.getId(state));
             }
         }
         registry.put("states", states); registry.put("defaults", defaults);

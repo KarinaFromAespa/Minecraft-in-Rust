@@ -141,6 +141,18 @@ pub trait PlacementContext {
     ) -> Result<(), PlacementQueryError> {
         Err(PlacementQueryError::Unavailable)
     }
+    /// Set the loot table of the brushable block entity at `position` with
+    /// an explicit seed. Vanilla `DesertWellFeature` seeds its suspicious
+    /// sand with `pos.asLong()` and draws nothing from the feature random
+    /// for it, so the random-drawn setter cannot express it.
+    fn set_block_entity_loot_table_seeded(
+        &mut self,
+        _position: [i32; 3],
+        _table: &str,
+        _seed: i64,
+    ) -> Result<(), PlacementQueryError> {
+        Err(PlacementQueryError::Unavailable)
+    }
 
     /// Look up the block entity at this position and set its exit only if it is
     /// an End gateway. Missing or other entities are successful no-ops. The

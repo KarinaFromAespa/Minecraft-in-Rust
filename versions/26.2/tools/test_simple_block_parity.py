@@ -101,8 +101,17 @@ def run(corpus, build_name, source_file, scope):
     def java(side,mode,path):run(['java','-Xmx512M','-cp',os.pathsep.join([str(classes),str(jars[side]),dependency_path]),'dev.horizonlab.parity.VanillaSimpleBlockOracle',mode,path],side+'-'+mode)
     tags=worldgen.tag_resources(jars['server']);fluid_tags=survival.fluid_tag_resources(jars['server'])
     if tags!=worldgen.tag_resources(jars['client']) or fluid_tags!=survival.fluid_tag_resources(jars['client']):raise ValueError('reference tags differ')
-    for name,value in [('tags.json',tags),('fluid-tags.json',fluid_tags),('catalog.json',{'horizon:stone':json.dumps({'id':'stone'})})]:(build/name).write_text(json.dumps(value,separators=(',',':')))
-    feature_bundle={'features':{name:json.dumps({'type':'simple_block','to_place':provider,'schedule_tick':True}) for name,provider in [('horizon:moss',{'id':'pale_moss_carpet'}),('horizon:stone','horizon:stone'),('horizon:empty',{'type':'random_block','blocks':[]})]},'placed':{name:json.dumps({'feature':name,'placement':[{'type':'count','count':2}]}) for name in ['horizon:moss','horizon:stone','horizon:empty']}}
+    for name,value in [('tags.json',tags),('fluid-tags.json',fluid_tags),('catalog.json',{'horizon:stone':json.dumps({'type':'minecraft:simple_state_provider','state':{'Name':'minecraft:stone'}})})]:(build/name).write_text(json.dumps(value,separators=(',',':')))
+    # 26.2 forms: BlockStateProvider.CODEC is a strict dispatch on `type`
+    # (no bare-state xor, no provider registry, no 26.3-only
+    # RandomBlockProvider), so the bundle uses long-named providers and
+    # inline states; ConfiguredFeature.DIRECT_CODEC reads the config from
+    # a nested `config` object, so the bundle wraps it. `horizon:empty`
+    # keeps its meaning (a placed feature that runs nothing and returns
+    # false) via a count-0 placement; its feature body never executes.
+    stone_provider={'type':'minecraft:simple_state_provider','state':{'Name':'minecraft:stone'}}
+    moss_provider={'type':'minecraft:simple_state_provider','state':{'Name':'minecraft:pale_moss_carpet'}}
+    feature_bundle={'features':{name:json.dumps({'type':'simple_block','config':{'to_place':provider,'schedule_tick':True}}) for name,provider in [('horizon:moss',moss_provider),('horizon:stone',stone_provider),('horizon:empty',stone_provider)]},'placed':{name:json.dumps({'feature':name,'placement':[{'type':'count','count':0 if name=='horizon:empty' else 2}]}) for name in ['horizon:moss','horizon:stone','horizon:empty']}}
     (build/'feature-catalog.json').write_text(json.dumps(feature_bundle,separators=(',',':')))
     run(['javac','--release' ,lock['minecraft']['java_major'],'-proc:none','-sourcepath',str(lab.ROOT/'mods/horizon/src/test/java'),'-cp',str(jars['server'])+os.pathsep+dependency_path,'-d',classes,oracle,*helpers],'compile-java')
     for side in jars:

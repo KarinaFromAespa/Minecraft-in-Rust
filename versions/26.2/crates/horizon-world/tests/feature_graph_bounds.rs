@@ -87,3 +87,40 @@ fn modifier_expansion_without_leaf_calls_uses_the_shared_graph_budget() {
     ));
     assert_eq!(random.next_long(), expected.next_long());
 }
+
+#[test]
+fn wrapped_26_2_configured_features_decode_like_the_flat_form() {
+    // 26.2 wraps every configured feature's parameters in `config`
+    // (`{type, config}`); 26.3's record form is flat. Both must decode
+    // to the same feature. (Empty feature lists are rejected by
+    // design, so each list holds one no-op placed feature.)
+    let leaf = r#"{"feature":{"type":"minecraft:no_op"},"placement":[]}"#;
+    let wrapped_sequence = format!(
+        r#"{{"type":"minecraft:sequence","config":{{"features":[{leaf}]}}}}"#
+    );
+    assert!(matches!(
+        FeatureDefinition::from_json(&wrapped_sequence),
+        Ok(FeatureDefinition::Sequence(features)) if features.len() == 1
+    ));
+    let flat_sequence = format!(r#"{{"type":"minecraft:sequence","features":[{leaf}]}}"#);
+    assert!(matches!(
+        FeatureDefinition::from_json(&flat_sequence),
+        Ok(FeatureDefinition::Sequence(features)) if features.len() == 1
+    ));
+    let wrapped_selector = format!(
+        r#"{{"type":"minecraft:random_selector","config":{{"features":[{{"chance":0.5,"feature":{leaf}}}],"default":{leaf}}}}}"#
+    );
+    assert!(matches!(
+        FeatureDefinition::from_json(&wrapped_selector),
+        Ok(FeatureDefinition::ChanceChoice { features, fallback })
+            if features.len() == 1
+                && matches!(&*fallback.feature, FeatureDefinition::NoOp)
+    ));
+    let flat_selector = format!(
+        r#"{{"type":"minecraft:random_selector","features":[{{"chance":0.5,"feature":{leaf}}}],"default":{leaf}}}"#
+    );
+    assert!(matches!(
+        FeatureDefinition::from_json(&flat_selector),
+        Ok(FeatureDefinition::ChanceChoice { features, .. }) if features.len() == 1
+    ));
+}
