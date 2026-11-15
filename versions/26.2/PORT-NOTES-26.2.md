@@ -2525,3 +2525,12 @@ dispatch branch, place_inline_feature/configured_inline/
 decode_inline, InlineFeatureCheck, codec arm, both test files
 and both harnesses) is removed. 440 mineshaft: no-change — the
 Builder vs Accessor parameter rename only, as with the fortress.
+
+## Rank 3 — bucket B batch 2 (part 2): 108/177 (2026-11-15)
+
+441 beehive, 442 GUI renderer, 443 spike/fill-layer, 444 brush:
+all no-change. 441 is the server-signature re-shape + an unused
+loot pos arg + the unported Prediction flag. 442's UBO order
+differs but the Rust's uniform layout is self-consistent with
+its own shaders. 443 is the record vs class re-shape. 444 is
+setBlockAndUpdate vs setBlock(...,3) + rotateDegrees vs mulPose.

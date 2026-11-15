@@ -727,6 +727,34 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "MineshaftPieces/Structure: every method diff is the StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) parameter rename with identical bodies (verified on createRandomShaftPiece, generateAndAddPiece, MineShaftCorridor.addChildren, MineshaftStructure.generatePiecesAndAdjust) \u2014 the same re-shape as the fortress pieces in item 425."
+    },
+    {
+      "id": 441,
+      "module": "crates/horizon-client/src/game/beehives.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "BeehiveBlock: 26.2 carries the codec (no Rust surface); playerDestroy is the ServerLevel/ServerPlayer vs Level/Player + isClientSide re-shape with the same server-only behaviour; dropHoneycomb's loot call differs only by a pos argument the harvest/beehive table does not use; useItemOn differs by the unported Prediction.PREDICTED drop flag and setBlockAndUpdate vs setBlock(...,3). The Rust's use_beehive matches both forms."
+    },
+    {
+      "id": 442,
+      "module": "crates/horizon-client-render/src/hud/pack_text.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "GuiRenderer/GlobalSettingsUniform: the GuiRenderer diff is GPU plumbing (RenderPass/CommandEncoder vs texture overrides, vertex-buffer index requests); GlobalSettingsUniform differs only in UBO field ORDER (26.3 IVec3/Float/Vec3/Float/Vec2 vs 26.2 IVec3/Vec3/Vec2/Float/Float) with identical values (camera floor + offset, screen size, glint alpha, (gameTime%24000+partial)/24000, blur radius, RGSS). The Rust writes its own uniform layout and its own shaders read it, so the order is unobservable."
+    },
+    {
+      "id": 443,
+      "module": "crates/horizon-world/src/worldgen/generator_decoration.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "SpikeFeature/FillLayerFeature: the 26.3 record vs 26.2 class + FeaturePlaceContext re-shape; place bodies are identical modulo this.x -> config.x() (canPlaceOn/canReplace/state for spikes; height/state for fill layers). The Rust drives features through its catalog, so the shape is invisible."
+    },
+    {
+      "id": 444,
+      "module": "crates/horizon-client/src/game/brush.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "BrushableBlockEntity/Renderer: the entity diff is only setBlockAndUpdate vs setBlock(...,3) in brush/brushingCompleted/checkReset; the renderer differs only by rotateDegrees vs mulPose with identical angles (75 deg, (eastWest?90:0)+11)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
