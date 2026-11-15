@@ -142,6 +142,24 @@ fn optional<'a>(object: &'a Object, name: &str) -> Option<&'a RawValue> {
 fn required<'a>(object: &'a Object, name: &'static str) -> Result<&'a RawValue, DecodeError> {
     optional(object, name).ok_or(DecodeError::Field(name))
 }
+/// Lift a 26.2 configured feature's parameters out of its `config`
+/// wrapper (`{type, config}`) into the top level, in place; a no-op
+/// when there is no `config` object (the flat form the fixtures send,
+/// and 26.3's record form). 26.2 wraps every feature's parameters in
+/// `config` while the decoders below read them flat, so both the
+/// catalog's expansion and `FeatureDefinition::decode` lift before
+/// reading. Outer keys win on collision (`type` is never inside
+/// `config`). Mirrors `carver::config::config_object`.
+fn lift_config(object: &mut Object) -> Result<(), DecodeError> {
+    if let Some(raw) = optional(object, "config") {
+        let config: Object = serde_json::from_str(raw.get())?;
+        object.remove("config");
+        for (key, value) in config {
+            object.entry(key).or_insert(value);
+        }
+    }
+    Ok(())
+}
 fn number_text(raw: &RawValue) -> Result<&str, DecodeError> {
     let text = raw.get();
     if text.starts_with('-') || text.starts_with(|c: char| c.is_ascii_digit()) {

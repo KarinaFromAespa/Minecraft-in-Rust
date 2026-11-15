@@ -8,7 +8,7 @@ use super::{
     },
     density::identifier,
     feature::{BasicFeature, FeatureBlocks, FeatureError, FeatureWorld},
-    number_text,
+    lift_config, number_text,
     ore_feature::ScatteredOreFeature,
     placement::{
         FeaturePlacementError, FeaturePlacer, PlacementContext, PlacementModifier,
@@ -308,7 +308,13 @@ impl FeatureDefinition {
         blocks: Option<&FeatureBlockBindings<'_>>,
     ) -> Result<Self, DecodeError> {
         visit(depth, remaining)?;
-        let object: Object = serde_json::from_str(json)?;
+        let mut object: Object = serde_json::from_str(json)?;
+        // 26.2 configured features wrap their parameters in `config`
+        // (`{type, config}`); lift them so the arms below read them
+        // flat. The flat form passes through unchanged.
+        lift_config(&mut object)?;
+        let flat = serde_json::to_string(&object)?;
+        let json = flat.as_str();
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?;

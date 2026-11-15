@@ -1035,6 +1035,19 @@ impl LootData {
             _ => Vec::new(),
         }
     }
+    /// A tag entry's items: 26.2 names the tag in `name` (a bare TagKey,
+    /// no `#`); 26.3 moved it to `items` (a HolderSet, `#`-prefixed when
+    /// a tag). Prefer `items` when present so 26.3-shaped tables still
+    /// read, and fall back to the 26.2 `name` form.
+    fn tag_entry_items(&self, entry: &Value) -> Vec<String> {
+        if !entry["items"].is_null() {
+            self.holder_set("item", &entry["items"])
+        } else if let Value::String(name) = &entry["name"] {
+            self.tag("item", name)
+        } else {
+            Vec::new()
+        }
+    }
     fn item_in(&self, item: &str, set: &Value) -> bool {
         self.holder_set("item", set).iter().any(|i| i == item)
     }
@@ -2106,7 +2119,7 @@ impl<R: RandomSource> Context<'_, R> {
             // TagEntry: one choice per item when expanded, else one for all.
             "minecraft:tag" => {
                 if entry["expand"].as_bool().unwrap_or(false) {
-                    let items = self.data.holder_set("item", &entry["items"]);
+                    let items = self.data.tag_entry_items(entry);
                     for item in items {
                         if int_value(&entry["weight"]).unwrap_or(1) > 0 {
                             out.push(Choice {
@@ -2144,7 +2157,7 @@ impl<R: RandomSource> Context<'_, R> {
             "minecraft:tag" => match &choice.item {
                 Some(item) => out(self, LootStack::new(item)),
                 None => {
-                    for item in self.data.holder_set("item", &entry["items"]) {
+                    for item in self.data.tag_entry_items(entry) {
                         out(self, LootStack::new(&item));
                     }
                 }
@@ -2755,6 +2768,75 @@ mod native_kinds_tests {
         let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
         let _ = std::fs::remove_dir_all(&root);
         data
+    }
+
+    fn table_with_tag(name: &str, json: &str, tag: &str, values: &str) -> LootData {
+        let root = std::env::temp_dir().join(format!("loot-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let dir = root.join("data/minecraft/loot_table");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("test.json"), json).unwrap();
+        let tags = root.join("data/minecraft/tags/item");
+        std::fs::create_dir_all(&tags).unwrap();
+        std::fs::write(tags.join(format!("{tag}.json")), values).unwrap();
+        // LootData::load reads items.json too.
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        data
+    }
+
+    #[test]
+    fn tag_entry_reads_the_26_2_name_form_and_the_26_3_items_form() {
+        // 26.2 names a tag entry's tag in `name` (a bare TagKey, no `#`);
+        // 26.3 moved it to `items` (a HolderSet, `#`-prefixed when a tag).
+        // A creeper's music discs come from exactly this entry.
+        let tag_values =
+            r#"{"values":["minecraft:music_disc_13","minecraft:music_disc_cat"]}"#;
+        // 26.2 form, not expanded: every tag item drops.
+        let data = table_with_tag(
+            "tag_26_2",
+            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:tag","name":"minecraft:test_discs"}]}]}"#,
+            "test_discs",
+            tag_values,
+        );
+        let mut random = LegacyRandom::new(1);
+        let mut items: Vec<_> = data
+            .roll("minecraft:test", &mut random, 0.0, None, Some(true))
+            .iter()
+            .map(|stack| stack.item.clone())
+            .collect();
+        items.sort();
+        assert_eq!(items, ["minecraft:music_disc_13", "minecraft:music_disc_cat"]);
+        // 26.2 form, expanded: one tag item drops.
+        let data = table_with_tag(
+            "tag_26_2_expanded",
+            r#"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:tag","name":"minecraft:test_discs","expand":true}]}]}"#,
+            "test_discs",
+            tag_values,
+        );
+        let mut random = LegacyRandom::new(1);
+        let items = data.roll("minecraft:test", &mut random, 0.0, None, Some(true));
+        assert_eq!(items.len(), 1);
+        assert!(
+            items[0].item == "minecraft:music_disc_13"
+                || items[0].item == "minecraft:music_disc_cat"
+        );
+        // 26.3 form still reads.
+        let data = table_with_tag(
+            "tag_26_3",
+            r##"{"pools":[{"rolls":1,"entries":[{"type":"minecraft:tag","items":"#minecraft:test_discs"}]}]}"##,
+            "test_discs",
+            tag_values,
+        );
+        let mut random = LegacyRandom::new(1);
+        let mut items: Vec<_> = data
+            .roll("minecraft:test", &mut random, 0.0, None, Some(true))
+            .iter()
+            .map(|stack| stack.item.clone())
+            .collect();
+        items.sort();
+        assert_eq!(items, ["minecraft:music_disc_13", "minecraft:music_disc_cat"]);
     }
 
     #[test]

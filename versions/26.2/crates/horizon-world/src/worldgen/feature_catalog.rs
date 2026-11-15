@@ -6,7 +6,7 @@ use super::{
     block_feature::FeatureBlockBindings,
     density::identifier,
     feature_graph::{FeatureDefinition, PlacedFeatureDefinition},
-    required,
+    lift_config, required,
     tags::TagDefinitions,
 };
 use serde_json::value::RawValue;
@@ -224,6 +224,9 @@ impl FeatureCatalog {
             return self.named(&name, false, depth, work);
         }
         let mut object: Object = serde_json::from_str(value.get())?;
+        // 26.2 configured features wrap their parameters in `config`;
+        // lift them so the arms below (and decode) read them flat.
+        lift_config(&mut object)?;
         let kind = identifier(&serde_json::from_str::<String>(
             required(&object, "type")?.get(),
         )?)?;
