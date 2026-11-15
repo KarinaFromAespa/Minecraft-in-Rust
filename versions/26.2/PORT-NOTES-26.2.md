@@ -3395,3 +3395,16 @@ proves the gated D1 (dead production tags fail, absent tag data
 blocks, pre-1.13 skipped) plus the seven tag ports on CI. Locally the
 audit is clean (0 dead production, 5 dead test-only) and D1 passes
 with the flip; suffocation parity passes on both jars.
+
+## CI run 43738833564 completed — gated D1 PROVEN (2026-11-15)
+
+Run 43738833564 on main@ad9757b6 (the tag-gating merge) completed in
+~1h37m, conclusion success. Profile **7/0/10** — unchanged from run
+43719972622 (block_properties, first_person, food, lan, light,
+resource_pack, save_roundtrip): no regressions from the seven tag
+ports. **D1 passes with the gating audit**: "tag audit: 710 tags
+across 20 registries; scanned 245 literals in 2866 files; 0 dead in
+production code, 5 dead in test fixtures". D2/D3 pass; D4/D5 blocked
+(the staged-candidate stamp quirk — profile stamped for ad9757b6,
+judge HEAD is the staged candidate); D6 blocked (no playtest).
+Artifacts at ~/workspace/mcir-ci/26.2-run-43738833564/.
