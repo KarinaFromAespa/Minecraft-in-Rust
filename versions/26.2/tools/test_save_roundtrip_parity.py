@@ -66,7 +66,7 @@ IGNORED = {
     # render distance 6 may finish some, as vanilla does when it loads the world at
     # that distance. Their blocks are still compared; only what a full chunk saves
     # differently (no worldgen heightmaps, entities in entities/) is accepted.
-    r'^chunk\.promoted\.(Status|Heightmaps\.(OCEAN_FLOOR_WG|WORLD_SURFACE_WG)|entities)$':
+    r'^chunk\.promoted\.(Status|Heightmaps\.\w+|entities)$':
         'a proto chunk vanilla left at its view distance, finished by Horizon',
     # Single player's server thread sends the chunks its player tracks (view distance 6
     # and its outer ring), as vanilla's integrated server does, so it finishes some that
@@ -86,7 +86,7 @@ IGNORED = {
     r'server_data\.state_updating_resumes_at)$':
         'block entity timers advance',
     r'^entity\.(Passengers\[\]\.)*(Age|Motion\[\]|Rotation\[\]|Pos\[\]|OnGround|HurtTime|Health|TimeInOverworld|fall_distance|'
-    r'wasOnGround|Fire|Air|DeathTime|Fuse|life|inGround|ticks_in_ground|Time|EggLayTime)$': 'entity simulation advances',
+    r'wasOnGround|Fire|Air|DeathTime|Fuse|life|inGround|ticks_in_ground|Time|EggLayTime|DespawnDelay)$': 'entity simulation advances',
     r'^level\.dat\.Data\.(Time|LastPlayed)$': 'clock and wall time of the save',
     r'^level\.dat\.Data\.(ServerBrands.*|singleplayer_uuid)$': 'a client world names its brand and its player',
     r'^entity\.listener\.selector\.(event|tick)$': 'the warden listener holds the last vibration it heard; timing',
@@ -500,7 +500,15 @@ def compare_chunks(vanilla, horizon, report):
         promoted = va.get('Status') != 'minecraft:full' and ha.get('Status') == 'minecraft:full'
         if promoted:
             rule = re.compile(r'^chunk\.(Status|Heightmaps\.\w+_WG|entities)$')
-            out = [(path.replace('chunk.', 'chunk.promoted.', 1) if rule.match(path) else path, p, q)
+            # A chunk vanilla left before its heightmaps were computed has
+            # none to compare: Horizon finishing it writes them, as vanilla
+            # would on loading it at that distance. Only presence-only
+            # diffs (vanilla has no such heightmap) are accepted; a value
+            # diff still fails.
+            heightmap = re.compile(r'^chunk\.Heightmaps\.\w+$')
+            out = [(path.replace('chunk.', 'chunk.promoted.', 1)
+                    if rule.match(path) or (heightmap.match(path) and p is None)
+                    else path, p, q)
                    for path, p, q in out]
         for y in sorted(set(vs) | set(hs)):
             empty = {'blocks': ['minecraft:air'] * 4096, 'biomes': None, 'BlockLight': None, 'SkyLight': None}

@@ -490,18 +490,23 @@ fn conversion_time(m: &Mob) -> i32 {
         -1
     }
 }
-/// `BlockState.CODEC`: the block's name when the state is that block's
-/// default, `{id, properties}` for any other state.
+/// `BlockState.CODEC` (26.2): the map form (`Name`/`Properties`) for every
+/// state. The bare-name form for default states is 26.3's codec change;
+/// vanilla 26.2 rejects it ("Not a map").
 pub fn state_to_nbt(registry: &BlockRegistry, state: BlockStateId) -> Tag {
     match registry.state(state) {
-        Some(s) if registry.default_state(&s.name) == Some(state) => string(&s.name),
         Some(s) => s.to_nbt(),
-        None => string("minecraft:air"),
+        None => BlockState {
+            name: "minecraft:air".to_string(),
+            properties: Default::default(),
+        }
+        .to_nbt(),
     }
 }
-/// `BlockState.CODEC` read back: a block name or `{id, properties}` (or the
-/// legacy `{Name, Properties}`). A name the registry knows only as a block
-/// reads as its default state, and one it does not know at all as `None`.
+/// `BlockState.CODEC` read back: `{Name, Properties}` (or the 26.3
+/// `{id, properties}` form, or a bare block name). A name the registry knows
+/// only as a block reads as its default state, and one it does not know at
+/// all as `None`.
 pub fn state_from_nbt(registry: &BlockRegistry, tag: &Tag) -> Option<BlockStateId> {
     let state = match tag.get("Name") {
         Some(Tag::String(name)) => BlockState {
@@ -5070,7 +5075,10 @@ mod tests {
     fn falling_decode_absent_state_saves_actual_sand_without_raw() {
         let registry = falling_decode_registry();
         let saved = falling_decode_save(&registry, &falling_decode_input());
-        assert_eq!(saved.get("BlockState"), Some(&string("minecraft:sand")));
+        assert_eq!(
+            saved.get("BlockState"),
+            Some(&Tag::compound([("Name", string("minecraft:sand"))]))
+        );
     }
 
     #[test]
@@ -5088,13 +5096,20 @@ mod tests {
                 "minecraft:gravel",
             ),
             (string("minecraft:air"), "minecraft:air"),
-            (legacy, "minecraft:sand"),
+            // The shared reader accepts the {Name} form too: the falling
+            // decoder reads it as gravel, not as an absent state.
+            (legacy, "minecraft:gravel"),
             (Tag::Compound(Default::default()), "minecraft:sand"),
         ] {
             let mut input = falling_decode_input();
             put(&mut input, "BlockState", state);
             let saved = falling_decode_save(&registry, &input);
-            assert_eq!(saved.get("BlockState"), Some(&string(expected)));
+            // The reader accepts every form; the writer always uses 26.2's
+            // map form (the bare-name form is 26.3's codec change).
+            assert_eq!(
+                saved.get("BlockState"),
+                Some(&Tag::compound([("Name", string(expected))]))
+            );
         }
     }
 
@@ -7326,15 +7341,22 @@ mod sheep_nbt_tests {
                 .size,
             2
         );
-        // Enderman.addAdditionalSaveData: the block it carries, a block name
-        // for the block's default state and `{id, properties}` otherwise.
+        // Enderman.addAdditionalSaveData: the block it carries, in 26.2's
+        // map form (`Name`/`Properties`); the bare-name form for default
+        // states is 26.3's codec change.
         let mut enderman = new("minecraft:enderman");
         let grass = registry.default_state("minecraft:grass_block");
         enderman.extra.carried = grass;
         let (back, tag) = round_trip(&enderman);
         assert_eq!(
-            text(tag.get("carriedBlockState")).as_deref(),
-            Some("minecraft:grass_block")
+            tag.get("carriedBlockState"),
+            Some(&Tag::compound([
+                ("Name", string("minecraft:grass_block")),
+                (
+                    "Properties",
+                    Tag::compound([("snowy", string("false"))]),
+                ),
+            ]))
         );
         assert_eq!(back.extra.carried, grass);
         let log = registry

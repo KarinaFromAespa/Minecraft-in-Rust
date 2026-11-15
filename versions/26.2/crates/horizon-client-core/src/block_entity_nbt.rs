@@ -498,7 +498,9 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
                 "blockState",
                 match tag.get("blockState") {
                     Some(t @ (Tag::String(_) | Tag::Compound(_))) => t.clone(),
-                    _ => string("minecraft:air"),
+                    // 26.2's BlockState.CODEC is the map form; a bare name
+                    // is 26.3's codec change.
+                    _ => Tag::compound([("Name", string("minecraft:air"))]),
                 },
             );
             // Direction.LEGACY_ID_CODEC: the 3D data value as a byte.
@@ -901,7 +903,12 @@ mod tests {
         assert_eq!(out.get("source"), Some(&Tag::Byte(0)));
         let fresh = canon("{id:\"minecraft:piston\",x:1,y:2,z:3}");
         assert_eq!(fresh.get("facing"), Some(&Tag::Byte(0)));
-        assert_eq!(fresh.get("blockState"), Some(&string("minecraft:air")));
+        // 26.2's BlockState.CODEC is the map form; the bare-name form is
+        // 26.3's codec change.
+        assert_eq!(
+            fresh.get("blockState"),
+            Some(&Tag::compound([("Name", string("minecraft:air"))]))
+        );
     }
 
     #[test]

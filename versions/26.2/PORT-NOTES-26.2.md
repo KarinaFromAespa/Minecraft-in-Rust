@@ -3136,3 +3136,84 @@ gaps, the next work item:
 
 Run logs: /tmp/save-roundtrip-local3.log (full), control.log at
 /tmp/hzrt1ylm0m8y/control.log. Run 3 took 3m38s with the build cached.
+
+## save_roundtrip gaps: diagnosis corrected + palette fix (2026-11-15)
+
+Decomposing the 2962 by stage, the earlier "resave writes no block
+entities" reading was wrong. The counts: 321 NBT-compare diffs, 79
+VANILLA VIEW diffs, 2562 vanilla-log problem lines (2400 "Recoverable
+errors when loading section" + 79 "Failed to create block entity" + 77
+IllegalStateException + 2 AirBlock/ClassCastException + 4 EntityStorage
+serialization errors). Horizon DOES write block entities — vanilla tries
+to create them when loading H — but the blocks at those positions are
+air in H's save because the palette "Not a map" errors made vanilla
+fall back to defaults. The stage-3 NBT compare shows NO block-entity
+diffs (only ignored timer diffs): Horizon's written block-entity NBT
+already matches vanilla's exactly. The 79 VANILLA VIEW diffs and the
+"Failed to create block entity" errors are all downstream of the
+palette bug.
+
+Root cause — a 26.3-only codec change the save path never ported:
+26.2's BlockState.CODEC is the map form ({Name, Properties}) for every
+state (BlockState.java:10: `codec(...).stable()`). 26.3 added the
+string-or-map codec (CONSTANT_OR_DISPATCH_CODEC: default states as a
+bare block name). The Rust save path implemented the 26.3 codec in two
+places, and vanilla 26.2 rejects bare strings in palettes ("Not a
+map"). H's palettes held 7,789 bare-string entries vs 14,782 maps;
+V0's held 22,136 maps, 0 strings.
+
+Fix (batch 1, Rust): palettes and entity block states now always write
+the map form. `save.rs` encode_with: palette entries are always
+`s.to_nbt()` (None arm: the air map); the now-dead
+`SaveTables.default_state` field is removed. `entity_nbt.rs`
+state_to_nbt: same fix, comment corrected (the old comment claimed the
+26.3 codec and the 26.3 `{id, properties}` form). `game/tnt.rs`
+block_state_nbt: the None arm resolves the TNT default state through
+the registry instead of a bare string. `block_entity_nbt.rs`: the
+piston blockState fallback is the air map. The read path
+(state_from_nbt, BlockState::from_nbt) still accepts both forms — only
+the write path changed. Biome palettes stay bare strings: vanilla's
+biome palette IS a list of registry-name strings.
+
+Harness fixes (batch 2, surgical, in test_save_roundtrip_parity.py):
+- Heightmaps on promoted chunks: the 44 `carvers`-status chunks have
+  no heightmaps in v0 (Horizon finishing them computes the four
+  regular ones), so the diff is presence-only, not a value
+  disagreement. The promoted relabeling now also relabels
+  `chunk.Heightmaps.<name>` paths, but ONLY when the vanilla value is
+  None; value diffs still fail. The IGNORED promoted pattern widens
+  from the two `_WG` heightmaps to `Heightmaps.\w+`. Verified offline
+  against the old run's saved worlds: heightmap diffs 176 -> 0
+  unexplained (189x4 now ignored under chunk.promoted, the 145 blank
+  ones included).
+- DespawnDelay: added to the entity ignore pattern ("entity simulation
+  advances"). Proven exact: v0 level.dat Time=842, H Time=979 — 137
+  ticks, exactly the DespawnDelay drift (47378-47241=137).
+
+Offline re-compare of the old run's worlds with the harness fixes:
+unexplained NBT diffs 321 -> 144 (141 blocks + falling_block
+BlockState + block_display block_state + version_history), all
+Rust-side and all addressed by batch 1 except version_history (next
+batch). The full harness re-run after the rebuild is the real
+verification.
+
+Unit-test fallout of the codec fix (all in the 26.3 codec's shape):
+six tests pinned the bare-string form and were updated to the map form
+— falling_decode_absent_state_saves_actual_sand_without_raw,
+falling_decode_modern_boundary_keeps_shared_legacy_reader (which also
+exposed a pre-existing wrong expectation: its {Name: gravel} case
+expected sand, but the shared reader decodes it as gravel, per vanilla's
+BlockState.CODEC — fixed to gravel), the enderman carriedBlockState
+assertion (grass_block's default state carries Properties
+{snowy: false}, which the map form now shows), the piston blockState
+fallback, and the two TNT block_state tests (saved_block_state... also
+had its unstable-TNT expectation in the 26.3 {id, properties} form).
+Suites after the fix: save:: 82 passed, entity_nbt:: 128 passed,
+block_entity_nbt:: 13 passed, tnt:: 16 passed. Five failures remain,
+all verified pre-existing on the clean base tree (04328e5f, via
+stash): save:: a_chunk_from_before_1_18_is_brought_to_the_current_layout
+(blending_data), save:: older_records_of_a_current_world_upgrade_as_they_are_read
+(palette id), entity_nbt:: frame_missing_facing_loads_down_and_valid_directions_round_trip
+(item_frame_from_nbt returns None), and the two Silent-potion sound
+tests in tnt.rs. None is touched by this change; all are pre-existing
+test debt in other subsystems.

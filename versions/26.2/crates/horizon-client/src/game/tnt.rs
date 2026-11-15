@@ -50,10 +50,19 @@ impl PrimedTnt {
         &self,
         registry: &horizon_world::registry::BlockRegistry,
     ) -> horizon_world::nbt::Tag {
-        self.block_state.map_or_else(
-            || horizon_world::nbt::Tag::String("minecraft:tnt".into()),
-            |state| horizon_client::entity_nbt::state_to_nbt(registry, state),
-        )
+        // None is the default TNT state, written in 26.2's map form like
+        // every other state (`BlockState.CODEC` has no bare-name form).
+        let state = self
+            .block_state
+            .or_else(|| registry.default_state("minecraft:tnt"));
+        match state {
+            Some(state) => horizon_client::entity_nbt::state_to_nbt(registry, state),
+            None => horizon_world::chunk::BlockState {
+                name: "minecraft:tnt".to_string(),
+                properties: Default::default(),
+            }
+            .to_nbt(),
+        }
     }
 
     /// `EntityTypes.TNT`'s `sized(0.98F, 0.98F)`, widened from the float.
@@ -829,10 +838,22 @@ mod tests {
             block_state: Some(BlockStateId(1)),
         };
         let raw = Tag::compound([("block_state", Tag::String("audit_missing:block".into()))]);
+        // 26.2's BlockState.CODEC is the map form for every state; the
+        // bare-name form for default states and the `id`/`properties`
+        // keys are 26.3's codec.
+        let stone = Tag::compound([("Name", Tag::String("minecraft:stone".into()))]);
+        let unstable_saved = Tag::compound([
+            ("Name", Tag::String("minecraft:tnt".into())),
+            (
+                "Properties",
+                Tag::compound([("unstable", Tag::String("true".into()))]),
+            ),
+        ]);
+        let tnt_default = Tag::compound([("Name", Tag::String("minecraft:tnt".into()))]);
         for (state, expected) in [
-            (Some(BlockStateId(1)), Tag::String("minecraft:stone".into())),
-            (Some(BlockStateId(2)), unstable),
-            (None, Tag::String("minecraft:tnt".into())),
+            (Some(BlockStateId(1)), stone),
+            (Some(BlockStateId(2)), unstable_saved),
+            (None, tnt_default),
         ] {
             tnt.block_state = state;
             let saved = horizon_client::entity_nbt::tnt_to_nbt(
@@ -1406,7 +1427,10 @@ mod tests {
             assert!(t.no_gravity);
             assert_eq!(t.power, 2.5);
             let state = t.block_state_nbt(game.pack.assets.registry);
-            assert_eq!(state, Tag::String("minecraft:stone".into()));
+            assert_eq!(
+                state,
+                Tag::compound([("Name", Tag::String("minecraft:stone".into()))])
+            );
             let saved = crate::entity_nbt::tnt_to_nbt(
                 t.position,
                 t.velocity,
@@ -1427,11 +1451,20 @@ mod tests {
                 "CustomName",
                 "Tags",
                 "Motion",
-                "block_state",
                 "explosion_power",
             ] {
                 assert_eq!(saved.get(field), tag.get(field), "{field}");
             }
+            // The input's bare-string block_state loads (the reader accepts
+            // it), but the save writes 26.2's map form.
+            assert_eq!(
+                saved.get("block_state"),
+                Some(&Tag::compound([(
+                    "Name",
+                    Tag::String("minecraft:stone".into())
+                )])),
+                "block_state"
+            );
         }
     }
 

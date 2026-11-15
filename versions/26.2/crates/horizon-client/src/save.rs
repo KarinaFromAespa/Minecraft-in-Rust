@@ -430,8 +430,6 @@ pub struct SaveTables {
     /// Block registry IDs (`BlockId`, scheduled tick types) in registry order.
     block_names: Vec<String>,
     block_ids: HashMap<String, u16>,
-    /// Default state of each state's block, to write vanilla's short palette form.
-    default_state: Vec<bool>,
     block_entity: Vec<bool>,
     heightmaps: crate::assets::Properties,
     air: u32,
@@ -478,7 +476,6 @@ impl SaveTables {
     pub fn new(assets: &crate::assets::Assets) -> Self {
         let registry = assets.registry;
         let mut block_names: Vec<String> = Vec::new();
-        let mut default_state = Vec::with_capacity(registry.len());
         for id in 0..registry.len() {
             let state = registry
                 .state(BlockStateId(id as u32))
@@ -486,8 +483,6 @@ impl SaveTables {
             if block_names.last() != Some(&state.name) {
                 block_names.push(state.name.clone());
             }
-            default_state
-                .push(registry.default_state(&state.name) == Some(BlockStateId(id as u32)));
         }
         let block_ids = block_names
             .iter()
@@ -497,7 +492,6 @@ impl SaveTables {
         Self {
             block_names,
             block_ids,
-            default_state,
             block_entity: Vec::new(),
             heightmaps: assets.properties.clone(),
             air: registry.default_state("minecraft:air").map_or(0, |s| s.0),
@@ -512,7 +506,6 @@ impl SaveTables {
         Self {
             block_names: Vec::new(),
             block_ids: HashMap::new(),
-            default_state: Vec::new(),
             block_entity: Vec::new(),
             heightmaps,
             air: 0,
@@ -1466,18 +1459,18 @@ pub fn encode_with(
                     .palette
                     .iter()
                     .map(|&id| {
-                        let state = registry.state(BlockStateId(id));
-                        match state {
-                            // BlockState.CODEC: the block name for default states.
-                            Some(s)
-                                if tables.is_some_and(|t| {
-                                    t.default_state.get(id as usize) == Some(&true)
-                                }) =>
-                            {
-                                string(&s.name)
-                            }
+                        // 26.2's BlockState.CODEC is the map form
+                        // (`Name`/`Properties`) for every state. The bare-name
+                        // short form for default states is 26.3's codec
+                        // change; vanilla 26.2 rejects it in the palette
+                        // ("Not a map", falling back to air).
+                        match registry.state(BlockStateId(id)) {
                             Some(s) => s.to_nbt(),
-                            None => string("minecraft:air"),
+                            None => BlockState {
+                                name: "minecraft:air".to_string(),
+                                properties: Default::default(),
+                            }
+                            .to_nbt(),
                         }
                     })
                     .collect(),
