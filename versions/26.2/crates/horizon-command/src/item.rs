@@ -109,7 +109,7 @@ fn enchantment_map(t: &Tag, reg: &Registries) -> Result<(), String> {
         match parse_identifier(&raw) {
             Some(id) if reg.ids("minecraft:enchantment").contains(&id) => {}
             Some(id) => entry_errors.push(format!(
-                "Failed to get element {id} from registry minecraft:enchantment"
+                "Failed to get element {id}"
             )),
             None => entry_errors.push(format!("Not a valid resource location: {raw}")),
         }

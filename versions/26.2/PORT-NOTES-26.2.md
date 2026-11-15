@@ -2761,3 +2761,20 @@ differs), the onLand/onPlace/useWithoutItem calls
 wire-connection rule (the Rust already is 26.2's static
 form), and the per-block codecs (26.2 has them, 26.3
 removed them — unmodelled).
+
+## Rank 3 — bucket D batch 7: 162/177 (2026-11-15)
+
+433 Codecs: RegistryFileCodec's unknown-element error
+is 26.2's bare form ("Failed to get element {id}";
+26.3 appends " from registry ...") — fixed in codec.rs
+and item.rs, with the inline-loot test's expectation.
+RangeSlotSource requires `source` in 26.2 (an entity or
+block-entity target; "container" is not one — 26.3 made
+the field optional with a container default), so the
+slot_range check now requires and validates it. Verified
+no-change: the loot-condition combinators (the Rust
+already requires inline lists/direct terms, which is
+26.2's DIRECT_CODEC form), the holder-set homogeneity
+check (the Rust does not check holder lists — a
+documented partial-check gap), and the builder/entry
+re-shapes.

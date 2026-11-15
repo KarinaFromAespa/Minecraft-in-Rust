@@ -3,7 +3,7 @@
 //! `HolderSet<LootTable>`, so an id the registry does not hold fails the
 //! parse. The command never runs, an `execute store` around it stores
 //! nothing and no item is given
-//! (tools/test_inline_loot_reference_parity.py measures the same on vanilla 26.3).
+//! (tools/test_inline_loot_reference_parity.py measures the same on vanilla 26.2).
 use super::*;
 use horizon_client::chunk::Chunk;
 use horizon_core::position::ChunkPos;
@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 const MISSING_MESSAGE: &str = "Failed to parse structure: Failed to parse either. First: Not a tag id; \
      Second: Failed to parse either. First: Not a list: \"parity:il_none\"; \
-     Second: Failed to get element parity:il_none from registry minecraft:loot_table";
+     Second: Failed to get element parity:il_none";
 
 fn game() -> Game<'static> {
     let root = std::path::PathBuf::from(

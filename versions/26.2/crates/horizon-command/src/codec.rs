@@ -193,8 +193,25 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                     }
                 } else if id == "minecraft:slot_range" {
                     // RangeSlotSource.MAP_CODEC uses the global SlotRanges.CODEC,
-                    // independently of the eventual target inventory's size.
-                    require(map, t, &["slots"])?;
+                    // independently of the eventual target inventory's size. 26.2's
+                    // codec requires `source` (`LootContextArg.ENTITY_OR_BLOCK`: an
+                    // entity or block-entity target); 26.3 made it optional,
+                    // defaulting to the container.
+                    require(map, t, &["slots", "source"])?;
+                    let source = get(map, "source").expect("required source");
+                    let source = as_string(source).ok_or_else(|| "Not a string".to_owned())?;
+                    if !matches!(
+                        source.as_str(),
+                        "this"
+                            | "attacker"
+                            | "direct_attacker"
+                            | "attacking_player"
+                            | "target_entity"
+                            | "interacting_entity"
+                            | "block_entity"
+                    ) {
+                        return Err(format!("Unknown element id: {source}"));
+                    }
                     let value = get(map, "slots").expect("required slots");
                     let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
                     if !slot_ranges().iter().any(|(known, _)| known == &name) {
@@ -299,7 +316,7 @@ fn loot_table_holder_set(t: &Tag, reg: &Registries) -> Result<(), String> {
                 "Not a tag id".into(),
                 either(
                     not_list(t),
-                    format!("Failed to get element {id} from registry minecraft:loot_table"),
+                    format!("Failed to get element {id}"),
                 ),
             ))
         }
@@ -423,7 +440,7 @@ mod slot_range_tests {
     fn inline_range_names_use_the_global_slot_registry() {
         let reg = Registries::default();
         for name in ["container.0", "container.53", "container.*", "hotbar.8"] {
-            let input = format!(r#"{{type:"minecraft:slot_range",slots:"{name}"}}"#);
+            let input = format!(r#"{{type:"minecraft:slot_range",source:"this",slots:"{name}"}}"#);
             let mut reader = Reader::new(&input);
             assert!(
                 resource_or_id(&mut reader, &reg, "minecraft:slot_source").is_ok(),
@@ -432,7 +449,7 @@ mod slot_range_tests {
             assert_eq!(reader.cursor, input.len());
         }
         for name in ["container.54", "container.99"] {
-            let input = format!(r#"{{type:"minecraft:slot_range",slots:"{name}"}}"#);
+            let input = format!(r#"{{type:"minecraft:slot_range",source:"block_entity",slots:"{name}"}}"#);
             let mut reader = Reader::new(&input);
             assert!(
                 resource_or_id(&mut reader, &reg, "minecraft:slot_source").is_err(),
@@ -448,5 +465,46 @@ mod slot_range_tests {
                 ))
             );
         }
+    }
+
+    #[test]
+    fn a_slot_range_needs_its_source_in_26_2() {
+        let reg = Registries::default();
+        let decode_text = |text: &str| {
+            let (raw, _) = horizon_world::nbt::parse_snbt(text).unwrap();
+            decode("minecraft:slot_source", &raw, &reg)
+        };
+        // 26.2's RangeSlotSource requires `source`; 26.3 made it optional.
+        assert_eq!(
+            decode_text(r#"{type:"minecraft:slot_range",slots:"container.0"}"#),
+            Err(
+                either(
+                    r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
+                    either(
+                        "Not a string".into(),
+                        either(
+                            r#"Not a list: {slots:"container.0",type:"minecraft:slot_range"}"#.into(),
+                            r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        // An unknown source is the id-resolver codec's error.
+        assert_eq!(
+            decode_text(r#"{type:"minecraft:slot_range",source:"container",slots:"container.0"}"#),
+            Err(
+                either(
+                    "Unknown element id: container".into(),
+                    either(
+                        "Not a string".into(),
+                        either(
+                            r#"Not a list: {slots:"container.0",source:"container",type:"minecraft:slot_range"}"#.into(),
+                            "Unknown element id: container".into(),
+                        ),
+                    ),
+                ),
+            ),
+        );
     }
 }
