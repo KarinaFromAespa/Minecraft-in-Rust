@@ -1,6 +1,6 @@
 //! ResourceOrIdArgument and the data-fixer-upper decoding of inline values
-//! commands accept (loot predicates, item modifiers, slot sources, context
-//! providers, dialogs), reproducing the codec error messages vanilla reports.
+//! commands accept (loot predicates, item modifiers, slot sources,
+//! dialogs), reproducing the codec error messages vanilla reports.
 use super::args::{Registries, is_id_char, parse_identifier, slot_ranges};
 use super::{CmdResult, CommandError, Reader};
 use horizon_world::nbt::{Compound, JavaString, Tag};
@@ -77,15 +77,15 @@ fn require(map: &Compound, t: &Tag, keys: &[&str]) -> Result<(), String> {
         Err(missing.join("; "))
     }
 }
-fn element_or_list(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Result<(), String> {
+
+/// `Codec.withAlternative(TYPED_CODEC, INLINE_CODEC)`: a single typed element
+/// or a list of them, with the either error 26.2 reports when both fail.
+/// 26.2 has no holder registry for these codecs, so `#tag` references are
+/// not admitted (26.3's holder-set form is).
+fn with_alternative(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Result<(), String> {
     let first = match element(t) {
         Ok(()) => return Ok(()),
         Err(e) => e,
-    };
-    let tag_ref = match as_string(t) {
-        Some(s) if s.starts_with('#') => return Ok(()),
-        Some(_) => "Not a tag id".to_owned(),
-        None => "Not a string".to_owned(),
     };
     let list = match t {
         Tag::List(items) => {
@@ -97,8 +97,7 @@ fn element_or_list(t: &Tag, element: &dyn Fn(&Tag) -> Result<(), String>) -> Res
         }
         _ => not_list(t),
     };
-    let last = element(t).err().unwrap_or_default();
-    Err(either(first, either(tag_ref, either(list, last))))
+    Err(either(first, list))
 }
 
 /// CompositeLootItemCondition.createCodec / InvertedLootItemCondition:
@@ -137,10 +136,10 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
                 predicate_fields(id, map, t, reg)
             })
         }
-        "minecraft:item_modifier" => element_or_list(t, &|x| {
+        "minecraft:item_modifier" => with_alternative(t, &|x| {
             dispatch(x, reg, "minecraft:loot_function_type", &|_, _, _| Ok(()))
         }),
-        "minecraft:slot_source" => element_or_list(t, &|x| {
+        "minecraft:slot_source" => with_alternative(t, &|x| {
             dispatch(x, reg, "minecraft:slot_source_type", &|id, map, t| {
                 if id == "minecraft:contents" {
                     require(map, t, &["component"])?;
@@ -394,8 +393,8 @@ mod contents_component_tests {
             ]);
             let result = decode("minecraft:slot_source", &raw, &reg);
             if component == "damage" {
-                // Exact outer codec error independently captured from Java.
-                assert_eq!(result, Err(r#"Failed to parse either. First: No items in component; Second: Failed to parse either. First: Not a string; Second: Failed to parse either. First: Not a list: {component:"damage",slot_source:{slots:"container.0",type:"slot_range"},type:"contents"}; Second: No items in component"#.into()));
+                // 26.2's withAlternative error: either(typed, inline-list).
+                assert_eq!(result, Err(r#"Failed to parse either. First: No items in component; Second: Not a list: {component:"damage",slot_source:{slots:"container.0",type:"slot_range"},type:"contents"}"#.into()));
             } else {
                 assert_eq!(result, Ok(()));
             }
@@ -430,10 +429,7 @@ mod slot_range_tests {
             let message = format!("Unknown element name:{name}");
             assert_eq!(
                 decode("minecraft:slot_source", &raw, &reg),
-                Err(either(
-                    message.clone(),
-                    either("Not a string".into(), either(not_list(&raw), message))
-                ))
+                Err(either(message.clone(), not_list(&raw)))
             );
         }
     }
@@ -448,34 +444,18 @@ mod slot_range_tests {
         // 26.2's RangeSlotSource requires `source`; 26.3 made it optional.
         assert_eq!(
             decode_text(r#"{type:"minecraft:slot_range",slots:"container.0"}"#),
-            Err(
-                either(
-                    r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
-                    either(
-                        "Not a string".into(),
-                        either(
-                            r#"Not a list: {slots:"container.0",type:"minecraft:slot_range"}"#.into(),
-                            r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
-                        ),
-                    ),
-                ),
-            ),
+            Err(either(
+                r#"No key source in MapLike[{slots:"container.0",type:"minecraft:slot_range"}]"#.into(),
+                r#"Not a list: {slots:"container.0",type:"minecraft:slot_range"}"#.into(),
+            )),
         );
         // An unknown source is the id-resolver codec's error.
         assert_eq!(
             decode_text(r#"{type:"minecraft:slot_range",source:"container",slots:"container.0"}"#),
-            Err(
-                either(
-                    "Unknown element id: container".into(),
-                    either(
-                        "Not a string".into(),
-                        either(
-                            r#"Not a list: {slots:"container.0",source:"container",type:"minecraft:slot_range"}"#.into(),
-                            "Unknown element id: container".into(),
-                        ),
-                    ),
-                ),
-            ),
+            Err(either(
+                "Unknown element id: container".into(),
+                r#"Not a list: {slots:"container.0",source:"container",type:"minecraft:slot_range"}"#.into(),
+            )),
         );
     }
 }

@@ -2826,3 +2826,15 @@ ROOT_CODEC vs DIRECT_CODEC decode identically
 (DFU withAlternative is either + xmap unwrap), so
 the Rust's either-errors stand; /place feature
 already uses the 26.2 ResKey form.
+
+504 ContentsSlotSource: 26.2 has no
+minecraft:slot_source registry and no
+SlotSourceArgument — SlotSources.CODEC is
+withAlternative(typed, inline-list), not a holder
+set. The codec's holder-set helper is replaced by
+a withAlternative helper (no #tag, 2-part either
+error) for the slot_source and item_modifier arms
+alike; the three slot_source tests are re-pinned to
+the 2-part errors. The removed classes
+(ArrayItemProvider, GrowableMutableContainer,
+ComponentSlotCollection) have no Rust references.
