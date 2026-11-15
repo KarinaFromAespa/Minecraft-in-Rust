@@ -1,0 +1,68 @@
+{
+  "closed": [
+    {
+      "id": 430,
+      "module": "crates/horizon-world/src/worldgen/dripstone.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SpeleothemClusterFeature + LargeDripstoneFeature are 26.3 records vs 26.2 classes with a configuration object: place/placeColumn/getSpeleothemHeight/canPlacePool/replaceBlocksWithBaseBlocks/getChanceOfStalagmiteOrStalactite bodies are identical modulo this.x -> config.x() (config threaded as an extra parameter). LargeDripstoneFeature.place + isSuitableForWind follow the same pattern (config param). No behaviour change; the Rust ports the shared bodies."
+    },
+    {
+      "id": 435,
+      "module": "crates/horizon-client-render/src/gfx/submit.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "Vanilla CommandEncoder is GPU plumbing (RenderPearl/Blaze3D command recording); the Rust uses wgpu::CommandEncoder and only mentions vanilla's in a comment. No port of the class exists."
+    },
+    {
+      "id": 452,
+      "module": "crates/horizon-client-render/src/gfx/entity_outline.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "GpuFormat/GpuFormat$ComponentType enum churn (values/init/componentType re-shaped); the Rust only cites GpuFormat.RGBA8_UNORM in a comment. No port of the enum."
+    },
+    {
+      "id": 463,
+      "module": "widely named: com/mojang/blaze3d/pipeline",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "BlendFunction record ctor/accessor re-shape (added/removed <init>/alpha/color, equals/hashCode/toString); every Rust mention is a doc citation (TRANSLUCENT/INVERT/ADDITIVE/OVERLAY) \u2014 no Rust code ports the record."
+    },
+    {
+      "id": 468,
+      "module": "crates/horizon-client/src/game/debug_lines.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SectionRenderDispatcher (+RenderSectionBufferSlice record re-shape) and EntitySectionStorage changes are GPU/entity-section internals; the Rust only cites getStats/count in comments. No port of the changed methods."
+    },
+    {
+      "id": 487,
+      "module": "crates/horizon-world/src/loot/odds.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ApplyBonusCount: only the condition form (Optional<Holder<LootItemCondition>> -> List<LootItemCondition>) and getOptional -> getOptionalParameter rename; run + the three bonus formulas byte-identical. MatchTool.test: the same rename only."
+    },
+    {
+      "id": 498,
+      "module": "crates/horizon-world/src/worldgen/iceberg.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "IcebergFeature is a 26.3 record vs a 26.2 Feature<BlockStateConfiguration> class; place takes a FeaturePlaceContext instead of direct args and reads the state from the config \u2014 the place body (sea-level origin, snowOnTop 0.7, shape angle/ellipse) is identical."
+    },
+    {
+      "id": 500,
+      "module": "crates/horizon-world/src/worldgen/tree/trunk.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "TrunkPlacer: the TreeFeature parameter becomes TreeConfiguration; provider access changes form (tree.trunkProvider().value() -> config.trunkProvider) with the same value; placeTrunk/placeLog/placeLogIfFree/placeBelowTrunkBlock bodies identical."
+    },
+    {
+      "id": 502,
+      "module": "crates/horizon-client-render/src/gfx/animate.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SpriteContents$AnimationState: RenderPearl -> Blaze3D import paths and setUniform -> bindTexture renames in drawToAtlas; close() byte-identical; AnimatedTexture.createAnimationState a signature re-shape. GPU plumbing only."
+    }
+  ],
+  "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
+}

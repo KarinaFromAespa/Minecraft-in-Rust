@@ -2297,3 +2297,26 @@ behaviour/26.2 merged to main: rank 1 (7/7) + rank 2 (410/410),
 (main@08403e7f); it is the first run to measure item 127's noise port.
 Run 43653524277 (409/410 tree dbeb88e3) still in flight. Ranks 3–5
 (234 items) continue on behaviour/26.2.
+
+## Rank 3 started (2026-11-15) — bucket A batch 1: 9/177
+
+Triage (same method-intersection as rank 2): A 90 / B 63 / D 24;
+182 changed-named hits in B. Script + output at
+~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}.
+
+Batch 1 (all no-change, verified against the jars): 430 dripstone
+(record→class + config threading, bodies identical), 435 submit
+(vanilla CommandEncoder is GPU plumbing; Rust uses wgpu's), 452
+entity_outline (GpuFormat enum churn, comment-only Rust mention), 463
+BlendFunction (record re-shape, doc citations only), 468 debug_lines
+(comment-only mentions), 487 loot odds (condition-form + getOptional
+rename; formulas identical), 498 iceberg (record→class + context,
+place body identical), 500 trunk placers (TreeFeature→TreeConfiguration
+param swap, bodies identical), 502 sprite animation (RenderPearl→
+Blaze3D renames; close byte-identical).
+
+Item 451 (scoreboard/team commands) is NOT a no-change: the Rust ports
+the 26.3 CommandResponseTracker form (Tracker::track/mark + send) and
+26.2 uses manual one/many branching on names.size() with different
+counts/returns (e.g. setScore returns value * names.size()). Deferred
+to its own port task.
