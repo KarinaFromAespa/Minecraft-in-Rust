@@ -1,18 +1,25 @@
 {
   "schema": "profile/1",
   "release": "26.2",
-  "commit": "b3e0ad5e20749fa637225597f8db39c590854c30",
-  "published_at": "2026-11-15T20:41:42Z",
+  "commit": "a1602d7a66937e66c1b99c86b6cc157c66ede161",
+  "published_at": "2026-11-15T23:22:26Z",
   "sources": [
     "/home/runner/work/Minecraft-in-Rust/Minecraft-in-Rust/.horizon-ports/26.2/.local/parity-runner/state.json"
   ],
   "summary": {
     "total": 23,
-    "pass": 7,
-    "fail": 16,
+    "pass": 14,
+    "fail": 9,
     "other": 0,
     "passing": [
       "block_properties",
+      "datafix",
+      "datafix#1",
+      "datafix#2",
+      "datafix#3",
+      "datafix#4",
+      "datafix#5",
+      "datafix#6",
       "first_person",
       "food",
       "lan",
@@ -25,13 +32,6 @@
       "command_exec",
       "command_parse",
       "component_patch",
-      "datafix",
-      "datafix#1",
-      "datafix#2",
-      "datafix#3",
-      "datafix#4",
-      "datafix#5",
-      "datafix#6",
       "entity_components",
       "hotbar",
       "item_model",
@@ -495,13 +495,13 @@
         "tools/test_block_properties_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T19:01:30",
+      "finished": "2026-11-15T22:01:31",
       "host": "runnervm8axu0",
-      "key": "73ad80508d1ad8c0d7d5e4f75957448a4fffad852a85f2f38c9234782e7b22d4",
+      "key": "37ce33154dce129517dcc11a79a03b0990681548513cd4c3b3461c02cea1a869",
       "oracle_reuse": true,
-      "peak_bytes": 1811226624,
+      "peak_bytes": 1789628416,
       "rounds": 1,
-      "seconds": 150.4,
+      "seconds": 139.8,
       "status": "pass"
     },
     "chunk_generation": {
@@ -938,14 +938,14 @@
         "tools/test_chunk_generation_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T19:04:10",
+      "finished": "2026-11-15T22:03:48",
       "host": "runnervm8axu0",
-      "key": "1505a36c1a506fb6efda0a43340cfa9184b1dd3f543aa76f0d94f79cbc66530a",
+      "key": "81098478476a669c57d60830e1677cddf2d8f791529196bbcd0f1c1b9ca4ce1c",
       "oracle_reuse": true,
-      "peak_bytes": 3285757952,
+      "peak_bytes": 3044130816,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 79.9,
+      "seconds": 68.5,
       "status": "fail"
     },
     "command_exec": {
@@ -3570,14 +3570,14 @@
         "tools/vehicle_kill_corpus.py",
         "tools/wolf_anger_corpus.py"
       ],
-      "finished": "2026-11-15T19:17:47",
+      "finished": "2026-11-15T22:16:09",
       "host": "runnervm8axu0",
-      "key": "de61dc982b5b059787de683dd8cfa1226bf6afc68553a0dfbb26d0a4241d9461",
+      "key": "2ae1a083cd22b51564b4dd2137cd2e2f637ef716ccb5f91af0bd573069cbcc6a",
       "oracle_reuse": true,
-      "peak_bytes": 1834553344,
+      "peak_bytes": 1680941056,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 115.0,
+      "seconds": 97.8,
       "status": "fail"
     },
     "command_parse": {
@@ -5351,14 +5351,14 @@
         "tools/test_command_parse_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T19:22:59",
+      "finished": "2026-11-15T22:20:59",
       "host": "runnervm8axu0",
-      "key": "49336b63c7b0fc6e98422d34373e6c5b4db1f099da09c0a8b8aff5201fb4f9e0",
+      "key": "55c91a3eeaa13d7a6739d009ea20750aec164d3e9c716b0bd3486d6fcf9acaeb",
       "oracle_reuse": true,
-      "peak_bytes": 477241344,
+      "peak_bytes": 503091200,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 18.0,
+      "seconds": 15.2,
       "status": "fail"
     },
     "component_patch": {
@@ -5814,18 +5814,18 @@
         "tools/test_component_patch_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T19:23:15",
+      "finished": "2026-11-15T22:21:12",
       "host": "runnervm8axu0",
-      "key": "7bb92a7e6935d42cbc790adf491979e5305218c7c3754a456955560d3356fb04",
+      "key": "d54a7a3bc3862b4c7e948b4cdc337531c9f15e8d687ef0707a13bc8e0ad1ecc0",
       "oracle_reuse": true,
-      "peak_bytes": 375242752,
+      "peak_bytes": 378052608,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 7.2,
+      "seconds": 6.8,
       "status": "fail"
     },
     "datafix": {
-      "status": "fail",
+      "status": "pass",
       "shards": 6
     },
     "datafix#1": {
@@ -6271,15 +6271,15 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:03:24",
+      "finished": "2026-11-15T22:56:25",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
-      "oracle_reuse": true,
-      "peak_bytes": 1889349632,
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
+      "oracle_reuse": false,
+      "peak_bytes": 1983795200,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 608.6,
-      "status": "fail"
+      "seconds": 312.4,
+      "status": "pass"
     },
     "datafix#2": {
       "artifacts": [
@@ -6724,15 +6724,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:08:03",
+      "finished": "2026-11-15T22:58:23",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
       "oracle_reuse": true,
-      "peak_bytes": 1894109184,
-      "retried": "reused oracle results",
+      "peak_bytes": 1807790080,
       "rounds": 1,
-      "seconds": 136.9,
-      "status": "fail"
+      "seconds": 116.9,
+      "status": "pass"
     },
     "datafix#3": {
       "artifacts": [
@@ -7177,15 +7176,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:11:37",
+      "finished": "2026-11-15T22:59:52",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
       "oracle_reuse": true,
-      "peak_bytes": 1747542016,
-      "retried": "reused oracle results",
+      "peak_bytes": 1875308544,
       "rounds": 1,
-      "seconds": 105.1,
-      "status": "fail"
+      "seconds": 89.1,
+      "status": "pass"
     },
     "datafix#4": {
       "artifacts": [
@@ -7630,15 +7628,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:15:05",
+      "finished": "2026-11-15T23:01:15",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
       "oracle_reuse": true,
-      "peak_bytes": 1656205312,
-      "retried": "reused oracle results",
+      "peak_bytes": 2036719616,
       "rounds": 1,
-      "seconds": 103.1,
-      "status": "fail"
+      "seconds": 81.9,
+      "status": "pass"
     },
     "datafix#5": {
       "artifacts": [
@@ -8083,15 +8080,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:18:05",
+      "finished": "2026-11-15T23:02:27",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
       "oracle_reuse": true,
-      "peak_bytes": 1641009152,
-      "retried": "reused oracle results",
+      "peak_bytes": 1791361024,
       "rounds": 1,
-      "seconds": 91.1,
-      "status": "fail"
+      "seconds": 72.1,
+      "status": "pass"
     },
     "datafix#6": {
       "artifacts": [
@@ -8536,15 +8532,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:20:55",
+      "finished": "2026-11-15T23:03:34",
       "host": "runnervm8axu0",
-      "key": "eb5f8be4125e474fd6e89aa3634ab587ad90e737e4c743d205052e8f680d278d",
+      "key": "cc42fc9232b1d6184d00eb1a497db3acb306fe6432d96959552a7ebab60f07e5",
       "oracle_reuse": true,
-      "peak_bytes": 1978331136,
-      "retried": "reused oracle results",
+      "peak_bytes": 1559990272,
       "rounds": 1,
-      "seconds": 81.9,
-      "status": "fail"
+      "seconds": 65.7,
+      "status": "pass"
     },
     "entity_components": {
       "artifacts": [],
@@ -8570,11 +8565,11 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:20:56",
+      "finished": "2026-11-15T23:03:35",
       "host": "runnervm8axu0",
       "key": "7b0eb32ccfd799244be84803a9db4fc521137b36c4a1c5d9872ab15e22a69fc3",
       "oracle_reuse": true,
-      "peak_bytes": 36450304,
+      "peak_bytes": 36478976,
       "retried": "reused oracle results",
       "rounds": 1,
       "seconds": 0.4,
@@ -10359,13 +10354,13 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:31:05",
+      "finished": "2026-11-15T23:12:32",
       "host": "runnervm8axu0",
-      "key": "4302fbc7d1d416f0e49471be52053edcbcedf9e4da7998bbeac7160a93ff463c",
+      "key": "75cac4288995267232cc4c14ab62b24f972516e1126f74a884df82381429e17b",
       "oracle_reuse": true,
-      "peak_bytes": 2838163456,
+      "peak_bytes": 2855006208,
       "rounds": 1,
-      "seconds": 608.5,
+      "seconds": 537.2,
       "status": "pass"
     },
     "food": {
@@ -10822,13 +10817,13 @@
         "tools/test_food_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:31:18",
+      "finished": "2026-11-15T23:12:44",
       "host": "runnervm8axu0",
-      "key": "9abf955bb4fc4329fe1dc24f63a9c27f549fa85324ac7632f82b6dfa5b4e68a8",
+      "key": "a4db68dbccf38a084eb8ba1685ab9abbfcd280007d2c9dffbfc869897857d13c",
       "oracle_reuse": true,
-      "peak_bytes": 404189184,
+      "peak_bytes": 386600960,
       "rounds": 1,
-      "seconds": 13.0,
+      "seconds": 10.8,
       "status": "pass"
     },
     "hotbar": {
@@ -12606,14 +12601,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:32:28",
+      "finished": "2026-11-15T23:13:46",
       "host": "runnervm8axu0",
-      "key": "7d44927af51bd38ed262c3264fe17c5c4e1bd8e2fb3273a15253cee1bfb72ffd",
+      "key": "1b8b5eca4e0171efbf076a02d25449de4f1232183be4eb59ad71c7add2947acd",
       "oracle_reuse": true,
-      "peak_bytes": 1154658304,
+      "peak_bytes": 1169805312,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 33.8,
+      "seconds": 30.0,
       "status": "fail"
     },
     "item_model": {
@@ -12663,14 +12658,14 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:32:35",
+      "finished": "2026-11-15T23:13:52",
       "host": "runnervm8axu0",
       "key": "f03da5b40326f300dbf92b49fee1ee83f39fa43dea43f925f68e87d186e58fa7",
       "oracle_reuse": true,
-      "peak_bytes": 260104192,
+      "peak_bytes": 252477440,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 3.2,
+      "seconds": 2.6,
       "status": "fail"
     },
     "lan": {
@@ -14451,13 +14446,13 @@
         "tools/test_model_resolution_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:32:38",
+      "finished": "2026-11-15T23:13:55",
       "host": "runnervm8axu0",
-      "key": "278ad5d7c20ab022029addc8c25930bc72f4cd1a2b939b468fc443ac0be88dbd",
+      "key": "50c5d6ac57c3308ebaa527d13636705fbb1e007a1b19a15c24a9a6c0d8052044",
       "oracle_reuse": true,
-      "peak_bytes": 230662144,
+      "peak_bytes": 229322752,
       "rounds": 1,
-      "seconds": 2.8,
+      "seconds": 2.4,
       "status": "pass"
     },
     "light": {
@@ -16229,13 +16224,13 @@
         "tools/test_light_parity.py",
         "tools/vanilla_world_check.py"
       ],
-      "finished": "2026-11-15T20:33:49",
+      "finished": "2026-11-15T23:15:03",
       "host": "runnervm8axu0",
-      "key": "8840cf48f3f105b5a649169018c1b74a9256152a404641828c9006d090d9688d",
+      "key": "571e4b1a248000e2df27d5fd9e617613ea172402ce800ed164e723bff7308a50",
       "oracle_reuse": true,
-      "peak_bytes": 702803968,
+      "peak_bytes": 612651008,
       "rounds": 1,
-      "seconds": 70.1,
+      "seconds": 68.1,
       "status": "pass"
     },
     "options": {
@@ -18016,14 +18011,14 @@
         "tools/test_options_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:34:46",
+      "finished": "2026-11-15T23:15:55",
       "host": "runnervm8axu0",
-      "key": "a826e88c1aeacfc897e271f0fba36411e36983ea7fd934fa212ca5c17b07ff1e",
+      "key": "9aeda1c981bb2b514ff966ea2d573fc254853af7d989e826197537ddc7d96797",
       "oracle_reuse": true,
-      "peak_bytes": 763092992,
+      "peak_bytes": 763039744,
       "retried": "reused oracle results",
       "rounds": 1,
-      "seconds": 27.4,
+      "seconds": 23.6,
       "status": "fail"
     },
     "resource_pack": {
@@ -19804,13 +19799,13 @@
         "tools/test_resource_pack_parity.py",
         "tools/test_rust_parity.py"
       ],
-      "finished": "2026-11-15T20:35:18",
+      "finished": "2026-11-15T23:16:21",
       "host": "runnervm8axu0",
-      "key": "a1ffb4c89aa1c33fdaa195aaa8a554935d7994b323448083aeeb6ce935f7acb7",
+      "key": "3bb56041fcadc9a3b864c6c5e5eaaf19ad11065c94c39363882ec9e497bc40d1",
       "oracle_reuse": true,
-      "peak_bytes": 464039936,
+      "peak_bytes": 461348864,
       "rounds": 1,
-      "seconds": 31.4,
+      "seconds": 25.4,
       "status": "pass"
     },
     "save_roundtrip": {
@@ -21585,13 +21580,13 @@
         "tools/test_save_roundtrip_parity.py",
         "tools/vanilla_login.py"
       ],
-      "finished": "2026-11-15T20:41:41",
+      "finished": "2026-11-15T23:22:24",
       "host": "runnervm8axu0",
-      "key": "c2e379d486771775a8b375fe39f418f8db0d2eef1c5179182f24534f6a3edf54",
+      "key": "cc184a74315c3fabf9b4f9c64da5dd69de1515e34a0cc8320d4e7b033b623c8e",
       "oracle_reuse": true,
-      "peak_bytes": 5008052224,
+      "peak_bytes": 5061955584,
       "rounds": 1,
-      "seconds": 381.0,
+      "seconds": 362.4,
       "status": "pass"
     },
     "sound_event": {
@@ -21609,11 +21604,11 @@
         "tools/test_rust_parity.py",
         "tools/test_sound_event_parity.py"
       ],
-      "finished": "2026-11-15T20:41:42",
+      "finished": "2026-11-15T23:22:25",
       "host": "runnervm8axu0",
       "key": "3d8c83a85b2d23c6df17f2e295f5b04a4a5462e160463d04466f723da76930fa",
       "oracle_reuse": true,
-      "peak_bytes": 38207488,
+      "peak_bytes": 38080512,
       "retried": "reused oracle results",
       "rounds": 1,
       "seconds": 0.2,

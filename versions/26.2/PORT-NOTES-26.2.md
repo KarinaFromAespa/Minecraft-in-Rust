@@ -3495,3 +3495,20 @@ at 0 differences; D4 needs datafix + save_roundtrip, and save_roundtrip
 is already green, so a green datafix here closes D4's harness leg (the
 stamp quirk still blocks the recorded verdict — see the D4/D5 notes
 above).
+
+## CI run 43766277138 completed — datafix PASSES on CI (2026-11-16)
+
+Run 43766277138 on main@a1602d7a (the datafix merge) completed in
+~1h28m, conclusion success. Profile **8/0/9** — datafix newly passes
+(block_properties, datafix, first_person, food, lan, light,
+resource_pack, save_roundtrip); the ~44,346 datafix differences from
+run 43749313660 are gone (0 across all 6 shards / 41 worlds).
+**D1/D2/D3 pass** (cargo check 0 errors 0 warnings, protocol tests 444
+green, tag audit clean). D4/D5 still read blocked in the recorded
+verdict, but only on the staged-candidate stamp quirk (profile stamped
+for a1602d7a, judge HEAD the staged candidate) — **datafix and
+save_roundtrip are both green in the profile, so D4's harness leg is
+satisfied**; D6 blocked (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43766277138/; the pin's recorded evidence
+(profile.json, delta-verdict.json, ci-out logs) now comes from this
+run, the verdict regenerated locally against the pin.
