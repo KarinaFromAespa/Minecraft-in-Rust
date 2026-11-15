@@ -817,7 +817,9 @@ impl Game<'_> {
     pub(super) fn cmd_schedule(&mut self, id: &str, ctx: &Context) -> R<i32> {
         self.ensure_datapacks();
         if id == "schedule.clear" {
-            let Some(Arg::Resource(name)) = ctx.get("function").cloned() else {
+            // 26.2's /schedule clear takes a greedy string: the scheduled
+            // entry's name, which need not be a function id.
+            let Some(Arg::Str(name)) = ctx.get("function").cloned() else {
                 return Ok(0);
             };
             let before = self.fns.schedule.len();

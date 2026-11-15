@@ -1030,7 +1030,7 @@ fn particle_fields(id: &str) -> &'static [&'static str] {
 }
 /// The particle type's codec over the options (MapCodec field errors, newest first).
 fn particle_options(id: &str, t: &horizon_world::nbt::Tag) -> Result<(), String> {
-    use super::codec::{get, no_key, not_map, snbt};
+    use super::codec::{get, no_key, not_map};
     let horizon_world::nbt::Tag::Compound(map) = t else {
         return Err(not_map(t));
     };
@@ -1047,14 +1047,17 @@ fn particle_options(id: &str, t: &horizon_world::nbt::Tag) -> Result<(), String>
         && let Some(state) = get(map, "block_state")
         && !matches!(state, horizon_world::nbt::Tag::String(_))
     {
-        // withAlternative(BlockState.CODEC, the block id codec).
+        // withAlternative(BlockState.CODEC, the block id codec). 26.2's
+        // BlockState.CODEC (StateHolder.codec) dispatches on `Name` with
+        // the map form {Name, Properties}; 26.3's map form uses `id`.
         let first = match state {
-            horizon_world::nbt::Tag::Compound(_) => {
-                super::codec::either("Not a string".into(), no_key("id", state))
-            }
+            horizon_world::nbt::Tag::Compound(state_map) => match get(state_map, "Name") {
+                Some(horizon_world::nbt::Tag::String(_)) => return Ok(()),
+                Some(_) => "Not a string".to_string(),
+                None => no_key("Name", state),
+            },
             _ => not_map(state),
         };
-        let _ = snbt;
         return Err(super::codec::either(first, "Not a string".into()));
     }
     Ok(())
@@ -1739,12 +1742,10 @@ impl ArgType {
             ArgType::BlockPredicate => super::block::suggest(builder, reg, true),
             ArgType::Resource(kind) => suggest_resources(builder, reg.ids(kind.registry()), ""),
             ArgType::Res(registry) | ArgType::ResKey(registry) => {
-                // RecipeCommand filters its keys to learnable recipes.
-                if *registry == "minecraft:recipe" && !reg.learnable_recipes.is_empty() {
-                    suggest_resources(builder, &reg.learnable_recipes, "")
-                } else {
-                    suggest_resources(builder, reg.ids(registry), "")
-                }
+                // 26.2 has no minecraft:recipe registry (recipes live in
+                // the RecipeManager, not a registry lookup), so the lookup
+                // finds nothing and the recipe argument suggests nothing.
+                suggest_resources(builder, reg.ids(registry), "")
             }
             ArgType::ResOrTag(registry) | ArgType::ResOrTagKey(registry) => {
                 suggest_resources(builder, reg.tags(registry), "#");

@@ -36,19 +36,23 @@ pub fn as_string(t: &Tag) -> Option<String> {
     }
 }
 
-/// KeyDispatchCodec over a type registry: the map, its `type` and the
-/// type's own fields (`fields` checks them).
+/// KeyDispatchCodec over a type registry: the map, its dispatch key and the
+/// type's own fields (`fields` checks them). 26.2 dispatches loot conditions
+/// on `condition` and loot functions on `function` (LootItemCondition's
+/// TYPED_CODEC and LootItemFunctions' TYPED_CODEC in the 26.2 jar); 26.3
+/// unified both onto `type`, so the key is a parameter here.
 fn dispatch(
     t: &Tag,
     reg: &Registries,
     type_registry: &str,
+    key: &str,
     fields: &dyn Fn(&str, &Compound, &Tag) -> Result<(), String>,
 ) -> Result<(), String> {
     let Tag::Compound(map) = t else {
         return Err(not_map(t));
     };
-    let Some(ty) = get(map, "type") else {
-        return Err(no_key("type", t));
+    let Some(ty) = get(map, key) else {
+        return Err(no_key(key, t));
     };
     let Some(name) = as_string(ty) else {
         return Err("Not a string".into());
@@ -131,16 +135,21 @@ fn predicate_fields(id: &str, map: &Compound, t: &Tag, reg: &Registries) -> Resu
 /// Decode an inline value of a ResourceOrIdArgument registry.
 pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
     match registry {
-        "minecraft:predicate" => {
-            dispatch(t, reg, "minecraft:loot_condition_type", &|id, map, t| {
+        // LootItemCondition.DIRECT_CODEC: withAlternative(TYPED_CODEC,
+        // AllOfCondition.INLINE_CODEC) — a single typed condition or a list
+        // of them, dispatched on `condition`.
+        "minecraft:predicate" => with_alternative(t, &|x| {
+            dispatch(x, reg, "minecraft:loot_condition_type", "condition", &|id, map, t| {
                 predicate_fields(id, map, t, reg)
             })
-        }
+        }),
+        // LootItemFunctions.ROOT_CODEC: withAlternative(TYPED_CODEC,
+        // SequenceFunction.INLINE_CODEC), dispatched on `function`.
         "minecraft:item_modifier" => with_alternative(t, &|x| {
-            dispatch(x, reg, "minecraft:loot_function_type", &|_, _, _| Ok(()))
+            dispatch(x, reg, "minecraft:loot_function_type", "function", &|_, _, _| Ok(()))
         }),
         "minecraft:slot_source" => with_alternative(t, &|x| {
-            dispatch(x, reg, "minecraft:slot_source_type", &|id, map, t| {
+            dispatch(x, reg, "minecraft:slot_source_type", "type", &|id, map, t| {
                 if id == "minecraft:contents" {
                     require(map, t, &["component"])?;
                     let value = get(map, "component").expect("required component");
@@ -192,7 +201,7 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
             })
         }),
         // Dialog types: CommonDialogData's title, then each type's own.
-        "minecraft:dialog" => dispatch(t, reg, "minecraft:dialog_type", &|id, map, t| {
+        "minecraft:dialog" => dispatch(t, reg, "minecraft:dialog_type", "type", &|id, map, t| {
             let own: &[&str] = match id {
                 "minecraft:confirmation" => &["yes", "no"],
                 "minecraft:multi_action" => &["actions"],
@@ -341,6 +350,7 @@ pub fn resource_or_id(reader: &mut Reader, reg: &Registries, registry: &str) -> 
 #[cfg(test)]
 mod predicate_tests {
     use super::*;
+    use super::args::RegistryIds;
 
     #[test]
     fn inline_constant_combinators_require_decodable_children() {
@@ -349,21 +359,93 @@ mod predicate_tests {
             let (tag, _) = horizon_world::nbt::parse_snbt(text).unwrap();
             decode("minecraft:predicate", &tag, &reg)
         };
-        assert!(decode_text(r#"{type:"minecraft:all_of",terms:[{type:"minecraft:inverted",term:{type:"minecraft:any_of",terms:[]}}]}"#).is_ok());
+        assert!(decode_text(r#"{condition:"minecraft:all_of",terms:[{condition:"minecraft:inverted",term:{condition:"minecraft:any_of",terms:[]}}]}"#).is_ok());
+        // 26.2's DIRECT_CODEC is withAlternative(TYPED, INLINE): a missing
+        // field fails the typed branch and the list branch alike.
         assert_eq!(
-            decode_text(r#"{type:"minecraft:all_of"}"#),
-            Err(r#"No key terms in MapLike[{type:"minecraft:all_of"}]"#.into())
+            decode_text(r#"{condition:"minecraft:all_of"}"#),
+            Err(either(
+                r#"No key terms in MapLike[{condition:"minecraft:all_of"}]"#.into(),
+                r#"Not a list: {condition:"minecraft:all_of"}"#.into(),
+            ))
         );
         assert_eq!(
-            decode_text(r#"{type:"minecraft:inverted"}"#),
-            Err(r#"No key term in MapLike[{type:"minecraft:inverted"}]"#.into())
+            decode_text(r#"{condition:"minecraft:inverted"}"#),
+            Err(either(
+                r#"No key term in MapLike[{condition:"minecraft:inverted"}]"#.into(),
+                r#"Not a list: {condition:"minecraft:inverted"}"#.into(),
+            ))
         );
-        for bad in [
-            r#"{type:"minecraft:all_of",terms:[{}]}"#,
-            r#"{type:"minecraft:inverted",term:{}}"#,
+        // A bad nested term fails with the nested either error, wrapped in
+        // the outer either (terms decode with DIRECT_CODEC).
+        let nested = either(
+            "No key condition in MapLike[{}]".into(),
+            "Not a list: {}".into(),
+        );
+        for (bad, outer) in [
+            (
+                r#"{condition:"minecraft:all_of",terms:[{}]}"#,
+                r#"{condition:"minecraft:all_of",terms:[{}]}"#,
+            ),
+            (
+                r#"{condition:"minecraft:inverted",term:{}}"#,
+                r#"{condition:"minecraft:inverted",term:{}}"#,
+            ),
         ] {
-            assert_eq!(decode_text(bad), Err("No key type in MapLike[{}]".into()));
+            assert_eq!(
+                decode_text(bad),
+                Err(either(nested.clone(), format!("Not a list: {outer}")))
+            );
         }
+    }
+
+    #[test]
+    fn predicates_dispatch_on_condition_and_functions_on_function() {
+        let mut reg = Registries::default();
+        reg.by_registry.insert(
+            "minecraft:loot_function_type".to_string(),
+            RegistryIds {
+                ids: vec!["minecraft:set_count".to_string()],
+                tags: vec![],
+            },
+        );
+        let decode_text = |registry: &str, text: &str| {
+            let (tag, _) = horizon_world::nbt::parse_snbt(text).unwrap();
+            decode(registry, &tag, &reg)
+        };
+        assert_eq!(
+            decode_text("minecraft:predicate", "{}"),
+            Err(either(
+                "No key condition in MapLike[{}]".into(),
+                "Not a list: {}".into(),
+            ))
+        );
+        assert_eq!(
+            decode_text("minecraft:predicate", r#"{type:"minecraft:chest",pools:[]}"#),
+            Err(either(
+                r#"No key condition in MapLike[{pools:[],type:"minecraft:chest"}]"#.into(),
+                r#"Not a list: {pools:[],type:"minecraft:chest"}"#.into(),
+            ))
+        );
+        assert_eq!(
+            decode_text("minecraft:item_modifier", "{}"),
+            Err(either(
+                "No key function in MapLike[{}]".into(),
+                "Not a list: {}".into(),
+            ))
+        );
+        assert!(decode_text(
+            "minecraft:item_modifier",
+            r#"{"function":"minecraft:set_count","count":1}"#
+        )
+        .is_ok());
+        assert_eq!(
+            decode_text("minecraft:item_modifier", r#"{"function":"nope"}"#),
+            Err(either(
+                "Unknown registry key in ResourceKey[minecraft:root / minecraft:loot_function_type]: minecraft:nope".into(),
+                r#"Not a list: {function:"nope"}"#.into(),
+            ))
+        );
     }
 }
 
