@@ -2855,3 +2855,9 @@ comment was re-attributed.
 scheduleNarration takes only delay + suppression):
 the narrator crate is already the 26.2 form, no
 change.
+
+556 The whole blockscan package is 26.3-only;
+26.2's SculkBlock.canPlaceGrowth is a direct
+betweenClosed loop counting sensor/shrieker,
+which the Rust already implements exactly — only
+the comment was re-attributed.

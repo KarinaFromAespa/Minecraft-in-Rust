@@ -1189,6 +1189,13 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "NarrationTrigger (MOUSE/KEYBOARD/SYSTEM enum) and NarrationElementOutput.narrationTrigger() are 26.3-only: 26.2's Screen has scheduleNarration(long, boolean) with no trigger parameter, no nextNarrationTriggeredBy field, runNarration(boolean) and updateNarratorStatus(boolean); 26.3 threads the trigger through all of them. The Rust's screen.rs is already the 26.2 form: Output has add/add_lines/nest with no trigger method, ScreenNarration.schedule takes only (delay, ignore_suppression), and the comment already records that 26.2 has no NarrationTrigger. No trigger code anywhere in the narrator crate. Tests: horizon-narrator 19/19."
+    },
+    {
+      "id": 556,
+      "module": "crates/horizon-world/src/worldgen/sculk.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "The whole blockscan package (BlockMatcher, BlockScanUtils, BoxBlockMatcher, OrderedBlockMatcher, FilteredSectionCache) is 26.3-only; 26.2 has no blockscan package at all. 26.3's SculkBlock.canPlaceGrowth uses findBlocksIn + the sculk_growth_inhibitors tag + atMostMatched(2); 26.2's is a direct BlockPos.betweenClosed loop counting SCULK_SENSOR/SCULK_SHRIEKER, false above 2. The Rust's can_place_growth already implements the 26.2 form exactly (air-or-water-source above, the (-4,0,-4)..(4,2,4) box, sensor/shrieker count, false at 3, x-fastest iteration); only its comment named BoxBlockMatcher, now re-attributed to 26.2's direct loop. SculkSpreader is identical between versions. Tests: comment-only change; horizon-world test binary compiles (full lib suite still running in background at close time)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
