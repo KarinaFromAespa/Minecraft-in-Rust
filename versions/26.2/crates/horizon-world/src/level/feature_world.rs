@@ -349,17 +349,11 @@ impl<L: LevelAccess + ?Sized> PlacementContext for LevelFeatureWorld<'_, '_, L> 
                 HeightmapType::OceanFloor | HeightmapType::OceanFloorWg => {
                     self.sim.b.blocks_motion(state)
                 }
-                HeightmapType::MotionBlocking => {
-                    fluid || self.sim.b.blocks_motion(state)
-                }
+                HeightmapType::MotionBlocking => fluid || self.sim.b.blocks_motion(state),
                 HeightmapType::MotionBlockingNoLeaves => {
                     fluid
                         || (self.sim.b.blocks_motion(state)
-                            && !self
-                                .sim
-                                .b
-                                .data(state)
-                                .is(super::classes::Class::Leaves))
+                            && !self.sim.b.data(state).is(super::classes::Class::Leaves))
                 }
             };
             if matches {

@@ -234,11 +234,7 @@ impl ExplorationMap {
             // 26.2, so it matches nothing instead of defaulting.
             destination: match f.get("destination") {
                 None => "minecraft:on_treasure_maps".to_owned(),
-                Some(v) => v
-                    .as_str()
-                    .unwrap_or("")
-                    .trim_start_matches('#')
-                    .to_owned(),
+                Some(v) => v.as_str().unwrap_or("").trim_start_matches('#').to_owned(),
             },
             decoration: f["decoration"]
                 .as_str()

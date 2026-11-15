@@ -92,10 +92,7 @@ fn carving_masks_become_the_carving_mask() {
          sections: [{Y: 0b, block_states: {palette: [{Name: \"minecraft:stone\"}]}}]}",
     );
     update_chunk(&mut chunk, "minecraft:overworld", Some("minecraft:noise"));
-    assert_eq!(
-        chunk.get("carving_mask"),
-        Some(&Tag::LongArray(vec![1, 2]))
-    );
+    assert_eq!(chunk.get("carving_mask"), Some(&Tag::LongArray(vec![1, 2])));
     assert!(chunk.get("CarvingMasks").is_none());
     assert_eq!(chunk.get("DataVersion"), Some(&Tag::Int(CURRENT)));
 }

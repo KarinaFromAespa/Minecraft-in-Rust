@@ -15,11 +15,16 @@ pub enum FallDefinition {
     /// bounce, the fall counts half as far. (26.2 only; 26.3 has no
     /// `BedBlock` landing family.)
     Bed,
-    Honey { volume: f32, pitch: f32 },
+    Honey {
+        volume: f32,
+        pitch: f32,
+    },
     Slime,
     PowderSnow,
     PointedDripstone,
-    Farmland { base_block: String },
+    Farmland {
+        base_block: String,
+    },
     TurtleEgg,
 }
 #[derive(Clone, Debug)]

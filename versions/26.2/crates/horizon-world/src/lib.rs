@@ -149,9 +149,9 @@ pub mod inventory_tick;
 
 pub mod player_equipment;
 
+pub mod interpolation;
 pub mod living_use_flags;
 pub mod status_effect;
-pub mod interpolation;
 pub mod synced_values;
 
 pub mod inventory_use;

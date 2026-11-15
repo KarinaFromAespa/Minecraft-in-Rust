@@ -172,8 +172,7 @@ impl InterpolationHandler {
         let from_position = self.previous_position.unwrap_or([0.0; 3]);
         let from_rot = self.previous_rot.unwrap_or((0.0, 0.0));
         let at = PosRot {
-            position: [0, 1, 2]
-                .map(|i| lerp(alpha, from_position[i], self.target.position[i])),
+            position: [0, 1, 2].map(|i| lerp(alpha, from_position[i], self.target.position[i])),
             yaw: rot_lerp(alpha, f64::from(from_rot.1), f64::from(self.target.yaw)) as f32,
             pitch: lerp(alpha, f64::from(from_rot.0), f64::from(self.target.pitch)) as f32,
         };
