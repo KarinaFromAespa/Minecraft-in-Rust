@@ -2504,3 +2504,15 @@ matches 26.2. Only the layout differs; splitting the 1,902-line
 screen is deferred to a later UI pass (in-code note,
 screens.rs:455-458). 428 options screens: no-change — all 12
 classes decompile identically.
+
+## Rank 3 — bucket B batch 1 (complete): 102/177 (2026-11-15)
+
+434 GUI render: no-change — PiP differs only in render-pass
+plumbing, the rest identical. 436 title/multiplayer: ACCEPTED GAP
+— the only real divergence is editServerCallback (26.2 keeps the
+old ping state after an edit, 26.3 resets to INITIAL; the Rust
+re-pings, matching 26.3); porting it needs the Edit variant to
+carry the list back, deferred. Everything else in the item is
+identical or the established openUri pattern. 438 screen effects:
+no-change — the item-activation math is identical in both
+versions; submit() differs only by render-state vs direct reads.

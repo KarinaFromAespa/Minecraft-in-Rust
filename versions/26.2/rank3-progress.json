@@ -692,6 +692,27 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "Options screens: all 12 classes (OptionsScreen, VideoSettingsScreen, OnlineOptionsScreen, MouseSettingsScreen, ControlsScreen, KeyBindsScreen, KeyBindsList entries, OptionsList + HeaderEntry, GraphicsPreset, PreferredGraphicsApi) decompile identically in 26.3 and 26.2 \u2014 the flagged method diffs are bytecode artifacts. No new 26.3 options."
+    },
+    {
+      "id": 434,
+      "module": "crates/horizon-client-render/src/gfx.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "GUI render: GuiItemAtlas, GuiBannerResultRenderer and GuiBookModelRenderer decompile identically; Lighting differs only by the RenderPearl->Blaze3D import move; PictureInPictureRenderer differs only in render-pass plumbing (26.3 RenderPass/FeatureRenderDispatcher frame API vs 26.2 output-texture overrides) with identical prepare math. The Rust renders through wgpu directly and ports none of the RenderSystem plumbing."
+    },
+    {
+      "id": 436,
+      "module": "crates/horizon-client/src/multiplayer.rs",
+      "bucket": "B",
+      "verdict": "accepted-gap",
+      "evidence": "Title/multiplayer: LogoRenderer, FriendsButton, NoticeWithLinkScreen and both flat-world entries decompile identically modulo imports; Blaze3D.openUri is 26.3-only (26.2 uses Util.getPlatform, established pattern); JoinMultiplayerScreen keyPressed is F5-refresh in both (294 GLFW key vs the 1073741886 shortcut code), unported in the Rust. DIVERGENCE (accepted gap): editServerCallback \u2014 26.2 copies the edited entry back via copyFrom (icon + resource-pack status + type) and KEEPS the old ping state, while 26.3 resets state to INITIAL (re-ping). The Rust's edit-save rebuilds the list fresh (Self::list re-pings everything), matching 26.3. Porting the 26.2 keep-state form needs the Edit variant to carry the list back (the ConfirmDelete pattern) \u2014 a multiplayer-screen lifecycle refactor deferred for a 1-2s re-ping difference; 26.3's reset is arguably the fix for 26.2's stale-ping-after-address-change quirk. Owner: behaviour port / UI pass."
+    },
+    {
+      "id": 438,
+      "module": "crates/horizon-client/src/game/totem.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "ScreenEffectRenderer/Lightmap: the item-activation animation math is byte-identical in 26.2 and 26.3 (same 40-tick polynomial, rotations, offsets; only the state source differs \u2014 own fields vs PlayerRenderState) and the Rust ports it in totem.rs. submit() has the same structure, ordering and block-overlay colour (-15132391) in both; 26.3 reads pre-computed render state where 26.2 reads the player directly (getViewBlockingState, isEyeInFluid, isOnFire). The block-overlay submission itself is unported in the Rust against both versions, not a 26.2 divergence. Lightmap decompiles identically."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
