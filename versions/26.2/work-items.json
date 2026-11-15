@@ -19,7 +19,7 @@
  "rank3plus": "Inherits the 26.3 base answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
  "rank4": {
   "accepted": [],
-  "closed": 0,
+  "closed": 55,
   "total": 55
  },
  "rank5": {

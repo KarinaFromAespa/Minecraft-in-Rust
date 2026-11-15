@@ -1,0 +1,390 @@
+{
+ "closed": [
+  {
+   "id": 595,
+   "module": "net/minecraft/world/level/levelgen",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "density.rs GraphNode variants already implement the 26.2 density-function set (BlendAlpha/BlendOffset/Clamp/Constant/IntervalSelect/Mapped/Marker/Noise/Spline, Cache2D/FlatCache/CacheOnce) with explicit 26.2 comments; OreVeinifier synthesized via synthesize.rs (26.2 ore veins as 26.3 material rules); SurfaceSystem clay_bands in material_surface.rs. All hits are the Rust's own 26.2 implementation."
+  },
+  {
+   "id": 596,
+   "module": "net/minecraft/world/level/levelgen/feature",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ConfiguredFeature citations are comments on the 26.2 API (bonemeal.rs, growth.rs, live.rs) plus harness scope strings naming ConfiguredFeature.DIRECT_CODEC; CoralFeature struct exists in vegetation.rs with a feature_graph arm. No code change."
+  },
+  {
+   "id": 597,
+   "module": "net/minecraft/core",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Direction8 is the Rust's own top-level enum in blending.rs, with a comment noting 26.3 nested it under Direction \u2014 already the 26.2 form."
+  },
+  {
+   "id": 598,
+   "module": "net/minecraft/client/renderer",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ItemInHandRenderer citations are doc comments on the 26.2 methods (itemUsed, renderArmWithItem, STAB swing) in first_person.rs, frame_geometry.rs, hand.rs, item_use.rs."
+  },
+  {
+   "id": 599,
+   "module": "com/mojang/blaze3d/opengl",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 7 new 26.2 class(es) in com/mojang/blaze3d/opengl is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 600,
+   "module": "net/minecraft/world/level/storage/loot/providers/number",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "Name collisions: Sum/Product are Rust's own math (flatgen, merchant, enchant, parity_reach); ConstantValue/UniformGenerator citations are 26.2 loot-codec comments (class_index.py, carry.rs, items.rs)."
+  },
+  {
+   "id": 601,
+   "module": "net/minecraft/world/level/storage/loot",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "IntRange is Rust's own command-arg type (args.rs) plus options-slider comments \u2014 collisions, not the loot IntRange; RecursiveReferenceProblem cited in predicate_graph.rs with the 26.3-split note."
+  },
+  {
+   "id": 602,
+   "module": "net/minecraft/world/entity/monster",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "EnderMan.hurtServer citations are comments (arrows.rs, creatures.rs) on the 26.2 teleport-away behaviour."
+  },
+  {
+   "id": 603,
+   "module": "net/minecraft/world/item",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AxeItem/HoeItem/ShovelItem/HoneycombItem tables already ported as hardcoded 26.2 tables in block_transform.rs (rank 1 item 1) + campfire_douse.rs; oracle mappings in port-pack."
+  },
+  {
+   "id": 604,
+   "module": "net/minecraft/world/level/storage/loot/entries",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "LootPoolSingletonContainer citations are doc comments in loot.rs (functions list, pool/table functions)."
+  },
+  {
+   "id": 605,
+   "module": "net/minecraft/world/level/storage/loot/predicates",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 5 new 26.2 class(es) in world/level/storage/loot/predicates is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 606,
+   "module": "net/minecraft/world/level/levelgen/structure/pieces",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 4 new 26.2 class(es) in world/level/levelgen/structure/pieces is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 607,
+   "module": "net/minecraft/world/level/levelgen/structure/placement",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 4 new 26.2 class(es) in world/level/levelgen/structure/placement is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 608,
+   "module": "net/minecraft/client/particle",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SoulParticle cited as the 26.2 name (26.3 renamed it EmissiveRisingParticle) in particle_type.rs; particles.rs provider comments."
+  },
+  {
+   "id": 609,
+   "module": "net/minecraft/client/renderer/feature",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 3 new 26.2 class(es) in client/renderer/feature is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 610,
+   "module": "net/minecraft/client/resources/sounds",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "UnderwaterAmbientSoundInstances citations in sound_engine.rs are the 26.2 class names."
+  },
+  {
+   "id": 611,
+   "module": "com/mojang/blaze3d/preprocessor",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "GlslPreprocessor citations are doc comments in core_shader.rs/post_glsl.rs."
+  },
+  {
+   "id": 612,
+   "module": "com/mojang/blaze3d",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 3 new 26.2 class(es) in com/mojang/blaze3d is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 613,
+   "module": "net/minecraft/world/item/alchemy",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "PotionBrewing already ported: brewing.rs implements the 65 hardcoded 26.2 mixes (addVanillaMixes), pinned by test_brewing_parity.py."
+  },
+  {
+   "id": 614,
+   "module": "net/minecraft/world/level/biome",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "SpawnFinder already ported: spawn_finder.rs implements Climate$SpawnFinder (radialSearch, getSpawnPositionAndFitness)."
+  },
+  {
+   "id": 615,
+   "module": "net/minecraft/world/level/block",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "DirtPathBlock + RedStoneWireBlock: both spellings mapped in classes.rs (Path = PathBlock|DirtPathBlock, RedstoneWire = RedstoneWireBlock|RedStoneWireBlock); survival.rs, redstone.rs, interact.rs cite the 26.2 names."
+  },
+  {
+   "id": 616,
+   "module": "net/minecraft/world/level/levelgen/synth",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ImprovedNoise/PerlinSimplexNoise/NoiseParameters ported in item 127: synth.rs is the faithful 26.2 f64 noise engine."
+  },
+  {
+   "id": 617,
+   "module": "net/minecraft/client/resources/model",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 2 new 26.2 class(es) in client/resources/model is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 618,
+   "module": "net/minecraft/server/packs",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 2 new 26.2 class(es) in server/packs is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 619,
+   "module": "net/minecraft/util",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 2 new 26.2 class(es) in util is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 620,
+   "module": "net/minecraft/world/entity/ai/behavior",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TryFindWater goal exists in goals.rs (+ mob_ai_probe mapping); TryFindLandNearWater cited in frog.rs comments."
+  },
+  {
+   "id": 621,
+   "module": "net/minecraft/world/entity/ai/goal",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CatLieOnBedGoal cited in tame.rs (26.3 renamed it \u2014 comment only)."
+  },
+  {
+   "id": 622,
+   "module": "net/minecraft/world/item/equipment/trim",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 2 new 26.2 class(es) in world/item/equipment/trim is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 623,
+   "module": "net/minecraft/world/level/block/entity",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "FuelValues.vanillaBurnTimes already the hardcoded 26.2 table (providers.rs, furnace.rs, items.rs)."
+  },
+  {
+   "id": 624,
+   "module": "net/minecraft/world/level/levelgen/placement",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "RandomOffsetPlacement.getPositions cited in placement.rs (26.2 form comment)."
+  },
+  {
+   "id": 625,
+   "module": "net/minecraft/advancements/predicates",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ContextAwarePredicate cited in advancements.rs comments."
+  },
+  {
+   "id": 626,
+   "module": "net/minecraft/advancements",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in advancements is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 627,
+   "module": "net/minecraft/client/gui/components/debug",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in client/gui/components/debug is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 628,
+   "module": "net/minecraft/client/gui/font",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in client/gui/font is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 629,
+   "module": "net/minecraft/client/gui/screens/options",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "DifficultyButtons cited in lan_screen.rs comments."
+  },
+  {
+   "id": 630,
+   "module": "net/minecraft/client/gui/screens",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "MultiplayerOptionsScreen cited in screens.rs (dedicated 26.2 screen comment)."
+  },
+  {
+   "id": 631,
+   "module": "net/minecraft/client/model/monster/zombie",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AbstractZombieModel cited in anim.rs comment (26.2's model)."
+  },
+  {
+   "id": 632,
+   "module": "net/minecraft/client/renderer/entity/layers",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "TrimSpriteKey cited in trims.rs/armor_stands.rs comments."
+  },
+  {
+   "id": 633,
+   "module": "net/minecraft/client/renderer/rendertype",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in client/renderer/rendertype is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 634,
+   "module": "net/minecraft/client",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in client is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 635,
+   "module": "com/mojang/blaze3d/platform",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in com/mojang/blaze3d/platform is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 636,
+   "module": "com/mojang/realmsclient/gui/screens",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "AddRealmPopupScreen (26.2 only) cited throughout realms.rs \u2014 the Rust implements the 26.2 popup."
+  },
+  {
+   "id": 637,
+   "module": "com/mojang/realmsclient",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "RealmsMainScreen.NotificationButton.extractNotificationCounter cited in realms.rs."
+  },
+  {
+   "id": 638,
+   "module": "net/minecraft/data/worldgen",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in data/worldgen is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 639,
+   "module": "net/minecraft/resources",
+   "bucket": "O",
+   "verdict": "no-change",
+   "evidence": "Oracle-only: RegistryOps$RegistryInfo is named only by VanillaSimpleBlockOracle. Oracles run against the 26.2 jars, so naming a 26.2 class is correct; no Rust code to change."
+  },
+  {
+   "id": 640,
+   "module": "net/minecraft/server/commands/data",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "DataProvider.wrap cited in tree_data.rs (26.3 renamed it ArgProvider)."
+  },
+  {
+   "id": 641,
+   "module": "net/minecraft/server/commands",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in server/commands is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 642,
+   "module": "net/minecraft/world/clock",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "ClockInstance cited in chat.rs (ServerClockManager.ClockInstance)."
+  },
+  {
+   "id": 643,
+   "module": "net/minecraft/world/entity",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "InterpolationData cited in interpolation.rs + test_interpolation_parity.py."
+  },
+  {
+   "id": 644,
+   "module": "net/minecraft/world/item/component",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "MapItemColor cited in v1_21_4.rs (a real component in 26.2)."
+  },
+  {
+   "id": 645,
+   "module": "net/minecraft/world/level/chunk",
+   "bucket": "B",
+   "verdict": "no-change",
+   "evidence": "CarvingMask$Mask vs Rust's MaskGenerationError::Mask \u2014 name collision only."
+  },
+  {
+   "id": 646,
+   "module": "net/minecraft/world/level/levelgen/feature/stateproviders",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in world/level/levelgen/feature/stateproviders is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 647,
+   "module": "net/minecraft/world/level/levelgen/material",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in world/level/levelgen/material is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 648,
+   "module": "net/minecraft/world/level/levelgen/structure",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in world/level/levelgen/structure is named by any Rust file, Java oracle, or harness. Nothing to change."
+  },
+  {
+   "id": 649,
+   "module": "net/minecraft/world/level/storage/loot/functions",
+   "bucket": "A",
+   "verdict": "no-change",
+   "evidence": "Zero references anywhere: none of the 1 new 26.2 class(es) in world/level/storage/loot/functions is named by any Rust file, Java oracle, or harness. Nothing to change."
+  }
+ ],
+ "triage": "Name-intersection of each item's new classes vs the Rust tree + Java oracles: A 22 (zero references anywhere) / O 1 (oracle-only) / B 32 (Rust references, all classified: 26.2 citations, already-ported implementations, or name collisions). Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank4-triage.{py,json}; hit review at rank4-review.txt."
+}

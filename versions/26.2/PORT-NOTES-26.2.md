@@ -2935,3 +2935,25 @@ plus the item-566 warning cleanup to main). Run 43688968589
 dispatched on main@c8c8e835, in progress — first run to measure
 the rank-3-closed tree; expect D2 to clear (E0061 fix + 0
 warnings). Porting continues (ranks 4–5) while CI runs.
+
+Rank 4 CLOSED 55/55 (all no-change). The rank-4
+items are packages of classes new in 26.2 (the
+26.3 side dropped or renamed them); each was
+triaged by name-intersection against the Rust
+tree and the Java oracles: 22 with zero
+references anywhere, 1 oracle-only (639,
+RegistryOps$RegistryInfo, named only by
+VanillaSimpleBlockOracle — correct, oracles run
+against the 26.2 jars), and 32 with Rust
+references, every one classified: comments
+citing a 26.2 class that exists in 26.2
+(AxeItem/HoeItem/ShovelItem tables, PotionBrewing,
+ConfiguredFeature, ItemInHandRenderer,
+GlslPreprocessor, ClockInstance, TrimSpriteKey
+and the rest), implementations already ported to
+26.2 (density GraphNode variants, Direction8
+top-level enum, synth.rs from item 127, brewing's
+65 mixes, SpawnFinder, both DirtPathBlock and
+RedStoneWireBlock spellings in classes.rs), or
+name collisions (Sum, IntRange, Mask). No code
+fix anywhere. See rank4-progress.json.
