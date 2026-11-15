@@ -350,7 +350,12 @@ impl Game<'_> {
     }
 
     /// `PowderSnowBlock.entityInside` for an entity that moved horizontally.
-    pub(super) fn powder_snow_particle(&mut self, block: BlockPos, position: Vec3, moving: bool) {
+    pub(super) fn powder_snow_particle(
+        &mut self,
+        block: BlockPos,
+        position: Vec3,
+        moving: bool,
+    ) {
         if self.remote.is_some() {
             return;
         }

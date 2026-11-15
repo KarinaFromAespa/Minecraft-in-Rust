@@ -449,10 +449,7 @@ impl Game<'_> {
     /// `BedRule.canSetSpawn` of the dimension's `bed_rule`: only the
     /// Overworld's beds set the spawn.
     pub(super) fn bed_sets_spawn(&self) -> bool {
-        self.dimension_type()
-            .bed_rule
-            .can_set_spawn
-            .test(self.dark_outside())
+        self.dimension_type().bed_rule.can_set_spawn.test(self.dark_outside())
     }
     /// `ServerPlayer.findRespawnAndUseSpawnBlock` for a config in the loaded
     /// dimension: the position and yaw, using an anchor's charge; a bed's

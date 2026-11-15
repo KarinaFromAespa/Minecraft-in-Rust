@@ -13,7 +13,9 @@ use super::{FallingBlock, Game};
 use super::{
     boats::Boat, fireworks::Rocket, minecarts::Minecart, tnt::PrimedTnt, trident::ThrownTrident,
 };
-use horizon_client::entities::{ArmorStand, ExperienceOrb, ItemEntity, ItemFrame, Painting};
+use horizon_client::entities::{
+    ArmorStand, ExperienceOrb, ItemEntity, ItemFrame, Painting,
+};
 use horizon_client::entity_rules::EntityRules;
 use horizon_client::join_seq::JoinSeq;
 use horizon_client::join_seq::Joined as _;
@@ -1007,9 +1009,7 @@ impl Game<'_> {
     }
     /// The ids of the entities that are not on the walk of `entity_lists!`.
     pub(super) fn entity_ids_off_walk(&self) -> impl Iterator<Item = u32> + '_ {
-        self.item_frames
-            .iter()
-            .map(|e| e.id)
+        self.item_frames.iter().map(|e| e.id)
             .chain(self.paintings.iter().map(|e| e.id))
             .chain(self.others.iter().map(|e| e.id))
             .chain(self.breath_clouds.iter().map(|e| e.id))

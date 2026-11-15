@@ -1200,7 +1200,9 @@ impl Game<'_> {
                     t.position.add_vector(Vec3::new(-half, 0.0, -half)),
                     t.position.add_vector(Vec3::new(half, 0.5, half)),
                 );
-                self.entity_powder_snow_particles(t.previous, t.position, bounds, false);
+                self.entity_powder_snow_particles(
+                    t.previous, t.position, bounds, false,
+                );
             }
             // The stuck branch returns before Entity.baseTick. A flight that
             // just hit a block still reaches it, as does a noPhysics return.
