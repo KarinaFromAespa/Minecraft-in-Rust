@@ -2623,3 +2623,12 @@ argument types removed from the id table — verified
 against the 26.2 registry data, 57 entries). 491 and 493
 were already ported in earlier items. Remaining rank 3:
 bucket D, 23 items.
+
+## Rank 3 — bucket D batch 1 (part 1): 155/177 (2026-11-15)
+
+470 CommandResponseTracker: the class is 26.3-only; the
+Rust's Tracker helper was audited use by use. PORTED: /tag
+add/remove/list (26.2 branches on the target count, not
+the changed count). Equivalent as-is: scoreboard,
+/forceload (26.2 branches on changed chunks), /loot,
+/swing, /playsound. The /item sites belong to item 419.

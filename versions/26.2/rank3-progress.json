@@ -1077,6 +1077,13 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "TemplateStructurePiece.postProcess: setBlockAndUpdate vs setBlock(...,3) only."
+    },
+    {
+      "id": 470,
+      "module": "widely named: server/commands",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "CommandResponseTracker (+16 inner classes) is 26.3-only, absent in 26.2. The Rust's Tracker helper stays (it has both branch modes), but every use was audited against its 26.2 form. PORTED: /tag add/remove \u2014 26.2 branches single/multiple on the TARGET count and returns the changed count; the Rust branched on the changed count (any=false). Now manual branching like item 451's enable, plus /tag list's empty case now branches on the target count (one tagless target was 'multiple of zero'). VERIFIED EQUIVALENT: scoreboard (set/add/remove any=true from 451; reset/display mark-based), /forceload (26.2 branches on the CHANGED chunk count \u2014 any=false matches), /loot, /swing, /playsound (all mark-based). The /item Tracker sites belong to item 419 (the /item restructure)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
