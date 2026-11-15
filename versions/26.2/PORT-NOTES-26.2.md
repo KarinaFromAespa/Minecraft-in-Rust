@@ -2277,3 +2277,23 @@ the 18,780 `tail`-delimited blocks — mismatches 882 → 90, and all 792
 noise_based_count fixtures now match; the only remaining 90 are
 count_on_every_layer (the separate pull-order issue, not this item's
 scope). Item 127 CLOSED with this step: rank 2 is 410/410.
+
+## CI run 43646940294 (2026-11-15) — 338/410 tree d2aa9a03
+
+**5 pass / 0 oracle / 12 fail** — first_person, food, lan, light,
+resource_pack (same five as 43609469257). D1 pass; D2 FAIL on a real
+compile error in a test target: `rule_test_bounds.rs:124` still called
+the 3-arg `RuleTest::test(state, [0; 3], random)` after item 214 changed
+the signature to the 26.2 2-arg form — E0061, `horizon-world` test
+`rule_test_bounds` would not compile. Fixed on behaviour/26.2 after the
+run (drop the `[0; 3]` arg; test 3/3 passes). Protocol tests 444/0 in
+CI (D2 recipe regression fix holds). D3 fail (72/410 open at that tree);
+D4–D6 blocked. Artifacts at ~/workspace/mcir-ci/26.2-run-43646940294/.
+
+## Rank 2 merged to main (2026-11-15) — 08403e7f
+
+behaviour/26.2 merged to main: rank 1 (7/7) + rank 2 (410/410),
+417/651 total. CI run 43656955427 dispatched on the merged tree
+(main@08403e7f); it is the first run to measure item 127's noise port.
+Run 43653524277 (409/410 tree dbeb88e3) still in flight. Ranks 3–5
+(234 items) continue on behaviour/26.2.

@@ -121,7 +121,7 @@ fn matter_phase_matches_what_a_block_is_made_of() {
         );
         let test = RuleTest::from_json(&json, &bindings).unwrap();
         (0..names.len() as u32)
-            .filter(|&id| test.test(horizon_world::registry::BlockStateId(id), [0; 3], random))
+            .filter(|&id| test.test(horizon_world::registry::BlockStateId(id), random))
             .collect::<Vec<_>>()
     };
     assert_eq!(matches("AIR", false, &mut random), [0, 1, 2]);

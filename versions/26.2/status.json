@@ -17,10 +17,10 @@
   ],
   "total": 17
  },
- "last_ci_commit": "1a8bd427",
- "last_ci_run": 43609469257,
- "notes": "Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main.",
- "profile_recorded": "2026-11-14",
+ "last_ci_commit": "d2aa9a03",
+ "last_ci_run": 43646940294,
+ "notes": "Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main. Run 43646940294 (338/410 tree d2aa9a03) completed 2026-11-15: profile 5/0/12, same five passing; D2 failed on a real test-target compile error (rule_test_bounds E0061, item-214 leftover), fixed on the branch after the run. Rank 2 merged to main (08403e7f); run 43656955427 dispatched on the merged tree.",
+ "profile_recorded": "2026-11-15",
  "protocol": 776,
  "protocol_tests": {
   "fail": 2,
@@ -31,11 +31,11 @@
  "role": "era release",
  "version": "26.2",
  "ci": {
-  "run": 43653524277,
-  "tree": "dbeb88e3",
-  "rank2": "409/410",
+  "run": 43656955427,
+  "tree": "08403e7f",
+  "rank2": "410/410 (merged)",
   "profile": "pending",
-  "note": "Run 43646940294 still in flight on the 338/410 tree (d2aa9a03); this run measures the 409/410 state. Rank 2 closed 410/410 at 81de0cbd after dispatch; a fresh run on the merged tree will be dispatched."
+  "note": "First run to measure item 127's noise port. Run 43653524277 still in flight on the 409/410 tree (dbeb88e3)."
  },
  "rank2": "410/410",
  "remaining": {
