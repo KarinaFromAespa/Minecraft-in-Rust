@@ -2467,3 +2467,11 @@ sculk_growth_inhibitors tag is 26.3-only — verified absent from the
 26.2 jar); the worldgen cursor now does 26.2's post-move 15-block
 spread check with no stuck-kill (26.3 pre-checked 12 blocks and
 killed stuck cursors). Sculk tests 3/3 pass.
+
+## Rank 3 — bucket B batch 1 (part 2): 94/177 (2026-11-15)
+
+424 /test: no-change — the Rust is already the 26.2 single-level
+form; 26.3's cross-dimension test lookup is unported. 429 /time:
+ported — 26.3's five "already" errors (already-at-time,
+already-at-marker, already-paused/running, already-same-rate) do
+not exist in 26.2; all four checks removed from the /time arms.

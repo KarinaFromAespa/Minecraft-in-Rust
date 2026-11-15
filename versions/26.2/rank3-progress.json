@@ -643,6 +643,20 @@
       "bucket": "B",
       "verdict": "ported",
       "evidence": "Sculk: (1) canPlaceGrowth \u2014 26.3 counts the sculk_growth_inhibitors tag (verified present in the 26.3 jar, absent in 26.2); 26.2 counts sculk_sensor/sculk_shrieker blocks explicitly. Both the live (level/sculk.rs) and worldgen (worldgen/sculk.rs) implementations now check the two blocks explicitly; the worldgen inhibitors tag set is gone. (2) ChargeCursor worldgen spread \u2014 26.3 pre-checks 12 blocks (distSq<=144) in getValidMovementPos and kills a stuck cursor; 26.2 checks 15 blocks AFTER the move (closerThan 15.0 of the origin column) and leaves a stuck cursor in place. The worldgen feature now does the post-move 15-block check (dx^2+dz^2>=225) with no stuck-kill; the live cursor already matched 26.2 (no origin check in valid_movement). Sensor/catalyst/shrieker/vein diffs are only setBlockAndUpdate vs setBlock(...,3) plus codecs. sculk tests 3/3 pass."
+    },
+    {
+      "id": 424,
+      "module": "crates/horizon-client/src/game/commands/test_runs.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "TestCommand: the entire 26.2-vs-26.3 diff is the cross-dimension re-shape (26.3 looks test blocks up by GlobalPos across dimensions via findSelectedTestPositionsAcrossDimensions; 26.2 uses BlockPos in the source's level only). The Rust is already the 26.2 single-level form (test_runs.rs:212: '26.2 has no dimension on a test'; test_position_in_level; the Finder searches run in the level in place). The 26.3-only finder/display/suggest methods are unported."
+    },
+    {
+      "id": 429,
+      "module": "crates/horizon-client/src/lan/hub.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "ServerClockManager/TimeCommand: 26.3 added five 'already' errors (already_at_time, already_at_time_marker, already_paused, already_running, already_same_rate) and a MoveResult return for moveToTimeMarker; 26.2 has none of them \u2014 set/pause/resume/rate/marker-move all act unconditionally (only a missing marker errors, via the boolean moveToTimeMarker). Removed all four already-checks from the /time arms in game/commands.rs. tick(), addTicks, setTotalTicks, setRate, setPaused and wrapTime are identical in both versions modulo the ClockInstance rename; the no-marker error's message-arg order (marker, clock) was already right."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

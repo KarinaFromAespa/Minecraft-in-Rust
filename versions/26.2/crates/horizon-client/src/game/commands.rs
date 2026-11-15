@@ -2245,9 +2245,8 @@ impl Game<'_> {
         match id {
             "time.set" => {
                 let t = i64::from(Self::int(ctx, "time").unwrap_or(0));
-                if total == t {
-                    return Err(err("commands.time.set.already_at_time", &[&clock, &t]));
-                }
+                // 26.2 sets unconditionally; the already-at-time error is
+                // 26.3-only.
                 self.jump_clock(&clock, total, t, "command");
                 self.feedback(Text::tr("commands.time.set.absolute", &[&clock, &t]));
                 Ok(t as i32)
@@ -2265,12 +2264,9 @@ impl Game<'_> {
                         &[&marker, &clock],
                     ));
                 };
-                if m.occurs_at(total) {
-                    return Err(err(
-                        "commands.time.set.already_at_time_marker",
-                        &[&clock, &marker],
-                    ));
-                }
+                // 26.2 has no already-at-marker error (26.3-only): the
+                // clock moves to the marker's resolved time even when it
+                // is already there.
                 let target = m.resolve(total);
                 let mut cancel = false;
                 self.native_time_skip(self.dim.id(), total, target, "command", &mut cancel);
@@ -2298,16 +2294,8 @@ impl Game<'_> {
             }
             "time.pause" | "time.resume" => {
                 let pause = id == "time.pause";
-                if self.command_clock_state(&clock).paused == pause {
-                    return Err(err(
-                        if pause {
-                            "commands.time.pause.already_paused"
-                        } else {
-                            "commands.time.pause.already_running"
-                        },
-                        &[&clock],
-                    ));
-                }
+                // 26.2 pauses/resumes unconditionally; the already-paused
+                // and already-running errors are 26.3-only.
                 self.command_clock_state(&clock).paused = pause;
                 self.feedback(Text::tr(
                     if pause {
@@ -2324,12 +2312,8 @@ impl Game<'_> {
                     Some(Arg::Float(r)) => *r,
                     _ => 1.0,
                 };
-                if self.command_clock_state(&clock).rate == rate {
-                    return Err(err(
-                        "commands.time.rate.already_same",
-                        &[&clock, &java_float(f64::from(rate))],
-                    ));
-                }
+                // 26.2 sets the rate unconditionally; the already-same
+                // error is 26.3-only.
                 self.command_clock_state(&clock).rate = rate;
                 self.feedback(Text::tr(
                     "commands.time.rate",
