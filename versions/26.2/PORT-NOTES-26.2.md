@@ -2936,6 +2936,17 @@ dispatched on main@c8c8e835, in progress — first run to measure
 the rank-3-closed tree; expect D2 to clear (E0061 fix + 0
 warnings). Porting continues (ranks 4–5) while CI runs.
 
+## CI run 43688968589 completed (2026-11-15)
+
+Run 43688968589 on main@c8c8e835 completed in 1h30m, conclusion
+success. Profile 5/0/12, unchanged (first_person, food, lan,
+light, resource_pack pass). D1 PASS, D2 PASS, D3 PASS — the first
+run with all three passing together: D2 cleared as expected (the
+E0061 fix and the 0-warning item-566 cleanup are on main).
+D4/D5/D6 blocked (D4/D5 on the known staged-candidate profile
+stamp; D6 needs the human playtest). Verdict: blocked, verified
+false. Artifacts at ~/workspace/mcir-ci/26.2-run-43688968589/.
+
 Rank 4 CLOSED 55/55 (all no-change). The rank-4
 items are packages of classes new in 26.2 (the
 26.3 side dropped or renamed them); each was
