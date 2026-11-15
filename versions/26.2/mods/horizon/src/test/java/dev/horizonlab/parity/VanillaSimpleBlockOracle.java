@@ -98,15 +98,22 @@ public final class VanillaSimpleBlockOracle {
    if(name.equals("getRawBrightness")){var p=(BlockPos)args[0];event("light "+xyz(p)+" "+args[1]);return f.get("brightness").getAsInt();}
    if(name.equals("getBlockEntity")){
     var p=((BlockPos)args[0]).immutable();event("entity "+xyz(p));String mode=f.has("gateway_entity")?f.get("gateway_entity").getAsString():"none";
+    Object entity;
     if(f.has("loot_entity")){
      String lootMode=f.get("loot_entity").getAsString();
-     if(lootMode.equals("chest"))return lootContainers.computeIfAbsent(p,key->new ChestBlockEntity(key,Blocks.CHEST.defaultBlockState()));
-     if(lootMode.equals("other"))return new TheEndGatewayBlockEntity(p,Blocks.END_GATEWAY.defaultBlockState());
-     return null;
+     if(lootMode.equals("chest"))entity=lootContainers.computeIfAbsent(p,key->new ChestBlockEntity(key,Blocks.CHEST.defaultBlockState()));
+     else if(lootMode.equals("other"))entity=new TheEndGatewayBlockEntity(p,Blocks.END_GATEWAY.defaultBlockState());
+     else entity=null;
     }
-    if(mode.equals("other"))return new ShulkerBoxBlockEntity(p,Blocks.SHULKER_BOX.defaultBlockState());
-    if(mode.equals("gateway"))return gateways.computeIfAbsent(p,key->new TheEndGatewayBlockEntity(key,Blocks.END_GATEWAY.defaultBlockState()){@Override public void setChanged(){event("gateway_changed "+xyz(key));}});
-    return null;
+    else if(mode.equals("other"))entity=new ShulkerBoxBlockEntity(p,Blocks.SHULKER_BOX.defaultBlockState());
+    else if(mode.equals("gateway"))entity=gateways.computeIfAbsent(p,key->new TheEndGatewayBlockEntity(key,Blocks.END_GATEWAY.defaultBlockState()){@Override public void setChanged(){event("gateway_changed "+xyz(key));}});
+    else entity=null;
+    // The typed overload getBlockEntity(pos, type) returns Optional<T>
+    // (DesertWellFeature calls it and invokes ifPresent on the result);
+    // the untyped overload returns the entity or null. The fixture's
+    // stand-in entity is returned for either overload, unwrapped or
+    // wrapped to match.
+    return args.length==2?Optional.ofNullable(entity):entity;
    }
    if(name.equals("destroyBlock")){
     if(args.length!=3||args[2]!=null)throw new UnsupportedOperationException("only no-entity destruction is defined in this fixture");

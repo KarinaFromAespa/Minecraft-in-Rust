@@ -110,8 +110,19 @@ fn set<W: FeatureWorld>(
     pos: [i32; 3],
     state: BlockStateId,
 ) -> Result<(), NetherFeatureError<W::Error>> {
+    set_flags(world, pos, state, 2)
+}
+
+/// Vanilla `Feature.setBlock` writes with flag 3; the features that call
+/// `level.setBlock` directly pass flag 2.
+fn set_flags<W: FeatureWorld>(
+    world: &mut W,
+    pos: [i32; 3],
+    state: BlockStateId,
+    flags: i32,
+) -> Result<(), NetherFeatureError<W::Error>> {
     world
-        .set_block(pos, state, 2)
+        .set_block(pos, state, flags)
         .map(|_| ())
         .map_err(NetherFeatureError::World)
 }
@@ -238,7 +249,9 @@ impl BasaltColumnsFeature {
                     let mut cursor = column_pos;
                     while blocks_y >= 0 {
                         if self.is_air_or_lava_ocean(world, sea_level, cursor)? {
-                            set(world, cursor, self.basalt)?;
+                            // BasaltColumnsFeature calls Feature.setBlock,
+                            // which writes with flag 3.
+                            set_flags(world, cursor, self.basalt, 3)?;
                             cursor = offset(cursor, [0, 1, 0]);
                             placed = true;
                         } else if self
