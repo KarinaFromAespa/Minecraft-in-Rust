@@ -2850,3 +2850,8 @@ DataProvider (same tree, same wraps; the only
 other DataCommands delta is the compute source,
 removed in item 510): only the tree_data.rs
 comment was re-attributed.
+
+553 NarrationTrigger is 26.3-only (26.2's
+scheduleNarration takes only delay + suppression):
+the narrator crate is already the 26.2 form, no
+change.

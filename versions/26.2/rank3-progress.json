@@ -1182,6 +1182,13 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "ArgProvider is 26.3's rename of 26.2's DataProvider: the DataCommands diff between the versions is only the ArgProvider->DataProvider rename (Factory + buildList -> Function list + stream map, cast removals) plus the /data modify compute source, which item 510 already removed. The tree built is identical: same merge/get/remove/modify structure with the same entity/block/storage provider wraps. The Rust's providers() helper is the direct equivalent of DataProvider.wrap; only its doc comment named the 26.3 name, now fixed. No other ArgProvider references in the Rust. Tests: horizon-command 53/53."
+    },
+    {
+      "id": 553,
+      "module": "crates/horizon-narrator/src/screen.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "NarrationTrigger (MOUSE/KEYBOARD/SYSTEM enum) and NarrationElementOutput.narrationTrigger() are 26.3-only: 26.2's Screen has scheduleNarration(long, boolean) with no trigger parameter, no nextNarrationTriggeredBy field, runNarration(boolean) and updateNarratorStatus(boolean); 26.3 threads the trigger through all of them. The Rust's screen.rs is already the 26.2 form: Output has add/add_lines/nest with no trigger method, ScreenNarration.schedule takes only (delay, ignore_suppression), and the comment already records that 26.2 has no NarrationTrigger. No trigger code anywhere in the narrator crate. Tests: horizon-narrator 19/19."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
