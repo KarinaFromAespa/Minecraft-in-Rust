@@ -132,6 +132,47 @@ generator is wrong for the codec as it stands. Under the old two-fresh-runs reci
 pass silently; under this one each has to be declared, and the declaration is what tells the next
 person the generator needs fixing before that override can go.
 
+### Tag audit (report-only)
+
+Three of the four real divergences found in the 26.2 behaviour port were the same bug class: a
+tag that exists only in 26.3's data, so the Rust lookup is always false and the behaviour silently
+never fires — `#nether_portal_frame` (portal detection) and `#speeds_up_zombie_villager_curing`
+(zombie-villager curing). That class is mechanically findable: every tag literal in the Rust code
+must exist in the pinned version's prepared tag files. `tools/tag_audit.py` does that check, and
+D1 runs it as a sub-check. Three rules decide whether it is useful or noise:
+
+1. **Union across registries.** A tag name is dead only if it is absent from *every* prepared tag
+   file (blocks, items, fluids, entity types, damage, and the rest). Per-registry comparison gives
+   false positives, since `minecraft:fire` lives in blocks and fluids.
+2. **Only tag positions count.** `"#minecraft:x"` string literals are unambiguous; bare
+   `tag("…")` / `is_tag("…")` / `mark_tag("…")` / `has_tag("…")` call sites are tags — and so are
+   the `block_tag(` / `biome_tag(` and `*_tags.get(` positions the survey found in production
+   code. A plain `named.obsidian` or `is_block(…)` is a block name. Sweeping every `minecraft:`
+   literal would bury the real hits. Comments and string contents are not positions: the two
+   known-dead tags survive only in comments in 26.2 and are correctly not flagged.
+3. **Block when the tag data is absent, don't pass.** Missing prepared tag files block the check
+   (exit 3), never a silent pass — a check that quietly no-ops when prepare didn't run is the
+   failure mode D1 exists to avoid.
+
+The sub-check is **report-only**: it prints the inventory it found into D1's notes (which tag
+files loaded, how many literals scanned, the dead-tag list if any) without failing or blocking
+the verdict. The gating decision comes after the inventory is reviewed. Standalone:
+
+```sh
+python3 tools/tag_audit.py --tree versions/<v>   # exit 0 clean, 1 dead production tags, 3 blocked
+```
+
+Dead tags in test fixtures are reported separately and never fail — tests deliberately use fake
+tags (`#minecraft:no_such_tag`, `#minecraft:fixture`). First run, against 26.2: 710 tags across
+20 registries; 258 literals scanned in 2,866 files; **7 dead in production code** —
+`brewing_potion_inputs`, `causes_suffocation` (a known-owed suffocation port, documented in-code),
+`conduit_effect_block`, `consumable_does_not_teleport_to`, `entities_can_teleport_to`,
+`extendable_maps`, `shulker_does_not_teleport_to` — all inherited from the 26.3 base, all absent
+from 26.2's tag data. Reach caveat: the check catches the dead-tag class only, not a missing gate
+or a wrong default. Open question for the gating decision: pre-tag eras (E0, before 1.13, no tag
+files at all) would block on this sub-check permanently — the gate needs an era rule for them
+before it flips.
+
 ---
 
 ## 4. D2 — Build and protocol tests

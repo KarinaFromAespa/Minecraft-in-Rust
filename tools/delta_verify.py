@@ -157,6 +157,42 @@ def check_stop(note, evidence=None):
     return {"status": BLOCKED, "notes": [note], "evidence": list(evidence or [])}
 
 
+def _tag_audit_notes(tree: Path, prepared: Path) -> list[str]:
+    """Report-only tag-literal audit, run as a D1 sub-check.
+
+    Returns note strings for D1's notes list; NEVER affects D1's verdict —
+    the gating decision comes after the report-only inventory is reviewed
+    (see DELTA-BAR.md §3). A missing or crashing tool is noted, not fatal:
+    a report-only sub-check must not be able to fail the gate it reports on.
+    """
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import tag_audit
+    except Exception as exc:  # noqa: BLE001 — any import failure is a note
+        return [f"tag audit (report-only): tool unavailable ({exc}) — sub-check skipped"]
+    try:
+        result = tag_audit.audit(tree, prepared)
+    except Exception as exc:  # noqa: BLE001 — any audit failure is a note
+        return [f"tag audit (report-only): tool error ({exc}) — sub-check skipped"]
+    if result["status"] == "blocked":
+        return [f"tag audit (report-only): blocked — {result.get('reason')} "
+                "(would block D1 when gating; sub-check skipped for now)"]
+    inv = result["inventory"]
+    scanned = result["scanned"]
+    notes = [
+        f"tag audit (report-only): {inv['total_tags']} tags across "
+        f"{len(inv['per_registry'])} registries; scanned {scanned['literals']} literals "
+        f"in {scanned['files']} files; {len(result['dead'])} dead in production code, "
+        f"{len(result['dead_test_only'])} dead in test fixtures"
+    ]
+    if result["dead"]:
+        names = [d["tag"] for d in result["dead"]]
+        shown = ", ".join(names[:5])
+        extra = f" (+{len(names) - 5} more)" if len(names) > 5 else ""
+        notes.append(f"tag audit (report-only): dead production tag(s): {shown}{extra}")
+    return notes
+
+
 # ---------------------------------------------------------------- discovery
 
 
@@ -360,6 +396,10 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
         evidence.append(str(prepared))
     else:
         return check_stop(f"no prepared data at {prepared}; rerun with --run", evidence)
+
+    # Tag-literal audit (REPORT-ONLY): appends inventory notes, never changes
+    # D1's verdict. See _tag_audit_notes and DELTA-BAR.md §3.
+    notes.extend(_tag_audit_notes(tree, prepared))
 
     return check_ok(notes, evidence)
 
