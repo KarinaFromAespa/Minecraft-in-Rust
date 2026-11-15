@@ -36,9 +36,10 @@ enum Animate {
         spawn_particles: bool,
     },
     /// Leaves: optional falling-leaf particle and chance; a tinted leaf takes
-    /// the biome foliage colour unless a fixed colour is given (azalea); and
-    /// whether they have the poplar ambient sound (`AmbientLeavesBlockSoundPlayer`).
-    Leaves(Option<(T, f32)>, Option<u32>, bool),
+    /// the biome foliage colour unless a fixed colour is given (azalea).
+    /// 26.2 has no ambient leaves sound (26.3's `AmbientLeavesBlockSoundPlayer`
+    /// and the poplar trees are 26.3-only).
+    Leaves(Option<(T, f32)>, Option<u32>),
     NetherPortal,
     EnchantingTable,
     EndRod([i32; 3]),
@@ -138,17 +139,14 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Animate {
             spawn_particles: false,
         },
         "oak_leaves" | "birch_leaves" | "jungle_leaves" | "acacia_leaves" | "dark_oak_leaves"
-        | "mangrove_leaves" => Animate::Leaves(Some((T::TintedLeaves, 0.01)), None, false),
-        "cherry_leaves" => Animate::Leaves(Some((T::CherryLeaves, 0.1)), None, false),
-        "pale_oak_leaves" => Animate::Leaves(Some((T::PaleOakLeaves, 0.02)), None, false),
-        "red_poplar_leaves" => Animate::Leaves(Some((T::RedPoplarLeaves, 0.01)), None, true),
-        "orange_poplar_leaves" => Animate::Leaves(Some((T::OrangePoplarLeaves, 0.01)), None, true),
-        "yellow_poplar_leaves" => Animate::Leaves(Some((T::YellowPoplarLeaves, 0.01)), None, true),
+        | "mangrove_leaves" => Animate::Leaves(Some((T::TintedLeaves, 0.01)), None),
+        "cherry_leaves" => Animate::Leaves(Some((T::CherryLeaves, 0.1)), None),
+        "pale_oak_leaves" => Animate::Leaves(Some((T::PaleOakLeaves, 0.02)), None),
         // The azalea blocks drop tinted leaves of the fixed colour -9399763.
         "azalea_leaves" | "flowering_azalea_leaves" => {
-            Animate::Leaves(Some((T::TintedLeaves, 0.01)), Some(0x0070_922D), false)
+            Animate::Leaves(Some((T::TintedLeaves, 0.01)), Some(0x0070_922D))
         }
-        "spruce_leaves" => Animate::Leaves(None, None, false),
+        "spruce_leaves" => Animate::Leaves(None, None),
         "nether_portal" => Animate::NetherPortal,
         "enchanting_table" => Animate::EnchantingTable,
         "end_rod" => Animate::EndRod(facing()),
@@ -316,8 +314,6 @@ pub struct AnimateTables {
     dried_ghast_sounds: Vec<bool>,
     /// `#triggers_ambient_desert_sand_block_sounds` (sand, red sand).
     desert_sand_sounds: Vec<bool>,
-    /// `#required_for_poplar_leaf_ambience` (overworld natural logs).
-    poplar_leaf_logs: Vec<bool>,
     /// `#triggers_ambient_desert_dry_vegetation_block_sounds`.
     desert_dry_vegetation_sounds: Vec<bool>,
     terracotta: Vec<bool>,
@@ -417,7 +413,6 @@ impl AnimateTables {
             power_transmitter: by_state("minecraft:enchantment_power_transmitter"),
             dried_ghast_sounds: by_state("minecraft:triggers_ambient_dried_ghast_block_sounds"),
             desert_sand_sounds: by_state("minecraft:triggers_ambient_desert_sand_block_sounds"),
-            poplar_leaf_logs: by_state("minecraft:required_for_poplar_leaf_ambience"),
             desert_dry_vegetation_sounds: by_state(
                 "minecraft:triggers_ambient_desert_dry_vegetation_block_sounds",
             ),
@@ -980,7 +975,7 @@ fn block_animate_tick(
                 }
             }
         }
-        Animate::Leaves(falling, fixed_tint, poplar) => {
+        Animate::Leaves(falling, fixed_tint) => {
             let below = [pos[0], pos[1] - 1, pos[2]];
             // LeavesBlock.makeDrippingWaterParticles.
             if (ctx.raining_at)([pos[0], pos[1] + 1, pos[2]]) && next_int(engine.random(), 15) == 1
@@ -992,10 +987,8 @@ fn block_animate_tick(
                     add(engine, T::DrippingWater, p, [0.0; 3]);
                 }
             }
-            if poplar {
-                leaves_ambient_sound(tables, engine, ctx, state, pos);
-            }
-            // FallingParticlesLeavesBlock.makeFallingLeavesParticles.
+            // LeavesBlock.makeFallingLeavesParticles (26.3 moved it to the
+            // FallingParticlesLeavesBlock subclass).
             if let Some((ty, chance)) = falling
                 && engine.random().next_float() < chance
                 && !ctx.sturdy(below)
@@ -1759,46 +1752,6 @@ fn block_animate_tick(
                     add(engine, T::LargeSmoke, p, [0.0; 3]);
                 }
             }
-        }
-    }
-}
-/// `AmbientLeavesBlockSoundPlayer.playAmbientLeavesSounds` for the poplar leaves:
-/// one log and three leaves of the same kind around the block.
-fn leaves_ambient_sound(
-    tables: &AnimateTables,
-    engine: &mut ParticleEngine,
-    ctx: &AnimateContext,
-    state: BlockStateId,
-    pos: [i32; 3],
-) {
-    if next_int(engine.random(), 300) != 0 {
-        return;
-    }
-    let Some(name) = ctx.registry.state(state).map(|s| &s.name) else {
-        return;
-    };
-    let (mut logs, mut leaves) = (0, 0);
-    for d in [[0, -1], [1, 0], [0, 1], [-1, 0]] {
-        let neighbor = ctx.state([pos[0] + d[0], pos[1], pos[2] + d[1]]);
-        if tables
-            .poplar_leaf_logs
-            .get(neighbor.0 as usize)
-            .copied()
-            .unwrap_or(false)
-        {
-            logs += 1;
-        }
-        if ctx
-            .registry
-            .state(neighbor)
-            .is_some_and(|s| &s.name == name)
-        {
-            leaves += 1;
-        }
-        if logs == 1 && leaves == 3 {
-            let p = pos.map(f64::from);
-            sound(engine, "minecraft:block.poplar_leaves.ambient", p, 1.0, 1.0);
-            return;
         }
     }
 }

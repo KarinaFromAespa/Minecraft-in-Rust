@@ -2744,3 +2744,20 @@ and LevelExtractor (the drain, extractPlayerState and
 the chunk fade-in option are all 26.3-only or
 unmodelled; the outline condition is the same from a
 different source).
+
+## Rank 3 — bucket D batch 6: 161/177 (2026-11-15)
+
+432 Animate-tick blocks: the poplar trees are 26.3-only
+(0 poplar fields in 26.2's Blocks, 23 in 26.3's), so the
+poplar leaves entries, the Leaves poplar flag, the
+ambient leaves sound and its log table are gone — 26.2
+has no ambient leaves sound at all. Verified no-change:
+the falling-leaves particles (26.2 has them inline in
+LeavesBlock; the per-type chances match 26.2's Blocks
+registration exactly), the bonemeal methods (bodies
+identical, only 26.3's BonemealSource parameter
+differs), the onLand/onPlace/useWithoutItem calls
+(setBlockAndUpdate vs setBlock(...,3)), the repeater
+wire-connection rule (the Rust already is 26.2's static
+form), and the per-block codecs (26.2 has them, 26.3
+removed them — unmodelled).
