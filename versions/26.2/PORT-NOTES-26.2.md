@@ -2441,3 +2441,17 @@ port), 588 ocean monument (biomeResolver vs biomeSource+sampler —
 same query), 589 jungle temple (RedStoneWireBlock rename), 591 tab
 bar / 592 system toast (identical decompiles), 594 recipe clearGrid
 (26.3-only Prediction param; the Rust models no prediction).
+
+## Rank 3 — item 451: 90/177 (2026-11-15)
+
+Bucket A is now complete (90/90). Item 451, scoreboard/team
+commands, was the deferred real port: 26.3 routes the one/many
+feedback through CommandResponseTracker, which counts only nonzero
+tracks; 26.2 branches manually on names.size() and counts every
+target. Ported: set (branch on the target count — a set to 0 with
+one target is a single success), enable (message by names.size(),
+return the unlocked count), team join/leave (count every member;
+a teamless member still succeeds and counts). add/remove/reset/
+display/numberformat/operation were verified equivalent and are
+unchanged. New regression test pins the three divergences; all 9
+scoreboard_cmd tests pass.

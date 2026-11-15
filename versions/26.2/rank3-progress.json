@@ -622,6 +622,13 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "ServerPlaceRecipe.clearGrid: 26.3 passes Prediction.SERVER_ONLY to placeItemBackInInventory; 26.2 calls the 2-arg form. The Rust models no inventory prediction (established pattern, menu.rs:924) \u2014 already the 26.2 form."
+    },
+    {
+      "id": 451,
+      "module": "crates/horizon-client/src/scoreboard_cmd.rs",
+      "bucket": "A",
+      "verdict": "ported",
+      "evidence": "ScoreboardCommand/TeamCommand: 26.3 routes the one/many feedback through CommandResponseTracker (counts only nonzero tracks); 26.2 branches manually on names.size() and counts every target. Ported the four divergent paths: (1) set \u2014 branch on the target count (a set to 0 with one target is a single success), return value*names.size(); (2) enable \u2014 message by names.size(), return the unlocked count, throw enable.failed when none unlocked; (3) team join \u2014 count every member, return members.size(); (4) team leave \u2014 a teamless member still succeeds and counts, return members.size(). add/remove/reset/display/numberformat/operation were verified equivalent (their Tracker forms already branch on the target count and return the 26.2 totals) and are unchanged. New regression test twenty_six_two_counts_targets_not_successes pins all three divergences; all 9 scoreboard_cmd tests pass."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
