@@ -2732,3 +2732,15 @@ ShaderManager async rework (neither form is modelled;
 #include preprocessing is post_glsl's), and the
 LevelTargetBundle OIT-vs-sorting targets (chains see
 only minecraft:main in both versions).
+
+## Rank 3 — bucket D batch 5: 160/177 (2026-11-15)
+
+426 Transient blocks: already the 26.2 form — the packet
+is absent from the 26.2 jar and the Rust keeps the
+queue/drain/render path inert. Verified no-change: the
+occlusion graph's transient-removal call (inert with the
+module) and its empty-section bookkeeping (unmodelled),
+and LevelExtractor (the drain, extractPlayerState and
+the chunk fade-in option are all 26.3-only or
+unmodelled; the outline condition is the same from a
+different source).
