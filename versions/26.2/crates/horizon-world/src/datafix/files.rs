@@ -409,7 +409,7 @@ fn level_dat_to_saved_data(base: &Path) -> io::Result<()> {
 /// 1493: `LegacyStructureFileFix`. The structures of `data/*.dat` (1.12) become the
 /// `Structures` of the chunks they reach, in the region folders of the old layout.
 pub(crate) fn fix_1493(base: &Path) -> io::Result<()> {
-    use std::collections::{BTreeMap, HashMap};
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
     const LEGACY_TO_CURRENT: [(&str, &str); 4] = [
         ("Iglu", "Igloo"),
         ("TeDP", "Desert_Pyramid"),
@@ -498,6 +498,22 @@ pub(crate) fn fix_1493(base: &Path) -> io::Result<()> {
         } else {
             base.join(folder).join("region")
         };
+        // `ChunkNbt.updateChunk` reads every touched chunk through
+        // `SimpleRegionStorage`, and `RegionFileStorage.getRegionFile` opens
+        // the chunk's region file with CREATE: a region the structures reach
+        // but that holds no chunk is left behind as an empty file, which the
+        // dimension move then carries to `dimensions/.../region/`.
+        let mut touched: BTreeSet<(i32, i32)> = BTreeSet::new();
+        for &(x, z) in structures.keys() {
+            touched.insert((x >> 5, z >> 5));
+        }
+        for (rx, rz) in touched {
+            let file = region.join(format!("r.{rx}.{rz}.mca"));
+            if !file.exists() {
+                fs::create_dir_all(&region)?;
+                fs::File::create(&file)?;
+            }
+        }
         upgrade_regions(&region, &Progress::none(), |tag| {
             let version = as_int(tag.get("DataVersion"), -1);
             let x = as_int(tag.get("Level").and_then(|l| l.get("xPos")), 0);
