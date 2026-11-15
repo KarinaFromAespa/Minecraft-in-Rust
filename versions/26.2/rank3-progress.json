@@ -951,6 +951,62 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "TransferCommand: Tracker family, but 26.3 tracks every player unconditionally, so it equals 26.2's manual form (throw no-players when empty, branch on size==1, return the count) \u2014 which is exactly what the Rust's cmd_transfer does."
+    },
+    {
+      "id": 478,
+      "module": "crates/horizon-client/src/game/wandering_trader.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Wandering trader spawner: the only diff is hasEnoughSpace's iteration style (findBlocksIn+forEachUntil vs a betweenClosed loop) over the same 2x3x2 collision check; spawn is otherwise identical."
+    },
+    {
+      "id": 479,
+      "module": "crates/horizon-client/src/game/pad_menu.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "ContainerEventHandler: drag-start/release/drag gate on button 1 (26.3) vs button 0 (26.2) \u2014 the same left-to-right migration as the advancements and book screens. The Rust has no generic container drag state (its dragging flag is never set) and its per-screen drag handlers are all left-button driven \u2014 already the 26.2 form."
+    },
+    {
+      "id": 480,
+      "module": "crates/horizon-client/src/game/pumpkin.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "PumpkinBlock.useItemOn: identical modulo the 26.2 codec and one extra pos argument to dropFromBlockInteractLootTable in 26.3 (loot-context position, which the Rust already supplies via native_use_drops). The carve, seeds, sound, damage and stat are the same."
+    },
+    {
+      "id": 482,
+      "module": "crates/horizon-world/src/level/creaking.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "CreakingHeartBlock.tick: codec only plus setBlockAndUpdate vs setBlock(...,3)."
+    },
+    {
+      "id": 483,
+      "module": "crates/horizon-world/src/level/interact.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "DragonEggBlock.teleport: the 26.2-vs-26.3 difference (level event 2015 vs the client-side particle loop) was already ported in an earlier item \u2014 2015 is the sim's internal channel, never broadcast (lan.rs/game.rs/level_particles.rs document it). PORTED here: the Rust was missing the world-border check both versions have (worldBorder.isWithinBounds(testPos)); added self.level.within_world_border(test) to dragon_egg_teleport. The search loop, offsets and air/below/height checks match both versions."
+    },
+    {
+      "id": 484,
+      "module": "crates/horizon-world/src/worldgen/structure/nether_fossil.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Nether fossil: the Builder vs Accessor parameter rename only; NetherFossilStructure decompiles identically (the lambda diff is a bytecode artifact)."
+    },
+    {
+      "id": 486,
+      "module": "crates/horizon-client/src/locator_bar.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "LocatorBar: decompiles identically in both versions \u2014 the extractBackground/lambda diffs are bytecode artifacts."
+    },
+    {
+      "id": 488,
+      "module": "crates/horizon-client/src/game/command_minecarts.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "MinecartCommandBase.createCommandSourceStack: the only diff is the CommandSourceStack constructor's argument list (26.2 passes the name and display name separately); the source itself \u2014 cart position/rotation, GAMEMASTER, server, entity \u2014 is the same, and the Rust builds exactly that."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

@@ -2602,3 +2602,13 @@ checks replaceability inside placeNetherrackOrMagma) and
 TPS — item 445 had only fixed the titles). The rest are
 no-change: 473's biome-table and spawn-target differences
 are data-driven.
+
+## Rank 3 — bucket B batch 6: 144/177 (2026-11-15)
+
+478 wandering trader, 479 container events, 480 pumpkin,
+482 creaking heart, 483 dragon egg, 484 nether fossil, 486
+locator bar, 488 command minecart. PORTED: 483 (the Rust's
+dragon-egg teleport was missing the world-border check
+both vanilla versions have). 479's drag button is already
+left-click in the Rust; 483's 2015-vs-particles difference
+was already ported (2015 is the sim's internal channel).
