@@ -1,0 +1,11 @@
+# E7 (26.x) regression subset, per docs/DELTA-BAR.md (patch 0005).
+# Template 26.3; subset frozen by the gate's membership rule — do not
+# pick names from what happens to pass at 26.2.
+component_patch
+entity_components
+datafix
+save_roundtrip
+command_parse
+item_model
+block_properties
+chunk_generation

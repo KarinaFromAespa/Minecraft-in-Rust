@@ -41,9 +41,9 @@
  },
  "rank2": "410/410",
  "remaining": {
-  "items": 234,
-  "ranks": "3-5",
-  "reason": "ranks 3-5 (177/55/2) next on behaviour/26.2"
+  "items": 0,
+  "ranks": "none",
+  "reason": "all 651 items closed, ranks 1-5 merged to main (f56493a6)"
  },
- "in_flight_run": 43688968589
+ "in_flight_run": 43704536595
 }
