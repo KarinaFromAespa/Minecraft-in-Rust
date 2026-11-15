@@ -27,7 +27,7 @@ def corpus(facts):
                 yield dict(state=state, position=position, entity='none', fail=-1, tags=tags)
             # Predicate short circuits must suppress failure-producing providers.
             yield dict(state=state, position=positions[1], entity='none', fail=0, tags=tags)
-            if value['id'].endswith('shulker_box'):
+            if value['Name'].endswith('shulker_box'):
                 for position in positions:
                     for entity in ['none', 'other', 'closed', 'opening', 'opened', 'closing']:
                         for fail in [-1, 0, 1]:
@@ -65,7 +65,7 @@ def main():
              'dev.horizonlab.parity.VanillaSuffocationOracle', mode, build], side+'-'+mode)
     java('server', 'export')
     facts = json.loads((build/'facts.json').read_text())
-    if len(facts['states']) != 35723:raise AssertionError('Incomplete pinned registry')
+    if len(facts['states']) != 32366:raise AssertionError('Incomplete pinned registry')
     definitions = json.loads((build/'definitions.json').read_text())
     count = 0
     with (build/'inputs.txt').open('w') as output:
