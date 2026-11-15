@@ -191,7 +191,9 @@ impl BasaltColumnsFeature {
         random: &mut impl RandomSource,
         origin: [i32; 3],
     ) -> Result<bool, NetherFeatureError<W::Error>> {
-        let sea_level = world.sea_level()?;
+        // Vanilla reads the chunk generator's sea level
+        // (context.chunkGenerator().getSeaLevel()), not the world's.
+        let sea_level = world.generation().sea_level;
         if !self.can_place_at(world, sea_level, origin)? {
             return Ok(false);
         }
