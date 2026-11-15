@@ -2411,3 +2411,20 @@ already implements the 26.2 forms — REVERSE scales -0.5, AIM_DEFLECT
 uses the unit look — and MOMENTUM_DEFLECT is unported), 564
 enchantment predicate / 567 pack entry / 568 checkbox (identical
 decompiles).
+
+## Rank 3 — bucket A batch 7: 80/177 (2026-11-15)
+
+10 no-change + 2 ports. No-change: 570 JSON-RPC logger (same log
+line, builder vs direct call), 571 evoker fangs renderer
+(rotateDegrees vs mulPose, GPU plumbing), 572 enchantment screen /
+574 spectator team icon / 581 profile resolver (identical
+decompiles), 573 criterion validate (predicate-type re-shape;
+validate unported), 575 edit-world screen (Blaze3D.openPath vs
+Util.getPlatform().openPath), 577 allay vibration (pos.immutable()
+vs new BlockPos), 579 turtle egg goal (setBlockAndUpdate ≡
+setBlock(..., 3)), 580 wood type (26.3 adds POPLAR, but the Rust has
+no WoodType enumeration — comments only). PORTED: 578 armadillo
+ball-up — 26.2's checkExtraStartConditions is onGround() only, 26.3
+added !isInLiquid(); dropped the liquid check and the dead helper.
+582 management schema — 26.3's four world/upgrade_* notifications
+are absent in 26.2; removed from METHODS, test count 89 -> 85.

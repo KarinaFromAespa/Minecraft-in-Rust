@@ -376,8 +376,10 @@ pub fn server_ai_step(m: &mut Mob, cx: &mut Cx) {
     if m.extra.armadillo.danger == 0 && scared(m) {
         roll_out(m, events);
     }
-    if m.extra.armadillo.panic_activity && !m.extra.armadillo.ball_up && m.on_ground && !liquid(m) {
-        // ArmadilloBallUp.start.
+    if m.extra.armadillo.panic_activity && !m.extra.armadillo.ball_up && m.on_ground {
+        // ArmadilloBallUp.start: 26.2's checkExtraStartConditions is only
+        // onGround (26.3 added !isInLiquid, so a wet armadillo no longer
+        // balls up there).
         m.extra.armadillo.ball_up = true;
         roll_up(m, events);
     }
@@ -386,9 +388,6 @@ pub fn server_ai_step(m: &mut Mob, cx: &mut Cx) {
     }
     let a = &mut m.extra.armadillo;
     a.panic_activity = a.danger > 0 && !m.ai.panicking;
-}
-fn liquid(m: &Mob) -> bool {
-    m.fluids.in_water || m.fluids.in_lava
 }
 /// `ArmadilloBallUp.tickOrStop`.
 fn ball_up_tick(m: &mut Mob, events: &mut Vec<MobEvent>) {
