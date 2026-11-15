@@ -433,6 +433,16 @@ fn configure_screen(server: RealmServer, tab: ConfigureTab) -> SubScreen {
 
 /// `RealmsSettingsTab.isRealmNameValid`: a name that trims to something and has no
 /// leading or trailing whitespace.
+/// `StringUtil.isBlank` → `""`, else the value as-is: `saveSettings`' `finalName` and
+/// `description` (26.2 passes the name and description raw, only blank becomes empty).
+fn blank_to_empty(value: &str) -> String {
+    if value.trim().is_empty() {
+        String::new()
+    } else {
+        value.to_owned()
+    }
+}
+
 fn realm_name_valid(name: &str) -> bool {
     let trimmed = name.trim();
     !trimmed.is_empty() && name.len() == trimmed.len()
@@ -2186,8 +2196,8 @@ impl Screen {
                         // `saveSettings` updates the screen's own copy and reads again.
                         Ok(()) => {
                             if let Some(draft) = settings.as_ref() {
-                                server.name = draft.name.trim().to_owned();
-                                server.motd = draft.description.clone();
+                                server.name = draft.name.clone();
+                                server.motd = blank_to_empty(&draft.description);
                                 server.region_selection_preference = Some(draft.preference_dto());
                             }
                             refetch_detail = true;
@@ -3272,11 +3282,12 @@ impl Screen {
     }
 
     /// `RealmsSettingsTab.onDeselected` → `RealmsConfigureWorldScreen.saveSettings`: the name,
-    /// description and region preference through `RealmsClient.updateConfiguration`,
-    /// only when it differs from what the service has.
-    /// has.
-    /// Whether a save request went out: the buttons that must wait for it
-    /// (`Play`, the open/close toggle) continue immediately when nothing changed.
+    /// description and region preference through `RealmsClient.updateConfiguration`.
+    /// 26.2 saves unconditionally — the change check (`configurationChanged`, returning
+    /// early when nothing differs) is 26.3's `saveSettings`.
+    /// Whether a save request went out: false only when the settings tab isn't open
+    /// (or a save is already in flight); the buttons that must wait for it (`Play`,
+    /// the open/close toggle) continue immediately then.
     fn save_settings_tab(&mut self) -> bool {
         let SubScreen::Configure {
             tab: ConfigureTab::Settings,
@@ -3293,15 +3304,6 @@ impl Screen {
             return false;
         }
         let wanted = draft.preference_dto();
-        let region_changed = server.region_selection_preference.as_ref().map_or(
-            wanted.region_selection_preference != client::AUTOMATIC_OWNER,
-            |p| *p != wanted,
-        );
-        let configuration_changed =
-            draft.name.trim() != server.name || draft.description != server.motd || region_changed;
-        if !configuration_changed {
-            return false;
-        }
         let Some(Ok(detail)) = detail else {
             return false;
         };
@@ -3313,20 +3315,18 @@ impl Screen {
         };
         let (id, name, description) = (
             server.id,
-            draft.name.trim().to_owned(),
-            draft.description.clone(),
+            blank_to_empty(&draft.name),
+            blank_to_empty(&draft.description),
         );
         *saving = Some(spawn(move || {
-            if configuration_changed {
-                client.update_configuration(id, &name, &description, &wanted, &slot)?;
-            }
+            client.update_configuration(id, &name, &description, &wanted, &slot)?;
             Ok(())
         }));
         true
     }
 
     /// `RealmsSettingsTab.save`'s callers: run `action` after the save request, or at once
-    /// when there is nothing to save.
+    /// when the settings tab isn't open.
     fn save_then(&mut self, action: AfterSave) -> Outcome {
         if self.save_settings_tab() {
             self.after_save = Some(action);
@@ -4650,8 +4650,8 @@ impl Screen {
                 {
                     let (server, name, description) = (
                         server.clone(),
-                        name.trim().to_owned(),
-                        description.trim().to_owned(),
+                        name.clone(),
+                        description.clone(),
                     );
                     let slot = server.active_slot;
                     let job = client().map(|client| {
@@ -4835,7 +4835,10 @@ impl Screen {
                 }
                 Outcome::None
             }
-            // RealmsPreferredRegionSelectionScreen.onDone / onClose.
+            // RealmsPreferredRegionSelectionScreen.onDone / onClose. 26.2 applies the
+            // choice only when a region is picked (`selection.region() != null`): Done
+            // on an automatic row just closes, the draft unchanged. 26.3 applies
+            // unconditionally.
             Some(87) => {
                 if let SubScreen::RegionPreference {
                     server,
@@ -4844,12 +4847,14 @@ impl Screen {
                     detail,
                     ..
                 } = &self.subscreen
-                    && let Some((preference, region)) = selected
+                    && selected.is_some()
                 {
                     let server = server.clone();
                     let mut settings = settings.clone();
-                    settings.preference = *preference;
-                    settings.region = region.clone();
+                    if let Some((preference, Some(region))) = selected {
+                        settings.preference = *preference;
+                        settings.region = Some(region.clone());
+                    }
                     self.back_to_settings(server, settings, detail.clone());
                 }
                 Outcome::None

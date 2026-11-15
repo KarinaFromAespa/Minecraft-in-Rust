@@ -296,7 +296,7 @@ impl RealmTierRange {
 
 /// `RealmsRegion`: each region's `nameId` and its translation key.
 pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
-    const REGIONS: [(&str, &str); 27] = [
+    const REGIONS: [(&str, &str); 23] = [
         (
             "AustraliaEast",
             "realms.configuration.region.australia_east",
@@ -306,10 +306,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
             "realms.configuration.region.australia_southeast",
         ),
         ("BrazilSouth", "realms.configuration.region.brazil_south"),
-        (
-            "CanadaCentral",
-            "realms.configuration.region.canada_central",
-        ),
         ("CentralIndia", "realms.configuration.region.central_india"),
         ("CentralUs", "realms.configuration.region.central_us"),
         ("EastAsia", "realms.configuration.region.east_asia"),
@@ -322,10 +318,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
         ("JapanEast", "realms.configuration.region.japan_east"),
         ("JapanWest", "realms.configuration.region.japan_west"),
         ("KoreaCentral", "realms.configuration.region.korea_central"),
-        (
-            "MexicoCentral",
-            "realms.configuration.region.mexico_central",
-        ),
         (
             "NorthCentralUs",
             "realms.configuration.region.north_central_us",
@@ -340,10 +332,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
             "realms.configuration.region.southeast_asia",
         ),
         (
-            "SouthAfricaNorth",
-            "realms.configuration.region.south_africa_north",
-        ),
-        (
             "SwedenCentral",
             "realms.configuration.region.sweden_central",
         ),
@@ -356,7 +344,6 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
         ("WestEurope", "realms.configuration.region.west_europe"),
         ("WestUs", "realms.configuration.region.west_us"),
         ("WestUs2", "realms.configuration.region.west_us_2"),
-        ("WestUs3", "realms.configuration.region.west_us_3"),
     ];
     REGIONS
         .iter()
