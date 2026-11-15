@@ -3054,3 +3054,17 @@ to measure the fully-closed tree (rank-5 ports: config lift, TagEntry
 name form, 10 missing features, provider long-name aliases). Porting
 is complete; remaining work is the second track (unknown launch crash
 blocking command_exec/save_roundtrip) and the D6 human playtest.
+
+## Cushion fix merged to main (2026-11-15, 5672c415)
+
+The command_exec fixture-control abort (run 43688968589: the harness
+aborted at a Java fixture-control prerequisite because
+vehicle_boolean_corpus.py summoned minecraft:cushion with
+expect_result=1, and cushion is 26.3-only) is fixed on main: the
+cushion kind is removed from vehicle_boolean_corpus.py (4cb9dcad).
+Branch behaviour/26.2 was synced with main first (d9f6e62d, picking up
+f45667f7's harness-subset.txt + status.json fix, plus the patch-0005
+gate changes the branch had never merged), then merged to main as
+5672c415. The next CI run on main should show command_exec getting
+past fixture control; save_roundtrip's separate launch exit is still
+being diagnosed locally (second track).
