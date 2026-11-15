@@ -335,14 +335,9 @@ fn teleport(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) -> bool {
         let Some(face) = attachable(m, w, t) else {
             continue;
         };
-        // `#minecraft:shulker_does_not_teleport_to` (bedrock) is never clung to.
-        let s = face_step(face);
-        if w.has_tag(
-            "minecraft:shulker_does_not_teleport_to",
-            w.block_name(t[0] + s[0], t[1] + s[1], t[2] + s[2]),
-        ) {
-            continue;
-        }
+        // 26.2's `teleportSomewhere` has no tag check: a shulker may cling
+        // to any face `canStayAt` accepts, bedrock included. (26.3's
+        // `#shulker_does_not_teleport_to` does not exist in 26.2.)
         // unRide: whoever rides it gets off where it stands, and it gets
         // off its own vehicle (it lands at the target below).
         events.push(MobEvent::EjectPassengers {
@@ -913,7 +908,65 @@ mod space_tests;
 mod tests {
     use super::*;
     use crate::mobs::sensor_scan_tests::kind;
+    use crate::mobs::world::with_built_test_world;
     use std::sync::Arc;
+
+    /// 26.2's `Shulker.teleportSomewhere` has no tag check: a shulker may
+    /// cling to bedrock. The old `#shulker_does_not_teleport_to` lookup
+    /// (absent from 26.2 data) was already a no-op under 26.2 data, so
+    /// this pins the 26.2 contract rather than failing against the old
+    /// code; the audit proves the literal is gone.
+    #[test]
+    fn a_shulker_teleports_onto_bedrock() {
+        with_built_test_world(
+            &[],
+            |world, registry| {
+                for (cx, cz) in [
+                    (-1, -1),
+                    (-1, 0),
+                    (-1, 1),
+                    (0, -1),
+                    (0, 0),
+                    (0, 1),
+                    (1, -1),
+                    (1, 0),
+                    (1, 1),
+                ] {
+                    world.chunks.insert(
+                        (cx, cz),
+                        std::sync::Arc::new(crate::chunk::Chunk::empty(cx, cz)),
+                    );
+                }
+                let bedrock = registry.default_state("minecraft:bedrock").unwrap();
+                for x in -16..32 {
+                    for z in -16..32 {
+                        world.set(x, 0, z, bedrock).unwrap();
+                    }
+                }
+            },
+            |w, types| {
+                let kind = Arc::new(types.types["minecraft:shulker"].clone());
+                let mut m = Mob::new(1, kind, Vec3::new(0.5, 1.0, 0.5), 0.0);
+                let mut events = Vec::new();
+                let mut moved = false;
+                for _ in 0..50 {
+                    if teleport(&mut m, w, &mut events) {
+                        moved = true;
+                        break;
+                    }
+                }
+                assert!(moved, "the shulker teleports within 50 tries");
+                let face = m.extra.variant3;
+                let p = block_pos(&m);
+                let s = face_step(face);
+                assert_eq!(
+                    w.block_name(p[0] + s[0], p[1] + s[1], p[2] + s[2]),
+                    "minecraft:bedrock",
+                    "it clings to the bedrock face"
+                );
+            },
+        );
+    }
 
     /// `Shulker.setPos`: a piston's push lands on the block centre, the y
     /// rounded by `floor(y + 0.5)`, not left at the pushed offset.

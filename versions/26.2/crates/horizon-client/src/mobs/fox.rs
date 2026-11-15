@@ -391,8 +391,9 @@ fn teleport_randomly(
 
 /// `Entity.randomTeleport`: the drawn point drops to the first
 /// motion-blocking ground below it and takes the fox only if its box there
-/// is free and holds no liquid, on a block the consume effect allows.
-/// Otherwise the fox stays where it was.
+/// is free and holds no liquid. 26.2 has no landing-block tag check here
+/// (26.3's `#consumable_does_not_teleport_to` does not exist in 26.2);
+/// otherwise the fox stays where it was.
 fn random_teleport(w: &MobWorld, m: &mut Mob, to: Vec3) -> bool {
     let (x, z) = (to.x, to.z);
     let (bx, bz) = (x.floor() as i32, z.floor() as i32);
@@ -415,15 +416,10 @@ fn random_teleport(w: &MobWorld, m: &mut Mob, to: Vec3) -> bool {
     if !ground {
         return false;
     }
-    // `level().noCollision(this) && !level().containsAnyLiquid(getBoundingBox())
-    // && !getBlockState(blockPosition()).is(CONSUMABLE_DOES_NOT_TELEPORT_TO)`.
+    // `level().noCollision(this) && !level().containsAnyLiquid(getBoundingBox())`.
     let at = Vec3::new(x, y, z);
     let bounds = m.bounds_at(at);
-    let landing = w.block_name(x.floor() as i32, y.floor() as i32, z.floor() as i32);
-    if !w.no_collision(bounds)
-        || w.contains_any_liquid(bounds)
-        || w.has_tag("minecraft:consumable_does_not_teleport_to", landing)
-    {
+    if !w.no_collision(bounds) || w.contains_any_liquid(bounds) {
         return false;
     }
     m.position = at;
@@ -1334,7 +1330,11 @@ mod consume_tests {
 
     /// `Item.finishUsingItem` → `Consumable.onConsume`: a fox that finishes a
     /// chorus fruit takes `TeleportRandomlyConsumeEffect`'s teleport, with its
-    /// own sound and the portal trail (level event 2017).
+    /// own sound and the portal trail (level event 2017). 26.2's
+    /// `randomTeleport` has no landing-block tag check (26.3's
+    /// `#consumable_does_not_teleport_to` does not exist in 26.2), so the
+    /// teleport lands on any valid ground; the tag audit proves the literal
+    /// is gone.
     #[test]
     fn a_chorus_fruit_carries_the_fox_to_free_ground() {
         let ran = with_built_test_world(

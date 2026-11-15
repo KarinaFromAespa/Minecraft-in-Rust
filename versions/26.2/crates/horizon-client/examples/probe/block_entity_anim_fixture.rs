@@ -9,14 +9,12 @@ use horizon_client::{
     block_entity_anim::{
         Bell, BellEntity, BlockEntityAnims, ChestLid, Conduit, ConduitTarget, DIRECTIONS,
         EndGateway, PotWobble, Shulker, ShulkerStatus, Skull, WobbleStyle, chest_lid_x_rot,
-        direction_index,
+        direction_index, is_conduit_frame_block,
     },
     block_entity_render::{BlockEntityRenderer, gateway_beam},
     blocks::{BlockFacts, Fluid},
-    items::Items,
 };
 use horizon_core::random::LegacyRandom;
-use horizon_world::loot::PackOverlay;
 use horizon_world::registry::{BlockRegistry, BlockStateId};
 use serde_json::Value;
 use std::{
@@ -128,12 +126,6 @@ pub fn main() -> Result<()> {
     let registry = assets.registry;
     let facts = BlockFacts::load(root, registry)?;
     let renderer = BlockEntityRenderer::load(root, registry)?;
-    let tags = Items::tags_only(root, &PackOverlay::NONE)?;
-    let frames = tags
-        .block_tags
-        .get("minecraft:conduit_effect_block")
-        .cloned()
-        .unwrap_or_default();
     let mut out = BufWriter::new(fs::File::create(output)?);
     for line in fs::read_to_string(inputs)?
         .lines()
@@ -380,7 +372,7 @@ pub fn main() -> Result<()> {
                 };
                 let is_frame = |p: [i32; 3]| {
                     let spec = blocks.get(&p).map_or("minecraft:air", String::as_str);
-                    frames.contains(spec.split('[').next().unwrap_or_default())
+                    is_conduit_frame_block(spec.split('[').next().unwrap_or_default())
                 };
                 let particles = c.client_tick(pos, time, is_water, is_frame, target, &mut random);
                 for (p, v) in particles {
