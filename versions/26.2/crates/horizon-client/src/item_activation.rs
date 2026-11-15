@@ -1,12 +1,13 @@
 //! The item that spins up to the screen when it activates (the totem of
-//! undying): `net.minecraft.client.player.ItemActivation`, set by
-//! `LocalPlayer.displayItemActivation`, ticked by `GameRenderer.tick`, and
-//! posed by `ScreenEffectRenderer.renderItemActivationAnimation`.
+//! undying): in 26.2 the state is fields on `ScreenEffectRenderer`, set by
+//! `GameRenderer.displayItemActivation`, ticked by `ScreenEffectRenderer.tick`,
+//! and posed by `ScreenEffectRenderer.renderItemActivationAnimation`.
+//! (26.3 extracted the fields into `net.minecraft.client.player.ItemActivation`.)
 use crate::items::ItemStack;
 use glam::{Mat4, Vec3};
 use horizon_core::{geometry::trig::Mth, random::RandomSource};
 
-/// `ItemActivation.ANIMATION_LENGTH`, in ticks.
+/// `ScreenEffectRenderer.ITEM_ACTIVATION_ANIMATION_LENGTH`, in ticks.
 pub const ANIMATION_LENGTH: i32 = 40;
 
 #[derive(Clone, Debug, Default)]
@@ -18,7 +19,7 @@ pub struct ItemActivation {
 }
 
 impl ItemActivation {
-    /// `ItemActivation.tick`: the item goes when the count reaches 0.
+    /// `ScreenEffectRenderer.tick`: the item goes when the count reaches 0.
     pub fn tick(&mut self) {
         if self.ticks > 0 {
             self.ticks -= 1;
@@ -27,12 +28,12 @@ impl ItemActivation {
             }
         }
     }
-    /// `ItemActivation.reset` (`GameRenderer.resetData`).
+    /// `ScreenEffectRenderer.resetItemActivation`.
     pub fn reset(&mut self) {
         self.item = None;
         self.ticks = 0;
     }
-    /// `ItemActivation.activate`: a copy of the stack, the full length, and
+    /// `ScreenEffectRenderer.displayItemActivation`: a copy of the stack, the full length, and
     /// two random offsets in [-1, 1) for where on the screen it flies.
     pub fn activate(&mut self, item: ItemStack, random: &mut impl RandomSource) {
         self.item = Some(item);
@@ -40,7 +41,7 @@ impl ItemActivation {
         self.off_x = random.next_float() * 2.0 - 1.0;
         self.off_y = random.next_float() * 2.0 - 1.0;
     }
-    /// `ItemActivation.isActive`: the item to draw, while it shows.
+    /// The item to draw, while it shows (`itemActivationItem != null && itemActivationTicks > 0`).
     pub fn active(&self) -> Option<&ItemStack> {
         self.item.as_ref().filter(|_| self.ticks > 0)
     }

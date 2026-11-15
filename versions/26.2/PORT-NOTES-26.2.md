@@ -2865,3 +2865,24 @@ the comment was re-attributed.
 565 DensityFunction$Axes is a 26.3-only empty
 marker annotation (CLASS retention, no members,
 no runtime behaviour): nothing to port.
+
+576 ItemActivation is 26.3's extraction of
+26.2's ScreenEffectRenderer fields; the behaviour
+is identical, and the Rust implements it exactly
+— only the doc attributions were fixed to the
+26.2 names.
+
+585 SpawnTargetPoint (26.3's NoiseSpawnFinder
+record) has no 26.2 equivalent; the Rust already
+implements 26.2's Climate.findSpawnPosition over
+ParameterPoint targets.
+
+Pre-existing horizon-world test failures found
+while running the full suite (not regressions
+from this session): the 18 growth_tests fail at
+fixture setup because the prepared bundle's
+carvers.json is empty ({} since Nov 11);
+doors_beds_and_plants_place_both_halves fails on
+the bed head half (test untouched since
+publication). The aquifer cache test's 26.3-only
+gradient fixture is fixed in 63afd0b6.

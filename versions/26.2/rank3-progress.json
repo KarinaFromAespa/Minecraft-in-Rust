@@ -1203,6 +1203,20 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "DensityFunction$Axes is a 26.3-only marker annotation: an empty annotation interface, CLASS retention, TYPE_USE target, no members, no runtime behaviour, and nothing in the Rust models Java annotations. The Rust's similarly named Axes (OptiFine CTM texture axes in fusion.rs; SliceAxes in the density sampler) are unrelated concepts. No code or comment references the annotation. Tests: cargo check horizon-core clean."
+    },
+    {
+      "id": 576,
+      "module": "crates/horizon-client/src/item_activation.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "ItemActivation is 26.3's extraction of 26.2's ScreenEffectRenderer fields (itemActivationItem/Ticks/OffX/OffY, ITEM_ACTIVATION_ANIMATION_LENGTH = 40): the behaviour is identical in both versions (tick decrements and clears at 0; activate sets ticks 40 and two random offsets in [-1,1); the pose is the same quintic over 40 ticks, 900-degree Y turn, 6-degree X/Z rock, 0.8 scale, light 15728880). 26.2 sets it via GameRenderer.displayItemActivation -> ScreenEffectRenderer.displayItemActivation and ticks it in ScreenEffectRenderer.tick; 26.3 moved it to LocalPlayer's ItemActivation. The Rust implements the behaviour exactly; only the doc attributions were fixed to the 26.2 names (the struct keeps its name as the Rust's bundle for the state). Tests: horizon-client-lib item_activation 4/4. ALSO (separate commit 63afd0b6): fixed the pre-existing aquifer cache test, whose fixture used 26.3-only minecraft:gradient \u2014 now y_clamped_gradient, test passes."
+    },
+    {
+      "id": 585,
+      "module": "crates/horizon-world/src/worldgen/spawn_finder.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "SpawnTargetPoint (26.3's record: density-function -> Climate.Parameter map with sampleFitness, used by NoiseSpawnFinder) has no 26.2 equivalent and no Rust references. 26.2's spawn search is Climate.findSpawnPosition(List<ParameterPoint>, Sampler), which the Rust already implements exactly in spawn_finder.rs (coarse then fine radial search, 0 0 when the target list is empty), wired through generator.rs spawn_column over the noise settings' spawn_target ParameterPoints. Tests: no spawn-finder unit tests exist (covered by the chunk_generation parity harness); cargo check horizon-core clean (item 565)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
