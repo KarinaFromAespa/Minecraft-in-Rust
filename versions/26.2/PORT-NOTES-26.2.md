@@ -2816,3 +2816,13 @@ registration, the /data modify compute source, the
 context_sources helper and the exec corpus group are
 removed. The bare 'compute' parse-corpus entry stays —
 it now measures the unknown-command error on both sides.
+
+501 ResourceOrIdArgument: the feature and
+context-provider argument types are 26.3-only; the
+dead context-provider decode arms, provider_fields
+and fixture mappings are removed (the /compute tree
+nodes went in item 510). LootModifierArgument's
+ROOT_CODEC vs DIRECT_CODEC decode identically
+(DFU withAlternative is either + xmap unwrap), so
+the Rust's either-errors stand; /place feature
+already uses the 26.2 ResKey form.

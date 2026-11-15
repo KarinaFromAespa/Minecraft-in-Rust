@@ -1154,6 +1154,13 @@
       "bucket": "D",
       "verdict": "ported",
       "evidence": "/compute is 26.3-only: ComputeCommand, LootContextSources, ContextFloatProvider and ContextIntProvider are absent from the 26.2 jars (0 matches in the 26.2 server-game.jar; present in 26.3's), and 26.2's DataCommands has no compute source (0 references vs 1 in 26.3's). REMOVED: the whole compute.rs implementation (541 lines, self-contained \u2014 provider_int/provider_float/provider_select have no users outside it), the commands.rs module + dispatch arm, the /compute tree registration, the /data modify compute source, the now-unused context_sources helper, and the command_exec corpus compute() group (~70 cases). The bare 'compute' entry in the parse corpus stays: it now measures the unknown-command error on both sides. Tests: horizon-command 53/53; corpus parses, 197 groups, no compute."
+    },
+    {
+      "id": 501,
+      "module": "crates/horizon-command/src/codec.rs",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "ResourceOrIdArgument: the feature/floatProvider/intProvider factory methods and the ContextFloatProviderArgument, ContextIntProviderArgument and FeatureArgument subclasses are 26.3-only (the context-provider registries have no data in the 26.2 jar; /compute took the tree nodes in item 510). REMOVED the now-dead context-provider decode arms and provider_fields from codec.rs (no tree node passes those registries; decode now reports them as unknown registries) and the dead fixture mapping arms. VERIFIED NO-CHANGE: LootModifierArgument's ROOT_CODEC (26.2) vs DIRECT_CODEC (26.3) decode identically \u2014 DFU's withAlternative is either + xmap unwrap, so the Rust's element_or_list either-errors are correct for both; /place feature already uses ResKey (26.2's ResourceKeyArgument form); the remaining ResourceOrId registries (predicate, dialog, item_modifier, loot_table) all exist in 26.2; the render-crate Providers evaluator is already 26.2-form (burn_time delegates to the hardcoded FuelValues table; speed use removed by rank-2 item 154). Tests: horizon-command 53/53; client_probe (incl. command_parse_fixture) compiles."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
