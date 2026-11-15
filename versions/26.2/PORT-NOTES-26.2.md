@@ -2692,3 +2692,20 @@ show pictures in vanilla but not here. The client.rs tier
 types + invite-code methods stay for item 421. Two test
 failures pre-date this item (client cookie, optimization
 stamp — both fail at the pre-418 base too).
+
+## Rank 3 — bucket D batch 3: 158/177 (2026-11-15)
+
+421 Realms client: the invite-code service is gone
+(frontendV2Url, the frontend_url field, the x-mojangauth
+header, all five invite-code methods, the InviteCode
+DTOs), and so is the tier configuration (the three
+distance endpoints, both DTOs). PORTED: the Client-Ref
+header is gone — 26.3's addVersionHeaders adds it, 26.2's
+sends only X-NetworkProtocolVersion + Is-Prerelease;
+WorldTemplate link/trailer are plain Strings again
+(26.2's parse uses getStringOr with "" default; 26.3 made
+them nullable URIs), so the template screen checks
+emptiness instead of Some. Verified no-change:
+RealmsClient.execute itself, and the notification
+UrlButton (already a plain String). path_segment stays —
+the invites, template and minigame calls still use it.

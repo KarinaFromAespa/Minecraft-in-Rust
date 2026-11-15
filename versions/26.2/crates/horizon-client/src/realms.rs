@@ -4631,7 +4631,7 @@ impl Screen {
                     } else {
                         template.link.clone()
                     };
-                    if let Some(link) = link {
+                    if !link.is_empty() {
                         self.open_link(link);
                     }
                 }
@@ -5707,11 +5707,12 @@ impl Screen {
                     return None;
                 }
                 let template = templates.get(*row)?;
-                if *trailer {
-                    template.trailer.clone()
+                let link = if *trailer {
+                    &template.trailer
                 } else {
-                    template.link.clone()
-                }
+                    &template.link
+                };
+                (!link.is_empty()).then(|| link.clone())
             }),
             _ => None,
         };
@@ -6608,7 +6609,7 @@ impl Screen {
                 // reserved, they just do not draw or focus.
                 let chosen = selected.and_then(|i| templates.get(i));
                 let x = |i: usize| cx - 212.0 + i as f32 * 108.0;
-                if chosen.is_some_and(|template| template.trailer.is_some()) {
+                if chosen.is_some_and(|template| !template.trailer.is_empty()) {
                     buttons.push((
                         x(0),
                         h - 27.0,
@@ -6629,7 +6630,7 @@ impl Screen {
                     None,
                 ));
                 buttons.push((x(2), h - 27.0, 100.0, t("gui.cancel"), true, 78, None));
-                if chosen.is_some_and(|template| template.link.is_some()) {
+                if chosen.is_some_and(|template| !template.link.is_empty()) {
                     buttons.push((
                         x(3),
                         h - 27.0,
@@ -8960,9 +8961,9 @@ impl Screen {
                         // `Entry`: the website and trailer buttons, left of the version.
                         for (trailer, offset) in [(false, 10.0), (true, 15.0 + 15.0)] {
                             let present = if trailer {
-                                template.trailer.is_some()
+                                !template.trailer.is_empty()
                             } else {
-                                template.link.is_some()
+                                !template.link.is_empty()
                             };
                             if !present {
                                 continue;
