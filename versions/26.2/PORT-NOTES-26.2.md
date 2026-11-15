@@ -2397,3 +2397,17 @@ TOOLING NOTE: never run bare `cargo fmt` (or `cargo fmt -- <paths>`)
 in the 26.2 tree — this toolchain's rustfmt 1.95 reformats ~50 files
 of pre-existing drift (let-else/match-arm collapsing). Format single
 files with `rustfmt --edition 2024 <file>` and check git status after.
+
+## Rank 3 — bucket A batch 6: 68/177 (2026-11-15)
+
+All 12 no-change. 555 pale moss decorator (FEATURE→CONFIGURED_FEATURE
+registry rename only), 557 snowy block / 558 slab / 559 rotated
+pillar / 569 banner (26.2 codec only), 560 screenshot (RenderPearl→
+Blaze3D imports), 561 social screen (toggle-close condition differs
+but the Rust never ports the toggle close — Escape/Done only), 562
+chat visibility (same three values; 26.3 only adds a stream codec),
+563 wind-charge deflect (26.3 adds a power Vec3 to deflect; the Rust
+already implements the 26.2 forms — REVERSE scales -0.5, AIM_DEFLECT
+uses the unit look — and MOMENTUM_DEFLECT is unported), 564
+enchantment predicate / 567 pack entry / 568 checkbox (identical
+decompiles).

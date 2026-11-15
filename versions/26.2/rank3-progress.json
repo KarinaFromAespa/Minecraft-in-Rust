@@ -391,6 +391,90 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "ChorusPlantBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); getStateWithConnections unchanged."
+    },
+    {
+      "id": 555,
+      "module": "crates/horizon-world/src/worldgen/feature_catalog.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "PaleMossDecorator.place differs only by the registry rename: 26.3 looks up Registries.FEATURE and casts to Feature, 26.2 looks up Registries.CONFIGURED_FEATURE and casts to ConfiguredFeature; the place call (level, generator, random, origin.above()) is identical."
+    },
+    {
+      "id": 557,
+      "module": "crates/horizon-world/src/worldgen/snow_freeze.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SnowyBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+    },
+    {
+      "id": 558,
+      "module": "crates/horizon-world/src/worldgen/structure.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SlabBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+    },
+    {
+      "id": 559,
+      "module": "crates/horizon-world/src/worldgen/tree_blocks.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "RotatedPillarBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
+    },
+    {
+      "id": 560,
+      "module": "launcher/src/screenshots.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "Screenshot.takeScreenshot differs only by RenderPearl\u2192Blaze3D import renames (GpuBuffer/GpuTexture); the body is GPU plumbing, unchanged."
+    },
+    {
+      "id": 561,
+      "module": "crates/horizon-client/src/game/social.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SocialInteractionsScreen.keyPressed differs in its close condition (26.2: !searchBox.isFocused(); 26.3: !isInputCaptured()), but the Rust never ports the toggle-key close \u2014 the social screen closes only on Escape (play_keys) or Done \u2014 so the difference is unobservable."
+    },
+    {
+      "id": 562,
+      "module": "crates/horizon-client/src/game/chat.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ChatVisiblity has the same three values (FULL/SYSTEM/HIDDEN) and LEGACY_CODEC in both versions (javap-verified); 26.3 only adds a STREAM_CODEC field."
+    },
+    {
+      "id": 563,
+      "module": "crates/horizon-client/src/game/deflect.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "26.3's Projectile.deflect/ProjectileDeflection take a power Vec3 (REVERSE multiplies by -power*0.5, AIM_DEFLECT scales the look by power); 26.2's take none (REVERSE scales -0.5, AIM_DEFLECT uses the unit look). The Rust already implements the 26.2 forms: wind.rs::reverse scales velocity by -0.5, deflect.rs::aim_deflect sets velocity to the unit look. MOMENTUM_DEFLECT is unported. The WindCharge noDeflectTicks gate is identical in both versions."
+    },
+    {
+      "id": 564,
+      "module": "crates/horizon-assets/src/item_model/component_predicate.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "EnchantmentPredicate decompiles identically in both versions; the lambda$static 'changed' flag is a bytecode artifact."
+    },
+    {
+      "id": 567,
+      "module": "crates/horizon-client-render/src/pack_screen.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "TransferableSelectionList$PackEntry.extractContent decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+    },
+    {
+      "id": 568,
+      "module": "crates/horizon-client/src/dialog_screen.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "Checkbox.extractContents decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+    },
+    {
+      "id": 569,
+      "module": "crates/horizon-client/src/game/banners.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "AbstractBannerBlock carries a simpleCodec in 26.2 that the 26.3 form lacks; no behaviour method changed."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
