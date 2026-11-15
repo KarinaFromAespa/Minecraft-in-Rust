@@ -663,14 +663,13 @@ holder, which the method override already covered).
 
 ## Placement harness known gaps (2026-11-14, local run)
 
-`tools/test_placement_parity.py` against the 26.2 jar: 882/18,780 fixtures
-mismatch (down from 1,674 after the offsetCodec fix in item 242). The
-remaining two groups are pre-existing and out of item 242's scope:
+`tools/test_placement_parity.py` against the 26.2 jar: 90/18,780 fixtures
+mismatch (down from 882 after item 127 cleared the noise group). The
+remaining group is pre-existing and out of item 242's scope:
 
-- noise_based_count (792): counts diverge at extreme ratios — vanilla 26.2's
-  `Biome.BIOME_INFO_NOISE` (old Perlin-based NormalNoise) vs the Rust engine
-  mirroring 26.3's noise system. Belongs to item 127 (parked: noise-oracle
-  rewrite).
+- noise_based_count (792): CLEARED by item 127 (2026-11-15) — the f64
+  synth port + biome noises to double. Fixture-by-fixture comparison:
+  all noise fixtures match.
 - count_on_every_layer (90): identical positions and queries, different
   interleave order — vanilla 26.2's builder-based `getPositions` (full column
   scan before any position is consumed) vs the Rust stack-loop placer emitting
@@ -2272,6 +2271,9 @@ is now three `synth::PerlinSimplexNoise` (1234/[0], 3456/[-2,-1,0],
 returns f64; the frozen modifier and height-adjusted temperature compute
 in double with vanilla's float casts at the exact points
 (`(float)(noise * 8.0)` in the height adjustment); placement's
-NoiseBasedCount/NoiseThresholdCount use the double directly. This is
-the fix for the 792-fixture noise_based_count placement divergence
-(placement harness re-run pending).
+NoiseBasedCount/NoiseThresholdCount use the double directly. VERIFIED
+2026-11-15: placement harness re-run, fixture-by-fixture comparison of
+the 18,780 `tail`-delimited blocks — mismatches 882 → 90, and all 792
+noise_based_count fixtures now match; the only remaining 90 are
+count_on_every_layer (the separate pull-order issue, not this item's
+scope). Item 127 CLOSED with this step: rank 2 is 410/410.
