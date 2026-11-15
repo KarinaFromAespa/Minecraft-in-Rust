@@ -1140,6 +1140,13 @@
       "bucket": "D",
       "verdict": "ported",
       "evidence": "Frog lay-spawn to the 26.2 form. 26.2's FrogAi uses TryFindLandNearWater(8, 1.0); 26.3 renamed it TryFindLandNearLiquid with a fluid-tag parameter (whose 26.3 tag holds only water, so the range/speed/cooldown are identical). PORTED: the land search's water test is now a BLOCK test (the block below the neighbour is minecraft:water) \u2014 26.2 checks getBlockState().is(Blocks.WATER), while 26.3's fluid-state test also accepts waterlogged blocks. VERIFIED no-change: the Manhattan iteration order (26.2's BlockPos$3 withinManhattan iterator is exactly the Rust's manhattan_box: depth, x ascending, y ascending, z then -z), the guard (fluid-based in both), the +40-tick cooldown, and TryLaySpawnOnFluidNearLand (setBlockAndUpdate vs setBlock(...,3) only). Tests: mobs::frog 9/9."
+    },
+    {
+      "id": 485,
+      "module": "crates/horizon-client-render/src/trims.rs",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "Armour trims: already the 26.2 form (attributions fixed). 26.2 renders trims from the armor_trims atlas (TrimSpriteKey -> TextureAtlasSprite via ArmorTrim.layerAssetId, palette-swapped at load by PalettedPermutations); 26.3 replaced it with runtime PalettedTextureManager textures (TrimTextureKey, TrimOverride, palette_id materials). The Rust implements 26.2's mechanism at runtime: TrimRegistry reads 26.2's material format (asset_name + override_armor_assets \u2014 26.3's iron.json has palette_id instead), generate() is PalettedPermutations' mapping keyed on trim_palette, and the (texture, palette) pair is exactly layerAssetId's sprite (pattern path + material suffix). The trim layer already carries no glint (26.2; 26.3's trimmedArmorGlint). VERIFIED no-change: TrimPredicate (26.3 holderSet/tag-or-list vs 26.2 homogeneousList/list-only \u2014 decode_predicate accepts trim unchecked, so unobservable). Fixed three 26.3 attributions (TrimTextureKey/PalettedTextureManager) to the 26.2 names. Tests: trims 7/7."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

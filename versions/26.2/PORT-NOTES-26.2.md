@@ -2791,3 +2791,17 @@ Verified no-change: the Manhattan iteration order (26.2's
 withinManhattan iterator is exactly the Rust's
 manhattan_box), the guard, the cooldown, and the
 lay-spawn behaviour itself.
+
+## Rank 3 — bucket D batch 9: 164/177 (2026-11-15)
+
+485 Armour trims: already the 26.2 form — the Rust
+implements 26.2's atlas mechanism at runtime (the
+material format with asset_name + override_armor_assets,
+PalettedPermutations' mapping keyed on trim_palette, no
+glint on the trim layer), where 26.3 moved to runtime
+PalettedTextureManager textures with palette_id
+materials. Only the attributions needed fixing
+(TrimTextureKey/PalettedTextureManager to the 26.2
+names). Verified no-change: TrimPredicate (the trim
+predicate is accepted unchecked, so its holder-set
+difference is unobservable).

@@ -184,7 +184,7 @@ impl ArmorStandAssets {
         self.trims = fresh.trims;
         self.root = fresh.root;
     }
-    /// `TrimTextureKey`: the trim texture of `stack` on its humanoid
+    /// `TrimSpriteKey`: the trim texture of `stack` on its humanoid
     /// layer (`humanoid` or `humanoid_leggings`), if it has a trim.
     fn trim_texture(&self, asset: &str, kind: &str, stack: &ItemStack) -> Option<TrimTexture> {
         let (material, pattern) =
@@ -331,9 +331,10 @@ impl Game<'_> {
         }
         out
     }
-    /// `PalettedTextureManager.getOrPrepare` for the trims drawn this frame
-    /// (the player's armour and the armour stands'): each generated texture
-    /// goes into an atlas trim slot, a free one, else the least recently
+    /// The trims drawn this frame (the player's armour and the armour
+    /// stands'): 26.2's armor_trims atlas builds the palette-swapped sprites
+    /// at load; here each generated texture goes into an atlas trim slot,
+    /// a free one, else the least recently drawn.
     /// drawn. Reuse the completed preparation while the requests and atlas stay the same.
     pub(super) fn prepare_trims(&mut self) {
         let assets = &self.armor_stand_assets;
