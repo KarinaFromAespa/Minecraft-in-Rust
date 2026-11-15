@@ -2844,3 +2844,9 @@ ComponentSlotCollection) have no Rust references.
 same provider registration): the Rust already
 implements the 26.2 form; only the two comments
 were re-attributed.
+
+533 ArgProvider is 26.3's rename of 26.2's
+DataProvider (same tree, same wraps; the only
+other DataCommands delta is the compute source,
+removed in item 510): only the tree_data.rs
+comment was re-attributed.

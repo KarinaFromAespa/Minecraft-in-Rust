@@ -10,7 +10,8 @@ const ENTITY: ArgType = ArgType::Entity {
     players: false,
 };
 
-/// `ArgProvider.wrap` for each of entity, block and storage: calls `then`
+/// `DataProvider.wrap` (26.3 renamed it `ArgProvider.wrap`) for each of
+/// entity, block and storage: calls `then`
 /// with the node holding the provider's argument.
 fn providers(
     d: &mut Dispatcher,

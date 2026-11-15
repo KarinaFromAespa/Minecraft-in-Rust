@@ -1175,6 +1175,13 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "EmissiveRisingParticle is a pure rename of 26.2's SoulParticle: the decompiled classes are behaviour-identical (RisingParticle parent, scale 1.5, isGlowing -> block light 15, TRANSLUCENT layer, tick = super + setSpriteFromAge), and ParticleResources registers the same providers in both versions (SCULK_SOUL -> EmissiveProvider, SOUL -> plain Provider). The Rust already implements the 26.2 form exactly: RisingParticle motion, scale 1.5, Animated behaviour, Light::Block15 for SculkSoul only, translucent layer for both. Only the two comments naming EmissiveRisingParticle were fixed to SoulParticle. Tests: cargo check horizon-client-core + horizon-client-render clean."
+    },
+    {
+      "id": 533,
+      "module": "crates/horizon-command/src/tree_data.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "ArgProvider is 26.3's rename of 26.2's DataProvider: the DataCommands diff between the versions is only the ArgProvider->DataProvider rename (Factory + buildList -> Function list + stream map, cast removals) plus the /data modify compute source, which item 510 already removed. The tree built is identical: same merge/get/remove/modify structure with the same entity/block/storage provider wraps. The Rust's providers() helper is the direct equivalent of DataProvider.wrap; only its doc comment named the 26.3 name, now fixed. No other ArgProvider references in the Rust. Tests: horizon-command 53/53."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
