@@ -24,8 +24,8 @@ the same method that produced the 26.3 rewrite.
 | Harnesses passing (7 profiled versions) | 17 / 119 | 14.3% |
 
 Phase 0 is 5 of 6 exit conditions met: T1–T3, the complete 1.21.11
-profile, and the 26.3 control baseline (14/17) are in; only the two
-oracle repairs (`chunk_generation`, `command_exec`) remain. The foundation —
+profile, and the 26.3 control baseline (14/17) are in; only the three
+oracle repairs (`chunk_generation`, `command_exec`, `datafix`) remain. The foundation —
 mappings front-end, CI, the delta gate, the roadmap — is finished; the
 version work is at the starting line.
 
