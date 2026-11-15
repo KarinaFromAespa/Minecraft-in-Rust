@@ -106,11 +106,13 @@ impl SavedOldWorld {
             Some(Tag::List(list)) => Some(
                 list.iter()
                     .map(|v| match v {
-                        Tag::Float(bits) => f32::from_bits(*bits),
-                        Tag::Double(bits) => f64::from_bits(*bits) as f32,
-                        _ => f32::MAX,
+                        // 26.2 writes doubles (`Codec.DOUBLE.listOf()`); a
+                        // float list (26.3's form) still reads.
+                        Tag::Double(bits) => f64::from_bits(*bits),
+                        Tag::Float(bits) => f64::from(f32::from_bits(*bits)),
+                        _ => f64::MAX,
                     })
-                    .collect::<Vec<f32>>(),
+                    .collect::<Vec<f64>>(),
             ),
             _ => None,
         };

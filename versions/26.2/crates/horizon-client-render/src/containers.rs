@@ -388,7 +388,6 @@ impl BlockEntity {
                 lit_total: 0,
                 cooking_timer: 0,
                 cooking_total: 0,
-                speed: 1.0,
                 recipes_used: HashMap::new(),
             }));
         }

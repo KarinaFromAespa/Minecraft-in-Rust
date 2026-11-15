@@ -3,7 +3,7 @@
 //! `ender_dragon_fight.dat`, the dragon spawned over the island, the
 //! holding pattern over the 24-node path graph, strafing with fireballs,
 //! landing on the podium to breathe and charge, healing from the crystals on
-//! the spikes, its parts (head and neck take full damage, the rest a quarter
+//! the spikes, its parts (only the head takes full damage, the rest a quarter
 //! plus one), wing knockback, block breaking, the death flight and rays, the
 //! exit portal, the egg and the next gateway; and its rendering and boss bar.
 use super::commands::Target;
@@ -710,7 +710,9 @@ impl Dragon {
             return Hurt::Shrugged;
         }
         let mut damage = damage;
-        if part != 0 && part != 1 {
+        // EnderDragon.hurt: only the head (part 0) takes full damage in
+        // 26.2; the neck takes the quarter too (26.3 spares the neck).
+        if part != 0 {
             damage = damage / 4.0 + damage.min(1.0);
         }
         if damage < 0.01 {
@@ -1125,13 +1127,6 @@ impl Game<'_> {
     /// The player acting now: the guest whose turn it is, else the host.
     pub(super) fn acting_player(&self) -> FightWho {
         self.lan_acting.map_or(FightWho::Host, FightWho::Guest)
-    }
-    /// The causing player shared by the crystal/deflected-fireball blast.
-    pub(super) fn crystal_blast_player(&self) -> Option<super::commands::Target> {
-        self.fight.blast_by.map(|who| match who {
-            FightWho::Host => super::commands::Target::Player,
-            FightWho::Guest(conn) => super::commands::Target::Guest(conn),
-        })
     }
     /// Names the acting player behind the blast about to go off (a large
     /// fireball they shot), or no one, for the dragon's kill credit.
@@ -2702,25 +2697,15 @@ impl Game<'_> {
                 sitting,
                 recently_hurt,
             };
-            // Keep team lookup in Game (including tamed pets' owner teams).
-            let allowed: Vec<bool> = self
-                .mobs
-                .iter()
-                .map(|m| {
-                    horizon_client::scoreboard::teams_allow_damage(
-                        self.mob_team(d.id),
-                        self.mob_team_of(m),
-                    )
-                })
-                .collect();
             // knockBack(wing1), knockBack(wing2), hurt(head), hurt(neck): each
             // part's list in turn, so Thorns' level and dragon draws follow it.
+            // 26.2 has no team check on the contact damage (26.3 added
+            // `doTeamsAllowDamage`).
             for part in 0..4 {
-                for (index, &allowed) in allowed.iter().enumerate() {
+                for index in 0..self.mobs.len() {
                     if horizon_client::mobs::dragon_contacts::contact_part(
                         &mut self.mobs[index],
                         &frame,
-                        allowed,
                         part,
                     ) {
                         let id = self.mobs[index].id;
@@ -3860,11 +3845,9 @@ impl Game<'_> {
             equipment: Vec::new(),
             attributes: Vec::new(),
             precise: false,
-            vertical_collision: false,
-            horizontal_collision: false,
             needs_sync: false,
             sync_position: false,
-            stepped: true,
+            fall_flying: false,
             idle: false,
             bare: false,
             leash: None,

@@ -66,7 +66,9 @@ pub fn restitute_movement<W: RestitutionWorld>(
     let mut emit = bounce > 0.0 && (input.collided_x || input.collided_z);
     if input.vertical_collision {
         if input.collision_below {
-            if -old.y <= world.effective_gravity()?
+            // 26.2's gate is strict (`-y < gravity`); 26.3 loosened it to `<=`.
+            // At exactly the gravity the fall still bounces in 26.2.
+            if -old.y < world.effective_gravity()?
                 || world.suppressing_bounce()?
                 || world.block_suppresses_bounce(input.block)?
             {
@@ -92,6 +94,9 @@ pub fn restitute_movement<W: RestitutionWorld>(
     }
     if emit {
         let position = world.movement_support_position()?;
+        // 26.3's `Block.bounceOn` hook (the shelf-mushroom bounce sound); 26.2
+        // has no such call — only the BOUNCE game event below. It is inert
+        // here: no 26.2 block carries the shelf-mushroom bounce flag.
         world.bounce_on(input.block, position, input.fall_distance)?;
         world.bounce_event()?;
         world.mark_position_for_sync();

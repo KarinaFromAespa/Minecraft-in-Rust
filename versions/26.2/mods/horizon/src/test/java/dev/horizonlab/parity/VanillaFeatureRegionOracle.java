@@ -20,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.*;
 
@@ -144,8 +145,8 @@ public final class VanillaFeatureRegionOracle {
             upgradeLifecycle(factory,out);
             for(var line:Files.readAllLines(dir.resolve("inputs.txt"))) {
                 var f=JsonParser.parseString(line).getAsJsonObject();long seed=f.get("seed").getAsLong();
-                var features=new ArrayList<Feature>();
-                for(var value:f.getAsJsonArray("features"))features.add(Feature.DIRECT_CODEC.parse(ops,value).getOrThrow());
+                var features=new ArrayList<ConfiguredFeature<?,?>>();
+                for(var value:f.getAsJsonArray("features"))features.add(ConfiguredFeature.DIRECT_CODEC.parse(ops,value).getOrThrow());
                 RandomSource random=f.get("legacy").getAsBoolean()?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
                 if(f.get("worldgen").getAsBoolean())random=new WorldgenRandom(random);
                 var chunks=new TreeMap<ChunkPos,ProtoChunk>(Comparator.<ChunkPos>comparingInt(p->p.x()).thenComparingInt(p->p.z()));
@@ -200,11 +201,10 @@ public final class VanillaFeatureRegionOracle {
                 center(destroyer[0],centerChunk);setWriteZone(destroyer[0],0,0,Integer.MAX_VALUE);
                 if(!f.get("write_zone").isJsonNull()){var zone=f.getAsJsonArray("write_zone");setWriteZone(destroyer[0],zone.get(0).getAsInt(),zone.get(1).getAsInt(),zone.get(2).getAsInt());}
                 var modifiers=new ArrayList<PlacementModifier>();for(var value:f.getAsJsonArray("placement"))modifiers.add(PlacementModifier.CODEC.parse(JsonOps.INSTANCE,value).getOrThrow());
-                var placer=new FeaturePlacer(world,generator);
                 for(int repeat=0;repeat<2;repeat++) {
                     for(var feature:features) {
                         calls[0]=0;
-                        try {out.println("place "+placer.place(new PlacedFeature(Holder.direct(feature),modifiers),random,new BlockPos(15,-40,15)));}catch(RuntimeException error){out.println("place error");}
+                        try {out.println("place "+new PlacedFeature(Holder.direct(feature),modifiers).place(world,generator,random,new BlockPos(15,-40,15)));}catch(RuntimeException error){out.println("place error");}
                         out.println("next "+random.nextLong());
                         for(int[] p:new int[][]{{0,0},{15,15},{16,16},{-1,-1}})for(var kind:Heightmap.Types.values())out.println("height "+kind.name()+" "+p[0]+" "+p[1]+" "+(chunk(chunks,p[0],p[1]).getHeight(kind,p[0]&15,p[1]&15)+1));
                     }

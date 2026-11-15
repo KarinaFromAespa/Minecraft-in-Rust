@@ -12,7 +12,7 @@ use horizon_client::{
     items::ItemStack,
     mesher::Vertex,
     mobs::{Mob, Part, anim::Poses},
-    trims::{TrimOverride, TrimRegistry, TrimTexture},
+    trims::{TrimRegistry, TrimTexture},
 };
 use horizon_core::{
     geometry::{Aabb, Vec3},
@@ -89,8 +89,6 @@ pub(super) struct ArmorStandAssets {
     pub player: HashMap<&'static str, Part>,
     /// asset id -> layer kind (humanoid / humanoid_leggings) -> each layer's (texture, undyed colour), in order.
     pub equipment: HashMap<String, HashMap<String, Vec<(String, Option<u32>)>>>,
-    /// asset id -> `trim_overrides`.
-    pub trim_overrides: HashMap<String, Vec<TrimOverride>>,
     pub trims: TrimRegistry,
     /// The resources the trim textures are made from.
     pub root: PathBuf,
@@ -122,7 +120,6 @@ impl ArmorStandAssets {
             }
         }
         let mut equipment = HashMap::new();
-        let mut trim_overrides = HashMap::new();
         // EquipmentAssetManager reads every namespace: vanilla's and the content mods'.
         let namespaces = std::iter::once("minecraft".to_owned())
             .chain(horizon_client::mod_content::namespaces(root));
@@ -168,7 +165,6 @@ impl ArmorStandAssets {
                         kinds.insert(kind.to_owned(), layers);
                     }
                 }
-                trim_overrides.insert(id.clone(), TrimOverride::list(&v));
                 equipment.insert(id, kinds);
             }
         }
@@ -178,7 +174,6 @@ impl ArmorStandAssets {
             layers,
             player,
             equipment,
-            trim_overrides,
             trims: TrimRegistry::load(root),
             root: root.to_owned(),
         }
@@ -186,7 +181,6 @@ impl ArmorStandAssets {
     /// Trim data of reloaded resources (the models stay).
     pub fn reload_trims(&mut self, root: &std::path::Path) {
         let fresh = Self::load(root, None);
-        self.trim_overrides = fresh.trim_overrides;
         self.trims = fresh.trims;
         self.root = fresh.root;
     }
@@ -195,11 +189,7 @@ impl ArmorStandAssets {
     fn trim_texture(&self, asset: &str, kind: &str, stack: &ItemStack) -> Option<TrimTexture> {
         let (material, pattern) =
             horizon_client::item_data::trim::named(stack.extra.as_ref()?.trim.as_ref()?)?;
-        let overrides = self
-            .trim_overrides
-            .get(asset)
-            .map_or(&[][..], Vec::as_slice);
-        TrimTexture::resolve(&self.trims, overrides, material, pattern, kind)
+        TrimTexture::resolve(&self.trims, asset, material, pattern, kind)
     }
 }
 impl Game<'_> {
@@ -301,7 +291,8 @@ impl Game<'_> {
                 continue;
             };
             // EquipmentLayerRenderer.renderLayers: NO_OVERLAY, the armour
-            // glint on the first layer and on the trim when `stack.hasFoil()`.
+            // glint on the first layer when `stack.hasFoil()` — 26.2 gives
+            // the trim no glint (26.3's trimmedArmorGlint).
             let item_glint = self
                 .res
                 .items()
@@ -335,7 +326,7 @@ impl Game<'_> {
                 .and_then(|s| assets.trim_texture(&asset, kind, s))
                 .and_then(|t| self.gui.atlas.sprites.get(&t.sprite()))
             {
-                out.push((part, [r.u0, r.v0, r.u1, r.v1], 0xFFFF_FFFF, overlay, false));
+                out.push((part, [r.u0, r.v0, r.u1, r.v1], 0xFFFF_FFFF, 0, false));
             }
         }
         out
@@ -831,12 +822,18 @@ impl Game<'_> {
         let at = [at.x, at.y, at.z];
         if creative {
             let (width, height) = stand_box(&self.armor_stands[i]);
+            let id = self.armor_stands[i].id;
             self.armor_stands.remove(i);
             self.audio
                 .play("minecraft:entity.armor_stand.break", Some(at), 1.0, 1.0);
             self.show_breaking_particles(at, f64::from(width), f64::from(height));
-            // ArmorStand.kill(level, the causing entity).
-            self.stand_game_event("minecraft:entity_die", at, by);
+            // ArmorStand.kill(level): the death is the stand's own event in
+            // 26.2 (26.3 attributes it to the causing entity).
+            self.stand_game_event(
+                "minecraft:entity_die",
+                at,
+                Some(super::commands::Target::Stand(id)),
+            );
             return true;
         }
         if time - self.armor_stands[i].last_hit > 5 && !always_kills {
@@ -871,8 +868,13 @@ impl Game<'_> {
             ];
             self.spawn_item(stack, center, v, 10);
         }
-        // ArmorStand.kill(level, the causing entity), after the drops.
-        self.stand_game_event("minecraft:entity_die", at, by);
+        // ArmorStand.kill(level), after the drops: the death is the stand's
+        // own event in 26.2 (26.3 attributes it to the causing entity).
+        self.stand_game_event(
+            "minecraft:entity_die",
+            at,
+            Some(super::commands::Target::Stand(a.id)),
+        );
         self.world
             .modified
             .insert(((at[0].floor() as i32) >> 4, (at[2].floor() as i32) >> 4));
@@ -1010,7 +1012,6 @@ impl Game<'_> {
                     a.previous,
                     a.position,
                     a.bounds(),
-                    a.velocity,
                     true,
                 );
             }
@@ -1189,16 +1190,9 @@ impl Game<'_> {
     }
     /// `ArmorStand.brokenByAnything`, then `kill`, as burning out or a blast
     /// breaks a stand: its equipment pops above its block, the stand item does
-    /// not drop.
+    /// not drop, and the death is the stand's own event (26.2's `kill`
+    /// attributes it to the stand; 26.3 attributes it to the causing entity).
     pub(super) fn break_armor_stand_by_anything(&mut self, i: usize) {
-        self.break_armor_stand_with_source(i, None);
-    }
-    /// `ArmorStand.brokenByAnything`, then `ArmorStand.kill` with attribution.
-    pub(super) fn break_armor_stand_with_source(
-        &mut self,
-        i: usize,
-        source: Option<super::commands::Target>,
-    ) {
         let a = self.armor_stands.remove(i);
         let at = [a.position.x, a.position.y, a.position.z];
         let a_id = a.id;
@@ -1212,7 +1206,7 @@ impl Game<'_> {
         }
         self.audio
             .play("minecraft:entity.armor_stand.break", Some(at), 1.0, 1.0);
-        self.entity_killed_event_by(at, source.or(Some(super::commands::Target::Stand(a_id))));
+        self.entity_killed_event_by(at, Some(super::commands::Target::Stand(a_id)));
         self.world.modified.insert((pos[0] >> 4, pos[2] >> 4));
     }
     /// `LivingEntity.dropFromLootTable` for a stand that is not small, with
@@ -1382,9 +1376,7 @@ impl Game<'_> {
                 .is_some_and(|i| &*i.item == "minecraft:dragon_head");
             if !self.standing_entity_in_view(
                 camera,
-                super::entity_culling::at(a.previous),
                 super::entity_culling::at(a.position),
-                alpha,
                 width,
                 height,
                 range,

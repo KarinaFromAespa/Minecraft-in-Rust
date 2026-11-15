@@ -281,11 +281,9 @@ fn consume_effect(r: &mut Reader) -> Result<()> {
         1 => holder_set(r),
         // clear_all_effects.
         2 => Ok(()),
-        // teleport_randomly: diameter, directionalParticles.
-        3 => {
-            f32(r)?;
-            boolean(r)
-        }
+        // teleport_randomly: diameter only in 26.2 (26.3 added the
+        // directionalParticles bool to the stream codec).
+        3 => f32(r),
         // play_sound.
         4 => sound(r),
         other => Err(Error::new(format!("unknown consume effect type {other}"))),

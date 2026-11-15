@@ -1,4 +1,4 @@
-//! Opening an older world as 26.3 does: the file fixes of `FileFixerUpper`
+//! Opening an older world as 26.2 does: the file fixes of `FileFixerUpper`
 //! (`net.minecraft.util.filefix`, from DataVersion 4772 on) that move the
 //! files into the 26.x layout, then level.dat brought to the current version,
 //! and the upgrades vanilla runs as it reads each file ([`upgrade_world`]
@@ -101,8 +101,9 @@ fn resolve(base: &Path, relative: &str) -> PathBuf {
     base.join(relative.trim_start_matches('/'))
 }
 
-/// `FileFixUtil.moveFile`: nothing when the source is missing, an error when
-/// the target exists.
+/// `FileFixUtil.moveFile`: nothing when the source is missing, and in 26.2
+/// nothing (but a warning) when the target exists — the move is skipped and
+/// the fix continues. (26.3 throws `FileAlreadyExistsException` instead.)
 fn move_file(base: &Path, from: &str, to: &str) -> io::Result<()> {
     let from = resolve(base, from);
     if !from.exists() {
@@ -110,14 +111,12 @@ fn move_file(base: &Path, from: &str, to: &str) -> io::Result<()> {
     }
     let to = resolve(base, to);
     if to.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::AlreadyExists,
-            format!(
-                "cannot move {} to {}: target already exists",
-                from.display(),
-                to.display()
-            ),
-        ));
+        log::warn!(
+            "Target already exists, skipping move from {} to {}",
+            from.display(),
+            to.display()
+        );
+        return Ok(());
     }
     if let Some(parent) = to.parent() {
         fs::create_dir_all(parent)?;

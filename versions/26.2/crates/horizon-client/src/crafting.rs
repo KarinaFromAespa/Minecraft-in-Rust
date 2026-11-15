@@ -677,6 +677,10 @@ pub struct Context<'a> {
     recipes: &'a Recipes,
     /// A filled map's scale, when its data is known.
     pub map_scale: &'a dyn Fn(i32) -> Option<u8>,
+    /// Whether a filled map is an exploration map
+    /// (`MapItemSavedData.isExplorationMap`, 26.2 only): one never is
+    /// extended by the map-extending recipe.
+    pub map_is_exploration: &'a dyn Fn(i32) -> bool,
 }
 impl Context<'_> {
     fn facts(&self, stack: &ItemStack) -> Option<&Facts> {
@@ -952,11 +956,19 @@ impl Special {
                 if !ring {
                     return false;
                 }
-                stacks
+                // `MapExtendingRecipe.matches`: an exploration map is never
+                // extended in 26.2 (26.3 dropped the check), and a map at
+                // scale 4 is not extended in either version.
+                let Some(id) = stacks
                     .iter()
                     .find_map(|s| s.data().and_then(|d| d.map_id))
-                    .and_then(|id| (ctx.map_scale)(id))
-                    .is_some_and(|scale| scale < 4)
+                else {
+                    return false;
+                };
+                if (ctx.map_is_exploration)(id) {
+                    return false;
+                }
+                (ctx.map_scale)(id).is_some_and(|scale| scale < 4)
             }
             Self::DecoratedPot {
                 back,
@@ -1728,6 +1740,14 @@ impl Recipes {
                 | "minecraft:smoking"
                 | "minecraft:campfire_cooking") => {
                     if let (Some(ingredient), Some(result)) = (ing("ingredient"), result()) {
+                        // 26.2 cookingMapCodec takes a per-type default
+                        // (smelting 200, blasting/smoking/campfire 100) and
+                        // cookingtime is optional; 26.3 requires the field.
+                        let default_time = if kind == "minecraft:smelting" {
+                            200
+                        } else {
+                            100
+                        };
                         cooking.push(Cooking {
                             id: name.clone(),
                             category: text("category"),
@@ -1736,7 +1756,7 @@ impl Recipes {
                             ingredient,
                             result: result.create(),
                             experience: v["experience"].as_f64().unwrap_or(0.0) as f32,
-                            time: v["cookingtime"].as_u64().unwrap_or(200) as u32,
+                            time: v["cookingtime"].as_u64().unwrap_or(default_time) as u32,
                         });
                     }
                     None
@@ -1785,20 +1805,23 @@ impl Recipes {
     }
     /// `craft` with the matched recipe's id (the file name without namespace).
     pub fn find(&self, grid: &[Option<ItemStack>], size: usize) -> Option<(&str, ItemStack)> {
-        self.find_with(grid, size, &|_| None)
+        self.find_with(grid, size, &|_| None, &|_| false)
     }
-    /// `RecipeManager.getRecipeFor(CRAFTING, ...)` with a lookup for the scale
-    /// of a filled map (map extending reads the map's saved data).
+    /// `RecipeManager.getRecipeFor(CRAFTING, ...)` with lookups for the scale
+    /// of a filled map and whether it is an exploration map (map extending
+    /// reads the map's saved data).
     pub fn find_with(
         &self,
         grid: &[Option<ItemStack>],
         size: usize,
         map_scale: &dyn Fn(i32) -> Option<u8>,
+        map_is_exploration: &dyn Fn(i32) -> bool,
     ) -> Option<(&str, ItemStack)> {
         let input = Input::of(grid, size)?;
         let ctx = Context {
             recipes: self,
             map_scale,
+            map_is_exploration,
         };
         for (name, recipe) in &self.crafting {
             if let Some(result) = Self::assemble_if_matches(&ctx, &input, recipe) {
@@ -1863,6 +1886,7 @@ impl Recipes {
         let ctx = Context {
             recipes: self,
             map_scale: &|_| None,
+            map_is_exploration: &|_| false,
         };
         Self::assemble_if_matches(&ctx, &input, recipe).is_some()
     }
@@ -2629,6 +2653,7 @@ mod tests {
         let ctx = Context {
             recipes: &recipes,
             map_scale: &|_| None,
+            map_is_exploration: &|_| false,
         };
         let mut grid: Vec<Option<ItemStack>> = cells.iter().cloned().map(Some).collect();
         grid.resize(9, None);

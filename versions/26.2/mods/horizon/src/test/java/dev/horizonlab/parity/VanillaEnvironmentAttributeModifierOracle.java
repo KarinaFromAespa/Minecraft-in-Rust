@@ -12,12 +12,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.Bootstrap;
 import net.minecraft.world.attribute.EnvironmentAttribute;
 import net.minecraft.world.attribute.EnvironmentAttributeMap;
-import org.joml.Vector3fc;
-import org.joml.Vector4fc;
+import net.minecraft.util.ARGB;
 
 /**
  * Parses each case's entry with the pinned game's EnvironmentAttributeMap codec and applies it to
  * the subject value: one line per case with the applied value and the sanitized one, or "error".
+ * 26.2's colors are packed ints; they print as the float bits of their channels, as the probe does.
  */
 public final class VanillaEnvironmentAttributeModifierOracle {
     public static void main(String[] args) throws Exception {
@@ -46,7 +46,7 @@ public final class VanillaEnvironmentAttributeModifierOracle {
             return "error";
         }
         Object value = parsed.getOrThrow().applyModifier(attribute, subject);
-        return format(value) + "\t" + format(attribute.sanitizeValue(value));
+        return format(value, attribute) + "\t" + format(attribute.sanitizeValue(value), attribute);
     }
 
     private static final java.util.Set<String> PORTED = java.util.Set.of(
@@ -60,10 +60,10 @@ public final class VanillaEnvironmentAttributeModifierOracle {
             String type = BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString();
             boolean ported = PORTED.contains(type);
             String range = attribute.defaultValue() instanceof Float
-                ? format(attribute.sanitizeValue(Float.NEGATIVE_INFINITY)) + " " + format(attribute.sanitizeValue(Float.POSITIVE_INFINITY))
+                ? format(attribute.sanitizeValue(Float.NEGATIVE_INFINITY), attribute) + " " + format(attribute.sanitizeValue(Float.POSITIVE_INFINITY), attribute)
                 : "-";
             output.add(BuiltInRegistries.ENVIRONMENT_ATTRIBUTE.getKey(raw) + "\t" + (ported ? type : "other") + "\t"
-                + (ported ? format(attribute.defaultValue()) : "unported") + "\t" + range);
+                + (ported ? format(attribute.defaultValue(), attribute) : "unported") + "\t" + range);
         }
     }
 
@@ -71,15 +71,15 @@ public final class VanillaEnvironmentAttributeModifierOracle {
         return String.format("%08x", Float.floatToRawIntBits(f));
     }
 
-    private static String format(Object value) {
+    private static String format(Object value, EnvironmentAttribute<?> attribute) {
         if (value instanceof Float f) {
             return bits(f);
         }
-        if (value instanceof Vector4fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z()) + " " + bits(v.w());
-        }
-        if (value instanceof Vector3fc v) {
-            return bits(v.x()) + " " + bits(v.y()) + " " + bits(v.z());
+        if (value instanceof Integer color) {
+            // A packed int, printed as the float bits of its channels (RGB: 3, ARGB: 4).
+            String rgb = bits(ARGB.redFloat(color)) + " " + bits(ARGB.greenFloat(color)) + " " + bits(ARGB.blueFloat(color));
+            String type = BuiltInRegistries.ATTRIBUTE_TYPE.getKey(attribute.type()).toString();
+            return type.equals("minecraft:argb_color") ? rgb + " " + bits(ARGB.alphaFloat(color)) : rgb;
         }
         return String.valueOf(value);
     }

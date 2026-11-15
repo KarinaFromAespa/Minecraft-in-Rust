@@ -230,8 +230,6 @@ pub struct ItemEntity {
     /// `Entity.noGravity` (`NoGravity` in its save): `applyGravity` does nothing.
     pub no_gravity: bool,
     /// `Entity.verticalCollision`: the last move was stopped vertically.
-    /// `ServerEntity.isFullPrecisionEncodingRequired` reads it for items, whose
-    /// resting position is exact while a 1/4096 delta is not.
     pub vertical_collision: bool,
     /// `Entity.horizontalCollision`: the last move was stopped on x or z.
     pub horizontal_collision: bool,
@@ -1923,69 +1921,6 @@ impl Painting {
         )
     }
 }
-/// The `DyeColor` ordinal of a colour name (`DyeColor.byName`), white when
-/// the name is unknown.
-pub fn dye_index(name: &str) -> u8 {
-    crate::mobs::render::DYE_NAMES
-        .iter()
-        .position(|n| *n == name)
-        .unwrap_or(0) as u8
-}
-/// A cushion (`Cushion`, a `BlockAttachedEntity`): a 1 x 0.25 block pillow
-/// that seats a player. It sits on the top face of a block, at the clicked
-/// height, and is coloured by its `DyeColor`.
-#[derive(Clone, Debug)]
-pub struct Cushion {
-    pub id: u32,
-    /// `Entity.position`: the bottom centre of the cushion.
-    pub position: Vec3,
-    /// `BlockAttachedEntity.pos` (the saved `block_pos`).
-    pub pos: [i32; 3],
-    pub yaw: f32,
-    /// `DyeColor` ordinal: white 0, orange 1, ..., black 15.
-    pub color: u8,
-    /// BlockAttachedEntity.ticksSinceLastCheck.
-    pub check_interval: u32,
-    /// `Entity.getCustomName` (`CustomName`), copied onto the dropped cushion.
-    pub custom_name: Option<horizon_world::nbt::Tag>,
-}
-impl Cushion {
-    /// `Entity.makeBoundingBox`: x and z half a block out, y to y + 0.25.
-    pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
-        let p = self.position;
-        (
-            [p.x - 0.5, p.y, p.z - 0.5],
-            [p.x + 0.5, p.y + 0.25, p.z + 0.5],
-        )
-    }
-    /// The `DyeColor` name of the cushion.
-    pub fn color_name(&self) -> &'static str {
-        crate::mobs::render::DYE_NAMES[usize::from(self.color.min(15))]
-    }
-    /// `Cushion.getCushionItemStackWithData`: the matching coloured item.
-    pub fn item(&self) -> String {
-        format!("minecraft:{}_cushion", self.color_name())
-    }
-    /// `Cushion.getCushionItemStackWithData`: the coloured item with
-    /// `DataComponents.CUSTOM_NAME` from `getCustomName`, as the item frame
-    /// beside it does.
-    pub fn item_stack_with_data(&self) -> ItemStack {
-        let mut stack = ItemStack::new(&self.item(), 1);
-        if let Some(name) = &self.custom_name {
-            stack.data_mut().custom_name = Some(name.clone());
-        }
-        stack
-    }
-    /// `Cushion.interact`'s seat: the vehicle's PASSENGER attachment
-    /// `(0, 0.25, 0)` less the player's `(0, 0.6, 0)`.
-    pub fn seat(&self) -> Vec3 {
-        Vec3::new(self.position.x, self.position.y - 0.35, self.position.z)
-    }
-    /// `Entity.getDismountLocationForPassenger`: on top of the cushion.
-    pub fn dismount(&self) -> Vec3 {
-        Vec3::new(self.position.x, self.position.y + 0.25, self.position.z)
-    }
-}
 /// An item frame or glow item frame (`ItemFrame`).
 #[derive(Clone, Debug)]
 pub struct ItemFrame {
@@ -2001,7 +1936,9 @@ pub struct ItemFrame {
     pub fixed: bool,
     pub invisible: bool,
     pub check_interval: u32,
-    /// `Entity.getCustomName` (`CustomName`), copied onto the dropped frame.
+    /// `Entity.getCustomName` (`CustomName`). In 26.2 it stays on the entity:
+    /// the dropped frame item does not carry it (26.3's
+    /// `getFrameItemStackWithData` added the copy).
     pub custom_name: Option<horizon_world::nbt::Tag>,
     pub random: LegacyRandom,
 }
@@ -2033,15 +1970,11 @@ impl ItemFrame {
             std::array::from_fn(|i| c[i] + size[i] / 2.0),
         )
     }
-    /// `ItemFrame.getFrameItemStackWithData`: `getFrameItemStack` (a glow
-    /// frame's own item), then `DataComponents.CUSTOM_NAME` from
-    /// `getCustomName`.
-    pub fn item_stack_with_data(&self) -> ItemStack {
-        let mut item_stack = ItemStack::new(self.kind(), 1);
-        if let Some(name) = &self.custom_name {
-            item_stack.data_mut().custom_name = Some(name.clone());
-        }
-        item_stack
+    /// `ItemFrame.getFrameItemStack`: the frame's own item (a glow frame's
+    /// own item), plain — in 26.2 the custom name is not copied onto it
+    /// (26.3's `getFrameItemStackWithData` added that).
+    pub fn item_stack(&self) -> ItemStack {
+        ItemStack::new(self.kind(), 1)
     }
 }
 /// An armor stand (`ArmorStand`).
@@ -2308,7 +2241,7 @@ impl ArmorStand {
     }
     /// A server's stand on its client, each tick:
     /// `setOldPosAndRot` (`ClientLevel.tickNonPassenger`), then the step of
-    /// its `SteppedInterpolationHandler` (`step`: the position and yaw it is
+    /// its `InterpolationHandler` (`step`: the position and yaw it is
     /// put at, when one is due). The yaw
     /// turns the short way and stays continuous, so a frame between ticks
     /// never spins it.

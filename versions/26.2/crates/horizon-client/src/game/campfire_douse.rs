@@ -1,5 +1,7 @@
-//! `CampfireBlock.useItemOn`: an item in `#minecraft:douses_campfires` (the
-//! shovels) put on a lit campfire puts it out.
+//! `ShovelItem.useOn` on a campfire: a shovel put on a lit campfire puts it
+//! out. (26.3 moved the douse into `CampfireBlock.useItemOn` behind the
+//! `#minecraft:douses_campfires` tag; 26.2 has neither the tag nor the
+//! block-side branch — the shovel's own `useOn` does it.)
 use super::Game;
 use horizon_client::actions::Action;
 use horizon_client::{Result, animate_tick::make_campfire_smoke, items::ItemStack};
@@ -7,14 +9,23 @@ use horizon_core::position::BlockPos;
 use horizon_world::chunk::BlockState;
 
 impl Game<'_> {
-    /// The lit campfire at `pos` that `held` puts out, when the item is in
-    /// `#minecraft:douses_campfires` (`CampfireBlock.useItemOn`).
-    fn campfire_to_douse(&self, pos: [i32; 3], held: Option<&ItemStack>) -> Option<BlockState> {
+    /// The lit campfire at `pos` that `held` puts out, when the item is a
+    /// shovel (`ShovelItem.useOn`). Clicking the campfire's underside passes
+    /// (`getClickedFace() == DOWN`).
+    fn campfire_to_douse(
+        &self,
+        pos: [i32; 3],
+        held: Option<&ItemStack>,
+        face: [i32; 3],
+    ) -> Option<BlockState> {
+        if face == [0, -1, 0] {
+            return None;
+        }
         held.filter(|s| {
             self.res
                 .items()
                 .item_tags
-                .get("minecraft:douses_campfires")
+                .get("minecraft:shovels")
                 .is_some_and(|members| members.contains(&*s.item))
         })?;
         self.pack
@@ -26,22 +37,23 @@ impl Game<'_> {
             .cloned()
     }
 
-    /// `CampfireBlock.useItemOn` as this client runs it before the server's
+    /// `ShovelItem.useOn` as this client runs it before the server's
     /// answer (`MultiPlayerGameMode.useItemOn`): the twenty smoke puffs of
-    /// `CampfireBlock.douse` and the campfire gone out, kept as predicted
+    /// `CampfireBlock.dowse` and the campfire gone out, kept as predicted
     /// under `seq`. The level event's sound comes from the server. True when
     /// it doused (SUCCESS), which ends the click for both hands.
     pub(super) fn predict_campfire_douse(
         &mut self,
         pos: [i32; 3],
         held: Option<&ItemStack>,
+        face: [i32; 3],
         seq: i32,
     ) -> bool {
         // Player.isSecondaryUseActive: a held item means both hands count.
         if self.keys.held(Action::Sneak) {
             return false;
         }
-        let Some(mut state) = self.campfire_to_douse(pos, held) else {
+        let Some(mut state) = self.campfire_to_douse(pos, held, face) else {
             return false;
         };
         let signal = state.properties.get("signal_fire").map(String::as_str) == Some("true");
@@ -56,21 +68,23 @@ impl Game<'_> {
         true
     }
 
-    /// `CampfireBlock.useItemOn` with `held` in the hand that acts, the block
-    /// at `pos` clicked: true when it doused a lit campfire (SUCCESS).
+    /// `ShovelItem.useOn` with `held` in the hand that acts, the block
+    /// at `pos` clicked on `face`: true when it doused a lit campfire (SUCCESS).
     pub(super) fn use_campfire_douse(
         &mut self,
         pos: [i32; 3],
         held: Option<&ItemStack>,
+        face: [i32; 3],
     ) -> Result<bool> {
-        let (Some(used), Some(mut state)) = (held.cloned(), self.campfire_to_douse(pos, held))
+        let (Some(used), Some(mut state)) =
+            (held.cloned(), self.campfire_to_douse(pos, held, face))
         else {
             return Ok(false);
         };
         let registry = self.pack.assets.registry;
         // Level event 1009 (SOUND_EXTINGUISH_FIRE) goes to every player.
         self.level_event_at(1009, pos, 0);
-        // CampfireBlock.douse: the acting client's own smoke (twenty puffs),
+        // CampfireBlock.dowse: the acting client's own smoke (twenty puffs),
         // then the block change game event from the player.
         if self.lan_acting.is_none() {
             let signal = state.properties.get("signal_fire").map(String::as_str) == Some("true");

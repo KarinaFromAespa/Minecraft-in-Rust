@@ -25,6 +25,7 @@ use horizon_client::{
     test_instance_block::{ErrorMarker, Status, TestInstanceBlock},
     text::{self, Text},
 };
+use horizon_protocol::packets::play::{self, Clientbound as C};
 use horizon_world::{
     level::flags,
     worldgen::structure::{BoundingBox, Mirror, Rotation, StructureTemplate},
@@ -151,7 +152,6 @@ pub(super) struct Info {
     /// The test instance block (`getTestBlockPos`), once there is one.
     pos: Pos,
     has_pos: bool,
-    dim: Dim,
     extra_rotation: Rotation,
     tick_count: i32,
     started: bool,
@@ -176,7 +176,6 @@ impl Info {
         key: String,
         def: TestDef,
         pos: Option<Pos>,
-        dim: Dim,
         extra_rotation: Rotation,
     ) -> Self {
         Self {
@@ -185,7 +184,6 @@ impl Info {
             def,
             pos: pos.unwrap_or_default(),
             has_pos: pos.is_some(),
-            dim,
             extra_rotation,
             tick_count: 0,
             started: false,
@@ -207,7 +205,7 @@ impl Info {
         self
     }
 
-    /// `copyReset`: the same test, level and block, as a new run.
+    /// `copyReset`: the same test and block, as a new run.
     fn copy_reset(&self, id: u32) -> Self {
         let pos = self.has_pos.then_some(self.pos);
         let mut copy = Self::new(
@@ -215,7 +213,6 @@ impl Info {
             self.key.clone(),
             self.def.clone(),
             pos,
-            self.dim,
             self.extra_rotation,
         )
         .with_retry(self.retry);
@@ -329,8 +326,8 @@ struct Tracked {
     failed: bool,
 }
 
-/// `GameTestBatchFactory.fromGameTestInfo(size)`: one batch per environment
-/// (and dimension), `size` to a batch.
+/// `GameTestBatchFactory.fromGameTestInfo(size)`: one batch per environment,
+/// `size` to a batch.
 fn batch_infos(infos: Vec<Info>, size: usize) -> Vec<Batch> {
     let mut batches: Vec<Batch> = Vec::new();
     let mut counts: Vec<(String, i32)> = Vec::new();
@@ -372,15 +369,8 @@ pub(super) fn verify_batches(infos: &[Info], mut next_id: impl FnMut() -> u32) -
             let copies = (0..100)
                 .map(|_| {
                     let pos = info.has_pos.then_some(info.pos);
-                    Info::new(
-                        next_id(),
-                        info.key.clone(),
-                        info.def.clone(),
-                        pos,
-                        info.dim,
-                        rotation,
-                    )
-                    .with_retry(Retry::new(1, true))
+                    Info::new(next_id(), info.key.clone(), info.def.clone(), pos, rotation)
+                        .with_retry(Retry::new(1, true))
                 })
                 .collect();
             batches.push(Batch {
@@ -406,8 +396,10 @@ fn report_of(reports: &mut Vec<(u32, i32, i32)>, origin: u32) -> (&mut i32, &mut
     (&mut r.1, &mut r.2)
 }
 
-/// `GameTestRunner`.
+/// `GameTestRunner` (26.2 holds a `ServerLevel`: one level for the run).
 struct Runner {
+    /// The runner's level: every test runs in it.
+    level: Dim,
     batches: Vec<Batch>,
     current: usize,
     /// `currentBatchTracker`: the tests of the batch still to finish.
@@ -421,9 +413,9 @@ struct Runner {
     /// The grid is also `existingStructureSpawner` (`/test verify`): a test
     /// with a block is moved onto it.
     grid_for_existing: bool,
-    /// The tests of the batch before: their levels and blocks, for
+    /// The tests of the batch before: their blocks, for
     /// `clearBetweenBatches`.
-    last_batch: Vec<(Dim, Pos)>,
+    last_batch: Vec<Pos>,
     /// `newStructureSpawner`: where the tests without a block go.
     grid: Option<Grid>,
     /// `ReportGameListener`'s (attempts, successes), by original test.
@@ -433,7 +425,6 @@ struct Runner {
     /// `stopped`: no batch is running.
     stopped: bool,
     summary_source: Option<SummarySource>,
-    summary_dimensions: Vec<Dim>,
 }
 
 /// The command stack and its output source are different: `execute as`
@@ -444,8 +435,9 @@ struct SummarySource {
     recipient: Option<Target>,
 }
 
-/// `StructureGridSpawner.DimensionGridState`.
-struct DimGrid {
+/// `StructureGridSpawner` (26.2): one grid for the runner's level — 26.3
+/// split it into a grid per dimension (`DimensionGridState`).
+struct GridState {
     first: Pos,
     next: Pos,
     /// The z extent of `rowBounds` (an `AABB(BlockPos)` is one block deep).
@@ -455,7 +447,7 @@ struct DimGrid {
     last_batch: Vec<Pos>,
 }
 
-impl DimGrid {
+impl GridState {
     fn new(first: Pos) -> Self {
         Self {
             first,
@@ -467,15 +459,15 @@ impl DimGrid {
     }
 }
 
-/// `StructureGridSpawner`: a grid per dimension, made when the first test of
-/// that dimension is placed (`firstTestNorthWestCorner.apply(dimension)`).
+/// `StructureGridSpawner`: its state, once the first test is placed
+/// (`firstTestNorthWestCorner`, from the source's column).
 pub(super) struct Grid {
     /// The column `createTestPositionAround` starts from: the source's.
     around: (i32, i32),
     per_row: i32,
     /// `clearOnBatch`.
     clear_on_batch: bool,
-    states: Vec<(Dim, DimGrid)>,
+    state: Option<GridState>,
 }
 
 impl Grid {
@@ -484,7 +476,7 @@ impl Grid {
             around,
             per_row,
             clear_on_batch: false,
-            states: Vec::new(),
+            state: None,
         }
     }
 
@@ -500,18 +492,14 @@ impl Grid {
 enum Out {
     /// `sendSuccess(.., broadcast)`, `sendFailure` or `sendSystemMessage` of
     /// the server's command source.
-    Console {
-        text: Text,
-        broadcast: bool,
-    },
-    /// `ReportGameListener.say`: every player gets it.
+    Console { text: Text, broadcast: bool },
+    /// `ReportGameListener.say`: the players in the test's level.
     Players(Text),
     Source {
         context: SummarySource,
         text: Text,
         broadcast: bool,
     },
-    Coordinates(SummarySource, Vec<Dim>),
 }
 
 fn summary_line(context: Option<SummarySource>, text: Text, broadcast: bool) -> Out {
@@ -523,27 +511,6 @@ fn summary_line(context: Option<SummarySource>, text: Text, broadcast: bool) -> 
         },
         None => Out::Console { text, broadcast },
     }
-}
-
-/// `ComponentUtils.wrapInSquareBrackets` for the summary's coordinate links.
-/// The locate/pos link helpers have their own existing representation.
-fn summary_coordinates(key: &str, at: [i32; 3], dim: Dim, rotation: [i32; 2], color: u32) -> Text {
-    use horizon_client::text::{ClickEvent, Style};
-    let mut args: Vec<_> = at.into_iter().map(number).collect();
-    args.push(Text::literal(dim.id().split_once(':').unwrap().1));
-    Text::translate("chat.square_brackets", &[Text::translate(key, &args)]).with_style(&Style {
-        click: Some(ClickEvent::SuggestCommand(format!(
-            "/execute in {} run tp @s {} {} {} {} {}",
-            dim.id(),
-            at[0],
-            at[1],
-            at[2],
-            rotation[0],
-            rotation[1]
-        ))),
-        hover: Some(Box::new(Text::translate("chat.coordinates.tooltip", &[]))),
-        ..Style::color(color)
-    })
 }
 
 /// `GameTestTicker.SINGLETON` and the runner it holds, `FailedTestTracker`.
@@ -565,16 +532,15 @@ pub(super) struct GameTests {
 }
 
 impl GameTests {
-    /// A test of the runner (placed or still to place) is in `dim`.
+    /// A test of the runner is in `dim`: the runner's level is the only
+    /// level its tests run in.
     pub(super) fn has_tests_in(&self, dim: Dim) -> bool {
-        self.ticker.iter().any(|i| i.dim == dim)
-            || self.runner.as_ref().is_some_and(|r| {
-                r.batches
-                    .iter()
-                    .flat_map(|b| &b.infos)
-                    .chain(&r.scheduled)
-                    .any(|i| i.dim == dim)
-            })
+        self.runner.as_ref().is_some_and(|r| {
+            r.level == dim
+                && (!self.ticker.is_empty()
+                    || r.batches.iter().any(|b| !b.infos.is_empty())
+                    || !r.scheduled.is_empty())
+        })
     }
 
     pub(super) fn next_id(&mut self) -> u32 {
@@ -652,6 +618,9 @@ impl Game<'_> {
             })
             .collect();
         self.game_tests.runner = Some(Runner {
+            // `GameTestRunner.Builder.fromInfo`: the runner holds the level
+            // the command ran in.
+            level: self.dim,
             batches,
             current: 0,
             batch_pending: 0,
@@ -666,7 +635,6 @@ impl Game<'_> {
             scheduled: Vec::new(),
             stopped: false,
             summary_source: options.summary_source,
-            summary_dimensions: Vec::new(),
         });
         // GameTestRunner.start runs the first batch inside the command.
         self.game_tests.command_start = options.from_command;
@@ -692,34 +660,27 @@ impl Game<'_> {
         } else {
             Vec::new()
         };
-        // StructureGridSpawner.onBatchStart (clearOnBatch), every dimension.
-        let mut grid_cleared: Vec<(Dim, Pos)> = Vec::new();
-        if let Some(grid) = runner.grid.as_mut().filter(|g| g.clear_on_batch) {
-            for (dim, g) in &mut grid.states {
-                grid_cleared.extend(
-                    std::mem::take(&mut g.last_batch)
-                        .into_iter()
-                        .map(|p| (*dim, p)),
-                );
-                g.next = g.first;
-                g.row_z = (g.first.2, g.first.2 + 1);
-                g.count = 0;
+        // StructureGridSpawner.onBatchStart (clearOnBatch), in the runner's
+        // level. 26.2 resets the corner and the row bounds, but NOT the row
+        // count.
+        let mut grid_cleared: Vec<Pos> = Vec::new();
+        if let Some(grid) = runner.grid.as_mut().filter(|g| g.clear_on_batch)
+            && let Some(state) = grid.state.as_mut()
+        {
+            grid_cleared.extend(std::mem::take(&mut state.last_batch));
+            state.next = state.first;
+            state.row_z = (state.first.2, state.first.2 + 1);
+        }
+        for pos in cleared {
+            if let Some(area) = self.test_bounding_box(pos) {
+                self.clear_test_space(&area);
             }
+            self.set_test_block_state(pos, "minecraft:air", flags::UPDATE_ALL);
         }
-        for (dim, pos) in cleared {
-            self.in_test_level(dim, |g| {
-                if let Some(area) = g.test_bounding_box(pos) {
-                    g.clear_test_space(&area);
-                }
-                g.set_test_block_state(pos, "minecraft:air", flags::UPDATE_ALL);
-            });
-        }
-        for (dim, pos) in grid_cleared {
-            self.in_test_level(dim, |g| {
-                if let Some(area) = g.test_bounding_box(pos) {
-                    g.clear_test_space(&area);
-                }
-            });
+        for pos in grid_cleared {
+            if let Some(area) = self.test_bounding_box(pos) {
+                self.clear_test_space(&area);
+            }
         }
         let Some(runner) = self.game_tests.runner.as_mut() else {
             return;
@@ -765,7 +726,7 @@ impl Game<'_> {
         }
         if let Some(runner) = self.game_tests.runner.as_mut() {
             runner.batch_pending = spawned.len();
-            runner.last_batch = spawned.iter().map(|i| (i.dim, i.pos)).collect();
+            runner.last_batch = spawned.iter().map(|i| i.pos).collect();
         }
         self.game_tests.ticker.extend(spawned);
     }
@@ -816,16 +777,21 @@ impl Game<'_> {
     }
 
     /// `GameTestServer`'s per-tick call: `MinecraftServer.tickServer`'s
-    /// `GameTestTicker.SINGLETON.tick()`, for the tests of the level in place.
+    /// `GameTestTicker.SINGLETON.tick()`. The runner holds one level, so its
+    /// tests tick only while that level is in place.
     pub(super) fn tick_game_tests(&mut self) {
         self.flush_game_test_output();
-        if self.game_tests.runner.is_none() {
+        if self
+            .game_tests
+            .runner
+            .as_ref()
+            .is_none_or(|r| r.level != self.dim)
+        {
             return;
         }
-        let dim = self.dim;
         self.game_tests.ticking = true;
         let mut infos = std::mem::take(&mut self.game_tests.ticker);
-        for info in infos.iter_mut().filter(|i| i.dim == dim) {
+        for info in infos.iter_mut() {
             self.tick_test(info);
         }
         infos.retain(|i| !i.done);
@@ -842,17 +808,9 @@ impl Game<'_> {
     /// `GameTestRunner.spawn`: a test with a block is prepared where it is
     /// (`StructureSpawner.IN_PLACE`), one without goes to the next place in
     /// the grid (`StructureGridSpawner.spawnStructure`), or is dropped
-    /// (`NOT_SET`).
+    /// (`NOT_SET`). The runner's level is in place while it is prepared.
     fn spawn_test(&mut self, info: &mut Info) -> bool {
-        let dim = info.dim;
-        // The test's own level is in place while it is prepared.
-        match self.in_test_level(dim, |g| g.spawn_test_here(info)) {
-            Some(spawned) => spawned,
-            None => {
-                log::error!("Could not resolve level for dimension: {}", dim.id());
-                false
-            }
-        }
+        self.spawn_test_here(info)
     }
 
     /// `spawn_test` with the test's level in place.
@@ -878,17 +836,12 @@ impl Game<'_> {
         else {
             return false;
         };
-        // `gridFor`: the dimension's grid starts where the source stands.
-        let at = match grid.states.iter().position(|(d, _)| *d == info.dim) {
-            Some(at) => at,
-            None => {
-                let first = self.test_position_in_level(grid.around);
-                grid.states.push((info.dim, DimGrid::new(first)));
-                grid.states.len() - 1
-            }
-        };
+        // The grid starts where the source stands, on the first placement.
+        let around = grid.around;
+        let state = grid
+            .state
+            .get_or_insert_with(|| GridState::new(self.test_position_in_level(around)));
         let per_row = grid.per_row;
-        let state = &mut grid.states[at].1;
         info.pos = state.next;
         info.has_pos = true;
         let prepared = self.prepare_test_structure(info);
@@ -914,25 +867,6 @@ impl Game<'_> {
             runner.grid = Some(grid);
         }
         prepared
-    }
-
-    /// Run `f` with `dim`'s level in place (`enter_level`, as a command
-    /// whose source is there), then put the level back. None when the level
-    /// cannot be entered.
-    pub(super) fn in_test_level<R>(
-        &mut self,
-        dim: Dim,
-        f: impl FnOnce(&mut Self) -> R,
-    ) -> Option<R> {
-        if dim == self.dim {
-            return Some(f(self));
-        }
-        let back = self.enter_command_level(dim)?;
-        let result = f(self);
-        if let Err(e) = self.enter_level(None, back) {
-            log::error!("could not return to {}: {e}", back.id());
-        }
-        Some(result)
     }
 
     /// `level.getChunk(pos)` for the chunks of `area`: forced (the test needs
@@ -1360,9 +1294,6 @@ impl Game<'_> {
         if let Some(t) = tracked {
             t.done = true;
             t.failed = !passed;
-            if !runner.summary_dimensions.contains(&info.dim) {
-                runner.summary_dimensions.push(info.dim);
-            }
         }
         let all_done = counted && runner.tracked.iter().all(|t| t.done);
         let total = runner.tracked.len();
@@ -1413,9 +1344,6 @@ impl Game<'_> {
                     ),
                     false,
                 ));
-            }
-            if let Some(context) = context {
-                out.push(Out::Coordinates(context, runner.summary_dimensions.clone()));
             }
         }
         // FailedTestTracker.rememberFailedTest
@@ -1568,6 +1496,13 @@ impl Game<'_> {
     /// Sends what the runner said: the server's console log (and the
     /// operators, when it broadcasts) and the players' chat.
     fn flush_game_test_output(&mut self) {
+        // `ReportGameListener.say` reaches only the players in the test's
+        // level (26.3 tells the whole server): a `Players` line waits until
+        // the runner's level is in place, so it never goes to another
+        // level's players. With no runner left (a halt cleared it), the
+        // level in place is the run's level.
+        let level = self.game_tests.runner.as_ref().map(|r| r.level);
+        let mut deferred = Vec::new();
         for out in std::mem::take(&mut self.game_tests.outbox) {
             match out {
                 Out::Console { text, broadcast } => self.test_console_output(text, broadcast),
@@ -1578,19 +1513,18 @@ impl Game<'_> {
                 } => {
                     self.test_source_output(context, text, broadcast);
                 }
-                Out::Coordinates(context, dimensions) => {
-                    if let Some(Target::Guest(conn)) = context.recipient
-                        && self.command_guest(conn).is_none()
-                    {
+                Out::Players(text) => {
+                    if level.is_some_and(|l| l != self.dim) {
+                        deferred.push(Out::Players(text));
                         continue;
                     }
-                    self.with_source(context.source, |g| {
-                        g.output_test_summary_coordinates(context, &dimensions)
-                    });
-                }
-                Out::Players(text) => {
                     if let Some(host) = self.lan.as_ref() {
-                        host.hub.system_message(component_nbt(&text.component()));
+                        // `PlayerList.broadcastAll(packet, dimension)`: the
+                        // players in the level in place.
+                        host.hub.broadcast_level(&C::SystemChat(play::SystemChat {
+                            content: component_nbt(&text.component()),
+                            overlay: false,
+                        }));
                     }
                     if self.serving.is_none() && self.options.dedicated.is_none() {
                         self.system_message(text);
@@ -1598,6 +1532,7 @@ impl Game<'_> {
                 }
             }
         }
+        self.game_tests.outbox.extend(deferred);
     }
 
     fn test_console_output(&mut self, text: Text, broadcast: bool) {
@@ -1651,69 +1586,6 @@ impl Game<'_> {
             });
         }
     }
-
-    /// `TestCommand.outputPlayerCoordinates` / `outputTestCoordinates` after
-    /// the summary. Surface reads reuse the existing test-position helper,
-    /// including its missing-chunk policy; this is not a new loading policy.
-    fn output_test_summary_coordinates(&mut self, context: SummarySource, dimensions: &[Dim]) {
-        if let Some(Target::Guest(conn)) = context.recipient
-            && self.command_guest(conn).is_none()
-        {
-            return;
-        }
-        let player = context
-            .source
-            .entity
-            .filter(|target| target.is_player())
-            .and_then(|target| {
-                self.target_position(target)
-                    .map(|pos| (pos, self.target_level(target), self.target_rotation(target)))
-            });
-        if player.is_some_and(|(_, dim, _)| {
-            dimensions.len() <= 1
-                && dimensions.contains(&dim)
-                && dimensions.contains(&Dim::Overworld)
-        }) {
-            return;
-        }
-        if let Some((pos, dim, rotation)) = player {
-            self.test_source_output(
-                context,
-                summary_coordinates(
-                    "test.player.coordinates",
-                    pos.map(|v| v.floor() as i32),
-                    dim,
-                    rotation.map(|v| v.floor() as i32),
-                    text::GOLD,
-                ),
-                false,
-            );
-        }
-        let pos = player
-            .map_or(context.source.pos, |(pos, _, _)| pos)
-            .map(|v| v.floor() as i32);
-        for &dim in dimensions {
-            let back = self.enter_command_level(dim);
-            if self.dim != dim {
-                continue;
-            }
-            let y = self.test_position_in_level((pos[0], pos[2])).1;
-            if let Some(back) = back {
-                self.enter_command_level(back);
-            }
-            self.test_source_output(
-                context,
-                summary_coordinates(
-                    "test.run.coordinates",
-                    [pos[0], y, pos[2]],
-                    dim,
-                    [0, 0],
-                    text::YELLOW,
-                ),
-                false,
-            );
-        }
-    }
 }
 
 /// `ReportGameListener.handleRetry`'s line: the counters, then the test's
@@ -1746,7 +1618,6 @@ mod tests {
             "minecraft:t".into(),
             TestDef::sample(block_based, max_ticks, setup_ticks),
             Some((0, 64, 0)),
-            Dim::Overworld,
             Rotation::None,
         )
     }
@@ -1754,26 +1625,46 @@ mod tests {
     #[test]
     fn a_test_keeps_its_level_awake_until_it_is_done() {
         let mut tests = GameTests::default();
-        assert!(!tests.has_tests_in(Dim::Nether));
-        let mut nether = info(false, 10, 0);
-        nether.dim = Dim::Nether;
-        tests.ticker.push(nether);
-        assert!(tests.has_tests_in(Dim::Nether));
         assert!(!tests.has_tests_in(Dim::Overworld));
-        // A rerun keeps the level of the test it copies.
-        assert_eq!(tests.ticker[0].copy_reset(2).dim, Dim::Nether);
+        // The runner's level is the only level its tests run in.
+        tests.runner = Some(Runner {
+            level: Dim::Overworld,
+            batches: vec![Batch {
+                index: 0,
+                environment: "minecraft:default".into(),
+                infos: vec![info(false, 10, 0)],
+            }],
+            current: 0,
+            batch_pending: 0,
+            tracked: Vec::new(),
+            halt_on_error: false,
+            batch_size: 50,
+            clear_between_batches: false,
+            grid_for_existing: false,
+            last_batch: Vec::new(),
+            grid: None,
+            reports: Vec::new(),
+            scheduled: Vec::new(),
+            stopped: false,
+            summary_source: None,
+        });
+        assert!(tests.has_tests_in(Dim::Overworld));
+        assert!(!tests.has_tests_in(Dim::Nether));
+        // A rerun keeps the block of the test it copies.
+        let original = info(false, 10, 0);
+        let copy = original.copy_reset(2);
+        assert!(copy.has_pos && copy.pos == original.pos);
     }
 
     #[test]
-    fn a_grid_has_a_state_per_dimension_starting_at_its_own_corner() {
+    fn a_grid_starts_where_the_source_stands() {
         let mut grid = Grid::new((4, 9), 10).clearing();
         assert!(grid.clear_on_batch);
-        grid.states
-            .push((Dim::Overworld, DimGrid::new((4, 70, 12))));
-        grid.states.push((Dim::Nether, DimGrid::new((4, 32, 12))));
-        let nether = &grid.states[1].1;
-        assert_eq!(nether.next, (4, 32, 12));
-        assert_eq!(nether.row_z, (12, 13));
+        assert!(grid.state.is_none());
+        grid.state = Some(GridState::new((4, 70, 12)));
+        let state = grid.state.as_ref().unwrap();
+        assert_eq!(state.next, (4, 70, 12));
+        assert_eq!(state.row_z, (12, 13));
     }
 
     #[test]
@@ -1877,7 +1768,7 @@ mod tests {
 }
 
 #[cfg(test)]
-mod completed_test_coordinate_feedback_tests {
+mod completed_test_summary_tests {
     use super::*;
     use horizon_client::{chunk::Chunk, motion::PlayerMotion};
     use horizon_core::geometry::Vec3;
@@ -1885,7 +1776,7 @@ mod completed_test_coordinate_feedback_tests {
 
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
-    fn actual_completed_test_retains_player_source_for_coordinate_feedback() {
+    fn actual_completed_test_reports_its_summary_to_its_source() {
         let mut game = crate::game::native_machines::tests::server_game();
         game.build_registries();
         game.set_allow_commands(true);
@@ -1894,25 +1785,22 @@ mod completed_test_coordinate_feedback_tests {
         let uuid = game.acting_player_uuid();
         assert_eq!(uuid, [0, 0, 0, 77]);
         assert_eq!(game.level.health, 20.0);
-        for dimension in [Dim::Overworld, Dim::Nether] {
-            game.enter_command_level(dimension);
-            game.world
-                .chunks
-                .insert((0, 0), Arc::new(Chunk::empty(0, 0)));
-            game.block_ticks
-                .add_empty_chunk(horizon_core::position::BlockPos::new(0, 0, 0).chunk())
-                .unwrap();
-            assert!(game.run_command("forceload add 0 0"));
-            assert!(game.run_command("fill 0 199 0 15 199 15 stone"));
-            assert_eq!(
-                &*game.res.facts().get(game.world.block(8, 199, 8)).name,
-                "minecraft:stone"
-            );
-        }
+        game.enter_command_level(Dim::Overworld);
+        game.world
+            .chunks
+            .insert((0, 0), Arc::new(Chunk::empty(0, 0)));
+        game.block_ticks
+            .add_empty_chunk(horizon_core::position::BlockPos::new(0, 0, 0).chunk())
+            .unwrap();
+        assert!(game.run_command("forceload add 0 0"));
+        assert!(game.run_command("fill 0 199 0 15 199 15 stone"));
+        assert_eq!(
+            &*game.res.facts().get(game.world.block(8, 199, 8)).name,
+            "minecraft:stone"
+        );
         game.player = Some(PlayerMotion::new(game.motion, Vec3::new(8.5, 200.0, 8.5)).unwrap());
-        assert_eq!(game.dim, Dim::Nether);
+        assert_eq!(game.dim, Dim::Overworld);
         let definition = game.test_def("minecraft:always_pass").unwrap();
-        assert_eq!(definition.dimension, "minecraft:overworld");
         assert!(!definition.block_based);
         game.chat_capture = Some(Vec::new());
         assert!(game.run_command("scoreboard objectives add coords dummy"));
@@ -1925,19 +1813,17 @@ mod completed_test_coordinate_feedback_tests {
             game.game_tests
                 .ticker
                 .iter()
-                .any(|i| i.key == "minecraft:always_pass" && i.dim == Dim::Overworld)
+                .any(|i| i.key == "minecraft:always_pass")
         );
         let mut messages = Vec::new();
         // Real registered run, actual test ticker and completion; no injected finish.
         for _ in 0..8 {
-            game.enter_command_level(Dim::Overworld);
             game.tick_game_tests();
             for out in &game.game_tests.outbox {
                 if let Out::Console { text, .. } = out {
                     messages.push(text.component());
                 }
             }
-            game.enter_command_level(Dim::Nether);
         }
         let runner = game.game_tests.runner.as_ref().unwrap();
         assert_eq!(runner.tracked.len(), 1);
@@ -1964,12 +1850,6 @@ mod completed_test_coordinate_feedback_tests {
         assert_eq!(
             game.player.as_ref().unwrap().position,
             Vec3::new(8.5, 200.0, 8.5)
-        );
-        assert_eq!(game.dim, Dim::Nether);
-        assert!(
-            debug.iter().any(|m| m.contains("test.player.coordinates"))
-                && debug.iter().any(|m| m.contains("test.run.coordinates")),
-            "completed real test must retain its player's coordinate feedback: {debug:?}"
         );
     }
 }

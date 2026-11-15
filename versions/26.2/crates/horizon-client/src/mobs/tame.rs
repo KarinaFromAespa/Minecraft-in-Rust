@@ -12,7 +12,7 @@ use super::{
 };
 use horizon_core::geometry::trig::Mth;
 use horizon_core::{
-    geometry::{Aabb, Axis, Vec3},
+    geometry::{Aabb, Vec3},
     random::RandomSource,
 };
 use std::f32::consts::PI;
@@ -1004,7 +1004,7 @@ pub fn register_cat(m: &mut Mob) {
     g.add(4, CatTempt(super::goals::Tempt::new(0.6, food, true), None));
     g.add(
         5,
-        CatLieOnBlock(super::goals::MoveToBlock {
+        CatLieOnBed(super::goals::MoveToBlock {
             vertical_start: -2,
             ..super::goals::MoveToBlock::new(1.1, 8, 6)
         }),
@@ -1267,7 +1267,10 @@ impl Goal for CatRelaxOnOwner {
             p.position.y.floor() as i32,
             p.position.z.floor() as i32,
         ];
-        if !has_tag(w, at, "minecraft:cats_can_lie_on") {
+        // The bed's foot: against `BedBlock.FACING`. (26.3 checks the
+        // `#cats_can_lie_on` tag here; 26.2 checks `BlockTags.BEDS`, and the
+        // tag is just `#beds`.)
+        if !has_tag(w, at, "minecraft:beds") {
             return false;
         }
         // The bed's foot: against `BedBlock.FACING`.
@@ -1345,56 +1348,36 @@ impl Goal for CatRelaxOnOwner {
     }
 }
 /// `CatRelaxOnOwnerGoal.giveMorningGift`: hop to a spot within five blocks
-/// (`randomTeleport`, avoiding `#dangerous_for_teleportation`) and drop a
+/// (`LivingEntity.randomTeleport`, the 26.2 blocks-motion form) and drop a
 /// `gameplay/cat_morning_gift` item at its feet.
 fn give_morning_gift(m: &mut Mob, cx: &mut Cx) {
     let w = cx.w;
+    // Leashed cats teleport from the holder's block, not their own.
+    let origin = m
+        .extra
+        .leash
+        .and_then(|h| super::leash::holder_state(w, h))
+        .map(|s| s.position)
+        .unwrap_or(m.position);
     let at = [
-        m.position.x.floor() as i32,
-        m.position.y.floor() as i32,
-        m.position.z.floor() as i32,
+        origin.x.floor() as i32,
+        origin.y.floor() as i32,
+        origin.z.floor() as i32,
     ];
     let x = at[0] + m.random.next_int_bound(11).unwrap_or(5) - 5;
     let y = at[1] + m.random.next_int_bound(5).unwrap_or(2) - 2;
     let z = at[2] + m.random.next_int_bound(11).unwrap_or(5) - 5;
-    let tagged = |p: [i32; 3], tag| has_tag(w, p, tag);
-    let mut ground = y - 1;
-    while ground > w.world.bottom_y()
-        && !tagged([x, ground, z], "minecraft:entities_can_teleport_to")
-    {
-        ground -= 1;
-    }
-    if w.world.loaded(x, z) && ground > w.world.bottom_y() {
-        let feet = f64::from(ground + 1);
-        let half = f64::from(m.width()) / 2.0;
-        let b = Aabb::new(
-            Vec3::new(f64::from(x) - half, feet, f64::from(z) - half),
-            Vec3::new(
-                f64::from(x) + half,
-                feet + f64::from(m.height()),
-                f64::from(z) + half,
-            ),
-        );
-        let dangerous = |p| tagged(p, "minecraft:dangerous_for_teleportation");
-        let in_box = |f: &dyn Fn([i32; 3]) -> bool| {
-            (b.min(Axis::X).floor() as i32..=b.max(Axis::X).floor() as i32).any(|bx| {
-                (b.min(Axis::Y).floor() as i32..=b.max(Axis::Y).floor() as i32).any(|by| {
-                    (b.min(Axis::Z).floor() as i32..=b.max(Axis::Z).floor() as i32)
-                        .any(|bz| f([bx, by, bz]))
-                })
-            })
-        };
-        let fluids = w.fluids(b, feet);
-        if !dangerous([x, ground, z])
-            && w.no_collision(b)
-            && !(fluids.in_water || fluids.in_lava)
-            && !in_box(&dangerous)
-        {
-            m.position = Vec3::new(f64::from(x), feet, f64::from(z));
-            m.previous = m.position;
-            m.velocity = Vec3::ZERO;
-        }
-    }
+    // `randomTeleport(x, y, z, false)`: no particles, and 26.2 has no
+    // avoidance tag (26.3 passes `#cat_does_not_teleport_to`).
+    super::enderman::random_teleport(
+        m,
+        w,
+        f64::from(x),
+        f64::from(y),
+        f64::from(z),
+        false,
+        &mut cx.events,
+    );
     let yaw = m.body_yaw * (PI / 180.0);
     let here = [
         m.position.x.floor() - f64::from(yaw.msin()),
@@ -1406,13 +1389,15 @@ fn give_morning_gift(m: &mut Mob, cx: &mut Cx) {
         at: here,
     });
 }
-/// `CatLieOnBlockGoal`: tame cats lie on beds and other warm blocks.
+/// `CatLieOnBedGoal`: tame cats lie on beds. (26.3 renamed it
+/// `CatLieOnBlockGoal` and checks the `#cats_can_lie_on` tag, which is just
+/// `#beds`; 26.2 checks `BlockTags.BEDS` directly.)
 #[derive(Clone, Debug)]
-struct CatLieOnBlock(super::goals::MoveToBlock);
+struct CatLieOnBed(super::goals::MoveToBlock);
 fn can_lie_on(w: &MobWorld, p: [i32; 3]) -> bool {
-    empty_above(w, p) && has_tag(w, p, "minecraft:cats_can_lie_on")
+    empty_above(w, p) && has_tag(w, p, "minecraft:beds")
 }
-impl Goal for CatLieOnBlock {
+impl Goal for CatLieOnBed {
     goal_clone!();
     fn flags(&self) -> u8 {
         JUMP | MOVE
@@ -1445,14 +1430,16 @@ impl Goal for CatLieOnBlock {
 /// `CatSitOnBlockGoal`: unopened chests, lit furnaces and the foot of beds.
 #[derive(Clone, Debug)]
 struct CatSitOnBlock(super::goals::MoveToBlock);
+/// `CatSitOnBlockGoal.isValidTarget` (26.2): an unopened chest, a lit
+/// furnace, or the foot of a bed. (26.3 generalized the three cases behind
+/// the `#cats_can_sit_on` tag and a validation list; the tag does not exist
+/// in 26.2.)
 fn can_sit_on(w: &MobWorld, p: [i32; 3]) -> bool {
-    if !empty_above(w, p) || !has_tag(w, p, "minecraft:cats_can_sit_on") {
+    if !empty_above(w, p) {
         return false;
     }
     let f = w.facts.get(w.world.block(p[0], p[1], p[2]));
     match f.name.as_ref() {
-        // The lit state is the only light source a furnace has.
-        "minecraft:furnace" => f.emission > 0,
         // `ChestBlockEntity.getOpenCount(level, pos) < 1`: players' openers
         // and the copper golems' own count.
         "minecraft:chest" => {
@@ -1460,8 +1447,11 @@ fn can_sit_on(w: &MobWorld, p: [i32; 3]) -> bool {
             !w.lid_openers.contains_key(&key)
                 && w.world.chest_openers.get(&key).is_none_or(|o| o.0 < 1)
         }
-        // A bed's foot only (`BedBlock.PART != HEAD`).
-        _ => w.prop(p[0], p[1], p[2], "part") != Some("head"),
+        // The lit state is the only light source a furnace has.
+        "minecraft:furnace" => f.emission > 0,
+        // A bed's foot only (`BedBlock.PART != HEAD`); anything else is not
+        // sittable in 26.2.
+        _ => has_tag(w, p, "minecraft:beds") && w.prop(p[0], p[1], p[2], "part") != Some("head"),
     }
 }
 impl Goal for CatSitOnBlock {

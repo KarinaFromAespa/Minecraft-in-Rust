@@ -504,7 +504,7 @@ fn main() -> io::Result<()> {
                 aabb(
                     &mut out,
                     "entity-query",
-                    entity_collision_bounds(movement, b, max_step),
+                    entity_collision_bounds(movement, b),
                 )?;
                 let mut queries = Vec::new();
                 let result = resolve_step_movement(movement, b, max_step, grounded, |query| {

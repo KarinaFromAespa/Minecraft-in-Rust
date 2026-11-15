@@ -241,7 +241,6 @@ impl Game<'_> {
             ),
             _ => return Ok(()),
         };
-        let mut drops = Vec::new();
         let (lit, burning, smelted, smelting, fueled) = {
             let Some(BlockEntity::Furnace(f)) = self.world.block_entities.get_mut(&pos) else {
                 return Ok(());
@@ -250,7 +249,6 @@ impl Game<'_> {
                 world_recipes!(self),
                 world_items!(self),
                 self.res.providers(),
-                &mut drops,
             );
             let burning = before.1.filter(|_| f.lit_remaining > 0);
             let smelted = f.items[2]
@@ -280,9 +278,6 @@ impl Game<'_> {
         }
         if let Some((Some(item), result)) = smelted {
             self.native_furnace_smelt([pos.0, pos.1, pos.2], &item, &result);
-        }
-        for stack in drops {
-            self.campfire_drop(pos, stack);
         }
         let Some(lit) = lit else {
             if matches!(self.world.block_entities.get(&pos), Some(BlockEntity::Furnace(f)) if f.idle())
@@ -473,7 +468,6 @@ mod furnace_changed_tests {
                 lit_total: 200,
                 cooking_timer: 199,
                 cooking_total: 200,
-                speed: 1.0,
                 recipes_used: HashMap::new(),
             }),
         );
@@ -522,7 +516,6 @@ mod furnace_changed_tests {
                 lit_total: 1600,
                 cooking_timer: 10,
                 cooking_total: 200,
-                speed: 1.0,
                 recipes_used: HashMap::new(),
             }),
         );

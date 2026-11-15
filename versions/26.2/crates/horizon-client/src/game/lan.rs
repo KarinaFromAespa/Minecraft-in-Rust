@@ -23,8 +23,10 @@ use horizon_client::{
 };
 use horizon_protocol::{
     entity_data::{Value, serializer},
-    packets::play::{self, Clientbound as C},
+    packets::play,
 };
+#[cfg(test)]
+use horizon_protocol::packets::play::Clientbound as C;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
@@ -232,6 +234,16 @@ pub(super) struct LanHost {
     /// The mods heard that everyone still here leaves with the server.
     pub players_told_left: bool,
     pub settings: LanSettings,
+    /// `IntegratedServer.gameTypeForOtherPlayers` (26.2): the game mode a
+    /// published world forces on its guests, or None while unset (the
+    /// world's default then applies). 26.3 replaced it with the force
+    /// game mode toggle.
+    pub game_type_for_other_players: Option<i32>,
+    /// `IntegratedServer.commandsAllowedForOtherPlayers` (26.2): whether
+    /// guests may use commands, or None while unset (the world's Allow
+    /// Commands then applies). 26.3 replaced it with the guest command
+    /// access flag ANDed with the world's setting.
+    pub commands_allowed_for_other_players: Option<bool>,
     pub play: HashMap<u32, super::lan_actions::GuestPlay>,
     /// Blocks broken this tick (their sound is a level event for the guests).
     pub broken: Vec<[f64; 3]>,
@@ -1224,9 +1236,9 @@ pub const HELP: &[&str] = &[
 ];
 
 /// With the game mode forced, the guests online take the default mode
-/// (setting a mode does nothing when it is already theirs). A world open to
-/// LAN is an integrated server, which leaves out the players who have game
-/// master permission; a dedicated server does not.
+/// (setting a mode does nothing when it is already theirs). Dedicated
+/// servers only: an integrated server enforces its own rule
+/// ([`apply_world_game_type`], [`forced_game_type`]).
 fn enforce_guest_game_mode(
     host: &mut LanHost,
     world: &World,
@@ -1236,16 +1248,56 @@ fn enforce_guest_game_mode(
         return;
     }
     let mode = host.hub.config.default_game_mode;
-    let spares_operators = host.hub.config.integrated;
     let stale: Vec<u32> = host
         .hub
         .guests
         .iter()
-        .filter(|g| g.game_mode != mode && !(spares_operators && g.permission >= 2))
+        .filter(|g| g.game_mode != mode)
         .map(|g| g.conn)
         .collect();
     for conn in stale {
         host.hub.set_game_mode(conn, mode, world, Some(collision));
+    }
+}
+
+/// `IntegratedServer.getForcedGameType` (26.2): the mode a published,
+/// non-hardcore world forces on its guests — the type set for other
+/// players, or the world's default while unset. None while unpublished
+/// or in hardcore.
+fn forced_game_type(host: &LanHost) -> Option<i32> {
+    if !host.hub.config.integrated || !host.hub.config.force_game_mode || host.hub.config.hardcore {
+        return None;
+    }
+    Some(
+        host.game_type_for_other_players
+            .unwrap_or(host.hub.config.default_game_mode),
+    )
+}
+
+/// `IntegratedServer.setWorldGameType` (26.2): the owner takes the new
+/// default mode, and so do the other players online — unless a type was
+/// set for them, which they keep.
+fn apply_world_game_type(
+    host: &mut LanHost,
+    mode: i32,
+    world: &World,
+    collision: &BlockCollisionRegistry<'_>,
+) {
+    let owner = host.owner.as_ref().map(|o| o.uuid);
+    let others = host
+        .game_type_for_other_players
+        .unwrap_or(host.hub.config.default_game_mode);
+    let stale: Vec<(u32, i32)> = host
+        .hub
+        .guests
+        .iter()
+        .filter_map(|g| {
+            let want = if Some(g.uuid) == owner { mode } else { others };
+            (g.game_mode != want).then_some((g.conn, want))
+        })
+        .collect();
+    for (conn, want) in stale {
+        host.hub.set_game_mode(conn, want, world, Some(collision));
     }
 }
 
@@ -1365,10 +1417,10 @@ impl Game<'_> {
         let port = if let Some(server) = &self.integrated {
             // ShareToLanScreen: IntegratedServer.publishServer.
             server
-                .call(move |g| g.publish(settings))
+                .call(move |g| g.publish(settings, None))
                 .ok_or(super::integrated::NO_ANSWER)??
         } else if self.serving() {
-            return self.publish(settings).map(drop).map_err(Into::into);
+            return self.publish(settings, None).map(drop).map_err(Into::into);
         } else {
             return Err("no world of this game to open".into());
         };
@@ -1458,6 +1510,8 @@ impl Game<'_> {
             players_told_left: false,
             hub,
             settings: LanSettings { port, ..settings },
+            game_type_for_other_players: None,
+            commands_allowed_for_other_players: None,
             play: HashMap::new(),
             broken: Vec::new(),
             mob_state: HashMap::new(),
@@ -1515,7 +1569,6 @@ impl Game<'_> {
         self.lan_events.clear();
         self.lan_songs.clear();
         self.lan_critical_hits.clear();
-        self.lan_cushion_breaks.clear();
         self.streaming.extra.clear();
         if announce {
             self.system_message(Text::translate(
@@ -1842,18 +1895,69 @@ impl Game<'_> {
         self.level.creative = mode == 1;
         if let Some(host) = self.lan.as_mut() {
             host.hub.config.default_game_mode = mode;
-            // `setWorldGameType` and `DefaultGameModeCommands.setMode`: a
-            // world that forces its mode puts the guests online in it.
-            enforce_guest_game_mode(host, &self.world, self.collision);
+            if host.hub.config.integrated {
+                // `IntegratedServer.setWorldGameType`: the owner takes the
+                // new mode, and so do the other players unless a type was
+                // set for them.
+                apply_world_game_type(host, mode, &self.world, self.collision);
+            } else {
+                // `DefaultGameModeCommands.setMode`: a world that forces
+                // its mode puts the guests online in it.
+                enforce_guest_game_mode(host, &self.world, self.collision);
+            }
         }
     }
 
     /// Apply the default mode to connected players when forcing it is enabled.
+    /// Dedicated servers only: 26.2's integrated server has no force toggle
+    /// (it enforces the others' type while published instead), so the toggle
+    /// does nothing there.
     pub(super) fn set_force_game_mode(&mut self, force: bool) {
         if let Some(host) = self.lan.as_mut() {
             host.settings.force_game_mode = force;
+            if host.hub.config.integrated {
+                return;
+            }
             host.hub.config.force_game_mode = force;
             enforce_guest_game_mode(host, &self.world, self.collision);
+        }
+    }
+
+    /// `IntegratedServer.setGameTypeForOtherPlayers`: the type a published
+    /// world forces on its guests, applied to the other players online now.
+    /// The screen's mode selector (rank 3) calls it at publish.
+    #[allow(dead_code)]
+    pub(super) fn set_game_type_for_other_players(&mut self, mode: i32) {
+        let Some(host) = self.lan.as_mut() else {
+            return;
+        };
+        host.game_type_for_other_players = Some(mode);
+        let owner = host.owner.as_ref().map(|o| o.uuid);
+        let stale: Vec<u32> = host
+            .hub
+            .guests
+            .iter()
+            .filter(|g| Some(g.uuid) != owner && g.game_mode != mode)
+            .map(|g| g.conn)
+            .collect();
+        for conn in stale {
+            host.hub
+                .set_game_mode(conn, mode, &self.world, Some(self.collision));
+        }
+    }
+
+    /// `IntegratedServer.updateCommandsAllowedForOtherPlayers`: the guests'
+    /// command access, re-derived from the type set for them (or the
+    /// world's Allow Commands while unset), and every player's level sent
+    /// again.
+    pub(super) fn update_commands_allowed_for_other_players(&mut self) {
+        let world_allows = self.allow_commands();
+        if let Some(host) = self.lan.as_mut() {
+            let allowed = host
+                .commands_allowed_for_other_players
+                .unwrap_or(world_allows);
+            host.hub.config.guest_commands = allowed;
+            host.hub.resend_commands();
         }
     }
 
@@ -1912,13 +2016,16 @@ impl Game<'_> {
             server.call(move |g| g.lan_apply_settings(guest_commands, force));
             return;
         }
-        // An integrated server gives guests commands only where the world
-        // allows them (IntegratedServer.getCustomPermissionLevel).
-        let effective = guest_commands && (!self.serving() || self.allow_commands());
+        // `IntegratedServer.setCommandsAllowedForOtherPlayers`: the choice
+        // stands on its own — a world without cheats can still give its
+        // guests commands (26.3 ANDed it with the world's setting).
         if let Some(host) = self.lan.as_mut() {
             host.settings.guest_commands = guest_commands;
-            host.hub.config.guest_commands = effective;
+            host.commands_allowed_for_other_players = Some(guest_commands);
         }
+        self.update_commands_allowed_for_other_players();
+        // 26.2's integrated server has no force toggle; the setting is
+        // kept for the screen until its own port (rank 3).
         self.set_force_game_mode(force);
         self.resend_commands_filtered();
     }
@@ -1993,7 +2100,7 @@ impl Game<'_> {
             e.velocity = place.velocity;
             e.needs_sync = m.needs_sync;
             e.sync_position = m.sync_position;
-            e.stepped = true;
+            e.fall_flying = m.extra.fall_flying;
             (e.idle, e.bare) = (idle, bare);
             e.leash = leash;
             if bare {
@@ -2037,11 +2144,8 @@ impl Game<'_> {
             let stack = hub.stack(&Some(d.stack.clone()));
             // `ServerEntity.getRequiresPrecisePosition` is false for an item:
             // `needs_sync` asks for its data again, not for an exact position.
-            // The collision case is `full_precision_required` in the tracker.
             e.precise = false;
             e.needs_sync = d.needs_sync;
-            e.vertical_collision = d.vertical_collision;
-            e.horizontal_collision = d.horizontal_collision;
             // Entity.DATA_SHARED_FLAGS_ID: glowing 0x40 (the Glowing tag).
             if self.entity_glowing(d.id) {
                 e.meta.push((0, serializer::BYTE, Value::Byte(0x40)));
@@ -2721,8 +2825,8 @@ impl Game<'_> {
                     cart.lerp_steps.clear();
                 }
             }
-            // ServerEntity.sendChanges clears needsSync once it has looked.
-            // SteppedInterpolationTracker.updateTracking clears syncPosition.
+            // ServerEntity.sendChanges clears needsSync once it has looked,
+            // and syncPosition once it has moved the update clock.
             for m in &mut self.mobs {
                 m.needs_sync = false;
                 m.sync_position = false;
@@ -2912,6 +3016,10 @@ impl Game<'_> {
     ) {
         let default_mode = host.hub.config.default_game_mode;
         let force = host.hub.config.force_game_mode;
+        // `IntegratedServer.getForcedGameType`: a published, non-hardcore
+        // world forces its guests into the type set for them (or the
+        // world's default), whatever their saved mode was.
+        let forced = forced_game_type(host);
         let root = self.world_root.clone();
         let in_place = host.hub.config.dimension.clone();
         let owner = host.owner.as_mut();
@@ -2932,7 +3040,9 @@ impl Game<'_> {
         // PrepareSpawnTask: with no saved rotation the player faces the world
         // spawn's angle (`/setworldspawn ... <angle>`).
         playerdata::face_world_spawn(g, known, self.level.world_spawn_angle);
-        if !known || force {
+        if let Some(mode) = forced {
+            g.game_mode = mode;
+        } else if !known || force {
             g.game_mode = default_mode;
         }
         if !known {
@@ -3053,17 +3163,23 @@ impl Game<'_> {
         for e in events {
             match e {
                 horizon_world::level::LevelEvent::LevelEvent { id, pos, data } => {
+                    // 2015 is not a 26.2 packet: the egg's teleport particles
+                    // are the actor's own client-side branch, rendered from
+                    // the local prediction. Never broadcast it — a bystander
+                    // in 26.2 sees no particles.
+                    if *id == 2015 {
+                        continue;
+                    }
                     let own = *id == 2001 && own_break;
                     if own && self.lan_break_pos == Some([pos.x, pos.y, pos.z]) {
                         own_break = false;
                     }
                     // The acting guest does not predict these, and the vanilla
                     // call names no excluded player (`levelEvent(id, pos, data)`
-                    // passes null): the composter fill (1500), the egg's
-                    // teleport, bone meal's growth, anvil result sounds, a
-                    // finished brushing or an eye inserted in a portal frame,
-                    // a zombie's infection and a finished cure (1026, 1027),
-                    // and the digger's own crack and hit sound (2019, 2020).
+                    // passes null): the composter fill (1500), bone meal's
+                    // growth, anvil result sounds, a finished brushing or an
+                    // eye inserted in a portal frame, a zombie's infection and
+                    // a finished cure (1026, 1027).
                     let except = level_event_except(
                         *id,
                         self.lan_acting,
@@ -3220,33 +3336,6 @@ impl Game<'_> {
     fn lan_flush_effects(&mut self, host: &mut LanHost) {
         let critical_hits = std::mem::take(&mut self.lan_critical_hits);
         let kinetic_hits = std::mem::take(&mut self.lan_kinetic_hits);
-        for (state, at) in std::mem::take(&mut self.lan_cushion_breaks) {
-            if let Some(id) = host
-                .hub
-                .registry_id("minecraft:particle_type", "minecraft:block")
-            {
-                host.hub.broadcast_near(
-                    at,
-                    32.0,
-                    &C::LevelParticles(play::LevelParticles {
-                        particle: horizon_protocol::entity_data::Particle {
-                            id,
-                            data: Some(horizon_protocol::entity_data::ParticleData::State(
-                                state.0 as i32,
-                            )),
-                        },
-                        override_limiter: false,
-                        always_show: false,
-                        pos: at,
-                        dist: [0.25, 0.0625, 0.25],
-                        max_speed: [0.05; 3],
-                        count: 10,
-                        randomization: 0,
-                    }),
-                    None,
-                );
-            }
-        }
         for (kind, pos, data, acting) in std::mem::take(&mut self.lan_events) {
             if kind == 2001 {
                 host.broken
@@ -3753,6 +3842,8 @@ mod tests {
                 guest_commands: false,
                 force_game_mode: false,
             },
+            game_type_for_other_players: None,
+            commands_allowed_for_other_players: None,
             play: Default::default(),
             broken: Default::default(),
             mob_state: Default::default(),

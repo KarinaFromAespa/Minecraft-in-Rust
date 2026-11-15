@@ -703,7 +703,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         } else {
             self.set_block_and_update(pos, target);
             self.neighbor_changed_at(pos, b.named.water);
-            self.game_event_state(pos, "minecraft:block_destroy", state);
+            // 26.2's melt fires no game event (the BLOCK_DESTROY event is a
+            // 26.3 addition).
         }
     }
     /// `BigDripleafBlock.entityInside` on a server level: an entity standing on

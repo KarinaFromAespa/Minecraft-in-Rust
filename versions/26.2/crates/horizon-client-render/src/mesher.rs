@@ -809,7 +809,7 @@ fn stem_color(age: u8) -> u32 {
     (a * 32) << 16 | (255 - a * 8) << 8 | (a * 4)
 }
 fn redstone_color(power: u8) -> u32 {
-    // RedstoneWireBlock.COLORS, or a pack's.
+    // RedStoneWireBlock.COLORS, or a pack's.
     if let Some(color) = crate::pack_palette::redstone(power) {
         return color;
     }

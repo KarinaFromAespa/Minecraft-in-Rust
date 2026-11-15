@@ -691,7 +691,7 @@ fn a_move_behind_a_dig_and_its_swing_waits_for_the_next_tick() {
         }),
         0,
     ));
-    inbox.push_back((S::Swing(Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerPos(play::MovePlayerPos {
             x: at[0],
@@ -802,7 +802,7 @@ fn a_move_behind_a_use_on_a_block_and_its_swing_waits_for_the_next_tick() {
         }),
         0,
     ));
-    inbox.push_back((S::Swing(Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((
         S::MovePlayerPos(play::MovePlayerPos {
             x: at[0],
@@ -846,7 +846,7 @@ fn a_move_behind_an_attack_and_its_swing_waits_for_the_next_tick() {
     // the attack, the arm swing, then the landing move.
     let inbox = &mut s.hub.guests[0].inbox;
     inbox.push_back((S::Attack(play::Attack { id: 1 }), 0));
-    inbox.push_back((S::Swing(Empty), 0));
+    inbox.push_back((S::Swing(play::Swing { hand: 0 }), 0));
     inbox.push_back((S::MovePlayerStatus(play::MovePlayerStatus { flags: 1 }), 0));
     s.tick(&[]);
     // The game runs the attack after the hub's pass: the landing move waits so
@@ -1039,11 +1039,9 @@ fn guests_see_each_other_and_the_world_entities() {
         equipment: Vec::new(),
         attributes: Vec::new(),
         precise: false,
-        vertical_collision: false,
-        horizontal_collision: false,
         needs_sync: false,
         sync_position: false,
-        stepped: false,
+        fall_flying: false,
         idle: false,
         bare: false,
         leash: None,

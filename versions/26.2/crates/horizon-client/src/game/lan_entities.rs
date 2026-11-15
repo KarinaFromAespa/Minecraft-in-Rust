@@ -444,22 +444,6 @@ impl Game<'_> {
                     .push((9, serializer::PAINTING_VARIANT, Value::Id(id + 1)));
             }
         }
-        for c in self.cushions.iter().filter(|c| c.id > after) {
-            let p = c.position;
-            let e = add_state(
-                out,
-                c.id,
-                "minecraft:cushion",
-                [p.x, p.y, p.z],
-                c.yaw,
-                false,
-            );
-            // Cushion.DATA_COLOR, set unless it is the default white.
-            if c.color != 0 {
-                e.meta
-                    .push((8, serializer::DYE_COLOR, Value::Id(i32::from(c.color))));
-            }
-        }
         // DATA_ITEM, `ItemStack.EMPTY` by default.
         for o in self.ominous_spawners.iter().filter(|o| o.id > after) {
             let e = add_state(

@@ -11,9 +11,13 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.multiplayer.prediction.BlockStatePredictionHandler;
-import net.minecraft.client.player.FirstPersonHandsAndItems;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.client.renderer.item.ItemModelResolver;
+import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundEngine.PlayResult;
+import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.tutorial.Tutorial;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -43,8 +47,9 @@ import net.minecraft.world.phys.*;
  * Drives the real Minecraft.startAttack, continueAttack and startUseItem,
  * MultiPlayerGameMode's startDestroyBlock, continueDestroyBlock,
  * stopDestroyBlock, destroyBlock and attack, LivingEntity.swing with its
- * SwingState and getModifiedSwingDuration, Player's attack strength and item
- * swap tickers and getItemSwapScale, and FirstPersonHandsAndItems.tick and
+ * swing fields (swinging/swingTime/swingingArm, attackAnim/oAttackAnim)
+ * and getCurrentSwingDuration, Player's attack strength and item
+ * swap tickers and getItemSwapScale, and ItemInHandRenderer.tick and
  * itemUsed, tick by tick over scripted clicks and crosshair targets. The
  * player is a LocalPlayer shell with a real Inventory and attributes; the
  * level, connection and item model resolver are shells answering what these
@@ -89,6 +94,7 @@ public final class VanillaFirstPersonOracle {
     static List<String> events = new ArrayList<>();
     static Map<BlockPos, BlockState> blocks = new HashMap<>();
     static JsonObject step;
+    static Method currentSwingDuration;
 
     static String hand(InteractionHand h) {
         return h == InteractionHand.MAIN_HAND ? "main" : "off";
@@ -120,7 +126,7 @@ public final class VanillaFirstPersonOracle {
         @Override public void destroyBlockProgress(int id, BlockPos pos, int progress) {
             events.add("stage " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " " + progress);
         }
-        @Override public void addBreakingBlockEffects(BlockPos pos, Direction direction, boolean sound) { }
+        @Override public void addBreakingBlockEffect(BlockPos pos, Direction direction) { }
         @Override public FeatureFlagSet enabledFeatures() { return FeatureFlags.REGISTRY.allFlags(); }
     }
 
@@ -148,7 +154,7 @@ public final class VanillaFirstPersonOracle {
         boolean inRange;
 
         Player0() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, Input.EMPTY, false, null);
         }
 
         @Override public AttributeMap getAttributes() { return attributes; }
@@ -158,14 +164,52 @@ public final class VanillaFirstPersonOracle {
         @Override public boolean onGround() { return true; }
         @Override public boolean isWithinEntityInteractionRange(Entity entity, double buffer) { return inRange; }
         @Override public void attack(Entity entity) { events.add("attack"); }
-        @Override public boolean swing(InteractionHand hand, SwingAnimation animation, boolean send) {
-            boolean started = super.swing(hand, animation, send);
+        @Override public void swing(InteractionHand hand, boolean send) {
+            // 26.2's swing is void, so the gate is evaluated here and the
+            // event still reports whether the swing started. The duration
+            // is the item's swing animation, adjusted by the effects.
+            int duration;
+            try {
+                duration = (int) currentSwingDuration.invoke(this);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+            boolean started = !swinging || swingTime >= duration / 2 || swingTime < 0;
+            SwingAnimation animation = getItemInHand(hand).getSwingAnimation();
+            super.swing(hand, send);
             events.add("swing " + hand(hand) + " " + animation.duration() + " " + started);
-            return started;
         }
+        /** `LivingEntity.baseTick`'s oAttackAnim snapshot plus `updateSwingTime`. */
+        void tickSwing() {
+            oAttackAnim = attackAnim;
+            updateSwingTime();
+        }
+    }
+
+    static final class ItemInHandRenderer0 extends ItemInHandRenderer {
+        ItemInHandRenderer0(Minecraft minecraft, ItemModelResolver resolver) {
+            super(minecraft, null, resolver);
+        }
+
+        // 26.2's startUseItem calls GameRenderer.itemInHandRenderer.itemUsed,
+        // not LocalPlayer.itemUsed (which does not exist in 26.2).
         @Override public void itemUsed(InteractionHand hand) {
             events.add("used " + hand(hand));
             super.itemUsed(hand);
+        }
+    }
+
+    static final class SoundManager0 extends SoundManager {
+        // Never constructed (allocated by Unsafe); only here so the class
+        // compiles against SoundManager's Options constructor.
+        SoundManager0() {
+            super(null);
+        }
+
+        // continueDestroyBlock plays the destroy hit sound every fourth
+        // tick; the shell swallows it (allocated, never constructed).
+        @Override public PlayResult play(SoundInstance instance) {
+            return PlayResult.STARTED;
         }
     }
 
@@ -229,23 +273,19 @@ public final class VanillaFirstPersonOracle {
         Method startUseItem = method(Minecraft.class, "startUseItem");
         Field missTime = field(Minecraft.class, "missTime");
         Field rightClickDelay = field(Minecraft.class, "rightClickDelay");
-        Field swingState = field(LivingEntity.class, "swingState");
+        currentSwingDuration = method(LivingEntity.class, "getCurrentSwingDuration");
         Field attackTicker = field(LivingEntity.class, "attackStrengthTicker");
         Field swapTicker = field(LivingEntity.class, "itemSwapTicker");
         Field lastItem = field(Player.class, "lastItemInMainHand");
-        Field hands = field(LocalPlayer.class, "firstPersonHandsAndItems");
         Field handsBusy = field(LocalPlayer.class, "handsBusy");
         Field using = field(LocalPlayer.class, "startedUsingItem");
         Field destroyDelay = field(MultiPlayerGameMode.class, "destroyDelay");
         Field destroying = field(MultiPlayerGameMode.class, "isDestroying");
         Field progress = field(MultiPlayerGameMode.class, "destroyProgress");
-        Field mainHeight = field(FirstPersonHandsAndItems.class, "mainHandHeight");
-        Field oMainHeight = field(FirstPersonHandsAndItems.class, "oMainHandHeight");
-        Field offHeight = field(FirstPersonHandsAndItems.class, "offHandHeight");
-        Field oOffHeight = field(FirstPersonHandsAndItems.class, "oOffHandHeight");
-        Field ticks = field(LivingEntity.SwingState.class, "ticks");
-        Field animation = field(LivingEntity.SwingState.class, "animation");
-        Field oldAnimation = field(LivingEntity.SwingState.class, "oldAnimation");
+        Field mainHeight = field(ItemInHandRenderer.class, "mainHandHeight");
+        Field oMainHeight = field(ItemInHandRenderer.class, "oMainHandHeight");
+        Field offHeight = field(ItemInHandRenderer.class, "offHandHeight");
+        Field oOffHeight = field(ItemInHandRenderer.class, "oOffHandHeight");
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8));
              var lines = Files.lines(Path.of(args[0]))) {
             int n = 0;
@@ -275,9 +315,16 @@ public final class VanillaFirstPersonOracle {
                 boolean creative = c.get("creative").getAsBoolean();
                 abilities.instabuild = creative;
                 field(Player.class, "abilities").set(player, abilities);
-                swingState.set(player, new LivingEntity.SwingState());
                 lastItem.set(player, ItemStack.EMPTY);
-                hands.set(player, new FirstPersonHandsAndItems());
+                // 26.2 keeps the hand heights in GameRenderer.itemInHandRenderer
+                // (26.3 moved them to LocalPlayer.firstPersonHandsAndItems).
+                var resolver = make(Resolver.class);
+                var renderer = new ItemInHandRenderer0(mc, resolver);
+                var gameRenderer = make(GameRenderer.class);
+                field(GameRenderer.class, "itemInHandRenderer").set(gameRenderer, renderer);
+                field(Minecraft.class, "gameRenderer").set(mc, gameRenderer);
+                field(Minecraft.class, "itemModelResolver").set(mc, resolver);
+                field(Minecraft.class, "soundManager").set(mc, make(SoundManager0.class));
                 player.input = new net.minecraft.client.player.ClientInput();
                 var effects = new HashMap<Holder<MobEffect>, MobEffectInstance>();
                 if (!c.get("haste").isJsonNull()) {
@@ -293,7 +340,6 @@ public final class VanillaFirstPersonOracle {
                 field(Minecraft.class, "player").set(mc, player);
                 field(Minecraft.class, "level").set(mc, level);
                 field(Minecraft.class, "tutorial").set(mc, make(Tutorial.class));
-                field(Minecraft.class, "itemModelResolver").set(mc, make(Resolver.class));
                 var gameMode = new GameMode0(mc, connection);
                 field(MultiPlayerGameMode.class, "localPlayerMode").set(gameMode, creative ? GameType.CREATIVE : GameType.SURVIVAL);
                 field(Minecraft.class, "gameMode").set(mc, gameMode);
@@ -354,9 +400,8 @@ public final class VanillaFirstPersonOracle {
                     }
                     // LocalPlayer.tick: LivingEntity.baseTick's swing, the equipment's
                     // attribute modifiers, Player.tick's tickers, then
-                    // FirstPersonHandsAndItems.tick.
-                    var swing = (LivingEntity.SwingState) swingState.get(player);
-                    swing.tick();
+                    // ItemInHandRenderer.tick (26.2's hand heights live there).
+                    player.tickSwing();
                     // LivingEntity.tick's detectEquipmentUpdates: the main hand's modifiers.
                     player.attributes = attributes(player.getMainHandItem());
                     attackTicker.setInt(player, attackTicker.getInt(player) + 1);
@@ -375,18 +420,17 @@ public final class VanillaFirstPersonOracle {
                         player.setYRot(Float.intBitsToFloat(Integer.parseUnsignedInt(rot.get(1).getAsString(), 16)));
                     }
                     player.applyInput();
-                    var fp = (FirstPersonHandsAndItems) hands.get(player);
-                    fp.tick(player);
+                    renderer.tick();
                     for (var ev : events) {
                         out.println(ev);
                     }
-                    var current = player.getCurrentSwing();
-                    out.println("tick " + s++ + " " + (current == null ? "- 0" : hand(current.hand()) + " " + current.durationTicks())
-                        + " " + ticks.getInt(swing) + " " + fb(animation.getFloat(swing)) + " " + fb(oldAnimation.getFloat(swing))
-                        + " " + fb(player.getSwingAnimation(0.5F))
+                    var duration = (int) currentSwingDuration.invoke(player);
+                    out.println("tick " + s++ + " " + (player.swinging ? hand(player.swingingArm) + " " + duration : "- 0")
+                        + " " + player.swingTime + " " + fb(player.attackAnim) + " " + fb(player.oAttackAnim)
+                        + " " + fb(player.getAttackAnim(0.5F))
                         + " " + attackTicker.getInt(player) + " " + swapTicker.getInt(player) + " " + fb(player.getItemSwapScale(1.0F))
-                        + " " + fb(mainHeight.getFloat(fp)) + " " + fb(oMainHeight.getFloat(fp))
-                        + " " + fb(offHeight.getFloat(fp)) + " " + fb(oOffHeight.getFloat(fp))
+                        + " " + fb(mainHeight.getFloat(renderer)) + " " + fb(oMainHeight.getFloat(renderer))
+                        + " " + fb(offHeight.getFloat(renderer)) + " " + fb(oOffHeight.getFloat(renderer))
                         + " " + missTime.getInt(mc) + " " + rightClickDelay.getInt(mc) + " " + destroyDelay.getInt(gameMode)
                         + " " + destroying.getBoolean(gameMode) + " " + fb(progress.getFloat(gameMode))
                         + " " + fb(player.xBob) + " " + fb(player.yBob) + " " + fb(player.xBobO) + " " + fb(player.yBobO));

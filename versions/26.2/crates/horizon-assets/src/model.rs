@@ -152,6 +152,10 @@ pub struct Element {
     pub to: [f32; 3],
     pub faces: BTreeMap<Direction, Option<Face>>,
     pub rotation: Option<ElementRotation>,
+    /// The element's `shade` (26.2): `false` renders its quads flat, with
+    /// no directional shading. 26.3 replaced it with
+    /// `shade_direction_override` (`"up"` there shades the same 1.0).
+    pub shade: bool,
     pub shade_direction_override: Option<Direction>,
     pub light_emission: u8,
     pub neoforge_data: Option<NeoforgeData>,
@@ -416,6 +420,11 @@ impl Element {
                     .ok_or_else(|| error("invalid shade direction"))
             })
             .transpose()?;
+        let shade = obj
+            .get("shade")
+            .map(|r| boolean(r))
+            .transpose()?
+            .unwrap_or(true);
         let light_emission = obj
             .get("light_emission")
             .map(|r| integer(r))
@@ -429,6 +438,7 @@ impl Element {
             to,
             faces,
             rotation,
+            shade,
             shade_direction_override,
             light_emission: light_emission as u8,
             neoforge_data: obj

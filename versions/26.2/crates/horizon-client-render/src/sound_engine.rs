@@ -425,11 +425,14 @@ impl SoundInstance {
             },
         )
     }
-    /// `UnderLiquidAmbientSoundInstance.underwater(player)`.
+    /// `new UnderwaterAmbientSoundInstance(player)` (26.2's
+    /// `UnderwaterAmbientSoundInstances$UnderwaterAmbientSoundInstance`;
+    /// 26.3 renamed it `UnderLiquidAmbientSoundInstance.underwater`).
     pub fn under_liquid_loop(id: &str, random: LegacyRandom) -> Self {
         Self::ambient_loop(id, random, true, Ticking::UnderLiquidLoop { fade: 0 })
     }
-    /// `new UnderLiquidSubSound(player, event)`.
+    /// `new UnderwaterAmbientSoundInstances.SubSound(player, event)`
+    /// (26.3 renamed it `UnderLiquidSubSound`).
     pub fn under_liquid_sub(id: &str, random: LegacyRandom) -> Self {
         Self::ambient_loop(id, random, false, Ticking::UnderLiquidSub)
     }

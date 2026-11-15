@@ -449,7 +449,10 @@ impl ArmPose {
         matches!(self, Self::Bow | Self::CrossbowHold | Self::CrossbowCharge)
     }
     fn affects_offhand(self) -> bool {
-        self.two_handed() || self == Self::ThrowTrident
+        // HumanoidModel.ArmPose: 26.2's SPEAR affects the offhand pose
+        // (26.3 dropped it); BOW, CROSSBOW_* (two-handed) and THROW_TRIDENT
+        // do in both.
+        self.two_handed() || matches!(self, Self::ThrowTrident | Self::Spear)
     }
 }
 /// `AnimationUtils.animateCrossbowHold`.
@@ -631,32 +634,6 @@ pub(super) fn humanoid(p: &mut Poses, s: &State, h: &Hum) {
             r[5] += (swing * PI).msin() * -0.4;
         }
     }
-    // AnimationUtils.animateZombieArms leaves the arms of a spear alone.
-    let using_spear = h.right == ArmPose::Spear || h.left == ArmPose::Spear;
-    if let Some(aggressive) = h.zombie.filter(|_| !using_spear) {
-        // AnimationUtils.animateZombieArms
-        let raise = !s.baby || !h.holding;
-        let drop = if raise {
-            -PI / if aggressive { 1.5 } else { 2.25 }
-        } else {
-            0.0
-        };
-        let ym = if raise { 1.0 } else { -1.0 } * (swing * PI).msin();
-        let xm = ((1.0 - (1.0 - swing) * (1.0 - swing)) * PI).msin();
-        let x = drop + ym * 1.2 - xm * 0.4;
-        let y = 0.1 - ym * 0.6;
-        // An arm raising a trident keeps its pose.
-        if h.right != ArmPose::ThrowTrident {
-            p.xrot("right_arm", x);
-            p.yrot("right_arm", if raise { -y } else { y });
-            p.zrot("right_arm", 0.0);
-        }
-        if h.left != ArmPose::ThrowTrident {
-            p.xrot("left_arm", x);
-            p.yrot("left_arm", if raise { y } else { -y });
-            p.zrot("left_arm", 0.0);
-        }
-    }
     if h.crouching {
         p.xrot("body", 0.5);
         p.get("right_arm")[3] += 0.4;
@@ -668,10 +645,38 @@ pub(super) fn humanoid(p: &mut Poses, s: &State, h: &Hum) {
         p.get("left_arm")[1] += 3.2;
         p.get("right_arm")[1] += 3.2;
     }
-    bob(p, "right_arm", s.age, 1.0);
-    bob(p, "left_arm", s.age, -1.0);
     if h.swim > 0.0 {
-        swim(p, s.pos, h);
+        swim(p, s.pos, s.swing, h);
+    }
+    // AnimationUtils.animateZombieArms, last: 26.2's AbstractZombieModel
+    // calls it from setupAnim, after the swim, so the zombie arms overwrite
+    // the stroke. The attack arms are skipped while the attack arm's item
+    // swings STAB (a spear in the attack arm), and both arms are set
+    // unconditionally (26.3 calls it from setupAttackAnimation, skips on
+    // either spear pose and spares trident-raising arms); the arms bob
+    // either way, and nothing else here bobs.
+    if let Some(aggressive) = h.zombie {
+        let stab = (if swing_left { h.left } else { h.right }) == ArmPose::Spear;
+        if !stab {
+            let raise = !s.baby || !h.holding;
+            let drop = if raise {
+                -PI / if aggressive { 1.5 } else { 2.25 }
+            } else {
+                0.0
+            };
+            let ym = if raise { 1.0 } else { -1.0 } * (swing * PI).msin();
+            let xm = ((1.0 - (1.0 - swing) * (1.0 - swing)) * PI).msin();
+            let x = drop + ym * 1.2 - xm * 0.4;
+            let y = 0.1 - ym * 0.6;
+            p.xrot("right_arm", x);
+            p.yrot("right_arm", if raise { -y } else { y });
+            p.zrot("right_arm", 0.0);
+            p.xrot("left_arm", x);
+            p.yrot("left_arm", if raise { y } else { -y });
+            p.zrot("left_arm", 0.0);
+        }
+        bob(p, "right_arm", s.age, 1.0);
+        bob(p, "left_arm", s.age, -1.0);
     }
 }
 /// `Mth.rotLerpRad`.
@@ -708,7 +713,7 @@ fn drowned_swim(p: &mut Poses, s: &State, amount: f32) {
 /// `HumanoidModel.setupSwimAnimation`: the stroke of both arms over 26
 /// walk-animation units, the head down and a slow flutter kick. The left arm
 /// eases the short way round, the right one linearly, as in vanilla.
-fn swim(p: &mut Poses, pos: f32, h: &Hum) {
+fn swim(p: &mut Poses, pos: f32, swing: f32, h: &Hum) {
     let amount = h.swim;
     if !h.fall_flying {
         let x = p.get("head")[3];
@@ -718,12 +723,18 @@ fn swim(p: &mut Poses, pos: f32, h: &Hum) {
         );
     }
     let swim_pos = pos % 26.0;
-    let right_amount = if h.swing_right_arm == Some(true) {
+    // setupSwimAnimation: a spear-posed arm never swims, and the swinging
+    // arm stops only while the swing is in progress (attackTime > 0).
+    let right_amount = if h.right == ArmPose::Spear
+        || (swing > 0.0 && h.swing_right_arm == Some(true))
+    {
         0.0
     } else {
         amount
     };
-    let left_amount = if h.swing_right_arm == Some(false) {
+    let left_amount = if h.left == ArmPose::Spear
+        || (swing > 0.0 && h.swing_right_arm == Some(false))
+    {
         0.0
     } else {
         amount
@@ -933,6 +944,15 @@ fn vanilla_setup(
             h.passenger = m.extra.passenger;
             humanoid(p, s, &h);
             if m.kind.anim == Anim::Drowned {
+                // DrownedModel.setupAnim: a trident arm is raised again
+                // after the zombie arms, before the drowned swim.
+                for (arm, pose) in [("right_arm", h.right), ("left_arm", h.left)] {
+                    if pose == ArmPose::ThrowTrident {
+                        let x = p.get(arm)[3];
+                        p.xrot(arm, x * 0.5 - PI);
+                        p.yrot(arm, 0.0);
+                    }
+                }
                 drowned_swim(p, s, m.extra.swim.amount(s.partial));
             }
             if m.kind.anim == Anim::ZombifiedPiglin {
@@ -1428,15 +1448,16 @@ mod flight_pose_tests {
         humanoid(&mut flight, &state, &h);
         assert_eq!(flight.get("head")[3], -std::f32::consts::FRAC_PI_4);
         assert_eq!(flight.get("right_leg")[3], ground.get("right_leg")[3] / 8.0);
-        // THROW_TRIDENT: the arm goes up over the head, and zombie arms leave it there.
+        // THROW_TRIDENT: 26.2's zombie arms overwrite the trident arm too
+        // (26.3 spares it), so both arms take the raised pose.
         let mut throw = make();
         let mut h = Hum::new(ArmPose::ThrowTrident, ArmPose::Item);
         h.zombie = Some(true);
         humanoid(&mut throw, &state, &h);
-        let still = (state.pos * 0.6662 + PI).mcos() * 2.0 * 0.5;
-        assert_eq!(throw.get("right_arm")[3], still * 0.5 - PI);
-        assert_eq!(throw.get("right_arm")[4], 0.0);
+        assert_eq!(throw.get("right_arm")[3], -PI / 1.5);
+        assert_eq!(throw.get("right_arm")[4], -0.1);
         assert_eq!(throw.get("left_arm")[3], -PI / 1.5);
+        assert_eq!(throw.get("left_arm")[4], 0.1);
     }
 
     #[test]

@@ -93,7 +93,7 @@ pub struct Ai {
     /// Swing animation progress (attackAnim) and ticks.
     pub swing_time: i32,
     pub swinging: bool,
-    /// The current swing's `SwingDescription.durationTicks`; 0 is the default 6.
+    /// The current swing's duration (`getCurrentSwingDuration`); 0 is the default 6.
     pub swing_duration: i32,
     /// Walked distance and the next footstep.
     pub steps: super::living::Steps,
@@ -123,7 +123,7 @@ impl Mob {
             6
         }
     }
-    /// `SwingState.startIfAble`: a swing past the first half of the current
+    /// `LivingEntity.swing`: a swing past the first half of the current
     /// one restarts it.
     fn start_swing(&mut self, duration: i32) -> bool {
         let half = self.swing_duration() / 2;
@@ -142,8 +142,8 @@ impl Mob {
             self.extra.swing_stab = false;
         }
     }
-    /// `LivingEntity.swing(hand, animation, false)` for a swing of `duration`
-    /// ticks (`getModifiedSwingDuration`): the arm is `hand.asArm(mainArm)`.
+    /// `LivingEntity.swing(hand)` for a swing of `duration` ticks
+    /// (`getCurrentSwingDuration`): the arm is `hand.asArm(mainArm)`.
     pub fn swing_hand(&mut self, off_hand: bool, duration: i32) {
         if self.start_swing(duration) {
             self.extra.swing_right_arm = Some(!off_hand != self.main_arm_left());
@@ -152,7 +152,7 @@ impl Mob {
     }
     /// `swing_hand` for a swing of `animation`, lengthened or shortened by
     /// this mob's haste, conduit power or mining fatigue
-    /// (`LivingEntity.getModifiedSwingDuration`).
+    /// (`LivingEntity.getCurrentSwingDuration`).
     pub fn swing_hand_modified(
         &mut self,
         off_hand: bool,
@@ -632,10 +632,6 @@ pub fn tick(
         m.removed = true;
         return false;
     }
-    // Entity.commonTick: `invulnerableTime` counts down before setOldPosAndRot.
-    if m.invulnerable_time > 0 {
-        m.invulnerable_time -= 1;
-    }
     // `Entity.computeSpeed`: what it moved in the last tick.
     let known_speed = m.position.subtract(m.previous);
     m.previous = m.position;
@@ -965,10 +961,14 @@ fn effects_from_blocks(
                                 m.stuck_multiplier =
                                     Vec3::new(f64::from(0.9_f32), 1.5, f64::from(0.9_f32));
                             }
-                            let known_movement =
-                                w.controlling_player_movement.unwrap_or(m.velocity);
+                            // 26.2 `PowderSnowBlock.entityInside`: the gate
+                            // is the mob's own horizontal position delta
+                            // (xOld/zOld vs x/z), not known movement and not
+                            // the controlling player's movement (26.3).
+                            let moving =
+                                m.previous.x != m.position.x || m.previous.z != m.position.z;
                             if let Some(velocity) =
-                                powder_snow_particle_velocity(known_movement, level_random)
+                                powder_snow_particle_velocity(moving, level_random)
                             {
                                 events.push(MobEvent::PowderSnowParticle {
                                     at: [m.position.x, f64::from(y + 1), m.position.z],
@@ -989,21 +989,21 @@ fn effects_from_blocks(
 mod powder_snow_particle_tests {
     use super::*;
 
-    /// A ridden mount uses the controlling player's known movement for the
-    /// powder-snow roll, even when the mount's own delta is zero.
+    /// 26.2 `PowderSnowBlock.entityInside`: the gate is the mob's own
+    /// horizontal position delta. A ridden mount that did not move emits no
+    /// snowflake even with a nonzero velocity (26.3 gates on known movement,
+    /// which for a ridden mount is the controlling player's).
     #[test]
     #[ignore = "requires prepared vanilla resources in .local/horizon-client"]
-    fn a_controlled_mount_uses_its_riders_known_movement() {
+    fn a_mount_that_did_not_move_emits_no_powder_snow_particle() {
         let seed = (0..1000)
             .find(|seed| {
                 let mut random = LegacyRandom::new(*seed);
                 random.next_boolean()
             })
             .unwrap();
-        let player_movement = Vec3::new(0.2, 0.0, 0.0);
         let mut expected_random = LegacyRandom::new(seed);
-        let expected =
-            powder_snow_particle_velocity(player_movement, &mut expected_random).unwrap();
+        let expected = powder_snow_particle_velocity(true, &mut expected_random).unwrap();
 
         let ran = crate::mobs::world::with_built_test_world(
             &[],
@@ -1026,17 +1026,26 @@ mod powder_snow_particle_tests {
                     .unwrap();
             },
             |w, types| {
-                let mut w = w.clone();
-                w.controlling_player_movement = Some(player_movement);
                 let kind = std::sync::Arc::new(types.types["minecraft:horse"].clone());
                 let mut horse = Mob::new(1, kind, Vec3::new(0.5, 64.0, 0.5), 0.0);
                 horse.extra.saddled = true;
                 horse.rider = Some(crate::mobs::equine::Rider::default());
+                horse.velocity = Vec3::new(0.2, 0.0, 0.0);
                 let mut random = LegacyRandom::new(seed);
                 let mut events = Vec::new();
 
                 effects_from_blocks(&mut horse, &w, &mut random, &mut events);
+                assert!(!events.iter().any(|event| matches!(
+                    event,
+                    MobEvent::PowderSnowParticle { .. }
+                )));
 
+                // The same horse, moved sideways since last tick: the roll
+                // runs and the snowflake matches the expected velocity.
+                horse.previous = Vec3::new(0.3, 64.0, 0.5);
+                let mut random = LegacyRandom::new(seed);
+                let mut events = Vec::new();
+                effects_from_blocks(&mut horse, &w, &mut random, &mut events);
                 assert!(events.iter().any(|event| matches!(
                     event,
                     MobEvent::PowderSnowParticle { velocity, .. } if *velocity == expected
@@ -2114,6 +2123,10 @@ fn server_ai_step(
         };
         custom_server_ai_step(m, &mut cx);
     }
+    // `ServerEntity.sendChanges` clears `hurtMarked` every tick after the
+    // entity ticks (and sends the motion packet): a mark set by a hurt is
+    // visible to this tick's brain and gone before the next one.
+    m.hurt_marked = false;
     if frozen {
         m.ai.jumping = false;
         return;
@@ -2301,11 +2314,18 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
     if w.difficulty.effective == 0.0 && !super::spawn_rules::allowed_in_peaceful(m.species()) {
         return false;
     }
+    // 26.2 resets a persistent mob's no-action time on every despawn check
+    // (its final else branch); 26.3 leaves it growing. A mob that later
+    // loses persistence (dropping a picked-up item) would otherwise despawn
+    // at once on the next roll.
+    if m.persistent || requires_custom_persistence(m) {
+        m.ai.no_action_time = 0;
+        return true;
+    }
     let Some(p) = w.nearest_player else {
         return true;
     };
     let d = m.distance_sqr(p);
-    let persistent = m.persistent || requires_custom_persistence(m);
     // removeWhenFarAway: animals, villagers, golems, patrols and raiders,
     // zombie villagers being cured and ridden mobs stay, bar the two felines.
     let creature = m.kind.category == "creature";
@@ -2321,11 +2341,10 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
     } else {
         128.0
     };
-    if !persistent && d > despawn * despawn && removable {
+    if d > despawn * despawn && removable {
         return false;
     }
-    if !persistent
-        && m.ai.no_action_time > 600
+    if m.ai.no_action_time > 600
         && m.random.next_int_bound(800).unwrap_or(1) == 0
         && d > 32.0 * 32.0
         && removable

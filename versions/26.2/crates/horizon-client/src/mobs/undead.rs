@@ -564,11 +564,10 @@ fn in_powder_snow(m: &Mob, w: &super::MobWorld) -> bool {
     }
     false
 }
-/// `Skeleton.freezingTracker` (`ConversionTracker.tick`): 140 ticks in
-/// powder snow start a conversion into a stray that takes 300 more; leaving
-/// the snow stops it. `counter` is the affliction time (-1 outside the snow)
-/// and `counter2` the conversion time plus one while converting, so that
-/// reaching 0 is vanilla's `conversionTime < 0`.
+/// `Skeleton.tick`: 140 ticks in powder snow start a conversion into a stray
+/// that takes 300 more; leaving the snow stops it. `counter` is the time in
+/// powder snow (-1 outside it) and `counter2` the conversion time plus one
+/// while converting, so that reaching 0 is vanilla's `conversionTime < 0`.
 fn skeleton_freezing(m: &mut Mob, cx: &mut Cx) {
     if !in_powder_snow(m, cx.w) {
         m.extra.counter = -1;
@@ -576,7 +575,7 @@ fn skeleton_freezing(m: &mut Mob, cx: &mut Cx) {
     } else if m.extra.counter2 > 0 {
         m.extra.counter2 -= 1;
         if m.extra.counter2 == 0 {
-            // ConversionTracker.doConversion: convertTo(STRAY,
+            // Skeleton.doFreezeConversion: convertTo(STRAY,
             // ConversionParams.single(this, true, true)).
             convert(m, "minecraft:stray", cx);
             // levelEvent 1048: the conversion sound at the stray, unless it
@@ -616,13 +615,13 @@ pub fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
     if m.species() == Species::ZombifiedPiglin {
         return zombified_piglin_step(m, cx);
     }
+    // Zombie.tick: once converting, the countdown runs whether or not the
+    // zombie is still in the water (26.3's `ConversionTracker` stopped a
+    // started conversion on leaving the water; 26.2 checks the converting
+    // branch first, unconditionally). 600 ticks with eyes in water start a
+    // conversion of 300 (`counter2` is the time plus one, as for skeletons).
     if matches!(m.species(), Species::Zombie | Species::Husk) && m.alive() {
-        if m.extra.counter2 > 0 && !m.fluids.eye_in_water {
-            // ConversionTracker.tick: leaving the water ends a started
-            // conversion too.
-            m.extra.counter = -1;
-            m.extra.counter2 = 0;
-        } else if m.extra.counter2 > 0 {
+        if m.extra.counter2 > 0 {
             m.extra.counter2 -= 1;
             if m.extra.counter2 == 0 {
                 let (kind, sound) = if m.species() == Species::Husk {
@@ -630,7 +629,7 @@ pub fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
                 } else {
                     ("minecraft:drowned", "entity.zombie.converted_to_drowned")
                 };
-                // ConversionTracker.doConversion: convertTo(type,
+                // Zombie.doUnderWaterConversion: convertTo(type,
                 // ConversionParams.single(this, true, true)); levelEvent
                 // 1040 or 1041 unless the new mob is silent.
                 convert(m, kind, cx);
@@ -641,7 +640,7 @@ pub fn custom_server_ai_step(m: &mut Mob, cx: &mut Cx) {
         } else if m.fluids.eye_in_water {
             m.extra.counter += 1;
             if m.extra.counter >= 600 {
-                m.extra.counter2 = 300;
+                m.extra.counter2 = 301;
             }
         } else {
             m.extra.counter = -1;

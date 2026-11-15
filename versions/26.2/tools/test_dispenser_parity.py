@@ -163,6 +163,12 @@ def item_choice(rng, kind):
     return item
 
 
+def state_properties(state):
+    """A state's properties dict: 26.2 facts store the NBT form
+    (`Properties`), 26.3's the JSON form (`properties`)."""
+    return state[4].get('properties') or state[4].get('Properties') or {}
+
+
 class States:
     def __init__(self, facts):
         self.facts = facts
@@ -173,7 +179,7 @@ class States:
         if not props:
             return best
         for index in self.facts.by_block[name]:
-            have = self.facts.states[index][4].get('properties', {})
+            have = state_properties(self.facts.states[index])
             if all(have.get(k) == v for k, v in props.items()):
                 return index
         raise KeyError((name, props))
@@ -229,7 +235,7 @@ def build_scene(cells, states, rng, scene, front, facing):
 def halves(states, name):
     """Whether a block comes in an upper and a lower half (tall plants, dripleaves, pitchers)."""
     name = name if ':' in name else 'minecraft:' + name
-    return any(states.facts.states[i][4].get('properties', {}).get('half') == 'upper' for i in states.facts.by_block[name])
+    return any(state_properties(states.facts.states[i]).get('half') == 'upper' for i in states.facts.by_block[name])
 
 
 def front_state(states, rng, name):
@@ -384,7 +390,7 @@ def cases(facts, count, seed, only):
                 front_name = 'air'
             else:
                 # The upper half matches the lower one in everything but its half.
-                lower = states.facts.states[states.get(front_name)][4].get('properties', {})
+                lower = state_properties(states.facts.states[states.get(front_name)])
                 h.put(cells, above, states.get(front_name, **{**lower, 'half': 'upper'}))
         if front_name != 'air':
             h.put(cells, front, front_state(states, rng, front_name))

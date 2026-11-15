@@ -29,40 +29,6 @@ pub(super) fn loads_chunks(spectators_generate_chunks: bool, spectator: bool) ->
     !spectator || spectators_generate_chunks
 }
 
-/// Fail closed at the new projectile caller when the existing matcher cannot
-/// evaluate an entire conjunct. This does not change held-item interpretation.
-pub(super) fn projectile_predicate_supported(tag: &horizon_world::nbt::Tag) -> bool {
-    use horizon_world::nbt::Tag;
-    let supported = |p: &Tag| {
-        matches!(p, Tag::Compound(_))
-            && ["nbt", "components", "predicates"]
-                .iter()
-                .all(|key| p.get(key).is_none())
-            && match p.get("blocks") {
-                None | Some(Tag::String(_)) => true,
-                Some(Tag::List(ids)) => ids.iter().all(|id| matches!(id, Tag::String(_))),
-                _ => false,
-            }
-            && match p.get("state") {
-                None => true,
-                Some(Tag::Compound(properties)) => properties.values().all(|value| match value {
-                    Tag::String(_) => true,
-                    Tag::Compound(_) => ["min", "max"].iter().all(|key| {
-                        value
-                            .get(key)
-                            .is_none_or(|bound| matches!(bound, Tag::String(_)))
-                    }),
-                    _ => false,
-                }),
-                _ => false,
-            }
-    };
-    match tag {
-        Tag::Compound(_) => supported(tag),
-        Tag::List(predicates) => !predicates.is_empty() && predicates.iter().all(supported),
-        _ => false,
-    }
-}
 /// `InventoryScreen.containerTick`: a survival inventory left open when the
 /// player gains infinite materials becomes the creative one, so the player
 /// stays in a menu. A spectator's inventory is closed (`Playing`), which is
@@ -319,32 +285,7 @@ impl Game<'_> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Screen, inventory_after_mode, loads_chunks, projectile_predicate_supported};
-
-    // Added after the frozen old Game proof: unsupported conjuncts must not
-    // become permission from their otherwise matching blocks portion.
-    #[test]
-    fn projectile_predicates_require_a_complete_supported_match() {
-        for extra in [
-            "nbt:{marker:1}",
-            "components:{}",
-            "predicates:{}",
-            "state:{age:{min:1}}",
-        ] {
-            let text = format!("{{blocks:\"minecraft:chorus_flower\",{extra}}}");
-            let (tag, _) = horizon_world::nbt::parse_snbt(&text).unwrap();
-            assert!(!projectile_predicate_supported(&tag), "{text}");
-        }
-        for text in ["7", "[]", "{blocks:[7]}"] {
-            let (tag, _) = horizon_world::nbt::parse_snbt(text).unwrap();
-            assert!(!projectile_predicate_supported(&tag), "{text}");
-        }
-        let (tag, _) = horizon_world::nbt::parse_snbt(
-            "{blocks:\"minecraft:chorus_flower\",state:{age:{min:\"0\",max:\"5\"}}}",
-        )
-        .unwrap();
-        assert!(projectile_predicate_supported(&tag));
-    }
+    use super::{Screen, inventory_after_mode, loads_chunks};
 
     /// `InventoryScreen.containerTick`: the survival inventory becomes the
     /// creative one when the player gets infinite materials, and any other

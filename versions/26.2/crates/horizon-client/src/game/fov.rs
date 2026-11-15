@@ -58,7 +58,7 @@ impl Game<'_> {
     }
     /// The spin `GameRenderer.renderLevel` multiplies into the level's
     /// projection: the larger of the portal and Nausea intensities, scaled by
-    /// Distortion Effects squared, turning by `LocalPlayer.getSpinningEffectAngle`.
+    /// Distortion Effects squared, turning by `GameRenderer`'s spinning angle.
     pub(super) fn spinning_matrix(&self, partial: f32) -> glam::Mat4 {
         let fx = &self.screen_fx;
         let portal = fx.o_portal + partial * (fx.portal - fx.o_portal);

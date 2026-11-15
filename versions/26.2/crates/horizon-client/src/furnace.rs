@@ -21,14 +21,11 @@ pub trait FurnaceCooking {
     /// (`Slot.setByPlayer`; partial takes and merges keep the stack).
     fn input_clicked(&mut self, recipes: &Recipes, before: Option<ItemStack>);
     /// One server tick. Returns `Some(lit)` when the LIT block state must change.
-    /// `drops` collects what the furnace lets fall at its position
-    /// (`Containers.dropItemStack`): the remainder of a fuel when more of it is left.
     fn tick(
         &mut self,
         recipes: &Recipes,
         items: &Items,
         providers: &Providers,
-        drops: &mut Vec<ItemStack>,
     ) -> Option<bool>;
     fn idle(&self) -> bool;
 }
@@ -40,10 +37,12 @@ impl FurnaceCooking for Furnace {
         };
         self.items[0] = stack;
         if !same {
+            // 26.2's getTotalCookTime: the recipe's own cooking time (200
+            // without one); there is no fuel speed multiplier in 26.2.
             self.cooking_total = self.items[0]
                 .as_ref()
                 .and_then(|input| recipes.cook(self.kind.recipe_type(), input))
-                .map_or(200, |recipe| total_time(recipe.time, self.speed));
+                .map_or(200, |recipe| recipe.time as i32);
             self.cooking_timer = 0;
         }
     }
@@ -64,7 +63,6 @@ impl FurnaceCooking for Furnace {
         recipes: &Recipes,
         items: &Items,
         providers: &Providers,
-        drops: &mut Vec<ItemStack>,
     ) -> Option<bool> {
         let was_lit = self.lit_remaining > 0;
         let mut lit = false;
@@ -88,36 +86,28 @@ impl FurnaceCooking for Furnace {
                     };
                     if can_burn {
                         if !lit {
+                            // 26.2's getBurnDuration: the FuelValues table
+                            // only — no cooking_fuel component, no fuel
+                            // speed, no progress re-scale on refuel.
                             let fuel = self.items[1].clone();
                             let time = fuel
                                 .as_ref()
                                 .map_or(0, |f| providers.burn_time(items, f, fast));
-                            let speed = fuel
-                                .as_ref()
-                                .map_or(1.0, |f| providers.speed(items, f, fast));
                             self.lit_remaining = time;
                             self.lit_total = time;
-                            self.speed = speed;
-                            if self.cooking_total > 0 && self.cooking_timer < self.cooking_total {
-                                let ratio = self.cooking_timer as f32 / self.cooking_total as f32;
-                                self.cooking_total = total_time(recipe.time, self.speed);
-                                self.cooking_timer =
-                                    (ratio * self.cooking_total as f32).ceil() as i32;
-                            }
                             if time > 0 {
-                                // AbstractFurnaceBlockEntity.consumeFuel: the fuel's crafting
-                                // remainder takes the slot once the stack is used up, else
-                                // it is dropped.
+                                // AbstractFurnaceBlockEntity.consumeFuel:
+                                // the fuel's crafting remainder takes the
+                                // slot only once the stack is used up; with
+                                // fuel left, the remainder is lost (26.3
+                                // drops it instead).
                                 if let Some(f) = self.items[1].as_mut() {
-                                    let remainder = items
-                                        .get(&f.item)
-                                        .and_then(|i| i.crafting_remainder.as_deref())
-                                        .map(|r| ItemStack::new(r, 1));
                                     f.count -= 1;
                                     if f.count == 0 {
-                                        self.items[1] = remainder;
-                                    } else if let Some(remainder) = remainder {
-                                        drops.push(remainder);
+                                        self.items[1] = items
+                                            .get(&f.item)
+                                            .and_then(|i| i.crafting_remainder.as_deref())
+                                            .map(|r| ItemStack::new(r, 1));
                                     }
                                 }
                                 lit = true;
@@ -125,9 +115,12 @@ impl FurnaceCooking for Furnace {
                         }
                         if lit {
                             self.cooking_timer += 1;
-                            if self.cooking_timer >= self.cooking_total {
+                            // 26.2 completes on equality (26.3's >= also
+                            // covers a loaded total of 0, which 26.2
+                            // stalls on instead).
+                            if self.cooking_timer == self.cooking_total {
                                 self.cooking_timer = 0;
-                                self.cooking_total = total_time(recipe.time, self.speed);
+                                self.cooking_total = recipe.time as i32;
                                 match &mut self.items[2] {
                                     Some(out) => out.count += recipe.result.count,
                                     None => self.items[2] = Some(recipe.result.clone()),
@@ -176,14 +169,6 @@ impl FurnaceCooking for Furnace {
             && !(self.items[0].is_some() && self.items[1].is_some())
     }
 }
-fn total_time(time: u32, speed: f32) -> i32 {
-    if speed > 0.0 {
-        (time as f32 / speed).ceil() as i32
-    } else {
-        time as i32
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,7 +186,6 @@ mod tests {
             lit_total: 0,
             cooking_timer,
             cooking_total: 200,
-            speed: 1.0,
             recipes_used: HashMap::new(),
         };
         assert!(furnace(None, None, 0, 0).idle());
@@ -253,8 +237,9 @@ mod tests {
             200
         );
         // Fresh Java's five-case Game fixture independently admits the loaded
-        // zero (including a missing saved field), five and normal totals.
-        for (total, timer, completion) in [(0, 0, 1), (5, 0, 5), (200, 0, 200), (5, 1, 4)] {
+        // five and normal totals. (A loaded total of 0 is 26.2's stall: the
+        // timer increments past it and `==` never holds — see below.)
+        for (total, timer, completion) in [(5, 0, 5), (200, 0, 200), (5, 1, 4)] {
             let mut f = Furnace {
                 kind: FurnaceKind::Furnace,
                 items: [Some(ItemStack::new("test:ore", 3)), None, None],
@@ -262,14 +247,11 @@ mod tests {
                 lit_total: 20,
                 cooking_timer: timer,
                 cooking_total: total,
-                speed: 1.0,
                 recipes_used: HashMap::new(),
             };
             for elapsed in 1..=6 {
-                let mut drops = Vec::new();
                 assert!(!f.idle());
-                assert_eq!(f.tick(&recipes, &items, &providers, &mut drops), None);
-                assert!(drops.is_empty());
+                assert_eq!(f.tick(&recipes, &items, &providers), None);
                 assert_eq!((f.lit_remaining, f.lit_total), (20 - elapsed, 20));
                 assert!(f.items[1].is_none());
                 let complete = elapsed >= completion;
@@ -302,6 +284,29 @@ mod tests {
         }
     }
 
+    /// 26.2 completes on `cookingTimer == cookingTotalTime`, so a loaded
+    /// total of 0 stalls: the timer climbs past it and never equals it
+    /// (26.3's `>=` completes on the first tick instead).
+    #[test]
+    fn a_loaded_total_of_zero_stalls() {
+        let (items, recipes, providers) = data("zero-total");
+        let mut f = Furnace {
+            kind: FurnaceKind::Furnace,
+            items: [Some(ItemStack::new("test:ore", 3)), None, None],
+            lit_remaining: 20,
+            lit_total: 20,
+            cooking_timer: 0,
+            cooking_total: 0,
+            recipes_used: HashMap::new(),
+        };
+        for elapsed in 1..=6 {
+            assert_eq!(f.tick(&recipes, &items, &providers), None);
+            assert_eq!(f.items[0].as_ref().unwrap().count, 3);
+            assert!(f.items[2].is_none());
+            assert_eq!((f.cooking_timer, f.cooking_total), (elapsed, 0));
+        }
+    }
+
     #[test]
     fn cooking_requires_output_components_and_capacity() {
         let (items, recipes, providers) = data("output-components");
@@ -326,7 +331,6 @@ mod tests {
                 lit_total: 0,
                 cooking_timer: 0,
                 cooking_total: 200,
-                speed: 1.0,
                 recipes_used: HashMap::new(),
             };
             let recipe = recipes
@@ -336,17 +340,15 @@ mod tests {
                 (&*recipe.result.item, recipe.result.count, recipe.time),
                 ("test:ingot", 1, 200)
             );
-            let mut drops = Vec::new();
             assert_eq!(
-                f.tick(&recipes, &items, &providers, &mut drops),
+                f.tick(&recipes, &items, &providers),
                 eligible.then_some(true),
                 "output {before:?}"
             );
-            assert!(drops.is_empty());
             if eligible {
                 assert!(f.items[1].is_none());
                 for _ in 1..200 {
-                    f.tick(&recipes, &items, &providers, &mut drops);
+                    f.tick(&recipes, &items, &providers);
                 }
                 assert_eq!(f.items[0].as_ref().unwrap().count, 2);
                 assert_eq!(
@@ -376,7 +378,6 @@ mod tests {
             lit_total: 0,
             cooking_timer: 0,
             cooking_total: 200,
-            speed: 1.0,
             recipes_used: HashMap::new(),
         };
         let idle = [
@@ -389,24 +390,22 @@ mod tests {
         for before in idle {
             assert!(before.idle(), "{before:?}");
             let mut after = before.clone();
-            let mut drops = Vec::new();
-            let lit = after.tick(&recipes, &items, &providers, &mut drops);
+            let lit = after.tick(&recipes, &items, &providers);
             assert_eq!(lit, None, "{before:?}");
-            assert!(drops.is_empty(), "{before:?}");
             assert_eq!(format!("{after:?}"), format!("{before:?}"));
         }
         let mut busy = furnace(stack("test:ore"), stack("minecraft:coal"), None);
         assert!(!busy.idle());
         let before = format!("{busy:?}");
         assert_eq!(
-            busy.tick(&recipes, &items, &providers, &mut Vec::new()),
+            busy.tick(&recipes, &items, &providers),
             Some(true)
         );
         assert_ne!(format!("{busy:?}"), before);
     }
 
     /// A furnace with `fuel` x `count` burning `test:ore` into `test:ingot` ([`data`]).
-    fn burn(fuel: &str, count: u32) -> (Furnace, Vec<ItemStack>) {
+    fn burn(fuel: &str, count: u32) -> Furnace {
         let (items, recipes, providers) =
             data(&format!("remainder-{}-{count}", fuel.replace(':', "-")));
         let mut furnace = Furnace {
@@ -420,13 +419,11 @@ mod tests {
             lit_total: 0,
             cooking_timer: 0,
             cooking_total: 0,
-            speed: 1.0,
             recipes_used: HashMap::new(),
         };
-        let mut drops = Vec::new();
-        let lit = furnace.tick(&recipes, &items, &providers, &mut drops);
+        let lit = furnace.tick(&recipes, &items, &providers);
         assert_eq!(lit, Some(true), "the fuel lit the furnace");
-        (furnace, drops)
+        furnace
     }
 
     fn fuel_slot(furnace: &Furnace) -> Option<(&str, u32)> {
@@ -437,27 +434,24 @@ mod tests {
     /// leaves it in the fuel slot.
     #[test]
     fn the_last_fuel_leaves_its_remainder_in_the_slot() {
-        let (furnace, drops) = burn("minecraft:lava_bucket", 1);
+        let furnace = burn("minecraft:lava_bucket", 1);
         assert_eq!(fuel_slot(&furnace), Some(("minecraft:bucket", 1)));
-        assert!(drops.is_empty());
     }
 
-    /// With more of the fuel left, the remainder is dropped at the furnace.
+    /// With more of the fuel left, the remainder is lost: 26.2's consumeFuel
+    /// only sets it when the stack is used up (26.3 drops it instead).
     #[test]
-    fn a_fuel_still_in_the_stack_drops_its_remainder() {
-        let (furnace, drops) = burn("minecraft:lava_bucket", 3);
+    fn a_fuel_still_in_the_stack_loses_its_remainder() {
+        let furnace = burn("minecraft:lava_bucket", 3);
         assert_eq!(fuel_slot(&furnace), Some(("minecraft:lava_bucket", 2)));
-        assert_eq!(drops, vec![ItemStack::new("minecraft:bucket", 1)]);
     }
 
     /// A fuel without a remainder leaves nothing.
     #[test]
     fn a_fuel_without_a_remainder_leaves_nothing() {
-        let (furnace, drops) = burn("minecraft:coal", 1);
+        let furnace = burn("minecraft:coal", 1);
         assert_eq!(fuel_slot(&furnace), None);
-        assert!(drops.is_empty());
-        let (furnace, drops) = burn("minecraft:coal", 2);
+        let furnace = burn("minecraft:coal", 2);
         assert_eq!(fuel_slot(&furnace), Some(("minecraft:coal", 1)));
-        assert!(drops.is_empty());
     }
 }

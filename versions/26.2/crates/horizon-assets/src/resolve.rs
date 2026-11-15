@@ -459,6 +459,7 @@ pub fn missing_model() -> CuboidModel {
             to: [16.0; 3],
             faces,
             rotation: None,
+            shade: true,
             shade_direction_override: None,
             light_emission: 0,
             neoforge_data: None,

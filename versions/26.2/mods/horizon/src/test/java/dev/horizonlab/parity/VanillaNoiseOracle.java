@@ -1,149 +1,288 @@
 package dev.horizonlab.parity;
 
+import it.unimi.dsi.fastutil.doubles.DoubleArrayList;
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.StringTokenizer;
+import java.util.stream.IntStream;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.level.levelgen.DensityFunction;
 import net.minecraft.world.level.levelgen.LegacyRandomSource;
 import net.minecraft.world.level.levelgen.XoroshiroRandomSource;
-import net.minecraft.world.level.levelgen.synth.GradientNoise;
-import net.minecraft.world.level.levelgen.synth.Noise;
-import net.minecraft.world.level.levelgen.synth.NoiseStack;
+import net.minecraft.world.level.levelgen.synth.BlendedNoise;
+import net.minecraft.world.level.levelgen.synth.ImprovedNoise;
+import net.minecraft.world.level.levelgen.synth.NoiseUtils;
 import net.minecraft.world.level.levelgen.synth.NormalNoise;
 import net.minecraft.world.level.levelgen.synth.PerlinNoise;
+import net.minecraft.world.level.levelgen.synth.PerlinSimplexNoise;
 import net.minecraft.world.level.levelgen.synth.SimplexNoise;
-import net.minecraft.world.level.levelgen.synth.SmearedPerlinNoise;
-import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
-import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 
-/** Original transport adapter; samples the reference classes directly. */
+/** 26.2 transport adapter; samples the 26.2 synth classes directly. */
 public final class VanillaNoiseOracle {
     private static int integer(StringTokenizer args) { return Integer.parseInt(args.nextToken()); }
     private static double number(StringTokenizer args) { return Double.longBitsToDouble(Long.parseUnsignedLong(args.nextToken(),16)); }
-    private static float small(StringTokenizer args) { return Float.intBitsToFloat(Integer.parseUnsignedInt(args.nextToken(),16)); }
-    private static String bits(float value) { return Integer.toUnsignedString(Float.floatToIntBits(value)); }
     private static String bits(double value) { return Long.toUnsignedString(Double.doubleToLongBits(value)); }
-    private static Object field(Object object, String name) throws Exception {
-        Field field=GradientNoise.class.getDeclaredField(name);field.setAccessible(true);return field.get(object);
+    private static RandomSource stream(String kind, long seed) {
+        return switch (kind) {
+            case "legacy" -> new LegacyRandomSource(seed);
+            case "xoroshiro" -> new XoroshiroRandomSource(seed);
+            default -> throw new AssertionError();
+        };
     }
-    private static Object declared(Object object,String name) throws Exception {
-        Field field=object.getClass().getDeclaredField(name);field.setAccessible(true);return field.get(object);
+    private static Object declared(Object object, String name) throws Exception {
+        Field field = object.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(object);
     }
-    private static void normal(StringTokenizer args,PrintWriter out) throws Exception {
-        String kind=args.nextToken();long seed=Long.parseLong(args.nextToken());int parity=integer(args),base=integer(args),count=integer(args),normalization=integer(args);
-        double amplitude=number(args);double[] modifiers=new double[integer(args)];for(int i=0;i<modifiers.length;i++)modifiers[i]=number(args);
-        double[][] points=new double[integer(args)][3];for(double[] point:points)for(int i=0;i<3;i++)point[i]=number(args);
-        RandomSource random=kind.equals("legacy")?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
-        NormalNoise definition;
-        try {
-            if((parity&1)!=0)definition=NormalNoise.createParity(base,modifiers);
-            else {
-                var builder=NormalNoise.builder().setBaseOctave(base).setBaseAmplitude(amplitude).setOctaveCount(count);
-                if(normalization==2)builder.setLegacyNormalization();else builder.setNormalize(normalization==1);
-                for(int i=0;i<modifiers.length;i++)builder.setAmplitudeModifier(i,modifiers[i]);
-                definition=builder.build();
-            }
-        } catch(IllegalArgumentException e) { out.println("normal error "+random.nextLong());return; }
-        var octaves=(java.util.List<?>)declared(definition,"octaves");
-        out.printf("normal %d %s %s %s%n",octaves.size(),bits((double)declared(definition,"normalizationFactor")),bits(definition.range().min()),bits(definition.range().max()));
-        for(Object octave:octaves) {
-            Method name=octave.getClass().getDeclaredMethod("seed");name.setAccessible(true);
-            out.printf("octave %d %s %s %s%n",(int)declared(octave,"octaveIndex"),bits((double)declared(octave,"frequency")),bits((double)declared(octave,"amplitude")),name.invoke(octave));
-        }
-        NoiseStack noise;
-        try { noise=(NoiseStack)((parity&2)!=0?definition.createForLegacyNetherBiome(random):definition.create(random)); }
-        catch(IllegalArgumentException | IllegalStateException e) { out.println("normal-create error");out.println("normal-parent "+random.nextLong());return; }
-        Field layerField=NoiseStack.class.getDeclaredField("layers");layerField.setAccessible(true);Object[] layers=(Object[])layerField.get(noise);
-        out.printf("normal-create %d %s %s%n",layers.length,bits(noise.range().min()),bits(noise.range().max()));
-        for(int i=0;i<layers.length;i++)out.printf("normal-layer %s %s %s %s%n",bits((double)declared(layers[i],"frequency")),bits((float)declared(layers[i],"amplitude")),bits(noise.getLayer(i).get(.25,.75)),bits(noise.getLayer(i).get(-17.25,64.125,32.5)));
-        for(double[] point:points)out.printf("normal-query %s %s%n",bits(noise.get(point[0],point[2])),bits(noise.get(point[0],point[1],point[2])));
-        var volume=new DensityVolume(2,5,2,-17,-64,32,4,1,4);var buffer=DensityBuffer.createUnpooled(volume.size());
-        for(int i=0;i<volume.size();i++)buffer.set(i,(i-10.0f)*.125f);
-        float[] amplitudes={.5f,-.25f};
-        for(int pass=0;pass<2;pass++) {
-            noise.addToVolume(buffer,volume,.125,.25,amplitudes[pass]);
-            for(int i=0;i<volume.size();i++)out.printf("normal-volume %d %d %s%n",pass,i,bits(buffer.get(i)));
-        }
-        out.println("normal-parent "+random.nextLong());
+    private static String config(ImprovedNoise noise) {
+        var sb = new StringBuilder();
+        noise.parityConfigString(sb);
+        return sb.toString();
     }
+    private static String config(SimplexNoise noise) throws Exception {
+        var sb = new StringBuilder();
+        NoiseUtils.parityNoiseOctaveConfigString(sb, noise.xo, noise.yo, noise.zo, (int[]) declared(noise, "p"));
+        return sb.toString();
+    }
+    private static String config(PerlinNoise noise) {
+        var sb = new StringBuilder();
+        noise.parityConfigString(sb);
+        return sb.toString();
+    }
+    private static String config(NormalNoise noise) {
+        var sb = new StringBuilder();
+        noise.parityConfigString(sb);
+        return sb.toString();
+    }
+    private static String config(BlendedNoise noise) {
+        var sb = new StringBuilder();
+        noise.parityConfigString(sb);
+        return sb.toString();
+    }
+
     public static void main(String[] paths) throws Exception {
-        var samplers=new ArrayList<Noise>();
-        Method wrap=GradientNoise.class.getDeclaredMethod("wrap",double.class);wrap.setAccessible(true);
-        try(var reader=Files.newBufferedReader(Path.of(paths[0]),StandardCharsets.UTF_8);
-            var out=new PrintWriter(Files.newBufferedWriter(Path.of(paths[1]),StandardCharsets.UTF_8))) {
+        // BlendedNoise.compute takes a DensityFunction.FunctionContext, and
+        // touching that type initializes DensityFunctions, which needs the
+        // registries bootstrapped (same as the density oracle).
+        net.minecraft.SharedConstants.tryDetectVersion();
+        net.minecraft.server.Bootstrap.bootStrap();
+        var improved = new ArrayList<ImprovedNoise>();
+        var perlin = new ArrayList<PerlinNoise>();
+        var simplex = new ArrayList<SimplexNoise>();
+        var psimplex = new ArrayList<PerlinSimplexNoise>();
+        var normal = new ArrayList<NormalNoise>();
+        var blended = new ArrayList<BlendedNoise>();
+        try (var reader = Files.newBufferedReader(Path.of(paths[0]), StandardCharsets.UTF_8);
+            var out = new PrintWriter(Files.newBufferedWriter(Path.of(paths[1]), StandardCharsets.UTF_8))) {
             String line;
-            while((line=reader.readLine())!=null) {
-                var args=new StringTokenizer(line);
-                String operation=args.nextToken();
-                switch(operation) {
-                    case "normal" -> normal(args,out);
-                    case "create" -> {
-                        String kind=args.nextToken(),stream=args.nextToken();long seed=Long.parseLong(args.nextToken());
-                        boolean skip=integer(args)!=0;double scale=number(args);
-                        RandomSource random=switch(stream) {case "legacy"->new LegacyRandomSource(seed);case "xoroshiro"->new XoroshiroRandomSource(seed);default->throw new AssertionError();};
-                        GradientNoise noise=switch(kind) {case "perlin"->new PerlinNoise(random);case "simplex"->new SimplexNoise(random,skip);case "smeared"->new SmearedPerlinNoise(random,scale);default->throw new AssertionError();};
-                        samplers.add(noise);
-                        String lower,upper;
-                        try { lower=bits(noise.range().min());upper=bits(noise.range().max()); }
-                        catch(IllegalArgumentException e) { lower="error";upper="error"; }
-                        out.printf("create %s %s %s %s %s %d%n",bits((double)field(noise,"offsetX")),bits((double)field(noise,"offsetY")),bits((double)field(noise,"offsetZ")),lower,upper,random.nextLong());
-                        out.print("permutations");for(byte v:(byte[])field(noise,"perms"))out.print(" "+(v&255));out.println();
-                    }
-                    case "query", "local" -> {
-                        var noise=samplers.get(integer(args));double x=number(args),y=number(args),z=number(args);
-                        if(operation.equals("local")) { x-=(double)field(noise,"offsetX");y-=(double)field(noise,"offsetY");z-=(double)field(noise,"offsetZ"); }
-                        float[] derivative={small(args),small(args),small(args)};
-                        out.print("query "+bits(noise.get(x,z))+" "+bits(noise.get(x,y,z)));
-                        if(noise instanceof PerlinNoise perlin)out.print(" "+bits(perlin.noiseWithDerivative(x,y,z,derivative))+" "+bits(derivative[0])+" "+bits(derivative[1])+" "+bits(derivative[2]));
+            while ((line = reader.readLine()) != null) {
+                var args = new StringTokenizer(line);
+                String operation = args.nextToken();
+                switch (operation) {
+                    case "wrap" -> out.println("wrap " + bits(PerlinNoise.wrap(number(args))));
+                    case "bias" -> out.println("bias " + bits(NoiseUtils.biasTowardsExtreme(number(args), number(args))));
+                    case "create-improved" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        ImprovedNoise noise = new ImprovedNoise(random);
+                        improved.add(noise);
+                        out.printf("improved %s %s %s %d%n", bits(noise.xo), bits(noise.yo), bits(noise.zo), random.nextLong());
+                        out.print("permutations");
+                        for (byte v : (byte[]) declared(noise, "p")) out.print(" " + (v & 255));
                         out.println();
+                        out.println("config " + config(noise));
                     }
-                    case "volume" -> {
-                        var noise=samplers.get(integer(args));
-                        int sx=integer(args),sy=integer(args),sz=integer(args),mx=integer(args),my=integer(args),mz=integer(args),dx=integer(args),dy=integer(args),dz=integer(args);
-                        double xzScale=number(args),yScale=number(args);float amplitude=small(args);long seed=Long.parseLong(args.nextToken());int repeats=integer(args);
-                        DensityVolume volume;
-                        try { volume=new DensityVolume(sx,sy,sz,mx,my,mz,dx,dy,dz); }
-                        catch(IllegalArgumentException e) { out.println("volume error");break; }
-                        var buffer=DensityBuffer.createUnpooled(volume.size()+4);var random=new LegacyRandomSource(seed);
-                        for(int i=0;i<buffer.size();i++)buffer.set(i,Float.intBitsToFloat(random.nextInt()));
-                        for(int i=0;i<repeats;i++) noise.addToVolume(buffer,volume,xzScale,yScale,amplitude);
-                        out.printf("volume %d %d %d %d%n",volume.size(),volume.maxBlockX(),volume.maxBlockY(),volume.maxBlockZ());
-                        for(int z=0;z<sz;z++)for(int x=0;x<sx;x++)for(int y=0;y<sy;y++) {
-                            int index=volume.indexUnchecked(x,y,z);
-                            out.printf("cell %d %d %d %d %s%n",index,volume.blockX(x),volume.blockY(y),volume.blockZ(z),bits(buffer.get(index)));
+                    case "query-improved", "local-improved" -> {
+                        ImprovedNoise noise = improved.get(integer(args));
+                        double x = number(args), y = number(args), z = number(args);
+                        if (operation.equals("local-improved")) {
+                            x -= noise.xo;
+                            y -= noise.yo;
+                            z -= noise.zo;
                         }
-                        for(int i=volume.size();i<buffer.size();i++)out.println("tail "+bits(buffer.get(i)));
+                        double yScale = number(args), yFudge = number(args);
+                        double[] derivative = {number(args), number(args), number(args)};
+                        out.printf("improved-query %s %s %s %s %s %s%n",
+                            bits(noise.noise(x, y, z)),
+                            bits(noise.noise(x, y, z, yScale, yFudge)),
+                            bits(noise.noiseWithDerivative(x, y, z, derivative)),
+                            bits(derivative[0]), bits(derivative[1]), bits(derivative[2]));
                     }
-                    case "stack" -> {
-                        int count=integer(args);var builder=NoiseStack.builder();
-                        for(int i=0;i<count;i++) {
-                            int flatten=integer(args),id=integer(args);double frequency=number(args);float amplitude=small(args);
-                            if(flatten!=0)builder.addStack((NoiseStack)samplers.get(id),frequency,amplitude);
-                            else builder.add(samplers.get(id),frequency,amplitude);
+                    case "create-perlin" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        int init = integer(args);
+                        int firstOctave = integer(args);
+                        double[] amplitudes = new double[integer(args)];
+                        for (int i = 0; i < amplitudes.length; i++) amplitudes[i] = number(args);
+                        PerlinNoise noise;
+                        try {
+                            noise = init == 0
+                                ? PerlinNoise.create(random, firstOctave, new DoubleArrayList(amplitudes))
+                                : PerlinNoise.createLegacyForLegacyNetherBiome(random, firstOctave, new DoubleArrayList(amplitudes));
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            out.println("perlin error " + random.nextLong());
+                            break;
                         }
-                        NoiseStack stack;
-                        try { stack=builder.build(); } catch(IllegalArgumentException e) { out.println("stack error");break; }
-                        Field layersField=NoiseStack.class.getDeclaredField("layers");layersField.setAccessible(true);
-                        Object[] layers=(Object[])layersField.get(stack);
-                        out.printf("stack %d %s %s%n",layers.length,bits(stack.range().min()),bits(stack.range().max()));
-                        for(int i=0;i<layers.length;i++) {
-                            Field frequency=layers[i].getClass().getDeclaredField("frequency"),amplitude=layers[i].getClass().getDeclaredField("amplitude");
-                            frequency.setAccessible(true);amplitude.setAccessible(true);
-                            out.printf("layer %s %s %s%n",bits(frequency.getDouble(layers[i])),bits(amplitude.getFloat(layers[i])),bits(stack.getLayer(i).get(0,0,0)));
-                        }
-                        samplers.add(stack);
+                        perlin.add(noise);
+                        out.printf("perlin %d %s%n", firstOctave, bits((double) declared(noise, "maxValue")));
+                        out.println("perlin-config " + config(noise));
+                        out.println("perlin-parent " + random.nextLong());
                     }
-                    case "wrap" -> out.println("wrap "+bits((double)wrap.invoke(null,number(args))));
+                    case "create-perlin-octaves" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        int init = integer(args);
+                        int[] octaves = new int[integer(args)];
+                        for (int i = 0; i < octaves.length; i++) octaves[i] = integer(args);
+                        PerlinNoise noise;
+                        try {
+                            noise = init == 0
+                                ? PerlinNoise.create(random, Arrays.stream(octaves).boxed().toList())
+                                : PerlinNoise.createLegacyForBlendedNoise(random, Arrays.stream(octaves));
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            out.println("perlin error " + random.nextLong());
+                            break;
+                        }
+                        perlin.add(noise);
+                        out.printf("perlin %d %s%n", (int) declared(noise, "firstOctave"), bits((double) declared(noise, "maxValue")));
+                        out.println("perlin-config " + config(noise));
+                        out.println("perlin-parent " + random.nextLong());
+                    }
+                    case "query-perlin" -> {
+                        PerlinNoise noise = perlin.get(integer(args));
+                        double x = number(args), y = number(args), z = number(args);
+                        double yScale = number(args), yFudge = number(args);
+                        out.printf("perlin-query %s %s%n",
+                            bits(noise.getValue(x, y, z)),
+                            bits(noise.getValue(x, y, z, yScale, yFudge)));
+                    }
+                    case "perlin-maxbroken" -> {
+                        PerlinNoise noise = perlin.get(integer(args));
+                        out.println("perlin-maxbroken " + bits(noise.maxBrokenValue(number(args))));
+                    }
+                    case "create-simplex" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        SimplexNoise noise = new SimplexNoise(random);
+                        simplex.add(noise);
+                        out.printf("simplex %s %s %s %d%n", bits(noise.xo), bits(noise.yo), bits(noise.zo), random.nextLong());
+                        out.print("permutations");
+                        // The table is int[512]; only the first 256 entries are filled.
+                        int[] table = (int[]) declared(noise, "p");
+                        for (int i = 0; i < 256; i++) out.print(" " + table[i]);
+                        out.println();
+                        out.println("config " + config(noise));
+                    }
+                    case "query-simplex" -> {
+                        SimplexNoise noise = simplex.get(integer(args));
+                        double x = number(args), y = number(args), z = number(args);
+                        out.printf("simplex-query %s %s%n",
+                            bits(noise.getValue(x, y)),
+                            bits(noise.getValue(x, y, z)));
+                    }
+                    case "create-perlin-simplex" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        List<Integer> octaves = new ArrayList<>();
+                        int count = integer(args);
+                        for (int i = 0; i < count; i++) octaves.add(integer(args));
+                        PerlinSimplexNoise noise;
+                        try {
+                            noise = new PerlinSimplexNoise(random, octaves);
+                        } catch (IllegalArgumentException e) {
+                            out.println("perlin-simplex error " + random.nextLong());
+                            break;
+                        }
+                        psimplex.add(noise);
+                        out.printf("perlin-simplex %s %s%n",
+                            bits((double) declared(noise, "highestFreqInputFactor")),
+                            bits((double) declared(noise, "highestFreqValueFactor")));
+                        SimplexNoise[] levels = (SimplexNoise[]) declared(noise, "noiseLevels");
+                        for (int i = 0; i < levels.length; i++) {
+                            if (levels[i] == null) {
+                                out.printf("psimplex-level %d absent%n", i);
+                            } else {
+                                out.printf("psimplex-level %d %s %s %s%n", i,
+                                    bits(levels[i].xo), bits(levels[i].yo), bits(levels[i].zo));
+                            }
+                        }
+                        out.println("perlin-simplex-parent " + random.nextLong());
+                    }
+                    case "query-perlin-simplex" -> {
+                        PerlinSimplexNoise noise = psimplex.get(integer(args));
+                        double x = number(args), y = number(args);
+                        boolean useStart = integer(args) != 0;
+                        out.println("psimplex-query " + bits(noise.getValue(x, y, useStart)));
+                    }
+                    case "normal" -> {
+                        RandomSource random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        int legacy = integer(args);
+                        int firstOctave = integer(args);
+                        double[] amplitudes = new double[integer(args)];
+                        for (int i = 0; i < amplitudes.length; i++) amplitudes[i] = number(args);
+                        double[][] points = new double[integer(args)][3];
+                        for (double[] point : points) for (int i = 0; i < 3; i++) point[i] = number(args);
+                        NormalNoise noise;
+                        try {
+                            if (legacy != 0) {
+                                var params = new NormalNoise.NoiseParameters(firstOctave, Arrays.stream(amplitudes).boxed().toList());
+                                noise = NormalNoise.createLegacyNetherBiome(random, params);
+                            } else {
+                                noise = NormalNoise.create(random, firstOctave, amplitudes);
+                            }
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            out.println("normal error " + random.nextLong());
+                            break;
+                        }
+                        normal.add(noise);
+                        out.printf("normal %s %s%n",
+                            bits((double) declared(noise, "valueFactor")),
+                            bits(noise.maxValue()));
+                        out.println("normal-config " + config(noise));
+                        for (double[] point : points) {
+                            out.println("normal-query " + bits(noise.getValue(point[0], point[1], point[2])));
+                        }
+                        out.println("normal-parent " + random.nextLong());
+                    }
+                    case "blended", "blended-unseeded" -> {
+                        RandomSource random = null;
+                        if (operation.equals("blended")) {
+                            random = stream(args.nextToken(), Long.parseLong(args.nextToken()));
+                        }
+                        double xzScale = number(args), yScale = number(args), xzFactor = number(args),
+                            yFactor = number(args), smear = number(args);
+                        int[][] points = new int[integer(args)][3];
+                        for (int[] point : points) for (int i = 0; i < 3; i++) point[i] = integer(args);
+                        BlendedNoise noise;
+                        try {
+                            noise = operation.equals("blended")
+                                ? new BlendedNoise(random, xzScale, yScale, xzFactor, yFactor, smear)
+                                : BlendedNoise.createUnseeded(xzScale, yScale, xzFactor, yFactor, smear);
+                        } catch (IllegalArgumentException | IllegalStateException e) {
+                            out.println("blended error" + (random == null ? "" : " " + random.nextLong()));
+                            break;
+                        }
+                        blended.add(noise);
+                        out.printf("blended %s %s%n", bits(noise.maxValue()), bits(noise.minValue()));
+                        out.println("blended-config " + config(noise));
+                        for (int[] point : points) {
+                            int bx = point[0], by = point[1], bz = point[2];
+                            var context = new DensityFunction.FunctionContext() {
+                                public int blockX() { return bx; }
+                                public int blockY() { return by; }
+                                public int blockZ() { return bz; }
+                            };
+                            out.println("blended-query " + bits(noise.compute(context)));
+                        }
+                        if (random != null) out.println("blended-parent " + random.nextLong());
+                    }
                     default -> throw new AssertionError();
                 }
-                if(args.hasMoreTokens())throw new AssertionError("extra argument");
+                if (args.hasMoreTokens()) throw new AssertionError("extra argument");
             }
-            if(out.checkError())throw new java.io.IOException("reference output failed");
+            if (out.checkError()) throw new java.io.IOException("reference output failed");
         }
     }
 }

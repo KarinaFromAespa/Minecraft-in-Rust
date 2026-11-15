@@ -200,9 +200,6 @@ impl<W: FluidEntityWorld> FluidInteractionWorld for RegistryFluidWorld<'_, '_, W
     fn fluid_height(&mut self, s: FluidState, p: BlockPos) -> Result<f32, Self::Error> {
         s.height_at(self, [p.x, p.y, p.z])
     }
-    fn camera_height(&mut self, s: FluidState, p: BlockPos) -> Result<f32, Self::Error> {
-        s.camera_height_at(self, [p.x, p.y, p.z])
-    }
     fn flow(&mut self, s: FluidState, p: BlockPos) -> Result<Vec3, Self::Error> {
         crate::fluid_flow::flow_at(self, s, p)
     }

@@ -277,6 +277,71 @@ impl Game<'_> {
     }
     /// `ScreenEffectRenderer` + `Hud` camera overlays for this frame.
     /// `scale` is the player's `LivingEntity.getScale`.
+    /// `BlockBehaviour.Properties.isSuffocating` of a state: the block's
+    /// explicit predicate, else the 26.2 default `blocksMotion()` with a
+    /// full collision shape. 26.2 has no `#causes_suffocation` tag
+    /// (26.3-only); the tag form always reads false under 26.2 data, so
+    /// the default uses `legacy_solid` (with the cobweb / bamboo-sapling
+    /// exclusion, the `blocksMotion` rule) and the full-collision fact.
+    pub(super) fn state_suffocating(&self, state: horizon_world::registry::BlockStateId) -> bool {
+        let facts = self.res.facts().get(state);
+        let name = facts.name.as_ref();
+        // Blocks' explicit predicates, then the default blocksMotion/full-shape rule.
+        match name {
+            "minecraft:dirt_path"
+            | "minecraft:farmland"
+            | "minecraft:mud"
+            | "minecraft:soul_sand" => true,
+            "minecraft:piston" | "minecraft:sticky_piston" => self
+                .pack
+                .assets
+                .registry
+                .state(state)
+                .is_some_and(|s| s.properties.get("extended").is_some_and(|p| p == "false")),
+            "minecraft:mangrove_roots" | "minecraft:moving_piston" => false,
+            _ if name.ends_with("_leaves")
+                || name.ends_with("glass")
+                || name.ends_with("copper_grate") =>
+            {
+                false
+            }
+            // ShulkerBoxBlock: suffocating while closed; a box seen open
+            // here is rare enough to count as closed.
+            _ if name.ends_with("shulker_box") => true,
+            _ => {
+                facts.legacy_solid
+                    && name != "minecraft:cobweb"
+                    && name != "minecraft:bamboo_sapling"
+                    && facts.full_collision
+            }
+        }
+    }
+
+    /// `BlockStateBase.isViewBlocking` (26.2's two-argument form: no
+    /// near-plane box). Snow with 8 layers blocks the view; anything else
+    /// falls through to `isSuffocating`. In 26.2 stairs and slabs have no
+    /// override, so they take the default too — and a stair or slab is
+    /// never a full collision block, so it never blocks the view (26.3 gave
+    /// them `NEAR_PLANE_INTERSECTS_OUTLINE`, testing the outline boxes
+    /// against the frustum's near-plane bounds).
+    pub(super) fn state_view_blocking(
+        &self,
+        state: horizon_world::registry::BlockStateId,
+        _pos: [i32; 3],
+    ) -> bool {
+        let name = self.res.facts().get(state).name.as_ref();
+        if name == "minecraft:snow" {
+            return self
+                .pack
+                .assets
+                .registry
+                .state(state)
+                .and_then(|s| s.properties.get("layers"))
+                .is_some_and(|l| l.parse::<i32>().is_ok_and(|l| l >= 8));
+        }
+        self.state_suffocating(state)
+    }
+
     pub(super) fn screen_quads(&self, partial: f32, size: [u32; 2], scale: f32) -> Vec<ScreenQuad> {
         let Some(p) = self.player.as_ref() else {
             return Vec::new();
@@ -286,36 +351,14 @@ impl Game<'_> {
             p.position.y + f64::from(p.dimensions.eye_height),
             p.position.z,
         ];
-        // `LevelExtractor.getViewBlockingState`: 8 points around the eye, each
-        // tested with `BlockState.isViewBlocking` against the near plane.
-        // ScreenEffectRenderer: none of it for a spectator (noPhysics).
+        // `ScreenEffectRenderer.getViewBlockingState`: 8 points around the
+        // eye, each tested with `BlockState.isViewBlocking` (26.2's
+        // two-argument form — no near-plane box; 26.3 added the frustum's
+        // near-plane bounds as a third argument). ScreenEffectRenderer:
+        // none of it for a spectator (noPhysics).
         let spectator = self.spectator();
         let mut block_overlay = None;
         if !spectator {
-            // Frustum.getNearPlaneBounds, moved to the eye.
-            let (near_min, near_max) = horizon_client::camera::near_plane_bounds(
-                self.fov_degrees(partial, eye),
-                size[0] as f32,
-                size[1] as f32,
-                self.yaw,
-                self.pitch,
-                horizon_client::camera::depth_far(
-                    self.terrain_distance(),
-                    self.settings.cloud_range,
-                ),
-            );
-            let near_plane = horizon_core::geometry::Aabb::new(
-                horizon_core::geometry::Vec3::new(
-                    near_min[0] + eye[0],
-                    near_min[1] + eye[1],
-                    near_min[2] + eye[2],
-                ),
-                horizon_core::geometry::Vec3::new(
-                    near_max[0] + eye[0],
-                    near_max[1] + eye[1],
-                    near_max[2] + eye[2],
-                ),
-            );
             // The test points use float maths: `(i % 2 - 0.5F) * width * 0.8F`.
             // The height spread is `0.1F * getScale()`: a tiny player's eye is
             // closer to the ground than 0.05.
@@ -336,7 +379,7 @@ impl Game<'_> {
                 let state = self.world.block(pos[0], pos[1], pos[2]);
                 if self.res.facts().get(state).render_shape
                     != horizon_client::blocks::RenderShape::Invisible
-                    && self.state_view_blocking(state, pos, near_plane)
+                    && self.state_view_blocking(state, pos)
                 {
                     // ScreenEffectRenderer: the block's particle material.
                     block_overlay = Self::block_particle_sprite(&self.pack, state);

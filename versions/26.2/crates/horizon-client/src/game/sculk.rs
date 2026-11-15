@@ -1768,9 +1768,8 @@ impl Game<'_> {
             state: None,
             at: from,
             spread: [0.0; 3],
-            speed: [0.0; 3],
+            speed: 0.0,
             count: 1,
-            randomization: 0,
         });
     }
     /// A vibration travelling to a warden (`MobEvent::Vibration`).
@@ -2168,7 +2167,7 @@ impl Game<'_> {
             Who::Mob(id) => alive.contains(id),
         });
     }
-    /// Where the vehicle `id` stands: a mob, boat, minecart or cushion.
+    /// Where the vehicle `id` stands: a mob, boat or minecart.
     fn vehicle_position(&mut self, id: u32) -> Option<[f64; 3]> {
         let p = if let Some(i) = self.mob_slot(id) {
             self.mobs[i].position
@@ -2177,7 +2176,7 @@ impl Game<'_> {
         } else if let Some(c) = self.carts.iter().find(|c| c.id == id) {
             c.position
         } else {
-            self.cushions.iter().find(|c| c.id == id)?.position
+            return None;
         };
         Some([p.x, p.y, p.z])
     }
@@ -2386,7 +2385,9 @@ impl Game<'_> {
     pub(super) fn entity_killed_event(&mut self, at: [f64; 3], by_player: bool) {
         self.entity_killed_event_by(at, by_player.then_some(super::commands::Target::Player));
     }
-    /// `BlockAttachedEntity.kill` / `ArmorStand.kill` with DamageSource.getEntity.
+    /// The death event attributed to `source`, else to the entity itself
+    /// (26.2's `Entity.kill(level)` form; 26.3's `kill(level, entity)`
+    /// attributes it to the killer).
     pub(super) fn entity_killed_event_by(
         &mut self,
         at: [f64; 3],

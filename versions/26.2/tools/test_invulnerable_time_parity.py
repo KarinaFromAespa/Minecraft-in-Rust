@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Strict actual Game/Java invulnerable_time of a hurt mob."""
+"""Strict actual Game/Java hurt-cooldown parity of a hurt mob (26.2: the cooldown
+is `invulnerableTime` itself, never saved; a stray `invulnerable_time` tag is ignored)."""
 import hashlib
 import json
 from pathlib import Path

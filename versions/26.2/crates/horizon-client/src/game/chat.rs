@@ -162,7 +162,7 @@ impl Game<'_> {
 /// The local player's name (offline single player).
 pub const PLAYER_NAME: &str = "Player";
 
-/// ServerClockManager.ServerClockInstance for the overworld clock (its
+/// ServerClockManager.ClockInstance for the overworld clock (its
 /// total ticks are the world's day time).
 #[derive(Clone, Copy, Debug)]
 pub struct WorldClock {
@@ -1837,7 +1837,7 @@ impl Game<'_> {
         c.partial -= whole;
         self.world.day_time += whole as i64;
     }
-    /// `ServerClockInstance.packNetworkState`: the rate players' clients
+    /// `ClockInstance.packNetworkState`: the rate players' clients
     /// advance the overworld clock at, 0 while it is paused (`/time pause`)
     /// or `advance_time` is off.
     pub(super) fn network_clock_rate(&self) -> f32 {
@@ -1881,7 +1881,7 @@ impl Game<'_> {
             _ => Difficulty::Normal,
         };
     }
-    /// `ServerClockManager.ServerClockInstance.loadFrom`: restore the existing
+    /// `ServerClockManager.ClockInstance.loadFrom`: restore the existing
     /// Overworld state when a world opens; clear the other command-state cache.
     pub(super) fn load_world_state(&mut self) {
         self.ui.rules =

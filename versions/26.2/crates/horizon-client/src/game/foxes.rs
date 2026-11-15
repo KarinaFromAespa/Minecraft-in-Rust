@@ -1,6 +1,6 @@
 //! Foxes and dolphins on the game side: what they take from the ground (`Fox.pickUpItem`,
 //! `Fox.canHoldItem`, `Dolphin.pickUpItem`) and where `FoxSearchForItemsGoal` and
-//! `Dolphin.MoveToItemGoal` walk to.
+//! `Dolphin.PlayWithItemsGoal` walk to.
 use super::{
     Game,
     pickups::{Collector, Taken},
@@ -69,7 +69,7 @@ impl Game<'_> {
         }
     }
     /// `Dolphin.pickUpItem` in `Mob.aiStep`'s looting block, and the item
-    /// `Dolphin.MoveToItemGoal` swims to (`Dolphin.ALLOWED_ITEMS`: no pickup delay, alive, in water).
+    /// `Dolphin.PlayWithItemsGoal` swims to (`Dolphin.ALLOWED_ITEMS`: no pickup delay, alive, in water).
     pub(super) fn tick_dolphins(&mut self) {
         let griefing = self.ui.rules.bool("mob_griefing");
         let in_water = |g: &Self, e: &horizon_client::entities::ItemEntity| {

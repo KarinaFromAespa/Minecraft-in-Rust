@@ -244,7 +244,7 @@ impl StartupMenu {
             self.modifiers.control_key()
         };
         clipboard::edit_shortcut(
-            clipboard::shortcut_letter(&event.logical_key, event.physical_key),
+            clipboard::shortcut_letter(event.physical_key),
             edit,
             self.modifiers.shift_key(),
             self.modifiers.alt_key(),
@@ -481,13 +481,8 @@ impl Loading {
                 .fullscreen_resolution
                 .as_deref()
                 .and_then(horizon_client::window::VideoMode::read);
-            self.fullscreen.apply(
-                &window,
-                self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
-                preferred,
-                false,
-            );
+            self.fullscreen
+                .apply(&window, self.settings.fullscreen, preferred, false);
         }
         self.update_menu_cursor();
     }
@@ -697,7 +692,7 @@ impl Loading {
 
     /// `Game::narrator_hotkey` on the startup menu's screens.
     fn menu_narrator_hotkey(&mut self, event: &KeyEvent) {
-        let letter = clipboard::shortcut_letter(&event.logical_key, event.physical_key);
+        let letter = clipboard::shortcut_letter(event.physical_key);
         if letter != Some('b') {
             return;
         }
@@ -730,9 +725,7 @@ impl Loading {
         let was_disabled = super::narrator::cycle_status(&mut self.settings);
         super::narrator::update_status(self.settings.narrator(), &mut self.menu.narrator_toast);
         self.save_menu_settings();
-        self.menu
-            .narration
-            .status_changed(was_disabled, horizon_narrator::screen::Trigger::Keyboard);
+        self.menu.narration.status_changed(was_disabled);
     }
 
     fn menu_options_click(&mut self, drag: bool, right: bool) {
@@ -1033,14 +1026,8 @@ impl Loading {
         }
         match event {
             WindowEvent::CloseRequested => {
-                if !self.settings.quit_shortcuts
-                    && horizon_client::input::is_quit_shortcut_down(
-                        self.menu.modifiers,
-                        &self.menu.physical_keys,
-                    )
-                {
-                    return Ok(());
-                }
+                // 26.2 has no quitShortcuts option: a close request
+                // (the platform shortcut included) always closes.
                 self.save_menu_settings();
                 event_loop.exit();
             }
@@ -1376,7 +1363,7 @@ mod tests {
             boot: horizon_client::hud::HudAtlas::boot(),
             gui: None,
             settings: Settings::default(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             options: None,
             vanilla_root: PathBuf::new(),

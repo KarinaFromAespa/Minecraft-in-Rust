@@ -5,9 +5,6 @@
 //! can compare every value with vanilla's renderer.
 use crate::worldborder::{WorldBorder, jclamp, jmax, jmin, status_color};
 
-/// `WorldBorderRenderer.RENDERING_OFFSET`.
-const OFFSET: f64 = 0.01;
-
 /// `WorldBorderRenderState`.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BorderRenderState {
@@ -183,10 +180,12 @@ impl BorderRenderer {
         v1: f32,
         v0: f32,
     ) {
-        let border_min_x = state.min_x + OFFSET;
-        let border_max_x = state.max_x - OFFSET;
-        let border_min_z = state.min_z + OFFSET;
-        let border_max_z = state.max_z - OFFSET;
+        // 26.2's rebuildWorldBorderBuffer uses the bounds as-is; the
+        // 0.01 RENDERING_OFFSET is a 26.3 addition.
+        let border_min_x = state.min_x;
+        let border_max_x = state.max_x;
+        let border_min_z = state.min_z;
+        let border_max_z = state.max_z;
         let min_z = jmax(f64::from(floor(camera_z - render_distance)), border_min_z);
         let max_z = jmin(f64::from(ceil(camera_z + render_distance)), border_max_z);
         let u0z = (floor(min_z) & 1) as f32 * 0.5;

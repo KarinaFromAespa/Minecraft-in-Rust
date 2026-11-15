@@ -253,8 +253,8 @@ impl Game<'_> {
         // title screen is nonsense.
         self.repro_world_closed();
         self.clear_waypoints();
-        self.post_effects.clear();
         self.spectated_post_effect = None;
+        self.spectated_effect_active = false;
         if self.external_server() {
             return self.leave_server(None);
         }

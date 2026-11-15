@@ -15,11 +15,12 @@ pub fn block_floor_height<'s>(shape: &VoxelShape, below: impl FnOnce() -> &'s Vo
     }
 }
 
-/// Bounds used once by Entity.collide to select entity collisions. The same
-/// entity list is reused for both subsequent block/world-border queries.
-pub fn entity_collision_bounds(movement: Vec3, aabb: Aabb, max_step: f32) -> Aabb {
+/// Bounds used once by Entity.collide to select entity collisions: the box
+/// the movement expands to, nothing more. The same entity list is reused for
+/// both subsequent block/world-border queries. 26.3 raised the box by the
+/// step height as well (`expandTowards(0, maxUpStep, 0)`); 26.2 does not.
+pub fn entity_collision_bounds(movement: Vec3, aabb: Aabb) -> Aabb {
     aabb.expand_towards(movement)
-        .expand_towards(Vec3::new(0.0, max_step as f64, 0.0))
 }
 
 /// Resolve Entity.collide's initial movement and complete step-up decision.

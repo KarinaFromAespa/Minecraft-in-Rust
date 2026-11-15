@@ -440,38 +440,6 @@ impl Game<'_> {
             }
         }
     }
-    /// Refresh open guest prices after the actual villager reputation event.
-    pub(super) fn lan_merchant_reputation(&mut self, host: &mut LanHost, id: u32) {
-        let conns: Vec<u32> = host
-            .play
-            .iter()
-            .filter(|(_, p)| {
-                p.merchant
-                    .as_ref()
-                    .is_some_and(|m| m.merchant.mob == Some(id) && m.merchant.session.villager)
-            })
-            .map(|(c, _)| *c)
-            .collect();
-        for conn in conns {
-            let Some(uuid) = host
-                .hub
-                .guests
-                .iter()
-                .find(|g| g.conn == conn && host.hub.here(g))
-                .map(|g| uuid_words(g.uuid))
-            else {
-                continue;
-            };
-            let reputation = self.villager_reputation_of(id, uuid);
-            self.lan_merchant_op(host, conn, None, |menu, env| {
-                if let Some(s) = menu.merchant.as_mut() {
-                    s.reputation = reputation;
-                    s.update_special_prices();
-                }
-                menu.merchant_update(env);
-            });
-        }
-    }
     /// Takes a station a guest's action opened: a trading screen or a
     /// workstation menu goes to the guest (game/lan_stations.rs).
     pub(super) fn lan_station_opened(

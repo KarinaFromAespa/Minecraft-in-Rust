@@ -1201,7 +1201,7 @@ impl Game<'_> {
                     t.position.add_vector(Vec3::new(half, 0.5, half)),
                 );
                 self.entity_powder_snow_particles(
-                    t.previous, t.position, bounds, t.velocity, false,
+                    t.previous, t.position, bounds, false,
                 );
             }
             // The stuck branch returns before Entity.baseTick. A flight that
@@ -1274,9 +1274,7 @@ impl Game<'_> {
                 // EntityRenderer.shouldRender; ThrownTridentRenderer grows the box by 1.5.
                 self.standing_entity_in_view(
                     camera,
-                    super::entity_culling::at(t.previous),
                     super::entity_culling::at(t.position),
-                    alpha,
                     2.0 * HALF,
                     2.0 * HALF,
                     range,

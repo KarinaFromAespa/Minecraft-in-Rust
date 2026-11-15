@@ -91,8 +91,11 @@ enum ClientState {
 /// What `WaitingForPlayerChunk.isReady` asks of the player.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerCheck {
+    /// `ClientLevel.isOutsideBuildHeight(player y)`: 26.2 checks the player's
+    /// Y as well as the camera's; 26.3 dropped the player check.
+    pub player_outside_build_height: bool,
     /// `ClientLevel.isOutsideBuildHeight(camera y)`.
-    pub outside_build_height: bool,
+    pub camera_outside_build_height: bool,
     pub spectator: bool,
     pub alive: bool,
 }
@@ -166,7 +169,11 @@ impl LevelLoadTracker {
                     "Timed out while waiting for the client to load chunks, letting the player into the world anyway"
                 );
                 true
-            } else if !player.outside_build_height && !player.spectator && player.alive {
+            } else if !player.player_outside_build_height
+                && !player.camera_outside_build_height
+                && !player.spectator
+                && player.alive
+            {
                 player_section_ready
             } else {
                 true
@@ -695,7 +702,8 @@ mod tracker_tests {
     use super::*;
 
     const ALIVE: PlayerCheck = PlayerCheck {
-        outside_build_height: false,
+        player_outside_build_height: false,
+        camera_outside_build_height: false,
         spectator: false,
         alive: true,
     };
@@ -762,7 +770,11 @@ mod tracker_tests {
     fn a_player_who_cannot_see_the_section_does_not_wait_for_it() {
         for player in [
             PlayerCheck {
-                outside_build_height: true,
+                player_outside_build_height: true,
+                ..ALIVE
+            },
+            PlayerCheck {
+                camera_outside_build_height: true,
                 ..ALIVE
             },
             PlayerCheck {

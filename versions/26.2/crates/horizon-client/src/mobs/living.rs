@@ -203,26 +203,16 @@ impl MobWorld<'_> {
             }
         }
         // EntityFluidInteraction.update: the eyes are in a fluid block of
-        // the box in the entity's column, between its bottom and its height
-        // for the camera.
+        // the box in the entity's column, between its bottom and its top
+        // (26.2 reads the plain fluid top; 26.3's `getHeightForCamera`, a
+        // source under a sturdy block counting as full height, does not
+        // exist here).
         for y in lo.y.floor() as i32..=(hi.y.ceil() as i32 - 1) {
             let (fluid, h) = self.fluid_height(ex, y, ez);
             if fluid != Fluid::Water || f64::from(y) + h < lo.y || eye_y < f64::from(y) {
                 continue;
             }
-            let state = self.world.block(ex, y, ez);
-            let source = self
-                .registry
-                .state(state)
-                .and_then(|s| s.properties.get("level"))
-                .is_none_or(|l| l == "0");
-            let above = self.facts.get(self.world.block(ex, y + 1, ez));
-            let camera = if source && above.sturdy_full & 1 != 0 {
-                1.0
-            } else {
-                h
-            };
-            if eye_y <= f64::from(y) + camera {
+            if eye_y <= f64::from(y) + h {
                 out.eye_in_water = true;
             }
         }
@@ -1754,11 +1744,12 @@ impl Mob {
         {
             self.velocity.y = f64::from(0.3_f32);
         }
-        // `LivingEntity.travelInFluid` ends with
-        // `floatInLiquidWhileRidden(FluidTags.ENTITY_FLOATABLE)`: a mount with
-        // a passenger that is in `minecraft:can_float_while_ridden` and deeper
+        // `LivingEntity.floatInWaterWhileRidden` (26.2): a mount with a
+        // passenger that is in `minecraft:can_float_while_ridden` and deeper
         // in the water than its jump threshold rises 0.04 a tick, which is
-        // what keeps a ridden horse and its rider afloat.
+        // what keeps a ridden horse and its rider afloat. 26.3 renamed it
+        // `floatInLiquidWhileRidden(ENTITY_FLOATABLE)`, but that tag holds
+        // only water, so the behaviour is the same.
         if (self.rider.is_some() || self.extra.rider.is_some())
             && w.data
                 .entity_has("minecraft:can_float_while_ridden", &self.kind.id)
@@ -2175,8 +2166,8 @@ impl RestitutionWorld for MobRestitution<'_, '_> {
     fn bounce_event(&mut self) -> Result<(), ()> {
         Ok(())
     }
-    /// `Entity.syncPosition`: the tracker keeps where the mob bounced as a
-    /// step of its next move (`SteppedInterpolationTracker.updateTracking`).
+    /// `Entity.syncPosition`: the tracker moves the mob's update clock onto
+    /// its next send tick, so the bounce goes out now.
     fn mark_position_for_sync(&mut self) {
         self.mob.sync_position = true;
     }

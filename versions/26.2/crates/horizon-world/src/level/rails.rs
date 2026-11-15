@@ -593,7 +593,9 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if pressed {
             self.schedule_tick(pos, block, 10);
         } else if was {
-            self.schedule_tick(pos, block, 1);
+            // 26.2 re-checks an unpressed wire at once (delay 0); 26.3 waits
+            // a tick (delay 1).
+            self.schedule_tick(pos, block, 0);
         }
     }
     fn tripwire_hook_notify(&mut self, block: BlockId, pos: BlockPos, direction: Direction) {

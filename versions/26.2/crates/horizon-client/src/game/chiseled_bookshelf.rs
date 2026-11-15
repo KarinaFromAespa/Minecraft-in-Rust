@@ -124,7 +124,8 @@ impl Game<'_> {
 
     /// `ChiseledBookShelfBlockEntity.updateState`: `slot` becomes the last
     /// one touched, the block state takes the slots' occupancy
-    /// (`setBlockAndUpdate`) and `BLOCK_CHANGE` goes out.
+    /// (`setBlock(pos, state, 3)`; 26.3 calls the `setBlockAndUpdate`
+    /// helper for the same call) and `BLOCK_CHANGE` goes out.
     fn chiseled_bookshelf_update_state(&mut self, pos: [i32; 3], slot: usize) {
         let key = (pos[0], pos[1], pos[2]);
         let Some(BlockEntity::ChiseledBookshelf(b)) = self.world.block_entities.get_mut(&key)

@@ -837,7 +837,7 @@
 //! API 47 adds entities joining a level (`native_entity_join_level`); it tells
 //! every kind the game keeps in its entity lists (items, orbs, mobs, boats,
 //! minecarts, armor stands, TNT, falling blocks, projectiles, rockets,
-//! tridents, end crystals, the dragon, cushions, paintings, item frames).
+//! tridents, end crystals, the dragon, paintings, item frames).
 //!
 //! API 46 adds bounded world-space rim and colored-light requests
 //! (`native_visuals`) and opt-in texture-matched emissive material
@@ -8993,7 +8993,7 @@ impl Game<'_> {
     /// back out as if never added, and a `/summon` of it fails. Tells every
     /// kind in the game's entity lists (items, orbs, mobs, boats, minecarts,
     /// armor stands, primed TNT, falling blocks, projectiles, rockets,
-    /// tridents, end crystals, the dragon, cushions, paintings, item frames),
+    /// tridents, end crystals, the dragon, paintings, item frames),
     /// and the entities Horizon keeps without simulating (block, item and text
     /// displays, markers, interactions), once each, in the order they were
     /// created; check `kind`. A drop, an orb, a mob, a `/summon` and a chunk's
@@ -9025,14 +9025,14 @@ impl Game<'_> {
     /// `Entity.startRiding` and `removeVehicle`): `entity` of type `kind` (`minecraft:player`,
     /// `minecraft:zombie`) in the server level `dimension`, getting on (`mounting`) or off the
     /// `vehicle` of type `vehicle_kind` (`minecraft:oak_boat`, `minecraft:minecart`,
-    /// `minecraft:horse`, `minecraft:cushion`). Set `canceled` and it does not: a player stays
+    /// `minecraft:horse`). Set `canceled` and it does not: a player stays
     /// where they were, a mob does not board, a `/ride` fails, and a rider whose dismount is
-    /// canceled keeps riding. Told for a player boarding a boat, minecart, cushion or a mount (pig,
+    /// canceled keeps riding. Told for a player boarding a boat, minecart or a mount (pig,
     /// strider, horse and its kin, llama, nautilus, happy ghast) and getting off one by their
     /// own input, `/ride`, a stab, a buck, a teleport or spectator mode; and for the mobs
     /// Horizon seats on a vehicle (jockeys, raiders on a ravager, `/ride`) and lets off one
     /// (`/ride`, a stab). It is not told for a rider whose vehicle was removed from the
-    /// level (a boat or minecart destroyed, a broken cushion), nor for riders loaded with a
+    /// level (a boat or minecart destroyed), nor for riders loaded with a
     /// save. The acting player is the one whose action runs, a guest on a server. Server-side.
     /// API 137.
     pub(super) fn native_entity_mount(
@@ -10168,9 +10168,8 @@ impl GameLevel<'_> {
                 state,
                 at,
                 spread,
-                speed: [speed; 3],
+                speed,
                 count,
-                randomization: 0,
             });
         true
     }

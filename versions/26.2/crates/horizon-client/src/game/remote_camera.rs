@@ -82,12 +82,15 @@ impl Game<'_> {
         }
     }
     /// `GameRenderer.checkEntityPostEffect` for the camera entity, or for none
-    /// (`first_person` false: the third-person view clears it).
+    /// (`first_person` false: the third-person view clears it). Setting an
+    /// effect turns it on (`setPostEffect`); clearing one turns it off
+    /// (`clearPostEffect`), so a fresh spectate re-enables a toggled-off shader.
     pub(super) fn check_entity_post_effect(&mut self, first_person: bool) {
         self.spectated_post_effect = self
             .camera_mob()
             .filter(|_| first_person)
             .and_then(|m| entity_post_effect(&m.kind.id));
+        self.spectated_effect_active = self.spectated_post_effect.is_some();
     }
     /// The entity a server attached the view to, when it is not the player.
     pub(super) fn remote_camera_id(&self) -> Option<u32> {

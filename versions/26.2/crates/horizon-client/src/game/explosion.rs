@@ -130,7 +130,7 @@ fn items_ignore_explosion(mob_griefing: bool, interaction: BlockInteraction) -> 
     !mob_griefing && interaction == BlockInteraction::Keep
 }
 
-/// Whether a blast leaves item frames, paintings, cushions and armour stands
+/// Whether a blast leaves item frames, paintings and armour stands
 /// alone. Without `mobGriefing`, a blast that keeps blocks is ignored
 /// (`ServerExplosion.shouldAffectBlocklikeEntities` through their
 /// `ignoreExplosion`; no wind charge goes through `server_explode`), and one a
@@ -181,16 +181,18 @@ struct Hit {
     push: Vec3,
 }
 
-/// Apply blast damage when the mob's team and wither immunity allow it.
+/// Apply blast damage when the mob's wither immunity allows it. 26.2's
+/// `ServerExplosion.hurtEntities` has no team check (the 26.3
+/// `source.doTeamsAllowDamage(entity)` gate is absent), so a blast hurts
+/// team mates too.
 fn hurt_mob(
     m: &mut horizon_client::mobs::Mob,
-    hurtable: bool,
     cause: Option<horizon_client::mobs::Species>,
     (amount, source): (f32, horizon_client::mobs::Damage),
 ) {
     let shielded =
         cause.is_some_and(|c| horizon_client::mobs::wither::shielded_from(m.species(), c));
-    if hurtable && !shielded {
+    if !shielded {
         m.damage(amount, source);
     }
 }
@@ -434,7 +436,6 @@ impl Game<'_> {
         context: &ExplosionHookContext<'_>,
         radius: f32,
         damage_type: &str,
-        exploding: Option<u32>,
         attacker: Option<&(u32, Text)>,
         cause: Option<&horizon_client::advancements::EntityView>,
     ) -> Option<[f64; 3]> {
@@ -481,10 +482,8 @@ impl Game<'_> {
             [d[0] / l, d[1] / l, d[2] / l]
         };
         let power = pow * (1.0 - resistance);
-        // `source.doTeamsAllowDamage(entity)`.
-        let hurtable = exploding.is_none_or(|id| {
-            horizon_client::scoreboard::teams_allow_damage(self.mob_team(id), self.player_team())
-        });
+        // 26.2's `ServerExplosion.hurtEntities` has no team check: a blast
+        // hurts the player whatever team the exploding mob is on.
         let blocking = self.player_blocking(Some(center), damage_type, false);
         let raised = blocking.is_some();
         let (creative, spectator) = (self.creative, self.spectator());
@@ -493,7 +492,7 @@ impl Game<'_> {
         let mut pushed = None;
         // The death message names the blast's causing entity. It goes to this
         // player's tracker, the host's or a guest's.
-        if let Some((id, name)) = attacker.filter(|_| !creative && !spectator && hurtable) {
+        if let Some((id, name)) = attacker.filter(|_| !creative && !spectator) {
             self.note_named_attacker(damage_type, *id, name.clone());
         }
         if let Some(p) = self.player.as_mut()
@@ -502,7 +501,6 @@ impl Game<'_> {
             // Creative players are invulnerable to explosions.
             if !creative
                 && !spectator
-                && hurtable
                 && let Ok(o) = p.hurt_caused_by(
                     &self.health_resources,
                     self.world.health_rules,
@@ -603,14 +601,9 @@ impl Game<'_> {
             let pow = (1.0 - dist) * f64::from(exposure);
             ((pow * pow + pow) / 2.0 * 7.0 * diameter + 1.0) as f32
         };
-        // `source.doTeamsAllowDamage(entity)`: the exploding mob spares its
-        // team mates when its team has no friendly fire (they are still pushed).
+        // 26.2's `ServerExplosion.hurtEntities` has no team check: a blast
+        // hurts team mates too (the 26.3 `doTeamsAllowDamage` gate is absent).
         let exploding = self.combat.explosion_source;
-        let teams_allow = |g: &Self, victim: Option<&horizon_client::scoreboard::Team>| {
-            exploding.is_none_or(|id| {
-                horizon_client::scoreboard::teams_allow_damage(g.mob_team(id), victim)
-            })
-        };
         // The player, then every other player in the level (LAN guests),
         // each swapped in as the player. In a guest's turn (their hit on an
         // end crystal) the player is that guest. The blast's source is the
@@ -622,7 +615,6 @@ impl Game<'_> {
             &context,
             radius,
             damage_type,
-            exploding,
             attacker.as_ref(),
             blast_source.as_ref(),
         );
@@ -641,7 +633,6 @@ impl Game<'_> {
                         &context,
                         radius,
                         damage_type,
-                        exploding,
                         attacker.as_ref(),
                         blast_source.as_ref(),
                     )
@@ -695,7 +686,6 @@ impl Game<'_> {
                 let entity = with_entity!(self, handle, e => e.id());
                 match handle {
                     EntityHandle::Mob(i) => {
-                        let hurtable = teams_allow(self, self.mob_team(self.mobs[i].id));
                         let m = &mut self.mobs[i];
                         // The exploding mob is the damage source's entity, so
                         // victims it kills drop its charged-creeper loot
@@ -715,7 +705,7 @@ impl Game<'_> {
                         // `EXPLOSION_KNOCKBACK_RESISTANCE`, not `KNOCKBACK_RESISTANCE`:
                         // its base is 0 for every mob type, so iron golems and
                         // ravagers are pushed.
-                        hurt_mob(m, hurtable, cause, (amount, source));
+                        hurt_mob(m, cause, (amount, source));
                         // Enderman.hurtServer teleports inside the hurt, before
                         // the push (the mob order stays as it was).
                         if let Err(e) = self.settle_hurt_teleports() {
@@ -808,31 +798,32 @@ impl Game<'_> {
         // hurt or pushed by the explosion that destroyed their container.
         self.spawn_destroyed_contents(destroyed_contents);
         self.native_leaves_flush();
-        // Frames, paintings, cushions and armour stands last: vanilla lists
+        // Frames, paintings and armour stands last: vanilla lists
         // the entities in reach before hurting any, so the items they drop
         // here are neither destroyed nor pushed by the same blast.
-        // BlockAttachedEntity.kill / ArmorStand.kill credit DamageSource.getEntity.
+        // `BlockAttachedEntity.kill` / `ArmorStand.kill` use `Entity.kill`
+        // in 26.2, so the death is the entity's own event (26.3 credits
+        // `DamageSource.getEntity`); a frame's `BLOCK_CHANGE` still goes
+        // to the damage source's entity, via `dropItem(level, causedBy)`.
         // VehicleEntity.destroy above uses Entity.kill and keeps the vehicle as source.
         self.explosion_breaks_frames(center, diameter, interaction);
         self.explosion_breaks_decorations(center, diameter, interaction);
         pushed
     }
-    /// `ServerExplosion.getIndirectSourceEntity`: the causing living entity,
-    /// including a TNT igniter or the player who broke an end crystal.
-    pub(super) fn explosion_kill_credit(&self) -> Option<super::commands::Target> {
-        use super::commands::Target;
-        // A primed TNT's owner (a player) names the blast before any mob does.
-        if self.combat.blast_owner.is_some() {
-            return Some(
-                self.combat
-                    .blast_guest
-                    .map_or(Target::Player, Target::Guest),
-            );
-        }
-        if let Some((id, _)) = self.blast_attacker() {
-            return Some(Target::Mob(id));
-        }
-        self.crystal_blast_player()
+    /// `ServerExplosion`'s damage source entity: the exploding entity itself
+    /// (`DamageSources.explosion` takes the direct source), as a `Who` when
+    /// it is a mob. `BlockAttachedEntity.hurtServer` passes it to
+    /// `dropItem(level, causedBy)`, so an explosion-broken frame's
+    /// `BLOCK_CHANGE` is attributed to the exploding mob; a primed TNT or
+    /// an end crystal has no `Who` and stays unattributed.
+    pub(super) fn explosion_direct_source(&self) -> Option<horizon_client::mobs::Who> {
+        blast_cause(
+            None,
+            self.combat.explosion_source,
+            |id| self.mob_display_name(id),
+            &self.combat.exploded,
+        )
+        .map(|(id, _)| horizon_client::mobs::Who::Mob(id))
     }
     /// `blast_spares_decorations` for the blast going off now: its causing
     /// mob (`blast_attacker`) is the source's entity.
@@ -851,10 +842,10 @@ impl Game<'_> {
             .fluids(bounds, bounds.max_position().y)
             .in_water
     }
-    /// `ServerExplosion.hurtEntities` for paintings, cushions and armour
-    /// stands (item frames: `explosion_breaks_frames`). A painting or cushion
+    /// `ServerExplosion.hurtEntities` for paintings and armour
+    /// stands (item frames: `explosion_breaks_frames`). A painting
     /// in reach is killed and dropped (`BlockAttachedEntity.hurtServer`,
-    /// `Painting.dropItem`, `Cushion.dropItem`). An armour stand that is
+    /// `Painting.dropItem`). An armour stand that is
     /// neither invisible nor a marker breaks (`ArmorStand.hurtServer` with
     /// `IS_EXPLOSION`: `brokenByAnything`, then `kill`): its equipment drops,
     /// the stand itself does not.
@@ -885,13 +876,13 @@ impl Game<'_> {
             if !super::armor_stands::spared_by_blast(a)
                 && blast_reaches(center, diameter, [p.x, p.y, p.z])
             {
-                self.break_armor_stand_with_source(i, self.explosion_kill_credit());
+                self.break_armor_stand_by_anything(i);
             } else {
                 i += 1;
             }
         }
     }
-    /// Paintings and cushions in reach (`BlockAttachedEntity.hurtServer`).
+    /// Paintings in reach (`BlockAttachedEntity.hurtServer`).
     fn explosion_breaks_hanging(&mut self, center: [f64; 3], diameter: f64) {
         let mut i = 0;
         while i < self.paintings.len() {
@@ -900,18 +891,7 @@ impl Game<'_> {
             let (lo, hi) = self.paintings[i].bounds();
             let at = [0, 1, 2].map(|k| (lo[k] + hi[k]) / 2.0);
             // A painting a mod keeps stays at `i`.
-            if !(blast_reaches(center, diameter, at)
-                && self.break_painting_by(i, false, self.explosion_kill_credit()))
-            {
-                i += 1;
-            }
-        }
-        let mut i = 0;
-        while i < self.cushions.len() {
-            let p = self.cushions[i].position;
-            if blast_reaches(center, diameter, [p.x, p.y, p.z]) {
-                self.break_cushion_by(i, false, self.explosion_kill_credit());
-            } else {
+            if !(blast_reaches(center, diameter, at) && self.break_painting_by(i, false)) {
                 i += 1;
             }
         }
@@ -1563,7 +1543,7 @@ mod tests {
         // An ordinary mob is hurt and pushed.
         let mut m = mob(1, Species::Zombie);
         let health = m.health;
-        hurt_mob(&mut m, true, None, hit);
+        hurt_mob(&mut m, None, hit);
         m.push_from_explosion(push);
         assert!(m.health < health);
         pushed(&m);
@@ -1571,21 +1551,17 @@ mod tests {
         let mut m = mob(2, Species::Zombie);
         m.invulnerable_flag = true;
         let health = m.health;
-        hurt_mob(&mut m, true, None, hit);
+        hurt_mob(&mut m, None, hit);
         m.push_from_explosion(push);
         assert_eq!(m.health, health);
         pushed(&m);
-        // A team mate of the exploding mob is not hurt, but pushed.
-        let mut m = mob(3, Species::Zombie);
-        let health = m.health;
-        hurt_mob(&mut m, false, None, hit);
-        m.push_from_explosion(push);
-        assert_eq!(m.health, health);
-        pushed(&m);
+        // A team mate of the exploding mob is hurt like any other mob: 26.2's
+        // hurtEntities has no team check (the 26.3 doTeamsAllowDamage gate
+        // is absent), so there is no team case to spare here.
         // A wither shrugs off a blast an undead caused, and is pushed.
         let mut m = mob(4, Species::Wither);
         let health = m.health;
-        hurt_mob(&mut m, true, Some(Species::Skeleton), hit);
+        hurt_mob(&mut m, Some(Species::Skeleton), hit);
         m.push_from_explosion(push);
         assert_eq!(m.health, health);
         pushed(&m);

@@ -92,6 +92,10 @@ impl<'a> Fields<'a> {
         let v = int(self.input.get(key)).map_or(default, |v| v as i16);
         self.put(key, Tag::Short(v));
     }
+    fn byte(&mut self, key: &str, default: i8) {
+        let v = int(self.input.get(key)).map_or(default, |v| v as i8);
+        self.put(key, Tag::Byte(v));
+    }
     fn long(&mut self, key: &str, default: i64) {
         let v = long(self.input.get(key)).unwrap_or(default);
         self.put(key, Tag::Long(v));
@@ -376,11 +380,12 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
     match id.as_str() {
         "minecraft:furnace" | "minecraft:smoker" | "minecraft:blast_furnace" => {
             f.base_container();
-            f.int("cooking_time_spent", 0);
-            f.int("cooking_total_time", 0);
-            f.int("lit_time_remaining", 0);
-            f.int("lit_total_time", 0);
-            f.float("speed_multiplier", 1.0);
+            // 26.2 saves the furnace times as shorts, with no speed
+            // multiplier (int times + speed_multiplier are 26.3's format).
+            f.short("cooking_time_spent", 0);
+            f.short("cooking_total_time", 0);
+            f.short("lit_time_remaining", 0);
+            f.short("lit_total_time", 0);
             f.items(3, true);
             let used: Compound = match tag.get("RecipesUsed") {
                 Some(Tag::Compound(c)) => c
@@ -455,9 +460,8 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:sign" | "minecraft:hanging_sign" => {
-            if flag(tag.get("allow_op_features")) == Some(true) {
-                f.put("allow_op_features", boolean(true));
-            }
+            // 26.2 signs carry no `allow_op_features` (datafix 5002 adds
+            // it): the tag, if present, is dropped.
             f.put("front_text", sign_side(tag.get("front_text")));
             f.put("back_text", sign_side(tag.get("back_text")));
             f.flag("is_waxed", false);
@@ -508,12 +512,11 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
         }
         "minecraft:brewing_stand" => {
             f.base_container();
-            f.int("BrewTime", 0);
-            f.int("total_brew_time", 400);
+            // 26.2 saves BrewTime as a short and Fuel as a byte, with no
+            // total_brew_time, total_fuel or speed_multiplier (26.3's format).
+            f.short("BrewTime", 0);
             f.items(5, true);
-            f.int("Fuel", 0);
-            f.int("total_fuel", 20);
-            f.float("speed_multiplier", 1.0);
+            f.byte("Fuel", 0);
         }
         "minecraft:enchanting_table" => f.component("CustomName"),
         "minecraft:beacon" => {
@@ -871,8 +874,12 @@ mod tests {
     #[test]
     fn furnace_defaults_match_vanilla() {
         let out = canon("{id:\"minecraft:furnace\",x:1,y:2,z:3}");
-        assert_eq!(out.get("cooking_total_time"), Some(&Tag::Int(0)));
-        assert_eq!(out.get("speed_multiplier"), Some(&f32_tag(1.0)));
+        // 26.2 saves the furnace times as shorts, with no speed multiplier.
+        assert_eq!(out.get("cooking_total_time"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("cooking_time_spent"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("lit_time_remaining"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("lit_total_time"), Some(&Tag::Short(0)));
+        assert_eq!(out.get("speed_multiplier"), None);
         assert_eq!(out.get("Items"), Some(&Tag::List(vec![])));
         assert_eq!(
             out.get("RecipesUsed"),

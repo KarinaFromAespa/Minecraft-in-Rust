@@ -1,10 +1,12 @@
 //! Armour trims on worn armour: `EquipmentLayerRenderer`'s trim layer. A
 //! trim's texture is `textures/trims/entity/<layer>/<pattern>.png` recoloured
-//! by `PalettedTextureManager`: every pixel whose colour is in the texture's
-//! base palette (its `palette` metadata section, `trim_base`) takes the colour
-//! at the same index of the material's palette (`textures/palettes/trim/*`),
-//! unless the equipment asset's `trim_overrides` pick another texture or
-//! palette (iron armour with an iron trim uses `trim/iron_darker`).
+//! by palette swap: every pixel whose colour is in the base palette
+//! (`textures/trims/color_palettes/trim_palette.png`, the `armor_trims` atlas's
+//! `palette_key`) takes the colour at the same index of the material's palette
+//! (`textures/trims/color_palettes/<asset_name>.png`), where `asset_name` and
+//! the per-armour-asset darker override come from the material's
+//! `trim_material` data (`override_armor_assets`: iron armour with an iron
+//! trim uses `iron_darker`).
 use horizon_assets::palette::apply_palette;
 use serde_json::Value;
 use std::{collections::HashMap, fs, path::Path};
@@ -127,47 +129,13 @@ fn asset_path(root: &Path, folder: &str, id: &str, suffix: &str) -> std::path::P
         .join(format!("{path}{suffix}"))
 }
 
-/// `EquipmentClientInfo.TrimOverride`: when the trim matches (`when`'s
-/// material and pattern, each optional), use `texture` instead of the
-/// pattern's asset id and `palette` (none when absent) as the palette.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct TrimOverride {
-    pub material: Option<String>,
-    pub pattern: Option<String>,
-    pub texture: Option<String>,
-    pub palette: Option<String>,
-}
-impl TrimOverride {
-    /// An equipment asset's `trim_overrides` list.
-    pub fn list(equipment: &Value) -> Vec<Self> {
-        let Some(list) = equipment.get("trim_overrides").and_then(Value::as_array) else {
-            return Vec::new();
-        };
-        let id = |v: &Value, key: &str| v.get(key).and_then(Value::as_str).map(qualified);
-        list.iter()
-            .filter_map(|o| {
-                let when = o.get("when")?;
-                Some(Self {
-                    material: id(when, "material"),
-                    pattern: id(when, "pattern"),
-                    texture: id(o, "texture"),
-                    palette: id(o, "palette"),
-                })
-            })
-            .collect()
-    }
-    /// `TrimPredicate.matches`.
-    fn matches(&self, material: &str, pattern: &str) -> bool {
-        self.material.as_deref().is_none_or(|m| m == material)
-            && self.pattern.as_deref().is_none_or(|p| p == pattern)
-    }
-}
-
-/// The `trim_pattern` (asset id) and `trim_material` (palette id) registries.
+/// The `trim_pattern` (asset id) and `trim_material` (asset name, plus its
+/// `override_armor_assets`: armour asset id -> darker asset name) registries.
 #[derive(Clone, Debug, Default)]
 pub struct TrimRegistry {
     patterns: HashMap<String, String>,
     materials: HashMap<String, String>,
+    overrides: HashMap<(String, String), String>,
 }
 impl TrimRegistry {
     /// Every `data/<namespace>/trim_pattern` and `trim_material` entry.
@@ -178,10 +146,7 @@ impl TrimRegistry {
         };
         for ns in namespaces.flatten() {
             let namespace = ns.file_name().to_string_lossy().into_owned();
-            for (folder, key, map) in [
-                ("trim_pattern", "asset_id", &mut out.patterns),
-                ("trim_material", "palette_id", &mut out.materials),
-            ] {
+            for folder in ["trim_pattern", "trim_material"] {
                 let Ok(files) = fs::read_dir(ns.path().join(folder)) else {
                     continue;
                 };
@@ -196,9 +161,29 @@ impl TrimRegistry {
                     else {
                         continue;
                     };
-                    if let Some(v) = value.get(key).and_then(Value::as_str) {
-                        let name = path.file_stem().unwrap_or_default().to_string_lossy();
-                        map.insert(format!("{namespace}:{name}"), qualified(v));
+                    let name = path.file_stem().unwrap_or_default().to_string_lossy();
+                    let id = format!("{namespace}:{name}");
+                    if folder == "trim_pattern" {
+                        if let Some(v) = value.get("asset_id").and_then(Value::as_str) {
+                            out.patterns.insert(id, qualified(v));
+                        }
+                    } else {
+                        if let Some(v) = value.get("asset_name").and_then(Value::as_str) {
+                            out.materials.insert(id.clone(), v.to_owned());
+                        }
+                        if let Some(over) = value
+                            .get("override_armor_assets")
+                            .and_then(Value::as_object)
+                        {
+                            for (asset, darker) in over {
+                                if let Some(darker) = darker.as_str() {
+                                    out.overrides.insert(
+                                        (id.clone(), qualified(asset)),
+                                        darker.to_owned(),
+                                    );
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -206,7 +191,11 @@ impl TrimRegistry {
         out
     }
     #[cfg(test)]
-    fn of(patterns: &[(&str, &str)], materials: &[(&str, &str)]) -> Self {
+    fn of(
+        patterns: &[(&str, &str)],
+        materials: &[(&str, &str)],
+        overrides: &[(&str, &str, &str)],
+    ) -> Self {
         let map = |l: &[(&str, &str)]| {
             l.iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -215,6 +204,10 @@ impl TrimRegistry {
         Self {
             patterns: map(patterns),
             materials: map(materials),
+            overrides: overrides
+                .iter()
+                .map(|(m, a, d)| ((m.to_string(), a.to_string()), d.to_string()))
+                .collect(),
         }
     }
 }
@@ -224,34 +217,37 @@ impl TrimRegistry {
 pub struct TrimTexture {
     /// `<namespace>:trims/entity/<layer>/<path>`, under `textures/`.
     pub texture: String,
-    /// The target palette under `textures/palettes/`; none draws the
-    /// texture's own colours.
+    /// The target palette's asset name under
+    /// `textures/trims/color_palettes/`; none draws the texture's own
+    /// colours.
     pub palette: Option<String>,
 }
 impl TrimTexture {
     /// `TrimTextureKey.getOrPrepareTexture`: the trim (`material`,
     /// `pattern` registry ids) on the `layer` (`humanoid`,
-    /// `humanoid_leggings`...) of an equipment asset with `overrides`.
+    /// `humanoid_leggings`...) of an equipment `asset`; the material's
+    /// `override_armor_assets` picks the darker palette for the asset it
+    /// names (iron armour with an iron trim uses `iron_darker`).
     pub fn resolve(
         registry: &TrimRegistry,
-        overrides: &[TrimOverride],
+        asset: &str,
         material: &str,
         pattern: &str,
         layer: &str,
     ) -> Option<Self> {
         let (material, pattern) = (qualified(material), qualified(pattern));
-        let mut texture = registry.patterns.get(&pattern)?.clone();
-        let mut palette = Some(registry.materials.get(&material)?.clone());
-        if let Some(o) = overrides.iter().find(|o| o.matches(&material, &pattern)) {
-            if let Some(t) = &o.texture {
-                texture.clone_from(t);
-            }
-            palette.clone_from(&o.palette);
+        let texture = registry.patterns.get(&pattern)?.clone();
+        let mut palette = registry.materials.get(&material)?.clone();
+        if let Some(darker) = registry
+            .overrides
+            .get(&(material, qualified(asset)))
+        {
+            palette.clone_from(darker);
         }
         let (namespace, path) = texture.split_once(':')?;
         Some(Self {
             texture: format!("{namespace}:trims/entity/{layer}/{path}"),
-            palette,
+            palette: Some(palette),
         })
     }
     /// The atlas sprite name the generated texture is stored under.
@@ -262,33 +258,25 @@ impl TrimTexture {
             self.palette.as_deref().unwrap_or("-")
         )
     }
-    /// `PalettedTextureManager.prepareSlot`: the texture with its base
-    /// palette's colours swapped for the target palette's (`PaletteMapping`;
-    /// unchanged when a palette is missing or the sizes differ). None when
-    /// the texture itself is missing.
+    /// The trim texture with its base palette's colours swapped for the
+    /// target palette's (`PalettedPermutations`' mapping, keyed on the
+    /// `armor_trims` atlas's `trim_palette`); unchanged when a palette is
+    /// missing or the sizes differ. None when the texture itself is
+    /// missing.
     pub fn generate(&self, root: &Path) -> Option<Image> {
         let path = asset_path(root, "textures", &self.texture, ".png");
         let (w, h, pixels) = crate::hud::decode(&path).ok()?;
         let Some(palette) = &self.palette else {
             return Some((w, h, pixels));
         };
-        let base = horizon_core::prepared_files::read(&path.with_extension("png.mcmeta"))
-            .ok()
-            .and_then(|b| serde_json::from_slice::<Value>(&b).ok())
-            .and_then(|m| {
-                m.get("palette")?
-                    .get("base_palette")?
-                    .as_str()
-                    .map(str::to_owned)
-            });
         let load = |id: &str| {
-            crate::hud::decode(&asset_path(root, "textures/palettes", id, ".png"))
+            crate::hud::decode(&asset_path(root, "textures/trims/color_palettes", id, ".png"))
                 .ok()
                 .map(|(_, _, p)| argb(&p))
         };
         let mut mapped = argb(&pixels);
-        if let (Some(key), Some(target)) = (base.as_deref().and_then(load), load(palette)) {
-            // Different sizes: PaletteMapping.NONE, the texture as it is.
+        if let (Some(key), Some(target)) = (load("trim_palette"), load(palette)) {
+            // Different sizes: no mapping, the texture as it is.
             let _ = apply_palette(&mut mapped, &key, &target);
         }
         let out = mapped
@@ -355,9 +343,10 @@ mod tests {
     fn registry() -> TrimRegistry {
         TrimRegistry::of(
             &[("minecraft:coast", "minecraft:coast")],
+            &[("minecraft:iron", "iron"), ("minecraft:gold", "gold")],
             &[
-                ("minecraft:iron", "minecraft:trim/iron"),
-                ("minecraft:gold", "minecraft:trim/gold"),
+                ("minecraft:iron", "minecraft:iron", "iron_darker"),
+                ("minecraft:gold", "minecraft:gold", "gold_darker"),
             ],
         )
     }
@@ -366,19 +355,19 @@ mod tests {
     fn material_palette_and_layer_folder() {
         let t = TrimTexture::resolve(
             &registry(),
-            &[],
+            "minecraft:diamond",
             "minecraft:gold",
             "minecraft:coast",
             "humanoid_leggings",
         )
         .unwrap();
         assert_eq!(t.texture, "minecraft:trims/entity/humanoid_leggings/coast");
-        assert_eq!(t.palette.as_deref(), Some("minecraft:trim/gold"));
+        assert_eq!(t.palette.as_deref(), Some("gold"));
         // Unknown registry entries draw nothing.
         assert!(
             TrimTexture::resolve(
                 &registry(),
-                &[],
+                "minecraft:diamond",
                 "minecraft:wood",
                 "minecraft:coast",
                 "humanoid"
@@ -388,40 +377,36 @@ mod tests {
     }
 
     #[test]
-    fn equipment_overrides_pick_the_darker_palette() {
-        let iron = serde_json::json!({"trim_overrides": [
-            {"palette": "minecraft:trim/iron_darker", "when": {"material": "minecraft:iron"}},
-        ]});
-        let overrides = TrimOverride::list(&iron);
-        let resolve =
-            |m| TrimTexture::resolve(&registry(), &overrides, m, "coast", "humanoid").unwrap();
+    fn override_armor_assets_pick_the_darker_palette() {
+        let resolve = |asset: &str, m: &str| {
+            TrimTexture::resolve(&registry(), asset, m, "coast", "humanoid").unwrap()
+        };
+        // Gold trim on gold armour uses the darker palette; on other armour
+        // it uses the material's own.
         assert_eq!(
-            resolve("iron").palette.as_deref(),
-            Some("minecraft:trim/iron_darker")
+            resolve("minecraft:gold", "gold").palette.as_deref(),
+            Some("gold_darker")
         );
         assert_eq!(
-            resolve("gold").palette.as_deref(),
-            Some("minecraft:trim/gold")
+            resolve("minecraft:iron", "gold").palette.as_deref(),
+            Some("gold")
         );
-        // An override without a palette leaves the texture's own colours.
-        let plain = TrimOverride::list(&serde_json::json!({"trim_overrides": [
-            {"texture": "minecraft:other", "when": {"pattern": "minecraft:coast"}},
-        ]}));
-        let t = TrimTexture::resolve(&registry(), &plain, "gold", "coast", "humanoid").unwrap();
-        assert_eq!(t.texture, "minecraft:trims/entity/humanoid/other");
-        assert_eq!(t.palette, None);
+        assert_eq!(
+            resolve("minecraft:iron", "iron").palette.as_deref(),
+            Some("iron_darker")
+        );
     }
 
     #[test]
     fn vanilla_trims_are_recoloured() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/26.3");
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/26.2");
         if !root.join("assets/minecraft/textures/trims").is_dir() {
             return;
         }
         let registry = TrimRegistry::load(&root);
         let t = TrimTexture::resolve(
             &registry,
-            &[],
+            "minecraft:diamond",
             "minecraft:gold",
             "minecraft:coast",
             "humanoid",
@@ -436,9 +421,11 @@ mod tests {
         let (_, _, grey) = plain.generate(&root).unwrap();
         // Every opaque pixel of the grey pattern takes a gold palette colour.
         let gold_palette = argb(
-            &crate::hud::decode(&root.join("assets/minecraft/textures/palettes/trim/gold.png"))
-                .unwrap()
-                .2,
+            &crate::hud::decode(
+                &root.join("assets/minecraft/textures/trims/color_palettes/gold.png"),
+            )
+            .unwrap()
+            .2,
         );
         let mut opaque = 0;
         for (g, c) in grey.chunks(4).zip(gold.chunks(4)) {

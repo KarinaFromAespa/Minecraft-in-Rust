@@ -6,7 +6,6 @@
 //! Retries are `RetryOptions(numberOfTimes, untilFailed)`.
 use super::{Arg, Context, Game, R, err};
 use crate::game::{
-    Dim,
     game_tests::{Grid, Info, Retry, RunnerOptions, verify_batches},
     test_instances::TestDef,
 };
@@ -196,7 +195,7 @@ impl Game<'_> {
         }
         let rotation = self.test_rotation(pos);
         let id = self.game_tests.next_id();
-        Some(Info::new(id, key, def, Some(pos), self.dim, rotation).with_retry(retry))
+        Some(Info::new(id, key, def, Some(pos), rotation).with_retry(retry))
     }
 
     /// `toGameTestInfo`: a test without a block, in the level in place.
@@ -210,25 +209,11 @@ impl Game<'_> {
         if !self.verify_test_structure(&def.structure) {
             return Ok(None);
         }
-        // `server.getLevel(dimension)`: the server's levels.
-        let dim = match def.dimension.as_str() {
-            "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end" => {
-                Some(Dim::from_id(&def.dimension))
-            }
-            _ => None,
-        }
-        .filter(|d| *d == self.dim || !self.options.execution_role.is_client());
-        let Some(dim) = dim else {
-            self.test_failure(Text::literal(format!(
-                "Could not resolve level for dimension: {}",
-                def.dimension
-            )));
-            return Ok(None);
-        };
+        // 26.2 has no dimension on a test: it runs in the level in place.
         let rotation = rotation_for_steps(steps).ok_or_else(|| err("command.failed", &[]))?;
         let id = self.game_tests.next_id();
         Ok(Some(
-            Info::new(id, key, def, None, dim, rotation).with_retry(retry),
+            Info::new(id, key, def, None, rotation).with_retry(retry),
         ))
     }
 

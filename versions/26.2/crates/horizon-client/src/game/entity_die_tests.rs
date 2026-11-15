@@ -87,7 +87,6 @@ fn entity_die_commands() {
                 false,
             ),
             ("item", "{Item:{id:\"minecraft:red_wool\",count:1}}", false),
-            ("cushion", "{color:\"red\"}", true),
             ("end_crystal", "{Invulnerable:1b}", true),
             ("marker", "{}", true),
             ("armor_stand", "{}", true),
@@ -128,7 +127,7 @@ fn entity_die_commands() {
             );
             assert!(
                 game.dropped.is_empty(),
-                "/kill must not drop the cushion or crystal"
+                "/kill must not drop the crystal"
             );
         }
         game.run_command("summon end_crystal 4.25 200 4.75");
@@ -147,8 +146,11 @@ fn entity_die_commands() {
 fn entity_die_explosions() {
     with_game(|game| {
         let at = [4.25, 200.0, 4.75];
-        // A real blast must attribute hanging/stand deaths to its causing mob,
-        // while vehicles use Entity.kill's self source. No cause stays self-sourced.
+        // 26.2's `BlockAttachedEntity.kill` / `ArmorStand.kill` use
+        // `Entity.kill(level)`, so a blast's hanging/stand deaths are
+        // self-sourced, like vehicles — 26.3's `kill(level, entity)`
+        // attributes them to the causing mob. A dropped item fires no
+        // `ENTITY_DIE` at all (`ItemEntity.hurtServer` just discards).
         let kind = game
             .res
             .mob_types()
@@ -158,10 +160,7 @@ fn entity_die_explosions() {
         game.mobs
             .push(Mob::new(700, kind, Vec3::new(10.0, 200.0, 10.0), 0.0));
         for source in [None, Some(700)] {
-            let expected_source = source.map(Who::Mob);
             // The loaded entity exists even on main, where it has no command target.
-            game.summon_with_nbt("minecraft:cushion", at, "{}").unwrap();
-            assert_eq!(game.cushions.len(), 1);
             let stand_at = [5.25, 200.0, 4.75];
             let stand = game
                 .summon_with_nbt("minecraft:armor_stand", stand_at, "{}")
@@ -203,7 +202,6 @@ fn entity_die_explosions() {
             for target in [stand, painting, frame, boat] {
                 assert_eq!(game.target_position(target), None, "{target:?} removed");
             }
-            assert!(game.cushions.is_empty());
             assert!(
                 game.dropped.is_empty() && game.orbs.is_empty(),
                 "blast discards items and orbs: items={:?} orbs={}",
@@ -214,23 +212,23 @@ fn entity_die_explosions() {
                 game.orbs.len()
             );
             let events = deaths();
-            assert_eq!(events.len(), 5);
-            assert!(events.contains(&("minecraft:entity_die", at, expected_source)));
-            assert!(events.contains(&("minecraft:entity_die", stand_at, expected_source)));
+            // Four deaths, all self-sourced; the dropped item fires none.
+            assert_eq!(events.len(), 4);
+            assert!(events.contains(&("minecraft:entity_die", stand_at, None)));
             assert_eq!(
-            events
-                .iter()
-                .filter(|(_, pos, who)| *pos == [4.5, 200.5, 4.03125] && *who == expected_source)
-                .count(),
-            2,
-            "painting and frame centres: {events:?}"
-        );
+                events
+                    .iter()
+                    .filter(|(_, pos, who)| *pos == [4.5, 200.5, 4.03125] && who.is_none())
+                    .count(),
+                2,
+                "painting and frame centres: {events:?}"
+            );
             assert!(events.contains(&("minecraft:entity_die", [3.5, 200.0, 4.5], None)));
         }
         // Explosion attribution must not leak into subsequent unrelated removals.
         game.combat.explosion_owner = None;
         let target = game
-            .summon_with_nbt("minecraft:cushion", at, "{}")
+            .summon_with_nbt("minecraft:armor_stand", at, "{}")
             .unwrap()
             .unwrap();
         capture();

@@ -431,9 +431,9 @@ impl Game<'_> {
         };
         if name == "minecraft:honeycomb" && !waxed {
             self.mobs[index].extra.vector[0] = -2.0;
+            // The event carries the wax-on sound in 26.2 (LevelEventHandler
+            // 3003); no explicit play.
             self.level_event_at(3003, block, 0);
-            self.audio
-                .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
             self.consume_held();
             return true;
         }

@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Compare how a client walks a living entity along its server's positions with vanilla.
 
-Vanilla's unmodified SteppedInterpolationHandler.InterpolationData (VanillaSteppedInterpolationOracle
-drives it as the handler does) and horizon-world's SteppedInterpolation replay the same packets and
-client ticks: move packets with and without a position or rotation, straight or stepped paths,
-repeats of the one the entity is headed for, packets a tick apart that pile up and others after it
-stopped, for update intervals of 1 to 3 ticks, plus a punched pig's knockback as the server sends it
-(its first move at once, `needsSync`, then every update interval). The entity's position and rotation
-after every event must match bit for bit. The handler's entity hooks (deltas, passengers) are out of
-scope.
+Vanilla's unmodified InterpolationHandler.InterpolationData (VanillaInterpolationOracle drives it
+as the handler does) and horizon-world's InterpolationHandler replay the same packets and client
+ticks: move packets with and without a position or rotation, repeats of the one the entity is
+headed for, packets a tick apart that re-target it and others after it stopped, for interpolation
+lengths of 1 to 3 ticks, plus a punched pig's knockback as the server sends it (its first move at
+once, `hurtMarked`, then every update interval). The entity's position and rotation after every
+event must match bit for bit. The handler's entity hooks (deltas, passengers) are out of scope.
 """
 import os
 import random
@@ -60,13 +59,6 @@ def cases(count, seed):
             else:
                 if rng.random() < 0.1:
                     line = 'move N'
-                elif rng.random() < 0.2:
-                    n = rng.randrange(1, 5)
-                    steps = []
-                    for _ in range(n):
-                        p = position(rng, p)
-                        steps.append(f'{p[0]!r} {p[1]!r} {p[2]!r} {rng.randrange(1, 4)}')
-                    line = f'move S {n} ' + ' '.join(steps)
                 else:
                     p = position(rng, p) if rng.random() < 0.9 else p
                     line = f'move L {p[0]!r} {p[1]!r} {p[2]!r}'
@@ -80,23 +72,23 @@ def cases(count, seed):
 
 def main():
     lock, jars, libraries = base.verify_artifacts()
-    build = lab.LOCAL / 'stepped-interpolation-parity'
+    build = lab.LOCAL / 'interpolation-parity'
     build.mkdir(parents=True, exist_ok=True)
     classes = build / 'classes'
     classes.mkdir(exist_ok=True)
     events = build / 'events.txt'
     events.write_text('\n'.join(cases(3000, 1374)) + '\n', encoding='utf-8')
     classpath = os.pathsep.join(map(str, [jars['client'], *libraries]))
-    oracle = lab.ROOT / 'mods/horizon/src/test/java/dev/horizonlab/parity/VanillaSteppedInterpolationOracle.java'
+    oracle = lab.ROOT / 'mods/horizon/src/test/java/dev/horizonlab/parity/VanillaInterpolationOracle.java'
     subprocess.run(['javac', '--release', str(lock['minecraft']['java_major']), '-proc:none',
                     '-cp', classpath, '-d', str(classes), str(oracle)], check=True)
     subprocess.run(['java', '-Xmx512M', '-cp', str(classes) + os.pathsep + classpath,
-                    'dev.horizonlab.parity.VanillaSteppedInterpolationOracle', str(events), str(build / 'vanilla.txt')],
+                    'dev.horizonlab.parity.VanillaInterpolationOracle', str(events), str(build / 'vanilla.txt')],
                    check=True)
     subprocess.run(['cargo', 'run', '--quiet', '--release', '-p', 'horizon-world', '--example',
-                    'world_probe', '--', 'stepped_interpolation_fixture', str(events), str(build / 'rust.txt')], cwd=lab.ROOT, check=True)
+                    'world_probe', '--', 'interpolation_fixture', str(events), str(build / 'rust.txt')], cwd=lab.ROOT, check=True)
     matched = base.compare(build / 'vanilla.txt', build / 'rust.txt')
-    print(f'Stepped interpolation parity passed: {matched} entity positions and rotations match vanilla')
+    print(f'Interpolation parity passed: {matched} entity positions and rotations match vanilla')
 
 
 if __name__ == '__main__':

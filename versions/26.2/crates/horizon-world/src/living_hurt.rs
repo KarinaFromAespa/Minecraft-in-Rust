@@ -234,8 +234,10 @@ pub fn finish_hurt_server<W: HurtWorld>(
         if !w.tag(s, HurtTag::NoImpact)? && (!blocked || damage > 0.0) {
             w.mark_hurt(s)?;
         }
-        let fully_blocked = blocked && damage <= 0.0;
-        if !w.tag(s, HurtTag::NoKnockback)? && !fully_blocked {
+        // 26.2 knocks back whenever the source is not NO_KNOCKBACK, even
+        // when the hit was fully blocked (26.3 added a fullyBlocked skip
+        // here: `blocked && damage <= 0.0`).
+        if !w.tag(s, HurtTag::NoKnockback)? {
             w.knockback(s, damage, blocked)?;
         }
     }

@@ -28,8 +28,6 @@ impl Game<'_> {
             b.entity_type()
         } else if let Some(c) = self.carts.iter().find(|c| c.id == id) {
             c.kind.id().into()
-        } else if self.cushions.iter().any(|c| c.id == id) {
-            "minecraft:cushion".into()
         } else if let Some(m) = self.mobs.iter().find(|m| m.id == id) {
             mob_kind(m)
         } else {

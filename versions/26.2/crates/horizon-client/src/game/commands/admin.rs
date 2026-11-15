@@ -47,8 +47,6 @@ pub(super) const QUIET: &[&str] = &[
     "commands.locate.structure.success",
     "commands.perf.started",
     "commands.perf.stopped",
-    "commands.posteffect.list.empty",
-    "commands.posteffect.list.success",
     "commands.random.reset.all.success",
     "commands.random.reset.success",
     "commands.random.sample.success",

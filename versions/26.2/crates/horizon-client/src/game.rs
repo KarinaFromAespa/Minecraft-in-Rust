@@ -117,7 +117,6 @@ mod creative_hotbar;
 mod creative_screen;
 mod creatures;
 mod crossbow;
-pub(crate) mod cushions;
 mod custom_sky;
 mod debug_keys;
 mod debug_lines;
@@ -514,7 +513,7 @@ use horizon_client::{
     creative::{Creative, Names},
     entities::{Experience, ExperienceOrb, ItemEntity},
     environment::Environment,
-    first_person::{Hand, SwingAnimation},
+    first_person::Hand,
     furnace::FurnaceCooking,
     gfx::{Frame, Renderer},
     graphics::EntityCullingMode,
@@ -908,7 +907,7 @@ impl EntityObstructionWorld for BuildingObstruction {
 /// Whether a block's successful use is `InteractionResult.SUCCESS_SERVER`,
 /// which a client does not predict: `useWithoutItem` of a bed, a light
 /// block, a charged respawn anchor or a sign. Every other block use the
-/// level answers with SUCCESS is `SUCCESS` (`SwingSource.PREDICTED`).
+/// level answers with SUCCESS is `SUCCESS` (`SwingSource.CLIENT`).
 fn server_only_block_use(
     block: &horizon_items::blocks::StateFacts,
     branch: horizon_world::level::UseBranch,
@@ -2126,7 +2125,7 @@ struct Game<'a> {
     res: Arc<Resources>,
     rest_loader: Option<WorldRestLoader>,
     pending_entry: Option<PendingWorldEntry>,
-    /// `DebugEntryChunkGeneration`'s `lastPos` and `result`: F3's `Density` line is sampled
+    /// `DebugEntryChunkGeneration`'s `lastPos` and `result`: F3's `NoiseRouter` line is sampled
     /// again only when the feet block (or the dimension) changes.
     debug_density: RefCell<debug_keys::DensityCache>,
     pending_pack_reload: bool,
@@ -2542,10 +2541,11 @@ struct Game<'a> {
     xp_delay: u32,
     ordered: ordered_tick::OrderedTicks,
     level_up_sound: horizon_client::entities::LevelUpSound,
-    /// The arm swing (`LivingEntity.SwingState`) and how many swings started.
+    /// The arm swing (26.2's plain `swinging`/`swingTime`/`swingingArm`
+    /// fields, not 26.3's `LivingEntity.SwingState`) and how many swings started.
     swing: horizon_client::first_person::SwingState,
     swings_started: u32,
-    /// Swings of uses whose client predicts them (`SwingSource.PREDICTED`):
+    /// Swings of uses whose client predicts them (`SwingSource.CLIENT`):
     /// a server does not send these back to the player who swung.
     predicted_swings: u32,
     /// The first-person equip heights and the items the hands show (with
@@ -2649,8 +2649,6 @@ struct Game<'a> {
     armor_stands: horizon_client::join_seq::JoinList<horizon_client::entities::ArmorStand>,
     /// Worn armor as of the last `collectEquipmentChanges` look (frost walker).
     location_armor: [Option<ItemStack>; 4],
-    /// `Cushion` decoration entities (game/cushions.rs).
-    cushions: Vec<horizon_client::entities::Cushion>,
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
@@ -2665,13 +2663,16 @@ struct Game<'a> {
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
     /// none when it drew from vanilla's.
     posed_rotation: Option<(f32, f32)>,
-    /// `LocalPlayer.postEffects`: the chains the server has the screen run
-    /// (`ClientboundPostEffectsPacket`), in order.
-    post_effects: Vec<String>,
     /// The game time (ticks and partial) of the last frame, for `PolyDeltaTime`.
     polytone_post_ticks: f64,
-    /// `GameRenderer.spectatedEntityPostEffect` (`checkEntityPostEffect`).
+    /// `GameRenderer.postEffectId` (`checkEntityPostEffect`; 26.3 renamed
+    /// the field `spectatedEntityPostEffect`).
     spectated_post_effect: Option<&'static str>,
+    /// `GameRenderer.effectActive`: whether the spectated entity's shader
+    /// applies (`setPostEffect` turns it on, `clearPostEffect` off, and
+    /// `key.toggleSpectatorShaderEffects` flips it; 26.3 renamed the
+    /// toggle `toggleSpectatorPostEffect`).
+    spectated_effect_active: bool,
     /// `LocalPlayer.experienceDisplayStartTick`: (last progress, seen a change, tick).
     experience_display: (f32, bool, u64),
     boats: horizon_client::join_seq::JoinList<boats::Boat>,
@@ -2680,8 +2681,6 @@ struct Game<'a> {
     boat_models: boats::BoatModels,
     /// EndCrystalModel's baked layer.
     crystal_model: Option<horizon_client::mobs::Part>,
-    /// CushionModel's baked layer.
-    cushion_model: Option<horizon_client::mobs::Part>,
     /// Models drawn only once such an entity shows up (lead knots, wind charges...).
     entity_models: EntityModels,
     carts: horizon_client::join_seq::JoinList<minecarts::Minecart>,
@@ -3011,7 +3010,6 @@ struct Game<'a> {
     /// Jukebox level events 1010 (song name) and 1011 (`None`) for the guests;
     /// the song's network id is only known once the hub is in hand.
     lan_songs: Vec<([i32; 3], Option<String>)>,
-    lan_cushion_breaks: Vec<(horizon_world::registry::BlockStateId, [f64; 3])>,
     /// Block events (position, b0, b1, state) and entity events (id, event,
     /// position) for the guests.
     lan_block_events: Vec<([i32; 3], i32, i32, u32)>,
@@ -3122,7 +3120,7 @@ struct Game<'a> {
     /// A dedicated server's operator, whitelist and ban lists, for `/op`,
     /// `/ban` and friends (`DedicatedPlayerList`).
     server_lists: Option<std::sync::Arc<std::sync::Mutex<dedicated::Lists>>>,
-    /// State of `/spectate`, `/posteffect`, `/debug`, `/waypoint` and friends.
+    /// State of `/spectate`, `/debug`, `/waypoint` and friends.
     cmds: commands::extra::CommandExtras,
     ui: chat::UiState,
     combat: combat::CombatTracker,
@@ -3569,14 +3567,16 @@ impl Game<'_> {
         self.clip_ray_fluids(origin, dir, reach, false)
     }
     /// `LocalPlayer.moveTowardsClosestSpace` at the body's four corners
-    /// (aiStep, unless a spectator or a passenger): a corner inside a
-    /// suffocating block sets a 0.1 speed towards the nearest side that is
-    /// free, on that side's axis; a later corner overwrites an earlier one.
-    /// Suffocating is a full collision cube that is also a full render cube,
-    /// as `in_wall` has it.
+    /// (aiStep, `!noPhysics` — a spectator's `noPhysics` is set from its
+    /// mode, so the gate is the spectator check alone; 26.3 added
+    /// `!isPassenger()` there, and a passenger still gets the nudge in
+    /// 26.2): a corner inside a suffocating block sets a 0.1 speed towards
+    /// the nearest side that is free, on that side's axis; a later corner
+    /// overwrites an earlier one. Suffocating is a full collision cube that
+    /// is also a full render cube, as `in_wall` has it.
     fn closest_space_nudge(&self) -> [Option<f64>; 2] {
         match self.player.as_ref() {
-            Some(p) if !p.spectator && self.riding.is_none() => {
+            Some(p) if !p.spectator => {
                 closest_space_nudge(p, &self.world, self.res.facts())
             }
             _ => [None; 2],
@@ -3718,7 +3718,7 @@ impl Game<'_> {
         };
         // LivingEntity.drop: every drop swings the main hand, a menu's
         // THROW and a creative tab's drop included.
-        self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+        self.swing_hand(Hand::Main);
         // Player.drop: the drop statistics.
         self.award_stat("dropped", &thrown.item, thrown.count as i32);
         self.award_custom_stat("drop", 1);
@@ -4295,16 +4295,6 @@ impl Game<'_> {
                 LevelEvent::LevelEvent { id: 1011, pos, .. } => {
                     self.jukebox_stop_event([pos.x, pos.y, pos.z])
                 }
-                // LevelEventHandler 2019 and 2020: the crack on a face of the
-                // block being mined, with its hit sound for 2020.
-                LevelEvent::LevelEvent {
-                    id: id @ (2019 | 2020),
-                    pos,
-                    data,
-                } => {
-                    let face = horizon_core::geometry::Direction::ALL[data.clamp(0, 5) as usize];
-                    self.breaking_block_effects([pos.x, pos.y, pos.z], face.normal(), id == 2020);
-                }
                 LevelEvent::LevelEvent {
                     id: 3008,
                     pos,
@@ -4324,26 +4314,17 @@ impl Game<'_> {
                     self.audio
                         .play("minecraft:item.bone_meal.use", Some(at), 1.0, 1.0);
                 }
+                // 2015 is not a 26.2 packet: the egg's teleport particles are
+                // the client's own `DragonEggBlock.teleport` branch. The Rust
+                // keeps the id only as the sim's internal channel for that
+                // client-side loop (the actor's own prediction emits it and
+                // renders it locally); it is never broadcast (see
+                // `lan_record_events`).
                 LevelEvent::LevelEvent {
                     id: 2015,
                     pos,
                     data,
                 } => self.dragon_egg_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2016,
-                    pos,
-                    data,
-                } => self.shulker_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2017,
-                    pos,
-                    data,
-                } => self.consume_teleport_particles([pos.x, pos.y, pos.z], data),
-                LevelEvent::LevelEvent {
-                    id: 2018,
-                    pos,
-                    data,
-                } => self.enderman_teleport_particles([pos.x, pos.y, pos.z], data),
                 LevelEvent::LevelEvent { id: 2003, pos, .. } => {
                     self.eye_break_particles([pos.x, pos.y, pos.z]);
                 }
@@ -4392,12 +4373,6 @@ impl Game<'_> {
                     pos,
                     data,
                 } => self.turtle_egg_particles(pos, data),
-                // LevelEventHandler 2014: a straw bed destroyed, with no sound.
-                LevelEvent::LevelEvent {
-                    id: 2014,
-                    pos,
-                    data,
-                } => self.destroy_particles([pos.x, pos.y, pos.z], BlockStateId(data as u32)),
                 // EnderDragonFight.spawnNewGateway: an always-visible burst
                 // and a sound at the gateway for every nearby player.
                 LevelEvent::LevelEvent { id: 3000, pos, .. } => {
@@ -4485,8 +4460,6 @@ impl Game<'_> {
                         1044 => Some(("minecraft:block.smithing_table.use", 1.0)),
                         // LevelEvent.SOUND_PAGE_TURN (a lectern's page).
                         1043 => Some(("minecraft:item.book.page_turn", 1.0)),
-                        // LevelEvent.SOUND_SPLASH_POTION and its instant twin.
-                        1053 | 1054 => Some(("minecraft:entity.splash_potion.break", 1.0)),
                         _ => None,
                     };
                     if let Some((name, volume)) = sound {
@@ -4505,11 +4478,6 @@ impl Game<'_> {
                             1045 | 1046 | 1047 | 1052 => {
                                 self.particles.level_random().next_float() * 0.1 + 0.9
                             }
-                            1053 | 1054 => {
-                                // LevelEventHandler's client random: impact audio
-                                // must not change the server's bottle XP stream.
-                                self.particles.level_random().next_float() * 0.1 + 0.9
-                            }
                             1029 | 1030 | 1042 | 1043 | 1044 => {
                                 self.world.random.next_float() * 0.1 + 0.9
                             }
@@ -4526,17 +4494,7 @@ impl Game<'_> {
                         };
                         if matches!(
                             id,
-                            1019 | 1021
-                                | 1026
-                                | 1027
-                                | 1029
-                                | 1030
-                                | 1045
-                                | 1052
-                                | 1053
-                                | 1054
-                                | 1501
-                                | 1503
+                            1019 | 1021 | 1026 | 1027 | 1029 | 1030 | 1045 | 1052 | 1501 | 1503
                         ) {
                             // Clients play these sounds from their level events;
                             // capturing it also sends a duplicate sound packet.
@@ -5208,6 +5166,10 @@ impl Game<'_> {
     /// `use_cooldown` component starts its entry (`UseCooldown.apply`). A
     /// server's guest also gets `ClientboundCooldownPacket`
     /// (`ServerItemCooldowns.onCooldownStarted`), queued for their turn's end.
+    /// In 26.2 only `finishUsingItem` and `releaseUsing` call it: an instantly
+    /// used item (an ender pearl, a wind charge, a 0-tick consumable) and a
+    /// placed block start no cooldown — 26.3 wired `ItemStack.use` and
+    /// `useOn` to apply the side effects, 26.2 did not.
     pub(super) fn apply_use_cooldown(&mut self, stack: &ItemStack) {
         let default = self
             .res
@@ -5287,11 +5249,11 @@ impl Game<'_> {
         let state = self.world.block(hit.pos[0], hit.pos[1], hit.pos[2]);
         if self.res.facts().get(state).hardness < 0.0 {
             // The server still counts its destroy ticks on an unbreakable block.
+            // 26.2 sends no level event while a player digs (26.3's 2019/2020):
+            // the digger's own client plays the hit sound every fourth tick.
             let m = self.mining.as_mut().ok_or("mining")?;
             m.per_tick = 0.0;
             m.ticks += 1;
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
             return Ok(());
         }
         let progress = self.destroy_progress(hit.pos);
@@ -5300,11 +5262,6 @@ impl Game<'_> {
         m.per_tick = progress;
         m.progress += progress;
         m.ticks += 1;
-        // An instant break at START sends no destroy events.
-        if m.progress < 1.0 || m.ticks > 1 {
-            let (pos, ticks) = (m.pos, m.ticks);
-            self.destroy_progress_event(pos, hit.face, ticks);
-        }
         let m = self.mining.as_mut().ok_or("mining")?;
         // ServerPlayerGameMode breaks a player's block at once only when it is instant (START's
         // insta-mine); otherwise it waits for the client's STOP_DESTROY_BLOCK
@@ -5686,7 +5643,6 @@ impl Game<'_> {
             self.tick_summoned_eyes();
             self.ordered_before(ordered_tick::Batch::ArmorStands)?;
             horizon_client::spans::time("tick_armor_stands", || self.tick_armor_stands())?;
-            horizon_client::spans::time("tick_cushions", || self.tick_cushions());
             // ServerLevel.tick: the arrivals of this server tick are in the level
             // (`addDuringTeleport`), and each vehicle handles its portal as its
             // own tick opens.
@@ -6115,7 +6071,7 @@ impl Game<'_> {
                     regeneration: effects.get("regeneration").is_some(),
                     hunger: effects.get("hunger").is_some(),
                     hardcore: self.level.hardcore,
-                    damage_cooldown: p.health.hurt.cooldown > 0,
+                    hurt_cooldown: p.health.hurt.cooldown > 0,
                     air: p.air,
                     max_air: 300,
                     under_water,
@@ -7272,7 +7228,6 @@ impl Game<'_> {
         self.mark_entity(out.len(), "minecraft:armor_stand");
         self.armor_stand_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
-        self.cushion_geometry(camera, &mut out);
         self.mark_entity(out.len(), "minecraft:oak_boat");
         self.boat_geometry(camera, alpha, &mut out);
         self.mark_motion(out.len(), 0);
@@ -7526,7 +7481,7 @@ impl Game<'_> {
 
     fn finish_open_world(&mut self, prepared: world_loading::PreparedWorld) -> Result<()> {
         self.reset_tutorial();
-        // Another world: its generator, not the last one's Density line.
+        // Another world: its generator, not the last one's NoiseRouter line.
         self.debug_density.borrow_mut().clear();
         let world_loading::PreparedWorld {
             save_root,
@@ -7792,7 +7747,6 @@ impl Game<'_> {
         self.boats.clear();
         self.carts.clear();
         self.armor_stands.clear();
-        self.cushions.clear();
         self.item_frames.clear();
         self.paintings.clear();
         self.others.clear();
@@ -8020,18 +7974,6 @@ impl Game<'_> {
             self.transform_copper_chest_neighbour(pos, old, &particle);
         }
         Ok(true)
-    }
-    /// `HoneycombItem.useOn`'s `Level.playSound(player, ...)`: the actor's client
-    /// already played it in `predict_item_on_block`.
-    fn wax_on_sound(&mut self, at: [f64; 3]) {
-        let sound = "minecraft:item.honeycomb.wax_on";
-        if self.lan_acting.is_some() {
-            self.audio.play_unshared(sound, Some(at), 1.0, 1.0);
-            self.guest_block_sounds
-                .push((sound.to_owned(), at, 1.0, 1.0));
-        } else {
-            self.audio.play(sound, Some(at), 1.0, 1.0);
-        }
     }
     /// `BlockTransformer.transformBlock`'s `COPPER_CHEST` extra: a double
     /// chest's other half hears a block change and gets the same particle.
@@ -8331,10 +8273,11 @@ impl Game<'_> {
             {
                 let other = old.and_then(|old| storage::chest_connected_pos(old, hit.pos));
                 // HoneycombItem.useOn: ITEM_USED_ON_BLOCK before the swap.
+                // The event carries the wax-on sound in 26.2
+                // (LevelEventHandler 3003); no explicit play.
                 self.trigger_block("minecraft:item_used_on_block", hit.pos, stack);
                 self.level_set(hit.pos, state)?;
                 self.level_event_at(3003, hit.pos, 0);
-                self.wax_on_sound(at(hit.pos));
                 // HoneycombItem.useOn's game event, and ItemStack.useOn's used statistic.
                 self.post_block_game_event(
                     "minecraft:block_change",
@@ -8342,8 +8285,8 @@ impl Game<'_> {
                     self.sculk_actor(),
                     Some(state),
                 );
-                // A double chest's other half: its game event and particles, and
-                // a second sound from the clicked block.
+                // A double chest's other half: its game event, and its own
+                // event (with its own sound, at the other half).
                 if let Some(other) = other {
                     let now = self.world.block(other[0], other[1], other[2]);
                     self.post_block_game_event(
@@ -8353,7 +8296,6 @@ impl Game<'_> {
                         Some(now),
                     );
                     self.level_event_at(3003, other, 0);
-                    self.wax_on_sound(at(hit.pos));
                 }
                 self.award_stat("used", &stack.item, 1);
                 if !self.creative {
@@ -8678,6 +8620,15 @@ impl Game<'_> {
             }
             return;
         }
+        // ServerPlayer.startSleepInBed (26.2): a bed whose rule neither sets
+        // the spawn nor lets the player sleep refuses at once, before the
+        // range check (`rule.asProblem()`); 26.3 dropped this early check and
+        // goes straight to the range. The rule's own error message is not
+        // modelled, so the refusal carries none — as for a rule without one.
+        let rule = self.dimension_type().bed_rule;
+        if !self.bed_sets_spawn() && !rule.can_sleep.test(self.dark_outside()) {
+            return;
+        }
         // ServerPlayer.bedInRange / isReachableBedBlock: within 3 blocks
         // sideways and 2 vertically of the head or the foot.
         let reachable = |bed: [i32; 3]| {
@@ -8707,8 +8658,7 @@ impl Game<'_> {
         // RespawnConfig(the head, the player's yaw), not forced). It replaces
         // an anchor or a spawnpoint; respawning checks the bed is still there
         // and finds where to stand up (findRespawnAndUseSpawnBlock).
-        // Straw beds never set it (`straw_bed_rule`).
-        if problem.is_none() && self.bed_sets_spawn(state) {
+        if problem.is_none() && self.bed_sets_spawn() {
             let config = respawn_anchor::RespawnConfig::wrapped(self.dim, head, yaw, false);
             // ServerPlayer.setRespawnPosition: the chat message only when the
             // point moved (`isSamePosition`).
@@ -8822,13 +8772,9 @@ impl Game<'_> {
                 return;
             }
         }
-        // LivingEntity.startSleeping: the shape the bed gives the player to
-        // lie on (`getSleepHeight`). A straw bed's head answers with its
-        // foot's shape, and with no foot of its own there is none, so the
-        // player stays up as `startSleeping` returning false leaves them.
-        let Some(at) = self.sleeping_position(head) else {
-            return;
-        };
+        // LivingEntity.startSleeping (26.2): void, no sleep-height check.
+        // The sleeper always lies at the flat bed height (setPosToBed).
+        let at = self.sleeping_position(head);
         // LivingEntity.startSleeping: stopRiding once the bed is valid.
         self.stop_riding();
         self.stop_mining();
@@ -8904,11 +8850,11 @@ impl Game<'_> {
                 self.wake_up();
                 return;
             }
-            // setPosToBed: the bed's top (`getSleepHeight`) and 0.125 above
-            // it. A sleeper whose bed no longer gives a shape to lie on stays
-            // where it is: vanilla only ever places a sleeper when it starts.
+            // setPosToBed: the flat 26.2 height, 0.6875 above the head
+            // block's base. Vanilla only ever places a sleeper when it
+            // starts; re-applying each tick keeps the sleeper pinned here.
             let at = self.sleeping_position(head);
-            if let (Some(p), Some(at)) = (self.player.as_mut(), at) {
+            if let Some(p) = self.player.as_mut() {
                 p.position = at;
                 p.velocity = Vec3::ZERO;
                 p.pitch = 0.0;
@@ -9534,11 +9480,13 @@ impl Game<'_> {
         let mut outline_after_terrain = false;
         // GameRenderer.shouldRenderBlockOutline: not with the HUD hidden (F1), and only for a
         // player who may build. Adventure players only get one with a CAN_BREAK or
-        // CAN_PLACE_ON item matching the block, and spectators with a menu block; Horizon
-        // does not open menus for spectators, so those never show it. An open
+        // CAN_PLACE_ON item matching the block, and spectators only over a block
+        // with a menu (`getMenuProvider != null`, 26.3's
+        // `showAsInteractableInSpectatorMode` also counts portals). An open
         // screen does not hide it: vanilla checks the HUD and the game mode, not the screen.
         let adventure = self.mode == horizon_client::command::args::GameMode::Adventure;
-        let can_build = self.may_build() || adventure;
+        let spectator = self.spectator();
+        let can_build = self.may_build() || adventure || spectator;
         let outline = if block_outline_drawn(
             self.ui.hide_gui,
             self.entity_targeted(),
@@ -9547,9 +9495,13 @@ impl Game<'_> {
         ) {
             self.pick()
                 .filter(|h| {
-                    self.may_build()
-                        || !self.block_action_restricted(h.pos)
-                        || self.can_place_on_in_adventure(h.pos)
+                    if spectator {
+                        self.block_opens_menu(h)
+                    } else {
+                        self.may_build()
+                            || !self.block_action_restricted(h.pos)
+                            || self.can_place_on_in_adventure(h.pos)
+                    }
                 })
                 .filter(|h| {
                     let state = self.world.block(h.pos[0], h.pos[1], h.pos[2]);
@@ -10272,14 +10224,8 @@ impl Game<'_> {
         if self.pending_save.is_some() {
             match event {
                 WindowEvent::CloseRequested => {
-                    if !self.settings.quit_shortcuts
-                        && horizon_client::input::is_quit_shortcut_down(
-                            self.modifiers,
-                            &self.physical_keys,
-                        )
-                    {
-                        return;
-                    }
+                    // 26.2 has no quitShortcuts option: a close request
+                    // (the platform shortcut included) always closes.
                     self.pending_save.as_mut().unwrap().quit = true;
                 }
                 WindowEvent::Focused(focused) => {
@@ -10447,14 +10393,8 @@ impl Game<'_> {
             self.key_focus_mouse_press(&event);
             match event {
                 WindowEvent::CloseRequested => {
-                    if !self.settings.quit_shortcuts
-                        && horizon_client::input::is_quit_shortcut_down(
-                            self.modifiers,
-                            &self.physical_keys,
-                        )
-                    {
-                        return Ok(());
-                    }
+                    // 26.2 has no quitShortcuts option: a close request
+                    // (the platform shortcut included) always closes.
                     self.agent_cancel("the game window was closed; the game saves and exits");
                     self.begin_closing_save(true)?;
                 }
@@ -10470,7 +10410,6 @@ impl Game<'_> {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
                     }
-                    self.observe_fullscreen();
                 }
                 WindowEvent::Focused(focused) => {
                     self.focused = focused;
@@ -11406,7 +11345,6 @@ impl Game<'_> {
                 }
                 WindowEvent::RedrawRequested => {
                     horizon_client::spans::time("recover_device", || self.recover_device())?;
-                    self.observe_fullscreen();
                     self.sync_ime();
                     let now = Instant::now();
                     let frame_cpu = self
@@ -11889,7 +11827,7 @@ impl<'a> Game<'a> {
             ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
-            fullscreen: horizon_client::window::FullscreenState::new(false),
+            fullscreen: horizon_client::window::FullscreenState::new(false, false),
             video_modes: Default::default(),
             mouse: MouseLook::default(),
             agent_pointer: false,
@@ -12084,7 +12022,6 @@ impl<'a> Game<'a> {
             glow_map_frame_model: prepared.glow_map_frame_model,
             armor_stands: Default::default(),
             location_armor: Default::default(),
-            cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
             waypoint_styles: prepared.waypoint_styles,
@@ -12093,15 +12030,14 @@ impl<'a> Game<'a> {
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,
-            post_effects: Vec::new(),
             polytone_post_ticks: 0.0,
             spectated_post_effect: None,
+            spectated_effect_active: false,
             experience_display: Default::default(),
             boats: Default::default(),
             leash_boats: Vec::new(),
             boat_models: prepared.boat_models,
             crystal_model: prepared.crystal_model,
-            cushion_model: prepared.cushion_model,
             entity_models: prepared.entity_models,
             carts: Default::default(),
             watched_vehicles: Vec::new(),
@@ -12282,7 +12218,6 @@ impl<'a> Game<'a> {
             guest_inventory_resend: false,
             lan_events: Vec::new(),
             lan_songs: Vec::new(),
-            lan_cushion_breaks: Vec::new(),
             lan_block_events: Vec::new(),
             lan_entity_events: Vec::new(),
             lan_critical_hits: Vec::new(),
@@ -13055,13 +12990,13 @@ mod golem_defense_tests;
 #[cfg(test)]
 mod hoglin_repeat_attack_tests;
 #[cfg(test)]
+mod hurt_cooldown_tests;
+#[cfg(test)]
 mod inline_feature_parse_tests;
 #[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]
 mod interaction_data_tests;
-#[cfg(test)]
-mod invulnerable_time_tests;
 #[cfg(test)]
 mod kill_die_cancel_tests;
 #[cfg(test)]

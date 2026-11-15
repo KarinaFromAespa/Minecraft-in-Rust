@@ -774,7 +774,8 @@ pub fn anim_pose(m: &Mob, s: &State, p: &mut Poses, pose: ArmPose) {
     match pose {
         ArmPose::Attacking => {
             if m.extra.main_hand.is_none() {
-                // animateZombieArms + bobArms
+                // animateZombieArms only: 26.3 added a `bobArms` call after
+                // it here, which 26.2 does not have.
                 let swing = s.swing;
                 let a = (swing * PI).msin();
                 let b = ((1.0 - (1.0 - swing) * (1.0 - swing)) * PI).msin();

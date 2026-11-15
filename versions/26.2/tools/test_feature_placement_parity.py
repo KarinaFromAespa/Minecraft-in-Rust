@@ -17,19 +17,19 @@ except ImportError:
 def definitions():
     count=lambda value:{'type':'count','count':value}
     square={'type':'in_square'}
-    offset={'type':'offset','x':{'type':'uniform','min_inclusive':-16,'max_inclusive':16},'y':1,'z':{'type':'trapezoid','min':-7,'max':7,'plateau':0}}
+    offset={'type':'random_offset','xz_spread':{'type':'trapezoid','min':-7,'max':7,'plateau':0},'y_spread':1}
     height={'type':'height_range','height':{'type':'uniform','min_inclusive':{'above_bottom':8},'max_inclusive':{'below_top':4}}}
     fixed={'type':'fixed_placement','positions':[[0,0,0],[7,64,9],[15,-64,15],[0,0,0],[-1,63,-1],[-16,5,16]]}
-    random={'type':'randomly_selected','placements':[count(0),count(3),fixed,square]}
+    random={'type':'rarity_filter','chance':2}
     yield []
     for modifier in [count(0),count(1),count(3),square,offset,height,fixed,random]:yield [modifier]
     for first in [count(0),count(1),count(3),fixed,random]:
         yield [first,square,offset,height]
         yield [first,{'type':'rarity_filter','chance':3},count(2),random]
-        yield [first,{'type':'random_chance','chance':0.5},square,fixed]
+        yield [first,{'type':'rarity_filter','chance':2},square,fixed]
         yield [first,random,offset,count(3)]
     yield [count(3),count(3),count(3),offset]
-    yield [count(2),{'type':'randomly_selected','placements':[random,offset,height]},count(2)]
+    yield [count(2),random,offset,count(2)]
     for kind in ['WORLD_SURFACE_WG','WORLD_SURFACE','OCEAN_FLOOR_WG','OCEAN_FLOOR','MOTION_BLOCKING','MOTION_BLOCKING_NO_LEAVES']:
         yield [count(3),square,{'type':'heightmap','heightmap':kind},offset]
         yield [fixed,{'type':'surface_relative_threshold_filter','heightmap':kind,'min_inclusive':-3,'max_inclusive':17},count(2)]
@@ -41,13 +41,13 @@ def definitions():
     ]:
         yield [modifier,square,offset]
         yield [count(3),square,modifier,height]
-    for edges,interior in [(True,True),(True,False),(False,True),(False,False)]:
-        cuboid={'type':'cuboid','xz_size':{'type':'uniform','min_inclusive':1,'max_inclusive':3},'y_size':2,'include_edges':edges,'include_interior':interior}
-        yield [cuboid,{'type':'random_chance','chance':0.5},offset]
-        yield [count(2),square,cuboid]
+    # 26.2 has no cuboid modifier: the offset chains below cover the same
+    # ground (a spread modifier between a count and a filter).
+    yield [offset,{'type':'rarity_filter','chance':2},offset]
+    yield [count(2),square,offset]
     for count in [0,1,{'type':'uniform','min_inclusive':0,'max_inclusive':3}]:
         yield [{'type':'count_on_every_layer','count':count},offset]
-        yield [{'type':'count','count':2},{'type':'count_on_every_layer','count':count},{'type':'random_chance','chance':0.5}]
+        yield [{'type':'count','count':2},{'type':'count_on_every_layer','count':count},{'type':'rarity_filter','chance':2}]
     inside={'type':'inside_world_bounds','offset':[0,-16,0]}
     for predicate in [inside,{'type':'not','predicate':inside},{'type':'any_of','predicates':[inside,{'type':'true'}]}]:
         yield [{'type':'count','count':3},height,{'type':'block_predicate_filter','predicate':predicate},square]
@@ -103,7 +103,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "fixtures":len(fixtures),"modifier_chains":len(list(definitions())),"requested_placements":sum(len(f["positions"]) for f in fixtures),
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Actual native FeaturePlacer executing decoded placement-modifier chains with a synthetic Feature sink. Empty chains, repeated modifiers, nested random choices, count expansion, filtering, fixed positions, offsets, anchored heights heightmap filters and layered scans are compared. Sink callbacks emit positions, optionally consume the shared random stream, return true/false/mixed results or fail after partial placement. The same native placer is reused across calls, including after errors, exposing retained pending and modified-position buffers. Both random modes, repeated calls, ordinary and overflowing generation contexts and subsequent nextLong values are compared. Predicate filtering and vertical environment scans compare bounds-query order, short-circuiting and failures. Traced heightmap queries include synthetic extreme heights, distinct world/generation minima and injected failures. Configured feature algorithms, block queries, biome checks, registry lifecycle, nested feature placement, Gaussian providers, encoding and complete world generation remain pending. Rust bounds chain length to 1024 and pending/output work to 2^20."}
+            "scope":"Actual native PlacedFeature.place executing decoded placement-modifier chains with a synthetic Feature sink. Empty chains, repeated modifiers, nested random choices, count expansion, filtering, fixed positions, offsets, anchored heights heightmap filters and layered scans are compared. Sink callbacks emit positions, optionally consume the shared random stream, return true/false/mixed results or fail after partial placement. Both random modes, repeated calls, ordinary and overflowing generation contexts and subsequent nextLong values are compared. Predicate filtering and vertical environment scans compare bounds-query order, short-circuiting and failures. Traced heightmap queries include synthetic extreme heights, distinct world/generation minima and injected failures. Configured feature algorithms, block queries, biome checks, registry lifecycle, nested feature placement, Gaussian providers, encoding and complete world generation remain pending. Rust bounds chain length to 1024 and pending/output work to 2^20."}
 
     lab.write_json(report_path,report);print(f"Scoped placement parity passed: {report_path}")
 

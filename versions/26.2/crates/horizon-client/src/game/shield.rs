@@ -190,13 +190,11 @@ impl Game<'_> {
         let Some(id) = attacker else {
             // Another player's melee hit has no mob behind it.
             if let Some((from, disable)) = self.combat.player_attacker {
-                let fully = outcome.fully_blocked;
                 let attacker = ([from[0], from[2]], disable);
-                self.blocked_by_attacker(&component, attacker, fully, at, source);
+                self.blocked_by_attacker(&component, attacker, at, source);
             }
             return;
         };
-        let fully = outcome.fully_blocked;
         let Some(m) = self.mobs.iter().find(|m| m.id == id) else {
             return;
         };
@@ -238,24 +236,25 @@ impl Game<'_> {
             let _ = self.handle_mob_events(events);
             return;
         }
-        self.blocked_by_attacker(&component, ([mx, mz], disable), fully, at, source);
+        self.blocked_by_attacker(&component, ([mx, mz], disable), at, source);
     }
 
     /// What a blocked melee hit does to the defender once the shield took
-    /// it: `LivingEntity.blockedByItem` knocks them back unless fully
-    /// blocked, then `Player.blockUsingItem` disables the shield. `attacker`
-    /// is where the attacker stands (x, z) and its seconds of disabling.
+    /// it: `LivingEntity.blockedByItem` knocks them back, then
+    /// `Player.blockUsingItem` disables the shield. 26.2's blockedByItem
+    /// has no fully-blocked exception (the 26.3 `fullyBlocked` parameter
+    /// is absent), so the knockback is unconditional. `attacker` is where
+    /// the attacker stands (x, z) and its seconds of disabling.
     fn blocked_by_attacker(
         &mut self,
         component: &horizon_client::items::BlocksAttacks,
         ([mx, mz], disable): ([f64; 2], f32),
-        fully: bool,
         at: Option<[f64; 3]>,
         source: HurtSource<'_>,
     ) {
         // LivingEntity.blockedByItem: defender.knockback(0.5, defender - attacker,
         // source), which moves the defender along -(xd, zd).
-        if !fully && let Some(p) = self.player.as_ref() {
+        if let Some(p) = self.player.as_ref() {
             let (xd, zd) = (p.position.x - mx, p.position.z - mz);
             self.knock_back_player(0.5, xd, zd, source);
         }

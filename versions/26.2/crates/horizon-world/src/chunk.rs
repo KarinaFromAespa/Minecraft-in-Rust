@@ -191,10 +191,12 @@ pub struct BlockState {
 impl BlockState {
     pub fn to_nbt(&self) -> Tag {
         let mut map = Compound::new();
-        map.insert(key("id"), Tag::String(key(&self.name)));
+        // 26.2's BlockState.CODEC is the NBT form (`Name`/`Properties`);
+        // the `id`/`properties` form is 26.3's codec rename.
+        map.insert(key("Name"), Tag::String(key(&self.name)));
         if !self.properties.is_empty() {
             map.insert(
-                key("properties"),
+                key("Properties"),
                 Tag::Compound(
                     self.properties
                         .iter()
@@ -212,11 +214,16 @@ impl BlockState {
                 properties: BlockProperties::new(),
             });
         }
-        let Some(Tag::String(name)) = tag.get("id") else {
+        // The 26.2 exporter writes block states in the NBT form
+        // `{"Name": ..., "Properties": ...}` (occlusion.nbt, cached-collision.nbt,
+        // movement-properties.nbt), so accept those keys as aliases for the
+        // `{"id": ..., "properties": ...}` form — the same aliasing the JSON
+        // facts reader does (registry/facts.rs).
+        let Some(Tag::String(name)) = tag.get("id").or_else(|| tag.get("Name")) else {
             return Err(invalid("block state is missing id"));
         };
         let mut properties = Vec::new();
-        if let Some(tag) = tag.get("properties") {
+        if let Some(tag) = tag.get("properties").or_else(|| tag.get("Properties")) {
             let Tag::Compound(map) = tag else {
                 return Err(invalid("block properties are not a compound"));
             };

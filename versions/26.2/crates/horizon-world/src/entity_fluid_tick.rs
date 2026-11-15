@@ -23,8 +23,11 @@ pub trait EntityFluidTickWorld:
         }
     }
 }
-/// The push predicate is queried twice: before resetting immersion state and
-/// after water-entry effects. Water/lava membership is captured before effects.
+/// `Entity.updateFluidInteraction`: the push predicate is queried twice:
+/// before resetting immersion state and after water-entry effects.
+/// Water/lava membership is captured before effects, and the answer is
+/// whether the entity is in water or lava (26.3's answers whether any fluid
+/// was found, via `update`'s return).
 pub fn update<W: EntityFluidTickWorld>(
     interaction: &mut EntityFluidInteraction,
     world: &mut W,
@@ -35,9 +38,9 @@ pub fn update<W: EntityFluidTickWorld>(
     let ignore = !world
         .is_pushed_by_fluid()
         .map_err(FluidInteractionError::World)?;
-    let changed = interaction.update(world, ignore, budget)?;
-    let in_water = interaction.is_in_fluid(world, water);
-    let in_lava = interaction.is_in_fluid(world, lava);
+    interaction.update(world, ignore, budget)?;
+    let in_water = interaction.is_in_fluid(water);
+    let in_lava = interaction.is_in_fluid(lava);
     if in_water {
         world
             .reset_fall_distance()
@@ -75,5 +78,5 @@ pub fn update<W: EntityFluidTickWorld>(
             .apply_mod_currents(world)
             .map_err(FluidInteractionError::World)?;
     }
-    Ok(changed)
+    Ok(in_water || in_lava)
 }

@@ -410,7 +410,8 @@ impl Game<'_> {
                 1.0,
                 true,
             );
-            // Allay.mobInteract ends with swing(MAIN_HAND, ...).
+            // Allay.mobInteract ends with a plain swing(MAIN_HAND) in 26.2
+            // (26.3 passes the item's interact animation).
             self.mobs[index].swing();
             if let Some(stack) = carried {
                 self.spawn_item(stack, at, [0.0, 0.2, 0.0], 40);

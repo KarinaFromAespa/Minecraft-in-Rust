@@ -126,10 +126,10 @@ fn is_tagged(kind: FluidKind, tag: FluidTagId) -> bool {
 }
 impl PlayerMotion {
     pub fn fluid_height(&self, tag: FluidTagId) -> f64 {
-        self.fluids.interaction.fluid_height(&FluidTags, tag)
+        self.fluids.interaction.fluid_height(tag)
     }
     pub fn is_eye_in_fluid(&self, tag: FluidTagId) -> bool {
-        self.fluids.interaction.is_eye_in_fluid(&FluidTags, tag)
+        self.fluids.interaction.is_eye_in_fluid(tag)
     }
     /// `LocalPlayer.isUnderWater`: `wasUnderwater`, the eye sample `Player.tick`
     /// takes before the base tick (`Entity.isUnderWater` also needs the body
@@ -139,7 +139,7 @@ impl PlayerMotion {
     }
     /// `Entity.isInLava`.
     pub fn is_in_lava(&self) -> bool {
-        !self.fluids.first_tick && self.fluids.interaction.is_in_fluid(&FluidTags, LAVA)
+        !self.fluids.first_tick && self.fluids.interaction.is_in_fluid(LAVA)
     }
     /// The mod fluid the player is deepest in (`isInFluidType`), if any: the
     /// player moves in it as in water, with its numbers.
@@ -433,9 +433,6 @@ impl FluidInteractionWorld for MotionWorld<'_, '_, '_> {
     }
     fn fluid_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32> {
         f.height_at(self, [p.x, p.y, p.z])
-    }
-    fn camera_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32> {
-        f.camera_height_at(self, [p.x, p.y, p.z])
     }
     fn flow(&mut self, f: FluidState, p: BlockPos) -> Result<Vec3> {
         flow_at(self, f, p)

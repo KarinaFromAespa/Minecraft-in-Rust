@@ -6,7 +6,7 @@ use crate::{
         DecodeError, Object,
         aquifer::{AquiferConfig, AquiferSamplers},
         density::DensityRegistry,
-        number_text, required,
+        required,
         router::{NoiseRouter, RouterSamplers},
     },
 };
@@ -27,11 +27,6 @@ enum Definition {
     Sequence(Vec<Arc<Self>>),
     Condition(MaterialCondition, Arc<Self>),
     Reference(Arc<Self>),
-    Ore {
-        blocks: [BlockStateId; 3],
-        chance: f32,
-        roots: [usize; 3],
-    },
 }
 
 /// Definitions are decoded atomically. Density samplers are compiled lazily for
@@ -40,7 +35,6 @@ enum Definition {
 #[derive(Debug)]
 pub struct MaterialRuleLibrary {
     definitions: BTreeMap<String, Arc<Definition>>,
-    roots: Vec<FunctionId>,
     compiler: DensityCompiler,
     compiled: BTreeMap<usize, Arc<MaterialRule>>,
 }
@@ -49,7 +43,7 @@ impl MaterialRuleLibrary {
         definitions: &BTreeMap<String, String>,
         conditions: &MaterialConditionRegistry,
         blocks: &BlockStateJsonCodec<'_>,
-        mut densities: DensityRegistry,
+        densities: DensityRegistry,
         seed: i64,
         legacy: bool,
     ) -> Result<Self, DecodeError> {
@@ -69,17 +63,13 @@ impl MaterialRuleLibrary {
             active: BTreeSet::new(),
             conditions,
             blocks,
-            roots: Vec::new(),
             nodes: 0,
         };
         for name in loader.raw.keys().cloned().collect::<Vec<_>>() {
             loader.resolve(&name, 0)?;
         }
-        let roots = densities
-            .decode_functions(&loader.roots.iter().map(String::as_str).collect::<Vec<_>>())?;
         Ok(Self {
             definitions: loader.values,
-            roots,
             compiler: DensityCompiler::new_seeded(densities.into_graph(), seed, legacy),
             compiled: BTreeMap::new(),
         })
@@ -146,24 +136,6 @@ impl MaterialRuleLibrary {
                 if_true: condition.clone(),
                 then_run: Box::new(MaterialRule::Reference(self.compile(child)?)),
             },
-            Definition::Ore {
-                blocks,
-                chance,
-                roots,
-            } => MaterialRule::OreVein {
-                ore: blocks[0],
-                raw_ore: blocks[1],
-                filler: blocks[2],
-                raw_ore_chance: *chance,
-                density: self.compiler.get_sampler(self.roots[roots[0]])?,
-                richness: self.compiler.get_sampler(self.roots[roots[1]])?,
-                filler_gap: self.compiler.get_sampler(self.roots[roots[2]])?,
-                positive_y: self
-                    .compiler
-                    .graph()
-                    .positive_y_bounds(self.roots[roots[0]])?
-                    .unwrap_or([i32::MIN, i32::MAX]),
-            },
         });
         self.compiled.insert(key, value.clone());
         Ok(value)
@@ -175,7 +147,6 @@ struct Loader<'a, 'b> {
     active: BTreeSet<String>,
     conditions: &'a MaterialConditionRegistry,
     blocks: &'a BlockStateJsonCodec<'b>,
-    roots: Vec<String>,
     nodes: usize,
 }
 impl Loader<'_, '_> {
@@ -242,28 +213,11 @@ impl Loader<'_, '_> {
                     .decode(required(&object, "if_true")?.get())?,
                 self.node(required(&object, "then_run")?, depth + 1)?,
             ),
-            "minecraft:ore_vein" => {
-                let blocks = [
-                    block("ore_block")?,
-                    block("raw_ore_block")?,
-                    block("filler_block")?,
-                ];
-                let chance = number_text(required(&object, "raw_ore_chance")?)?
-                    .parse::<f32>()
-                    .map_err(|_| DecodeError::Field("raw ore chance"))?;
-                if !(0.0..=1.0).contains(&chance) {
-                    return Err(DecodeError::Field("raw ore chance"));
-                }
-                let base = self.roots.len();
-                for name in ["density", "richness", "filler_gap"] {
-                    self.roots.push(required(&object, name)?.get().to_owned());
-                }
-                Definition::Ore {
-                    blocks,
-                    chance,
-                    roots: [base, base + 1, base + 2],
-                }
-            }
+            // No minecraft:ore_vein arm: OreVeinRule is 26.3-only (26.2's
+            // MATERIAL_RULE registry has only bandlands, block, sequence
+            // and condition). 26.2's veins are applied by the generator
+            // after the surface rule, through MaterialRule::OreVein
+            // directly, not through the rule decoder.
             _ => return Err(DecodeError::Field("material rule type")),
         };
         Ok(Arc::new(value))

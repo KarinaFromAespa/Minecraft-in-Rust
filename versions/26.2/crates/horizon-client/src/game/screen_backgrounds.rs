@@ -84,16 +84,24 @@ impl Game<'_> {
             Reason::EndPortal => batch.fill(atlas, 0.0, 0.0, w, h, rgba(20, 20, 20, 255)),
         }
     }
-    /// `GameRenderer.update`'s `requestedPostEffects`: `end_of_frame` (a resource
-    /// pack's own chain), then the server's `LocalPlayer.postEffects`. Only the
-    /// world is drawn through them.
+    /// The post effects `GameRenderer.render` applies after the entity
+    /// outline (`postEffectId != null && effectActive`): `end_of_frame` (a
+    /// resource pack's own chain), then the spectated entity's shader when
+    /// it is active. Only the world is drawn through them. (26.3 added the
+    /// server's `LocalPlayer.postEffects` list between them, built in its
+    /// `GameRenderer.update`; 26.2 has no such list, and its `update` only
+    /// moves the camera.)
     pub(super) fn requested_post_effects(&self) -> Vec<String> {
         if self.title.is_some() || self.player.is_none() {
             return Vec::new();
         }
         std::iter::once("minecraft:end_of_frame".to_owned())
-            .chain(self.post_effects.iter().cloned())
-            .chain(self.spectated_post_effect.map(str::to_owned))
+            .chain(
+                self.spectated_effect_active
+                    .then_some(self.spectated_post_effect)
+                    .flatten()
+                    .map(str::to_owned),
+            )
             .collect()
     }
     /// `Screen.extractBlurredBackground` over the panorama or the world and

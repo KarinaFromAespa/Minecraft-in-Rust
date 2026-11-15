@@ -225,7 +225,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             _ => self.is_signal_source(state) && direction.is_some(),
         }
     }
-    /// `RedstoneWireBlock.canSurvive` and `updateShape`'s down face: the block
+    /// `RedStoneWireBlock.canSurvive` and `updateShape`'s down face: the block
     /// below is read through `support_state`, since a retracting piston's
     /// `moving_piston` block carries the extended base only through its block
     /// entity and its exported facts call every face unsupported (#4728).
@@ -289,7 +289,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         b.table.set_int(state, b.props.power, power)
     }
-    /// `RedstoneWireBlock.getConnectionState`.
+    /// `RedStoneWireBlock.getConnectionState`.
     pub(crate) fn wire_connection_state(&self, state: BlockStateId, pos: BlockPos) -> BlockStateId {
         let b = self.b;
         let table = &b.table;
@@ -362,7 +362,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
         }
     }
-    /// `RedstoneWireBlock.updateIndirectNeighbourShapes`.
+    /// `RedStoneWireBlock.updateIndirectNeighbourShapes`.
     pub(crate) fn wire_update_indirect(
         &mut self,
         state: BlockStateId,

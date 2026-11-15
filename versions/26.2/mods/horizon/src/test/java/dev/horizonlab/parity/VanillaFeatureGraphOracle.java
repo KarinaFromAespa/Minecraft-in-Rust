@@ -15,6 +15,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 
 /** Invokes native block-writing features through an observable mutable world. */
@@ -35,7 +36,7 @@ public final class VanillaFeatureGraphOracle {
                 var f=JsonParser.parseString(line).getAsJsonObject();long seed=f.get("seed").getAsLong();
                 RandomSource random=f.get("legacy").getAsBoolean()?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
                 Optional<Feature> decoded;
-                try {decoded=Feature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(f.get("definition").getAsString())).result();}catch(IllegalArgumentException error){decoded=Optional.empty();}
+                try {decoded=ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(f.get("definition").getAsString())).result();}catch(IllegalArgumentException error){decoded=Optional.empty();}
                 var modifiers=new ArrayList<PlacementModifier>();boolean valid=true;
                 if(f.has("placement"))for(var json:f.getAsJsonArray("placement")) {
                     try {var modifier=PlacementModifier.CODEC.parse(JsonOps.INSTANCE,json).result();if(modifier.isPresent())modifiers.add(modifier.get());else valid=false;}
@@ -63,10 +64,10 @@ public final class VanillaFeatureGraphOracle {
                         }
                     });
                     var p=f.getAsJsonArray("origin");var origin=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());
-                    var placed=new PlacedFeature(Holder.direct(decoded.get()),modifiers);var placer=new FeaturePlacer(world,generator);
+                    var placed=new PlacedFeature(Holder.direct(decoded.get()),modifiers);
                     for(int repeat=0;repeat<f.get("repeats").getAsInt();repeat++) {
                         calls[0]=0;
-                        try {out.println("place "+(f.has("placement")?placer.place(placed,random,origin):decoded.get().place(world,generator,random,origin)));}catch(Stop|IllegalArgumentException error){out.println("place error");}
+                        try {out.println("place "+(f.has("placement")?placed.place(world,generator,random,origin):decoded.get().place(world,generator,random,origin)));}catch(Stop|IllegalArgumentException error){out.println("place error");}
                         out.println("next "+random.nextLong());
                         for(var entry:states.entrySet()){var q=entry.getKey();out.println("stored "+q.getX()+" "+q.getY()+" "+q.getZ()+" "+Block.getId(entry.getValue()));}
                         out.println("end");

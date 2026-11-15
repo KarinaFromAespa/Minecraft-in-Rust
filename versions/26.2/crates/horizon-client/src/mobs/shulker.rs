@@ -561,7 +561,8 @@ pub fn client_tick(m: &mut Mob) {
     ease_peek(m);
     m.body_yaw = 0.0;
 }
-/// `Shulker.setPos`. A shulker's interpolation handler is `NO_OP`, so a move
+/// `Shulker.setPos`. 26.2 has no interpolation handler for shulkers (the
+/// `NO_OP` `createInterpolationHandler` is a 26.3 addition), so a move
 /// packet lands here instead of being stepped. Not a passenger: the position
 /// snaps to the block centre. A block change after the first tick closes the
 /// lid, and, off a vehicle and other than toward the block the current slide
@@ -1016,9 +1017,9 @@ mod tests {
 
     #[test]
     fn a_move_packet_starts_the_teleport_slide() {
-        // Shulker.createInterpolationHandler is NO_OP, so the packet's end
-        // position is setPos. The slide is armed there, from the block before
-        // the packet, and client_tick only counts it down.
+        // 26.2 has no shulker interpolation handler (26.3's is NO_OP), so the
+        // packet's end position is setPos. The slide is armed there, from the
+        // block before the packet, and client_tick only counts it down.
         let mut m = shulker();
         m.age = 10;
         m.position = Vec3::new(0.5, 0.0, 0.5);

@@ -77,13 +77,14 @@ impl Game<'_> {
             return;
         }
         follow_keymap(&mut event);
-        // MacosUtil.setCtrlClickEmulatesRightClick: Control + left click is a right click.
+        // 26.2 has no ctrlClickEmulatesRightClick option: on macOS,
+        // Control + left click is a right click, as GLFW delivers it.
         if let WindowEvent::MouseInput { state, button, .. } = &mut event
             && *button == MouseButton::Left
             && self.right_click_emulation.is_right_click(
                 *state == ElementState::Pressed,
                 self.modifiers.control_key(),
-                cfg!(target_os = "macos") && self.settings.ctrl_click_emulates_right_click,
+                cfg!(target_os = "macos"),
             )
         {
             *button = MouseButton::Right;
@@ -272,7 +273,9 @@ impl ApplicationHandler for Game<'_> {
         // The Window constructor: created fullscreen when options.txt or --fullscreen says so.
         let fullscreen = self.settings.fullscreen || self.options.fullscreen;
         let size = self.options.window_size.map(f64::from);
-        self.fullscreen = horizon_client::window::FullscreenState::new(fullscreen);
+        // 26.2 reads the exclusive option once, at window creation.
+        let exclusive = self.settings.file.bool("exclusiveFullscreen");
+        self.fullscreen = horizon_client::window::FullscreenState::new(fullscreen, exclusive);
         let attributes = horizon_client::window::with_horizon_icon(
             Window::default_attributes().with_title("Horizon"),
         );
@@ -355,12 +358,14 @@ impl ApplicationHandler for Game<'_> {
             if x != 0.0 || y != 0.0 {
                 self.pad_yield_input(event_loop);
             }
-            // MouseHandler.onMove with the pointer grabbed; applied once per frame.
+            // 26.2's `MouseHandler.onMove` computes the motion from two
+            // consecutive absolute positions; winit's device motion is that
+            // delta directly, so it goes through `add_motion`.
             self.note_input(
                 input_trace::InputOrigin::User,
                 input_trace::TraceKind::Motion { x, y },
             );
-            self.mouse.on_move(0.0, 0.0, x, y, true, true);
+            self.mouse.add_motion(x, y);
             self.last_input = Instant::now();
         }
     }

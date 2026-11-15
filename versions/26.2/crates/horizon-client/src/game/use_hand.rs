@@ -85,7 +85,7 @@ impl Game<'_> {
                 self.swing_arm();
                 return Ok(true);
             }
-            if self.use_campfire_douse(hit.pos, held.as_ref())? {
+            if self.use_campfire_douse(hit.pos, held.as_ref(), hit.face)? {
                 self.swing_arm();
                 return Ok(true);
             }
@@ -402,7 +402,6 @@ impl Game<'_> {
                 || self.use_lodestone_compass(hit, &stack)
                 || self.use_map_on_banner(hit, &stack)
                 || self.place_armor_stand(hit, &stack)
-                || self.place_cushion(hit, &stack)
                 || self.place_end_crystal(hit, &stack))
         {
             return Ok(true);
@@ -530,9 +529,9 @@ impl Game<'_> {
         if solid_bucket && !self.creative {
             *self.held_mut() = Some(ItemStack::new("minecraft:bucket", 1));
         }
-        // ItemStack.useOn applies the pre-use stack's component side effects
-        // after the successful placement and its hand replacement.
-        self.apply_use_cooldown(&stack);
+        // 26.2's ItemStack.useOn does not apply the `use_cooldown` component
+        // (26.3 added the side-effects call): a placed block starts no
+        // cooldown.
         Ok(true)
     }
     pub(super) fn apply_consume_effect(&mut self, effect: &horizon_client::items::ConsumeEffect) {

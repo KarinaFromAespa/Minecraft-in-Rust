@@ -1252,8 +1252,8 @@ pub struct Extra {
     pub swim: SwimAnimation,
     /// `ClientAvatarState` of a player: the cloak, bob and walked distance its cape swings with.
     pub avatar: crate::camera::AvatarBob,
-    /// The arm the current swing moves (`currentSwing.hand().asArm`): `Some(true)`
-    /// for the right arm.
+    /// The arm the current swing moves (`ArmedEntityRenderState.attackArm`):
+    /// `Some(true)` for the right arm.
     pub swing_right_arm: Option<bool>,
     /// The current swing is a STAB (`SwingAnimationType` 2): a spear's jab.
     pub swing_stab: bool,
@@ -1535,12 +1535,20 @@ pub struct Mob {
     pub gear_knockback_resistance: Option<f64>,
     pub health: f32,
     pub hurt_time: i32,
-    /// `LivingEntity.damageCooldownTime`: the hurt cooldown, 20 after a hit;
-    /// transient, never saved.
+    /// `Entity.hurtMarked`: set by `LivingEntity.hurtServer` on a fresh hit
+    /// (`markHurt`, skipped only for `#no_impact` — drowning in 26.2) and
+    /// cleared by `ServerEntity.sendChanges` every tick, so it is true only
+    /// until the end of the tick the hurt landed in. 26.2's
+    /// `LookAndFollowTradingPlayerSink` and `TradeWithPlayerGoal` gate on
+    /// `!hurtMarked`, not on the 10-tick hurt window 26.3's
+    /// `wasHurtRecently` reads; a hurt villager or trader may follow its
+    /// customer again from the next tick.
+    pub hurt_marked: bool,
+    /// `LivingEntity.invulnerableTime`: the hurt cooldown, 20 after a hit;
+    /// transient, never saved. (26.3 renamed it `damageCooldownTime` and
+    /// repurposed `invulnerableTime` as a saved temporary-invulnerability
+    /// timer; 26.2 has no such timer.)
     pub invulnerable: i32,
-    /// `Entity.invulnerableTime`, saved as `invulnerable_time`: while above 0
-    /// the mob is invulnerable as with `Invulnerable` (`isTemporarilyInvulnerable`).
-    pub invulnerable_time: i32,
     pub death_time: i32,
     /// `LivingEntity.currentImpulseContextResetGraceTime`: ticks left to keep
     /// the impulse context after a wind charge or mace impulse.
@@ -3180,9 +3188,10 @@ impl PlayerView {
     /// `LivingEntity.getVisibilityPercent`: 1, ×0.8 while discrete
     /// (`isShiftKeyDown`), ×0.7×armor cover (at least 0.1) while invisible,
     /// then ×0.5 when the head slot holds the targeting mob's own head
-    /// (skeleton, zombie, piglin or creeper — 26.2's hardcoded rule; piglin
-    /// brutes are not fooled). Clamped to 0..=10 (`Mth.clamp`). `targeting`
-    /// is null when nobody is looking.
+    /// (skeleton, zombie, piglin or piglin brute, or creeper — 26.2's
+    /// hardcoded rule). 26.2 has no clamp (`Mth.clamp(..., 0, 10)` is
+    /// 26.3's); the value stays in 0.028..1.0 anyway. `targeting` is null
+    /// when nobody is looking.
     pub fn visibility_percent(
         &self,
         targeting: Option<&str>,
@@ -3203,12 +3212,7 @@ impl PlayerView {
                 }
             }
         }
-        // `Mth.clamp`: value < min ? min : Math.min(value, max).
-        if visibility < 0.0 {
-            0.0
-        } else {
-            visibility.min(10.0)
-        }
+        visibility
     }
     /// `LivingEntity.hasEffect`, by id without namespace.
     pub fn has_effect(&self, effect: &str) -> bool {
@@ -3227,8 +3231,6 @@ pub struct MobWorld<'a> {
     pub suffocation: &'a horizon_world::suffocation::SuffocationRegistry<'a>,
     pub data: &'a MobData,
     pub player: Option<PlayerView>,
-    /// `getKnownMovement` of a mob's controlling player passenger, if any.
-    pub controlling_player_movement: Option<Vec3>,
     /// `getNearestPlayer(mob, -1)`: where the nearest non-spectator of every
     /// player in the level stands, alive or not (the despawn distance).
     pub nearest_player: Option<Vec3>,
@@ -3407,8 +3409,8 @@ impl Mob {
             sync_position: false,
             gear_knockback_resistance: None,
             hurt_time: 0,
+            hurt_marked: false,
             invulnerable: 0,
-            invulnerable_time: 0,
             death_time: 0,
             impulse_grace_time: 0,
             age: 0,
@@ -3682,9 +3684,11 @@ impl Mob {
             || self.removed
             || (self.is_invulnerable() && !source.kind.bypasses_invulnerability())
     }
-    /// `Entity.isInvulnerable`: `Invulnerable`, or `invulnerable_time` left.
+    /// `Entity.isInvulnerable`: the `Invulnerable` flag alone. 26.2 has no
+    /// temporary-invulnerability timer; its `invulnerableTime` is the hurt
+    /// cooldown, which never makes a mob invulnerable.
     pub fn is_invulnerable(&self) -> bool {
-        self.invulnerable_flag || self.invulnerable_time > 0
+        self.invulnerable_flag
     }
     /// `LivingEntity.hurtServer`'s partial mob adapter, with health reductions inline.
     /// `damage` by a source with a weapon: `armor_effectiveness` runs the
@@ -3903,6 +3907,13 @@ impl Mob {
                 taken = self.hurt_health(through, &source);
             }
             self.hurt_time = 10;
+            // `LivingEntity.hurtServer` calls `markHurt` on a fresh hit
+            // (`tookFullDamage`) unless the source is `#no_impact` — in 26.2
+            // that tag holds only `minecraft:drown`. Mobs never block, so
+            // the `(!blocked || damage > 0)` arm is always true here.
+            if source.kind != DamageKind::Drown {
+                self.hurt_marked = true;
+            }
             amount
         };
         // LivingEntity.actuallyHurt: a hit that reaches the health is
@@ -4143,7 +4154,12 @@ impl Mob {
         {
             return;
         }
-        if creaking::is_creaking(self) && !creaking::can_move(self) {
+        // `Creaking.knockback`: in 26.2 the creaking overrides only the
+        // 5-argument knockback, so the effect form (6-argument, with damage)
+        // bypasses the canMove gate — an immobile creaking can still be
+        // shoved by a sprint hit or the Knockback enchantment. 26.3 moved the
+        // override to the 6-argument form, gating both.
+        if effect.is_none() && creaking::is_creaking(self) && !creaking::can_move(self) {
             return;
         }
         // The native hook runs first, on the raw strength (NeoForge's `LivingKnockBackEvent` fires

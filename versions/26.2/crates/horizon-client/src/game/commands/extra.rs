@@ -1,6 +1,6 @@
 //! Commands that act on the player and the hosted game rather than the world:
 //! `/spectate` (SpectateCommand), `/waypoint` (WaypointCommand), `/dialog`
-//! (DialogCommand), `/posteffect` (PostEffectCommand), `/kick`,
+//! (DialogCommand), `/kick`,
 //! `/fetchprofile`, `/publish`, `/unpublish`, `/debug`, `/jfr` and
 //! `/version`, with vanilla's feedback and failures.
 use super::{Arg, Context, Game, R, Target, err};
@@ -122,8 +122,6 @@ pub(in crate::game) struct CommandExtras {
     /// `/spectate` for a guest: connection and the camera's network id
     /// (None to stop), taken in the guests' tick.
     pub camera_requests: Vec<(u32, Option<i32>)>,
-    /// ServerPlayer.postEffects, in insertion order.
-    pub post_effects: Vec<String>,
     /// MinecraftServer's tick profiler (`/debug start`): when it started and
     /// the tick count then.
     pub profiler: Option<(Instant, u64)>,
@@ -549,124 +547,6 @@ impl Game<'_> {
         Ok(n)
     }
 
-    // ---- /posteffect ----------------------------------------------------
-
-    /// `ServerPlayer.postEffects` of a player target: a connected player's
-    /// (told to their client at the end of their tick), or the host's own.
-    fn post_effects_of(&self, t: Target) -> Vec<String> {
-        let conn = match t {
-            Target::Guest(conn) => Some(conn),
-            Target::Player => self.lan_acting,
-            _ => return Vec::new(),
-        };
-        match conn {
-            Some(conn) => self
-                .command_guest(conn)
-                .map(|g| g.post_effects.clone())
-                .unwrap_or_default(),
-            None => self.cmds.post_effects.clone(),
-        }
-    }
-
-    /// Changes a player target's `postEffects`; whether `change` did, which
-    /// sets `postEffectsDirty` for the packet.
-    fn change_post_effects(
-        &mut self,
-        t: Target,
-        change: impl FnOnce(&mut Vec<String>) -> bool,
-    ) -> bool {
-        let conn = match t {
-            Target::Guest(conn) => Some(conn),
-            Target::Player => self.lan_acting,
-            _ => return false,
-        };
-        match conn {
-            Some(conn) => {
-                let Some(g) = self.lan.as_mut().and_then(|h| h.hub.guest_mut(conn)) else {
-                    return false;
-                };
-                let changed = change(&mut g.post_effects);
-                g.post_effects_dirty |= changed;
-                changed
-            }
-            None => change(&mut self.cmds.post_effects),
-        }
-    }
-
-    pub(super) fn cmd_posteffect(&mut self, id: &str, ctx: &Context) -> R<i32> {
-        if id == "posteffect.list" {
-            let t = self.one_entity(ctx, "target", true)?;
-            let name = self.target_name(t);
-            let effects = self.post_effects_of(t);
-            if effects.is_empty() {
-                self.feedback(Text::translate("commands.posteffect.list.empty", &[name]));
-            } else {
-                self.feedback(Text::translate(
-                    "commands.posteffect.list.success",
-                    &[name, num(effects.len()), Text::literal(effects.join(", "))],
-                ));
-            }
-            return Ok(effects.len() as i32);
-        }
-        let targets = self.entities(ctx, "targets", true)?;
-        let effect = match ctx.get("posteffect") {
-            Some(Arg::Resource(s)) => s.clone(),
-            _ => String::new(),
-        };
-        let mut changed: Vec<Target> = Vec::new();
-        for t in &targets {
-            let done = self.change_post_effects(*t, |list| match id {
-                // ServerPlayer.addPostEffect.
-                "posteffect.add" => {
-                    if list.contains(&effect) {
-                        false
-                    } else {
-                        list.push(effect.clone());
-                        true
-                    }
-                }
-                // ServerPlayer.removePostEffect.
-                "posteffect.remove" => match list.iter().position(|e| *e == effect) {
-                    Some(i) => {
-                        list.remove(i);
-                        true
-                    }
-                    None => false,
-                },
-                // ServerPlayer.clearPostEffects.
-                _ => !std::mem::take(list).is_empty(),
-            });
-            if done {
-                changed.push(*t);
-            }
-        }
-        let key = id.trim_start_matches("posteffect.");
-        if changed.is_empty() {
-            return Err(err(&format!("commands.posteffect.{key}.failed"), &[]));
-        }
-        let n = changed.len() as i32;
-        let effect_text = Text::literal(effect);
-        let message = match (key, n) {
-            ("clear", 1) => Text::translate(
-                "commands.posteffect.clear.success.single",
-                &[self.target_name(changed[0])],
-            ),
-            ("clear", _) => {
-                Text::translate("commands.posteffect.clear.success.multiple", &[num(n)])
-            }
-            (_, 1) => Text::translate(
-                &format!("commands.posteffect.{key}.success.single"),
-                &[effect_text, self.target_name(changed[0])],
-            ),
-            _ => Text::translate(
-                &format!("commands.posteffect.{key}.success.multiple"),
-                &[effect_text, num(n)],
-            ),
-        };
-        self.feedback(message);
-        Ok(n)
-    }
-
     // ---- /test ----------------------------------------------------------
 
     /// `TestCommand`: running, resetting and clearing tests is
@@ -968,8 +848,20 @@ impl Game<'_> {
             guest_commands: allow,
             force_game_mode: false,
         };
+        // `PublishCommand`: the gamemode argument is the type set for other
+        // players (`IntegratedServer.publishServer`'s nullable GameType);
+        // absent, the world's default applies.
+        let game_type = match ctx.get("gamemode") {
+            Some(Arg::GameMode(m)) => Some(match m {
+                horizon_client::command::args::GameMode::Survival => 0,
+                horizon_client::command::args::GameMode::Creative => 1,
+                horizon_client::command::args::GameMode::Adventure => 2,
+                horizon_client::command::args::GameMode::Spectator => 3,
+            }),
+            _ => None,
+        };
         // A dedicated server is open from the start (`published` above).
-        let started = self.serving() && self.publish(settings).is_ok();
+        let started = self.serving() && self.publish(settings, game_type).is_ok();
         if !started {
             return Err(err("commands.publish.failed", &[]));
         }

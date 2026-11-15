@@ -352,7 +352,6 @@ struct Kept {
         Option<Tag>,
         Option<(String, [i32; 3])>,
         bool,
-        Vec<String>,
         horizon_world::attachments::Attachments,
     )>,
     dimension: String,
@@ -403,7 +402,6 @@ impl Kept {
                     g.saved.clone(),
                     g.last_death.clone(),
                     g.seen_credits,
-                    g.post_effects.clone(),
                     g.attachments.clone(),
                 )
             }),
@@ -465,14 +463,9 @@ impl Kept {
             (Some(mine), None) => g.loaded_body = Some(mine),
             (None, _) => {}
         }
-        if let Some((saved, death, credits, post, attachments)) = self.other {
-            (
-                g.saved,
-                g.last_death,
-                g.seen_credits,
-                g.post_effects,
-                g.attachments,
-            ) = (saved, death, credits, post, attachments);
+        if let Some((saved, death, credits, attachments)) = self.other {
+            (g.saved, g.last_death, g.seen_credits, g.attachments) =
+                (saved, death, credits, attachments);
         }
         // The client is in one dimension, and only a login can change it.
         g.dimension = self.dimension;

@@ -6,39 +6,34 @@ import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.item.crafting.BrewingInput;
-import net.minecraft.world.item.crafting.BrewingRecipe;
-import net.minecraft.world.item.crafting.PotionIngredient;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.RecipePropertySet;
-import net.minecraft.world.item.crafting.RecipeType;
 
 /**
- * Original oracle for the brewing recipes: a real `RecipeManager` over the
- * vanilla data pack, its `brewing_input`/`brewing_reagent` property sets, the
- * three brewing-slot filters, and the first matching `BrewingRecipe`'s
- * `assemble`. Fixture lines are "input-snbt reagent-snbt candidate-snbt";
- * "tick" lines build a brewing stand in a block-update world and call the real
+ * Oracle for 26.2's brewing: a real `PotionBrewing` over the vanilla
+ * registries, the three brewing-slot filters, and `mix`. Fixture lines are
+ * "input-snbt reagent-snbt candidate-snbt"; "tick" lines build a brewing
+ * stand in a block-update world and call the real
  * `BrewingStandBlockEntity.serverTick`, printing the slots, brew time, fuel,
- * speed, bottle bits, ingredient and brew-event count.
+ * bottle bits, ingredient and brew-event count. 26.2 has no
+ * `minecraft:brewing` recipes, no `BrewingRecipe`/`PotionIngredient` classes
+ * and no brewing property sets — brewing is `PotionBrewing`'s hardcoded
+ * mixes alone.
  */
 public final class VanillaBrewingOracle {
-    @SuppressWarnings("unchecked")
     public static void main(String[] args) throws Exception {
         ParityData.init();
         VanillaBlockUpdateOracle.AIR = Blocks.AIR.defaultBlockState();
@@ -47,15 +42,7 @@ public final class VanillaBrewingOracle {
         unsafeField.setAccessible(true);
         VanillaBlockUpdateOracle.unsafe = unsafeField.get(null);
         VanillaBlockUpdateOracle.allocate = allocator.getMethod("allocateInstance", Class.class);
-        var recipes = new RecipeManager(ParityData.lookup);
-        recipes.finalizeRecipeLoading(FeatureFlags.VANILLA_SET);
-        VanillaBlockUpdateOracle.Server.recipes = recipes;
-        List<RecipeHolder<BrewingRecipe>> brewing = recipes.getRecipes().stream()
-                .filter(h -> h.value() instanceof BrewingRecipe)
-                .map(h -> (RecipeHolder<BrewingRecipe>) h)
-                .toList();
-        var inputs = recipes.propertySet(RecipePropertySet.BREWING_INPUTS);
-        var reagents = recipes.propertySet(RecipePropertySet.BREWING_REAGENTS);
+        var brewing = PotionBrewing.bootstrap(FeatureFlags.VANILLA_SET);
         Path in = Path.of(args[0]), out = Path.of(args[1]);
         int n = 0;
         try (var w = new PrintWriter(Files.newBufferedWriter(out, StandardCharsets.UTF_8));
@@ -64,23 +51,27 @@ public final class VanillaBrewingOracle {
                 if (line.startsWith("#")) continue;
                 String[] f = line.split(" ");
                 if (f[0].equals("tick")) {
-                    w.println(tick(n, f, recipes));
+                    w.println(tick(n, f, brewing));
                     n++;
                     continue;
                 }
                 ItemStack input = ParityData.stack(f[0]);
                 ItemStack reagent = ParityData.stack(f[1]);
                 ItemStack candidate = ParityData.stack(f[2]);
-                boolean potionSlot = !candidate.isEmpty() && PotionIngredient.isPotionInput(candidate, recipes);
-                boolean reagentSlot = !candidate.isEmpty() && reagents.test(candidate);
-                boolean fuelSlot = !candidate.isEmpty() && candidate.has(DataComponents.BREWING_FUEL);
-                var brewingInput = new BrewingInput(input, reagent);
-                Optional<RecipeHolder<BrewingRecipe>> found = brewing.stream()
-                        .filter(h -> h.value().matches(brewingInput))
-                        .findFirst();
-                String result = found.map(h -> ParityData.canon(h.value().assemble(brewingInput))).orElse("-");
-                String id = found.map(h -> h.id().identifier().toString()).orElse("-");
-                w.println(n + " " + potionSlot + " " + reagentSlot + " " + fuelSlot + " " + result + " " + id);
+                // BrewingStandBlockEntity.canPlaceItem, slots 0-2 (item part).
+                boolean potionSlot = !candidate.isEmpty()
+                        && (candidate.is(Items.POTION) || candidate.is(Items.SPLASH_POTION)
+                            || candidate.is(Items.LINGERING_POTION) || candidate.is(Items.GLASS_BOTTLE));
+                boolean reagentSlot = !candidate.isEmpty() && brewing.isIngredient(candidate);
+                boolean fuelSlot = !candidate.isEmpty() && candidate.is(ItemTags.BREWING_FUEL);
+                // PotionBrewing.mix returns the source itself when nothing
+                // matches, and a fresh stack when a mix does.
+                String result = "-";
+                if (!input.isEmpty() && !reagent.isEmpty()) {
+                    ItemStack mixed = brewing.mix(reagent, input);
+                    if (mixed != input) result = ParityData.canon(mixed);
+                }
+                w.println(n + " " + potionSlot + " " + reagentSlot + " " + fuelSlot + " " + result);
                 n++;
             }
         }
@@ -98,16 +89,13 @@ public final class VanillaBrewingOracle {
     }
 
     /** One brewing-stand tick run: initial slots/fields, `ticks` serverTick calls, final state. */
-    private static String tick(int n, String[] f, RecipeManager recipes) throws Exception {
+    private static String tick(int n, String[] f, PotionBrewing brewing) throws Exception {
         int ticks = Integer.parseInt(f[1]);
         ItemStack[] slots = new ItemStack[5];
         for (int i = 0; i < 5; i++) slots[i] = ParityData.stack(f[2 + i]);
         int brewTime = Integer.parseInt(f[7]);
         int fuel = Integer.parseInt(f[8]);
-        int totalBrew = Integer.parseInt(f[9]);
-        int totalFuel = Integer.parseInt(f[10]);
-        float speed = Float.parseFloat(f[11]);
-        String ingredient = f[12];
+        String ingredient = f[9];
 
         JsonObject caseJson = new JsonObject();
         JsonArray cells = new JsonArray();
@@ -121,15 +109,17 @@ public final class VanillaBrewingOracle {
         caseJson.addProperty("seed", 0);
         VanillaBlockUpdateOracle.World w = VanillaBlockUpdateOracle.build(caseJson);
         w.registries = ParityData.access;
+        // serverTick reads level.potionBrewing(), which reads the server
+        // level's own server field and the server's brewing field — both
+        // null on the allocated instances, so wire them up.
+        VanillaBlockUpdateOracle.set(ServerLevel.class, w, "server", w.server);
+        VanillaBlockUpdateOracle.set(MinecraftServer.class, w.server, "potionBrewing", brewing);
         var pos = new BlockPos(0, 0, 0);
         BlockState state = w.getBlockState(pos);
         var be = (BrewingStandBlockEntity) w.getBlockEntity(pos);
         for (int i = 0; i < 5; i++) be.setItem(i, slots[i]);
         setInt(be, BrewingStandBlockEntity.class, "brewTime", brewTime);
         setInt(be, BrewingStandBlockEntity.class, "fuel", fuel);
-        setInt(be, BrewingStandBlockEntity.class, "totalBrewTime", totalBrew);
-        setInt(be, BrewingStandBlockEntity.class, "totalFuel", totalFuel);
-        field(BrewingStandBlockEntity.class, "speedMultiplier").setFloat(be, speed);
         Item ingredientItem = ingredient.equals("-") ? null
                 : BuiltInRegistries.ITEM.getValue(Identifier.parse(ingredient));
         field(BrewingStandBlockEntity.class, "ingredient").set(be, ingredientItem);
@@ -142,10 +132,6 @@ public final class VanillaBrewingOracle {
         for (int i = 0; i < 5; i++) sb.append(" s").append(i).append('=').append(ParityData.canon(be.getItem(i)));
         sb.append(" time=").append(field(BrewingStandBlockEntity.class, "brewTime").getInt(be))
           .append(" fuel=").append(field(BrewingStandBlockEntity.class, "fuel").getInt(be))
-          .append(" total=").append(field(BrewingStandBlockEntity.class, "totalBrewTime").getInt(be))
-          .append(" totalfuel=").append(field(BrewingStandBlockEntity.class, "totalFuel").getInt(be))
-          .append(" speed=").append(String.format(Locale.ROOT, "%.3f",
-                  field(BrewingStandBlockEntity.class, "speedMultiplier").getFloat(be)))
           .append(" bits=");
         for (int i = 0; i < 3; i++) sb.append(be.getItem(i).isEmpty() ? '0' : '1');
         Item ing = (Item) field(BrewingStandBlockEntity.class, "ingredient").get(be);

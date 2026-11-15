@@ -23,8 +23,9 @@ impl Game<'_> {
             && item_use::consumes_at_once(consumable.ticks())
         {
             if self.remote.is_none() {
-                // the cooldown of ItemStack.use's applyAfterUseComponentSideEffects.
-                self.apply_use_cooldown(&stack);
+                // 26.2's ItemStack.use does not apply the `use_cooldown`
+                // component, so a 0-tick consumable starts no cooldown; only
+                // finishUsingItem (a timed consume) applies the side effects.
                 self.finish_consuming(info, consumable, &stack);
             }
             return true;

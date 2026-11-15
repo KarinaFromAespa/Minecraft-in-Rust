@@ -335,8 +335,8 @@ pub fn main() -> Result<()> {
                 a.was_touching_water,
                 a.was_eye_in_water,
                 a.first_tick,
-                a.fluids.fluid_height(&Tags, WATER).to_bits(),
-                a.fluids.fluid_height(&Tags, LAVA).to_bits(),
+                a.fluids.fluid_height(WATER).to_bits(),
+                a.fluids.fluid_height(LAVA).to_bits(),
                 a.removed,
                 arrow.critical(),
                 a.fall_distance.to_bits(),
@@ -354,19 +354,4 @@ pub fn main() -> Result<()> {
         writeln!(out, "end")?;
     }
     Ok(())
-}
-struct Tags;
-impl horizon_world::entity_fluid::FluidMembership for Tags {
-    fn fluid_in_tag(
-        &self,
-        kind: horizon_world::fluid::FluidKind,
-        tag: horizon_world::entity_fluid::FluidTagId,
-    ) -> bool {
-        use horizon_world::fluid::FluidKind;
-        if tag == WATER {
-            matches!(kind, FluidKind::Water | FluidKind::FlowingWater)
-        } else {
-            matches!(kind, FluidKind::Lava | FluidKind::FlowingLava)
-        }
-    }
 }

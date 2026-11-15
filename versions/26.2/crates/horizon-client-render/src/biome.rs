@@ -22,37 +22,45 @@ pub struct SpawnEntry {
     pub weight: u32,
     pub min: u32,
     pub max: u32,
-    /// A `ConstantInt` count (sampling draws nothing).
-    pub constant: bool,
 }
-/// A `natural_mob_spawns` / `spawn_overrides` entry list.
+/// A `natural_mob_spawns` / `spawn_overrides` entry list. 26.2's
+/// `SpawnerData` is `(type, minCount, maxCount)` — the count is always
+/// `min + random.nextInt(1 + max - min)`, a draw even when `min == max`;
+/// there is no constant provider. The 26.3 `count` forms (a bare number, a
+/// `minecraft:constant` or a `minecraft:uniform`) read the same way, so a
+/// content mod's rewritten entries parse identically.
 pub fn parse_entries(list: &Value) -> Vec<SpawnEntry> {
     list.as_array()
         .into_iter()
         .flatten()
         .filter_map(|e| {
-            let count = &e["count"];
-            let (min, max, constant) = match count {
-                Value::Number(n) => {
-                    let n = n.as_u64().unwrap_or(1) as u32;
-                    (n, n, true)
+            let (min, max) = if e["minCount"].is_number() || e["maxCount"].is_number() {
+                (
+                    e["minCount"].as_u64().unwrap_or(1) as u32,
+                    e["maxCount"].as_u64().unwrap_or(1) as u32,
+                )
+            } else {
+                let count = &e["count"];
+                match count {
+                    Value::Number(n) => {
+                        let n = n.as_u64().unwrap_or(1) as u32;
+                        (n, n)
+                    }
+                    c if c["type"].as_str() == Some("minecraft:constant") => {
+                        let n = c["value"].as_u64().unwrap_or(1) as u32;
+                        (n, n)
+                    }
+                    c => (
+                        c["min_inclusive"].as_u64().unwrap_or(1) as u32,
+                        c["max_inclusive"].as_u64().unwrap_or(1) as u32,
+                    ),
                 }
-                c if c["type"].as_str() == Some("minecraft:constant") => {
-                    let n = c["value"].as_u64().unwrap_or(1) as u32;
-                    (n, n, true)
-                }
-                c => (
-                    c["min_inclusive"].as_u64().unwrap_or(1) as u32,
-                    c["max_inclusive"].as_u64().unwrap_or(1) as u32,
-                    false,
-                ),
             };
             Some(SpawnEntry {
                 entity: e["type"].as_str()?.to_owned(),
                 weight: e["weight"].as_u64().unwrap_or(1) as u32,
                 min,
                 max,
-                constant,
             })
         })
         .collect()
@@ -241,13 +249,31 @@ impl BiomeInfo {
             let list = parse_entries(entries);
             spawns.insert(category.clone(), list);
         }
+        // 26.2 has no `natural_mob_spawns` attribute: the spawns live in the
+        // biome file itself, under top-level `spawners` (per category,
+        // `minCount`/`maxCount`), with `spawn_costs` and
+        // `creature_spawn_probability` alongside. A content mod's rewritten
+        // attribute (above) wins when one is present.
+        let mut spawn_costs = parse_costs(&natural["spawn_costs"]);
+        if spawns.is_empty() {
+            for (category, entries) in v["spawners"].as_object().into_iter().flatten() {
+                let list = parse_entries(entries);
+                spawns.insert(category.clone(), list);
+            }
+        }
+        if spawn_costs.is_empty() {
+            spawn_costs = parse_costs(&v["spawn_costs"]);
+        }
+        let creature_probability = v["creature_spawn_probability"]
+            .as_f64()
+            .or_else(|| {
+                attributes["minecraft:gameplay/creature_world_gen_spawn_probability"].as_f64()
+            })
+            .unwrap_or(0.1) as f32;
         BiomeInfo {
             spawns,
-            spawn_costs: parse_costs(&natural["spawn_costs"]),
-            creature_probability:
-                attributes["minecraft:gameplay/creature_world_gen_spawn_probability"]
-                    .as_f64()
-                    .unwrap_or(0.1) as f32,
+            spawn_costs,
+            creature_probability,
             increased_fire_burnout: attributes["minecraft:gameplay/increased_fire_burnout"]
                 .as_bool()
                 .unwrap_or(false),

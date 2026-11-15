@@ -4,7 +4,6 @@ import com.mojang.serialization.JsonOps;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
-import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.levelgen.*;
@@ -23,10 +22,11 @@ public final class VanillaRuleTestOracle {
                 RandomSource random=f.get("legacy").getAsBoolean()?new LegacyRandomSource(seed):new XoroshiroRandomSource(seed);
                 var decoded=RuleTest.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(f.get("definition").getAsString())).result();
                 if(decoded.isEmpty())out.println("decode error");else {
-                    out.println("decode ok");int index=0;var heights=f.getAsJsonArray("heights");
+                    out.println("decode ok");
                     for(int repeat=0;repeat<f.get("repeats").getAsInt();repeat++)for(var state:f.getAsJsonArray("states")) {
-                        int y=heights.get(index++%heights.size()).getAsInt();
-                        boolean result=decoded.get().test(Block.stateById(state.getAsInt()),new BlockPos(17,y,-33),random);
+                        // 26.2's RuleTest.test takes no position: there is no
+                        // height test and no allOf/anyOf/not combinator.
+                        boolean result=decoded.get().test(Block.stateById(state.getAsInt()),random);
                         out.println("test "+result+" "+random.nextLong());
                     }
                 }

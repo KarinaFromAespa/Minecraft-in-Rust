@@ -58,7 +58,9 @@ impl DebugHost for Host<'_, '_> {
             g.pause_focus = None;
             g.screen = Screen::Paused;
             g.capture(false);
-            g.mining = None;
+            // `Minecraft.pauseGame` in 26.2 does not stop the destroy block
+            // (26.3 added `gameMode.stopDestroyBlock()` there): a dig in
+            // progress survives the pause, so `mining` stays.
         }
     }
     fn debug_action(&mut self, action: DebugAction, shift: bool) -> bool {
@@ -1062,11 +1064,6 @@ impl Game<'_> {
             let (min, max) = f.bounds();
             let centre = std::array::from_fn(|i| (min[i] + max[i]) / 2.0);
             g.entity_box(min, max, centre, 0.0, false, step_view(f.step()));
-        }
-        for c in &self.cushions {
-            let (min, max) = c.bounds();
-            let p = c.position;
-            g.entity_box(min, max, [p.x, p.y, p.z], 0.2125, false, (0.0, c.yaw));
         }
         // Interaction: EntityDimensions.scalable(width, height), so its eyes
         // are at 0.85 of the height. Its rotation is not kept here.

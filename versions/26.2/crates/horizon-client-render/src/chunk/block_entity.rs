@@ -34,7 +34,6 @@ pub struct Furnace {
     pub lit_total: i32,
     pub cooking_timer: i32,
     pub cooking_total: i32,
-    pub speed: f32,
     /// `AbstractFurnaceBlockEntity.recipesUsed`: how many of each recipe this furnace has
     /// made since a player last took from its output. The experience is owed per recipe
     /// rather than per item, and a save keeps it as the `RecipesUsed` compound.
@@ -473,14 +472,13 @@ impl Jukebox {
     }
 }
 /// `BrewingStandBlockEntity` state. Slots: 0-2 bottles, 3 ingredient, 4 fuel.
+/// 26.2 has no total-brew/total-fuel fields and no speed multiplier (26.3's
+/// `BrewingFuel` component): fuel is 20 uses, a brew is a flat 400 ticks.
 #[derive(Clone, Debug, Default)]
 pub struct BrewingStand {
     pub items: [Option<ItemStack>; 5],
     pub brew_time: i32,
-    pub total_brew_time: i32,
     pub fuel: i32,
-    pub total_fuel: i32,
-    pub speed: f32,
     pub ingredient: Option<Arc<str>>,
     pub last_bottles: Option<[bool; 3]>,
 }
@@ -511,8 +509,6 @@ pub struct SignData {
     pub front: SignText,
     pub back: SignText,
     pub waxed: bool,
-    /// `allow_op_features`: the sign's click events may run commands.
-    pub allow_op_features: bool,
 }
 /// `VibrationInfo`.
 #[derive(Clone, Copy, Debug, PartialEq)]

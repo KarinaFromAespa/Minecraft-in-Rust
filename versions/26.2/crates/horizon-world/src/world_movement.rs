@@ -55,7 +55,7 @@ where
     let entities = world
         .entity_collisions(
             request.entity,
-            entity_collision_bounds(request.movement, request.bounds, request.max_step),
+            entity_collision_bounds(request.movement, request.bounds),
         )
         .map_err(CollisionScanError::World)?;
     // Vanilla walks the whole box a movement expands to with no candidate

@@ -243,6 +243,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fall = match d["fall"].as_str().unwrap() {
             "Block" => FallDefinition::Default,
             "HayBlock" => FallDefinition::Hay,
+            "BedBlock" => FallDefinition::Bed,
             "HoneyBlock" => FallDefinition::Honey {
                 volume: single(&d["volume"]),
                 pitch: single(&d["pitch"]),

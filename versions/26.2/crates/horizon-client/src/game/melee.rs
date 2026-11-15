@@ -74,9 +74,8 @@ impl Game<'_> {
             state: None,
             at,
             spread,
-            speed: [0.0; 3],
+            speed: 0.0,
             count: 0,
-            randomization: 0,
         });
     }
 
@@ -172,7 +171,6 @@ impl Game<'_> {
         }
         if self.attack_frame()
             || self.attack_armor_stand()
-            || self.attack_cushion()
             || self.attack_boat()
             || self.attack_cart()
             || self.attack_dragon()
@@ -318,9 +316,8 @@ impl Game<'_> {
                     state: None,
                     at: [feet[0], feet[1] + height * 0.5, feet[2]],
                     spread: [0.1, 0.0, 0.1],
-                    speed: [0.2; 3],
+                    speed: 0.2,
                     count: (actual * 0.5) as u32 as i32,
-                    randomization: 0,
                 });
             }
             self.last_hurt_by_player

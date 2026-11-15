@@ -1,9 +1,9 @@
-//! The system clipboard and the text-editing shortcuts of 26.3:
+//! The system clipboard and the text-editing shortcuts of 26.2:
 //! `KeyboardHandler.getClipboard`/`setClipboard`, `InputWithModifiers.isSelectAll`,
 //! `isCopy`, `isPaste` and `isCut`, `StringUtil.filterText` and
 //! `ChatFormatting.stripFormatting`.
 
-use winit::keyboard::{Key, KeyCode, PhysicalKey};
+use winit::keyboard::{KeyCode, PhysicalKey};
 
 /// A text-editing shortcut (`InputWithModifiers.isSelectAll`, `isCopy`,
 /// `isPaste`, `isCut`).
@@ -15,26 +15,43 @@ pub enum EditShortcut {
     Cut,
 }
 
-/// The letter a key stands for in shortcuts (`KeyEvent.shortcutKey`, SDL's
-/// keycode): the layout's letter, or the key's US-layout letter when the
-/// layout's is not a Latin one (SDL's default `latin_letters` keycode option).
-pub fn shortcut_letter(logical: &Key, physical: PhysicalKey) -> Option<char> {
-    if let Key::Character(s) = logical {
-        let mut chars = s.chars();
-        if let (Some(c), None) = (chars.next(), chars.next())
-            && c.is_ascii_alphabetic()
-        {
-            return Some(c.to_ascii_lowercase());
-        }
-    }
+/// The letter a key stands for in shortcuts (`KeyEvent.key`, the GLFW key):
+/// the key's US-layout letter, by position, whatever the layout types there.
+/// 26.2's shortcuts compare `input()` against the GLFW codes — A/C/V/X
+/// (65/67/86/88) for the edit shortcuts, B (66) for the narrator hotkey — so
+/// on AZERTY the key at Q's position is Q, not the A it types. (26.3 switched
+/// to SDL's layout-dependent `shortcutKey`.)
+pub fn shortcut_letter(physical: PhysicalKey) -> Option<char> {
     let PhysicalKey::Code(code) = physical else {
         return None;
     };
     Some(match code {
         KeyCode::KeyA => 'a',
+        KeyCode::KeyB => 'b',
         KeyCode::KeyC => 'c',
+        KeyCode::KeyD => 'd',
+        KeyCode::KeyE => 'e',
+        KeyCode::KeyF => 'f',
+        KeyCode::KeyG => 'g',
+        KeyCode::KeyH => 'h',
+        KeyCode::KeyI => 'i',
+        KeyCode::KeyJ => 'j',
+        KeyCode::KeyK => 'k',
+        KeyCode::KeyL => 'l',
+        KeyCode::KeyM => 'm',
+        KeyCode::KeyN => 'n',
+        KeyCode::KeyO => 'o',
+        KeyCode::KeyP => 'p',
+        KeyCode::KeyQ => 'q',
+        KeyCode::KeyR => 'r',
+        KeyCode::KeyS => 's',
+        KeyCode::KeyT => 't',
+        KeyCode::KeyU => 'u',
         KeyCode::KeyV => 'v',
+        KeyCode::KeyW => 'w',
         KeyCode::KeyX => 'x',
+        KeyCode::KeyY => 'y',
+        KeyCode::KeyZ => 'z',
         _ => return None,
     })
 }
@@ -358,14 +375,22 @@ mod tests {
     }
 
     #[test]
-    fn the_layout_letter_decides_and_non_latin_layouts_use_the_position() {
-        let q = PhysicalKey::Code(KeyCode::KeyQ);
-        // AZERTY: the key at Q's position types an A.
-        assert_eq!(shortcut_letter(&Key::Character("a".into()), q), Some('a'));
-        // Russian: the key at C's position types с.
-        let c = PhysicalKey::Code(KeyCode::KeyC);
-        assert_eq!(shortcut_letter(&Key::Character("с".into()), c), Some('c'));
-        assert_eq!(shortcut_letter(&Key::Character("C".into()), q), Some('c'));
+    fn the_position_decides_whatever_the_layout_types_there() {
+        // AZERTY: the key at Q's position types an A, but 26.2 sees GLFW_KEY_Q.
+        assert_eq!(
+            shortcut_letter(PhysicalKey::Code(KeyCode::KeyQ)),
+            Some('q')
+        );
+        // Russian: the key at C's position types с, but 26.2 sees GLFW_KEY_C.
+        assert_eq!(
+            shortcut_letter(PhysicalKey::Code(KeyCode::KeyC)),
+            Some('c')
+        );
+        assert_eq!(
+            shortcut_letter(PhysicalKey::Code(KeyCode::KeyB)),
+            Some('b')
+        );
+        assert_eq!(shortcut_letter(PhysicalKey::Code(KeyCode::Digit1)), None);
     }
 
     #[test]

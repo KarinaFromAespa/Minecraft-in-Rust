@@ -130,8 +130,8 @@ pub fn no_culling(width: f32, height: f32) -> bool {
     width == 0.0 || height == 0.0
 }
 
-/// `Display.updateCulling` / `getInterpolatedBoundingBox` at an interpolated
-/// origin: the AABB from `(x − width/2, y, z − width/2)` to
+/// `Display.updateCulling` / `getBoundingBox` at the tick origin: the AABB
+/// from `(x − width/2, y, z − width/2)` to
 /// `(x + width/2, y + height, z + width/2)`.
 pub fn culling_box(origin: glam::DVec3, width: f32, height: f32) -> (glam::DVec3, glam::DVec3) {
     let half = f64::from(width) * 0.5;
@@ -512,7 +512,9 @@ pub const CORNERS: [usize; 4] = [5, 2, 1, 0];
 
 /// `TextDisplayRenderer.submitInner` after its `translate(1 - width / 2,
 /// -height, 0)`: the background and each line, in text units, each quad's
-/// `depth` its z (the background 0.01 behind, `Font.prepareBackground`).
+/// `depth` its z (the background 0.01 behind, the inlined background at
+/// `TEXT_BACKGROUND_OFFSET`; 26.3 factored it out as
+/// `Font.prepareBackground`).
 /// `default_background` is `Options.getBackgroundOpacity(0.25)` as a colour.
 pub fn draw(
     batch: &mut crate::hud::HudBatch,
@@ -532,7 +534,8 @@ pub fn draw(
         let start = batch.vertices.len();
         batch.fill(
             atlas,
-            // submitTextBackground(-1, -1, width, height): corners, not a size.
+            // The background quad (-1, -1, width, height): corners, not a
+            // size; 26.2 inlines it as custom geometry at TEXT_BACKGROUND_OFFSET.
             -1.0,
             -1.0,
             width + 1.0,

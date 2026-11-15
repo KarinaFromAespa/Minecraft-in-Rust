@@ -58,8 +58,6 @@ pub(super) struct TestDef {
     /// `TestData.maxAttempts` and `requiredSuccesses`.
     pub(super) max_attempts: i32,
     pub(super) required_successes: i32,
-    /// The dimension the test runs in (`TestData.dimension`).
-    pub(super) dimension: String,
     description: Text,
 }
 
@@ -76,7 +74,6 @@ impl TestDef {
             block_based,
             function: None,
             environment: "minecraft:default".into(),
-            dimension: "minecraft:overworld".into(),
             max_ticks,
             setup_ticks,
             max_attempts: 1,
@@ -91,7 +88,6 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
     let string = |key: &str| json.get(key).and_then(|v| v.as_str());
     let structure = string("structure")?.to_owned();
     let environment = string("environment")?.to_owned();
-    let dimension = string("dimension").unwrap_or("minecraft:overworld");
     let function = string("function");
     // `ExtraCodecs.POSITIVE_INT`, 1 when absent.
     let positive = |key: &str| {
@@ -101,7 +97,7 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
             .clamp(1, i64::from(i32::MAX)) as i32
     };
     // GameTestInstance.describe: the type, the function (function tests
-    // only), then the structure, batch and dimension.
+    // only), then the structure and the batch.
     let block_based = string("type") == Some("minecraft:block_based");
     let mut description = Text::translate(
         "test_instance.description.type",
@@ -121,8 +117,7 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
     }
     description = description
         .append(row("test_instance.description.structure", &structure))
-        .append(row("test_instance.description.batch", &environment))
-        .append(row("test_instance.description.dimension", dimension));
+        .append(row("test_instance.description.batch", &environment));
     Some(TestDef {
         structure,
         rotation: string("rotation")
@@ -144,7 +139,6 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
         block_based,
         function: function.map(str::to_owned),
         environment: environment.clone(),
-        dimension: dimension.to_owned(),
         max_ticks: json
             .get("max_ticks")
             .and_then(|v| v.as_i64())
@@ -701,7 +695,7 @@ impl Game<'_> {
             &[Text::literal(key.clone())],
         ));
         let id = self.game_tests.next_id();
-        let info = Info::new(id, key, def, Some(pos), self.dim, rotation);
+        let info = Info::new(id, key, def, Some(pos), rotation);
         self.track_and_start_runner(vec![info], false, None, false);
     }
 }

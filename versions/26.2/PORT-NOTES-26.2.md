@@ -330,6 +330,12 @@ blocked earlier, at VanillaHeightmapOracle.
   `ServerboundAcceptTeleportationPacket` gains a parameter.
 - game_loop: `LocalPlayer` constructor, `MouseHandler.onMove` / `onScroll`
   access, and the input `Type.KEYBOARD` constant all differ.
+- furnace: `VanillaFurnaceOracle` still reflects 26.3's
+  `AbstractFurnaceBlockEntity.speedMultiplier` (set + read) and the
+  driver still sends/expects a SPEED field; 26.2 has no fuel speed.
+  The Rust side is ported (rank-2 item 154) and the fixture accepts
+  and ignores SPEED, but the harness cannot run against 26.2 until
+  the oracle + driver drop speed.
 - tab_list (`tools/test_tab_list_parity.py`, outside the port harness set):
   authlib 9.0.75 has no `MinecraftServicesSessionService` /
   `MinecraftServicesDiscoveryService`; the session service is
@@ -346,16 +352,23 @@ blocked earlier, at VanillaHeightmapOracle.
   tree against 26.2: 1,136 errors in 156 files before triage; every error is
   attributable to one of the families named in this document.
 
-### Behaviour work from the diff (not started)
+### Behaviour work from the diff (rank 1 closed 2026-11-13)
 
-The diff's ranked items beyond the packet work: DataFixers for data versions
-4996–5016 (26.3's fixers that 26.2 predates), the sign block-entity split
-(`sign_text_front` / `sign_text_back` components return in 26.2), cooking fuel
-and compostable data components (26.2 has `Level.fuelValues()` instead),
-26.3-only content absent in 26.2 (~90 blocks, ~121 items, the shelf mushroom
-and cushion among them), and the registry/worldgen shifts the regenerated
-tables already encode. `docs/version-ports.md` in this tree describes the
-order to take them in.
+Rank 1 (7/7) closed and merged to main (e9980f99, branch
+behaviour/26.2). The largest item, #1 components (+2/−13 data component
+types), is ported and verified: 111-component table, `map_color` tint,
+furnace fuel from `FuelValues`, tag-based brewing fuel (20 uses, 400
+ticks), the 115-entry compost table, sign text/wax dropped on item form
+and across the wire, hardcoded villager food and mob visibility
+(piglin brutes are NOT fooled), 23 hardcoded pottery patterns, and the
+block transformer rebuilt from 26.2 tables (strip 23, scrape 45
+unwaxed-only, wax-off 60, till, flatten, dowse) — block-transformer
+parity 70932/70932. Two supporting fixes: facts.json accepts the 26.2
+NBT-form block-state codec, and the 26.3-only motion tags were replaced
+with per-state `blocksMotion()` (`isSolid` except cobweb/bamboo
+sapling; 27,816 of 32,366 states). Rank 2 (410 items) is next, in
+batches of ~50, triaged by intersecting each item's named methods with
+the actually-changed methods in the store's diff.json.
 
 ## CI profile — port-verify v5, run 43086869031 (2026-11-11)
 
@@ -382,3 +395,1885 @@ mismatches, with the Rust suggestion list still offering `compute` where
 vanilla does not; block_properties' world_probe fixture exits 1. These
 are the next behaviour/oracle work for this tree, not verification gaps.
 Artifacts kept at `~/workspace/mcir-ci/26.2v5-completed/`.
+
+## CI profile — port-verify v6.6, runs 43342783340 / 43352941442 (2026-11-13)
+
+Pre-behaviour baseline, measured twice with the same result: **3 pass /
+0 oracle / 14 fail** (food, lan, resource_pack pass; protocol tests
+438/0 on the runner). Run 43342783340 on main@b16d58da; run 43352941442
+on behaviour/26.2@e8310c4f (post-ladder, pre-behaviour). Artifacts for
+43352941442 kept at `~/workspace/mcir-work/26.2-behaviour/ci-runs/43352941442/`.
+Harness-log finding from 43352941442: command_exec, light and
+save_roundtrip failed with the facts.json `missing field 'id'` parse
+error — fixed on behaviour/26.2 since (NBT-form codec accepted), so the
+next profile should move.
+
+## CI profile — port-verify v6.6, run 43379593930 (2026-11-13)
+
+Dispatched on behaviour/26.2@42cb47fe (rank 1 closed, 7/7; rank 2 at
+0/410 — batches 1–5 landed after the dispatch, in bccbf9ac..48b3fe71):
+the first profile of the behaviour-ported tree. Completed
+2026-11-13T08:39:43Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**3 pass / 0 oracle / 14 fail** — identical to the v6.6 baseline on main
+and to run 43352941442: food, lan, resource_pack pass; the other 14
+fail. D1 pass, D2 pass (0 errors, 0 warnings; protocol tests 445, none
+failing — the 7 un-ignored tests from the re-base are in); D3 fail
+(rank 2: 410/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. The rank-1 work moved no harness, as expected at
+this stage. The facts.json `missing field 'id'` parse error seen in
+43352941442 did not recur in this run's harness logs (the NBT-form
+codec fix is in), but the affected harnesses still fail on their own
+differentials. Artifacts kept at
+`~/workspace/mcir-work/26.2-behaviour/ci-runs/43379593930/`.
+
+## CI profile — port-verify v6.6, run 43405337919 (2026-11-13)
+
+Dispatched on behaviour/26.2@afe697ed (the occlusion.nbt
+`BlockState::from_nbt` fix; rank 2 at 65/410 — item 104 landed after
+the dispatch, in e345f3ce). Completed 2026-11-13T11:59:31Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, **light**, resource_pack
+pass; the other 13 fail. **Light moved from fail to pass**: the
+`from_nbt` fix unblocked the launch crash (`NBT at byte 1975826:
+invalid table state`), so the light harness finally runs. command_exec
+and save_roundtrip still fail — save_roundtrip has the separate
+vanilla-side scene-command serialization errors (decorated_pot sherds,
+BlockState "No key Name") noted with the fix, and both need behaviour
+work, not just launch. D1 pass, D2 pass (0 errors, 0 warnings;
+protocol tests 445, none failing); D3 fail (rank 2: 345/410 neither
+closed nor accepted at this commit); D4–D6 blocked as before.
+Artifacts kept at
+`~/workspace/mcir-work/26.2-behaviour/ci-runs/43405337919/`.
+
+## CI profile — port-verify v6.6, run 43435321313 (2026-11-13)
+
+Dispatched on behaviour/26.2@576d4a93 (the BedBlock landing-family
+fix; rank 2 at 66/410). Completed 2026-11-13T15:46:04Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. The BedBlock fix worked: no "unsupported
+landing family" in the logs, and the occlusion crash stays gone. But
+command_exec and save_roundtrip still fail on a NEW unknown launch
+crash: the client exits 1 at launch before opening the control socket,
+and the crash report stayed on the runner, so its cause is not in the
+artifacts. Diagnosing it by local reproduction is a second track
+alongside the rank-2 port. save_roundtrip separately still shows the
+vanilla-side scene-command serialization errors (decorated_pot sherds,
+BlockState "No key Name"). D1 pass, D2 pass (0 errors, 0 warnings;
+protocol tests 445, none failing); D3 fail (rank 2: 344/410 neither
+closed nor accepted at this commit); D4–D6 blocked as before.
+Artifacts kept at `~/workspace/mcir-ci/26.2-bedfix/`.
+
+## CI profile — port-verify v6.6, run 43519358480 (2026-11-13–14)
+
+Dispatched on behaviour/26.2@7379b0a5 (rank 2 at 151/410 — items
+19–21 landed last). Completed 2026-11-14T00:31:23Z, conclusion
+success (the harness leg is continue-on-error, so the conclusion is
+not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43435321313: the rank-2
+behaviour items landed so far move no harness in the 17-harness
+subset, as expected — the launch crash still blocks command_exec and
+save_roundtrip, and the other failures are oracle compiles, the
+missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
+(0 errors, 0 warnings; protocol tests 445, none failing); D3 fail
+(rank 2: 259/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-151/`.
+
+## Rate sample — changed vs no-change (Freebuff, from 2026-11-14)
+
+Over the next 100 rank-2 items closed starting at 218/410 (items
+219–318 of rank 2), record the split: CHANGED (needed a real port) vs
+NO-CHANGE (verified against the jars with no code change). Time ONLY
+the changed items, in wall-clock minutes. The sample decides whether
+the 874 delta port-days figure is right or ~3× too high, so the
+changed/no-change split and the minutes on changed items are the
+numbers that matter; no-change verifications are counted, not timed.
+
+**rate sample: 100/100 items COMPLETE, 47 changed, 53 no-change, 4162 minutes on changed
+items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT) and closes at rank 2
+326/410 (2026-11-15). The last two closes were 322 (changed, 30 min est.) and the
+nine no-change items of batch 4.
+Items 88 and 231 were in flight when the sample started; their work
+predates it, so they count as changed with minutes "pre-sample"
+(excluded from the minutes total). Item 89 was already closed before
+the sample started, so it is not counted. Timing starts with the first
+item begun after the sample started. The table below is the running
+log; it stays in agreement with the tally line above.
+
+| item | changed? | minutes | note |
+| --- | --- | --- | --- |
+| 88 | changed | pre-sample | worldgen settings port, stages 1–6 |
+| 231 | changed | pre-sample | carver port (cave/canyon/nether, apply phase) |
+| 133 | no-change | — | 26.3 densityfunction/op package absent from 26.2 |
+| 152 | no-change | — | 4 util classes 26.3-only, no Rust references |
+| 153 | no-change | — | CarverOutput/Filter/Visitor 26.3-only |
+| 102 | changed | 3 | bed pair check removed (26.2 form), BedRule explodes alias |
+| 110 | changed | 6 | Blender to f64 (BlendingOutput, blend_density, blend_biome, OutputBuffer) |
+| 105 | changed | 35 | environment colors to 26.2 packed-int formulas; 4 oracles + 4 harnesses pass |
+| 135 | changed | 4 | VillagerTrade reads given_item_modifiers (plural) |
+| 136 | no-change | — | tryPlaceLeaf plumbing only; Rust already matches 26.2 |
+| 134 | changed | 3 | port-pack gating: 26.2 series copies as-is, 26.3 packs not brought over; install() fresh-dir fix |
+| 140 | changed | 11 | container tooltip args (name, count); crossbow multiple line uses getDisplayName |
+| 119 | changed | 6 | onMove to 26.2 absolute-delta form; grab centre integer division |
+| 99 | no-change | — | crumbling already the 26.2 parameter form; rest is API-only or has no Rust counterpart |
+| 90 | changed | 11 | VideoMode to 26.2 int-rate string form; fullscreen no-adopt, exclusive at construction; throttle iconified-only; FifoRelaxed vsync |
+| 94 | changed | 28 | Animate codes to 26.2 numbering; post-effect system removed; /publish gamemode; sleep early-refusal order (includes a compaction + service-restart pause) |
+| 355 | no-change | — | BrewingRecipe 26.3-only; 26.2 brewing is PotionBrewing mixes; book arms unreachable-with-effect |
+| 356 | no-change | — | Rust DensitySampler is Horizon's own trait; RangeChoice/IntervalSelect semantics verified vs the 26.2 jar |
+| 393 | no-change | — | Rust DensityVolume is Horizon's own volume index math, not a port of the 26.3 class |
+| 397 | no-change | — | InputQuirks$1 is the synthetic switch-map for 26.3's keyboard display overrides; Rust has none |
+| 407 | no-change | — | ClockInstance 26.3-only; Rust already uses 26.2 ClockManager.getTotalTicks (item 105) |
+| 267 | changed | 14 | classes table gains DirtPathBlock + RedStoneWireBlock aliases (both classes never matched in 26.2); survival tables updated |
+| 247 | changed | 6 | eyeblossom neighbour scan to 26.2 betweenClosed order (x, y, z), not 26.3 section-major |
+| 177 | changed | 120 | brewing to 26.2 PotionBrewing mixes (65) + BrewOutput model; stand to flat 26.2 form (no totals/speed); both harnesses reworked (5,386 + 20 lines match); shared block-update oracle to 26.2 (blockscan/ClockInstance/ServerChunkCache); merchant float-number fix; spans the investigation (pre-compaction) + implementation |
+| 238 | changed | 10 (est.) | lerp + distance_to_point decoder arms removed (26.2 bootstrap registers neither); 18 density-compiler classes 26.3-only |
+| 357 | no-change | — | Rust Noise trait / NoiseStack is Horizon's own engine; Interval mentions are comments on float edge-cases; range semantics belong to item 127 |
+| 361 | changed | 20 (est.) | minecraft:ore_vein decoder arm removed (26.2 MATERIAL_RULE has only bandlands/block/sequence/condition); Definition::Ore + roots plumbing removed; MaterialRule::OreVein stays for the generator's 26.2 vein application |
+| 362 | no-change | — | ClayBands matches 26.2 SurfaceSystem.generateBands/makeBands exactly (verified line by line); comment reworded to name SurfaceSystem |
+| 182 | no-change | — | RandomState$2 is a 26.3-only anonymous DensitySamplerSet impl; Rust SeededContext is Horizon's own holder |
+| 191 | no-change | — | ItemContainerContents$Mutable, TooltipProvider$Getter 26.3-only; Rust mentions are comments |
+| 199 | no-change | — | DynamicGpuData + inners, GameRenderer$1, LevelRenderer$ChunkDrawGroup absent from 26.2 client jar; no Rust references |
+| 208 | no-change | — | SignBlockEntity$1, SignText$Mutable 26.3-only; no Rust references |
+| 228 | changed | 20 (est.) | minecraft:gradient decoder arm removed (26.2 bootstrap registers only y_clamped_gradient); 22 generator classes 26.3-only |
+| 230 | no-change | — | VanillaPackResources$1 26.3-only; only Rust mention is a comment |
+| 232 | no-change | — | material/condition/* is a pure rename of SurfaceRules conditions; both registries register the identical 11 types |
+| 235 | no-change | — | BrewingFuel/CookingFuel/ResolvableFloat/ResolvableInt 26.3-only; Rust component table verified against 26.2 DataComponents order |
+| 240 | changed | 90 (est.) | Straw beds removed (26.3-only): flat 0.6875 setPosToBed, no sleep-height check, no destroy-on-leave, no straw_bed stat/sprite/POI |
+| 241 | changed | 90 (est.) | SwingState removed: 26.2 plain-field swing model (swingTime/attackAnim, live getCurrentSwingDuration); oracle reworked |
+| 242 | changed | 180 (est.) | Placement modifiers to 26.2: random_offset replaces offset/cuboid/random_chance/randomly_selected; FeaturePlacer→PlacedFeature.place; 13 oracles + 11 drivers reworked; offsetCodec strict-<16 bound; height_range/volume_match predicates removed (26.3-only). Placement harness 1,674→882/18,780 mismatches |
+| 276 | no-change | — | BrewingInput 26.3-only; zero Rust references |
+| 180 | changed | 60 (est.) | cooking defaults to 26.2 (smelting 200, blasting/smoking/campfire 100); TransmuteResult 26.3-only, Rust Template already the 26.2 form |
+| 185 | changed | 45 (est.) | recursive predicate cycles are warnings-only in 26.2 (no hasFatalProblems throw); only Unbound refuses the start |
+| 187 | no-change | — | DecoratedPot/ChestRenderer submit plumbing only; animation state unchanged; BlockTags additions all 26.3-only |
+| 205 | no-change | — | VillagerFood 26.3-only; Rust already the 26.2 FOOD_POINTS form; take_half_stack exact |
+| 296 | no-change | — | TrimTextureKey$1 26.3-only; CustomHeadLayer Transforms 5 vs 3 fields, Rust mentions are comments |
+| 302 | changed | 90 (est.) | dolphin goals merged to the single 26.2 PlayWithItemsGoal (ItemGoal/MoveToItemGoal do not exist in 26.2); Jump goal to blocksMotion(); 2-arg moveTo reach 1 |
+| 305 | changed | 60 (est.) | Panic water search to withinManhattan order (depth shells, x, y, +z/-z); MeleeAttack tick reach 1 (2-arg moveTo) |
+| 306 | no-change | — | StreamCodec$20/$21 26.3-only; zero Rust references |
+| 307 | no-change | — | BlockTransformer 26.3-only; block_transform.rs already 26.2 |
+| 311 | no-change | — | levelgen/material/rule/* 26.3-only; 26.2 uses SurfaceRules |
+| 316 | changed | 120 (est.) | enderman teleport to the 26.2 two-scan blocksMotion form (no #entities_can_teleport_to, no avoidance tag, no border clamp, no level event 2018); EnderMan rename; 64-try loop inline |
+| 321 | no-change | — | MaterialRuleContext 26.3-only; 26.2 uses SurfaceRules |
+| 333 | no-change | — | level/blockscan package 26.3-only; cushion oracle's blockscan import belongs to items 147/374 |
+| 342 | no-change | — | OIT entirely 26.3-only; Rust OIT mentions are comments + opt-in tagging |
+| 233 | changed | 420 (est.) | EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework (double alpha, bitwise angle compare); tracker reworked; harness bit-exact on 135,742 lines. Outlier: multi-crate rework + harness |
+| 192 | changed | 60 (est.) | powder-snow entityInside to the 26.2 client-side form (xOld/zOld gate, addParticle); interpolation half closes with 233 (minutes counted there) |
+| 157 | changed | 120 (est.) | EntityFluidInteraction to the 26.2 per-tag Tracker model (joint rework with 161): void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; getHeightForCamera removed from the trait + 4 implementors; stale ServerEntity/UpdateInterval comments fixed |
+| 161 | changed | 120 (est.) | EntityFluidInteraction + FloatGoal (joint rework with 157): tick answers inWater \|\| inLava; mob eye check to the plain top; FloatGoal verified already 26.2 (no code change); entity-fluid harness reworked (oracle reflects trackerByFluid, sets the Fluid holder field 26.2's getTrackerFor reads) and bit-exact on 560,630 lines against both 26.2 jars |
+| 117 | changed | 90 (est.) | TreeGrower to the 26.2 secondary-chance model (oak 0.1, spruce 0.5, mangrove 0.85); poplar removed; canGrow removed (lone dark oak takes the meal); mega square cleared to air/260, single sapling to legacy block/260; MushroomBlock verified equivalent; 3 picker unit tests |
+| 163 | changed | 60 (est.) | Cat goals to the 26.2 forms: can_sit_on hardcoded (chest/furnace/bed-foot, no #cats_can_sit_on tag); CatLieOnBlock renamed CatLieOnBed, checks #beds; RelaxOnOwner bed check to #beds; giveMorningGift to the 26.2 4-arg randomTeleport via a shared helper extracted from enderman.rs (leash-holder origin added); CatRenderer setupRotations and BiomeCheck verified no-change |
+| 92 | changed | 90 (est.) | Entity culling to the 26.2 tick-position form (no getInterpolatedBoundingBox): cull_box + standing_entity_in_view drop interpolation, 8 call sites updated; stale SwingState/currentSwing citations fixed (swing model already 26.2 under 241); 26 renderer/layer classes verified no-change (rotate renames, submitModel null arg, render-type plumbing) |
+| 87 | changed | 180 (est.) | See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change |
+| 101 | changed | 150 (est.) | Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only |
+| 115 | changed | 120 (est.) | DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked |
+| 109 | changed | 120 (est.) | GameTest to the 26.2 single-level/single-grid form: TestDef.dimension and Info.dim removed, Runner holds its level, Grid is one state, onBatchStart does NOT reset the row count, say is level-scoped via broadcast_level, summary coordinate links removed (26.3-only) |
+| 106 | changed | 90 (est.) | Natural spawning: quart-origin spawn costs; fresh pufferfish 0.35 (puff state 0); obstruction predicate kept (blocksBuilding) |
+| 131 | no-change | — | RenderSystem diffs are the SDL/RenderPearl vs GLFW/GLX platform rework; fluid mesher names none of the changed methods; world_border_render oracle needs a 26.3->26.2 rework (26.3-only API) |
+| 171 | no-change | — | Biome sampling math identical; diffs are API rework (Sampler arg, double compute, RTree.create, codec renames); spawnTarget/findSpawnPosition is a 26.2-only dedicated-server gap, not a sampling change |
+| 214 | changed | 130 (est.) | RuleTest to the 26.2 2-arg form (height/not/all_of/any_of removed); BlockState.CODEC object-only NBT names (Name/Properties); rule_test harness reworked and passing (1,251,780 lines match, both jars) |
+| 236 | no-change | — | Core renames/inlines with identical semantics (Holder, Vec3i strict <, Direction, canSerializeIn, MutableBlockPos); Axis per-constant abstract methods |
+| 239 | no-change | — | ColorTargetState package move (Blaze3D -> RenderPearl) only |
+| 244 | no-change | — | RenderType import move + outline-texture lookup + removed hasBlending; Rust does not use Mojang's RenderType |
+| 246 | no-change | — | Item$Properties 26.3-only villagerFood/potPattern + components absent in 26.2; shared methods identical |
+| 248 | no-change | — | ContextMap map-implementation swap + method renames (set/get -> withParameter/getParameter); semantics identical |
+| 249 | no-change | — | TagSlotDisplay HolderSet (26.3) vs TagKey (26.2); Rust expands tags eagerly at load; SlotDisplayContext adds FUEL_VALUES in 26.2 |
+| 250 | changed | 60 (est.) | State-provider states to the 26.2 object-only block-state codec (simple, weighted, noise default/states, would_survive); state_provider harness needs a 26.3->26.2 oracle rework (97 compile errors) |
+| 251 | no-change | — | WeatherEffectRenderer is the RenderPearl/OIT rework; Rust has its own wgpu weather renderer |
+| 255 | no-change | — | SimpleBlockFeature record+MapCodec (26.3) vs Feature<SimpleBlockConfiguration> (26.2); Rust already decodes to_place directly with optional schedule_tick |
+| 256 | no-change | — | StructureCheck cache is a pure optimization; addChildren accessor rename; BoundingBox same values |
+| 259 | no-change | — | TagCommand response-plumbing rework; data accessors ArgProvider vs DataProvider; behaviour identical |
+| 275 | no-change | — | calculateSolid logic identical (26.3 adds SolidDebugger logging); blocksMotion/isViewBlocking already 26.2-form; shouldRedstoneWireConnectTo 26.3-only, uncalled |
+| 277 | changed | 60 (est.) | isSuffocating default to blocksMotion (no causes_suffocation tag in 26.2); BlockState/StateHolder codec already fixed in 214 |
+| 297 | no-change | — | SetNameFunction list predicates (item 101); ExplorationMap already the 26.2 TagKey form |
+| 298 | no-change | — | TrimMaterial 26.2 assets form (item 61); BannerPattern codec rename |
+| 299 | no-change | — | AtlasGlyphProvider import move only |
+| 300 | no-change | — | CuboidModelElement shade bool already read (both forms) |
+| 301 | no-change | — | MessageSignature buffer API only; wire format identical |
+| 303 | no-change | — | LootTable$Builder list form (item 101); LootContext rename |
+| 304 | no-change | — | ChunkSectionLayer import move + multidraw variant removed |
+| 308 | no-change | — | ServerConnectionListener queue vs direct accept; Rust has its own listener |
+| 309 | no-change | — | Sign block MapCodec present in 26.2, removed in 26.3; Rust does not use block codecs |
+| 310 | no-change | — | isValidClickButton SDL 1 vs GLFW 0 (same left click); getScrollAmount 26.3-only |
+| 129 | changed | 150 (est.) | NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2) |
+| 8 | changed | 300 (est.) | Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines) |
+| 12 | changed | 300 (est.) | PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14 |
+| 86 | changed | 240 (est.) | Farmland trample + turtle-egg destroy drop 26.3's spawn-protection gate (26.2 players always trample/destroy); bucket evaporate smoke to 26.2 addParticle x8 uniform in-cube, acting client only, LAN send removed; spectator block outline over menu blocks; spinning/OIT/post-effect citations to the 26.2 locations. cargo check clean; lan_particles 5/5; block-landing harness block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server) |
+| 147 | changed | 120 (est.) | BlockAttachedEntity.kill is Entity.kill(level) in 26.2 (unattributed death); painting/frame ENTITY_DIE now unattributed on player and blast breaks; explosion_kill_credit() + crystal_blast_player() removed; explosion-broken frame BLOCK_CHANGE now attributed to the blast's direct source entity (exploding mob) via explosion_direct_source(). entity_die_explosions updated to the 26.2 truth (4 events, all self-sourced; no item event); stand hurt test renamed + fixed (same 26.3 attribution lag). entity_die 2/2, stand 12/12, kill_die 1/1, vibration 6/6, lan_particles 5/5 |
+| 374 | changed | 120 (est.) | Cushion/CushionItem/CushionRenderer 26.3-only (0 entries in either 26.2 jar): entity/item/renderer, dye_index, Target::Cushion, minecraft:cushion load/save, LAN states, seats/rides, blast/thunder handling and the placement probe removed; generic logic moved (dismount helpers to passengers.rs, suffocation/view-blocking to render_tick.rs). cushion_placement harness n/a for 26.2 (oracle imports the 26.3-only blockscan package); driver + oracle left in place |
+| 312 | no-change | — | GameType -1 sentinel already the Rust form (item 8); BaseSpawner.setEntityData 26.3-only; SpawnPredicate no ServerLevel param in 26.2 (item 106 form) |
+| 313 | no-change | — | RegistryOps/HolderLookupAdapter HolderOwner rework; no Rust surface |
+| 314 | no-change | — | MaterialBaker concrete-vs-abstract; Material.withSuffix 26.3-only |
+| 315 | no-change | — | EndCrystalRenderer submitModel null arg + beam-target shouldRender 26.3-only |
+| 317 | no-change | — | CreateWorldScreen datapackWorldRegistries -> datapackWorldgen rename |
+| 318 | no-change | — | DisplayRenderer culling is the item-92 tick-position form |
+| 319 | no-change | — | ProjectileDeflection 3-arg + REVERSE -0.5 already Rust form; ShulkerBullet redirect 26.3-only |
+| 320 | no-change | — | Enchantment holderSet/homogeneousList same JSON shapes; Builder Holder.direct 26.3-only |
+| 322 | changed | 30 (est.) | PortalShape.FRAME is obsidian, not the 26.3-only #nether_portal_frame tag; portal_frame fixed to is_block(obsidian). Nether-portal harness repaired (state_properties: NBT `Properties` vs JSON `properties`) and passes 2626/2626 |
+| 323 | no-change | — | TrialSpawnerConfig codec rename only; BlockEntity log arg order cosmetic |
+
+
+Item 192 closed with 233 (2026-11-14): its powder-snow half was committed
+in 14aacfc3 and its interpolation half is 233's rework.
+
+Follow-up debt from item 233: 26.2's `hurtMarked` motion packet
+(`SetEntityMotion` at the end of `sendChanges` when `hurtMarked` is set,
+to tracking players AND self) has no Rust plumbing — needs a `hurt_marked`
+flag from Mob through EntityState. The client's advancement tree layout
+computes positions itself and does not use the packet x/y yet (26.2's
+client positions widgets from DisplayInfo x/y).
+
+Follow-up debt from item 305: other `nav_move_to_entity` call sites
+passing reach 0 for goals that call the 2-arg `moveTo(Entity, speed)`
+(fox, frog, goat, illager, panda, piglin, riders, spear_use, tempt)
+need the same reach-1 check in their own items — the 2-arg form builds
+the path with `createPath(target, 1)` in both versions.
+
+Follow-up debt from item 115: the Rust density engine samples in float
+(26.3's `DensitySampler` model), but 26.2's density functions compute in
+double (`DensityFunction.compute`). The Beardifier's formulas match
+exactly; only the arithmetic precision differs (bury: 26.2
+`clampedMap(length, 0, 6, 1, 0)` in double vs 26.3 `1 - sqrt(sq)/6` in
+float; beard: same shape, double vs float). A faithful 26.2 port needs
+the density engine in double — a programme-level rework, not one item's
+change.
+
+Entity-fluid harness (2026-11-14, local run): the reworked
+`test_entity_fluid_parity.py` passes bit-exact — 560,630 lines,
+byte-identical against both 26.2 jars (server-game + client). The
+driver's release `world_probe` build exceeds its own 900 s timeout on
+this VM (1.5 shared CPUs, LTO thin + codegen-units=1); the run was done
+in pieces — the orphaned rustc finished the binary, then the fixture
+and both oracle sides were run by hand and compared with
+`test_rust_parity.compare`. Pre-build the release probe before running
+a parity driver here, or the driver times out at the build step. The
+oracle needed one 26.2-specific fix beyond the tracker reflection:
+26.2's `getTrackerFor` calls `Fluid.is(tag)`, which reads the
+`builtInRegistryHolder` field directly, so the oracle now sets that
+field on its Unsafe-allocated Fluids (26.3's check goes through the
+holder, which the method override already covered).
+
+## Placement harness known gaps (2026-11-14, local run)
+
+`tools/test_placement_parity.py` against the 26.2 jar: 90/18,780 fixtures
+mismatch (down from 882 after item 127 cleared the noise group). The
+remaining group is pre-existing and out of item 242's scope:
+
+- noise_based_count (792): CLEARED by item 127 (2026-11-15) — the f64
+  synth port + biome noises to double. Fixture-by-fixture comparison:
+  all noise fixtures match.
+- count_on_every_layer (90): identical positions and queries, different
+  interleave order — vanilla 26.2's builder-based `getPositions` (full column
+  scan before any position is consumed) vs the Rust stack-loop placer emitting
+  a position as soon as its column scan completes. Needs a pull-order
+  investigation, not a decoder fix.
+
+## CI profile — port-verify v6.6, run 43535967019 (2026-11-14)
+
+Dispatched on behaviour/26.2@bc530de6 (rank 2 at 218/410). Completed
+2026-11-14T02:48:03Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43519358480: the rank-2
+behaviour items landed so far move no harness in the 17-harness
+subset, as expected — the launch crash still blocks command_exec and
+save_roundtrip, and the other failures are oracle compiles, the
+missing sounds step, or behaviour not yet ported. D1 pass, D2 pass
+(0 errors, 0 warnings; protocol tests 445, none failing); D3 fail
+(rank 2: 192/410 neither closed nor accepted at this commit); D4–D6
+blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-218/`.
+
+## CI profile — port-verify v6.6, run 43575017292 (2026-11-14)
+
+Dispatched on behaviour/26.2@bc42387a (rank 2 at 258/410). Completed
+2026-11-14T10:21:07Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**4 pass / 0 oracle / 13 fail** — food, lan, light, resource_pack
+pass; the other 13 fail. Unchanged from run 43535967019. D1 pass; D2
+now FAILS (it passed on 43535967019): one protocol test fails without
+an accepted gap —
+`adapter::translate::v1_21_1::recipes::tests::vanilla_recipe_serializers_become_pinned_displays_with_canonical_item_ids`
+(properties count 7, expected 9). Verified pre-existing on the
+stashed 14aacfc3 base (2026-11-14), so the regression landed in one of
+the batches between 218/410 and 258/410 — needs a bisect, not yet
+done. (Locally the same run shows 441 pass / 3 fail: the recipe test
+plus the two sandbox-network tests, which also fail on the base.) D3
+fail (rank 2: 152/410 neither closed nor accepted at this commit);
+D4–D6 blocked as before. Artifacts kept at
+`~/workspace/mcir-ci/26.2-258/`.
+
+**D2 regression fixed 2026-11-14 (item 129 batch).** Bisected by git log
+on the file: the only horizon-protocol commit in the 218–258 range was
+`f7e99ff1` (item 177, brewing), which removed `brewing_input` /
+`brewing_reagent` from the fixed names in `Recipes::properties()` with
+the comment "1.21.1 has no brewing property sets (added in 26.3)". That
+confused the source with the target: the adapter outputs the 26.3
+pinned form, and 26.3's `RecipePropertySet` registry defines nine
+vanilla keys — verified by decompiling the class from both jars (26.3
+has `BREWING_INPUTS` / `BREWING_REAGENTS`, 26.2 has only the seven).
+A 1.21.1 server contributes no brewing recipes, so both sets are empty,
+but they must still be written because the 26.3 client reads all nine.
+Restored the two names and corrected the comment. Local
+`cargo test -p horizon-protocol --lib` is now **442 pass / 2 fail**
+(the two remaining failures are the pre-existing sandbox-network pair);
+the recipe test passes. status.json `protocol_tests` updated.
+
+## CI profile — port-verify v6.6, run 43609469257 (2026-11-14)
+
+Dispatched 2026-11-14T15:18:31Z on `1a8bd427` (285/410 tree). Completed
+2026-11-14T17:28:06Z, conclusion success (the harness leg is
+continue-on-error, so the conclusion is not the profile).
+
+**5 pass / 0 oracle / 12 fail** — first_person, food, lan, light,
+resource_pack pass; the other 12 fail. First_person is new since run
+43575017292 (the item-8 first-person oracle rework landed in this
+tree). D1 pass (all 6 generators clean, tables reproduce). D2 FAILS
+but only on the warning count: protocol tests are **444 pass / 0
+fail** in CI (the recipe test fixed in the item-129 batch passes; the
+two local sandbox-network failures pass on CI, which has network) —
+the gate counts 6 warnings against a 0/0 bar, and all six are the two
+pre-existing warnings counted across targets (the
+`unused_doc_comments` at `horizon-protocol/src/packets/play.rs:2238`
+and the `unused_mut` at `game/creatures.rs:1361`, each in lib +
+lib-test). D3 fail (rank 2: 125/410 neither closed nor accepted at
+this commit); D4 blocked (profile stamped for `1a8bd427`, HEAD is
+`28def2627f44` — re-record the sweep for this tree); D5 blocked (no
+harness-subset.txt); D6 blocked (no playtest.md). Artifacts kept at
+`~/workspace/mcir-ci/26.2-285/`.
+
+## Item 8 closed (2026-11-14) — remote.rs / first person
+
+Rank 2 now 284/410. The item's real changes, all verified against the
+26.2 jars by decompilation:
+
+- **Swing packet carries the hand**: 26.2's `ServerboundSwingPacket`
+  has a hand VarInt; 26.3 replaced it with the handless
+  `ServerboundPunchPacket`. The Rust sent an empty swing, so a 26.2
+  server could not read the hand. Now `Swing { hand: i32 => VarInt }`,
+  sent on every `LocalPlayer.swing` (unconditional, as vanilla does).
+- **Login takes the previous game type**: `setLocalMode(gameType,
+  previousGameType)` (2-arg form) — the Rust kept the default as the
+  previous mode instead of the server's.
+- **Wall nudge**: 26.2 `aiStep` runs `moveTowardsClosestSpace` under
+  `!noPhysics` alone; 26.3 added `!isPassenger()`. The passenger
+  exclusion is removed.
+- **F4 shader toggle**: `key.toggleSpectatorShaderEffects` was registered
+  but never consumed. `GameRenderer.togglePostEffect` (26.3 renamed it
+  `toggleSpectatorPostEffect`) flips `effectActive`; the Rust now has
+  the flag, set on `setPostEffect`, cleared on `clearPostEffect`.
+- **Pause keeps the dig**: 26.2 `pauseGame` does not call
+  `stopDestroyBlock` (26.3 added it); F3+Escape no longer drops `mining`.
+- **Creative entity attack sets no destroy delay**: 26.3 added
+  `destroyDelay = 5` to `MultiPlayerGameMode.attack`; 26.2 sets the delay
+  only in `startDestroyBlock` / `continueDestroyBlock` (creative, and
+  on break completion).
+- **Mining fatigue table**: 26.2 `Player.getDestroySpeed` uses the
+  hardcoded 0.3 / 0.09 / 0.0027 / 0.00081 table, not 26.3's
+  `pow(0.3, amplifier + 1)` (fatigue III is 0.0027, not 0.027).
+  Fixed in `Effects::mining_speed_factor` and the first-person probe,
+  with a test pinning the table.
+- **First-person oracle reworked to 26.2**: `ItemInHandRenderer` under
+  `GameRenderer.itemInHandRenderer` instead of the 26.3-only
+  `FirstPersonHandsAndItems`; `LocalPlayer` 8-arg constructor; the
+  singular `addBreakingBlockEffect(pos, direction)` (26.3's plural
+  `addBreakingBlockEffects` with the sound flag does not exist in 26.2);
+  a `SoundManager` shell swallowing the destroy hit sound every fourth
+  tick. Harness: **4,205 first-person cases match the pinned client
+  (382,720 output lines)**.
+- Verified no-change: explosion knockback is `addDeltaMovement` (the
+  adapter already appends `play_sound=true` for 26.2); particle
+  randomization is 26.2's single-max-speed gaussian; chat signatures
+  pass directly; `getViewYRot` passenger interpolation; underwater loop
+  fade math (+1/−2, 40 cap) identical in both versions.
+
+## Item 12 closed (2026-11-14) — lan_actions.rs / LivingEntity, Entity, Player
+
+- **PlayerAction ordinals are 26.3-shifted** (wire bug, both directions):
+  26.3 inserted `CHANGE_DESTROY_DIRECTION` at ordinal 1; 26.2 is 0 START,
+  1 ABORT, 2 STOP, 3 DROP_ALL, 4 DROP_ITEM, 5 RELEASE_USE, 6 SWAP, 7 STAB
+  (verified with `javap` on both client jars). Fixed the client sends
+  (`remote.rs`), the host dispatch (`lan_actions.rs`) and the packet doc;
+  removed the face-change send (26.2's `continueDestroyBlock` sends no
+  direction-change packet). New ignored regression test
+  `a_26_2_guest_abort_and_stop_use_26_2_ordinals` passes.
+- **Glide start bars water only in 26.2**: `tryToStartFallFlying` is
+  `!isFallFlying() && canGlide() && !isInWater()`; removed the lava arm
+  from `lan_start_gliding` (26.3's `!isInLiquid()`).
+- **Visibility**: `worn_visibility` gains `minecraft:piglin_brute` (26.2
+  fools brutes with a piglin head); removed the 26.3 0..10 clamp from
+  `visibility_percent`.
+- **Restitution**: the bounce gate is strict `<` in 26.2
+  (`movement_restitution.rs`).
+- **Collide**: the entity query is `aabb.expandTowards(movement)` only;
+  26.3 adds the maxUpStep expansion (`geometry/movement.rs`).
+- **hurtServer knockback**: 26.2 knocks back whenever the source is not
+  `NO_KNOCKBACK`, even when fully blocked (26.3 added the
+  `fullyBlocked` skip). Dropped the gate in `living_hurt.rs` and flipped
+  the health test to assert knockback on a fully-blocked hit (14/14 pass).
+- **forceSendPlayerSupportBlocks is 26.3-only**: removed the function, its
+  call and `Guest.support_blocks_sent`. 26.2 never resends support blocks.
+- **Duplicate-position kick is 26.3-only** (`receivedPositionThisTick`):
+  removed the kick; `position_this_tick` stays for `known_movement`
+  bookkeeping.
+- Verified no-change: swing-back echo, `handleMovePlayer` inline impulse
+  reset, suggestions inline parse with the 1000 cap, sign-update bool,
+  `flushDirty` unpositioned holders, BedRule / `try_sleep`, unconditional
+  blocked knockback, `isPushable` without the ticking gate,
+  `teams_allow_damage` inline form, no 2019/2020 dig events, server-side
+  `aiStep` interpolation dead, `canSimulateMovement`, `handlePortal`,
+  single-boolean `Invulnerable`, water-only ridden float,
+  `handleMoveVehicle` direct fields, creative-slot drop, `noBlocksAround`,
+  `createWitherRose` flags 3, `drop` randomly=false with unconditional
+  swing, `startUsingItem` (no 26.3 equipment update),
+  `onEquippedItemBroken` (effects stop via per-tick
+  `collectEquipmentChanges`), Team join on load, `teleport_rider`.
+
+## Item 86 closed (2026-11-14) — game.rs / Farmland, TurtleEgg, Bucket, GameRenderer
+
+- **Farmland trample used 26.3's spawn-protection gate**: 26.2's
+  `FarmlandBlock.fallOn` tramples for every player (mobGriefing only
+  gates mobs). Fixed `Rule::Farmland` to
+  `allowed = entity == Player || mob_griefing()`.
+- **Turtle-egg destroy used the same 26.3 gate**: 26.2's
+  `canDestroyEgg(level, entity)` lets every player destroy (Turtle/Bat
+  never, non-living never, other living only with mobGriefing). Fixed
+  `destroy_egg` the same way.
+- **Bucket evaporate smoke was the 26.3 form**: 26.2 calls
+  `level.addParticle` eight times at the block corner plus a uniform
+  `nextFloat()` on each axis, and `Level.addParticle` is a no-op on a
+  server (no `ServerLevel` override in the 26.2 jar), so nothing is
+  sent. Fixed `evaporation_smoke` to draw 8 uniform in-cube puffs on the
+  acting client only (the serving game returns early: a guest's turn and
+  a dispenser draw nothing) and removed the LAN `sendParticles` packet.
+  The `spread()` helper + test (26.2's `handleParticleEvent` gaussian
+  spread of a received packet) is a different mechanism and stays.
+- **Spectator block outline**: the Rust never showed one; 26.2's
+  `shouldRenderBlockOutline` shows it over a block with a menu provider
+  (`getMenuProvider != null`). `can_build` now includes spectators and
+  the pick filter is mode-aware (spectator -> `block_opens_menu`).
+- Citation fixes: the spinning-effect state lives in `GameRenderer`
+  (26.3 moved it to `LocalPlayer`); the OIT gate is
+  `GameRenderState.useShaderTransparency()` (26.3 renamed it
+  `useImprovedTransparency`); the post-effect list is what
+  `GameRenderer.render` applies after `doEntityOutline` (26.2's `update`
+  is camera-only; no `LocalPlayer.postEffects` list).
+- Verified no-change: bobHurt/bobView (rename only), checkEntityPostEffect
+  (`setPostEffect`/`clearPostEffect`), render/renderLevel/tick/update/
+  resetData (spinning in `GameRenderer.tick`, post-effect inline after
+  `doEntityOutline`), `preparePostEffects`/`render3dHud`/
+  `spectatedEntityPostEffect` (26.3-only), `Block.fallOn` (no
+  `getFallDistanceReduction` in 26.2; all 1,196 blocks export 0.0; Hay
+  0.2 / Bed 0.5 / Honey 0.2+event 54 / Slime 0.0 / PowderSnow sound-only /
+  DripstoneTip distance+2.5 x2.0 match the 26.2 overrides), `Level.setBlock`
+  4-arg bodies identical (the mdiff 48-line diff was an overload
+  mismatch), `Level.destroyBlock` (2001 unless BaseFireBlock),
+  `playerDestroy` (signature only), `playerWillDestroy` (plain 2001),
+  `spawnDestroyParticles` (2001), `withPropertiesOf` (hasProperty guard),
+  `dropFromBlockInteractLootTable` (visibility), `getEntities`/`playSound`
+  identical, `EnderDragonFight.setDragonKilled` (same podium; no leaves
+  in the End), `Gui.addInitialScreens` (platform rename),
+  `openChatAndAddText` (sole caller always passes COMMAND),
+  `FallingBlockRenderer.shouldRender` (state != cell), `CakeBlock.eat`
+  (bites<6 setBlock flags 3; food 2, saturation 2*0.1*2=0.4),
+  `LilyPadBlock.entityInside`, `RconConsoleSource` (level 4, named Rcon,
+  spawn lower corner), `BucketItem.emptyContents` placement logic.
+- Known gap (not fixed): `Gui.tick` wraps `screen.tick()` in a try/catch
+  -> CrashReport "Ticking screen"; the Rust has no equivalent screen-tick
+  crash wrapper (panics propagate; no Minecraft-style crash report).
+- Checks: `cargo check -p horizon-client -p horizon-world
+  -p horizon-client-render --all-targets` clean (only the pre-existing
+  `unused_mut` at `game/creatures.rs:1361`); `lan_particles` tests 5/5.
+  Block-landing parity harness vs the 26.2 oracle: block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server)
+
+## Items 147 + 374 closed (2026-11-14) — game/cushions.rs, cushion.rs / BlockAttachedEntity, Cushion
+
+- **Cushion is 26.3-only**: 0 cushion entries in either 26.2 jar
+  (server-game.jar and client.jar). `Cushion`, `CushionItem` and
+  `CushionRenderer` removed in 26.2; `BlockAttachedEntity` exists in
+  26.2 (144 lines decompiled) as the base for paintings, item frames
+  and leash knots; `Vec3.atCenterOfWithY` is 26.3-only.
+- **Removal (item 374)**: the Cushion entity/item/renderer, its
+  `dye_index`, `Target::Cushion`, the `minecraft:cushion` load/save
+  paths, LAN cushion states, cushion seats/rides, cushion blast and
+  thunder handling, and the `cushion_placement` probe are gone.
+  Generic logic that lived in `cushions.rs` moved, not deleted:
+  `dismount_in_portal` / `dismount_removed_vehicle` to `passengers.rs`
+  (portal dismount applies to any vehicle) and `state_suffocating` /
+  `state_view_blocking` (26.2's two-arg `BlockState.isViewBlocking`)
+  to `render_tick.rs`.
+- **Real fix (item 147)**: 26.2's `BlockAttachedEntity.kill` is
+  `Entity.kill(level)` — the death is the entity's own event,
+  unattributed. 26.3's `kill(level, entity)` attributes it to the
+  killer (and adds `onKilled` / `tickAtCheckInterval`). Painting and
+  frame `ENTITY_DIE` are now unattributed on player breaks and on
+  blast breaks; `explosion_kill_credit()` is removed (its only uses
+  were those two sites) along with `crystal_blast_player()` (its only
+  caller was the kill credit; `blast_by` itself stays — it is read at
+  `dragon.rs:3780` for chain-blasting crystals). The tick gate was
+  already the 26.2 `checkInterval++ == 100` form (fires tick 101).
+- **Frame `BLOCK_CHANGE` keeps its causedBy**: 26.2's
+  `ItemFrame.dropItem(level, causedBy)` posts `BLOCK_CHANGE` attributed
+  to `causedBy`, and `BlockAttachedEntity.hurtServer` passes the
+  damage source's entity — so an explosion-broken frame's
+  `BLOCK_CHANGE` is attributed to the blast's direct source entity
+  (the exploding mob), via the new `explosion_direct_source()`; a
+  primed-TNT or end-crystal blast has no `Who` and stays
+  unattributed. (Paintings post no `BLOCK_CHANGE`:
+  `Painting.dropItem` is sound + item only.)
+- **Two tests pinned 26.3 behaviour and are updated to the 26.2
+  truth**: `entity_die_explosions` expected a fifth event for the
+  dropped item (26.2's `ItemEntity.hurtServer` just discards — no
+  `ENTITY_DIE`, in both versions) and mob attribution for
+  stand/painting/frame; it now asserts 4 events, all self-sourced, in
+  both the caused and uncaused blast iterations. The stand test
+  `a_hit_from_damage_posts_entity_damage_then_entity_die_for_its_causing_entity`
+  pinned the same 26.3 attribution and was already failing on the
+  branch (its code, `armor_stands.rs`, was fixed to 26.2 in the
+  earlier stand batch; only the expectation lagged) — renamed to
+  `..._entity_damage_attributed_then_entity_die_unattributed` and now
+  asserts an attributed `ENTITY_DAMAGE` then an unattributed
+  `ENTITY_DIE`.
+- **Cushion-placement harness**: `test_cushion_placement_parity.py`
+  is not applicable to 26.2 — its oracle imports the 26.3-only
+  `blockscan` package and will not compile against the 26.2 jar, and
+  the Rust probe was removed with the feature. The driver and oracle
+  stay in place for the 26.3 tree (parity harnesses are never
+  deleted); the harness is not in CI's 17-harness profile.
+- Checks: `cargo check -p horizon-client -p horizon-world
+  --all-targets` clean (only the two pre-existing warnings);
+  `entity_die_tests` 2/2, `stand_command_hurt_tests` 12/12,
+  `kill_die_vibration_tests` 1/1, `vibration_tests` 6/6,
+  `lan_particles` 5/5.
+
+## Item 109 closed (2026-11-14) — game/game_tests.rs / GameTest framework
+
+- **26.2 has no per-dimension GameTest model**: `TestData` has no
+  dimension field (26.3 added it with codec default Overworld);
+  `GameTestRunner` holds a `ServerLevel` (26.3: `MinecraftServer`);
+  `GameTestBatchFactory` groups by environment only (`BatchKey` is
+  26.3-only); `StructureGridSpawner` is a single flat grid (26.3:
+  per-dimension `DimensionGridState` grids).
+- **Rework**: `TestDef.dimension` removed (parse, describe row,
+  sample); `Info.dim` removed (`new`, `copy_reset`,
+  `verify_batches`, `test_info_at`, `test_info_for`, `run_test_at`);
+  the `Runner` gains its `level` (set at `track_and_start` from the
+  level in place) and `last_batch` is now `Vec<Pos>`;
+  `Grid.states` / `DimGrid` collapsed to a single
+  `Option<GridState>`; `run_batch`'s `onBatchStart` resets the corner
+  and the row bounds but NOT the row count (26.2 does not reset
+  `currentRowCount`); `tick_game_tests` ticks only while the runner's
+  level is in place; `spawn_test` no longer switches levels
+  (`in_test_level` removed); `has_tests_in` is the runner's level
+  with tests pending.
+- **Say is level-scoped**: `ReportGameListener.say` reaches only the
+  players in the test's level (26.3 tells the whole server). The
+  flush now uses `hub.broadcast_level`
+  (`PlayerList.broadcastAll(packet, dimension)`) and defers `Players`
+  lines until the runner's level is in place; with no runner left
+  (a halt cleared it) they go to the level in place.
+- **Summary coordinate links are 26.3-only**:
+  `TestCommand.outputPlayerCoordinates` / `outputTestCoordinates`
+  do not exist in 26.2 and `TestSummaryDisplayer` is a record with no
+  dimensions set. `Out::Coordinates`, `summary_coordinates` and
+  `output_test_summary_coordinates` are removed; the
+  coordinate-feedback E2E test is reworked to a summary-only test.
+  `TestInstanceBlockEntity.runTest` itself is identical in both
+  versions.
+- Checks: `cargo check -p horizon-client --all-targets` clean (only
+  the two pre-existing warnings); `game_tests` unit tests 10/10;
+  summary E2E (ignored) passes.
+- **Pre-existing failure, NOT caused by this item** (verified by
+  bisect on `c03452c8` — identical failure, same line and values):
+  `added_issuer_actor_missing_guest_and_restoration_controls` fails
+  at `test_summary_context_tests.rs:187` (`game.dim` Overworld vs
+  Nether after `test_source_output` to a guest while in the Nether;
+  no level-open error logged). Needs a follow-up in the
+  `for_player` / guest-turn level-restore path, outside the GameTest
+  framework.
+- WIP-checkpoint rule applied: the rework was committed and pushed
+  as `b9f704d9` once it compiled, before test verification.
+
+## Item 106 closed (2026-11-15) — mobs/spawn_selection.rs / natural spawning
+
+- 3 of 15,620 harness lines diverged (`tools/test_natural_spawn_parity.py`,
+  artifacts in `.local/rust-natural-spawn-parity/`). Two root causes, both
+  in the probe / shared spawn-selection code:
+- **Quart-origin spawn costs.** The probe's `spawn_cost` read the biome at
+  block coords, but vanilla's `SpawnState.canSpawn` goes through
+  `getRoughBiome` — the chunk's *noise* biome at the quart cell's origin
+  block (the oracle's `getNoiseBiome` samples `biomeAt((x>>2)<<2, ...)`).
+  A test at a biome boundary can sit in a quart cell whose origin is
+  across it: at `(2,43,3)` and `(3,30,9)` the origin block is crimson
+  forest (no skeleton spawn cost, so `canSpawn` is true) while the block
+  itself is soul sand valley (cost 0.7, energy over the 0.15 budget).
+  Fixed the probe's `spawn_cost` to the quart-origin biome; the real
+  `GameLevel` already used `zoomed_biome`. Verified numerically before
+  the fix (block-coord energies 0.2534 / 0.3124 false vs quart-origin
+  no-cost true, matching vanilla).
+- **Fresh pufferfish dimensions.** A fresh pufferfish is puff state 0, so
+  `Pufferfish.getScale(0)` = 0.5 makes it 0.35 wide, not the registry 0.7.
+  The 0.7 box falsely overlapped the spider's spawn box at `(9,75,8)` and
+  `checkSpawnObstruction` failed it. Added `fresh_dimensions` (pufferfish
+  x0.5), used by `mob_type` in both impls, the probe's case-entity boxes,
+  and `neutral_box`.
+- **Wrong turn, reverted in full.** The obstruction predicate was first
+  narrowed to `canBeCollidedWith`-only (boats / happy ghasts / shulkers),
+  which regressed the harness to 387 differing lines: vanilla's
+  `isUnobstructed` counts every non-spectator entity with `blocksBuilding`
+  (true for all living entities — `LivingEntity` sets it), and the run's
+  own spawns DO block repeats at the same spot (squid / sheep / enderman
+  cases). `canBeCollidedWith` is `noCollision`'s rule, a different method.
+  The doc comment on `spawn_obstruction` now records the distinction.
+- Harness: all 15,620 natural spawn cases match vanilla (97,604 attempts,
+  14,068 type checks passed, 10,850 spawns).
+- WIP checkpoints `35afa6d1` and `d0b1b62d` pushed mid-batch.
+- Environment notes: the fast-profile `client_probe` link failed once with
+  rust-lld "undefined hidden symbol" from stale incremental artifacts —
+  fixed by `cargo clean -p horizon-client-lib --profile fast`; the
+  driver's 900 s build timeout was worked around by pre-building the fast
+  probe first.
+
+## Batch of 8 rank-2 A items closed (2026-11-15) — 131, 171, 214, 236, 239, 244, 246, 248
+
+Seven no-change (verified against the jars, no code change) and one changed
+(214, the RuleTest rework). Rank 2 290/410 -> 298/410.
+
+## Item 131 no-change (2026-11-15) — mesher/fluid.rs / world_border_render
+
+- `crates/horizon-client-render/src/mesher/fluid.rs`, 4 classes, 0 named.
+  The RenderSystem diffs are the 26.3 SDL/RenderPearl vs 26.2 GLFW/GLX
+  platform rework; the Rust's fluid mesher names none of the 67 changed
+  methods (only a comment mentions RenderSystem, line 199).
+- Follow-up: the `world_border_render` oracle
+  (`VanillaWorldBorderRenderOracle.java`) does NOT compile against 26.2 —
+  it uses 26.3-only API (`RenderPass`, `DynamicGpuData`, `GpuBuffer`,
+  `WorldBorderRenderer.prepare(state, cam, distance, depthFar)`; 28
+  compile errors). It needs a 26.3->26.2 oracle rework (same class as
+  item 127's noise oracle). Not run on this branch.
+
+## Item 171 no-change (2026-11-15) — world/level/biome
+
+- 9 classes, 0 named. Sampling math is identical; the diffs are the API
+  rework: `BiomeResolver.getNoiseBiome` takes the `Sampler` in 26.2 (no
+  `@FunctionalInterface` / `createResolver` / `getBiomesWithin`);
+  `Climate$Sampler` uses `DensityFunction` double `compute` in 26.2 vs
+  `DensitySampler.Bound` float `sampleValue` in 26.3 (the known item-115
+  precision debt); `ParameterList` uses `RTree.create(values)` in 26.2 vs
+  the 19-children constructor in 26.3; `Parameter.distance` is public in
+  26.2; `ParameterPoint.fitness` is private in 26.2 vs public in 26.3;
+  codec renames `RegistryCodecs.holder` -> `RegistryFileCodec.create`,
+  `codec()` return widened.
+- Follow-ups: (1) 26.2-only gap — `Sampler.spawnTarget` /
+  `findSpawnPosition` (called only by `MinecraftServer:480` for the
+  dedicated-server spawn chunk search) is not implemented in the Rust;
+  documented gap, not a sampling change. (2) None of the biome harnesses
+  (biome_generation, biome_source, biome_source_codec, datapack_worldgen,
+  flat_generation, material_stage, structure_layout, worldgen) has been
+  run on the 26.2 branch — no harness artifacts exist in `.local/` and
+  none are mentioned in PORT-NOTES.
+
+## Item 236 no-change (2026-11-15) — core (Holder / Vec3i / Direction)
+
+- 11 classes, 0 named. Diffs are renames / inlined helpers with identical
+  semantics: `Holder.getRegisteredNameIfPresent` inlined into its one
+  caller; `Vec3i.offsetCodec` strict `<` in 26.2 vs `<=` in 26.3 (already
+  handled, item 242) and `differsHorizontally` is 26.3-only;
+  `Direction` drops the `Directional` interface, `getStep` ->
+  `getUnitVec3i` rename; `HolderOwner.canSerialize` ->
+  `canSerializeIn` with the `HolderGetter` / `RegistryLookup` interface
+  hierarchy reshuffled; `BlockPos$MutableBlockPos` constructs
+  `new BlockPos(this)` instead of `(x, y, z)`. `Direction$Axis` (46
+  lines): 26.2 enum constants carry `(name, ordinal, lowercase)` and
+  `getPositive` / `getNegative` / `choose` are abstract per-constant
+  methods vs 26.3's concrete switch methods — identical semantics.
+
+## Item 239 no-change (2026-11-15) — gfx/core_sky.rs / translucency
+
+- 2 classes, 0 named. `ColorTargetState` is NOT in either 26.3 jar at
+  `com/mojang/blaze3d/pipeline/` — in 26.3 it moved to
+  `com/mojang/renderpearl/api/pipeline/ColorTargetState`. The diff is the
+  RenderPearl-vs-Blaze3D package move only; the Rust's sky rendering
+  uses its own pipeline and names none of the changed methods.
+
+## Item 244 no-change (2026-11-15) — gfx/entity_batch.rs / block_entity_render
+
+- 1 class, 0 named. `RenderType` diff is the RenderPearl-vs-Blaze3D
+  import move plus the outline-texture lookup (26.3 uses the named
+  outline texture binding; 26.2 uses the first texture) and a removed
+  `hasBlending` field. The Rust's entity batching does not use Mojang's
+  `RenderType` (own render types); no behaviour the Rust depends on
+  changes.
+
+## Item 246 no-change (2026-11-15) — cosmetics/item.rs
+
+- 1 class, 0 named. `Item$Properties` (64 lines): 26.3-only `villagerFood`
+  and `potPattern` methods removed in 26.2; components `VillagerFood`,
+  `BrewingFuel`, `CookingFuel`, `Compostable`, `MobVisibility`,
+  `BlockTransformers` absent in 26.2. The shared methods
+  (`usingConvertsTo`, `repairable`, `componentInitializer`) are
+  identical. The Rust's cosmetics/item.rs does not reference the
+  26.3-only methods.
+
+## Item 248 no-change (2026-11-15) — util/context
+
+- 2 classes, 0 named. `ContextMap$Builder` diff is a map-implementation
+  swap (`Reference2ObjectOpenHashMap` in 26.3 vs `IdentityHashMap` in
+  26.2) with renamed methods (`set`/`get` in 26.3 vs
+  `withParameter`/`withOptionalParameter`/`getParameter` in 26.2);
+  `ContextMap` itself is `final` with a static `EMPTY` and `builder()`
+  factory in 26.3 vs a plain class in 26.2. Semantics identical; the
+  Rust's context code does not call these methods.
+
+## Item 214 changed (2026-11-15) — world/level/levelgen/structure/templatesystem / rule_test
+
+- 3 classes, 0 named, but the diff is a real API rework with two genuine
+  26.2 divergences in the Rust, both found by the reworked harness:
+- **RuleTest is 2-arg in 26.2.** 26.3's `test(state, pos, random)` (with
+  `height_match`, `not`, `all_of`, `any_of` rule types) vs 26.2's
+  `test(state, random)` with only six registered types
+  (`always_true`, `block_match`, `blockstate_match`, `tag_match`,
+  `random_block_match`, `random_blockstate_match`). The Rust accepted all
+  four 26.3-only types and carried a position parameter used only by the
+  `Height` node. Removed the four decode arms and `Not`/`All`/`Any`/
+  `Height` nodes, dropped the position parameter from `RuleTest::test`
+  (callers in `block_feature.rs`, `ore_feature.rs`,
+  `structure/processor.rs`, and the fixture updated), and simplified
+  `pure_heights` (no Y ranges to collect in 26.2; the `Option` only
+  reports whether the rule draws from random — the ore-feature cache
+  stays correct with the empty ranges). 26.3-only definitions now
+  decode-error on both sides.
+- **26.2's `BlockState.CODEC` is object-only with NBT names.** 26.3's
+  `CODEC` is an `Either<Block, BlockState>` accepting a bare block id or
+  a full object with `id`/`properties`; 26.2's `CODEC` is the object form
+  with `Name`/`Properties` only (26.3's `FULL_CODEC`). Probed directly
+  against the 26.2 oracle: bare `"air"` and `{"id":...}` forms
+  decode-error, `{"Name":...}` decodes ok; probability -1 is accepted
+  in both. Fixed `BlockStateJsonCodec::decode(json, full=true)` to read
+  `Name`/`Properties` only (the `full=false` compact form is unchanged,
+  26.3-model), and `RuleTest`'s `block_state` field now decodes with
+  `full=true`. `JigsawBlockInfo` has no Rust counterpart: 26.3's record
+  is `(pos, state, jointType, @Nullable name, ...)` with a `parse(info)`
+  factory; 26.2 holds the whole `StructureBlockInfo` with a non-null
+  `name` and an `of(info)` factory — a rename only.
+- Harness: `tools/test_rule_test_parity.py` reworked for 26.2 (oracle
+  2-arg call; driver `rule_types` 10 -> 6 with the scope text updated;
+  pinned state count 35723 -> 32366) and now passes: **1,251,780
+  replacement-rule output lines match Rust on both the client and the
+  server jars** (68,956 codec inputs, 1,660,472 requested tests). The
+  first two runs each found one real divergence (above), so the harness
+  earned its keep.
+- WIP checkpoints `d69ec30a`, `092b0d3d`, `3d1f8ef8` pushed mid-batch.
+- Follow-up debt (same class, other harnesses own them): `decode(...,
+  false)` — the 26.3 compact block-state form — is still used for vanilla
+  `BlockState.CODEC` fields at `state_provider.rs:183,393,397` (simple /
+  weighted / noise providers), `generator.rs:1086`
+  (`NoiseGeneratorSettings` default_block/default_fluid — its comment
+  claims the id-alone form is accepted in 26.2, which the probe above
+  disproves for `BlockState.CODEC`), and
+  `material_condition/library.rs:195` (`result_state`). Each needs its
+  own harness to confirm whether the field's vanilla codec is the
+  object-only 26.2 form. The `block_state_codec` harness itself needs a
+  26.2 rework: its oracle references `FULL_CODEC`, which does not exist
+  in 26.2, and its corpus uses the `id`/`properties` object form.
+
+## Batch of 8 rank-2 A items closed (2026-11-15) — 249, 250, 251, 255, 256, 259, 275, 277
+
+Six no-change, two changed (250, 277). Rank 2 298/410 -> 306/410.
+
+## Item 249 no-change (2026-11-15) — world/item/crafting/display
+
+- 3 classes, 0 named. `SlotDisplay$TagSlotDisplay`: 26.3 holds a resolved
+  `HolderSet<Item>`; 26.2 holds a `TagKey<Item>` (resolved lazily via the
+  registry). The Rust's `Ingredient` expands tags at load time into
+  `items` + `order` (HolderSet order via `item_tag_order`) — the eager
+  26.3 shape, not 26.2's lazy TagKey. Observable difference only on
+  datapack reload (a tag's contents changing after load); the
+  ghost_recipe harness (unrun on 26.2) owns that verification.
+  `SlotDisplayContext`: 26.3's context has `REGISTRIES` (RegistryAccess)
+  only; 26.2 adds optional `FUEL_VALUES` and `REGISTRIES` is a
+  `HolderLookup.Provider`. The Rust's recipe context does not pass fuel
+  values. No behaviour the Rust depends on changes.
+
+## Item 250 changed (2026-11-15) — world/level/levelgen/feature/stateproviders
+
+- 1 class, 0 named, but the diff is a real codec rework with a genuine
+  26.2 divergence in the Rust (the follow-up from item 214): 26.3's
+  `BlockStateProvider` is an interface with `TYPED_CODEC`,
+  `STATE_OR_PROVIDER_CODEC` (xor of `BlockState.FULL_CODEC` +
+  TYPED_CODEC), `DIRECT_CODEC` and a holder `CODEC`; 26.2's is an
+  abstract class with a single byNameCodec-dispatch `CODEC` and static
+  `simple(state)` / `simple(block)` factories (26.3: `of` /
+  `holderOf`). Every provider's state field uses 26.2's object-only
+  `BlockState.CODEC` (verified in the jars: `SimpleStateProvider`
+  `BlockState.CODEC.fieldOf("state")`; `WeightedStateProvider`
+  `WeightedList.nonEmptyCodec(BlockState.CODEC)`; `NoiseThresholdProvider`
+  `BlockState.CODEC` for `default_state` / `low_states` /
+  `high_states`; `NoiseProvider` `BlockState.CODEC.listOf()` for
+  `states`; `WouldSurvivePredicate`'s `state` field). The Rust decoded
+  all five of those fields with the compact form (`decode(..., false)`,
+  accepting bare strings and `id`/`properties` objects). Fixed to the
+  object-only form (`true`): `state_provider.rs` simple `state`,
+  weighted entries, and `predicate_state` (would_survive); `noise.rs`
+  `default_state` and the `states` lists. The direct-state attempt in
+  `StateProvider::decode` already used `true`.
+- Follow-up: the `state_provider` harness cannot run on 26.2 yet — its
+  oracle compilation fails with 97 errors across three helpers
+  (`VanillaMaterialConditionOracle` 76, `VanillaStateProviderOracle` 11,
+  `VanillaAnchorOracle` 10), all 26.3-only APIs (packages
+  `densityfunction`, `material/condition`, `material/rule` do not exist
+  in 26.2; `RegistryInfoLookup` shape differs). Needs a full 26.3->26.2
+  oracle rework, same class as items 127/131.
+- WIP checkpoint `37c9f5b1` pushed mid-batch.
+
+## Item 251 no-change (2026-11-15) — client/renderer/weather
+
+- 1 class, 0 named. `WeatherEffectRenderer` (123 diff lines) is the
+  26.3 RenderPearl/OIT render-pass rework (`prepare` -> `render`,
+  `setUniform` -> `bindTexture`, `OitStage` -> `OutputTarget.WEATHER_TARGET`,
+  pipeline selection via `useShaderTransparency`). The Rust's weather.rs
+  is its own wgpu renderer and names none of Mojang's render types; the
+  `weather_render` harness (unrun on 26.2) owns the rendering
+  verification.
+
+## Item 255 no-change (2026-11-15) — world/level/levelgen/feature
+
+- 1 class, 0 named. 26.3's `SimpleBlockFeature` is a record
+  `(Holder<BlockStateProvider> toPlace, boolean scheduleTick)` with a
+  MapCodec; 26.2's is the old `Feature<SimpleBlockConfiguration>` class
+  with `place(FeaturePlaceContext)`. The Rust's `SimpleBlockFeature`
+  already decodes `to_place` as a direct provider (not a holder) with an
+  optional `schedule_tick` defaulting false, and its place logic matches
+  26.2's (optional state, `canSurvive`, double-plant / mossy-carpet
+  special cases via placement ops, schedule tick). The `simple_block`
+  harness (unrun on 26.2) owns the verification.
+
+## Item 256 no-change (2026-11-15) — world/level/levelgen/structure
+
+- 5 classes, 0 named. `StructureCheck`: 26.3 adds a
+  `chunksWithoutStartsInStorage` LongSet cache (131072 cap) and a
+  `climateSampler` field; 26.2 passes the pos key straight to
+  `tryLoadFromStorage` — the cache is a pure optimization with
+  identical results. `StructurePiece.addChildren` takes a
+  `StructurePiecesBuilder` (26.3) vs a `StructurePieceAccessor` (26.2);
+  `BoundingBox.getCenter` / `intersects` are the same values,
+  restructured. No behaviour the Rust depends on changes.
+
+## Item 259 no-change (2026-11-15) — server/commands/data
+
+- 3 classes, 0 named. `TagCommand`: 26.3 uses the
+  `CommandResponseTracker.messages` helpers; 26.2 uses `Sets` + inline
+  messages — the command behaviour (add/remove/list tags, messages) is
+  identical, only the response plumbing is restructured.
+  `BlockDataAccessor` / `StorageDataAccessor`: `ArgProvider` (26.3) vs
+  `DataProvider` (26.2) Brigadier-provider rework; the accessor
+  behaviour (get/set NBT on a block entity / storage) is unchanged.
+  The Rust's `game/commands/data.rs` implements `/data` and `/tag` with
+  its own argument parsing.
+
+## Item 275 no-change (2026-11-15) — level/query.rs / block/state
+
+- 2 classes, 0 named. `BlockStateBase.calculateSolid` logic is identical
+  in both versions (forceSolidOn -> true, forceSolidOff -> false, null
+  cache -> false, empty shape -> false, bounds size >= 0.729... -> true,
+  else Y size >= 1.0); 26.3 only wraps every return in
+  `SolidDebugger.logAndGet` (debug logging). `blocksMotion()` (not
+  cobweb / bamboo_sapling and `isSolid()`) is present in 26.2 as
+  established. `shouldRedstoneWireConnectTo` is 26.3-only; the Rust
+  never calls it. `isViewBlocking`: 26.3's `StateArgumentPredicate<AABB>`
+  vs 26.2's plain `StatePredicate` — the Rust already implements the
+  26.2 two-argument form in `render_tick.rs`. `DiodeBlock`: 26.3-only
+  abstract `codec()` + the `RedstoneWireBlock` rename (26.2:
+  `RedStoneWireBlock`); the power-read logic is identical.
+
+## Item 277 changed (2026-11-15) — world/level/block/state
+
+- 3 classes, 0 named. `BlockState` / `StateHolder` diffs are the codec
+  story from item 214 (26.3 `FULL_CODEC` + Either vs 26.2 object-only;
+  `id`/`properties` vs `Name`/`Properties`), already fixed and verified
+  by the rule_test harness. `Properties`: 26.3's default
+  `isSuffocating` is `state.is(#causes_suffocation) &&
+  isCollisionShapeFullBlock`; 26.2's is `state.blocksMotion() &&
+  isCollisionShapeFullBlock`. The `#causes_suffocation` tag file exists
+  only in the 26.3 jar (52 bytes) — it is absent from 26.2 — so the
+  Rust's `state_suffocating` default arm (`full_collision &&
+  block_in_tag("minecraft:causes_suffocation", ...)`) was always false
+  under 26.2 data: no suffocation overlay ever showed for solid blocks.
+  Fixed to the 26.2 form using the already-populated `legacy_solid`
+  fact (from `block-behaviours.json`, also used by the fluid mesher)
+  with the cobweb / bamboo-sapling exclusion — the same `blocksMotion`
+  rule horizon-world already uses. The explicit arms (dirt_path /
+  farmland / mud / soul_sand, pistons, leaves / glass / copper_grate,
+  shulker boxes) are unchanged. `PushReaction` default NORMAL (26.2)
+  vs PUSH_PULL (26.3) was already known; `fallDistanceReduction` is a
+  26.3-only Properties field (26.2 blocks all export 0.0, item 86).
+- WIP checkpoint `37c9f5b1` pushed mid-batch.
+
+## Batch of 10 rank-2 A items closed (2026-11-15) — 297, 298, 299, 300, 301, 303, 304, 308, 309, 310
+
+All ten no-change (verified against the jars, no code change). Rank 2
+306/410 -> 316/410. Rate sample: 88 -> 98 items.
+
+## Item 297 no-change (2026-11-15) — world/level/storage/loot/functions
+
+- 2 classes, 0 named. `SetNameFunction`: 26.3's single
+  `Optional<Holder<LootItemCondition>> condition` vs 26.2's
+  `List<LootItemCondition> predicates` — the loot list form already
+  ported in item 101; `context.getOptional` -> `getOptionalParameter`
+  is the ContextMap rename (item 248). `ExplorationMapFunction$Builder`:
+  26.3 takes a `HolderSet<Structure>` destination in the constructor;
+  26.2 holds a `TagKey<Structure>` with a `setDestination` setter and a
+  `DEFAULT_DESTINATION`. The Rust's `ExplorationMap::from_json` already
+  implements the 26.2 form (tag string, default
+  `minecraft:on_treasure_maps`, documented in the code).
+
+## Item 298 no-change (2026-11-15) — item/hash/raw.rs
+
+- 2 classes, 0 named. `TrimMaterial`: 26.3's record is `(Identifier
+  paletteId, ...)`; 26.2's is `(MaterialAssetGroup assets, ...)` — the
+  trim palette rework already ported in item 61 (asset_name +
+  override_armor_assets, trims/color_palettes/trim_palette).
+  `BannerPattern`: `RegistryCodecs.holder` -> `RegistryFileCodec.create`
+  rename only.
+
+## Item 299 no-change (2026-11-15) — client/gui/font
+
+- 2 classes, 0 named. `AtlasGlyphProvider$Instance` diff is the
+  RenderPearl -> Blaze3D import move only; `$1` (synthetic) has no diff
+  at all.
+
+## Item 300 no-change (2026-11-15) — client/resources/model/cuboid
+
+- 2 classes, 0 named. `CuboidModelElement`: 26.3's record field is
+  `@Nullable Direction shadeDirectionOverride`; 26.2's is `boolean shade`
+  (default true, with a type check throwing on a non-boolean). The Rust's
+  `Element::decode` already reads both (`shade` bool defaulting true,
+  plus `shade_direction_override`), with the 26.2/26.3 split documented
+  in the field comment.
+
+## Item 301 no-change (2026-11-15) — network/chat
+
+- 2 classes, 0 named. `MessageSignature` / `Packed`: 26.3 uses Netty
+  `ByteBuf` + `VarInt` StreamCodec; 26.2 uses `FriendlyByteBuf` — the
+  buffer API only, same wire format (Packed id + 1, 256-byte signature,
+  as the Rust's `play.rs` documents and its test pins).
+
+## Item 303 no-change (2026-11-15) — world/level/storage/loot
+
+- 2 classes, 0 named. `LootTable$Builder`: 26.3 `apply(Holder<...>)`
+  vs 26.2 `apply(LootItemFunction.Builder)` + `build()` — the loot
+  list form already ported in item 101. `LootContext`: `getOptional` ->
+  `getParameter` (getOrThrow) / `getOptionalParameter` is the ContextMap
+  rename (item 248); the Rust's value-based context lookups have the
+  same outcomes.
+
+## Item 304 no-change (2026-11-15) — gfx/pack_atlas.rs
+
+- 2 classes, 0 named. `ChunkSectionLayer`: RenderPearl -> Blaze3D
+  imports; 26.3's enum constants carry an extra MULTIDRAW pipeline
+  variant (removed in 26.2). `SectionCompiler` diff is 2 lines. The
+  Rust's section mesh uses its own layers.
+
+## Item 308 no-change (2026-11-15) — lan/conn.rs
+
+- 4 classes, 0 named. `ServerConnectionListener`: 26.3 holds a
+  `pendingConnections` ConcurrentLinkedQueue; 26.2 accepts channels
+  directly via `acceptChannel`. The Rust's `lan/conn.rs` is its own
+  Netty-free listener; connection-acceptance order is the same. The
+  login-listener classes differ by 2-3 lines (inner-class plumbing).
+
+## Item 309 no-change (2026-11-15) — horizon-items/blocks.rs
+
+- 2 classes, 0 named. `WallHangingSignBlock` / `WallSignBlock`: 26.2
+  carries a `CODEC` with a `wood_type` field; 26.3 removed the per-block
+  codec. The Rust does not use Mojang's block codecs for signs (block
+  types come from the registry data); sign behaviour is unchanged.
+
+## Item 310 no-change (2026-11-15) — client/gui/components
+
+- 7 classes, 0 named. `AbstractWidget.isValidClickButton`: 26.3 checks
+  `button() == 1`, 26.2 `button() == 0` — the same left click under
+  different numbering (SDL is 1-based, GLFW/winit 0-based). The Rust's
+  UI activates on left click. `ScrollableLayout.getScrollAmount` is
+  26.3-only; the rest of the diffs are 0-2 lines (AbstractButton,
+  AbstractScrollArea, BossHealthOverlay, CycleButton, ImageButton have
+  no diff at all).
+
+## Batch of 10 rank-2 A items closed (2026-11-15) — 312, 313, 314, 315, 317, 318, 319, 320, 322, 323
+
+Nine no-change, one changed (322). Rank 2 316/410 -> 326/410. Rate
+sample: 98 -> 100 items (complete — see the tally note below).
+
+## Item 312 no-change (2026-11-15) — world/level
+
+- 3 classes, 0 named. `GameType`: 26.3 has an `OPTIONAL_STREAM_CODEC`
+  (ByteBuf); 26.2 has `getNullableId` with a -1 sentinel. The Rust's
+  26.2 adapter already uses the -1 sentinel (`layout_26_2.rs` writes
+  `previous_game_type.map_or(-1, ...)`, `translate.rs` reads
+  `(previous >= 0).then_some(...)`) — the item-8 login fix.
+  `BaseSpawner.setEntityData(TypedEntityData, ...)` is 26.3-only; 26.2's
+  spawner has no such method. `NaturalSpawner$SpawnPredicate.test`
+  takes a `ServerLevel` in 26.3, not in 26.2 — the Rust's spawn
+  selection (item 106, harness-passing) already uses the 26.2 form.
+
+## Item 313 no-change (2026-11-15) — protocol/item/hash.rs
+
+- 2 classes, 0 named. `RegistryOps` / `HolderLookupAdapter`: the
+  `owner()` / `getter()` / `elementsLifecycle()` HolderOwner rework.
+  The Rust does not port the class (only a doc comment in `hash.rs`
+  mentions it); its registry ops are its own. No Rust surface.
+
+## Item 314 no-change (2026-11-15) — client/resources/model/sprite
+
+- 2 classes, 0 named. `MaterialBaker`: 26.3 is a concrete class with
+  block/item atlas Preparations; 26.2 is abstract with just a missing
+  sprite. `Material.withSuffix` is 26.3-only. The Rust's sprite baking
+  is its own implementation.
+
+## Item 315 no-change (2026-11-15) — end_crystal.rs
+
+- 1 class, 0 named. `EndCrystalRenderer`: 26.2's `submitModel` call
+  carries an extra trailing `null` argument (a 26.2-only parameter
+  slot); 26.3's `shouldRender` additionally returns true when the
+  crystal has a beam target (26.3-only — in 26.2 a culled crystal does
+  not render, beam or not). The Rust has no beam-target render gate,
+  matching 26.2; entity culling is the item-92 tick-position form.
+
+## Item 317 no-change (2026-11-15) — client/gui/screens/worldselection
+
+- 1 class, 0 named. `CreateWorldScreen`: `datapackWorldRegistries()`
+  -> `datapackWorldgen()` rename only.
+
+## Item 318 no-change (2026-11-15) — client/renderer/entity
+
+- 1 class, 0 named. `DisplayRenderer`: 26.3's
+  `getBoundingBoxForCulling(entity, partialTicks)` with
+  `getInterpolatedBoundingBox` vs 26.2's `getBoundingBoxForCulling(entity)`
+  with `getBoundingBoxForCulling()` — the item-92 tick-position culling
+  form, already ported. `rotate` -> `mulPose` rename.
+
+## Item 319 no-change (2026-11-15) — world/entity/projectile
+
+- 2 classes, 0 named. `ProjectileDeflection`: 26.3's deflect lambdas
+  take a `power` (Vec3) parameter; 26.2's take only (projectile,
+  entity, random). REVERSE: 26.3 multiplies by `-power * 0.5` per
+  component; 26.2 scales by -0.5. The Rust's `deflect_reverse` and
+  `wind::reverse` both use the 26.2 -0.5 form, and 26.2's Breeze
+  deflection is REVERSE (with the sound), not AIM_DEFLECT.
+  `ShulkerBullet.onRedirectProjectile` (MOMENTUM_DEFLECT) is 26.3-only;
+  26.2's shulker bullets have no such method, and the Rust correctly
+  has none.
+
+## Item 320 no-change (2026-11-15) — world/item/enchantment
+
+- 3 classes, 0 named. `Enchantment`: `RegistryCodecs.holderSet` ->
+  `homogeneousList` for `exclusive_set` (and `supported_items` /
+  `primary_items` in the definition) and `RegistryFixedCodec.create`
+  for `CODEC` — the same JSON shapes (a `#tag` string or a list), which
+  the Rust's `parse_entry` already accepts in both forms.
+  `Enchantment$Builder` drops the `Holder.direct` wrapping (26.3-only).
+
+## Item 323 no-change (2026-11-15) — chunk/block_entity.rs
+
+- 3 classes, 0 named. `TrialSpawnerConfig`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` rename; the record field order is the same
+  in both versions. `BlockEntity`: the two log lines swap their
+  state/pos arguments — cosmetic only. `TrialSpawnerBlockEntity` diff
+  is 10 lines of the same codec rename.
+
+## Item 322 changed (2026-11-15) — level/portal.rs
+
+- 2 classes, 0 named. `PortalShape.FRAME` is `state.is(#nether_portal_frame)`
+  in 26.3 vs `state.is(Blocks.OBSIDIAN)` in 26.2. The tag file exists
+  only in the 26.3 jar (46 bytes, contains only `minecraft:obsidian`);
+  the real 26.2 `block-tags.json` (265 tags) has `minecraft:fire` but NOT
+  `minecraft:nether_portal_frame`. The Rust's `portal_frame` (tag lookup
+  via `b.tag(...)`, `None` -> false) was therefore always false under
+  26.2 data — portal detection broken. Fixed in
+  `crates/horizon-world/src/level/portal.rs` to
+  `self.b.is_block(state, self.b.named.obsidian)` (named.obsidian exists
+  at `level/data.rs:267`). `cargo check -p horizon-world` clean,
+  rustfmt clean.
+- Verification: the nether_portal harness had never run on 26.2 — it
+  failed at case generation with `KeyError: ('minecraft:nether_portal',
+  {'axis': 'z'})`. Root cause: the shared `States` helper in
+  `tools/test_dispenser_parity.py` reads the state properties from
+  `state[4]['properties']` (the 26.3 JSON form), but the 26.2 facts.json
+  stores the NBT form (`Properties`). Fixed with a `state_properties`
+  helper that accepts both forms (three call sites). Harness now runs
+  and passes: **2626/2626 cases match (0 oracle errors)** — vanilla
+  linked to an existing portal 725 times, built one 775 times, 1126 of
+  them PortalShape frame searches.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 324, 325, 326, 327, 328, 329, 330, 331, 332, 334, 335, 336
+
+All no-change. Rank 2 326/410 -> 338/410.
+
+## Item 324 no-change (2026-11-15) — client-render/skins.rs
+
+- 3 classes, 0 named. `PlayerSkinRenderCache$RenderInfo`: RenderPearl ->
+  Blaze3D `GpuTextureView` import move only. `SkinManager` has no diff.
+  The Rust's skins.rs is its own renderer.
+
+## Item 325 no-change (2026-11-15) — client-render/vault.rs
+
+- 3 classes, 0 named. `VaultBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (the item-309 pattern — the Rust does not use Mojang block
+  codecs). `VaultRenderer`: `rotateDegrees` -> `mulPose` rename.
+  `BuiltInLootTables`: four tables are 26.3-only (`till/rooted_dirt`,
+  `barrels/abandoned_camp_barrel`, `chests/abandoned_camp_common_chest`,
+  `chests/abandoned_camp_secret_chest`); no Rust references to them (the
+  `abandoned_camp` hits in maps.rs are map decorations).
+
+## Item 326 no-change (2026-11-15) — game/beacon.rs
+
+- 4 classes, 0 named. `BeaconScreen` and its three button classes have
+  no diff at all.
+
+## Item 327 no-change (2026-11-15) — game/machines.rs
+
+- 3 classes, 0 named. `DropperBlock` carries a `MapCodec` in 26.2,
+  removed in 26.3 (item-309 pattern). `DispenserScreen` and
+  `HopperScreen` have no diff.
+
+## Item 328 no-change (2026-11-15) — game/ominous_item_spawner.rs
+
+- 2 classes, 0 named. `OminousItemSpawner.getPistonPushReaction`:
+  `IGNORE_ENTITY` (26.3) vs `IGNORE` (26.2) — the PushReaction rename
+  already established (26.2 IGNORE = 26.3 IGNORE_ENTITY). The Rust's
+  ominous spawner is a lightweight game struct, not an entity in the
+  piston system, so the reaction never applies. Renderer:
+  `rotateDegrees` -> `mulPose` rename.
+
+## Item 329 no-change (2026-11-15) — shaders/pack.rs
+
+- 1 class, 0 named. `Pack$ResourcesSupplier`: 26.3's
+  `openMetadata`/`openResources` (Stream) vs 26.2's `openPrimary`/
+  `openFull`. Mojang's pack-supplier interface; the Rust's pack loading
+  is its own and does not implement it.
+
+## Item 330 no-change (2026-11-15) — client/multiplayer
+
+- 1 class, 0 named. `ClientSuggestionProvider`: 26.3 adds
+  `getAvailablePostEffects` (post-effect suggestions, a 26.3-only
+  shader feature) and `suggestRegistryElements` takes a `Predicate<E>`
+  filter in 26.3 that 26.2's form lacks. The Rust has no such method.
+
+## Item 331 no-change (2026-11-15) — tags
+
+- 4 classes, 0 named. `ItemTags`: 26.3-only tags (WOOL_STAIRS/SLABS,
+  POPLAR_LOGS, CONCRETE_STAIRS/SLABS via `BlockItemTags`;
+  MUSHROOMS/CLONABLE_MAPS/EXTENDABLE_MAPS/CUSHIONS/DOUSES_CAMPFIRES/
+  BREWING_POTION_INPUTS/FURNACE_FUEL_BOTTOM_TAKEABLE) and the 26.2-only
+  `BREWING_FUEL` (bind; the Rust's brewing code already uses the
+  `minecraft:brewing_fuel` tag). `FluidTags`: four 26.3-only tags
+  (`axolotl_tries_to_find`, `dolphin_tries_to_find`,
+  `frog_tries_to_find_land_near`, `entity_floatable`).
+  `DamageTypeTags`/`EntityTypeTags`: 1 line each, tag-name renames.
+  Tags are data-driven from the 26.2 tag files; the Rust already
+  documents the 26.2 absences (`campfire_douse.rs`,
+  `menu.rs` on `brewing_potion_inputs`).
+
+## Item 332 no-change (2026-11-15) — world/item
+
+- 3 classes, 0 named. `SwingAnimationType`: 26.3's `CODEC` is an
+  `EnumCodec` with a `byName(name, default)` helper; 26.2's is a plain
+  `Codec`. The Rust references the type by ordinal only (STAB = 2) —
+  no wire effect. `ItemStackTemplate.fromNonEmptyStack` is 26.3-only;
+  the Rust's `Template::from_non_empty_stack` is an internal helper
+  with the same semantics, used only by its own fixtures. `JukeboxSong`:
+  `RegistryCodecs.holder` -> `RegistryFixedCodec.create` rename.
+
+## Item 334 no-change (2026-11-15) — client-render/widgets.rs
+
+- 2 classes, 0 named. `RecipeButton`: `button() == 1 || == 3` (26.3
+  SDL) vs `== 0 || == 1` (26.2 GLFW) — the same left/right clicks
+  under the item-310 numbering split. `CursorTypes`: SDL standard
+  cursor ids (0, 1, 3, 11, 8, 7, 9, 10) vs GLFW ids (221185+). The
+  Rust's cursor is symbolic (`Cursor::Arrow/PointingHand/NotAllowed`),
+  with no numeric ids.
+
+## Item 335 no-change (2026-11-15) — game/sheep_dye.rs
+
+- 1 class, 0 named. `DyeItem.tryApplyToSign`: 26.3 takes a
+  `SignTextSlot`; 26.2 takes a boolean `isFrontText`. The Rust's
+  `use_sign_applicator` already uses the 26.2 form (`facing_sign_front`
+  -> `sign.front` / `sign.back`).
+
+## Item 336 no-change (2026-11-15) — game/trial_spawner.rs
+
+- 1 class, 0 named. `TrialSpawner`: 26.3 sets the OMINOUS flag with
+  `level.setBlockAndUpdate`; 26.2 uses `level.setBlock(pos, state, 3)`
+  (the 26.2 form already documented in `chiseled_bookshelf.rs`).
+  `overrideEntityToSpawn(TypedEntityData, level)` is 26.3-only. The
+  Rust's trial spawner reads the ominous flag from the block state and
+  has no `setBlock` call for it; its config override is its own.
+
+## CI run 43646940294 (dispatched 2026-11-15, tree d2aa9a03, 338/410)
+
+Dispatched on the ~50-item cadence (previous run 43609469257 was the
+285/410 tree). Profile pending — the run takes ~2h; porting continues
+while it runs. Artifacts to `~/workspace/mcir-ci/26.2-338/` when done.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 337, 338, 339, 340, 341, 343, 344, 345, 346, 347, 348, 349
+
+All no-change. Rank 2 338/410 -> 350/410. CI run 43646940294 is in
+flight on the 338/410 tree.
+
+## Item 337 no-change (2026-11-15) — game/wind.rs
+
+- 1 class, 0 named. `FenceGateBlock` carries a `MapCodec` (with a
+  `wood_type` field) in 26.2, removed in 26.3 (the item-309 pattern —
+  the Rust does not use Mojang block codecs).
+
+## Item 338 no-change (2026-11-15) — lan/hub/chat.rs
+
+- 1 class, 0 named. `SignedMessageBody$Packed`: 26.3's `STREAM_CODEC`
+  (ByteBuf) vs 26.2's FriendlyByteBuf constructor/`write` — the same
+  wire format (content utf8 256, instant, long salt, lastSeen Packed),
+  the item-301 pattern.
+
+## Item 339 no-change (2026-11-15) — climbing_fixture.rs
+
+- 1 class, 0 named. `TrapDoorBlock` carries a `MapCodec` (with a
+  `block_set_type` field) in 26.2, removed in 26.3 (item-309 pattern).
+
+## Item 340 no-change (2026-11-15) — level/mod.rs
+
+- 2 classes, 0 named. `ComparatorBlock` carries a `MapCodec` in 26.2,
+  removed in 26.3; `BaseEntityBlock` declares the abstract `codec()`
+  in 26.2 (item-309 pattern).
+
+## Item 341 no-change (2026-11-15) — client/gui/screens/inventory
+
+- 2 classes, 0 named. `AnvilScreen` and `CraftingScreen` have no diff
+  at all.
+
+## Item 343 no-change (2026-11-15) — client/resources
+
+- 1 class, 0 named. `ClientPackSource`: 26.3's
+  `createVanillaPack(ResourcesSupplier)` vs 26.2's
+  `createVanillaPack(PackResources)` + `fixedResources` — the item-329
+  pack-supplier rework. The Rust's pack loading is its own.
+
+## Item 344 no-change (2026-11-15) — blaze3d/platform/cursor
+
+- 1 class, 0 named. `CursorType.select`: SDL (`SDLMouse`) in 26.3 vs
+  GLFW (`glfwSetCursor`/`glfwCreateStandardCursor`) in 26.2 — the
+  item-310/334 platform split. The Rust uses winit (GLFW-style).
+
+## Item 345 no-change (2026-11-15) — world/entity/vehicle/minecart
+
+- 1 class, 0 named. `AbstractMinecart`: 26.3's
+  `createInterpolationHandler()` (LinearInterpolationHandler or NO_OP
+  for experimental movement) vs 26.2's `getInterpolation()` from the
+  behavior (the 3-step handler). The Rust's minecart movement is
+  ported from `NewMinecartBehavior` (per-step rotation and
+  interpolation weight) and renders at the tick position (the item-92
+  form); it does not implement 26.3's LinearInterpolationHandler.
+
+## Item 346 no-change (2026-11-15) — world/level/block/piston
+
+- 2 classes, 0 named. `MovingPistonBlock` carries a `MapCodec` in
+  26.2, removed in 26.3 (item-309 pattern). `PistonBaseBlock$1` is the
+  compiler switch map over `PushReaction` — IMMOVEABLE/POPPED/PUSH
+  (26.3) vs BLOCK/DESTROY/PUSH_ONLY (26.2), the established enum
+  rename; the Rust's piston logic is ported against the 26.2 behaviour.
+
+## Item 347 no-change (2026-11-15) — world/level/levelgen/structure/pools
+
+- 2 classes, 0 named. `JigsawPlacement$Placer`: 26.3 reads the
+  `JigsawBlockInfo` record's `.pos()`/`.state()` directly; 26.2 reads
+  them through `StructureBlockInfo` (`.info()`) — the item-214 rename
+  story. The Rust's jigsaw code uses its own `JigsawInfo` struct with
+  `pos`/`state` fields. `StructureTemplatePool`: `RegistryCodecs.holder`
+  -> `RegistryFileCodec.create` rename.
+
+## Item 348 no-change (2026-11-15) — client-render/breaking.rs
+
+- 1 class, 0 named. `SheetedDecalTextureGenerator`: 26.3 adds `setUv3`
+  and the static `setSheetedDecalUv` (the uv3/glint path, used by
+  `putBakedQuadWithGlint`). 26.2's `setNormal` computes the decal UV
+  inline and calls `delegate.setUv` (uv0) with the identical transform
+  (rotateY(PI), rotateX(-PI/2), direction rotation, negate) — the
+  Rust's breaking.rs implements exactly that transform. The 26.3-only
+  part is the uv3 slot, which the Rust does not use.
+
+## Item 349 no-change (2026-11-15) — gfx/lightning/tests
+
+- 1 class, 0 named. `VertexConsumer`: 26.3 adds `setUv3` and the
+  default `putBakedQuadWithGlint` (the uv3/glint path from item 348).
+  Mojang's vertex-consumer interface; the Rust's is its own wgpu code.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 350, 351, 352, 353, 354, 358, 359, 360, 363, 364, 365, 366
+
+All no-change. Rank 2 350/410 -> 362/410. CI run 43646940294 still in
+flight on the 338/410 tree.
+
+## Item 350 no-change (2026-11-15) — game/paintings.rs
+
+- 2 classes, 0 named. `PaintingRenderer`: `rotateDegrees` -> `mulPose`
+  rename. `PaintingVariant`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 351 no-change (2026-11-15) — gossip.rs
+
+- 1 class, 0 named. `GossipContainer.transferFrom` returns the picked
+  count (`int`) in 26.3 and `void` in 26.2. The Rust's `transfer_from`
+  returns the count, but its only non-test caller (villager.rs:675)
+  discards it — the 26.2 void form is honoured in effect; the return
+  is a test-only convenience. The transfer itself (selection, decay
+  per transfer, discard threshold) is identical.
+
+## Item 352 no-change (2026-11-15) — mobs/breeze.rs
+
+- 1 class, 0 named. `Breeze.PROJECTILE_DEFLECTION`: 26.3's 4-arg
+  lambda (with `power`) vs 26.2's 3-arg form — the item-319 story.
+  The Rust's `deflect(REVERSE)` already uses the 26.2 -0.5-per-axis
+  form (arrows.rs).
+
+## Item 353 no-change (2026-11-15) — mobs/landing.rs
+
+- 1 class, 0 named. `HayBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (item-309 pattern).
+
+## Item 354 no-change (2026-11-15) — mobs/llama.rs
+
+- 1 class, 0 named. `Llama`: 26.3's `rangedAttackUncertainty(level)`
+  returns 10.0F; 26.2 inlines the literal 10.0F in the spit call. The
+  Rust's spit passes the literal `10.0` — the same value.
+
+## Item 358 no-change (2026-11-15) — horizon-core/paletted.rs
+
+- 2 classes, 0 named. `BitStorage.fill(int)` is 26.3-only (interface
+  method + `SimpleBitStorage` implementation, the bit-replication
+  fill). The Rust's paletted storage has no `fill` method.
+
+## Item 359 no-change (2026-11-15) — world/dimension_type.rs
+
+- 1 class, 0 named. `DimensionType`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` and `holderSet` -> `homogeneousList` for
+  `infiniburn`/`timelines` — the same JSON shapes. The Rust's
+  `DimensionFacts.infiniburn` reads the tag string
+  (`#minecraft:infiniburn_overworld`/`_nether` defaults).
+
+## Item 360 no-change (2026-11-15) — level/data.rs
+
+- 1 class, 0 named. `WallBlock` carries a `MapCodec` in 26.2, removed
+  in 26.3 (item-309 pattern).
+
+## Item 363 no-change (2026-11-15) — advancements
+
+- 1 class, 0 named. `AdvancementHolder`: 26.3's
+  `register(BootstrapContext)` (server-side bootstrap) vs 26.2's
+  `LIST_STREAM_CODEC` (the packet list form). The Rust decodes
+  `ClientboundUpdateAdvancementsPacket` as a list — the 26.2 form.
+
+## Item 364 no-change (2026-11-15) — client/gui/screens
+
+- 2 classes, 0 named. `DeathScreen` has no diff.
+  `LoadingOverlay$LogoTexture`: `asResourceManager()` (26.3) vs
+  `asProvider()` (26.2) — rename only.
+
+## Item 365 no-change (2026-11-15) — client/renderer/state
+
+- 1 class, 0 named. `GameRenderState`: 26.3 adds the
+  `requestedPostEffects` list and the `shouldRenderLevel` /
+  `readyForLevelRendering` flags; 26.2 has the `useShaderTransparency()`
+  method instead. The post-effect/transparency rework; the Rust's
+  render state is its own wgpu code.
+
+## Item 366 no-change (2026-11-15) — network/syncher
+
+- 2 classes, 0 named. `EntityDataSerializers`: 26.3 registers a
+  `DYE_COLOR` serializer at id 43; 26.2's table ends at `HUMANOID_ARM`
+  (id 42). The Rust's table has the same 0-42 order and the extra
+  DYE_COLOR arm at 43 — unreachable from a 26.2 server, which never
+  sends id 43, so no 26.2 wire difference.
+  `SynchedEntityData$Builder`: `id >= length` (26.3) vs `id > length`
+  (26.2) in the bounds check — server-side vanilla behaviour; the
+  Rust client never builds it (it decodes `ClientboundSetEntityDataPacket`
+  entries by index).
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 367, 368, 369, 370, 371, 372, 373, 375, 376, 377, 378, 379
+
+Eleven no-change, one changed (371). Rank 2 362/410 -> 374/410. CI run
+43646940294 still in flight on the 338/410 tree.
+
+## Item 367 no-change (2026-11-15) — sounds
+
+- 2 classes, 0 named. `SoundEvent`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` rename. `SoundEvents`: 26.3 registers some
+  sounds with `registerForHolder` (returning `Reference<SoundEvent>`)
+  where 26.2 uses plain `register` — a holder-vs-direct distinction
+  with no wire effect. The 26.3-only sounds (CUSHION_*, SHELF_MUSHROOM_*,
+  POPLAR_LEAVES_*, STRAW_BED_*, RED_SHRUB_*) have no Rust references;
+  the Rust's sound table is data-driven from the 26.2 registry.
+
+## Item 368 no-change (2026-11-15) — world/attribute/modifier
+
+- 1 class, 0 named. `AttributeModifier`: 26.3's ColorModifier libraries
+  are generic over `Vector3fc`/`Vector4fc` (RGB/ARGB variants); 26.2's
+  are `Integer`-based with the plain ADD/SUBTRACT/BLEND_TO_GRAY/ALPHA_BLEND
+  names. 26.3 adds `MOB_SPAWN_SETTINGS_LIBRARY` and `listLibrary`
+  (ListModifier) — both 26.3-only. The Rust does not port the
+  color-modifier libraries.
+
+## Item 369 no-change (2026-11-15) — world/entity/monster/cubemob
+
+- 1 class, 0 named. `MagmaCube`: `canDealDamage` (26.3) vs
+  `isDealsDamage` (26.2) — a rename. 26.2's returns `isEffectiveAi()`;
+  the Rust's `can_deal_damage` (cube.rs) returns true for magma cubes
+  and the call sites check `m.no_ai` separately, reproducing the same
+  effective behaviour.
+
+## Item 370 no-change (2026-11-15) — world/entity/monster/hoglin
+
+- 1 class, 0 named. `Hoglin.blockedByItem` takes a `fullyBlocked`
+  parameter in 26.3 (4-arg) that 26.2's 3-arg form lacks, and
+  `handleEntityEvent` carries a `@Value` annotation in 26.3 only. The
+  Rust has no `blocked_by_item` implementation for hoglins.
+
+## Item 371 changed (2026-11-15) — world/inventory
+
+- 2 classes, 0 named. `MerchantResultSlot.mayPickup` is 26.3-only: it
+  blocks taking the result unless the active offer is satisfied by the
+  buy slots. 26.2's slot has no such override, so `Slot.mayPickup`
+  (true) applies — the take is allowed even when the offer is not
+  satisfied, and `onTake` then runs `offer.take` (which fails without
+  consuming) plus `overrideXp` — which is an empty method on
+  `AbstractVillager`, so no XP either. The Rust's `may_pickup` had the
+  26.3 gate (`Role::MerchantResult` arm requiring `satisfied_by`).
+  Fixed in `crates/horizon-client/src/menu.rs`: the arm now returns
+  true, with the 26.2 form documented; `merchant_take` already matches
+  26.2's `onTake` (nothing happens when `take` fails). `StonecutterMenu`:
+  `player.drop(stack, false, Prediction.PREDICTED)` in 26.3 vs
+  `player.drop(stack, false)` in 26.2 — `Prediction` is 26.3-only; the
+  Rust's stonecutter uses its own `drop_stack` with no prediction
+  parameter.
+
+## Item 372 no-change (2026-11-15) — beehive.rs
+
+- 1 class, 0 named. `HorizontalDirectionalBlock` declares the abstract
+  `codec()` in 26.2 (item-309 pattern).
+
+## Item 373 no-change (2026-11-15) — container_screen.rs
+
+- 1 class, 0 named. `AbstractRecipeBookScreen.isInputCaptured` is
+  26.3-only (`Screen.isInputCaptured` does not exist in 26.2).
+
+## Item 375 no-change (2026-11-15) — dialog.rs
+
+- 1 class, 0 named. `Dialog`: `RegistryCodecs.holder` ->
+  `RegistryFileCodec.create` and `holderSet` -> `homogeneousList` for
+  `LIST_CODEC` — the same JSON shapes.
+
+## Item 376 no-change (2026-11-15) — game/campfire.rs
+
+- 1 class, 0 named. `RecipeType.BREWING` is 26.3-only. The Rust has no
+  BREWING recipe type (26.2 brewing is via the brewing stand, not a
+  recipe type).
+
+## Item 377 no-change (2026-11-15) — game/entity.rs
+
+- 1 class, 0 named. `Entity$1` is the compiler switch map over
+  `MoveSimulationType` (SERVER_AND_CLIENT / AUTHORITATIVE_SIDE /
+  AUTHORITATIVE_SIDE_AND_SERVER) — the 26.3 movement-simulation enum.
+  The Rust's server-side player travel (`server_travel`, fall-distance
+  reset on climbables) matches 26.2's actual behaviour; the two
+  comments citing the 26.3 enum name are citations only.
+
+## Item 378 no-change (2026-11-15) — game/game_mode.rs
+
+- 1 class, 0 named. `InventoryScreen` has no diff at all.
+
+## Item 379 no-change (2026-11-15) — game/lan_mobs.rs
+
+- 1 class, 0 named. `OwnerHurtByTargetGoal`: 26.3 gates the retaliation
+  on `!lastDamageSource.is(DamageTypeTags.NO_WOLF_RETALIATION)`; 26.2
+  has no such check. The Rust's `OwnerHurtBy.can_use` (tame.rs) checks
+  only the owner's `hurt_by` and `wants_to_attack` — the 26.2 form.
+  No `#no_wolf_retaliation` reference exists in the Rust.
+
+## Batch of 12 rank-2 A items closed (2026-11-15) — 380, 381, 382, 383, 384, 385, 386, 387, 388, 389, 390, 391
+
+Eleven no-change, one changed (387). Rank 2 374/410 -> 386/410. CI run
+43646940294 still in flight on the 338/410 tree.
+
+## Item 380 no-change (2026-11-15) — game/mob_gear.rs
+
+- 1 class, 0 named. `EnchantmentsByCostWithDifficulty`: `holderSet` ->
+  `homogeneousList` for the `enchantments` field — the same JSON shape.
+
+## Item 381 no-change (2026-11-15) — game/native_panel_recipes.rs
+
+- 1 class, 0 named. `SlotDisplay$AnyFuel`: 26.3 reads fuel items from
+  `DataComponents.COOKING_FUEL` via the item registry; 26.2 reads them
+  from `FuelValues` (`SlotDisplayContext.FUEL_VALUES`). The Rust's
+  AnyFuel is every item with a burn time from the 26.2 fuel data
+  (`burn_time`), grouped by burn time — the 26.2 source.
+
+## Item 382 no-change (2026-11-15) — game/remote_mob_data.rs
+
+- 1 class, 0 named. `RopesLayer`: 26.2's `submitModel` call carries the
+  extra trailing `null` argument (the item-315 pattern).
+
+## Item 383 no-change (2026-11-15) — game/storage.rs
+
+- 1 class, 0 named. `ShulkerBoxScreen` has no diff at all.
+
+## Item 384 no-change (2026-11-15) — mobs/camel.rs
+
+- 1 class, 0 named. `Camel.mobInteract`: 26.3's else-chain vs 26.2's
+  flattened fall-through — the same outcomes (non-baby with <2
+  passengers rides and returns CONSUME in both; a baby holding a golden
+  dandelion goes to `super.mobInteract`, otherwise FAIL). The Rust's
+  camel interact goes through the shared mount path with the same
+  outcomes.
+
+## Item 385 no-change (2026-11-15) — mobs/finalize.rs
+
+- 1 class, 0 named. `VillagerType`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 386 no-change (2026-11-15) — mobs/nav.rs
+
+- 1 class, 0 named. `GroundPathNavigation`: 26.3 checks
+  `isInFloatableFluid()` and `state.getFluidState().is(#entity_floatable)`;
+  26.2 checks `isInWater()` and `state.is(Blocks.WATER)`. The Rust's
+  `surface_y` uses `fluid == Fluid::Water` and `navigation_in_water()`
+  — the 26.2 forms. `#entity_floatable` is 26.3-only (item 331).
+
+## Item 387 changed (2026-11-15) — mobs/zombie_villager.rs
+
+- 1 class, 0 named. `ZombieVillager` curing: 26.3 checks
+  `state.is(#speeds_up_zombie_villager_curing)`; 26.2 checks
+  `state.is(Blocks.IRON_BARS) || state.getBlock() instanceof BedBlock`.
+  The tag file exists only in the 26.3 jar (iron_bars + #beds); the
+  26.2 `block-tags.json` (265 tags) does not have it — so the Rust's
+  `has_tag` lookup was always false and the curing speedup never fired.
+  Fixed in `crates/horizon-client/src/mobs/zombie_villager.rs`: the
+  check is now iron bars or any bed (via the `#minecraft:beds` tag,
+  which exists in 26.2 with all 16 beds), extracted as
+  `speeds_up_curing`. Regression test
+  `iron_bars_and_beds_speed_a_cure` passes with the fix and fails with
+  the old tag lookup.
+
+## Item 388 no-change (2026-11-15) — mod_content_biomes.rs
+
+- 1 class, 0 named. `FeatureSorter`: `Reference2IntMap` (26.3) vs
+  `Object2IntMap` (26.2) for the feature index — identity vs equals
+  map. The Rust has no FeatureSorter equivalent (placed features are
+  looked up by name).
+
+## Item 389 no-change (2026-11-15) — horizon-items/enchant.rs
+
+- 1 class, 0 named. `Enchantments` bootstrap: the same conditions and
+  values built through different Java APIs (`TagPredicate.is(damageTypes,
+  tag)` vs `TagPredicate.is(tag)`; `ContextFloatProviders` vs
+  `EnchantmentLevelProvider`; `matchesTag(Direction.UP, ...)` vs
+  `matchesTag(Vec3i(0,1,0), ...)`; `BlockStateProvider.holderOf` vs
+  `simple`). The Rust reads enchantments from the registry data, not
+  from the bootstrap Java — the data is the same.
+
+## Item 390 no-change (2026-11-15) — damage_catalog_probe.rs
+
+- 1 class, 0 named. `DamageType`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 391 no-change (2026-11-15) — attributes/entity.rs
+
+- 1 class, 0 named. `DefaultAttributes`: `EnderMan` (26.2) vs
+  `Enderman` (26.3) — the class rename.
+
+## Batch of 23 rank-2 A items closed (2026-11-15) — 392, 394, 395, 396, 398, 399, 400, 401, 402, 403, 404, 405, 406, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417
+
+Twenty-two no-change, one changed (402). Rank 2 386/410 -> 409/410.
+Bucket A is now complete; only item 127 (parked, D bucket) remains open
+in rank 2. CI run 43646940294 still in flight on the 338/410 tree.
+
+## Item 392 no-change (2026-11-15) — world/chunk.rs
+
+- 1 class, 0 named. `ZeroBitStorage.fill(int)` is 26.3-only (the item-358
+  pattern). The Rust's paletted storage has no `fill` method.
+
+## Item 394 no-change (2026-11-15) — worldgen/structure/processor.rs
+
+- 1 class, 0 named. `IntProviders`: 26.3 registers
+  `very_biased_to_bottom`. The Rust's height provider handles that type,
+  but it is only invoked when the data names it — and 26.2's data never
+  does, so the extra handler is dead code for 26.2 (the DYE_COLOR
+  pattern from item 366).
+
+## Item 395 no-change (2026-11-15) — client/gui/components/events
+
+- 1 class, 0 named. `GuiEventListener.capturesInput()` is 26.3-only
+  (the item-373 pattern).
+
+## Item 396 no-change (2026-11-15) — client/gui
+
+- 1 class, 0 named. `Gui$1` (synthetic) has no diff at all.
+
+## Item 398 no-change (2026-11-15) — client/renderer/block/dispatch
+
+- 1 class, 0 named. `BlockStateModelDispatcher$SimpleModelSelectors`:
+  the model-selection loop is identical; only the log line differs
+  (26.3 includes the exception message). The Rust's model dispatcher is
+  its own.
+
+## Item 399 no-change (2026-11-15) — realmsclient/client/worldupload
+
+- 1 class, 0 named. `RealmsCreateWorldFlow`: a log-message format
+  difference only. The Rust does not run Realms.
+
+## Item 400 no-change (2026-11-15) — core/particles
+
+- 1 class, 0 named. `ParticleTypes`: the `red/orange/yellow_poplar_leaves`
+  particles are 26.3-only, and the particle-options codec dispatch gains
+  the `"type"` key in 26.2. The Rust's `ParticleType` enum carries the
+  three poplar variants, but particle ids resolve by NAME through the
+  adapter's remap tables (data-driven from the 26.2 registry), and no
+  26.2 data ever names them — unreachable on 26.2 (the DYE_COLOR pattern).
+
+## Item 401 no-change (2026-11-15) — core/registries
+
+- 1 class, 0 named. `Registries`: the 26.3 type-registry rework
+  (`MapCodec<? extends X>` type registries vs 26.2's instance
+  registries) plus 26.3-only keys (`block_transformer`,
+  `context_key_set`, `slot_source`, `context_float/int_provider`,
+  `worldgen/carver_type`, `worldgen/feature_type`,
+  `worldgen/material_condition/rule_type`, `worldgen/noise` as
+  NormalNoise). The Rust loads registries by data path from the 26.2
+  files; the 26.3-only datapack registries (`context_int_provider`,
+  `context_float_provider`, `slot_source`) do not exist in 26.2's data
+  at all (0 entries in the 26.2 jar vs 37 in 26.3's), and the Rust's
+  loaders no-op on their absence (`load_dir` returns on a missing
+  directory). No 26.2 wire or data difference.
+
+## Item 402 changed (2026-11-15) — server/dedicated
+
+- 1 class, 0 named. `DedicatedServerProperties`: `white-list` defaults
+  to `true` in 26.3 and `false` in 26.2. The Rust's
+  `horizon-server-files/src/properties.rs` used the 26.3 default
+  (`r.boolean("white-list", true)`), which flows into
+  `lists.use_whitelist` — a dedicated server started without
+  `white-list` in server.properties would enforce the whitelist in the
+  Rust but not in vanilla 26.2. Fixed to `false`, with the 26.2 default
+  documented. The existing `defaults_match_vanilla_init_settings` test
+  pinned the 26.3 value in its stored-output suffix; updated to
+  `white-list=false` with an explicit `assert!(!p.white_list)`.
+
+## Item 403 no-change (2026-11-15) — server/network
+
+- 1 class, 0 named. `ServerGamePacketListenerImpl$1` is the compiler
+  switch map over `ServerboundPlayerActionPacket.Action` — the ordinals
+  differ by one for CHANGE_DESTROY_DIRECTION and friends, the item-12
+  PlayerAction ordinal shift, already ported (client sends + host
+  dispatch to 26.2 ordinals).
+
+## Item 404 no-change (2026-11-15) — stats
+
+- 1 class, 0 named. `Stats`: `SLEEP_IN_STRAW_BED` is 26.3-only. No Rust
+  reference.
+
+## Item 405 no-change (2026-11-15) — util/random
+
+- 1 class, 0 named. `WeightedList$Builder.addAll` is 26.3-only. The
+  Rust's weighted list has no `add_all`.
+
+## Item 406 no-change (2026-11-15) — world/attribute
+
+- 1 class, 0 named. `EnvironmentAttributeReader`: 26.3 reads the ORIGIN
+  with `getOptional` and falls back to the attribute default when it is
+  absent; 26.2 reads it with `getParameter` (throws when absent). The
+  Rust's environment system takes a position directly for positional
+  attributes (no loot-context path), so the optional-vs-required
+  distinction has no Rust surface.
+
+## Item 408 no-change (2026-11-15) — world/entity/ai/behavior
+
+- 1 class, 0 named. `MeleeAttack`: `swingForAttack` (26.3) vs `swing`
+  (26.2). The Rust's melee attack uses `swing` (ai.rs).
+
+## Item 409 no-change (2026-11-15) — world/entity/animal/goat
+
+- 1 class, 0 named. `GoatAi`: only the IDLE activity's memory
+  requirements changed — 26.3 wants `RAM_COOLDOWN_TICKS` +
+  `LONG_JUMP_COOLDOWN_TICKS` VALUE_PRESENT; 26.2 wants `RAM_TARGET` +
+  `LONG_JUMP_MID_JUMP` VALUE_ABSENT. The RAM and LONG_JUMP activities
+  are identical in both. The Rust has no brain activities; its goat
+  gating faithfully implements 26.2's order — RAM first (its cooldown
+  absent), LONG_JUMP when RAM is on cooldown (`ram_cooldown > 0`) with
+  TEMPTING_PLAYER/BREED_TARGET/WALK_TARGET absent and its own cooldown
+  absent (`jump_cooldown(m).is_none()` in frog.rs).
+
+## Item 410 no-change (2026-11-15) — world/entity/animal/nautilus
+
+- 1 class, 0 named. `AbstractNautilus`: `calculateViewVector` is a
+  static call in 26.3 and an instance call (`this.calculateViewVector`)
+  in 26.2 — the same math.
+
+## Item 411 no-change (2026-11-15) — world/entity/decoration
+
+- 1 class, 0 named. `Mannequin`: 26.2's `aiStep` calls
+  `updateSwingTime()`; 26.3's does not. The Rust's mob tick calls
+  `tick_swing(m)` for every mob including mannequins (ai.rs:793) — the
+  26.2 form.
+
+## Item 412 no-change (2026-11-15) — world/entity/item
+
+- 1 class, 0 named. `ItemEntity.getMoveSimulationType` returning
+  SERVER_AND_CLIENT is 26.3-only (the item-377 pattern).
+
+## Item 413 no-change (2026-11-15) — world/item/consume_effects
+
+- 1 class, 0 named. `RemoveStatusEffectsConsumeEffect`: `holderSet` ->
+  `homogeneousList` for the `effects` field — the same JSON shape.
+
+## Item 414 no-change (2026-11-15) — world/level/block/entity/vault
+
+- 1 class, 0 named. `VaultBlockEntity$Server`: 26.3 calls
+  `setBlockAndUpdate`; 26.2 calls `setBlock(pos, state, 3)` — and
+  `Level.setBlockAndUpdate` IS `setBlock(pos, state, 3)` in both
+  versions, so the two forms are identical. The Rust's `set_vault_state`
+  goes through the general `level_set` path.
+
+## Item 415 no-change (2026-11-15) — world/level/gameevent
+
+- 1 class, 0 named. `GameEvent`: `RegistryCodecs.holder` ->
+  `RegistryFixedCodec.create` rename.
+
+## Item 416 no-change (2026-11-15) — world/level/levelgen/structure/pieces
+
+- 1 class, 0 named. `StructurePieceSerializationContext`:
+  `getStructureTemplateManager` (26.3) vs `getStructureManager` (26.2)
+  — rename only.
+
+## Item 417 no-change (2026-11-15) — world/level/storage/loot/parameters
+
+- 1 class, 0 named. `LootContextParams`: the `CONTAINER` ContextKey
+  (SlotProvider) is 26.3-only. The Rust's loot context has no CONTAINER
+  key (it uses ORIGIN and BLOCK_ENTITY).
+
+## Item 127 — the one remaining rank-2 item (2026-11-15)
+
+Rank 2 stands at 409/410 with bucket A complete. Item 127
+(`world/level/levelgen/synth`, 12 classes, 0 named) is the only open
+rank-2 item, and it is NOT closable as no-change: the Rust's noise
+engine mirrors 26.3's noise model, and 26.2's is a different one.
+
+The 26.2 synth package has 9 classes: BlendedNoise, ImprovedNoise,
+NoiseUtils, NormalNoise (+NoiseParameters), PerlinNoise,
+PerlinSimplexNoise, SimplexNoise. The 26.3 package has 19: it adds
+BlendedNoise$FbmSet, GradientNoise (+Gradient), LegacyFbmInitializer,
+Noise, NoiseStack (+Builder/Layer/Perlin/SmearedPerlin),
+NormalNoise$Builder/Normalization/OctaveInfo/Parameters and
+SmearedPerlinNoise, and removes ImprovedNoise and PerlinSimplexNoise.
+26.2's NormalNoise is built from NoiseParameters ({firstOctave,
+amplitudes} only); 26.3's is built from a builder around a NoiseStack.
+
+The Rust's noise engine (`crates/horizon-core/src/noise/`, 1,776 lines:
+mod.rs, normal.rs, perlin.rs, simplex.rs, stack.rs, volume.rs) is the
+26.3 model (NoiseStack, DensityVolume). The 26.3 oracle
+(`VanillaNoiseOracle.java`, 149 lines) is built entirely on 26.3-only
+classes — GradientNoise, Noise, NoiseStack, NormalNoise (builder form),
+PerlinNoise/SimplexNoise/SmearedPerlinNoise, plus DensityBuffer and
+DensityVolume from the `densityfunction` package, which does not exist
+in 26.2 — so it does not compile against the 26.2 jar at all.
+
+Closing 127 needs, in order: (1) port the noise engine to the 26.2
+model (ImprovedNoise, PerlinSimplexNoise, the old NormalNoise and
+BlendedNoise); (2) rewrite VanillaNoiseOracle.java against 26.2's
+synth API; (3) rewrite the driver (`tools/test_noise_parity.py`) and
+the Rust probe to the 26.2 cases; (4) re-run and clear the 792-fixture
+noise_based_count placement divergence this item owns (vanilla 26.2's
+`Biome.BIOME_INFO_NOISE`, old Perlin-based NormalNoise, vs the Rust
+engine mirroring 26.3's noise system). That is a large, high-risk job
+— a wrong noise port regresses chunk_generation, the biome harnesses
+and placement — and it needs its own session with careful verification,
+not a rushed close. It is recorded here as the precise blocker for
+410/410, not hidden.
+
+## CI run 43653524277 dispatched on the 409/410 tree (2026-11-15)
+
+Continuation agent's first act: `gh workflow run port-verify.yml -f
+version=26.2 --ref behaviour/26.2` on dbeb88e3 (rank 2 409/410), run
+43653524277, in progress. Run 43646940294 is still in flight on the
+older 338/410 tree (d2aa9a03); this run measures the 409/410 state.
+Porting continues while CI runs.
+
+## Item 127 — noise-model port, in progress (2026-11-15)
+
+The 26.2 synth package (9 classes) is the classic double-precision model:
+ImprovedNoise, PerlinNoise (octave FBM, new + legacy init), SimplexNoise
+(no offsets in `getValue`), PerlinSimplexNoise, NormalNoise over
+NoiseParameters `{firstOctave, amplitudes}`, BlendedNoise, NoiseUtils.
+Verified against the 26.2 jars: `Biome.BIOME_INFO_NOISE` is a
+PerlinSimplexNoise (seed 2345, octaves [0]) — the earlier placement note
+calling it an "old Perlin-based NormalNoise" was wrong; TEMPERATURE_NOISE
+(seed 1234, [0]) and FROZEN_TEMPERATURE_NOISE (seed 3456, [-2,-1,0]) are
+PerlinSimplexNoise too. `WorldgenRandom` delegates `next(bits)` straight
+through to the wrapped legacy source, so the Biome noises run on plain
+LegacyRandom streams.
+
+Design: the float sampler engine (`noise::{PerlinNoise, SimplexNoise,
+NoiseStack, NormalNoise}`) stays — it is Horizon's own scaffolding, its
+octave structure and seed consumption already match 26.2, and the density
+graph built on it is f32 end to end (converting that engine is the
+programme-level double rework recorded under item 115, not this item).
+What this item adds is the faithful f64 port alongside it, used where
+vanilla 26.2 computes in double and the value feeds a discrete decision.
+
+(a) `crates/horizon-core/src/noise/synth.rs` (new, ~1,300 lines):
+ImprovedNoise, PerlinNoise, SimplexNoise, PerlinSimplexNoise,
+NormalNoise + NoiseParameters, BlendedNoise, NoiseUtils — all f64, with
+Java's wrapping int arithmetic, `Mth.lfloor` (long floor) in `wrap`,
+the `float` literal `1.0E-7F` in the smear, and the `float` literal
+`9.223372E18F` in the positive-octave seed. Six unit tests pin the
+shared seeding with the float engine, wrap edge cases (including the
+i64-saturation divergence from the float wrap at huge magnitudes), the
+single-octave PerlinSimplexNoise identity, the old value-factor formula,
+BlendedNoise construction, and legacy-init throw order. `cargo test -p
+horizon-core --lib noise::` 12/12; fmt + clippy clean for the new file.
+
+(b)+(c) Noise oracle, probe and driver rewritten for 26.2 (2026-11-15):
+`VanillaNoiseOracle.java` now drives the 26.2 synth API (ImprovedNoise,
+PerlinNoise, SimplexNoise, PerlinSimplexNoise, NormalNoise, BlendedNoise,
+NoiseUtils) with `SharedConstants.tryDetectVersion()` + `Bootstrap
+.bootStrap()` at startup — touching `DensityFunction.FunctionContext`
+for `BlendedNoise.compute` initializes `DensityFunctions`, which needs
+the registries. `crates/horizon-core/src/bin/noise_parity.rs` drives
+the synth module over the same protocol; `tools/test_noise_parity.py`
+has a 26.2 corpus (wrap incl. long-floor saturation, bias, improved
++ local queries, perlin new/legacy direct + octave-set forms with
+error draw-state cases, simplex, perlin-simplex incl. positive-octave
+seeding, normal incl. legacy Nether biome, blended seeded + unseeded).
+`python3 tools/test_noise_parity.py` PASSES: 6,032 output lines match
+Rust bit-exactly on BOTH the client and server jars. Two driver bugs
+found on the way: the legacy PerlinNoise init fails (count check) when
+a nonzero amplitude sits above the zero octave — e.g. firstOctave 0
+with [1.0, 1.0] — so the driver now mirrors the throw order instead
+of assuming only firstOctave-1 cases fail.
+
+(d) Biome noises to the f64 synth port (2026-11-15): `TemperatureNoises`
+is now three `synth::PerlinSimplexNoise` (1234/[0], 3456/[-2,-1,0],
+2345/[0]) instead of the float simplex/stack; `biome_info_noise`
+returns f64; the frozen modifier and height-adjusted temperature compute
+in double with vanilla's float casts at the exact points
+(`(float)(noise * 8.0)` in the height adjustment); placement's
+NoiseBasedCount/NoiseThresholdCount use the double directly. VERIFIED
+2026-11-15: placement harness re-run, fixture-by-fixture comparison of
+the 18,780 `tail`-delimited blocks — mismatches 882 → 90, and all 792
+noise_based_count fixtures now match; the only remaining 90 are
+count_on_every_layer (the separate pull-order issue, not this item's
+scope). Item 127 CLOSED with this step: rank 2 is 410/410.

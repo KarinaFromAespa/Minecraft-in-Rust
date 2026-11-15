@@ -17,7 +17,8 @@ use std::{
 /// The level's maps as a menu sees them (`ContainerLevelAccess`): the
 /// states of the maps the click can reach, and the copies it makes.
 pub(super) struct LevelMaps {
-    states: RefCell<HashMap<i32, (bool, u8)>>,
+    /// (locked, scale, exploration map) per id.
+    states: RefCell<HashMap<i32, (bool, u8, bool)>>,
     next_id: Cell<i32>,
     /// (new id, source id, scaled) for each copy made.
     made: RefCell<Vec<(i32, i32, bool)>>,
@@ -25,17 +26,30 @@ pub(super) struct LevelMaps {
 
 impl Maps for LevelMaps {
     fn state(&self, id: i32) -> Option<(bool, u8)> {
-        self.states.borrow().get(&id).copied()
+        self.states
+            .borrow()
+            .get(&id)
+            .copied()
+            .map(|(locked, scale, _)| (locked, scale))
+    }
+
+    fn is_exploration_map(&self, id: i32) -> bool {
+        self.states
+            .borrow()
+            .get(&id)
+            .copied()
+            .is_some_and(|(_, _, exploration)| exploration)
     }
 
     fn derive(&self, id: i32, scale: bool) -> Option<i32> {
         let (_, s) = self.state(id)?;
+        let exploration = self.is_exploration_map(id);
         let new = self.next_id.get();
         self.next_id.set(new + 1);
         let made = if scale {
-            (false, (s + 1).min(4))
+            (false, (s + 1).min(4), exploration)
         } else {
-            (true, s)
+            (true, s, exploration)
         };
         self.states.borrow_mut().insert(new, made);
         self.made.borrow_mut().push((new, id, scale));
@@ -53,7 +67,7 @@ impl Game<'_> {
         let mut states = HashMap::new();
         for id in ids {
             if let Some(m) = self.map(id) {
-                states.insert(id, (m.locked, m.scale));
+                states.insert(id, (m.locked, m.scale, m.is_exploration_map()));
             }
         }
         LevelMaps {

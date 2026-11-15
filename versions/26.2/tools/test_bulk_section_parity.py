@@ -64,7 +64,7 @@ def main():
     for side in jars:java(side,"export",build/f"facts-{side}.json")
     facts=json.loads((build/"facts-server.json").read_text())
     if facts!=json.loads((build/"facts-client.json").read_text()):raise ValueError("client/server state facts differ")
-    if len(facts["states"])!=35723:raise ValueError("incomplete pinned state table")
+    if len(facts["states"])!=32366:raise ValueError("incomplete pinned state table")
     fixtures=list(corpus(facts));inputs=build/"inputs.txt"
     inputs.write_text("".join(json.dumps(value,separators=(",",":"))+"\n" for value in fixtures),encoding="utf-8")
     (build/"tags.json").write_text(json.dumps(tags,separators=(",",":")),encoding="utf-8")

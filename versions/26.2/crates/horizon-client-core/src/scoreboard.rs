@@ -287,7 +287,6 @@ pub const CUSTOM_STATS: &[&str] = &[
     "interact_with_crafting_table",
     "open_chest",
     "sleep_in_bed",
-    "sleep_in_straw_bed",
     "open_shulker_box",
     "open_barrel",
     "interact_with_blast_furnace",

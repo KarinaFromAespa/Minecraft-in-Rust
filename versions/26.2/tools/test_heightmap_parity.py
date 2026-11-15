@@ -94,7 +94,7 @@ def main():
     for side in jars:java(side,"export",build/f"facts-{side}.json")
     facts=json.loads((build/"facts-server.json").read_text())
     if facts!=json.loads((build/"facts-client.json").read_text()):raise ValueError("client/server state facts differ")
-    if len(facts["states"])!=35723:raise ValueError("incomplete pinned state table")
+    if len(facts["states"])!=32366:raise ValueError("incomplete pinned state table")
     fixtures=list(corpus(facts));inputs=build/"inputs.txt"
     inputs.write_text("".join(json.dumps(value,separators=(",",":"))+"\n" for value in fixtures),encoding="utf-8")
     (build/"tags.json").write_text(json.dumps(tags,separators=(",",":")),encoding="utf-8")
@@ -115,7 +115,7 @@ def main():
             "java":subprocess.check_output(["java","--version"],text=True).splitlines()[0],"rustc":subprocess.check_output(["rustc","--version"],text=True).strip(),
             "block_states":len(facts["states"]),"block_tag_files":len(tags),"fixtures":len(fixtures),"operation_counts":dict(Counter(op[0] for fixture in fixtures for op in fixture["ops"])),
             "sources_sha256":tested_sources,"fixtures_sha256":tested_fixtures,"rust_output_sha256":lab.digest(build/"rust.txt","sha256"),"references":references,
-            "scope":"Six heightmap types, client/persistence flags and predicates for every pinned block state. Air/fluid facts are imported independently from both authenticated JARs and required to agree; block-tag membership is resolved in Rust from bundled resources. State behavioral methods are not ported by that import. Actual vanilla ProtoChunk and Heightmap APIs compare insertion/removal, downward rescans, repeated priming, empty-column retention, raw packed words including padding/unused slots, invalid-length fallback, wrapped column indexing, height queries, errors and selected exact block-read traces. Positive aligned vertical ranges are bounded to the NoiseSettings codec domain; arbitrary height accessors, chunk lifecycle integration, complete terrain/gameplay and rendering remain pending."}
+            "scope":"Six heightmap types, client/persistence flags and predicates for every pinned block state. Air/fluid/motion/leaves facts are imported independently from both authenticated JARs and required to agree; 26.2 has no `blocks_motion*` tags, so the heightmap facts are the per-state `blocksMotion()` rule and the leaves class, exported by the oracle. Actual vanilla ProtoChunk and Heightmap APIs compare insertion/removal, downward rescans, repeated priming, empty-column retention, raw packed words including padding/unused slots, invalid-length fallback, wrapped column indexing, height queries, errors and selected exact block-read traces. Positive aligned vertical ranges are bounded to the NoiseSettings codec domain; arbitrary height accessors, chunk lifecycle integration, complete terrain/gameplay and rendering remain pending."}
     lab.write_json(report_path,report);print(f"Scoped heightmap parity passed: {report_path}")
 
 

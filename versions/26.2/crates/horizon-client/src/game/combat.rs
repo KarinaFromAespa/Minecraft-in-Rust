@@ -139,7 +139,7 @@ pub(super) struct CombatTracker {
     /// from the mobs near the centre is still hurt: it may be a bystander.
     pub(super) explosion_source_named: bool,
     /// The blast's direct source is in water (`Explosion.getDirectSourceEntity`
-    /// `.isInWater`): paintings, item frames and cushions ignore it
+    /// `.isInWater`): paintings and item frames ignore it
     /// (`BlockAttachedEntity.ignoreExplosion`).
     pub(super) explosion_in_water: bool,
     /// The blast now going off comes from a primed TNT, creeper, wither

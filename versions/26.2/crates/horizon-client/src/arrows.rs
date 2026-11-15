@@ -196,9 +196,6 @@ pub struct ArrowState {
     pub was_eye_in_water: bool,
     pub first_tick: bool,
     pub has_been_shot: bool,
-    /// `Projectile.canBreak`: the decoded top-level projectile predicate,
-    /// independent of its pickup item and firing weapon.
-    pub can_break: Option<horizon_world::nbt::Tag>,
     /// `ThrownTrident.dealtDamage`: it has hit an entity (or sat in a block
     /// for over 4 ticks) and hits no more.
     pub dealt_damage: bool,
@@ -260,7 +257,6 @@ impl ArrowState {
             was_eye_in_water: false,
             first_tick: true,
             has_been_shot: false,
-            can_break: None,
             dealt_damage: false,
             removed: false,
             random,
@@ -624,15 +620,15 @@ pub enum EntityHit {
     /// flies on and falls to the ground.
     Dodged,
 }
-/// `ProjectileDeflection.REVERSE` with power `0.2`: each axis of the movement
-/// is multiplied by `-0.2 * 0.5` (`-0.1`), and the yaw turns `170 + nextFloat * 20`
-/// degrees. No hit sound. One left almost still (`lengthSqr < 1e-7`) drops its
-/// pickup when that is ALLOWED, then is discarded.
+/// `AbstractArrow.onHitEntity` on a refused hit: `deflect(REVERSE)` turns the
+/// movement by `-0.5` per axis, then the velocity is scaled by `0.2` — each
+/// axis ends up multiplied by `-0.1` — and the yaw turns
+/// `170 + nextFloat * 20` degrees. No hit sound. One left almost still
+/// (`lengthSqr < 1e-7`) drops its pickup when that is ALLOWED, then is discarded.
 pub fn deflect_reverse(velocity: &mut Vec3, yaw: &mut f32, st: &mut ArrowState) {
-    let power = 0.2;
     let rotation = 170.0 + st.random.next_float() * 20.0;
     let v = *velocity;
-    let k = -power * 0.5;
+    let k = -0.5 * 0.2;
     *velocity = Vec3::new(v.x * k, v.y * k, v.z * k);
     *yaw += rotation;
     if velocity.length_squared() < 1.0e-7 {
@@ -850,7 +846,7 @@ impl Ticker<'_, '_, '_, '_> {
             }
             self.st.has_been_shot = true;
         }
-        self.st.was_eye_in_water = self.st.fluids.is_eye_in_fluid(&Tags, WATER);
+        self.st.was_eye_in_water = self.st.fluids.is_eye_in_fluid(WATER);
         let mut fluids = std::mem::take(&mut self.st.fluids);
         let _ = entity_fluid_tick::update(&mut fluids, self, WATER, LAVA, 1_000_000);
         self.st.fluids = fluids;
@@ -859,7 +855,7 @@ impl Ticker<'_, '_, '_, '_> {
         } else if self.st.fire_ticks > 0 {
             self.st.fire_ticks -= 1;
         }
-        if !self.st.first_tick && self.st.fluids.is_in_fluid(&Tags, LAVA) {
+        if !self.st.first_tick && self.st.fluids.is_in_fluid(LAVA) {
             self.st.fall_distance *= 0.5;
         }
         if self.position().y < f64::from(self.scene.world.bottom_y() - 64) {
@@ -985,8 +981,10 @@ impl Ticker<'_, '_, '_, '_> {
         }
     }
     /// `ProjectileUtil.getManyEntityHitResult` for one entity box: where the
-    /// path enters it, else where it enters the box grown by `margin`, if a
-    /// line from there towards the centre (stopped by blocks) reaches the box.
+    /// path enters it, else where the line from the margin box's entry
+    /// towards the centre (stopped by blocks) meets the box. 26.2 always
+    /// records the surface hit; 26.3's `projectSurfaceHitLocation=false`
+    /// (what arrows pass) records the margin box's entry instead.
     fn entity_hit(&self, b: &Aabb, from: Vec3, to: Vec3, margin: f64) -> Option<Vec3> {
         if let Some(at) = b.clip(from, to) {
             return Some(at);
@@ -1002,7 +1000,7 @@ impl Ticker<'_, '_, '_, '_> {
             .scene
             .clip(outside, centre, None)
             .map_or(centre, |h| h.0);
-        b.clip(outside, towards).map(|_| outside)
+        b.clip(outside, towards)
     }
     /// `playSound(soundEvent, 1, 1.2 / (random * 0.2 + 0.9))`.
     fn hit_sound(&mut self) {
@@ -1027,8 +1025,9 @@ impl Ticker<'_, '_, '_, '_> {
         });
     }
     /// `ThrownTrident.onHitEntity` after the hurt, whether it landed or not:
-    /// the hit sound, then `deflect(REVERSE, ..., (0.02, 0.2, 0.02))`. The
-    /// trident keeps flying (it has dealt its damage) and falls.
+    /// the hit sound, then `deflect(REVERSE, ...)` and a
+    /// `(0.02, 0.2, 0.02)` multiply. The trident keeps flying (it has dealt
+    /// its damage) and falls.
     fn trident_bounce(&mut self) {
         self.st.dealt_damage = true;
         self.st.events.push(ArrowEvent::Sound {
@@ -1042,9 +1041,9 @@ impl Ticker<'_, '_, '_, '_> {
         self.p.velocity = Vec3::new(v.x * (-0.02 * 0.5), v.y * (-0.2 * 0.5), v.z * (-0.02 * 0.5));
         self.p.yaw += rotation;
     }
-    /// `onHitEntity` when the entity took no damage: `deflect(REVERSE, 0.2)`,
-    /// a half turn give or take ten degrees at a tenth of the speed; one
-    /// left almost still drops its pickup (ALLOWED) and is discarded.
+    /// `onHitEntity` when the entity took no damage: `deflect(REVERSE)` and
+    /// a `0.2` scale, a half turn give or take ten degrees at a tenth of the
+    /// speed; one left almost still drops its pickup (ALLOWED) and is discarded.
     fn turn_back(&mut self) {
         deflect_reverse(&mut self.p.velocity, &mut self.p.yaw, self.st);
     }
@@ -1485,9 +1484,6 @@ impl FluidInteractionWorld for Ticker<'_, '_, '_, '_> {
     }
     fn fluid_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
         f.height_at(self, [p.x, p.y, p.z])
-    }
-    fn camera_height(&mut self, f: FluidState, p: BlockPos) -> Result<f32, Error> {
-        f.camera_height_at(self, [p.x, p.y, p.z])
     }
     fn flow(&mut self, f: FluidState, p: BlockPos) -> Result<Vec3, Error> {
         flow_at(self, f, p)

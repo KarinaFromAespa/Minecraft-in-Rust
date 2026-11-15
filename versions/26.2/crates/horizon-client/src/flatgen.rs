@@ -181,12 +181,15 @@ impl FlatTerrain {
             }
         }
         let structure_overrides = match s.get("structure_overrides") {
+            // 26.2's codec is RegistryCodecs.homogeneousList: a list only.
+            // A bare string is not a list, so 26.2 drops the field
+            // (lenientOptionalFieldOf) and every set generates; 26.3's
+            // holderSet accepts a single id or a tag.
             Some(Tag::List(sets)) => Some(
                 sets.iter()
                     .filter_map(|set| crate::save::text(Some(set)))
                     .collect::<Vec<_>>(),
             ),
-            Some(Tag::String(set)) => Some(vec![set.to_string_lossy()]),
             _ => None,
         };
         let flag = |key| crate::save::number(s.get(key)).is_some_and(|v| v != 0);
@@ -286,11 +289,10 @@ pub fn settings_from_json(
         _ => false,
     };
     let mut settings = Vec::new();
-    // RegistryCodecs.holderSet, lenient too: a tag or a list of ids.
+    // RegistryCodecs.homogeneousList, lenient too: a list of ids only. A
+    // bare string (a single id or a tag, which 26.3's holderSet accepts)
+    // fails to parse in 26.2 and the field is dropped.
     match json.get("structure_overrides") {
-        Some(Json::String(s)) => {
-            settings.push(("structure_overrides", Tag::String(s.as_str().into())))
-        }
         Some(Json::Array(ids)) if ids.iter().all(|i| matches!(i, Json::String(_))) => settings
             .push((
                 "structure_overrides",
@@ -530,6 +532,19 @@ mod tests {
             ),
             (None, vec!["Sum of layer heights is > 4064".into()])
         );
+        // structure_overrides: a list of ids is kept; a bare string is not
+        // a list, so 26.2 drops the field (26.3's holderSet accepts it).
+        let (settings, _) = read(
+            r#"{"layers":[{"block":"stone","height":2}],"biome":"plains","structure_overrides":["minecraft:villages"]}"#,
+        );
+        assert!(matches!(
+            settings.unwrap().get("structure_overrides"),
+            Some(Tag::List(_))
+        ));
+        let (settings, _) = read(
+            r#"{"layers":[{"block":"stone","height":2}],"biome":"plains","structure_overrides":"minecraft:villages"}"#,
+        );
+        assert!(settings.unwrap().get("structure_overrides").is_none());
     }
 
     /// `FlatLevelSource.createState`: the settings a flat world's structure sets run with.
@@ -578,6 +593,16 @@ mod tests {
             Some(vec!["minecraft:villages".to_owned()])
         );
         assert_eq!(some.biome, "minecraft:desert");
+        // A bare string is not a list: 26.2 drops the field (every set).
+        let dropped = FlatTerrain::pipeline_settings(&flat(
+            vec![(
+                "structure_overrides",
+                Tag::String("minecraft:villages".into()),
+            )],
+            "minecraft:plains",
+        ))
+        .unwrap();
+        assert_eq!(dropped.structure_overrides, None);
         assert!(
             FlatTerrain::pipeline_settings(&flat(
                 vec![("structure_overrides", Tag::List(vec![]))],

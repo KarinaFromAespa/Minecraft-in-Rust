@@ -124,7 +124,6 @@ const UNLISTED_KINDS: &[&str] = &[
     "minecraft:end_crystal",
     "minecraft:item_frame",
     "minecraft:glow_item_frame",
-    "minecraft:cushion",
     "minecraft:painting",
 ];
 
@@ -648,7 +647,6 @@ impl Game<'_> {
             "minecraft:ender_dragon" => self.load_dragon(tag, uuid),
             "minecraft:end_crystal" => self.load_crystal(tag, uuid),
             "minecraft:item_frame" | "minecraft:glow_item_frame" => self.load_item_frame(tag, uuid),
-            "minecraft:cushion" => self.load_cushion(tag, uuid),
             "minecraft:painting" => self.load_painting(tag, uuid, key),
             _ => return Err(tag),
         }
@@ -1011,15 +1009,6 @@ impl Game<'_> {
         if let Some(f) = entity_nbt::item_frame_from_nbt(&tag, self.next_entity) {
             self.remember(f.id, uuid, tag);
             self.item_frames.push(f);
-        }
-    }
-
-    /// A saved cushion.
-    pub(super) fn load_cushion(&mut self, tag: Tag, uuid: Option<[i32; 4]>) {
-        self.next_entity += 1;
-        if let Some(c) = entity_nbt::cushion_from_nbt(&tag, self.next_entity) {
-            self.remember(c.id, uuid, tag);
-            self.cushions.push(c);
         }
     }
 
@@ -1873,18 +1862,6 @@ impl Game<'_> {
                 out.entry(chunk_of(at)).or_default().push(tag);
             }
         }
-        for c in &self.cushions {
-            if keys.contains(&chunk_of(c.position)) {
-                let uuid = self
-                    .persist
-                    .uuids
-                    .get(&c.id)
-                    .copied()
-                    .unwrap_or_else(random_uuid);
-                let tag = entity_nbt::cushion_to_nbt(c, uuid, self.persist.raw.get(&c.id));
-                out.entry(chunk_of(c.position)).or_default().push(tag);
-            }
-        }
         for p in &self.paintings {
             let at = painting_center(p);
             if keys.contains(&chunk_of(at)) {
@@ -2017,13 +1994,6 @@ impl Game<'_> {
                 let keep = !gone(painting_center(p));
                 if !keep {
                     removed.push(p.id);
-                }
-                keep
-            });
-            self.cushions.retain(|c| {
-                let keep = !gone(c.position);
-                if !keep {
-                    removed.push(c.id);
                 }
                 keep
             });

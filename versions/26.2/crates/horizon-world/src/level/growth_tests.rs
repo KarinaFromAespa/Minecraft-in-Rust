@@ -220,7 +220,6 @@ fn single_saplings_grow() {
     grow("jungle_sapling", "dirt", &[(0, 0)], "jungle_log");
     grow("acacia_sapling", "dirt", &[(0, 0)], "acacia_log");
     grow("cherry_sapling", "grass_block", &[(0, 0)], "cherry_log");
-    grow("poplar_sapling", "grass_block", &[(0, 0)], "poplar_log");
 }
 #[test]
 fn two_by_two_saplings_grow() {
@@ -231,13 +230,18 @@ fn two_by_two_saplings_grow() {
     grow("jungle_sapling", "grass_block", &square, "jungle_log");
 }
 #[test]
-fn lone_dark_oak_sapling_cannot_grow() {
+fn lone_dark_oak_sapling_takes_bone_meal_but_grows_no_tree() {
+    // 26.2's SaplingBlock.isValidBonemealTarget is only the height check —
+    // canGrow (the 2x2 requirement for a mega-only grower) is 26.3-only —
+    // so the meal is consumed, but growTree finds no 2x2 square and no
+    // single tree, so nothing grows.
     let Some(f) = fixture() else { return };
     let mut w = World::new(f, 1);
     w.floor("grass_block", 4);
     let sapling = w.id("dark_oak_sapling", &[]);
     w.put(BlockPos::new(0, 64, 0), sapling);
-    assert!(!w.bone_meal(BlockPos::new(0, 64, 0)));
+    assert!(w.bone_meal(BlockPos::new(0, 64, 0)));
+    assert_eq!(w.count("dark_oak_log"), 0);
 }
 #[test]
 fn bone_meal_on_a_client_succeeds_only_where_its_level_can_tell() {

@@ -136,7 +136,18 @@ impl MotionResources {
                 suppresses_bounce: tag("minecraft:suppresses_bounce")?,
             })?,
             climbable: tag("minecraft:climbable")?,
-            causes_suffocation: tag("minecraft:causes_suffocation")?,
+            // `causes_suffocation` is a 26.3 addition; 26.2 has no such
+            // tag, so it loads as empty here (as the game-entry path in
+            // world_entry.rs already does). That leaves 26.2's default
+            // suffocation rule — shape-based `isSuffocating`, not
+            // tag-based — unported: with an empty tag, no default-rule
+            // block suffocates. A proper 26.2 suffocation port is still
+            // owed; this only keeps resource loading from failing.
+            causes_suffocation: built
+                .tags
+                .get("minecraft:causes_suffocation")
+                .map(|t| t.iter().cloned().collect())
+                .unwrap_or_default(),
             soul_speed_blocks: tag("minecraft:soul_speed_blocks")?,
             climbing,
             fall_reset: tag("minecraft:fall_damage_resetting")?,
@@ -4997,7 +5008,7 @@ mod tests {
         assert_eq!(w.player.pose, crate::pose::Pose::Standing);
         assert_eq!(w.player.dimensions.eye_height, 1.62);
     }
-    /// #4509: a cushion seat clips the feet into the floor, so `can_fit_pose`
+    /// #4509: a seat clips the feet into the floor, so `can_fit_pose`
     /// rejects standing and would leave a swim pose; sit up anyway.
     #[test]
     fn a_swimming_passenger_sits_up_even_when_standing_does_not_fit() {
@@ -5012,7 +5023,7 @@ mod tests {
         let binding = crate::collisions::load(&root, assets.registry).unwrap();
         let resources = MotionResources::load(&root, &assets).unwrap();
         let mut scene = World::test_scene(&assets, &render, 2).unwrap();
-        // Feet inside the floor block, as on a cushion seat (y - 0.35): away
+        // Feet inside the floor block, as on a seat (y - 0.35): away
         // from the pyramid the scene's floor tops out at y = 4.
         let mut player = PlayerMotion::new(&resources, Vec3::new(20.5, 3.65, 20.5)).unwrap();
         player.swimming = true;

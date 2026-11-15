@@ -6,14 +6,17 @@
 //! as `state.getBlock() instanceof LeavesBlock` for any recognised ancestor.
 
 macro_rules! classes {
-    ($($name:ident = $java:literal,)*) => {
+    // A variant may list aliases after `|`: the same class under the
+    // name another version gives it (26.2's `DirtPathBlock` for 26.3's
+    // `PathBlock`, 26.2's `RedStoneWireBlock` for `RedstoneWireBlock`).
+    ($($name:ident = $java:literal $(| $alias:literal)*,)*) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
         #[repr(u16)]
         pub enum Class { $($name,)* }
         impl Class {
             pub const ALL: &'static [Class] = &[$(Class::$name,)*];
             pub fn from_java(name: &str) -> Option<Self> {
-                match name { $($java => Some(Class::$name),)* _ => None }
+                match name { $($java $(| $alias)* => Some(Class::$name),)* _ => None }
             }
         }
     };
@@ -205,7 +208,7 @@ classes! {
     Note = "NoteBlock",
     Nylium = "NyliumBlock",
     Observer = "ObserverBlock",
-    Path = "PathBlock",
+    Path = "PathBlock" | "DirtPathBlock",
     AbstractSkull = "AbstractSkullBlock",
     Skull = "SkullBlock",
     WallSkull = "WallSkullBlock",
@@ -221,7 +224,7 @@ classes! {
     Pumpkin = "PumpkinBlock",
     RedStoneOre = "RedStoneOreBlock",
     RedstoneLamp = "RedstoneLampBlock",
-    RedstoneWire = "RedstoneWireBlock",
+    RedstoneWire = "RedstoneWireBlock" | "RedStoneWireBlock",
     RespawnAnchor = "RespawnAnchorBlock",
     RootedDirt = "RootedDirtBlock",
     Sapling = "SaplingBlock",
@@ -336,5 +339,28 @@ impl ClassSet {
     pub fn contains(self, class: Class) -> bool {
         let i = class as usize;
         self.0[i / 64] & (1 << (i % 64)) != 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 26.2 renamed two classes 26.3 renamed back: the dirt path is
+    /// `DirtPathBlock` (26.3: `PathBlock`) and redstone wire is
+    /// `RedStoneWireBlock` (26.3: `RedstoneWireBlock`). Both spellings
+    /// must resolve, or the blocks lose every class override.
+    #[test]
+    fn renamed_classes_resolve_under_both_spellings() {
+        assert_eq!(Class::from_java("DirtPathBlock"), Some(Class::Path));
+        assert_eq!(Class::from_java("PathBlock"), Some(Class::Path));
+        assert_eq!(
+            Class::from_java("RedStoneWireBlock"),
+            Some(Class::RedstoneWire)
+        );
+        assert_eq!(
+            Class::from_java("RedstoneWireBlock"),
+            Some(Class::RedstoneWire)
+        );
     }
 }

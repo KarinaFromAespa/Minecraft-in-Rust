@@ -9,9 +9,10 @@ use std::collections::BTreeMap;
 pub struct PalettedPermutations {
     /// Base sprite names (`minecraft:trims/items/boots_trim`).
     pub textures: Vec<String>,
-    /// The key palette (`minecraft:trim_base`).
+    /// The key palette (`minecraft:trims/color_palettes/trim_palette`).
     pub palette_key: String,
-    /// Suffix to target palette (`quartz` → `minecraft:trim/quartz`).
+    /// Suffix to target palette (`quartz` →
+    /// `minecraft:trims/color_palettes/quartz`).
     pub permutations: BTreeMap<String, String>,
     pub separator: String,
 }
@@ -122,15 +123,18 @@ mod tests {
     use super::*;
     #[test]
     fn finds_trim_permutations_and_maps_colours() {
-        let atlas = r#"{"sources":[{"type":"minecraft:paletted_permutations","palette_key":"minecraft:trim_base",
-            "permutations":{"quartz":"minecraft:trim/quartz"},"textures":["minecraft:trims/items/boots_trim"]}]}"#;
+        let atlas = r#"{"sources":[{"type":"minecraft:paletted_permutations","palette_key":"minecraft:trims/color_palettes/trim_palette",
+            "permutations":{"quartz":"minecraft:trims/color_palettes/quartz"},"textures":["minecraft:trims/items/boots_trim"]}]}"#;
         let sources = PalettedPermutations::from_atlas(atlas);
         let p = sources[0]
             .find("minecraft:trims/items/boots_trim_quartz")
             .unwrap();
         assert_eq!(
             (p.base, p.palette),
-            ("minecraft:trims/items/boots_trim", "minecraft:trim/quartz")
+            (
+                "minecraft:trims/items/boots_trim",
+                "minecraft:trims/color_palettes/quartz"
+            )
         );
         assert!(
             sources[0]

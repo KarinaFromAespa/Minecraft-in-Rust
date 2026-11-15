@@ -290,7 +290,7 @@ impl Game<'_> {
                 glam::DVec3::new(m.position.x, m.position.y, m.position.z).distance_squared(camera);
             // Match the model's renderer-specific box, not the tag anchor: the
             // name must survive when only the entity's feet are in view.
-            let (lo, hi) = super::entity_culling::cull_box(m, alpha);
+            let (lo, hi) = super::entity_culling::cull_box(m);
             let inflate = glam::DVec3::splat(0.5);
             if !name_tag_in_view(
                 frustum,
@@ -609,9 +609,11 @@ impl Game<'_> {
         out: &mut Vec<Vertex>,
         see_through: &mut Vec<Vertex>,
     ) {
-        // The text alpha that goes with getBackgroundOpacity(0.25):
-        // max((0.25 + 0.75) / 2, 0.5), as ARGB.color (the floor of 255 times it).
-        const FADED: u32 = 0x7F;
+        // The faded name-tag text colour, -2130706433 (0x80FFFFFF): 26.2
+        // passes it literally for both the see-through copy and a discrete
+        // tag (26.3 computes max((backgroundAlpha + 0.75) / 2, 0.5), which
+        // floors to 0x7F at the default opacity).
+        const FADED: u32 = 0x80;
         let mut patches = Vec::new();
         let mut layouts = std::mem::take(&mut self.name_tag_layouts);
         layouts.begin_frame(&self.gui.atlas);

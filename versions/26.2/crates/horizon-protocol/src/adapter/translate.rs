@@ -922,22 +922,23 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
             always_show,
             pos,
             dist,
-            max_speed: [speed; 3],
+            max_speed: speed,
             count,
-            randomization: 0,
         },
         &mut w,
     );
     Ok(w.data)
 }
 
-/// 26.2 sends a move as three Short deltas (1/4096 of a block) then on-ground, and a turn as the two angles
-/// then on-ground; 26.3 packs on-ground with the delta's step count, and sends it before the angles.
+/// A move as three Short deltas (1/4096 of a block) then on-ground, and a
+/// turn as the two angles then on-ground — 26.2's form on both sides of
+/// this step (26.3 packs on-ground with the delta's step count, and sends
+/// it before the angles).
 pub(super) fn move_entity(payload: &[u8], pos: bool, rot: bool) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let id = r.varint()?;
     let delta = if pos {
-        Some(play::VecDelta::Linear([r.i16()?, r.i16()?, r.i16()?]))
+        Some(play::VecDelta([r.i16()?, r.i16()?, r.i16()?]))
     } else {
         None
     };
@@ -964,7 +965,7 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let id = r.varint()?;
     let position = [r.f64()?, r.f64()?, r.f64()?];
-    let _motion = [r.f64()?, r.f64()?, r.f64()?];
+    let motion = [r.f64()?, r.f64()?, r.f64()?];
     let yaw = r.f32()?;
     let pitch = r.f32()?;
     let on_ground = r.bool()?;
@@ -972,9 +973,12 @@ pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
     play::EntityPositionSync::write(
         &play::EntityPositionSync {
             id,
-            path: play::PositionPath::Linear(position),
-            yaw,
-            pitch,
+            values: play::PositionMoveRotation {
+                position,
+                delta_movement: motion,
+                yaw,
+                pitch,
+            },
             on_ground,
         },
         &mut w,
@@ -2753,7 +2757,7 @@ mod tests {
             p,
             play::Clientbound::MoveEntityPos(play::MoveEntityPos(play::MoveEntity {
                 id: 7,
-                delta: Some(play::VecDelta::Linear([4096, 0, -2048])),
+                delta: Some(play::VecDelta([4096, 0, -2048])),
                 rotation: None,
                 on_ground: true,
             }))

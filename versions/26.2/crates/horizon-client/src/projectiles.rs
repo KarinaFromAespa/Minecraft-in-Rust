@@ -1192,8 +1192,9 @@ impl Projectile {
     }
     /// `ThrowableProjectile.handleFirstTickBubbleColumn`: a thrown item that
     /// spawns inside a bubble column is pushed by every column block in its box
-    /// on its first tick (`findBlocksIn`, the block positions of both corners),
-    /// before it has moved through anything.
+    /// on its first tick (26.2's `BlockPos.betweenClosed` over the box; 26.3
+    /// uses `findBlocksIn`), before it has moved through anything. Each push
+    /// only adds to the Y velocity, so the iteration order is unobservable.
     fn first_tick_bubble_column(&mut self, w: &impl ProjectileWorld) {
         let b = self.bounds();
         let (lo, hi) = (b.min_position(), b.max_position());

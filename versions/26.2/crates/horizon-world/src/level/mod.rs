@@ -1430,7 +1430,7 @@ pub(crate) struct Sim<'a, L: LevelAccess + ?Sized> {
     pub b: &'a Behaviours,
     pub level: &'a mut L,
     pub ticks: &'a mut Ticks,
-    /// `RedstoneWireBlock.shouldSignal` is false while a wire samples its
+    /// `RedStoneWireBlock.shouldSignal` is false while a wire samples its
     /// neighbours (`getBlockSignal`).
     pub wire_signal_off: std::cell::Cell<bool>,
 }

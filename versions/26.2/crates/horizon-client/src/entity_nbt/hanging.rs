@@ -23,20 +23,28 @@ pub fn painting_to_nbt(p: &Painting, uuid: [i32; 4], raw: Option<&Tag>) -> Tag {
     put(&mut tag, "block_pos", Tag::IntArray(p.pos.to_vec()));
     tag
 }
-/// `BlockAttachedEntity.readAdditionalSaveData`: `block_pos` when saved; a
-/// summoned one has none, and `setPos` puts its block at the block holding
-/// the summon position.
+/// `BlockAttachedEntity.readAdditionalSaveData`: the stored `block_pos`
+/// only when it is within 16 blocks of the block holding the position
+/// (`closerThan`, squared distance under 256); a summoned one has none, and
+/// a stale one (a structure placed far from where it was saved, which 26.2
+/// does not rewrite) falls back to the block holding the position, as
+/// `setPos` does.
 fn attached_block_pos(tag: &Tag) -> Option<[i32; 3]> {
+    let at = position(tag)?;
+    let here = [
+        at.x.floor() as i32,
+        at.y.floor() as i32,
+        at.z.floor() as i32,
+    ];
     match tag.get("block_pos") {
-        Some(Tag::IntArray(v)) if v.len() == 3 => Some([v[0], v[1], v[2]]),
-        _ => {
-            let at = position(tag)?;
-            Some([
-                at.x.floor() as i32,
-                at.y.floor() as i32,
-                at.z.floor() as i32,
-            ])
+        Some(Tag::IntArray(v)) if v.len() == 3 => {
+            let stored = [v[0], v[1], v[2]];
+            let d2: i64 = (0..3)
+                .map(|i| i64::from(stored[i] - here[i]).pow(2))
+                .sum();
+            Some(if d2 < 256 { stored } else { here })
         }
+        _ => Some(here),
     }
 }
 /// The block position, facing and variant (if saved) of a painting.

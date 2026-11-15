@@ -7,6 +7,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.core.*;
 import net.minecraft.world.level.biome.FeatureSorter;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
@@ -14,7 +15,7 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 public final class VanillaFeatureSortOracle {
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
-        var noop=Feature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString("{\"type\":\"no_op\"}")).getOrThrow();
+        var noop=ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString("{\"type\":\"no_op\"}")).getOrThrow();
         Path dir=Path.of(args[1]);
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt"),StandardCharsets.UTF_8));var inputs=Files.lines(dir.resolve("inputs.txt"))) {
             for(var line:(Iterable<String>)inputs::iterator) {

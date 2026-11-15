@@ -3,6 +3,9 @@
 //! lines, runs the furnace model and prints the slots, timers, LIT state,
 //! RecipesUsed counts and each used recipe's experience.
 //!
+//! SPEED is accepted and ignored: 26.2 furnaces have no fuel speed
+//! multiplier (it is 26.3's `AbstractFurnaceBlockEntity.speedMultiplier`).
+//!
 //! The first input line is `#resources RESOURCES`; usage: furnace_fixture INPUT OUTPUT
 use horizon_client::{
     crafting::Recipes,
@@ -53,18 +56,16 @@ pub fn main() -> horizon_client::Result<()> {
             lit_total: f[9].parse()?,
             cooking_timer: f[6].parse()?,
             cooking_total: f[7].parse()?,
-            speed: f[10].parse()?,
             recipes_used: HashMap::new(),
         };
         let change_at: i32 = f[11].parse()?;
         let new_input = parse_stack(f[12])?;
         let mut lit_state = false;
-        let mut drops = Vec::new();
         for t in 0..ticks {
             if t as i32 == change_at {
                 furnace.set_input(&recipes, new_input.clone());
             }
-            if let Some(lit) = furnace.tick(&recipes, &items, &providers, &mut drops) {
+            if let Some(lit) = furnace.tick(&recipes, &items, &providers) {
                 lit_state = lit;
             }
         }
@@ -77,12 +78,11 @@ pub fn main() -> horizon_client::Result<()> {
         }
         write!(
             out,
-            "timer={} total={} lit={} littotal={} speed={:.3} state={lit_state} used=",
+            "timer={} total={} lit={} littotal={} state={lit_state} used=",
             furnace.cooking_timer,
             furnace.cooking_total,
             furnace.lit_remaining,
-            furnace.lit_total,
-            furnace.speed
+            furnace.lit_total
         )?;
         let mut ids: Vec<&String> = furnace.recipes_used.keys().collect();
         ids.sort();

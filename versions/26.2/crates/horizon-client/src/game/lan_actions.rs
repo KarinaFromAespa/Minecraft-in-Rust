@@ -16,7 +16,7 @@ use horizon_client::{
     command::vanilla,
     containers::BlockEntity,
     entities::Experience,
-    first_person::{Hand, SwingAnimation},
+    first_person::{Hand, SwingAnimation, swing_duration},
     items::ItemStack,
     lan::{
         guest::SPECTATOR,
@@ -2319,8 +2319,24 @@ impl Game<'_> {
                         }
                     }
                 }
-                1 => {}
-                3 => {
+                // ABORT_DESTROY_BLOCK is 1 in 26.2 (26.3 inserted
+                // CHANGE_DESTROY_DIRECTION at 1): `handleBlockBreakAction`'s
+                // abort arm clears the dig and the crack; the clock
+                // `destroy_pos` names is left to the next START (#4124).
+                1 => {
+                    host.hub.ack(conn, a.sequence);
+                    host.play.entry(conn).or_default().dig_ended();
+                    let state = self.world.block(a.pos[0], a.pos[1], a.pos[2]).0 as i32;
+                    host.hub.send_to(
+                        conn,
+                        &C::BlockUpdate(play::BlockUpdate { pos: a.pos, state }),
+                    );
+                    self.guest_crack_progress(host, conn, a.pos, -1);
+                    let guest = &host.hub.guests[gi];
+                    self.native_block_damage_abort(guest.uuid, &guest.name, a.pos);
+                }
+                // STOP_DESTROY_BLOCK is 2 in 26.2 (26.3's 3).
+                2 => {
                     host.hub.ack(conn, a.sequence);
                     if !host.hub.guests[gi].may_reach_block(a.pos) {
                         // Too far (handleBlockBreakAction's "too far"): the ack has the client
@@ -2332,28 +2348,15 @@ impl Game<'_> {
                     }
                     self.guest_stop_digging(host, conn, a.pos);
                 }
-                2 => {
-                    host.hub.ack(conn, a.sequence);
-                    // ServerPlayerGameMode.abortDestroyBlock clears the dig and the crack; the
-                    // clock `destroy_pos` names is left to the next START (#4124).
-                    host.play.entry(conn).or_default().dig_ended();
-                    let state = self.world.block(a.pos[0], a.pos[1], a.pos[2]).0 as i32;
-                    host.hub.send_to(
-                        conn,
-                        &C::BlockUpdate(play::BlockUpdate { pos: a.pos, state }),
-                    );
-                    self.guest_crack_progress(host, conn, a.pos, -1);
-                    let guest = &host.hub.guests[gi];
-                    self.native_block_damage_abort(guest.uuid, &guest.name, a.pos);
-                }
-                4 | 5 => {
+                3 | 4 => {
                     if !spectator {
-                        self.as_guest(host, conn, |g| g.drop_held(a.action == 4));
+                        self.as_guest(host, conn, |g| g.drop_held(a.action == 3));
                     }
                 }
-                // RELEASE_USE_ITEM: ServerPlayer.releaseUsingItem, with the
-                // hand of the item in use acting.
-                6 => {
+                // RELEASE_USE_ITEM is 5 in 26.2 (26.3's 6):
+                // ServerPlayer.releaseUsingItem, with the hand of the item in
+                // use acting.
+                5 => {
                     let listening = !horizon_client::mod_api::mods().is_empty();
                     let (uuid, name) = if listening {
                         let guest = &host.hub.guests[gi];
@@ -2385,9 +2388,10 @@ impl Game<'_> {
                         });
                     });
                 }
-                // SWAP_ITEM_WITH_OFFHAND: the hands swap and the item in use stops
-                // (ServerGamePacketListenerImpl.handlePlayerAction), not for spectators.
-                7 if !spectator => {
+                // SWAP_ITEM_WITH_OFFHAND is 6 in 26.2 (26.3's 7): the hands swap and the
+                // item in use stops (ServerGamePacketListenerImpl.handlePlayerAction),
+                // not for spectators.
+                6 if !spectator => {
                     // The mods hear the swap first, and may stop it: the
                     // client, which swapped at once, gets its slots back.
                     let (uuid, name) = {
@@ -2422,8 +2426,9 @@ impl Game<'_> {
                     let guest = &host.hub.guests[gi];
                     self.native_player_swap_with_equipment_slot(guest.uuid, &guest.name, "offhand");
                 }
-                // STAB: `PiercingWeapon.attack` of a left click with a spear.
-                8 if !spectator => self.guest_jab(host, conn),
+                // STAB is 7 in 26.2 (26.3's 8): `PiercingWeapon.attack` of a left click
+                // with a spear.
+                7 if !spectator => self.guest_jab(host, conn),
                 _ => {}
             },
             // handleSetCarriedItem: a new slot stops a main-hand use.
@@ -2474,17 +2479,22 @@ impl Game<'_> {
             // with the held item's attack animation (mining, attacking, a
             // click on nothing), seen by the players around, and the attack
             // strength starts again.
-            S::Swing(_) => {
+            S::Swing(p) => {
                 let (player, name) = {
                     let g = &host.hub.guests[gi];
                     (g.uuid, g.name.clone())
                 };
+                let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
                 self.as_guest(host, conn, |g| {
-                    g.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+                    g.swing_hand(hand);
                     g.reset_attack_strength();
                 });
                 self.native_player_attack_cooldown_reset(player, &name);
-                self.native_player_arm_swing(player, &name, "mainhand");
+                self.native_player_arm_swing(
+                    player,
+                    &name,
+                    if hand == Hand::Off { "offhand" } else { "mainhand" },
+                );
             }
             S::UseItemOn(p) => {
                 host.hub.ack(conn, p.sequence);
@@ -3074,7 +3084,8 @@ impl Game<'_> {
             S::Unknown(id, payload)
                 if id == horizon_protocol::ids::play::serverbound::COMMAND_SUGGESTION =>
             {
-                // ServerCommandSuggestionsProvider.request, then trySchedule.
+                // 26.2 parses the suggestion request inline here (no
+                // ServerCommandSuggestionsProvider, which is 26.3's).
                 host.play.entry(conn).or_default().suggestion = Some(payload);
                 self.guest_try_suggestions(host, conn);
             }
@@ -3992,7 +4003,9 @@ impl Game<'_> {
         reg.banned_players = own_banned;
         reg.banned_ips = own_banned_ips;
         reg.whitelisted = own_whitelisted;
-        // ServerCommandSuggestionsProvider.limitSuggestionCount.
+        // 26.2 caps the suggestions at 1000 inline in
+        // handleCustomCommandSuggestions (26.3's provider method is
+        // limitSuggestionCount).
         suggestions.truncate(1000);
         let utf16 = |byte: usize| command[..byte.min(command.len())].encode_utf16().count() as i32;
         let mut w = horizon_protocol::buf::Writer::new();
@@ -5229,10 +5242,12 @@ impl Game<'_> {
             if w.climbable().unwrap_or(false) {
                 w.player.fall_distance = 0.0;
             }
-            // ServerGamePacketListenerImpl.handlePlayerPositionChange ends the
-            // impulse context on LivingEntity.hasLandedInLiquid: a move into a
-            // liquid that does not rise, or a wind charge that lands in water
-            // would waive the fall after it.
+            // ServerGamePacketListenerImpl.handleMovePlayer ends the impulse
+            // context when the guest is on the ground, has landed in liquid,
+            // is climbing, spectating, gliding or spin-attacking (26.2 does
+            // it inline there; 26.3 moved it to handlePlayerPositionChange):
+            // a move into a liquid that does not rise, or a wind charge that
+            // lands in water would waive the fall after it.
             let liquid = w.player.fluids.was_touching_water || w.player.is_in_lava();
             let delta_y = w.player.velocity.y;
             w.player.impulse.landed_in_liquid(delta_y, liquid);
@@ -5418,7 +5433,8 @@ impl Game<'_> {
                     }
                 }
                 // PowderSnowBlock.entityInside: every player around sees the
-                // snowflake (`ServerLevel.sendParticles`).
+                // snowflake (26.2 spawns it client-side; the count-0 packet
+                // below is how the serving game reaches the window).
                 MotionEvent::Snowflake { position, velocity } => {
                     super::lan_particles::send_snowflake_particle(
                         host,
@@ -5488,16 +5504,19 @@ impl Game<'_> {
             return;
         };
         let start = !g.fall_flying && self.guest_can_glide(host, conn) == Some(true);
-        let in_liquid = self
+        // 26.2's `Player.tryToStartFallFlying` bars only water (`!isInWater()`):
+        // a guest in lava may still start a glide. 26.3 widened it to
+        // `!isInLiquid()`, which would bar lava too.
+        let in_water = self
             .as_guest(host, conn, |game| {
                 game.player
                     .as_ref()
-                    .is_some_and(|p| p.fluids.was_touching_water || p.is_in_lava())
+                    .is_some_and(|p| p.fluids.was_touching_water)
             })
             .unwrap_or(true);
         let mut changed = None;
         if let Some(g) = host.hub.guest_mut(conn) {
-            let gliding = start && !in_liquid;
+            let gliding = start && !in_water;
             if g.fall_flying != gliding {
                 g.fall_flying = gliding;
                 changed = Some((g.uuid, g.name.clone(), gliding));
@@ -6187,7 +6206,7 @@ impl Game<'_> {
     }
 
     /// A use the server ran swung the guest's hand: their own client is told
-    /// too (`swing(hand, true)` for a result that is not SwingSource.PREDICTED).
+    /// too (`player.swing(hand, true)` for a `SwingSource.SERVER` result).
     /// A predicted swing (a block placed, a block's own SUCCESS) is the
     /// client's own: sent back, it arrived after the first half of that swing
     /// on a slow connection and swung the arm again (#9887).
@@ -6198,9 +6217,9 @@ impl Game<'_> {
         let (Some(g), Some(play)) = (host.hub.guest(conn), host.play.get(&conn)) else {
             return;
         };
-        if let Some(c) = play.swing.current {
+        if play.swing.swinging() {
             host.hub
-                .send_to(conn, &swing_packet(g.entity_id, c.hand, c.animation));
+                .send_to(conn, &swing_packet(g.entity_id, play.swing.attack_hand()));
         }
     }
 
@@ -6213,13 +6232,31 @@ impl Game<'_> {
                 continue;
             };
             let (id, at, here) = (g.entity_id, g.position, host.hub.here(g));
+            // The guest's own effects (kept on the hub guest between turns),
+            // read before the broadcast below borrows the hub mutably.
+            let dig_speed = g
+                .effects
+                .amplifier("haste")
+                .max(g.effects.amplifier("conduit_power"));
+            let fatigue = g.effects.amplifier("mining_fatigue");
             let play = host.play.get_mut(&conn).expect("play");
             let swung = std::mem::take(&mut play.swings) > 0;
-            if let (true, true, Some(c)) = (swung, here, play.swing.current) {
-                let packet = swing_packet(id, c.hand, c.animation);
+            if swung && here && play.swing.swinging() {
+                let packet = swing_packet(id, play.swing.attack_hand());
                 host.hub.broadcast_near(at, 128.0, &packet, Some(conn));
             }
-            play.swing.tick();
+            // `getCurrentSwingDuration` for the guest: the main hand's item
+            // (`attack_item`, refreshed from their inventory each tick) for
+            // a main-hand swing, DEFAULT for the off hand.
+            let animation = match play.swing.attack_hand() {
+                Hand::Main => play
+                    .attack_item
+                    .as_deref()
+                    .and_then(horizon_client::spear::Kinetic::of)
+                    .map_or(SwingAnimation::DEFAULT, |k| k.attack_animation()),
+                Hand::Off => SwingAnimation::DEFAULT,
+            };
+            play.swing.tick(swing_duration(animation, dig_speed, fatigue));
         }
     }
 }
@@ -6234,7 +6271,7 @@ fn captured_block_break(sound: &horizon_client::audio::CapturedSound, blocks: &[
 /// ClientboundAnimatePacket: the swing as an animate action (0 main hand,
 /// 3 off hand). The animation itself stays with the swinger's client: 26.2's
 /// wire has no swing kind or duration to send.
-fn swing_packet(id: i32, hand: Hand, _animation: SwingAnimation) -> C {
+fn swing_packet(id: i32, hand: Hand) -> C {
     C::Animate(play::Animate {
         id,
         action: if hand == Hand::Off { 3 } else { 0 },
@@ -6602,8 +6639,7 @@ mod swing_echo_tests {
                 for body in bodies {
                     let mut r = horizon_protocol::buf::Reader::new(&body);
                     let packet_id = r.varint().unwrap();
-                    if let Ok(Clientbound::Animate(p)) =
-                        Clientbound::decode(packet_id, r.rest())
+                    if let Ok(Clientbound::Animate(p)) = Clientbound::decode(packet_id, r.rest())
                         && p.id == id
                     {
                         n += 1;
@@ -6635,6 +6671,155 @@ mod swing_echo_tests {
         // BedBlock.useWithoutItem: SUCCESS_SERVER, the server's swing only.
         game.lan_guest_packet(&mut host, 2, use_on([6, 200, 4], [0.5, 0.5625, 0.5], 2));
         assert_eq!(swings_back(), 1, "a bed's use is swung back");
+    }
+}
+
+#[cfg(test)]
+mod player_action_ordinal_tests {
+    use super::ItemStack;
+    use crate::game::{Audio, Game, Options, Progress, Settings, load_resources};
+    use horizon_client::chunk::Chunk;
+    use horizon_client::lan::{Joined, NetConfig, PlayerSender, guest::Guest, hub::HubConfig};
+    use horizon_core::position::ChunkPos;
+    use horizon_protocol::packets::{
+        configuration::ClientInformation,
+        play::{self, Serverbound},
+    };
+    use std::sync::{Arc, atomic::AtomicI32, mpsc};
+
+    /// `ServerboundPlayerActionPacket.Action` in 26.2: 0 START, 1 ABORT, 2 STOP,
+    /// 3 DROP_ALL, 4 DROP_ITEM, 5 RELEASE_USE, 6 SWAP, 7 STAB. 26.3 inserted
+    /// CHANGE_DESTROY_DIRECTION at 1, shifting the rest by one; the dispatch
+    /// must read the 26.2 numbers, or an ABORT would be a no-op and a STOP
+    /// would abort the dig instead of ending it.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_26_2_guest_abort_and_stop_use_26_2_ordinals() {
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.game_dir = Some(
+            std::env::temp_dir().join(format!("horizon-dig-ordinal-unit-{}", std::process::id())),
+        );
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.build_registries();
+        game.set_allow_commands(true);
+        let stone = game
+            .pack
+            .assets
+            .registry
+            .default_state("minecraft:stone")
+            .unwrap()
+            .0;
+        let mut chunk = Chunk::empty(0, 0);
+        for x in 0..16 {
+            for z in 0..16 {
+                chunk.set(x, 199, z, stone);
+            }
+        }
+        game.world.chunks.insert((0, 0), Arc::new(chunk));
+        game.block_ticks
+            .add_empty_chunk(ChunkPos::new(0, 0))
+            .unwrap();
+        assert!(game.run_command("forceload add 0 0"));
+        game.lan_host(
+            super::super::lan::LanSettings {
+                port: 0,
+                guest_commands: true,
+                force_game_mode: false,
+            },
+            NetConfig {
+                announce: false,
+                ..NetConfig::loopback(0, "dig-ordinal-test".into(), 2)
+            },
+            HubConfig {
+                default_game_mode: 0,
+                guest_commands: true,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 2,
+                simulation_distance: 2,
+                dimension: "minecraft:overworld".into(),
+                allow_flight: false,
+                seed: 0,
+                max_players: 2,
+                integrated: false,
+                levels: Default::default(),
+            },
+        )
+        .unwrap();
+        let (tx, _rx) = mpsc::channel();
+        let mut guest = Guest::new(
+            Joined {
+                conn: 2,
+                uuid: 331,
+                name: "DigGuest".into(),
+                properties: Vec::new(),
+                info: ClientInformation::new(2),
+                brand: "test".into(),
+                sender: PlayerSender::new(tx, Arc::default()),
+                latency: Arc::new(AtomicI32::new(0)),
+                address: "127.0.0.1:25565".parse().unwrap(),
+                expected: false,
+                configured: Default::default(),
+            },
+            2,
+            [4.5, 200.0, 4.5],
+            2,
+        );
+        guest.dimension = "minecraft:overworld".into();
+        guest.placed = true;
+        guest.loaded = true;
+        guest.inventory[0] = Some(ItemStack::new("minecraft:stone", 16));
+        guest.selected = 0;
+        let mut host = game.lan.take().unwrap();
+        host.hub.guests.push(guest);
+        let dig = |action: i32, sequence: i32| {
+            Serverbound::PlayerAction(play::PlayerAction {
+                action,
+                pos: [4, 199, 4],
+                direction: 1,
+                sequence,
+            })
+        };
+        let digging = |host: &crate::game::lan::LanHost| {
+            host.play.get(&2).and_then(|p| p.digging).is_some()
+        };
+        // START sets the dig.
+        game.lan_guest_packet(&mut host, 2, dig(0, 1));
+        assert!(digging(&host), "START (0) sets the dig");
+        // ABORT clears it (26.3's 1 is CHANGE_DESTROY_DIRECTION, a no-op).
+        game.lan_guest_packet(&mut host, 2, dig(1, 2));
+        assert!(!digging(&host), "ABORT is 1 in 26.2");
+        // START again, then STOP ends it (26.3's 2 is ABORT, which would
+        // also clear it — the abort above is the ordinal that pins this).
+        game.lan_guest_packet(&mut host, 2, dig(0, 3));
+        assert!(digging(&host), "a second START sets the dig again");
+        game.lan_guest_packet(&mut host, 2, dig(2, 4));
+        assert!(!digging(&host), "STOP is 2 in 26.2");
     }
 }
 

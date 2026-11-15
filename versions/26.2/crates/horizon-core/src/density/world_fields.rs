@@ -29,11 +29,13 @@ impl WorldField {
     }
 }
 
-/// Old-world blending provider. The full vanilla Blender data model and
-/// distance-weighting algorithm are a separate, still pending implementation.
+/// Old-world blending provider, implemented by the world's `Blender`.
+/// The blender computes in double (26.2's `Blender.blendDensity`); the
+/// density pipeline evaluates in f32, so the samplers below round at the
+/// pipeline boundary.
 pub trait DensityBlender: std::fmt::Debug + Send + Sync {
     fn is_empty(&self) -> bool;
-    fn blend_density(&self, position: [i32; 3], input: f32) -> f32;
+    fn blend_density(&self, position: [i32; 3], input: f64) -> f64;
 }
 
 #[derive(Debug)]
@@ -42,7 +44,7 @@ impl DensityBlender for EmptyBlender {
     fn is_empty(&self) -> bool {
         true
     }
-    fn blend_density(&self, _: [i32; 3], input: f32) -> f32 {
+    fn blend_density(&self, _: [i32; 3], input: f64) -> f64 {
         input
     }
 }
@@ -127,7 +129,7 @@ impl DensitySampler for BlendDensitySampler {
         Ok(if blender.is_empty() {
             input
         } else {
-            blender.blend_density(position, input)
+            blender.blend_density(position, f64::from(input)) as f32
         })
     }
     fn sample_volume(
@@ -144,7 +146,7 @@ impl DensitySampler for BlendDensitySampler {
             return Ok(());
         }
         visit(volume, |index, position| {
-            buffer[index] = blender.blend_density(position, buffer[index]);
+            buffer[index] = blender.blend_density(position, f64::from(buffer[index])) as f32;
             Ok(())
         })
     }

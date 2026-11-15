@@ -97,7 +97,12 @@ impl Game<'_> {
         let maps = self.level_maps(grid.iter().flatten());
         let found = self
             .recipes()
-            .find_with(&grid, 3, &|id| maps.state(id).map(|(_, scale)| scale))
+            .find_with(
+                &grid,
+                3,
+                &|id| maps.state(id).map(|(_, scale)| scale),
+                &|id| maps.is_exploration_map(id),
+            )
             .map(|(name, result)| (name.to_owned(), result))
             .filter(|(_, result)| result.count > 0);
         let Some((recipe, mut result)) = found else {

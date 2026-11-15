@@ -38,16 +38,13 @@ pub fn load(work: &Path) -> BTreeMap<String, Installed> {
     pipeline::read_json(&work.join(REPORT)).unwrap_or_default()
 }
 
-/// How a pack of this Minecraft version becomes a 26.3 data pack, if one can.
+/// How a pack of this Minecraft version becomes a 26.2 data pack, if one can:
+/// a 26.2 pack is already this version's format and is copied as-is. (26.3
+/// packs cannot be brought over — the upgrade module only goes forward, to
+/// 26.3 — and older versions keep the content mod carry-over.)
 fn upgrades(minecraft: &str) -> Option<bool> {
     let series = |s: &str| minecraft == s || minecraft.starts_with(&format!("{s}."));
-    if series("26.2") {
-        Some(true)
-    } else if series("26.3") {
-        Some(false)
-    } else {
-        None
-    }
+    if series("26.2") { Some(false) } else { None }
 }
 
 /// Whether this record's jar is a data pack this pack's version can bring over. Older versions keep
@@ -170,6 +167,9 @@ pub fn install(
         report.insert(r.key.clone(), installed);
     }
     let done = report.values().filter(|i| i.error.is_empty()).count();
+    // Nothing installed yet leaves no work folder behind: make one so the
+    // report still lands.
+    fs::create_dir_all(work).map_err(|e| format!("{}: {e}", work.display()))?;
     pipeline::write_json(&work.join(REPORT), &report)?;
     Ok(done)
 }
@@ -245,7 +245,7 @@ mod tests {
         };
         assert!(is_data_only(&r(info(0, true, 3)), "26.2"));
         assert!(is_data_only(&r(info(0, true, 3)), "26.2.1"));
-        assert!(is_data_only(&r(info(0, true, 3)), "26.3"));
+        assert!(!is_data_only(&r(info(0, true, 3)), "26.3"));
         assert!(!is_data_only(&r(info(0, true, 3)), "1.21.1"));
         assert!(!is_data_only(&r(info(0, true, 3)), "26.21"));
         assert!(!is_data_only(&r(info(1, true, 3)), "26.2"));
@@ -254,7 +254,7 @@ mod tests {
     }
 
     #[test]
-    fn a_26_2_jar_keeps_its_vanilla_overrides_in_26_3_form_and_replaces_its_old_carry() {
+    fn a_26_2_jar_is_copied_as_is_and_replaces_its_old_carry() {
         let root = root("upgrade");
         let work = root.join("work");
         let carried = work.join("mods/void/carry");
@@ -272,11 +272,13 @@ mod tests {
         let records = [record("void", jar)];
         assert_eq!(install(&work, &records, "26.2", &|_| {}), Ok(1));
         let pack = folder(&work).join("void");
-        let noise: serde_json::Value =
-            pipeline::read_json(&pack.join("data/minecraft/worldgen/noise/ice.json")).unwrap();
-        assert_eq!(noise["base_octave"], -7);
+        // Already this version's format: the files come over untouched.
+        assert_eq!(
+            fs::read_to_string(pack.join("data/minecraft/worldgen/noise/ice.json")).unwrap(),
+            NOISE
+        );
         let meta: serde_json::Value = pipeline::read_json(&pack.join("pack.mcmeta")).unwrap();
-        assert_eq!(meta["pack"]["pack_format"], upgrade::PACK_FORMAT);
+        assert_eq!(meta["pack"]["pack_format"], 107);
         assert!(!carried.exists());
         assert_eq!(installed(&work), 1);
         assert!(load(&work)["void"].assets);
@@ -290,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn a_26_3_jar_is_already_in_the_game_s_form() {
+    fn a_26_3_jar_is_not_brought_over() {
         let root = root("as-is");
         let work = root.join("work");
         let files = [
@@ -298,12 +300,9 @@ mod tests {
             ("data/m/worldgen/noise/ice.json", NOISE),
         ];
         let records = [record("void", jar(&root, "void", &files))];
-        assert_eq!(install(&work, &records, "26.3", &|_| {}), Ok(1));
-        let pack = folder(&work).join("void");
-        assert_eq!(
-            fs::read_to_string(pack.join("data/m/worldgen/noise/ice.json")).unwrap(),
-            NOISE
-        );
+        assert_eq!(install(&work, &records, "26.3", &|_| {}), Ok(0));
+        assert!(!folder(&work).join("void").exists());
+        assert_eq!(installed(&work), 0);
         fs::remove_dir_all(&root).unwrap();
     }
 

@@ -1,5 +1,5 @@
 //! Commands of the hosted game rather than the world: `/dialog`, `/kick`,
-//! `/posteffect`, `/fetchprofile`, `/spectate`, `/publish`, `/unpublish`,
+//! `/fetchprofile`, `/spectate`, `/publish`, `/unpublish`,
 //! `/waypoint`, `/debug`, `/jfr` and `/test`; on a dedicated server only,
 //! `/op`, `/deop`, `/ban`, `/ban-ip`, `/banlist`, `/pardon`, `/pardon-ip`,
 //! `/setidletimeout`, `/transfer` and `/whitelist`.
@@ -32,24 +32,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let reason = d.argument(t, "reason", ArgType::Message);
     d.executes(reason, "kick");
 
-    // PostEffectCommand
-    let pe = d.literal(root, "posteffect");
-    d.requires(pe, GAMEMASTERS);
-    let add = d.literal(pe, "add");
-    let t = d.argument(add, "targets", PLAYERS);
-    let id = d.argument(t, "posteffect", ArgType::Id("post_effects"));
-    d.executes(id, "posteffect.add");
-    let clear = d.literal(pe, "clear");
-    let t = d.argument(clear, "targets", PLAYERS);
-    d.executes(t, "posteffect.clear");
-    let list = d.literal(pe, "list");
-    let t = d.argument(list, "target", PLAYER);
-    d.executes(t, "posteffect.list");
-    let remove = d.literal(pe, "remove");
-    let t = d.argument(remove, "targets", PLAYERS);
-    let id = d.argument(t, "posteffect", ArgType::Id("post_effects"));
-    d.executes(id, "posteffect.remove");
-
     // FetchProfileCommand
     let fp = d.literal(root, "fetchprofile");
     d.requires(fp, GAMEMASTERS);
@@ -72,13 +54,16 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let player = d.argument(target, "player", PLAYER);
     d.executes(player, "spectate");
 
-    // PublishCommand / UnpublishCommand
+    // PublishCommand / UnpublishCommand: `publish [allowCommands
+    // [gamemode [port]]]` (26.2's tree; 26.3 dropped the gamemode).
     let publish = d.literal(root, "publish");
     d.requires(publish, OWNERS);
     d.executes(publish, "publish");
     let allow = d.argument(publish, "allowCommands", ArgType::Bool);
     d.executes(allow, "publish");
-    let port = d.argument(allow, "port", ArgType::Integer { min: 0, max: 65535 });
+    let mode = d.argument(allow, "gamemode", ArgType::GameMode);
+    d.executes(mode, "publish");
+    let port = d.argument(mode, "port", ArgType::Integer { min: 0, max: 65535 });
     d.executes(port, "publish");
     let unpublish = d.literal(root, "unpublish");
     d.requires(unpublish, OWNERS);

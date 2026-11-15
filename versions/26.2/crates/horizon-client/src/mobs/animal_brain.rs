@@ -196,6 +196,12 @@ pub struct Memories {
     pub cant_reach_walk_target_since: Slot<i64>,
     pub tempting_player: Slot<Who>,
     pub temptation_cooldown_ticks: Slot<i32>,
+    /// `IS_TEMPTED`: set while `FollowTemptation` runs, erased when it stops
+    /// (26.2's `FollowTemptation.start`/`stop`). 26.3 dropped the memory and
+    /// `Sniffer.isTempted` reads `TEMPTING_PLAYER` instead, which is true
+    /// whenever a tempting player is sensed — including while the behaviour
+    /// is on cooldown. 26.2's `isTempted` is only true while following.
+    pub is_tempted: Slot<bool>,
     pub is_panicking: Slot<bool>,
     pub sniffer_digging: Slot<bool>,
     pub sniffer_sniffing_target: Slot<[i32; 3]>,
@@ -236,6 +242,7 @@ impl Memories {
         self.cant_reach_walk_target_since.tick();
         self.tempting_player.tick();
         self.temptation_cooldown_ticks.tick();
+        self.is_tempted.tick();
         self.is_panicking.tick();
         self.sniffer_digging.tick();
         self.sniffer_sniffing_target.tick();
@@ -581,9 +588,11 @@ fn update_activity(m: &mut Mob) {
 pub fn is_panicking(m: &Mob) -> bool {
     mem_ref(m).is_some_and(|mm| mm.is_panicking.present())
 }
-/// `Sniffer.isTempted`.
+/// `Sniffer.isTempted`: 26.2 reads the `IS_TEMPTED` memory, which
+/// `FollowTemptation` sets on start and erases on stop — true only while the
+/// mob is actually following, not merely while a tempting player is near.
 pub fn is_tempted(m: &Mob) -> bool {
-    mem_ref(m).is_some_and(|mm| mm.tempting_player.present())
+    mem_ref(m).is_some_and(|mm| mm.is_tempted.present())
 }
 /// The explored positions are the sniffer's `SNIFFER_EXPLORED_POSITIONS`.
 const EXPLORED_MAX: usize = 20;
@@ -1182,6 +1191,7 @@ impl B {
             B::FollowTemptation { t, .. } => {
                 let mm = mem(m);
                 if mm.temptation_cooldown_ticks.present()
+                    || mm.is_tempted.present()
                     || !mm.tempting_player.present()
                     || mm.breed_target.present()
                     || mm.is_panicking.present()
@@ -1189,6 +1199,7 @@ impl B {
                     return false;
                 }
                 t.begin(cx.lr, cx.now);
+                mem(m).is_tempted.set(true);
                 if brain_mut(m).kind == Kind::Sniffer {
                     reset_sniffing(m, cx);
                 }
@@ -1783,6 +1794,7 @@ impl B {
                 t.running = false;
                 let mm = mem(m);
                 mm.temptation_cooldown_ticks.set(100);
+                mm.is_tempted.clear();
                 mm.walk_target.clear();
                 mm.look_target.clear();
             }
@@ -1935,7 +1947,59 @@ fn compute_path(
 /// `AnimalPanic.getPanicPos`: on land 5 blocks out and 4 up or down, or
 /// for a flyer the air and water around it ahead (water first when burning
 /// is not reproduced: no fire reaches these scenarios).
+/// `AnimalPanic.lookForWater` (26.2): the closest water within Manhattan
+/// (5 horizontal, 1 vertical) of the mob, in `BlockPos.findClosestMatch`
+/// order — by distance, then x, y, then positive/negative z. A mob two
+/// blocks wide (`Mth.ceil(getBbWidth()) == 2`) needs the whole 2x2
+/// south-east square wet (`BlockPos.squareOutSouthEast`). No search when
+/// the mob's own block has a collision shape (it is inside a block).
+/// 26.3 rewrote this with `findBlocksInBoxByManhattanDistance` and a
+/// matcher; the outcome is the same set of cells in the same order.
+fn look_for_water(m: &Mob, w: &MobWorld) -> Option<[i32; 3]> {
+    let p = block_of(m.position);
+    if w.collision_bounds(p).is_some() {
+        return None;
+    }
+    let wide = m.dims().0.ceil() as i32 == 2;
+    let wet = |q: [i32; 3]| w.fluid(q[0], q[1], q[2]) == crate::blocks::Fluid::Water;
+    for distance in 0..=11i32 {
+        for x in -5..=5i32 {
+            for y in -1..=1i32 {
+                let z = distance - x.abs() - y.abs();
+                if !(0..=5).contains(&z) {
+                    continue;
+                }
+                for s in [1, -1] {
+                    if z == 0 && s < 0 {
+                        continue;
+                    }
+                    let q = [p[0] + x, p[1] + y, p[2] + s * z];
+                    if !wet(q) {
+                        continue;
+                    }
+                    if wide
+                        && (!wet([q[0], q[1], q[2] + 1])
+                            || !wet([q[0] + 1, q[1], q[2]])
+                            || !wet([q[0] + 1, q[1], q[2] + 1]))
+                    {
+                        continue;
+                    }
+                    return Some(q);
+                }
+            }
+        }
+    }
+    None
+}
 fn panic_pos(m: &mut Mob, w: &MobWorld, fly: bool) -> Option<[f64; 3]> {
+    // `AnimalPanic.getPanicPos`: a burning animal runs for the nearest
+    // water first, and only falls back to a random position.
+    if m.is_on_fire()
+        && let Some(q) = look_for_water(m, w)
+    {
+        // `Vec3.atBottomCenterOf`.
+        return Some([f64::from(q[0]) + 0.5, f64::from(q[1]), f64::from(q[2]) + 0.5]);
+    }
     if fly {
         let view = m.view_vector();
         m.air_and_water_random_pos(w, 5, 4, 0, view[0], view[2])

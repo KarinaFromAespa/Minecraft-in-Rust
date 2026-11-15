@@ -1,21 +1,21 @@
-"""A mob's hurt cooldown is not `invulnerable_time`.
+"""A mob's hurt cooldown is `invulnerableTime`, and it is never saved.
 
-`LivingEntity.hurtServer` keeps the hurt cooldown in `damageCooldownTime` (20 after a hit; while it is
-above 10 a hit no stronger than `lastHurt` does nothing and a stronger one deals only the difference).
-`baseTick` counts it down; it is never saved. `Entity.invulnerableTime` is another field: `saveWithoutId`
-writes it as `invulnerable_time` while it is above 0, `load` reads it, and while it is above 0 the entity
-is invulnerable (`isTemporarilyInvulnerable`). A `/data` edit loads the entity in place, so it keeps
-the cooldown.
+In 26.2 `LivingEntity.invulnerableTime` IS the hurt cooldown (20 after a hit; while it is above 10 a
+hit no stronger than `lastHurt` does nothing and a stronger one deals only the difference). `tick`
+counts it down; it is never saved, and there is no `invulnerable_time` tag at all (26.3 renamed the
+cooldown `damageCooldownTime` and repurposed `invulnerableTime` as a saved temporary-invulnerability
+timer). A `/data` edit loads the entity in place, so it keeps the cooldown.
 
 The world is frozen; ticks are stepped. A NoAI pig `victim` (fixed UUID, Health 20) has its whole body
 read before a hit, right after a `generic` hit of 2, and at cooldown ticks 9, 10, 11 and 20. A second
 pig, `edit`, is hit with 2, then given an unrelated `/data merge` (a custom name) during its cooldown, then
 hit with 2 again (equal: nothing) and with 4 (stronger: 2 more). A third, `summoned`, is summoned with
-`invulnerable_time:30` and hit with 2 at tick 5 and tick 40.
+a stray `invulnerable_time:30` tag, which 26.2 ignores (no such field), and hit with 2 at tick 5 and
+tick 40 — both land, the tag granting nothing.
 
 Label classes, declared before any native run: `target-` rows are the victims' full bodies and their
-`invulnerable_time` reads; `diag-` rows are recorded diagnostics (clock); every other row is a setup
-admission or a control (the hits, Health, the edit).
+`invulnerable_time` reads (absent on both sides); `diag-` rows are recorded diagnostics (clock); every
+other row is a setup admission or a control (the hits, Health, the edit).
 """
 
 Y = 100

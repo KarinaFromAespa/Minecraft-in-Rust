@@ -232,17 +232,14 @@ pub fn ai_step(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     } else {
         0.6
     };
-    // playerTouch -> dealDamage
+    // playerTouch -> dealDamage (26.2's dealDamage has no team check;
+    // `doTeamsAllowDamage` is 26.3's).
     if can_deal_damage(m)
         && !m.no_ai
         && m.alive()
         && let Some(p) = &w.player
         && p.alive
         && !p.creative
-        && crate::scoreboard::teams_allow_damage(
-            w.teams.of(Who::Mob(m.id)),
-            w.teams.of(Who::Player),
-        )
         // Player.touch: entities within the player's box grown by (1, 0.5, 1).
         && m.bounds().intersects(p.bounds.inflate(Vec3::new(1.0, 0.5, 1.0)))
     {
@@ -272,10 +269,10 @@ fn attack_damage(m: &Mob) -> f32 {
 }
 /// `AbstractCubeMob.push(entity)`: an iron golem whose `pushEntities` takes
 /// this cube (its box overlaps the cube's, `EntitySelector.pushableBy`) gets
-/// `dealDamage`: alive, `doTeamsAllowDamage`, `isWithinMeleeAttackRange`
-/// (true for overlapping boxes unless a held spear's minimum range refuses
-/// them) and `hasLineOfSight`, then a
-/// `mobAttack` hit for `getAttackDamage`.
+/// `dealDamage`: alive, `isWithinMeleeAttackRange` (true for overlapping
+/// boxes unless a held spear's minimum range refuses them) and
+/// `hasLineOfSight`, then a `mobAttack` hit for `getAttackDamage`. 26.2's
+/// `dealDamage` has no team check (`doTeamsAllowDamage` is 26.3's).
 fn hurt_touching_golems(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
     // canDealDamage also needs Mob.isEffectiveAi: a NoAI cube never hurts.
     if !can_deal_damage(m) || m.no_ai || !m.alive() {
@@ -294,7 +291,6 @@ fn hurt_touching_golems(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
                 && o.bounds.intersects(bounds)
                 && m.melee_reaches(w, o.hitbox)
                 && crate::scoreboard::pushable_by(theirs, own, pushable)
-                && crate::scoreboard::teams_allow_damage(own, theirs)
         })
         .map(|o| o.id)
         .collect();

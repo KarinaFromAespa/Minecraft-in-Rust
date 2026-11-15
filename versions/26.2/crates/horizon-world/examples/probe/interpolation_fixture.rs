@@ -1,7 +1,7 @@
-//! The Rust side of tools/test_stepped_interpolation_parity.py: replays the
-//! harness's events (VanillaSteppedInterpolationOracle's input format) on
-//! `SteppedInterpolation` and writes the entity after each one.
-use horizon_world::stepped_interpolation::{Path, PosRot, Start, SteppedInterpolation};
+//! The Rust side of tools/test_interpolation_parity.py: replays the
+//! harness's events (VanillaInterpolationOracle's input format) on
+//! `InterpolationHandler` and writes the entity after each one.
+use horizon_world::interpolation::{InterpolationHandler, PosRot, Start};
 use std::fmt::Write as _;
 
 /// `Entity.setRot`: yaw and pitch wrapped, pitch clamped (`setXRot`).
@@ -14,14 +14,14 @@ pub fn main() {
     let args: Vec<String> = crate::args().collect();
     let input = std::fs::read_to_string(&args[1]).expect("input");
     let mut out = String::new();
-    let mut handler = SteppedInterpolation::new(0);
+    let mut handler = InterpolationHandler::new(0);
     let mut entity = PosRot::default();
     for line in input.lines() {
         let f: Vec<&str> = line.split_whitespace().collect();
         let num = |i: usize| f[i].parse::<f64>().expect("number");
         let what = match f[0] {
             "case" => {
-                handler = SteppedInterpolation::new(f[1].parse().expect("steps"));
+                handler = InterpolationHandler::new(f[1].parse().expect("steps"));
                 entity = PosRot {
                     position: [num(2), num(3), num(4)],
                     yaw: f[5].parse().expect("yaw"),
@@ -31,23 +31,10 @@ pub fn main() {
             }
             "move" => {
                 let mut i = 2;
-                let path = match f[1] {
+                let position = match f[1] {
                     "L" => {
                         i += 3;
-                        Some(Path::Linear([num(2), num(3), num(4)]))
-                    }
-                    "S" => {
-                        let n: usize = f[2].parse().expect("count");
-                        i = 3;
-                        let mut steps = Vec::new();
-                        for _ in 0..n {
-                            steps.push((
-                                [num(i), num(i + 1), num(i + 2)],
-                                f[i + 3].parse().expect("ticks"),
-                            ));
-                            i += 4;
-                        }
-                        Some(Path::Stepped(steps))
+                        Some([num(2), num(3), num(4)])
                     }
                     _ => None,
                 };
@@ -57,7 +44,12 @@ pub fn main() {
                         f[i + 2].parse().expect("pitch"),
                     )
                 });
-                match handler.interpolate_to(entity, path, rotation) {
+                // `moveOrInterpolateTo`: a packet without a position or
+                // rotation keeps the one the entity is headed for.
+                let current = handler.heading(entity);
+                let position = position.unwrap_or(current.position);
+                let (yaw, pitch) = rotation.unwrap_or((current.yaw, current.pitch));
+                match handler.interpolate_to(entity, position, yaw, pitch) {
                     Start::Snap(at) => {
                         entity.position = at.position;
                         set_rot(&mut entity, at.yaw, at.pitch);

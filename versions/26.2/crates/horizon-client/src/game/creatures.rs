@@ -827,8 +827,8 @@ impl Game<'_> {
     /// removed: a new mob of `kind`, made without spawn finalization, takes
     /// its place with what `conversion::single` carries over, and the old
     /// mob's riders move onto it. A zombie that comes out of it rolls
-    /// `Zombie.handleAttributes(special, CONVERSION)` (the
-    /// `postConversionStep` of its `ConversionTracker`).
+    /// `Zombie.handleAttributes(special, CONVERSION)` (the callback of
+    /// `doUnderWaterConversion`'s `convertTo`).
     pub(super) fn convert_to(
         &mut self,
         from: &Mob,
@@ -1014,7 +1014,6 @@ impl Game<'_> {
             collision: self.collision,
             suffocation: self.mob_suffocation(),
             data: self.res.mob_data(),
-            controlling_player_movement: None,
             nearest_player: player.as_ref().filter(|p| !p.spectator).map(|p| p.position),
             player,
             others,
@@ -1328,20 +1327,6 @@ impl Game<'_> {
                     keep.push(kept);
                     continue;
                 }
-                let controlling_player_movement = horizon_client::mobs::equine::controlled(m)
-                    .then(|| {
-                        base.player
-                            .as_ref()
-                            .filter(|p| p.riding_vehicle == Some(m.id))
-                            .map(|p| p.velocity)
-                            .or_else(|| {
-                                guests
-                                    .iter()
-                                    .find(|(_, p)| p.riding_vehicle == Some(m.id))
-                                    .map(|(_, p)| p.velocity)
-                            })
-                    })
-                    .flatten();
                 // A mod canceled its tick: it stays as it is.
                 if round.canceled(m.id) {
                     keep.push(true);
@@ -1385,7 +1370,6 @@ impl Game<'_> {
                     teams: std::sync::Arc::clone(&base.teams),
                     ..base
                 };
-                w.controlling_player_movement = controlling_player_movement;
                 ticked.insert(mobs[i].id);
                 // `horizon-report`'s cost by mob type (tick_profile.rs).
                 let sampled = super::tick_profile::start().map(|t| (t, mobs[i].kind.clone()));
@@ -1591,6 +1575,7 @@ impl Game<'_> {
         self.tick_apparition();
         self.guardian_bubbles();
         self.villager_reputation_tick();
+        self.villager_merchant_tick();
         self.villager_item_sense();
         self.villager_pickups();
         laps.lap("creature_villagers");
@@ -4715,7 +4700,11 @@ impl Game<'_> {
                         false,
                         |at| w.block_name(at.x, at.y, at.z) == "minecraft:powder_snow",
                     ) {
-                        snow_contacts.push((block, p.position, p.velocity));
+                        // 26.2's gate is horizontal movement
+                        // (`xOld != x || zOld != z`), not known movement.
+                        let moving =
+                            p.previous.x != p.position.x || p.previous.z != p.position.z;
+                        snow_contacts.push((block, p.position, moving));
                     }
                 }
                 if shooter.is_some() {
@@ -4813,8 +4802,8 @@ impl Game<'_> {
             }
         }
         self.creatures.pickable_projectile_targets = winds;
-        for (block, position, movement) in snow_contacts {
-            self.powder_snow_particle(block, position, movement);
+        for (block, position, moving) in snow_contacts {
+            self.powder_snow_particle(block, position, moving);
         }
         let listed = keep_flags.clone();
         let mut idx = 0;
@@ -5024,10 +5013,10 @@ impl Game<'_> {
     /// `onProjectileHit` of chorus flowers, decorated pots and speleothems
     /// (pointed dripstone, sulfur spikes): an impact projectile
     /// (`#impact_projectiles`) breaks the block when `Projectile.mayInteract`
-    /// and `Projectile.mayBreak` allow it, which takes the
-    /// `projectiles_can_break_blocks` rule and a shooter that may break blocks
-    /// (`canBreakBlockInAdventureMode`: a resolved mob's arrow needs its
-    /// actual projectile predicate and mob_griefing). Other owner/kind paths
+    /// and `Projectile.mayBreak` allow it — `mayBreak` is the impact tag plus
+    /// the `projectiles_can_break_blocks` rule, and `mayInteract` for a mob
+    /// shooter is `mob_griefing` (26.2 has no projectile `can_break`
+    /// predicate; 26.3 added one to `mayBreak`). Other owner/kind paths
     /// retain their existing policy. A pot is cracked first (flags 260).
     fn projectile_breaks_block(&mut self, p: &Projectile, pos: [i32; 3]) {
         use horizon_client::command::args::GameMode;
@@ -5047,17 +5036,9 @@ impl Game<'_> {
         use horizon_client::arrows::OwnerLookup;
         let shooter_may_break = match p.owner {
             Some(Who::Player) => self.mode != GameMode::Adventure,
-            Some(Who::Mob(_)) => {
-                matches!(p.kind, ProjectileKind::Arrow { .. })
-                    && self.ui.rules.bool("mob_griefing")
-                    && p.arrow
-                        .as_ref()
-                        .and_then(|a| a.can_break.as_ref())
-                        .is_some_and(|predicate| {
-                            super::game_mode::projectile_predicate_supported(predicate)
-                                && self.adventure_predicate_at(predicate, pos)
-                        })
-            }
+            // `Projectile.mayInteract`: a mob shooter needs `mob_griefing`
+            // and nothing else (no projectile predicate in 26.2).
+            Some(Who::Mob(_)) => self.ui.rules.bool("mob_griefing"),
             None => !p.owner_uuid.is_some_and(|u| self.non_player_entity(u)),
         };
         if !impact || !shooter_may_break || !self.ui.rules.bool("projectiles_can_break_blocks") {
@@ -5516,17 +5497,31 @@ impl Game<'_> {
                     Who::Player => Some("minecraft:player".to_owned()),
                 };
                 let amount = self.shot_damage(&mut trident, victim.as_deref());
+                let mut dodged = false;
                 let hurt = match who {
                     Who::Player => self.mob_hits_player(
                         amount,
                         [p.previous.x, p.previous.y, p.previous.z],
                         "minecraft:trident",
                     ),
-                    Who::Mob(id) => self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
-                        m.damage_projectile(amount, source, aim, [p.velocity.x, p.velocity.z])
-                    }),
+                    Who::Mob(id) => {
+                        let hurt = self.mobs.iter_mut().find(|m| m.id == id).is_some_and(|m| {
+                            m.damage_projectile(amount, source, aim, [p.velocity.x, p.velocity.z])
+                        });
+                        dodged = !hurt
+                            && self.mobs.iter().find(|m| m.id == id).is_some_and(|m| {
+                                m.species() == Species::Enderman
+                                    && horizon_client::mobs::enderman::dodges(m, &source)
+                            });
+                        hurt
+                    }
                 };
-                let outcome = if hurt {
+                // ThrownTrident.onHitEntity in 26.2 returns before the
+                // deflect and the hit sound when the target is an enderman
+                // that teleported away: the trident flies on.
+                let outcome = if dodged {
+                    EntityHit::Dodged
+                } else if hurt {
                     self.shot_post_attack(p, who, "minecraft:trident", "minecraft:trident");
                     EntityHit::Hurt
                 } else {
@@ -5563,8 +5558,18 @@ impl Game<'_> {
                     Who::Player => None,
                 };
                 let mut dodged = false;
-                // AbstractArrow.onHitEntity: a burning arrow sets its target alight.
-                if p.arrow.as_ref().is_some_and(|a| a.on_fire()) {
+                // AbstractArrow.onHitEntity: a burning arrow sets its target
+                // alight — unless it is an enderman, which 26.2 never ignites
+                // (`isOnFire() && !isEnderman`).
+                let enderman_target = match who {
+                    Who::Mob(id) => self
+                        .mobs
+                        .iter()
+                        .find(|m| m.id == id)
+                        .is_some_and(|m| m.species() == Species::Enderman),
+                    _ => false,
+                };
+                if p.arrow.as_ref().is_some_and(|a| a.on_fire()) && !enderman_target {
                     self.handle_mob_events(vec![MobEvent::Ignite {
                         target: who,
                         seconds: 5,
@@ -5728,12 +5733,11 @@ impl Game<'_> {
                     (false, Who::Mob(_)) if dodged => {
                         self.finish_arrow_hit(arrow, arrow_miss(true));
                     }
-                    // hurtOrSimulate returned false and
-                    // projectileReceivesSideEffectsOnHit(false) is the default
-                    // (Shulker.hurtServer on a closed shell, invulnerability).
-                    // The fire the arrow just set goes back, then
-                    // deflect(REVERSE, entity, owner, false, 0.2). The hit
-                    // sound plays only when the hurt lands.
+                    // hurtOrSimulate returned false (Shulker.hurtServer on a
+                    // closed shell, invulnerability): the fire the arrow just
+                    // set goes back, then `deflect(REVERSE, entity, owner,
+                    // false)` and a `0.2` scale. The hit sound plays only
+                    // when the hurt lands.
                     (false, Who::Mob(id)) => {
                         if let (Some(m), Some(ticks)) =
                             (self.mobs.iter_mut().find(|m| m.id == id), mob_fire)
@@ -5909,10 +5913,12 @@ impl Game<'_> {
                         self.spawn_mob_raw("minecraft:endermite", [from.x, from.y, from.z], false);
                     }
                     // ServerPlayer.teleport: removeVehicle before the placement.
+                    // 26.2 teleports with Relative DELTA and a zero delta, so
+                    // the velocity is kept (26.3 zeroes it); the fall distance
+                    // still resets, as does the impulse context.
                     self.stop_riding();
                     if let Some(pl) = self.player.as_mut() {
                         pl.position = to;
-                        pl.velocity = Vec3::ZERO;
                         pl.fall_distance = 0.0;
                         pl.impulse.reset();
                         pl.teleported = true;
@@ -7125,29 +7131,37 @@ impl Game<'_> {
         }
         if let Some(fresh) = stew_particles {
             // `SpellParticleOption.create(EFFECT, -1, 1)` is the plain white
-            // effect particle; the smoke is the already-fed answer.
+            // effect particle; the smoke is the already-fed answer. 26.2's
+            // MushroomCow.mobInteract loops `level.addParticle` per particle
+            // (26.3 switched to one `sendParticles` broadcast): each sits at
+            // `x + nextDouble()/2`, `getY(0.5)`, `z + nextDouble()/2` with
+            // velocity `(0, nextDouble()/5, 0)` — the offset is one-sided,
+            // never negative. The LAN side mirrors it with one count-0 packet
+            // per particle, whose velocity is its speed times its spread.
             let ty = if fresh {
                 ParticleType::Effect
             } else {
                 ParticleType::Smoke
             };
             let options = ParticleOptions::simple(ty);
-            let at = [feet[0], feet[1] + 0.5, feet[2]];
-            let (spread, count) = ([0.5, 0.0, 0.5], if fresh { 4 } else { 2 });
-            // shortcut: scalar speed models DEFAULT randomization; 26.3 sends
-            // ALTERNATIVE_WITH_SPEED with a per-axis maximum speed.
-            self.particles
-                .send_particles(&options, at, spread, 0.2, count);
-            self.lan_send_particles(super::lan_particles::QueuedParticle {
-                dimension: self.dim.id(),
-                options,
-                state: None,
-                at,
-                spread,
-                speed: [0.2; 3],
-                count: count as i32,
-                randomization: 0,
-            });
+            let count = if fresh { 4 } else { 2 };
+            for _ in 0..count {
+                let r = self.particles.level_random();
+                let x = feet[0] + r.next_double() / 2.0;
+                let z = feet[2] + r.next_double() / 2.0;
+                let yv = r.next_double() / 5.0;
+                let at = [x, feet[1] + 0.5, z];
+                self.particles.add(&options, at, [0.0, yv, 0.0]);
+                self.lan_send_particles(super::lan_particles::QueuedParticle {
+                    dimension: self.dim.id(),
+                    options: options.clone(),
+                    state: None,
+                    at,
+                    spread: [0.0, 1.0, 0.0],
+                    speed: yv,
+                    count: 0,
+                });
+            }
         }
         // PlayerInteractTrigger: the item used on the mob, once the interaction took.
         if let Some(stack) = &held {
@@ -7373,13 +7387,7 @@ impl Game<'_> {
             "minecraft:snowball" => ProjectileKind::Snowball,
             "minecraft:egg" | "minecraft:blue_egg" | "minecraft:brown_egg" => ProjectileKind::Egg,
             "minecraft:ender_pearl" => ProjectileKind::EnderPearl,
-            "minecraft:wind_charge" => {
-                let thrown = self.throw_wind_charge()?;
-                if thrown {
-                    self.apply_use_cooldown(stack);
-                }
-                return Ok(thrown);
-            }
+            "minecraft:wind_charge" => return self.throw_wind_charge(),
             _ if item.ends_with("_spawn_egg") => return self.use_spawn_egg(stack),
             _ => match horizon_client::projectiles::thrown_by_item(item) {
                 Some(t) => ProjectileKind::Thrown(t),
@@ -7421,10 +7429,10 @@ impl Game<'_> {
         );
         self.add_projectile(proj);
         // SnowballItem.use / EggItem.use / EnderpearlItem.use: awardStat(ITEM_USED).
+        // 26.2's ItemStack.use does not apply the `use_cooldown` component, so
+        // a thrown pearl or wind charge starts no cooldown here (26.3 added
+        // the side-effects call to ItemStack.use).
         self.award_stat("used", item, 1);
-        // ItemStack.use's applyAfterUseComponentSideEffects: the pearl's
-        // second is the `use_cooldown` component, as for any thrown item.
-        self.apply_use_cooldown(stack);
         let sound = match kind {
             ProjectileKind::Snowball | ProjectileKind::Thrown(_) => {
                 "minecraft:entity.snowball.throw"
@@ -7544,12 +7552,10 @@ impl Game<'_> {
             self.use_failed = true;
             return Ok(true);
         }
-        // SpawnEggItem.useOn on a spawner sets its mob (and an op's egg data).
-        let (spawner_id, data) = horizon_client::block_entity_item::spawn_egg_on_spawner(
-            stack,
-            self.acting_player_is_op(),
-        );
-        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id, data.as_ref()) {
+        // SpawnEggItem.useOn on a spawner sets its mob; the egg's entity
+        // data is ignored in 26.2 (setEntityData is 26.3-only).
+        let spawner_id = horizon_client::block_entity_item::spawn_egg_on_spawner(stack);
+        if let Some(done) = self.use_spawn_egg_on_spawner(hit.pos, &spawner_id) {
             if done {
                 self.swing_arm();
                 self.award_stat("used", &stack.item, 1);
@@ -7853,12 +7859,13 @@ impl Game<'_> {
                 continue;
             }
             let beam = horizon_client::mobs::guardian::beam(mob, alpha as f32);
-            // EntityRenderer.shouldRender: the renderer's interpolated culling box,
-            // grown by 0.5 (GuardianRenderer also draws while its beam is out).
+            // EntityRenderer.shouldRender: the renderer's culling box at the
+            // tick position, grown by 0.5 (GuardianRenderer also draws while
+            // its beam is out).
             if let Some(view) = &self.view_frustum
                 && beam.is_none()
             {
-                let (lo, hi) = super::entity_culling::cull_box(mob, alpha);
+                let (lo, hi) = super::entity_culling::cull_box(mob);
                 let (lo, hi) = (
                     (lo - camera - glam::DVec3::splat(0.5)).as_vec3(),
                     (hi - camera + glam::DVec3::splat(0.5)).as_vec3(),
@@ -9151,7 +9158,6 @@ mod pearl_tests {
             suffocation: &suffocation,
             data: &data,
             player: None,
-            controlling_player_movement: None,
             nearest_player: None,
             others: &[],
             dragon: None,
@@ -9725,11 +9731,15 @@ mod chorus_projectile_drop_tests {
             assert!(game.run_command(
                 "summon pig 12.5 200 12.5 {UUID:[I;116,0,0,99],NoAI:1b,NoGravity:1b,Health:10f}"
             ));
+            // 26.2's `mayInteract` for a mob shooter is `mob_griefing` alone:
+            // a mob-owned arrow breaks the flower (26.3 demanded a projectile
+            // `can_break` predicate as well, so this hit was denied there).
             source(game, 8, 4, "chorus_flower");
             launch(game, "arrow", 4, 8, 4, true);
             game.tick_projectiles().unwrap();
-            assert!(game.run_command("execute if block 8 200 4 chorus_flower"));
-            assert!(game.dropped.is_empty());
+            assert!(game.run_command("execute if block 8 200 4 air"));
+            dropped(game, "minecraft:chorus_flower");
+            game.dropped.clear();
             source(game, 12, 4, "chorus_flower");
             launch(game, "ender_pearl", 5, 12, 4, false);
             game.tick_projectiles().unwrap();
@@ -9879,166 +9889,6 @@ mod chorus_projectile_drop_tests {
 #[cfg(test)]
 #[path = "loaded_arrow_shot_tests.rs"]
 mod loaded_arrow_shot_tests;
-
-#[cfg(test)]
-mod loaded_mob_arrow_permission_tests {
-    use super::*;
-    use crate::game::native_machines::tests::server_game;
-    use horizon_client::{entity_nbt, save};
-    use horizon_core::position::BlockPos;
-    use horizon_world::nbt::Tag;
-
-    fn parse(text: &str) -> Tag {
-        let (tag, used) = horizon_world::nbt::parse_snbt(text).unwrap();
-        assert_eq!(used, text.len());
-        tag
-    }
-
-    #[test]
-    #[ignore = "prepared resources; actual registered summon, collision, permission and drops"]
-    fn loaded_mob_arrow_predicate_survives_model_and_controls_actual_block_hit() {
-        let mut game = server_game();
-        game.build_registries();
-        game.set_allow_commands(true);
-        game.block_ticks
-            .add_empty_chunk(BlockPos::new(0, 0, 0).chunk())
-            .unwrap();
-        assert!(game.run_command("forceload add 0 0"));
-        assert!(game.run_command("fill 0 199 0 15 199 15 stone"));
-        assert!(game.world.loaded(3, 1));
-        assert!(game.ui.rules.bool("projectiles_can_break_blocks"));
-        assert!(game.ui.rules.bool("block_drops"));
-        assert!(game.run_command(
-            "summon pig 14.5 200 14.5 {UUID:[I;197,0,0,1],NoAI:1b,NoGravity:1b,Health:10f}"
-        ));
-        let owner = game
-            .mobs
-            .iter()
-            .find(|m| game.persist.uuid_of(m.id) == Some([197, 0, 0, 1]))
-            .unwrap()
-            .id;
-        assert_eq!(
-            game.mobs.iter().find(|m| m.id == owner).unwrap().health,
-            10.0
-        );
-        let clock = game.world.game_time;
-        let expected = parse("{blocks:\"minecraft:chorus_flower\"}");
-        let stale = parse("{can_break:{blocks:\"minecraft:stone\"},marker:37}");
-        let mut missing = Vec::new();
-        for (n, predicate, griefing, breaks) in [
-            (1, Some("chorus_flower"), true, true),
-            (2, Some("stone"), true, false),
-            (3, None, true, false),
-            (4, Some("chorus_flower"), false, false),
-            (5, Some("stone"), false, false),
-            (6, None, false, false),
-        ] {
-            let x = if n <= 3 { 3 } else { 11 };
-            let z = 1 + 4 * ((n - 1) % 3);
-            if game.ui.rules.bool("mob_griefing") != griefing {
-                assert!(game.run_command(&format!("gamerule mob_griefing {griefing}")));
-            }
-            assert_eq!(game.ui.rules.bool("mob_griefing"), griefing);
-            assert!(game.run_command(&format!("setblock {x} 199 {z} end_stone")));
-            assert!(game.run_command(&format!("setblock {x} 200 {z} chorus_flower[age=0]")));
-            let field = predicate.map_or(String::new(), |p| {
-                format!(",can_break:{{blocks:\"minecraft:{p}\"}}")
-            });
-            assert!(game.run_command(&format!("summon arrow {} 200.5 {} {{UUID:[I;197,0,{n},2],NoGravity:1b,HasBeenShot:1b,Motion:[2d,0d,0d],Owner:[I;197,0,0,1],item:{{id:\"minecraft:arrow\",count:1}}{field}}}", f64::from(x)-1.5, f64::from(z)+0.5)));
-            let p = game
-                .creatures
-                .projectiles
-                .iter()
-                .find(|p| game.persist.uuid_of(p.id) == Some([197, 0, n, 2]))
-                .unwrap()
-                .clone();
-            assert_eq!(p.owner_uuid, Some([197, 0, 0, 1]));
-            assert_eq!(
-                p.owner,
-                Some(Who::Mob(owner)),
-                "actual resolved loaded Mob, not raw Owner alone"
-            );
-            assert!(matches!(p.kind, ProjectileKind::Arrow { .. }));
-            assert!(p.no_gravity);
-            assert_eq!(p.velocity, Vec3::new(2.0, 0.0, 0.0));
-            assert!(!p.arrow.as_ref().unwrap().in_ground);
-            game.persist.raw.remove(&p.id);
-            for (route, raw) in [("no-raw", None), ("stale-raw", Some(&stale))] {
-                let saved =
-                    entity_nbt::arrow_to_nbt(&p, [197, 0, n, 2], p.owner_uuid, None, raw).unwrap();
-                let want = predicate.map(|id| parse(&format!("{{blocks:\"minecraft:{id}\"}}")));
-                if saved.get("can_break") != want.as_ref() {
-                    missing.push(format!(
-                        "{n} cloned loaded model {route}: {:?} != {want:?}",
-                        saved.get("can_break")
-                    ));
-                }
-                if raw.is_some() {
-                    assert_eq!(save::number(saved.get("marker")), Some(37));
-                }
-            }
-            if n == 1 {
-                assert_eq!(game.persist.uuid_of(p.id), Some([197, 0, n, 2]));
-                // The expected value is the actual admitted input, never an injected model field.
-                assert_eq!(expected, parse("{blocks:\"minecraft:chorus_flower\"}"));
-            }
-            let drops_before = game.dropped.len();
-            game.tick_projectiles().unwrap();
-            let after = game
-                .creatures
-                .projectiles
-                .iter()
-                .find(|a| a.id == p.id)
-                .unwrap();
-            assert!(
-                after.arrow.as_ref().unwrap().in_ground,
-                "actual air-to-ground block collision"
-            );
-            let block = &*game.res.facts().get(game.world.block(x, 200, z)).name;
-            let want = if breaks {
-                "minecraft:air"
-            } else {
-                "minecraft:chorus_flower"
-            };
-            if block != want {
-                missing.push(format!("{n} actual hit block {block} != {want}"));
-            }
-            let dropped: Vec<_> = game
-                .dropped
-                .iter()
-                .skip(drops_before)
-                .map(|e| (&*e.stack.item, e.stack.count, e.position, e.velocity))
-                .collect();
-            println!("actual collision {n}: block={block}, unfiltered new drops={dropped:?}");
-            if !breaks {
-                assert!(dropped.is_empty(), "denied hits cannot create drops");
-            }
-        }
-        assert!(game.run_command("setblock 13 200 12 dirt"));
-        let before = game.dropped.len();
-        game.destroy_block_dropping([13, 200, 12]).unwrap();
-        assert_eq!(
-            &*game.res.facts().get(game.world.block(13, 200, 12)).name,
-            "minecraft:air"
-        );
-        let direct: Vec<_> = game.dropped.iter().skip(before).collect();
-        assert_eq!(
-            direct.len(),
-            1,
-            "independent actual destruction/drop callback"
-        );
-        assert_eq!(&*direct[0].stack.item, "minecraft:dirt");
-        assert_eq!(direct[0].stack.count, 1);
-        assert_eq!(
-            game.world.game_time, clock,
-            "one projectile step per scene; no fabricated world ticks"
-        );
-        assert!(
-            missing.is_empty(),
-            "actual loaded Mob arrow model/permission mismatches: {missing:?}"
-        );
-    }
-}
 
 #[cfg(test)]
 mod h169_glide_travel_tests {

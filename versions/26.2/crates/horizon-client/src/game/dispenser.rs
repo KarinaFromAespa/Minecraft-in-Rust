@@ -1014,7 +1014,7 @@ impl Game<'_> {
         facing: Direction,
         stack: ItemStack,
     ) -> Result<Dispensed> {
-        let (kind, _) = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack, false);
+        let kind = horizon_client::block_entity_item::spawn_egg_on_spawner(&stack);
         let front = offset(pos, facing);
         let Some(id) = self.spawn_mob_at(&kind, front, facing != Direction::Up) else {
             return Ok((Some(stack), CLICK));
@@ -2218,6 +2218,8 @@ impl Game<'_> {
         };
         set_success("honeycomb", true);
         self.level_set([target.0, target.1, target.2], waxed)?;
+        // The event carries the wax-on sound in 26.2 (LevelEventHandler
+        // 3003); no explicit play.
         self.level_events
             .push(horizon_world::level::LevelEvent::LevelEvent {
                 id: 3003,
@@ -2225,12 +2227,6 @@ impl Game<'_> {
                 data: 0,
             });
         self.process_level_events()?;
-        self.audio.play(
-            "minecraft:item.honeycomb.wax_on",
-            Some(Self::center(target)),
-            1.0,
-            1.0,
-        );
         Ok((shrink(stack), CLICK))
     }
     fn dispense_potion(
@@ -2242,7 +2238,7 @@ impl Game<'_> {
         let target = offset(pos, facing);
         let water = stack.potion() == Some("minecraft:water");
         let name = self.dispenser_block_name(target);
-        if !water || !self.in_block_tag("minecraft:convertible_to_mud", &name) {
+        if !water || !self.in_block_tag("minecraft:convertable_to_mud", &name) {
             // The inner default behaviour dispenses, then the potion's own
             // events play on top.
             return Ok((self.dispense_default(pos, facing, stack), CLICK));

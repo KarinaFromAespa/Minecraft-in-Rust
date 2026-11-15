@@ -177,7 +177,6 @@ impl Game<'_> {
             from,
             f.position,
             horizon_client::falling_block::bounds(f.position),
-            f.velocity,
             false,
         );
         // FallingBlockEntity.tick handles its portal after the move's block

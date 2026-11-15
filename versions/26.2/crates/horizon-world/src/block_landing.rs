@@ -11,11 +11,20 @@ use std::{collections::BTreeMap, fmt, io};
 pub enum FallDefinition {
     Default,
     Hay,
-    Honey { volume: f32, pitch: f32 },
+    /// `BedBlock.fallOn`: `super.fallOn(..., fallDistance * 0.5)` — no
+    /// bounce, the fall counts half as far. (26.2 only; 26.3 has no
+    /// `BedBlock` landing family.)
+    Bed,
+    Honey {
+        volume: f32,
+        pitch: f32,
+    },
     Slime,
     PowderSnow,
     PointedDripstone,
-    Farmland { base_block: String },
+    Farmland {
+        base_block: String,
+    },
     TurtleEgg,
 }
 #[derive(Clone, Debug)]
@@ -27,6 +36,7 @@ pub struct LandingDefinition {
 enum Rule {
     Default,
     Hay,
+    Bed,
     Honey { volume: f32, pitch: f32 },
     Slime,
     PowderSnow,
@@ -188,6 +198,7 @@ impl BlockLandingRegistry {
             let rule = match &definition.fall {
                 FallDefinition::Default => Rule::Default,
                 FallDefinition::Hay => Rule::Hay,
+                FallDefinition::Bed => Rule::Bed,
                 FallDefinition::Honey { volume, pitch } => Rule::Honey {
                     volume: *volume,
                     pitch: *pitch,
@@ -304,13 +315,11 @@ impl BlockLandingRegistry {
         {
             return Ok(());
         }
-        let allowed = if entity == LandingEntityKind::Player {
-            !world
-                .under_spawn_protection(position)
-                .map_err(LandingError::World)?
-        } else {
-            entity.living() && world.mob_griefing().map_err(LandingError::World)?
-        };
+        // 26.2's `TurtleEggBlock.canDestroyEgg`: players always destroy; other
+        // living entities only with mobGriefing. 26.3 added a spawn-protection
+        // check for players here (`canDestroyEgg(level, pos, entity)`).
+        let allowed = entity == LandingEntityKind::Player
+            || entity.living() && world.mob_griefing().map_err(LandingError::World)?;
         if allowed && world.random_int(randomness).map_err(LandingError::World)? == 0 {
             let sound = world.known_sound(LandingSound::TurtleEggBreak);
             let pitch = 0.9f32 + world.random_float().map_err(LandingError::World)? * 0.2f32;
@@ -353,6 +362,20 @@ impl BlockLandingRegistry {
                     LandingDamage::Fall,
                     distance,
                     0.2,
+                )?;
+                return Ok(());
+            }
+            Rule::Bed => {
+                // `BedBlock.fallOn` halves the distance it hands to
+                // `Block.fallOn` (entity-owned fall source, multiplier 1.0) —
+                // unlike `HayBlock`, which passes a 0.2 multiplier to
+                // `causeFallDamage` against the level's sources.
+                cause(
+                    world,
+                    DamageSourceOwner::Entity,
+                    LandingDamage::Fall,
+                    distance * 0.5,
+                    1.0,
                 )?;
                 return Ok(());
             }
@@ -419,13 +442,11 @@ impl BlockLandingRegistry {
                         < distance - 0.5
                     && entity.living()
                 {
-                    let allowed = if entity == LandingEntityKind::Player {
-                        !world
-                            .under_spawn_protection(position)
-                            .map_err(LandingError::World)?
-                    } else {
-                        world.mob_griefing().map_err(LandingError::World)?
-                    };
+                    // 26.2's `FarmlandBlock.fallOn`: players always trample;
+                    // other living entities only with mobGriefing. 26.3 checks
+                    // spawn protection for players instead.
+                    let allowed = entity == LandingEntityKind::Player
+                        || world.mob_griefing().map_err(LandingError::World)?;
                     if allowed {
                         let (width, height) = world.entity_dimensions();
                         if width * width * height > 0.512f32

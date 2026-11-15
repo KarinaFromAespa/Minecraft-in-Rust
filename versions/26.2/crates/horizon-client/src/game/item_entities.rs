@@ -108,7 +108,6 @@ impl Game<'_> {
                     item.previous,
                     item.position,
                     item.bounds(),
-                    item.velocity,
                     false,
                 );
             }

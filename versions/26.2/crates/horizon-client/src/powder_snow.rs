@@ -33,9 +33,12 @@ pub fn contacts(
     contacts
 }
 
-/// The server's movement gate and Boolean/float draws, in Java order.
-pub fn particle_velocity(known_movement: Vec3, random: &mut impl RandomSource) -> Option<[f64; 3]> {
-    if (known_movement.x == 0.0 && known_movement.z == 0.0) || !random.next_boolean() {
+/// 26.2's movement gate (`entity.xOld != entity.getX() || entity.zOld !=
+/// entity.getZ()`, evaluated by the caller from the previous and current
+/// positions) and the Boolean/float draws, in Java order. 26.3 gates on
+/// `getKnownMovement` instead; 26.2 has no known movement.
+pub fn particle_velocity(moving: bool, random: &mut impl RandomSource) -> Option<[f64; 3]> {
+    if !moving || !random.next_boolean() {
         return None;
     }
     let x = (random.next_float() * 2.0 - 1.0) * 0.083_333_336_f32;

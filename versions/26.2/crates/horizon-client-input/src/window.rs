@@ -1,4 +1,4 @@
-//! Window sizing and frame pacing of 26.3: `Window.calculateScale` and
+//! Window sizing and frame pacing of 26.2: `Window.calculateScale` and
 //! `setGuiScale`, `MouseHandler`'s scaled positions, `FramerateLimitTracker`,
 //! `FramerateLimiter`, the vsync present-mode choice and the fullscreen
 //! request/state pair.
@@ -56,8 +56,6 @@ pub enum ThrottleReason {
 pub struct FrameContext {
     pub inactivity: InactivityFpsLimit,
     pub iconified: bool,
-    pub focused: bool,
-    pub exclusive_fullscreen: bool,
     pub now_ms: i64,
     pub latest_input_ms: i64,
     pub has_level: bool,
@@ -65,25 +63,25 @@ pub struct FrameContext {
     pub has_overlay: bool,
 }
 
-/// `getThrottleReason`.
+/// `getThrottleReason`: only an iconified window is throttled as one. 26.3
+/// also throttles an unfocused window in exclusive fullscreen.
 pub fn throttle_reason(c: FrameContext) -> ThrottleReason {
-    if !c.iconified && (c.focused || !c.exclusive_fullscreen) {
-        if c.inactivity == InactivityFpsLimit::Afk {
-            let afk = c.now_ms - c.latest_input_ms;
-            if afk > 600_000 {
-                return ThrottleReason::LongAfk;
-            }
-            if afk > 60_000 {
-                return ThrottleReason::ShortAfk;
-            }
+    if c.iconified {
+        return ThrottleReason::WindowIconified;
+    }
+    if c.inactivity == InactivityFpsLimit::Afk {
+        let afk = c.now_ms - c.latest_input_ms;
+        if afk > 600_000 {
+            return ThrottleReason::LongAfk;
         }
-        if c.has_level || (!c.has_screen && !c.has_overlay) {
-            ThrottleReason::None
-        } else {
-            ThrottleReason::OutOfLevelMenu
+        if afk > 60_000 {
+            return ThrottleReason::ShortAfk;
         }
+    }
+    if c.has_level || (!c.has_screen && !c.has_overlay) {
+        ThrottleReason::None
     } else {
-        ThrottleReason::WindowIconified
+        ThrottleReason::OutOfLevelMenu
     }
 }
 
@@ -109,15 +107,17 @@ pub fn heavily_throttled(reason: ThrottleReason) -> bool {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PresentMode {
     Fifo,
+    FifoRelaxed,
     Mailbox,
     Immediate,
 }
 
-/// `GpuSurface.PresentMode.getSupportedVsyncMode`: vsync means Fifo only,
-/// otherwise the first of Immediate, Mailbox, Fifo that is supported.
+/// `GpuSurface.PresentMode.getSupportedVsyncMode`: vsync means FifoRelaxed
+/// first, then Fifo; otherwise the first of Immediate, Mailbox, Fifo that
+/// is supported. 26.3 dropped FifoRelaxed from the vsync list.
 pub fn vsync_present_mode(supported: &[PresentMode], vsync: bool) -> Option<PresentMode> {
     let preferred: &[PresentMode] = if vsync {
-        &[PresentMode::Fifo]
+        &[PresentMode::FifoRelaxed, PresentMode::Fifo]
     } else {
         &[
             PresentMode::Immediate,
@@ -129,9 +129,10 @@ pub fn vsync_present_mode(supported: &[PresentMode], vsync: bool) -> Option<Pres
 }
 
 /// The present mode for the VSync option and Horizon's present-mode setting
-/// (`None` for Auto). VSync on always means Fifo, in a window and in
-/// fullscreen alike, as in vanilla; the setting chooses only while VSync is
-/// off, when the surface supports it, and otherwise vanilla's choice applies.
+/// (`None` for Auto). VSync on means FifoRelaxed when the surface supports
+/// it, else Fifo, in a window and in fullscreen alike, as in vanilla; the
+/// setting chooses only while VSync is off, when the surface supports it,
+/// and otherwise vanilla's choice applies.
 pub fn chosen_present_mode(
     supported: &[PresentMode],
     vsync: bool,
@@ -345,19 +346,18 @@ impl FramerateLimiter {
     }
 }
 
-/// blaze3d `Window`'s `fullscreenRequested` / `fullscreen` pair. The window
-/// system has the last word: a change it makes on its own (a compositor
-/// shortcut, a window rule) is adopted by the Fullscreen option
-/// (`Window.updateFullscreenState` -> `Minecraft.fullscreenStateChanged`), and
-/// the window is only asked to change when the option itself changes
-/// (`Window.updateFullscreenIfChanged`), never re-forced to the option.
+/// blaze3d `Window`'s `fullscreen` / `actuallyFullscreen` pair: the option
+/// (`fullscreen`) is applied when it differs from the state last asked of
+/// the window system (`actuallyFullscreen`), never re-forced. 26.2 has no
+/// `updateFullscreenState`: a change the window system makes on its own is
+/// not adopted by the option. Exclusive fullscreen is fixed at window
+/// creation (`Window.exclusiveFullscreen` is final); changing the option
+/// afterwards only marks the options as needing a restart.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FullscreenState {
-    /// The state the window system last reported (`Window.fullscreen`).
-    actual: bool,
-    /// The state last asked of the window system, or adopted from it.
+    /// The state last asked of the window system (`Window.actuallyFullscreen`).
     requested: bool,
-    /// `Window.exclusiveFullscreen`.
+    /// `Window.exclusiveFullscreen`, read once at window creation.
     exclusive: bool,
     /// `Window.preferredFullscreenVideoMode`.
     mode: Option<VideoMode>,
@@ -367,52 +367,43 @@ pub struct FullscreenState {
 
 impl FullscreenState {
     /// A window created windowed or, when `requested`, asked to be fullscreen.
-    pub fn new(requested: bool) -> Self {
+    /// `exclusive` is the option's value at startup: it governs every
+    /// fullscreen enter for the window's life.
+    pub fn new(requested: bool, exclusive: bool) -> Self {
         Self {
-            actual: false,
             requested,
-            exclusive: false,
+            exclusive,
             mode: None,
             mode_dirty: false,
         }
     }
 
-    /// `Window.updateFullscreenIfChanged` with the exclusive option and preferred mode: asks the
-    /// window to enter, leave or change its fullscreen only when one of them changed.
-    /// `in_video_screen` holds a changed mode back until the Video Settings screen closes
-    /// (`changeFullscreenVideoMode`).
+    /// `Window.updateFullscreenIfChanged` with the preferred mode: asks the
+    /// window to enter, leave or change its fullscreen only when one of them
+    /// changed. `in_video_screen` holds a changed mode back until the Video
+    /// Settings screen closes (`changeFullscreenVideoMode`).
     pub fn apply(
         &mut self,
         window: &winit::window::Window,
         wanted: bool,
-        exclusive: bool,
         preferred: Option<VideoMode>,
         in_video_screen: bool,
     ) {
         let request = self.request(wanted);
-        let reapply = self.set_exclusive(exclusive);
         self.set_preferred_mode(preferred);
         let mode_change = !in_video_screen && self.take_mode_change();
         match request {
             Some(false) => window.set_fullscreen(None),
             Some(true) => enter_fullscreen(
                 window,
-                fullscreen_request(window, exclusive, preferred.as_ref()),
+                fullscreen_request(window, self.exclusive, preferred.as_ref()),
             ),
-            None if reapply || mode_change => enter_fullscreen(
+            None if mode_change => enter_fullscreen(
                 window,
-                fullscreen_request(window, exclusive, preferred.as_ref()),
+                fullscreen_request(window, self.exclusive, preferred.as_ref()),
             ),
             None => {}
         }
-    }
-
-    /// `Window.setExclusiveFullscreen`: true when the option changed while fullscreen is
-    /// requested, so the window has to enter the other kind of fullscreen at once.
-    pub fn set_exclusive(&mut self, exclusive: bool) -> bool {
-        let changed = self.exclusive != exclusive;
-        self.exclusive = exclusive;
-        changed && self.requested
     }
 
     /// `Window.setPreferredFullscreenVideoMode`: a changed mode waits for `take_mode_change`.
@@ -434,21 +425,11 @@ impl FullscreenState {
     }
 
     /// `Window.updateFullscreenIfChanged`: the state to ask of the window
-    /// when the option `wanted` differs from what was last asked or adopted.
+    /// when the option `wanted` differs from what was last asked.
     pub fn request(&mut self, wanted: bool) -> Option<bool> {
         (wanted != self.requested).then(|| {
             self.requested = wanted;
             wanted
-        })
-    }
-
-    /// `Window.updateFullscreenState`: the window now reports `now`; returns
-    /// it when it changed, for the option to adopt.
-    pub fn observe(&mut self, now: bool) -> Option<bool> {
-        (now != self.actual).then(|| {
-            self.actual = now;
-            self.requested = now;
-            now
         })
     }
 }
@@ -461,53 +442,53 @@ pub struct VideoMode {
     pub red_bits: i32,
     pub green_bits: i32,
     pub blue_bits: i32,
-    pub refresh_rate: f32,
+    /// Whole hertz: 26.2's GLFW form. 26.3 made it a float.
+    pub refresh_rate: i32,
 }
 
 impl VideoMode {
-    /// `VideoMode.read`: the JSON object `write` makes; any other string is None.
+    /// `VideoMode.read`: `1920x1080@60:24`, the `@rate` and `:bits` parts
+    /// optional (60 Hz and 24 bits when missing, split evenly over the
+    /// channels). Any other string is None. 26.3 reads a JSON object instead.
     pub fn read(text: &str) -> Option<Self> {
-        let number = |key: &str| -> Option<f64> {
-            let at = text.find(&format!("\"{key}\""))? + key.len() + 2;
-            let rest = text[at..].trim_start().strip_prefix(':')?.trim_start();
-            let end = rest
-                .find(|c: char| !(c.is_ascii_digit() || matches!(c, '-' | '+' | '.' | 'e' | 'E')))
-                .unwrap_or(rest.len());
-            rest[..end].parse().ok()
+        // Vanilla's `(\d+)x(\d+)(?:@(\d+)(?::(\d+))?)?`, whole-string.
+        let digits = |s: &str| -> Option<i32> {
+            (!s.is_empty() && s.bytes().all(|b| b.is_ascii_digit())).then(|| s.parse().ok())?
         };
-        if !text.trim_start().starts_with('{') {
-            return None;
-        }
+        let (size, rest) = text.split_once('x')?;
+        let width = digits(size)?;
+        let (height_text, rest) = match rest.split_once('@') {
+            Some((h, r)) => (h, Some(r)),
+            None => (rest, None),
+        };
+        let height = digits(height_text)?;
+        let (rate, bits) = match rest {
+            None => (60, 24),
+            Some(r) => match r.split_once(':') {
+                Some((rate, bits)) => (digits(rate)?, digits(bits)?),
+                None => (digits(r)?, 24),
+            },
+        };
+        let component = bits / 3;
         Some(Self {
-            width: number("width")? as i32,
-            height: number("height")? as i32,
-            red_bits: number("red_bits")? as i32,
-            green_bits: number("green_bits")? as i32,
-            blue_bits: number("blue_bits")? as i32,
-            refresh_rate: number("refresh_rate")? as f32,
+            width,
+            height,
+            red_bits: component,
+            green_bits: component,
+            blue_bits: component,
+            refresh_rate: rate,
         })
     }
 
-    /// `VideoMode.write`: the Codec's JSON through Gson (a float prints as `60.0`).
+    /// `VideoMode.write`: `1920x1080@60:24`.
     pub fn write(&self) -> String {
-        let rate = if self.refresh_rate == self.refresh_rate.trunc() {
-            format!("{:.1}", self.refresh_rate)
-        } else {
-            self.refresh_rate.to_string()
-        };
         format!(
-            "{{\"width\":{},\"height\":{},\"red_bits\":{},\"green_bits\":{},\"blue_bits\":{},\"refresh_rate\":{rate}}}",
-            self.width, self.height, self.red_bits, self.green_bits, self.blue_bits
+            "{}x{}@{}:{}",
+            self.width,
+            self.height,
+            self.refresh_rate,
+            self.red_bits + self.green_bits + self.blue_bits
         )
-    }
-
-    /// `VideoMode.refreshRateLabel`: a whole rate without decimals, any other with two.
-    pub fn refresh_rate_label(&self) -> String {
-        if self.refresh_rate == self.refresh_rate.round_ties_even() {
-            (self.refresh_rate as i32).to_string()
-        } else {
-            format!("{:.2}", self.refresh_rate)
-        }
     }
 
     /// The colour depth `options.fullscreen.entry` shows.
@@ -515,7 +496,8 @@ impl VideoMode {
         self.red_bits + self.green_bits + self.blue_bits
     }
 
-    /// A winit mode: its depth is the total, split evenly over the channels.
+    /// A winit mode: its depth is the total, split evenly over the channels;
+    /// the rate is whole hertz, truncated as GLFW reports it.
     pub fn from_winit(mode: &winit::monitor::VideoModeHandle) -> Self {
         let depth = i32::from(mode.bit_depth());
         let size = mode.size();
@@ -525,7 +507,7 @@ impl VideoMode {
             red_bits: depth / 3,
             green_bits: depth / 3,
             blue_bits: depth - 2 * (depth / 3),
-            refresh_rate: mode.refresh_rate_millihertz() as f32 / 1000.0,
+            refresh_rate: (mode.refresh_rate_millihertz() / 1000) as i32,
         }
     }
 }
@@ -675,33 +657,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn video_mode_round_trips_the_options_json() {
+    fn video_mode_round_trips_the_options_string() {
         let mode = VideoMode {
             width: 1920,
             height: 1080,
             red_bits: 8,
             green_bits: 8,
             blue_bits: 8,
-            refresh_rate: 60.0,
+            refresh_rate: 60,
         };
         let text = mode.write();
-        assert_eq!(
-            text,
-            r#"{"width":1920,"height":1080,"red_bits":8,"green_bits":8,"blue_bits":8,"refresh_rate":60.0}"#
-        );
+        assert_eq!(text, "1920x1080@60:24");
         assert_eq!(VideoMode::read(&text), Some(mode));
-        assert_eq!(VideoMode::read("1920x1080"), None);
-        assert_eq!(VideoMode::read(r#"{"width":1}"#), None);
-    }
-    #[test]
-    fn refresh_rate_label_is_whole_or_two_decimals() {
-        let mut mode = VideoMode::read(
-            r#"{"width":1,"height":1,"red_bits":8,"green_bits":8,"blue_bits":8,"refresh_rate":144.0}"#,
-        )
-        .unwrap();
-        assert_eq!(mode.refresh_rate_label(), "144");
-        mode.refresh_rate = 59.94;
-        assert_eq!(mode.refresh_rate_label(), "59.94");
+        // The `@rate` and `:bits` parts are optional: 60 Hz, 24 bits.
+        assert_eq!(
+            VideoMode::read("1920x1080"),
+            Some(VideoMode {
+                width: 1920,
+                height: 1080,
+                red_bits: 8,
+                green_bits: 8,
+                blue_bits: 8,
+                refresh_rate: 60,
+            })
+        );
+        assert_eq!(
+            VideoMode::read("1920x1080@144"),
+            Some(VideoMode {
+                refresh_rate: 144,
+                ..mode
+            })
+        );
+        // 30 bits split 10/10/10; the JSON form is 26.3's, not 26.2's.
+        assert_eq!(
+            VideoMode::read("1920x1080@60:30"),
+            Some(VideoMode {
+                red_bits: 10,
+                green_bits: 10,
+                blue_bits: 10,
+                ..mode
+            })
+        );
+        assert_eq!(
+            VideoMode::read(
+                r#"{"width":1920,"height":1080,"red_bits":8,"green_bits":8,"blue_bits":8,"refresh_rate":60.0}"#
+            ),
+            None
+        );
+        assert_eq!(VideoMode::read("1920x1080@"), None);
+        assert_eq!(VideoMode::read("-1920x1080"), None);
         assert_eq!(mode.bits(), 24);
     }
     #[test]
@@ -710,20 +714,19 @@ mod tests {
     }
 
     #[test]
-    fn exclusive_fullscreen_reapplies_only_while_fullscreen_is_requested() {
-        let mut f = FullscreenState::new(false);
-        assert!(!f.set_exclusive(true));
-        assert!(!f.set_exclusive(true));
-        assert_eq!(f.request(true), Some(true));
-        assert!(f.set_exclusive(false));
-        assert!(!f.set_exclusive(false));
+    fn exclusive_fullscreen_is_fixed_at_window_creation() {
+        // 26.2's `Window.exclusiveFullscreen` is final: the option's value at
+        // startup governs the window's life, and changing it afterwards does
+        // not re-enter fullscreen (it only marks a restart as needed).
+        let f = FullscreenState::new(false, true);
+        assert!(f.exclusive);
+        let f = FullscreenState::new(true, false);
+        assert!(!f.exclusive);
     }
     #[test]
     fn a_changed_video_mode_applies_once_when_fullscreen() {
-        let mode = VideoMode::read(
-            r#"{"width":1,"height":1,"red_bits":8,"green_bits":8,"blue_bits":8,"refresh_rate":60.0}"#,
-        );
-        let mut f = FullscreenState::new(false);
+        let mode = VideoMode::read("1x1@60:24");
+        let mut f = FullscreenState::new(false, false);
         f.set_preferred_mode(mode);
         assert!(!f.take_mode_change());
         f.request(true);
@@ -733,32 +736,25 @@ mod tests {
     }
     #[test]
     fn fullscreen_follows_the_option_only_when_it_changes() {
-        let mut f = FullscreenState::new(false);
+        let mut f = FullscreenState::new(false, false);
         // Settings applied again with nothing changed: the window is left alone.
         assert_eq!(f.request(false), None);
-        // The compositor makes the window fullscreen on its own: the option adopts it,
-        // and applying the settings afterwards does not undo it.
-        assert_eq!(f.observe(true), Some(true));
+        // F11: one request, not repeated while the window catches up.
+        assert_eq!(f.request(true), Some(true));
         assert_eq!(f.request(true), None);
-        assert_eq!(f.observe(true), None);
-        // F11: one request, not repeated while the compositor catches up.
         assert_eq!(f.request(false), Some(false));
-        assert_eq!(f.request(false), None);
-        assert_eq!(f.observe(false), Some(false));
         assert_eq!(f.request(false), None);
     }
 
     #[test]
-    fn fullscreen_requests_changed_before_the_compositor_answers() {
+    fn fullscreen_requests_changed_before_the_window_answers() {
         // Created fullscreen from options.txt.
-        let mut f = FullscreenState::new(true);
+        let mut f = FullscreenState::new(true, false);
         assert_eq!(f.request(true), None);
-        assert_eq!(f.observe(true), Some(true));
         // Toggled twice before any configure: the second request cancels the first.
         assert_eq!(f.request(false), Some(false));
         assert_eq!(f.request(true), Some(true));
-        assert_eq!(f.observe(true), None);
-        // A compositor that refuses leaves the option where the player put it.
+        // A window that refuses leaves the option where the player put it.
         assert_eq!(f.request(false), Some(false));
         assert_eq!(f.request(false), None);
     }
@@ -933,13 +929,21 @@ mod tests {
         assert!(clock.now < 10_000_000 + 1_000_000);
     }
     #[test]
-    fn vsync_only_uses_fifo() {
+    fn vsync_prefers_fifo_relaxed_then_fifo() {
         let all = [
             PresentMode::Mailbox,
             PresentMode::Fifo,
+            PresentMode::FifoRelaxed,
             PresentMode::Immediate,
         ];
-        assert_eq!(vsync_present_mode(&all, true), Some(PresentMode::Fifo));
+        assert_eq!(
+            vsync_present_mode(&all, true),
+            Some(PresentMode::FifoRelaxed)
+        );
+        assert_eq!(
+            vsync_present_mode(&[PresentMode::Fifo, PresentMode::Mailbox], true),
+            Some(PresentMode::Fifo)
+        );
         assert_eq!(
             vsync_present_mode(&all, false),
             Some(PresentMode::Immediate)
@@ -960,6 +964,14 @@ mod tests {
         let all = [Mailbox, Fifo, Immediate];
         for setting in [None, Some(Fifo), Some(Mailbox), Some(Immediate)] {
             assert_eq!(chosen_present_mode(&all, true, setting), Some(Fifo));
+        }
+        // FifoRelaxed supported: vsync takes it before Fifo.
+        let relaxed = [Mailbox, Fifo, FifoRelaxed, Immediate];
+        for setting in [None, Some(Fifo), Some(Mailbox), Some(Immediate)] {
+            assert_eq!(
+                chosen_present_mode(&relaxed, true, setting),
+                Some(FifoRelaxed)
+            );
         }
         assert_eq!(chosen_present_mode(&all, false, None), Some(Immediate));
         assert_eq!(
@@ -982,7 +994,7 @@ mod tests {
             red_bits: 8,
             green_bits: 8,
             blue_bits: 8,
-            refresh_rate: 60.0,
+            refresh_rate: 60,
         };
         let mut list = VideoModeList::default();
         let mut listings = 0;

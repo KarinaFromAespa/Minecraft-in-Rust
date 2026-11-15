@@ -32,8 +32,8 @@ impl ClayBandBlocks {
 #[derive(Clone, Debug)]
 pub struct ClayBands([BlockStateId; 192]);
 impl ClayBands {
-    /// The input is MaterialSystem's clay_bands child stream. Every conditional
-    /// random draw and overwrite retains vanilla order.
+    /// The input is 26.2 `SurfaceSystem`'s clay_bands child stream. Every
+    /// conditional random draw and overwrite retains vanilla order.
     pub fn generate(random: &mut impl RandomSource, blocks: ClayBandBlocks) -> Self {
         let mut bands = [blocks.terracotta; 192];
         let mut i = 0;

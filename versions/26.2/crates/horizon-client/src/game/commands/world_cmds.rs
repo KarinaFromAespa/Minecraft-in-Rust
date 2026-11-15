@@ -48,55 +48,57 @@ fn java_double_text(v: f64) -> Text {
 impl Game<'_> {
     // ---- /recipe -----------------------------------------------------------
 
-    /// Non-special recipes, as resolved by `ResourceKeyArgument.getRecipe` and `/recipe *`.
-    pub(super) fn learnable_recipes(&self) -> Vec<String> {
-        let index = &self.stations().recipe_index;
-        index
-            .ids()
-            .filter(|id| !index.special(id))
-            .cloned()
-            .collect()
+    /// Every recipe id, special or not: 26.2's `ResourceKeyArgument.getRecipe`
+    /// resolves any recipe by key (26.3 filters specials out there), and
+    /// `/recipe *` passes `getRecipeManager().getRecipes()` — all of them.
+    /// Specials are filtered later, by `add_recipes`, as in vanilla's
+    /// `ServerRecipeBook.addRecipes`.
+    fn all_recipe_ids(&self) -> Vec<String> {
+        self.stations().recipe_index.ids().cloned().collect()
     }
     pub(super) fn cmd_recipe(&mut self, id: &str, ctx: &Context) -> R<i32> {
         let targets = self.entities(ctx, "targets", true)?;
         let give = id == "recipe.give";
         let recipes: Vec<String> = match ctx.get("recipe") {
             Some(Arg::Resource(r)) => {
-                if !self.learnable_recipes().contains(r) {
+                if !self.all_recipe_ids().contains(r) {
                     return Err(err("recipe.notFound", &[r]));
                 }
                 vec![r.clone()]
             }
-            _ => self.learnable_recipes(),
+            _ => self.all_recipe_ids(),
         };
-        let mut tracker = Tracker::default();
+        // 26.2's giveRecipes/takeRecipes (no CommandResponseTracker there):
+        // fail when nothing was awarded at all, single/multiple by the
+        // number of target players (not the number awarded to — 26.3's
+        // tracker counts non-zero elements), messages print
+        // `recipes.size()` — the collection passed in, specials included —
+        // while returning the awarded count.
+        let mut total = 0i32;
         for &t in &targets {
-            let h = holder(self.target_name(t));
             // ServerPlayer.awardRecipes / resetRecipes on the target's own
             // ServerRecipeBook: a guest's is swapped in for the call, and the
             // packets go to its client.
-            let n = self
+            total += self
                 .for_player(t, |g| g.change_recipes(give, &recipes))
                 .unwrap_or(0);
-            tracker.track(&h, n);
         }
         let verb = if give { "give" } else { "take" };
-        let (message, total) = tracker.message(
-            false,
-            Some(err(&format!("commands.recipe.{verb}.failed"), &[])),
-            |h, total| {
-                Text::translate(
-                    &format!("commands.recipe.{verb}.success.single"),
-                    &[num(total), h.text.clone()],
-                )
-            },
-            |count, total| {
-                Text::translate(
-                    &format!("commands.recipe.{verb}.success.multiple"),
-                    &[num(total), num(count)],
-                )
-            },
-        )?;
+        if total == 0 {
+            return Err(err(&format!("commands.recipe.{verb}.failed"), &[]));
+        }
+        let shown = num(recipes.len() as i32);
+        let message = if targets.len() == 1 {
+            Text::translate(
+                &format!("commands.recipe.{verb}.success.single"),
+                &[shown, self.target_name(targets[0])],
+            )
+        } else {
+            Text::translate(
+                &format!("commands.recipe.{verb}.success.multiple"),
+                &[shown, num(targets.len())],
+            )
+        };
         self.feedback(message);
         Ok(total)
     }
@@ -930,9 +932,8 @@ impl Game<'_> {
                     always_show: false,
                     pos,
                     dist: delta.map(|d| d as f32),
-                    max_speed: [speed; 3],
+                    max_speed: speed,
                     count: count.max(0),
-                    randomization: 0,
                 })
             });
         let mut local = false;
@@ -1027,7 +1028,9 @@ impl Game<'_> {
         target: Target,
         attribute: &str,
     ) -> R<Option<(i32, Text)>> {
-        let name = self.target_name(target);
+        // 26.2's AttributeCommand uses target.getName() in every message;
+        // 26.3 switched them to getDisplayName().
+        let name = self.target_plain_name(target);
         let description = Self::attribute_description(attribute);
         let short = attribute.trim_start_matches("minecraft:").to_owned();
         let no_attribute = |name: &Text, d: &Text| {

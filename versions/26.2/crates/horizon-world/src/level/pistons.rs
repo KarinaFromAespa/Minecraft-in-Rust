@@ -341,6 +341,18 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         if b.is_air(state) {
             return true;
         }
+        // 26.2's `isPushable` names these four explicitly: their push
+        // reaction is NORMAL and their hardness is not -1, so nothing else
+        // in the check stops them. (26.3 gave them IMMOVEABLE instead and
+        // dropped the list.)
+        let n = b.named;
+        if b.is_block(state, n.obsidian)
+            || b.is_block(state, n.crying_obsidian)
+            || b.is_block(state, n.respawn_anchor)
+            || b.is_block(state, n.reinforced_deepslate)
+        {
+            return false;
+        }
         if direction == Direction::Down && pos.y == min_y {
             return false;
         }

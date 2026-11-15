@@ -188,6 +188,57 @@ public final class VanillaNaturalSpawnOracle {
             return waypoints;
         }
         @Override public long getGameTime() { return time; }
+
+        /** Set a world clock's ticks without `ServerClockManager.setTotalTicks`,
+            which broadcasts to players (no real server here). */
+        void setClockTicks(Holder<net.minecraft.world.clock.WorldClock> clock, long ticks) {
+            try {
+                var mapField = net.minecraft.world.clock.ServerClockManager.class.getDeclaredField("clocks");
+                mapField.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                var map = (java.util.Map<Holder<net.minecraft.world.clock.WorldClock>, Object>) mapField.get(clockManager());
+                Object instance = map.get(clock);
+                var instanceClass = Class.forName("net.minecraft.world.clock.ServerClockManager$ClockInstance");
+                var total = instanceClass.getDeclaredField("totalTicks");
+                total.setAccessible(true);
+                total.setLong(instance, ticks);
+                var partial = instanceClass.getDeclaredField("partialTick");
+                partial.setAccessible(true);
+                partial.setFloat(instance, 0.0F);
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            }
+        }
+        /** 26.2's time-based attribute layers (the moon timeline behind
+            `SURFACE_SLIME_SPAWN_CHANCE`) read the level's clock; the
+            super constructor got nulls, so keep a clock manager of our own
+            (its ticks stay 0 — the case's constant layer is the value). */
+        net.minecraft.world.clock.ServerClockManager clocks;
+        @Override public net.minecraft.world.clock.ServerClockManager clockManager() {
+            if (clocks == null) {
+                try {
+                    var c = net.minecraft.world.clock.ServerClockManager.class.getDeclaredConstructor(
+                        net.minecraft.world.clock.PackedClockStates.class);
+                    c.setAccessible(true);
+                    clocks = c.newInstance(net.minecraft.world.clock.PackedClockStates.EMPTY);
+                    // init(server) needs a real server's registries; register
+                    // one clock instance per world-clock definition ourselves.
+                    var mapField = net.minecraft.world.clock.ServerClockManager.class.getDeclaredField("clocks");
+                    mapField.setAccessible(true);
+                    @SuppressWarnings("unchecked")
+                    var map = (java.util.Map<Holder<net.minecraft.world.clock.WorldClock>, Object>) mapField.get(clocks);
+                    var instanceCtor = Class.forName("net.minecraft.world.clock.ServerClockManager$ClockInstance")
+                        .getDeclaredConstructor();
+                    instanceCtor.setAccessible(true);
+                    for (var clock : registries.lookupOrThrow(Registries.WORLD_CLOCK).listElements().toList()) {
+                        map.put(clock, instanceCtor.newInstance());
+                    }
+                } catch (Exception e) {
+                    throw new AssertionError(e);
+                }
+            }
+            return clocks;
+        }
         @Override public int getNextEntityId() { return next++; }
         @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures() { return net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags(); }
         @Override public BlockState getBlockState(BlockPos pos) {
@@ -351,17 +402,31 @@ public final class VanillaNaturalSpawnOracle {
         @Override public FluidState getFluidState(BlockPos pos) { return level.getFluidState(pos); }
         /** ChunkAccess.getHeight is the heightmap's firstAvailable minus one; the level's own getHeight is firstAvailable. */
         @Override public int getHeight(Heightmap.Types type, int x, int z) { return level.getHeight(type, x, z) - 1; }
+        /** 26.2's getNoiseBiome reads the chunk's sections, null here (the
+            super constructor got a null level): answer from the level's own
+            biome boxes, at the quart cell's origin block. */
+        @Override public Holder<Biome> getNoiseBiome(int x, int y, int z) {
+            return level.biomeAt(x << 2, y << 2, z << 2);
+        }
+        /** 26.2's ChunkAccess.getMinY/getMaxY read the chunk's own height
+            accessor, null here (the super constructor got a null level). */
+        @Override public int getMinY() { return level.getMinY(); }
+        @Override public int getMaxY() { return level.getMaxY(); }
+        @Override public int getHeight() { return level.getMaxY() - level.getMinY(); }
+        @Override public int getSectionsCount() { return level.getSectionsCount(); }
+        @Override public int getMinSectionY() { return level.getMinSectionY(); }
+        @Override public int getMaxSectionY() { return level.getMaxSectionY(); }
     }
 
     static final class Source extends ServerChunkCache {
-        Source() { super(null, null, null, null, null, null, 0, 0, false, null); }
+        Source() { super(null, null, null, null, null, null, 0, 0, false, null, null); }
         ChunkGenerator generator;
         @Override public ChunkGenerator getGenerator() { return generator; }
     }
 
     /** getPlayersCloseForSpawning: none past the natural spawn chunk tracker's 8 chunks, else non-spectators within 128 blocks of the chunk centre. */
     static final class Map2 extends ChunkMap {
-        Map2() { super(null, null, null, null, null, null, null, null, null, null, 0, false); }
+        Map2() { super(null, null, null, null, null, null, null, null, null, null, null, 0, false); }
         Lvl level;
         @Override public List<ServerPlayer> getPlayersCloseForSpawning(ChunkPos pos) {
             boolean tracked = false;
@@ -391,9 +456,9 @@ public final class VanillaNaturalSpawnOracle {
             }
             return out;
         }
-        @Override public Map<Structure, LongSet> getAllStructuresAt(int x, int y, int z) {
+        @Override public Map<Structure, LongSet> getAllStructuresAt(BlockPos pos) {
             Map<Structure, LongSet> out = new LinkedHashMap<>();
-            for (Start s : referenced(x, z)) out.computeIfAbsent(s.structure(), k -> new LongOpenHashSet()).add(level.starts.indexOf(s));
+            for (Start s : referenced(pos.getX(), pos.getZ())) out.computeIfAbsent(s.structure(), k -> new LongOpenHashSet()).add(level.starts.indexOf(s));
             return out;
         }
         @Override public void fillStartsForStructure(Structure structure, LongSet references, Consumer<StructureStart> consumer) {
@@ -402,9 +467,9 @@ public final class VanillaNaturalSpawnOracle {
                 if (start.isValid()) consumer.accept(start);
             }
         }
-        @Override public List<StructureStart> startsForStructure(int sectionX, int sectionZ, Structure structure) {
+        @Override public List<StructureStart> startsForStructure(SectionPos sectionPos, Structure structure) {
             List<StructureStart> out = new ArrayList<>();
-            for (Start s : referenced(sectionX << 4, sectionZ << 4)) if (s.structure() == structure) out.add(s.start());
+            for (Start s : referenced(sectionPos.x() << 4, sectionPos.z() << 4)) if (s.structure() == structure) out.add(s.start());
             return out;
         }
         @Override public RegistryAccess registryAccess() { return level.registries; }
@@ -644,7 +709,6 @@ public final class VanillaNaturalSpawnOracle {
         level.rules = new GameRules(net.minecraft.world.flag.FeatureFlags.REGISTRY.allFlags());
         level.biomeManager = new BiomeManager((x, y, z) -> level.biome, 0L) {
             @Override public Holder<Biome> getBiome(BlockPos pos) { return level.biomeAt(pos.getX(), pos.getY(), pos.getZ()); }
-            @Override public Holder<Biome> getBiome(int x, int y, int z) { return level.biomeAt(x, y, z); }
         };
         Source source = (Source) alloc(Source.class);
         source.generator = (ChunkGenerator) alloc(FlatLevelSource.class);
@@ -655,8 +719,8 @@ public final class VanillaNaturalSpawnOracle {
         Map2 chunkMap = (Map2) alloc(Map2.class);
         chunkMap.level = level;
 
-        Method createState = NaturalSpawner.class.getMethod("createState", int.class, ServerLevel.class, NaturalSpawner.ChunkGetter.class, LocalMobCapCalculator.class);
-        Method canSpawn = NaturalSpawner.SpawnState.class.getDeclaredMethod("canSpawn", EntityType.class, Level.class, BlockPos.class, net.minecraft.world.level.chunk.ChunkAccess.class);
+        Method createState = NaturalSpawner.class.getMethod("createState", int.class, Iterable.class, NaturalSpawner.ChunkGetter.class, LocalMobCapCalculator.class);
+        Method canSpawn = NaturalSpawner.SpawnState.class.getDeclaredMethod("canSpawn", EntityType.class, BlockPos.class, net.minecraft.world.level.chunk.ChunkAccess.class);
         canSpawn.setAccessible(true);
         Method afterSpawn = NaturalSpawner.SpawnState.class.getDeclaredMethod("afterSpawn", Mob.class, net.minecraft.world.level.chunk.ChunkAccess.class);
         afterSpawn.setAccessible(true);
@@ -714,7 +778,7 @@ public final class VanillaNaturalSpawnOracle {
                     level.rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWN_MOBS, !c.getOrDefault("rules", "1").equals("0"), null);
                     level.rules.set(net.minecraft.world.level.gamerules.GameRules.SPAWNER_BLOCKS_WORK, !c.getOrDefault("spawners", "1").equals("0"), null);
                     // The dimension and biome layers; the moon timeline's surface slime chance as a constant.
-                    level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addStaticLayers(level)
+                    level.attributes = net.minecraft.world.attribute.EnvironmentAttributeSystem.builder().addDefaultLayers(level)
                         .addConstantLayer(net.minecraft.world.attribute.EnvironmentAttributeMap.builder()
                             .set(net.minecraft.world.attribute.EnvironmentAttributes.SURFACE_SLIME_SPAWN_CHANCE, Float.parseFloat(c.getOrDefault("slime", "0.0"))).build())
                         .build();
@@ -775,6 +839,11 @@ public final class VanillaNaturalSpawnOracle {
                     server.sequences = new net.minecraft.world.RandomSequences();
                     server.seed = level.seed;
                     level.time = 0L;
+                    // The time-based attribute layers read the world clocks;
+                    // give every clock the case's game time.
+                    for (var clock : access.lookupOrThrow(Registries.WORLD_CLOCK).listElements().toList()) {
+                        level.setClockTicks(clock, level.time);
+                    }
                     level.trial = null;
                     RandomSource mainRandom = RandomSource.create(Long.parseLong(c.getOrDefault("seed", "0")));
                     put(level, Level.class, "random", mainRandom);
@@ -823,7 +892,7 @@ public final class VanillaNaturalSpawnOracle {
                         int n = level.entities.size();
                         RandomSource random = RandomSource.create(Long.parseLong(c.getOrDefault("gseed", "0")));
                         BlockPos sourcePos = new BlockPos(chunk.at.getMinBlockX(), level.getMaxY(), chunk.at.getMinBlockZ());
-                        NaturalSpawner.spawnMobsForChunkGeneration(level, sourcePos, chunk.at, random);
+                        NaturalSpawner.spawnMobsForChunkGeneration(level, level.getBiome(sourcePos), chunk.at, random);
                         level.logColumns = false;
                         level.generationRegion = false;
                         for (Entity e : level.entities.subList(n, level.entities.size()))
@@ -844,10 +913,10 @@ public final class VanillaNaturalSpawnOracle {
                             });
                             consumer.accept(k);
                         };
-                        var state = (NaturalSpawner.SpawnState) createState.invoke(null, Integer.parseInt(c.getOrDefault("chunkcount", "289")), level, getter, new LocalMobCapCalculator(chunkMap));
-                        NaturalSpawner.SpawnPredicate extra = (type, lvl, pos, ch) -> {
+                        var state = (NaturalSpawner.SpawnState) createState.invoke(null, Integer.parseInt(c.getOrDefault("chunkcount", "289")), level.getAllEntities(), getter, new LocalMobCapCalculator(chunkMap));
+                        NaturalSpawner.SpawnPredicate extra = (type, pos, ch) -> {
                             try {
-                                boolean ok = (boolean) canSpawn.invoke(state, type, lvl, pos, ch);
+                                boolean ok = (boolean) canSpawn.invoke(state, type, pos, ch);
                                 log.add("test " + BuiltInRegistries.ENTITY_TYPE.getKey(type) + " " + pos.getX() + " " + pos.getY() + " " + pos.getZ() + " " + ok);
                                 return ok;
                             } catch (Exception ex) { throw new RuntimeException(ex); }

@@ -1508,7 +1508,7 @@ impl Game<'_> {
         // Entity.checkInsideBlocks runs once after the cart tick, sweeping every
         // movement through powder snow. PowderSnowBlock uses getKnownMovement,
         // which is getDeltaMovement for a minecart.
-        self.entity_powder_snow_particles(c.previous, c.position, c.bounds(), c.velocity, false);
+        self.entity_powder_snow_particles(c.previous, c.position, c.bounds(), false);
         // Variants.
         match c.kind {
             CartKind::Furnace => {
@@ -2817,9 +2817,11 @@ impl Game<'_> {
                 }
                 // Looked up once, past the distance cut: the cull and the draw both use it.
                 shown = Some(self.display_state(c));
-                // EntityRenderer.shouldRender: the interpolated box grown by 0.5;
+                // EntityRenderer.shouldRender: the box grown by 0.5;
                 // AbstractMinecartRenderer.getBoundingBoxForCulling stretches it
-                // up by the display block's offset.
+                // up by the display block's offset. 26.2's cull box is the
+                // plain getBoundingBox at the current position; the
+                // interpolated box is 26.3's.
                 if let Some(view) = &self.view_frustum {
                     let top = HEIGHT
                         + if shown.flatten().is_none() {
@@ -2827,7 +2829,7 @@ impl Game<'_> {
                         } else {
                             display_offset(c) * 0.75 / 16.0
                         };
-                    let p = glam::DVec3::new(x, y, z) - camera;
+                    let p = glam::DVec3::new(c.position.x, c.position.y, c.position.z) - camera;
                     let lo = p - glam::DVec3::new(WIDTH / 2.0 + 0.5, 0.5, WIDTH / 2.0 + 0.5);
                     let hi = p + glam::DVec3::new(WIDTH / 2.0 + 0.5, top + 0.5, WIDTH / 2.0 + 0.5);
                     if !view.intersects(lo.as_vec3(), hi.as_vec3()) {

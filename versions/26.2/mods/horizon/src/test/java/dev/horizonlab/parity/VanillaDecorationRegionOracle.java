@@ -16,6 +16,7 @@ import net.minecraft.world.level.biome.*;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.chunk.*;
 import net.minecraft.world.level.levelgen.*;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.placement.*;
 import net.minecraft.world.level.levelgen.structure.Structure;
@@ -57,7 +58,7 @@ public final class VanillaDecorationRegionOracle {
                 var features=new ArrayList<PlacedFeature>();
                 for(int i=0;i<featureCount;i++) {
                     final int id=i;
-                    var leaf=Feature.DIRECT_CODEC.parse(JsonOps.INSTANCE,f.getAsJsonArray("features").get(i)).getOrThrow();
+                    var leaf=ConfiguredFeature.DIRECT_CODEC.parse(JsonOps.INSTANCE,f.getAsJsonArray("features").get(i)).getOrThrow();
                     var modifiers=new ArrayList<PlacementModifier>();for(var value:f.getAsJsonArray("placements").get(i).getAsJsonArray())modifiers.add(PlacementModifier.CODEC.parse(ops,value).getOrThrow());
                     var root=new PlacedFeature(Holder.direct(leaf),modifiers);features.add(root);
                     placed.register(ResourceKey.create(Registries.PLACED_FEATURE,Identifier.parse("horizon:f"+i)),root,RegistrationInfo.BUILT_IN);

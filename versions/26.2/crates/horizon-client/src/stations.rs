@@ -1853,14 +1853,14 @@ mod tests {
         assert!(e.is_curse("minecraft:binding_curse"));
         assert_eq!(e.full_name("minecraft:sharpness", 5).0, "Sharpness V");
         assert_eq!(e.enchantable("minecraft:golden_sword"), 22);
-        // Brewing: water + nether wart = awkward.
-        assert_eq!(data.brewing.recipes.len(), 279);
+        // Brewing: water + nether wart = awkward (PotionBrewing's 65 mixes).
+        assert_eq!(data.brewing.recipes.len(), 65);
         let water = ItemStack::new("minecraft:potion", 1).with_potion("minecraft:water");
         let r = data
             .brewing
             .find(&water, &ItemStack::new("minecraft:nether_wart", 1))
             .unwrap();
-        assert_eq!(r.output.potion(), Some("minecraft:awkward"));
+        assert_eq!(r.apply(&water).potion(), Some("minecraft:awkward"));
         assert!(
             data.brewing
                 .is_reagent(&ItemStack::new("minecraft:blaze_powder", 1))

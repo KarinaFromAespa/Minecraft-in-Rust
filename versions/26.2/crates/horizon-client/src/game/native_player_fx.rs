@@ -137,9 +137,8 @@ impl Game<'_> {
                         always_show: false,
                         pos: at,
                         dist: spread.map(|d| d as f32),
-                        max_speed: [speed as f32; 3],
+                        max_speed: speed as f32,
                         count,
-                        randomization: 0,
                     })
                 }
                 PlayerFx::Compass(target) => {

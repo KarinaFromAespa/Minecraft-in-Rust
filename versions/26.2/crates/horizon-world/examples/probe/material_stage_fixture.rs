@@ -15,7 +15,7 @@ use horizon_world::{
     registry::{BlockRegistry, BlockStateId, BlockStateJsonCodec},
     worldgen::{
         DecodeError,
-        anchor::WorldGenerationContext,
+        anchor::{VerticalAnchor, WorldGenerationContext},
         aquifer::{
             AquiferConfig, AquiferError, DisabledAquifer, GlobalFluidPicker, NoiseBasedAquifer,
             RegistryAquiferBlockStates,
@@ -24,7 +24,7 @@ use horizon_world::{
         biome_source::{BiomeSourceCatalog, BiomeSourceResolver},
         biome_temperature::{BiomeTemperature, BiomeTemperatureSettings},
         carver::{CarverCatalog, WorldCarver, generate_carving_mask},
-        carving::{CarvingBlocks, apply_carving_mask},
+        carving::{CarveProfile, CarvingBlocks, apply_carving_mask},
         decode_noise,
         density::DensityRegistry,
         material_condition::{
@@ -172,6 +172,7 @@ struct Data {
     integers: BTreeSet<(String, String)>,
     properties: Vec<State>,
     carving_blocks: CarvingBlocks,
+    carve_lava_anchor: Option<VerticalAnchor>,
     biome_carvers: BTreeMap<String, Vec<Arc<WorldCarver>>>,
     conditions: MaterialConditionRegistry,
     noises: BTreeMap<String, String>,
@@ -261,7 +262,7 @@ where
         .transpose()?;
     let rule = library.rule(f["rule"].as_str().unwrap())?;
     let preliminary = if let Some(ref router) = router {
-        router.get(RouterField::ChunkSurfaceLevel).clone()
+        router.get(RouterField::PreliminarySurfaceLevel).clone()
     } else if let Some(name) = f["preliminary"].as_str() {
         library.named_density(name)?
     } else {
@@ -489,6 +490,13 @@ where
                 },
                 &mut traced,
                 &data.carving_blocks,
+                CarveProfile {
+                    nether: false,
+                    lava_y: data
+                        .carve_lava_anchor
+                        .map(|anchor| anchor.resolve(generation))
+                        .unwrap_or(generation.min_y),
+                },
                 |_| true,
             )
         };
@@ -526,12 +534,13 @@ where
     };
     for mode in carving["filters"].as_array().unwrap() {
         let mode = n(mode);
+        let generation = WorldGenerationContext::new(min, height, n(&f["sea"]));
         let result = apply_carving_mask(
             &mut chunk,
             &mask,
             rule.clone(),
             TopMaterialInputs::<R, _> {
-                generation: WorldGenerationContext::new(min, height, n(&f["sea"])),
+                generation,
                 root: root.clone(),
                 surface: &mut surface,
                 preliminary_surface: preliminary.clone(),
@@ -539,6 +548,13 @@ where
             },
             &mut traced,
             &data.carving_blocks,
+            CarveProfile {
+                nether: false,
+                lava_y: data
+                    .carve_lava_anchor
+                    .map(|anchor| anchor.resolve(generation))
+                    .unwrap_or(generation.min_y),
+            },
             |[x, y, z]| {
                 if mode == 0 {
                     return true;
@@ -744,26 +760,21 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let block_tags = block_tags.build(|id, _| facts["defaults"].get(id).map(|_| id.to_owned()))?;
     assert!(block_tags.missing.is_empty());
-    let motion: BTreeSet<_> = block_tags.tags["minecraft:blocks_motion_in_heightmap"]
-        .iter()
-        .map(String::as_str)
-        .collect();
-    let no_leaves: BTreeSet<_> = block_tags.tags["minecraft:blocks_motion_in_heightmap_no_leaves"]
-        .iter()
-        .map(String::as_str)
-        .collect();
+    // 26.2 has no `blocks_motion*` tags (26.3 added them): the motion
+    // and leaves facts are exported per state by the oracle (entries 5 and 6).
     let properties = facts["states"]
         .as_array()
         .unwrap()
         .iter()
         .map(|v| {
             let name = v[0].as_str().unwrap();
+            let motion = v[5].as_bool().unwrap();
             State {
                 air: v[1].as_bool().unwrap(),
                 air_block: name == "minecraft:air",
                 fluid: v[2].as_bool().unwrap(),
-                motion: motion.contains(name),
-                no_leaves: no_leaves.contains(name),
+                motion,
+                no_leaves: motion && !v[6].as_bool().unwrap(),
             }
         })
         .collect();
@@ -786,12 +797,17 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let carving_blocks = CarvingBlocks::from_registry(
         &registry,
-        &block_tags.tags["minecraft:uncarvable"]
+        &block_tags.tags["minecraft:overworld_carver_replaceables"]
+            .iter()
+            .cloned()
+            .collect(),
+        &block_tags.tags["minecraft:nether_carver_replaceables"]
             .iter()
             .cloned()
             .collect(),
     )?;
     let carvers = CarverCatalog::from_json(&read("carvers")?)?;
+    let carve_lava_anchor = carvers.lava_anchor().copied();
     let mut biome_carvers = BTreeMap::new();
     for (name, json) in &biomes {
         let value: Value = serde_json::from_str(json)?;
@@ -803,6 +819,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = Data {
         biome_carvers,
         carving_blocks,
+        carve_lava_anchor,
         registry,
         integers,
         properties,

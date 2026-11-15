@@ -22,6 +22,7 @@ CLASS_RULES={
     'FireBlock':'Fire',
     'CactusBlock':'Cactus',
     'PathBlock':'Path',
+    'DirtPathBlock':'Path',
     'MushroomBlock':'Mushroom',
 
     'MultifaceBlock':'Multiface',

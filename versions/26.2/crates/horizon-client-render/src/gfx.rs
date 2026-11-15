@@ -1885,7 +1885,10 @@ impl PreparedTextures {
                 })
                 .collect(),
             split,
-            forcefield: mip_chain(forcefield.0, forcefield.1, &[], 0, 1),
+            // 26.2 loads the forcefield as a plain `SimpleTexture` (no
+            // mipmaps): `MipmappedTexture` is a 26.3 addition, so the
+            // texture is just its base pixels, one level.
+            forcefield: (forcefield.0.to_vec(), 1),
             pbr: None,
         }
     }
@@ -4636,10 +4639,11 @@ impl Renderer {
             cache: None,
         });
         drop(entity_step);
-        // WorldBorderRenderer: misc/forcefield.png as a MipmappedTexture
-        // (repeat, linear minification with mipmaps, nearest magnification).
+        // WorldBorderRenderer: misc/forcefield.png as 26.2's plain
+        // `SimpleTexture` (repeat, nearest minification, linear
+        // magnification, no mipmaps — `AbstractTexture`'s default sampler).
         let forcefield_size = forcefield.1;
-        let (forcefield_mips, forcefield_levels) = prepared.forcefield;
+        let (forcefield_pixels, forcefield_levels) = prepared.forcefield;
         let forcefield_texture = device.create_texture_with_data(
             &queue,
             &wgpu::TextureDescriptor {
@@ -4657,16 +4661,16 @@ impl Renderer {
                 view_formats: &[],
             },
             wgpu::util::TextureDataOrder::LayerMajor,
-            &forcefield_mips,
+            &forcefield_pixels,
         );
         let forcefield_view = forcefield_texture.create_view(&Default::default());
         let forcefield_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("Forcefield"),
             address_mode_u: wgpu::AddressMode::Repeat,
             address_mode_v: wgpu::AddressMode::Repeat,
-            min_filter: wgpu::FilterMode::Linear,
-            mag_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::MipmapFilterMode::Linear,
+            min_filter: wgpu::FilterMode::Nearest,
+            mag_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::MipmapFilterMode::Nearest,
             ..Default::default()
         });
         let border_uniform = device.create_buffer(&wgpu::BufferDescriptor {
@@ -5679,6 +5683,7 @@ impl Renderer {
             .iter()
             .filter_map(|m| match m {
                 wgpu::PresentMode::Fifo => Some(PresentMode::Fifo),
+                wgpu::PresentMode::FifoRelaxed => Some(PresentMode::FifoRelaxed),
                 wgpu::PresentMode::Mailbox => Some(PresentMode::Mailbox),
                 wgpu::PresentMode::Immediate => Some(PresentMode::Immediate),
                 _ => None,
@@ -5693,6 +5698,7 @@ impl Renderer {
         let mode = match chosen_present_mode(&supported, vsync, setting) {
             Some(PresentMode::Mailbox) => wgpu::PresentMode::Mailbox,
             Some(PresentMode::Immediate) => wgpu::PresentMode::Immediate,
+            Some(PresentMode::FifoRelaxed) => wgpu::PresentMode::FifoRelaxed,
             _ => wgpu::PresentMode::Fifo,
         };
         if self.config.present_mode != mode && self.surface.is_some() {
@@ -9587,8 +9593,10 @@ impl Renderer {
             );
             entities = &self.pack_entity_rest;
         }
-        // GameRenderer.useImprovedTransparency. A shader pack keeps its own
-        // path.
+        // `GameRenderState.useShaderTransparency`: the improved-transparency
+        // option, off for the panorama (26.3 renamed it
+        // `GameRenderer.useImprovedTransparency` and gates on the wireframe
+        // instead). A shader pack keeps its own path.
         let oit_on = self.improved_transparency
             && !frame.title
             && !warp_on
@@ -11273,6 +11281,23 @@ impl Renderer {
                 pass.set_vertex_buffer(0, self.debug_line_buffer.slice(..));
                 pass.draw(0..4, debug_depth..debug_depth + debug_top);
             }
+            // 26.2's `PreparedFrame.executeTranslucent` draws the see-through
+            // name tags with the translucent features, before translucent
+            // terrain (26.3 moved them to `LevelRenderer.executeSeeThrough`,
+            // after the rest of the world). In OIT, flat or pack frames the
+            // late draw below still runs instead.
+            if see_through_quads > 0 && !oit_on && !flat_frame && !pack_draws_water {
+                pass.set_pipeline(&self.see_through_pipeline);
+                pass.set_bind_group(0, &self.entity_group, &[]);
+                pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint32);
+                pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
+                pass.draw_indexed(
+                    0..see_through_quads * 6,
+                    ((world_quads + additive_quads + hand_quads) * 4) as i32,
+                    0..1,
+                );
+                pass.set_bind_group(0, &self.group, &[]);
+            }
             // One of Horizon's own packs reads the world before translucent terrain
             // (`opaque_depth`, `opaque_color`): the pass ends, the targets are copied, and a
             // pass that loads both carries on.
@@ -11644,8 +11669,11 @@ impl Renderer {
                 }
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            // LevelRenderer.executeSeeThrough, after the rest of the world.
-            if see_through_quads > 0 {
+            // 26.3's `LevelRenderer.executeSeeThrough`, after the rest of the
+            // world. In the classic frame 26.2 draws the see-through name
+            // tags with the translucent features instead (above), so the
+            // late draw runs only where the early one did not.
+            if see_through_quads > 0 && (oit_on || flat_frame || pack_draws_water) {
                 pass.set_pipeline(&self.see_through_pipeline);
                 pass.set_bind_group(0, &self.entity_group, &[]);
                 pass.set_vertex_buffer(0, self.entity_buffer.slice(..));
@@ -15083,7 +15111,7 @@ mod sprite_upload_tests {
                 })
                 .collect();
             assert_eq!(actual, expected.0);
-            assert_eq!(prepared.forcefield, mip_chain(&border, size, &[], 0, 1));
+            assert_eq!(prepared.forcefield, (border.to_vec(), 1));
             // Chains cut before the adapter was known, cut again for it.
             for to in [1, 2, 3, 5, 8] {
                 let direct = PreparedTextures::with_split(

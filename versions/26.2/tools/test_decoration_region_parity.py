@@ -24,10 +24,10 @@ def corpus(facts):
     biomes=[[[0],[1,2],[3,4,5]],[[0],[2],[3,5]],[[1],[2],[4,5]]]
     chains=[
         [{'type':'count','count':2},{'type':'in_square'},{'type':'heightmap','heightmap':'MOTION_BLOCKING'},{'type':'biome'}],
-        [{'type':'count_on_every_layer','count':1},{'type':'offset','x':0,'y':1,'z':0},{'type':'biome'}],
-        [{'type':'biome'},{'type':'count','count':2},{'type':'heightmap','heightmap':'WORLD_SURFACE'},{'type':'offset','x':1,'y':0,'z':1}],
+        [{'type':'count_on_every_layer','count':1},{'type':'random_offset','xz_spread':0,'y_spread':1},{'type':'biome'}],
+        [{'type':'biome'},{'type':'count','count':2},{'type':'heightmap','heightmap':'WORLD_SURFACE'},{'type':'random_offset','xz_spread':1,'y_spread':0}],
         [{'type':'count','count':3},{'type':'in_square'},{'type':'heightmap','heightmap':'MOTION_BLOCKING'},{'type':'block_predicate_filter','predicate':{'type':'matching_biomes','biomes':['horizon:b0','horizon:b1']}},{'type':'biome'}],
-        [{'type':'biome'},{'type':'block_predicate_filter','predicate':{'type':'volume_match','min':[-1,0,-1],'max':[1,0,1],'match':{'type':'not','predicate':{'type':'matching_biomes','biomes':['horizon:b3']}}}}],
+        [{'type':'biome'},{'type':'block_predicate_filter','predicate':{'type':'not','predicate':{'type':'matching_biomes','biomes':['horizon:b3']}}}],
     ]
     for seed in [0,-1]:
         for stage in ['empty','biomes','terrain']:
@@ -67,7 +67,7 @@ def main():
     for side in jars:java(side,"export",build/f"facts-{side}.json")
     facts=json.loads((build/"facts-server.json").read_text())
     if facts!=json.loads((build/"facts-client.json").read_text()):raise ValueError("client/server state facts differ")
-    if len(facts["states"])!=35723:raise ValueError("incomplete pinned state table")
+    if len(facts["states"])!=32366:raise ValueError("incomplete pinned state table")
     fixtures=list(corpus(facts));inputs=build/"inputs.txt"
     inputs.write_text("".join(json.dumps(value,separators=(",",":"))+"\n" for value in fixtures),encoding="utf-8")
     (build/"tags.json").write_text(json.dumps(tags,separators=(",",":")),encoding="utf-8")

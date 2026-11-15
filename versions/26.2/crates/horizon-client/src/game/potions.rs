@@ -696,7 +696,7 @@ impl Game<'_> {
         }
     }
     /// `PotionItem.useOn`: a water bottle used on a block that turns to mud
-    /// (`#convertible_to_mud`), not on its underside, is poured out and the
+    /// (`#convertable_to_mud`), not on its underside, is poured out and the
     /// block becomes mud.
     pub(super) fn use_water_bottle_on_block(
         &mut self,
@@ -707,7 +707,7 @@ impl Game<'_> {
         if &*stack.item != "minecraft:potion"
             || stack.potion() != Some("minecraft:water")
             || face == [0, -1, 0]
-            || !self.block_in_tag("minecraft:convertible_to_mud", &self.block_name(pos))
+            || !self.block_in_tag("minecraft:convertable_to_mud", &self.block_name(pos))
         {
             return Ok(false);
         }
@@ -733,9 +733,8 @@ impl Game<'_> {
                 state: None,
                 at,
                 spread: [0.0; 3],
-                speed: [1.0; 3],
+                speed: 1.0,
                 count: 1,
-                randomization: 0,
             });
         }
         self.audio
@@ -1417,7 +1416,7 @@ impl Game<'_> {
                 next.add_vector(Vec3::new(-0.125, 0.0, -0.125)),
                 next.add_vector(Vec3::new(0.125, 0.25, 0.125)),
             );
-            self.entity_powder_snow_particles(t.previous, next, bounds, t.velocity, false);
+            self.entity_powder_snow_particles(t.previous, next, bounds, false);
             t.age < 1200 && t.position.y > -128.0
         });
         self.potions.thrown = thrown;
@@ -1796,9 +1795,7 @@ impl Game<'_> {
             }
             if !self.standing_entity_in_view(
                 camera,
-                super::entity_culling::at(t.previous),
                 super::entity_culling::at(t.position),
-                alpha,
                 0.25,
                 0.25,
                 64.0,
@@ -1913,27 +1910,28 @@ impl Game<'_> {
     }
     /// `AbstractThrownPotion.onHit` with `ThrownSplashPotion.onHitAsPotion`, or
     /// `ThrownLingeringPotion.onHitAsPotion` for a lingering potion, read from
-    /// the stack's `potion_contents`; `mob` is where it hit a mob, `hit` the
-    /// block and face it hit, `age` its age, `silent` its Silent flag, `motion` its motion as it hit.
+    /// the stack's `potion_contents`; `_mob` is where it hit a mob (26.2's
+    /// cloud sits at the potion, not the mob it hit — 26.3 centers it on the
+    /// hit entity), `hit` the block and face it hit, `age` its age, `motion`
+    /// its motion as it hit. `_silent` is the projectile's Silent flag: 26.2's
+    /// onHit does not gate the splash on it (26.3's 1053/1054 sound events did).
     pub(super) fn splash(
         &mut self,
         stack: &ItemStack,
         at: Vec3,
-        mob: Option<Vec3>,
+        _mob: Option<Vec3>,
         hit: Option<([i32; 3], Direction)>,
         age: u32,
         owner: &PotionOwner,
-        silent: bool,
+        _silent: bool,
         motion: Vec3,
     ) {
         let block = [at.x, at.y, at.z].map(|v| v.floor() as i32);
         if &*stack.item == "minecraft:experience_bottle" {
             // ThrownExperienceBottle.onHit: the water-coloured splash (level
-            // event 2002, its sound 1053) and 3 to 11 experience.
+            // event 2002, whose handler plays the break sound in 26.2) and
+            // 3 to 11 experience.
             self.level_event_at(2002, block, 0xFF38_5DC6u32 as i32);
-            if !silent {
-                self.level_event_at(1053, block, 0);
-            }
             let r = &mut self.world.random;
             let value = 3 + r.next_int_bound(5).unwrap_or(0) + r.next_int_bound(5).unwrap_or(0);
             // awardWithDirection: away from the face it hit, or back along
@@ -1946,15 +1944,18 @@ impl Game<'_> {
             self.native_exp_bottle([at.x, at.y, at.z], value as u32);
             return;
         }
-        // Projectile.onHit calls onHitBlock first, then the potion's
-        // affectEntitiesAround; both read the stack's `potion_contents`.
+        // Projectile.onHit calls onHitBlock first, then onHitAsWater for a
+        // water potion; both read the stack's `potion_contents` (the water
+        // gate lives inside on_hit_as_water, so the unconditional call here
+        // matches 26.2's `if (potion.is(Potions.WATER))` branch).
         if let Some((cell, face)) = hit {
             self.potion_hit_block(stack, cell, face);
         }
-        self.affect_entities_around(stack, at, owner.player);
+        self.on_hit_as_water(stack, at, owner.player);
         let lingering = &*stack.item == "minecraft:lingering_potion";
-        // AbstractThrownPotion.onHit: level event 2007 and sound 1054 for a
-        // potion with instant effects, 2002 and 1053 otherwise.
+        // AbstractThrownPotion.onHit: level event 2007 for a potion with
+        // instant effects, 2002 otherwise; the handler plays the break sound
+        // in 26.2 (26.3 split it into events 1054/1053).
         let potion = stack.potion().and_then(brewing::potion);
         let instant = potion.is_some_and(|d| {
             d.effects
@@ -1963,45 +1964,14 @@ impl Game<'_> {
         });
         let color = brewing::potion_color(stack.potion());
         self.level_event_at(if instant { 2007 } else { 2002 }, block, color as i32);
-        if !silent {
-            self.level_event_at(if instant { 1054 } else { 1053 }, block, 0);
-        }
-        // AbstractThrownPotion.affectEntitiesAround: a water potion (the only
-        // #rehydrates_axolotls) refills the air of the axolotls in the
-        // projectile's box inflated by 4, 2 and 4 (Axolotl.rehydrate, 1800).
-        if stack.potion() == Some("minecraft:water") {
-            let (lo, hi) = (
-                [at.x - 0.125 - 4.0, at.y - 2.0, at.z - 0.125 - 4.0],
-                [at.x + 0.125 + 4.0, at.y + 0.25 + 2.0, at.z + 0.125 + 4.0],
-            );
-            for m in self
-                .mobs
-                .iter_mut()
-                .filter(|m| m.species() == horizon_client::mobs::Species::Axolotl && !m.removed)
-            {
-                let (w, h, _) = m.dims();
-                let half = w / 2.0;
-                let (x, y, z) = (m.position.x, m.position.y, m.position.z);
-                if x - half < hi[0]
-                    && x + half > lo[0]
-                    && y < hi[1]
-                    && y + h > lo[1]
-                    && z - half < hi[2]
-                    && z + half > lo[2]
-                {
-                    m.air = (m.air + 1800).min(horizon_client::mobs::axolotl::MAX_AIR);
-                }
-            }
-        }
         let Some(def) = potion else {
             return;
         };
         if lingering {
-            // The cloud sits at the mob it hit (its feet), else the impact;
-            // radius 3, wait 10, 600 ticks, shrinking to nothing, and a
-            // potion with no effects leaves none.
+            // The cloud sits at the potion's own position (26.2); radius 3,
+            // wait 10, 600 ticks, shrinking to nothing, and a potion with no
+            // effects leaves none.
             if !def.effects.is_empty() {
-                let at = mob.unwrap_or(at);
                 let id = self.take_entity_id();
                 self.breath_clouds.push(Breath {
                     id,

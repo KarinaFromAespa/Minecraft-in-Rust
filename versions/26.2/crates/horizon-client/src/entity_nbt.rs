@@ -6,7 +6,7 @@
 //! survive a Horizon save.
 use crate::{
     arrows::Pickup,
-    entities::{ArmorStand, Cushion, ExperienceOrb, ItemEntity, ItemFrame, Painting},
+    entities::{ArmorStand, ExperienceOrb, ItemEntity, ItemFrame, Painting},
     mobs::{Mob, MobType, Who},
     nbt_path::int_value,
     projectiles::{Projectile, ProjectileKind},
@@ -480,7 +480,7 @@ fn profile_from_nbt(tag: &Tag) -> Option<horizon_protocol::entity_data::Profile>
         slim: text("model").map(|model| model == "slim"),
     })
 }
-/// `ConversionTracker.addAdditionalSaveData`: vanilla's conversion time, -1
+/// Zombie/Skeleton.addAdditionalSaveData: vanilla's conversion time, -1
 /// while the mob is not converting. `counter2` is that time plus one while it
 /// converts and 0 when it does not (see `mobs/undead.rs`).
 fn conversion_time(m: &Mob) -> i32 {
@@ -766,13 +766,10 @@ pub fn mob_to_nbt(
         "Invulnerable".into(),
         Tag::Byte(i8::from(m.invulnerable_flag)),
     );
-    // Entity.saveWithoutId: `invulnerableTime`, only while there is some (the
-    // hurt cooldown is not saved).
-    if m.invulnerable_time > 0 {
-        map.insert("invulnerable_time".into(), Tag::Int(m.invulnerable_time));
-    } else {
-        map.remove(&horizon_world::nbt::JavaString::from("invulnerable_time"));
-    }
+    // 26.2's `Entity.invulnerableTime` is the hurt cooldown, which is never
+    // saved (26.3 repurposed the field as a saved temporary-invulnerability
+    // timer); a stray tag from a 26.3 save is stripped, not kept.
+    map.remove(&horizon_world::nbt::JavaString::from("invulnerable_time"));
     map.insert(
         "LeftHanded".into(),
         Tag::Byte(i8::from(m.extra.left_handed)),
@@ -1406,11 +1403,10 @@ pub fn mob_to_nbt(
                 )])
             });
         }
-        // Zombie and Skeleton.addAdditionalSaveData (a husk keeps Zombie's):
-        // `ConversionTracker`'s conversion and affliction times, -1 when it is
-        // not converting or not afflicted.
-        // The tracker ticks for these, so the live counters win over the loaded
-        // values: one that left the water or the snow saves -1.
+        // Zombie.addAdditionalSaveData (a husk keeps Zombie's): the conversion
+        // and in-water times, -1 when it is not converting or not in the
+        // water. The live counters win over the loaded values: one that left
+        // the water saves -1.
         "minecraft:zombie" | "minecraft:husk" => {
             for (key, value) in [
                 ("DrownedConversionTime", conversion_time(m)),
@@ -1419,16 +1415,19 @@ pub fn mob_to_nbt(
                 map.insert(key.into(), Tag::Int(value));
             }
         }
+        // Skeleton.addAdditionalSaveData saves only the conversion time: the
+        // time in powder snow is not persisted (26.3's `ConversionTracker`
+        // added a saved `FreezingTime`); a stray tag from a 26.3 save is
+        // stripped, not kept.
         "minecraft:skeleton" => {
-            for (key, value) in [
-                ("StrayConversionTime", conversion_time(m)),
-                ("FreezingTime", m.extra.counter),
-            ] {
-                map.insert(key.into(), Tag::Int(value));
-            }
+            map.insert(
+                "StrayConversionTime".into(),
+                Tag::Int(conversion_time(m)),
+            );
+            map.remove(&horizon_world::nbt::JavaString::from("FreezingTime"));
         }
-        // Drowned.convertsInWater is false, so its tracker never ticks: vanilla
-        // saves -1 for both.
+        // Drowned.convertsInWater is false, so its conversion never runs:
+        // vanilla saves -1 for both.
         "minecraft:drowned" => {
             for (key, value) in [
                 ("DrownedConversionTime", Tag::Int(-1)),
@@ -1473,21 +1472,18 @@ pub fn mob_to_nbt(
             "CanBreakDoors".into(),
             Tag::Byte(i8::from(m.extra.can_break_doors)),
         );
-        // ConversionTracker.addAdditionalSaveData reads isAfflicted at save
-        // time. Zombie supplies its cached isEyeInFluid(WATER), even with NoAI.
+        // Zombie.addAdditionalSaveData saves `isInWater() ? inWaterTime : -1`;
+        // the tick keeps the counter -1 whenever the eyes are out of the
+        // water, so the eye check decides it, even with NoAI.
         if !m.fluids.eye_in_water {
             map.insert("InWaterTime".into(), Tag::Int(-1));
         }
-        // ZombieVillager and ZombifiedPiglin save Zombie's tracker too; Horizon
-        // never starts their water conversion, so its time is -1.
+        // ZombieVillager and ZombifiedPiglin save Zombie's conversion tags
+        // too; Horizon never starts their water conversion, so its time is -1.
         if matches!(m.species(), S::ZombieVillager | S::ZombifiedPiglin) {
             map.entry("DrownedConversionTime".into())
                 .or_insert(Tag::Int(-1));
         }
-    }
-    // Skeleton supplies its cached isInPowderSnow to the same isAfflicted check.
-    if m.species() == S::Skeleton && !m.in_powder_snow {
-        map.insert("FreezingTime".into(), Tag::Int(-1));
     }
     if matches!(
         id,
@@ -2195,8 +2191,9 @@ pub fn mob_from_nbt_with_random(
     }
     m.silent = flag(tag, "Silent");
     m.invulnerable_flag = flag(tag, "Invulnerable");
-    // Entity.load: `getIntOr("invulnerable_time", 0)`.
-    m.invulnerable_time = number(tag.get("invulnerable_time")).unwrap_or(0) as i32;
+    // 26.2's `Entity.load` reads no `invulnerable_time`: the field is the
+    // hurt cooldown, which is transient (a stray tag from a 26.3 save is
+    // ignored).
     if m.species() == crate::mobs::Species::Bat {
         // Bat.readAdditionalSaveData: BatFlags bit 0, resting.
         m.extra.flag = number(tag.get("BatFlags")).unwrap_or(0) & 1 != 0;
@@ -2707,18 +2704,22 @@ pub fn mob_from_nbt_with_random(
     if crate::mobs::doors::is_zombie(m.species()) {
         crate::mobs::doors::set_can_break_doors(&mut m, flag(tag, "CanBreakDoors"));
     }
-    // Zombie and Skeleton.readAdditionalSaveData: `ConversionTracker` reads its
-    // affliction time (0 when absent) and starts a conversion from a saved time
-    // other than -1, -1 stopping one (`setConverting(false)`).
-    let tracker = match m.species() {
+    // Zombie and Skeleton.readAdditionalSaveData: the affliction time (0 when
+    // absent) and a conversion started from a saved time other than -1, -1
+    // stopping one. A skeleton's time in powder snow is not saved, so only
+    // its conversion time loads (26.3's `ConversionTracker` added a saved
+    // `FreezingTime`).
+    let conversion_tags = match m.species() {
         crate::mobs::Species::Zombie | crate::mobs::Species::Husk => {
-            Some(("InWaterTime", "DrownedConversionTime"))
+            Some((Some("InWaterTime"), "DrownedConversionTime"))
         }
-        crate::mobs::Species::Skeleton => Some(("FreezingTime", "StrayConversionTime")),
+        crate::mobs::Species::Skeleton => Some((None, "StrayConversionTime")),
         _ => None,
     };
-    if let Some((affliction, conversion)) = tracker {
-        m.extra.counter = number(tag.get(affliction)).unwrap_or(0) as i32;
+    if let Some((affliction, conversion)) = conversion_tags {
+        if let Some(affliction) = affliction {
+            m.extra.counter = number(tag.get(affliction)).unwrap_or(0) as i32;
+        }
         let time = number(tag.get(conversion)).unwrap_or(-1) as i32;
         // Any other time starts a conversion (`startConversion`), a negative
         // one spent on the next tick.
@@ -3138,11 +3139,9 @@ pub fn arrow_to_nbt(
     if let Some(weapon) = &a.fired_from_weapon {
         put(&mut tag, "weapon", item_to_nbt(weapon));
     }
-    // `Projectile.addAdditionalSaveData`: the actual decoded predicate,
-    // never a stale source compound or the pickup item's component patch.
-    if let Some(predicate) = &a.can_break {
-        put(&mut tag, "can_break", predicate.clone());
-    }
+    // 26.2's `Projectile` has no `canBreak` field: `mayBreak` is the impact
+    // tag plus the `projectiles_can_break_blocks` rule, with no adventure
+    // predicate (26.3 added `can_break` from the `CAN_BREAK` component).
     if p.left_owner {
         put(&mut tag, "LeftOwner", Tag::Byte(1));
     }
@@ -3199,18 +3198,8 @@ pub fn arrow_from_nbt(
     a.pickup = Pickup::from_byte(number(tag.get("pickup")).unwrap_or(0));
     a.pierce = number(tag.get("PierceLevel")).unwrap_or(0) as u8;
     a.has_been_shot = flag(tag, "HasBeenShot");
-    // `Projectile.readAdditionalSaveData`: one block predicate or a nonempty
-    // list. Unsupported conjuncts remain saved, but cannot grant permission.
-    a.can_break = tag
-        .get("can_break")
-        .filter(|predicate| match predicate {
-            Tag::Compound(_) => true,
-            Tag::List(list) => {
-                !list.is_empty() && list.iter().all(|p| matches!(p, Tag::Compound(_)))
-            }
-            _ => false,
-        })
-        .cloned();
+    // 26.2's `Projectile.readAdditionalSaveData` reads no `can_break`: the
+    // field does not exist yet (a stray tag from a 26.3 save is ignored).
     a.fire_ticks = number(tag.get("Fire")).unwrap_or(0) as i16 as i32;
     a.fall_distance = float(tag.get("fall_distance")).unwrap_or(0.0);
     a.spectral = spectral;
@@ -3731,61 +3720,6 @@ pub fn falling_block_flags(tag: &Tag) -> (bool, bool) {
     )
 }
 
-/// `Cushion.addAdditionalSaveData`: the block it sits on and its colour.
-pub fn cushion_to_nbt(c: &Cushion, uuid: [i32; 4], raw: Option<&Tag>) -> Tag {
-    // A block-attached cushion does not update these: they stay as loaded.
-    let (on_ground, fall_distance) = raw.map_or((false, 0.0), ground_from_nbt);
-    let base = Base {
-        id: "minecraft:cushion",
-        uuid,
-        position: c.position,
-        motion: Vec3::ZERO,
-        rotation: [c.yaw, 0.0],
-        on_ground,
-        fall_distance,
-    };
-    let mut tag = base.tag(raw);
-    put(&mut tag, "block_pos", Tag::IntArray(c.pos.to_vec()));
-    put(&mut tag, "color", string(c.color_name()));
-    if let Some(name) = &c.custom_name {
-        put(&mut tag, "CustomName", name.clone());
-    }
-    tag
-}
-/// The position, block position, yaw and colour of a saved cushion.
-pub fn cushion_from_nbt(tag: &Tag, id: u32) -> Option<Cushion> {
-    let position = position(tag)?;
-    let pos = match tag.get("block_pos") {
-        Some(Tag::IntArray(v)) if v.len() == 3 => [v[0], v[1], v[2]],
-        _ => [
-            position.x.floor() as i32,
-            position.y.floor() as i32,
-            position.z.floor() as i32,
-        ],
-    };
-    let yaw = match tag.get("Rotation") {
-        Some(Tag::List(l)) => l
-            .first()
-            .and_then(|v| crate::save::float(Some(v)))
-            .unwrap_or(0.0) as f32,
-        _ => 0.0,
-    };
-    let color =
-        crate::entities::dye_index(&text(tag.get("color")).unwrap_or_else(|| "white".into()));
-    Some(Cushion {
-        id,
-        position,
-        pos,
-        yaw,
-        color,
-        check_interval: 0,
-        custom_name: tag.get("CustomName").cloned(),
-    })
-}
-
-#[cfg(test)]
-#[path = "cushion_tests.rs"]
-mod cushion_tests;
 /// ArmorStand.addAdditionalSaveData with LivingEntity's `equipment`.
 pub fn armor_stand_to_nbt(a: &ArmorStand, uuid: [i32; 4], raw: Option<&Tag>) -> Tag {
     let base = Base {
@@ -4385,35 +4319,25 @@ mod spell_ticks_nbt_tests;
 
 #[cfg(test)]
 mod tests {
-    // Added after the actual old Game proof: live mutation and a fresh absent
-    // load cannot inherit a predicate from a contradictory saved compound.
+    // 26.2's `Projectile` has no `can_break` field: a stray tag from a 26.3
+    // save is ignored on load and stripped on save, while the rest of the
+    // raw compound (a marker, NoGravity) survives.
     #[test]
-    fn arrow_can_break_mutation_clone_and_absent_load_save_actual_state() {
+    fn arrow_ignores_a_stray_can_break_tag_on_load_and_save() {
         let parse = |text: &str| horizon_world::nbt::parse_snbt(text).unwrap().0;
         let raw = parse(
             "{id:\"minecraft:arrow\",Pos:[1d,200d,1d],NoGravity:1b,marker:37,can_break:{blocks:\"minecraft:chorus_flower\"}}",
         );
-        let (mut arrow, _) = super::arrow_from_nbt(&raw, None, |_| None).unwrap();
-        let original = raw.get("can_break").unwrap().clone();
-        assert_eq!(
-            arrow.arrow.as_ref().unwrap().can_break.as_ref(),
-            Some(&original)
-        );
-        let replacement = parse("{blocks:\"minecraft:stone\"}");
-        arrow.arrow.as_mut().unwrap().can_break = Some(replacement.clone());
-        let cloned = arrow.clone();
+        let (arrow, _) = super::arrow_from_nbt(&raw, None, |_| None).unwrap();
         for source in [None, Some(&raw)] {
-            let saved = super::arrow_to_nbt(&cloned, [197, 0, 0, 1], None, None, source).unwrap();
-            assert_eq!(saved.get("can_break"), Some(&replacement));
+            let saved = super::arrow_to_nbt(&arrow, [197, 0, 0, 1], None, None, source).unwrap();
+            assert!(saved.get("can_break").is_none());
             assert_eq!(saved.get("NoGravity"), Some(&super::Tag::Byte(1)));
         }
-        arrow.arrow.as_mut().unwrap().can_break = None;
         let saved = super::arrow_to_nbt(&arrow, [197, 0, 0, 1], None, None, Some(&raw)).unwrap();
-        assert!(saved.get("can_break").is_none());
         assert_eq!(saved.get("marker"), Some(&super::Tag::Int(37)));
         let absent = parse("{id:\"minecraft:arrow\",Pos:[1d,200d,1d]}");
         let (fresh, _) = super::arrow_from_nbt(&absent, None, |_| None).unwrap();
-        assert!(fresh.arrow.as_ref().unwrap().can_break.is_none());
         assert!(
             super::arrow_to_nbt(&fresh, [197, 0, 0, 2], None, None, Some(&raw))
                 .unwrap()
@@ -7452,9 +7376,10 @@ mod sheep_nbt_tests {
                 .lost_horns,
             [false; 2]
         );
-        // Zombie and Skeleton.addAdditionalSaveData: the `ConversionTracker`
-        // tags, -1 for a counter that is not running, and both come back into
-        // the counters the tick uses.
+        // Zombie and Skeleton.addAdditionalSaveData: the conversion tags, -1
+        // for a counter that is not running, and both come back into the
+        // counters the tick uses (a skeleton's time in powder snow is not
+        // saved at all).
         let mut zombie = new("minecraft:zombie");
         // Positive affliction counters represent a zombie with immersed eyes.
         zombie.fluids.eye_in_water = true;
@@ -7468,58 +7393,76 @@ mod sheep_nbt_tests {
         assert_eq!(number(tag.get("InWaterTime")), Some(600));
         assert_eq!(number(tag.get("DrownedConversionTime")), Some(299));
         assert_eq!((back.extra.counter, back.extra.counter2), (600, 300));
-        // A skeleton outside powder snow is not afflicted: -1 whatever the
-        // counter holds, as with a fresh or NoAI one.
+        // A skeleton saves no freezing time at all, whatever the counter
+        // holds: only the conversion time, which comes back into the counter
+        // the tick uses.
         let (_, tag) = round_trip(&new("minecraft:skeleton"));
-        assert_eq!(number(tag.get("FreezingTime")), Some(-1));
+        assert_eq!(tag.get("FreezingTime"), None);
         assert_eq!(number(tag.get("StrayConversionTime")), Some(-1));
         let mut skeleton = new("minecraft:skeleton");
         skeleton.in_powder_snow = true;
         skeleton.extra.counter = 70;
         let (back, tag) = round_trip(&skeleton);
-        assert_eq!(number(tag.get("FreezingTime")), Some(70));
+        assert_eq!(tag.get("FreezingTime"), None);
         assert_eq!(number(tag.get("StrayConversionTime")), Some(-1));
-        assert_eq!((back.extra.counter, back.extra.counter2), (70, 0));
+        assert_eq!((back.extra.counter, back.extra.counter2), (0, 0));
         (skeleton.extra.counter, skeleton.extra.counter2) = (140, 301);
         let (back, tag) = round_trip(&skeleton);
-        assert_eq!(number(tag.get("FreezingTime")), Some(140));
+        assert_eq!(tag.get("FreezingTime"), None);
         assert_eq!(number(tag.get("StrayConversionTime")), Some(300));
-        assert_eq!((back.extra.counter, back.extra.counter2), (140, 301));
+        assert_eq!((back.extra.counter, back.extra.counter2), (0, 301));
         // Not converting: -1 in both tags, and nothing starts on load.
-        for (kind, affliction, conversion) in [
-            ("minecraft:zombie", "InWaterTime", "DrownedConversionTime"),
-            ("minecraft:skeleton", "FreezingTime", "StrayConversionTime"),
-        ] {
-            let mut m = new(kind);
-            (m.extra.counter, m.extra.counter2) = (-1, 0);
-            let (back, tag) = round_trip(&m);
-            assert_eq!(number(tag.get(affliction)), Some(-1));
-            assert_eq!(number(tag.get(conversion)), Some(-1));
-            assert_eq!((back.extra.counter, back.extra.counter2), (-1, 0));
-        }
-        // Zombie villagers and zombified piglins keep Zombie's tracker tags.
+        let mut m = new("minecraft:zombie");
+        (m.extra.counter, m.extra.counter2) = (-1, 0);
+        let (back, tag) = round_trip(&m);
+        assert_eq!(number(tag.get("InWaterTime")), Some(-1));
+        assert_eq!(number(tag.get("DrownedConversionTime")), Some(-1));
+        assert_eq!((back.extra.counter, back.extra.counter2), (-1, 0));
+        // A skeleton not converting saves only the -1 conversion time.
+        let mut m = new("minecraft:skeleton");
+        (m.extra.counter, m.extra.counter2) = (-1, 0);
+        let (back, tag) = round_trip(&m);
+        assert_eq!(tag.get("FreezingTime"), None);
+        assert_eq!(number(tag.get("StrayConversionTime")), Some(-1));
+        assert_eq!((back.extra.counter, back.extra.counter2), (0, 0));
+        // Zombie villagers and zombified piglins keep Zombie's conversion tags.
         for kind in ["minecraft:zombie_villager", "minecraft:zombified_piglin"] {
             let (_, tag) = round_trip(&new(kind));
             assert_eq!(number(tag.get("DrownedConversionTime")), Some(-1), "{kind}");
             assert_eq!(number(tag.get("InWaterTime")), Some(-1), "{kind}");
         }
-        // A ticking one that left the snow or the water saves -1 over the times
-        // it was loaded with (ConversionTracker.tick: setConverting(false)).
+        // A ticking one that left the snow or the water saves -1 over the
+        // conversion time it was loaded with (the tick stops the conversion);
+        // a skeleton saves no freezing time at all.
         for (kind, conversion, affliction) in [
-            ("minecraft:skeleton", "StrayConversionTime", "FreezingTime"),
-            ("minecraft:zombie", "DrownedConversionTime", "InWaterTime"),
+            ("minecraft:skeleton", "StrayConversionTime", None),
+            (
+                "minecraft:zombie",
+                "DrownedConversionTime",
+                Some("InWaterTime"),
+            ),
         ] {
-            let loaded = Tag::compound([
+            let mut entries = vec![
                 ("id", string(kind)),
                 ("Pos", doubles(&[0.5, 64.0, 0.5])),
                 (conversion, Tag::Int(200)),
-                (affliction, Tag::Int(5)),
-            ]);
+            ];
+            if let Some(affliction) = affliction {
+                entries.push((affliction, Tag::Int(5)));
+            } else {
+                entries.push(("FreezingTime", Tag::Int(5)));
+            }
+            let loaded = Tag::compound(entries);
             let mut m = new(kind);
             (m.extra.counter, m.extra.counter2) = (-1, 0);
             let tag = mob_to_nbt(&m, [1, 2, 3, 4], Some(&loaded), Some(&registry), |_| None);
             assert_eq!(number(tag.get(conversion)), Some(-1), "{kind}");
-            assert_eq!(number(tag.get(affliction)), Some(-1), "{kind}");
+            match affliction {
+                Some(affliction) => {
+                    assert_eq!(number(tag.get(affliction)), Some(-1), "{kind}")
+                }
+                None => assert_eq!(tag.get("FreezingTime"), None, "{kind}"),
+            }
         }
         // AbstractPiglin: a piglin or brute saved without CanPickUpLoot picks up
         // loot. Piglin always writes CannotHunt, the brute never does.
@@ -8109,10 +8052,12 @@ mod fireball_nbt_tests {
     }
 
     #[test]
-    fn a_named_frame_drops_with_its_custom_name() {
-        // `ItemFrame.getFrameItemStackWithData`: the frame item, then
-        // `DataComponents.CUSTOM_NAME` from `getCustomName`. Glow frames
-        // share it through `GlowItemFrame.getFrameItemStack`.
+    fn a_named_frame_drops_without_its_custom_name() {
+        // `ItemFrame.getFrameItemStack`: the plain frame item. The custom
+        // name stays on the entity (and in its saved NBT); it is not copied
+        // onto the dropped item in 26.2 (26.3's `getFrameItemStackWithData`
+        // added the copy). Glow frames share it through
+        // `GlowItemFrame.getFrameItemStack`.
         for id in ["minecraft:item_frame", "minecraft:glow_item_frame"] {
             let tag = Tag::compound([
                 ("id", string(id)),
@@ -8121,10 +8066,10 @@ mod fireball_nbt_tests {
                 ("CustomName", string("Gallery")),
             ]);
             let frame = item_frame_from_nbt(&tag, 1).unwrap();
-            let stack = frame.item_stack_with_data();
+            let stack = frame.item_stack();
             assert_eq!(&*stack.item, id);
             assert_eq!(stack.count, 1);
-            assert_eq!(stack.custom_name().as_deref(), Some("Gallery"));
+            assert!(stack.custom_name().is_none());
             let saved = item_frame_to_nbt(&frame, [1, 2, 3, 4], None);
             assert_eq!(text(saved.get("CustomName")).as_deref(), Some("Gallery"));
         }
@@ -8135,7 +8080,7 @@ mod fireball_nbt_tests {
         ]);
         let frame = item_frame_from_nbt(&bare, 2).unwrap();
         assert!(frame.custom_name.is_none());
-        assert!(frame.item_stack_with_data().custom_name().is_none());
+        assert!(frame.item_stack().custom_name().is_none());
         assert!(
             item_frame_to_nbt(&frame, [1, 2, 3, 4], Some(&bare))
                 .get("CustomName")

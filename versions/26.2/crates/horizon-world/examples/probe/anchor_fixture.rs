@@ -41,11 +41,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             "context {} {} {}",
             context.min_y, context.height, context.sea_level
         )?;
-        for a in [
-            VerticalAnchor::BOTTOM,
-            VerticalAnchor::TOP,
-            VerticalAnchor::SEA_LEVEL,
-        ] {
+        for a in [VerticalAnchor::BOTTOM, VerticalAnchor::TOP] {
             anchor(a, context, &mut out)?;
         }
         for e in f["values"].as_array().unwrap() {
@@ -54,7 +50,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
                 VerticalAnchor::Absolute(v),
                 VerticalAnchor::AboveBottom(v),
                 VerticalAnchor::BelowTop(v),
-                VerticalAnchor::RelativeToSeaLevel(v),
             ] {
                 anchor(a, context, &mut out)?;
             }

@@ -178,9 +178,6 @@ impl SignData {
             ])
         };
         let mut out = Vec::new();
-        if self.allow_op_features {
-            out.push(("allow_op_features", Tag::Byte(1)));
-        }
         out.extend([
             ("front_text", side(&self.front)),
             ("back_text", side(&self.back)),
@@ -219,8 +216,8 @@ impl SignData {
         self.front = side(tag.get("front_text"));
         self.back = side(tag.get("back_text"));
         self.waxed = nbt_flag(tag, "is_waxed");
-        self.allow_op_features =
-            matches!(tag.get("allow_op_features"), Some(Tag::Byte(b)) if *b != 0);
+        // 26.2 signs carry no `allow_op_features` (datafix 5002 adds it):
+        // the tag, if present, is dropped.
     }
 }
 /// The `click_event` in the style of a stored line: the one of a component

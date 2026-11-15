@@ -201,9 +201,8 @@ impl Game<'_> {
             state: None,
             at: plume_at,
             spread: [0.0; 3],
-            speed: [0.0; 3],
+            speed: 0.0,
             count: 7,
-            randomization: 0,
         });
         self.post_block_game_event("minecraft:block_change", pos, Some(Who::Player), None);
         self.trigger_block("minecraft:item_used_on_block", pos, &stack);

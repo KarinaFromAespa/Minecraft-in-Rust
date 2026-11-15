@@ -276,7 +276,7 @@ fn concrete_powder_color(dye: &str) -> u32 {
         _ => 0x191919,
     }
 }
-/// `RedstoneWireBlock.COLORS`, or a pack's.
+/// `RedStoneWireBlock.COLORS`, or a pack's.
 fn redstone_color(power: u8) -> [f32; 3] {
     if let Some(c) = crate::pack_palette::redstone(power) {
         return [16, 8, 0].map(|shift| ((c >> shift) & 255) as f32 / 255.0);
@@ -2106,7 +2106,7 @@ mod tests {
     }
     #[test]
     fn redstone_colours_match_wire_table() {
-        // RedstoneWireBlock.COLORS[15] = (1.0, 0.2, 0.1) before int packing.
+        // RedStoneWireBlock.COLORS[15] = (1.0, 0.2, 0.1) before int packing.
         let c = redstone_color(15);
         assert!((c[0] - 1.0).abs() < 1e-6);
         assert!((c[1] - (51.0 / 255.0)).abs() < 0.01);

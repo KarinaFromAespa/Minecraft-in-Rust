@@ -51,7 +51,7 @@ use horizon_world::{
     level::InteractionResult,
     nbt::Tag,
     registry::BlockStateId,
-    stepped_interpolation::{Path, PosRot, Start, SteppedInterpolation},
+    interpolation::{InterpolationHandler, PosRot, Start},
 };
 use std::{
     collections::{HashMap, VecDeque},
@@ -425,7 +425,7 @@ impl CartLerp {
     }
 }
 
-/// `SteppedInterpolationHandler.doInterpolate`'s `setPos` and `setRot` on a
+/// `InterpolationHandler.interpolate`'s `setPos` and `setRot` on a
 /// mob: its yaw kept continuous (the same turn as vanilla's, without the
 /// wrap that would spin it in the frame between ticks), its pitch clamped.
 fn place_interpolated(m: &mut Mob, at: PosRot) {
@@ -450,7 +450,7 @@ impl MovePacket {
     /// A position sync measures it from where the entity is, a teleport from
     /// where it is headed (`PositionMoveRotation.of`'s
     /// `getClientPositionAndRotation`).
-    fn snaps(self, handler: &SteppedInterpolation, entity: PosRot, to: [f64; 3]) -> bool {
+    fn snaps(self, handler: &InterpolationHandler, entity: PosRot, to: [f64; 3]) -> bool {
         let from = match self {
             MovePacket::Move => return false,
             MovePacket::PositionSync => entity.position,
@@ -464,16 +464,17 @@ impl MovePacket {
 /// A move `packet` to `to` for a living entity at `entity`, through its
 /// handler (`interpolateTo`): where it is put at once, if anywhere. A move
 /// too big to interpolate is a `snapTo`; vanilla leaves the handler running
-/// and its next step shifts what is left by the jump
-/// (`adjustInterpolationTargetFromDeltas`), which this handler doesn't port,
-/// so the steps are dropped instead. That is the same for an entity that
-/// wasn't moving, as a teleported one usually isn't.
-fn stepped_move(
-    handler: &mut SteppedInterpolation,
+/// and its next step shifts what is left by the jump (`interpolate`'s delta
+/// adjustment), which this handler doesn't port, so the steps are dropped
+/// instead. That is the same for an entity that wasn't moving, as a
+/// teleported one usually isn't. A packet without a position or rotation
+/// keeps the one the entity is headed for (`moveOrInterpolateTo`).
+fn interpolated_move(
+    handler: &mut InterpolationHandler,
     packet: MovePacket,
     entity: PosRot,
     to: [f64; 3],
-    path: Option<Path>,
+    position: Option<[f64; 3]>,
     rotation: Option<(f32, f32)>,
 ) -> Option<PosRot> {
     if packet.snaps(handler, entity, to) {
@@ -485,7 +486,10 @@ fn stepped_move(
             pitch,
         });
     }
-    match handler.interpolate_to(entity, path, rotation) {
+    let current = handler.heading(entity);
+    let position = position.unwrap_or(current.position);
+    let (yaw, pitch) = rotation.unwrap_or((current.yaw, current.pitch));
+    match handler.interpolate_to(entity, position, yaw, pitch) {
         Start::Snap(at) => Some(at),
         Start::Interpolating | Start::Unchanged => None,
     }
@@ -637,8 +641,8 @@ pub(super) struct Remote {
     /// The minecarts the server moves with `ClientboundMoveMinecartPacket`
     /// (`NewMinecartBehavior`), which have no interpolation handler.
     cart_lerps: HashMap<i32, CartLerp>,
-    /// Living entities' `SteppedInterpolationHandler`s.
-    stepped: HashMap<i32, SteppedInterpolation>,
+    /// Living entities' `InterpolationHandler`s.
+    interpolation: HashMap<i32, InterpolationHandler>,
     /// `LivingEntity.lerpHeadTo`: the head yaw and the ticks left to reach it.
     head_lerps: HashMap<i32, (f32, u32)>,
     /// The happy ghast the player just got off, until the server's teleport
@@ -1206,7 +1210,7 @@ impl Game<'_> {
             passenger_vehicles: HashMap::new(),
             lerps: HashMap::new(),
             cart_lerps: HashMap::new(),
-            stepped: HashMap::new(),
+            interpolation: HashMap::new(),
             head_lerps: HashMap::new(),
             ghast_dismount: None,
             first_passenger: false,
@@ -1436,7 +1440,7 @@ impl Game<'_> {
             passenger_vehicles: HashMap::new(),
             lerps: HashMap::new(),
             cart_lerps: HashMap::new(),
-            stepped: HashMap::new(),
+            interpolation: HashMap::new(),
             head_lerps: HashMap::new(),
             ghast_dismount: None,
             first_passenger: false,
@@ -2618,6 +2622,12 @@ impl Game<'_> {
         r.position_sender = Default::default();
         r.predictions.clear();
         self.set_mode_id(spawn.game_type);
+        // `MultiPlayerGameMode.setLocalMode(gameType, previousGameType)`:
+        // the server's previous mode replaces whatever `set_mode` kept
+        // (on a login that would be the default, not the server's).
+        self.previous_mode = spawn
+            .previous_game_type
+            .map(super::game_mode::mode_from_id);
         self.dim = Dim::from_id(&spawn.dimension);
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
@@ -2661,7 +2671,7 @@ impl Game<'_> {
                 r.passenger_vehicles.clear();
                 r.lerps.clear();
                 r.cart_lerps.clear();
-                r.stepped.clear();
+                r.interpolation.clear();
                 r.head_lerps.clear();
                 r.pending_items.clear();
                 // The entity ids are the old world's; the new dimension's
@@ -3121,7 +3131,7 @@ impl Game<'_> {
         if let Some(r) = self.remote.as_mut() {
             // A new entity has a new interpolation handler (a mob's or an
             // armor stand's), even under an id the server used before.
-            r.stepped.remove(&id);
+            r.interpolation.remove(&id);
             if kind == "minecraft:item" {
                 r.pending_items.insert(id, (position, Vec3::ZERO));
             }
@@ -3137,14 +3147,46 @@ impl Game<'_> {
             );
         }
     }
-    /// A move packet for entity `id`: to the end of `path` (None: a
-    /// rotation alone), turned to `rotation` if it has one. `packet` says
-    /// whether a living entity more than 64 blocks away is put there at once
-    /// (its `snaps`).
+    /// The angles a teleport's relatives resolve against: the interpolation
+    /// target's while one runs, else the entity's own (a mob's or an armor
+    /// stand's; 0 for anything else, which keeps the packet's angles).
+    fn teleport_heading(&self, id: i32) -> (f32, f32) {
+        let entity = self
+            .mobs
+            .iter()
+            .find(|m| m.id == id as u32)
+            .map(|m| PosRot {
+                position: [m.position.x, m.position.y, m.position.z],
+                yaw: m.yaw % 360.0,
+                pitch: m.head_pitch,
+            })
+            .or_else(|| {
+                self.armor_stands
+                    .iter()
+                    .find(|a| a.id == id as u32)
+                    .map(|a| PosRot {
+                        position: [a.position.x, a.position.y, a.position.z],
+                        yaw: a.yaw % 360.0,
+                        pitch: 0.0,
+                    })
+            });
+        let Some(entity) = entity else {
+            return (0.0, 0.0);
+        };
+        let heading = self
+            .remote
+            .as_ref()
+            .and_then(|r| r.interpolation.get(&id))
+            .map_or(entity, |h| h.heading(entity));
+        (heading.yaw, heading.pitch)
+    }
+    /// A move packet for entity `id`: to `to` (None: a rotation alone),
+    /// turned to `rotation` if it has one. `packet` says whether a living
+    /// entity more than 64 blocks away is put there at once (its `snaps`).
     fn move_entity(
         &mut self,
         id: i32,
-        path: Option<Path>,
+        to: Option<[f64; 3]>,
         rotation: Option<(f32, f32)>,
         on_ground: bool,
         packet: MovePacket,
@@ -3164,9 +3206,7 @@ impl Game<'_> {
             .as_ref()
             .and_then(|r| r.entities.get(&id))
             .map(|t| t.position);
-        let position = path
-            .as_ref()
-            .map(Path::end)
+        let position = to
             .or(tracked)
             .or_else(|| {
                 mob.as_ref()
@@ -3181,16 +3221,16 @@ impl Game<'_> {
                 // handleMoveEntity, handleEntityPositionSync: the mount this
                 // client moves (isLocalInstanceAuthoritative) keeps its own
                 // position, and no steps pile up for after the ride.
-                r.stepped.remove(&id);
+                r.interpolation.remove(&id);
                 return;
             }
             if let Some(m) = mob {
-                // Shulker.createInterpolationHandler is NO_OP, so a move packet
+                // Shulker.getInterpolation() returns null, so a move packet
                 // is setPos at once. The 6-tick slide starts from the block
                 // the shulker occupied before this packet.
                 if m.species() == horizon_client::mobs::Species::Shulker {
-                    r.stepped.remove(&id);
-                    if path.is_some() {
+                    r.interpolation.remove(&id);
+                    if to.is_some() {
                         horizon_client::mobs::shulker::client_set_pos(
                             m,
                             position[0],
@@ -3205,18 +3245,18 @@ impl Game<'_> {
                     m.on_ground = on_ground;
                     return;
                 }
-                // A living entity: LivingEntity.createInterpolationHandler's
-                // SteppedInterpolationHandler, over its type's update interval.
+                // A living entity: `LivingEntity`'s `InterpolationHandler`,
+                // over three ticks (`DEFAULT_INTERPOLATION_STEPS`).
                 let entity = PosRot {
                     position: [m.position.x, m.position.y, m.position.z],
                     yaw: m.yaw,
                     pitch: m.head_pitch,
                 };
-                let handler = r.stepped.entry(id).or_insert_with(|| {
-                    let interval = horizon_client::lan::tracking::settings(&m.kind.id).1;
-                    SteppedInterpolation::new(interval as i32)
-                });
-                if let Some(at) = stepped_move(handler, packet, entity, position, path, rotation) {
+                let handler = r
+                    .interpolation
+                    .entry(id)
+                    .or_insert_with(|| InterpolationHandler::new(3));
+                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation) {
                     // snapTo: setOldPosAndRot too.
                     place_interpolated(m, at);
                     m.previous = m.position;
@@ -3227,19 +3267,18 @@ impl Game<'_> {
                 return;
             }
             // An armor stand is a living entity too: the same handler, over
-            // its type's update interval, stepped in `tick_remote_entities`.
+            // three ticks, interpolated in `tick_remote_entities`.
             if let Some(a) = self.armor_stands.iter_mut().find(|a| a.id == id as u32) {
                 let entity = PosRot {
                     position: [a.position.x, a.position.y, a.position.z],
                     yaw: a.yaw,
                     pitch: 0.0,
                 };
-                let handler = r.stepped.entry(id).or_insert_with(|| {
-                    let interval =
-                        horizon_client::lan::tracking::settings("minecraft:armor_stand").1;
-                    SteppedInterpolation::new(interval as i32)
-                });
-                if let Some(at) = stepped_move(handler, packet, entity, position, path, rotation) {
+                let handler = r
+                    .interpolation
+                    .entry(id)
+                    .or_insert_with(|| InterpolationHandler::new(3));
+                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation) {
                     a.snap(
                         Vec3::new(at.position[0], at.position[1], at.position[2]),
                         at.yaw,
@@ -3251,7 +3290,7 @@ impl Game<'_> {
             // Interaction extends Entity and keeps its NO_OP interpolation
             // handler: the server's position replaces its own at once.
             if let Some(i) = self.interactions.get_mut(&id) {
-                if path.is_some() {
+                if to.is_some() {
                     i.position = Vec3::new(position[0], position[1], position[2]);
                 }
                 return;
@@ -3267,7 +3306,7 @@ impl Game<'_> {
                 .iter_mut()
                 .find(|p| p.id == id as u32)
             {
-                if path.is_some() {
+                if to.is_some() {
                     p.position = Vec3::new(position[0], position[1], position[2]);
                 }
                 if let Some((yaw, pitch)) = rotation {
@@ -3276,7 +3315,7 @@ impl Game<'_> {
                 }
                 return;
             }
-            if path.is_some()
+            if to.is_some()
                 && (self.potions.move_remote_thrown(
                     id as u32,
                     Vec3::new(position[0], position[1], position[2]),
@@ -3284,9 +3323,9 @@ impl Game<'_> {
             {
                 return;
             }
-            // A fishing hook keeps a LinearInterpolationHandler: eased towards the
+            // A fishing hook keeps an InterpolationHandler: eased towards the
             // update over three ticks, on top of its own movement (`tick_remote_hooks`).
-            if path.is_some() {
+            if to.is_some() {
                 if let Some(h) = self.hook.as_mut().filter(|h| h.id() == id as u32) {
                     h.move_to(position, on_ground);
                     return;
@@ -3298,7 +3337,7 @@ impl Game<'_> {
             }
             // A thrown trident is an arrow: placed at once, flown on by its tick.
             if let Some(t) = self.tridents.iter_mut().find(|t| t.id == id as u32) {
-                if path.is_some() {
+                if to.is_some() {
                     t.position = Vec3::new(position[0], position[1], position[2]);
                 }
                 if let Some((yaw, pitch)) = rotation {
@@ -3308,7 +3347,7 @@ impl Game<'_> {
                 return;
             }
             // So does a firework rocket: its own tick flies it on.
-            if path.is_some()
+            if to.is_some()
                 && let Some(f) = self.rockets.iter_mut().find(|f| f.id == id as u32)
             {
                 f.position = Vec3::new(position[0], position[1], position[2]);
@@ -3356,7 +3395,7 @@ impl Game<'_> {
                 // A minecart on NewMinecartBehavior keeps Entity's NO_OP
                 // InterpolationHandler: a teleport puts it there at once.
                 if let Some(c) = self.carts.iter_mut().find(|c| c.id == id as u32) {
-                    if path.is_some() {
+                    if to.is_some() {
                         c.position = at;
                     }
                     if let Some((yaw, pitch)) = rotation {
@@ -3412,7 +3451,7 @@ impl Game<'_> {
             r.passenger_vehicles.retain(|_, v| *v != id as u32);
             r.lerps.remove(&id);
             r.cart_lerps.remove(&id);
-            r.stepped.remove(&id);
+            r.interpolation.remove(&id);
             r.head_lerps.remove(&id);
             r.pending_items.remove(&id);
         }
@@ -4007,62 +4046,50 @@ impl Game<'_> {
                     .and_then(|r| r.entities.get(&m.id))
                     .map(|t| t.codec_base);
                 let Some(base) = base else { return Ok(()) };
-                // VecDeltaCodec.decode: each step's position from the last.
-                let path = m.delta.as_ref().map(|d| match d {
-                    play::VecDelta::Linear(_) => Path::Linear(d.end(base)),
-                    play::VecDelta::Stepped(steps) => {
-                        let mut at = base;
-                        Path::Stepped(
-                            steps
-                                .iter()
-                                .map(|(delta, ticks)| {
-                                    at = play::VecDelta::apply(at, *delta);
-                                    (at, *ticks)
-                                })
-                                .collect(),
-                        )
-                    }
-                });
+                // VecDeltaCodec.decode.
+                let to = m.delta.as_ref().map(|d| d.end(base));
                 let rotation = m.rotation.map(|(y, x)| {
                     (
                         horizon_protocol::buf::unpack_degrees(y),
                         horizon_protocol::buf::unpack_degrees(x),
                     )
                 });
-                if let (Some(path), Some(t)) = (
-                    &path,
+                if let (Some(to), Some(t)) = (
+                    &to,
                     self.remote.as_mut().and_then(|r| r.entities.get_mut(&m.id)),
                 ) {
-                    t.codec_base = path.end();
+                    t.codec_base = *to;
                 }
-                self.move_entity(m.id, path, rotation, m.on_ground, MovePacket::Move);
+                self.move_entity(m.id, to, rotation, m.on_ground, MovePacket::Move);
             }
             C::EntityPositionSync(p) => {
-                let path = match p.path {
-                    play::PositionPath::Linear(at) => Path::Linear(at),
-                    play::PositionPath::Stepped(steps) => Path::Stepped(steps),
-                };
-                // handleEntityPositionSync: the position codec's base is set.
+                // handleEntityPositionSync: the position codec's base is set
+                // to the sync's position (its delta movement is not applied).
                 if let Some(t) = self.remote.as_mut().and_then(|r| r.entities.get_mut(&p.id)) {
-                    t.codec_base = path.end();
+                    t.codec_base = p.values.position;
                 }
                 self.move_entity(
                     p.id,
-                    Some(path),
-                    Some((p.yaw, p.pitch)),
+                    Some(p.values.position),
+                    Some((p.values.yaw, p.values.pitch)),
                     p.on_ground,
                     MovePacket::PositionSync,
                 )
             }
             C::TeleportEntity(p) => {
-                let base = self
+                // setValuesFromPositionPacket: relatives resolve against
+                // PositionMoveRotation.of(entity) — where the entity is
+                // headed (its interpolation target while one runs), not
+                // where it is. The tracked position is that heading.
+                let tracked = self
                     .remote
                     .as_ref()
                     .and_then(|r| r.entities.get(&p.id))
-                    .map_or([0.0; 3], |t| t.position);
+                    .map(|t| t.position)
+                    .unwrap_or([0.0; 3]);
                 let rel = |bit: i32, i: usize| {
                     if p.relatives & bit != 0 {
-                        base[i] + p.position[i]
+                        tracked[i] + p.position[i]
                     } else {
                         p.position[i]
                     }
@@ -4072,11 +4099,24 @@ impl Game<'_> {
                     rel(play::relative::Y, 1),
                     rel(play::relative::Z, 2),
                 ];
+                let (base_yaw, base_pitch) = self.teleport_heading(p.id);
+                let yaw = if p.relatives & play::relative::Y_ROT != 0 {
+                    base_yaw + p.yaw
+                } else {
+                    p.yaw
+                };
+                let pitch = if p.relatives & play::relative::X_ROT != 0 {
+                    base_pitch + p.pitch
+                } else {
+                    p.pitch
+                };
                 // setValuesFromPositionPacket: interpolated, unless too far.
+                // (The packet's delta movement is not applied: a remote
+                // entity moves by interpolation, not by velocity.)
                 self.move_entity(
                     p.id,
-                    Some(Path::Linear(position)),
-                    Some((p.yaw, p.pitch)),
+                    Some(position),
+                    Some((yaw, pitch)),
                     p.on_ground,
                     MovePacket::Teleport,
                 );
@@ -4660,7 +4700,8 @@ impl Game<'_> {
                     self.remote_firework_explosion(p.id);
                 }
                 self.remote_fangs_event(p.id as u32, p.event);
-                self.remote_boat_event(p.id, p.event);
+                // 26.2's AbstractBoat has no handleEntityEvent: 71/72 are
+                // ignored (26.3's bubble-column broadcasts).
                 // MinecartTNT.handleEntityEvent 70: prime the fuse the window draws.
                 self.remote_tnt_cart_event(p.id, p.event);
                 // Arrow.handleEntityEvent 0: a tipped arrow's burst of particles.
@@ -4861,7 +4902,7 @@ impl Game<'_> {
             C::Animate(p) if p.action == 0 || p.action == 3 => {
                 let hand = if p.action == 3 { Hand::Off } else { Hand::Main };
                 if self.remote.as_ref().is_some_and(|r| r.entity_id == p.id) {
-                    self.swing_hand(hand, SwingAnimation::DEFAULT);
+                    self.swing_hand(hand);
                 } else if let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32) {
                     m.swing_hand_modified(hand == Hand::Off, SwingAnimation::DEFAULT);
                 }
@@ -5172,12 +5213,10 @@ impl Game<'_> {
                         Ok(9) => c.triggered = v == 1,
                         _ => {}
                     },
-                    // BrewingStandBlockEntity.dataAccess.
+                    // BrewingStandBlockEntity.dataAccess (26.2: 2 slots).
                     Some(BlockEntity::Brewing(b)) => match p.id {
                         0 => b.brew_time = v,
                         1 => b.fuel = v,
-                        2 => b.total_brew_time = v,
-                        3 => b.total_fuel = v,
                         _ => {}
                     },
                     _ => {}
@@ -6328,7 +6367,7 @@ impl Game<'_> {
     /// `ServerPlayer.dismountTo` lands a rider at the ghast's own (x, maxY, z)
     /// (`HappyGhast.getDismountLocationForPassenger`). A vanilla client
     /// simulates the ghast it rides, so its copy is where the server has it;
-    /// this window's copy trails the server's by the stepped interpolation and
+    /// this window's copy trails the server's by the interpolation and
     /// would rise into the rider's feet, which lets the rider fall through.
     /// Put the copy under the landing spot.
     fn place_ghast_under(&mut self, id: u32, spot: Vec3) {
@@ -6351,7 +6390,7 @@ impl Game<'_> {
         if let Some(handler) = self
             .remote
             .as_mut()
-            .and_then(|r| r.stepped.get_mut(&(id as i32)))
+            .and_then(|r| r.interpolation.get_mut(&(id as i32)))
         {
             handler.cancel();
         }
@@ -6504,9 +6543,13 @@ impl Game<'_> {
         );
         let section_ready = self.streaming.is_lit(cx, cz);
         let camera_y = (player.position.y + f64::from(self.eye)).floor() as i32;
+        let player_y = player.position.y.floor() as i32;
         let shape = self.world.shape;
         let check = horizon_client::level_loading::PlayerCheck {
-            outside_build_height: camera_y < shape.min_y || camera_y >= shape.min_y + shape.height,
+            player_outside_build_height: player_y < shape.min_y
+                || player_y >= shape.min_y + shape.height,
+            camera_outside_build_height: camera_y < shape.min_y
+                || camera_y >= shape.min_y + shape.height,
             spectator: player.spectator,
             alive: player.health.health() > 0.0,
         };
@@ -7354,7 +7397,7 @@ impl Game<'_> {
         };
         let mut lerps = std::mem::take(&mut r.lerps);
         let mut cart_lerps = std::mem::take(&mut r.cart_lerps);
-        let stepped = &mut r.stepped;
+        let interpolation = &mut r.interpolation;
         let head_lerps = &mut r.head_lerps;
         let players = &r.level_players;
         let tab_players = &r.tab_players;
@@ -7444,8 +7487,8 @@ impl Game<'_> {
             // LivingEntity.updateSwingTime.
             m.anim.attack_anim_o = m.anim.attack_anim;
             horizon_client::mobs::ai::tick_swing(m);
-            // Entity.tick: the SteppedInterpolationHandler's step.
-            if let Some(at) = stepped
+            // Entity.tick: the InterpolationHandler's step.
+            if let Some(at) = interpolation
                 .get_mut(&(m.id as i32))
                 .and_then(|h| h.interpolate())
             {
@@ -7631,7 +7674,7 @@ impl Game<'_> {
                     &self.res.motion().fluids,
                     &mut |_, _| {},
                 );
-                // `tick` set `previous` to the stepped position: keep the
+                // `tick` set `previous` to the interpolated position: keep the
                 // pre-step one, as `xo` is in vanilla.
                 o.previous = old;
                 // AbstractInterpolationHandler.applyPredictedMovement: the orb's
@@ -7696,11 +7739,11 @@ impl Game<'_> {
                 });
             self.tick_remote_dragon(dragon_lerp);
             // Armor stands: ClientLevel.tickNonPassenger's setOldPosAndRot,
-            // then their SteppedInterpolationHandler's step, as the mobs'.
+            // then their InterpolationHandler's step, as the mobs'.
             if let Some(r) = self.remote.as_mut() {
                 for a in &mut self.armor_stands {
                     let step = r
-                        .stepped
+                        .interpolation
                         .get_mut(&(a.id as i32))
                         .and_then(|h| h.interpolate());
                     a.interpolate(step.map(|at| {
@@ -8050,8 +8093,10 @@ impl Game<'_> {
         };
         let state = self.world.block(pos[0], pos[1], pos[2]);
         self.tutorial_destroy(state, -1.0);
+        // ABORT_DESTROY_BLOCK is 1 in 26.2 (26.3 inserted
+        // CHANGE_DESTROY_DIRECTION at 1, so its abort is 2).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 2,
+            action: 1,
             pos,
             direction: 0,
             sequence: 0,
@@ -8145,7 +8190,7 @@ impl Game<'_> {
                 let old_state = self.world.block(old[0], old[1], old[2]);
                 self.tutorial_destroy(old_state, -1.0);
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 2,
+                    action: 1,
                     pos: old,
                     direction: face,
                     sequence: 0,
@@ -8174,9 +8219,9 @@ impl Game<'_> {
                 r.destroying_item = held;
                 r.is_destroying = true;
             }
-            // startDestroyBlock plays the first hit and crack itself; the
-            // server's level events 2019 and 2020 do the rest.
-            self.breaking_block_effects(hit.pos, hit.face, true);
+            // 26.2's startDestroyBlock plays nothing: the hit sound comes
+            // from continueDestroyBlock's every-fourth-tick schedule below,
+            // and there are no crack particles while digging (no 2019/2020).
             self.mining = Some(Mining {
                 pos: hit.pos,
                 progress: 0.0,
@@ -8185,12 +8230,19 @@ impl Game<'_> {
             });
             return;
         }
-        let Some((pos, last_face, done)) = self.remote.as_ref().and_then(|r| r.destroying) else {
+        let Some((pos, _last_face, done)) = self.remote.as_ref().and_then(|r| r.destroying) else {
             return;
         };
         let done = done + progress;
         self.tutorial_destroy(state, done.clamp(0.0, 1.0));
         let ticks = self.mining.as_ref().map_or(0, |m| m.ticks) + 1;
+        // `MultiPlayerGameMode.continueDestroyBlock`: the hit sound on
+        // destroy ticks 0, 4, 8, ... — `ticks` here is 1-based (0 at START),
+        // so it lands on 1, 5, 9, ... — before the break check, so a
+        // fourth-tick break still sounds.
+        if (ticks - 1).is_multiple_of(4) {
+            self.breaking_block_sound(pos);
+        }
         if done >= 1.0 {
             let seq = self.next_sequence();
             // DebugStickItem.canDestroyBlock: the server selects the property
@@ -8199,7 +8251,7 @@ impl Game<'_> {
                 self.predict_break(pos, state, seq);
             }
             self.send(S::PlayerAction(play::PlayerAction {
-                action: 3,
+                action: 2,
                 pos,
                 direction: face,
                 sequence: seq,
@@ -8214,14 +8266,9 @@ impl Game<'_> {
             }
             self.mining = None;
         } else {
-            if last_face != face {
-                self.send(S::PlayerAction(play::PlayerAction {
-                    action: 1,
-                    pos,
-                    direction: face,
-                    sequence: 0,
-                }));
-            }
+            // 26.2 has no direction-change packet (26.3's
+            // CHANGE_DESTROY_DIRECTION): the face is kept locally and rides
+            // on the STOP when the dig completes.
             if let Some(r) = self.remote.as_mut() {
                 r.destroying = Some((pos, face, done));
             }
@@ -8312,7 +8359,7 @@ impl Game<'_> {
         // ends the whole click, the off hand gets no turn.
         if let Some(swing) = self.native_interaction(1, Hand::Main) {
             if swing {
-                self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+                self.swing_hand(Hand::Main);
             }
             return;
         }
@@ -8370,32 +8417,19 @@ impl Game<'_> {
                         self.boat_has_room(i),
                     )
                 });
-            let (cart_passes, is_rideable_cart) = self
+            let cart_passes = self
                 .carts
                 .iter()
                 .find(|c| c.id as i32 == hit.id)
                 .map(|c| {
                     let ridden = self.riding == Some(c.id)
                         || self.mobs.iter().any(|m| m.extra.mount == Some(c.id));
-                    (
-                        c.kind
-                            .interact_passes(sneaking, ridden, self.can_use_game_master_blocks()),
-                        c.kind == super::minecarts::CartKind::Rideable,
-                    )
+                    c.kind
+                        .interact_passes(sneaking, ridden, self.can_use_game_master_blocks())
                 })
-                .unwrap_or((false, false));
-            // Cushion.interact on a client: PASS when sneaked at or when
-            // something already sits on it, CONSUME (no swing) otherwise.
-            let is_cushion = self.cushions.iter().any(|c| c.id as i32 == hit.id);
-            let cushion_passes = is_cushion
-                && (sneaking
-                    || self.riding.is_some_and(|r| r as i32 == hit.id)
-                    || self
-                        .mobs
-                        .iter()
-                        .any(|m| m.extra.mount.is_some_and(|r| r as i32 == hit.id)));
+                .unwrap_or(false);
             let passes =
-                is_painting || frame_passes || boat_passes || cart_passes || cushion_passes;
+                is_painting || frame_passes || boat_passes || cart_passes;
             // Otherwise the main hand's turn takes it; there is no off hand turn.
             if response.is_none() && hand == Hand::Off && !passes {
                 return false;
@@ -8425,11 +8459,10 @@ impl Game<'_> {
             }) {
                 self.open_cart_command_block(hit.id as u32);
             }
-            // Minecart.interact boards the cart and answers CONSUME on the client,
-            // which ends the click without an arm swing. AbstractBoat.interact
-            // answers SUCCESS there, which swings. Cushion.interact answers
-            // CONSUME there too.
-            if remote_object_swings(response, is_rideable_cart || is_cushion) {
+            // Minecart.interact boards the cart and answers SUCCESS on the
+            // client in 26.2, which swings the arm (26.3 changed it to
+            // CONSUME). AbstractBoat.interact answers SUCCESS there too.
+            if remote_object_swings(response, false) {
                 self.with_hand(hand, Game::swing_arm);
             }
             return true;
@@ -8612,9 +8645,9 @@ impl Game<'_> {
                 if result.should_swing() {
                     self.with_hand(hand, Game::swing_arm);
                 }
-            } else if self.predict_campfire_douse(hit.pos, held.as_ref(), seq) {
-                // CampfireBlock.useItemOn succeeded: this hand swings and the
-                // click ends, so a shield in the other hand is not raised.
+            } else if self.predict_campfire_douse(hit.pos, held.as_ref(), hit.face, seq) {
+                // ShovelItem.useOn doused the campfire: this hand swings and
+                // the click ends, so a shield in the other hand is not raised.
                 self.with_hand(hand, Game::swing_arm);
                 return true;
             } else if held.as_ref().is_some_and(|s| &*s.item == "minecraft:brush") {
@@ -8659,7 +8692,7 @@ impl Game<'_> {
                 && &*stack.item == "minecraft:potion"
                 && stack.potion() == Some("minecraft:water")
                 && hit.face != [0, -1, 0]
-                && self.block_in_tag("minecraft:convertible_to_mud", &self.block_name(hit.pos))
+                && self.block_in_tag("minecraft:convertable_to_mud", &self.block_name(hit.pos))
                 && (self.may_build()
                     || self.with_hand(hand, |g| g.can_place_on_in_adventure(hit.pos)))
             {
@@ -8748,8 +8781,7 @@ impl Game<'_> {
     /// `playSound(player, ...)`: the server sends them to the others only):
     /// honeycomb waxing copper, and an axe, hoe or shovel transforming a
     /// block (stripping, scraping, removing wax, tilling, making a path).
-    /// A cushion succeeds where it may be placed and spawns on the server, a
-    /// firework rocket wherever it may be used, and the server launches it.
+    /// A firework rocket wherever it may be used, and the server launches it.
     /// Whether the item's use succeeded, which ends the click.
     fn predict_item_on_block(&mut self, stack: &ItemStack, hit: &super::Hit, hand: Hand) -> bool {
         // FireworkRocketItem.useOn: SUCCESS on the client too, so neither
@@ -8782,17 +8814,15 @@ impl Game<'_> {
                 .and_then(|old| self.res.transformers().waxed(registry, old))
                 .is_some();
             if waxes {
+                // The events carry the wax-on sound in 26.2
+                // (LevelEventHandler 3003); no explicit play.
                 self.level_event_at(3003, hit.pos, 0);
-                self.audio
-                    .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
-                // The other half of a double chest: its particles, and a second
-                // sound from the clicked block.
+                // The other half of a double chest: its own event (with its
+                // own sound, at the other half).
                 if let Some(other) =
                     old.and_then(|old| super::storage::chest_connected_pos(old, hit.pos))
                 {
                     self.level_event_at(3003, other, 0);
-                    self.audio
-                        .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
                 }
             }
             waxes
@@ -8802,15 +8832,6 @@ impl Game<'_> {
             self.transform_particle(&particle, hit.pos);
             self.audio.play(&sound, Some(at), 1.0, 1.0);
             true
-        } else if self
-            .res
-            .items()
-            .get(&stack.item)
-            .is_some_and(|i| i.cushion_color.is_some())
-        {
-            // CushionItem.useOn on a client level: SUCCESS once
-            // `canBePlacedAt` holds, before the server's own checks.
-            self.cushion_spawn(hit).is_some()
         } else if &*stack.item == "minecraft:painting" {
             // HangingEntityItem.useOn on a client level: SUCCESS once
             // `Painting.create` finds a surviving variant, before the
@@ -9303,13 +9324,9 @@ impl Game<'_> {
         if self.with_hand(hand, |g| g.use_finds_no_target(&held)) {
             return false;
         }
-        // It runs the use here too: ItemStack.use starts the `use_cooldown`
-        // of an item with no use time, and the server's
-        // ClientboundCooldownPacket confirms it; one held in use starts it at
-        // finishUsingItem (remote_complete_using).
-        if !info.consumable.as_ref().is_some_and(|c| c.ticks() > 0) {
-            self.apply_use_cooldown(&held);
-        }
+        // 26.2's ItemStack.use does not apply the `use_cooldown` component:
+        // an instantly used item starts no cooldown. One held in use starts
+        // it at finishUsingItem (remote_complete_using).
         if self.with_hand(hand, |g| g.remote_use_book(&held)) {
             // WritableBookItem.use's SUCCESS (SwingSource.CLIENT).
             self.with_hand(hand, Game::swing_arm);
@@ -9321,7 +9338,7 @@ impl Game<'_> {
             return false;
         }
         let gliding = self.player.as_ref().is_some_and(|p| p.fall_flying);
-        // FireworkRocketItem.use while gliding: SUCCESS (SwingSource.PREDICTED),
+        // FireworkRocketItem.use while gliding: SUCCESS (SwingSource.CLIENT),
         // so startUseItem swings this hand itself; a vanilla server swings it
         // for the other players only.
         if gliding && &*held.item == "minecraft:firework_rocket" {
@@ -9520,7 +9537,7 @@ impl Game<'_> {
         // The off hand's turn: the event again, then the entity or the block.
         if let Some(swing) = self.native_interaction(1, Hand::Off) {
             if swing {
-                self.swing_hand(Hand::Off, SwingAnimation::DEFAULT);
+                self.swing_hand(Hand::Off);
             }
             return;
         }
@@ -9587,8 +9604,9 @@ impl Game<'_> {
                 self.brush_dust(hit, slot == super::shield::OFFHAND_SLOT);
             }
             if hit.is_none() && in_hand {
+                // RELEASE_USE_ITEM is 5 in 26.2 (26.3's 6).
                 self.send(S::PlayerAction(play::PlayerAction {
-                    action: 6,
+                    action: 5,
                     pos: [0; 3],
                     direction: 0,
                     sequence: 0,
@@ -9831,8 +9849,7 @@ impl Game<'_> {
         // an attack: a cancel ends it there, swinging unless the mod said not to.
         if let Some(swing) = self.native_interaction(0, Hand::Main) {
             if swing {
-                let animation = spear.map_or(SwingAnimation::DEFAULT, |k| k.attack_animation());
-                self.swing_hand(Hand::Main, animation);
+                self.swing_hand(Hand::Main);
             }
             return false;
         }
@@ -9840,15 +9857,15 @@ impl Game<'_> {
         // stabs, this client swings, plays the sound and starts its charge
         // again.
         if let Some(kinetic) = spear {
-            // ServerboundPlayerActionPacket.Action.STAB.
+            // ServerboundPlayerActionPacket.Action.STAB is 7 in 26.2 (26.3's 8).
             self.send(S::PlayerAction(play::PlayerAction {
-                action: 8,
+                action: 7,
                 pos: [0; 3],
                 direction: 0,
                 sequence: 0,
             }));
             self.hand_strength.reset_attack();
-            self.swing_hand(Hand::Main, kinetic.attack_animation());
+            self.swing_hand(Hand::Main);
             self.play_at_feet(kinetic.attack_sound);
             return true;
         }
@@ -9904,7 +9921,6 @@ impl Game<'_> {
             self.reset_attack_strength();
         }
         self.swing_arm();
-        self.send(S::Swing(Empty));
         instant
     }
 
@@ -10023,14 +10039,12 @@ impl Game<'_> {
             if let Some(swing) = canceled {
                 if swing {
                     self.swing_arm();
-                    self.send(S::Swing(Empty));
                 }
             } else if self.remote_break_restricted(hit.pos) {
                 // continueDestroyBlock returned false: no swing.
             } else if !air {
                 self.remote_mining(false);
                 self.swing_arm();
-                self.send(S::Swing(Empty));
             } else {
                 if let Some(r) = self.remote.as_mut() {
                     r.destroying = None;
@@ -10141,8 +10155,9 @@ impl Game<'_> {
     /// player itself). Vanilla reaches it both when the use key is let go and,
     /// in the same tick, when a keybind opens a screen.
     fn release_remote_use(&mut self) {
+        // RELEASE_USE_ITEM is 5 in 26.2 (26.3's 6).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 6,
+            action: 5,
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10181,29 +10196,32 @@ impl Game<'_> {
             self.send_signed_chat(message);
         }
     }
-    /// MultiPlayerGameMode.dropItem (key.drop): predict the removal, then send
-    /// the action; swing only if a nonempty stack was removed.
+    /// `LocalPlayer.drop` (key.drop): predict the removal, then send
+    /// the action; swing only if a nonempty stack was removed (the swing
+    /// itself sends the swing packet, 26.2's `LocalPlayer.swing`).
     pub(super) fn remote_drop(&mut self, all: bool) {
         // ensureHasSentCarriedItem: the server drops from the slot just chosen.
         self.remote_send_carried();
         let dropped =
             horizon_client::items::take_held_drop(&mut self.inventory[self.selected], all, false);
         self.send(S::PlayerAction(play::PlayerAction {
-            action: if all { 4 } else { 5 },
+            // DROP_ALL_ITEMS is 3 and DROP_ITEM 4 in 26.2 (26.3's 4 and 5).
+            action: if all { 3 } else { 4 },
             pos: [0; 3],
             direction: 0,
             sequence: 0,
         }));
         if dropped.is_some() {
-            self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+            self.swing_hand(Hand::Main);
         }
     }
     /// Minecraft.handleKeybinds, key.swapOffhand: the server swaps the hands
     /// (ServerboundPlayerActionPacket SWAP_ITEM_WITH_OFFHAND at BlockPos.ZERO, facing down) and
     /// sends both slots back; nothing is predicted.
     pub(super) fn remote_swap_hands(&mut self) {
+        // SWAP_ITEM_WITH_OFFHAND is 6 in 26.2 (26.3's 7).
         self.send(S::PlayerAction(play::PlayerAction {
-            action: 7,
+            action: 6,
             pos: [0; 3],
             direction: 0,
             sequence: 0,
@@ -10326,7 +10344,7 @@ impl Game<'_> {
         // LivingEntity.drop(.., Prediction.PREDICTED): the client swings its own
         // main hand; the server shows the swing only to the other players.
         if threw {
-            self.swing_hand(Hand::Main, SwingAnimation::DEFAULT);
+            self.swing_hand(Hand::Main);
         }
         true
     }
@@ -10642,7 +10660,6 @@ impl Game<'_> {
                     lit_total: 0,
                     cooking_timer: 0,
                     cooking_total: 0,
-                    speed: 1.0,
                     recipes_used: std::collections::HashMap::new(),
                 }))
             }
@@ -11439,7 +11456,8 @@ fn use_ends_click(info: &horizon_client::items::ItemInfo, fall_flying: bool) -> 
 }
 
 /// Whether `Item.use` of this item answers SUCCESS on this client, which
-/// swings (`MultiPlayerGameMode.useItem`'s `result.shouldSwing()`), rather
+/// swings (26.2's `MultiPlayerGameMode.useItem` returns the result and
+/// `Minecraft.startUseItem` swings on `swingSource() == SwingSource.CLIENT`), rather
 /// than CONSUME, which only ends the click: a bow, crossbow, trident or
 /// spear starting its charge, `ItemUtils.startUsingInstantly`'s food, drink,
 /// spyglass, shield and goat horn, and the ender eye's SUCCESS_SERVER (the
@@ -11461,8 +11479,8 @@ fn remote_use_swings(held: &ItemStack, consumable: bool) -> bool {
 
 /// Whether an object interaction on the client predicts a hand swing (`InteractionResult.SUCCESS`).
 /// Boarding a minecart answers CONSUME and does not swing.
-fn remote_object_swings(response: Option<bool>, is_boarding: bool) -> bool {
-    response.unwrap_or(!is_boarding)
+fn remote_object_swings(response: Option<bool>, answers_consume: bool) -> bool {
+    response.unwrap_or(!answers_consume)
 }
 
 /// Whether right-clicking an item frame passes (`InteractionResult.PASS`).
@@ -12052,7 +12070,7 @@ mod tests {
         let start = [5.0, 64.0, 7.0];
         game.spawn_entity(target, "minecraft:player", start, [0.0; 3]);
         game.particles.requested = Some(Vec::new());
-        for action in [1, 2] {
+        for action in [4, 5] {
             game.handle_packet(C::Animate(play::Animate { id: target, action }))
                 .unwrap();
         }
@@ -12074,9 +12092,12 @@ mod tests {
         .unwrap();
         game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
             id: target,
-            path: play::PositionPath::Linear(moved),
-            yaw: 0.0,
-            pitch: 0.0,
+            values: play::PositionMoveRotation {
+                position: moved,
+                delta_movement: [0.0; 3],
+                yaw: 0.0,
+                pitch: 0.0,
+            },
             on_ground: true,
         }))
         .unwrap();
@@ -12407,9 +12428,10 @@ mod tests {
         assert!(boat_interact_passes(true, false, true, true));
         assert!(!boat_interact_passes(true, false, true, false));
 
-        // Swings: boarding a rideable cart answers CONSUME (no swing).
+        // Swings: an object whose interact answers CONSUME swings nothing.
         assert!(!remote_object_swings(None, true));
-        // Swings: other object interactions, a boat's boarding too, answer SUCCESS.
+        // Swings: other object interactions, a boat's and a cart's boarding
+        // too, answer SUCCESS.
         assert!(remote_object_swings(None, false));
         // Interaction entities honor response.
         assert!(remote_object_swings(Some(true), false));
@@ -12569,9 +12591,12 @@ mod tests {
         );
         game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
             id: 40,
-            path: play::PositionPath::Linear([12.0, 67.0, -4.0]),
-            yaw: 45.0,
-            pitch: 0.0,
+            values: play::PositionMoveRotation {
+                position: [12.0, 67.0, -4.0],
+                delta_movement: [0.0; 3],
+                yaw: 45.0,
+                pitch: 0.0,
+            },
             on_ground: true,
         }))
         .unwrap();
@@ -12714,7 +12739,7 @@ mod tests {
         );
     }
 
-    /// `MultiPlayerGameMode.useItem`'s `shouldSwing`: the SUCCESS answers
+    /// `Minecraft.startUseItem`'s `swingSource() == SwingSource.CLIENT`: the SUCCESS answers
     /// swing, CONSUME's do not (#6425).
     #[test]
     fn a_thrown_item_swinging_on_a_server_and_a_charge_not() {
@@ -12916,54 +12941,54 @@ mod tests {
     /// is, a teleport from where its interpolation is headed.
     #[test]
     fn a_far_move_snaps_by_the_packets_own_measure() {
-        use super::{MovePacket, Path, PosRot, SteppedInterpolation};
+        use super::{InterpolationHandler, MovePacket, PosRot};
         let at = |x: f64| PosRot {
             position: [x, 0.0, 0.0],
             yaw: 0.0,
             pitch: 0.0,
         };
-        let mut handler = SteppedInterpolation::new(3);
+        let mut handler = InterpolationHandler::new(3);
         // At x 0, headed for x 50.
-        handler.interpolate_to(at(0.0), Some(Path::Linear([50.0, 0.0, 0.0])), None);
+        handler.interpolate_to(at(0.0), [50.0, 0.0, 0.0], 0.0, 0.0);
         let to = [100.0, 0.0, 0.0];
         assert!(MovePacket::PositionSync.snaps(&handler, at(0.0), to));
         assert!(!MovePacket::Teleport.snaps(&handler, at(0.0), to));
         assert!(!MovePacket::Move.snaps(&handler, at(0.0), to));
         // With nothing in flight, both measure from the entity.
-        let idle = SteppedInterpolation::new(3);
+        let idle = InterpolationHandler::new(3);
         assert!(MovePacket::Teleport.snaps(&idle, at(0.0), to));
         assert!(!MovePacket::Teleport.snaps(&idle, at(0.0), [60.0, 0.0, 0.0]));
     }
 
     /// A far sync puts the entity there and drops the steps it was walking;
     /// a rotation alone keeps the position it is headed for and turns there
-    /// over the update interval.
+    /// over three ticks.
     #[test]
     fn a_living_entitys_move_snaps_or_steps() {
-        use super::{MovePacket, Path, PosRot, SteppedInterpolation, stepped_move};
+        use super::{InterpolationHandler, MovePacket, PosRot, interpolated_move};
         let at = |x: f64, yaw: f32| PosRot {
             position: [x, 0.0, 0.0],
             yaw,
             pitch: 0.0,
         };
-        let mut handler = SteppedInterpolation::new(3);
+        let mut handler = InterpolationHandler::new(3);
         // Walking to x 5 when the far sync comes.
-        handler.interpolate_to(at(0.0, 0.0), Some(Path::Linear([5.0, 0.0, 0.0])), None);
+        handler.interpolate_to(at(0.0, 0.0), [5.0, 0.0, 0.0], 0.0, 0.0);
         assert!(handler.active());
         let far = [100.0, 0.0, 0.0];
-        let snap = stepped_move(
+        let snap = interpolated_move(
             &mut handler,
             MovePacket::PositionSync,
             at(0.0, 0.0),
             far,
-            Some(Path::Linear(far)),
+            Some(far),
             Some((90.0, 0.0)),
         );
         assert_eq!(snap, Some(at(100.0, 90.0)));
         assert!(!handler.active());
         assert_eq!(handler.interpolate(), None, "no step back toward x 5");
         // A rotation-only move packet.
-        let turn = stepped_move(
+        let turn = interpolated_move(
             &mut handler,
             MovePacket::Move,
             at(100.0, 90.0),

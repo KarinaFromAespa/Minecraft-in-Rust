@@ -142,102 +142,121 @@ impl Behaviours {
     }
 }
 
-/// The four (state, position) pairs of a 2x2 sapling square.
-type Saplings = [(BlockStateId, BlockPos); 4];
-
-/// `TreeGrower` (vanilla's registered growers, by name).
+/// `TreeGrower` (vanilla's registered growers, by name): 26.2's
+/// secondary-chance form — one primary and one secondary tree, mega tree
+/// and flower tree each (26.3 replaced them with weighted lists, and added
+/// the poplar grower).
 pub(crate) struct TreeGrower {
     pub name: &'static str,
-    trees: &'static [(&'static str, i32)],
-    mega_trees: &'static [(&'static str, i32)],
-    flower_trees: &'static [(&'static str, i32)],
-    shortest: Option<&'static str>,
+    secondary_chance: f32,
+    mega_tree: Option<&'static str>,
+    secondary_mega_tree: Option<&'static str>,
+    tree: Option<&'static str>,
+    secondary_tree: Option<&'static str>,
+    flowers: Option<&'static str>,
+    secondary_flowers: Option<&'static str>,
 }
 
 pub(crate) const GROWERS: &[TreeGrower] = &[
     TreeGrower {
         name: "oak",
-        trees: &[("minecraft:oak", 9), ("minecraft:fancy_oak", 1)],
-        mega_trees: &[],
-        flower_trees: &[
-            ("minecraft:oak_bees_005", 9),
-            ("minecraft:fancy_oak_bees_005", 1),
-        ],
-        shortest: Some("minecraft:oak"),
+        secondary_chance: 0.1,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:oak"),
+        secondary_tree: Some("minecraft:fancy_oak"),
+        flowers: Some("minecraft:oak_bees_005"),
+        secondary_flowers: Some("minecraft:fancy_oak_bees_005"),
     },
     TreeGrower {
         name: "spruce",
-        trees: &[("minecraft:spruce", 1)],
-        mega_trees: &[("minecraft:mega_spruce", 1), ("minecraft:mega_pine", 1)],
-        flower_trees: &[],
-        shortest: Some("minecraft:spruce"),
+        secondary_chance: 0.5,
+        mega_tree: Some("minecraft:mega_spruce"),
+        secondary_mega_tree: Some("minecraft:mega_pine"),
+        tree: Some("minecraft:spruce"),
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "mangrove",
-        trees: &[("minecraft:mangrove", 15), ("minecraft:tall_mangrove", 85)],
-        mega_trees: &[],
-        flower_trees: &[],
-        shortest: Some("minecraft:mangrove"),
+        secondary_chance: 0.85,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:mangrove"),
+        secondary_tree: Some("minecraft:tall_mangrove"),
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "azalea",
-        trees: &[("minecraft:azalea_tree", 1)],
-        mega_trees: &[],
-        flower_trees: &[],
-        shortest: Some("minecraft:azalea_tree"),
+        secondary_chance: 0.0,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:azalea_tree"),
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "birch",
-        trees: &[("minecraft:birch", 1)],
-        mega_trees: &[],
-        flower_trees: &[("minecraft:birch_bees_005", 1)],
-        shortest: Some("minecraft:birch"),
+        secondary_chance: 0.0,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:birch"),
+        secondary_tree: None,
+        flowers: Some("minecraft:birch_bees_005"),
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "jungle",
-        trees: &[("minecraft:jungle_tree_no_vine", 1)],
-        mega_trees: &[("minecraft:mega_jungle_tree", 1)],
-        flower_trees: &[],
-        shortest: Some("minecraft:jungle_tree_no_vine"),
+        secondary_chance: 0.0,
+        mega_tree: Some("minecraft:mega_jungle_tree"),
+        secondary_mega_tree: None,
+        tree: Some("minecraft:jungle_tree_no_vine"),
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "acacia",
-        trees: &[("minecraft:acacia", 1)],
-        mega_trees: &[],
-        flower_trees: &[],
-        shortest: Some("minecraft:acacia"),
+        secondary_chance: 0.0,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:acacia"),
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "cherry",
-        trees: &[("minecraft:cherry", 1)],
-        mega_trees: &[],
-        flower_trees: &[("minecraft:cherry_bees_005", 1)],
-        shortest: Some("minecraft:cherry"),
+        secondary_chance: 0.0,
+        mega_tree: None,
+        secondary_mega_tree: None,
+        tree: Some("minecraft:cherry"),
+        secondary_tree: None,
+        flowers: Some("minecraft:cherry_bees_005"),
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "dark_oak",
-        trees: &[],
-        mega_trees: &[("minecraft:dark_oak", 1)],
-        flower_trees: &[],
-        shortest: None,
+        secondary_chance: 0.0,
+        mega_tree: Some("minecraft:dark_oak"),
+        secondary_mega_tree: None,
+        tree: None,
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
     TreeGrower {
         name: "pale_oak",
-        trees: &[],
-        mega_trees: &[("minecraft:pale_oak_bonemeal", 1)],
-        flower_trees: &[],
-        shortest: None,
-    },
-    TreeGrower {
-        name: "poplar",
-        trees: &[
-            ("minecraft:red_poplar", 1),
-            ("minecraft:orange_poplar", 1),
-            ("minecraft:yellow_poplar", 1),
-        ],
-        mega_trees: &[],
-        flower_trees: &[],
-        shortest: Some("minecraft:red_poplar"),
+        secondary_chance: 0.0,
+        mega_tree: Some("minecraft:pale_oak_bonemeal"),
+        secondary_mega_tree: None,
+        tree: None,
+        secondary_tree: None,
+        flowers: None,
+        secondary_flowers: None,
     },
 ];
 
@@ -245,23 +264,39 @@ pub(crate) fn grower(name: &str) -> Option<&'static TreeGrower> {
     GROWERS.iter().find(|g| g.name == name)
 }
 
-/// `WeightedList.getRandom`: no draw for an empty list.
-fn weighted<R: RandomSource>(
-    list: &'static [(&'static str, i32)],
+/// `TreeGrower.getConfiguredFeature`: one draw against the secondary chance
+/// (always drawn, even at 0); a secondary win falls through to the primary
+/// when the secondary tree is absent.
+fn configured_feature<R: RandomSource>(
+    grower: &TreeGrower,
+    random: &mut R,
+    has_flowers: bool,
+) -> Option<&'static str> {
+    if random.next_float() < grower.secondary_chance {
+        if has_flowers && let Some(flowers) = grower.secondary_flowers {
+            return Some(flowers);
+        }
+        if let Some(tree) = grower.secondary_tree {
+            return Some(tree);
+        }
+    }
+    if has_flowers && let Some(flowers) = grower.flowers {
+        return Some(flowers);
+    }
+    grower.tree
+}
+
+/// `TreeGrower.getConfiguredMegaFeature`: the draw happens only when a
+/// secondary mega tree exists (the short-circuit is vanilla's).
+fn configured_mega_feature<R: RandomSource>(
+    grower: &TreeGrower,
     random: &mut R,
 ) -> Option<&'static str> {
-    let total: i32 = list.iter().map(|e| e.1).sum();
-    if total == 0 {
-        return None;
+    if grower.secondary_mega_tree.is_some() && random.next_float() < grower.secondary_chance {
+        grower.secondary_mega_tree
+    } else {
+        grower.mega_tree
     }
-    let mut selection = random.next_int_bound(total).unwrap_or(0);
-    for &(name, weight) in list {
-        if selection < weight {
-            return Some(name);
-        }
-        selection -= weight;
-    }
-    None
 }
 
 impl<L: LevelAccess + ?Sized> Sim<'_, L> {
@@ -354,31 +389,21 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         false
     }
-    /// `TreeGrower.findTwoByTwoSaplingPos`.
-    fn two_by_two(&self, state: BlockStateId, pos: BlockPos) -> Option<(i32, i32, Saplings)> {
+    /// `TreeGrower.isTwoByTwoSapling`, over the four offsets `growTree` tries.
+    fn two_by_two(&self, state: BlockStateId, pos: BlockPos) -> Option<(i32, i32)> {
         let block = self.b.block(state);
         for dx in [0, -1] {
             for dz in [0, -1] {
-                let at = |x: i32, z: i32| {
-                    let p = pos.offset(dx + x, 0, dz + z);
-                    (self.state(p), p)
-                };
-                let around = [at(0, 0), at(1, 0), at(0, 1), at(1, 1)];
-                if around.iter().all(|(s, _)| self.b.is_block(*s, block)) {
-                    return Some((dx, dz, around));
+                let at = |x: i32, z: i32| pos.offset(dx + x, 0, dz + z);
+                if [at(0, 0), at(1, 0), at(0, 1), at(1, 1)]
+                    .iter()
+                    .all(|&p| self.b.is_block(self.state(p), block))
+                {
+                    return Some((dx, dz));
                 }
             }
         }
         None
-    }
-    /// `TreeGrower.removeSapling`: the fluid's legacy block, flags 818.
-    fn remove_sapling(&mut self, pos: BlockPos) {
-        let empty = self.b.legacy_block(self.fluid_at(pos));
-        self.set_block(
-            pos,
-            empty,
-            flags::UPDATE_SKIP_ALL_SIDEEFFECTS | flags::UPDATE_CLIENTS,
-        );
     }
     /// `TreeGrower.growTree`.
     pub(crate) fn grow_tree(
@@ -387,65 +412,57 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         pos: BlockPos,
         state: BlockStateId,
     ) -> bool {
-        if let Some(mega) = weighted(grower.mega_trees, self.random())
+        if let Some(mega) = configured_mega_feature(grower, self.random())
             && self.feature_exists(mega)
-            && let Some((dx, dz, around)) = self.two_by_two(state, pos)
+            && let Some((dx, dz)) = self.two_by_two(state, pos)
         {
-            for &(_, p) in &around {
-                self.remove_sapling(p);
+            // 26.2 clears the square to air (flag 260) and restores the passed
+            // sapling state on failure; 26.3 removes each sapling to its
+            // fluid's legacy block (flag 818) and restores the collected
+            // per-position states.
+            let air = self.b.air();
+            let square = [
+                pos.offset(dx, 0, dz),
+                pos.offset(dx + 1, 0, dz),
+                pos.offset(dx, 0, dz + 1),
+                pos.offset(dx + 1, 0, dz + 1),
+            ];
+            for &p in &square {
+                self.set_block(p, air, flags::UPDATE_NONE);
             }
             if self.place_configured_feature(mega, pos.offset(dx, 0, dz)) {
                 return true;
             }
-            for &(s, p) in &around {
-                self.set_block(p, s, flags::UPDATE_NONE);
+            for &p in &square {
+                self.set_block(p, state, flags::UPDATE_NONE);
             }
             return false;
         }
         let flowers = self.tree_has_flowers(pos);
-        let list = if flowers && !grower.flower_trees.is_empty() {
-            grower.flower_trees
-        } else {
-            grower.trees
-        };
-        let Some(feature) = weighted(list, self.random()) else {
+        let Some(feature) = configured_feature(grower, self.random(), flowers) else {
             return false;
         };
         if !self.feature_exists(feature) {
             return false;
         }
-        self.remove_sapling(pos);
+        // 26.2 clears the sapling to its fluid's legacy block with flag 260
+        // (26.3's removeSapling uses 818) and, on a successful place, sends
+        // the update explicitly when the position is still empty — the Sim's
+        // block observer already logs every change, so no extra call is
+        // needed here.
+        let empty = self.b.legacy_block(self.fluid_at(pos));
+        self.set_block(pos, empty, flags::UPDATE_NONE);
         if self.place_configured_feature(feature, pos) {
             return true;
         }
         self.set_block(pos, state, flags::UPDATE_NONE);
         false
     }
-    /// `TreeGrower.canGrow` (draws as vanilla: feature, then mega feature).
-    pub(crate) fn tree_can_grow(
-        &mut self,
-        grower: &TreeGrower,
-        pos: BlockPos,
-        state: BlockStateId,
-    ) -> bool {
-        let flowers = self.tree_has_flowers(pos);
-        let list = if flowers && !grower.flower_trees.is_empty() {
-            grower.flower_trees
-        } else {
-            grower.trees
-        };
-        let feature = weighted(list, self.random());
-        let mega = weighted(grower.mega_trees, self.random());
-        if feature.is_none() && mega.is_some() {
-            self.two_by_two(state, pos).is_some()
-        } else {
-            true
-        }
-    }
-    /// `TreeGrower.getMinimumHeight`: the shortest tree's trunk base height.
+    /// `TreeGrower.getMinimumHeight`: the primary tree's trunk base height
+    /// (26.3 reads the same key through a separate `shortestTreeType`).
     pub(crate) fn tree_minimum_height(&self, grower: &TreeGrower) -> i32 {
         grower
-            .shortest
+            .tree
             .and_then(|name| self.b.live_features()?.configured_json(name))
             .filter(|json| json["type"] == "minecraft:tree")
             .and_then(|json| json["trunk_placer"]["base_height"].as_i64())
@@ -487,5 +504,92 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         self.set_block_and_update(pos, state);
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use horizon_core::random::LegacyRandom;
+
+    /// `TreeGrower.getConfiguredFeature`: one draw against the secondary
+    /// chance; a win picks the secondary flower tree with flowers, else the
+    /// secondary tree; a loss picks the flower tree with flowers, else the
+    /// primary. The probe RNG steps the same draws, so the branch — not the
+    /// random — is what the test pins.
+    #[test]
+    fn configured_feature_draws_once_and_picks_by_the_secondary_chance() {
+        let oak = grower("oak").unwrap();
+        let mut probe = LegacyRandom::new(0);
+        let first = probe.next_float();
+        let mut random = LegacyRandom::new(0);
+        assert_eq!(
+            configured_feature(oak, &mut random, false),
+            if first < 0.1 {
+                Some("minecraft:fancy_oak")
+            } else {
+                Some("minecraft:oak")
+            }
+        );
+        // Exactly one draw: the next float is the probe's second.
+        assert_eq!(random.next_float(), probe.next_float());
+        let mut random = LegacyRandom::new(0);
+        assert_eq!(
+            configured_feature(oak, &mut random, true),
+            if first < 0.1 {
+                Some("minecraft:fancy_oak_bees_005")
+            } else {
+                Some("minecraft:oak_bees_005")
+            }
+        );
+    }
+
+    /// A 0 secondary chance still draws (the draw is unconditional) and
+    /// never wins: birch always picks its flower tree with flowers, else
+    /// the birch itself.
+    #[test]
+    fn a_zero_secondary_chance_still_draws_and_never_wins() {
+        let birch = grower("birch").unwrap();
+        let mut probe = LegacyRandom::new(7);
+        let _ = probe.next_float();
+        let mut random = LegacyRandom::new(7);
+        assert_eq!(
+            configured_feature(birch, &mut random, true),
+            Some("minecraft:birch_bees_005")
+        );
+        assert_eq!(random.next_float(), probe.next_float());
+        let mut random = LegacyRandom::new(7);
+        assert_eq!(
+            configured_feature(birch, &mut random, false),
+            Some("minecraft:birch")
+        );
+    }
+
+    /// `TreeGrower.getConfiguredMegaFeature`: the draw happens only when a
+    /// secondary mega tree exists — spruce draws once, jungle not at all.
+    #[test]
+    fn configured_mega_feature_draws_only_with_a_secondary_mega_tree() {
+        let spruce = grower("spruce").unwrap();
+        let mut probe = LegacyRandom::new(3);
+        let first = probe.next_float();
+        let mut random = LegacyRandom::new(3);
+        assert_eq!(
+            configured_mega_feature(spruce, &mut random),
+            if first < 0.5 {
+                Some("minecraft:mega_pine")
+            } else {
+                Some("minecraft:mega_spruce")
+            }
+        );
+        assert_eq!(random.next_float(), probe.next_float());
+        let jungle = grower("jungle").unwrap();
+        let mut probe = LegacyRandom::new(3);
+        let mut random = LegacyRandom::new(3);
+        assert_eq!(
+            configured_mega_feature(jungle, &mut random),
+            Some("minecraft:mega_jungle_tree")
+        );
+        // No draw: the next float is still the probe's first.
+        assert_eq!(random.next_float(), probe.next_float());
     }
 }

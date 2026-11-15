@@ -539,7 +539,7 @@ impl VanillaTerrain {
     pub fn generator_data(&self) -> &Arc<GeneratorData> {
         self.generator.data()
     }
-    /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: F3's `Density` line at
+    /// `NoiseBasedChunkGenerator.addDebugScreenInfo`: F3's `NoiseRouter` line at
     /// the feet. It reads the samplers only, not the shared query worker, so
     /// a long `/locate biome` or `/place jigsaw` never holds it up.
     pub fn density_debug_line(&self, feet: [i32; 3]) -> Option<String> {

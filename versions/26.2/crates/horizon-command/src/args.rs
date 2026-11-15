@@ -276,8 +276,10 @@ impl Coordinates {
             Coordinates::World(c) => [c[0].get(pos[0]), c[1].get(pos[1]), c[2].get(pos[2])],
             Coordinates::Local([left, up, forwards]) => {
                 use horizon_core::geometry::trig;
-                // `LocalCoordinates.apply`: widen the f32 angle for Mth's table,
-                // keep basis products f32, then sum the f64 offset before the origin.
+                // `Vec3.applyLocalCoordinatesToRotation` (26.2; 26.3 moved
+                // the same math into `LocalCoordinates.apply`): widen the
+                // f32 angle for Mth's table, keep basis products f32, then
+                // sum the f64 offset before the origin.
                 let d = trig::DEG_TO_RAD;
                 let (yaw, pitch) = (rot[0], rot[1]);
                 let cos_y = trig::cos(f64::from((yaw + 90.0) * d));

@@ -1,5 +1,4 @@
 //! Initial world-position predicates with ordered short-circuit evaluation.
-use super::anchor::VerticalAnchor;
 use super::placement::{PlacementContext, PlacementQueryError};
 use super::{DecodeError, Object, density::identifier, integer, optional, required};
 use crate::{
@@ -82,15 +81,8 @@ pub enum BlockPredicate {
         tag: String,
         offset: [i32; 3],
     },
-    HeightRange {
-        min: VerticalAnchor,
-        max: VerticalAnchor,
-    },
-    Volume {
-        min: [i32; 3],
-        max: [i32; 3],
-        predicate: Box<Self>,
-    },
+    // 26.3 added the height_range and volume_match predicates; 26.2's
+    // BLOCK_PREDICATE_TYPE registry has neither, so there are no variants.
     Not(Box<Self>),
     All(Vec<Self>),
     Any(Vec<Self>),
@@ -209,27 +201,9 @@ impl BlockPredicate {
                     .transpose()?
                     .unwrap_or([0; 3]),
             }),
-            "minecraft:height_range" => Ok(Self::HeightRange {
-                min: VerticalAnchor::from_json(required(&object, "min_inclusive")?.get())?,
-                max: VerticalAnchor::from_json(required(&object, "max_inclusive")?.get())?,
-            }),
-            "minecraft:volume_match" => {
-                let min = offset(required(&object, "min")?)?;
-                let max = offset(required(&object, "max")?)?;
-                if (0..3).any(|i| min[i] > max[i]) {
-                    return Err(DecodeError::Field("predicate volume bounds"));
-                }
-                Ok(Self::Volume {
-                    min,
-                    max,
-                    predicate: Box::new(Self::decode_with_blocks(
-                        required(&object, "match")?.get(),
-                        depth + 1,
-                        remaining,
-                        blocks,
-                    )?),
-                })
-            }
+            // minecraft:height_range and minecraft:volume_match are 26.3-only
+            // predicates; 26.2 rejects them (they fall through to the unknown
+            // block predicate type error below).
             "minecraft:true" => Ok(Self::True),
             "minecraft:not" => Ok(Self::Not(Box::new(Self::decode_with_blocks(
                 required(&object, "predicate")?.get(),
@@ -310,32 +284,6 @@ impl BlockPredicate {
                 std::array::from_fn(|i| position[i].wrapping_add(offset[i])),
                 tag,
             ),
-            Self::HeightRange { min, max } => {
-                let context = world.predicate_generation()?;
-                let min = min.resolve(context);
-                let max = max.resolve(context);
-                Ok(position[1] >= min && position[1] <= max)
-            }
-            Self::Volume {
-                min,
-                max,
-                predicate,
-            } => {
-                // Native order is X, Z, Y. Each child shares the evaluation
-                // budget, including nested volumes and early-failing queries.
-                for x in min[0]..=max[0] {
-                    for z in min[2]..=max[2] {
-                        for y in min[1]..=max[1] {
-                            let offset = [x, y, z];
-                            let p = std::array::from_fn(|i| position[i].wrapping_add(offset[i]));
-                            if !predicate.test_inner(world, p, depth + 1, remaining)? {
-                                return Ok(false);
-                            }
-                        }
-                    }
-                }
-                Ok(true)
-            }
             Self::True => Ok(true),
             Self::Not(value) => Ok(!value.test_inner(world, position, depth + 1, remaining)?),
             Self::All(values) | Self::Any(values) => {
@@ -368,8 +316,9 @@ fn vector(raw: &RawValue) -> Result<[i32; 3], DecodeError> {
 
 fn offset(raw: &RawValue) -> Result<[i32; 3], DecodeError> {
     let result = vector(raw)?;
-    // Native Math.abs(MIN_VALUE) wraps and passes this codec.
-    if result.iter().any(|v| v.wrapping_abs() > 16) {
+    // 26.2 Vec3i.offsetCodec is strict: |component| < maxOffsetPerAxis (26.3
+    // widened it to <=). Native Math.abs(MIN_VALUE) wraps and passes this codec.
+    if result.iter().any(|v| v.wrapping_abs() >= 16) {
         return Err(DecodeError::Field("predicate offset"));
     }
     Ok(result)

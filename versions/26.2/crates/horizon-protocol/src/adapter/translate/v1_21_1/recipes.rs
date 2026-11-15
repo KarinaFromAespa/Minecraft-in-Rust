@@ -317,6 +317,10 @@ impl Recipes {
         Some(key)
     }
     fn properties(&self) -> Vec<u8> {
+        // The output is the 26.3 pinned form, whose RecipePropertySet
+        // registry defines nine vanilla keys. A 1.21.1 server has no
+        // brewing recipes, so the two brewing sets stay empty — but they
+        // must still be written, because the 26.3 client reads all nine.
         const NAMES: &[&str] = &[
             "smithing_addition",
             "smithing_base",

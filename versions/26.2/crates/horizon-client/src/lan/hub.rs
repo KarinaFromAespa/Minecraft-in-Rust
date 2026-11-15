@@ -1419,13 +1419,15 @@ impl Hub {
     }
 
     /// The permission level a player gets: an integrated server gives every
-    /// guest the game masters' level when commands are allowed
-    /// (IntegratedServer.setGuestCommandAccess); a dedicated server its
-    /// operators' level (`ops`).
+    /// guest the owner's level when commands are allowed for them
+    /// (`MinecraftServer.getProfilePermissions`: a singleplayer non-owner
+    /// with `allowCommandsForAllPlayers` gets OWNER); a dedicated server
+    /// its operators' level (`ops`).
     fn default_permission(&self, uuid: u128) -> u8 {
         if self.config.integrated {
-            // IntegratedServer.getProfilePermissions / getCustomPermissionLevel.
-            let guests = if self.config.guest_commands { 2 } else { 0 };
+            // 26.2's OWNER set is level 4; 26.3 demoted guests to the
+            // game masters' level 2 (getCustomPermissionLevel).
+            let guests = if self.config.guest_commands { 4 } else { 0 };
             self.ops.get(&uuid).copied().unwrap_or(guests)
         } else {
             self.ops.get(&uuid).copied().unwrap_or(0)
@@ -3394,11 +3396,9 @@ impl Hub {
             equipment,
             attributes,
             precise: false,
-            vertical_collision: false,
-            horizontal_collision: false,
             needs_sync: false,
             sync_position: false,
-            stepped: false,
+            fall_flying: false,
             idle: false,
             bare: false,
             minecart_steps: None,
@@ -3651,11 +3651,11 @@ impl Hub {
             }));
         }
         let (id, at) = (g.entity_id, g.position);
-        // ClientboundAnimatePacket.WAKE_UP.
+        // `ClientboundAnimatePacket.WAKE_UP` (26.2: 2; 26.3 renumbered it 0).
         self.broadcast_near(
             at,
             128.0,
-            &C::Animate(play::Animate { id, action: 0 }),
+            &C::Animate(play::Animate { id, action: 2 }),
             None,
         );
     }
@@ -3930,8 +3930,6 @@ impl Hub {
             && self.guests[i].sent_health.is_some()
         {
             self.flush_advancements(i, true);
-            // 26.2 sends no post effects; the dirty flag just clears.
-            self.guests[i].post_effects_dirty = false;
         }
     }
     fn flush_advancements(&mut self, i: usize, show: bool) {
@@ -4390,10 +4388,6 @@ impl Hub {
         }
         let g = &mut self.guests[i];
         if pos.is_some() {
-            if g.position_this_tick {
-                self.kick(conn, invalid_movement());
-                return;
-            }
             g.position_this_tick = true;
         }
         // handleMovePlayer: nothing moves before the client has loaded.
@@ -4551,12 +4545,6 @@ impl Hub {
                     .is_some_and(|m| m.auto_spin_attack_ticks > 0)
                 && self.no_blocks_around(i, to, ctx.world)
         };
-        // handlePlayerPositionChange: a client that says it is on the ground while the last move
-        // the server resolved came down onto nothing is sent the blocks under it again, so a
-        // client that missed a block change cannot stand on air for good.
-        if flags & 1 != 0 && !self.guests[i].rests_on_ground {
-            self.force_send_player_support_blocks(i, ctx);
-        }
         let g = &mut self.guests[i];
         g.client_is_floating = floating;
         // Entity.move's verticalCollisionBelow, which the check above reads of the last move.
@@ -4604,64 +4592,6 @@ impl Hub {
             at[2] + half,
         ];
         no_blocks_in(world, lo, hi)
-    }
-
-    /// `ServerGamePacketListenerImpl.forceSendPlayerSupportBlocks`: the blocks just under the
-    /// player's box, at the box's four corners a hundred-thousandth below its floor, each once.
-    /// A client whose block below went missing without it noticing keeps standing on that block
-    /// on the server, so the server tells it what is there (`ClientboundBlockUpdatePacket`, and
-    /// the block entity's update tag where it has one, `BlockEntity.getUpdatePacket`). No more
-    /// than once every 200 ticks of the connection, so a client that stands on air for good is
-    /// not sent four packets four times a second.
-    fn force_send_player_support_blocks(&mut self, i: usize, ctx: &TickCtx) {
-        let tick = self.ticks.saturating_sub(self.guests[i].joined_tick);
-        if tick < self.guests[i].support_blocks_sent.saturating_add(200) {
-            return;
-        }
-        self.guests[i].support_blocks_sent = tick;
-        let conn = self.guests[i].conn;
-        let g = &self.guests[i];
-        let d = g.dimensions();
-        let half = f64::from(d.width) / 2.0;
-        let at = g.position;
-        // `box.minY - 9.999999747378752E-6`, which is (double) 1.0E-5f.
-        let y = at[1] - f64::from(1.0E-5_f32);
-        let cell = |v: f64| v.floor() as i32;
-        let mut positions: Vec<[i32; 3]> = Vec::with_capacity(4);
-        for (x, z) in [
-            (at[0] - half, at[2] - half),
-            (at[0] + half, at[2] - half),
-            (at[0] - half, at[2] + half),
-            (at[0] + half, at[2] + half),
-        ] {
-            let pos = [cell(x), cell(y), cell(z)];
-            if !positions.contains(&pos) {
-                positions.push(pos);
-            }
-        }
-        for pos @ [x, y, z] in positions {
-            let state = ctx.world.block(x, y, z);
-            self.send_to(
-                conn,
-                &C::BlockUpdate(play::BlockUpdate {
-                    pos,
-                    state: state.0 as i32,
-                }),
-            );
-            let Some(entity) = ctx.world.block_entities.get(&(x, y, z)) else {
-                continue;
-            };
-            let Some(tag) = self.encoder.update_tag((x, y, z), state.0, entity) else {
-                continue;
-            };
-            let Some(kind) = self.encoder.entity_type(state.0) else {
-                continue;
-            };
-            self.send_to(
-                conn,
-                &C::BlockEntityData(play::BlockEntityData { pos, kind, tag }),
-            );
-        }
     }
 
     /// `ServerGamePacketListenerImpl.tickPlayer`'s flying check: a player the
@@ -5108,7 +5038,6 @@ impl Hub {
             total: xp.2,
         }));
         g.sent_xp = Some(xp);
-        g.post_effects_dirty = false;
         self.send_level_info(i, ctx, true);
         self.send_permission_level(i);
         // ServerLevel.addRespawnedPlayer: the chunk tracking starts again at the player.
@@ -5217,7 +5146,6 @@ impl Hub {
             slot: g.selected as i32,
         }));
         self.send_active_effects(i);
-        self.guests[i].post_effects_dirty = false;
         let g = &mut self.guests[i];
         // lastSentExp, lastSentHealth and lastSentFood; the client's new
         // player starts with the default air and no absorption.

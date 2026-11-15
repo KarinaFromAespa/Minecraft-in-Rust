@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Compare per-stack brewing fuel acceptance and two production refuel ticks."""
+"""Compare per-stack brewing fuel acceptance and two production refuel ticks.
+
+26.2 has no `brewing_fuel` component: fuel is any item in the
+`minecraft:brewing_fuel` tag (blaze powder alone), 20 uses a powder.
+"""
 import argparse
 import json
 import os
@@ -14,13 +18,10 @@ except ImportError:
 
 
 def corpus():
-    patches = [{}, {"!minecraft:brewing_fuel": {}},
-               *[{"minecraft:brewing_fuel": {"uses": uses, "speed_multiplier": speed}}
-                 for uses, speed in [(7, 2.5), (1, 0.5), (0, 1.0), (3, 0.0)]]]
-    for item in ["minecraft:blaze_powder", "minecraft:stone"]:
+    for item in ["minecraft:blaze_powder", "minecraft:stone", "minecraft:gunpowder",
+                 "minecraft:nether_wart", "minecraft:glass_bottle"]:
         for count in [1, 2]:
-            for patch in patches:
-                yield {"item": item, "count": count, "components": patch}
+            yield {"item": item, "count": count, "components": {}}
 
 
 def main():
@@ -40,7 +41,6 @@ def main():
     tested_paths = [Path(__file__), sources / "ParityData.java", sources / "VanillaBrewingFuelOracle.java",
                     lab.ROOT / "crates/horizon-client-render/examples/brewing_fuel_probe.rs",
                     lab.ROOT / "crates/horizon-client-render/src/brewing.rs",
-                    lab.ROOT / "crates/horizon-client-render/src/providers.rs",
                     lab.ROOT / "crates/horizon-items/src/items.rs",
                     lab.ROOT / "crates/horizon-client/src/menu.rs",
                     lab.ROOT / "crates/horizon-client/src/game/machines.rs",
@@ -73,7 +73,7 @@ def main():
     base.ensure_sources_unchanged([inputs], tested_fixtures)
     lab.write_json(build / "report.json", {"schema": 1, "fixtures": len(fixtures), "references": references,
                    "sources_sha256": tested_sources, "fixtures_sha256": tested_fixtures,
-                   "scope": "Native stack components, native FuelSlot/hopper predicates versus the Rust shared resolver, and two production serverTick refuels; native provider records evaluated with the vanilla registry resolver. Empty reagent avoids recipes/world simulation. Actual Rust menu routing, brew completion and hopper transfer are separate regression tests."})
+                   "scope": "Native tag-based fuel acceptance (FuelSlot/hopper predicates versus the Rust shared resolver) and two production serverTick refuels. Empty reagent avoids recipes/world simulation. Actual Rust menu routing, brew completion and hopper transfer are separate regression tests."})
 
 
 if __name__ == "__main__":

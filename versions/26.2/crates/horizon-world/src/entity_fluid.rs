@@ -1,4 +1,11 @@
 //! Entity fluid immersion trackers and current accumulation across update ticks.
+//!
+//! The 26.2 `EntityFluidInteraction`: one `Tracker` per tag, holding the
+//! tag's immersion height, whether the eyes are in it, and the accumulated
+//! current the tag's flow pushed. A fluid whose kind no tag holds is skipped
+//! entirely; the trackers persist across ticks (26.3 split the tracker per
+//! fluid kind, moved the current into a separate per-tag accumulator, and
+//! pruned empty trackers on reset).
 use crate::fluid::{FluidKind, FluidState};
 use horizon_core::{
     geometry::{Aabb, Vec3},
@@ -46,12 +53,20 @@ pub struct ModFluidImmersion {
     pub height: f64,
     pub eyes_inside: bool,
 }
-#[derive(Clone, Copy, Debug)]
+/// A tag's immersion in one `EntityFluidInteraction`: its height, whether the
+/// eyes are in it, and the current its flow accumulated — the 26.2
+/// `EntityFluidInteraction$Tracker` (26.3 split the kind's immersion and the
+/// tag's current into two structures).
+#[derive(Clone, Copy, Debug, Default)]
 pub struct FluidTracker {
-    pub fluid: FluidKind,
     pub height: f64,
     pub eyes_inside: bool,
+    pub current: CurrentAccumulator,
 }
+/// The current a tag's flow accumulated, as `Tracker.applyCurrentTo` spends
+/// it. `height` is the mob path's immersion depth (`living.rs` sets it from
+/// its own scan); the interaction leaves it 0 — 26.2's tracker keeps the
+/// height on itself, not on the current.
 #[derive(Clone, Copy, Debug)]
 pub struct CurrentAccumulator {
     pub height: f64,
@@ -120,7 +135,6 @@ pub trait FluidInteractionWorld: FluidMembership {
     fn block_z(&self) -> i32;
     fn fluid_state(&mut self, position: BlockPos) -> Result<FluidState, Self::Error>;
     fn fluid_height(&mut self, state: FluidState, position: BlockPos) -> Result<f32, Self::Error>;
-    fn camera_height(&mut self, state: FluidState, position: BlockPos) -> Result<f32, Self::Error>;
     fn flow(&mut self, state: FluidState, position: BlockPos) -> Result<Vec3, Self::Error>;
 }
 #[derive(Debug)]
@@ -194,14 +208,15 @@ pub fn has_fluid_and_loaded<W: FluidInteractionWorld>(
 }
 #[derive(Clone, Default)]
 pub struct EntityFluidInteraction {
-    trackers: Vec<FluidTracker>,
-    currents: Vec<(FluidTagId, CurrentAccumulator)>,
+    /// One tracker per tag, in construction order — 26.2's `trackerByFluid`.
+    trackers: Vec<(FluidTagId, FluidTracker)>,
 }
 impl EntityFluidInteraction {
-    /// Preserve the caller's tag-set iteration order: a fluid's current belongs
-    /// to the first matching tag, even when several tags contain that fluid.
-    /// Each mod fluid of the table gets its own tag after the caller's (NeoForge
-    /// tracks every `FluidType`), so its current and immersion are its own.
+    /// Preserve the caller's tag-set iteration order: a fluid's tracker is
+    /// the first tag that holds it, even when several tags contain that
+    /// fluid. Each mod fluid of the table gets its own tag after the
+    /// caller's (NeoForge tracks every `FluidType`), so its current and
+    /// immersion are its own.
     pub fn new(tags: impl IntoIterator<Item = FluidTagId>) -> Self {
         let mut state = Self::default();
         for tag in tags {
@@ -211,8 +226,8 @@ impl EntityFluidInteraction {
         state
     }
     fn add_tag(&mut self, tag: FluidTagId) {
-        if !self.currents.iter().any(|(t, _)| *t == tag) {
-            self.currents.push((tag, CurrentAccumulator::default()));
+        if !self.trackers.iter().any(|(t, _)| *t == tag) {
+            self.trackers.push((tag, FluidTracker::default()));
         }
     }
     /// The table's mod fluids' tags, also for an entity made before its
@@ -225,43 +240,35 @@ impl EntityFluidInteraction {
             self.add_tag(tag);
         }
     }
-    pub fn trackers(&self) -> &[FluidTracker] {
+    /// The per-tag trackers, in construction order.
+    pub fn trackers(&self) -> &[(FluidTagId, FluidTracker)] {
         &self.trackers
     }
-    pub fn currents(&self) -> &[(FluidTagId, CurrentAccumulator)] {
-        &self.currents
-    }
-    pub fn fluid_height<W: FluidMembership>(&self, tags: &W, tag: FluidTagId) -> f64 {
-        let mut height = 0.0;
-        for t in &self.trackers {
-            if t.height > height && holds(tags, t.fluid, tag) {
-                height = t.height;
-            }
-        }
-        height
-    }
-    pub fn is_in_fluid<W: FluidMembership>(&self, tags: &W, tag: FluidTagId) -> bool {
-        self.fluid_height(tags, tag) > 0.0
-    }
-    pub fn is_eye_in_fluid<W: FluidMembership>(&self, tags: &W, tag: FluidTagId) -> bool {
+    /// `getFluidHeight`: the tag's tracker, or 0 for a tag with no tracker.
+    pub fn fluid_height(&self, tag: FluidTagId) -> f64 {
         self.trackers
             .iter()
-            .any(|t| t.eyes_inside && holds(tags, t.fluid, tag))
+            .find(|(t, _)| *t == tag)
+            .map_or(0.0, |(_, t)| t.height)
+    }
+    pub fn is_in_fluid(&self, tag: FluidTagId) -> bool {
+        self.fluid_height(tag) > 0.0
+    }
+    pub fn is_eye_in_fluid(&self, tag: FluidTagId) -> bool {
+        self.trackers
+            .iter()
+            .any(|(t, tracker)| *t == tag && tracker.eyes_inside)
     }
     /// The mod fluids the entity is in, from its last update: their heights and
     /// whether the eyes are in them.
     pub fn mod_fluids(&self) -> impl Iterator<Item = ModFluidImmersion> + '_ {
-        self.currents.iter().filter_map(|(tag, _)| {
+        self.trackers.iter().filter_map(|(tag, tracker)| {
             let fluid = tag.mod_fluid()?;
-            let mut immersion = ModFluidImmersion {
+            let immersion = ModFluidImmersion {
                 fluid,
-                height: 0.0,
-                eyes_inside: false,
+                height: tracker.height,
+                eyes_inside: tracker.eyes_inside,
             };
-            for t in self.trackers.iter().filter(|t| t.fluid.source() == fluid) {
-                immersion.height = immersion.height.max(t.height);
-                immersion.eyes_inside |= t.eyes_inside;
-            }
             (immersion.height > 0.0 || immersion.eyes_inside).then_some(immersion)
         })
     }
@@ -282,36 +289,35 @@ impl EntityFluidInteraction {
         tag: FluidTagId,
         speed: f64,
     ) -> Result<(), W::Error> {
-        if let Some((_, current)) = self.currents.iter().find(|(t, _)| *t == tag) {
-            current.apply_to(world, speed)?;
+        if let Some((_, tracker)) = self.trackers.iter().find(|(t, _)| *t == tag) {
+            tracker.current.apply_to(world, speed)?;
         }
         Ok(())
     }
     /// Reset previous tick state before any query. Provider failures and budget
-    /// exhaustion retain all preceding tracker/current writes.
+    /// exhaustion retain all preceding tracker writes. 26.2's `update` is
+    /// void: it answers nothing, and `Entity.updateFluidInteraction` reads
+    /// `isInFluid` itself (26.3's returns whether any fluid was found).
     pub fn update<W: FluidInteractionWorld>(
         &mut self,
         world: &mut W,
         ignore_current: bool,
         mut budget: usize,
-    ) -> Result<bool, FluidInteractionError<W::Error>> {
-        self.trackers.retain_mut(|t| {
-            if t.height == 0.0 && !t.eyes_inside {
-                return false;
-            }
+    ) -> Result<(), FluidInteractionError<W::Error>> {
+        // `Tracker.reset` is void and the per-tag trackers persist — 26.3's
+        // reset returns whether the tracker was already empty and the
+        // interaction drops it.
+        for (_, t) in &mut self.trackers {
             t.height = 0.0;
             t.eyes_inside = false;
-            true
-        });
-        self.add_mod_tags();
-        for (_, c) in &mut self.currents {
-            c.reset();
+            t.current.reset();
         }
+        self.add_mod_tags();
         let Some(bounds) = world
             .interaction_box()
             .map_err(FluidInteractionError::World)?
         else {
-            return Ok(false);
+            return Ok(());
         };
         let a = bounds.min_position();
         let b = bounds.max_position();
@@ -333,13 +339,15 @@ impl EntityFluidInteraction {
             BlockPos::new(high.x.wrapping_add(1), high.y, high.z.wrapping_add(1)),
             &mut budget,
         )? {
-            return Ok(false);
+            return Ok(());
         }
         let base_y = world.bounding_box_min_y();
         let block_x = world.block_x();
         let eye = world.eye_y().map_err(FluidInteractionError::World)?;
         let block_z = world.block_z();
-        let mut last: Option<(FluidKind, usize, Option<usize>)> = None;
+        // The last fluid kind's tracker index, as `lastFluidType` caches it
+        // (none when no tag holds the kind — the block is skipped outright).
+        let mut last: Option<(FluidKind, Option<usize>)> = None;
         for x in low.x..=high.x {
             for y in low.y..=high.y {
                 for z in low.z..=high.z {
@@ -359,60 +367,42 @@ impl EntityFluidInteraction {
                         continue;
                     }
                     let kind = state.kind();
-                    let (_, index, current) = if let Some(last) =
-                        last.filter(|(k, _, _)| *k == kind)
-                    {
-                        last
+                    let tracker = if let Some(last) = last.filter(|(k, _)| *k == kind) {
+                        last.1
                     } else {
-                        let index =
-                            if let Some(i) = self.trackers.iter().position(|t| t.fluid == kind) {
-                                i
-                            } else {
-                                self.trackers.push(FluidTracker {
-                                    fluid: kind,
-                                    height: 0.0,
-                                    eyes_inside: false,
-                                });
-                                self.trackers.len() - 1
-                            };
-                        let current = if ignore_current {
-                            None
-                        } else {
-                            self.currents
-                                .iter()
-                                .position(|(tag, _)| holds(world, kind, *tag))
-                        };
-                        let entry = (kind, index, current);
-                        last = Some(entry);
-                        entry
+                        let tracker = self
+                            .trackers
+                            .iter()
+                            .position(|(tag, _)| holds(world, kind, *tag));
+                        last = Some((kind, tracker));
+                        tracker
                     };
-                    if x == block_x && z == block_z && eye >= f64::from(y) {
-                        let top = f64::from(y)
-                            + f64::from(
-                                world
-                                    .camera_height(state, p)
-                                    .map_err(FluidInteractionError::World)?,
-                            );
-                        if eye <= top {
-                            self.trackers[index].eyes_inside = true;
-                        }
+                    let Some(index) = tracker else {
+                        continue;
+                    };
+                    // The eye check reads the plain fluid top: 26.3's
+                    // `getHeightForCamera` (a source under a sturdy block
+                    // counts as full height) does not exist in 26.2.
+                    if x == block_x && z == block_z && eye >= f64::from(y) && eye <= surface {
+                        self.trackers[index].1.eyes_inside = true;
                     }
-                    self.trackers[index].height =
-                        java_max(surface - base_y, self.trackers[index].height);
-                    if let Some(i) = current {
+                    let tracker = &mut self.trackers[index].1;
+                    tracker.height = java_max(surface - base_y, tracker.height);
+                    if !ignore_current {
                         let mut flow =
                             world.flow(state, p).map_err(FluidInteractionError::World)?;
-                        let c = &mut self.currents[i].1;
-                        c.height = java_max(self.trackers[index].height, c.height);
-                        if c.height < 0.4 {
-                            flow = flow.scale(c.height);
+                        // The flow is scaled by the tracker's own height (26.3
+                        // scales by the current's, the max of the trackers
+                        // that fed it).
+                        if tracker.height < 0.4 {
+                            flow = flow.scale(tracker.height);
                         }
-                        c.accumulate(flow);
+                        tracker.current.accumulate(flow);
                     }
                 }
             }
         }
-        Ok(last.is_some())
+        Ok(())
     }
 }
 
@@ -441,7 +431,7 @@ mod tests {
         }
     }
 
-    /// `EntityFluidInteraction$CurrentAccumulator.applyTo`: a body that is not
+    /// `EntityFluidInteraction$Tracker.applyCurrentTo`: a body that is not
     /// a player takes the direction of the accumulated current, so two samples
     /// of one block push as hard as one; a player takes their average, so the
     /// push grows with the number of blocks and is halved by two of them.
@@ -513,7 +503,7 @@ mod tests {
         );
     }
 
-    /// `applyTo` returns before reading the velocity with no samples, and when
+    /// `applyCurrentTo` returns before reading the velocity with no samples, and when
     /// the accumulated current is under the 1e-5 of a squared length.
     #[test]
     fn no_current_and_a_current_under_the_threshold_push_nothing() {

@@ -365,12 +365,12 @@ fn teleport_randomly(
         if m.extra.passenger {
             riders::stop_riding(m, None);
         }
-        let old = m.position;
         if !random_teleport(w, m, Vec3::new(x, y, z)) {
             continue;
         }
         // `LivingEntity.checkPositionAndTeleport` broadcasts entity event 46
-        // before the teleport sound and the directional trail.
+        // before the teleport sound. 26.2 has no directional trail (no 2017
+        // event): the fox's teleport is the entity event and the sound only.
         events.push(MobEvent::EntityEvent {
             mob: m.id,
             event: 46,
@@ -384,19 +384,6 @@ fn teleport_randomly(
             1.0,
             1.0,
         ));
-        if teleport.directional_particles {
-            let at = |p: Vec3| [p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32];
-            let (from, to) = (at(old), at(m.position));
-            // `BlockPos` offset clamped to a byte per axis, packed as vanilla does.
-            let axis = |a: i32, b: i32| (b - a).clamp(-127, 127) + 127;
-            events.push(MobEvent::LevelEvent {
-                id: 2017,
-                pos: from,
-                data: (axis(from[0], to[0]) << 16)
-                    | (axis(from[1], to[1]) << 8)
-                    | axis(from[2], to[2]),
-            });
-        }
         m.fall_distance = 0.0;
         return;
     }

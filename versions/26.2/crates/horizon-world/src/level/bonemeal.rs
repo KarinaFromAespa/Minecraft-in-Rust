@@ -332,7 +332,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let Some(g) = b.data(state).feature.as_deref().and_then(grower) else {
                     return false;
                 };
-                if b.live_features().is_none() || !self.tree_can_grow(g, pos, state) {
+                // 26.2's isValidBonemealTarget is only the height check:
+                // canGrow (the 2x2 requirement for a mega-only grower) is
+                // 26.3-only, so a lone dark oak sapling takes the meal.
+                if b.live_features().is_none() {
                     return false;
                 }
                 let height = self.tree_minimum_height(g);
@@ -1224,14 +1227,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     fn grass_bonemeal_effect(&mut self, test: BlockPos) {
         let b = self.b;
         let test_state = self.state(test);
+        // 26.2 rolls the tall-grass and flower chances with nextInt, not
+        // nextFloat (26.3's form): the draws differ, so the sequence after
+        // them diverges too.
         if b.table.name(test_state) == "minecraft:short_grass"
-            && self.random().next_float() < 0.1
+            && self.next_int(10) == 0
             && self.bonemeal_valid(Kind::TallGrass, test, test_state)
         {
             self.perform_bonemeal(Kind::TallGrass, test, test_state);
         }
         if b.is_air(test_state) && self.is_inside_build_height(test.y) {
-            if self.random().next_float() < 0.125 {
+            if self.next_int(8) == 0 {
                 let Some(features) = b.live_features() else {
                     return;
                 };

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare Horizon's environment attributes with the vanilla 26.3 attribute system.
+"""Compare Horizon's environment attributes with the vanilla 26.2 attribute system.
 
 The Java oracle builds vanilla's `EnvironmentAttributeSystem` from the data pack
 (dimension attributes, one biome's attributes, the dimension timelines and the
