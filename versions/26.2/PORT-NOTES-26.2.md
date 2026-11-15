@@ -3239,3 +3239,22 @@ Artifacts at ~/workspace/mcir-ci/26.2-run-43704536595/.
 Next run: dispatched on main AFTER the save-roundtrip fixes merge, so
 one run verifies v6.7 (the launch fix) and the palette/version_history
 fixes together.
+
+## save_roundtrip PASSES locally (2026-11-15)
+
+Full local run after the three batches: `save round-trip parity ok
+(0 unexplained differences)` — 2962 -> 0. The game launched on
+llvmpipe under Xvfb, saved, and quit cleanly; vanilla loaded Horizon's
+save with no new log problems (no "Not a map", no "Failed to create
+block entity"); all 79 block-entity VANILLA VIEW comparisons match.
+The harness removed its run directory on success (exit 0). Run log:
+save-roundtrip-diagnosis/save-roundtrip-local4b.log (reused the v0
+world and fast binaries from the first attempt, which had failed at
+launch only because it ran without a display — winit needs DISPLAY
+even offscreen; re-ran under xvfb-run).
+
+The 4 pre-known vanilla scene-command errors (decorated_pot sherds,
+BlockState "No key Name" on the TNT/anvil summons) persist unchanged
+— out of scope here. The vanilla_login bot timeout also persists
+(player .dat still unexercised under harness load — recorded harness
+debt, not this work).
