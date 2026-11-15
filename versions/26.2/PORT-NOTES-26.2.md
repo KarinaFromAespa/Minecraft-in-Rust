@@ -2475,3 +2475,12 @@ form; 26.3's cross-dimension test lookup is unported. 429 /time:
 ported — 26.3's five "already" errors (already-at-time,
 already-at-marker, already-paused/running, already-same-rate) do
 not exist in 26.2; all four checks removed from the /time arms.
+
+## Rank 3 — bucket B batch 1 (part 3): 96/177 (2026-11-15)
+
+422 social: no-change — the diff is the authlib package move plus
+26.3's postPresence try/catch wrap; the Rust's friends service is a
+local stub with no real network call. 425 fortress: no-change —
+piece methods differ only by the Builder vs Accessor parameter
+type, and FORTRESS_ENEMIES carries the same values in IntProvider
+vs (min,max) form; the Rust has no enemies-list surface.

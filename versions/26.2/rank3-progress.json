@@ -657,6 +657,20 @@
       "bucket": "B",
       "verdict": "ported",
       "evidence": "ServerClockManager/TimeCommand: 26.3 added five 'already' errors (already_at_time, already_at_time_marker, already_paused, already_running, already_same_rate) and a MoveResult return for moveToTimeMarker; 26.2 has none of them \u2014 set/pause/resume/rate/marker-move all act unconditionally (only a missing marker errors, via the boolean moveToTimeMarker). Removed all four already-checks from the /time arms in game/commands.rs. tick(), addTicks, setTotalTicks, setRate, setPaused and wrapTime are identical in both versions modulo the ClockInstance rename; the no-marker error's message-arg order (marker, clock) was already right."
+    },
+    {
+      "id": 422,
+      "module": "crates/horizon-client-render/src/social.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "PlayerSocialManager/PresenceHandler/RemoteFriendListUpdateHandler: the diff is the authlib package move (com.mojang.authlib.services.* in 26.3 vs com.mojang.authlib.yggdrasil.* in 26.2) plus 26.3 wrapping the presence post in a try/catch postPresence helper (26.2 calls the service directly). The Rust models the friends service as a local stub with no real network call, so neither difference is observable; the state machine (flags, presence status, update interval) is identical."
+    },
+    {
+      "id": 425,
+      "module": "crates/horizon-world/src/worldgen/structure/fortress.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "NetherFortressPieces/Structure: the piece methods take StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) \u2014 a parameter-type rename with identical bodies (verified on NetherBridgePiece.generatePiece and BridgeCrossing); FORTRESS_ENEMIES uses IntProviders in 26.3 vs plain (min,max) ints in 26.2 with the same values (blaze 2-3/10, piglin 4/5, wither skeleton 5/8, skeleton 5/2, magma cube 4/3). The Rust has no FORTRESS_ENEMIES surface."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
