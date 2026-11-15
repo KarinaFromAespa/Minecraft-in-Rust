@@ -2661,3 +2661,34 @@ part was ported here via SlotSourceArgument, but the
 rest of ExecuteCommand's 26.2 differences (notably the
 data-condition ArgProvider/DataAccessor re-shape) are
 covered by NO work item and invisible to D3.
+
+## Rank 3 — bucket D batch 2: 157/177 (2026-11-15)
+
+418 Realms screens: the big one. 26.2's Realms has no join
+codes, no product page, no tier configuration and no invite
+codes — all four 26.3 surfaces are removed (JoinCode screen
++ header Join button, the whole PDP, the settings tab's
+distance rows + ScrollableLayout scroll view, the
+InviteCodes/EditCode screens + the Players tab's button).
+PORTED: AddRealmPopupScreen (26.2-only, 320x172 popup with
+Buy/Trial/close) + the trial diamond over the Add Realm
+button; saveSettings unconditional (26.2 has no change
+check — 26.3 skips the call when nothing differs), with
+blank-to-empty name/description semantics; RealmsRegion
+back to 26.2's 23 (CanadaCentral, MexicoCentral,
+SouthAfricaNorth, WestUs3 are 26.3-only); CreateRealm
+passes the name/description raw (26.3 trims); region
+preference Done applies only when a region is picked
+(26.2's null-guard). Verified no-change: ConfirmLinkScreen
++ extendRealms, the template screen (parse already
+normalizes "" to None), the news/notification classes
+(URI-to-String re-shapes), the terms/template clicks, the
+subscription tab, RealmsUtil, and all extract* render-state
+classes. KNOWN GAP: the popup's carousel pictures — 26.2's
+client.jar ships no realms namespace, so vanilla draws no
+carousel picture in a standard install either; a resource
+pack adding assets/realms/textures/gui/images/*.png would
+show pictures in vanilla but not here. The client.rs tier
+types + invite-code methods stay for item 421. Two test
+failures pre-date this item (client cookie, optimization
+stamp — both fail at the pre-418 base too).
