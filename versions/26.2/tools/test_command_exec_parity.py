@@ -115,8 +115,6 @@ def main():
                         help='a mob hurt cooldown compares the incoming damage before its reductions (H248)')
     parser.add_argument('--level-world-border-fixture', action='store_true',
                         help='each builtin level keeps its own world border (H260)')
-    parser.add_argument('--slot-codec-diagnostic', action='store_true',
-                        help='retain the separate invalid inline slot-range codec diagnostic')
     parser.add_argument('--work-dir', type=Path, help='isolated scratch output directory')
     parser.add_argument('--loaded-fixture', action='store_true', help='pin actual view/simulation2 and use real player tickets')
     parser.add_argument('--loaded-block-diagnostic', action='store_true', help='retain separate FULL block-access observations')
@@ -131,8 +129,6 @@ def main():
     parser.add_argument('--mob-home-fixture', action='store_true')
     parser.add_argument('--mob-home-holder-removal-diagnostic', action='store_true')
     parser.add_argument('--mob-home-late-detach-control', action='store_true')
-    parser.add_argument('--item-contents-fixture', action='store_true')
-    parser.add_argument('--item-contents-provider-empty-control', action='store_true')
     parser.add_argument("--boat-item-hit-fixture", action="store_true")
     parser.add_argument("--stand-entity-collision-fixture", action="store_true")
     parser.add_argument("--reference-only", action="store_true")
@@ -379,12 +375,6 @@ def main():
         except ImportError:
             from mob_home_corpus import mob_home
         groups = [('setup', corpus_module.group_setup()), ('mob home NBT', mob_home(args.mob_home_holder_removal_diagnostic, args.mob_home_late_detach_control))]
-    if args.item_contents_fixture:
-        try:
-            from .item_contents_corpus import item_contents
-        except ImportError:
-            from item_contents_corpus import item_contents
-        groups = [('setup', corpus_module.group_setup()), ('item component contents', item_contents(args.item_contents_provider_empty_control))]
     if args.boat_item_hit_fixture:
         from boat_item_hit_corpus import boat_item_hits
         groups = [('boat item hit', boat_item_hits(args.boat_motion_diagnostic))]
@@ -417,9 +407,6 @@ def main():
     if args.vehicle_kill_diagnostic:
         from vehicle_kill_corpus import vehicle_kill_contents
         groups = [('setup', corpus_module.group_setup()), ('vehicle kill contents', vehicle_kill_contents(corpus_module.cmd, True))]
-    if args.slot_codec_diagnostic:
-        groups.append(('slot source codec diagnostic', [corpus_module.cmd(
-            '/item fill block 4 200 4 {type:"minecraft:slot_range",slots:"container.99"} with diamond')]))
     if any(name in corpus_module.ISOLATED_JUKEBOX_CLOCK for name, _ in groups) and len(groups) != 1:
         parser.error('jukebox clock fixture requires --only with its exact group')
     if any(name in corpus_module.ISOLATED_POT_HOPPER for name, _ in groups) and len(groups) != 1:

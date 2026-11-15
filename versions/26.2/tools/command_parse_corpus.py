@@ -170,8 +170,6 @@ CONTEXT_INTS = ['1', '5', '0', '-1', '{type:"minecraft:uniform",min_inclusive:1,
 BAD_CONTEXT_INTS = ['{', 'x', '{type:"minecraft:nope"}', '{type:"minecraft:uniform"}', '1.5', '{min:5}', '[1', '']
 CONTEXT_FLOATS = ['1', '1.5', '0', '-1.5', '{type:"minecraft:uniform",min_inclusive:1,max_inclusive:5}', '{type:"minecraft:constant",value:3}', '{min:1,max:5}']
 BAD_CONTEXT_FLOATS = ['{', 'x', '{type:"minecraft:nope"}', '{min:5}', '']
-SLOT_SOURCES = ['container.0', 'weapon.mainhand', '{type:"minecraft:slot_range",slots:"container.*"}', '{source:"minecraft:this"}', 'armor.*', 'hotbar.*', 'container.*']
-BAD_SLOT_SOURCES = ['{', 'nope', '{type:"minecraft:nope"}', 'container.', '']
 ENTITY_ANCHORS = ['feet', 'eyes']
 BAD_ENTITY_ANCHORS = ['head', 'Eyes', '']
 HEIGHTMAPS = ['world_surface', 'motion_blocking', 'motion_blocking_no_leaves', 'ocean_floor']
@@ -337,8 +335,6 @@ def pools(parser, props, registries):
         return PARTICLES, BAD_PARTICLES
     if parser == 'minecraft:item_slot':
         return ITEM_SLOTS, BAD_ITEM_SLOTS
-    if parser == 'minecraft:slot_source':
-        return SLOT_SOURCES, BAD_SLOT_SOURCES
     if parser == 'minecraft:swizzle':
         return SWIZZLES, BAD_SWIZZLES
     if parser == 'minecraft:entity_anchor':

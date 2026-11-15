@@ -2632,3 +2632,32 @@ add/remove/list (26.2 branches on the target count, not
 the changed count). Equivalent as-is: scoreboard,
 /forceload (26.2 branches on changed chunks), /loot,
 /swing, /playsound. The /item sites belong to item 419.
+
+## Rank 3 — bucket D batch 1 (part 2): 156/177 (2026-11-15)
+
+419 /item command: the big one. 26.2's /item is the SPLIT
+form (setBlockItem/setEntityItem/modifyBlockItem/
+modifyEntityItem, one SlotArgument, replace+modify only);
+26.3 unified it behind ItemAccessor + SlotSourceArgument
+with fill/override. The tree, cmd_item, cmd_item_modify
+and the execute `if items` condition are now the 26.2
+forms (single slots, 26.2 error/message keys, slot ints
+from a new args::slot_id mirroring 26.2 SlotRanges);
+`if slots` is gone (26.3-only). The whole 26.3 command
+slot-source apparatus is removed (ArgType::SlotSource,
+the inline/contents machinery, the datapack slot_sources
+store, the item-contents corpus, the structured-item-slots
+exec group, the slot-range-codec harness). The codec's
+slot_source decode arms STAY: minecraft:slot_source_type
+exists in 26.2 — only the minecraft:slot_source registry
+and the command argument type are 26.3-only.
+
+REPORT HOLE (found during 419): ExecuteCommand is absent
+from diff-26.3-26.2/report.json although it genuinely
+differs (118 methods in 26.3 vs 116 in 26.2; javap shows
+26.3 referencing SlotSourceArgument 14 times where 26.2
+references SlotsArgument 6 times). The slot-condition
+part was ported here via SlotSourceArgument, but the
+rest of ExecuteCommand's 26.2 differences (notably the
+data-condition ArgProvider/DataAccessor re-shape) are
+covered by NO work item and invisible to D3.
