@@ -5,22 +5,23 @@
   "total": 651
  },
  "harness": {
-  "fail": 11,
+  "fail": 10,
   "oracle_fail": 0,
-  "pass": 6,
+  "pass": 7,
   "passing": [
    "block_properties",
    "first_person",
    "food",
    "lan",
    "light",
-   "resource_pack"
+   "resource_pack",
+   "save_roundtrip"
   ],
   "total": 17
  },
- "last_ci_commit": "140d9570",
- "last_ci_run": 43710204861,
- "notes": "v6.7 PROVEN on CI 2026-11-15 (run 43710204861, main@140d9570): save_roundtrip reached a real comparison, FAILED (2962 unexplained differences) \u2014 the exact local count, no xkbcommon/Vulkan signature. Profile 6/0/11; D1/D2/D3 pass. command_exec past the cushion failure, now blocked on the effect_view predicate fixture. save_roundtrip PASSES locally 2026-11-15 (0 unexplained differences, 2962 -> 0): palette + entity-state map-form fix, heightmap/DespawnDelay harness rules, version_history preservation. Vanilla loads Horizon's save cleanly; all 79 block-entity views match. Run 43704536595 (main@f56493a6, the fully-closed tree, pre-v6.7) completed 2026-11-15: profile 6/0/11 \u2014 block_properties newly passes; D1/D2/D3 pass; D4/D5/D6 blocked. save_roundtrip/command_exec still fail at launch (pre-v6.7, expected). Launch crash DIAGNOSED + FIXED 2026-11-15 (second track): two missing system libraries, not a port bug \u2014 libxkbcommon-x11-0 (xkbcommon-dl panic at startup) and mesa-vulkan-drivers/lavapipe (no Vulkan driver / EGL). Installed locally; game launches under Xvfb on llvmpipe and save_roundtrip now runs to a real comparison (2962 diffs: chunk-section palette drops state properties/map form, ~2402; block entities lost on save, 79 views). CI v6.7 (358736da) installs both; run 43704536595 (in flight, pre-v6.7 tree) will still fail save_roundtrip at launch \u2014 the next run on main verifies the fix. Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main. Run 43646940294 (338/410 tree d2aa9a03) completed 2026-11-15: profile 5/0/12, same five passing; D2 failed on a real test-target compile error (rule_test_bounds E0061, item-214 leftover), fixed on the branch after the run. Rank 2 merged to main (08403e7f); run 43656955427 dispatched on the merged tree. Rank 3 closed 177/177 and merged to main (c8c8e835, 2026-11-15); run 43688968589 (merged rank-3-closed tree c8c8e835) completed 2026-11-15: profile 5/0/12, same five passing; D1/D2/D3 ALL PASS for the first time (D2 cleared on main); D4/D5/D6 blocked.",
+ "last_ci_commit": "e3e2b8d0",
+ "last_ci_run": 43719972622,
+ "notes": "save_roundtrip PASSES on CI 2026-11-15 (run 43719972622, main@e3e2b8d0): profile 7/0/10, D1/D2/D3 pass. The save gaps are closed. v6.7 PROVEN on CI 2026-11-15 (run 43710204861, main@140d9570): save_roundtrip reached a real comparison, FAILED (2962 unexplained differences) \u2014 the exact local count, no xkbcommon/Vulkan signature. Profile 6/0/11; D1/D2/D3 pass. command_exec past the cushion failure, now blocked on the effect_view predicate fixture. save_roundtrip PASSES locally 2026-11-15 (0 unexplained differences, 2962 -> 0): palette + entity-state map-form fix, heightmap/DespawnDelay harness rules, version_history preservation. Vanilla loads Horizon's save cleanly; all 79 block-entity views match. Run 43704536595 (main@f56493a6, the fully-closed tree, pre-v6.7) completed 2026-11-15: profile 6/0/11 \u2014 block_properties newly passes; D1/D2/D3 pass; D4/D5/D6 blocked. save_roundtrip/command_exec still fail at launch (pre-v6.7, expected). Launch crash DIAGNOSED + FIXED 2026-11-15 (second track): two missing system libraries, not a port bug \u2014 libxkbcommon-x11-0 (xkbcommon-dl panic at startup) and mesa-vulkan-drivers/lavapipe (no Vulkan driver / EGL). Installed locally; game launches under Xvfb on llvmpipe and save_roundtrip now runs to a real comparison (2962 diffs: chunk-section palette drops state properties/map form, ~2402; block entities lost on save, 79 views). CI v6.7 (358736da) installs both; run 43704536595 (in flight, pre-v6.7 tree) will still fail save_roundtrip at launch \u2014 the next run on main verifies the fix. Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main. Run 43646940294 (338/410 tree d2aa9a03) completed 2026-11-15: profile 5/0/12, same five passing; D2 failed on a real test-target compile error (rule_test_bounds E0061, item-214 leftover), fixed on the branch after the run. Rank 2 merged to main (08403e7f); run 43656955427 dispatched on the merged tree. Rank 3 closed 177/177 and merged to main (c8c8e835, 2026-11-15); run 43688968589 (merged rank-3-closed tree c8c8e835) completed 2026-11-15: profile 5/0/12, same five passing; D1/D2/D3 ALL PASS for the first time (D2 cleared on main); D4/D5/D6 blocked.",
  "profile_recorded": "2026-11-15",
  "protocol": 776,
  "protocol_tests": {
@@ -32,13 +33,13 @@
  "role": "era release",
  "version": "26.2",
  "ci": {
-  "last_completed_run": 43710204861,
-  "last_completed_tree": "140d9570",
-  "last_completed_profile": "6/0/11 (block_properties, first_person, food, lan, light, resource_pack)",
-  "last_completed_note": "v6.7 PROVEN on CI: save_roundtrip ran to a real comparison, FAILED (2962 unexplained differences) \u2014 the exact local count, no xkbcommon/Vulkan signature. D1/D2/D3 pass; D4/D5 blocked (stamp quirk); D6 blocked. command_exec moved past the cushion failure to the next fixture blocker (/execute if predicate effect_view:always). This tree predates the save fixes; the next run measures them.",
-  "in_flight_run": 43719972622,
-  "in_flight_tree": "e3e2b8d0",
-  "in_flight_note": "First run to measure the merged save fixes (v6.7 + palette/version_history). Expect save_roundtrip to pass (0 diffs locally)."
+  "last_completed_run": 43719972622,
+  "last_completed_tree": "e3e2b8d0",
+  "last_completed_profile": "7/0/10 (block_properties, first_person, food, lan, light, resource_pack, save_roundtrip)",
+  "last_completed_note": "save_roundtrip PASSES on CI (was 2962 diffs pre-fix). Profile 7/0/10; D1/D2/D3 pass; D4/D5 blocked (stamp quirk); D6 blocked. command_exec still on the effect_view predicate fixture blocker. D4 needs datafix green (T4, paused).",
+  "in_flight_run": null,
+  "in_flight_tree": null,
+  "in_flight_note": "Save fixes verified on CI. Next: D4 needs datafix (T4); D6 needs the owner playtest."
  },
  "rank2": "410/410",
  "remaining": {
@@ -46,5 +47,5 @@
   "ranks": "none",
   "reason": "all 651 items closed, ranks 1-5 merged to main (f56493a6)"
  },
- "in_flight_run": 43719972622
+ "in_flight_run": null
 }

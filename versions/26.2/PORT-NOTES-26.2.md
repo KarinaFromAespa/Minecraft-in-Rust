@@ -3290,3 +3290,24 @@ preservation + tag check report-only). Expect save_roundtrip to pass
 (it passes locally with 0 unexplained differences) and command_exec to
 reach real comparisons; D5 should now judge a real verdict (it fails
 honestly until datafix and the rest of the E7 eight are green).
+
+## CI run 43719972622 completed — save_roundtrip PASSES on CI (2026-11-15)
+
+Run 43719972622 on main@e3e2b8d0 (the merged save fixes) completed in
+~1h44m, conclusion success. Profile **7/0/10** — save_roundtrip now
+PASSES on CI (was FAILED with 2962 unexplained differences on the
+pre-fix tree, run 43710204861). Passing: block_properties, first_person,
+food, lan, light, resource_pack, save_roundtrip. D1/D2/D3 pass; D4/D5
+blocked (the staged-candidate stamp quirk); D6 blocked (no playtest).
+Artifacts at ~/workspace/mcir-ci/26.2-run-43719972622/.
+
+D4 implication: save_roundtrip is now green in a published profile; D4
+still needs datafix green (T4 oracle work, paused). D5 will fail
+honestly once a profile is stamped for the judged tree — the E7 eight
+are not all green (datafix, chunk_generation, command_parse,
+component_patch, entity_components, item_model still fail).
+
+command_exec still fails on the effect_view predicate fixture blocker
+(`Java fixture control failed: /execute if predicate
+effect_view:always: []`), unchanged from run 43710204861. Fixture-side,
+for the harness/behaviour work.
