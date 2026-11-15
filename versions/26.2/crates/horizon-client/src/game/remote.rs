@@ -48,10 +48,10 @@ use horizon_protocol::{
 };
 use horizon_world::{
     attachments::{Attachments, Holder},
+    interpolation::{InterpolationHandler, PosRot, Start},
     level::InteractionResult,
     nbt::Tag,
     registry::BlockStateId,
-    interpolation::{InterpolationHandler, PosRot, Start},
 };
 use std::{
     collections::{HashMap, VecDeque},
@@ -2625,9 +2625,7 @@ impl Game<'_> {
         // `MultiPlayerGameMode.setLocalMode(gameType, previousGameType)`:
         // the server's previous mode replaces whatever `set_mode` kept
         // (on a login that would be the default, not the server's).
-        self.previous_mode = spawn
-            .previous_game_type
-            .map(super::game_mode::mode_from_id);
+        self.previous_mode = spawn.previous_game_type.map(super::game_mode::mode_from_id);
         self.dim = Dim::from_id(&spawn.dimension);
         self.audio.set_world(&spawn.dimension);
         // ClientPacketListener.handleLogin / handleRespawn: the server's
@@ -3256,7 +3254,8 @@ impl Game<'_> {
                     .interpolation
                     .entry(id)
                     .or_insert_with(|| InterpolationHandler::new(3));
-                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation) {
+                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation)
+                {
                     // snapTo: setOldPosAndRot too.
                     place_interpolated(m, at);
                     m.previous = m.position;
@@ -3278,7 +3277,8 @@ impl Game<'_> {
                     .interpolation
                     .entry(id)
                     .or_insert_with(|| InterpolationHandler::new(3));
-                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation) {
+                if let Some(at) = interpolated_move(handler, packet, entity, position, to, rotation)
+                {
                     a.snap(
                         Vec3::new(at.position[0], at.position[1], at.position[2]),
                         at.yaw,
@@ -8428,8 +8428,7 @@ impl Game<'_> {
                         .interact_passes(sneaking, ridden, self.can_use_game_master_blocks())
                 })
                 .unwrap_or(false);
-            let passes =
-                is_painting || frame_passes || boat_passes || cart_passes;
+            let passes = is_painting || frame_passes || boat_passes || cart_passes;
             // Otherwise the main hand's turn takes it; there is no off hand turn.
             if response.is_none() && hand == Hand::Off && !passes {
                 return false;

@@ -589,22 +589,18 @@ impl Game<'_> {
         // description, so the kind is read live from the item in that
         // hand (a kinetic weapon's attack animation, else DEFAULT's whack).
         // Computed here, before `main`/`off` move into the mob below.
-        let stab = self.swing.swinging()
-            && {
-                let item = match self.swing.attack_hand() {
-                    horizon_client::first_person::Hand::Main => {
-                        main.as_ref().map(|s| &*s.item)
-                    }
-                    horizon_client::first_person::Hand::Off => off.as_deref(),
-                };
-                item.and_then(horizon_client::spear::Kinetic::of)
-                    .map_or(
-                        horizon_client::first_person::SwingAnimation::DEFAULT,
-                        |k| k.attack_animation(),
-                    )
-                    .kind
-                    == 2
+        let stab = self.swing.swinging() && {
+            let item = match self.swing.attack_hand() {
+                horizon_client::first_person::Hand::Main => main.as_ref().map(|s| &*s.item),
+                horizon_client::first_person::Hand::Off => off.as_deref(),
             };
+            item.and_then(horizon_client::spear::Kinetic::of)
+                .map_or(horizon_client::first_person::SwingAnimation::DEFAULT, |k| {
+                    k.attack_animation()
+                })
+                .kind
+                == 2
+        };
         m.extra.set_main_hand_stack(main);
         m.extra.off_hand = off;
         m.extra.head = self.armor[0].as_ref().map(|s| s.item.clone());

@@ -405,10 +405,9 @@ impl Game<'_> {
                 _ if self.swing.swinging()
                     && self.swing.attack_hand() == hand
                     && horizon_client::spear::Kinetic::of(&stack.item)
-                        .map_or(
-                            horizon_client::first_person::SwingAnimation::DEFAULT,
-                            |k| k.attack_animation(),
-                        )
+                        .map_or(horizon_client::first_person::SwingAnimation::DEFAULT, |k| {
+                            k.attack_animation()
+                        })
                         .kind
                         == 2 =>
                 {

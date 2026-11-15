@@ -258,8 +258,7 @@ impl Game<'_> {
         // there.
         root.or_else(|| {
             root_id(target, first, |id| {
-                self.orbs.iter().any(|o| o.id == id)
-                    || self.crystals.iter().any(|c| c.id == id)
+                self.orbs.iter().any(|o| o.id == id) || self.crystals.iter().any(|c| c.id == id)
             })
         })
     }

@@ -215,9 +215,7 @@ impl Game<'_> {
                 r.session.record_clientbound(&pkt);
             }
         }
-        self.send(S::Swing(Swing {
-            hand: hand as i32,
-        }));
+        self.send(S::Swing(Swing { hand: hand as i32 }));
     }
     /// `LivingEntity.getCurrentSwingDuration`: the swing animation of the
     /// item in the swinging arm — a kinetic weapon's attack animation for

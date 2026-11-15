@@ -125,10 +125,7 @@ fn entity_die_commands() {
                 heard && kind != "armor_stand",
                 "warden accepts {kind} source"
             );
-            assert!(
-                game.dropped.is_empty(),
-                "/kill must not drop the crystal"
-            );
+            assert!(game.dropped.is_empty(), "/kill must not drop the crystal");
         }
         game.run_command("summon end_crystal 4.25 200 4.75");
         capture();

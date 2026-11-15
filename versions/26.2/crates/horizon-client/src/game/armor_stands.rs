@@ -1008,12 +1008,7 @@ impl Game<'_> {
             self.armor_stands[i].apply_honey_slide(&self.world, self.res.facts());
             let a = &self.armor_stands[i];
             if !a.marker && !a.no_gravity {
-                self.entity_powder_snow_particles(
-                    a.previous,
-                    a.position,
-                    a.bounds(),
-                    true,
-                );
+                self.entity_powder_snow_particles(a.previous, a.position, a.bounds(), true);
             }
             // LivingEntity.aiStep calls pushEntities after travel. The stand's
             // own doPush is empty; only this shove runs.

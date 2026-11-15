@@ -367,8 +367,6 @@ mod pick_entity;
 mod pickups;
 mod piglins;
 mod piston_push;
-#[cfg(test)]
-mod place_feature_tests;
 mod play_input;
 mod play_keys;
 mod player_equip;
@@ -3576,9 +3574,7 @@ impl Game<'_> {
     /// is also a full render cube, as `in_wall` has it.
     fn closest_space_nudge(&self) -> [Option<f64>; 2] {
         match self.player.as_ref() {
-            Some(p) if !p.spectator => {
-                closest_space_nudge(p, &self.world, self.res.facts())
-            }
+            Some(p) if !p.spectator => closest_space_nudge(p, &self.world, self.res.facts()),
             _ => [None; 2],
         }
     }
@@ -12991,8 +12987,6 @@ mod golem_defense_tests;
 mod hoglin_repeat_attack_tests;
 #[cfg(test)]
 mod hurt_cooldown_tests;
-#[cfg(test)]
-mod inline_feature_parse_tests;
 #[cfg(test)]
 mod inline_loot_reference_tests;
 #[cfg(test)]

@@ -2493,7 +2493,11 @@ impl Game<'_> {
                 self.native_player_arm_swing(
                     player,
                     &name,
-                    if hand == Hand::Off { "offhand" } else { "mainhand" },
+                    if hand == Hand::Off {
+                        "offhand"
+                    } else {
+                        "mainhand"
+                    },
                 );
             }
             S::UseItemOn(p) => {
@@ -6256,7 +6260,8 @@ impl Game<'_> {
                     .map_or(SwingAnimation::DEFAULT, |k| k.attack_animation()),
                 Hand::Off => SwingAnimation::DEFAULT,
             };
-            play.swing.tick(swing_duration(animation, dig_speed, fatigue));
+            play.swing
+                .tick(swing_duration(animation, dig_speed, fatigue));
         }
     }
 }
@@ -6805,9 +6810,8 @@ mod player_action_ordinal_tests {
                 sequence,
             })
         };
-        let digging = |host: &crate::game::lan::LanHost| {
-            host.play.get(&2).and_then(|p| p.digging).is_some()
-        };
+        let digging =
+            |host: &crate::game::lan::LanHost| host.play.get(&2).and_then(|p| p.digging).is_some();
         // START sets the dig.
         game.lan_guest_packet(&mut host, 2, dig(0, 1));
         assert!(digging(&host), "START (0) sets the dig");

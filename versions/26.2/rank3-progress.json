@@ -713,6 +713,20 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "ScreenEffectRenderer/Lightmap: the item-activation animation math is byte-identical in 26.2 and 26.3 (same 40-tick polynomial, rotations, offsets; only the state source differs \u2014 own fields vs PlayerRenderState) and the Rust ports it in totem.rs. submit() has the same structure, ordering and block-overlay colour (-15132391) in both; 26.3 reads pre-computed render state where 26.2 reads the player directly (getViewBlockingState, isEyeInFluid, isOnFire). The block-overlay submission itself is unported in the Rust against both versions, not a 26.2 divergence. Lightmap decompiles identically."
+    },
+    {
+      "id": 439,
+      "module": "crates/horizon-client/src/game/commands/place.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "PlaceCommand: 26.3's /place feature takes ResourceOrIdArgument (Holder<Feature>, inline values, success.inline message); 26.2 takes ResourceKeyArgument over CONFIGURED_FEATURE only. PORTED: the feature arg is now ResKey(minecraft:worldgen/configured_feature) in tree_world.rs; the inline branch is removed from cmd_place_generated; the now-dead inline machinery is removed (place_inline_feature in bonemeal.rs/growth.rs, configured_inline/decode_inline in live.rs, InlineFeatureCheck in registries.rs + its chat.rs setup, the worldgen/feature codec arm + check_feature/dfu_feature_error in codec.rs); the 26.3-only tests (place_feature_tests.rs, inline_feature_parse_tests.rs) and harnesses (test_place_feature_inline_parity.py, test_inline_feature_parse_parity.py + corpora) are deleted. placeStructure/placeTemplate differ only by the getStructureManager rename. cargo check --all-targets clean for the touched crates. (Caught in review: removing a #[cfg(test)] mod line orphaned its attribute onto mod play_input; fixed.)"
+    },
+    {
+      "id": 440,
+      "module": "crates/horizon-world/src/worldgen/structure/mineshaft.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "MineshaftPieces/Structure: every method diff is the StructurePiecesBuilder (26.3) vs StructurePieceAccessor (26.2) parameter rename with identical bodies (verified on createRandomShaftPiece, generateAndAddPiece, MineShaftCorridor.addChildren, MineshaftStructure.generatePiecesAndAdjust) \u2014 the same re-shape as the fortress pieces in item 425."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

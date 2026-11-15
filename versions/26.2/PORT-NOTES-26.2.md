@@ -2516,3 +2516,12 @@ carry the list back, deferred. Everything else in the item is
 identical or the established openUri pattern. 438 screen effects:
 no-change — the item-activation math is identical in both
 versions; submit() differs only by render-state vs direct reads.
+
+## Rank 3 — bucket B batch 2 (part 1): 104/177 (2026-11-15)
+
+439 /place feature: ported — 26.2 takes a configured-feature
+registry key only; the 26.3 inline-feature form (tree arg,
+dispatch branch, place_inline_feature/configured_inline/
+decode_inline, InlineFeatureCheck, codec arm, both test files
+and both harnesses) is removed. 440 mineshaft: no-change — the
+Builder vs Accessor parameter rename only, as with the fortress.

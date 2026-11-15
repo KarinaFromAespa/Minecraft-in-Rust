@@ -21,12 +21,12 @@ use horizon_client::{
     text::Text,
     world::World,
 };
+#[cfg(test)]
+use horizon_protocol::packets::play::Clientbound as C;
 use horizon_protocol::{
     entity_data::{Value, serializer},
     packets::play,
 };
-#[cfg(test)]
-use horizon_protocol::packets::play::Clientbound as C;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{

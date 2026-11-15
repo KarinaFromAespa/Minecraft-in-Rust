@@ -4702,8 +4702,7 @@ impl Game<'_> {
                     ) {
                         // 26.2's gate is horizontal movement
                         // (`xOld != x || zOld != z`), not known movement.
-                        let moving =
-                            p.previous.x != p.position.x || p.previous.z != p.position.z;
+                        let moving = p.previous.x != p.position.x || p.previous.z != p.position.z;
                         snow_contacts.push((block, p.position, moving));
                     }
                 }

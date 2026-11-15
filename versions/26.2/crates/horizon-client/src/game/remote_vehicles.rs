@@ -302,9 +302,7 @@ impl Game<'_> {
         }
         // Generic entities are valid vehicles too (plugins use displays as seats).
         // Keep riding set so sendChanges sends rotation, never a walking position.
-        if !self.boats.iter().any(|b| b.id == id)
-            && !self.carts.iter().any(|c| c.id == id)
-        {
+        if !self.boats.iter().any(|b| b.id == id) && !self.carts.iter().any(|c| c.id == id) {
             let index = std::collections::HashMap::new();
             if let Some(at) = self.passenger_riding_position(id, None, None, &index) {
                 let before = self
