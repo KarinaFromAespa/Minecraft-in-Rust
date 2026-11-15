@@ -839,6 +839,62 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "Title + NBT contents: TitleCommand is the Tracker family, but 26.3 tracks every target unconditionally, so it is equivalent to 26.2's manual size-branching \u2014 and the Rust's cmd_title already branches on the target count and returns it. NbtContents.resolve's 26.3 resolved-component-count limit has no counterpart in the Rust (which resolves every component, as 26.2 does) and no recursion risk (single-pass resolution)."
+    },
+    {
+      "id": 459,
+      "module": "crates/horizon-client/src/gizmos.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Gizmos: rotate vs mulPose is the same transform; 26.2's linesTranslucent pipeline is DepthStencilState(GREATER_THAN_OR_EQUAL, depthWrite=false) \u2014 the same no-depth-write state as 26.3's linesTranslucentNoDepthWrite, and the Rust's debug_lines pipeline already uses depth_write=false. The hitbox visibility conditions (invisible, frustum, levelExtractor, camera-entity) are the same set in both versions, restructured into isEntityVisible in 26.3; the Rust skips invisible mobs and lets the GPU clip the rest."
+    },
+    {
+      "id": 460,
+      "module": "crates/horizon-world/src/worldgen/ore_feature.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "OreFeature: 26.3 moves place/doPlace/canPlaceOre into AbstractOreFeature with BlockReplacement targets; 26.2 keeps them in OreFeature with OreConfiguration/TargetBlockState. Bodies identical modulo this.size vs config.size; canPlaceOre's discardChanceOnAirExposure + isAdjacentToAir logic is the same. The Rust calls rule.test(state, random) \u2014 the 2-arg form, matching 26.2 (item 214)."
+    },
+    {
+      "id": 461,
+      "module": "crates/horizon-client/src/game/respawn_anchor.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "BedRule: already ported in an earlier item \u2014 dimension_type.rs reads 26.2's `explodes` field (and 26.3's destroy_on_use spelling) into destroy_on_use, documents that destroy_on_leave does not exist in 26.2, and has the bed_rule_accepts_the_26_2_explodes_field test. No destroy_on_leave handling exists anywhere in the Rust."
+    },
+    {
+      "id": 462,
+      "module": "crates/horizon-world/src/level/feature_world.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "MonsterRoomFeature: record re-shape only; the one body difference is the replaceable predicate written as a lambda (26.3) vs Feature.isReplaceable (26.2) \u2014 the same predicate."
+    },
+    {
+      "id": 464,
+      "module": "crates/horizon-client/src/game/initial_spawn.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "BonusChestFeature: record re-shape only; the place body is identical modulo config access and decompiler variable names."
+    },
+    {
+      "id": 465,
+      "module": "crates/horizon-client/src/game/test_instances.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "TestData: 26.3 adds a dimension field (default OVERWORLD) to the test record; 26.2 has none. The Rust's TestDef has no dimension field \u2014 already the 26.2 form, consistent with item 424's single-level test runs."
+    },
+    {
+      "id": 466,
+      "module": "crates/horizon-world/src/level/growth_tests.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "SaplingBlock: already ported \u2014 the lone_dark_oak_sapling test documents that 26.2's isValidBonemealTarget is only the height check and canGrow (the 2x2 mega-only requirement) is 26.3-only. The BonemealSource parameter is 26.3-only too."
+    },
+    {
+      "id": 467,
+      "module": "crates/horizon-client-render/src/gfx/native_material.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "RenderSection: 26.2 stores fadeDuration/wasPreviouslyEmpty as fields, 26.3 passes the duration to getVisibility as a parameter; the fade math (elapsed >= fade ? 1 : elapsed/fade) is identical, and the Rust's section_visibility implements exactly that formula over its own first-upload map. The previously-empty/far instant rule is a LevelRenderer-side condition; the Rust's fade system is Horizon's own GPU-culling machinery, not a RenderSection field port."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

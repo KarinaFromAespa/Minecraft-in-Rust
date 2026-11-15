@@ -2580,3 +2580,13 @@ versions via Player.onAttack; 457's compute subcommand is
 26.3-only and unported (the /compute command itself is item
 510); 458's Tracker form tracks every target, so it equals
 26.2's manual branching.
+
+## Rank 3 — bucket B batch 4: 128/177 (2026-11-15)
+
+459 gizmos, 460 ore, 461 bed rule, 462 monster room, 464
+bonus chest, 465 test data, 466 sapling, 467 render section:
+all no-change. 461 and 466 were already ported in earlier
+items (bed_rule_accepts_the_26_2_explodes_field,
+lone_dark_oak_sapling). 459's translucent lines are
+no-depth-write in both versions; 467's fade math is
+identical, field vs parameter only.
