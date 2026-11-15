@@ -17,9 +17,9 @@
   ],
   "total": 17
  },
- "last_ci_commit": "dbeb88e3",
- "last_ci_run": 43653524277,
- "notes": "Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main. Run 43646940294 (338/410 tree d2aa9a03) completed 2026-11-15: profile 5/0/12, same five passing; D2 failed on a real test-target compile error (rule_test_bounds E0061, item-214 leftover), fixed on the branch after the run. Rank 2 merged to main (08403e7f); run 43656955427 dispatched on the merged tree.",
+ "last_ci_commit": "c8c8e835",
+ "last_ci_run": 43688968589,
+ "notes": "Profile 5/17 (runs 43405337919, 43435321313, 43519358480, 43535967019, 43575017292, 43609469257): first_person, food, lan, light, resource_pack pass. first_person newly passes in 43609469257 (item-8 oracle rework). BedBlock fix verified in 43435321313; a new unknown launch crash blocks command_exec/save_roundtrip (second track). CI run 43609469257 completed 2026-11-14T17:28:06Z on 1a8bd427 (285/410 tree): profile 5/0/12, D1 pass, D2 fail only on the 6-warning count (the two pre-existing warnings across targets; protocol tests 444/0 in CI), D3 fail (125/410 open), D4-D6 blocked. Rank 2 closed 410/410 at 81de0cbd (2026-11-15); merged to main. Run 43646940294 (338/410 tree d2aa9a03) completed 2026-11-15: profile 5/0/12, same five passing; D2 failed on a real test-target compile error (rule_test_bounds E0061, item-214 leftover), fixed on the branch after the run. Rank 2 merged to main (08403e7f); run 43656955427 dispatched on the merged tree. Rank 3 closed 177/177 and merged to main (c8c8e835, 2026-11-15); run 43688968589 dispatched on the merged tree (in progress).",
  "profile_recorded": "2026-11-15",
  "protocol": 776,
  "protocol_tests": {
@@ -44,5 +44,6 @@
   "items": 234,
   "ranks": "3-5",
   "reason": "ranks 3-5 (177/55/2) next on behaviour/26.2"
- }
+ },
+ "in_flight_run": 43688968589
 }

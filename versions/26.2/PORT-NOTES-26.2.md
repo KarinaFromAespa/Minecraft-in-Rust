@@ -2926,3 +2926,12 @@ unrelated to OIT.
 
 RANK 3 CLOSED 177/177 — see rank3-progress.json
 for per-item evidence.
+
+## CI run 43688968589 dispatched on main (2026-11-15)
+
+Rank 3 merged to main as c8c8e835 (rank 3 177/177; this merge
+carries the D2 fix b232b15b for the rule_test_bounds E0061 errors
+plus the item-566 warning cleanup to main). Run 43688968589
+dispatched on main@c8c8e835, in progress — first run to measure
+the rank-3-closed tree; expect D2 to clear (E0061 fix + 0
+warnings). Porting continues (ranks 4–5) while CI runs.
