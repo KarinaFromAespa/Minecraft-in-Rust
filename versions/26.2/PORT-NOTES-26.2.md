@@ -3428,3 +3428,20 @@ and D1/D3 read the diff report from the pin. Locally the recorded-mode
 verdict already reproduces run 43738833564 exactly (D1/D2/D3 pass,
 D4/D5 blocked on the profile-stamp quirk, D6 blocked); this run is the
 CI proof of the same.
+
+## CI run 43749313660 completed — moved pin PROVEN (2026-11-16)
+
+Run 43749313660 on main@b3e0ad5e (the pins-move merge) completed in
+~1h48m, conclusion success. Profile **7/0/10** — identical to run
+43738833564 (block_properties, first_person, food, lan, light,
+resource_pack, save_roundtrip): the move changed no behaviour.
+**The moved pin gates identically**: the judge resolved the pin to
+`pins/26.2/` (tree: the staged candidate `.horizon-ports/26.2`),
+D1 found `regen.json` and D3 found `report.json` in the pin,
+D2 read `pins/26.2/ci-out/` — **D1/D2/D3 pass**, D4/D5 blocked (the
+same staged-candidate stamp quirk — profile stamped for b3e0ad5e,
+judge HEAD is the staged candidate c26f655b), D6 blocked (no
+playtest). Tag audit clean (0 dead production, 5 dead test-only).
+Artifacts at ~/workspace/mcir-ci/26.2-run-43749313660/; the pin's
+recorded evidence (profile.json, delta-verdict.json, ci-out logs)
+now comes from this run.
