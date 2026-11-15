@@ -2455,3 +2455,15 @@ a teamless member still succeeds and counts). add/remove/reset/
 display/numberformat/operation were verified equivalent and are
 unchanged. New regression test pins the three divergences; all 9
 scoreboard_cmd tests pass.
+
+## Rank 3 — bucket B batch 1 (part 1): 92/177 (2026-11-15)
+
+Two ports. 437 /effect + /enchant: same Tracker→manual family as
+item 451 — message choice and multiple-count now use the target
+count; returns stay the success counts; the duration computation
+was already the 26.2 inline form. 423 sculk: canPlaceGrowth now
+checks sensor/shrieker blocks explicitly (the
+sculk_growth_inhibitors tag is 26.3-only — verified absent from the
+26.2 jar); the worldgen cursor now does 26.2's post-move 15-block
+spread check with no stuck-kill (26.3 pre-checked 12 blocks and
+killed stuck cursors). Sculk tests 3/3 pass.

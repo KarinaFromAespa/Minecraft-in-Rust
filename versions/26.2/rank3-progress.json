@@ -629,6 +629,20 @@
       "bucket": "A",
       "verdict": "ported",
       "evidence": "ScoreboardCommand/TeamCommand: 26.3 routes the one/many feedback through CommandResponseTracker (counts only nonzero tracks); 26.2 branches manually on names.size() and counts every target. Ported the four divergent paths: (1) set \u2014 branch on the target count (a set to 0 with one target is a single success), return value*names.size(); (2) enable \u2014 message by names.size(), return the unlocked count, throw enable.failed when none unlocked; (3) team join \u2014 count every member, return members.size(); (4) team leave \u2014 a teamless member still succeeds and counts, return members.size(). add/remove/reset/display/numberformat/operation were verified equivalent (their Tracker forms already branch on the target count and return the 26.2 totals) and are unchanged. New regression test twenty_six_two_counts_targets_not_successes pins all three divergences; all 9 scoreboard_cmd tests pass."
+    },
+    {
+      "id": 437,
+      "module": "crates/horizon-client/src/game/commands/effects.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "EffectCommands/EnchantCommand: 26.3 routes the one/many feedback through CommandResponseTracker (counts only successes); 26.2 branches manually on the target count and counts every target. Ported give/clear/enchant: message choice and multiple-count now use the target count; returns stay the success counts; the local Tracker struct is gone. The duration computation was already the 26.2 inline form (instantaneous -> seconds/1, -1 -> -1, else seconds*20, default 600) and is unchanged. The 26.2 getName() (vs 26.3 getDisplayName()) error args are unobservable in the Rust's scope (no team formatting on the handled targets). cargo check clean; no unit tests cover these commands (command_exec harness is the check, blocked by the launch crash)."
+    },
+    {
+      "id": 423,
+      "module": "crates/horizon-world/src/level/sculk.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "Sculk: (1) canPlaceGrowth \u2014 26.3 counts the sculk_growth_inhibitors tag (verified present in the 26.3 jar, absent in 26.2); 26.2 counts sculk_sensor/sculk_shrieker blocks explicitly. Both the live (level/sculk.rs) and worldgen (worldgen/sculk.rs) implementations now check the two blocks explicitly; the worldgen inhibitors tag set is gone. (2) ChargeCursor worldgen spread \u2014 26.3 pre-checks 12 blocks (distSq<=144) in getValidMovementPos and kills a stuck cursor; 26.2 checks 15 blocks AFTER the move (closerThan 15.0 of the origin column) and leaves a stuck cursor in place. The worldgen feature now does the post-move 15-block check (dx^2+dz^2>=225) with no stuck-kill; the live cursor already matched 26.2 (no origin check in valid_movement). Sensor/catalyst/shrieker/vein diffs are only setBlockAndUpdate vs setBlock(...,3) plus codecs. sculk tests 3/3 pass."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

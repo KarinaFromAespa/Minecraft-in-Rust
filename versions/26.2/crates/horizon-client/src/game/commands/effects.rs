@@ -6,20 +6,6 @@ use horizon_client::{
     text::{self, Style, Text},
 };
 
-/// `CommandResponseTracker` over targets: elements with a non-zero result.
-#[derive(Default)]
-struct Tracker {
-    total: i32,
-    changed: Vec<Target>,
-}
-impl Tracker {
-    fn track(&mut self, t: Target, changed: bool) {
-        if changed {
-            self.total += 1;
-            self.changed.push(t);
-        }
-    }
-}
 fn effect_name(id: &str) -> Text {
     Text::translate(&brewing::description_id(id), &[])
 }
@@ -61,8 +47,9 @@ impl Game<'_> {
             None if effect.instant => 1,
             None => 600,
         };
-        let mut tracker = Tracker::default();
-        for t in self.living_targets(ctx)? {
+        let targets = self.living_targets(ctx)?;
+        let mut count = 0;
+        for &t in &targets {
             let changed = match t {
                 Target::Player | Target::Guest(_) => {
                     // `new MobEffectInstance(effect, duration, amplifier, false, particles)`.
@@ -93,29 +80,36 @@ impl Game<'_> {
                 },
                 _ => continue,
             };
-            tracker.track(t, changed);
+            if changed {
+                count += 1;
+            }
         }
-        let message = match tracker.changed.as_slice() {
-            [] => return Err(err("commands.effect.give.failed", &[])),
-            [one] => Text::translate(
+        if count == 0 {
+            return Err(err("commands.effect.give.failed", &[]));
+        }
+        // 26.2 branches single/multiple on the target count, not on the
+        // successes (26.3's tracker counts only the changed).
+        let message = if targets.len() == 1 {
+            Text::translate(
                 "commands.effect.give.success.single",
                 &[
                     effect_name(effect.id),
-                    self.target_name(*one),
+                    self.target_name(targets[0]),
                     Text::literal((duration / 20).to_string()),
                 ],
-            ),
-            many => Text::translate(
+            )
+        } else {
+            Text::translate(
                 "commands.effect.give.success.multiple",
                 &texts(&[
                     effect_name(effect.id),
-                    Text::literal(many.len().to_string()),
+                    Text::literal(targets.len().to_string()),
                     Text::literal((duration / 20).to_string()),
                 ]),
-            ),
+            )
         };
         self.feedback(message);
-        Ok(tracker.total)
+        Ok(count)
     }
     /// `EffectCommands.clearEffects` / `clearEffect`.
     pub(super) fn cmd_effect_clear(&mut self, ctx: &Context) -> R<i32> {
@@ -124,8 +118,9 @@ impl Game<'_> {
         } else {
             None
         };
-        let mut tracker = Tracker::default();
-        for t in self.living_targets(ctx)? {
+        let targets = self.living_targets(ctx)?;
+        let mut count = 0;
+        for &t in &targets {
             let changed = match (t, effect) {
                 (Target::Player | Target::Guest(_), None) => self
                     .for_player(t, |g| {
@@ -189,30 +184,39 @@ impl Game<'_> {
                 },
                 _ => continue,
             };
-            tracker.track(t, changed);
+            if changed {
+                count += 1;
+            }
         }
-        let message = match (tracker.changed.as_slice(), effect) {
-            ([], None) => return Err(err("commands.effect.clear.everything.failed", &[])),
-            ([], Some(_)) => return Err(err("commands.effect.clear.specific.failed", &[])),
-            ([one], None) => Text::translate(
+        if count == 0 {
+            return Err(match effect {
+                None => err("commands.effect.clear.everything.failed", &[]),
+                Some(_) => err("commands.effect.clear.specific.failed", &[]),
+            });
+        }
+        // 26.2 branches single/multiple on the target count, not on the
+        // successes (26.3's tracker counts only the changed).
+        let single = targets.len() == 1;
+        let message = match (single, effect) {
+            (true, None) => Text::translate(
                 "commands.effect.clear.everything.success.single",
-                &[self.target_name(*one)],
+                &[self.target_name(targets[0])],
             ),
-            (many, None) => Text::translate(
+            (false, None) => Text::translate(
                 "commands.effect.clear.everything.success.multiple",
-                &[Text::literal(many.len().to_string())],
+                &[Text::literal(targets.len().to_string())],
             ),
-            ([one], Some(e)) => Text::translate(
+            (true, Some(e)) => Text::translate(
                 "commands.effect.clear.specific.success.single",
-                &[effect_name(e.id), self.target_name(*one)],
+                &[effect_name(e.id), self.target_name(targets[0])],
             ),
-            (many, Some(e)) => Text::translate(
+            (false, Some(e)) => Text::translate(
                 "commands.effect.clear.specific.success.multiple",
-                &texts(&[effect_name(e.id), Text::literal(many.len().to_string())]),
+                &texts(&[effect_name(e.id), Text::literal(targets.len().to_string())]),
             ),
         };
         self.feedback(message);
-        Ok(tracker.total)
+        Ok(count)
     }
     /// `EnchantCommand.enchant` (mobs hold bare item ids, so only the player's
     /// main hand item can carry the enchantment).
@@ -234,7 +238,9 @@ impl Game<'_> {
         }
         let targets = self.entities(ctx, "targets", false)?;
         let single = targets.len() == 1;
-        let mut tracker = Tracker::default();
+        let n = targets.len();
+        let first = targets.first().copied();
+        let mut success = 0;
         for t in targets {
             match t {
                 Target::Player => {
@@ -257,7 +263,7 @@ impl Game<'_> {
                         if let Some(s) = self.inventory[self.selected].as_mut() {
                             s.enchant(&id, level.max(0) as u32);
                         }
-                        tracker.track(t, true);
+                        success += 1;
                     } else if single {
                         // getHoverName().getString(): the custom or item name, no brackets.
                         return Err(err(
@@ -306,18 +312,23 @@ impl Game<'_> {
             ..Style::default()
         };
         let full = Text::styled(name, style);
-        let message = match tracker.changed.as_slice() {
-            [] => return Err(err("commands.enchant.failed", &[])),
-            [one] => Text::translate(
+        if success == 0 {
+            return Err(err("commands.enchant.failed", &[]));
+        }
+        // 26.2 branches single/multiple on the target count, not on the
+        // successes (26.3's tracker counts only the changed).
+        let message = if single {
+            Text::translate(
                 "commands.enchant.success.single",
-                &[full, self.target_name(*one)],
-            ),
-            many => Text::translate(
+                &[full, self.target_name(first.expect("a single target"))],
+            )
+        } else {
+            Text::translate(
                 "commands.enchant.success.multiple",
-                &texts(&[full, Text::literal(many.len().to_string())]),
-            ),
+                &texts(&[full, Text::literal(n.to_string())]),
+            )
         };
         self.feedback(message);
-        Ok(tracker.total)
+        Ok(success)
     }
 }

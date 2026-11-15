@@ -617,7 +617,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             for dy in 0..=2 {
                 for dx in -4..=4 {
                     let state = self.state(pos.offset(dx, dy, dz));
-                    if self.sculk_in_tag(state, "minecraft:sculk_growth_inhibitors") {
+                    // 26.2 has no sculk_growth_inhibitors tag (26.3 added
+                    // it): the inhibitors are the sensor and the shrieker.
+                    if b.is_block(state, b.named.sculk_sensor)
+                        || b.is_block(state, b.named.sculk_shrieker)
+                    {
                         matched += 1;
                         if matched >= 3 {
                             return false;
