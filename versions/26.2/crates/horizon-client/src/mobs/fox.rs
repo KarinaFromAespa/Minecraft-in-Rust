@@ -346,7 +346,7 @@ fn consume(w: &MobWorld, m: &mut Mob, events: &mut Vec<MobEvent>, item: &str) {
 
 /// `TeleportRandomlyConsumeEffect.apply` for a fox: 16 draws of a point in a
 /// cube of `diameter` around it, the first it can stand at takes it, with the
-/// fox's own teleport sound and the portal trail (level event 2017).
+/// fox's own teleport sound (26.2 has no directional trail: no 2017 event).
 fn teleport_randomly(
     w: &MobWorld,
     m: &mut Mob,
@@ -1330,7 +1330,7 @@ mod consume_tests {
 
     /// `Item.finishUsingItem` → `Consumable.onConsume`: a fox that finishes a
     /// chorus fruit takes `TeleportRandomlyConsumeEffect`'s teleport, with its
-    /// own sound and the portal trail (level event 2017). 26.2's
+    /// own sound (26.2 has no directional trail: no 2017 event). 26.2's
     /// `randomTeleport` has no landing-block tag check (26.3's
     /// `#consumable_does_not_teleport_to` does not exist in 26.2), so the
     /// teleport lands on any valid ground; the tag audit proves the literal
@@ -1388,11 +1388,15 @@ mod consume_tests {
                         .any(|e| matches!(e, MobEvent::Sound("entity.fox.teleport", ..))),
                     "the fox's teleport sound: {events:?}"
                 );
+                // 26.2 has no directional trail: the fox's teleport is the
+                // entity event and the sound only (item 104 removed the
+                // 26.3-only 2017 event from the code but left this test
+                // asserting it — the stale assertion failed on main).
                 assert!(
-                    events
+                    !events
                         .iter()
                         .any(|e| matches!(e, MobEvent::LevelEvent { id: 2017, .. })),
-                    "the portal trail: {events:?}"
+                    "no 2017 trail in 26.2: {events:?}"
                 );
                 assert!(
                     events
