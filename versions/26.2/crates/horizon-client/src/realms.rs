@@ -99,6 +99,8 @@ const EXPIRATIONS: [(&str, Option<i64>); 7] = [
 
 /// `CommonLinks.BUY_REALMS`.
 const BUY_REALMS: &str = "https://aka.ms/BuyJavaRealms";
+/// `CommonLinks.START_REALMS_TRIAL`.
+const START_REALMS_TRIAL: &str = "https://aka.ms/startjavarealmstrial";
 /// `CommonLinks.EXTEND_REALMS_LINK`.
 const EXTEND_REALMS: &str = "https://aka.ms/ExtendJavaRealms";
 /// `CommonLinks.REALMS_CONTENT_CREATION`.
@@ -1264,6 +1266,15 @@ pub enum SubScreen {
         progress: Arc<upload::UploadProgress>,
         job: Option<Job<Result<(), upload::UploadError>>>,
     },
+    /// `AddRealmPopupScreen` (26.2 only): the 320x172 popup over the main list
+    /// behind Add Realm — the popup text, Buy, and a Trial button when a trial
+    /// is available. No carousel: the 26.2 client jar ships no `realms`-namespace
+    /// `textures/gui/images`, so vanilla's `updateCarouselImages` finds nothing
+    /// and draws no picture (a pack adding such images is a known gap).
+    AddRealmPopup {
+        /// `AddRealmPopupScreen.trialAvailable`: the Trial button and its diamond.
+        trial_available: bool,
+    },
     Popup(Popup),
     /// `RealmsLongRunningMcoTaskScreen` running `GetServerDetailsTask`: the join request is on
     /// a worker (`joining`); an error stays on screen with a Back button.
@@ -1369,6 +1380,14 @@ pub struct Screen {
     /// popup's Trial button.
     trial: bool,
     trial_job: Option<Job<Result<bool, RealmsError>>>,
+    /// The Add Realm button as last laid out (`createAddRealmButton`), and
+    /// whether it is active: the trial diamond draws over it after the buttons
+    /// (`RealmsMainScreen.extractRenderState`).
+    add_realm_rect: std::cell::Cell<[f32; 4]>,
+    add_realm_active: std::cell::Cell<bool>,
+    /// The popup's Trial button as last laid out: its diamond draws over it
+    /// after the buttons (`AddRealmPopupScreen.extractRenderState`).
+    trial_rect: std::cell::Cell<[f32; 4]>,
     /// `RealmsDataFetcher.liveStatsTask`: each Realm's online players (`getLiveStats`).
     live_players: std::collections::HashMap<i64, Vec<String>>,
     live_job: Option<Job<Result<std::collections::HashMap<i64, Vec<String>>, RealmsError>>>,
@@ -1681,6 +1700,9 @@ impl Screen {
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -1894,12 +1916,35 @@ impl Screen {
         }
     }
 
-    /// `RealmsHeader.NotificationButton.extractNotificationCounter`: the badge sits 8x8
-    /// at the button's top right corner (x + width - 5, y - 3) — drawn on top of the
-    /// button, so [`Self::draw`] cannot have drawn it: the buttons render after. Unread
-    /// news shows notification/more; the invite button counts the service's pending
-    /// invites, notification/1..5 then more. The main screen only (`draw_main`'s header).
+    /// `RealmsMainScreen.NotificationButton.extractNotificationCounter`: the badge
+    /// sits 8x8 at the button's top right corner (x + width - 5, y - 3) — drawn on
+    /// top of the button, so [`Self::draw`] cannot have drawn it: the buttons render
+    /// after. Unread news shows notification/more; the invite button counts the
+    /// service's pending invites, notification/1..5 then more. The main screen only
+    /// (`createHeader`). The same post-buttons draw carries `AddRealmPopupScreen
+    /// .extractDiamond`: the trial diamond over the Add Realm button on the list and
+    /// over the popup's Trial button.
     pub fn draw_header_badges(&self, atlas: &HudAtlas, batch: &mut HudBatch, w: f32) {
+        // The popup's Trial button carries the diamond (`AddRealmPopupScreen
+        // .extractRenderState`); the popup has no header badges.
+        if let SubScreen::AddRealmPopup { trial_available } = self.subscreen {
+            if trial_available
+                && atlas.sprites.contains_key("gui/sprites/icon/trial_available")
+            {
+                let [x, y, bw, _] = self.trial_rect.get();
+                crate::ui::blit_sprite(
+                    batch,
+                    atlas,
+                    "gui/sprites/icon/trial_available",
+                    x + bw - 8.0 - 4.0,
+                    y + 10.0 - 4.0,
+                    8.0,
+                    8.0,
+                    u32::MAX,
+                );
+            }
+            return;
+        }
         // The badges belong to the main list's header (`RealmsMainScreen.createHeader`).
         if !matches!(self.subscreen, SubScreen::Main) {
             return;
@@ -1944,6 +1989,24 @@ impl Screen {
                 u32::MAX,
             );
         }
+        // `RealmsMainScreen.extractRenderState`: a trial available and the Add Realm
+        // button active puts the diamond over it.
+        if self.trial
+            && self.add_realm_active.get()
+            && atlas.sprites.contains_key("gui/sprites/icon/trial_available")
+        {
+            let [x, y, bw, _] = self.add_realm_rect.get();
+            crate::ui::blit_sprite(
+                batch,
+                atlas,
+                "gui/sprites/icon/trial_available",
+                x + bw - 8.0 - 4.0,
+                y + 10.0 - 4.0,
+                8.0,
+                8.0,
+                u32::MAX,
+            );
+        }
     }
 
     /// `RealmsMainScreen.refreshServerList`.
@@ -1955,7 +2018,7 @@ impl Screen {
         self.last_news_refresh = now;
         self.news_job = client().map(|client| spawn(move || client.news_link()));
         self.notifications_job = client().map(|client| spawn(move || client.notifications()));
-        // `RealmsHeader`'s invite badge counts the service's pending invites
+        // `RealmsMainScreen.createHeader`'s invite badge counts the service's pending invites
         // (`numberOfPendingInvites`).
         self.pending_invites_job = client().map(|client| spawn(move || client.pending_invites()));
         // `RealmsDataFetcher.trialAvailabilityTask`: the Add Realm button's trial diamond.
@@ -1997,6 +2060,14 @@ impl Screen {
             title: crate::lang::get("mco.errorMessage.generic"),
             detail,
             next: Box::new(SubScreen::Main),
+        };
+    }
+
+    /// `RealmsMainScreen.openTrialAvailablePopup`: the popup over the list, carrying
+    /// the trial answer the service gave.
+    fn open_add_realm_popup(&mut self) {
+        self.subscreen = SubScreen::AddRealmPopup {
+            trial_available: self.trial,
         };
     }
 
@@ -4576,6 +4647,10 @@ impl Screen {
                 self.leave_clicked(session().map(|s| s.uuid));
                 Outcome::None
             }
+            Some(13) => {
+                self.open_add_realm_popup();
+                Outcome::None
+            }
             Some(15) => {
                 let job = client().map(|c| spawn(move || c.pending_invites()));
                 self.subscreen = SubScreen::PendingInvites {
@@ -5496,6 +5571,22 @@ impl Screen {
                 if let Some(link) = link {
                     self.open_link(link);
                 }
+                Outcome::None
+            }
+            Some(40) => {
+                // `AddRealmPopupScreen.init`: Buy asks before opening BUY_REALMS.
+                self.open_link(BUY_REALMS.to_owned());
+                Outcome::None
+            }
+            Some(41) => {
+                // `AddRealmPopupScreen.init`: Trial asks before opening
+                // START_REALMS_TRIAL.
+                self.open_link(START_REALMS_TRIAL.to_owned());
+                Outcome::None
+            }
+            Some(44) => {
+                // `AddRealmPopupScreen.onClose`: the background screen returns.
+                self.subscreen = SubScreen::Main;
                 Outcome::None
             }
             Some(50) => self.popup_continue(),
@@ -7306,6 +7397,20 @@ impl Screen {
                 ));
                 buttons.push((cx - 100.0, h - 27.0, 200.0, t("gui.back"), true, 81, None));
             }
+            SubScreen::AddRealmPopup { trial_available } => {
+                // `AddRealmPopupScreen.init`: the 320x172 popup centred; Buy 99 wide
+                // at the bottom right, Trial 4 above it when a trial is available,
+                // the 14x14 close cross at the popup's top left.
+                let left = ((w - 320.0) / 2.0).floor();
+                let top = ((h - 172.0) / 2.0).floor();
+                let right = left + 320.0;
+                let bottom = top + 172.0;
+                if *trial_available {
+                    buttons.push((right - 10.0 - 99.0, bottom - 10.0 - 4.0 - 40.0, 99.0, t("mco.selectServer.trial"), true, 41, None));
+                }
+                buttons.push((right - 10.0 - 99.0, bottom - 10.0 - 20.0, 99.0, t("mco.selectServer.buy"), true, 40, None));
+                buttons.push((left + 4.0, top + 4.0, 14.0, String::new(), true, 44, Some(("widget/cross_button", 14.0))));
+            }
             // `PopupScreen.buildButtonRow`: OK and the optional URL button, centered.
             SubScreen::Popup(Popup::Notice { url, .. }) => {
                 // The row the draw laid out: the URL button first, OK last
@@ -7678,6 +7783,15 @@ impl Screen {
                     }
                 }
             }
+        }
+        // The trial diamonds draw after the buttons, so the rects they sit on are
+        // recorded here: the Add Realm button (13) and the popup's Trial (41).
+        if let Some(b) = buttons.iter().find(|b| b.5 == 13) {
+            self.add_realm_rect.set([b.0, b.1, b.2, 20.0]);
+            self.add_realm_active.set(b.4);
+        }
+        if let Some(b) = buttons.iter().find(|b| b.5 == 41) {
+            self.trial_rect.set([b.0, b.1, b.2, 20.0]);
         }
         buttons
     }
@@ -9440,6 +9554,49 @@ impl Screen {
                     for (i, line) in wrap_lines(&text, atlas, 200.0).iter().enumerate() {
                         centered(batch, atlas, line, cx, 132.0 + i as f32 * 10.0, color);
                     }
+                }
+            }
+            SubScreen::AddRealmPopup { trial_available } => {
+                // `AddRealmPopupScreen.extractBackground`: the list behind, dimmed,
+                // then the 320x172 popup. No carousel picture: the 26.2 client jar
+                // ships no `realms`-namespace `textures/gui/images`, so vanilla draws
+                // none either.
+                self.draw_main(batch, atlas, cursor, w, h, false);
+                batch.fill(atlas, 0.0, 0.0, w, h, rgba(16, 16, 16, 192));
+                let left = ((w - 320.0) / 2.0).floor();
+                let top = ((h - 172.0) / 2.0).floor();
+                if atlas.sprites.contains_key("gui/sprites/popup/background") {
+                    crate::ui::blit_sprite(
+                        batch,
+                        atlas,
+                        "gui/sprites/popup/background",
+                        left,
+                        top,
+                        320.0,
+                        172.0,
+                        u32::MAX,
+                    );
+                } else {
+                    batch.fill(atlas, left, top, 320.0, 172.0, rgba(16, 16, 16, 255));
+                }
+                // `AddRealmPopupScreen.init`: the popup text, 100 wide on the right,
+                // in the space the buttons leave (142 less 40 with a trial, 20
+                // without); the font's lines are 9 apart.
+                let text_height: f32 = 142.0 - if *trial_available { 40.0 } else { 20.0 };
+                let max_lines = (text_height / 9.0).floor() as usize;
+                for (i, line) in wrap_lines(&t("mco.selectServer.popup"), atlas, 100.0)
+                    .iter()
+                    .take(max_lines)
+                    .enumerate()
+                {
+                    batch.text(
+                        atlas,
+                        line,
+                        left + 320.0 - 10.0 - 100.0,
+                        top + 10.0 + i as f32 * 9.0,
+                        u32::MAX,
+                        true,
+                    );
                 }
             }
             // `PopupScreen`: the list behind (`backgroundScreen`), dimmed, then the panel
@@ -11265,6 +11422,9 @@ mod tests {
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -11753,6 +11913,9 @@ mod tests {
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
             trial_job: None,
+            add_realm_rect: std::cell::Cell::new([0.0; 4]),
+            add_realm_active: std::cell::Cell::new(false),
+            trial_rect: std::cell::Cell::new([0.0; 4]),
             live_players: std::collections::HashMap::new(),
             live_job: None,
             last_list_refresh: Instant::now(),
@@ -11984,6 +12147,54 @@ mod tests {
         screen.click(Some(16), 0.0, 0.0, (854.0, 480.0));
         assert!(!screen.escape());
         assert!(matches!(screen.subscreen, SubScreen::Main));
+    }
+
+    /// `RealmsMainScreen.openTrialAvailablePopup`: Add Realm opens the 26.2 popup
+    /// carrying the trial answer, with Buy, Trial and the close cross; the cross
+    /// and Escape return to the list.
+    #[test]
+    fn add_realm_opens_the_popup_with_the_trial_answer() {
+        let mut screen = listed(Vec::new());
+        screen.trial = true;
+        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(
+            screen.subscreen,
+            SubScreen::AddRealmPopup {
+                trial_available: true
+            }
+        ));
+        let ids: Vec<u8> = screen.buttons(854.0, 480.0).iter().map(|b| b.5).collect();
+        assert_eq!(ids, vec![41, 40, 44]);
+        // Buy asks before opening the store link, and the answer returns here.
+        screen.click(Some(40), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(
+            &screen.subscreen,
+            SubScreen::Popup(Popup::OpenLink { .. })
+        ));
+        screen.click(Some(55), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(screen.subscreen, SubScreen::AddRealmPopup { .. }));
+        // The close cross returns to the list.
+        screen.click(Some(44), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(screen.subscreen, SubScreen::Main));
+        // So does Escape.
+        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        assert!(!screen.escape());
+        assert!(matches!(screen.subscreen, SubScreen::Main));
+    }
+
+    /// Without a trial the popup has Buy and the close cross, but no Trial button.
+    #[test]
+    fn add_realm_without_a_trial_has_no_trial_button() {
+        let mut screen = listed(Vec::new());
+        screen.click(Some(13), 0.0, 0.0, (854.0, 480.0));
+        assert!(matches!(
+            screen.subscreen,
+            SubScreen::AddRealmPopup {
+                trial_available: false
+            }
+        ));
+        let ids: Vec<u8> = screen.buttons(854.0, 480.0).iter().map(|b| b.5).collect();
+        assert_eq!(ids, vec![40, 44]);
     }
 
     /// `RealmsResetWorldScreen.init`'s grid: 60-wide tiles, 16 padding a side, the spacer row.
