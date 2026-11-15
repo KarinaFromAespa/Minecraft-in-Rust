@@ -317,7 +317,7 @@ impl<G: Goal + Clone + 'static> Goal for Unless<G> {
     }
 }
 
-/// `FrogAi.initLaySpawnActivity` for a pregnant frog: `TryFindLandNearLiquid(8, 1.0)`
+/// `FrogAi.initLaySpawnActivity` for a pregnant frog: `TryFindLandNearWater(8, 1.0)`
 /// looks for land beside water and walks there, and `TryLaySpawnOnFluidNearLand`
 /// puts frogspawn on the water next to it. Both run every tick (the brain's
 /// walk target is `lay_target` here); the wandering `RunOne` is the goals below it.
@@ -334,14 +334,16 @@ impl LaySpawn {
     fn empty(w: &MobWorld, p: [i32; 3]) -> bool {
         w.collision_bounds(p).is_none()
     }
-    /// `TryFindLandNearLiquid`'s `findFirst` test.
+    /// `TryFindLandNearWater`'s `findFirst` test. 26.2 checks the block below
+    /// the neighbour `is(Blocks.WATER)` — a water block, not a waterlogged one;
+    /// 26.3's `TryFindLandNearLiquid` tests the fluid state instead.
     fn land_near_water(w: &MobWorld, p: [i32; 3]) -> bool {
         if !Self::empty(w, p) || Self::empty(w, [p[0], p[1] - 1, p[2]]) {
             return false;
         }
         HORIZONTAL.iter().any(|d| {
             let n = [p[0] + d[0], p[1], p[2] + d[1]];
-            Self::is_air(w, n) && w.fluid(n[0], n[1] - 1, n[2]) == Fluid::Water
+            Self::is_air(w, n) && w.block_name(n[0], n[1] - 1, n[2]) == "minecraft:water"
         })
     }
     fn find(&mut self, m: &mut Mob, cx: &mut Cx) {
@@ -414,7 +416,7 @@ impl LaySpawn {
     }
 }
 impl LaySpawn {
-    /// The brain's turn: `TryFindLandNearLiquid`, then `TryLaySpawnOnFluidNearLand`.
+    /// The brain's turn: `TryFindLandNearWater`, then `TryLaySpawnOnFluidNearLand`.
     /// They run ahead of the wandering `RunOne`, so the selector runs them where it
     /// asks first (`can_use` and `can_continue`), before the stroll can start.
     fn step(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {

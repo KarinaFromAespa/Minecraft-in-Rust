@@ -2778,3 +2778,16 @@ already requires inline lists/direct terms, which is
 check (the Rust does not check holder lists — a
 documented partial-check gap), and the builder/entry
 re-shapes.
+
+## Rank 3 — bucket D batch 8: 163/177 (2026-11-15)
+
+481 Frog lay-spawn: 26.2 uses TryFindLandNearWater,
+26.3 renamed it TryFindLandNearLiquid with a fluid-tag
+parameter (whose tag holds only water). PORTED: the land
+search's water test is now a block test — 26.2 checks
+the block below the neighbour is a water block, while
+26.3's fluid-state test also accepts waterlogged blocks.
+Verified no-change: the Manhattan iteration order (26.2's
+withinManhattan iterator is exactly the Rust's
+manhattan_box), the guard, the cooldown, and the
+lay-spawn behaviour itself.

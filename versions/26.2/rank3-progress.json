@@ -1133,6 +1133,13 @@
       "bucket": "D",
       "verdict": "ported",
       "evidence": "Codecs to the 26.2 forms. PORTED: RegistryFileCodec's unknown-element error is 26.2's bare form ('Failed to get element {id}'; 26.3 appends ' from registry {registry}') \u2014 fixed in codec.rs (loot_table) and item.rs (enchantment), with the inline-loot test's expected message and its stale 'vanilla 26.3' doc note. PORTED: RangeSlotSource requires `source` in 26.2 (LootContextArg.ENTITY_OR_BLOCK \u2014 this/attacker/direct_attacker/attacking_player/target_entity/interacting_entity/block_entity; unknown names give the id-resolver codec's 'Unknown element id: {name}', verified in ExtraCodecs' constant pool); 26.3 made it optional, defaulting to the container (which is NOT a valid 26.2 source). VERIFIED no-change: the loot-condition combinators \u2014 the Rust already requires inline lists/direct terms, which IS 26.2's DIRECT_CODEC form (26.3 wraps terms in a HolderSet and term in a Holder, allowing tag/reference forms the Rust rejects); HolderSetCodec's homogeneity check and decodeWithoutRegistry (the Rust does not check holder lists at all \u2014 a documented partial-check gap, identical for both versions); the $Builder re-shape (builder API only); NestedLootTable$2 (an anonymous entry class; the Rust only checks the value holder set). Tests: horizon-command 53/53 (incl. the new source-required test); the inline-loot integration tests are #[ignore]d locally and run in CI."
+    },
+    {
+      "id": 481,
+      "module": "crates/horizon-client/src/mobs/frog.rs",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "Frog lay-spawn to the 26.2 form. 26.2's FrogAi uses TryFindLandNearWater(8, 1.0); 26.3 renamed it TryFindLandNearLiquid with a fluid-tag parameter (whose 26.3 tag holds only water, so the range/speed/cooldown are identical). PORTED: the land search's water test is now a BLOCK test (the block below the neighbour is minecraft:water) \u2014 26.2 checks getBlockState().is(Blocks.WATER), while 26.3's fluid-state test also accepts waterlogged blocks. VERIFIED no-change: the Manhattan iteration order (26.2's BlockPos$3 withinManhattan iterator is exactly the Rust's manhattan_box: depth, x ascending, y ascending, z then -z), the guard (fluid-based in both), the +40-tick cooldown, and TryLaySpawnOnFluidNearLand (setBlockAndUpdate vs setBlock(...,3) only). Tests: mobs::frog 9/9."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
