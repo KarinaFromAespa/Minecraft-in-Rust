@@ -2571,3 +2571,12 @@ shipwreck: all no-change. 449's impulse math is the same
 rotation two ways; 450's book clicks are already left-click;
 453's compile-start clock is Horizon's own; 454 is the
 Builder/Accessor rename.
+
+## Rank 3 — bucket B batch 3 (part 2): 120/177 (2026-11-15)
+
+455 piercing weapon, 456 multiline edit, 457 data commands,
+458 title/NBT: all no-change. 455's reset happens in both
+versions via Player.onAttack; 457's compute subcommand is
+26.3-only and unported (the /compute command itself is item
+510); 458's Tracker form tracks every target, so it equals
+26.2's manual branching.

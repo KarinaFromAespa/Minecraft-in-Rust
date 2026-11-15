@@ -811,6 +811,34 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "Igloo/shipwreck pieces: the Builder vs Accessor parameter rename only, plus setBlockAndUpdate vs setBlock(...,3) in the igloo piece post-processing \u2014 the same re-shape as the fortress and mineshaft pieces."
+    },
+    {
+      "id": 455,
+      "module": "crates/horizon-client/src/game/hand.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Redstone ore + piercing: the ore differs only by the 26.2 codec and setBlockAndUpdate vs setBlock(...,3). PiercingWeapon.attack's only diff is swing() vs swingAndResetAttackStrength() \u2014 but the attack-strength reset happens in BOTH versions via Player.onAttack (called in both, resets the ticker), and the swing duration comes from getSwingAnimation in both (26.2 via getCurrentSwingDuration). The Rust's jab()+reset matches both."
+    },
+    {
+      "id": 456,
+      "module": "crates/horizon-client-render/src/multiline_edit.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Multiline edit: keyPressed differs only by shortcutKey vs key codes (same keys: Enter, Backspace, Delete, Home/End, arrows \u2014 the Rust handles them by KeyCode). MultiLineEditBox's needsValidCursorPos is capturesInput (26.3) vs preeditOverlay != null (26.2); the position feeds only the IME caret report and the cursor drawing (gated by showCursor in both), and the Rust has no preedit-overlay state to gate on \u2014 the reported caret position is the same either way."
+    },
+    {
+      "id": 457,
+      "module": "crates/horizon-client/src/command_storage.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "DataCommands: the ArgProvider/DataAccessor (26.3) vs DataProvider (26.2) re-shape with identical merge/get/remove/modify semantics. The 26.3-only /data modify ... compute subcommand (ComputeCommand is absent from the 26.2 jar) is unported in the Rust's cmd_data_modify \u2014 no compute branch, no compute surface to remove. /compute itself belongs to item 510 (bucket D)."
+    },
+    {
+      "id": 458,
+      "module": "crates/horizon-client/src/game/commands/text_commands.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Title + NBT contents: TitleCommand is the Tracker family, but 26.3 tracks every target unconditionally, so it is equivalent to 26.2's manual size-branching \u2014 and the Rust's cmd_title already branches on the target count and returns it. NbtContents.resolve's 26.3 resolved-component-count limit has no counterpart in the Rust (which resolves every component, as 26.2 does) and no recursion risk (single-pass resolution)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
