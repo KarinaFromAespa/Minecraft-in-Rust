@@ -62,6 +62,83 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "SpriteContents$AnimationState: RenderPearl -> Blaze3D import paths and setUniform -> bindTexture renames in drawToAtlas; close() byte-identical; AnimatedTexture.createAnimationState a signature re-shape. GPU plumbing only."
+    },
+    {
+      "id": 503,
+      "module": "crates/horizon-world/src/worldgen/vegetation.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "WaterloggedVegetationPatchFeature: ctor/config-class re-shape (26.3 record-style ctor vs 26.2 VegetationPatchConfiguration); placeGroundPatch/placeVegetation bodies identical modulo the config parameter threaded through the super calls. MultifaceSpreadeableBlock only gains a codec. Rust references are comments."
+    },
+    {
+      "id": 505,
+      "module": "widely named: client/renderer/chunk",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SectionMesh$SectionDraw record re-shape (init/indexType/equals/hashCode/toString); SectionMesh loses getCompileTaskStartTime, a timing getter. No Rust module ports either; no Rust surface."
+    },
+    {
+      "id": 506,
+      "module": "crates/horizon-assets/src/item_bake.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CuboidItemModelWrapper: 26.3 pre-splits quads into ItemQuads and caches the animated flag at construction; 26.2 keeps the QuadCollection and calls prepareQuadList().addAll(quads.getAll()) + hasMaterialFlag(2) at update time \u2014 same quads submitted, same animated condition. LayerRenderState setQuads -> prepareQuadList rename. Rust references are doc comments."
+    },
+    {
+      "id": 507,
+      "module": "crates/horizon-client/src/mobs/illusioner.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "Illusioner.performRangedAttack: 26.2 inlines the uncertainty as 14 - difficulty.getId()*4; 26.3 calls RangedAttackMob.rangedAttackUncertainty, whose default-method bytecode is exactly 14 - getDifficulty().getId()*4 \u2014 a pure extraction, no behaviour change. The Rust already uses (14 - difficulty.id*4). IllusionerRenderer.getBoundingBoxForCulling is a signature re-shape."
+    },
+    {
+      "id": 508,
+      "module": "crates/horizon-world/src/level/redstone/experimental.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "The entire ExperimentalRedstoneWireEvaluator diff is the RedstoneWireBlock -> RedStoneWireBlock class rename (26.2's name); calculateCurrentChanges, enqueueNeighborWire, isConnected, updatePowerStrength bodies identical."
+    },
+    {
+      "id": 509,
+      "module": "crates/horizon-bots/src/main.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ClientChunkCache$Storage section-emptiness methods (markSectionEmpty/NotEmpty removed, onChunkAdded/Removed/refreshEmptySections changed); the Rust only cites ClientChunkCache in a doc comment. No port of the storage."
+    },
+    {
+      "id": 511,
+      "module": "crates/horizon-client/src/game/sculk.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "WardenSpawnTrackerCommand: 26.3 tracker form vs 26.2 manual one/many branching, and getWardenSpawnTracker() returns Optional in 26.2 (ifPresent) vs direct in 26.3. Unobservable in the Rust: cmd_warden_spawn_tracker is single-player-only (always the .single message, tracker always present)."
+    },
+    {
+      "id": 512,
+      "module": "crates/horizon-client/src/mobs/sniffer.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SnifferRenderer.getBoundingBoxForCulling added+removed (signature re-shape); the Rust only mentions the renderer in a comment."
+    },
+    {
+      "id": 513,
+      "module": "crates/horizon-narrator/src/lib.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ScreenNarrationCollector$Output: the NarrationTrigger field/ctor arg/accessor are 26.3-only; nest() is identical modulo dropping the trigger argument \u2014 the same removal item 129 already applied to the Rust. ScreenNarrationCollector.update is a signature re-shape."
+    },
+    {
+      "id": 514,
+      "module": "crates/horizon-client-render/src/zip.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "FilePackResources$FileResourcesSupplier: openMetadata/openResources renamed openFull/openPrimary (internal supplier API); listResources/getResource unchanged; FilePackResources <init> only. Rust references are comments."
+    },
+    {
+      "id": 515,
+      "module": "crates/horizon-client/src/game_rules_screen.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CategoryRuleEntry: 26.3 wraps the label in a FocusableTextWidget (focusable, border-on-focus); 26.2 draws centered text directly with an anonymous narratable and empty children(). The Rust draws centered text + a narratable region \u2014 the 26.2 form; no focus behaviour to remove."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

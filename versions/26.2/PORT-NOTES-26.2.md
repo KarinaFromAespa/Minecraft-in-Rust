@@ -2320,3 +2320,19 @@ the 26.3 CommandResponseTracker form (Tracker::track/mark + send) and
 26.2 uses manual one/many branching on names.size() with different
 counts/returns (e.g. setScore returns value * names.size()). Deferred
 to its own port task.
+
+## Rank 3 — bucket A batch 2: 20/177 (2026-11-15)
+
+All no-change, verified against the jars: 503 waterlogged vegetation
+(config threading, bodies identical), 505 section mesh (record re-shape
++ a timing getter removed, no Rust surface), 506 cuboid item model
+(quad-split hoisting; same quads, same animated condition), 507
+illusioner (rangedAttackUncertainty is 14 - difficulty*4 in both — the
+26.3 default method's bytecode proves it; Rust already uses it), 508
+experimental redstone (entire diff is the RedStoneWireBlock rename),
+509 bots chunk cache (doc comment only), 511 warden tracker command
+(single-player-only Rust, tracker-vs-manual unobservable), 512 sniffer
+renderer (signature re-shape), 513 narrator output (trigger removal,
+already done in item 129), 514 zip pack supplier (method renames),
+515 game-rules category entry (Rust already draws the 26.2 centered-text
+form, no focusable widget).
