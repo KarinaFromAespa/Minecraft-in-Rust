@@ -168,7 +168,9 @@ tags (`#minecraft:no_such_tag`, `#minecraft:fixture`). First run, against 26.2: 
 `brewing_potion_inputs`, `causes_suffocation` (a known-owed suffocation port, documented in-code),
 `conduit_effect_block`, `consumable_does_not_teleport_to`, `entities_can_teleport_to`,
 `extendable_maps`, `shulker_does_not_teleport_to` — all inherited from the 26.3 base, all absent
-from 26.2's tag data. Reach caveat: the check catches the dead-tag class only, not a missing gate
+from 26.2's tag data. The report-only CI run (port-verify 43710204861, main@140d9570) reproduces
+the same inventory exactly, with D1 passing and the notes attached — the check runs on the staged
+candidate with no workflow change. Reach caveat: the check catches the dead-tag class only, not a missing gate
 or a wrong default. Open question for the gating decision: pre-tag eras (E0, before 1.13, no tag
 files at all) would block on this sub-check permanently — the gate needs an era rule for them
 before it flips.
