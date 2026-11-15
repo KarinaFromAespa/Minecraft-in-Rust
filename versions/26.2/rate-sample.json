@@ -1,0 +1,777 @@
+{
+ "release": "26.2",
+ "rank": 2,
+ "window": "rank 2 218/410 -> 326/410 (2026-11-14 ~07:56 NPT to 2026-11-15)",
+ "source": "versions/26.2/PORT-NOTES-26.2.md, \"Rate sample\" table (verbatim rows)",
+ "definition": {
+  "changed": "needed a real port (Rust code, oracle, driver or harness change)",
+  "no-change": "verified against the 26.2 jars with no code change"
+ },
+ "minutes_note": "Minutes are the porting agent’s per-item estimates, not stopwatch timings; only changed items are timed. Items 88 and 231 were in flight when the sample started, so they count as changed with minutes pre-sample (excluded from the total).",
+ "counts": {
+  "items": 108,
+  "changed": 47,
+  "no_change": 61,
+  "minutes_on_changed": 4162,
+  "timed_changed_items": 45
+ },
+ "correction": "2026-11-15: the PORT-NOTES tally line originally read 100/100 items, 47 changed, 53 no-change. The table holds 108 rows (the 218->326 window spans 108 closures) with 61 no-change. The changed count (47) and minutes (4162) verify exactly against the table.",
+ "items": [
+  {
+   "id": 88,
+   "changed": true,
+   "minutes": null,
+   "minutes_kind": "pre-sample",
+   "note": "worldgen settings port, stages 1–6"
+  },
+  {
+   "id": 231,
+   "changed": true,
+   "minutes": null,
+   "minutes_kind": "pre-sample",
+   "note": "carver port (cave/canyon/nether, apply phase)"
+  },
+  {
+   "id": 133,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "26.3 densityfunction/op package absent from 26.2"
+  },
+  {
+   "id": 152,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "4 util classes 26.3-only, no Rust references"
+  },
+  {
+   "id": 153,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "CarverOutput/Filter/Visitor 26.3-only"
+  },
+  {
+   "id": 102,
+   "changed": true,
+   "minutes": 3,
+   "minutes_kind": "est.",
+   "note": "bed pair check removed (26.2 form), BedRule explodes alias"
+  },
+  {
+   "id": 110,
+   "changed": true,
+   "minutes": 6,
+   "minutes_kind": "est.",
+   "note": "Blender to f64 (BlendingOutput, blend_density, blend_biome, OutputBuffer)"
+  },
+  {
+   "id": 105,
+   "changed": true,
+   "minutes": 35,
+   "minutes_kind": "est.",
+   "note": "environment colors to 26.2 packed-int formulas; 4 oracles + 4 harnesses pass"
+  },
+  {
+   "id": 135,
+   "changed": true,
+   "minutes": 4,
+   "minutes_kind": "est.",
+   "note": "VillagerTrade reads given_item_modifiers (plural)"
+  },
+  {
+   "id": 136,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "tryPlaceLeaf plumbing only; Rust already matches 26.2"
+  },
+  {
+   "id": 134,
+   "changed": true,
+   "minutes": 3,
+   "minutes_kind": "est.",
+   "note": "port-pack gating: 26.2 series copies as-is, 26.3 packs not brought over; install() fresh-dir fix"
+  },
+  {
+   "id": 140,
+   "changed": true,
+   "minutes": 11,
+   "minutes_kind": "est.",
+   "note": "container tooltip args (name, count); crossbow multiple line uses getDisplayName"
+  },
+  {
+   "id": 119,
+   "changed": true,
+   "minutes": 6,
+   "minutes_kind": "est.",
+   "note": "onMove to 26.2 absolute-delta form; grab centre integer division"
+  },
+  {
+   "id": 99,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "crumbling already the 26.2 parameter form; rest is API-only or has no Rust counterpart"
+  },
+  {
+   "id": 90,
+   "changed": true,
+   "minutes": 11,
+   "minutes_kind": "est.",
+   "note": "VideoMode to 26.2 int-rate string form; fullscreen no-adopt, exclusive at construction; throttle iconified-only; FifoRelaxed vsync"
+  },
+  {
+   "id": 94,
+   "changed": true,
+   "minutes": 28,
+   "minutes_kind": "est.",
+   "note": "Animate codes to 26.2 numbering; post-effect system removed; /publish gamemode; sleep early-refusal order (includes a compaction + service-restart pause)"
+  },
+  {
+   "id": 355,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "BrewingRecipe 26.3-only; 26.2 brewing is PotionBrewing mixes; book arms unreachable-with-effect"
+  },
+  {
+   "id": 356,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Rust DensitySampler is Horizon's own trait; RangeChoice/IntervalSelect semantics verified vs the 26.2 jar"
+  },
+  {
+   "id": 393,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Rust DensityVolume is Horizon's own volume index math, not a port of the 26.3 class"
+  },
+  {
+   "id": 397,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "InputQuirks$1 is the synthetic switch-map for 26.3's keyboard display overrides; Rust has none"
+  },
+  {
+   "id": 407,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ClockInstance 26.3-only; Rust already uses 26.2 ClockManager.getTotalTicks (item 105)"
+  },
+  {
+   "id": 267,
+   "changed": true,
+   "minutes": 14,
+   "minutes_kind": "est.",
+   "note": "classes table gains DirtPathBlock + RedStoneWireBlock aliases (both classes never matched in 26.2); survival tables updated"
+  },
+  {
+   "id": 247,
+   "changed": true,
+   "minutes": 6,
+   "minutes_kind": "est.",
+   "note": "eyeblossom neighbour scan to 26.2 betweenClosed order (x, y, z), not 26.3 section-major"
+  },
+  {
+   "id": 177,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "brewing to 26.2 PotionBrewing mixes (65) + BrewOutput model; stand to flat 26.2 form (no totals/speed); both harnesses reworked (5,386 + 20 lines match); shared block-update oracle to 26.2 (blockscan/ClockInstance/ServerChunkCache); merchant float-number fix; spans the investigation (pre-compaction) + implementation"
+  },
+  {
+   "id": 238,
+   "changed": true,
+   "minutes": 10,
+   "minutes_kind": "est.",
+   "note": "lerp + distance_to_point decoder arms removed (26.2 bootstrap registers neither); 18 density-compiler classes 26.3-only"
+  },
+  {
+   "id": 357,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Rust Noise trait / NoiseStack is Horizon's own engine; Interval mentions are comments on float edge-cases; range semantics belong to item 127"
+  },
+  {
+   "id": 361,
+   "changed": true,
+   "minutes": 20,
+   "minutes_kind": "est.",
+   "note": "minecraft:ore_vein decoder arm removed (26.2 MATERIAL_RULE has only bandlands/block/sequence/condition); Definition::Ore + roots plumbing removed; MaterialRule::OreVein stays for the generator's 26.2 vein application"
+  },
+  {
+   "id": 362,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ClayBands matches 26.2 SurfaceSystem.generateBands/makeBands exactly (verified line by line); comment reworded to name SurfaceSystem"
+  },
+  {
+   "id": 182,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "RandomState$2 is a 26.3-only anonymous DensitySamplerSet impl; Rust SeededContext is Horizon's own holder"
+  },
+  {
+   "id": 191,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ItemContainerContents$Mutable, TooltipProvider$Getter 26.3-only; Rust mentions are comments"
+  },
+  {
+   "id": 199,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "DynamicGpuData + inners, GameRenderer$1, LevelRenderer$ChunkDrawGroup absent from 26.2 client jar; no Rust references"
+  },
+  {
+   "id": 208,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "SignBlockEntity$1, SignText$Mutable 26.3-only; no Rust references"
+  },
+  {
+   "id": 228,
+   "changed": true,
+   "minutes": 20,
+   "minutes_kind": "est.",
+   "note": "minecraft:gradient decoder arm removed (26.2 bootstrap registers only y_clamped_gradient); 22 generator classes 26.3-only"
+  },
+  {
+   "id": 230,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "VanillaPackResources$1 26.3-only; only Rust mention is a comment"
+  },
+  {
+   "id": 232,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "material/condition/* is a pure rename of SurfaceRules conditions; both registries register the identical 11 types"
+  },
+  {
+   "id": 235,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "BrewingFuel/CookingFuel/ResolvableFloat/ResolvableInt 26.3-only; Rust component table verified against 26.2 DataComponents order"
+  },
+  {
+   "id": 240,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "Straw beds removed (26.3-only): flat 0.6875 setPosToBed, no sleep-height check, no destroy-on-leave, no straw_bed stat/sprite/POI"
+  },
+  {
+   "id": 241,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "SwingState removed: 26.2 plain-field swing model (swingTime/attackAnim, live getCurrentSwingDuration); oracle reworked"
+  },
+  {
+   "id": 242,
+   "changed": true,
+   "minutes": 180,
+   "minutes_kind": "est.",
+   "note": "Placement modifiers to 26.2: random_offset replaces offset/cuboid/random_chance/randomly_selected; FeaturePlacer→PlacedFeature.place; 13 oracles + 11 drivers reworked; offsetCodec strict-<16 bound; height_range/volume_match predicates removed (26.3-only). Placement harness 1,674→882/18,780 mismatches"
+  },
+  {
+   "id": 276,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "BrewingInput 26.3-only; zero Rust references"
+  },
+  {
+   "id": 180,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "cooking defaults to 26.2 (smelting 200, blasting/smoking/campfire 100); TransmuteResult 26.3-only, Rust Template already the 26.2 form"
+  },
+  {
+   "id": 185,
+   "changed": true,
+   "minutes": 45,
+   "minutes_kind": "est.",
+   "note": "recursive predicate cycles are warnings-only in 26.2 (no hasFatalProblems throw); only Unbound refuses the start"
+  },
+  {
+   "id": 187,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "DecoratedPot/ChestRenderer submit plumbing only; animation state unchanged; BlockTags additions all 26.3-only"
+  },
+  {
+   "id": 205,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "VillagerFood 26.3-only; Rust already the 26.2 FOOD_POINTS form; take_half_stack exact"
+  },
+  {
+   "id": 296,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "TrimTextureKey$1 26.3-only; CustomHeadLayer Transforms 5 vs 3 fields, Rust mentions are comments"
+  },
+  {
+   "id": 302,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "dolphin goals merged to the single 26.2 PlayWithItemsGoal (ItemGoal/MoveToItemGoal do not exist in 26.2); Jump goal to blocksMotion(); 2-arg moveTo reach 1"
+  },
+  {
+   "id": 305,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "Panic water search to withinManhattan order (depth shells, x, y, +z/-z); MeleeAttack tick reach 1 (2-arg moveTo)"
+  },
+  {
+   "id": 306,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "StreamCodec$20/$21 26.3-only; zero Rust references"
+  },
+  {
+   "id": 307,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "BlockTransformer 26.3-only; block_transform.rs already 26.2"
+  },
+  {
+   "id": 311,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "levelgen/material/rule/* 26.3-only; 26.2 uses SurfaceRules"
+  },
+  {
+   "id": 316,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "enderman teleport to the 26.2 two-scan blocksMotion form (no #entities_can_teleport_to, no avoidance tag, no border clamp, no level event 2018); EnderMan rename; 64-try loop inline"
+  },
+  {
+   "id": 321,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "MaterialRuleContext 26.3-only; 26.2 uses SurfaceRules"
+  },
+  {
+   "id": 333,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "level/blockscan package 26.3-only; cushion oracle's blockscan import belongs to items 147/374"
+  },
+  {
+   "id": 342,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "OIT entirely 26.3-only; Rust OIT mentions are comments + opt-in tagging"
+  },
+  {
+   "id": 233,
+   "changed": true,
+   "minutes": 420,
+   "minutes_kind": "est.",
+   "note": "EntityPositionSync to PositionMoveRotation; VecDelta to [i16;3]; MoveEntity 26.2 wire forms; AdvancementDisplay x/y; sign bool side; InterpolationHandler rework (double alpha, bitwise angle compare); tracker reworked; harness bit-exact on 135,742 lines. Outlier: multi-crate rework + harness"
+  },
+  {
+   "id": 192,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "powder-snow entityInside to the 26.2 client-side form (xOld/zOld gate, addParticle); interpolation half closes with 233 (minutes counted there)"
+  },
+  {
+   "id": 157,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "EntityFluidInteraction to the 26.2 per-tag Tracker model (joint rework with 161): void update, plain-top eye check, tracker-height flow scaling, untagged fluids skipped; getHeightForCamera removed from the trait + 4 implementors; stale ServerEntity/UpdateInterval comments fixed"
+  },
+  {
+   "id": 161,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "EntityFluidInteraction + FloatGoal (joint rework with 157): tick answers inWater \\"
+  },
+  {
+   "id": 117,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "TreeGrower to the 26.2 secondary-chance model (oak 0.1, spruce 0.5, mangrove 0.85); poplar removed; canGrow removed (lone dark oak takes the meal); mega square cleared to air/260, single sapling to legacy block/260; MushroomBlock verified equivalent; 3 picker unit tests"
+  },
+  {
+   "id": 163,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "Cat goals to the 26.2 forms: can_sit_on hardcoded (chest/furnace/bed-foot, no #cats_can_sit_on tag); CatLieOnBlock renamed CatLieOnBed, checks #beds; RelaxOnOwner bed check to #beds; giveMorningGift to the 26.2 4-arg randomTeleport via a shared helper extracted from enderman.rs (leash-holder origin added); CatRenderer setupRotations and BiomeCheck verified no-change"
+  },
+  {
+   "id": 92,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "Entity culling to the 26.2 tick-position form (no getInterpolatedBoundingBox): cull_box + standing_entity_in_view drop interpolation, 8 call sites updated; stale SwingState/currentSwing citations fixed (swing model already 26.2 under 241); 26 renderer/layer classes verified no-change (rotate renames, submitModel null arg, render-type plumbing)"
+  },
+  {
+   "id": 87,
+   "changed": true,
+   "minutes": 180,
+   "minutes_kind": "est.",
+   "note": "See-through name tags back to the 26.2 pass position (drawn with the translucent features, before translucent terrain; late draw only in OIT/flat/pack frames); forcefield texture to the 26.2 plain SimpleTexture form (1 mip level, NEAREST min / LINEAR mag, no mip filtering; MipmappedTexture is 26.3-only). LevelRenderer diff is the RenderPearl migration + 26.3-only OIT passes; addSkyPass/submitBlockOutline/waterMask already 26.2; Util.toMillis, DebugCrosshair, gizmos, DepthStencilState, NativeImage$Format verified no-change"
+  },
+  {
+   "id": 101,
+   "changed": true,
+   "minutes": 150,
+   "minutes_kind": "est.",
+   "note": "Loot to the 26.2 list forms: `functions`/`conditions` lists at table, pool, entry and per-function level (26.3's single `modifier`/`condition`); both rollers (loot.rs, items.rs LootContext) + the odds calculator converted. Real gap: 26.2 leaf entries DO carry `functions` (LootPoolSingletonContainer composite, innermost) — loot.rs `create` never applied them; now does, pinned by a new order test (2 + 3 + 10 = 15). NestedLootTable already 26.2 (Either value); function/predicate math identical (plumbing only); Instrument already 26.2; MobVisibility already noted 26.3-only"
+  },
+  {
+   "id": 115,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "DimensionOrigin placement removed (26.3-only): variant, decode arm, registry `origin` field and the three origin methods gone; a dimension_origin set now decodes to Unsupported and never starts (pinned by a new test). Placement shared logic identical across the 26.3 class/interface split (reducers verified against the enum mapping). Structure biome semantics identical (stub-position check already in generate). Beardifier math identical; float-vs-double precision is density-engine-wide debt, recorded, not reworked"
+  },
+  {
+   "id": 109,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "GameTest to the 26.2 single-level/single-grid form: TestDef.dimension and Info.dim removed, Runner holds its level, Grid is one state, onBatchStart does NOT reset the row count, say is level-scoped via broadcast_level, summary coordinate links removed (26.3-only)"
+  },
+  {
+   "id": 106,
+   "changed": true,
+   "minutes": 90,
+   "minutes_kind": "est.",
+   "note": "Natural spawning: quart-origin spawn costs; fresh pufferfish 0.35 (puff state 0); obstruction predicate kept (blocksBuilding)"
+  },
+  {
+   "id": 131,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "RenderSystem diffs are the SDL/RenderPearl vs GLFW/GLX platform rework; fluid mesher names none of the changed methods; world_border_render oracle needs a 26.3->26.2 rework (26.3-only API)"
+  },
+  {
+   "id": 171,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Biome sampling math identical; diffs are API rework (Sampler arg, double compute, RTree.create, codec renames); spawnTarget/findSpawnPosition is a 26.2-only dedicated-server gap, not a sampling change"
+  },
+  {
+   "id": 214,
+   "changed": true,
+   "minutes": 130,
+   "minutes_kind": "est.",
+   "note": "RuleTest to the 26.2 2-arg form (height/not/all_of/any_of removed); BlockState.CODEC object-only NBT names (Name/Properties); rule_test harness reworked and passing (1,251,780 lines match, both jars)"
+  },
+  {
+   "id": 236,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Core renames/inlines with identical semantics (Holder, Vec3i strict <, Direction, canSerializeIn, MutableBlockPos); Axis per-constant abstract methods"
+  },
+  {
+   "id": 239,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ColorTargetState package move (Blaze3D -> RenderPearl) only"
+  },
+  {
+   "id": 244,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "RenderType import move + outline-texture lookup + removed hasBlending; Rust does not use Mojang's RenderType"
+  },
+  {
+   "id": 246,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Item$Properties 26.3-only villagerFood/potPattern + components absent in 26.2; shared methods identical"
+  },
+  {
+   "id": 248,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ContextMap map-implementation swap + method renames (set/get -> withParameter/getParameter); semantics identical"
+  },
+  {
+   "id": 249,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "TagSlotDisplay HolderSet (26.3) vs TagKey (26.2); Rust expands tags eagerly at load; SlotDisplayContext adds FUEL_VALUES in 26.2"
+  },
+  {
+   "id": 250,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "State-provider states to the 26.2 object-only block-state codec (simple, weighted, noise default/states, would_survive); state_provider harness needs a 26.3->26.2 oracle rework (97 compile errors)"
+  },
+  {
+   "id": 251,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "WeatherEffectRenderer is the RenderPearl/OIT rework; Rust has its own wgpu weather renderer"
+  },
+  {
+   "id": 255,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "SimpleBlockFeature record+MapCodec (26.3) vs Feature<SimpleBlockConfiguration> (26.2); Rust already decodes to_place directly with optional schedule_tick"
+  },
+  {
+   "id": 256,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "StructureCheck cache is a pure optimization; addChildren accessor rename; BoundingBox same values"
+  },
+  {
+   "id": 259,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "TagCommand response-plumbing rework; data accessors ArgProvider vs DataProvider; behaviour identical"
+  },
+  {
+   "id": 275,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "calculateSolid logic identical (26.3 adds SolidDebugger logging); blocksMotion/isViewBlocking already 26.2-form; shouldRedstoneWireConnectTo 26.3-only, uncalled"
+  },
+  {
+   "id": 277,
+   "changed": true,
+   "minutes": 60,
+   "minutes_kind": "est.",
+   "note": "isSuffocating default to blocksMotion (no causes_suffocation tag in 26.2); BlockState/StateHolder codec already fixed in 214"
+  },
+  {
+   "id": 297,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "SetNameFunction list predicates (item 101); ExplorationMap already the 26.2 TagKey form"
+  },
+  {
+   "id": 298,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "TrimMaterial 26.2 assets form (item 61); BannerPattern codec rename"
+  },
+  {
+   "id": 299,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "AtlasGlyphProvider import move only"
+  },
+  {
+   "id": 300,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "CuboidModelElement shade bool already read (both forms)"
+  },
+  {
+   "id": 301,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "MessageSignature buffer API only; wire format identical"
+  },
+  {
+   "id": 303,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "LootTable$Builder list form (item 101); LootContext rename"
+  },
+  {
+   "id": 304,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ChunkSectionLayer import move + multidraw variant removed"
+  },
+  {
+   "id": 308,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ServerConnectionListener queue vs direct accept; Rust has its own listener"
+  },
+  {
+   "id": 309,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Sign block MapCodec present in 26.2, removed in 26.3; Rust does not use block codecs"
+  },
+  {
+   "id": 310,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "isValidClickButton SDL 1 vs GLFW 0 (same left click); getScrollAmount 26.3-only"
+  },
+  {
+   "id": 129,
+   "changed": true,
+   "minutes": 150,
+   "minutes_kind": "est.",
+   "note": "NarrationTrigger removed (26.3-only): `Trigger` enum, `Output.trigger()`, `ScreenNarration.next_trigger` gone; `schedule`/`due`/`run`/`after_status_change` take no trigger; `ContainerObjectSelectionList` narrates the hovered row whenever one exists (26.2 form) instead of only for mouse/system triggers. Clock comments re-cited to 26.2's `ClockInstance` (26.3's `ServerClockInstance` is the renamed public form; tick/loadFrom/packState identical). Key codes (GLFW vs SDL), `isInputCaptured`, `fillCrashDetails`, openUri and the `post_effects` suggestion provider verified no-change (winit keys, no Rust refs, or string-URI form already 26.2)"
+  },
+  {
+   "id": 8,
+   "changed": true,
+   "minutes": 300,
+   "minutes_kind": "est.",
+   "note": "Swing packet carries the hand (26.2 form); login takes the server previous game type; wall nudge drops the passenger exclusion; F4 flips the spectated shader (`effectActive`); F3+Escape pause keeps the dig; creative entity attack sets no destroy delay; mining fatigue is the 26.2 table (0.3/0.09/0.0027/0.00081). First-person oracle reworked to 26.2 (`ItemInHandRenderer`, 8-arg `LocalPlayer`, singular `addBreakingBlockEffect`, `SoundManager` shell). Harness: 4,205 first-person cases match (382,720 lines)"
+  },
+  {
+   "id": 12,
+   "changed": true,
+   "minutes": 300,
+   "minutes_kind": "est.",
+   "note": "PlayerAction ordinals are 26.3-shifted (CHANGE_DESTROY_DIRECTION at 1): client sends + host dispatch to 26.2 ordinals, face-change send removed; glide start bars water only (no lava arm); piglin-brute visibility + clamp removed; restitution strict `<`; collide query box drops maxUpStep; hurtServer knocks back even fully blocked; forceSendPlayerSupportBlocks (26.3-only) removed; duplicate-position kick (26.3 receivedPositionThisTick) removed. New ordinal regression test passes; health tests 14/14"
+  },
+  {
+   "id": 86,
+   "changed": true,
+   "minutes": 240,
+   "minutes_kind": "est.",
+   "note": "Farmland trample + turtle-egg destroy drop 26.3's spawn-protection gate (26.2 players always trample/destroy); bucket evaporate smoke to 26.2 addParticle x8 uniform in-cube, acting client only, LAN send removed; spectator block outline over menu blocks; spinning/OIT/post-effect citations to the 26.2 locations. cargo check clean; lan_particles 5/5; block-landing harness block-landing parity harness vs the 26.2 oracle: 5,597,105 registered lines match (client + server)"
+  },
+  {
+   "id": 147,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "BlockAttachedEntity.kill is Entity.kill(level) in 26.2 (unattributed death); painting/frame ENTITY_DIE now unattributed on player and blast breaks; explosion_kill_credit() + crystal_blast_player() removed; explosion-broken frame BLOCK_CHANGE now attributed to the blast's direct source entity (exploding mob) via explosion_direct_source(). entity_die_explosions updated to the 26.2 truth (4 events, all self-sourced; no item event); stand hurt test renamed + fixed (same 26.3 attribution lag). entity_die 2/2, stand 12/12, kill_die 1/1, vibration 6/6, lan_particles 5/5"
+  },
+  {
+   "id": 374,
+   "changed": true,
+   "minutes": 120,
+   "minutes_kind": "est.",
+   "note": "Cushion/CushionItem/CushionRenderer 26.3-only (0 entries in either 26.2 jar): entity/item/renderer, dye_index, Target::Cushion, minecraft:cushion load/save, LAN states, seats/rides, blast/thunder handling and the placement probe removed; generic logic moved (dismount helpers to passengers.rs, suffocation/view-blocking to render_tick.rs). cushion_placement harness n/a for 26.2 (oracle imports the 26.3-only blockscan package); driver + oracle left in place"
+  },
+  {
+   "id": 312,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "GameType -1 sentinel already the Rust form (item 8); BaseSpawner.setEntityData 26.3-only; SpawnPredicate no ServerLevel param in 26.2 (item 106 form)"
+  },
+  {
+   "id": 313,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "RegistryOps/HolderLookupAdapter HolderOwner rework; no Rust surface"
+  },
+  {
+   "id": 314,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "MaterialBaker concrete-vs-abstract; Material.withSuffix 26.3-only"
+  },
+  {
+   "id": 315,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "EndCrystalRenderer submitModel null arg + beam-target shouldRender 26.3-only"
+  },
+  {
+   "id": 317,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "CreateWorldScreen datapackWorldRegistries -> datapackWorldgen rename"
+  },
+  {
+   "id": 318,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "DisplayRenderer culling is the item-92 tick-position form"
+  },
+  {
+   "id": 319,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "ProjectileDeflection 3-arg + REVERSE -0.5 already Rust form; ShulkerBullet redirect 26.3-only"
+  },
+  {
+   "id": 320,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "Enchantment holderSet/homogeneousList same JSON shapes; Builder Holder.direct 26.3-only"
+  },
+  {
+   "id": 322,
+   "changed": true,
+   "minutes": 30,
+   "minutes_kind": "est.",
+   "note": "PortalShape.FRAME is obsidian, not the 26.3-only #nether_portal_frame tag; portal_frame fixed to is_block(obsidian). Nether-portal harness repaired (state_properties: NBT `Properties` vs JSON `properties`) and passes 2626/2626"
+  },
+  {
+   "id": 323,
+   "changed": false,
+   "minutes": null,
+   "minutes_kind": "not-timed",
+   "note": "TrialSpawnerConfig codec rename only; BlockEntity log arg order cosmetic"
+  }
+ ]
+}

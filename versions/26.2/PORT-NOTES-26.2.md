@@ -498,10 +498,13 @@ the 874 delta port-days figure is right or ~3× too high, so the
 changed/no-change split and the minutes on changed items are the
 numbers that matter; no-change verifications are counted, not timed.
 
-**rate sample: 100/100 items COMPLETE, 47 changed, 53 no-change, 4162 minutes on changed
+**rate sample: 108 items COMPLETE, 47 changed, 61 no-change, 4162 minutes on changed
 items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT) and closes at rank 2
 326/410 (2026-11-15). The last two closes were 322 (changed, 30 min est.) and the
-nine no-change items of batch 4.
+nine no-change items of batch 4. Correction 2026-11-15: the tally line originally
+read 100/100 with 53 no-change; the table holds 108 rows — the 218→326 window spans
+108 closures — with 61 no-change. The changed count (47) and minutes (4162) verify
+exactly against the table. Machine-readable form: versions/26.2/rate-sample.json.
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
 (excluded from the minutes total). Item 89 was already closed before
