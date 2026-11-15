@@ -5,7 +5,7 @@ fn optional_variants_split_contiguous_materials_without_guessing_from_alpha() {
     let mut vertices = Vec::new();
     for layer in [
         0,
-        super::super::OIT_ENTITY,
+        super::super::TRANSLUCENT_ITEM_OVERLAY,
         0,
         super::super::TRANSLUCENT_PARTICLE_OVERLAY,
         0,

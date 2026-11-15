@@ -2,7 +2,7 @@
 //! an adapter that can't present to the window gives way to another of its backend
 //! (#13493).
 use super::{
-    Renderer, check_layers, cull, describe_adapter, is_software, oit, startup_step, surface_format,
+    Renderer, check_layers, cull, describe_adapter, is_software, startup_step, surface_format,
     timing,
 };
 use std::sync::Arc;
@@ -133,7 +133,6 @@ pub(super) async fn open_adapter(
     // packs' RGBA32F buffers, which GL filters and mipmaps. Count draws: GPU culling's (`gpu_culling`).
     let features = timing::GpuTimer::features(adapter)
         | cull::Cull::features(adapter)
-        | oit::features(adapter)
         | (adapter.features()
             & (wgpu::Features::INDIRECT_FIRST_INSTANCE
                 | wgpu::Features::MULTI_DRAW_INDIRECT_COUNT

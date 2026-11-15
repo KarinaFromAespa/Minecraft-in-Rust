@@ -340,11 +340,6 @@ pub fn rows() -> Vec<(Page, Vec<(&'static str, Vec<Setting>)>)> {
                             Medium,
                             "Leaves with see-through gaps. Off draws them solid.",
                         ),
-                        v(
-                            Opt::ImprovedTransparency,
-                            Medium,
-                            "Sorts water and glass more exactly behind each other.",
-                        ),
                         h(
                             H::AnimatedTextures,
                             Low,
@@ -1214,7 +1209,6 @@ impl Item {
             Item::Vanilla(Opt::Vignette) => s.vignette,
             Item::Vanilla(Opt::Autosave) => s.autosave_indicator,
             Item::Vanilla(Opt::CutoutLeaves) => s.cutout_leaves,
-            Item::Vanilla(Opt::ImprovedTransparency) => s.improved_transparency,
             _ => return None,
         })
     }
@@ -1397,7 +1391,6 @@ fn read(s: &Settings) -> impl std::fmt::Debug + '_ {
         s.vignette,
         s.mipmap_levels,
         s.cutout_leaves,
-        s.improved_transparency,
         &s.graphics_preset,
     );
     let window = (
@@ -1532,7 +1525,6 @@ impl Screen for GraphicsScreen {
         s.chunk_fade = b.chunk_fade;
         s.mipmap_levels = b.mipmap_levels;
         s.cutout_leaves = b.cutout_leaves;
-        s.improved_transparency = b.improved_transparency;
         s.prioritize_chunk_updates = b.prioritize_chunk_updates;
         // Presets set it beside the options above.
         s.graphics_preset = b.graphics_preset.clone();

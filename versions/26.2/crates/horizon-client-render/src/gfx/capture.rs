@@ -160,7 +160,6 @@ pub struct RendererState {
     pub gpu_culling: bool,
     pub gamma: f32,
     pub fullbright: bool,
-    pub improved_transparency: bool,
     pub animated_textures: bool,
     /// A shader pack was running; the replay draws without it.
     pub shader_pack: bool,
@@ -394,7 +393,6 @@ impl Renderer {
                 gpu_culling: self.gpu_culling(),
                 gamma: self.gamma,
                 fullbright: self.fullbright,
-                improved_transparency: self.improved_transparency,
                 animated_textures: self.animated_textures,
                 shader_pack: self.pack_post.is_some() || self.native.is_some(),
             },

@@ -652,7 +652,7 @@ mod tests {
                     ..Default::default()
                 },
                 // An eyes layer: no normal, even over a culled model's encoding; the
-                // tier and OIT tag ride in the overlay word.
+                // the HDR tier rides in the overlay word.
                 SkinJob {
                     first: 24,
                     count: 24,

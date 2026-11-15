@@ -128,23 +128,6 @@ fn composed() -> Vec<(&'static str, Vec<&'static str>, String)> {
             entity.clone() + include_str!("../static_entity.wgsl"),
         ),
         (
-            "improved transparency clouds",
-            vec!["entity.wgsl", "oit.wgsl", "oit_clouds.wgsl"],
-            entity.clone() + include_str!("../oit.wgsl") + include_str!("../oit_clouds.wgsl"),
-        ),
-        (
-            "improved transparency features",
-            vec!["entity.wgsl", "oit.wgsl", "oit_features.wgsl"],
-            entity + include_str!("../oit.wgsl") + include_str!("../oit_features.wgsl"),
-        ),
-        (
-            "improved transparency world",
-            vec!["terrain.wgsl", "oit.wgsl", "oit_world.wgsl"],
-            super::terrain_shader()
-                + include_str!("../oit.wgsl")
-                + include_str!("../oit_world.wgsl"),
-        ),
-        (
             "visibility buffer",
             vec!["terrain.wgsl", "visbuffer.wgsl"],
             super::terrain_shader() + include_str!("../visbuffer.wgsl"),
@@ -163,13 +146,6 @@ fn composed() -> Vec<(&'static str, Vec<&'static str>, String)> {
             "world warp entities",
             vec!["entity.wgsl", "static_entity.wgsl", "world_warp.wgsl"],
             super::world_warp::entity_shader(super::world_warp::IDENTITY).unwrap(),
-        ),
-        (
-            "improved transparency world border",
-            vec!["border.wgsl", "oit.wgsl", "oit_border.wgsl"],
-            include_str!("../border.wgsl").to_owned()
-                + include_str!("../oit.wgsl")
-                + include_str!("../oit_border.wgsl"),
         ),
     ]
 }

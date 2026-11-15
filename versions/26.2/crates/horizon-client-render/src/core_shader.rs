@@ -29,8 +29,8 @@ pub const BLOCKS: [(&str, u32); 4] = [
 /// Vanilla's samplers: the texture's binding in set 0, the sampler object's the next one.
 pub const SAMPLERS: [(&str, u32); 3] = [("Sampler0", 4), ("Sampler1", 6), ("Sampler2", 8)];
 
-/// The first binding of the blocks and samplers vanilla has for other pipelines (OIT's behind
-/// `#ifdef OIT`): fine while the preprocessor drops them, an error when a stage uses one.
+/// The first binding of the blocks and samplers vanilla has for other pipelines:
+/// fine while the preprocessor drops them, an error when a stage uses one.
 const OTHER_BINDINGS: u32 = 16;
 
 /// What the caller's pipeline gives the pack's vertex shader.
@@ -440,7 +440,7 @@ fn rewrite(
                     .unwrap();
                 }
                 _ => {
-                    // Pipelines with more targets (OIT's, behind `#ifdef OIT`) name them; the
+                    // Pipelines with more targets name them; the
                     // colour this pipeline draws is the one at location 0.
                     let location = decl.location.unwrap_or_else(|| {
                         let at = outputs.iter().position(|o| *o == decl.name);
@@ -699,9 +699,9 @@ mod tests {
             "{error}"
         );
         // Behind a define the pipeline doesn't have, it is no error.
-        let oit = "#version 330\n#ifdef OIT\nuniform sampler2D Coeff0;\n#endif\nout vec4 vertexColor;\n\
-            void main() {\n#ifdef OIT\n    vertexColor = texelFetch(Coeff0, ivec2(0), 0);\n#endif\n}\n";
-        translate_core(oit, fsh, &[], &include, &GLUE).unwrap();
+        let cutout = "#version 330\n#ifdef ALPHA_CUTOUT\nuniform sampler2D Sampler3;\n#endif\nout vec4 vertexColor;\n\
+            void main() {\n#ifdef ALPHA_CUTOUT\n    vertexColor = texelFetch(Sampler3, ivec2(0), 0);\n#endif\n}\n";
+        translate_core(cutout, fsh, &[], &include, &GLUE).unwrap();
         let missing = "#version 330\n#moj_import <minecraft:nothing.glsl>\nvoid main() {}\n";
         let error = translate_core(missing, fsh, &[], &include, &GLUE).unwrap_err();
         assert!(

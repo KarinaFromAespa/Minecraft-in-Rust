@@ -418,12 +418,7 @@ impl Game<'_> {
     pub(super) fn debug_performance_lines(&self, d: &mut debug_overlay::Displayer) {
         let s = &self.settings;
         d.line(format!(
-            "{}{}B: {}",
-            if s.improved_transparency {
-                "improved-transparency "
-            } else {
-                ""
-            },
+            "{}B: {}",
             match s.clouds.as_str() {
                 "false" => "",
                 "fast" => "fast-clouds ",
@@ -695,17 +690,9 @@ impl Game<'_> {
                 }
                 true
             }
-            DebugAction::ImprovedTransparency => {
-                self.settings.improved_transparency = !self.settings.improved_transparency;
-                self.settings.save(&Self::options_path());
-                self.apply_settings();
-                self.debug_translated(if self.settings.improved_transparency {
-                    "debug.improvedTransparency.on"
-                } else {
-                    "debug.improvedTransparency.off"
-                });
-                true
-            }
+            // 26.2's transparency chain is not implemented, so there is no
+            // option to toggle: the key is used up, as the profiler keys are.
+            DebugAction::ImprovedTransparency => true,
             DebugAction::FpsCharts => {
                 self.debug_charts.toggle_fps(&mut self.debug);
                 true
