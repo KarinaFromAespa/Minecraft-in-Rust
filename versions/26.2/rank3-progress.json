@@ -1168,6 +1168,13 @@
       "bucket": "D",
       "verdict": "ported",
       "evidence": "ContentsSlotSource: 26.2 holds the nested slot_source directly (26.3 wraps it in a Holder) because 26.2 has NO minecraft:slot_source registry at all \u2014 SlotSources.CODEC is withAlternative(TYPED_CODEC, GroupSlotSource.INLINE_CODEC), a typed object or a plain list (GroupSlotSource takes List<SlotSource> in 26.2, HolderSet in 26.3); 26.3's is RegistryCodecs.holder + holderSet. 26.2 also has no SlotSourceArgument class (only SlotArgument), so no command takes a slot source \u2014 the /item tree already uses SlotArgument (item 419). PORTED the codec: replaced the 26.3 holder-set element_or_list helper (admitted #tag, 4-part nested either error) with with_alternative (single element or list, 2-part either error, no tags) for both the slot_source arm and the item_modifier arm (26.2's LootItemFunctions.ROOT_CODEC is the same withAlternative form, verified in item 501); updated the three slot_source tests to the 2-part expectations; fixed the module doc (context providers left over from item 501). NOTE: the item-501 edit accidentally ate element_or_list's doc comment (no blank line separated it from provider_fields); the new helper restores the doc. VERIFIED NO-CHANGE: ArrayItemProvider, GrowableMutableContainer and ComponentSlotCollection have no Rust references; the nested slot_source field is not decoded by the arm in either version. Tests: horizon-command 53/53."
+    },
+    {
+      "id": 524,
+      "module": "crates/horizon-client-core/src/particle_type.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "EmissiveRisingParticle is a pure rename of 26.2's SoulParticle: the decompiled classes are behaviour-identical (RisingParticle parent, scale 1.5, isGlowing -> block light 15, TRANSLUCENT layer, tick = super + setSpriteFromAge), and ParticleResources registers the same providers in both versions (SCULK_SOUL -> EmissiveProvider, SOUL -> plain Provider). The Rust already implements the 26.2 form exactly: RisingParticle motion, scale 1.5, Animated behaviour, Light::Block15 for SculkSoul only, translucent layer for both. Only the two comments naming EmissiveRisingParticle were fixed to SoulParticle. Tests: cargo check horizon-client-core + horizon-client-render clean."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

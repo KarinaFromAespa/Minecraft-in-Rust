@@ -2838,3 +2838,9 @@ alike; the three slot_source tests are re-pinned to
 the 2-part errors. The removed classes
 (ArrayItemProvider, GrowableMutableContainer,
 ComponentSlotCollection) have no Rust references.
+
+524 EmissiveRisingParticle is a pure rename of
+26.2's SoulParticle (behaviour-identical classes,
+same provider registration): the Rust already
+implements the 26.2 form; only the two comments
+were re-attributed.
