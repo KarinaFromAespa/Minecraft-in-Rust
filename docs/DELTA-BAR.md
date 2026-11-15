@@ -179,6 +179,13 @@ sandbox_network_dead_address   # cause: sandbox forbids outbound, owner: karina
 The `generated_from` hash is the anti-drift device: re-running the diff invalidates the ledger
 until it is re-recorded, so a release cannot be "verified" against a report from a different tree.
 
+Where the totals come from is part of the check, because getting it wrong fails silently in the
+safe-looking direction: `version_port.py`'s real reports nest their counts under `summary.ranks`,
+so a gate reading only top-level `ranks` saw every rank as 0 and every ledger as consistent with
+"nothing to do". The gate now reads top-level `ranks`, then `summary.ranks`, then counts `items`
+by rank, and the verdict names which source it used (`totals read from summary.ranks`). A report
+for which all three are empty is a failure, not a zero.
+
 ---
 
 ## 6. D4 — Data compatibility, D5 — Era regression subset, D6 — Play gate
@@ -192,6 +199,16 @@ until it is re-recorded, so a release cannot be "verified" against a report from
 | **Artifact** | `.local/parity-runner/state.json` |
 | **Passes when** | Both records say `"status": "pass"`. |
 | **Cost** | 15–40 min; the most valuable check here — 26.1's datafix run reported 19,372 differences over 7 worlds, which is exactly the silent rot this catches. |
+
+**During active porting, D4 is blocked by design and that is correct** — a published profile is
+evidence about the commit it was stamped with, and a branch that has moved since is not that tree.
+What the gate must not do is let a stale profile hide a fresher local sweep, or the reverse: by
+default a mismatched `profile.json` is refused and D4 returns blocked, whatever
+`.local/parity-runner/state.json` says. When you are mid-port and want the check to mean something
+before the release exists, pass `--local-evidence`: D4/D5 then judge the local state and the verdict
+records `local evidence (.local/parity-runner/state.json), not a published profile: profile.json is
+stamped for commit …, HEAD is …`. Nobody can mistake that for a release verdict, and it disappears
+the moment you re-publish at the commit you are judging.
 
 ### D5
 
@@ -207,6 +224,24 @@ Freeze the subset per era and change it only with a dated `#` comment, otherwise
 made "verified" by shrinking its own test set. Start each era's list from upstream's
 `parity.py --list` filtered to the subsystems the era's template touched — for E6, the 17-harness
 port profile is the seed, not the answer.
+
+Membership rule, in order: (1) the harness exercises a subsystem the era's template touched;
+(2) it is green on that template, because a subset that is red on its own template blocks every
+delta in the era and teaches people to exempt it; (3) it is not in `parity_hosts.json`'s
+`named_only` (those never get selected automatically, so a CI subset naming one proves nothing
+about the nightlies); (4) eight is the working size — it keeps a delta sweep at ~12 harness-minutes
+warm instead of ~60 and still spans the era's data model.
+
+**E7 (26.x, template 26.3):** `component_patch`, `entity_components`, `datafix`,
+`save_roundtrip`, `command_parse`, `item_model`, `block_properties`, `chunk_generation`. The
+snapshot line moves the component data model and the save ladder; every one of the five releases
+changes those, and nothing else in the 17 grows or shrinks reliably.
+
+**E6 (1.21.x, template 1.21.11):** `component_patch`, `item_model`, `block_properties`,
+`command_parse`, `food`, `hotbar`, `datafix`, `save_roundtrip`. Item models arrive in 1.21.4, the
+component rewrite in 1.21.5, food/hotbar behaviour in 1.21.2/1.21.9 — this set is what actually
+moved inside the era. `save_roundtrip` is `local_only` in `parity_hosts.json`, so it runs on the
+driving machine: that is D4's harness anyway, and listing it here costs nothing.
 
 ### D6
 
@@ -303,6 +338,12 @@ mode that produced "completion pass landed" beside a 3-of-17 profile.
   }
 }
 ```
+
+Every path in it is repo-relative (`"tree": "versions/1.21.10"`, `"evidence": ["versions/1.21.10/profile.json"]`),
+so the file is committable and diffs cleanly between two runs. An absolute path made the verdict
+machine-specific, and the obvious workaround — not committing it — removes the middle link of the
+chain: `VERSIONS.md` could then only be regenerated on the machine that produced the verdict, which
+is how a published number stops being checkable.
 
 `VERSIONS.md` is then not written, it is printed:
 
