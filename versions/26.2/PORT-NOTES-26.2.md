@@ -3071,3 +3071,68 @@ gate changes the branch had never merged), then merged to main as
 5672c415. The next CI run on main should show command_exec getting
 past fixture control; save_roundtrip's separate launch exit is still
 being diagnosed locally (second track).
+
+## Launch crash DIAGNOSED + FIXED (2026-11-15, second track)
+
+The "unknown launch crash" blocking command_exec/save_roundtrip was NOT
+a port bug. It was two missing system libraries, found by running
+save_roundtrip locally and reading the game's own control.log
+(/tmp/hzrtdgin4f8h/control.log, then /tmp/hzrtps1a_c32/control.log):
+
+1. `libxkbcommon-x11.so could not be loaded` — the game panicked in
+   xkbcommon-dl at startup (winit X11 keyboard init). The VM/runner had
+   libxkbcommon but not its X11 extension. Fixed locally with
+   libxkbcommon-x11-0 1.6.0-1build1 (+ its dep libxcb-xkb1 1.15).
+   (Note: apt-get update on this VM hangs on the cogentco mirror in
+   sources.list; the .debs were fetched directly from archive.ubuntu.com
+   and installed with dpkg -i.)
+2. `No Vulkan or OpenGL graphics driver found` — the runner/VM has the
+   Vulkan loader (libvulkan1) but no Vulkan driver, and no EGL for the
+   OpenGL fallback. Fixed locally with mesa-vulkan-drivers
+   25.2.8-0ubuntu0.24.04.4 (lavapipe, the software Vulkan driver).
+
+With both installed, the 26.2 client launches under Xvfb and renders on
+llvmpipe (Vulkan, "llvmpipe Mesa 25.2.8 (LLVM 20.1.2)", ~0.84 fps
+software) — wait-ready succeeds, 67 chunks, 45 mobs, player joined.
+
+CI fix: port-verify v6.7 (358736da) installs libxkbcommon-x11-0 and
+mesa-vulkan-drivers in the system-libraries step. Run 43704536595 (in
+flight, measures f56493a6 pre-v6.7) will still fail save_roundtrip at
+launch; the NEXT run on main is the CI verification of this fix.
+
+Side finding — the vanilla_login bot: it fails to log in during the
+harness's world build (TimeoutError locally once, EOFError on CI and in
+the re-runs) but logs in instantly against an idle 26.2 server (traced
+2026-11-15: SetCompression + LoginSuccess in 0.0s). The bot code and
+protocol (776) are correct; the loaded server (4096-chunk forceload +
+scene commands on a small box) does not answer the handshake within the
+bot's 30s window, and the server shutdown then closes the connection.
+Consequence: the RoundTrip player never joins, so no player .dat is
+written and the player-data roundtrip is silently unexercised. A
+harness-load artefact, not a port bug; the harness proceeds regardless.
+
+## save_roundtrip now MEASURES (local, 2026-11-15)
+
+First full local run with the libraries installed: the game launches,
+saves, and the harness compares — `save round-trip parity FAILED (2962
+unexplained differences)`. The launch is fixed; these are real save-path
+gaps, the next work item:
+
+- ~2402 "Not a map" chunk-section errors: vanilla reloading Horizon's
+  save reports block states as bare names ("minecraft:air") where it
+  expects {Name, Properties} maps; the NBT diff shows the same loss the
+  other way (vanilla "256 differ, first #768
+  minecraft:grass_block[snowy=false]" vs horizon "minecraft:grass_block").
+  Horizon's chunk-section palette writer drops state properties and the
+  map form.
+- 79 VANILLA VIEW block-entity diffs: Horizon's resave writes no block
+  entities ("The target block is not a block entity" for jigsaw,
+  structure_block, sculk_sensor, beehive, spawner, command blocks,
+  beacon, signs, ...). Block-entity data is lost on save.
+- Remainder (~480): heightmap/section diffs on chunks vanilla left
+  blank (Horizon finishes them), plus ordinary simulation drift.
+  (The 4 pre-known vanilla scene-command errors — decorated_pot sherds,
+  BlockState "No key Name" — persist, unchanged.)
+
+Run logs: /tmp/save-roundtrip-local3.log (full), control.log at
+/tmp/hzrt1ylm0m8y/control.log. Run 3 took 3m38s with the build cached.

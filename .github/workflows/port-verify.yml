@@ -35,6 +35,17 @@ name: port-verify
 # v6.6 judges the candidate as the gate's tree (pin stays the published
 # tree): D1's prepared-data leg needs .local, which only the candidate
 # has — against the bare published tree D1 blocks on every version.
+# v6.7 installs libxkbcommon-x11-0 and mesa-vulkan-drivers with the system
+# libraries: v6.5's Xvfb gave winit a DISPLAY, which unmasked the next two
+# missing pieces — the game panics at startup in xkbcommon-dl ("Library
+# libxkbcommon-x11.so could not be loaded") because the runner has
+# libxkbcommon but not its X11 extension, and once past that it exits with
+# "No Vulkan or OpenGL graphics driver found": the runner has the Vulkan
+# loader (libvulkan1) but no Vulkan driver, and no EGL for the OpenGL
+# fallback. mesa-vulkan-drivers supplies lavapipe, the software Vulkan
+# driver, so the game can render headlessly. Diagnosed locally 2026-11-15
+# from the game's control.log; both gaps blocked save_roundtrip (and any
+# game launch) on CI.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -126,8 +137,8 @@ jobs:
         run: |
           for attempt in 1 2 3; do
             sudo apt-get update -o Acquire::Retries=3 && \
-            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config xvfb || \
-             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config xvfb) && break
+            (sudo apt-get install -y libasound2-dev libudev-dev pkg-config xvfb libxkbcommon-x11-0 mesa-vulkan-drivers || \
+             sudo apt-get install -y libasound2t64-dev libudev-dev pkg-config xvfb libxkbcommon-x11-0 mesa-vulkan-drivers) && break
             echo "apt attempt $attempt failed; retrying in 20s"
             sleep 20
           done
