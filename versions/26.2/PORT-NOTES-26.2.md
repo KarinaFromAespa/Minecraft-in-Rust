@@ -2612,3 +2612,14 @@ dragon-egg teleport was missing the world-border check
 both vanilla versions have). 479's drag button is already
 left-click in the Rust; 483's 2015-vs-particles difference
 was already ported (2015 is the sim's internal channel).
+
+## Rank 3 — bucket B batch 7 (COMPLETE): 154/177 (2026-11-15)
+
+489 panda, 490 phantom, 491 trade goal, 492 file
+download, 493 narration, 494 toast, 495 argument types,
+496 bucket, 497 side chain, 499 template piece. Bucket B
+is now CLOSED (63/63). PORTED: 495 (the five 26.3-only
+argument types removed from the id table — verified
+against the 26.2 registry data, 57 entries). 491 and 493
+were already ported in earlier items. Remaining rank 3:
+bucket D, 23 items.

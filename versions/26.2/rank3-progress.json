@@ -1007,6 +1007,76 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "MinecartCommandBase.createCommandSourceStack: the only diff is the CommandSourceStack constructor's argument list (26.2 passes the name and display name separately); the source itself \u2014 cart position/rotation, GAMEMASTER, server, entity \u2014 is the same, and the Rust builds exactly that."
+    },
+    {
+      "id": 489,
+      "module": "crates/horizon-client/src/mobs/panda.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "PandaRenderer.setupRotations: rotateDegrees vs mulPose only, same angles (roll, sit +90, lie-on-back +180, shake)."
+    },
+    {
+      "id": 490,
+      "module": "crates/horizon-client/src/mobs/phantom.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Phantom sweep tick: 26.3's wasHurtRecently() is exactly hurtTime > 0, which is what 26.2 checks and what the Rust already uses (phantom.rs:286)."
+    },
+    {
+      "id": 491,
+      "module": "crates/horizon-client/src/mobs/trader.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "TradeWithPlayerGoal.canUse: already ported \u2014 the Rust gates on !hurt_marked with a comment documenting that 26.2 uses hurtMarked (the mark a fresh hit sets, cleared each tick) vs 26.3's hurt window, plus the a_trader_stops_trading_when_hurt_or_out_of_reach test."
+    },
+    {
+      "id": 492,
+      "module": "crates/horizon-client/src/realms/download.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "FileDownload.finishResourcePackDownload: the only diff is the log call (exception object vs its message) \u2014 logging only."
+    },
+    {
+      "id": 493,
+      "module": "crates/horizon-client/src/screen_narrator.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "ContainerObjectSelectionList.updateWidgetNarration: already ported \u2014 the Rust takes the hovered row whenever there is one (26.2's unconditional form) and its comment notes 26.3 only takes it for a mouse or system trigger."
+    },
+    {
+      "id": 494,
+      "module": "crates/horizon-client/src/toasts.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "NowPlayingToast: decompiles identically in both versions \u2014 the extractToast diff is a bytecode artifact."
+    },
+    {
+      "id": 495,
+      "module": "crates/horizon-protocol/src/packets/play/commands.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "ArgumentTypeInfos.bootstrap: 26.3 registers five argument types 26.2 lacks \u2014 context_float_provider, context_int_provider, slot_source, feature, swing_animation. Verified against the 26.2 registry data (registries.json: 57 entries, ids 0-56). Ported: removed the five from ARGUMENT_TYPES (now the 26.2 list, 57 entries) and their five arms from network.rs's argument_type; doc comments updated to 26.2. codec.rs's decode arms stay \u2014 they decode inline values by registry name, not argument-type id, and slot_source's ArgType::SlotSource is used by /item's slot parsing (a different surface). Tests: horizon-command network 6/6; horizon-protocol 442 passed + the 2 known sandbox-network failures (444 total, same as CI's 444/0)."
+    },
+    {
+      "id": 496,
+      "module": "crates/horizon-world/src/level/buckets.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "SolidBucketItem.emptyContents: setBlockAndUpdate vs setBlock(...,3) only."
+    },
+    {
+      "id": 497,
+      "module": "crates/horizon-world/src/level/shelf.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "SideChainPartBlock.setPart: setBlockAndUpdate vs setBlock(...,3) only."
+    },
+    {
+      "id": 499,
+      "module": "crates/horizon-world/src/worldgen/structure/legacy.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "TemplateStructurePiece.postProcess: setBlockAndUpdate vs setBlock(...,3) only."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
