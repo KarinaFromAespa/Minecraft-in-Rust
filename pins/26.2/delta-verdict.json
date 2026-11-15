@@ -1,0 +1,98 @@
+{
+  "schema": "delta-verdict/1",
+  "release": "26.2",
+  "commit": "e43dd08508150d54bff16b2e4ac8155f7fdd3284",
+  "tree": "versions/26.2",
+  "pin": "pins/26.2",
+  "mode": "recorded",
+  "verified": false,
+  "state": "blocked",
+  "checked_at": "2026-11-15T18:52:50Z",
+  "scalars": {
+    "tier": "D",
+    "suite_pass": null,
+    "suite_total": null,
+    "suite_exempt": 0,
+    "items_closed": 417,
+    "items_total": 417,
+    "items_accepted": 0
+  },
+  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-15 |",
+  "checks": {
+    "D1": {
+      "status": "pass",
+      "notes": [
+        "lock pins 26.2 (java 25)",
+        "version.rs: protocol 776, data 4903",
+        "regen.json: all 6 generators clean",
+        "all 6 tables reproduce exactly",
+        "prepared data present (25649 files)",
+        "tag audit: 710 tags across 20 registries; scanned 245 literals in 2866 files; 0 dead in production code, 5 dead in test fixtures"
+      ],
+      "evidence": [
+        "versions/26.2/research-lock.json",
+        "versions/26.2/crates/horizon-core/src/version.rs",
+        "pins/26.2/diff-26.3-26.2/regen.json",
+        "pins/26.2/regen-determinism.json",
+        "versions/26.2/.local/horizon-client/26.2",
+        "tools/tag_audit.py"
+      ]
+    },
+    "D2": {
+      "status": "pass",
+      "notes": [
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 444, none failing"
+      ],
+      "evidence": [
+        "pins/26.2/ci-out/cargo-check.log",
+        "pins/26.2/ci-out/cargo-test-protocol.log"
+      ]
+    },
+    "D3": {
+      "status": "pass",
+      "notes": [
+        "rank-1: 7 closed, 0 accepted, 7 total",
+        "rank-2: 410 closed, 0 accepted, 410 total",
+        "totals read from summary.ranks",
+        "rank-3+: Inherits the 26.3 base answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
+      ],
+      "evidence": [
+        "pins/26.2/diff-26.3-26.2/report.json",
+        "pins/26.2/work-items.json"
+      ],
+      "metrics": {
+        "items_closed": 417,
+        "items_total": 417,
+        "items_accepted": 0
+      }
+    },
+    "D4": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit ad9757b6742d, HEAD is e43dd0850815 \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "pins/26.2/profile.json"
+      ]
+    },
+    "D5": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit ad9757b6742d, HEAD is e43dd0850815 \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "pins/26.2/profile.json"
+      ]
+    },
+    "D6": {
+      "status": "blocked",
+      "notes": [
+        "no playtest.md: the play gate has not been recorded"
+      ],
+      "evidence": [
+        "pins/26.2/playtest.md"
+      ]
+    }
+  }
+}

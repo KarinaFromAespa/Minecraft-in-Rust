@@ -22,17 +22,23 @@ pin's own metadata is malformed. **Blocked is not verified.** That distinction i
 
 ## In this repository today
 
-The tree lives at `versions/<id>/` and holds both the code and this release's metadata, so the gate
-needs no `--pin`:
+The tree lives at `versions/<id>/`. Most releases still hold their metadata beside the code, but
+26.2 — the first release to close under the lines/+pins/ restructure — keeps its pin at
+`pins/26.2/`; the gate resolves `pins/<release>/` first and falls back to the tree, so it needs
+no `--pin` either way:
 
 ```sh
+python3 tools/delta_verify.py 26.2 --tree versions/26.2                 # pin resolves to pins/26.2
 python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11            # judge recorded evidence
 python3 tools/delta_verify.py 1.21.11 --tree versions/1.21.11 --check D3 # one check, while working
 python3 tools/delta_verify.py --index                                    # VERSIONS.md rows
 ```
 
-Artifacts land beside the tree: `versions/<id>/{work-items.json, harness-subset.txt,
-allowed-failures.txt, regen-determinism.json, playtest.md, profile.json, ci-out/, delta-verdict.json}`.
+Artifacts land in the pin: `<pin>/{work-items.json, harness-subset.txt,
+allowed-failures.txt, regen-determinism.json, playtest.md, profile.json, ci-out/, delta-verdict.json}`,
+plus the diff report (`diff-<prev>-<release>/{report,regen}.json`) the gate's D1/D3 read from the
+pin when it lives there. `research-lock.json` stays in the tree: D1 reads it there, the workflow
+reads the version's Java major from it, and `version_port.py prepare` needs it beside the code.
 §2 also describes `pins/<release>/`, which is the redraft's target shape (code in `lines/<era>/`,
 metadata in `pins/<release>/`); both layouts work, and `--pin` overrides either.
 
@@ -471,7 +477,7 @@ honest verdict and the work item, not a reason to weaken the bar.
     steps:
       - uses: actions/download-artifact@v4
         with: { pattern: parity-*, path: slices }
-      - name: Merge into versions/$V/profile.json
+      - name: Merge into the pin's profile.json
         run: |
           python3 - "$V" <<'PY'
           import json, os, pathlib, sys
@@ -479,7 +485,8 @@ honest verdict and the work item, not a reason to weaken the bar.
           merged = {"release": release, "harnesses": {}, "commit": os.environ.get("GITHUB_SHA", "")}
           for path in pathlib.Path("slices").glob("*/state.json"):
               merged["harnesses"].update(json.loads(path.read_text()).get("harnesses", {}))
-          out = pathlib.Path(f"versions/{release}/profile.json")
+          pin = pathlib.Path(f"pins/{release}")
+          out = (pin if pin.is_dir() else pathlib.Path(f"versions/{release}")) / "profile.json"
           out.parent.mkdir(parents=True, exist_ok=True)
           out.write_text(json.dumps(merged, indent=2) + "\n")
           print(f"{out}: {len(merged['harnesses'])} harness records")

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """progress.py — regenerate the Progress table in README.md from the repo's data.
 
-Reads versions/*/status.json (behaviour items, harness counts) and
-versions/*/delta-verdict.json (verified templates and deltas, by tier) and
-prints the markdown table the README carries. Run from the repo root and
-paste the output into the README's Progress section.
+Reads each release's status.json (behaviour items, harness counts) and
+delta-verdict.json (verified templates and deltas, by tier) from its pin —
+pins/<release>/ once the release's metadata has moved there (26.2 first),
+else versions/<release>/ — and prints the markdown table the README carries.
+Run from the repo root and paste the output into the README's Progress section.
 
 The Phase 0 line in the README is hand-maintained prose, not generated:
 it changes only when a milestone lands, and a milestone is a judgement
@@ -37,6 +38,12 @@ def pct(done: int, total: int) -> str:
     return "0%" if value == 0 else f"{value:.1f}%"
 
 
+def pin_dir(root: Path, version: Path) -> Path:
+    """Where this release's metadata lives: pins/<release>/ once moved, else the tree."""
+    pin = root / "pins" / version.name
+    return pin if pin.is_dir() else version
+
+
 def main() -> int:
     root = Path(__file__).resolve().parent.parent
     versions = sorted(p for p in (root / "versions").iterdir() if p.is_dir())
@@ -46,7 +53,8 @@ def main() -> int:
     profiled = 0
     verified_templates = verified_deltas = 0
     for version in versions:
-        status = read_json(version / "status.json") or {}
+        pin = pin_dir(root, version)
+        status = read_json(pin / "status.json") or {}
         # The base (26.3) is upstream's client, not a port: its profile
         # is the baseline the ports are measured against, not progress.
         # Counting it would inflate the harness aggregate.
@@ -61,11 +69,11 @@ def main() -> int:
             harness_pass += harness["pass"]
             harness_total += harness.get("total", 0)
 
-        verdict = read_json(version / "delta-verdict.json")
+        verdict = read_json(pin / "delta-verdict.json")
         if verdict and verdict.get("verified"):
             tier = (verdict.get("scalars") or {}).get("tier")
             if tier is None:
-                tier_file = version / "tier.txt"
+                tier_file = pin / "tier.txt"
                 tier = tier_file.read_text(encoding="utf-8").strip()[:1] if tier_file.exists() else ""
             if tier == "T":
                 verified_templates += 1

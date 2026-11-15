@@ -8,6 +8,16 @@ end to end, and the workspace compiles clean. What remains is itemised
 below with its current state. Nothing in this file is a claim that the
 port is finished.
 
+## Pin location
+
+26.2 is the first release whose pin metadata moved out of the tree under the
+lines/+pins/ restructure (2026-11-16): `work-items.json`, `status.json`,
+`tier.txt`, `harness-subset.txt`, `regen-determinism.json`, `rate-sample.json`,
+the `rank*-progress.json` ledgers, the `diff-26.3-26.2/` report, `profile.json`
+and `delta-verdict.json` all live in `pins/26.2/`. `research-lock.json` stays
+in this tree — the gate, the workflow and `version_port.py prepare` all read
+it here. This file stays here too: it is the port's narrative, not gate input.
+
 ## Provenance
 
 - Base: upstream Horizon at commit `962f5949ac1a8f789227614a75bcf360d0fb12a2`
@@ -504,7 +514,7 @@ items.** Sample starts at rank 2 218/410 (2026-11-14 ~07:56 NPT) and closes at r
 nine no-change items of batch 4. Correction 2026-11-15: the tally line originally
 read 100/100 with 53 no-change; the table holds 108 rows — the 218→326 window spans
 108 closures — with 61 no-change. The changed count (47) and minutes (4162) verify
-exactly against the table. Machine-readable form: versions/26.2/rate-sample.json.
+exactly against the table. Machine-readable form: pins/26.2/rate-sample.json.
 Items 88 and 231 were in flight when the sample started; their work
 predates it, so they count as changed with minutes "pre-sample"
 (excluded from the minutes total). Item 89 was already closed before

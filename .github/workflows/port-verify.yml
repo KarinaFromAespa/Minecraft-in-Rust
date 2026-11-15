@@ -46,6 +46,12 @@ name: port-verify
 # driver, so the game can render headlessly. Diagnosed locally 2026-11-15
 # from the game's control.log; both gaps blocked save_roundtrip (and any
 # game launch) on CI.
+# v6.8 is pin-aware: a release whose metadata has moved to pins/<v>/
+# (26.2 first, per the lines/+pins/ restructure) gets its profile,
+# ci-out logs and verdict published and judged there; releases whose pin
+# is still the tree keep the old paths. The pin is resolved the same way
+# the gate resolves it — pins/<v>/ when that directory exists, else
+# versions/<v>/ — so the workflow and the gate can never disagree.
 #
 # Dispatched manually:
 #   gh workflow run port-verify.yml -f version=26.2
@@ -381,23 +387,26 @@ jobs:
         continue-on-error: true
         run: |
           V="${{ inputs.version }}"
+          PIN="versions/$V"; [ -d "pins/$V" ] && PIN="pins/$V"
           python3 tools/publish_profile.py "$V" \
             --state "$HORIZON_PORTS/$V/.local/parity-runner/state.json" \
             --commit "${{ github.sha }}" \
-            --out "versions/$V/profile.json"
+            --out "$PIN/profile.json"
 
       # Reporting only, NOT a gate: the verdict is the record of what
       # this tree has and hasn't evidenced. The D2 logs live at the repo
       # root's ci-out/ but the gate reads them from the pin's ci-out/,
-      # so stage copies beside the tree first. The verdict lands in
-      # versions/$V/delta-verdict.json; neither file is committed
-      # (permissions are contents: read) — the upload step carries them.
+      # so stage copies beside the pin first. The verdict lands in
+      # <pin>/delta-verdict.json, where <pin> is pins/<v>/ once the
+      # release's metadata has moved there, else versions/<v>/; neither
+      # file is committed (permissions are contents: read) — the upload
+      # step carries them.
       # D1's prepared-data leg needs .local/horizon-client/<v>/, which only
       # the candidate has (prepared data is Mojang-derived and never
       # committed, so the published tree can never satisfy it in recorded
-      # mode). Judge the candidate as the tree and the published tree as
-      # the pin: the candidate is a verbatim copy of the published tree
-      # plus .local, and the pin carries the metadata (work-items.json,
+      # mode). Judge the candidate as the tree and the pin as the pin:
+      # the candidate is a verbatim copy of the published tree plus
+      # .local, and the pin carries the metadata (work-items.json,
       # regen-determinism.json, profile.json, ci-out logs). Verified
       # locally: D1 passes for 1.21.10 this way (all 6 tables reproduce
       # exactly, prepared data present); against the bare tree it blocks.
@@ -406,9 +415,10 @@ jobs:
         continue-on-error: true
         run: |
           V="${{ inputs.version }}"
-          mkdir -p "versions/$V/ci-out"
-          cp ci-out/cargo-check.log ci-out/cargo-test-protocol.log "versions/$V/ci-out/" 2>/dev/null || true
-          python3 tools/delta_verify.py "$V" --tree "$HORIZON_PORTS/$V" --pin "versions/$V" | tee ci-out/delta-verify.log
+          PIN="versions/$V"; [ -d "pins/$V" ] && PIN="pins/$V"
+          mkdir -p "$PIN/ci-out"
+          cp ci-out/cargo-check.log ci-out/cargo-test-protocol.log "$PIN/ci-out/" 2>/dev/null || true
+          python3 tools/delta_verify.py "$V" --tree "$HORIZON_PORTS/$V" --pin "$PIN" | tee ci-out/delta-verify.log
 
       - name: Upload the profile and the verdict
         if: always()
@@ -416,6 +426,8 @@ jobs:
         with:
           name: delta-bar-${{ inputs.version }}
           path: |
+            pins/${{ inputs.version }}/profile.json
+            pins/${{ inputs.version }}/delta-verdict.json
             versions/${{ inputs.version }}/profile.json
             versions/${{ inputs.version }}/delta-verdict.json
           if-no-files-found: warn
