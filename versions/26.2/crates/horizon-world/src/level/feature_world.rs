@@ -194,6 +194,15 @@ impl<L: LevelAccess + ?Sized> PlacementContext for LevelFeatureWorld<'_, '_, L> 
     ) -> Result<(), PlacementQueryError> {
         Ok(())
     }
+    /// Live levels hold no brushable loot tables placed by these features.
+    fn set_block_entity_loot_table_seeded(
+        &mut self,
+        _position: [i32; 3],
+        _table: &str,
+        _seed: i64,
+    ) -> Result<(), PlacementQueryError> {
+        Ok(())
+    }
     fn block_brightness(&mut self, position: [i32; 3]) -> Result<i32, PlacementQueryError> {
         Ok(self.sim.level.block_light(pos(position)))
     }

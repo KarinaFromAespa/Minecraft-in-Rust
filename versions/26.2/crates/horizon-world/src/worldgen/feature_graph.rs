@@ -52,6 +52,16 @@ pub enum FeatureDefinition {
     SnowAndFreeze(super::snow_freeze::SnowAndFreezeFeature),
     Delta(super::delta::DeltaFeature),
     Bamboo(super::bamboo::BambooFeature),
+    Kelp(super::aquatic::KelpFeature),
+    Seagrass(super::aquatic::SeagrassFeature),
+    SeaPickle(super::aquatic::SeaPickleFeature),
+    BasaltColumns(super::nether::BasaltColumnsFeature),
+    BasaltPillar(super::nether::BasaltPillarFeature),
+    Glowstone(super::nether::GlowstoneFeature),
+    NetherForestVegetation(super::nether::NetherForestVegetationFeature),
+    TwistingVines(super::nether::TwistingVinesFeature),
+    WeepingVines(super::nether::WeepingVinesFeature),
+    DesertWell(super::desert_well::DesertWellFeature),
     ReplaceBlobs(super::replace_blobs::ReplaceBlobsFeature),
     EndPodium(super::end_podium::EndPodiumFeature),
     EndGateway(super::end_gateway::EndGatewayFeature),
@@ -109,6 +119,9 @@ pub enum FeatureExecutionError<E> {
     SnowAndFreeze(super::snow_freeze::SnowAndFreezeError<E>),
     Delta(super::delta::DeltaError<E>),
     Bamboo(super::bamboo::BambooError<E>),
+    Aquatic(super::aquatic::AquaticError<E>),
+    Nether(super::nether::NetherFeatureError<E>),
+    DesertWell(super::desert_well::DesertWellError<E>),
     ReplaceBlobs(super::replace_blobs::ReplaceBlobsError<E>),
     EndPodium(super::end_podium::EndPodiumError<E>),
     EndGateway(super::end_gateway::EndGatewayError<E>),
@@ -138,6 +151,9 @@ impl<E: std::fmt::Display> std::fmt::Display for FeatureExecutionError<E> {
             Self::SnowAndFreeze(e) => e.fmt(f),
             Self::Delta(e) => e.fmt(f),
             Self::Bamboo(e) => e.fmt(f),
+            Self::Aquatic(e) => e.fmt(f),
+            Self::Nether(e) => e.fmt(f),
+            Self::DesertWell(e) => e.fmt(f),
             Self::ReplaceBlobs(e) => e.fmt(f),
             Self::EndPodium(e) => e.fmt(f),
             Self::EndGateway(e) => e.fmt(f),
@@ -346,6 +362,59 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("bamboo bindings"))?,
             )
             .map(Self::Bamboo),
+            "minecraft:kelp" => super::aquatic::KelpFeature::new(
+                blocks.ok_or(DecodeError::Field("kelp bindings"))?,
+            )
+            .map(Self::Kelp),
+            "minecraft:seagrass" => super::aquatic::SeagrassFeature::from_json(
+                json,
+                blocks.ok_or(DecodeError::Field("seagrass bindings"))?,
+            )
+            .map(Self::Seagrass),
+            "minecraft:sea_pickle" => super::aquatic::SeaPickleFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("sea pickle bindings"))?,
+                depth + 1,
+                remaining,
+            )
+            .map(Self::SeaPickle),
+            "minecraft:basalt_columns" => super::nether::BasaltColumnsFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("basalt columns bindings"))?,
+                depth + 1,
+                remaining,
+            )
+            .map(Self::BasaltColumns),
+            "minecraft:basalt_pillar" => super::nether::BasaltPillarFeature::new(
+                blocks.ok_or(DecodeError::Field("basalt pillar bindings"))?,
+            )
+            .map(Self::BasaltPillar),
+            "minecraft:glowstone_blob" => super::nether::GlowstoneFeature::new(
+                blocks.ok_or(DecodeError::Field("glowstone bindings"))?,
+            )
+            .map(Self::Glowstone),
+            "minecraft:nether_forest_vegetation" => {
+                super::nether::NetherForestVegetationFeature::decode(
+                    json,
+                    blocks.ok_or(DecodeError::Field("nether forest vegetation bindings"))?,
+                    depth + 1,
+                    remaining,
+                )
+                .map(Self::NetherForestVegetation)
+            }
+            "minecraft:twisting_vines" => super::nether::TwistingVinesFeature::from_json(
+                json,
+                blocks.ok_or(DecodeError::Field("twisting vines bindings"))?,
+            )
+            .map(Self::TwistingVines),
+            "minecraft:weeping_vines" => super::nether::WeepingVinesFeature::new(
+                blocks.ok_or(DecodeError::Field("weeping vines bindings"))?,
+            )
+            .map(Self::WeepingVines),
+            "minecraft:desert_well" => super::desert_well::DesertWellFeature::new(
+                blocks.ok_or(DecodeError::Field("desert well bindings"))?,
+            )
+            .map(Self::DesertWell),
             "minecraft:netherrack_replace_blobs" => {
                 super::replace_blobs::ReplaceBlobsFeature::decode(
                     json,
@@ -876,6 +945,36 @@ impl FeatureDefinition {
             Self::Bamboo(feature) => feature
                 .place(world, random, origin)
                 .map_err(FeatureExecutionError::Bamboo),
+            Self::Kelp(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::Seagrass(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::SeaPickle(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Aquatic),
+            Self::BasaltColumns(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::BasaltPillar(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::Glowstone(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::NetherForestVegetation(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::TwistingVines(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::WeepingVines(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::Nether),
+            Self::DesertWell(feature) => feature
+                .place(world, random, origin)
+                .map_err(FeatureExecutionError::DesertWell),
             Self::ReplaceBlobs(feature) => feature
                 .place(world, random, origin)
                 .map_err(FeatureExecutionError::ReplaceBlobs),

@@ -208,6 +208,19 @@ impl<W: Write, R: RandomSource> PlacementContext for World<'_, '_, W, R> {
         }
         Ok(())
     }
+    fn set_block_entity_loot_table_seeded(
+        &mut self,
+        p: [i32; 3],
+        table: &str,
+        seed: i64,
+    ) -> Result<(), PlacementQueryError> {
+        self.event(format_args!("entity {} {} {}", p[0], p[1], p[2]))
+            .map_err(query)?;
+        if self.loot_container {
+            self.loot.insert(p, (table.into(), seed));
+        }
+        Ok(())
+    }
     fn configure_end_gateway(
         &mut self,
         p: [i32; 3],

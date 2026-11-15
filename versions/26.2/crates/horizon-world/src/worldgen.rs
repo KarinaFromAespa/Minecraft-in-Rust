@@ -1,6 +1,7 @@
 //! Version-specific noise, density registry and terrain-router JSON decoding.
 //! Complete terrain generation remains pending.
 pub mod anchor;
+pub mod aquatic;
 pub mod aquifer;
 pub mod bamboo;
 pub mod biome;
@@ -28,6 +29,7 @@ pub mod decoration;
 pub mod decoration_order;
 pub mod delta;
 pub mod density;
+pub mod desert_well;
 pub mod disk;
 pub mod dripstone;
 pub mod end_gateway;
@@ -54,6 +56,7 @@ pub mod material_extensions;
 pub mod material_stage;
 pub mod material_surface;
 pub mod native_generate;
+pub mod nether;
 pub mod ore_feature;
 pub mod overrides;
 pub mod placement;
