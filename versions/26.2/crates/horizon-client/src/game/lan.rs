@@ -21,12 +21,12 @@ use horizon_client::{
     text::Text,
     world::World,
 };
+#[cfg(test)]
+use horizon_protocol::packets::play::Clientbound as C;
 use horizon_protocol::{
     entity_data::{Value, serializer},
     packets::play,
 };
-#[cfg(test)]
-use horizon_protocol::packets::play::Clientbound as C;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
@@ -1891,10 +1891,8 @@ impl Game<'_> {
 
     /// The world's default game mode (`defaultgamemode`).
     pub(super) fn set_default_game_mode(&mut self, mode: i32) {
-        self.level.game_mode = mode;
-        self.level.creative = mode == 1;
+        self.set_default_game_type(mode);
         if let Some(host) = self.lan.as_mut() {
-            host.hub.config.default_game_mode = mode;
             if host.hub.config.integrated {
                 // `IntegratedServer.setWorldGameType`: the owner takes the
                 // new mode, and so do the other players unless a type was
@@ -1905,6 +1903,18 @@ impl Game<'_> {
                 // its mode puts the guests online in it.
                 enforce_guest_game_mode(host, &self.world, self.collision);
             }
+        }
+    }
+
+    /// `MinecraftServer.setDefaultGameType`: the world's default game
+    /// type only — no player is forced into it. 26.2's
+    /// `GameModeCommand` calls it for the singleplayer owner; 26.3
+    /// dropped the call.
+    pub(super) fn set_default_game_type(&mut self, mode: i32) {
+        self.level.game_mode = mode;
+        self.level.creative = mode == 1;
+        if let Some(host) = self.lan.as_mut() {
+            host.hub.config.default_game_mode = mode;
         }
     }
 

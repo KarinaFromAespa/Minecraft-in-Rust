@@ -149,7 +149,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         b("exclusiveFullscreen", false),
         u("gamma", 0.5),
         def("guiScale", O(LazyInt(0)), V::Int(0)),
-        def("debugGuiScale", O(LazyInt(-1)), V::Int(0)),
         i("maxAnisotropyBit", 1, 3, 2),
         id("textureFiltering", 3, 0),
         def("maxFps", O(FrameLimit), V::Int(120)),

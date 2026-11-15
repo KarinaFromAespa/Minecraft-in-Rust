@@ -208,15 +208,6 @@ pub fn position(
     ]
 }
 
-/// A refresh rate in hertz for the debug display: whole rates without decimals.
-pub fn refresh_rate_label(hz: f64) -> String {
-    if hz == hz.round() {
-        format!("{}", hz as i64)
-    } else {
-        format!("{hz:.2}")
-    }
-}
-
 /// `DeviceInfo.vendorName` for a PCI vendor id.
 pub fn vendor_name(id: u32) -> String {
     match id {
@@ -233,33 +224,10 @@ pub fn vendor_name(id: u32) -> String {
 }
 
 /// The overlay's scale against the GUI scale and the scaled screen size it
-/// lays out in. `debugGuiScale`: -1 keeps the GUI scale, 0 (the default) is
-/// half the largest automatic scale, n is `calculateScale(n)`; only a scale
-/// below the GUI scale applies.
-pub fn scale(
-    framebuffer: [i32; 2],
-    gui_scale: i32,
-    option: i32,
-    unicode: bool,
-    gui_size: [i32; 2],
-) -> (f32, [i32; 2]) {
-    let scale = match option {
-        -1 => gui_scale,
-        // Half the automatic scale, rounded up: an odd scale has no exact
-        // half, and truncating it put the overlay at a third of the GUI
-        // scale instead of a half on a window whose automatic scale is odd
-        // (1280x720 is 3). Even scales are unchanged.
-        0 => (crate::window::calculate_scale(framebuffer, 0, unicode) + 1) / 2,
-        n => crate::window::calculate_scale(framebuffer, n, unicode),
-    };
-    if scale < gui_scale && scale > 0 {
-        (
-            scale as f32 / gui_scale as f32,
-            [framebuffer[0] / scale, framebuffer[1] / scale],
-        )
-    } else {
-        (1.0, gui_size)
-    }
+/// lays out in. 26.2 has no `debugGuiScale` option (26.3-only): the overlay
+/// always lays out at the GUI scale.
+pub fn scale(gui_size: [i32; 2]) -> (f32, [i32; 2]) {
+    (1.0, gui_size)
 }
 
 /// `extractLines` for both columns under the overlay's pose: each line's
@@ -778,39 +746,14 @@ mod tests {
             position([0.0, 64.0, 0.0], 450.0, 0.0, "minecraft:the_nether", 2)[3],
             "Facing: west (Towards negative X) (90.0 / 0.0)"
         );
-        assert_eq!(refresh_rate_label(165.0), "165");
-        assert_eq!(refresh_rate_label(59.94), "59.94");
     }
 
     #[test]
-    fn debug_scale_is_half_the_automatic_scale() {
-        // The issue's window: 854x709 at GUI scale 2 draws F3 at scale 1.
-        assert_eq!(
-            scale([854, 709], 2, 0, false, [427, 355]),
-            (0.5, [854, 709])
-        );
-        // 1920x1080 at GUI scale 4: auto is 4, so F3 is at 2.
-        assert_eq!(
-            scale([1920, 1080], 4, 0, false, [480, 270]),
-            (0.5, [960, 540])
-        );
-        // A window whose automatic scale is odd: 1280x720 is 3, whose half
-        // rounds to 2. Truncating gave 1, a third of the GUI scale, which is
-        // why a restored-down window drew the overlay smaller than a
-        // maximised one.
-        assert_eq!(
-            scale([1280, 720], 3, 0, false, [427, 240]),
-            (2.0 / 3.0, [640, 360])
-        );
-        // A GUI scale already at or under the debug scale is kept.
-        assert_eq!(
-            scale([1920, 1080], 2, 0, false, [960, 540]),
-            (1.0, [960, 540])
-        );
-        assert_eq!(
-            scale([1920, 1080], 3, -1, false, [640, 360]),
-            (1.0, [640, 360])
-        );
+    fn debug_scale_is_the_gui_scale() {
+        // 26.2 has no debugGuiScale option: the overlay lays out at the
+        // GUI scale whatever the window.
+        assert_eq!(scale([427, 355]), (1.0, [427, 355]));
+        assert_eq!(scale([960, 540]), (1.0, [960, 540]));
     }
 
     #[test]

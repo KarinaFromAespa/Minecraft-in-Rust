@@ -2936,8 +2936,6 @@ struct Game<'a> {
     memory_meter: std::cell::RefCell<horizon_client::debug_overlay::MemoryMeter>,
     /// The F3 overlay's vertices between rebuilds (`draw_debug_overlay_under`).
     debug_paint: RefCell<horizon_client::debug_overlay::PaintCache>,
-    /// The F3 overlay's last reading of the refresh rate, and when it was taken.
-    debug_refresh: std::cell::Cell<Option<(Instant, Option<u32>)>>,
     /// `Minecraft.gpuUtilization`: the last timed frame's GPU time over its
     /// CPU time, in percent.
     gpu_utilization: f64,
@@ -12183,7 +12181,6 @@ impl<'a> Game<'a> {
             debug_options: None,
             memory_meter: Default::default(),
             debug_paint: Default::default(),
-            debug_refresh: Default::default(),
             gpu_utilization: 0.0,
             gpu_culling_auto: horizon_client::autotune::GpuCullingAuto::new(),
             rendered_mobs: Default::default(),

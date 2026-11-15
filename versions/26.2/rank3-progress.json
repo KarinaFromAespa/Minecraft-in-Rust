@@ -755,6 +755,13 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "BrushableBlockEntity/Renderer: the entity diff is only setBlockAndUpdate vs setBlock(...,3) in brush/brushingCompleted/checkReset; the renderer differs only by rotateDegrees vs mulPose with identical angles (75 deg, (eastWest?90:0)+11)."
+    },
+    {
+      "id": 445,
+      "module": "crates/horizon-client/src/game/debug_keys.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "GameModeCommand + debug entries: PORTED (a) /gamemode: 26.2's setMode/setGameMode call server.setDefaultGameType (worldData.setGameType, no player forcing) for the singleplayer owner; 26.3 dropped it. Added set_default_game_type (lan.rs) and target_is_owner (commands.rs); cmd_gamemode and the debug-key change_game_mode set the default for the owner. (b) FPS line: dropped the 26.3-only @Hz suffix (+ debug_refresh_rate/field, refresh_rate_label). (c) Removed the 26.3-only Terrain Rendering line and the 26.3-only Window system line (the CPU line exists in both). (d) Chart labels back to 26.2's uppercase FPS / FPS + TPS. (e) Removed the 26.3-only debugGuiScale option entirely (overlay always at GUI scale; options default, footer button + cycle fn, scale() option param + tests updated). cargo check --all-targets clean (2 pre-existing warnings only); debug_overlay + debug_options tests pass."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

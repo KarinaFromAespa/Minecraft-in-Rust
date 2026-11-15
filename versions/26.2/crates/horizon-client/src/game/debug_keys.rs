@@ -15,7 +15,7 @@ use horizon_client::{
 use horizon_core::geometry::{Axis, Vec3};
 use horizon_protocol::packets::play::{BlockEntityTagQuery, EntityTagQuery, Serverbound};
 use horizon_world::nbt::Tag;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use winit::keyboard::KeyCode;
 
 /// `ChatFormatting.YELLOW` and `RED`.
@@ -282,7 +282,7 @@ impl Game<'_> {
                 chart("key.debug.profilingChart", "Profiler", false),
                 chart(
                     "key.debug.fpsCharts",
-                    if remote { "fps" } else { "fps + tps" },
+                    if remote { "FPS" } else { "FPS + TPS" },
                     c.fps
                 ),
             ),
@@ -329,13 +329,8 @@ impl Game<'_> {
         }
         let first_vertex = batch.vertices.len();
         let framebuffer = size.map(|v| v as i32);
-        let (scale, [width, height]) = debug_overlay::scale(
-            framebuffer,
-            batch.scale as i32,
-            self.settings.file.int("debugGuiScale"),
-            self.settings.force_unicode,
-            [batch.width as i32, batch.height as i32],
-        );
+        let (scale, [width, height]) =
+            debug_overlay::scale([batch.width as i32, batch.height as i32]);
         let mut d = debug_overlay::Displayer::default();
         self.debug_entry_lines(&mut d, framebuffer);
         // The chart keys and the charts only while the overlay is open.
@@ -384,22 +379,6 @@ impl Game<'_> {
             && !(self.ui.hide_gui && self.screen == Screen::Playing)
             && self.debug_entry("system_specs")
     }
-    /// The monitor's refresh rate in millihertz, asked of the OS at most once a second (on
-    /// Windows, winit calls `EnumDisplaySettingsExW` each time).
-    fn debug_refresh_rate(&self) -> Option<u32> {
-        if let Some((at, rate)) = self.debug_refresh.get()
-            && at.elapsed() < Duration::from_secs(1)
-        {
-            return rate;
-        }
-        let rate = self
-            .window
-            .as_ref()
-            .and_then(|w| w.current_monitor())
-            .and_then(|m| m.refresh_rate_millihertz());
-        self.debug_refresh.set(Some((Instant::now(), rate)));
-        rate
-    }
     /// `DebugEntryFps`.
     pub(super) fn debug_fps_line(&self, d: &mut debug_overlay::Displayer) {
         let limit = self.framerate_limit();
@@ -413,9 +392,6 @@ impl Game<'_> {
                 wgpu::PresentMode::FifoRelaxed => " (fifo relaxed)",
                 _ => "",
             });
-        let refresh = self.debug_refresh_rate().map_or("0".into(), |mhz| {
-            debug_overlay::refresh_rate_label(f64::from(mhz) / 1000.0)
-        });
         // Horizon: with frame generation running, the frames reaching the screen too.
         let generated = self
             .renderer
@@ -427,8 +403,9 @@ impl Game<'_> {
                     (self.fps * (1.0 + share)).round() as i32
                 )
             });
+        // 26.2's line has no refresh rate; the `@Hz` suffix is 26.3-only.
         d.priority(format!(
-            "{} fps{generated} T: {}{present} @{refresh}Hz",
+            "{} fps{generated} T: {}{present}",
             self.fps.round() as i32,
             if limit == 260 {
                 "inf".into()
@@ -455,14 +432,6 @@ impl Game<'_> {
             s.biome_blend
         ));
         d.line("Filtering: None");
-        d.line(format!(
-            "Terrain Rendering: {}",
-            if self.renderer.as_ref().is_some_and(|r| r.multi_draw) {
-                "multidrawindirect"
-            } else {
-                "naive"
-            }
-        ));
     }
     /// `DebugEntrySystemSpecs` (no Java line: Horizon has no JVM).
     pub(super) fn debug_system_lines(
@@ -493,19 +462,7 @@ impl Game<'_> {
                     }
                 )],
             );
-            if let Some(w) = self.window.as_ref() {
-                let density = w.scale_factor();
-                let logical = winit::dpi::PhysicalSize::new(framebuffer[0], framebuffer[1])
-                    .to_logical::<f64>(density);
-                d.group(
-                    "system",
-                    [format!(
-                        "Window: {}x{} ({density:.2}x pixel density)",
-                        logical.width.round() as i32,
-                        logical.height.round() as i32
-                    )],
-                );
-            }
+            // 26.2 has no Window line in the system group (26.3 added it).
             let kind = match info.device_type {
                 wgpu::DeviceType::IntegratedGpu => " (iGPU)",
                 wgpu::DeviceType::DiscreteGpu => " (dGPU)",
@@ -842,6 +799,16 @@ impl Game<'_> {
             return;
         }
         if self.set_game_mode(mode) {
+            // 26.2 `GameModeCommand.setGameMode` (via the debug packet's
+            // handler): the singleplayer owner also takes the new mode
+            // as the world's default. 26.3 dropped the call.
+            let target = match self.lan_acting {
+                Some(conn) => super::commands::Target::Guest(conn),
+                None => super::commands::Target::Player,
+            };
+            if self.target_is_owner(target) {
+                self.set_default_game_type(super::game_mode::mode_id_of(mode));
+            }
             let name = Text::translate(&format!("gameMode.{}", mode.name()), &[]);
             self.feedback(Text::translate("commands.gamemode.success.self", &[name]));
         }

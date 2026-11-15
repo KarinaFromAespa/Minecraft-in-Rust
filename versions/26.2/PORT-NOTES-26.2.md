@@ -2534,3 +2534,13 @@ loot pos arg + the unported Prediction flag. 442's UBO order
 differs but the Rust's uniform layout is self-consistent with
 its own shaders. 443 is the record vs class re-shape. 444 is
 setBlockAndUpdate vs setBlock(...,3) + rotateDegrees vs mulPose.
+
+## Rank 3 — bucket B batch 2 (part 3): 109/177 (2026-11-15)
+
+445 gamemode + debug: ported — /gamemode and the debug key set
+the world's default game type for the singleplayer owner (26.2
+only); FPS line loses the 26.3 @Hz suffix; the 26.3-only Terrain
+Rendering and Window debug lines are gone; chart labels back to
+FPS / FPS + TPS; the 26.3-only debugGuiScale option is removed
+(overlay always at GUI scale). Also removed the now-dead
+TimeMarker::occurs_at (item 429's leftover).

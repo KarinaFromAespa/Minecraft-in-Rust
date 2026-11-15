@@ -187,12 +187,6 @@ pub struct TimeMarker {
     pub show: bool,
 }
 impl TimeMarker {
-    pub fn occurs_at(&self, total: i64) -> bool {
-        match self.period {
-            Some(p) => self.ticks == total.rem_euclid(p),
-            None => self.ticks == total,
-        }
-    }
     pub fn resolve(&self, total: i64) -> i64 {
         match self.period {
             Some(p) => {

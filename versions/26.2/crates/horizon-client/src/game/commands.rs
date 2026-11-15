@@ -1376,6 +1376,28 @@ impl Game<'_> {
             _ => Ok(0),
         }
     }
+    /// Whether the target `t` is the integrated server's owner
+    /// (`MinecraftServer.isSingleplayerOwner`, 26.2): the host's player
+    /// on their own turn, or a guest connection whose uuid is the
+    /// owner's. A dedicated server has no owner.
+    pub(super) fn target_is_owner(&self, t: Target) -> bool {
+        let Some(owner) = self
+            .lan
+            .as_ref()
+            .and_then(|h| h.owner.as_ref().map(|o| o.uuid))
+        else {
+            return false;
+        };
+        match t {
+            Target::Player => self.lan_acting.is_none(),
+            Target::Guest(conn) => self
+                .lan
+                .as_ref()
+                .and_then(|h| h.hub.guest(conn))
+                .is_some_and(|g| g.uuid == owner),
+            _ => false,
+        }
+    }
     pub(super) fn set_game_mode(&mut self, mode: GameMode) -> bool {
         if self.mode == mode {
             return false;
@@ -1410,6 +1432,12 @@ impl Game<'_> {
         let mut count = 0;
         for t in targets {
             let mode_name = Text::translate(&format!("gameMode.{}", mode.name()), &[]);
+            // 26.2 `GameModeCommand.setMode`: the singleplayer owner also
+            // takes the new mode as the world's default, whether or not
+            // their own mode changed. 26.3 dropped the call.
+            if self.target_is_owner(t) {
+                self.set_default_game_type(super::game_mode::mode_id_of(mode));
+            }
             // GameModeCommand.logGamemodeChange: the source's own entity.
             let own = self.source_entity() == Some(t);
             let told = !own && self.ui.rules.bool("send_command_feedback");
