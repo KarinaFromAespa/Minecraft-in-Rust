@@ -157,30 +157,43 @@ def check_stop(note, evidence=None):
     return {"status": BLOCKED, "notes": [note], "evidence": list(evidence or [])}
 
 
-def _tag_audit_notes(tree: Path, prepared: Path) -> list[str]:
-    """Report-only tag-literal audit, run as a D1 sub-check.
+# Tags arrived with the Flattening (1.13, data version 1519, protocol 393):
+# releases before that have no tag system at all, so the tag audit skips
+# them instead of blocking them forever. The threshold is a fact about
+# Minecraft; the per-release data version comes from the tree's own
+# version.rs, which check_d1 already parses — no release list is hardcoded.
+TAG_ERA_DATA_VERSION = 1519
 
-    Returns note strings for D1's notes list; NEVER affects D1's verdict —
-    the gating decision comes after the report-only inventory is reviewed
-    (see DELTA-BAR.md §3). A missing or crashing tool is noted, not fatal:
-    a report-only sub-check must not be able to fail the gate it reports on.
+
+def _tag_audit(tree: Path, prepared: Path) -> dict:
+    """Gating tag-literal audit, run as a D1 sub-check.
+
+    Returns {"status": "ok" | "fail" | "blocked", "notes": [...]}. "fail"
+    when dead production tags exist — a tag the code looks up that the
+    release's own data does not define, so the lookup can never match.
+    "blocked" when the tag data is absent or the tool cannot run, because
+    a missing inventory must not pass as a clean one. Dead test-only tags
+    are reported in the notes but never fail: fixtures deliberately name
+    tags that do not exist.
     """
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import tag_audit
-    except Exception as exc:  # noqa: BLE001 — any import failure is a note
-        return [f"tag audit (report-only): tool unavailable ({exc}) — sub-check skipped"]
+    except Exception as exc:  # noqa: BLE001 — any import failure blocks
+        return {"status": "blocked",
+                "notes": [f"tag audit: tool unavailable ({exc}) — cannot verify tag literals"]}
     try:
         result = tag_audit.audit(tree, prepared)
-    except Exception as exc:  # noqa: BLE001 — any audit failure is a note
-        return [f"tag audit (report-only): tool error ({exc}) — sub-check skipped"]
+    except Exception as exc:  # noqa: BLE001 — any audit failure blocks
+        return {"status": "blocked",
+                "notes": [f"tag audit: tool error ({exc}) — cannot verify tag literals"]}
     if result["status"] == "blocked":
-        return [f"tag audit (report-only): blocked — {result.get('reason')} "
-                "(would block D1 when gating; sub-check skipped for now)"]
+        return {"status": "blocked",
+                "notes": [f"tag audit: blocked — {result.get('reason')}"]}
     inv = result["inventory"]
     scanned = result["scanned"]
     notes = [
-        f"tag audit (report-only): {inv['total_tags']} tags across "
+        f"tag audit: {inv['total_tags']} tags across "
         f"{len(inv['per_registry'])} registries; scanned {scanned['literals']} literals "
         f"in {scanned['files']} files; {len(result['dead'])} dead in production code, "
         f"{len(result['dead_test_only'])} dead in test fixtures"
@@ -189,8 +202,9 @@ def _tag_audit_notes(tree: Path, prepared: Path) -> list[str]:
         names = [d["tag"] for d in result["dead"]]
         shown = ", ".join(names[:5])
         extra = f" (+{len(names) - 5} more)" if len(names) > 5 else ""
-        notes.append(f"tag audit (report-only): dead production tag(s): {shown}{extra}")
-    return notes
+        notes.append(f"tag audit: dead production tag(s): {shown}{extra}")
+        return {"status": "fail", "notes": notes}
+    return {"status": "ok", "notes": notes}
 
 
 # ---------------------------------------------------------------- discovery
@@ -397,9 +411,23 @@ def check_d1(tree: Path, pin: Path, release: str, run: bool, download: bool):
     else:
         return check_stop(f"no prepared data at {prepared}; rerun with --run", evidence)
 
-    # Tag-literal audit (REPORT-ONLY): appends inventory notes, never changes
-    # D1's verdict. See _tag_audit_notes and DELTA-BAR.md §3.
-    notes.extend(_tag_audit_notes(tree, prepared))
+    # Tag-literal audit (GATING): dead production tags fail D1, absent tag
+    # data blocks it. Releases before the tag system (data version < 1519,
+    # pre-1.13) skip the audit — see TAG_ERA_DATA_VERSION and DELTA-BAR.md §3.
+    data_version = int(found["data"].group(1))
+    if data_version < TAG_ERA_DATA_VERSION:
+        notes.append(
+            f"tag audit skipped: pre-1.13 release (data version {data_version}), "
+            "no tag system"
+        )
+    else:
+        audit = _tag_audit(tree, prepared)
+        notes.extend(audit["notes"])
+        evidence.append(str(Path(__file__).resolve().parent / "tag_audit.py"))
+        if audit["status"] == "blocked":
+            return check_stop(audit["notes"][-1], evidence)
+        if audit["status"] == "fail":
+            return check_bad(audit["notes"][-1], evidence)
 
     return check_ok(notes, evidence)
 
