@@ -607,6 +607,11 @@ fn function_and_misc_trees() {
         "schedule.function"
     );
     assert_eq!(run("schedule clear a:b").unwrap().0, "schedule.clear");
+    // 26.2's /schedule clear takes a greedy string, so a name with a space parses.
+    assert_eq!(
+        run("schedule clear hello world").unwrap().0,
+        "schedule.clear"
+    );
     assert_eq!(run("random roll 1..20").unwrap().0, "random.roll");
     assert_eq!(
         run("random reset * 5 true false").unwrap().0,
@@ -667,7 +672,7 @@ fn world_command_trees() {
         ("rotate @s facing entity @e[limit=1] eyes", "rotate"),
         ("rotate @s facing 0 64 0", "rotate"),
         ("swing", "swing"),
-        ("swing @e offhand whack 10", "swing"),
+        ("swing @e offhand", "swing"),
         ("playsound minecraft:entity.cow.ambient", "playsound"),
         (
             "playsound minecraft:block.stone.break block @s ~ ~ ~ 1 1 0.5",
@@ -683,6 +688,10 @@ fn world_command_trees() {
         ),
         (
             "particle minecraft:block{block_state:\"minecraft:stone\"} ~ ~ ~",
+            "particle",
+        ),
+        (
+            "particle minecraft:block{block_state:{Name:\"minecraft:stone\"}} ~ ~ ~",
             "particle",
         ),
         ("attribute @s minecraft:max_health get 2", "attribute.get"),
@@ -743,6 +752,8 @@ fn world_command_trees() {
     }
     assert!(run("playsound minecraft:x invalid_source").is_err());
     assert!(run("particle minecraft:not_a_particle").is_err());
+    // 26.2's /swing ends at the hand: the 26.3 animation argument is rejected.
+    assert!(run("swing @e offhand whack 10").is_err());
     assert!(run("damage @s -1").is_err());
     assert!(run("spreadplayers 0 0 5 0 false @a").is_err());
     assert!(run("worldborder warning distance -1").is_err());
