@@ -2428,3 +2428,16 @@ ball-up — 26.2's checkExtraStartConditions is onGround() only, 26.3
 added !isInLiquid(); dropped the liquid check and the dead helper.
 582 management schema — 26.3's four world/upgrade_* notifications
 are absent in 26.2; removed from METHODS, test count 89 -> 85.
+
+## Rank 3 — bucket A batch 8: 89/177 (2026-11-15)
+
+All 9 no-change — bucket A is now complete except deferred item 451
+(scoreboard/team commands, its own task). 583 biome tags (26.3 adds
+18 HAS_ABANDONED_CAMP_* tags; the Rust only uses the is_* category
+tags, identical in both versions), 584 growing plant (26.2 codec
+only), 586 end city / 587 mansion (26.3 adds a biome pre-check to
+findGenerationPoint; the Rust has no per-structure generation-point
+port), 588 ocean monument (biomeResolver vs biomeSource+sampler —
+same query), 589 jungle temple (RedStoneWireBlock rename), 591 tab
+bar / 592 system toast (identical decompiles), 594 recipe clearGrid
+(26.3-only Prediction param; the Rust models no prediction).

@@ -559,6 +559,69 @@
       "bucket": "A",
       "verdict": "ported",
       "evidence": "OutgoingRpcMethods: 26.3 adds four world-upgrade notifications (world/upgrade_started, upgrade_progress, upgrade_finished, upgrade_failed); 26.2 has none. Removed the four entries from METHODS, updated the module doc to 26.2, and the rpc_discover test's count 89 -> 85 (test passes)."
+    },
+    {
+      "id": 583,
+      "module": "crates/horizon-shaders/src/biomes.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "BiomeTags: 26.3 adds 18 HAS_ABANDONED_CAMP_* tags (the new abandoned-camp structure's per-biome placement tags); everything else is identical. The Rust's biomes.rs only uses the is_* category tags, which are the same in both versions \u2014 it has no has_structure surface."
+    },
+    {
+      "id": 584,
+      "module": "crates/horizon-world/src/level/survive.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "GrowingPlantBlock carries a simpleCodec in 26.2 that the 26.3 form lacks; no behaviour method changed."
+    },
+    {
+      "id": 586,
+      "module": "crates/horizon-world/src/worldgen/structure/end_city.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "EndCityStructure.findGenerationPoint: 26.3 adds a couldValidBiomeExistInTerrainColumn pre-check at chunk offset 7 and inlines getLowestYIn5by5Box; 26.2 calls getLowestYIn5by5BoxOffset7Blocks with no pre-check. The Rust does not port per-structure findGenerationPoint (its start logic is generic) \u2014 the difference is unobservable."
+    },
+    {
+      "id": 587,
+      "module": "crates/horizon-world/src/worldgen/structure/mansion.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "WoodlandMansionStructure.findGenerationPoint: same shape as item 586 \u2014 26.3 adds the biome pre-check at chunk offset 7, 26.2 uses getLowestYIn5by5BoxOffset7Blocks. The Rust does not port per-structure findGenerationPoint."
+    },
+    {
+      "id": 588,
+      "module": "crates/horizon-world/src/worldgen/structure/monument.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "OceanMonumentStructure.findGenerationPoint differs only by the biome-query API: 26.3 uses context.biomeResolver().getBiomesWithin(x, seaLevel, z, 29), 26.2 uses context.biomeSource().getBiomesWithin(x, seaLevel, z, 29, sampler) \u2014 same query, same radius, same REQUIRED_OCEAN_MONUMENT_SURROUNDING check, which the Rust already performs via its biome set."
+    },
+    {
+      "id": 589,
+      "module": "crates/horizon-world/src/worldgen/structure/temple.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "JungleTemplePiece.postProcess differs only by the RedstoneWireBlock (26.3) vs RedStoneWireBlock (26.2) class rename (established in item 508); the trap wiring placements are identical."
+    },
+    {
+      "id": 591,
+      "module": "crates/horizon-client/src/game/tabs.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "MenuTabBar.extractWidgetRenderState decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+    },
+    {
+      "id": 592,
+      "module": "crates/horizon-client/src/game/toasts.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SystemToast.extractRenderState decompiles identically in both versions; the 'changed' flag is a bytecode artifact."
+    },
+    {
+      "id": 594,
+      "module": "crates/horizon-client/src/game/recipe_book.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ServerPlaceRecipe.clearGrid: 26.3 passes Prediction.SERVER_ONLY to placeItemBackInInventory; 26.2 calls the 2-arg form. The Rust models no inventory prediction (established pattern, menu.rs:924) \u2014 already the 26.2 form."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
