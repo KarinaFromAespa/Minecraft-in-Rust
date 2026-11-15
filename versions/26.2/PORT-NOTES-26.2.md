@@ -2346,7 +2346,7 @@ classes decompile identically — bytecode artifacts), 520 packs
 (listResources signature re-shape), 521 sulfur cube (archetype codec
 holderSet→homogeneousList; Rust loads items from tags), 522 management
 (worldUpgrade* notifications are 26.3-only), 523 shapes (codecs only),
-525 registries (ResourceArgument accessors are 26.3-only), 526 command
+525 registries (ResourceArgument accessors exist in 26.2, absent in 26.3; Rust only cites the class), 526 command
 block (codec only), 527 lightning (constants hoisted; quad bodies,
 draws and loops identical), 528 drop-experience block (codec only).
 PORTED: 518 /tick — 26.2's step/stopSprinting/stopStepping send
@@ -2367,3 +2367,33 @@ decorator context helpers (26.3-only; sole caller is the 26.3-only
 ShelfMushroomDecorator), 538 ban notice (openUri move), 539 inventory
 effects (identical decompiles), 540 test block (codec only), 541 debug
 entries (identical decompiles).
+
+## Rank 3 — bucket A batch 5: 56/177 (2026-11-15)
+
+9 no-change + 3 ports. No-change: 543 config listener (tags() vs
+getTags() rename), 545 tracked entity (identical decompile), 546 shelf
+renderer (static→instance + Vec3/rotate renames, same transforms), 547
+tutorial toast (identical decompile), 548 silverfish goals
+(setBlockAndUpdate ≡ setBlock(..., 3)), 549 carrot block (26.2 codec
+only), 550 server list entry (identical decompile), 552 fluid model
+(Rust already takes materials directly, the 26.2 form), 554 chorus
+plant (26.2 codec only). PORTED: 542 block-editor pause — structure
+and test editors return isPauseScreen=false in 26.2 (26.3 removed the
+overrides), jigsaw/test-instance keep the default true; the Editor
+trait gains a defaulted is_pause_screen(), Game::pauses_game ORs the
+new block_editor_pauses(). 544 /raid check — 26.2's first line keeps
+a trailing space ("Found a started raid! "). 551 /unpublish — failure
+is sendFailure + return 0, not a throw (same pattern as item 518).
+
+CORRECTION (2026-11-15): diff.json's method added/removed run in the
+26.2 direction — "added" means present in 26.2, absent in 26.3 (and
+"removed" the reverse). Two batch-3 evidence lines had the direction
+backwards (525's accessors are 26.2-only, not 26.3-only; the "codec
+only" blocks carry a simpleCodec in 26.2 that 26.3 lacks). Verdicts
+unchanged — no behaviour method changed in any of them — but the
+evidence in rank3-progress.json is corrected.
+
+TOOLING NOTE: never run bare `cargo fmt` (or `cargo fmt -- <paths>`)
+in the 26.2 tree — this toolchain's rustfmt 1.95 reformats ~50 files
+of pre-existing drift (let-else/match-arm collapsing). Format single
+files with `rustfmt --edition 2024 <file>` and check git status after.

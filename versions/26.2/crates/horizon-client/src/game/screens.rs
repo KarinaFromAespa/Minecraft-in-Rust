@@ -64,10 +64,11 @@ impl Screen {
             // Studio) leave it running as they always have.
             | Self::Playing | Self::EmoteWheel | Self::Mod | Self::Studio
             // WinScreen.isPauseScreen is `!poem`: Game::win_screen_pauses.
-            | Self::Win => false,
-            // Every other screen, and the game-master block editors
-            // (StructureBlockEditScreen and its siblings), inherit Screen's
-            // true.
+            | Self::Win
+            // A game-master block editor answers from its editor:
+            // Game::block_editor_pauses.
+            | Self::BlockEditor => false,
+            // Every other screen inherits Screen's true.
             Self::Paused
             | Self::Options
             | Self::Stats
@@ -78,7 +79,6 @@ impl Screen {
             | Self::ConfirmLink
             | Self::DialogWarning
             | Self::CommandBlock
-            | Self::BlockEditor
             | Self::DebugOptions
             | Self::HudEditor => true,
         }

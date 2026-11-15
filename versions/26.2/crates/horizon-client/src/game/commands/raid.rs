@@ -47,7 +47,9 @@ impl Game<'_> {
             // to its first wave is found too (#11372).
             "raid.check" => match self.raiding_nearby(at) {
                 Some(raid) => {
-                    self.feedback(Text::literal("Found a started raid!"));
+                    // 26.2 builds the line with a StringBuilder and keeps a
+                    // trailing space after the exclamation mark.
+                    self.feedback(Text::literal("Found a started raid! "));
                     let status = self.raid_status_text(raid);
                     self.feedback(Text::literal(&status));
                     Ok(1)
@@ -163,7 +165,7 @@ mod tests {
         assert_eq!(
             lines,
             [
-                "Found a started raid!",
+                "Found a started raid! ",
                 "Num groups spawned: 0 Raid omen level: 0 Num mobs: 0 Raid health: 0.0 / 0.0",
             ]
         );

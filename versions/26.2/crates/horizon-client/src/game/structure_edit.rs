@@ -143,6 +143,11 @@ impl Editor for StructureEditor {
         &mut self.edits
     }
 
+    /// 26.2 `StructureBlockEditScreen.isPauseScreen` is false.
+    fn is_pause_screen(&self) -> bool {
+        false
+    }
+
     fn items(&self, entity: &BlockEntity, w: f32, _h: f32) -> Vec<Item> {
         let BlockEntity::StructureBlock(b) = entity else {
             return Vec::new();

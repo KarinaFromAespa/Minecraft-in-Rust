@@ -194,21 +194,21 @@
       "module": "crates/horizon-world/src/level/shapes.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "StairBlock and BaseCoralPlantTypeBlock only gain codecs (+ <clinit>/lambda$static); the ported methods (getStairsShape, scanForWater, tryScheduleDieTick) are unchanged."
+      "evidence": "StairBlock and BaseCoralPlantTypeBlock carry simpleCodecs in 26.2 that the 26.3 forms lack (+ <clinit>/lambda$static); the ported methods (getStairsShape, scanForWater, tryScheduleDieTick) are unchanged."
     },
     {
       "id": 525,
       "module": "crates/horizon-client-core/src/registries.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "ResourceArgument gains getConfiguredFeature/getEntityType/getStructure in 26.3 (26.3-only accessors); the Rust only cites ResourceArgument in a comment."
+      "evidence": "ResourceArgument has getConfiguredFeature/getEntityType/getStructure in 26.2 (absent in 26.3); the Rust only cites ResourceArgument in a comment and calls none of the accessors."
     },
     {
       "id": 526,
       "module": "crates/horizon-client-render/src/command_block.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "CommandBlock only gains a codec (+ <clinit>/lambda$static); no behaviour method changed."
+      "evidence": "CommandBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); no behaviour method changed."
     },
     {
       "id": 527,
@@ -222,7 +222,7 @@
       "module": "crates/horizon-client/src/game/item_entities.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "DropExperienceBlock only gains a codec (+ <clinit>/lambda$static); no behaviour method changed. The Rust cites its XP ranges in a comment."
+      "evidence": "DropExperienceBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); no behaviour method changed. The Rust cites its XP ranges in a comment."
     },
     {
       "id": 529,
@@ -257,14 +257,14 @@
       "module": "crates/horizon-items/src/flowers.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "FlowerBlock only gains a codec (+ <clinit>/lambda$static); suspiciousStewEffects/makeEffectList unchanged."
+      "evidence": "FlowerBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); suspiciousStewEffects/makeEffectList unchanged."
     },
     {
       "id": 535,
       "module": "crates/horizon-world/src/level/tests.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "WeatheringCopperChestBlock only gains a codec (+ <clinit>/lambda$static); randomTick unchanged."
+      "evidence": "WeatheringCopperChestBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>/lambda$static); randomTick unchanged."
     },
     {
       "id": 536,
@@ -299,7 +299,7 @@
       "module": "crates/horizon-client-render/src/test_block.rs",
       "bucket": "A",
       "verdict": "no-change",
-      "evidence": "TestBlock only gains a codec (+ <clinit>); no behaviour method changed."
+      "evidence": "TestBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); no behaviour method changed."
     },
     {
       "id": 541,
@@ -307,6 +307,90 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "DebugEntryCategory and DebugScreenEntries decompile identically in both versions; the <clinit> 'changed' flags are bytecode artifacts (the registration lists are the same)."
+    },
+    {
+      "id": 542,
+      "module": "crates/horizon-client/src/game/block_editor.rs",
+      "bucket": "A",
+      "verdict": "ported",
+      "evidence": "StructureBlockEditScreen and TestBlockEditScreen override isPauseScreen() to false in 26.2 (javap-verified; 26.3 has no override, so they pause); JigsawBlockEditScreen and TestInstanceBlockEditScreen have no override in either version (default true). Ported: Editor trait gains a defaulted is_pause_screen() (true); StructureEditor and TestBlockEditor override to false; BlockEditScreen delegates; Screen::is_pause_screen moves BlockEditor to the false arm and Game::pauses_game ORs the new block_editor_pauses() (the win_screen_pauses pattern). cargo check clean; raid test unaffected."
+    },
+    {
+      "id": 543,
+      "module": "crates/horizon-client/src/game/code_of_conduct.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ClientConfigurationPacketListenerImpl.handleUpdateTags differs only by packet.tags() vs packet.getTags() (accessor rename). The $1 anonymous class's canUseCommandBlocks is 26.3-only; the Rust binds only the Code of Conduct."
+    },
+    {
+      "id": 544,
+      "module": "crates/horizon-client/src/game/commands/raid.rs",
+      "bucket": "A",
+      "verdict": "ported",
+      "evidence": "RaidCommand.check: 26.2 builds the first line with a StringBuilder and keeps a trailing space ('Found a started raid! '); 26.3's literal has none. Ported the feedback literal and the test expectation; raid_check test passes with HORIZON_TEST_RESOURCES."
+    },
+    {
+      "id": 545,
+      "module": "crates/horizon-client/src/game/lan_entities.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ChunkMap$TrackedEntity decompiles identically in both versions; the <init> 'changed' flag is a bytecode artifact. Rust references are comments."
+    },
+    {
+      "id": 546,
+      "module": "crates/horizon-client/src/game/shelf.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ShelfRenderer.submitItem: 26.3's static form inlines the offsets and uses rotateDegrees; 26.2's instance form builds a Vec3 and uses mulPose(rotationDegrees) \u2014 same values, same transform order (translate 0.5, rotate Y, translate offset, scale 0.25)."
+    },
+    {
+      "id": 547,
+      "module": "crates/horizon-client/src/game/tutorial.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "TutorialToast and TutorialToast$Icons decompile identically in both versions; the extractRenderState 'changed' flags are bytecode artifacts."
+    },
+    {
+      "id": 548,
+      "module": "crates/horizon-client/src/mobs/hostile.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "SilverfishMergeWithStoneGoal.start and SilverfishWakeUpFriendsGoal.tick differ only by setBlockAndUpdate vs setBlock(pos, state, 3) \u2014 identical in both versions (established in item 414)."
+    },
+    {
+      "id": 549,
+      "module": "crates/horizon-client/src/mobs/rabbit.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CarrotBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); MAX_AGE and growth behaviour unchanged."
+    },
+    {
+      "id": 550,
+      "module": "crates/horizon-client/src/multiplayer.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "OnlineServerEntry extractContent/extractIcon decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+    },
+    {
+      "id": 551,
+      "module": "crates/horizon-command/src/tree_extra.rs",
+      "bucket": "A",
+      "verdict": "ported",
+      "evidence": "UnpublishCommand: 26.3 throws ERROR_NOT_PUBLISHED; 26.2 sends sendFailure and returns 0. Ported cmd_unpublish's two failure arms (dedicated-server and LAN-not-published) to command_failure + Ok(0), same pattern as item 518."
+    },
+    {
+      "id": 552,
+      "module": "crates/horizon-mods/src/content/fluid.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "FluidModel$Unbaked.bake: 26.3 validates each material is in the blocks atlas (getAndValidateMaterial, reports a missing reference otherwise); 26.2 takes materials.get directly. The Rust performs no atlas validation \u2014 already the 26.2 form."
+    },
+    {
+      "id": 554,
+      "module": "crates/horizon-world/src/level/place.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "ChorusPlantBlock carries a simpleCodec in 26.2 that the 26.3 form lacks (+ <clinit>); getStateWithConnections unchanged."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
