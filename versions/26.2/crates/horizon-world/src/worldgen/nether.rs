@@ -235,8 +235,10 @@ impl BasaltColumnsFeature {
             center[2] as i64 - reach as i64,
             center[2] as i64 + reach as i64,
         );
-        for x in x0..=x1 {
-            for z in z0..=z1 {
+        // BlockPos.betweenClosed walks x fastest, then y, then z: z is the
+        // outer loop, x the inner one.
+        for z in z0..=z1 {
+            for x in x0..=x1 {
                 let pos = [x as i32, center[1], z as i32];
                 let step_limit = manhattan(pos, center);
                 let column_pos = if self.is_air_or_lava_ocean(world, sea_level, pos)? {

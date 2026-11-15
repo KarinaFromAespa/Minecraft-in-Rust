@@ -72,6 +72,7 @@ public final class VanillaSimpleBlockOracle {
   final TreeMap<BlockPos,BlockState> states=new TreeMap<>(Comparator.<BlockPos>comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));
   World(JsonObject f,PrintWriter out,RandomSource random){this.f=f;this.out=out;this.random=random;this.biome=f.has("biome")?Holder.direct(makeBiome(f.getAsJsonObject("biome"))):null;for(var raw:f.getAsJsonArray("states")){var v=raw.getAsJsonArray();states.put(pos(v),Block.stateById(v.get(3).getAsInt()));}}
   final TreeMap<BlockPos,ChestBlockEntity> lootContainers=new TreeMap<>(Comparator.<BlockPos>comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));
+  final TreeMap<BlockPos,BrushableBlockEntity> brushables=new TreeMap<>(Comparator.<BlockPos>comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));
   final TreeMap<BlockPos,TheEndGatewayBlockEntity> gateways=new TreeMap<>(Comparator.<BlockPos>comparingInt(BlockPos::getX).thenComparingInt(BlockPos::getY).thenComparingInt(BlockPos::getZ));
   final Map<ChunkPos,ProtoChunk> chunks=new HashMap<>();
   ProtoChunk chunk(BlockPos p) {
@@ -98,6 +99,17 @@ public final class VanillaSimpleBlockOracle {
    if(name.equals("getRawBrightness")){var p=(BlockPos)args[0];event("light "+xyz(p)+" "+args[1]);return f.get("brightness").getAsInt();}
    if(name.equals("getBlockEntity")){
     var p=((BlockPos)args[0]).immutable();event("entity "+xyz(p));String mode=f.has("gateway_entity")?f.get("gateway_entity").getAsString():"none";
+    if(args.length==2){
+     // Typed overload getBlockEntity(pos, type): returns Optional<T>, and
+     // vanilla only returns an entity of the requested type. The caller
+     // casts the element, so a stand-in of the wrong type throws.
+     var type=(BlockEntityType<?>)args[1];
+     if(type==BlockEntityTypes.BRUSHABLE_BLOCK&&f.has("loot_entity")&&f.get("loot_entity").getAsString().equals("chest"))return Optional.of(brushables.computeIfAbsent(p,key->new BrushableBlockEntity(key,Blocks.SUSPICIOUS_SAND.defaultBlockState())));
+     if(type==BlockEntityTypes.CHEST&&f.has("loot_entity")&&f.get("loot_entity").getAsString().equals("chest"))return Optional.of(lootContainers.computeIfAbsent(p,key->new ChestBlockEntity(key,Blocks.CHEST.defaultBlockState())));
+     if(type==BlockEntityTypes.END_GATEWAY&&mode.equals("gateway"))return Optional.of(gateways.computeIfAbsent(p,key->new TheEndGatewayBlockEntity(key,Blocks.END_GATEWAY.defaultBlockState()){@Override public void setChanged(){event("gateway_changed "+xyz(key));}}));
+     if(type==BlockEntityTypes.SHULKER_BOX&&mode.equals("other"))return Optional.of(new ShulkerBoxBlockEntity(p,Blocks.SHULKER_BOX.defaultBlockState()));
+     return Optional.empty();
+    }
     Object entity;
     if(f.has("loot_entity")){
      String lootMode=f.get("loot_entity").getAsString();
@@ -108,12 +120,7 @@ public final class VanillaSimpleBlockOracle {
     else if(mode.equals("other"))entity=new ShulkerBoxBlockEntity(p,Blocks.SHULKER_BOX.defaultBlockState());
     else if(mode.equals("gateway"))entity=gateways.computeIfAbsent(p,key->new TheEndGatewayBlockEntity(key,Blocks.END_GATEWAY.defaultBlockState()){@Override public void setChanged(){event("gateway_changed "+xyz(key));}});
     else entity=null;
-    // The typed overload getBlockEntity(pos, type) returns Optional<T>
-    // (DesertWellFeature calls it and invokes ifPresent on the result);
-    // the untyped overload returns the entity or null. The fixture's
-    // stand-in entity is returned for either overload, unwrapped or
-    // wrapped to match.
-    return args.length==2?Optional.ofNullable(entity):entity;
+    return entity;
    }
    if(name.equals("destroyBlock")){
     if(args.length!=3||args[2]!=null)throw new UnsupportedOperationException("only no-entity destruction is defined in this fixture");
@@ -173,6 +180,15 @@ public final class VanillaSimpleBlockOracle {
       out.println("next "+random.nextLong()+" "+worldRandom.nextLong());out.println("calls "+handler.calls);
       for(var entry:handler.states.entrySet())out.println("stored "+xyz(entry.getKey())+" "+Block.getId(entry.getValue()));
       for(var entry:handler.lootContainers.entrySet())if(entry.getValue().getLootTable()!=null)out.println("loot "+xyz(entry.getKey())+" "+entry.getValue().getLootTable().identifier()+" "+entry.getValue().getLootTableSeed());
+      for(var entry:handler.brushables.entrySet()){
+       // BrushableBlockEntity keeps its loot table in private fields.
+       var tableField=BrushableBlockEntity.class.getDeclaredField("lootTable");tableField.setAccessible(true);
+       var table=(ResourceKey<net.minecraft.world.level.storage.loot.LootTable>)tableField.get(entry.getValue());
+       if(table!=null){
+        var seedField=BrushableBlockEntity.class.getDeclaredField("lootTableSeed");seedField.setAccessible(true);
+        out.println("loot "+xyz(entry.getKey())+" "+table.identifier()+" "+seedField.getLong(entry.getValue()));
+       }
+      }
       for(var entry:handler.gateways.entrySet()) {
        var exit=TheEndGatewayBlockEntity.class.getDeclaredField("exitPortal");exit.setAccessible(true);var exact=TheEndGatewayBlockEntity.class.getDeclaredField("exactTeleport");exact.setAccessible(true);
        out.println("gateway "+xyz(entry.getKey())+" "+xyz((BlockPos)exit.get(entry.getValue()))+" "+exact.getBoolean(entry.getValue()));
