@@ -15,7 +15,7 @@ pub mod upload;
 use crate::hud::{HudAtlas, HudBatch, rgba};
 use crate::text::Text;
 use client::{
-    Backup, InviteCode, PendingInviteDto, PlayerInfo, RealmAddress, RealmServer, RealmSetting,
+    Backup, PendingInviteDto, PlayerInfo, RealmAddress, RealmServer, RealmSetting,
     RealmSlot, RealmWorldOptions, RealmsClient,
     RealmsError, RealmsNotification, RegionDataDto, RegionSelectionPreferenceDto, Subscription,
     WorldDownload, WorldTemplate, WorldTemplateList,
@@ -68,35 +68,6 @@ const GAME_MODES: [&str; 3] = [
 ];
 const DIFFICULTY_DEFAULT: usize = 2;
 const GAME_MODE_DEFAULT: usize = 0;
-/// `InviteCodeExpiration`: the seven choices, the last one never expiring.
-const EXPIRATIONS: [(&str, Option<i64>); 7] = [
-    (
-        "mco.configure.world.invite_codes.expiration.30_minutes",
-        Some(30 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.1_hour",
-        Some(60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.6_hours",
-        Some(6 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.12_hours",
-        Some(12 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.1_day",
-        Some(24 * 60 * 60),
-    ),
-    (
-        "mco.configure.world.invite_codes.expiration.7_days",
-        Some(7 * 24 * 60 * 60),
-    ),
-    ("mco.configure.world.invite_codes.expiration.never", None),
-];
-
 /// `CommonLinks.BUY_REALMS`.
 const BUY_REALMS: &str = "https://aka.ms/BuyJavaRealms";
 /// `CommonLinks.START_REALMS_TRIAL`.
@@ -613,26 +584,6 @@ fn icon_sprite(batch: &mut HudBatch, atlas: &HudAtlas, slot: usize, rgba: &[u8])
     Some(sprite)
 }
 
-/// `InviteCodeExpiration.closestTo`: the choice nearest the time left on the code.
-fn closest_expiration(expiration_millis: i64) -> usize {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0);
-    let left = (expiration_millis - now).max(0) / 1000;
-    let mut best = EXPIRATIONS.len() - 1;
-    let mut best_delta = i64::MAX;
-    for (i, (_, seconds)) in EXPIRATIONS.iter().enumerate() {
-        let Some(seconds) = seconds else { continue };
-        let delta = (left - seconds).abs();
-        if delta < best_delta {
-            best_delta = delta;
-            best = i;
-        }
-    }
-    best
-}
-
 /// `RealmsSubscriptionTab.daysLeftPresentation`: what the days-left line says, in the
 /// caller's language; empty when nothing is left to say.
 fn days_left_text(days_left: i32, expired: bool) -> String {
@@ -787,9 +738,9 @@ fn start_date_text(epoch_millis: i64) -> String {
     time.format(format).to_string()
 }
 
-/// `RealmsEditInviteCodeScreen.DATE_FORMAT`: `Util.localizedDateFormatter(SHORT)`. The
-/// port has no locale database, so each language's short shape is spelled out with an
-/// ISO fallback (vanilla itself formats per locale).
+/// A short localized date (`Util.localizedDateFormatter(SHORT)`). The port has no
+/// locale database, so each language's short shape is spelled out with an ISO
+/// fallback (vanilla itself formats per locale).
 fn short_date_text(epoch_millis: i64) -> String {
     let Some(time) = chrono::DateTime::from_timestamp_millis(epoch_millis) else {
         return String::new();
@@ -1129,27 +1080,6 @@ pub enum SubScreen {
         /// The settings tab's data, carried back so its save can run at once.
         detail: Option<Result<RealmServer, RealmsError>>,
     },
-    /// `RealmsInviteCodesScreen`: the Realm's shareable codes.
-    InviteCodes {
-        server: RealmServer,
-        codes: Option<Result<Vec<InviteCode>, RealmsError>>,
-        list_job: Option<Job<Result<Vec<InviteCode>, RealmsError>>>,
-        /// `createInviteCode` on a worker.
-        job: Option<Job<Result<(), RealmsError>>>,
-        error: Option<String>,
-        /// The highlighted row (`InviteCodeSelectionList`).
-        selected: Option<usize>,
-    },
-    /// `RealmsEditInviteCodeScreen`: one code's active flag and expiration.
-    EditCode {
-        server: RealmServer,
-        code: InviteCode,
-        active: bool,
-        /// `EXPIRATIONS`' index.
-        expiration: usize,
-        job: Option<Job<Result<(), RealmsError>>>,
-        error: Option<String>,
-    },
     /// `RealmsInviteScreen`: a name to invite to the Realm.
     Invite {
         server: RealmServer,
@@ -1333,8 +1263,7 @@ pub struct Screen {
     players_button_rects: std::cell::RefCell<Vec<([f32; 4], u8)>>,
     /// `RealmsBackupScreen.Entry`'s Changes/Restore buttons as last drawn.
     backup_row_buttons: std::cell::RefCell<Vec<([f32; 4], u8)>>,
-    /// The other held sliders: 1 the slot options' spawn protection, 2 the edit-code
-    /// expiration.
+    /// The other held slider: the slot options' spawn protection.
     other_slider: Option<u8>,
     /// A button press that has to wait for the settings tab's save (`Play`, the open/close
     /// toggle): `RealmsConfigureWorldScreen` saves an active tab before either runs.
@@ -2150,14 +2079,10 @@ impl Screen {
         let mut refetch_detail = false;
         let mut slot_options_saved = false;
         let mut open_region_screen = false;
-        let mut saved_code = false;
-        let mut refetch_codes = false;
         let mut back_to_worlds: Option<RealmServer> = None;
         let mut created = false;
         // The settings save finished: a Play or the close toggle continues.
         let mut settings_saved = false;
-        // An invite-code fetch failure: `RealmsGenericErrorScreen` over the players tab.
-        let mut codes_error: Option<(RealmServer, RealmsError)> = None;
         // `RestoreTask`'s failure: the error screen over the configuration screen.
         let mut restore_error: Option<(RealmServer, RealmsError)> = None;
         // `DownloadTask` answered with the links (`RealmsDownloadLatestWorldScreen`), or
@@ -2172,15 +2097,6 @@ impl Screen {
         // `LongRunningTask.error`: a reset or minigame-switch task's failure replaces the
         // screen with the generic error screen.
         let mut task_error: Option<String> = None;
-        // `RealmsEditInviteCodeScreen.handleFailure` keeps the edit screen as its next.
-        let mut edit_error: Option<(RealmServer, InviteCode, bool, usize, RealmsError)> = None;
-        // `RealmsInviteCodesScreen.handleFailure` returns to the loaded codes list.
-        let mut codes_action_error: Option<(
-            RealmServer,
-            Option<Result<Vec<InviteCode>, RealmsError>>,
-            Option<usize>,
-            RealmsError,
-        )> = None;
         // A configure screen's fetch failed: `RealmsConfigureWorldScreen.createErrorScreen`
         // replaces the screen with the generic error screen.
         let mut fetch_error: Option<RealmsError> = None;
@@ -2415,37 +2331,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::InviteCodes {
-                server,
-                codes,
-                selected,
-                list_job,
-                job,
-                ..
-            } => {
-                if let Some(result) = list_job.as_ref().and_then(take) {
-                    *list_job = None;
-                    match result {
-                        Ok(list) => *codes = Some(Ok(list)),
-                        // `handleFailure`: the failure replaced the screen with the generic
-                        // error screen, whose next screen is the configuration screen.
-                        Err(e) => codes_error = Some((server.clone(), e)),
-                    }
-                }
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        // A create or delete: the list reads again.
-                        Ok(()) => refetch_codes = true,
-                        // `handleFailure`: the generic error screen, returning to the
-                        // codes list it was over.
-                        Err(e) => {
-                            codes_action_error =
-                                Some((server.clone(), codes.clone(), *selected, e));
-                        }
-                    }
-                }
-            }
             SubScreen::ResetWorld {
                 server,
                 kind,
@@ -2557,28 +2442,6 @@ impl Screen {
                     }
                 }
             }
-            SubScreen::EditCode {
-                server,
-                code,
-                active,
-                expiration,
-                job,
-                ..
-            } => {
-                if let Some(result) = job.as_ref().and_then(take) {
-                    *job = None;
-                    match result {
-                        // The update or delete is saved: back to the list, which reads again.
-                        Ok(()) => saved_code = true,
-                        // `handleFailure`: the generic error screen, whose next is this
-                        // edit screen again.
-                        Err(e) => {
-                            edit_error =
-                                Some((server.clone(), code.clone(), *active, *expiration, e));
-                        }
-                    }
-                }
-            }
             SubScreen::Connecting { .. } => return self.poll_join(),
             SubScreen::Terms { .. } => return self.poll_terms(),
             _ => {}
@@ -2655,64 +2518,8 @@ impl Screen {
                 speed: std::cell::Cell::new((0, Instant::now(), 0)),
             };
         }
-        if let Some((server, e)) = codes_error {
-            let code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(configure_screen(server, ConfigureTab::Players)),
-            };
-        }
-        if let Some((server, code, active, expiration, e)) = edit_error {
-            let error_code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&error_code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(SubScreen::EditCode {
-                    server,
-                    code,
-                    active,
-                    expiration,
-                    job: None,
-                    error: None,
-                }),
-            };
-        }
-        if let Some((server, codes, selected, e)) = codes_action_error {
-            let error_code = e.code();
-            let detail = e.text();
-            self.subscreen = SubScreen::Error {
-                title: crate::lang::tr(
-                    "mco.errorMessage.realmsService.realmsError",
-                    &[&error_code as &dyn std::fmt::Display],
-                ),
-                detail,
-                next: Box::new(SubScreen::InviteCodes {
-                    server,
-                    codes,
-                    list_job: None,
-                    job: None,
-                    error: None,
-                    selected,
-                }),
-            };
-        }
         if settings_saved && let Some(action) = self.after_save.take() {
             let _ = self.run_after_save(action);
-        }
-        if refetch_codes {
-            self.start_invite_codes();
-        }
-        if saved_code {
-            self.back_to_codes();
         }
         if open_region_screen {
             self.open_region_preference();
@@ -3040,20 +2847,6 @@ impl Screen {
                             (crate::ui::slider_value(x, 150.0, cursor.0) * 16.0).round() as i32;
                     }
                 }
-                // `RealmsEditInviteCodeScreen.ExpirationSlider`: one choice per step.
-                2 => {
-                    if let SubScreen::EditCode {
-                        active: true,
-                        job: None,
-                        expiration,
-                        ..
-                    } = &mut self.subscreen
-                    {
-                        let left = (w / 2.0).floor() - 154.0;
-                        let value = crate::ui::slider_value(left, 308.0, cursor.0);
-                        *expiration = (value * (EXPIRATIONS.len() - 1) as f32).round() as usize;
-                    }
-                }
                 _ => {}
             }
             return;
@@ -3193,12 +2986,6 @@ impl Screen {
                 _ => {}
             }
             self.back_to_worlds_tab();
-            return false;
-        }
-        // `RealmsEditInviteCodeScreen.onClose`: Back and Escape return to the codes list
-        // while the back button is active (no request in flight).
-        if matches!(self.subscreen, SubScreen::EditCode { job: None, .. }) {
-            self.back_to_codes();
             return false;
         }
         // `PopupScreen.onClose`: the background screen returns. `RealmsPopups` builds the
@@ -3696,46 +3483,6 @@ impl Screen {
         }
     }
 
-    /// `RealmsInviteCodesScreen.refreshInviteCodes`: the list reads again.
-    fn start_invite_codes(&mut self) {
-        let SubScreen::InviteCodes {
-            server,
-            list_job,
-            selected,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        if list_job.is_some() {
-            return;
-        }
-        // `refreshInviteCodes` clears the selection before the list reads again.
-        *selected = None;
-        if let Some(client) = client() {
-            let id = server.id;
-            *list_job = Some(spawn(move || client.invite_codes(id)));
-        }
-    }
-
-    /// `RealmsEditInviteCodeScreen`'s save or delete done: back to the codes list, which
-    /// reads again.
-    fn back_to_codes(&mut self) {
-        let SubScreen::EditCode { server, .. } = &self.subscreen else {
-            return;
-        };
-        let server = server.clone();
-        self.subscreen = SubScreen::InviteCodes {
-            server,
-            codes: None,
-            list_job: None,
-            job: None,
-            error: None,
-            selected: None,
-        };
-        self.start_invite_codes();
-    }
-
     /// `RealmsBackupScreen.fetchRealmsBackups`: the list reads again.
     fn start_backups(&mut self) {
         let SubScreen::Backups {
@@ -3933,35 +3680,6 @@ impl Screen {
             speed: std::cell::Cell::new((0, Instant::now(), 0)),
         };
         self.start_download(download, world_name, progress);
-    }
-
-    /// Back to the players tab from the codes screens.
-    fn back_to_players_tab(&mut self) {
-        let server = match &self.subscreen {
-            SubScreen::InviteCodes { server, .. } | SubScreen::EditCode { server, .. } => {
-                server.clone()
-            }
-            _ => return,
-        };
-        self.subscreen = SubScreen::Configure {
-            server,
-            tab: ConfigureTab::Players,
-            subscription: None,
-            subscription_job: None,
-            detail: None,
-            detail_job: None,
-            deleting: None,
-            member_job: None,
-            settings: None,
-            players_scroll: crate::ui::Scroll::default(),
-            regions: None,
-            regions_job: None,
-            saving: None,
-            error: None,
-            job: None,
-        };
-        self.start_configure_subscription();
-        self.start_configure_detail();
     }
 
     /// `RealmsInviteScreen.onClose`: back to the players tab.
@@ -5189,130 +4907,6 @@ impl Screen {
                 }
                 Outcome::None
             }
-            // RealmsInviteCodesScreen: the Players tab's second button.
-            Some(68) => {
-                if let SubScreen::Configure { server, .. } = &self.subscreen
-                    && let Some(client) = client()
-                {
-                    let id = server.id;
-                    self.subscreen = SubScreen::InviteCodes {
-                        server: server.clone(),
-                        codes: None,
-                        list_job: Some(spawn(move || client.invite_codes(id))),
-                        job: None,
-                        error: None,
-                        selected: None,
-                    };
-                }
-                Outcome::None
-            }
-            // RealmsInviteCodesScreen: Create (160) and Back (161).
-            Some(160) => {
-                if let SubScreen::InviteCodes { server, job, .. } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let id = server.id;
-                    *job = Some(spawn(move || client.create_invite_code(id, true, None)));
-                }
-                Outcome::None
-            }
-            Some(161) => {
-                self.back_to_players_tab();
-                Outcome::None
-            }
-            // RealmsEditInviteCodeScreen: Active (162), Copy (163), Delete (164), Done
-            // (165) and Back (166).
-            Some(162) => {
-                if let SubScreen::EditCode { active, .. } = &mut self.subscreen {
-                    *active = !*active;
-                }
-                Outcome::None
-            }
-            Some(163) => {
-                if let SubScreen::EditCode { code, .. } = &self.subscreen {
-                    return Outcome::Copy(code.code.clone());
-                }
-                Outcome::None
-            }
-            Some(164) => {
-                if let SubScreen::EditCode { job, code, .. } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let code = code.code.clone();
-                    *job = Some(spawn(move || client.delete_invite_code(&code)));
-                }
-                Outcome::None
-            }
-            Some(165) => {
-                // `onSave`: unchanged values just close; a changed expiration is resolved
-                // against the current date, while an unchanged one keeps the stored date.
-                let unchanged = match &self.subscreen {
-                    SubScreen::EditCode {
-                        code,
-                        active,
-                        expiration,
-                        ..
-                    } => {
-                        *active == code.enabled
-                            && *expiration
-                                == code
-                                    .expiration_date
-                                    .map(closest_expiration)
-                                    .unwrap_or(EXPIRATIONS.len() - 1)
-                    }
-                    _ => false,
-                };
-                if unchanged {
-                    self.back_to_codes();
-                    return Outcome::None;
-                }
-                if let SubScreen::EditCode {
-                    server,
-                    code,
-                    active,
-                    expiration,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(client) = client()
-                {
-                    let (id, code_text) = (server.id, code.code.clone());
-                    let (enabled, index, stored) = (*active, *expiration, code.expiration_date);
-                    let changed = index
-                        != stored
-                            .map(closest_expiration)
-                            .unwrap_or(EXPIRATIONS.len() - 1);
-                    *job = Some(spawn(move || {
-                        // `resolveExpirationDate`: a changed choice becomes now + its
-                        // duration (epoch millis, `Instant.toEpochMilli`); otherwise the
-                        // code keeps the date it had.
-                        let expiration = if changed {
-                            EXPIRATIONS[index.min(EXPIRATIONS.len() - 1)]
-                                .1
-                                .map(|seconds| {
-                                    use std::time::{SystemTime, UNIX_EPOCH};
-                                    let now = SystemTime::now()
-                                        .duration_since(UNIX_EPOCH)
-                                        .map(|d| d.as_millis() as i64)
-                                        .unwrap_or(0);
-                                    now + seconds * 1000
-                                })
-                        } else {
-                            stored
-                        };
-                        client.update_invite_code(id, &code_text, enabled, expiration)
-                    }));
-                }
-                Outcome::None
-            }
-            Some(166) => {
-                // `RealmsEditInviteCodeScreen.onClose`: `parentScreen` is the codes list.
-                self.back_to_codes();
-                Outcome::None
-            }
             // RealmsSlotOptionsScreen: cycle, toggle, Done and Cancel.
             Some(95) => {
                 if let SubScreen::SlotOptions {
@@ -5402,62 +4996,6 @@ impl Screen {
             // `PopupScreen`: OK and the InfoPopup's URL button.
             Some(56) => self.notice_ok(),
             Some(57) => self.notice_url(),
-            // RealmsInviteCodesScreen: Copy, Delete and Edit act on the selected row.
-            Some(180) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    ..
-                } = &self.subscreen
-                    && let Some(code) = selected.and_then(|i| list.get(i))
-                {
-                    return Outcome::Copy(code.code.clone());
-                }
-                Outcome::None
-            }
-            Some(181) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && job.is_none()
-                    && let Some(code) = selected.and_then(|i| list.get(i))
-                    && let Some(client) = client()
-                {
-                    let code = code.code.clone();
-                    *job = Some(spawn(move || client.delete_invite_code(&code)));
-                }
-                Outcome::None
-            }
-            Some(182) => {
-                if let SubScreen::InviteCodes {
-                    codes: Some(Ok(list)),
-                    selected,
-                    ..
-                } = &self.subscreen
-                    && let Some(code) = selected.and_then(|i| list.get(i).cloned())
-                {
-                    let expiration = code
-                        .expiration_date
-                        .map(closest_expiration)
-                        .unwrap_or(EXPIRATIONS.len() - 1);
-                    let active = code.enabled;
-                    if let SubScreen::InviteCodes { server, .. } = &self.subscreen {
-                        let server = server.clone();
-                        self.subscreen = SubScreen::EditCode {
-                            server,
-                            code,
-                            active,
-                            expiration,
-                            job: None,
-                            error: None,
-                        };
-                    }
-                }
-                Outcome::None
-            }
             Some(btn @ 100..=200) => {
                 // The button's meaning: a pending invite's answer, or a player row's
                 // Op/Deop/Remove (`RealmsPlayersTab.PlayerEntry`).
@@ -5466,9 +5004,6 @@ impl Screen {
                     Pending(bool, String),
                     Member(bool, i64, String),
                     Uninvite(RealmServer, PlayerInfo),
-                    Copy(String),
-                    Edit(InviteCode),
-                    DeleteCode(String),
                 }
                 let row = match &self.subscreen {
                     SubScreen::PendingInvites { invites, job, .. } if job.is_none() => {
@@ -5480,20 +5015,6 @@ impl Screen {
                                 None => Row::Nothing,
                             },
                             None => Row::Nothing,
-                        }
-                    }
-                    SubScreen::InviteCodes {
-                        codes: Some(Ok(list)),
-                        job,
-                        ..
-                    } => {
-                        let index = usize::from((btn - 130) / 3);
-                        let which = (btn - 130) % 3;
-                        match list.get(index) {
-                            Some(code) if which == 0 => Row::Copy(code.code.clone()),
-                            Some(code) if which == 1 => Row::Edit(code.clone()),
-                            Some(code) if job.is_none() => Row::DeleteCode(code.code.clone()),
-                            _ => Row::Nothing,
                         }
                     }
                     SubScreen::Configure {
@@ -5556,33 +5077,6 @@ impl Screen {
                     Row::Uninvite(server, player) => {
                         self.subscreen = SubScreen::Popup(Popup::Uninvite { server, player });
                     }
-                    Row::Copy(code) => return Outcome::Copy(code),
-                    Row::Edit(code) => {
-                        if let SubScreen::InviteCodes { server, .. } = &self.subscreen {
-                            let server = server.clone();
-                            let expiration = code
-                                .expiration_date
-                                .map(closest_expiration)
-                                .unwrap_or(EXPIRATIONS.len() - 1);
-                            let active = code.enabled;
-                            self.subscreen = SubScreen::EditCode {
-                                server,
-                                code,
-                                active,
-                                expiration,
-                                job: None,
-                                error: None,
-                            };
-                        }
-                    }
-                    Row::DeleteCode(code) => {
-                        if let SubScreen::InviteCodes { job, .. } = &mut self.subscreen
-                            && job.is_none()
-                            && let Some(client) = client()
-                        {
-                            *job = Some(spawn(move || client.delete_invite_code(&code)));
-                        }
-                    }
                 }
                 Outcome::None
             }
@@ -5594,10 +5088,8 @@ impl Screen {
                 self.subscreen,
                 SubScreen::Configure { .. }
                     | SubScreen::RegionPreference { .. }
-                    | SubScreen::EditCode { .. }
                     | SubScreen::SlotOptions { .. }
                     | SubScreen::CreateRealm { .. }
-                    | SubScreen::InviteCodes { .. }
             ) =>
             {
                 let (bar_x, tab_w) = tab_geometry(w);
@@ -5659,21 +5151,6 @@ impl Screen {
                         }
                     }
                 }
-                // `RealmsInviteCodesScreen`: a row takes the selection (`Entry
-                // .mouseClicked`), 28 high from the contents' top.
-                if let SubScreen::InviteCodes {
-                    codes, selected, ..
-                } = &mut self.subscreen
-                    && let Some(Ok(list)) = codes
-                {
-                    let top = 33.0;
-                    let rx = ((w - 308.0) / 2.0).floor();
-                    if x >= rx && x < rx + 308.0 && y >= top {
-                        let row = ((y - top - 2.0) / 28.0).floor() as usize;
-                        *selected = (row < list.len()).then_some(row);
-                    }
-                    return Outcome::None;
-                }
                 // RealmsCreateRealmScreen's two fields: the click moves the caret.
                 if let SubScreen::CreateRealm { on_description, .. } = &mut self.subscreen {
                     let left = (w / 2.0).floor() - 105.0;
@@ -5717,23 +5194,6 @@ impl Screen {
                         return self.click(Some(87), x, y, (w, h));
                     }
                     return Outcome::None;
-                }
-                if let SubScreen::EditCode {
-                    active,
-                    expiration,
-                    job,
-                    ..
-                } = &mut self.subscreen
-                    && *active
-                    && job.is_none()
-                {
-                    let left = (w / 2.0).floor() - 154.0;
-                    if (93.0..113.0).contains(&y) && (left..left + 308.0).contains(&x) {
-                        let value = crate::ui::slider_value(left, 308.0, x);
-                        *expiration = (value * (EXPIRATIONS.len() - 1) as f32).round() as usize;
-                        self.other_slider = Some(2);
-                        return Outcome::None;
-                    }
                 }
                 // RealmsSlotOptionsScreen's spawn-protection slider: a click on the track
                 // sets the value (there is no drag event on this screen yet).
@@ -6823,15 +6283,6 @@ impl Screen {
                         67,
                         None,
                     ));
-                    buttons.push((
-                        cx + 4.0,
-                        h - 60.0,
-                        150.0,
-                        t("mco.configure.world.buttons.invite_codes"),
-                        true,
-                        68,
-                        None,
-                    ));
                 }
             }
             SubScreen::RegionPreference { selected, .. } => {
@@ -6980,125 +6431,6 @@ impl Screen {
             SubScreen::BackupInfo { .. } => {
                 // `RealmsBackupInfoScreen.init`: a default 150-wide Back in the footer.
                 buttons.push((cx - 75.0, h - 27.0, 150.0, t("gui.back"), true, 191, None));
-            }
-            SubScreen::InviteCodes {
-                codes,
-                list_job,
-                job,
-                selected,
-                ..
-            } => {
-                // `RealmsInviteCodesScreen`: a footer of two rows, Copy/Delete/Edit 97
-                // wide over Create/Back 150 wide, 8 apart (`FOOTER_HEIGHT` 64).
-                let fetched = matches!(codes, Some(Ok(_)));
-                let count = codes
-                    .as_ref()
-                    .and_then(|r| r.as_ref().ok())
-                    .map_or(0, |list| list.len());
-                let busy = list_job.is_some() || job.is_some();
-                let idle = |enabled: bool| enabled && !busy;
-                let row1 = h - 56.0;
-                let x0 = ((w - 307.0) / 2.0).floor();
-                buttons.push((
-                    x0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.copy"),
-                    idle(selected.is_some()),
-                    180,
-                    None,
-                ));
-                buttons.push((
-                    x0 + 105.0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.delete"),
-                    idle(selected.is_some()),
-                    181,
-                    None,
-                ));
-                buttons.push((
-                    x0 + 210.0,
-                    row1,
-                    97.0,
-                    t("mco.configure.world.invite_codes.edit"),
-                    idle(selected.is_some()),
-                    182,
-                    None,
-                ));
-                let x = ((w - 308.0) / 2.0).floor();
-                buttons.push((
-                    x,
-                    h - 28.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.create"),
-                    idle(fetched && count < 5),
-                    160,
-                    None,
-                ));
-                // `onClose` only runs while the back button is active; a fetch or a
-                // create/delete turns it off (`setControlsActive(false)`).
-                buttons.push((x + 158.0, h - 28.0, 150.0, t("gui.back"), !busy, 161, None));
-            }
-            SubScreen::EditCode { active, job, .. } => {
-                let on_off = if *active {
-                    t("options.on")
-                } else {
-                    t("options.off")
-                };
-                // `init`'s Active cycle button: the top grid's second column, 8 past the
-                // 200-wide code column, vertically centred in its 22-tall row (64).
-                buttons.push((
-                    cx - 154.0 + 200.0 + 8.0,
-                    64.0,
-                    100.0,
-                    format!(
-                        "{}: {on_off}",
-                        t("mco.configure.world.invite_codes.edit.active")
-                    ),
-                    job.is_none(),
-                    162,
-                    None,
-                ));
-                // The footer's 2x2 grid of 150-wide buttons in the 64-tall footer: rows
-                // centred 8 in, Copy,Delete over Done,Back.
-                buttons.push((
-                    cx - 154.0,
-                    h - 56.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.copy"),
-                    true,
-                    163,
-                    None,
-                ));
-                buttons.push((
-                    cx + 4.0,
-                    h - 56.0,
-                    150.0,
-                    t("mco.configure.world.invite_codes.delete"),
-                    job.is_none(),
-                    164,
-                    None,
-                ));
-                buttons.push((
-                    cx - 154.0,
-                    h - 28.0,
-                    150.0,
-                    t("gui.done"),
-                    job.is_none(),
-                    165,
-                    None,
-                ));
-                // `setControlsActive(false)` turns Back off while a request runs.
-                buttons.push((
-                    cx + 4.0,
-                    h - 28.0,
-                    150.0,
-                    t("gui.back"),
-                    job.is_none(),
-                    166,
-                    None,
-                ));
             }
             SubScreen::Invite { job, .. } => {
                 // `RealmsInviteScreen.init`: the Invite button 8 under the field (104),
@@ -8927,229 +8259,6 @@ impl Screen {
                 if let Some(e) = error {
                     for (i, line) in wrap_lines(e, atlas, w - 40.0).iter().enumerate() {
                         centered(batch, atlas, line, cx, h - 56.0 + i as f32 * 10.0, RED);
-                    }
-                }
-            }
-            SubScreen::InviteCodes {
-                codes,
-                error,
-                selected,
-                ..
-            } => {
-                // `RealmsInviteCodesScreen`: the count in the title once fetched — the
-                // title sits 8 down when the empty list's subtitle joins the header (the
-                // header grows by the subtitle and centres the pair) — then a 28-high row
-                // per code whose selection is `extractSelection`'s, or the loading dots
-                // at the contents' top (63).
-                let loaded = matches!(codes, Some(Ok(_)));
-                let count = codes
-                    .as_ref()
-                    .and_then(|r| r.as_ref().ok())
-                    .map_or(0, |list| list.len());
-                let empty = loaded && count == 0;
-                let subtitle_lines = if empty {
-                    let subtitle = crate::lang::tr(
-                        "mco.configure.world.invite_codes.subtitle",
-                        &[&5usize as &dyn std::fmt::Display],
-                    );
-                    wrap_lines(&subtitle, atlas, 308.0)
-                } else {
-                    Vec::new()
-                };
-                let header_h = 33.0 + subtitle_lines.len() as f32 * 9.0;
-                // `shouldRenderListBackgroundAndSeparators`: only while the list is still
-                // null (the loading state); a loaded list draws no band or separators.
-                if !loaded {
-                    crate::ui::list_background(batch, atlas, header_h, h - 64.0, false);
-                    crate::ui::tiled_sized(
-                        batch,
-                        atlas,
-                        "gui/header_separator",
-                        0.0,
-                        header_h - 2.0,
-                        w,
-                        2.0,
-                        [32.0, 2.0],
-                        u32::MAX,
-                    );
-                    crate::ui::tiled_sized(
-                        batch,
-                        atlas,
-                        "gui/footer_separator",
-                        0.0,
-                        h - 64.0,
-                        w,
-                        2.0,
-                        [32.0, 2.0],
-                        u32::MAX,
-                    );
-                }
-                let title = if loaded {
-                    crate::lang::tr(
-                        "mco.configure.world.invite_codes.title",
-                        &[&count as &dyn std::fmt::Display, &5usize],
-                    )
-                } else {
-                    t("mco.configure.world.buttons.invite_codes")
-                };
-                centered(
-                    batch,
-                    atlas,
-                    &title,
-                    cx,
-                    if empty { 8.0 } else { 12.0 },
-                    u32::MAX,
-                );
-                for (i, line) in subtitle_lines.iter().enumerate() {
-                    centered(batch, atlas, line, cx, 25.0 + i as f32 * 9.0, GREY);
-                }
-                let top = header_h;
-                let bottom = h - 64.0;
-                match codes {
-                    Some(Ok(list)) => {
-                        let rx = ((w - 308.0) / 2.0).floor();
-                        let content = list.len() as f32 * 28.0;
-                        crate::ui::scrollbar(
-                            batch,
-                            atlas,
-                            rx + 308.0 + 2.0,
-                            top,
-                            bottom,
-                            content,
-                            0.0,
-                        );
-                        for (i, code) in list.iter().enumerate() {
-                            let y = top + 2.0 + i as f32 * 28.0;
-                            if y + 28.0 > bottom {
-                                break;
-                            }
-                            if *selected == Some(i) {
-                                // `extractSelection`: the whole 308x28 entry, then its
-                                // one-pixel black inner fill.
-                                batch.fill(
-                                    atlas,
-                                    rx,
-                                    y,
-                                    308.0,
-                                    28.0,
-                                    if list_focused {
-                                        0xFFFF_FFFF
-                                    } else {
-                                        0xFF80_8080
-                                    },
-                                );
-                                batch.fill(atlas, rx + 1.0, y + 1.0, 306.0, 26.0, 0xFF00_0000);
-                            }
-                            // `Entry.extractContent`: the code alone, centred in its row.
-                            batch.text(atlas, &code.code, rx + 10.0, y + 10.0, u32::MAX, true);
-                        }
-                    }
-                    Some(Err(e)) => {
-                        for (i, line) in wrap_lines(&e.text(), atlas, w - 40.0).iter().enumerate() {
-                            centered(batch, atlas, line, cx, 63.0 + i as f32 * 10.0, RED);
-                        }
-                    }
-                    // `init`'s LoadingDotsWidget: the message at the contents' top +2 and
-                    // the grey dots at +17.
-                    None => {
-                        centered(
-                            batch,
-                            atlas,
-                            &t("mco.configure.world.invite_codes.loading"),
-                            cx,
-                            65.0,
-                            u32::MAX,
-                        );
-                        centered(batch, atlas, loading_dots(), cx, 80.0, 0xFF80_8080);
-                    }
-                }
-                if let Some(e) = error {
-                    for (i, line) in wrap_lines(e, atlas, w - 40.0).iter().enumerate() {
-                        centered(batch, atlas, line, cx, h - 76.0 + i as f32 * 10.0, RED);
-                    }
-                }
-            }
-            SubScreen::EditCode {
-                code,
-                active,
-                expiration,
-                job,
-                error,
-                ..
-            } => {
-                // `RealmsEditInviteCodeScreen`: the band over the default header and the
-                // 64-tall footer, then the content stack at 63 — the code, its saved
-                // expiration line 4 under it, the Active cycle button a row below that
-                // and the 308-wide expiration slider under the top row.
-                crate::ui::list_background(batch, atlas, 33.0, h - 64.0, false);
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/header_separator",
-                    0.0,
-                    31.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                crate::ui::tiled_sized(
-                    batch,
-                    atlas,
-                    "gui/footer_separator",
-                    0.0,
-                    h - 64.0,
-                    w,
-                    2.0,
-                    [32.0, 2.0],
-                    u32::MAX,
-                );
-                centered(
-                    batch,
-                    atlas,
-                    &t("mco.configure.world.invite_codes.edit.title"),
-                    cx,
-                    12.0,
-                    u32::MAX,
-                );
-                let left = cx - 154.0;
-                batch.text(atlas, &code.code, left, 63.0, u32::MAX, true);
-                // `getExpiresLabel`: the code's *stored* expiration date (or Never), not
-                // the slider's current choice.
-                let expires = crate::lang::tr(
-                    "mco.configure.world.invite_codes.edit.expires",
-                    &[&match code.expiration_date {
-                        Some(date) => short_date_text(date),
-                        None => t("mco.configure.world.invite_codes.expiration.never"),
-                    } as &dyn std::fmt::Display],
-                );
-                batch.text(atlas, &expires, left, 76.0, GREY, true);
-                // `ExpirationSlider.updateMessage`: `optionNameValue` of its caption and
-                // the current choice.
-                let value = *expiration as f32 / (EXPIRATIONS.len() - 1) as f32;
-                let label = crate::lang::tr(
-                    "options.generic_value",
-                    &[
-                        &t("mco.configure.world.invite_codes.edit.expiration_date")
-                            as &dyn std::fmt::Display,
-                        &t(EXPIRATIONS[*expiration].0) as &dyn std::fmt::Display,
-                    ],
-                );
-                crate::ui::slider(
-                    batch,
-                    atlas,
-                    left,
-                    93.0,
-                    308.0,
-                    &Text::literal(&label),
-                    value,
-                    crate::ui::hovered(cursor, left, 93.0, 308.0, 20.0),
-                    *active && job.is_none(),
-                    false,
-                );
-                if let Some(e) = error {
-                    for (i, line) in wrap_lines(e, atlas, w - 40.0).iter().enumerate() {
-                        centered(batch, atlas, line, cx, 121.0 + i as f32 * 10.0, RED);
                     }
                 }
             }
@@ -11309,22 +10418,6 @@ mod tests {
         assert_eq!(enabled(15), Some(false), "invites");
     }
 
-    /// `InviteCodeExpiration.closestTo`: an existing expiration reads back as the choice
-    /// nearest to the time left.
-    #[test]
-    fn an_expiration_reads_back_as_the_closest_choice() {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64;
-        assert_eq!(closest_expiration(now + 30 * 60 * 1000), 0);
-        assert_eq!(closest_expiration(now + 60 * 60 * 1000), 1);
-        assert_eq!(closest_expiration(now + 6 * 24 * 60 * 60 * 1000), 5);
-        // A week is the longest timed choice: anything further reads back as it. (The
-        // "never" row is the fallback for a code with no expiration, not a nearest.)
-        assert_eq!(closest_expiration(now + 30 * 24 * 60 * 60 * 1000), 5);
-    }
-
     /// `RealmsSettingsTab.updateData`: the draft starts from the Realm's own name,
     /// description and region preference; a Realm without one is automatic by owner
     /// (`RegionSelectionPreferenceDto.DEFAULT`), and only a manual choice sends its region.
@@ -11587,26 +10680,6 @@ mod tests {
             return crate::lang::get("mco.configure.world.slot.empty");
         }
         crate::lang::tr("mco.configure.world.slot", &[&slot])
-    }
-
-    /// `InviteCodeExpiration.closestTo`: the choice nearest the time left on the code.
-    fn closest_expiration(expiration_millis: i64) -> usize {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as i64)
-            .unwrap_or(0);
-        let left = (expiration_millis - now).max(0) / 1000;
-        let mut best = EXPIRATIONS.len() - 1;
-        let mut best_delta = i64::MAX;
-        for (i, (_, seconds)) in EXPIRATIONS.iter().enumerate() {
-            let Some(seconds) = seconds else { continue };
-            let delta = (left - seconds).abs();
-            if delta < best_delta {
-                best_delta = delta;
-                best = i;
-            }
-        }
-        best
     }
 
     /// `RealmsSubscriptionTab.daysLeftPresentation`, compared with the same translations
