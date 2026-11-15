@@ -895,6 +895,62 @@
       "bucket": "B",
       "verdict": "no-change",
       "evidence": "RenderSection: 26.2 stores fadeDuration/wasPreviouslyEmpty as fields, 26.3 passes the duration to getVisibility as a parameter; the fade math (elapsed >= fade ? 1 : elapsed/fade) is identical, and the Rust's section_visibility implements exactly that formula over its own first-upload map. The previously-empty/far instant rule is a LevelRenderer-side condition; the Rust's fade system is Horizon's own GPU-culling machinery, not a RenderSection field port."
+    },
+    {
+      "id": 469,
+      "module": "crates/horizon-world/src/worldgen/structure/ruined_portal.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "Ruined portal: 26.2's placeNetherrackOrMagma places UNCONDITIONALLY; 26.3 moved the replaceability check inside it. The check exists at the spread site in both versions, so the divergence is only the drip columns (26.2 replaces whatever is there, always drawing the magma roll). Ported: new unconditional place_netherrack_or_magma used by drip_column; the checked netherrack_or_magma stays for the spread site. findGenerationPoint differs only by the biomeResolver vs getBiomeSource query (same query)."
+    },
+    {
+      "id": 471,
+      "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "CubeMap: the render diff is only the render-pass API (getCompiledPipeline/setUniform vs direct pipeline/bindTexture) \u2014 GPU plumbing; CubeMapTexture.doLoad decompiles identically. The Rust renders panoramas through wgpu directly."
+    },
+    {
+      "id": 472,
+      "module": "crates/horizon-client/src/game/stats_screen.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Stats screen: getNextTabIndex differs only in how the digit is read (getNumericKeyValue vs getDigit) \u2014 the same floorMod(digit-1, 10) formula, which the Rust's tab_key implements as (digit+9)%10. The StatsScreen diffs are extract* render-state methods only."
+    },
+    {
+      "id": 473,
+      "module": "crates/horizon-port-pack/src/upgrade/settings.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "OverworldBiomeBuilder: the DAPPLED_FOREST MIDDLE_BIOMES_VARIANT entry is data (the Rust reads preset biome tables from data; 26.2's data governs). spawnTarget's parameter values are identical (SpawnTargetPoint map vs ParameterPoint positional); the Rust reads spawn_target from the noise settings JSON as ParameterPoints \u2014 the 26.2 form. deepDarkRegion (density function) and isDeepDarkRegion (predicate) are the same condition; settings.rs already builds the 26.2 exclusion."
+    },
+    {
+      "id": 474,
+      "module": "crates/horizon-world/src/worldgen/structure/ocean_ruin.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Ocean ruins: the Builder vs Accessor parameter rename only (addPieces/addClusterRuins/addPiece), same bodies."
+    },
+    {
+      "id": 475,
+      "module": "crates/horizon-client/src/mobs/guardian.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Guardian renderer: shouldRender bodies are identical (26.3 adds a partialTicks parameter it does not use \u2014 both call getPosition with 1.0F); renderBeam differs only by rotateDegrees vs mulPose with the same angles, which the Rust's beam_geometry matches."
+    },
+    {
+      "id": 476,
+      "module": "crates/horizon-client/src/debug_chart.rs",
+      "bucket": "B",
+      "verdict": "ported",
+      "evidence": "Debug charts: 26.2's gridline labels are uppercase ('30 FPS', '60 FPS', '%.1f TPS'); the Rust still had 26.3's lowercase ('30 fps', '60 fps', '{tps:.1} tps') \u2014 item 445 only fixed the chart titles, not the gridlines. Ported: three literals in lines_and_labels."
+    },
+    {
+      "id": 477,
+      "module": "crates/horizon-client/src/game/commands/profiles.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "TransferCommand: Tracker family, but 26.3 tracks every player unconditionally, so it equals 26.2's manual form (throw no-players when empty, branch on size==1, return the count) \u2014 which is exactly what the Rust's cmd_transfer does."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

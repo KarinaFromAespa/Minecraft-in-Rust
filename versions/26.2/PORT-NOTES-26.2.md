@@ -2590,3 +2590,15 @@ items (bed_rule_accepts_the_26_2_explodes_field,
 lone_dark_oak_sapling). 459's translucent lines are
 no-depth-write in both versions; 467's fade math is
 identical, field vs parameter only.
+
+## Rank 3 — bucket B batch 5: 136/177 (2026-11-15)
+
+469 ruined portal, 471 cube map, 472 stats screen, 473
+biome builder, 474 ocean ruin, 475 guardian, 476 debug
+charts, 477 transfer. PORTED: 469 (26.2's ruined-portal
+drip columns place netherrack/magma unconditionally; 26.3
+checks replaceability inside placeNetherrackOrMagma) and
+476 (chart gridline labels back to 26.2's uppercase FPS/
+TPS — item 445 had only fixed the titles). The rest are
+no-change: 473's biome-table and spawn-target differences
+are data-driven.
