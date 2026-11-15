@@ -634,7 +634,7 @@ pub(crate) fn with_resource_test_world(
     .unwrap();
     let collision = std::sync::Arc::new(crate::collisions::load(root, registry).unwrap());
     let suffocation =
-        crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+        crate::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion).unwrap();
     let air = registry.default_state("minecraft:air").unwrap();
     let mut world = crate::world::World::new(air, 0);
     build(&mut world, registry);

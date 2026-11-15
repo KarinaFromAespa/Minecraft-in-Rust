@@ -135,7 +135,7 @@ fn a_mob_bounces_off_a_bouncy_block_and_not_off_stone() {
     .unwrap();
     let collision = std::sync::Arc::new(crate::collisions::load(&root, registry).unwrap());
     let suffocation =
-        crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+        crate::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion).unwrap();
     let lid_openers = std::collections::HashMap::new();
     for (ground, bounces, health) in [
         ("minecraft:slime_block", true, 10.0),
@@ -257,7 +257,7 @@ fn a_ridden_horse_floats_in_deep_water() {
     .unwrap();
     let collision = std::sync::Arc::new(crate::collisions::load(&root, registry).unwrap());
     let suffocation =
-        crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+        crate::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion).unwrap();
     let lid_openers = std::collections::HashMap::new();
     let air = registry.default_state("minecraft:air").unwrap();
     let water = registry.default_state("minecraft:water").unwrap();
@@ -379,7 +379,7 @@ fn a_falling_mob_lands_on_a_shulker_or_a_held_happy_ghast() {
     .unwrap();
     let collision = std::sync::Arc::new(crate::collisions::load(&root, registry).unwrap());
     let suffocation =
-        crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+        crate::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion).unwrap();
     let lid_openers = std::collections::HashMap::new();
     let air = registry.default_state("minecraft:air").unwrap();
     let mut world = crate::world::World::new(air, 0);

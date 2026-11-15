@@ -60,8 +60,10 @@ pub struct MotionResources {
     pub attributes: Arc<Catalog>,
     pub blocks: BoundMovementProperties,
     pub climbable: BTreeSet<String>,
-    /// The bound BlockTags.CAUSES_SUFFOCATION predicate input.
-    pub causes_suffocation: BTreeSet<String>,
+    /// The 26.2 suffocation rule's input: blocks whose default state
+    /// blocks motion (`BlockFacts::blocks_motion_names`). 26.3 replaced
+    /// this with the `#causes_suffocation` tag, which 26.2 data has not.
+    pub blocks_motion: BTreeSet<String>,
     /// `BlockTags.SOUL_SPEED_BLOCKS`: what Soul Speed's effects look for.
     pub soul_speed_blocks: BTreeSet<String>,
     /// `LivingEntity.onClimbable` tags plus open trapdoors above a ladder.
@@ -136,18 +138,7 @@ impl MotionResources {
                 suppresses_bounce: tag("minecraft:suppresses_bounce")?,
             })?,
             climbable: tag("minecraft:climbable")?,
-            // `causes_suffocation` is a 26.3 addition; 26.2 has no such
-            // tag, so it loads as empty here (as the game-entry path in
-            // world_entry.rs already does). That leaves 26.2's default
-            // suffocation rule — shape-based `isSuffocating`, not
-            // tag-based — unported: with an empty tag, no default-rule
-            // block suffocates. A proper 26.2 suffocation port is still
-            // owed; this only keeps resource loading from failing.
-            causes_suffocation: built
-                .tags
-                .get("minecraft:causes_suffocation")
-                .map(|t| t.iter().cloned().collect())
-                .unwrap_or_default(),
+            blocks_motion: facts.blocks_motion_names(),
             soul_speed_blocks: tag("minecraft:soul_speed_blocks")?,
             climbing,
             fall_reset: tag("minecraft:fall_damage_resetting")?,

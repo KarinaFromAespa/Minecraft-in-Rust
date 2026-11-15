@@ -272,7 +272,7 @@ mod tests {
         .unwrap();
         let collision = std::sync::Arc::new(crate::collisions::load(&root, registry).unwrap());
         let suffocation =
-            crate::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation).unwrap();
+            crate::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion).unwrap();
         let air = registry.default_state("minecraft:air").unwrap();
         let world = crate::world::World::new(air, 0);
         let lid_openers = std::collections::HashMap::new();

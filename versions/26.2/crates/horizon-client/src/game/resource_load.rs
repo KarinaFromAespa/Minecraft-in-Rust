@@ -472,7 +472,7 @@ pub(super) fn load_resources(
     }
     progress.set(5);
     let suffocation =
-        horizon_client::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation)?;
+        horizon_client::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion)?;
     let resources = Resources {
         core: WorldCore {
             facts,

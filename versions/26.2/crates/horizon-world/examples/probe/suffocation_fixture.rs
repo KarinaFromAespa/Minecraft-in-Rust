@@ -6,7 +6,6 @@ use horizon_world::{
     nbt::{self, Limits},
     registry::{BlockRegistry, BlockStateId},
     suffocation::{SuffocationDefinition, SuffocationRegistry},
-    worldgen::tags::TagDefinitions,
 };
 use serde_json::Value;
 use std::{
@@ -82,7 +81,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok((
                 name,
                 match kind.as_str() {
-                    "tagged_full" => SuffocationDefinition::TaggedFullCollision,
+                    "motion_full" => SuffocationDefinition::MotionFullCollision,
                     "always" => SuffocationDefinition::Always,
                     "never" => SuffocationDefinition::Never,
                     "not_extended" => SuffocationDefinition::NotExtendedPiston,
@@ -92,31 +91,13 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             ))
         })
         .collect::<io::Result<BTreeMap<_, _>>>()?;
-    let resources: BTreeMap<String, String> =
-        serde_json::from_str(&fs::read_to_string(dir.join("tags.json"))?)?;
-    let mut tags = TagDefinitions::default();
-    for (name, json) in resources {
-        tags.apply_json(&name, "vanilla", &json)?;
-    }
-    let built = tags.build(|name, _| registry.default_state(name).map(|_| name.to_owned()))?;
-    if !built.missing.is_empty() {
-        return Err("unresolved native block tags".into());
-    }
-    let natural = built
-        .tags
-        .get("minecraft:causes_suffocation")
-        .ok_or("missing suffocation tag")?
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    let all = (0..registry.len())
-        .map(|i| registry.state(BlockStateId(i as u32)).unwrap().name.clone())
-        .collect::<BTreeSet<_>>();
-    let bindings = [
-        SuffocationRegistry::new(collisions.clone(), &definitions, &natural)?,
-        SuffocationRegistry::new(collisions.clone(), &definitions, &BTreeSet::new())?,
-        SuffocationRegistry::new(collisions.clone(), &definitions, &all)?,
-    ];
+    // 26.2's default suffocation rule is motion-based, not tag-based:
+    // the oracle exports the blocks whose default state blocks motion,
+    // and the fixture binds that single set (the inputs' `tags` field is
+    // always 0 and is ignored).
+    let motion: BTreeSet<String> =
+        serde_json::from_str(&fs::read_to_string(dir.join("motion.json"))?)?;
+    let binding = SuffocationRegistry::new(collisions.clone(), &definitions, &motion)?;
     let mut out = io::BufWriter::new(fs::File::create(dir.join("rust.txt"))?);
     for line in fs::read_to_string(dir.join("inputs.txt"))?.lines() {
         let f: Value = serde_json::from_str(line)?;
@@ -134,7 +115,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             fail: f["fail"].as_i64().unwrap() as i32,
             entity: f["entity"].as_str().unwrap(),
         };
-        match bindings[f["tags"].as_u64().unwrap() as usize].is_suffocating(&mut world, state, p) {
+        match binding.is_suffocating(&mut world, state, p) {
             Ok(v) => writeln!(world.out, "suffocating {v}")?,
             Err(_) => writeln!(world.out, "suffocating error")?,
         }
