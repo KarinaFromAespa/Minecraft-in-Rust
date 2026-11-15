@@ -3464,8 +3464,9 @@ below.
    already matched vanilla 26.2's `updateChunkTag` exactly (skip
    statuses, 384/-64 and 256/0 forms, overworld-only); only the key was
    wrong. Re-keyed to 4882 in `fixes_c.rs` (6c2d4378).
-2. Whole region files missing from Horizon's output (16 files over the
-   shards, all pre-1.13 worlds: 3 on 1.10.2, 5 on 1.8.9, ...). Vanilla's
+2. Whole region files missing from Horizon's output (17 files over the
+   shards, all pre-1.13 worlds: 5 on 1.8.9, 3 each on 1.9.4, 1.10.2,
+   1.11.2, 1.12.2). Vanilla's
    `LegacyStructureFileFix` reads every chunk its structures reach
    (each start plus the `STRUCTURE_RANGE` 8 square) through
    `SimpleRegionStorage`, and `RegionFileStorage.getRegionFile` opens
