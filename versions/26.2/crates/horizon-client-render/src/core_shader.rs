@@ -586,7 +586,7 @@ mod tests {
         ),
         (
             "minecraft:shaders/include/globals.glsl",
-            "layout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    float GlintAlpha;\n    vec3 CameraOffset;\n    float GameTime;\n    vec2 ScreenSize;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n",
+            "layout(std140) uniform Globals {\n    ivec3 CameraBlockPos;\n    vec3 CameraOffset;\n    vec2 ScreenSize;\n    float GlintAlpha;\n    float GameTime;\n    int MenuBlurRadius;\n    int UseRgss;\n};\n",
         ),
         (
             "minecraft:shaders/include/fog.glsl",

@@ -2709,3 +2709,26 @@ emptiness instead of Some. Verified no-change:
 RealmsClient.execute itself, and the notification
 UrlButton (already a plain String). path_segment stays —
 the invites, template and minigame calls still use it.
+
+## Rank 3 — bucket D batch 4: 159/177 (2026-11-15)
+
+420 Post chains: two std140 ports. 26.2's Std140Builder
+pads a vec3/ivec3 to a full 16-byte slot (26.3 packs it
+as 12), so pack_block now honours the size and a vec3
+followed by a float lands the float at word 4. And
+GlobalSettingsUniform: 26.2's Globals block is
+ivec3/vec3/vec2/float/float/int/int at 56 bytes, 26.3's
+is ivec3/float/vec3/float/vec2 at 48 — correcting item
+442's no-change, the layout IS observable, because
+translated pack shaders declare the block themselves
+and naga lays it out from the declaration; the old
+48-byte block misread GlintAlpha, GameTime, the blur
+radius and UseRgss in 26.2 packs. Globals.bytes() is
+now the 56-byte 26.2 layout, with the core_lines /
+core_sky ripple (signatures, block sizes, fixtures).
+Verified no-change: PostChain, PostPass, SamplerCache
+(renderpearl-to-blaze3d moves and renames), the
+ShaderManager async rework (neither form is modelled;
+#include preprocessing is post_glsl's), and the
+LevelTargetBundle OIT-vs-sorting targets (chains see
+only minecraft:main in both versions).
