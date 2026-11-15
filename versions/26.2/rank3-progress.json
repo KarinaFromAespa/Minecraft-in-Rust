@@ -223,6 +223,90 @@
       "bucket": "A",
       "verdict": "no-change",
       "evidence": "DropExperienceBlock only gains a codec (+ <clinit>/lambda$static); no behaviour method changed. The Rust cites its XP ranges in a comment."
+    },
+    {
+      "id": 529,
+      "module": "crates/horizon-client/src/game/lan_crafting.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "AbstractFurnaceMenu.isFuel: 26.3 checks DataComponents.COOKING_FUEL, 26.2 uses level.fuelValues().isFuel \u2014 the Rust's menu is_fuel already uses the FuelValues burn_time table (item 1's port). CraftingTableBlock only gains a codec."
+    },
+    {
+      "id": 530,
+      "module": "crates/horizon-client/src/game/leads.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "LeashKnotRenderer.submit differs only by a null 8th argument to submitModel in 26.2 (signature difference); FenceBlock only gains a codec. GPU plumbing; Rust references are comments."
+    },
+    {
+      "id": 531,
+      "module": "crates/horizon-client/src/game/zombie_villagers.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CuredZombieVillagerTrigger$TriggerInstance: the predicate type changes (Holder<LootItemCondition> in 26.3 vs ContextAwarePredicate in 26.2) and validateHolder -> validate, but matches() is the same three-predicate conjunction (player/zombie/villager), which the Rust already evaluates via adv::conditions."
+    },
+    {
+      "id": 532,
+      "module": "crates/horizon-client/src/spectator_menu.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "CloseSpectatorItem, ScrollMenuItem and TeleportToPlayerMenuCategory extractIcon decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+    },
+    {
+      "id": 534,
+      "module": "crates/horizon-items/src/flowers.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "FlowerBlock only gains a codec (+ <clinit>/lambda$static); suspiciousStewEffects/makeEffectList unchanged."
+    },
+    {
+      "id": 535,
+      "module": "crates/horizon-world/src/level/tests.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "WeatheringCopperChestBlock only gains a codec (+ <clinit>/lambda$static); randomTick unchanged."
+    },
+    {
+      "id": 536,
+      "module": "crates/horizon-world/src/level/ticks.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "RedstoneTorchBlock.tick: 26.3 calls setBlockAndUpdate, 26.2 calls setBlock(pos, state, 3) \u2014 and setBlockAndUpdate IS setBlock(pos, state, 3) in both versions (established in item 414). Toggle/burnout logic otherwise identical."
+    },
+    {
+      "id": 537,
+      "module": "crates/horizon-world/src/worldgen/tree/decorator.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "TreeDecorator$Context.isReplaceable/isWaterOrWaterNearby are 26.3-only helpers (canBeReplaced check; water at/around pos); the only 26.3 caller in the whole treedecorators package is ShelfMushroomDecorator, which is 26.3-only (ShelfMushroomBlock absent in 26.2). No 26.2 decorator uses them and the Rust ports none of it."
+    },
+    {
+      "id": 538,
+      "module": "crates/horizon-client-render/src/ban_notice.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "BanNoticeScreens createNameBan/createSkinBan lambdas differ only by Blaze3D.openUri -> Util.getPlatform().openUri (the URI-opener move). Same links, same screens."
+    },
+    {
+      "id": 539,
+      "module": "crates/horizon-client-render/src/inventory_effects.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "EffectsInInventory extractBackground/extractEffects decompile identically in both versions; the 'changed' flags are bytecode artifacts."
+    },
+    {
+      "id": 540,
+      "module": "crates/horizon-client-render/src/test_block.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "TestBlock only gains a codec (+ <clinit>); no behaviour method changed."
+    },
+    {
+      "id": 541,
+      "module": "crates/horizon-client/src/debug_entries.rs",
+      "bucket": "A",
+      "verdict": "no-change",
+      "evidence": "DebugEntryCategory and DebugScreenEntries decompile identically in both versions; the <clinit> 'changed' flags are bytecode artifacts (the registration lists are the same)."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

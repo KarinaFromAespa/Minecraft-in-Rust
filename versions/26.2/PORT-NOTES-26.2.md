@@ -2353,3 +2353,17 @@ PORTED: 518 /tick — 26.2's step/stopSprinting/stopStepping send
 sendFailure and return (step returns 1 even on failure; stops return
 0), where 26.3 throws; cmd_tick's three failure arms now use
 command_failure + Ok(1)/Ok(0)/Ok(0).
+
+## Rank 3 — bucket A batch 4: 44/177 (2026-11-15)
+
+All no-change, verified against the jars: 529 furnace isFuel (Rust
+already uses the FuelValues burn_time table from item 1), 530 leash
+knot renderer (null-arg signature difference), 531 cured-zombie
+trigger (predicate-type change only; same three-way conjunction),
+532 spectator menu icons (identical decompiles), 534 flower block
+(codec only), 535 copper chest (codec only), 536 redstone torch tick
+(setBlockAndUpdate is setBlock(..., 3) in both versions), 537 tree
+decorator context helpers (26.3-only; sole caller is the 26.3-only
+ShelfMushroomDecorator), 538 ban notice (openUri move), 539 inventory
+effects (identical decompiles), 540 test block (codec only), 541 debug
+entries (identical decompiles).
