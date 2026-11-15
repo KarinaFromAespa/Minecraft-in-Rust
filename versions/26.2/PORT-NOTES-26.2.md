@@ -3224,3 +3224,18 @@ writer now preserves the loaded value: it appends the current version
 only to a non-empty history (the upgrade case) and writes the tag only
 when the history is non-empty. A fresh world stays tag-less, as vanilla
 writes it.
+
+## CI run 43704536595 completed (2026-11-15)
+
+Run 43704536595 on main@f56493a6 (the fully-closed tree, pre-v6.7)
+completed in ~1h59m, conclusion success. Profile **6/0/11**:
+block_properties newly passes, plus first_person, food, lan, light,
+resource_pack. D1/D2/D3 pass (417/417); D4 blocked (the staged-candidate
+stamp quirk); D5 blocked (no harness-subset.txt on that tree — it
+predates f45667f7); D6 blocked (no playtest). save_roundtrip and
+command_exec still fail at launch, as expected on the pre-v6.7 tree.
+Artifacts at ~/workspace/mcir-ci/26.2-run-43704536595/.
+
+Next run: dispatched on main AFTER the save-roundtrip fixes merge, so
+one run verifies v6.7 (the launch fix) and the palette/version_history
+fixes together.
