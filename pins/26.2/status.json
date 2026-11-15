@@ -37,9 +37,9 @@
     "last_completed_tree": "ad9757b6",
     "last_completed_profile": "7/0/10 (block_properties, first_person, food, lan, light, resource_pack, save_roundtrip)",
     "last_completed_note": "Gated D1 PROVEN on CI: tag audit clean (0 dead production, 5 dead test-only). Profile 7/0/10, unchanged; D1/D2/D3 pass; D4/D5 blocked (stamp quirk); D6 blocked.",
-    "in_flight_run": null,
-    "in_flight_tree": null,
-    "in_flight_note": "Tag gating merged + proven. Next: D4 needs datafix (T4); D6 needs the owner playtest."
+    "in_flight_run": 43749313660,
+    "in_flight_tree": "b3e0ad5e",
+    "in_flight_note": "Pins-move proof run: port-verify v6.8 on the merged tree (pin at pins/26.2/); proves the moved pin gates identically to run 43738833564."
   },
   "rank2": "410/410",
   "remaining": {
@@ -47,5 +47,5 @@
     "ranks": "none",
     "reason": "all 651 items closed, ranks 1-5 merged to main (f56493a6)"
   },
-  "in_flight_run": null
+  "in_flight_run": 43749313660
 }

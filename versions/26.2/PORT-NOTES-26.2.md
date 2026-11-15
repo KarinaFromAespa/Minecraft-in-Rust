@@ -3418,3 +3418,13 @@ production code, 5 dead in test fixtures". D2/D3 pass; D4/D5 blocked
 (the staged-candidate stamp quirk — profile stamped for ad9757b6,
 judge HEAD is the staged candidate); D6 blocked (no playtest).
 Artifacts at ~/workspace/mcir-ci/26.2-run-43738833564/.
+
+## CI run 43749313660 dispatched on main (2026-11-16)
+
+Run 43749313660 dispatched on main@b3e0ad5e (the pins-move merge):
+proves the moved pin gates identically under port-verify v6.8 — the
+profile, ci-out logs and verdict publish and judge from pins/26.2/,
+and D1/D3 read the diff report from the pin. Locally the recorded-mode
+verdict already reproduces run 43738833564 exactly (D1/D2/D3 pass,
+D4/D5 blocked on the profile-stamp quirk, D6 blocked); this run is the
+CI proof of the same.
