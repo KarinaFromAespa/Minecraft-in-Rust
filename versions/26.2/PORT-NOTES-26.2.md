@@ -3258,3 +3258,25 @@ BlockState "No key Name" on the TNT/anvil summons) persist unchanged
 — out of scope here. The vanilla_login bot timeout also persists
 (player .dat still unexercised under harness load — recorded harness
 debt, not this work).
+
+## CI run 43710204861 completed — v6.7 PROVEN (2026-11-15)
+
+Run 43710204861 on main@140d9570 (v6.7 + tag check report-only)
+completed in ~1h45m, conclusion success. Profile **6/0/11** (same six:
+block_properties, first_person, food, lan, light, resource_pack).
+D1/D2/D3 pass; D4/D5 blocked (the staged-candidate stamp quirk);
+D6 blocked (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43710204861/.
+
+v6.7 PROVEN on CI: save_roundtrip ran to a real comparison —
+`save round-trip parity FAILED (2962 unexplained differences)`, the
+exact local count (2403 "Not a map" occurrences) — with no xkbcommon
+or Vulkan signature anywhere in the harness logs. The launch crash is
+fixed on the runner. This tree predates the save fixes (merged to main
+as d2971498 after the run started); the next run measures them.
+
+command_exec: the cushion fix is verified — the abort moved past the
+/summon minecraft:cushion failure to the next fixture blocker:
+`Java fixture control failed: /execute if predicate effect_view:always:
+[]` (corpus tools/mob_effect_predicate_corpus.py). Fixture-side, for
+the harness/behaviour work, not the save work.
