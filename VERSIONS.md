@@ -4,10 +4,11 @@ Every major Minecraft Java Edition release, grouped by architecture era (see `do
 Each version's rewritten Rust code lives on `main` in its own directory, `versions/<id>/`, with its documentation alongside the code.
 Status values (roadmap §8.3): `prepared` · `delta-verified` · `parity-verified` ·
 `frozen`. A tree that compiles and prepares but has not met its bar is `prepared`.
-Each published version carries a machine-readable `status.json` in its directory;
-the scalars below come from it — `harness n/17` is passing harnesses of the
-17-harness CI subset, `behaviour n/m` is closed items of the version's ranked
-work items. Rows migrate to generated `delta-verdict.json` rows
+Each published version carries a machine-readable `status.json` in its pin
+(`pins/<id>/` once the release's metadata has moved there — 26.2 first — else
+its directory); the scalars below come from it — `harness n/17` is passing
+harnesses of the 17-harness CI subset, `behaviour n/m` is closed items of the
+version's ranked work items. Rows migrate to generated `delta-verdict.json` rows
 (`tools/delta_verify.py --index`) as releases are gated.
 
 ## E7 — Unobfuscated (26.x) (5)
@@ -15,7 +16,7 @@ work items. Rows migrate to generated `delta-verdict.json` rows
 | Version | Location | Status |
 |---|---|---|
 | 26.3 | `versions/26.3` | base — imported (upstream snapshot, unmodified); no profile yet (the control run against this tree defines the Phase 0 gate baseline; not dispatched) |
-| 26.2 | `versions/26.2` | harness 3/17 · behaviour 0/651 — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.2/PORT-NOTES-26.2.md`) |
+| 26.2 | `versions/26.2` (pin: `pins/26.2`) | harness 7/17 · behaviour 651/651 — behaviour port complete (all ranks closed 2026-11-15); save_roundtrip passes on CI; D1/D2/D3 pass, D4/D5 blocked (profile-stamp quirk), D6 blocked (no playtest); gated tag audit clean (0 dead production tags); CI port-verify run 43738833564 profile 7/0/10 (see `versions/26.2/PORT-NOTES-26.2.md`, verdict `pins/26.2/delta-verdict.json`) |
 | 26.1.2 | `versions/26.1.2` | harness — · behaviour 0/7 — in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1.1 (DataVersion bump, 6 classes incl. handleAttack), see `versions/26.1.2/PORT-NOTES-26.1.2.md` |
 | 26.1.1 | `versions/26.1.1` | harness — · behaviour 0/6 — in progress — completion pass + adapter re-base carried forward: protocol rewire closed, 6/6 tables, workspace compiles, protocol tests 437/2; patch delta of 26.1 (DataVersion bump, 3 classes), see `versions/26.1.1/PORT-NOTES-26.1.1.md` |
 | 26.1 | `versions/26.1` | harness 3/17 · behaviour 0/795 — completion pass landed: protocol rewire closed, 6/6 tables, prepare ok, workspace compiles; 1.20.2–1.21.11 adapters re-based to the 775 pin, protocol tests 437 pass / 2 fail (sandbox-network pair only); CI port-verify v5 profile 3 pass / 0 oracle / 14 fail (see `versions/26.1/PORT-NOTES-26.1.md`) |
