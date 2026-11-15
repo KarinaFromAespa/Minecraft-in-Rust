@@ -224,8 +224,11 @@ impl Game<'_> {
     }
 
     /// `createTestPositionAround`: three blocks south of the source, on the
-    /// surface of the level in place (`playerAndTestInfo` loads the chunk of
-    /// the source's column in that level first).
+    /// surface of the level in place. 26.2 reads the heightmap of the
+    /// source's column directly; 26.3 routes through `playerAndTestInfo`
+    /// (which loads the chunk first and bundles the answer in an `Info`
+    /// record). Loading the chunk first is equivalent here: the heightmap
+    /// read loads it either way.
     pub(in crate::game) fn test_position_in_level(&mut self, (x, z): (i32, i32)) -> Pos {
         self.load_test_chunks(&BoundingBox::new([x, 0, z], [x, 0, z]));
         let facts = self.res.facts();

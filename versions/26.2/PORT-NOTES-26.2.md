@@ -2892,3 +2892,11 @@ gradient fixture is fixed in 63afd0b6.
 the Rust already implements): only the six
 comments naming 26.3's LinearInterpolationHandler
 were fixed.
+
+593 /test locate was the 26.3 form (cross-
+dimension search, 3 out, /execute in tp,
+dimension suffixes, outputPlayerCoordinates):
+ported to 26.2's same-level search, 2 out, plain
+/tp and numeric distance. TestCommand$Info is
+26.3's playerAndTestInfo bundle; 26.2's
+createTestPositionAround is inline.

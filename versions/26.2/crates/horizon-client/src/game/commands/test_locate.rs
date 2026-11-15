@@ -22,12 +22,10 @@ fn north_turned(rotation: Rotation) -> ((i32, i32), i32) {
     }
 }
 
-/// `String.format("/execute in %s run tp @s %d %d %d %d 0", ..)` of `locate`.
-fn locate_command(dimension: &str, at: Pos, y_rot: i32) -> String {
-    format!(
-        "/execute in {dimension} run tp @s {} {} {} {y_rot} 0",
-        at.0, at.1, at.2
-    )
+/// `String.format("/tp @s %d %d %d %d 0", ..)` of `locate` (26.2: same
+/// level, so no `/execute in`).
+fn locate_command(at: Pos, y_rot: i32) -> String {
+    format!("/tp @s {} {} {} {y_rot} 0", at.0, at.1, at.2)
 }
 
 /// `Mth.floor(Mth.sqrt(dx * dx + dz * dz))` over ints.
@@ -49,10 +47,6 @@ fn link(inner: Text, color: u32, command: String) -> Text {
         })
 }
 
-fn path_of(dimension: &str) -> &str {
-    dimension.split_once(':').map_or(dimension, |(_, p)| p)
-}
-
 impl Game<'_> {
     /// `TestCommand.locate`.
     pub(super) fn test_locate(&mut self, ctx: &Context) -> R<i32> {
@@ -71,50 +65,36 @@ impl Game<'_> {
             self.system_message(Text::translate("commands.test.locate.started", &[]));
         }
         let center = self.test_source_block();
-        let source_dim = self.dim;
-        // findSelectedTestPositionsAcrossDimensions: every level's test
-        // blocks within 250 blocks whose test was selected.
-        let mut found: Vec<(Pos, String, Rotation)> = Vec::new();
+        // 26.2's findTestPos for the locate finder: the level in place's
+        // test blocks within 250 whose test was selected (26.3 searches
+        // every level and reports dimensions).
+        let mut found: Vec<(Pos, Rotation)> = Vec::new();
         if !selected.is_empty() {
-            for dim in self.loaded_dims() {
-                let back = self.enter_command_level(dim);
-                for pos in self.find_test_instance_blocks(center, 250) {
-                    let key = self.test_instance_at(pos).and_then(|b| b.data.test.clone());
-                    let key = key.map(|k| {
-                        if k.contains(':') {
-                            k
-                        } else {
-                            format!("minecraft:{k}")
-                        }
-                    });
-                    if key.is_some_and(|k| selected.contains(&k)) {
-                        found.push((pos, dim.id().to_owned(), self.test_rotation(pos)));
+            for pos in self.find_test_instance_blocks(center, 250) {
+                let key = self.test_instance_at(pos).and_then(|b| b.data.test.clone());
+                let key = key.map(|k| {
+                    if k.contains(':') {
+                        k
+                    } else {
+                        format!("minecraft:{k}")
                     }
-                }
-                if let Some(back) = back {
-                    self.enter_command_level(back);
+                });
+                if key.is_some_and(|k| selected.contains(&k)) {
+                    found.push((pos, self.test_rotation(pos)));
                 }
             }
         }
-        let mut dimensions: Vec<String> = Vec::new();
-        for (pos, dimension, rotation) in &found {
-            if !dimensions.contains(dimension) {
-                dimensions.push(dimension.clone());
-            }
+        for (pos, rotation) in &found {
             let ((dx, dz), y_rot) = north_turned(*rotation);
-            let tp = (pos.0 + dx * 3, pos.1, pos.2 + dz * 3);
-            let command = locate_command(dimension, tp, y_rot);
+            let tp = (pos.0 + dx * 2, pos.1, pos.2 + dz * 2);
+            let command = locate_command(tp, y_rot);
             let coordinates = link(
-                Text::tr("chat.coordinates", &[&pos.0, &pos.1, &pos.2])
-                    .append(format!(" ->[{}]", path_of(dimension))),
+                Text::tr("chat.coordinates", &[&pos.0, &pos.1, &pos.2]),
                 text::GREEN,
                 command,
             );
-            let distance = if *dimension == source_dim.id() {
-                horizontal_distance(center.0 - pos.0, center.2 - pos.2).to_string()
-            } else {
-                "N/A".to_owned()
-            };
+            let distance =
+                horizontal_distance(center.0 - pos.0, center.2 - pos.2).to_string();
             self.feedback_unbroadcast(Text::translate(
                 "commands.test.locate.found",
                 &[coordinates, Text::literal(distance)],
@@ -124,56 +104,12 @@ impl Game<'_> {
         if count == 0 {
             return Err(err("commands.test.error.no_test_instances", &[]));
         }
-        self.output_player_coordinates(&dimensions);
         self.feedback(Text::translate(
             "commands.test.locate.done",
             &[Text::literal(count.to_string())],
         ));
         Ok(count)
     }
-
-    /// `outputPlayerCoordinates`.
-    fn output_player_coordinates(&mut self, test_dimensions: &[String]) {
-        let Some(player) = self.player.as_ref() else {
-            return;
-        };
-        let dimension = self.dim.id().to_owned();
-        // isPlayerInCurrentTestDimension
-        if test_dimensions.len() <= 1
-            && test_dimensions.contains(&dimension)
-            && test_dimensions.iter().any(|d| d == "minecraft:overworld")
-        {
-            return;
-        }
-        let at = [
-            player.position.x.floor() as i32,
-            player.position.y.floor() as i32,
-            player.position.z.floor() as i32,
-        ];
-        let command = format!(
-            "/execute in {dimension} run tp @s {} {} {} {} {}",
-            at[0],
-            at[1],
-            at[2],
-            self.yaw.floor() as i32,
-            self.pitch.floor() as i32
-        );
-        let coordinates = link(
-            Text::translate(
-                "test.player.coordinates",
-                &[
-                    Text::literal(at[0].to_string()),
-                    Text::literal(at[1].to_string()),
-                    Text::literal(at[2].to_string()),
-                    Text::literal(path_of(&dimension).to_owned()),
-                ],
-            ),
-            text::GOLD,
-            command,
-        );
-        self.feedback_unbroadcast(coordinates);
-    }
-
     /// `TestCommand.showPos`, but for the highlight the client draws
     /// (`ClientboundGameTestHighlightPosPacket`).
     pub(super) fn test_show_pos(&mut self, ctx: &Context) -> R<i32> {
@@ -342,15 +278,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn locate_teleports_three_blocks_in_front_of_the_rotated_north_face() {
+    fn locate_teleports_two_blocks_in_front_of_the_rotated_north_face() {
         // Rotation.rotate(Direction.NORTH) and the toYRot of its opposite.
         assert_eq!(north_turned(Rotation::None), ((0, -1), 0));
         assert_eq!(north_turned(Rotation::Clockwise90), ((1, 0), 90));
         assert_eq!(north_turned(Rotation::Clockwise180), ((0, 1), 180));
         assert_eq!(north_turned(Rotation::Counterclockwise90), ((-1, 0), 270));
         assert_eq!(
-            locate_command("minecraft:the_nether", (1, 64, -3), 90),
-            "/execute in minecraft:the_nether run tp @s 1 64 -3 90 0"
+            locate_command((1, 64, -3), 90),
+            "/tp @s 1 64 -3 90 0"
         );
     }
 
@@ -358,6 +294,5 @@ mod tests {
     fn the_distance_is_the_floored_horizontal_one() {
         assert_eq!(horizontal_distance(3, 4), 5);
         assert_eq!(horizontal_distance(-1, 1), 1);
-        assert_eq!(path_of("minecraft:overworld"), "overworld");
     }
 }

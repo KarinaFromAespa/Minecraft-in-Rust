@@ -1224,6 +1224,13 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "SteppedInterpolationHandler (26.3's path-based interpolator, used by LivingEntity) has no 26.2 equivalent and no Rust references: 26.2 has a single InterpolationHandler class, while 26.3 split it into Abstract/Linear/Stepped. The Rust's horizon-world interpolation.rs already implements 26.2's single handler exactly (DEFAULT_INTERPOLATION_STEPS 3, interpolateTo with snap at 0 steps, Objects.equals re-target test, 1/steps lerp with rotLerp, previous-tick delta tracking). Only the six comments naming 26.3's LinearInterpolationHandler were fixed to InterpolationHandler. Tests: interpolation 6/6."
+    },
+    {
+      "id": 593,
+      "module": "crates/horizon-client/src/game/commands/test_locate.rs",
+      "bucket": "D",
+      "verdict": "ported",
+      "evidence": "TestCommand$Info (player/playerPos/testPos/surfaceY record) is 26.3's parameter bundle for playerAndTestInfo; 26.2's createTestPositionAround is inline (source position + the source level's WORLD_SURFACE heightmap, +3 z). PORTED /test locate to the 26.2 form: the Rust had implemented 26.3's cross-dimension search (findSelectedTestPositionsAcrossDimensions over every level, teleport 3 out, /execute in tp, dimension suffix + N/A distance, outputPlayerCoordinates). Now: same-level search within 250 (TestFinder.Builder.byResourceSelection in both versions), teleport 2 out, plain /tp, plain coordinates, always-numeric distance; output_player_coordinates and path_of removed (26.3-only); the playerAndTestInfo comment in test_runs.rs fixed. The run/verify paths were already 26.2-form (single testPos, no dimension on a test). Tests: horizon-client --lib test_locate 2/2; cargo check horizon-client clean."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
