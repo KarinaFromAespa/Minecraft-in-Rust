@@ -62,10 +62,11 @@ fn translucent_body(m: &Mob) -> bool {
             | Species::SulfurCube
     ) || avatar(m)
 }
-/// Whether a layer's render type has an `OitPipelineSet`: `RenderTypes.eyes` and
+/// Whether a layer's render type draws translucent: `RenderTypes.eyes` and
 /// `entityTranslucentEmissive` (the full bright layers), `breezeWind`, and
 /// `entityTranslucent` (the slime's outer cube, the sulfur cube's inner cube
-/// and the horse's markings).
+/// and the horse's markings). In 26.2 these blend in the classic translucent
+/// pass; there is no OIT pipeline (26.3-only).
 fn translucent_layer(m: &Mob, layer: &Layer) -> bool {
     layer.full_bright
         || layer.model == "breeze#wind"

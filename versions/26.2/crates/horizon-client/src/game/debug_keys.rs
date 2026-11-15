@@ -690,9 +690,6 @@ impl Game<'_> {
                 }
                 true
             }
-            // 26.2's transparency chain is not implemented, so there is no
-            // option to toggle: the key is used up, as the profiler keys are.
-            DebugAction::ImprovedTransparency => true,
             DebugAction::FpsCharts => {
                 self.debug_charts.toggle_fps(&mut self.debug);
                 true

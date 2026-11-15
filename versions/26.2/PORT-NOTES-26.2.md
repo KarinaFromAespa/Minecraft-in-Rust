@@ -2900,3 +2900,29 @@ ported to 26.2's same-level search, 2 out, plain
 /tp and numeric distance. TestCommand$Info is
 26.3's playerAndTestInfo bundle; 26.2's
 createTestPositionAround is inline.
+
+566 OIT is entirely 26.3-only: the 26.2 client
+jar has no net/minecraft/client/renderer/oit/
+package at all (26.3 has OitPipelineSet,
+OitRenderPassProvider, OitStage), so the Rust
+OIT implementation came out in four parts:
+(1) game-side OIT tagging dropped; (2) the
+render pipeline deleted — gfx/oit.rs (997
+lines), gfx/oit_features.rs (275 lines) and
+five oit*.wgsl shaders, plus call-site cleanup
+(25 files, +81/−2539); (3) the F3+X improved-
+transparency debug key removed — it is 26.3-
+only (no key.debug.improvedTransparency in
+26.2's lang, zero references in 26.2's
+KeyboardHandler), while the improvedTransparency
+graphics option itself EXISTS in 26.2 and stays;
+(4) warning cleanup to D2's zero-warning bar
+(dead weather pipeline/draw_with, one pre-
+existing unused mut, one unused doc comment).
+Render lib suite: 2045 passed, 1 failed, 66
+ignored (Modrinth test skipped); the failure is
+the pre-existing animate atlas-size assertion,
+unrelated to OIT.
+
+RANK 3 CLOSED 177/177 — see rank3-progress.json
+for per-item evidence.

@@ -1358,7 +1358,7 @@ impl Game<'_> {
                         .map(|stand_in| std::mem::replace(&mut guests[k].1, stand_in)),
                     (Some(_), None) => None,
                 };
-                let mut w = MobWorld {
+                let w = MobWorld {
                     others: &snapshot,
                     others_grid: Some(&grid),
                     others_index: Some(&index),

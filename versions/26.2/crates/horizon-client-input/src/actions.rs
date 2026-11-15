@@ -94,7 +94,6 @@ actions! {
     DebugFpsCharts, "key.debug.fpsCharts", None;
     DebugNetworkCharts, "key.debug.networkCharts", None;
     DebugLightmapTexture, "key.debug.lightmapTexture", None;
-    DebugImprovedTransparency, "key.debug.improvedTransparency", None;
     Emote, "key.emote", Some(KeyCode::KeyB);
     HotbarPrevious, "pad.hotbarPrevious", None;
     HotbarNext, "pad.hotbarNext", None;

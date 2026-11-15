@@ -72,7 +72,6 @@ pub const MAPPINGS: &[(&str, &str, &str)] = &[
     ("key.debug.fpsCharts", "key.keyboard.2", "debug"),
     ("key.debug.networkCharts", "key.keyboard.3", "debug"),
     ("key.debug.lightmapTexture", "key.keyboard.4", "debug"),
-    ("key.debug.improvedTransparency", "key.keyboard.x", "debug"),
 ];
 /// Horizon's own key mappings: bound in Controls like the vanilla ones, but kept in
 /// `horizon-extras.txt` (`emoteKey`), never in `options.txt`, which stays exactly vanilla's

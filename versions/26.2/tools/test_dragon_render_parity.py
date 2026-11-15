@@ -46,7 +46,6 @@ def main():
                                sources_sha256=base.source_hashes([
                                    oracle, __file__, lab.ROOT / 'crates/horizon-client/src/game/dragon.rs',
                                    lab.ROOT / 'crates/horizon-client-render/src/gfx.rs',
-                                   lab.ROOT / 'crates/horizon-client-render/src/gfx/oit_features.rs',
                                    lab.ROOT / 'crates/horizon-client-render/src/entity.wgsl'])))
     print(f'dragon render: {vertices} vertices match vanilla across 8 death times')
 
