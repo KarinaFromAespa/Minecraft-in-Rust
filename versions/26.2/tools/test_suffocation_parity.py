@@ -18,14 +18,16 @@ def corpus(facts):
     positions = [[0, 0, 0], [17, -64, -33],
                  [2147483647, -2147483648, -2147483648],
                  [-2147483648, 2147483647, 2147483647]]
-    # Keep each tag binding contiguous to avoid testing registry reload costs.
-    for tags in range(3):
+    # 26.2 has a single motion-based binding (no tag variants to rebind),
+    # so the corpus runs once; the inputs still carry the `tags` field
+    # (always 0) for shape compatibility with the fixture readers.
+    for tags in range(1):
         for state, value in enumerate(facts['states']):
             for position in positions:
                 yield dict(state=state, position=position, entity='none', fail=-1, tags=tags)
             # Predicate short circuits must suppress failure-producing providers.
             yield dict(state=state, position=positions[1], entity='none', fail=0, tags=tags)
-            if value['id'].endswith('shulker_box'):
+            if value['Name'].endswith('shulker_box'):
                 for position in positions:
                     for entity in ['none', 'other', 'closed', 'opening', 'opened', 'closing']:
                         for fail in [-1, 0, 1]:
@@ -63,13 +65,13 @@ def main():
              'dev.horizonlab.parity.VanillaSuffocationOracle', mode, build], side+'-'+mode)
     java('server', 'export')
     facts = json.loads((build/'facts.json').read_text())
-    if len(facts['states']) != 35723:raise AssertionError('Incomplete pinned registry')
+    if len(facts['states']) != 32366:raise AssertionError('Incomplete pinned registry')
     definitions = json.loads((build/'definitions.json').read_text())
     count = 0
     with (build/'inputs.txt').open('w') as output:
         for fixture in corpus(facts):
             output.write(json.dumps(fixture, separators=(',', ':'))+'\n');count += 1
-    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json',
+    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json', 'motion.json',
                                             'block-registry.nbt', 'cached-collision.nbt', 'tags.json']]
     fixtures = base.source_hashes(fixture_paths)
     run(['cargo', 'build', '--locked', '--release', '-p', 'horizon-world', '--example', 'world_probe'], 'compile-rust')
@@ -88,9 +90,9 @@ def main():
               'rustc':subprocess.check_output(['rustc', '--version'], text=True).strip(),
               'registry_states':len(facts['states']), 'block_definitions':len(definitions),
               'definition_counts':dict(collections.Counter(definitions.values())),
-              'tag_variants':3, 'positions':4, 'fixtures':count, 'sources_sha256':tested, 'fixtures_sha256':fixtures,
+              'bindings':1, 'positions':4, 'fixtures':count, 'sources_sha256':tested, 'fixtures_sha256':fixtures,
               'rust_output_sha256':lab.digest(build/'rust.txt', 'sha256'), 'references':references,
-              'scope':'Actual BlockState.isSuffocating, hasLargeCollisionShape and moving-piston identity for every registered state, natural/empty/all-block causes_suffocation tags and four positions including integer extremes. Native predicate identity and constant overrides are independently classified. Rust computes cached fullness, dynamic collision fullness, piston extension and lazy shulker state queries. Every shulker state covers absent/wrong block entities, all animation states and injected query failures; all other states test provider short circuits. This does not establish live chunk/provider integration, entity movement, damage or full gameplay parity.'}
+              'scope':'Actual BlockState.isSuffocating, hasLargeCollisionShape and moving-piston identity for every registered state under 26.2\u2019s single motion-based rule (blocksMotion plus a full collision shape, no tag), and four positions including integer extremes. Native predicate identity and constant overrides are independently classified. Rust computes cached fullness, dynamic collision fullness, piston extension and lazy shulker state queries. Every shulker state covers absent/wrong block entities, all animation states and injected query failures; all other states test provider short circuits. This does not establish live chunk/provider integration, entity movement, damage or full gameplay parity.'}
     lab.write_json(report_path, report);print(f'Scoped suffocation parity passed: {report_path}', flush=True)
 
 

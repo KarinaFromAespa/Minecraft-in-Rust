@@ -9132,7 +9132,7 @@ mod pearl_tests {
         let collision =
             std::sync::Arc::new(horizon_client::collisions::load(&root, registry).unwrap());
         let suffocation =
-            horizon_client::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation)
+            horizon_client::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion)
                 .unwrap();
         let mut world = horizon_client::world::World::test_scene(&assets, &render, 3).unwrap();
         // A pool of still water one block deep at y = 4, from x = 20 on (clear of the

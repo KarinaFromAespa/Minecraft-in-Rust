@@ -263,16 +263,10 @@ impl Game<'_> {
             &items.item_tags,
             &items.block_tags,
         );
-        let causes_suffocation = items
-            .block_tags
-            .get("minecraft:causes_suffocation")
-            .into_iter()
-            .flatten()
-            .cloned()
-            .collect();
+        let blocks_motion = self.res.facts().blocks_motion_names();
         let suffocation = horizon_client::mobs::suffocation::bind(
             self.res.core.collision.clone(),
-            &causes_suffocation,
+            &blocks_motion,
         )?;
         // A registry whose pack tags don't load keeps the game's own tags
         // (`in_tag` falls back to them), rather than matching no tag at all.

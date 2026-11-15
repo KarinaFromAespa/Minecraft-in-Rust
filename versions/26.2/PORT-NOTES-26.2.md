@@ -3311,3 +3311,79 @@ command_exec still fails on the effect_view predicate fixture blocker
 (`Java fixture control failed: /execute if predicate
 effect_view:always: []`), unchanged from run 43710204861. Fixture-side,
 for the harness/behaviour work.
+
+## Tag-literal triage: the 7 dead tags ported + D1 gating (2026-11-15)
+
+Owner decision 2026-11-15 20:43 NPT: gate the tag-literal check and
+triage the 7 dead tags the report-only run found (all inherited from
+the 26.3 base, all absent from 26.2's tag data). Each tag was checked
+against the decompiled 26.2 oracle; none exists in 26.2 under another
+name. Branch `gate/tag-gating`.
+
+| Tag | 26.2 form (oracle) | Fix |
+|---|---|---|
+| `extendable_maps` | no tag check; cartography gates on saved data, lock, scale | lookup removed; paper branch is `!locked && scale < 4` |
+| `brewing_potion_inputs` | hardcoded 4-item list in `PotionSlot.mayPlaceItem` | tag disjunct removed; `is_bottle` covers exactly the four |
+| `conduit_effect_block` | hardcoded `VALID_BLOCKS` (prismarine, prismarine bricks, sea lantern, dark prismarine) | shared `is_conduit_frame_block` predicate at all 3 call sites |
+| `entities_can_teleport_to` | `isSafe`: not liquid, not `#fire` | negated `#fire` check (`block_in_tag`); rule extracted as `spread_spot_safe` |
+| `consumable_does_not_teleport_to` | no tag check in `randomTeleport` | disjunct removed (dead code under 26.2 data) |
+| `shulker_does_not_teleport_to` | no tag check in `teleportSomewhere` | check removed; shulkers may cling to bedrock in 26.2 |
+| `causes_suffocation` | shape-based `isSuffocating` (`blocksMotion` + full collision shape) | the owed suffocation port (below) |
+
+Four fixes change behaviour (cartography extension, conduit
+activation, spreadplayers placement, suffocation) and carry
+fail-old/pass-new regression tests. Three are dead-code removals under
+26.2 data (brewing, fox, shulker): their tests pin the 26.2 contract
+(brewing's proves the tag is not consulted even when the test data
+names it; the shulker test asserts bedrock clinging) and the audit
+proves the literals are gone.
+
+**Suffocation port.** `BlockFacts.blocks_motion_names` computes the
+motion set from `legacy_solid` per name, minus cobweb and bamboo
+sapling (the oracle's exclusions). One block mixes legacy solidity
+across its states — `resin_brick_wall` (`up=false` + all-sides-`none`
+states are not solid) — but walls are never full-collision blocks, so
+the outcome is unaffected; the default state is solid, matching the
+oracle's per-name `defaultBlockState().blocksMotion()`. The oracle now
+classifies the default predicate as `motion_full`, exports `motion.json`,
+and runs a single binding with no tag reload; both fixtures read
+`motion.json`; both drivers add it to their fixture paths and the
+suffocation corpus runs once instead of three tag variants. The port
+also fixes the `VanillaSuffocationOracle` compile failure, which had
+oracle-failed every harness listing it as a helper (suffocation,
+registry-collision-scan, arrow, free-space, native-scene-collision,
+native-scene-motion, world-collision-check, world-edge-backoff).
+
+Observed, NOT fixed (out of scope for the tag work): the fox's ground
+predicate in `random_teleport` uses `full_collision` where the oracle
+uses `blocksMotion` — they differ for fences, walls and similar
+blocks. Recorded here, not changed.
+
+**Gating.** D1 now FAILS on dead production tags and BLOCKS when
+prepared tag data is absent. Era rule: releases before 1.13 (data
+version < 1519, the Flattening) have no tag system, so the audit skips
+them — derived from the tree's own `DATA_VERSION`, no release list
+hardcoded. Verified locally: audit clean on 26.2 (0 dead production,
+5 dead test-only fixtures, unchanged and deliberate); D1 passes on
+26.2 with the flip; a synthetic 1.0 pin skips; 1.21.11 stays blocked
+on its missing regen artifacts (the audit runs after the regen checks,
+so the flip cannot turn it failed).
+
+## Suffocation harnesses pass locally (2026-11-15)
+
+After the suffocation port, both harnesses that consume the oracle and
+the fixtures pass against both 26.2 jars:
+
+- `test_suffocation_parity.py`: 169,174 fixtures, **515,376 lines
+  matched on client and server**. The driver re-pins the registry size
+  to 32366 states and reads the 26.2 map-form `Name` (both were 26.3
+  leftovers: 35723 and `id`).
+- `test_registry_collision_scan_parity.py`: **2,804,926 lines matched
+  on client and server**.
+
+The oracle's motion set (941 blocks) agrees exactly with the game's
+`blocks_motion_names` set computed from `legacy_solid` (941, same
+members). These two harnesses are outside the 17-harness CI subset,
+so the CI profile is unchanged by them; their value is the suffocation
+port's oracle proof and the unblocking of the eight harnesses that
+compile the oracle.

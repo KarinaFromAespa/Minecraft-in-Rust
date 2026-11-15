@@ -27,7 +27,7 @@ def corpus(facts):
     states=facts['states']
     for state in range(len(states)):
         for suffocating in [False,True]:yield row(state,state%4,suffocating)
-    dynamic=[i for i,s in enumerate(states) if s['id'].endswith('shulker_box') or s['id'] in
+    dynamic=[i for i,s in enumerate(states) if s['Name'].endswith('shulker_box') or s['Name'] in
              ['minecraft:scaffolding','minecraft:water','minecraft:lava','minecraft:powder_snow',
               'minecraft:moving_piston','minecraft:bamboo','minecraft:pointed_dripstone','minecraft:sulfur_spike',
               'minecraft:piston','minecraft:sticky_piston','minecraft:oak_stairs','minecraft:stone_slab']]
@@ -35,7 +35,7 @@ def corpus(facts):
         for context in range(4):
             for suffocating in [False,True]:
                 for at in [(15,0,15),(-16,-1,-16)]:yield row(state,context,suffocating,at=at)
-        if states[state]['id'].endswith('shulker_box'):
+        if states[state]['Name'].endswith('shulker_box'):
             for global_mode in range(3):
                 for chunk_mode in range(3):
                     for suffocating in [False,True]:
@@ -87,13 +87,13 @@ def main():
              'dev.horizonlab.parity.VanillaRegistryCollisionScanOracle', mode, build], side+'-'+mode)
     java('server', 'export')
     facts = json.loads((build/'facts.json').read_text())
-    if len(facts['states']) != 35723:raise AssertionError('Incomplete pinned registry')
+    if len(facts['states']) != 32366:raise AssertionError('Incomplete pinned registry')
     definitions = json.loads((build/'definitions.json').read_text())
     count = 0
     with (build/'inputs.txt').open('w') as output:
         for fixture in corpus(facts):
             output.write(json.dumps(fixture, separators=(',', ':'))+'\n');count += 1
-    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json',
+    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json', 'motion.json',
                                             'block-registry.nbt', 'cached-collision.nbt', 'tags.json']]
     fixtures = base.source_hashes(fixture_paths)
     run(['cargo', 'build', '--locked', '--release', '-p', 'horizon-world', '--example', 'world_probe'], 'compile-rust')

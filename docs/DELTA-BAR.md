@@ -132,14 +132,14 @@ generator is wrong for the codec as it stands. Under the old two-fresh-runs reci
 pass silently; under this one each has to be declared, and the declaration is what tells the next
 person the generator needs fixing before that override can go.
 
-### Tag audit (report-only)
+### Tag audit (gating)
 
 Three of the four real divergences found in the 26.2 behaviour port were the same bug class: a
 tag that exists only in 26.3's data, so the Rust lookup is always false and the behaviour silently
 never fires — `#nether_portal_frame` (portal detection) and `#speeds_up_zombie_villager_curing`
 (zombie-villager curing). That class is mechanically findable: every tag literal in the Rust code
 must exist in the pinned version's prepared tag files. `tools/tag_audit.py` does that check, and
-D1 runs it as a sub-check. Three rules decide whether it is useful or noise:
+D1 runs it as a gating sub-check. Three rules decide whether it is useful or noise:
 
 1. **Union across registries.** A tag name is dead only if it is absent from *every* prepared tag
    file (blocks, items, fluids, entity types, damage, and the rest). Per-registry comparison gives
@@ -154,13 +154,19 @@ D1 runs it as a sub-check. Three rules decide whether it is useful or noise:
    (exit 3), never a silent pass — a check that quietly no-ops when prepare didn't run is the
    failure mode D1 exists to avoid.
 
-The sub-check is **report-only**: it prints the inventory it found into D1's notes (which tag
-files loaded, how many literals scanned, the dead-tag list if any) without failing or blocking
-the verdict. The gating decision comes after the inventory is reviewed. Standalone:
+The sub-check **gates D1**: dead production tags fail it, absent tag data blocks it, and the
+inventory (which tag files loaded, how many literals scanned, the dead-tag list if any) is
+printed into D1's notes either way. Standalone:
 
 ```sh
 python3 tools/tag_audit.py --tree versions/<v>   # exit 0 clean, 1 dead production tags, 3 blocked
 ```
+
+**Era rule.** Tags arrived with the Flattening (1.13, data version 1519, protocol 393), so
+releases before 1.13 have no tag system at all — no tag files exist for them. The audit skips
+those releases (recorded as skipped in D1's notes, not passed, not blocked) instead of blocking
+them permanently. The skip is derived from the tree's own `DATA_VERSION` in version.rs, which
+D1 already parses; no release list is hardcoded.
 
 Dead tags in test fixtures are reported separately and never fail — tests deliberately use fake
 tags (`#minecraft:no_such_tag`, `#minecraft:fixture`). First run, against 26.2: 710 tags across
@@ -171,9 +177,21 @@ tags (`#minecraft:no_such_tag`, `#minecraft:fixture`). First run, against 26.2: 
 from 26.2's tag data. The report-only CI run (port-verify 43710204861, main@140d9570) reproduces
 the same inventory exactly, with D1 passing and the notes attached — the check runs on the staged
 candidate with no workflow change. Reach caveat: the check catches the dead-tag class only, not a missing gate
-or a wrong default. Open question for the gating decision: pre-tag eras (E0, before 1.13, no tag
-files at all) would block on this sub-check permanently — the gate needs an era rule for them
-before it flips.
+or a wrong default.
+
+**Triage of the 7 (26.2, oracle-verified).** None of the seven exists in 26.2 under another name;
+each was ported to the 26.2 form the decompiled oracle shows, and the audit is clean afterwards:
+`extendable_maps` — removed, 26.2's cartography gates on saved data, lock and scale only;
+`brewing_potion_inputs` — removed, 26.2's brewing slot admits the hardcoded four
+(`is_bottle`); `conduit_effect_block` — replaced with 26.2's hardcoded `VALID_BLOCKS`
+(prismarine, prismarine bricks, sea lantern, dark prismarine); `entities_can_teleport_to` —
+replaced with 26.2's `isSafe` (not liquid, not `#fire`); `consumable_does_not_teleport_to` —
+removed, 26.2's `randomTeleport` has no landing-tag check; `shulker_does_not_teleport_to` —
+removed, 26.2's `teleportSomewhere` has no tag check (shulkers may cling to bedrock);
+`causes_suffocation` — the owed suffocation port: the default rule is now shape-based
+(`blocksMotion` plus a full collision shape), with the oracle, both fixtures and both harness
+drivers ported to the same rule. The port also fixed the `VanillaSuffocationOracle` compile
+failure, which had oracle-failed every harness that lists it as a helper.
 
 ---
 

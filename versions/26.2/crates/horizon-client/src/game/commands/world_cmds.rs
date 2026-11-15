@@ -2132,28 +2132,25 @@ impl Game<'_> {
         }
         max_y + 1
     }
-    /// `SpreadPlayersCommand.Position.isSafe`.
+    /// `SpreadPlayersCommand.Position.isSafe` (26.2): below max height, the
+    /// landing block is not liquid and not fire. 26.3 replaced the fire
+    /// exclusion with the `#entities_can_teleport_to` tag, which 26.2 data
+    /// does not have — with the tag lookup no spot was ever safe.
     fn spread_safe(&self, p: [f64; 2], max_y: i32) -> bool {
         let y = self.spread_spawn_y(p, max_y) - 1;
         let (x, z) = (p[0].floor() as i32, p[1].floor() as i32);
         let name = self.res.facts().get(self.world.block(x, y, z)).name.clone();
-        let liquid = matches!(&*name, "minecraft:water" | "minecraft:lava");
-        let teleportable = self
-            .res
-            .items()
-            .block_tags
-            .get("entities_can_teleport_to")
-            .or_else(|| {
-                self.res
-                    .items()
-                    .block_tags
-                    .get("minecraft:entities_can_teleport_to")
-            })
-            .is_some_and(|set| {
-                set.contains(&*name) || set.contains(name.trim_start_matches("minecraft:"))
-            });
-        y < max_y && !liquid && teleportable
+        let fire = self.res.items().block_in_tag("minecraft:fire", &name);
+        spread_spot_safe(&name, y, max_y, fire)
     }
+}
+
+/// The block test of `SpreadPlayersCommand.Position.isSafe`: the spot is
+/// below max height, its block is not liquid, and it is not in the
+/// `#minecraft:fire` tag. Split out of `Game::spread_safe` so the rule
+/// is testable without a world.
+fn spread_spot_safe(name: &str, y: i32, max_y: i32, in_fire_tag: bool) -> bool {
+    y < max_y && !matches!(name, "minecraft:water" | "minecraft:lava") && !in_fire_tag
 }
 
 /// A `CommandError` whose message is a translation with component arguments.
@@ -2298,7 +2295,7 @@ mod allay_owner_damage_tests {
 
 #[cfg(test)]
 mod tests {
-    use super::{look_at, playsound_placement, take_new_reinforcements};
+    use super::{look_at, playsound_placement, spread_spot_safe, take_new_reinforcements};
     use horizon_client::mobs::{MobEvent, Who};
 
     #[test]
@@ -2335,6 +2332,22 @@ mod tests {
         let mut events = vec![MobEvent::Sound("after", [0.; 3], 1., 1.)];
         assert!(take_new_reinforcements(&mut events, 4).is_empty());
         assert_eq!(events.len(), 1);
+    }
+
+    /// `SpreadPlayersCommand.Position.isSafe` (26.2): solid ground is safe,
+    /// fire and liquid are not, and the height cap applies. With the old
+    /// `#entities_can_teleport_to` lookup (absent from 26.2 data) no spot
+    /// was ever safe, so spreadplayers never placed anyone.
+    #[test]
+    fn spreadplayers_spots_follow_the_26_2_rule() {
+        assert!(spread_spot_safe("minecraft:stone", 63, 64, false));
+        assert!(spread_spot_safe("minecraft:grass_block", 0, 64, false));
+        assert!(!spread_spot_safe("minecraft:fire", 63, 64, true));
+        assert!(!spread_spot_safe("minecraft:soul_fire", 63, 64, true));
+        assert!(!spread_spot_safe("minecraft:water", 63, 64, false));
+        assert!(!spread_spot_safe("minecraft:lava", 63, 64, false));
+        assert!(!spread_spot_safe("minecraft:stone", 64, 64, false));
+        assert!(!spread_spot_safe("minecraft:stone", 65, 64, false));
     }
 
     fn assert_angle(got: f32, want: f32) {

@@ -7,7 +7,7 @@ use super::Game;
 use horizon_client::{
     block_entity_anim::{
         BellEntity, ConduitServer, ConduitTarget, EndGateway, Shulker, ShulkerStatus, Ticker,
-        closer_to_center_than,
+        closer_to_center_than, is_conduit_frame_block,
     },
     block_entity_render::BlockAnim,
     collisions::{SceneCollisions, no_collision_empty},
@@ -415,13 +415,6 @@ impl Game<'_> {
             .get("minecraft:raiders")
             .cloned()
             .unwrap_or_default();
-        let frames = self
-            .res
-            .items()
-            .block_tags
-            .get("minecraft:conduit_effect_block")
-            .cloned()
-            .unwrap_or_default();
         // The lids this tick swept (`moveCollidedEntities`), for the player
         // this client moves itself.
         let mut shulker_pushes = Vec::new();
@@ -474,7 +467,7 @@ impl Game<'_> {
                     let is_frame = |p: [i32; 3]| {
                         registry
                             .state(world.block(p[0], p[1], p[2]))
-                            .is_some_and(|s| frames.contains(&s.name))
+                            .is_some_and(|s| is_conduit_frame_block(&s.name))
                     };
                     let time = world.game_time;
                     let anims = &mut self.be_anims;
@@ -591,11 +584,6 @@ impl Game<'_> {
             let world = &self.world;
             let facts = self.res.facts();
             let registry = self.pack.assets.registry;
-            let frames = self
-                .res
-                .items()
-                .block_tags
-                .get("minecraft:conduit_effect_block");
             // Level.isWaterAt: the fluid at the position is water.
             let is_water = |p: [i32; 3]| {
                 facts.get(world.block(p[0], p[1], p[2])).fluid
@@ -604,7 +592,7 @@ impl Game<'_> {
             let is_frame = |p: [i32; 3]| {
                 registry
                     .state(world.block(p[0], p[1], p[2]))
-                    .is_some_and(|s| frames.is_some_and(|f| f.contains(&s.name)))
+                    .is_some_and(|s| is_conduit_frame_block(&s.name))
             };
             conduit.check(pos, time, is_water, is_frame)
         };

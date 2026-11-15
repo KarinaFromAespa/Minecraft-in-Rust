@@ -11,9 +11,11 @@ use std::{
 
 /// The predicates installed by Blocks' registrations. Predicate evaluation,
 /// including full-shape tests and block entities, stays in SuffocationRegistry.
+/// `blocks_motion` is the 26.2 default rule's input: the blocks whose default
+/// state blocks motion, from `BlockFacts::blocks_motion_names`.
 pub fn bind<'r>(
     collision: Arc<BlockCollisionRegistry<'r>>,
-    causes_suffocation: &BTreeSet<String>,
+    blocks_motion: &BTreeSet<String>,
 ) -> io::Result<SuffocationRegistry<'r>> {
     use SuffocationDefinition::*;
     let registry = collision.registry();
@@ -40,9 +42,9 @@ pub fn bind<'r>(
                 Never
             }
             Some(name) if name == "shulker_box" || name.ends_with("_shulker_box") => ClosedShulker,
-            _ => TaggedFullCollision,
+            _ => MotionFullCollision,
         };
         definitions.insert(state.name.clone(), definition);
     }
-    SuffocationRegistry::new(collision, &definitions, causes_suffocation)
+    SuffocationRegistry::new(collision, &definitions, blocks_motion)
 }

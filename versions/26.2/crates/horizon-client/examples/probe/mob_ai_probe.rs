@@ -914,7 +914,7 @@ pub fn main() -> horizon_client::Result<()> {
     let tables = LightTables::load(root, registry, &facts)?;
     let collision = std::sync::Arc::new(collisions::load(root, registry)?);
     let suffocation =
-        horizon_client::mobs::suffocation::bind(collision.clone(), &motion.causes_suffocation)?;
+        horizon_client::mobs::suffocation::bind(collision.clone(), &motion.blocks_motion)?;
     let air = registry.default_state("minecraft:air").ok_or("no air")?;
     let layers = [
         state(registry, "minecraft:bedrock"),

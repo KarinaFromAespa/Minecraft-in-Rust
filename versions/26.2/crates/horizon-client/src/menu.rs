@@ -1291,11 +1291,11 @@ impl Menu {
         else {
             return;
         };
-        let extendable = env
-            .items
-            .item_tags
-            .get("minecraft:extendable_maps")
-            .is_some_and(|t| t.contains(&*map.item));
+        // 26.2's `CartographyTableMenu.setupResultSlot` gates the paper
+        // branch on saved data, lock and scale only — there is no tag
+        // check. 26.3 added `#extendable_maps`; 26.2 data has no such tag,
+        // so a lookup here would never match and map extension would
+        // never fire.
         let copy = |count: u32, post: Option<u8>| {
             let mut out = ItemStack {
                 count,
@@ -1307,7 +1307,7 @@ impl Menu {
             out
         };
         self.containers[RESULT][0] = match &*extra.item {
-            "minecraft:paper" if extendable && !locked && scale < 4 => Some(copy(1, Some(1))),
+            "minecraft:paper" if !locked && scale < 4 => Some(copy(1, Some(1))),
             "minecraft:glass_pane" if !locked => Some(copy(1, Some(0))),
             "minecraft:map" => Some(copy(2, None)),
             _ => None,
@@ -2345,13 +2345,12 @@ impl Menu {
                     if !self.move_to(env, &mut stack, 3, 4, false) {
                         return None;
                     }
-                } else if env.brewing.is_bottle(&stack)
-                    || env
-                        .items
-                        .item_tags
-                        .get("minecraft:brewing_potion_inputs")
-                        .is_some_and(|m| m.contains(&*stack.item))
-                {
+                // 26.2's `BrewingStandMenu$PotionSlot.mayPlaceItem` is the
+                // hardcoded four (potion, splash potion, lingering potion,
+                // glass bottle) — exactly `is_bottle`. 26.3's
+                // `#brewing_potion_inputs` tag does not exist in 26.2 data,
+                // so consulting it here could only admit the wrong items.
+                } else if env.brewing.is_bottle(&stack) {
                     if !self.move_to(env, &mut stack, 0, 3, false) {
                         return None;
                     }
@@ -3559,6 +3558,140 @@ pub(crate) mod tests {
         assert!(!menu.may_place(&env, 4, &ordinary));
         menu.set_slot(&env, 5, Some(ordinary));
         assert!(!menu.quick_move_landing(&env, 5).contains(&4));
+    }
+
+    /// 26.2's brewing quick-move admits only the four bottle items
+    /// (`BrewingStandMenu$PotionSlot.mayPlaceItem`); the 26.3
+    /// `#brewing_potion_inputs` tag is not consulted — an item the tag
+    /// names (stone here) must not reach the bottle slots.
+    #[test]
+    fn brewing_quick_move_ignores_the_26_3_potion_inputs_tag() {
+        let items = Items::for_tests(
+            [(
+                "minecraft:brewing_potion_inputs".to_owned(),
+                ["minecraft:stone".to_owned()].into_iter().collect(),
+            )]
+            .into_iter()
+            .collect(),
+        );
+        let root = std::path::Path::new("");
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(root, &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        let env = Env {
+            items: &items,
+            recipes: &recipes,
+            brewing: &brewing,
+            banners: &banners,
+            station_recipes: &station_recipes,
+            enchantments: &enchantments,
+            names: &names,
+            trade: None,
+            maps: None,
+            limited_crafting: false,
+            known_recipes: None,
+        };
+        // The tag names stone; the 26.2 rule does not admit it.
+        let mut menu = Menu::new(Kind::Brewing);
+        menu.set_slot(&env, 5, Some(ItemStack::new("minecraft:stone", 2)));
+        let landing = menu.quick_move_landing(&env, 5);
+        assert!(
+            !landing.iter().any(|s| (0..3).contains(s)),
+            "stone reached the bottle slots via the tag: {landing:?}"
+        );
+        // The oracle's four all land in the bottle slots.
+        for item in [
+            "minecraft:potion",
+            "minecraft:splash_potion",
+            "minecraft:lingering_potion",
+            "minecraft:glass_bottle",
+        ] {
+            let mut menu = Menu::new(Kind::Brewing);
+            menu.set_slot(&env, 5, Some(ItemStack::new(item, 2)));
+            assert_eq!(menu.quick_move_landing(&env, 5), vec![0], "{item}");
+        }
+    }
+
+    /// 26.2's cartography table extends a map on paper with no tag check:
+    /// `CartographyTableMenu.setupResultSlot` gates on saved data, lock
+    /// and scale only. The 26.3 `#extendable_maps` lookup could never
+    /// match 26.2 data, so extension never fired.
+    #[test]
+    fn cartography_extends_a_map_without_a_tag() {
+        struct TestMaps(bool, u8);
+        impl Maps for TestMaps {
+            fn state(&self, _id: i32) -> Option<(bool, u8)> {
+                Some((self.0, self.1))
+            }
+            fn derive(&self, id: i32, _scale: bool) -> Option<i32> {
+                Some(id + 1)
+            }
+        }
+        let items = Items::for_tests(Default::default());
+        let recipes = Recipes::empty();
+        let brewing = Brewing::load(std::path::Path::new(""), &items, &PackOverlay::NONE);
+        let banners = Banners::default();
+        let station_recipes = crate::stations::StationRecipes::default();
+        let enchantments = crate::enchant::Enchantments::default();
+        let names = crate::creative::Names::default();
+        // The result slot's map post-processing, if a result exists:
+        // Some(1) scales the map, Some(0) locks it, None copies it.
+        let result_for = |locked: bool, scale: u8, extra: &str| -> Option<Option<u8>> {
+            let maps = TestMaps(locked, scale);
+            let env = Env {
+                items: &items,
+                recipes: &recipes,
+                brewing: &brewing,
+                banners: &banners,
+                station_recipes: &station_recipes,
+                enchantments: &enchantments,
+                names: &names,
+                trade: None,
+                maps: Some(&maps),
+                limited_crafting: false,
+                known_recipes: None,
+            };
+            let mut map = ItemStack::new("minecraft:filled_map", 1);
+            map.data_mut().map_id = Some(7);
+            let mut menu = Menu::new(Kind::Cartography);
+            menu.set_slot(&env, 0, Some(map));
+            menu.set_slot(&env, 1, Some(ItemStack::new(extra, 1)));
+            menu.slot(2)
+                .map(|s| s.data().and_then(|d| d.map_post_processing))
+        };
+        assert_eq!(
+            result_for(false, 2, "minecraft:paper"),
+            Some(Some(1)),
+            "paper scales an unlocked map below scale 4"
+        );
+        assert_eq!(
+            result_for(false, 4, "minecraft:paper"),
+            None,
+            "a scale-4 map cannot scale further"
+        );
+        assert_eq!(
+            result_for(true, 2, "minecraft:paper"),
+            None,
+            "a locked map cannot scale"
+        );
+        assert_eq!(
+            result_for(false, 2, "minecraft:glass_pane"),
+            Some(Some(0)),
+            "glass pane locks an unlocked map"
+        );
+        assert_eq!(
+            result_for(true, 2, "minecraft:glass_pane"),
+            None,
+            "a locked map cannot lock again"
+        );
+        assert_eq!(
+            result_for(false, 2, "minecraft:map"),
+            Some(None),
+            "a blank map copies the filled one"
+        );
     }
 
     /// MerchantResultSlot's removal tally and quick-craft check reset before onTake.

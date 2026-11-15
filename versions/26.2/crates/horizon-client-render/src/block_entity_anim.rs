@@ -554,9 +554,24 @@ pub struct Conduit {
 /// One nautilus particle: position and velocity.
 pub type Particle = ([f64; 3], [f64; 3]);
 
+/// `ConduitBlockEntity.VALID_BLOCKS` (26.2): the frame blocks are a
+/// hardcoded four — prismarine, prismarine bricks, sea lantern, dark
+/// prismarine. 26.3 replaced the list with the `#conduit_effect_block`
+/// tag, which 26.2 data does not have, so a tag lookup here would leave
+/// every conduit frame empty.
+pub fn is_conduit_frame_block(name: &str) -> bool {
+    matches!(
+        name,
+        "minecraft:prismarine"
+            | "minecraft:prismarine_bricks"
+            | "minecraft:sea_lantern"
+            | "minecraft:dark_prismarine"
+    )
+}
+
 impl Conduit {
     /// `updateShape`: water all around, then the frame blocks
-    /// (`BlockTags.CONDUIT_EFFECT_BLOCK`) in the three 5x5 rings.
+    /// (`is_conduit_frame_block`: 26.2's `VALID_BLOCKS`) in the three 5x5 rings.
     fn update_shape(
         &mut self,
         pos: [i32; 3],
@@ -1033,5 +1048,50 @@ impl BlockEntityAnims {
             anim.wobble = Some((false, w.progress(game_time, partial)));
         }
         anim
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 26.2's conduit frame is the hardcoded `VALID_BLOCKS` four: a
+    /// prismarine ring activates the conduit, a stone ring does not. With
+    /// the old `#conduit_effect_block` lookup (absent from 26.2 data) the
+    /// frame set was always empty and no conduit ever activated.
+    #[test]
+    fn a_prismarine_frame_activates_the_conduit() {
+        for block in [
+            "minecraft:prismarine",
+            "minecraft:prismarine_bricks",
+            "minecraft:sea_lantern",
+            "minecraft:dark_prismarine",
+        ] {
+            assert!(is_conduit_frame_block(block), "{block} is a frame block");
+        }
+        for block in [
+            "minecraft:stone",
+            "minecraft:prismarine_stairs",
+            "minecraft:prismarine_slab",
+            "minecraft:air",
+        ] {
+            assert!(!is_conduit_frame_block(block), "{block} is not a frame block");
+        }
+        let mut conduit = ConduitServer::default();
+        let check = conduit
+            .check([0, 64, 0], 40, |_| true, |_| {
+                is_conduit_frame_block("minecraft:prismarine")
+            })
+            .expect("the 40-tick check runs");
+        assert_eq!(check.toggled, Some(true), "a full ring activates it");
+        assert_eq!(check.frames, Some(42), "the three rings hold 42 blocks");
+        let mut conduit = ConduitServer::default();
+        let check = conduit
+            .check([0, 64, 0], 40, |_| true, |_| {
+                is_conduit_frame_block("minecraft:stone")
+            })
+            .expect("the 40-tick check runs");
+        assert_eq!(check.toggled, None, "a stone ring changes nothing");
+        assert_eq!(check.frames, None, "no frames counted");
     }
 }
