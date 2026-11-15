@@ -2492,3 +2492,15 @@ to the game (26.3 restores the last screen); added
 close_advancements_to_game and routed KeyL to it. Tab selection
 (left-click), DisplayInfo-derived tab icon/title, and onClose are
 already the 26.2 forms; AdvancementWidget is identical.
+
+## Rank 3 — bucket B batch 1 (part 5): 99/177 (2026-11-15)
+
+427 world options: ACCEPTED GAP — 26.3 merged LAN publishing into
+WorldOptionsScreen; 26.2 keeps WorldOptionsScreen (immediate-apply)
+and the 26.2-only MultiplayerOptionsScreen separate. The Rust ports
+the 26.3 merged screen; the pause menu already wires the 26.2
+Multiplayer Options button to it, and every underlying operation
+matches 26.2. Only the layout differs; splitting the 1,902-line
+screen is deferred to a later UI pass (in-code note,
+screens.rs:455-458). 428 options screens: no-change — all 12
+classes decompile identically.

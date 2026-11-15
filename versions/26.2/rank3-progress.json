@@ -678,6 +678,20 @@
       "bucket": "B",
       "verdict": "ported",
       "evidence": "AdvancementsScreen: tab selection is already the 26.2 left-click form in the Rust (26.3 switched to right-click), the tab icon/title already derive from DisplayInfo (26.2 form; 26.3 takes them as constructor args), AdvancementWidget decompiles identically, and onClose restores the last screen in both versions. PORTED: keyPressed \u2014 26.2's advancements key always closes to the game and grabs the mouse, 26.3 restores the last screen. The Rust routed the key through close_advancements (the onClose form); added close_advancements_to_game and routed KeyL to it in play_keys.rs."
+    },
+    {
+      "id": 427,
+      "module": "crates/horizon-client/src/game/lan_screen.rs",
+      "bucket": "B",
+      "verdict": "accepted-gap",
+      "evidence": "WorldOptionsScreen: 26.3 merged LAN publishing into WorldOptionsScreen (37 KB class: generalOptions + multiplayerOptions + publish + port controls + Apply/Cancel snapshot). 26.2 keeps them separate: WorldOptionsScreen (14 KB, immediate-apply game mode/allow-commands/difficulty/game-rules/restrictions + Done) and the 26.2-only MultiplayerOptionsScreen (LAN scope toggle, port box, game mode, allow commands, Apply Changes), reached from the pause menu's Multiplayer Options button. The Rust ports the 26.3 merged screen (lan_screen.rs, 1902 lines) and the pause menu already wires the 26.2 Multiplayer Options button to it (screens.rs:455 notes the layout port outstanding). ACCEPTED GAP: the underlying operations (publishServer, setWorldGameType, setWorldAllowCommands, difficulty, game rules, restrictions) all match 26.2; only the screen layout differs (one merged screen vs two separate screens, snapshot vs immediate apply on the world side). Splitting the screen is a multi-hour rewrite of lan_screen.rs with LAN-flow regression risk; deferred to a later UI pass, tracked by the in-code note at screens.rs:455-458. Owner: behaviour port / UI pass."
+    },
+    {
+      "id": 428,
+      "module": "crates/horizon-client/src/game/options.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Options screens: all 12 classes (OptionsScreen, VideoSettingsScreen, OnlineOptionsScreen, MouseSettingsScreen, ControlsScreen, KeyBindsScreen, KeyBindsList entries, OptionsList + HeaderEntry, GraphicsPreset, PreferredGraphicsApi) decompile identically in 26.3 and 26.2 \u2014 the flagged method diffs are bytecode artifacts. No new 26.3 options."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
