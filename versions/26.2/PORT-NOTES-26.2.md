@@ -2886,3 +2886,9 @@ doors_beds_and_plants_place_both_halves fails on
 the bed head half (test untouched since
 publication). The aquifer cache test's 26.3-only
 gradient fixture is fixed in 63afd0b6.
+
+590 SteppedInterpolationHandler is 26.3-only
+(26.2 has a single InterpolationHandler, which
+the Rust already implements): only the six
+comments naming 26.3's LinearInterpolationHandler
+were fixed.

@@ -1217,6 +1217,13 @@
       "bucket": "D",
       "verdict": "no-change",
       "evidence": "SpawnTargetPoint (26.3's record: density-function -> Climate.Parameter map with sampleFitness, used by NoiseSpawnFinder) has no 26.2 equivalent and no Rust references. 26.2's spawn search is Climate.findSpawnPosition(List<ParameterPoint>, Sampler), which the Rust already implements exactly in spawn_finder.rs (coarse then fine radial search, 0 0 when the target list is empty), wired through generator.rs spawn_column over the noise settings' spawn_target ParameterPoints. Tests: no spawn-finder unit tests exist (covered by the chunk_generation parity harness); cargo check horizon-core clean (item 565)."
+    },
+    {
+      "id": 590,
+      "module": "crates/horizon-world/src/interpolation.rs",
+      "bucket": "D",
+      "verdict": "no-change",
+      "evidence": "SteppedInterpolationHandler (26.3's path-based interpolator, used by LivingEntity) has no 26.2 equivalent and no Rust references: 26.2 has a single InterpolationHandler class, while 26.3 split it into Abstract/Linear/Stepped. The Rust's horizon-world interpolation.rs already implements 26.2's single handler exactly (DEFAULT_INTERPOLATION_STEPS 3, interpolateTo with snap at 0 steps, Objects.equals re-target test, 1/steps lerp with rotLerp, previous-tick delta tracking). Only the six comments naming 26.3's LinearInterpolationHandler were fixed to InterpolationHandler. Tests: interpolation 6/6."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."

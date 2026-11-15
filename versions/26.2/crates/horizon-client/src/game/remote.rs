@@ -302,7 +302,7 @@ fn seat_passengers(entities: &mut HashMap<i32, Tracked>, vehicle: u32, passenger
 }
 /// Smooth an entity toward a new position over three ticks (InterpolationHandler).
 #[derive(Clone, Copy)]
-/// `LinearInterpolationHandler`'s target: a position and rotation (yRot,
+/// `InterpolationHandler`'s target: a position and rotation (yRot,
 /// xRot) reached in `steps` ticks.
 struct Lerp {
     target: [f64; 3],
@@ -3376,7 +3376,7 @@ impl Game<'_> {
                 return;
             }
             // ExperienceOrb.createInterpolationHandler is a
-            // LinearInterpolationHandler: the correction is spread over 3
+            // InterpolationHandler: the correction is spread over 3
             // ticks (`tick_remote_entities`), while `ExperienceOrb.tick` keeps
             // moving it.
             if let Some(o) = self.orbs.iter_mut().find(|o| o.id == id as u32) {
@@ -7649,7 +7649,7 @@ impl Game<'_> {
                     .min_by(|a, b| distance(&a.0).total_cmp(&distance(&b.0)))
                     .map(|(_, target)| *target);
                 // Entity.commonTick: setOldPosAndRot, then
-                // LinearInterpolationHandler.doInterpolate moves 1/remaining of
+                // InterpolationHandler.interpolate moves 1/remaining of
                 // the way to the server's position, so the frame draws the step
                 // from the old position.
                 let old = o.position;
