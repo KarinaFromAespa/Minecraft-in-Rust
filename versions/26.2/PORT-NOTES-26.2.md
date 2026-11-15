@@ -3217,3 +3217,10 @@ stash): save:: a_chunk_from_before_1_18_is_brought_to_the_current_layout
 (item_frame_from_nbt returns None), and the two Silent-potion sound
 tests in tnt.rs. None is touched by this change; all are pre-existing
 test debt in other subsystems.
+
+version_history (batch 3): vanilla's fresh-world level.dat has NO
+version_history tag, but Horizon always wrote [4903]. The level.dat
+writer now preserves the loaded value: it appends the current version
+only to a non-empty history (the upgrade case) and writes the tag only
+when the history is non-empty. A fresh world stays tag-less, as vanilla
+writes it.

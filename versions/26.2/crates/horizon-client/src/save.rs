@@ -4675,7 +4675,10 @@ impl Level {
             Some(Tag::List(l)) => l.clone(),
             _ => Vec::new(),
         };
-        if history.last() != Some(&Tag::Int(DATA_VERSION)) {
+        // Vanilla writes version_history only when the world has one: a
+        // fresh world carries no such tag, and loading it must not invent
+        // one. An existing history gains the current version on upgrade.
+        if !history.is_empty() && history.last() != Some(&Tag::Int(DATA_VERSION)) {
             history.push(Tag::Int(DATA_VERSION));
         }
         let mut brands: Vec<Tag> = match data.get("ServerBrands") {
@@ -4719,7 +4722,6 @@ impl Level {
                     ("Series", string("main")),
                 ]),
             ),
-            ("version_history", Tag::List(history)),
             ("version", Tag::Int(19133)),
             ("LevelName", string(&self.name)),
             ("GameType", Tag::Int(self.mode())),
@@ -4739,6 +4741,9 @@ impl Level {
             ("ServerBrands", Tag::List(brands)),
         ] {
             put(&mut data, key, value);
+        }
+        if !history.is_empty() {
+            put(&mut data, "version_history", Tag::List(history));
         }
         if let Some(uuid) = uuid {
             put(&mut data, "singleplayer_uuid", uuid_tag(uuid));
