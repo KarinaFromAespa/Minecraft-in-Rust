@@ -477,7 +477,7 @@ honest verdict and the work item, not a reason to weaken the bar.
     steps:
       - uses: actions/download-artifact@v4
         with: { pattern: parity-*, path: slices }
-      - name: Merge into versions/$V/profile.json
+      - name: Merge into the pin's profile.json
         run: |
           python3 - "$V" <<'PY'
           import json, os, pathlib, sys
@@ -485,7 +485,8 @@ honest verdict and the work item, not a reason to weaken the bar.
           merged = {"release": release, "harnesses": {}, "commit": os.environ.get("GITHUB_SHA", "")}
           for path in pathlib.Path("slices").glob("*/state.json"):
               merged["harnesses"].update(json.loads(path.read_text()).get("harnesses", {}))
-          out = pathlib.Path(f"versions/{release}/profile.json")
+          pin = pathlib.Path(f"pins/{release}")
+          out = (pin if pin.is_dir() else pathlib.Path(f"versions/{release}")) / "profile.json"
           out.parent.mkdir(parents=True, exist_ok=True)
           out.write_text(json.dumps(merged, indent=2) + "\n")
           print(f"{out}: {len(merged['harnesses'])} harness records")
