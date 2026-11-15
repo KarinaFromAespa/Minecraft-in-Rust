@@ -2544,3 +2544,13 @@ Rendering and Window debug lines are gone; chart labels back to
 FPS / FPS + TPS; the 26.3-only debugGuiScale option is removed
 (overlay always at GUI scale). Also removed the now-dead
 TimeMarker::occurs_at (item 429's leftover).
+
+## Rank 3 — bucket B batch 2 (complete): 112/177 (2026-11-15)
+
+446 dispenser: no-change — the honeycomb-wax and mud-tag forms
+are already 26.2 in the Rust; the rest is setBlockAndUpdate vs
+setBlock(...,3) or identical. 447 DeviceInfo: no-change —
+identical apart from the package move. 448 item renderer:
+no-change — the glint math is identical; the pass-structure diff
+is unobservable in the Rust's shader glint, and the shade
+override is None on 26.2 assets.

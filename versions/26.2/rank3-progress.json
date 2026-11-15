@@ -762,6 +762,27 @@
       "bucket": "B",
       "verdict": "ported",
       "evidence": "GameModeCommand + debug entries: PORTED (a) /gamemode: 26.2's setMode/setGameMode call server.setDefaultGameType (worldData.setGameType, no player forcing) for the singleplayer owner; 26.3 dropped it. Added set_default_game_type (lan.rs) and target_is_owner (commands.rs); cmd_gamemode and the debug-key change_game_mode set the default for the owner. (b) FPS line: dropped the 26.3-only @Hz suffix (+ debug_refresh_rate/field, refresh_rate_label). (c) Removed the 26.3-only Terrain Rendering line and the 26.3-only Window system line (the CPU line exists in both). (d) Chart labels back to 26.2's uppercase FPS / FPS + TPS. (e) Removed the 26.3-only debugGuiScale option entirely (overlay always at GUI scale; options default, footer button + cycle fn, scale() option param + tests updated). cargo check --all-targets clean (2 pre-existing warnings only); debug_overlay + debug_options tests pass."
+    },
+    {
+      "id": 446,
+      "module": "crates/horizon-client/src/game/dispenser.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "Dispenser: RespawnAnchor charge is codec + setBlockAndUpdate vs setBlock(...,3); DispenseConfig differs only by Optional<Integer> vs OptionalInt; $7/$8 are setBlockAndUpdate vs setBlock(...,3); $11, ProjectileDispenseBehavior and ShearsDispenseItemBehavior are identical; the mud tag is already the 26.2 spelling convertable_to_mud in the Rust; the honeycomb-wax sound difference is already the 26.2 form in the Rust (level event 3003 only, no explicit play \u2014 comment cites 26.2). The 26.3-only poplar boat registrations have no Rust dispenser surface."
+    },
+    {
+      "id": 447,
+      "module": "crates/horizon-client/src/debug_overlay.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "DeviceInfo: the class is byte-identical in both versions apart from the package move (com.mojang.renderpearl.api.device in 26.3 vs com.mojang.blaze3d.systems in 26.2); the Rust's vendor_name mapping is unaffected."
+    },
+    {
+      "id": 448,
+      "module": "crates/horizon-client/src/item_render.rs",
+      "bucket": "B",
+      "verdict": "no-change",
+      "evidence": "ItemFeatureRenderer/MaterialInfo: the glint math is identical (same SPECIAL_FOIL_TEXTURE_SCALE, same computeFoilDecalPose); the diff is pass structure (26.2's separate foil pass via getFoilBuffer vs 26.3's inline per-material glint render types), which the Rust's shader-based glint (foil UVs on the same quads) does not model either way. MaterialInfo's shadeDirectionOverride (26.3) vs shade boolean (26.2): the Rust parses both keys and 26.2 assets carry only the boolean, so 26.2 behaviour is identical (override always None); the override is honoured only for 26.3-era packs."
     }
   ],
   "triage": "Method-intersection of each item's named methods vs the store diff.json (26.3->26.2): A 90 (zero changed named methods) / B 63 / D 24. Total changed-named hits in B: 182. Triage script + output at ~/workspace/mcir-work/26.2-behaviour/rank3-triage.{py,json}."
