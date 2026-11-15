@@ -132,6 +132,57 @@ fn predicate_fields(id: &str, map: &Compound, t: &Tag, reg: &Registries) -> Resu
     }
 }
 
+/// Slot-source fields: `contents` needs a component holding items,
+/// `slot_range` needs its slots and (in 26.2) its source.
+fn slot_source_fields(id: &str, map: &Compound, t: &Tag, reg: &Registries) -> Result<(), String> {
+    if id == "minecraft:contents" {
+        require(map, t, &["component"])?;
+        let value = get(map, "component").expect("required component");
+        let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
+        let component = parse_identifier(&name)
+            .ok_or_else(|| format!("Not a valid resource location: {name}"))?;
+        let known = reg.ids("minecraft:data_component_type");
+        if !known.is_empty() && !known.contains(&component) {
+            return Err(format!(
+                "Unknown registry key in ResourceKey[minecraft:root / minecraft:data_component_type]: {component}"
+            ));
+        }
+        if !matches!(
+            component.as_str(),
+            "minecraft:container" | "minecraft:bundle_contents" | "minecraft:charged_projectiles"
+        ) {
+            return Err("No items in component".into());
+        }
+    } else if id == "minecraft:slot_range" {
+        // RangeSlotSource.MAP_CODEC uses the global SlotRanges.CODEC,
+        // independently of the eventual target inventory's size. 26.2's
+        // codec requires `source` (`LootContextArg.ENTITY_OR_BLOCK`: an
+        // entity or block-entity target); 26.3 made it optional,
+        // defaulting to the container.
+        require(map, t, &["slots", "source"])?;
+        let source = get(map, "source").expect("required source");
+        let source = as_string(source).ok_or_else(|| "Not a string".to_owned())?;
+        if !matches!(
+            source.as_str(),
+            "this"
+                | "attacker"
+                | "direct_attacker"
+                | "attacking_player"
+                | "target_entity"
+                | "interacting_entity"
+                | "block_entity"
+        ) {
+            return Err(format!("Unknown element id: {source}"));
+        }
+        let value = get(map, "slots").expect("required slots");
+        let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
+        if !slot_ranges().iter().any(|(known, _)| known == &name) {
+            return Err(format!("Unknown element name:{name}"));
+        }
+    }
+    Ok(())
+}
+
 /// Decode an inline value of a ResourceOrIdArgument registry.
 pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
     match registry {
@@ -139,66 +190,33 @@ pub fn decode(registry: &str, t: &Tag, reg: &Registries) -> Result<(), String> {
         // AllOfCondition.INLINE_CODEC) — a single typed condition or a list
         // of them, dispatched on `condition`.
         "minecraft:predicate" => with_alternative(t, &|x| {
-            dispatch(x, reg, "minecraft:loot_condition_type", "condition", &|id, map, t| {
-                predicate_fields(id, map, t, reg)
-            })
+            dispatch(
+                x,
+                reg,
+                "minecraft:loot_condition_type",
+                "condition",
+                &|id, map, t| predicate_fields(id, map, t, reg),
+            )
         }),
         // LootItemFunctions.ROOT_CODEC: withAlternative(TYPED_CODEC,
         // SequenceFunction.INLINE_CODEC), dispatched on `function`.
         "minecraft:item_modifier" => with_alternative(t, &|x| {
-            dispatch(x, reg, "minecraft:loot_function_type", "function", &|_, _, _| Ok(()))
+            dispatch(
+                x,
+                reg,
+                "minecraft:loot_function_type",
+                "function",
+                &|_, _, _| Ok(()),
+            )
         }),
         "minecraft:slot_source" => with_alternative(t, &|x| {
-            dispatch(x, reg, "minecraft:slot_source_type", "type", &|id, map, t| {
-                if id == "minecraft:contents" {
-                    require(map, t, &["component"])?;
-                    let value = get(map, "component").expect("required component");
-                    let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
-                    let component = parse_identifier(&name)
-                        .ok_or_else(|| format!("Not a valid resource location: {name}"))?;
-                    let known = reg.ids("minecraft:data_component_type");
-                    if !known.is_empty() && !known.contains(&component) {
-                        return Err(format!(
-                            "Unknown registry key in ResourceKey[minecraft:root / minecraft:data_component_type]: {component}"
-                        ));
-                    }
-                    if !matches!(
-                        component.as_str(),
-                        "minecraft:container"
-                            | "minecraft:bundle_contents"
-                            | "minecraft:charged_projectiles"
-                    ) {
-                        return Err("No items in component".into());
-                    }
-                } else if id == "minecraft:slot_range" {
-                    // RangeSlotSource.MAP_CODEC uses the global SlotRanges.CODEC,
-                    // independently of the eventual target inventory's size. 26.2's
-                    // codec requires `source` (`LootContextArg.ENTITY_OR_BLOCK`: an
-                    // entity or block-entity target); 26.3 made it optional,
-                    // defaulting to the container.
-                    require(map, t, &["slots", "source"])?;
-                    let source = get(map, "source").expect("required source");
-                    let source = as_string(source).ok_or_else(|| "Not a string".to_owned())?;
-                    if !matches!(
-                        source.as_str(),
-                        "this"
-                            | "attacker"
-                            | "direct_attacker"
-                            | "attacking_player"
-                            | "target_entity"
-                            | "interacting_entity"
-                            | "block_entity"
-                    ) {
-                        return Err(format!("Unknown element id: {source}"));
-                    }
-                    let value = get(map, "slots").expect("required slots");
-                    let name = as_string(value).ok_or_else(|| "Not a string".to_owned())?;
-                    if !slot_ranges().iter().any(|(known, _)| known == &name) {
-                        return Err(format!("Unknown element name:{name}"));
-                    }
-                }
-                Ok(())
-            })
+            dispatch(
+                x,
+                reg,
+                "minecraft:slot_source_type",
+                "type",
+                &|id, map, t| slot_source_fields(id, map, t, reg),
+            )
         }),
         // Dialog types: CommonDialogData's title, then each type's own.
         "minecraft:dialog" => dispatch(t, reg, "minecraft:dialog_type", "type", &|id, map, t| {
@@ -349,8 +367,8 @@ pub fn resource_or_id(reader: &mut Reader, reg: &Registries, registry: &str) -> 
 
 #[cfg(test)]
 mod predicate_tests {
-    use super::*;
     use super::args::RegistryIds;
+    use super::*;
 
     #[test]
     fn inline_constant_combinators_require_decodable_children() {
@@ -421,7 +439,10 @@ mod predicate_tests {
             ))
         );
         assert_eq!(
-            decode_text("minecraft:predicate", r#"{type:"minecraft:chest",pools:[]}"#),
+            decode_text(
+                "minecraft:predicate",
+                r#"{type:"minecraft:chest",pools:[]}"#
+            ),
             Err(either(
                 r#"No key condition in MapLike[{pools:[],type:"minecraft:chest"}]"#.into(),
                 r#"Not a list: {pools:[],type:"minecraft:chest"}"#.into(),
@@ -434,11 +455,13 @@ mod predicate_tests {
                 "Not a list: {}".into(),
             ))
         );
-        assert!(decode_text(
-            "minecraft:item_modifier",
-            r#"{"function":"minecraft:set_count","count":1}"#
-        )
-        .is_ok());
+        assert!(
+            decode_text(
+                "minecraft:item_modifier",
+                r#"{"function":"minecraft:set_count","count":1}"#
+            )
+            .is_ok()
+        );
         assert_eq!(
             decode_text("minecraft:item_modifier", r#"{"function":"nope"}"#),
             Err(either(
