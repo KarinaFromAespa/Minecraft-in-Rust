@@ -3280,3 +3280,13 @@ command_exec: the cushion fix is verified — the abort moved past the
 `Java fixture control failed: /execute if predicate effect_view:always:
 []` (corpus tools/mob_effect_predicate_corpus.py). Fixture-side, for
 the harness/behaviour work, not the save work.
+
+## CI run 43719972622 dispatched on main (2026-11-15)
+
+Run 43719972622 dispatched on main@e3e2b8d0 — the first run to measure
+the merged save fixes (v6.7 launch fix + palette/entity-state map-form
+fix + heightmap/DespawnDelay harness rules + version_history
+preservation + tag check report-only). Expect save_roundtrip to pass
+(it passes locally with 0 unexplained differences) and command_exec to
+reach real comparisons; D5 should now judge a real verdict (it fails
+honestly until datafix and the rest of the E7 eight are green).
