@@ -16,7 +16,7 @@ use crate::hud::{HudAtlas, HudBatch, rgba};
 use crate::text::Text;
 use client::{
     Backup, InviteCode, PendingInviteDto, PlayerInfo, RealmAddress, RealmServer, RealmSetting,
-    RealmSlot, RealmTierConfiguration, RealmTierRange, RealmWorldOptions, RealmsClient,
+    RealmSlot, RealmWorldOptions, RealmsClient,
     RealmsError, RealmsNotification, RegionDataDto, RegionSelectionPreferenceDto, Subscription,
     WorldDownload, WorldTemplate, WorldTemplateList,
 };
@@ -262,10 +262,6 @@ pub struct SettingsDraft {
     pub region: Option<String>,
     /// The field with the caret: the name (false) or the description (true).
     pub on_description: bool,
-    /// The picked distances, once the tier configuration arrived
-    /// (`RealmsSettingsTab`'s two `OptionInstance`s; none while it hasn't).
-    pub render_distance: Option<i32>,
-    pub simulation_distance: Option<i32>,
 }
 
 impl SettingsDraft {
@@ -287,8 +283,6 @@ impl SettingsDraft {
             preference,
             region,
             on_description: false,
-            render_distance: None,
-            simulation_distance: None,
         }
     }
     /// The preference as `RegionSelectionPreferenceDto`: the region only for `MANUAL`.
@@ -301,12 +295,6 @@ impl SettingsDraft {
                 .filter(|_| self.preference == client::MANUAL),
         }
     }
-}
-
-/// `RealmsSettingsTab.save`'s `updatedRenderDistance`/`updatedSimulationDistance`: a distance
-/// is sent only when the player changed it and the tier answer lets the service configure it.
-fn changed_distance(picked: Option<i32>, range: Option<&RealmTierRange>) -> Option<i32> {
-    picked.filter(|picked| range.is_some_and(|range| *picked != range.current_or_default()))
 }
 
 /// `RealmsServer.shouldPlayButtonBeActive`: open and unexpired, and this client can play
@@ -429,20 +417,13 @@ const SETTINGS_REGION_ROW_HEIGHT: f32 = SETTINGS_LABEL_HEIGHT
     + 2.0 * SETTINGS_CELL_PADDING;
 
 /// `RealmsSettingsTab`'s row tops relative to the column's own top — name, description,
-/// render distance, simulation distance, region, toggle — and the column's height. The
-/// two distance rows exist only once the tier answer is there (`createDistanceOption`).
-fn settings_rows(with_tier: bool) -> ([f32; 6], f32) {
+/// region, toggle — and the column's height. 26.2 has no distance rows (those are
+/// 26.3's `createDistanceOption`): rows 2 and 3 stay 0 and are never used.
+fn settings_rows() -> ([f32; 6], f32) {
     let mut rows = [0.0; 6];
     rows[1] = SETTINGS_ROW_HEIGHT;
-    if with_tier {
-        rows[2] = 2.0 * SETTINGS_ROW_HEIGHT;
-        rows[3] = 3.0 * SETTINGS_ROW_HEIGHT;
-        rows[4] = 4.0 * SETTINGS_ROW_HEIGHT;
-        rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
-    } else {
-        rows[4] = 2.0 * SETTINGS_ROW_HEIGHT;
-        rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
-    }
+    rows[4] = 2.0 * SETTINGS_ROW_HEIGHT;
+    rows[5] = rows[4] + SETTINGS_REGION_ROW_HEIGHT;
     (
         rows,
         rows[5] + SETTINGS_WIDGET_HEIGHT + 2.0 * SETTINGS_CELL_PADDING,
@@ -471,8 +452,6 @@ fn configure_screen(server: RealmServer, tab: ConfigureTab) -> SubScreen {
         member_job: None,
         settings: None,
         players_scroll: crate::ui::Scroll::default(),
-        tier: None,
-        tier_job: None,
         regions: None,
         regions_job: None,
         saving: None,
@@ -907,7 +886,6 @@ pub enum Popup {
         server: RealmServer,
         settings: SettingsDraft,
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
     },
     /// `ConfirmLinkScreen.confirmLink`: a website the screen would open, asked first. The
     /// parent is the screen the answer returns to (`ConfirmLinkScreen`'s `parentScreen`).
@@ -1117,11 +1095,6 @@ pub enum SubScreen {
         settings: Option<SettingsDraft>,
         /// The players tab's list scroll (`InvitedObjectSelectionList`).
         players_scroll: crate::ui::Scroll,
-        /// `RealmsClient.getRealmTierConfiguration`, then its answer: the settings tab's
-        /// distance sliders (`tierConfigurationFetched` keeps it to one fetch).
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
-        tier_job: Option<Job<Result<RealmTierConfiguration, RealmsError>>>,
-        /// `RealmsClient.preferredRegions` for the region preference screen.
         regions: Option<Result<Vec<RegionDataDto>, RealmsError>>,
         regions_job: Option<Job<Result<Vec<RegionDataDto>, RealmsError>>>,
         /// `RealmsClient.updateConfiguration` on a worker.
@@ -1155,7 +1128,6 @@ pub enum SubScreen {
         scroll: crate::ui::Scroll,
         /// The settings tab's data, carried back so its save can run at once.
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
     },
     /// `RealmsInviteCodesScreen`: the Realm's shareable codes.
     InviteCodes {
@@ -1361,12 +1333,6 @@ pub struct Screen {
     players_button_rects: std::cell::RefCell<Vec<([f32; 4], u8)>>,
     /// `RealmsBackupScreen.Entry`'s Changes/Restore buttons as last drawn.
     backup_row_buttons: std::cell::RefCell<Vec<([f32; 4], u8)>>,
-    /// The settings tab's `ScrollableLayout`: the column is taller than the tab area on
-    /// short windows (vanilla scrolls it).
-    settings_scroll: crate::ui::Scroll,
-    /// The settings tab's held distance slider (`AbstractSliderButton.dragging`): 0 for
-    /// render distance, 1 for simulation distance.
-    settings_slider: Option<usize>,
     /// The other held sliders: 1 the slot options' spawn protection, 2 the edit-code
     /// expiration.
     other_slider: Option<u8>,
@@ -1693,8 +1659,6 @@ impl Screen {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
@@ -2236,8 +2200,6 @@ impl Screen {
                 deleting,
                 member_job,
                 settings,
-                tier,
-                tier_job,
                 regions,
                 regions_job,
                 saving,
@@ -2278,30 +2240,6 @@ impl Screen {
                     }
                     *detail = Some(result);
                 }
-                if let Some(result) = tier_job.as_ref().and_then(take) {
-                    *tier_job = None;
-                    // The tab's sliders take the ranges as they arrived; a draft opened
-                    // before the answer gets its initial values now. `fetchTierConfiguration`'s
-                    // failure replaces the screen.
-                    if let Err(e) = &result {
-                        fetch_error = Some(e.clone());
-                    }
-                    if let Ok(config) = result.as_ref()
-                        && let Some(draft) = settings.as_mut()
-                        && draft.render_distance.is_none()
-                        && draft.simulation_distance.is_none()
-                    {
-                        draft.render_distance = config
-                            .render_distance
-                            .as_ref()
-                            .map(RealmTierRange::current_or_default);
-                        draft.simulation_distance = config
-                            .sim_distance
-                            .as_ref()
-                            .map(RealmTierRange::current_or_default);
-                    }
-                    *tier = Some(result);
-                }
                 if let Some(result) = member_job.as_ref().and_then(take) {
                     *member_job = None;
                     match result {
@@ -2329,25 +2267,12 @@ impl Screen {
                 if let Some(result) = saving.as_ref().and_then(take) {
                     *saving = None;
                     match result {
-                        // `saveSettings` updates the screen's own copy and reads again; the
-                        // saved distances are the tier's new current ones.
+                        // `saveSettings` updates the screen's own copy and reads again.
                         Ok(()) => {
                             if let Some(draft) = settings.as_ref() {
                                 server.name = draft.name.trim().to_owned();
                                 server.motd = draft.description.clone();
                                 server.region_selection_preference = Some(draft.preference_dto());
-                                if let Some(Ok(config)) = tier.as_mut() {
-                                    let update = |range: &mut Option<RealmTierRange>,
-                                                  picked: Option<i32>| {
-                                        if let (Some(range), Some(picked)) =
-                                            (range.as_mut(), picked)
-                                        {
-                                            range.current = Some(picked);
-                                        }
-                                    };
-                                    update(&mut config.render_distance, draft.render_distance);
-                                    update(&mut config.sim_distance, draft.simulation_distance);
-                                }
                             }
                             refetch_detail = true;
                             settings_saved = true;
@@ -2399,8 +2324,6 @@ impl Screen {
                                 member_job: None,
                                 settings: None,
                                 players_scroll: crate::ui::Scroll::default(),
-                                tier: None,
-                                tier_job: None,
                                 regions: None,
                                 regions_job: None,
                                 saving: None,
@@ -2959,22 +2882,18 @@ impl Screen {
             SubScreen::Configure {
                 tab: ConfigureTab::Settings,
                 settings: Some(draft),
-                tier,
                 ..
             } => {
                 let left = (w / 2.0).floor() - 106.0;
-                let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                let (rows, content_h) = settings_rows();
                 let top = settings_column_top(h, content_h);
-                let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                let scroll = self.settings_scroll.amount.min(max_scroll);
                 let row = usize::from(draft.on_description);
                 Some([
                     left,
                     top + rows[row]
                         + SETTINGS_CELL_PADDING
                         + SETTINGS_LABEL_HEIGHT
-                        + SETTINGS_LABEL_SPACING
-                        - scroll,
+                        + SETTINGS_LABEL_SPACING,
                     212.0,
                     20.0,
                 ])
@@ -3086,7 +3005,6 @@ impl Screen {
             server,
             tab,
             settings,
-            tier,
             ..
         } = &mut self.subscreen
             && wanted.enabled(server.expired)
@@ -3094,17 +3012,7 @@ impl Screen {
             // `RealmsConfigurationTab.onSelected` → `RealmsSettingsTab.updateData`: every
             // selection refills the draft from the service's Realm, not the stale one.
             if wanted == ConfigureTab::Settings {
-                let mut draft = SettingsDraft::of(server);
-                if let Some(Ok(config)) = tier.as_ref() {
-                    draft.render_distance = config
-                        .render_distance
-                        .as_ref()
-                        .map(RealmTierRange::current_or_default);
-                    draft.simulation_distance = config
-                        .sim_distance
-                        .as_ref()
-                        .map(RealmTierRange::current_or_default);
-                }
+                let draft = SettingsDraft::of(server);
                 *settings = Some(draft);
             }
             *tab = wanted;
@@ -3113,21 +3021,9 @@ impl Screen {
         Some(false)
     }
 
-    /// `AbstractSliderButton.onDrag`: the settings tab's held distance slider follows the
-    /// pointer while the button stays down.
-    pub fn drag(&mut self, cursor: (f32, f32), (w, h): (f32, f32)) {
-        // `ScrollableLayout`'s held scrollbar (the settings tab's column).
-        if self.settings_scroll.held()
-            && let SubScreen::Configure {
-                tab: ConfigureTab::Settings,
-                tier,
-                ..
-            } = &self.subscreen
-        {
-            let content = settings_rows(matches!(tier, Some(Ok(_)))).1;
-            self.settings_scroll.drag(cursor.1, 24.0, h - 33.0, content);
-            return;
-        }
+    /// `AbstractSliderButton.onDrag`: a held slider follows the pointer while the
+    /// button stays down.
+    pub fn drag(&mut self, cursor: (f32, f32), (w, _h): (f32, f32)) {
         if let Some(slider) = self.other_slider {
             match slider {
                 // `RealmsSlotOptionsScreen.SettingsSlider`: 0..16 with step 1.
@@ -3162,42 +3058,12 @@ impl Screen {
             }
             return;
         }
-        let Some(which) = self.settings_slider else {
-            return;
-        };
-        let SubScreen::Configure {
-            tab: ConfigureTab::Settings,
-            settings: Some(draft),
-            tier,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        let Some(Ok(config)) = tier.as_ref() else {
-            return;
-        };
-        let range = match which {
-            0 => config.render_distance.as_ref(),
-            _ => config.sim_distance.as_ref(),
-        };
-        let Some(range) = range else {
-            return;
-        };
-        let left = (w / 2.0).floor() - 106.0;
-        let value = range.from_slider(crate::ui::slider_value(left, 212.0, cursor.0));
-        if which == 0 {
-            draft.render_distance = Some(value);
-        } else {
-            draft.simulation_distance = Some(value);
-        }
     }
+
 
     /// `AbstractSliderButton.onRelease`.
     pub fn release(&mut self) {
-        self.settings_slider = None;
         self.other_slider = None;
-        self.settings_scroll.release();
     }
 
     /// Escape: a sub-screen goes back to the list (cancelling a join); the list goes back to
@@ -3233,16 +3099,14 @@ impl Screen {
             server,
             settings,
             detail,
-            tier,
         }) = &self.subscreen
         {
-            let (server, settings, detail, tier) = (
+        let (server, settings, detail) = (
                 server.clone(),
                 settings.clone(),
                 detail.clone(),
-                tier.clone(),
             );
-            self.back_to_settings(server, settings, detail, tier);
+            self.back_to_settings(server, settings, detail);
             return false;
         }
         // The restore question's Escape is its Cancel: the list reads again.
@@ -3532,29 +3396,7 @@ impl Screen {
             let id = server.id;
             *detail_job = Some(spawn(move || client.get_own_realm(id)));
         }
-        self.start_configure_tier();
         self.start_configure_regions();
-    }
-
-    /// `RealmsConfigureWorldScreen.init`'s `fetchTierConfiguration`: asked again on every
-    /// entry until it answered (`tierConfigurationFetched`).
-    fn start_configure_tier(&mut self) {
-        let SubScreen::Configure {
-            server,
-            tier,
-            tier_job,
-            ..
-        } = &mut self.subscreen
-        else {
-            return;
-        };
-        if tier.is_some() || tier_job.is_some() {
-            return;
-        }
-        if let Some(client) = client() {
-            let id = server.id;
-            *tier_job = Some(spawn(move || client.get_tier_configuration(id)));
-        }
     }
 
     /// `RealmsConfigureWorldScreen.init`'s `fetchRegionData`: the settings tab's region
@@ -3620,7 +3462,6 @@ impl Screen {
         server: RealmServer,
         settings: SettingsDraft,
         detail: Option<Result<RealmServer, RealmsError>>,
-        tier: Option<Result<RealmTierConfiguration, RealmsError>>,
     ) {
         self.subscreen = SubScreen::Configure {
             server,
@@ -3631,8 +3472,6 @@ impl Screen {
             detail_job: None,
             deleting: None,
             member_job: None,
-            tier,
-            tier_job: None,
             settings: Some(settings),
             players_scroll: crate::ui::Scroll::default(),
             regions: None,
@@ -3646,8 +3485,8 @@ impl Screen {
     }
 
     /// `RealmsSettingsTab.onDeselected` → `RealmsConfigureWorldScreen.saveSettings`: the name,
-    /// description and region preference through `RealmsClient.updateConfiguration`, and a
-    /// changed distance through its own PUT — each only when it differs from what the service
+    /// description and region preference through `RealmsClient.updateConfiguration`,
+    /// only when it differs from what the service has.
     /// has.
     /// Whether a save request went out: the buttons that must wait for it
     /// (`Play`, the open/close toggle) continue immediately when nothing changed.
@@ -3657,7 +3496,6 @@ impl Screen {
             server,
             detail,
             settings: Some(draft),
-            tier,
             saving,
             ..
         } = &mut self.subscreen
@@ -3674,14 +3512,7 @@ impl Screen {
         );
         let configuration_changed =
             draft.name.trim() != server.name || draft.description != server.motd || region_changed;
-        let (render_distance, sim_distance) = match tier.as_ref() {
-            Some(Ok(config)) => (
-                changed_distance(draft.render_distance, config.render_distance.as_ref()),
-                changed_distance(draft.simulation_distance, config.sim_distance.as_ref()),
-            ),
-            _ => (None, None),
-        };
-        if !configuration_changed && render_distance.is_none() && sim_distance.is_none() {
+        if !configuration_changed {
             return false;
         }
         let Some(Ok(detail)) = detail else {
@@ -3701,12 +3532,6 @@ impl Screen {
         *saving = Some(spawn(move || {
             if configuration_changed {
                 client.update_configuration(id, &name, &description, &wanted, &slot)?;
-            }
-            if let Some(render_distance) = render_distance {
-                client.update_render_distance(id, render_distance)?;
-            }
-            if let Some(simulation_distance) = sim_distance {
-                client.update_simulation_distance(id, simulation_distance)?;
             }
             Ok(())
         }));
@@ -3759,7 +3584,6 @@ impl Screen {
             settings: Some(draft),
             regions: Some(Ok(list)),
             detail,
-            tier,
             ..
         } = &self.subscreen
         else {
@@ -3774,7 +3598,6 @@ impl Screen {
             selected,
             scroll: crate::ui::Scroll::default(),
             detail: detail.clone(),
-            tier: tier.clone(),
         };
     }
 
@@ -3795,8 +3618,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4133,8 +3954,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4162,8 +3981,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4188,8 +4005,6 @@ impl Screen {
             member_job: None,
             settings: None,
             players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
             regions: None,
             regions_job: None,
             saving: None,
@@ -4623,8 +4438,6 @@ impl Screen {
                         member_job: None,
                         settings: None,
                         players_scroll: crate::ui::Scroll::default(),
-                        tier: None,
-                        tier_job: None,
                         regions: None,
                         regions_job: None,
                         saving: None,
@@ -4717,17 +4530,15 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     }) => Some((
                         server.clone(),
                         settings.clone(),
                         detail.clone(),
-                        tier.clone(),
                     )),
                     _ => None,
                 };
-                if let Some((server, settings, detail, tier)) = close_world {
-                    self.back_to_settings(server, settings, detail, tier);
+                if let Some((server, settings, detail)) = close_world {
+                    self.back_to_settings(server, settings, detail);
                     return Outcome::None;
                 }
                 let server = match &self.subscreen {
@@ -4757,12 +4568,11 @@ impl Screen {
                         tab: ConfigureTab::Settings,
                         settings: Some(draft),
                         detail,
-                        tier,
                         ..
-                    } => Some((server.clone(), draft.clone(), detail.clone(), tier.clone())),
+                    } => Some((server.clone(), draft.clone(), detail.clone())),
                     _ => None,
                 };
-                let Some((server, settings, detail, tier)) = state else {
+                let Some((server, settings, detail)) = state else {
                     return Outcome::None;
                 };
                 if server.is_open() {
@@ -4770,7 +4580,6 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     });
                 } else {
                     return self.save_then(AfterSave::Open(server.id));
@@ -5315,7 +5124,6 @@ impl Screen {
                     settings,
                     selected,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
                     && let Some((preference, region)) = selected
@@ -5324,7 +5132,7 @@ impl Screen {
                     let mut settings = settings.clone();
                     settings.preference = *preference;
                     settings.region = region.clone();
-                    self.back_to_settings(server, settings, detail.clone(), tier.clone());
+                    self.back_to_settings(server, settings, detail.clone());
                 }
                 Outcome::None
             }
@@ -5333,13 +5141,12 @@ impl Screen {
                     server,
                     settings,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
                 {
                     let server = server.clone();
                     let settings = settings.clone();
-                    self.back_to_settings(server, settings, detail.clone(), tier.clone());
+                    self.back_to_settings(server, settings, detail.clone());
                 }
                 Outcome::None
             }
@@ -5350,7 +5157,6 @@ impl Screen {
                     settings: Some(draft),
                     regions,
                     detail,
-                    tier,
                     ..
                 } = &self.subscreen
                 {
@@ -5372,7 +5178,6 @@ impl Screen {
                                 selected,
                                 scroll: crate::ui::Scroll::default(),
                                 detail: detail.clone(),
-                                tier: tier.clone(),
                             };
                         }
                     } else if matches!(self.subscreen, SubScreen::Configure { .. }) {
@@ -5812,7 +5617,6 @@ impl Screen {
                         server,
                         tab,
                         settings,
-                        tier,
                         ..
                     } = &mut self.subscreen
                         && let Some(wanted) = ConfigureTab::ALL.get(index)
@@ -5821,17 +5625,7 @@ impl Screen {
                         // `onSelected` → `updateData`: the tab refills its fields from
                         // the Realm each time it is opened, discarding a stale draft.
                         if *wanted == ConfigureTab::Settings {
-                            let mut draft = SettingsDraft::of(server);
-                            if let Some(Ok(config)) = tier.as_ref() {
-                                draft.render_distance = config
-                                    .render_distance
-                                    .as_ref()
-                                    .map(RealmTierRange::current_or_default);
-                                draft.simulation_distance = config
-                                    .sim_distance
-                                    .as_ref()
-                                    .map(RealmTierRange::current_or_default);
-                            }
+                            let draft = SettingsDraft::of(server);
                             *settings = Some(draft);
                         }
                         *tab = *wanted;
@@ -5839,33 +5633,20 @@ impl Screen {
                     return Outcome::None;
                 }
                 // RealmsSettingsTab's two fields: the click moves the caret between them.
-                // The two distance sliders: a press on the track starts
-                // `AbstractSliderButton`'s drag and snaps the value into the range.
                 if let SubScreen::Configure {
                     tab: ConfigureTab::Settings,
                     settings: Some(draft),
-                    tier,
                     ..
                 } = &mut self.subscreen
                 {
-                    let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                    let (rows, content_h) = settings_rows();
                     let top = settings_column_top(h, content_h);
-                    let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                    let scroll = self.settings_scroll.amount.min(max_scroll);
                     let left = (w / 2.0).floor() - 106.0;
-                    // `ScrollableLayout`'s scrollbar (4 past the 212-wide column, 6 wide).
-                    if self
-                        .settings_scroll
-                        .press((x, y), left + 224.0, 24.0, h - 33.0, content_h)
-                    {
-                        return Outcome::None;
-                    }
                     let widget_y = |row: usize| {
                         top + rows[row]
                             + SETTINGS_CELL_PADDING
                             + SETTINGS_LABEL_HEIGHT
                             + SETTINGS_LABEL_SPACING
-                            - scroll
                     };
                     if (left..left + 212.0).contains(&x) {
                         if (widget_y(0)..widget_y(0) + 20.0).contains(&y) {
@@ -5875,34 +5656,6 @@ impl Screen {
                         if (widget_y(1)..widget_y(1) + 20.0).contains(&y) {
                             draft.on_description = true;
                             return Outcome::None;
-                        }
-                    }
-                    if let Some(Ok(config)) = tier.as_ref() {
-                        // `OptionInstance`'s slider: the value snaps into the range.
-                        let bands = [
-                            (
-                                config.render_distance.as_ref(),
-                                widget_y(2),
-                                &mut draft.render_distance,
-                            ),
-                            (
-                                config.sim_distance.as_ref(),
-                                widget_y(3),
-                                &mut draft.simulation_distance,
-                            ),
-                        ];
-                        for (which, (range, slider_y, picked)) in bands.into_iter().enumerate() {
-                            let (Some(range), Some(picked)) = (range, picked) else {
-                                continue;
-                            };
-                            if (slider_y..slider_y + 20.0).contains(&y)
-                                && (left..left + 212.0).contains(&x)
-                            {
-                                *picked =
-                                    range.from_slider(crate::ui::slider_value(left, 212.0, x));
-                                self.settings_slider = Some(which);
-                                return Outcome::None;
-                            }
                         }
                     }
                 }
@@ -6250,7 +6003,6 @@ impl Screen {
             server,
             settings,
             detail,
-            tier,
         } = &popup
         {
             let id = server.id;
@@ -6258,7 +6010,6 @@ impl Screen {
                 server.clone(),
                 settings.clone(),
                 detail.clone(),
-                tier.clone(),
             );
             return self.save_then(AfterSave::Close(id));
         }
@@ -6306,8 +6057,6 @@ impl Screen {
                     member_job: Some(spawn(move || client.switch_slot(id, slot).map(drop))),
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6342,8 +6091,6 @@ impl Screen {
                     member_job: Some(spawn(move || client.uninvite_player(id, &uuid))),
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6373,8 +6120,6 @@ impl Screen {
                     member_job: None,
                     settings: None,
                     players_scroll: crate::ui::Scroll::default(),
-                    tier: None,
-                    tier_job: None,
                     regions: None,
                     regions_job: None,
                     saving: None,
@@ -6738,22 +6483,6 @@ impl Screen {
     /// `AbstractScrollArea.mouseScrolled` over the product page's list, the template and
     /// upload lists.
     pub fn wheel(&mut self, delta: f32, cursor: (f32, f32), (_, h): (f32, f32)) {
-        // `RealmsSettingsTab`'s `ScrollableLayout`: the column scrolls when it is taller
-        // than the tab area (`setMaxHeight(getContentHeight())`).
-        if let SubScreen::Configure {
-            tab: ConfigureTab::Settings,
-            tier,
-            ..
-        } = &self.subscreen
-        {
-            let content = settings_rows(matches!(tier, Some(Ok(_)))).1;
-            let (top, bottom) = (24.0, h - 33.0);
-            if cursor.1 >= top && cursor.1 < bottom {
-                self.settings_scroll
-                    .wheel(delta, 10.0, top, bottom, content);
-            }
-            return;
-        }
         // `ObjectSelectionList` scrolls: the server list and the pending invites too.
         let scrolled = match &self.subscreen {
             SubScreen::Main => {
@@ -6934,7 +6663,6 @@ impl Screen {
                 tab,
                 subscription,
                 detail,
-                tier,
                 deleting,
                 job,
                 ..
@@ -6952,51 +6680,40 @@ impl Screen {
                 buttons.push((cx + 4.0, h - 27.0, 150.0, t("gui.back"), true, 32, None));
                 // RealmsSettingsTab: the region preference and the open/close toggle
                 // (vanilla keeps the toggle on this tab), at the row tops the tab's
-                // padded column gives them. Both live inside the `ScrollableLayout`, whose
-                // scissor hides them outside its view; a widget that is only partly in the
-                // view is not offered either, since the button list cannot clip a sprite.
+                // padded column gives them.
                 if *tab == ConfigureTab::Settings {
-                    let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                    let (rows, content_h) = settings_rows();
                     let top = settings_column_top(h, content_h);
-                    let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-                    let scroll = self.settings_scroll.amount.min(max_scroll);
-                    let row_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
-                    let (view_top, view_bottom) = (24.0, h - 33.0);
-                    let visible =
-                        |y: f32| y >= view_top && y + SETTINGS_WIDGET_HEIGHT <= view_bottom;
+                    let row_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
                     // The region cell's label, its 13-offset line, then the button 9
                     // under the line.
                     let region_y = row_y(4)
                         + SETTINGS_LABEL_HEIGHT
                         + SETTINGS_LABEL_SPACING
                         + SETTINGS_LABEL_HEIGHT;
-                    if visible(region_y) {
-                        buttons.push((
-                            cx - 106.0,
-                            region_y,
-                            212.0,
-                            t("mco.configure.world.buttons.region_preference"),
-                            true,
-                            89,
-                            None,
-                        ));
-                    }
+                    buttons.push((
+                        cx - 106.0,
+                        region_y,
+                        212.0,
+                        t("mco.configure.world.buttons.region_preference"),
+                        true,
+                        89,
+                        None,
+                    ));
                     let toggle = if server.is_open() {
                         t("mco.configure.world.buttons.close")
                     } else {
                         t("mco.configure.world.buttons.open")
                     };
-                    if visible(row_y(5)) {
-                        buttons.push((
-                            cx - 106.0,
-                            row_y(5),
-                            212.0,
-                            toggle,
-                            job.is_none(),
-                            30,
-                            None,
-                        ));
-                    }
+                    buttons.push((
+                        cx - 106.0,
+                        row_y(5),
+                        212.0,
+                        toggle,
+                        job.is_none(),
+                        30,
+                        None,
+                    ));
                 }
                 // RealmsSubscriptionTab's own two buttons, where the draw centred the
                 // column (Extend, then a 2px spacer over Delete).
@@ -8354,7 +8071,6 @@ impl Screen {
                 detail,
                 settings,
                 players_scroll,
-                tier,
                 regions,
                 saving,
                 deleting,
@@ -8893,21 +8609,15 @@ impl Screen {
                         Some(draft) => {
                             // `RealmsSettingsTab`: its `GridLayout` pads every cell by 8,
                             // so the rows are 49 apart (the region cell 58), and the whole
-                            // column is centred at 1/6 of the tab area's leftover height
-                            // inside a `ScrollableLayout` that scrolls a short window.
-                            let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+                            // column is centred at 1/6 of the tab area's leftover height.
+                            let (rows, content_h) = settings_rows();
                             let top = settings_column_top(h, content_h);
-                            let view_top = 24.0;
-                            let view_bottom = h - 33.0;
-                            let max_scroll = (content_h - (view_bottom - view_top)).max(0.0);
-                            let scroll = self.settings_scroll.amount.min(max_scroll);
                             let left = cx - 106.0;
                             let label_y =
-                                |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
+                                |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
                             let widget_y = |row: usize| {
                                 label_y(row) + SETTINGS_LABEL_HEIGHT + SETTINGS_LABEL_SPACING
                             };
-                            let first = batch.vertices.len();
                             // `isRealmNameValid`: an empty or space-padded name turns the
                             // field red and carries the validation tooltip.
                             let name_ok = realm_name_valid(&draft.name);
@@ -8947,60 +8657,6 @@ impl Screen {
                                 draft.on_description,
                                 focused_at,
                             );
-                            if let Some(Ok(config)) = tier.as_ref() {
-                                // `createDistanceOption`: a slider over the range, its value
-                                // as `options.chunks`, under its caption. The button's
-                                // `cachedConstantTooltip` is drawn by `draw_tooltip`, after
-                                // the scrollbar and every other widget.
-                                for (row, range, picked, label_key) in [
-                                    (
-                                        2,
-                                        config.render_distance.as_ref(),
-                                        draft.render_distance,
-                                        "mco.configure.world.renderDistance",
-                                    ),
-                                    (
-                                        3,
-                                        config.sim_distance.as_ref(),
-                                        draft.simulation_distance,
-                                        "mco.configure.world.simulationDistance",
-                                    ),
-                                ] {
-                                    let Some((range, picked)) = range.zip(picked) else {
-                                        continue;
-                                    };
-                                    let value = (picked - range.min) as f32
-                                        / (range.max - range.min) as f32;
-                                    // `CommonLayouts.labeledElement`: the caption above, the
-                                    // button showing the value alone (`options.chunks`).
-                                    batch.text(
-                                        atlas,
-                                        &t(label_key),
-                                        left,
-                                        label_y(row),
-                                        GREY,
-                                        true,
-                                    );
-                                    let text = crate::lang::tr(
-                                        "options.chunks",
-                                        &[&picked as &dyn std::fmt::Display],
-                                    );
-                                    let y = widget_y(row);
-                                    let hover = crate::ui::hovered(cursor, left, y, 212.0, 20.0);
-                                    crate::ui::slider(
-                                        batch,
-                                        atlas,
-                                        left,
-                                        y,
-                                        212.0,
-                                        &Text::literal(&text),
-                                        value.clamp(0.0, 1.0),
-                                        hover,
-                                        saving.is_none(),
-                                        false,
-                                    );
-                                }
-                            }
                             // `getTranslatableFromPreference`: the chosen region (or the
                             // automatic mode) in grey; a manual choice shows its
                             // `ServiceQuality` icon 10x8 at the line's end (`202` into the
@@ -9051,22 +8707,8 @@ impl Screen {
                                     atlas,
                                     &t("mco.configure.world.loading"),
                                     cx,
-                                    view_bottom - 12.0,
+                                    h - 33.0 - 12.0,
                                     u32::MAX,
-                                );
-                            }
-                            batch.clip_since(first, 0.0, view_top, w, view_bottom);
-                            // `ScrollableLayout`'s scrollbar sits 4 past the 212-wide
-                            // content (the container reserves 4 + a 6-wide bar).
-                            if content_h > view_bottom - view_top {
-                                crate::ui::scrollbar(
-                                    batch,
-                                    atlas,
-                                    left + 224.0,
-                                    view_top,
-                                    view_bottom,
-                                    content_h,
-                                    scroll,
                                 );
                             }
                         }
@@ -9732,7 +9374,6 @@ impl Screen {
                         server,
                         settings,
                         detail,
-                        tier,
                     } => Some(SubScreen::Configure {
                         server: server.clone(),
                         tab: ConfigureTab::Settings,
@@ -9744,8 +9385,6 @@ impl Screen {
                         member_job: None,
                         settings: Some(settings.clone()),
                         players_scroll: crate::ui::Scroll::default(),
-                        tier: tier.clone(),
-                        tier_job: None,
                         regions: None,
                         regions_job: None,
                         saving: None,
@@ -11153,14 +10792,12 @@ impl Screen {
                 );
             }
         }
-        // `RealmsSettingsTab`'s widget tooltips (`nameEdit.setTooltip`, the distance
-        // options' `cachedConstantTooltip`) and `setTabTooltip(3, ...)`: drawn last, so
-        // the scrollbar and the widgets cannot cover them.
+        // `RealmsSettingsTab`'s widget tooltips (`nameEdit.setTooltip`) and
+        // `setTabTooltip(3, ...)`: drawn last, so the widgets cannot cover them.
         if let SubScreen::Configure {
             server,
             tab: ConfigureTab::Settings,
             settings: Some(draft),
-            tier,
             ..
         } = &self.subscreen
         {
@@ -11175,20 +10812,14 @@ impl Screen {
                     cursor,
                 );
             }
-            let (rows, content_h) = settings_rows(matches!(tier, Some(Ok(_))));
+            let (rows, content_h) = settings_rows();
             let top = settings_column_top(h, content_h);
-            let max_scroll = (content_h - (h - 24.0 - 33.0)).max(0.0);
-            let scroll = self.settings_scroll.amount.min(max_scroll);
             let left = (w / 2.0).floor() - 106.0;
-            let label_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING - scroll;
+            let label_y = |row: usize| top + rows[row] + SETTINGS_CELL_PADDING;
             let widget_y =
                 |row: usize| label_y(row) + SETTINGS_LABEL_HEIGHT + SETTINGS_LABEL_SPACING;
-            // The `ScrollableLayout` scissor hides a widget outside the view.
-            let (view_top, view_bottom) = (24.0, h - 33.0);
-            let visible = |y: f32| y >= view_top && y + SETTINGS_WIDGET_HEIGHT <= view_bottom;
             let name_y = widget_y(0);
             if !realm_name_valid(&draft.name)
-                && visible(name_y)
                 && crate::ui::hovered(cursor, left, name_y, 212.0, SETTINGS_WIDGET_HEIGHT)
             {
                 crate::ui::tooltip(
@@ -11200,32 +10831,6 @@ impl Screen {
                     )],
                     cursor,
                 );
-            } else if let Some(Ok(config)) = tier.as_ref() {
-                for (row, range, picked, key) in [
-                    (
-                        2,
-                        config.render_distance.as_ref(),
-                        draft.render_distance,
-                        "mco.configure.world.renderDistance.tooltip",
-                    ),
-                    (
-                        3,
-                        config.sim_distance.as_ref(),
-                        draft.simulation_distance,
-                        "mco.configure.world.simulationDistance.tooltip",
-                    ),
-                ] {
-                    if range.is_none() || picked.is_none() {
-                        continue;
-                    }
-                    let y = widget_y(row);
-                    if visible(y)
-                        && crate::ui::hovered(cursor, left, y, 212.0, SETTINGS_WIDGET_HEIGHT)
-                    {
-                        crate::ui::tooltip(batch, atlas, &[Text::translate(key, &[])], cursor);
-                        break;
-                    }
-                }
             }
         }
         // The list's own tooltips only on the list: another screen's widgets may sit over
@@ -11415,8 +11020,6 @@ mod tests {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
@@ -11747,42 +11350,6 @@ mod tests {
         assert_eq!((bare.preference, bare.region), (1, None));
     }
 
-    /// `ScrollableLayout`'s scissor: the region and open/close buttons live inside the
-    /// scroll view, so one below it must not be drawn (nor clickable) outside the tab.
-    #[test]
-    fn the_settings_buttons_leave_the_scroll_view() {
-        let mut screen = listed(vec![server(7, None)]);
-        let server = server(7, None);
-        screen.subscreen = SubScreen::Configure {
-            server: server.clone(),
-            tab: ConfigureTab::Settings,
-            subscription: None,
-            subscription_job: None,
-            detail: None,
-            detail_job: None,
-            deleting: None,
-            member_job: None,
-            settings: Some(SettingsDraft::of(&server)),
-            players_scroll: crate::ui::Scroll::default(),
-            tier: None,
-            tier_job: None,
-            regions: None,
-            regions_job: None,
-            saving: None,
-            error: None,
-            job: None,
-        };
-        let ids =
-            |h: f32| -> Vec<u8> { screen.buttons(800.0, h).into_iter().map(|b| b.5).collect() };
-        // 230 tall: the toggle (row 5) is past the 24..h-33 view, the region button is in.
-        let short = ids(230.0);
-        assert!(short.contains(&89));
-        assert!(!short.contains(&30), "{short:?}");
-        // Tall enough for the whole column: both are offered.
-        let tall = ids(400.0);
-        assert!(tall.contains(&89) && tall.contains(&30), "{tall:?}");
-    }
-
     /// `RealmsWorldOptions.getSlotName`: the player's name, else the empty marker, else
     /// "World N" by the slot.
     #[test]
@@ -11906,8 +11473,6 @@ mod tests {
             subscription_buttons: std::cell::Cell::new((0.0, 0.0)),
             players_button_rects: std::cell::RefCell::new(Vec::new()),
             backup_row_buttons: std::cell::RefCell::new(Vec::new()),
-            settings_scroll: crate::ui::Scroll::default(),
-            settings_slider: None,
             other_slider: None,
             after_save: None,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
@@ -12083,30 +11648,6 @@ mod tests {
     fn an_unreadable_start_date_is_empty() {
         assert_eq!(start_date_text(i64::MAX), "");
     }
-    /// `RealmsSettingsTab.save`: only a distance the player changed, and only when the tier
-    /// answer names the range, is sent.
-    #[test]
-    fn a_distance_is_saved_only_when_it_differs_from_the_service() {
-        let range = RealmTierRange {
-            min: 2,
-            max: 16,
-            default_value: 8,
-            current: Some(10),
-        };
-        assert_eq!(changed_distance(Some(10), Some(&range)), None);
-        assert_eq!(changed_distance(Some(12), Some(&range)), Some(12));
-        // No tier answer: the slider was never usable, so nothing goes out.
-        assert_eq!(changed_distance(Some(12), None), None);
-        assert_eq!(changed_distance(None, Some(&range)), None);
-        // A range without `current` compares against its default (`currentOrDefault`).
-        let default = RealmTierRange {
-            current: None,
-            ..range
-        };
-        assert_eq!(changed_distance(Some(8), Some(&default)), None);
-        assert_eq!(changed_distance(Some(9), Some(&default)), Some(9));
-    }
-
     /// `ConfirmLinkScreen`: Open in Browser, Copy to Clipboard and Cancel, 100 wide each,
     /// and every answer — Escape's no included — returns to the screen that asked.
     #[test]
