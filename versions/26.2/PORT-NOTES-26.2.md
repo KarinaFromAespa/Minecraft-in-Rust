@@ -3368,3 +3368,22 @@ hardcoded. Verified locally: audit clean on 26.2 (0 dead production,
 26.2 with the flip; a synthetic 1.0 pin skips; 1.21.11 stays blocked
 on its missing regen artifacts (the audit runs after the regen checks,
 so the flip cannot turn it failed).
+
+## Suffocation harnesses pass locally (2026-11-15)
+
+After the suffocation port, both harnesses that consume the oracle and
+the fixtures pass against both 26.2 jars:
+
+- `test_suffocation_parity.py`: 169,174 fixtures, **515,376 lines
+  matched on client and server**. The driver re-pins the registry size
+  to 32366 states and reads the 26.2 map-form `Name` (both were 26.3
+  leftovers: 35723 and `id`).
+- `test_registry_collision_scan_parity.py`: **2,804,926 lines matched
+  on client and server**.
+
+The oracle's motion set (941 blocks) agrees exactly with the game's
+`blocks_motion_names` set computed from `legacy_solid` (941, same
+members). These two harnesses are outside the 17-harness CI subset,
+so the CI profile is unchanged by them; their value is the suffocation
+port's oracle proof and the unblocking of the eight harnesses that
+compile the oracle.
