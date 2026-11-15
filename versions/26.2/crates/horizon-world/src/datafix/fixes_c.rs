@@ -141,7 +141,11 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
             set(be, "sherds", unpack_pot_decorations(sherds));
         });
     }));
-    out.push((key(4997, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
+    // `BlendingDataFix` runs at 4882 in 26.2 (`DataFixers.BLENDING_VERSION`);
+    // 26.3 raised it to 4997, which is past 26.2's target 4903, so the 26.3
+    // key never fired here and upgraded chunks kept the 1.18 `{old_noise}`
+    // form (or no `blending_data` at all).
+    out.push((key(4882, 0), |cx| cx.each_out(Ty::Chunk, blending_data)));
     out.push((key(5002, 0), |cx| {
         cx.block_entity("minecraft:sign", |be| {
             set(be, "allow_op_features", boolean(true))
@@ -821,7 +825,7 @@ fn level_dat_to_saved_data_preparation(cx: &mut Cx) {
     });
 }
 
-// ------------------------------------------------------------------ 4885, 4996, 4997
+// ------------------------------------------------------------------ 4882, 4885, 4996
 
 /// `RemoveBlockEntityTagFix` for beds: item block entity data, falling block
 /// entity data and chunk block entities of beds go.

@@ -3445,3 +3445,43 @@ playtest). Tag audit clean (0 dead production, 5 dead test-only).
 Artifacts at ~/workspace/mcir-ci/26.2-run-43749313660/; the pin's
 recorded evidence (profile.json, delta-verdict.json, ci-out logs)
 now comes from this run.
+
+## Datafix: BlendingDataFix key 4997 -> 4882, fix_1493 empty region files (2026-11-16)
+
+CI run 43749313660 had datafix failing with ~44,346 differences over 6
+shards, in exactly two categories. Both are fixed here, verified locally
+against the 26.2 jars (6 worlds, 0 differences each) and proven on CI
+below.
+
+1. `chunk.blending_data` (~44,330 diffs). Vanilla 26.2 registers
+   `BlendingDataFix` at fix version 4882 (`DataFixers.BLENDING_VERSION =
+   4882`, read from the 26.2 server jar); 26.3 raised it to 4997. The
+   port carried the 26.3 key, which is past 26.2's target DataVersion
+   4903, so the fix never ran when upgrading to 26.2: pre-1.18 chunks
+   kept the 1.18 `{old_noise}` form (vanilla writes `{min_section: 0,
+   max_section: 16}`) and 1.18+ chunks got no `blending_data` at all
+   (vanilla writes `{min_section: -4, max_section: 20}`). The fix body
+   already matched vanilla 26.2's `updateChunkTag` exactly (skip
+   statuses, 384/-64 and 256/0 forms, overworld-only); only the key was
+   wrong. Re-keyed to 4882 in `fixes_c.rs` (6c2d4378).
+2. Whole region files missing from Horizon's output (17 files over the
+   shards, all pre-1.13 worlds: 5 on 1.8.9, 3 each on 1.9.4, 1.10.2,
+   1.11.2, 1.12.2). Vanilla's
+   `LegacyStructureFileFix` reads every chunk its structures reach
+   (each start plus the `STRUCTURE_RANGE` 8 square) through
+   `SimpleRegionStorage`, and `RegionFileStorage.getRegionFile` opens
+   the chunk's region file with CREATE: a reached region holding no
+   chunk is left behind as a 0-byte file, which the dimension move then
+   carries to `dimensions/.../region/`. Verified with a probe that runs
+   only the FileFixerUpper step (the three 0-byte files appear) and by
+   the structures themselves (the 1.10.2 Mineshaft at chunk (30, 2)
+   reaches regions (0,-1), (1,-1), (1,0) through its square). The port
+   only rewrote existing region files; `fix_1493` now creates the empty
+   files for every touched region (aba08e87).
+
+Local verification (world_probe rebuilt, oracle = 26.2 server jar):
+1.8.9 (DV 0), 1.10.2 (DV 512), 1.13.2-flat (DV 1631), 1.15.2 (DV 2230),
+1.21.9 (DV 4554), 26.1 (DV 4786) — all ok, 0 differences. The 1.21.9
+world was generated fresh by the 26.2 generator; the others were copied
+from the e6-1.21.8 cache (same generator, same scene) to skip the
+jre-legacy runtime download.
