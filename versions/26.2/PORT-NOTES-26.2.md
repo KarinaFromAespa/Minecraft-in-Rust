@@ -2861,3 +2861,7 @@ change.
 betweenClosed loop counting sensor/shrieker,
 which the Rust already implements exactly — only
 the comment was re-attributed.
+
+565 DensityFunction$Axes is a 26.3-only empty
+marker annotation (CLASS retention, no members,
+no runtime behaviour): nothing to port.
