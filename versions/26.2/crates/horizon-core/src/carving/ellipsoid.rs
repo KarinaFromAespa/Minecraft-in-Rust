@@ -7,6 +7,11 @@ pub trait CarverOutput {
     fn min_y(&self) -> i32;
     fn max_y(&self) -> i32;
     fn carve(&mut self, x: i32, y: i32, z: i32) -> Result<(), Self::Error>;
+    /// A new ellipsoid starts visiting cells. Outputs that order their cells
+    /// by ellipsoid (vanilla 26.2 marks fluid blocks during the worm trace,
+    /// in ellipsoid order) advance their sequence here; the default is a
+    /// no-op for outputs that only need the mask.
+    fn begin_ellipsoid(&mut self) {}
 }
 impl CarverOutput for CarvingMask {
     type Error = CarvingMaskError;
@@ -87,6 +92,7 @@ pub fn carve_ellipsoid_with_budget<O: CarverOutput>(
     {
         return Ok(());
     }
+    output.begin_ellipsoid();
     let min_x = floor_i32(x - horizontal)
         .wrapping_sub(cx)
         .wrapping_sub(1)

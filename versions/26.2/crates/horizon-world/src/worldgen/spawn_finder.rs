@@ -103,8 +103,8 @@ mod tests {
     #[derive(Debug)]
     struct Gradient;
     impl DensitySampler for Gradient {
-        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f32, SampleError> {
-            Ok(p[0] as f32 / 1000.0)
+        fn sample_value(&self, _: &mut SamplerContext, p: [i32; 3]) -> Result<f64, SampleError> {
+            Ok(p[0] as f64 / 1000.0)
         }
     }
 

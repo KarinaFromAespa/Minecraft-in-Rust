@@ -168,8 +168,13 @@ impl Beardifier {
         self.kernel_junctions = junctions;
         self
     }
-    fn sample_unchecked(&self, [x, y, z]: [i32; 3]) -> f32 {
-        let mut value = 0.;
+    fn sample_unchecked(&self, [x, y, z]: [i32; 3]) -> f64 {
+        // Vanilla 26.2's Beardifier computes in double throughout
+        // (26.3 switched it to float, which this port mirrors elsewhere):
+        // accumulate here in f64 and return it directly, or the surface
+        // near a village flips by a block where the beardifier pushes the
+        // density across zero.
+        let mut value = 0f64;
         // The kernel is a process-wide constant; resolving it once keeps the
         // per-piece and per-junction beard evaluations off the OnceLock.
         let kernel = kernel();
@@ -192,12 +197,18 @@ impl Beardifier {
             };
             value += match piece.adjustment {
                 TerrainAdjustment::None => 0.,
-                TerrainAdjustment::Bury => bury(dx as f32, distance_y as f32 / 2., dz as f32),
+                TerrainAdjustment::Bury => {
+                    bury(f64::from(dx), f64::from(distance_y) / 2., f64::from(dz))
+                }
                 TerrainAdjustment::BeardThin | TerrainAdjustment::BeardBox => {
                     beard(kernel, dx, distance_y, dz, dy) * 0.8
                 }
                 TerrainAdjustment::Encapsulate => {
-                    bury(dx as f32 / 2., distance_y as f32 / 2., dz as f32 / 2.) * 0.8
+                    bury(
+                        f64::from(dx) / 2.,
+                        f64::from(distance_y) / 2.,
+                        f64::from(dz) / 2.,
+                    ) * 0.8
                 }
             };
         }
@@ -210,7 +221,7 @@ impl Beardifier {
         if self.kernel_pieces.is_empty() && self.kernel_junctions.is_empty() {
             return value;
         }
-        let mut density = f64::from(value);
+        let mut density = value;
         for piece in &self.kernel_pieces {
             let (low, high) = (piece.bounds.minimum, piece.bounds.maximum);
             let d: [i32; 3] = std::array::from_fn(|i| {
@@ -230,11 +241,11 @@ impl Beardifier {
                 std::array::from_fn(|i| [x, y, z][i].wrapping_sub(junction.source[i]));
             density += junction.kernel.factor(d[0], d[1], d[2], d[1]) * 0.4;
         }
-        density as f32
+        density
     }
 }
 impl DensitySampler for Beardifier {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
         Ok(
             if self
                 .affected
@@ -249,7 +260,7 @@ impl DensitySampler for Beardifier {
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -295,23 +306,22 @@ impl DensitySampler for Beardifier {
         Ok(())
     }
 }
-fn bury(x: f32, y: f32, z: f32) -> f32 {
-    let squared = (x * x + y * y) + z * z;
-    if squared >= 36. {
-        0.
-    } else {
-        1. - squared.sqrt() / 6.
-    }
+/// 26.2's `getBuryContribution`: `Mth.clampedMap(Mth.length(dx, dy, dz), 0,
+/// 6, 1, 0)` in double (26.3's float form with the squared-distance cutoff
+/// is not bit-identical).
+fn bury(x: f64, y: f64, z: f64) -> f64 {
+    let distance = (x * x + y * y + z * z).sqrt();
+    1. - (distance / 6.).clamp(0., 1.)
 }
-fn beard(kernel: &[f32; 13824], x: i32, y: i32, z: i32, ground_delta: i32) -> f32 {
+fn beard(kernel: &[f32; 13824], x: i32, y: i32, z: i32, ground_delta: i32) -> f64 {
     let indices = [x, y, z].map(|v| v.wrapping_add(12));
     if indices.iter().any(|v| !(0..24).contains(v)) {
         return 0.;
     }
-    let vertical = ground_delta as f32 + 0.5;
-    let squared = (x as f32 * x as f32 + vertical * vertical) + z as f32 * z as f32;
-    let factor = (-vertical * fast_inverse_sqrt(f64::from(squared / 2.)) as f32) / 2.;
-    factor * kernel[((indices[2] * 24 + indices[0]) * 24 + indices[1]) as usize]
+    let vertical = f64::from(ground_delta) + 0.5;
+    let squared = (f64::from(x) * f64::from(x) + vertical * vertical) + f64::from(z) * f64::from(z);
+    let factor = -vertical * fast_inverse_sqrt(squared / 2.) / 2.;
+    factor * f64::from(kernel[((indices[2] * 24 + indices[0]) * 24 + indices[1]) as usize])
 }
 fn fast_inverse_sqrt(value: f64) -> f64 {
     let half = 0.5 * value;
@@ -336,7 +346,7 @@ fn kernel() -> &'static [f32; 13824] {
 mod tests {
     use super::*;
 
-    fn sample(beardifier: &Beardifier, position: [i32; 3]) -> f32 {
+    fn sample(beardifier: &Beardifier, position: [i32; 3]) -> f64 {
         beardifier
             .sample_value(&mut SamplerContext::default(), position)
             .unwrap()

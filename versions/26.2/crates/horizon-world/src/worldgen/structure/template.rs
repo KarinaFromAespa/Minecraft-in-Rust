@@ -108,7 +108,13 @@ pub(super) fn read_state(registry: &BlockRegistry, tag: &Tag) -> BlockStateId {
 pub(super) fn parse_state_string(registry: &BlockRegistry, text: &str) -> Option<BlockStateId> {
     let text = text.split('{').next().unwrap_or(text).trim();
     let (name, properties) = match text.split_once('[') {
-        Some((name, rest)) => (name, rest.strip_suffix(']')?),
+        // Brigadier's BlockStateParser reads properties up to the first ']'
+        // and ignores anything after it: the savanna lamp post's final_state
+        // carries a doubled ']]' and vanilla still parses the fence.
+        Some((name, rest)) => {
+            let (properties, _) = rest.split_once(']')?;
+            (name, properties)
+        }
         None => (text, ""),
     };
     let name = if name.contains(':') {

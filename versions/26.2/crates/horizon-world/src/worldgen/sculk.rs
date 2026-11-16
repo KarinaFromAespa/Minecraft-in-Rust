@@ -5,11 +5,12 @@ use super::{
     block_feature::FeatureBlockBindings,
     feature::FeatureWorld,
     feature_graph::FeatureExecutionError,
-    int_range,
+    int_range, number_text,
     placement::{PlacementContext, PlacementQueryError},
     required,
     tree::{TreeResult, kind, read, write},
     tree_blocks::{self as tb, TreeBlocks},
+    value_provider::IntProvider,
 };
 use crate::registry::BlockStateId;
 use horizon_core::{geometry::Direction, random::RandomSource};
@@ -55,6 +56,9 @@ pub struct SculkPatchFeature {
     spread_attempts: i32,
     growth_rounds: i32,
     spread_rounds: i32,
+    catalyst_chance: f32,
+    extra_rare_growths: IntProvider,
+    catalyst: BlockStateId,
     sculk: BlockStateId,
     vein: BlockStateId,
     shrieker: BlockStateId,
@@ -90,12 +94,23 @@ impl SculkPatchFeature {
         let shrieker = blocks
             .with(default("minecraft:sculk_shrieker")?, "can_summon", "true")
             .ok_or(DecodeError::Field("sculk shrieker summon state"))?;
+        let catalyst_chance: f32 = number_text(required(&object, "catalyst_chance")?)?
+            .parse()
+            .map_err(|_| DecodeError::Field("sculk catalyst chance"))?;
+        if !(0.0..=1.0).contains(&catalyst_chance) || catalyst_chance.is_sign_negative() {
+            return Err(DecodeError::Field("sculk catalyst chance"));
+        }
+        let extra_rare_growths =
+            IntProvider::from_json(required(&object, "extra_rare_growths")?.get())?;
         Ok(Self {
             charge_count: int("charge_count", 1, 32)?,
             amount_per_charge: int("amount_per_charge", 1, 500)?,
             spread_attempts: int("spread_attempts", 1, 64)?,
             growth_rounds: int("growth_rounds", 0, 8)?,
             spread_rounds: int("spread_rounds", 0, 8)?,
+            catalyst_chance,
+            extra_rare_growths,
+            catalyst: default("minecraft:sculk_catalyst")?,
             sculk: default("minecraft:sculk")?,
             vein: default("minecraft:sculk_vein")?,
             shrieker,
@@ -157,6 +172,36 @@ impl SculkPatchFeature {
                 cursors = self.update_cursors(world, random, origin, cursors, spread_veins)?;
             }
             cursors.clear();
+        }
+        // Vanilla's tail: a catalyst at the origin when the block below is a
+        // full collision block, then the extra rare growths (shriekers).
+        if random.next_float() <= self.catalyst_chance {
+            let below = tb::offset(origin, 0, -1, 0);
+            let below_state = read(world, below)?;
+            if world
+                .collision_full_block(below_state, below)
+                .map_err(query)?
+            {
+                write(world, origin, self.catalyst, 3)?;
+            }
+        }
+        let extra_growths = self.extra_rare_growths.sample(random)?;
+        for _ in 0..extra_growths {
+            let candidate = tb::offset(
+                origin,
+                random.next_int_bound(5)? - 2,
+                0,
+                random.next_int_bound(5)? - 2,
+            );
+            let below = tb::offset(candidate, 0, -1, 0);
+            let below_state = read(world, below)?;
+            if self.blocks.is_air(read(world, candidate)?)
+                && world
+                    .state_face_sturdy(below_state, below, Direction::Up)
+                    .map_err(query)?
+            {
+                write(world, candidate, self.shrieker, 3)?;
+            }
         }
         Ok(true)
     }

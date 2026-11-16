@@ -266,7 +266,7 @@ where
     } else if let Some(name) = f["preliminary"].as_str() {
         library.named_density(name)?
     } else {
-        Arc::new(ConstantSampler(f["preliminary"].as_f64().unwrap() as f32))
+        Arc::new(ConstantSampler(f["preliminary"].as_f64().unwrap()))
     };
     let source = f
         .get("biome_source_json")
@@ -468,12 +468,12 @@ where
             inner: aquifer.as_mut(),
             trace: trace.clone(),
         };
-        let result = if generated.is_empty() {
+        let result = if generated.mask.is_empty() {
             Ok(())
         } else {
             apply_carving_mask(
                 &mut chunk,
-                &generated,
+                &generated.mask,
                 rule.clone(),
                 TopMaterialInputs::<R, _> {
                     generation,

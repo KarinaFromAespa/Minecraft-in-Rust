@@ -36,7 +36,7 @@ impl DensitySampler for SliceSampler {
         &self,
         context: &mut SamplerContext,
         mut position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         for (axis, fixed) in self.axes.coordinates().into_iter().enumerate() {
             if let Some(coordinate) = fixed {
                 position[axis] = coordinate;
@@ -48,7 +48,7 @@ impl DensitySampler for SliceSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -99,8 +99,8 @@ fn spread(
     fixed: [Option<i32>; 3],
     volume: DensityVolume,
     reduced: DensityVolume,
-    samples: &[f32],
-    buffer: &mut [f32],
+    samples: &[f64],
+    buffer: &mut [f64],
 ) {
     let [sx, sy, sz] = volume.sizes();
     let [rx, ry, _] = reduced.sizes();

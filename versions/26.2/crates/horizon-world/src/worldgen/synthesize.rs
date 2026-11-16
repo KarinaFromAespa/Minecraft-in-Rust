@@ -21,7 +21,7 @@ use horizon_core::{
     geometry::Axis,
 };
 
-fn constant(registry: &mut DensityRegistry, value: f32) -> Result<FunctionId, DecodeError> {
+fn constant(registry: &mut DensityRegistry, value: f64) -> Result<FunctionId, DecodeError> {
     registry.insert(GraphNode::Constant(value))
 }
 fn binary(
@@ -42,8 +42,8 @@ fn unary(
 fn choice(
     registry: &mut DensityRegistry,
     input: FunctionId,
-    min: f32,
-    max: f32,
+    min: f64,
+    max: f64,
     inside: FunctionId,
     outside: FunctionId,
 ) -> Result<FunctionId, DecodeError> {
@@ -58,8 +58,8 @@ fn choice(
 fn clamp(
     registry: &mut DensityRegistry,
     input: FunctionId,
-    min: f32,
-    max: f32,
+    min: f64,
+    max: f64,
 ) -> Result<FunctionId, DecodeError> {
     registry.insert(GraphNode::Clamp { input, min, max })
 }
@@ -138,9 +138,11 @@ impl VeinKind {
             Self::Iron => -8,
         }
     }
-    /// Inclusive y bounds the vein's density is positive over.
+    /// Inclusive y bounds the vein's density is positive over. Vanilla's
+    /// `OreVeinifier` check is inclusive at both ends (`distanceFromTop >= 0
+    /// && distanceFromBottom >= 0`), so the top bound is `max_y` itself.
     pub(crate) fn positive_y(self) -> [i32; 2] {
-        [self.min_y(), self.max_y() - 1]
+        [self.min_y(), self.max_y()]
     }
     /// (ore, raw ore, filler) block names.
     pub(crate) fn blocks(self) -> [&'static str; 3] {
@@ -200,9 +202,9 @@ pub(crate) fn vein_roots(
     };
     let min_y = kind.min_y();
     let max_y = kind.max_y();
-    let max_y_const = constant(registry, max_y as f32)?;
+    let max_y_const = constant(registry, max_y as f64)?;
     let dist_top = binary(registry, GraphBinary::Subtract, max_y_const, y)?;
-    let min_y_const = constant(registry, min_y as f32)?;
+    let min_y_const = constant(registry, min_y as f64)?;
     let dist_bottom = binary(registry, GraphBinary::Subtract, y, min_y_const)?;
     let dist = binary(registry, GraphBinary::Minimum, dist_top, dist_bottom)?;
     let clamped = clamp(registry, dist, 0.0, 20.0)?;
@@ -218,7 +220,9 @@ pub(crate) fn vein_roots(
     let inner = choice(registry, gate, 0.0, 1.0e6, inside, outside)?;
     let mask = unary(registry, GraphUnary::Negate, ridged)?;
     let mid = choice(registry, mask, 0.0, 1.0e6, inner, outside)?;
-    let density = choice(registry, y, min_y as f32, max_y as f32, mid, outside)?;
+    // range_choice is max-exclusive, but the VeinType bound is inclusive
+    // (OreVeinifier accepts y == max_y), so the exclusive bound is one above.
+    let density = choice(registry, y, min_y as f64, (max_y + 1) as f64, mid, outside)?;
     let abs_toggle = unary(registry, GraphUnary::Abs, toggle)?;
     let clamped = clamp(registry, abs_toggle, 0.4, 0.6)?;
     let base = constant(registry, 0.3)?;
@@ -240,11 +244,15 @@ mod tests {
 
     /// A router over constant densities, for sampling the synthesized roots.
     fn constant_router() -> (NoiseRouter, DensityRegistry) {
+        constant_router_with_toggle(0.5)
+    }
+
+    fn constant_router_with_toggle(toggle: f64) -> (NoiseRouter, DensityRegistry) {
         let densities = BTreeMap::from([
             ("minecraft:erosion".into(), "-0.5".into()),
             ("minecraft:depth".into(), "1.0".into()),
             ("minecraft:ridges".into(), "0.5".into()),
-            ("minecraft:toggle".into(), "0.5".into()),
+            ("minecraft:toggle".into(), toggle.to_string()),
             ("minecraft:ridged".into(), "-0.05".into()),
             ("minecraft:gap".into(), "0.0".into()),
             ("minecraft:zero".into(), "0.0".into()),
@@ -276,7 +284,7 @@ mod tests {
         (router, registry)
     }
 
-    fn sample(registry: &DensityRegistry, id: FunctionId, at: [i32; 3]) -> f32 {
+    fn sample(registry: &DensityRegistry, id: FunctionId, at: [i32; 3]) -> f64 {
         let mut compiler = DensityCompiler::new(registry.graph().clone());
         compiler
             .get_sampler(id)
@@ -289,7 +297,7 @@ mod tests {
     fn exclusion_is_positive_only_in_the_deep_dark() {
         let (router, mut registry) = constant_router();
         // min(-0.225 - (-0.5), max(1.0 - 0.9, 0)) = min(0.275, 0.1);
-        // 1.0 - 0.9 rounds to 0.100000024 in f32.
+        // 1.0 - 0.9 rounds to 0.09999999999999998 in f64.
         let id = aquifer_exclusion(&router, &mut registry).unwrap();
         let value = sample(&registry, id, [0; 3]);
         assert!((value - 0.1).abs() < 1e-6, "{value}");
@@ -317,9 +325,24 @@ mod tests {
         // Iron needs a negative toggle: with +0.5 the gate fails.
         assert_eq!(sample(&registry, iron.density, [0, -30, 0]), -1.0);
         // Richness: clamp(|0.5|, 0.4, 0.6) - 0.3 = 0.2 (0.5 - 0.3 rounds to
-        // 0.19999999 in f32); gap: -0.3 - 0.
+        // 0.19999999999999998 in f64); gap: -0.3 - 0.
         let richness = sample(&registry, copper.richness, [0, 25, 0]);
         assert!((richness - 0.2).abs() < 1e-6, "{richness}");
         assert_eq!(sample(&registry, copper.filler_gap, [0, 25, 0]), -0.3);
+        // The y bounds are inclusive: vanilla's OreVeinifier accepts
+        // y == max_y, so the density's range_choice must run one past it.
+        assert_eq!(VeinKind::Copper.positive_y(), [0, 50]);
+        assert_eq!(VeinKind::Iron.positive_y(), [-60, -8]);
+        let (router, mut registry) = constant_router_with_toggle(0.8);
+        let copper = vein_roots(&router, &mut registry, VeinKind::Copper).unwrap();
+        // At the top edge the roundoff is -0.2, so toggle 0.8 gates in.
+        assert_eq!(sample(&registry, copper.density, [0, 50, 0]), 0.7);
+        assert_eq!(sample(&registry, copper.density, [0, 51, 0]), -1.0);
+        let (router, mut registry) = constant_router_with_toggle(-0.8);
+        let iron = vein_roots(&router, &mut registry, VeinKind::Iron).unwrap();
+        assert_eq!(sample(&registry, iron.density, [0, -8, 0]), 0.7);
+        assert_eq!(sample(&registry, iron.density, [0, -7, 0]), -1.0);
+        assert_eq!(sample(&registry, iron.density, [0, -60, 0]), 0.7);
+        assert_eq!(sample(&registry, iron.density, [0, -61, 0]), -1.0);
     }
 }

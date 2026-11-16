@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    noise::{NoiseBuildError, NoiseStack, SmearedPerlinNoise},
+    noise::{synth, NoiseBuildError, NoiseStack, SmearedPerlinNoise},
     random::RandomSource,
 };
 
@@ -38,13 +38,13 @@ impl DensitySampler for ShiftBSampler {
         &self,
         _: &mut SamplerContext,
         [x, _, z]: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         Ok(self.noise.get3(z as f64 * 0.25, x as f64 * 0.25, 0.0) * 4.0)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -77,56 +77,46 @@ pub struct BlendedNoise {
     pub y_factor: f64,
     pub smear_scale_multiplier: f64,
 }
-#[derive(Clone, Debug)]
-pub struct BlendedFbmSet {
-    pub min_limit: NoiseStack,
-    pub max_limit: NoiseStack,
-    pub main: NoiseStack,
+
+/// A compiled old blended noise as a density sampler, backed by the
+/// faithful f64 synth `BlendedNoise` — vanilla 26.2's `BlendedNoise` class,
+/// which IS the `minecraft:old_blended_noise` density function
+/// (`DensityFunction.SimpleFunction`, double throughout). The previous
+/// float `SmearedPerlinNoise` stacks rounded every octave value to f32,
+/// flipping near-zero densities the same way the float NormalNoise did.
+/// Bulk sampling uses the trait's scalar traversal; vanilla computes this
+/// function per block too.
+#[derive(Debug)]
+pub struct BlendedNoiseSampler {
+    noise: synth::BlendedNoise,
+}
+impl DensitySampler for BlendedNoiseSampler {
+    fn sample_value(
+        &self,
+        _: &mut SamplerContext,
+        [x, y, z]: [i32; 3],
+    ) -> Result<f64, SampleError> {
+        Ok(self.noise.compute(x, y, z))
+    }
 }
 impl BlendedNoise {
-    pub fn create_fbm_set(
+    /// Compile against the faithful f64 synth noise. The random stream
+    /// matches vanilla's `BlendedNoise` constructor (min limit, max limit,
+    /// then main, each built from the caller's stream in octave order).
+    pub fn compile(
         &self,
         random: &mut impl RandomSource,
-    ) -> Result<BlendedFbmSet, NoiseBuildError> {
-        let smear = (684.412 * self.y_scale) * self.smear_scale_multiplier;
-        let main_smear = smear / self.y_factor;
-        Ok(BlendedFbmSet {
-            min_limit: create_blended_fbm(random, -15, smear, 0.9999847412109375)?,
-            max_limit: create_blended_fbm(random, -15, smear, 0.9999847412109375)?,
-            main: create_blended_fbm(random, -7, main_smear, 12.75)?,
-        })
-    }
-    pub fn compile(&self, random: &mut impl RandomSource) -> Result<LerpSampler, NoiseBuildError> {
-        let layers = self.create_fbm_set(random)?;
-        let xz_scale = 684.412 * self.xz_scale;
-        let y_scale = 684.412 * self.y_scale;
-        let min_limit = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.min_limit),
-            xz_scale,
-            y_scale,
-        });
-        let max_limit = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.max_limit),
-            xz_scale,
-            y_scale,
-        });
-        let main = Arc::new(NoiseSampler {
-            noise: Arc::new(layers.main),
-            xz_scale: xz_scale / self.xz_factor,
-            y_scale: y_scale / self.y_factor,
-        });
-        let shifted = Arc::new(UnarySampler {
-            input: main,
-            operation: UnaryOp::Add(0.5),
-        });
-        let alpha = Arc::new(UnarySampler {
-            input: shifted,
-            operation: UnaryOp::Clamp { min: 0.0, max: 1.0 },
-        });
-        Ok(LerpSampler {
-            alpha,
-            first: DensityValue::Sampler(min_limit),
-            second: DensityValue::Sampler(max_limit),
+    ) -> Result<BlendedNoiseSampler, NoiseBuildError> {
+        Ok(BlendedNoiseSampler {
+            noise: synth::BlendedNoise::new(
+                random,
+                self.xz_scale,
+                self.y_scale,
+                self.xz_factor,
+                self.y_factor,
+                self.smear_scale_multiplier,
+            )
+            .map_err(NoiseBuildError::from)?,
         })
     }
     pub fn range(&self) -> Result<Interval, IntervalError> {
@@ -135,8 +125,8 @@ impl BlendedNoise {
         let mut frequency = 1.0;
         let mut amplitude = 0.9999847412109375 / 65535.0;
         for _ in 0..16 {
-            let base = Interval::symmetric(((smear * frequency).abs() + 2.0) as f32)?;
-            range = range.add_range(base.multiply_range(Interval::exact(amplitude as f32)?));
+            let base = Interval::symmetric((smear * frequency).abs() + 2.0)?;
+            range = range.add_range(base.multiply_range(Interval::exact(amplitude)?));
             frequency /= 2.0;
             amplitude *= 2.0;
         }
@@ -171,7 +161,7 @@ pub fn create_blended_fbm(
         builder.add(
             Arc::new(SmearedPerlinNoise::new(random, smear * frequency)),
             frequency,
-            amplitude as f32,
+            amplitude,
         );
         frequency /= 2.0;
         amplitude *= 2.0;
@@ -187,17 +177,17 @@ pub enum DistanceMetric {
     Chebyshev,
 }
 impl DistanceMetric {
-    pub fn compute2(self, x: f32, y: f32) -> f32 {
+    pub fn compute2(self, x: f64, y: f64) -> f64 {
         match self {
-            Self::Euclidean => ((x * x + y * y) as f64).sqrt() as f32,
+            Self::Euclidean => (x * x + y * y).sqrt(),
             Self::EuclideanSquared => x * x + y * y,
             Self::Manhattan => x.abs() + y.abs(),
             Self::Chebyshev => arithmetic::java_max(x.abs(), y.abs()),
         }
     }
-    pub fn compute3(self, x: f32, y: f32, z: f32) -> f32 {
+    pub fn compute3(self, x: f64, y: f64, z: f64) -> f64 {
         match self {
-            Self::Euclidean => ((x * x + y * y + z * z) as f64).sqrt() as f32,
+            Self::Euclidean => (x * x + y * y + z * z).sqrt(),
             Self::EuclideanSquared => x * x + y * y + z * z,
             Self::Manhattan => x.abs() + y.abs() + z.abs(),
             Self::Chebyshev => {
@@ -212,9 +202,9 @@ pub struct DistanceToPointSampler {
     pub metric: DistanceMetric,
 }
 impl DensitySampler for DistanceToPointSampler {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
-        let delta: [f32; 3] =
-            std::array::from_fn(|i| self.point[i].wrapping_sub(position[i]) as f32);
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
+        let delta: [f64; 3] =
+            std::array::from_fn(|i| self.point[i].wrapping_sub(position[i]) as f64);
         Ok(self.metric.compute3(delta[0], delta[1], delta[2]))
     }
 }

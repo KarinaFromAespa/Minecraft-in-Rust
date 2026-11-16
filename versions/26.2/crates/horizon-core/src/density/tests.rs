@@ -9,12 +9,12 @@ fn tail_writes_follow_the_selected_bulk_sampler() {
     ConstantSampler(-0.0)
         .sample_volume(&mut context, &mut buffer, volume)
         .unwrap();
-    assert!(buffer.iter().all(|v| v.to_bits() == (-0.0_f32).to_bits()));
+    assert!(buffer.iter().all(|v| v.to_bits() == (-0.0_f64).to_bits()));
     GradientSampler::new(Axis::Y, TilingMode::ClampToEdge, -4, 0, -1.0, 1.0)
         .sample_volume(&mut context, &mut buffer, volume)
         .unwrap();
     assert_eq!(&buffer[..3], &[-1.0, 0.0, 1.0]);
-    assert_eq!(buffer[volume.size()].to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(buffer[volume.size()].to_bits(), (-0.0_f64).to_bits());
     let noise = NoiseSampler {
         noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(0))),
         xz_scale: 0.1,
@@ -69,7 +69,7 @@ fn scalar_shortcuts_and_bulk_arithmetic_keep_distinct_results() {
     let volume = DensityVolume::new([1; 3], [0; 3], [1; 3]).unwrap();
     let multiply = BinarySampler {
         left: Arc::new(ConstantSampler(-0.0)),
-        right: Arc::new(ConstantSampler(f32::NAN)),
+        right: Arc::new(ConstantSampler(f64::NAN)),
         operation: BinaryOp::Multiply,
     };
     assert_eq!(
@@ -88,7 +88,7 @@ fn scalar_shortcuts_and_bulk_arithmetic_keep_distinct_results() {
         left: Arc::new(ConstantSampler(0.0)),
         right: Arc::new(ConstantSampler(-0.0)),
         operation: BinaryOp::Minimum {
-            right_min: f32::NEG_INFINITY,
+            right_min: f64::NEG_INFINITY,
         },
     };
     assert_eq!(
@@ -96,7 +96,7 @@ fn scalar_shortcuts_and_bulk_arithmetic_keep_distinct_results() {
             .sample_value(&mut context, [0; 3])
             .unwrap()
             .to_bits(),
-        (-0.0_f32).to_bits()
+        (-0.0_f64).to_bits()
     );
     minimum
         .sample_volume(&mut context, &mut buffer, volume)
@@ -175,9 +175,9 @@ fn range_arithmetic_and_zero_equality_match_reference_special_cases() {
     assert_eq!(zero.multiply_range(Interval::INFINITE), zero);
     assert!(zero.reciprocal().is_nai());
     assert!(
-        Interval::exact(f32::INFINITY)
+        Interval::exact(f64::INFINITY)
             .unwrap()
-            .add_range(Interval::exact(f32::NEG_INFINITY).unwrap())
+            .add_range(Interval::exact(f64::NEG_INFINITY).unwrap())
             .is_nai()
     );
     let cached = Interval::new(-0.0, 1.0).unwrap();
@@ -215,8 +215,8 @@ fn monotonic_mapping_skips_nai_and_rejects_nan_after_both_endpoints() {
     assert_eq!(
         Interval::exact(0.0)
             .unwrap()
-            .lerp_values(f32::INFINITY, f32::NEG_INFINITY),
-        Interval::exact(f32::INFINITY).unwrap()
+            .lerp_values(f64::INFINITY, f64::NEG_INFINITY),
+        Interval::exact(f64::INFINITY).unwrap()
     );
 }
 
@@ -331,9 +331,9 @@ fn slices_delegate_matching_volumes_and_isolate_reduced_child_failures() {
         assert!(
             output[..volume.size()]
                 .iter()
-                .all(|v| v.to_bits() == (-0.0_f32).to_bits())
+                .all(|v| v.to_bits() == (-0.0_f64).to_bits())
         );
-        let expected_tail = if delegated { -0.0_f32 } else { 19.0 };
+        let expected_tail = if delegated { -0.0_f64 } else { 19.0 };
         assert!(
             output[volume.size()..]
                 .iter()
@@ -395,7 +395,7 @@ fn slices_preserve_reduced_volume_steps_in_cached_children() {
         for x in 0..3 {
             assert_eq!(
                 &output[(x + z * 3) * 2..(x + z * 3) * 2 + 2],
-                &[103.0 + z as f32 * 16.0, 95.0 + z as f32 * 16.0]
+                &[103.0 + z as f64 * 16.0, 95.0 + z as f64 * 16.0]
             );
         }
     }
@@ -432,14 +432,18 @@ fn grid_interpolation_keeps_incremental_bulk_rounding() {
     sampler
         .sample_volume(&mut context, &mut output, volume)
         .unwrap();
-    assert_eq!(output[7].to_bits(), 0x3f333334);
+    // In f64 the bulk path's repeated addition lands one ulp above the
+    // scalar lerp at y=3 (0.30000000000000004 vs 0.3); at y=7 the two
+    // agree exactly, so the rounding pin lives at y=3.
+    assert_eq!(output[3].to_bits(), 0x3fd3_3333_3333_3334);
     assert_eq!(
         sampler
-            .sample_value(&mut context, [0, 7, 0])
+            .sample_value(&mut context, [0, 3, 0])
             .unwrap()
             .to_bits(),
-        0x3f333333
+        0x3fd3_3333_3333_3333
     );
+    assert_eq!(output[7].to_bits(), 0x3fe6_6666_6666_6666);
     assert_eq!(output[10], 19.0);
     let strided = DensityVolume::new([1, 5, 1], [0; 3], [1, 2, 1]).unwrap();
     let mut selected = [0.0; 5];
@@ -463,14 +467,14 @@ fn grid_interpolation_uses_child_bulk_corners_and_preserves_aligned_delegation()
             &self,
             _: &mut SamplerContext,
             position: [i32; 3],
-        ) -> Result<f32, SampleError> {
+        ) -> Result<f64, SampleError> {
             self.points.lock().unwrap().push(position);
             Ok(-0.0)
         }
         fn sample_volume(
             &self,
             _: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             volume: DensityVolume,
         ) -> Result<(), SampleError> {
             self.volumes.lock().unwrap().push(volume);
@@ -486,7 +490,7 @@ fn grid_interpolation_uses_child_bulk_corners_and_preserves_aligned_delegation()
             .sample_value(&mut context, [-4, -8, 4])
             .unwrap()
             .to_bits(),
-        (-0.0_f32).to_bits()
+        (-0.0_f64).to_bits()
     );
     sampler.sample_value(&mut context, [-1, -1, -1]).unwrap();
     assert_eq!(*traced.points.lock().unwrap(), [[-4, -8, 4]]);
@@ -499,7 +503,7 @@ fn grid_interpolation_uses_child_bulk_corners_and_preserves_aligned_delegation()
     sampler
         .sample_volume(&mut context, &mut output, volume)
         .unwrap();
-    assert!(output.iter().all(|v| v.to_bits() == (-0.0_f32).to_bits()));
+    assert!(output.iter().all(|v| v.to_bits() == (-0.0_f64).to_bits()));
     assert_eq!(traced.volumes.lock().unwrap()[1], volume);
     let distant = DensityVolume::new([16, 49, 16], [-8192, -64, -8192], [1024, 8, 1024]).unwrap();
     let mut output = vec![19.; distant.size()];
@@ -536,10 +540,10 @@ fn surface_search_fixes_upper_bound_y_and_visits_descending_cell_boundaries() {
             &self,
             _: &mut SamplerContext,
             position: [i32; 3],
-        ) -> Result<f32, SampleError> {
+        ) -> Result<f64, SampleError> {
             self.0.lock().unwrap().push(position);
             Ok(match position[1] {
-                12 => f32::NAN,
+                12 => f64::NAN,
                 8 => -0.0,
                 _ => 1.0,
             })
@@ -574,7 +578,7 @@ fn surface_search_fixes_upper_bound_y_and_visits_descending_cell_boundaries() {
     assert!(density.0.lock().unwrap().is_empty());
     let negative_infinity = FindTopSurfaceSampler::new(
         density.clone(),
-        Arc::new(ConstantSampler(f32::NEG_INFINITY)),
+        Arc::new(ConstantSampler(f64::NEG_INFINITY)),
         -64,
         1,
     )
@@ -595,7 +599,7 @@ fn surface_bulk_preserves_upper_bound_writes_and_sliced_error_isolation() {
             &self,
             _: &mut SamplerContext,
             position: [i32; 3],
-        ) -> Result<f32, SampleError> {
+        ) -> Result<f64, SampleError> {
             if position[0] == 1 {
                 Err(SampleError::ZeroGradientPeriod)
             } else {
@@ -644,19 +648,19 @@ fn spline_coordinate_cache_retries_nan_scalars_but_reuses_nan_volumes() {
     use std::sync::atomic::{AtomicUsize, Ordering};
     #[derive(Debug)]
     struct Counted {
-        value: f32,
+        value: f64,
         scalar: AtomicUsize,
         bulk: AtomicUsize,
     }
     impl DensitySampler for Counted {
-        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
             self.scalar.fetch_add(1, Ordering::Relaxed);
             Ok(self.value)
         }
         fn sample_volume(
             &self,
             _: &mut SamplerContext,
-            output: &mut [f32],
+            output: &mut [f64],
             _: DensityVolume,
         ) -> Result<(), SampleError> {
             self.bulk.fetch_add(1, Ordering::Relaxed);
@@ -689,7 +693,7 @@ fn spline_coordinate_cache_retries_nan_scalars_but_reuses_nan_volumes() {
         ],
     )
     .unwrap();
-    for (value, scalar_calls) in [(0.0, 1), (f32::NAN, 2)] {
+    for (value, scalar_calls) in [(0.0, 1), (f64::NAN, 2)] {
         let input = Arc::new(Counted {
             value,
             scalar: AtomicUsize::new(0),
@@ -853,13 +857,13 @@ fn unary_bulk_keeps_child_failure_writes_and_full_buffer_tail() {
     #[derive(Debug)]
     struct PartialInput;
     impl DensitySampler for PartialInput {
-        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
             Err(SampleError::ZeroGradientPeriod)
         }
         fn sample_volume(
             &self,
             _: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             _: DensityVolume,
         ) -> Result<(), SampleError> {
             buffer[0] = -3.0;
@@ -893,18 +897,18 @@ fn binary_bulk_preserves_child_failure_order_and_output() {
     #[derive(Debug)]
     struct Input {
         name: &'static str,
-        value: f32,
+        value: f64,
         fail: bool,
         calls: Arc<std::sync::Mutex<Vec<&'static str>>>,
     }
     impl DensitySampler for Input {
-        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+        fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
             unreachable!("bulk-only fixture")
         }
         fn sample_volume(
             &self,
             _: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             _: DensityVolume,
         ) -> Result<(), SampleError> {
             self.calls.lock().unwrap().push(self.name);
@@ -968,13 +972,13 @@ fn kept_planes_match_fresh_slices_across_vertical_lattices() {
     #[derive(Debug)]
     struct Counted(NoiseSampler, AtomicUsize);
     impl DensitySampler for Counted {
-        fn sample_value(&self, c: &mut SamplerContext, p: [i32; 3]) -> Result<f32, SampleError> {
+        fn sample_value(&self, c: &mut SamplerContext, p: [i32; 3]) -> Result<f64, SampleError> {
             self.0.sample_value(c, p)
         }
         fn sample_volume(
             &self,
             c: &mut SamplerContext,
-            out: &mut [f32],
+            out: &mut [f64],
             v: DensityVolume,
         ) -> Result<(), SampleError> {
             self.1.fetch_add(1, Ordering::Relaxed);
@@ -1017,27 +1021,46 @@ fn lerp_samples_its_branches_only_where_alpha_reads_them() {
     #[derive(Debug)]
     struct Everywhere(Arc<dyn DensitySampler>);
     impl DensitySampler for Everywhere {
-        fn sample_value(&self, c: &mut SamplerContext, p: [i32; 3]) -> Result<f32, SampleError> {
+        fn sample_value(&self, c: &mut SamplerContext, p: [i32; 3]) -> Result<f64, SampleError> {
             self.0.sample_value(c, p)
         }
         fn sample_volume(
             &self,
             context: &mut SamplerContext,
-            buffer: &mut [f32],
+            buffer: &mut [f64],
             volume: DensityVolume,
         ) -> Result<(), SampleError> {
             self.0.sample_volume(context, buffer, volume)
         }
     }
-    // The overworld's terrain noise: its alpha is often exactly 0 or 1.
-    let blended = BlendedNoise {
-        xz_scale: 0.25,
-        y_scale: 0.125,
-        xz_factor: 80.0,
-        y_factor: 160.0,
-        smear_scale_multiplier: 8.0,
+    // A lerp whose alpha is often exactly 0 or 1: a Perlin noise shifted by
+    // 0.5 and clamped, like the blended noise's main stack.
+    let main: Arc<dyn DensitySampler> = Arc::new(NoiseSampler {
+        noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(12345))),
+        xz_scale: 684.412 * 0.25 / 80.0,
+        y_scale: 684.412 * 0.125 / 160.0,
+    });
+    let shifted = Arc::new(UnarySampler {
+        input: main,
+        operation: UnaryOp::Add(0.5),
+    });
+    let alpha = Arc::new(UnarySampler {
+        input: shifted,
+        operation: UnaryOp::Clamp { min: 0.0, max: 1.0 },
+    });
+    let lerp = LerpSampler {
+        alpha,
+        first: DensityValue::Sampler(Arc::new(NoiseSampler {
+            noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(99))),
+            xz_scale: 0.25,
+            y_scale: 0.125,
+        })),
+        second: DensityValue::Sampler(Arc::new(NoiseSampler {
+            noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(100))),
+            xz_scale: 0.25,
+            y_scale: 0.125,
+        })),
     };
-    let lerp = blended.compile(&mut LegacyRandom::new(12345)).unwrap();
     let everywhere = |value: &DensityValue| match value {
         DensityValue::Sampler(sampler) => {
             DensityValue::Sampler(Arc::new(Everywhere(Arc::clone(sampler))))

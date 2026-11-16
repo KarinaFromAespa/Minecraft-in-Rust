@@ -67,7 +67,7 @@ pub struct NormalNoise {
     parameters: NormalNoiseBuilder,
     octaves: Vec<OctaveInfo>,
     normalization_factor: f64,
-    range: [f32; 2],
+    range: [f64; 2],
 }
 impl NormalNoise {
     pub fn builder() -> NormalNoiseBuilder {
@@ -79,8 +79,27 @@ impl NormalNoise {
     pub fn normalization_factor(&self) -> f64 {
         self.normalization_factor
     }
-    pub fn range(&self) -> [f32; 2] {
+    pub fn range(&self) -> [f64; 2] {
         self.range
+    }
+
+    /// The raw (firstOctave, amplitudes) this definition decodes from, for
+    /// building the faithful f64 synth noise. Exact for noises built via
+    /// `create_parity` (JSON-decoded: the modifiers ARE the raw amplitudes;
+    /// the stored base amplitude is a float-engine normalization factor,
+    /// not part of them). For builder-built noises without modifiers, the
+    /// amplitudes are the base amplitude on every octave.
+    pub fn synth_parameters(&self) -> super::synth::NoiseParameters {
+        let count = self.parameters.octave_count.max(0) as usize;
+        let amplitudes = if self.parameters.modifiers.is_empty() {
+            vec![self.parameters.base_amplitude; count]
+        } else {
+            self.parameters.modifiers.clone()
+        };
+        super::synth::NoiseParameters {
+            first_octave: self.parameters.base_octave,
+            amplitudes,
+        }
     }
 
     pub fn create(&self, random: &mut impl RandomSource) -> Result<NoiseStack, NoiseBuildError> {
@@ -92,7 +111,7 @@ impl NormalNoise {
             let name = octave.seed();
             let a = PerlinNoise::new(&mut first.from_hash_of(&name));
             let b = PerlinNoise::new(&mut second.from_hash_of(&name));
-            let amplitude = (self.normalization_factor * octave.amplitude) as f32;
+            let amplitude = self.normalization_factor * octave.amplitude;
             builder.add(Arc::new(a), octave.frequency, amplitude);
             builder.add(
                 Arc::new(b),
@@ -116,7 +135,7 @@ impl NormalNoise {
         };
         let first = create_legacy_fbm(random, self.parameters.base_octave, modifiers)?;
         let second = create_legacy_fbm(random, self.parameters.base_octave, modifiers)?;
-        let amplitude = (self.normalization_factor * self.parameters.base_amplitude) as f32;
+        let amplitude = self.normalization_factor * self.parameters.base_amplitude;
         Ok(NoiseStack::builder()
             .add_stack(&first, 1.0, amplitude)
             .add_stack(&second, 1.018_126_888_217_522_7, amplitude)
@@ -226,7 +245,7 @@ impl NormalNoiseBuilder {
             sum *= legacy / factor;
             factor = legacy;
         }
-        let bound = (sum * (1.0 / 3.0) * 6.0) as f32;
+        let bound = sum * (1.0 / 3.0) * 6.0;
         if bound.is_nan() {
             return Err(NoiseBuildError::NanRange);
         }
@@ -286,7 +305,7 @@ pub fn create_legacy_fbm(
             builder.add(
                 Arc::new(noise),
                 frequency,
-                (amplitude * amplitudes[index]) as f32,
+                amplitude * amplitudes[index],
             );
         }
         frequency *= 2.0;

@@ -88,7 +88,7 @@ impl NoiseProvider {
                 low,
                 high,
             } => {
-                if fast() < *threshold {
+                if fast() < f64::from(*threshold) {
                     low[random.next_int_bound(low.len() as i32)? as usize]
                 } else if random.next_float() < *chance {
                     high[random.next_int_bound(high.len() as i32)? as usize]
@@ -110,7 +110,7 @@ impl NoiseProvider {
                         f64::from(p[2] as f32 * *scale),
                     )
                 };
-                let fraction = (f64::from(sample(p)) - -1.) / 2.;
+                let fraction = (sample(p) - -1.) / 2.;
                 let low = f64::from(variety[0]);
                 let high = f64::from(variety[1] + 1);
                 let count = (if fraction < 0. {
@@ -136,8 +136,8 @@ impl NoiseProvider {
         })
     }
 }
-fn index(noise: f32, count: usize) -> usize {
-    (((1.0f32 + noise) / 2.0f32).clamp(0., 0.9999) * count as f32) as usize
+fn index(noise: f64, count: usize) -> usize {
+    (((1.0 + noise) / 2.0).clamp(0., 0.9999) * count as f64) as usize
 }
 fn states(
     raw: &RawValue,

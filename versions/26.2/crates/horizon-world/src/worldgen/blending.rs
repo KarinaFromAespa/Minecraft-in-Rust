@@ -929,8 +929,7 @@ impl OutputBuffer {
 }
 
 /// The blend alpha/offset fields as density samplers. The density
-/// pipeline evaluates in f32, so the double fields are rounded here, at
-/// the pipeline boundary.
+/// pipeline evaluates in f64, matching vanilla 26.2's double fields.
 #[derive(Debug)]
 pub struct BlendFieldSampler {
     pub buffer: Arc<OutputBuffer>,
@@ -941,11 +940,11 @@ impl DensitySampler for BlendFieldSampler {
         &self,
         _: &mut SamplerContext,
         [x, _, z]: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         Ok(if self.offset {
-            self.buffer.offset(x, z) as f32
+            self.buffer.offset(x, z)
         } else {
-            self.buffer.alpha(x, z) as f32
+            self.buffer.alpha(x, z)
         })
     }
 }

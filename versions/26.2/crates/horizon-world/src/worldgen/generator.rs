@@ -47,7 +47,10 @@ use crate::{
 };
 use horizon_core::{
     biome::{BiomeZoom, obfuscate_seed},
-    density::{DensitySampler, LatticeSamples, SamplerContext},
+    density::{
+        BinaryOp, BinarySampler, ContextBoundSampler, DensitySampler, LatticeSamples,
+        SamplerContext, WorldField,
+    },
     noise::{DensityVolume, Noise},
     position::{BlockPos, ChunkPos},
     random::{LegacyRandom, PositionalRandom, RandomSource, XoroshiroRandom},
@@ -970,6 +973,10 @@ struct Pipeline<R: RandomSource> {
     climate: ClimateSampler,
     aquifer: Option<[Arc<dyn DensitySampler>; 6]>,
     rule: MaterialRule,
+    /// The settings' surface rule without the ore veins: the carver's top
+    /// material applies only it, as vanilla's `CarvingContext.topMaterial`
+    /// applies only the surface RuleSource, never the vein filler.
+    surface_rule: MaterialRule,
     preliminary: Arc<dyn DensitySampler>,
     source: ResolvedBiomeSource,
     surface: MaterialSurface<R::Positional>,
@@ -1202,15 +1209,22 @@ where
             .map(|config| library.compile_aquifer(config))
             .transpose()?
             .map(|samplers| AquiferField::ALL.map(|field| samplers.get(field).clone()));
-        let rule = library.rule(&rule_name)?;
-        // The vein rules run AFTER the surface rule: in vanilla 26.2 the
-        // veins apply during the fill and the surface rule runs after and
-        // overwrites them (bedrock at the floor wins over veins), so veins
-        // are the lowest-priority rule in the sequence.
+        let surface_rule = library.rule(&rule_name)?;
+        // The vein rules run BEFORE the surface rule: in vanilla 26.2 the
+        // veins apply during the fill (`NoiseChunk`'s `OreVeinifier`
+        // filler) and the surface rule runs after — but
+        // `SurfaceSystem.buildSurface` only applies the rule where the
+        // block is still the default block (stone), so it never overwrites
+        // a vein's tuff or ore. Veins first in the sequence is exactly
+        // that order: where a vein places a block the surface rule never
+        // runs, and where it returns nothing the surface rule runs on the
+        // still-stone block. (Veins after the surface rule shadowed them
+        // entirely: the deepslate gradient below y 0 always produces
+        // first, so no vein ever placed a block.)
         let rule = if veins.is_empty() {
-            rule
+            surface_rule.clone()
         } else {
-            let mut children = vec![rule];
+            let mut children = Vec::with_capacity(veins.len() + 1);
             for (kind, roots) in veins {
                 let blocks = kind.blocks();
                 children.push(MaterialRule::OreVein {
@@ -1224,6 +1238,7 @@ where
                     positive_y: kind.positive_y(),
                 });
             }
+            children.push(surface_rule.clone());
             MaterialRule::Sequence(children)
         };
         let preliminary = router.get(RouterField::PreliminarySurfaceLevel).clone();
@@ -1297,6 +1312,7 @@ where
             climate,
             aquifer,
             rule,
+            surface_rule,
             preliminary,
             source,
             surface,
@@ -1829,7 +1845,11 @@ where
             .structures
             .as_ref()
             .and_then(|s| s.beardifier(&references, pos));
-        if beard.is_some() || !blender.is_empty() {
+        // Vanilla 26.2's NoiseChunk fills with add(finalDensity, beardifier):
+        // the beardifier is added in code, not referenced by the settings'
+        // graph, so the fill below must add it explicitly when one exists.
+        let has_beard = beard.is_some();
+        if has_beard || !blender.is_empty() {
             let mut fields = horizon_core::density::WorldFields::default();
             if let Some(beard) = beard {
                 fields = fields.with_field(
@@ -1897,16 +1917,33 @@ where
                     .collect()
             };
             context.set_lattice(lattice);
+            let final_density = self.router.get(RouterField::FinalDensity);
+            let combined;
+            let density: &dyn DensitySampler = if has_beard {
+                combined = BinarySampler {
+                    left: final_density.clone(),
+                    right: Arc::new(ContextBoundSampler::new(WorldField::Beardifier)),
+                    operation: BinaryOp::Add,
+                };
+                &combined
+            } else {
+                final_density.as_ref()
+            };
             let filled = fill_noise(
                 &mut chunk,
                 volume,
-                self.router.get(RouterField::FinalDensity).as_ref(),
+                density,
                 context,
                 aquifer.as_mut(),
                 self.settings.default_block,
             );
             context.clear_lattice();
             filled.map_err(stage("noise"))?;
+            // Vanilla 26.2's fill emits its marks in noise-cell order; the
+            // column-major fill above appends them in a different order, so
+            // reorder them now, before the surface rule or carvers append
+            // theirs.
+            chunk.sort_postprocessing_fill_order(self.settings.cell.0);
         }
         let generation = self.generation();
         worker.timings.noise += lap(&mut clock);
@@ -1948,13 +1985,13 @@ where
         worker.timings.surface += lap(&mut clock);
         if run_carvers {
             let carvers = &data.biome_carvers;
-            let mask = generate_carving_mask(self.seed, pos, generation, false, |origin| {
+            let generated = generate_carving_mask(self.seed, pos, generation, false, |origin| {
                 self.carver_biome(worker, origin)
                     .map(|id| carvers[id.0 as usize].as_slice())
             })
             .map_err(stage("carvers"))?;
             worker.timings.carvers += lap(&mut clock);
-            if !mask.is_empty() {
+            if !generated.mask.is_empty() {
                 let mut resolver = self.source.resolver(
                     &self.climate,
                     self.router.get(RouterField::Erosion).as_ref(),
@@ -1974,11 +2011,15 @@ where
                             .unwrap_or(generation.min_y)
                     },
                 };
+                // The carver's top material is the surface rule alone (see
+                // `surface_rule`), with its own compiled-rule cache: the
+                // shared one holds the surface stage's veins-first rule.
+                let mut carving_shared = None;
                 apply_carving_mask_shared(
                     &mut chunk,
-                    &mask,
-                    &self.rule,
-                    &mut shared,
+                    &generated.mask,
+                    &self.surface_rule,
+                    &mut carving_shared,
                     TopMaterialInputs::<R, _> {
                         generation,
                         root: self.root.clone(),
@@ -1996,6 +2037,7 @@ where
                     &data.carving_blocks,
                     profile,
                     |[x, y, z]| blender.carving_filter(x, y, z).unwrap_or(true),
+                    Some(&generated.tags),
                 )
                 .map_err(stage("carvers"))?;
             }
@@ -3242,8 +3284,8 @@ where
         );
         // Interpolate the supplied lattice, never the physical bounding volume.
         let value = |wx: i32, iy: usize, wz: i32| {
-            let rx = (wx - ox) as f32 / step_xz as f32;
-            let rz = (wz - oz) as f32 / step_xz as f32;
+            let rx = (wx - ox) as f64 / step_xz as f64;
+            let rz = (wz - oz) as f64 / step_xz as f64;
             let ix = rx.floor() as usize;
             let iz = rz.floor() as usize;
             let at = |dx: usize, dz: usize| {
@@ -3255,11 +3297,11 @@ where
                     ])
                     .unwrap()]
             };
-            let mix = |a: f32, b: f32, t: f32| a + (b - a) * t;
+            let mix = |a: f64, b: f64, t: f64| a + (b - a) * t;
             mix(
-                mix(at(0, 0), at(1, 0), rx - ix as f32),
-                mix(at(0, 1), at(1, 1), rx - ix as f32),
-                rz - iz as f32,
+                mix(at(0, 0), at(1, 0), rx - ix as f64),
+                mix(at(0, 1), at(1, 1), rx - ix as f64),
+                rz - iz as f64,
             )
         };
         let mut profile = vec![0.; ny as usize];
@@ -3291,10 +3333,10 @@ where
                 }
                 for y in (band_min..band_max).rev() {
                     let iy = ((y - band_min) / step_y) as usize;
-                    let alpha = ((y - band_min) % step_y) as f32 / step_y as f32;
+                    let alpha = ((y - band_min) % step_y) as f64 / step_y as f64;
                     let density = profile[iy] + (profile[iy + 1] - profile[iy]) * alpha;
                     let state = aquifer
-                        .compute_substance([wx, y, wz], f64::from(density))
+                        .compute_substance([wx, y, wz], density)
                         .unwrap_or(self.settings.default_block);
                     let properties = self.data.states.get(state);
                     if !properties.is_air() {

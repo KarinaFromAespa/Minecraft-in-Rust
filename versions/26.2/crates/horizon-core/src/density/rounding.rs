@@ -8,36 +8,36 @@ pub enum RoundMode {
     Truncate,
 }
 impl RoundMode {
-    pub(super) fn integer(self, value: f32) -> f32 {
+    pub(super) fn integer(self, value: f64) -> f64 {
         match self {
-            Self::Floor => (value as f64).floor() as f32,
-            Self::Ceil => (value as f64).ceil() as f32,
+            Self::Floor => value.floor(),
+            Self::Ceil => value.ceil(),
             Self::Truncate => {
                 if value > 0.0 {
-                    (value as f64).floor() as f32
+                    value.floor()
                 } else {
-                    (value as f64).ceil() as f32
+                    value.ceil()
                 }
             }
             Self::Round => {
-                // Math.round(float): ties go toward positive infinity, NaNs
-                // become zero, and the result saturates to Java's int domain.
-                let bits = value.to_bits() as i32;
-                let shift = 149 - ((bits >> 23) & 0xff);
-                let rounded = if (0..32).contains(&shift) {
-                    let mut significand = (bits & 0x7f_ffff) | 0x80_0000;
+                // Math.round(double): ties go toward positive infinity, NaNs
+                // become zero, and the result saturates to Java's long domain.
+                let bits = value.to_bits() as i64;
+                let shift = 1074 - ((bits >> 52) & 0x7ff);
+                let rounded = if (0..64).contains(&shift) {
+                    let mut significand = (bits & 0xF_FFFF_FFFF_FFFF) | 0x10_0000_0000_0000;
                     if bits < 0 {
                         significand = -significand;
                     }
                     ((significand >> shift) + 1) >> 1
                 } else {
-                    value as i32
+                    value as i64
                 };
-                rounded as f32
+                rounded as f64
             }
         }
     }
-    fn apply(self, input: f32, multiple: f32) -> f32 {
+    fn apply(self, input: f64, multiple: f64) -> f64 {
         if multiple == 0.0 {
             input
         } else {
@@ -59,7 +59,7 @@ impl DensitySampler for RoundSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let input = self.input.sample_value(context, position)?;
         Ok(if let Some(multiple) = &self.multiple {
             self.mode
@@ -71,7 +71,7 @@ impl DensitySampler for RoundSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         if self.multiple.is_some() {

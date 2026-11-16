@@ -6,7 +6,7 @@ use super::*;
 pub struct InterpolatedSampler {
     input: Arc<dyn DensitySampler>,
     cell_size: [i32; 3],
-    inverse: [f32; 3],
+    inverse: [f64; 3],
     /// The input is pointwise ([`is_pointwise`]), so its lattice samples can
     /// come from another volume over the same cells.
     pointwise_input: bool,
@@ -28,14 +28,14 @@ impl InterpolatedSampler {
             identity: None,
             input,
             cell_size,
-            inverse: cell_size.map(|size| 1.0 / size as f32),
+            inverse: cell_size.map(|size| 1.0 / size as f64),
         })
     }
 
     fn sample_block_volume(
         &self,
         context: &mut SamplerContext,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         let minimum = volume.minimum();
@@ -100,10 +100,10 @@ impl InterpolatedSampler {
     #[allow(clippy::manual_is_multiple_of, clippy::chunks_exact_to_as_chunks)]
     fn fill_whole_cells(
         &self,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
         coarse: DensityVolume,
-        samples: &[f32],
+        samples: &[f64],
     ) -> bool {
         let sizes = volume.sizes();
         let cell = self.cell_size.map(|size| size as usize);
@@ -124,15 +124,15 @@ impl InterpolatedSampler {
         let [coarse_x, levels, _] = coarse.sizes();
         let column = |x: usize, z: usize| &samples[(x + z * coarse_x) * levels..][..levels];
         for z in 0..size_z {
-            let alpha_z = (z % cell[2]) as f32 * self.inverse[2];
+            let alpha_z = (z % cell[2]) as f64 * self.inverse[2];
             for x in (0..size_x).step_by(4) {
-                let alpha_x: [f32; 4] =
-                    std::array::from_fn(|lane| (x % cell[0] + lane) as f32 * self.inverse[0]);
+                let alpha_x: [f64; 4] =
+                    std::array::from_fn(|lane| (x % cell[0] + lane) as f64 * self.inverse[0]);
                 let (cell_x, cell_z) = (x / cell[0], z / cell[2]);
                 let (near_0, near_1) = (column(cell_x, cell_z), column(cell_x, cell_z + 1));
                 let (far_0, far_1) = (column(cell_x + 1, cell_z), column(cell_x + 1, cell_z + 1));
                 // `fill_cell`'s Z lerps at one level of corners, then its `low`.
-                let level = |y: usize| -> [f32; 4] {
+                let level = |y: usize| -> [f64; 4] {
                     let near = lerp(alpha_z, near_0[y], near_1[y]);
                     let far = lerp(alpha_z, far_0[y], far_1[y]);
                     std::array::from_fn(|lane| lerp(alpha_x[lane], near, far))
@@ -147,10 +147,10 @@ impl InterpolatedSampler {
                 let mut cell_y = 0;
                 for ((a, b), (c, d)) in cells {
                     let top = level(cell_y + 1);
-                    let increment: [f32; 4] =
+                    let increment: [f64; 4] =
                         std::array::from_fn(|lane| (top[lane] - bottom[lane]) * self.inverse[1]);
                     // `low + increment * start[1]`, the cell starting at its Y 0.
-                    let mut value: [f32; 4] =
+                    let mut value: [f64; 4] =
                         std::array::from_fn(|lane| bottom[lane] + increment[lane] * 0.0);
                     let quads = a
                         .as_chunks_mut::<4>()
@@ -185,9 +185,9 @@ impl InterpolatedSampler {
                 let full = cell_y * cell[1];
                 if full < size_y {
                     let top = level(cell_y + 1);
-                    let increment: [f32; 4] =
+                    let increment: [f64; 4] =
                         std::array::from_fn(|lane| (top[lane] - bottom[lane]) * self.inverse[1]);
-                    let mut value: [f32; 4] =
+                    let mut value: [f64; 4] =
                         std::array::from_fn(|lane| bottom[lane] + increment[lane] * 0.0);
                     for y in full..size_y {
                         for (lane, column) in
@@ -218,7 +218,7 @@ impl InterpolatedSampler {
     fn samples_from_lattice(
         &self,
         context: &mut SamplerContext,
-        samples: &mut [f32],
+        samples: &mut [f64],
         coarse: DensityVolume,
     ) -> Result<bool, SampleError> {
         let Some(key) = self.identity else {
@@ -236,7 +236,7 @@ impl InterpolatedSampler {
     fn fill_from_known(
         &self,
         context: &mut SamplerContext,
-        samples: &mut [f32],
+        samples: &mut [f64],
         coarse: DensityVolume,
         lattice: &[LatticeSamples],
     ) -> Result<(), SampleError> {
@@ -360,11 +360,11 @@ impl InterpolatedSampler {
 
     fn fill_cell(
         &self,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
         coarse: DensityVolume,
         cell: [usize; 3],
-        corners: [f32; 8],
+        corners: [f64; 8],
     ) -> Result<(), SampleError> {
         let offset: [i32; 3] = std::array::from_fn(|i| {
             coarse.minimum()[i]
@@ -383,17 +383,17 @@ impl InterpolatedSampler {
         let length = (end[1] - start[1] + 1) as usize;
         let output_len = output.len();
         for z in start[2]..=end[2] {
-            let alpha_z = z as f32 * self.inverse[2];
+            let alpha_z = z as f64 * self.inverse[2];
             let z00 = lerp(alpha_z, corners[0], corners[4]);
             let z01 = lerp(alpha_z, corners[2], corners[6]);
             let z10 = lerp(alpha_z, corners[1], corners[5]);
             let z11 = lerp(alpha_z, corners[3], corners[7]);
             let column = |x: i32| {
-                let alpha_x = x as f32 * self.inverse[0];
+                let alpha_x = x as f64 * self.inverse[0];
                 let low = lerp(alpha_x, z00, z10);
                 let high = lerp(alpha_x, z01, z11);
                 let increment = (high - low) * self.inverse[1];
-                let value = low + increment * start[1] as f32;
+                let value = low + increment * start[1] as f64;
                 let index = volume
                     .index([
                         offset[0].wrapping_add(x) as usize,
@@ -442,10 +442,10 @@ impl InterpolatedSampler {
 /// Four disjoint `length`-long column slices of `output` at ascending `starts`, if
 /// every start was valid and the columns do not overlap.
 fn four_columns(
-    output: &mut [f32],
+    output: &mut [f64],
     starts: [Option<usize>; 4],
     length: usize,
-) -> Option<[&mut [f32]; 4]> {
+) -> Option<[&mut [f64]; 4]> {
     let [a, b, c, d] = starts;
     let [a, b, c, d] = [a?, b?, c?, d?];
     if b.checked_sub(a)? < length || c.checked_sub(b)? < length || d.checked_sub(c)? < length {
@@ -462,7 +462,7 @@ fn four_columns(
     ])
 }
 
-fn lerp(alpha: f32, first: f32, second: f32) -> f32 {
+fn lerp(alpha: f64, first: f64, second: f64) -> f64 {
     first + alpha * (second - first)
 }
 impl DensitySampler for InterpolatedSampler {
@@ -470,7 +470,7 @@ impl DensitySampler for InterpolatedSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let remainder: [i32; 3] =
             std::array::from_fn(|i| position[i].rem_euclid(self.cell_size[i]));
         if remainder == [0; 3] {
@@ -483,8 +483,8 @@ impl DensitySampler for InterpolatedSampler {
         )?;
         context.with_buffer(8, |context, corners| {
             self.input.sample_volume(context, corners, volume)?;
-            let alpha: [f32; 3] =
-                std::array::from_fn(|i| remainder[i] as f32 / self.cell_size[i] as f32);
+            let alpha: [f64; 3] =
+                std::array::from_fn(|i| remainder[i] as f64 / self.cell_size[i] as f64);
             // Samples use Y-innermost storage; interpolation blends X, Y, Z.
             let xy0 = lerp(
                 alpha[1],
@@ -502,7 +502,7 @@ impl DensitySampler for InterpolatedSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(output, volume)?;
@@ -577,28 +577,28 @@ mod tests {
     #[derive(Debug)]
     struct Lattice;
     impl Lattice {
-        fn value(position: [i32; 3]) -> f32 {
+        fn value(position: [i32; 3]) -> f64 {
             let mut hash = (position[0] as u32).wrapping_mul(0x9E37_79B1)
                 ^ (position[1] as u32).wrapping_mul(0x85EB_CA77)
                 ^ (position[2] as u32).wrapping_mul(0xC2B2_AE3D);
             hash ^= hash >> 15;
             hash = hash.wrapping_mul(0x2C1B_3C6D);
             hash ^= hash >> 13;
-            const SPECIAL: [f32; 8] = [
-                f32::NAN,
-                f32::INFINITY,
-                f32::NEG_INFINITY,
+            const SPECIAL: [f64; 8] = [
+                f64::NAN,
+                f64::INFINITY,
+                f64::NEG_INFINITY,
                 0.0,
                 -0.0,
-                1e-40,
+                5e-324,
                 -3e38,
                 3e38,
             ];
-            const SCALE: [f32; 4] = [1.0, 1e-3, 1e30, 3e-39];
+            const SCALE: [f64; 4] = [1.0, 1e-3, 1e30, 1e-310];
             if hash.is_multiple_of(23) {
                 SPECIAL[(hash >> 5) as usize % 8]
             } else {
-                ((hash >> 8) as f32 / (1 << 24) as f32 - 0.5) * SCALE[(hash >> 3) as usize % 4]
+                ((hash >> 8) as f64 / (1 << 24) as f64 - 0.5) * SCALE[(hash >> 3) as usize % 4]
             }
         }
     }
@@ -607,7 +607,7 @@ mod tests {
             &self,
             _: &mut SamplerContext,
             position: [i32; 3],
-        ) -> Result<f32, SampleError> {
+        ) -> Result<f64, SampleError> {
             Ok(Self::value(position))
         }
     }
@@ -615,9 +615,9 @@ mod tests {
     /// Vanilla's `InterpolatedFunction.Sampler.sampleWithBlockStep` and `fillCell`,
     /// transcribed (it carries a cell's top corners over to the next cell up; they
     /// are the same samples read again here).
-    fn vanilla(cell_xz: i32, cell_y: i32, volume: DensityVolume) -> Vec<f32> {
+    fn vanilla(cell_xz: i32, cell_y: i32, volume: DensityVolume) -> Vec<f64> {
         let size = [cell_xz, cell_y, cell_xz];
-        let (xz_inv, y_inv) = (1.0 / cell_xz as f32, 1.0 / cell_y as f32);
+        let (xz_inv, y_inv) = (1.0 / cell_xz as f64, 1.0 / cell_y as f64);
         let (min, max) = (volume.minimum(), volume.maximum());
         let first: [i32; 3] = std::array::from_fn(|i| min[i].div_euclid(size[i]));
         let count: [i32; 3] = std::array::from_fn(|i| max[i].div_euclid(size[i]) - first[i] + 1);
@@ -630,9 +630,9 @@ mod tests {
                 (first[2] + z) * size[2],
             ])
         };
-        let lerp = |delta: f32, start: f32, end: f32| start + delta * (end - start);
+        let lerp = |delta: f64, start: f64, end: f64| start + delta * (end - start);
         let sizes = volume.sizes().map(|size| size as i32);
-        let mut output = vec![f32::NAN; volume.size()];
+        let mut output = vec![f64::NAN; volume.size()];
         for cell_z in 0..count[2] {
             let next_z = (cell_z + 1).min(cells[2] - 1);
             for cell_x in 0..count[0] {
@@ -661,17 +661,17 @@ mod tests {
                     let lo = out.map(|out| 0.max(-out));
                     let hi: [i32; 3] = std::array::from_fn(|i| size[i].min(sizes[i] - out[i]) - 1);
                     for z in lo[2]..=hi[2] {
-                        let alpha_z = z as f32 * xz_inv;
+                        let alpha_z = z as f64 * xz_inv;
                         let v00_ = lerp(alpha_z, v000, v001);
                         let v01_ = lerp(alpha_z, v010, v011);
                         let v10_ = lerp(alpha_z, v100, v101);
                         let v11_ = lerp(alpha_z, v110, v111);
                         for x in lo[0]..=hi[0] {
-                            let alpha_x = x as f32 * xz_inv;
+                            let alpha_x = x as f64 * xz_inv;
                             let v_0_ = lerp(alpha_x, v00_, v10_);
                             let v_1_ = lerp(alpha_x, v01_, v11_);
                             let step = (v_1_ - v_0_) * y_inv;
-                            let mut value = v_0_ + step * lo[1] as f32;
+                            let mut value = v_0_ + step * lo[1] as f64;
                             let at = [out[0] + x, out[1] + lo[1], out[2] + z].map(|v| v as usize);
                             let index = volume.index(at).unwrap();
                             let length = (hi[1] - lo[1] + 1) as usize;
@@ -687,7 +687,7 @@ mod tests {
         output
     }
 
-    fn same(a: &[f32], b: &[f32]) -> bool {
+    fn same(a: &[f64], b: &[f64]) -> bool {
         a.len() == b.len()
             && a.iter()
                 .zip(b)

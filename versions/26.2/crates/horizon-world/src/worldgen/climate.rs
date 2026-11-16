@@ -24,7 +24,9 @@ pub struct TargetPoint {
     pub weirdness: i64,
 }
 impl TargetPoint {
-    pub fn from_values(values: [f32; 6]) -> Self {
+    /// Vanilla 26.2 samples the six climate fields in double, then casts
+    /// each to float for `Climate.quantizeCoord(float)`.
+    pub fn from_values(values: [f64; 6]) -> Self {
         let [
             temperature,
             humidity,
@@ -32,7 +34,7 @@ impl TargetPoint {
             erosion,
             depth,
             weirdness,
-        ] = values.map(quantize);
+        ] = values.map(|v| quantize(v as f32));
         Self {
             temperature,
             humidity,
@@ -102,7 +104,7 @@ impl ClimateSampler {
 pub struct ClimateVolume {
     quart_minimum: [i32; 3],
     volume: DensityVolume,
-    fields: [Vec<f32>; 6],
+    fields: [Vec<f64>; 6],
 }
 impl ClimateVolume {
     /// Coordinates must be inside the prepared quart volume. The bounded Rust

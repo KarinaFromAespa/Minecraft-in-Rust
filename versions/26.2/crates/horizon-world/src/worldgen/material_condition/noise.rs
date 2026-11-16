@@ -58,10 +58,10 @@ impl<P: PositionalRandom, S: MaterialSurfaceQueries> MaterialSurfaceQueries
     ) -> Result<usize, DecodeError> {
         self.surface.bind_density(sampler, eager)
     }
-    fn density(&mut self, index: usize, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, index: usize, position: BlockPos) -> Result<f64, MaterialRuleError> {
         self.surface.density(index, position)
     }
-    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f64, MaterialRuleError> {
         self.surface.preliminary_surface(position)
     }
     fn possible_biomes(&self) -> Option<BTreeSet<String>> {

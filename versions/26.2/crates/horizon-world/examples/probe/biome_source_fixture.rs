@@ -15,12 +15,12 @@ fn n(v: &Value) -> i32 {
 }
 #[derive(Debug)]
 struct Erosion {
-    value: f32,
+    value: f64,
     fail: bool,
     trace: Arc<Mutex<Vec<[i32; 3]>>>,
 }
 impl DensitySampler for Erosion {
-    fn sample_value(&self, _: &mut SamplerContext, pos: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, pos: [i32; 3]) -> Result<f64, SampleError> {
         self.trace.lock().unwrap().push(pos);
         if self.fail {
             Err(SampleError::RecursiveCache)
@@ -53,7 +53,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let trace = Arc::new(Mutex::new(Vec::new()));
         let erosion = Erosion {
-            value: f32::from_bits(u32::from_str_radix(f["bits"].as_str().unwrap_or("0"), 16)?),
+            value: f64::from(f32::from_bits(u32::from_str_radix(f["bits"].as_str().unwrap_or("0"), 16)?)),
             fail: f["fail"].as_bool().unwrap_or(false),
             trace: trace.clone(),
         };

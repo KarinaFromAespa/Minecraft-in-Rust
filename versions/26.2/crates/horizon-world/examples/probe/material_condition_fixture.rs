@@ -142,12 +142,12 @@ fn condition(v: &Value, registry: &MaterialConditionRegistry) -> MaterialConditi
 #[derive(Default, Debug)]
 struct Inputs {
     depth: i32,
-    secondary: f32,
+    secondary: f64,
     queries: Vec<String>,
     biome: Option<String>,
-    density: f32,
+    density: f64,
     density_remaining: i32,
-    ore_values: [f32; 3],
+    ore_values: [f64; 3],
     ore_remaining: [i32; 3],
 }
 #[derive(Debug)]
@@ -163,7 +163,7 @@ impl TracedDensity {
     }
 }
 impl DensitySampler for TracedDensity {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
         let [x, y, z] = position;
         let mut inputs = self.inputs.lock().unwrap();
         inputs
@@ -187,7 +187,7 @@ impl DensitySampler for TracedDensity {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         let [sx, sy, sz] = volume.sizes();
@@ -227,13 +227,13 @@ struct TracedNoise {
     inputs: Arc<Mutex<Inputs>>,
 }
 impl Noise for TracedNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        Ok([f32::NEG_INFINITY, f32::INFINITY])
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        Ok([f64::NEG_INFINITY, f64::INFINITY])
     }
-    fn get2(&self, _: f64, _: f64) -> f32 {
+    fn get2(&self, _: f64, _: f64) -> f64 {
         panic!("unexpected 2D noise call")
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
         let mut inputs = self.inputs.lock().unwrap();
         inputs.queries.push(format!(
             "noise query {} {} {} {}",
@@ -293,7 +293,7 @@ impl<P: PositionalRandom> MaterialSurfaceQueries for Surface<P> {
     fn surface_secondary(&mut self, x: i32, z: i32) -> f64 {
         let mut i = self.inputs.lock().unwrap();
         i.queries.push(format!("secondary query {x} {z}"));
-        f64::from(i.secondary)
+        i.secondary
     }
 }
 fn rule(
@@ -409,7 +409,7 @@ where
             .get("ore_values")
             .map(|v| {
                 std::array::from_fn(|i| {
-                    f32::from_bits(u32::from_str_radix(v[i].as_str().unwrap(), 16).unwrap())
+                    f64::from(f32::from_bits(u32::from_str_radix(v[i].as_str().unwrap(), 16).unwrap()))
                 })
             })
             .unwrap_or([1.0, 1.0, -1.0]),
@@ -546,13 +546,18 @@ where
             "ore_input" => {
                 let mut i = inputs.lock().unwrap();
                 let channel = op[1].as_u64().unwrap() as usize;
-                i.ore_values[channel] =
-                    f32::from_bits(u32::from_str_radix(op[2].as_str().unwrap(), 16)?);
+                i.ore_values[channel] = f64::from(f32::from_bits(u32::from_str_radix(
+                    op[2].as_str().unwrap(),
+                    16,
+                )?));
                 i.ore_remaining[channel] = op[3].as_i64().unwrap() as i32;
             }
             "density" => {
                 let mut i = inputs.lock().unwrap();
-                i.density = f32::from_bits(u32::from_str_radix(op[1].as_str().unwrap(), 16)?);
+                i.density = f64::from(f32::from_bits(u32::from_str_radix(
+                    op[1].as_str().unwrap(),
+                    16,
+                )?));
                 i.density_remaining = op[2].as_i64().unwrap() as i32;
             }
             "minimum" => {
@@ -594,7 +599,10 @@ where
             "input" => {
                 let mut i = inputs.lock().unwrap();
                 i.depth = op[1].as_i64().unwrap() as i32;
-                i.secondary = f32::from_bits(u32::from_str_radix(op[2].as_str().unwrap(), 16)?);
+                i.secondary = f64::from(f32::from_bits(u32::from_str_radix(
+                    op[2].as_str().unwrap(),
+                    16,
+                )?));
             }
             "xz" => worker.update_xz(
                 op[1].as_i64().unwrap() as i32,

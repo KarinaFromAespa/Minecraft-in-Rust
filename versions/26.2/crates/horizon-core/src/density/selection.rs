@@ -3,13 +3,13 @@ use super::*;
 #[derive(Clone, Debug)]
 pub struct RangeChoiceSampler {
     pub input: Arc<dyn DensitySampler>,
-    pub min_inclusive: f32,
-    pub max_exclusive: f32,
+    pub min_inclusive: f64,
+    pub max_exclusive: f64,
     pub when_in_range: Arc<dyn DensitySampler>,
     pub when_out_of_range: Arc<dyn DensitySampler>,
 }
 impl RangeChoiceSampler {
-    fn contains(&self, value: f32) -> bool {
+    fn contains(&self, value: f64) -> bool {
         value >= self.min_inclusive && value < self.max_exclusive
     }
 }
@@ -18,7 +18,7 @@ impl DensitySampler for RangeChoiceSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         if self.contains(self.input.sample_value(context, position)?) {
             self.when_in_range.sample_value(context, position)
         } else {
@@ -28,7 +28,7 @@ impl DensitySampler for RangeChoiceSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_exact_buffer(buffer, volume)?;
@@ -57,7 +57,7 @@ impl DensitySampler for RangeChoiceSampler {
 /// scratch allocation in the constant-endpoint interpolation specializations.
 #[derive(Clone, Debug)]
 pub enum DensityValue {
-    Constant(f32),
+    Constant(f64),
     Sampler(Arc<dyn DensitySampler>),
 }
 impl DensityValue {
@@ -65,7 +65,7 @@ impl DensityValue {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         match self {
             Self::Constant(value) => Ok(*value),
             Self::Sampler(sampler) => sampler.sample_value(context, position),
@@ -94,9 +94,9 @@ impl DensityValue {
     /// `alpha` reads it.
     fn needed(
         &self,
-        alpha: &[f32],
+        alpha: &[f64],
         volume: DensityVolume,
-        reads: fn(f32) -> bool,
+        reads: fn(f64) -> bool,
     ) -> Option<Vec<u64>> {
         let size_y = volume.sizes()[1];
         if matches!(self, Self::Constant(_)) || size_y > 64 {
@@ -115,11 +115,11 @@ impl DensityValue {
 }
 #[derive(Clone, Copy)]
 enum Values<'a> {
-    Constant(f32),
-    Buffer(&'a [f32]),
+    Constant(f64),
+    Buffer(&'a [f64]),
 }
 impl Values<'_> {
-    fn get(self, index: usize) -> f32 {
+    fn get(self, index: usize) -> f64 {
         match self {
             Self::Constant(value) => value,
             Self::Buffer(buffer) => buffer[index],
@@ -132,7 +132,7 @@ pub struct LerpSampler {
     pub first: DensityValue,
     pub second: DensityValue,
 }
-fn interpolate(alpha: f32, first: f32, second: f32) -> f32 {
+fn interpolate(alpha: f64, first: f64, second: f64) -> f64 {
     if alpha == 0.0 {
         first
     } else if alpha == 1.0 {
@@ -146,7 +146,7 @@ impl DensitySampler for LerpSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let alpha = self.alpha.sample_value(context, position)?;
         if alpha == 0.0 {
             return self.first.sample_value(context, position);
@@ -161,7 +161,7 @@ impl DensitySampler for LerpSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_exact_buffer(buffer, volume)?;
@@ -198,13 +198,13 @@ impl std::error::Error for InvalidIntervals {}
 #[derive(Clone, Debug)]
 pub struct IntervalSelectSampler {
     input: Arc<dyn DensitySampler>,
-    thresholds: Vec<f32>,
+    thresholds: Vec<f64>,
     branches: Vec<Arc<dyn DensitySampler>>,
 }
 impl IntervalSelectSampler {
     pub fn new(
         input: Arc<dyn DensitySampler>,
-        thresholds: Vec<f32>,
+        thresholds: Vec<f64>,
         branches: Vec<Arc<dyn DensitySampler>>,
     ) -> Result<Self, InvalidIntervals> {
         if branches.len() > 256 || thresholds.len().checked_add(1) != Some(branches.len()) {
@@ -216,7 +216,7 @@ impl IntervalSelectSampler {
             branches,
         })
     }
-    fn select(&self, value: f32) -> usize {
+    fn select(&self, value: f64) -> usize {
         self.thresholds
             .iter()
             .position(|threshold| value < *threshold)
@@ -228,21 +228,21 @@ impl DensitySampler for IntervalSelectSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let value = self.input.sample_value(context, position)?;
         self.branches[self.select(value)].sample_value(context, position)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_exact_buffer(buffer, volume)?;
         let total = volume
             .size()
             .checked_mul(self.branches.len())
-            .filter(|count| *count <= isize::MAX as usize / size_of::<f32>())
+            .filter(|count| *count <= isize::MAX as usize / size_of::<f64>())
             .ok_or(DensityError::VolumeTooLarge)?;
         self.input.sample_volume(context, buffer, volume)?;
         // Contiguous retained storage replaces a separate allocation per branch.

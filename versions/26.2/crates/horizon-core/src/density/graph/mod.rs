@@ -61,7 +61,7 @@ pub enum GraphBinary {
 /// to existing immutable nodes, keeping the definition graph acyclic.
 #[derive(Clone, Debug)]
 pub enum GraphNode {
-    Constant(f32),
+    Constant(f64),
     Spline(CubicSpline<FunctionId>),
     Noise {
         noise: NoiseId,
@@ -89,8 +89,8 @@ pub enum GraphNode {
         tiling: TilingMode,
         from: i32,
         to: i32,
-        low: f32,
-        high: f32,
+        low: f64,
+        high: f64,
     },
     Unary {
         kind: GraphUnary,
@@ -112,13 +112,13 @@ pub enum GraphNode {
     },
     Clamp {
         input: FunctionId,
-        min: f32,
-        max: f32,
+        min: f64,
+        max: f64,
     },
     Choice {
         input: FunctionId,
-        min: f32,
-        max: f32,
+        min: f64,
+        max: f64,
         inside: FunctionId,
         outside: FunctionId,
     },
@@ -146,7 +146,7 @@ pub enum GraphNode {
     },
     IntervalSelect {
         input: FunctionId,
-        thresholds: Arc<[f32]>,
+        thresholds: Arc<[f64]>,
         branches: Vec<FunctionId>,
     },
     DistanceToPoint {
@@ -201,7 +201,6 @@ impl GraphNode {
         }
     }
     fn key(&self) -> Vec<u64> {
-        let f = |v: f32| u64::from(if v.is_nan() { 0x7fc0_0000 } else { v.to_bits() });
         let i = |v: i32| u64::from(v as u32);
         let d = |v: f64| {
             if v.is_nan() {
@@ -210,6 +209,7 @@ impl GraphNode {
                 v.to_bits()
             }
         };
+        let f = d;
         let id = |v: FunctionId| v.0 as u64;
         match *self {
             Self::Reference { input, holder } => match holder {
@@ -252,8 +252,13 @@ impl GraphNode {
             ],
             Self::Spline(ref spline) => {
                 fn append(spline: &CubicSpline<FunctionId>, key: &mut Vec<u64>) {
-                    let bits =
-                        |v: f32| u64::from(if v.is_nan() { 0x7fc0_0000 } else { v.to_bits() });
+                    let bits = |v: f64| {
+                        if v.is_nan() {
+                            0x7ff8_0000_0000_0000
+                        } else {
+                            v.to_bits()
+                        }
+                    };
                     match spline {
                         CubicSpline::Constant(value) => key.extend([0, bits(*value)]),
                         CubicSpline::Multipoint(node) => {
@@ -321,7 +326,7 @@ impl GraphNode {
             } => {
                 let mut key = vec![11, id(input), thresholds.len() as u64];
                 key.push(if thresholds.iter().any(|v| v.is_nan()) {
-                    Arc::as_ptr(thresholds) as *const f32 as usize as u64
+                    Arc::as_ptr(thresholds) as *const f64 as usize as u64
                 } else {
                     0
                 });
@@ -371,6 +376,11 @@ impl From<SplineError> for CompileError {
 impl From<crate::noise::NoiseBuildError> for CompileError {
     fn from(e: crate::noise::NoiseBuildError) -> Self {
         Self::Noise(e)
+    }
+}
+impl From<crate::noise::synth::SynthError> for CompileError {
+    fn from(e: crate::noise::synth::SynthError) -> Self {
+        Self::Noise(crate::noise::NoiseBuildError::from(e))
     }
 }
 impl std::fmt::Display for CompileError {
@@ -441,7 +451,7 @@ impl DensityGraph {
             GraphNode::IntervalSelect { thresholds, .. } => {
                 thresholds
                     .iter()
-                    .filter(|v| v.to_bits() == 0x8000_0000)
+                    .filter(|v| v.to_bits() == 0x8000_0000_0000_0000)
                     .count()
                     % 2
                     != 0
@@ -640,7 +650,7 @@ impl DensityGraph {
             GraphNode::Spline(ref spline) => spline.try_range(&mut |id| self.range(id))?,
             GraphNode::Constant(v) => Interval::exact(v)?,
             GraphNode::Gradient { low, high, .. } => Interval::encapsulating_values(low, high),
-            GraphNode::DistanceToPoint { .. } => Interval::new(0.0, f32::INFINITY)?,
+            GraphNode::DistanceToPoint { .. } => Interval::new(0.0, f64::INFINITY)?,
             GraphNode::IntervalSelect { ref branches, .. } => {
                 let ranges = branches
                     .iter()
@@ -702,8 +712,8 @@ impl DensityGraph {
             | GraphNode::Reference { input, .. }
             | GraphNode::Interpolated { input, .. } => self.range(input)?,
             GraphNode::Surface { upper, lower, .. } => Interval::new(
-                lower as f32,
-                super::arithmetic::java_max(lower as f32, self.range(upper)?.max()),
+                lower as f64,
+                super::arithmetic::java_max(lower as f64, self.range(upper)?.max()),
             )?,
         })
     }

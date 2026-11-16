@@ -12,29 +12,29 @@ pub(super) fn java_power(base: f64, exponent: f64) -> f64 {
     }
 }
 
-pub(super) fn java_min(a: f32, b: f32) -> f32 {
+pub(super) fn java_min(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
-        f32::NAN
+        f64::NAN
     } else if a == 0.0 && b == 0.0 {
-        f32::from_bits(a.to_bits() | b.to_bits())
+        f64::from_bits(a.to_bits() | b.to_bits())
     } else if a <= b {
         a
     } else {
         b
     }
 }
-pub(super) fn java_max(a: f32, b: f32) -> f32 {
+pub(super) fn java_max(a: f64, b: f64) -> f64 {
     if a.is_nan() || b.is_nan() {
-        f32::NAN
+        f64::NAN
     } else if a == 0.0 && b == 0.0 {
-        f32::from_bits(a.to_bits() & b.to_bits())
+        f64::from_bits(a.to_bits() & b.to_bits())
     } else if a >= b {
         a
     } else {
         b
     }
 }
-fn clamp(value: f32, min: f32, max: f32) -> f32 {
+fn clamp(value: f64, min: f64, max: f64) -> f64 {
     if value < min {
         min
     } else {
@@ -57,22 +57,22 @@ pub enum UnaryOp {
     Reciprocal,
     Sign,
     Squeeze,
-    LeakyRelu(f32),
-    Add(f32),
-    SubtractFrom(f32),
-    Multiply(f32),
-    DivideInto(f32),
-    Minimum(f32),
-    Maximum(f32),
+    LeakyRelu(f64),
+    Add(f64),
+    SubtractFrom(f64),
+    Multiply(f64),
+    DivideInto(f64),
+    Minimum(f64),
+    Maximum(f64),
     ConstantRangeChoice {
-        min_inclusive: f32,
-        max_exclusive: f32,
-        inside: f32,
-        outside: f32,
+        min_inclusive: f64,
+        max_exclusive: f64,
+        inside: f64,
+        outside: f64,
     },
     Clamp {
-        min: f32,
-        max: f32,
+        min: f64,
+        max: f64,
     },
 }
 // One expression definition for scalar dispatch and specialized bulk loops.
@@ -85,10 +85,10 @@ macro_rules! unary_apply {
             Self::Negate => -value,
             Self::Square => value * value,
             Self::Cube => value * value * value,
-            Self::Sqrt => (value as f64).sqrt() as f32,
-            Self::Log => crate::jmath::log(value as f64) as f32,
-            Self::PowerBase(base) => java_power(base, value as f64) as f32,
-            Self::PowerExponent(exponent) => java_power(value as f64, exponent) as f32,
+            Self::Sqrt => value.sqrt(),
+            Self::Log => crate::jmath::log(value),
+            Self::PowerBase(base) => java_power(base, value),
+            Self::PowerExponent(exponent) => java_power(value, exponent),
             Self::Reciprocal => 1.0 / value,
             Self::Sign => {
                 if value == 0.0 || value.is_nan() {
@@ -143,12 +143,12 @@ macro_rules! unary_apply {
     }};
 }
 impl UnaryOp {
-    pub(super) fn apply(self, value: f32, bulk: bool) -> f32 {
+    pub(super) fn apply(self, value: f64, bulk: bool) -> f64 {
         unary_apply!(self, value, bulk)
     }
     /// Dispatch once per volume so each loop has one fixed arithmetic operation.
     /// Keep the scalar expression shared, including the bulk min/max behavior.
-    fn apply_bulk(self, buffer: &mut [f32]) {
+    fn apply_bulk(self, buffer: &mut [f64]) {
         // Specialization can reverse which NaN operand supplies the payload.
         // Retain the original dispatch for non-finite constant operands.
         let non_finite = match self {
@@ -234,7 +234,7 @@ impl DensitySampler for UnarySampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         Ok(self
             .operation
             .apply(self.input.sample_value(context, position)?, false))
@@ -242,7 +242,7 @@ impl DensitySampler for UnarySampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -260,11 +260,11 @@ pub enum BinaryOp {
     Subtract,
     Multiply,
     Divide,
-    Minimum { right_min: f32 },
-    Maximum { right_max: f32 },
+    Minimum { right_min: f64 },
+    Maximum { right_max: f64 },
 }
 impl BinaryOp {
-    fn apply(self, left: f32, right: f32, bulk: bool) -> f32 {
+    fn apply(self, left: f64, right: f64, bulk: bool) -> f64 {
         match self {
             Self::Add => left + right,
             Self::Subtract => left - right,
@@ -286,7 +286,7 @@ impl BinaryOp {
             }
         }
     }
-    fn apply_bulk(self, buffer: &mut [f32], right: &[f32]) {
+    fn apply_bulk(self, buffer: &mut [f64], right: &[f64]) {
         macro_rules! apply {
             ($operation:expr) => {
                 for (left, &right) in buffer.iter_mut().zip(right) {
@@ -318,7 +318,7 @@ impl DensitySampler for BinarySampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         let left = self.left.sample_value(context, position)?;
         match self.operation {
             BinaryOp::Multiply | BinaryOp::Divide if left == 0.0 => return Ok(0.0),
@@ -333,7 +333,7 @@ impl DensitySampler for BinarySampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_exact_buffer(buffer, volume)?;
@@ -353,7 +353,7 @@ mod bulk_tests {
     use super::*;
 
     #[inline(never)]
-    fn dispatched_reference(operation: UnaryOp, value: f32) -> f32 {
+    fn dispatched_reference(operation: UnaryOp, value: f64) -> f64 {
         operation.apply(value, true)
     }
 
@@ -370,7 +370,7 @@ mod bulk_tests {
             UnaryOp::Sign,
             UnaryOp::Squeeze,
         ];
-        for factor in [0.0, -0.0, 0.5, -1.0, f32::INFINITY, f32::NAN] {
+        for factor in [0.0, -0.0, 0.5, -1.0, f64::INFINITY, f64::NAN] {
             operations.extend([
                 UnaryOp::LeakyRelu(factor),
                 UnaryOp::Add(factor),
@@ -397,34 +397,34 @@ mod bulk_tests {
                 UnaryOp::PowerExponent(exponent),
             ]);
         }
-        let mut values: Vec<f32> = [
+        let mut values: Vec<f64> = [
             0,
-            0x8000_0000,
+            0x8000_0000_0000_0000,
             1,
-            0x8000_0001,
-            0x007f_ffff,
-            0x0080_0000,
-            0x3f00_0000,
-            0xbf00_0000,
-            0x3f80_0000,
-            0xbf80_0000,
-            0x7f7f_ffff,
-            0xff7f_ffff,
-            0x7f80_0000,
-            0xff80_0000,
-            0x7fc0_0000,
-            0x7fa0_0001,
-            0xffc0_1234,
+            0x8000_0000_0000_0001,
+            0x000f_ffff_ffff_ffff,
+            0x0010_0000_0000_0000,
+            0x3fe0_0000_0000_0000,
+            0xbfe0_0000_0000_0000,
+            0x3ff0_0000_0000_0000,
+            0xbff0_0000_0000_0000,
+            0x7fef_ffff_ffff_ffff,
+            0xffef_ffff_ffff_ffff,
+            0x7ff0_0000_0000_0000,
+            0xfff0_0000_0000_0000,
+            0x7ff8_0000_0000_0000,
+            0x7ff4_0000_0000_0001,
+            0xfff8_0000_0000_1234,
         ]
         .into_iter()
-        .map(f32::from_bits)
+        .map(f64::from_bits)
         .collect();
-        let mut bits = 0x484f_5249u32;
+        let mut bits = 0x484f_5249_484f_5249u64;
         for _ in 0..4096 {
             bits ^= bits << 13;
-            bits ^= bits >> 17;
-            bits ^= bits << 5;
-            values.push(f32::from_bits(bits));
+            bits ^= bits >> 7;
+            bits ^= bits << 17;
+            values.push(f64::from_bits(bits));
         }
         for operation in operations {
             for length in [0, 1, 3, 16, 257, values.len()] {
@@ -443,7 +443,7 @@ mod bulk_tests {
     }
 
     #[inline(never)]
-    fn dispatched_binary_reference(operation: BinaryOp, left: f32, right: f32) -> f32 {
+    fn dispatched_binary_reference(operation: BinaryOp, left: f64, right: f64) -> f64 {
         operation.apply(left, right, true)
     }
 
@@ -451,39 +451,39 @@ mod bulk_tests {
     fn fixed_binary_loops_preserve_float_bits() {
         let edges = [
             0,
-            0x8000_0000,
+            0x8000_0000_0000_0000,
             1,
-            0x8000_0001,
-            0x007f_ffff,
-            0x0080_0000,
-            0x3f80_0000,
-            0xbf80_0000,
-            0x7f7f_ffff,
-            0xff7f_ffff,
-            0x7f80_0000,
-            0xff80_0000,
-            0x7fc0_0000,
-            0x7fa0_0001,
-            0xffc0_1234,
+            0x8000_0000_0000_0001,
+            0x000f_ffff_ffff_ffff,
+            0x0010_0000_0000_0000,
+            0x3ff0_0000_0000_0000,
+            0xbff0_0000_0000_0000,
+            0x7fef_ffff_ffff_ffff,
+            0xffef_ffff_ffff_ffff,
+            0x7ff0_0000_0000_0000,
+            0xfff0_0000_0000_0000,
+            0x7ff8_0000_0000_0000,
+            0x7ff4_0000_0000_0001,
+            0xfff8_0000_0000_1234,
         ];
         let mut left = Vec::new();
         let mut right = Vec::new();
         for a in edges {
             for b in edges {
-                left.push(f32::from_bits(a));
-                right.push(f32::from_bits(b));
+                left.push(f64::from_bits(a));
+                right.push(f64::from_bits(b));
             }
         }
-        let mut bits = 0x484f_5249u32;
+        let mut bits = 0x484f_5249_484f_5249u64;
         for _ in 0..8192 {
             bits ^= bits << 13;
-            bits ^= bits >> 17;
-            bits ^= bits << 5;
-            left.push(f32::from_bits(bits));
+            bits ^= bits >> 7;
+            bits ^= bits << 17;
+            left.push(f64::from_bits(bits));
             bits ^= bits << 13;
-            bits ^= bits >> 17;
-            bits ^= bits << 5;
-            right.push(f32::from_bits(bits));
+            bits ^= bits >> 7;
+            bits ^= bits << 17;
+            right.push(f64::from_bits(bits));
         }
         for operation in [
             BinaryOp::Add,
@@ -491,10 +491,10 @@ mod bulk_tests {
             BinaryOp::Multiply,
             BinaryOp::Divide,
             BinaryOp::Minimum {
-                right_min: f32::NEG_INFINITY,
+                right_min: f64::NEG_INFINITY,
             },
             BinaryOp::Maximum {
-                right_max: f32::INFINITY,
+                right_max: f64::INFINITY,
             },
         ] {
             for length in [0, 1, 3, 16, 257, left.len()] {

@@ -33,17 +33,17 @@ const NAMES: [&str; 6] = [
 struct TracedNoise {
     name: &'static str,
     real: Arc<dyn Noise>,
-    constant: Option<f32>,
+    constant: Option<f64>,
     trace: Arc<Mutex<Vec<String>>>,
 }
 impl Noise for TracedNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        Ok([f32::NEG_INFINITY, f32::INFINITY])
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        Ok([f64::NEG_INFINITY, f64::INFINITY])
     }
-    fn get2(&self, _: f64, _: f64) -> f32 {
+    fn get2(&self, _: f64, _: f64) -> f64 {
         panic!("unexpected 2D noise query")
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
         self.trace.lock().unwrap().push(format!(
             "noise {} {:x} {:x} {:x}",
             self.name,
@@ -126,7 +126,9 @@ where
             real: Arc::new(decode_noise(&noises[&id])?.create(&mut root.from_hash_of(&id))?),
             constant: f
                 .get("noise_bits")
-                .map(|v| f32::from_bits(u32::from_str_radix(v[i].as_str().unwrap(), 16).unwrap())),
+                .map(|v| {
+                    f64::from(f32::from_bits(u32::from_str_radix(v[i].as_str().unwrap(), 16).unwrap()))
+                }),
             trace: trace.clone(),
         }));
     }

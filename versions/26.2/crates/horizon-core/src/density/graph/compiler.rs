@@ -143,7 +143,7 @@ impl DensityCompiler {
         }
         Ok(result)
     }
-    fn constant(&self, id: FunctionId) -> Option<f32> {
+    fn constant(&self, id: FunctionId) -> Option<f64> {
         match self.graph.entries[id.0].definition {
             Definition::Node(GraphNode::Constant(value)) => Some(value),
             _ => None,

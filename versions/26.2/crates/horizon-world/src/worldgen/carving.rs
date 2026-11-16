@@ -3,15 +3,26 @@
 //! carvers reach, and this pass applies the cells. Vanilla 26.2 applies each
 //! cell as the carver reaches it (`WorldCarver.carveBlock`); the two phases
 //! agree for vanilla data because the apply visits each masked cell once and
-//! the grass/top-material ordering is equivalent, but two details differ by
-//! construction and are documented here:
-//! * `hasGrass` is per-ellipsoid in vanilla and per mask-column-run here, so
-//!   a grass block carved by one ellipsoid can restore the dirt under a cell
-//!   carved by another ellipsoid in the same column.
+//! the grass/top-material ordering is equivalent, but a few details differ
+//! by construction and are documented here:
+//! * `hasGrass` is per-ellipsoid in vanilla and was per mask-column-run here;
+//!   the apply pass now visits every masked cell in (ellipsoid tag, x, z, y
+//!   desc) order — vanilla's worm-trace order — and tracks grass per
+//!   (ellipsoid, column), so a grass block carved by one ellipsoid restores
+//!   the dirt only under cells carved by the same ellipsoid in that column,
+//!   and a later ellipsoid's grass cannot reach dirt an earlier ellipsoid
+//!   already carved. The same order carries the carver's shared aquifer
+//!   flag, so a lava cell's mark reads the stale shouldScheduleFluidUpdate
+//!   value vanilla's trace order leaves. Without ellipsoid tags every cell
+//!   shares one tag and the old column-major behaviour remains.
 //! * The replaceable set and lava level are per-dimension here (every vanilla
 //!   carver in a dimension shares one set and one level); a data-pack carver
 //!   with a custom set or level in a vanilla dimension applies the
 //!   dimension's set and level.
+//! * The marks vanilla emits during the worm trace (ellipsoid order) are
+//!   reordered from the mask-column order the apply pass visits, using the
+//!   ellipsoid tags `generate_carving_mask` records; without tags the marks
+//!   keep mask-column order.
 use super::{
     material_condition::{
         CompiledSurfaceRule, MaterialConditions, MaterialDensitySources, MaterialRule,
@@ -25,7 +36,10 @@ use crate::{
     registry::{BlockRegistry, BlockStateId},
 };
 use horizon_core::{
-    carving::CarvingMask, density::SamplerContext, noise::DensityVolume, position::BlockPos,
+    carving::{CarvingMask, EllipsoidTags},
+    density::SamplerContext,
+    noise::DensityVolume,
+    position::BlockPos,
     random::RandomSource,
 };
 use std::collections::BTreeSet;
@@ -98,11 +112,16 @@ pub struct CarveProfile {
     pub lava_y: i32,
 }
 
-/// Visit mask runs in packed order and each interval top to bottom. The filter
-/// receives local X/Z and absolute Y before any block or aquifer lookup. A run
-/// remembers grass/mycelium even if its aquifer returns no replacement. Exposed
-/// dirt below subsequent carved cells is restored through `top_material`.
+/// Visit every masked cell in (ellipsoid tag, x, z, y desc) order, matching
+/// vanilla 26.2's per-ellipsoid worm trace. The filter receives local X/Z
+/// and absolute Y before any block or aquifer lookup. Grass/mycelium is
+/// remembered per (ellipsoid, column) even if its aquifer returns no
+/// replacement. Exposed dirt below subsequent carved cells is restored
+/// through `top_material`.
 /// Earlier writes, aquifer state and fluid postprocessing survive later errors.
+/// With ellipsoid tags, the marks are emitted in vanilla 26.2's order
+/// (ellipsoid, then X/Z/descending Y within it) instead of mask-column order:
+/// vanilla marks fluid blocks during the worm trace, not in a separate pass.
 pub fn apply_carving_mask<R: RandomSource, S: MaterialSurfaceQueries, B: TerrainBlockStates>(
     chunk: &mut TerrainChunk<'_, B>,
     mask: &CarvingMask,
@@ -117,7 +136,7 @@ where
     R::Positional: Clone,
 {
     apply_carving_mask_shared(
-        chunk, mask, &rule, &mut None, inputs, aquifer, blocks, profile, filter,
+        chunk, mask, &rule, &mut None, inputs, aquifer, blocks, profile, filter, None,
     )
 }
 /// `apply_carving_mask` with the rule compiled once for the chunks `shared`
@@ -136,6 +155,7 @@ pub fn apply_carving_mask_shared<
     blocks: &CarvingBlocks,
     profile: CarveProfile,
     mut filter: impl FnMut([i32; 3]) -> bool,
+    tags: Option<&EllipsoidTags>,
 ) -> Result<(), SurfaceError>
 where
     R::Positional: Clone,
@@ -166,24 +186,62 @@ where
     let rule = worker.add_shared_rule(rule, shared)?;
     let cx = chunk.position().x.wrapping_shl(4);
     let cz = chunk.position().z.wrapping_shl(4);
+    // With ellipsoid tags the marks are collected and emitted in vanilla
+    // 26.2's order at the end; without them they go out inline, as before.
+    let mut marks: Vec<(u32, i32, i32, i32)> = Vec::new();
+    // Vanilla 26.2 carves ellipsoid by ellipsoid, in worm-trace order, and
+    // within one ellipsoid visits X, then Z, then Y descending. The mask
+    // merges all ellipsoids, so visit every masked cell in (tag, x, z, y
+    // desc) order. Two things depend on that exact order: `hasGrass` is per
+    // (ellipsoid, column), so a grass block carved by a later ellipsoid must
+    // not restore the dirt under a cell an earlier ellipsoid already
+    // carved; and the carver's aquifer is shared for the whole chunk, so a
+    // lava cell's mark reads the stale shouldScheduleFluidUpdate flag left
+    // by the previous aquifer call in trace order. Without tags every cell
+    // shares tag 0 and this degrades to the old column-major order.
+    let mut cells: Vec<(u32, i32, i32, i32)> = Vec::new();
     for column in mask.columns() {
-        let mut found_surface = false;
-        let x = cx.wrapping_add(column.x);
-        let z = cz.wrapping_add(column.z);
-        for y in (column.min_y..=column.max_y).rev() {
-            if !filter([column.x, y, column.z]) {
-                continue;
-            }
-            let flags = blocks.flags(chunk.block(x, y, z))?;
-            let replaceable = if profile.nether {
-                flags & 8 != 0
-            } else {
-                flags & 1 != 0
-            };
-            if !replaceable {
-                continue;
-            }
-            found_surface |= flags & 2 != 0;
+        for y in column.min_y..=column.max_y {
+            let tag = tags
+                .and_then(|tags| {
+                    mask.index(column.x, y, column.z)
+                        .and_then(|index| tags.get(index))
+                })
+                .unwrap_or(0);
+            cells.push((tag, column.x, y, column.z));
+        }
+    }
+    cells.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then(a.1.cmp(&b.1))
+            .then(a.3.cmp(&b.3))
+            .then(b.2.cmp(&a.2))
+    });
+    let mut has_grass = false;
+    let mut last_key: Option<(u32, i32, i32)> = None;
+    for (tag, lx, y, lz) in cells {
+        let key = (tag, lx, lz);
+        if last_key != Some(key) {
+            has_grass = false;
+            last_key = Some(key);
+        }
+        let x = cx.wrapping_add(lx);
+        let z = cz.wrapping_add(lz);
+        if !filter([lx, y, lz]) {
+            continue;
+        }
+        let flags = blocks.flags(chunk.block(x, y, z))?;
+        let replaceable = if profile.nether {
+            flags & 8 != 0
+        } else {
+            flags & 1 != 0
+        };
+        if !replaceable {
+            continue;
+        }
+        if flags & 2 != 0 {
+            has_grass = true;
+        }
             if profile.nether {
                 // Nether carving writes directly: lava at or below the level,
                 // cave air above, with no aquifer, grass or post-processing.
@@ -202,7 +260,14 @@ where
                 if aquifer.should_schedule_fluid_update()
                     && chunk.block_properties(state).has_fluid()
                 {
-                    chunk.mark_postprocessing(x, y, z);
+                    mark_carved(
+                        chunk,
+                        &mut marks,
+                        tags,
+                        mask,
+                        [lx, y, lz],
+                        [x, y, z],
+                    );
                 }
                 continue;
             }
@@ -214,10 +279,17 @@ where
             };
             chunk.set_block_worldgen(x, y, z, state)?;
             if aquifer.should_schedule_fluid_update() && chunk.block_properties(state).has_fluid() {
-                chunk.mark_postprocessing(x, y, z);
+                mark_carved(
+                    chunk,
+                    &mut marks,
+                    tags,
+                    mask,
+                    [lx, y, lz],
+                    [x, y, z],
+                );
             }
             let below = y.wrapping_sub(1);
-            if found_surface && blocks.flags(chunk.block(x, below, z))? & 4 != 0 {
+            if has_grass && blocks.flags(chunk.block(x, below, z))? & 4 != 0 {
                 let submerged = chunk.block_properties(state).has_fluid();
                 worker.retarget_surface_densities([x, below, z])?;
                 let replacement = top_material_cell(
@@ -230,11 +302,52 @@ where
                 if let Some(replacement) = replacement {
                     chunk.set_block_worldgen(x, below, z, replacement)?;
                     if chunk.block_properties(replacement).has_fluid() {
-                        chunk.mark_postprocessing(x, below, z);
+                        // A top-material helper mark carries its parent
+                        // cell's ellipsoid tag: vanilla emits it inside the
+                        // parent's carveBlock.
+                        mark_carved(
+                            chunk,
+                            &mut marks,
+                            tags,
+                            mask,
+                            [lx, y, lz],
+                            [x, below, z],
+                        );
                     }
                 }
             }
         }
+    if tags.is_some() {
+        // Vanilla 26.2's carveEllipsoid visits X, then Z, then Y descending
+        // within each ellipsoid; the sort is stable, so a helper mark keeps
+        // its place before the cell below it that shares its key.
+        marks.sort_by_key(|&(tag, x, y, z)| (tag, x, z, std::cmp::Reverse(y)));
+        for (_, x, y, z) in marks {
+            chunk.mark_postprocessing(x, y, z);
+        }
     }
     Ok(())
+}
+
+/// Record a carver mark. With ellipsoid tags it joins the ordered marks,
+/// tagged by the carved cell at local `tag_at` (the helper mark's parent);
+/// a cell without a tag sorts last. Without tags it is emitted immediately.
+#[allow(clippy::too_many_arguments)]
+fn mark_carved<B: TerrainBlockStates>(
+    chunk: &mut TerrainChunk<'_, B>,
+    marks: &mut Vec<(u32, i32, i32, i32)>,
+    tags: Option<&EllipsoidTags>,
+    mask: &CarvingMask,
+    tag_at: [i32; 3],
+    mark_at: [i32; 3],
+) {
+    if let Some(tags) = tags {
+        let tag = mask
+            .index(tag_at[0], tag_at[1], tag_at[2])
+            .and_then(|index| tags.get(index))
+            .unwrap_or(u32::MAX);
+        marks.push((tag, mark_at[0], mark_at[1], mark_at[2]));
+    } else {
+        chunk.mark_postprocessing(mark_at[0], mark_at[1], mark_at[2]);
+    }
 }

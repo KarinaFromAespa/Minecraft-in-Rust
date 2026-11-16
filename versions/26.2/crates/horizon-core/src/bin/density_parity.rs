@@ -34,14 +34,14 @@ impl DensitySampler for CountedSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, horizon_core::density::SampleError> {
+    ) -> Result<f64, horizon_core::density::SampleError> {
         self.calls[0].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.input.sample_value(context, position)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), horizon_core::density::SampleError> {
         self.calls[1].fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -94,8 +94,8 @@ fn interval_output(
         Ok(range) => writeln!(
             out,
             "bounds {name} {} {} {} {}",
-            bits(range.min()),
-            bits(range.max()),
+            bits(range.min() as f32),
+            bits(range.max() as f32),
             u8::from(range.is_nai()),
             range.java_hash_code()
         ),
@@ -134,16 +134,16 @@ fn fbm_probe(
                 out,
                 "fbm {} {} {}",
                 stack.layers().len(),
-                bits(range[0]),
-                bits(range[1])
+                bits(range[0] as f32),
+                bits(range[1] as f32)
             )?;
             for layer in stack.layers() {
                 writeln!(
                     out,
                     "fbm-layer {} {} {}",
                     layer.frequency.to_bits(),
-                    bits(layer.amplitude),
-                    bits(layer.noise.get3(-17.25, 64.125, 32.5))
+                    bits(layer.amplitude as f32),
+                    bits(layer.noise.get3(-17.25, 64.125, 32.5) as f32)
                 )?;
             }
             for point in [
@@ -155,18 +155,18 @@ fn fbm_probe(
                 writeln!(
                     out,
                     "fbm-query {} {}",
-                    bits(stack.get2(point[0], point[2])),
-                    bits(stack.get3(point[0], point[1], point[2]))
+                    bits(stack.get2(point[0], point[2]) as f32),
+                    bits(stack.get3(point[0], point[1], point[2]) as f32)
                 )?;
             }
             let volume = DensityVolume::new([2, 5, 2], [-17, -64, 32], [4, 1, 4])?;
             let mut buffer = vec![0.0; volume.size() + 2];
             for (i, v) in buffer.iter_mut().enumerate() {
-                *v = (i as f32 - 10.0) * 0.125;
+                *v = (i as f64 - 10.0) * 0.125;
             }
             stack.add_to_volume(&mut buffer, volume, 0.125, 0.25, -0.5)?;
             for value in buffer {
-                writeln!(out, "fbm-cell {}", bits(value))?;
+                writeln!(out, "fbm-cell {}", bits(value as f32))?;
             }
         }
         Err(_) => writeln!(out, "fbm error")?,
@@ -190,7 +190,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut args = line.split_whitespace();
         match args.next().ok_or("empty command")? {
             "constant" => {
-                samplers.push(Arc::new(ConstantSampler(float(&mut args)?)));
+                samplers.push(Arc::new(ConstantSampler(f64::from(float(&mut args)?))));
                 writeln!(out, "create {}", samplers.len() - 1)?;
             }
             "gradient" => {
@@ -205,7 +205,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let low = float(&mut args)?;
                 let high = float(&mut args)?;
                 samplers.push(Arc::new(GradientSampler::new(
-                    axis, tiling, from, to, low, high,
+                    axis, tiling, from, to, f64::from(low), f64::from(high),
                 )));
                 writeln!(out, "create {}", samplers.len() - 1)?;
             }
@@ -248,8 +248,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "unary" => {
                 let kind = args.next().ok_or("missing unary kind")?;
                 let input = samplers[read::<usize>(&mut args)?].clone();
-                let a = float(&mut args)?;
-                let b = float(&mut args)?;
+                let a = f64::from(float(&mut args)?);
+                let b = f64::from(float(&mut args)?);
                 let operation = match kind {
                     "abs" => UnaryOp::Abs,
                     "negate" => UnaryOp::Negate,
@@ -324,7 +324,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let kind = args.next().ok_or("missing binary kind")?;
                 let left = samplers[read::<usize>(&mut args)?].clone();
                 let right = samplers[read::<usize>(&mut args)?].clone();
-                let bound = float(&mut args)?;
+                let bound = f64::from(float(&mut args)?);
                 let operation = match kind {
                     "add" => BinaryOp::Add,
                     "sub" => BinaryOp::Subtract,
@@ -344,11 +344,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "choice" => {
                 let mode = read::<u8>(&mut args)?;
                 let input = samplers[read::<usize>(&mut args)?].clone();
-                let min_inclusive = float(&mut args)?;
-                let max_exclusive = float(&mut args)?;
+                let min_inclusive = f64::from(float(&mut args)?);
+                let max_exclusive = f64::from(float(&mut args)?);
                 let sampler: Arc<dyn DensitySampler> = if mode == 1 {
-                    let inside = float(&mut args)?;
-                    let outside = float(&mut args)?;
+                    let inside = f64::from(float(&mut args)?);
+                    let outside = f64::from(float(&mut args)?);
                     Arc::new(UnarySampler {
                         input,
                         operation: UnaryOp::ConstantRangeChoice {
@@ -376,12 +376,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mode = read::<u8>(&mut args)?;
                 let alpha = samplers[read::<usize>(&mut args)?].clone();
                 let first = if mode == 1 {
-                    DensityValue::Constant(float(&mut args)?)
+                    DensityValue::Constant(f64::from(float(&mut args)?))
                 } else {
                     DensityValue::Sampler(samplers[read::<usize>(&mut args)?].clone())
                 };
                 let second = if mode == 2 {
-                    DensityValue::Constant(float(&mut args)?)
+                    DensityValue::Constant(f64::from(float(&mut args)?))
                 } else {
                     DensityValue::Sampler(samplers[read::<usize>(&mut args)?].clone())
                 };
@@ -397,7 +397,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let input = samplers[read::<usize>(&mut args)?].clone();
                 let count = read::<usize>(&mut args)?;
                 let thresholds = (0..count)
-                    .map(|_| float(&mut args))
+                    .map(|_| float(&mut args).map(f64::from))
                     .collect::<Result<Vec<_>, _>>()?;
                 let branches = (0..=count)
                     .map(|_| read::<usize>(&mut args).map(|id| samplers[id].clone()))
@@ -409,12 +409,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "bounds" => {
                 let mode = read::<u8>(&mut args)?;
-                let a = float(&mut args)?;
-                let b = float(&mut args)?;
-                let c = float(&mut args)?;
-                let d = float(&mut args)?;
-                let e = float(&mut args)?;
-                let f = float(&mut args)?;
+                let a = f64::from(float(&mut args)?);
+                let b = f64::from(float(&mut args)?);
+                let c = f64::from(float(&mut args)?);
+                let d = f64::from(float(&mut args)?);
+                let e = f64::from(float(&mut args)?);
+                let f = f64::from(float(&mut args)?);
                 let result = match mode {
                     0 => Interval::new(a, b),
                     1 => Interval::symmetric(a),
@@ -453,7 +453,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     interval_output(
                         &mut out,
                         "map-sqrt",
-                        left.map_monotonic(|v| (v as f64).sqrt() as f32),
+                        left.map_monotonic(|v| v.sqrt()),
                     )?;
                     interval_output(&mut out, "map-reciprocal", left.map_monotonic(|v| 1.0 / v))?;
                     interval_output(
@@ -550,8 +550,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     writeln!(
                         out,
                         "metric {} {}",
-                        bits(metric.compute2(x, y)),
-                        bits(metric.compute3(x, y, z))
+                        bits(metric.compute2(f64::from(x), f64::from(y)) as f32),
+                        bits(metric.compute3(f64::from(x), f64::from(y), f64::from(z)) as f32)
                     )?;
                 }
             }
@@ -680,13 +680,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             "gbind" => {
                 let sampler = samplers[read::<usize>(&mut args)?].clone();
-                let range = Interval::encapsulating_values(float(&mut args)?, float(&mut args)?);
+                let range = Interval::encapsulating_values(
+                    f64::from(float(&mut args)?),
+                    f64::from(float(&mut args)?),
+                );
                 let axes = read(&mut args)?;
                 functions.push(graph_compiler.graph_mut().bind(sampler, range, axes)?);
                 writeln!(out, "graph-create {}", functions.len() - 1)?;
             }
             "gsconstant" => {
-                graph_splines.push(CubicSpline::Constant(float(&mut args)?));
+                graph_splines.push(CubicSpline::Constant(f64::from(float(&mut args)?)));
                 writeln!(out, "graph-spline {}", graph_splines.len() - 1)?;
             }
             "gspoints" => {
@@ -694,8 +697,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let count = read::<usize>(&mut args)?;
                 let mut points = Vec::with_capacity(count);
                 for _ in 0..count {
-                    let location = float(&mut args)?;
-                    let derivative = float(&mut args)?;
+                    let location = f64::from(float(&mut args)?);
+                    let derivative = f64::from(float(&mut args)?);
                     let value = graph_splines[read::<usize>(&mut args)?].clone();
                     points.push(SplinePoint {
                         location,
@@ -745,7 +748,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             | "gwfield" | "gblenddensity") => {
                 let reference = |args: &mut std::str::SplitWhitespace<'_>| -> Result<FunctionId,Box<dyn std::error::Error>> { Ok(functions[read::<usize>(args)?]) };
                 let node = match command {
-                    "gconst" => GraphNode::Constant(float(&mut args)?),
+                    "gconst" => GraphNode::Constant(f64::from(float(&mut args)?)),
                     "gwfield" => GraphNode::WorldField(
                         [
                             WorldField::BlendAlpha,
@@ -804,7 +807,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let input = reference(&mut args)?;
                         let count: usize = read(&mut args)?;
                         let thresholds = (0..count)
-                            .map(|_| float(&mut args))
+                            .map(|_| float(&mut args).map(f64::from))
                             .collect::<Result<Vec<_>, _>>()?;
                         let branches =
                             (0..=count)
@@ -828,8 +831,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             tiling,
                             from: read(&mut args)?,
                             to: read(&mut args)?,
-                            low: float(&mut args)?,
-                            high: float(&mut args)?,
+                            low: f64::from(float(&mut args)?),
+                            high: f64::from(float(&mut args)?),
                         }
                     }
                     "gunary" => {
@@ -868,13 +871,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     "gclamp" => GraphNode::Clamp {
                         input: reference(&mut args)?,
-                        min: float(&mut args)?,
-                        max: float(&mut args)?,
+                        min: f64::from(float(&mut args)?),
+                        max: f64::from(float(&mut args)?),
                     },
                     "gchoice" => GraphNode::Choice {
                         input: reference(&mut args)?,
-                        min: float(&mut args)?,
-                        max: float(&mut args)?,
+                        min: f64::from(float(&mut args)?),
+                        max: f64::from(float(&mut args)?),
                         inside: reference(&mut args)?,
                         outside: reference(&mut args)?,
                     },
@@ -960,7 +963,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             "spconstant" => {
-                splines.push(CubicSpline::Constant(float(&mut args)?));
+                splines.push(CubicSpline::Constant(f64::from(float(&mut args)?)));
                 writeln!(out, "spline {}", splines.len() - 1)?;
             }
             "sppoints" => {
@@ -968,8 +971,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let count = read::<usize>(&mut args)?;
                 let mut points = Vec::new();
                 for _ in 0..count {
-                    let location = float(&mut args)?;
-                    let derivative = float(&mut args)?;
+                    let location = f64::from(float(&mut args)?);
+                    let derivative = f64::from(float(&mut args)?);
                     let value = splines[read::<usize>(&mut args)?].clone();
                     points.push(SplinePoint {
                         location,
@@ -996,7 +999,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let spline = &splines[read::<usize>(&mut args)?];
                 let mut ranges = [Interval::NAI; 3];
                 for range in &mut ranges {
-                    *range = Interval::encapsulating_values(float(&mut args)?, float(&mut args)?);
+                    *range = Interval::encapsulating_values(
+                        f64::from(float(&mut args)?),
+                        f64::from(float(&mut args)?),
+                    );
                 }
                 interval_output(&mut out, "spline", spline.range(&mut |id| ranges[id % 3]))?;
             }
@@ -1063,7 +1069,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let sampler = &samplers[read::<usize>(&mut args)?];
                 let position = [read(&mut args)?, read(&mut args)?, read(&mut args)?];
                 match sampler.sample_value(&mut context, position) {
-                    Ok(value) => writeln!(out, "query {}", bits(value))?,
+                    Ok(value) => writeln!(out, "query {}", bits(value as f32))?,
                     Err(_) => writeln!(out, "query error")?,
                 }
             }
@@ -1078,7 +1084,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let volume = DensityVolume::new(sizes, minimum, steps)?;
                 let mut random = LegacyRandom::new(seed);
                 let mut buffer: Vec<_> = (0..volume.size() + tail)
-                    .map(|_| f32::from_bits(random.next_int() as u32))
+                    .map(|_| f64::from(f32::from_bits(random.next_int() as u32)))
                     .collect();
                 for pass in 0..repeats {
                     let result = sampler.sample_volume(&mut context, &mut buffer, volume);
@@ -1088,7 +1094,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if result.is_ok() { "ok" } else { "error" }
                     )?;
                     for (i, value) in buffer.iter().enumerate() {
-                        writeln!(out, "cell {i} {}", bits(*value))?;
+                        writeln!(out, "cell {i} {}", bits(*value as f32))?;
                     }
                 }
             }
