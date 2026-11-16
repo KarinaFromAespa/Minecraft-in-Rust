@@ -5,13 +5,13 @@
     "total": 651
   },
   "ci": {
-    "in_flight_note": "chunk_generation proof run: the last of the E7 eight. Local full run PASSES (498 chunks, 27 biomes, 49 structure sites, 0 diffs). Fixes: f64 density conversion (26.2 computes density in double, the port in f32); carver mask applied in global worm-trace order (tag, x, z, y desc) with per-(ellipsoid, column) hasGrass and the shared aquifer's stale fluid-update flag; double plants need an empty cell above (moss-patch tall grass overwrote glow lichen); jigsaw final_state parsed up to the first ']' like Brigadier (savanna lamp post's doubled bracket dropped its fence); spring fluid codec Name/Properties form; RotatedBlockProvider Axis.getRandom (nextInt(3)); bilinear preliminary surface; sculk patch catalyst/shrieker tail; beardifier fill + f64. A green chunk_generation takes the profile to 13/0/4 and completes the E7 eight; D6 needs the owner playtest.",
-    "in_flight_run": 43929484440,
-    "in_flight_tree": "17230850",
-    "last_completed_note": "component_patch PASSES on CI: oracle ported to the 26.2 APIs (no Removed class \u2014 patch map holds Optional values, empty for removals) + Rust set over an unsanitized removal with no prototype returns null instead of MissingPrototype; local run 622,757 lines match on both jars; D1/D2/D3 pass, profile 12/0/5; D4/D5 blocked (stamp quirk); D6 blocked.",
+    "in_flight_note": "chunk_generation CI failure diagnosed (run 43929484440): the_end central island missing in the Rust + warm_ocean_vegetation unsupported + small ore/biome/BE diffs. Next: fix on a new branch, starting with the End; D6 needs the owner playtest.",
+    "in_flight_run": null,
+    "in_flight_tree": null,
+    "last_completed_note": "chunk_generation STILL FAILS on CI (run 43929484440, main@17230850, 2h27m): profile stays 12/0/5. Overworld seed 12345 is 0 diffs on CI \u2014 the local fix holds \u2014 but the CI sweep covers 3 seeds x 3 dimensions (1919 chunks): the_end central island is all air in the Rust (vanilla end_stone; 342,053 blocks across 3 seeds, 27 chunks), warm_ocean_vegetation unsupported (coral/seagrass, 166 blocks), copper-ore vein displacement + 3 biome cells at seed -7046029254386353131, 1 biome cell at seed 987654321987, 1 ruined-portal chest block entity. D1/D2/D3 pass; D4/D5 blocked (staged-candidate stamp quirk \u2014 profile stamped 17230850, judge HEAD the staged candidate); D6 blocked.",
     "last_completed_profile": "12/0/5 (block_properties, command_parse, component_patch, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
-    "last_completed_run": 43826191201,
-    "last_completed_tree": "c0897c3c"
+    "last_completed_run": 43929484440,
+    "last_completed_tree": "17230850"
   },
   "harness": {
     "fail": 5,

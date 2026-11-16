@@ -3838,3 +3838,65 @@ merge): proves chunk_generation green on CI after the fixes above.
 Local full run passes (498 chunks, 0 diffs); a green chunk_generation
 here takes the profile to 13/0/4 and completes the E7 eight (D5's
 substance; the recorded verdict follows the judge run).
+
+## CI run 43929484440 completed — chunk_generation still red on CI (2026-11-16)
+
+Run 43929484440 on main@17230850 (the chunk_generation merge)
+completed in 2h26m48s, conclusion success. Profile stays **12/0/5**
+— chunk_generation still fails. The local fix holds where it was
+measured: overworld seed 12345 is **0 diffs on CI** too. But the CI
+sweep covers 3 seeds x 3 dimensions (1919 chunks, 27 biomes, 174
+structure sites), and the local work only ever ran overworld-12345.
+The failure breaks down as:
+
+| Sweep | Chunks | Differing | Blocks | Biomes | BEs |
+|---|---|---|---|---|---|
+| overworld-12345 | 498 | 0 | 0 | 0 | 0 |
+| the_nether-12345 | 93 | 1 | 0 | 0 | 1 |
+| the_end-12345 | 45 | 9 | 120,997 | 0 | 0 |
+| overworld--7046029254386353131 | 489 | 8 | 239 | 3 | 0 |
+| the_nether--7046029254386353131 | 99 | 0 | 0 | 0 | 0 |
+| the_end--7046029254386353131 | 45 | 9 | 103,801 | 0 | 0 |
+| overworld-987654321987 | 486 | 1 | 0 | 1 | 0 |
+| the_nether-987654321987 | 99 | 0 | 0 | 0 | 0 |
+| the_end-987654321987 | 45 | 9 | 117,255 | 0 | 0 |
+| the_nether--1860902098141295193 | 20 | 0 | 0 | 0 | 0 |
+| **Total** | **1919** | **37** | **342,292** | **4** | **1** |
+
+- **The End central island (342,053 blocks, 27 chunks, all 3
+  seeds):** the terrain 0,0 site — chunks (-1..1, -1..1) — is
+  end_stone in vanilla and all air in the Rust. The outer islands
+  (end_city sites) match, so the End noise router is mostly right;
+  only the central island is missing. Root cause not yet diagnosed
+  (suspect the end-islands density function or the End settings
+  path); verify against the 26.2 jar before scoping a fix.
+- **warm_ocean_vegetation unsupported** (166 blocks, 3 chunks, seed
+  -7046...): the Rust reports the placed feature unsupported, so
+  coral blocks come out as water and seagrass lands shifted by one
+  block.
+- **Copper ore** (seed -7046..., trail_ruins 23,0): vanilla
+  copper_ore where the Rust has stone (y 42-43), and Rust
+  deepslate_copper_ore where vanilla has deepslate/tuff (y -5) —
+  vein displacement, two veins.
+- **Biome cells (4):** forest vs jungle and dripstone_caves vs
+  forest (trail_ruins 23,0), dripstone_caves vs savanna
+  (village_savanna 3,12), beach vs lush_caves (shipwreck_beached
+  -32,25, seed 9876...).
+- **Ruined-portal chest block entity (1):** the_nether-12345,
+  chunk (7,61), (118,30,981) — vanilla has no block entity, the
+  Rust has the chest with its ruined_portal loot table; the chest
+  block itself matches.
+- **Dead bush (1 block):** mineshaft_mesa 175,116, (2787,64,1842)
+  — Rust places a dead bush where vanilla has air.
+
+**D1/D2/D3 pass** (cargo check 0 errors 0 warnings, protocol tests
+444 green, tag audit clean). D4/D5 still read blocked in the
+recorded verdict, but only on the staged-candidate stamp quirk
+(profile stamped for 17230850, judge HEAD the staged candidate
+9f14da57); D6 blocked (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43929484440/; the pin's recorded
+evidence (profile.json, delta-verdict.json, ci-out logs) now comes
+from this run. The harness subset took 2h21m (vs 1h29m last run)
+because chunk_generation now runs the full 3-dimension sweep
+instead of failing fast on the oracle crash. Next: fix the End
+first, then the smaller diffs, on a new branch.

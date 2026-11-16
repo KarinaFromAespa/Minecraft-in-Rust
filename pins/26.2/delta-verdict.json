@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "bd63e37e8a741ec60cd31e9affb6cd75850d77c8",
+  "commit": "9f14da57c8f84ea47262a09aaaa463083efd8df6",
   "tree": ".horizon-ports/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-16T09:20:04Z",
+  "checked_at": "2026-11-16T20:56:56Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -70,7 +70,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit c0897c3c3df0, HEAD is bd63e37e8a74 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 172308503cfa, HEAD is 9f14da57c8f8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit c0897c3c3df0, HEAD is bd63e37e8a74 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 172308503cfa, HEAD is 9f14da57c8f8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
