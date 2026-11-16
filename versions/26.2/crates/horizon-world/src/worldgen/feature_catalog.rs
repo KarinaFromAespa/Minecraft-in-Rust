@@ -242,7 +242,15 @@ impl FeatureCatalog {
                     self.expand_placed(required(&object, "vegetation_feature")?, depth + 1, work)?;
                 object.insert("vegetation_feature".into(), raw(expanded)?);
             }
-            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:root_system" => {
+            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:coral_mushroom" => {
+                // 26.3 nests the coral-block placer as `feature`; 26.2's
+                // configs carry no `feature` and place inline.
+                if let Some(value) = super::optional(&object, "feature") {
+                    let expanded = self.expand_placed(value, depth + 1, work)?;
+                    object.insert("feature".into(), raw(expanded)?);
+                }
+            }
+            "minecraft:root_system" => {
                 let expanded =
                     self.expand_placed(required(&object, "feature")?, depth + 1, work)?;
                 object.insert("feature".into(), raw(expanded)?);

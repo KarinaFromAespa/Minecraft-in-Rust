@@ -35,6 +35,17 @@ pub struct BoundTags {
     >,
 }
 impl BoundTags {
+    /// The block names of the tag `name`, in tag-file order with nested tags
+    /// expanded in place — the order vanilla's `HolderSet` holds its contents
+    /// in, which `getRandomElementOf` picks from with one `nextInt(size)`
+    /// draw. The state set from `get` is in state-id order and must not be
+    /// used for such picks.
+    pub fn names<Q: Ord + ?Sized>(&self, name: &Q) -> Option<&[String]>
+    where
+        String: std::borrow::Borrow<Q>,
+    {
+        self.tags.get(name).map(|(blocks, _)| blocks.as_slice())
+    }
     /// The states of the tag `name`, bound on first use.
     pub fn get<Q: Ord + ?Sized>(&self, name: &Q) -> Option<&Arc<BTreeSet<BlockStateId>>>
     where
