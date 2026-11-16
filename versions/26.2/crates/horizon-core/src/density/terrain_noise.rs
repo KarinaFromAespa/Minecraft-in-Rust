@@ -38,13 +38,13 @@ impl DensitySampler for ShiftBSampler {
         &self,
         _: &mut SamplerContext,
         [x, _, z]: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         Ok(self.noise.get3(z as f64 * 0.25, x as f64 * 0.25, 0.0) * 4.0)
     }
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -135,8 +135,8 @@ impl BlendedNoise {
         let mut frequency = 1.0;
         let mut amplitude = 0.9999847412109375 / 65535.0;
         for _ in 0..16 {
-            let base = Interval::symmetric(((smear * frequency).abs() + 2.0) as f32)?;
-            range = range.add_range(base.multiply_range(Interval::exact(amplitude as f32)?));
+            let base = Interval::symmetric((smear * frequency).abs() + 2.0)?;
+            range = range.add_range(base.multiply_range(Interval::exact(amplitude)?));
             frequency /= 2.0;
             amplitude *= 2.0;
         }
@@ -171,7 +171,7 @@ pub fn create_blended_fbm(
         builder.add(
             Arc::new(SmearedPerlinNoise::new(random, smear * frequency)),
             frequency,
-            amplitude as f32,
+            amplitude,
         );
         frequency /= 2.0;
         amplitude *= 2.0;
@@ -187,17 +187,17 @@ pub enum DistanceMetric {
     Chebyshev,
 }
 impl DistanceMetric {
-    pub fn compute2(self, x: f32, y: f32) -> f32 {
+    pub fn compute2(self, x: f64, y: f64) -> f64 {
         match self {
-            Self::Euclidean => ((x * x + y * y) as f64).sqrt() as f32,
+            Self::Euclidean => (x * x + y * y).sqrt(),
             Self::EuclideanSquared => x * x + y * y,
             Self::Manhattan => x.abs() + y.abs(),
             Self::Chebyshev => arithmetic::java_max(x.abs(), y.abs()),
         }
     }
-    pub fn compute3(self, x: f32, y: f32, z: f32) -> f32 {
+    pub fn compute3(self, x: f64, y: f64, z: f64) -> f64 {
         match self {
-            Self::Euclidean => ((x * x + y * y + z * z) as f64).sqrt() as f32,
+            Self::Euclidean => (x * x + y * y + z * z).sqrt(),
             Self::EuclideanSquared => x * x + y * y + z * z,
             Self::Manhattan => x.abs() + y.abs() + z.abs(),
             Self::Chebyshev => {
@@ -212,9 +212,9 @@ pub struct DistanceToPointSampler {
     pub metric: DistanceMetric,
 }
 impl DensitySampler for DistanceToPointSampler {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
-        let delta: [f32; 3] =
-            std::array::from_fn(|i| self.point[i].wrapping_sub(position[i]) as f32);
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
+        let delta: [f64; 3] =
+            std::array::from_fn(|i| self.point[i].wrapping_sub(position[i]) as f64);
         Ok(self.metric.compute3(delta[0], delta[1], delta[2]))
     }
 }

@@ -4,16 +4,16 @@ use std::sync::Arc;
 /// Immutable noise sampling. Implementations may override the default scalar
 /// volume traversal when vanilla has a distinct bulk arithmetic path.
 pub trait Noise: std::fmt::Debug + Send + Sync {
-    fn range(&self) -> Result<[f32; 2], NanRange>;
-    fn get2(&self, x: f64, z: f64) -> f32;
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32;
+    fn range(&self) -> Result<[f64; 2], NanRange>;
+    fn get2(&self, x: f64, z: f64) -> f64;
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64;
     fn add_to_volume(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
     ) -> Result<(), DensityError> {
         if buffer.len() < volume.size() {
             return Err(DensityError::BufferTooShort);
@@ -37,11 +37,11 @@ pub trait Noise: std::fmt::Debug + Send + Sync {
     /// `needed[column]`, X/Z columns in buffer order. The other Ys may be left unchanged.
     fn add_to_needed(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
         _needed: &[u64],
     ) -> Result<(), DensityError> {
         self.add_to_volume(buffer, volume, xz_scale, y_scale, amplitude)
@@ -49,80 +49,116 @@ pub trait Noise: std::fmt::Debug + Send + Sync {
 }
 
 impl Noise for PerlinNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        Ok(PerlinNoise::range(self))
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        let range = PerlinNoise::range(self);
+        Ok([f64::from(range[0]), f64::from(range[1])])
     }
-    fn get2(&self, x: f64, z: f64) -> f32 {
-        PerlinNoise::get2(self, x, z)
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        f64::from(PerlinNoise::get2(self, x, z))
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
-        PerlinNoise::get3(self, x, y, z)
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        f64::from(PerlinNoise::get3(self, x, y, z))
     }
     fn add_to_volume(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
     ) -> Result<(), DensityError> {
-        PerlinNoise::add_to_volume(self, buffer, volume, xz_scale, y_scale, amplitude)
+        // The float engine's bulk path stays f32; widen its output into the f64 buffer.
+        if buffer.len() < volume.size() {
+            return Err(DensityError::BufferTooShort);
+        }
+        let mut tmp = vec![0.0f32; volume.size()];
+        PerlinNoise::add_to_volume(self, &mut tmp, volume, xz_scale, y_scale, amplitude as f32)?;
+        for (out, v) in buffer.iter_mut().zip(tmp.iter()) {
+            *out += f64::from(*v);
+        }
+        Ok(())
     }
     fn add_to_needed(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
         needed: &[u64],
     ) -> Result<(), DensityError> {
-        PerlinNoise::add_to_needed(self, buffer, volume, xz_scale, y_scale, amplitude, needed)
+        if buffer.len() < volume.size() {
+            return Err(DensityError::BufferTooShort);
+        }
+        let mut tmp = vec![0.0f32; volume.size()];
+        PerlinNoise::add_to_needed(self, &mut tmp, volume, xz_scale, y_scale, amplitude as f32, needed)?;
+        for (out, v) in buffer.iter_mut().zip(tmp.iter()) {
+            *out += f64::from(*v);
+        }
+        Ok(())
     }
 }
 impl Noise for SmearedPerlinNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        SmearedPerlinNoise::range(self)
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        let range = SmearedPerlinNoise::range(self)?;
+        Ok([f64::from(range[0]), f64::from(range[1])])
     }
-    fn get2(&self, x: f64, z: f64) -> f32 {
-        SmearedPerlinNoise::get2(self, x, z)
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        f64::from(SmearedPerlinNoise::get2(self, x, z))
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
-        SmearedPerlinNoise::get3(self, x, y, z)
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        f64::from(SmearedPerlinNoise::get3(self, x, y, z))
     }
     fn add_to_volume(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
     ) -> Result<(), DensityError> {
-        SmearedPerlinNoise::add_to_volume(self, buffer, volume, xz_scale, y_scale, amplitude)
+        if buffer.len() < volume.size() {
+            return Err(DensityError::BufferTooShort);
+        }
+        let mut tmp = vec![0.0f32; volume.size()];
+        SmearedPerlinNoise::add_to_volume(self, &mut tmp, volume, xz_scale, y_scale, amplitude as f32)?;
+        for (out, v) in buffer.iter_mut().zip(tmp.iter()) {
+            *out += f64::from(*v);
+        }
+        Ok(())
     }
     fn add_to_needed(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
         needed: &[u64],
     ) -> Result<(), DensityError> {
+        if buffer.len() < volume.size() {
+            return Err(DensityError::BufferTooShort);
+        }
+        let mut tmp = vec![0.0f32; volume.size()];
         SmearedPerlinNoise::add_to_needed(
-            self, buffer, volume, xz_scale, y_scale, amplitude, needed,
-        )
+            self, &mut tmp, volume, xz_scale, y_scale, amplitude as f32, needed,
+        )?;
+        for (out, v) in buffer.iter_mut().zip(tmp.iter()) {
+            *out += f64::from(*v);
+        }
+        Ok(())
     }
 }
 impl Noise for SimplexNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        Ok(SimplexNoise::range(self))
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        let range = SimplexNoise::range(self);
+        Ok([f64::from(range[0]), f64::from(range[1])])
     }
-    fn get2(&self, x: f64, z: f64) -> f32 {
-        SimplexNoise::get2(self, x, z)
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        f64::from(SimplexNoise::get2(self, x, z))
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
-        SimplexNoise::get3(self, x, y, z)
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        f64::from(SimplexNoise::get3(self, x, y, z))
     }
 }
 
@@ -130,13 +166,13 @@ impl Noise for SimplexNoise {
 pub struct NoiseLayer {
     pub noise: Arc<dyn Noise>,
     pub frequency: f64,
-    pub amplitude: f32,
+    pub amplitude: f64,
 }
 
 #[derive(Clone, Debug)]
 pub struct NoiseStack {
     layers: Vec<NoiseLayer>,
-    range: [f32; 2],
+    range: [f64; 2],
 }
 
 impl NoiseStack {
@@ -151,17 +187,17 @@ impl NoiseStack {
     }
 }
 impl Noise for NoiseStack {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
+    fn range(&self) -> Result<[f64; 2], NanRange> {
         Ok(self.range)
     }
-    fn get2(&self, x: f64, z: f64) -> f32 {
+    fn get2(&self, x: f64, z: f64) -> f64 {
         let mut value = 0.0;
         for layer in &self.layers {
             value += layer.amplitude * layer.noise.get2(x * layer.frequency, z * layer.frequency);
         }
         value
     }
-    fn get3(&self, x: f64, y: f64, z: f64) -> f32 {
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
         let mut value = 0.0;
         for layer in &self.layers {
             value += layer.amplitude
@@ -175,21 +211,21 @@ impl Noise for NoiseStack {
     }
     fn add_to_volume(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
     ) -> Result<(), DensityError> {
         self.add_layers(buffer, volume, [xz_scale, y_scale], amplitude, None)
     }
     fn add_to_needed(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         xz_scale: f64,
         y_scale: f64,
-        amplitude: f32,
+        amplitude: f64,
         needed: &[u64],
     ) -> Result<(), DensityError> {
         self.add_layers(buffer, volume, [xz_scale, y_scale], amplitude, Some(needed))
@@ -198,10 +234,10 @@ impl Noise for NoiseStack {
 impl NoiseStack {
     fn add_layers(
         &self,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
         [xz_scale, y_scale]: [f64; 2],
-        amplitude: f32,
+        amplitude: f64,
         needed: Option<&[u64]>,
     ) -> Result<(), DensityError> {
         if buffer.len() < volume.size() {
@@ -228,7 +264,7 @@ pub struct NoiseStackBuilder {
     layers: Vec<NoiseLayer>,
 }
 impl NoiseStackBuilder {
-    pub fn add(&mut self, noise: Arc<dyn Noise>, frequency: f64, amplitude: f32) -> &mut Self {
+    pub fn add(&mut self, noise: Arc<dyn Noise>, frequency: f64, amplitude: f64) -> &mut Self {
         self.layers.push(NoiseLayer {
             noise,
             frequency,
@@ -237,7 +273,7 @@ impl NoiseStackBuilder {
         self
     }
     /// Flattening rescales each existing layer before subsequent sampling.
-    pub fn add_stack(&mut self, stack: &NoiseStack, frequency: f64, amplitude: f32) -> &mut Self {
+    pub fn add_stack(&mut self, stack: &NoiseStack, frequency: f64, amplitude: f64) -> &mut Self {
         self.layers
             .extend(stack.layers.iter().map(|layer| NoiseLayer {
                 noise: Arc::clone(&layer.noise),
@@ -254,10 +290,10 @@ impl NoiseStackBuilder {
                 return Err(NanRange);
             }
             let scaled = if bounds[0].is_nan() || bounds[1].is_nan() {
-                [f32::NAN; 2]
+                [f64::NAN; 2]
             } else {
                 // Interval.mulBound defines zero times infinity as positive zero.
-                let product = |v: f32| {
+                let product = |v: f64| {
                     if v == 0.0 || layer.amplitude == 0.0 {
                         0.0
                     } else {
@@ -272,8 +308,8 @@ impl NoiseStackBuilder {
                     [b, a]
                 } else if a == 0.0 {
                     [
-                        f32::from_bits(a.to_bits() | b.to_bits()),
-                        f32::from_bits(a.to_bits() & b.to_bits()),
+                        f64::from_bits(a.to_bits() | b.to_bits()),
+                        f64::from_bits(a.to_bits() & b.to_bits()),
                     ]
                 } else {
                     [a, b]
@@ -281,7 +317,7 @@ impl NoiseStackBuilder {
             };
             range = [range[0] + scaled[0], range[1] + scaled[1]];
             if range[0].is_nan() || range[1].is_nan() {
-                range = [f32::NAN; 2];
+                range = [f64::NAN; 2];
             }
             // Interval.of interns [0,1], including a supplied negative zero.
             if range[0] == 0.0 && range[1] == 1.0 {

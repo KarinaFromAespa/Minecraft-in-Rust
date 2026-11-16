@@ -18,7 +18,7 @@ impl EndIslandSampler {
             noise: SimplexNoise::with_skipped_offsets(&mut random, true),
         }
     }
-    fn height(&self, x: i32, z: i32) -> f32 {
+    fn height(&self, x: i32, z: i32) -> f64 {
         // These divisions and remainders truncate toward zero, including for
         // negative coordinates. They are not block/chunk floor conversions.
         let center_x = x / 2;
@@ -35,12 +35,12 @@ impl EndIslandSampler {
                 {
                     continue;
                 }
-                let scale = ((island_x as f32).abs() * 3439.0 + (island_z as f32).abs() * 147.0)
+                let scale = ((island_x as f64).abs() * 3439.0 + (island_z as f64).abs() * 147.0)
                     % 13.0
                     + 9.0;
-                let dx = (local_x - offset_x * 2) as f32;
-                let dz = (local_z - offset_z * 2) as f32;
-                let candidate = 100.0 - ((dx * dx + dz * dz) as f64).sqrt() as f32 * scale;
+                let dx = (local_x - offset_x * 2) as f64;
+                let dz = (local_z - offset_z * 2) as f64;
+                let candidate = 100.0 - (dx * dx + dz * dz).sqrt() * scale;
                 let candidate = super::arithmetic::java_min(
                     super::arithmetic::java_max(candidate, -100.0),
                     80.0,
@@ -53,7 +53,7 @@ impl EndIslandSampler {
     // Nearby volume columns visit overlapping 25-by-25 island neighborhoods.
     // Collect the eligible islands once, retaining their original X/Z order.
     // Larger or coordinate-wrapping volumes keep the scalar evaluation path.
-    fn volume_islands(&self, volume: DensityVolume) -> Option<Vec<(i32, i32, f32)>> {
+    fn volume_islands(&self, volume: DensityVolume) -> Option<Vec<(i32, i32, f64)>> {
         let sizes = volume.sizes();
         if sizes[0] * sizes[2] < 4 {
             return None;
@@ -81,13 +81,13 @@ impl EndIslandSampler {
                 {
                     continue;
                 }
-                let scale = ((x as f32).abs() * 3439.0 + (z as f32).abs() * 147.0) % 13.0 + 9.0;
+                let scale = ((x as f64).abs() * 3439.0 + (z as f64).abs() * 147.0) % 13.0 + 9.0;
                 islands.push((x, z, scale));
             }
         }
         Some(islands)
     }
-    fn density_from_islands(x: i32, z: i32, islands: &[(i32, i32, f32)]) -> f32 {
+    fn density_from_islands(x: i32, z: i32, islands: &[(i32, i32, f64)]) -> f64 {
         let x = x / 8;
         let z = z / 8;
         let center_x = x / 2;
@@ -99,27 +99,27 @@ impl EndIslandSampler {
             if !(-12..=12).contains(&offset_x) || !(-12..=12).contains(&offset_z) {
                 continue;
             }
-            let dx = (x % 2 - offset_x * 2) as f32;
-            let dz = (z % 2 - offset_z * 2) as f32;
-            let candidate = 100.0 - ((dx * dx + dz * dz) as f64).sqrt() as f32 * scale;
+            let dx = (x % 2 - offset_x * 2) as f64;
+            let dz = (z % 2 - offset_z * 2) as f64;
+            let candidate = 100.0 - (dx * dx + dz * dz).sqrt() * scale;
             let candidate =
                 super::arithmetic::java_min(super::arithmetic::java_max(candidate, -100.0), 80.0);
             height = super::arithmetic::java_max(height, candidate);
         }
         (height - 8.0) / 128.0
     }
-    fn density(&self, x: i32, z: i32) -> f32 {
+    fn density(&self, x: i32, z: i32) -> f64 {
         (self.height(x / 8, z / 8) - 8.0) / 128.0
     }
 }
 impl DensitySampler for EndIslandSampler {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
         Ok(self.density(position[0], position[2]))
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -165,7 +165,7 @@ mod tests {
             let sampler = EndIslandSampler::new(seed);
             let mut context = SamplerContext::default();
             let mut compare = |volume: DensityVolume| {
-                let sentinel = 123.0_f32;
+                let sentinel = 123.0_f64;
                 let mut output = vec![sentinel; volume.size() + 1];
                 sampler
                     .sample_volume(&mut context, &mut output, volume)

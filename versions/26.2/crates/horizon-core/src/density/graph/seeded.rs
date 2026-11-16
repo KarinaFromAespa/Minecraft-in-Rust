@@ -1,6 +1,6 @@
 use super::*;
 use crate::{
-    noise::NormalNoise,
+    noise::{NormalNoise, synth},
     random::{
         LegacyPositionalRandom, LegacyRandom, PositionalRandom, RandomSource,
         XoroshiroPositionalRandom, XoroshiroRandom,
@@ -50,10 +50,18 @@ impl SeededContext {
             "minecraft:nether/vegetation" => Some(1),
             _ => None,
         };
+        // The graph samples the faithful f64 synth noise (vanilla 26.2
+        // computes noise in double); the float engine's NoiseStack would
+        // reintroduce the f32 rounding the f64 graph exists to avoid.
+        let params = entry.definition.synth_parameters();
         if let Some(offset) = legacy_offset {
-            return Ok(Arc::new(entry.definition.create_for_legacy_nether_biome(
-                &mut LegacyRandom::new(self.seed.wrapping_add(offset)),
-            )?));
+            return Ok(Arc::new(
+                synth::NormalNoise::create_legacy_nether_biome(
+                    &mut LegacyRandom::new(self.seed.wrapping_add(offset)),
+                    params,
+                )
+                .map_err(CompileError::from)?,
+            ));
         }
         let mut instances = self
             .instances
@@ -64,14 +72,20 @@ impl SeededContext {
         }
         let noise: Arc<dyn Noise> = match &self.factory {
             Factory::Legacy(factory) => Arc::new(
-                entry
-                    .definition
-                    .create(&mut factory.from_hash_of(&entry.name))?,
+                synth::NormalNoise::create_with_params(
+                    &mut factory.from_hash_of(&entry.name),
+                    params,
+                    true,
+                )
+                .map_err(CompileError::from)?,
             ),
             Factory::Xoroshiro(factory) => Arc::new(
-                entry
-                    .definition
-                    .create(&mut factory.from_hash_of(&entry.name))?,
+                synth::NormalNoise::create_with_params(
+                    &mut factory.from_hash_of(&entry.name),
+                    params,
+                    true,
+                )
+                .map_err(CompileError::from)?,
             ),
         };
         instances.insert(id, noise.clone());

@@ -16,12 +16,12 @@ pub struct MaterialDensitySources<S: MaterialSurfaceQueries> {
     expected: DensityVolume,
     densities: Vec<BoundDensity>,
     /// Eagerly sampled volumes, shared by bindings of the same density root.
-    buffers: Vec<Vec<f32>>,
+    buffers: Vec<Vec<f64>>,
     retained_samples: usize,
     plane: DensityVolume,
     sampler: Arc<dyn DensitySampler>,
     context: SamplerContext,
-    buffer: Option<Vec<f32>>,
+    buffer: Option<Vec<f64>>,
 }
 struct BoundDensity {
     sampler: Arc<dyn DensitySampler>,
@@ -126,7 +126,7 @@ impl<S: MaterialSurfaceQueries> MaterialSurfaceQueries for MaterialDensitySource
         self.densities.push(BoundDensity { sampler, buffer });
         Ok(index)
     }
-    fn density(&mut self, index: usize, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, index: usize, position: BlockPos) -> Result<f64, MaterialRuleError> {
         let source = self
             .densities
             .get(index)
@@ -139,7 +139,7 @@ impl<S: MaterialSurfaceQueries> MaterialSurfaceQueries for MaterialDensitySource
         }
         Ok(source.sampler.sample_value(&mut self.context, position)?)
     }
-    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f64, MaterialRuleError> {
         let position = [position.x, 0, position.z];
         if let Some(index) = self.plane.index_of_block(position) {
             if self.buffer.is_none() {

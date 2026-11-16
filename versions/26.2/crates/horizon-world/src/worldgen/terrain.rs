@@ -18,7 +18,7 @@ use horizon_core::{
 use std::{cell::RefCell, io};
 
 thread_local! {
-    static SCRATCH_DENSITY: RefCell<Vec<f32>> = const { RefCell::new(Vec::new()) };
+    static SCRATCH_DENSITY: RefCell<Vec<f64>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Behavior and resolved tags for every state in the chunk's immutable registry.
@@ -794,7 +794,7 @@ fn fill_noise_inner<B: TerrainBlockStates>(
     context: &mut SamplerContext,
     aquifer: &mut (impl TerrainAquifer + ?Sized),
     default_block: BlockStateId,
-    density: &mut [f32],
+    density: &mut [f64],
 ) -> Result<(), TerrainError> {
     let [sx, sy, sz] = volume.sizes();
     let [bx, by, bz] = volume.minimum();
@@ -896,7 +896,7 @@ fn fill_noise_inner<B: TerrainBlockStates>(
                     continue;
                 } else {
                     aquifer
-                        .compute_substance(context, [world_x, world_y, world_z], f64::from(value))?
+                        .compute_substance(context, [world_x, world_y, world_z], value)?
                         .unwrap_or(default_block)
                 };
                 if state == chunk.blocks.air {
@@ -1016,7 +1016,7 @@ mod tests {
 
         // Deliberately poison the thread-local scratch buffer with NaN
         SCRATCH_DENSITY.with_borrow_mut(|scratch| {
-            scratch.fill(f32::NAN);
+            scratch.fill(f64::NAN);
         });
 
         let mut chunk_poisoned =

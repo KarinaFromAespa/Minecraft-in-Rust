@@ -1240,6 +1240,55 @@ impl NoiseUtils {
     }
 }
 
+/// The f64 density graph samples these directly (vanilla 26.2 computes
+/// noise in double; the float engine's `Noise` impls widen f32). Bulk
+/// paths use the trait's default scalar traversal — the synth types have
+/// no bulk arithmetic of their own.
+impl super::Noise for NormalNoise {
+    fn range(&self) -> Result<[f64; 2], super::NanRange> {
+        let max = self.max_value();
+        if max.is_nan() {
+            return Err(super::NanRange);
+        }
+        Ok([-max, max])
+    }
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        self.get_value(x, 0.0, z)
+    }
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.get_value(x, y, z)
+    }
+}
+
+impl super::Noise for PerlinNoise {
+    fn range(&self) -> Result<[f64; 2], super::NanRange> {
+        let max = self.max_value();
+        if max.is_nan() {
+            return Err(super::NanRange);
+        }
+        Ok([-max, max])
+    }
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        self.get_value(x, 0.0, z)
+    }
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.get_value(x, y, z)
+    }
+}
+
+impl super::Noise for SimplexNoise {
+    fn range(&self) -> Result<[f64; 2], super::NanRange> {
+        // Conservative bound, matching the float engine's SimplexNoise.
+        Ok([-2.0, 2.0])
+    }
+    fn get2(&self, x: f64, z: f64) -> f64 {
+        self.get_value(x, z)
+    }
+    fn get3(&self, x: f64, y: f64, z: f64) -> f64 {
+        self.get_value_3d(x, y, z)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::PerlinNoise as FloatPerlin;

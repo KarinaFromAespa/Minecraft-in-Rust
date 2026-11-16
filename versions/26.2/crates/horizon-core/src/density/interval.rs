@@ -22,8 +22,8 @@ impl std::error::Error for IntervalError {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Interval {
-    min: f32,
-    max: f32,
+    min: f64,
+    max: f64,
 }
 impl PartialEq for Interval {
     fn eq(&self, other: &Self) -> bool {
@@ -33,14 +33,14 @@ impl PartialEq for Interval {
 impl Eq for Interval {}
 impl Interval {
     pub const NAI: Self = Self {
-        min: f32::NAN,
-        max: f32::NAN,
+        min: f64::NAN,
+        max: f64::NAN,
     };
     pub const INFINITE: Self = Self {
-        min: f32::NEG_INFINITY,
-        max: f32::INFINITY,
+        min: f64::NEG_INFINITY,
+        max: f64::INFINITY,
     };
-    pub fn new(min: f32, max: f32) -> Result<Self, IntervalError> {
+    pub fn new(min: f64, max: f64) -> Result<Self, IntervalError> {
         if max < min {
             return Err(IntervalError::InvertedBounds);
         }
@@ -53,22 +53,22 @@ impl Interval {
             max,
         })
     }
-    pub fn symmetric(value: f32) -> Result<Self, IntervalError> {
+    pub fn symmetric(value: f64) -> Result<Self, IntervalError> {
         Self::new(-value, value)
     }
-    pub fn exact(value: f32) -> Result<Self, IntervalError> {
+    pub fn exact(value: f64) -> Result<Self, IntervalError> {
         Self::new(value, value)
     }
-    pub fn min(self) -> f32 {
+    pub fn min(self) -> f64 {
         self.min
     }
-    pub fn max(self) -> f32 {
+    pub fn max(self) -> f64 {
         self.max
     }
     pub fn is_nai(self) -> bool {
         self.min.is_nan()
     }
-    pub fn contains(self, value: f32) -> bool {
+    pub fn contains(self, value: f64) -> bool {
         value >= self.min && value <= self.max
     }
     pub fn intersects(self, other: Self) -> bool {
@@ -77,16 +77,19 @@ impl Interval {
     /// Kept separate from Rust's Hash contract: Java compares signed zeros equal
     /// here, but its endpoint-based hash can distinguish them.
     pub fn java_hash_code(self) -> i32 {
-        let bits = |v: f32| {
-            if v.is_nan() {
-                0x7fc0_0000_i32
+        // Double.hashCode: (int)(bits ^ (bits >>> 32)), with NaN canonicalized
+        // by doubleToLongBits.
+        let bits = |v: f64| {
+            let bits = if v.is_nan() {
+                0x7ff8_0000_0000_0000_u64
             } else {
-                v.to_bits() as i32
-            }
+                v.to_bits()
+            };
+            (bits ^ (bits >> 32)) as i32
         };
         bits(self.min).wrapping_mul(31).wrapping_add(bits(self.max))
     }
-    pub fn encapsulating_values(a: f32, b: f32) -> Self {
+    pub fn encapsulating_values(a: f64, b: f64) -> Self {
         if a.is_nan() && b.is_nan() {
             Self::NAI
         } else if a.is_nan() {
@@ -101,8 +104,8 @@ impl Interval {
         if intervals.is_empty() {
             return Err(IntervalError::EmptyInput);
         }
-        let mut min = f32::INFINITY;
-        let mut max = f32::NEG_INFINITY;
+        let mut min = f64::INFINITY;
+        let mut max = f64::NEG_INFINITY;
         for interval in intervals {
             if !interval.is_nai() {
                 min = java_min(interval.min, min);
@@ -115,7 +118,7 @@ impl Interval {
             Self::new(min, max)
         }
     }
-    fn arithmetic_bounds(min: f32, max: f32) -> Self {
+    fn arithmetic_bounds(min: f64, max: f64) -> Self {
         if min.is_nan() || max.is_nan() {
             Self::NAI
         } else {
@@ -148,9 +151,9 @@ impl Interval {
         } else if !self.contains(0.0) {
             Self::new(1.0 / self.max, 1.0 / self.min).unwrap()
         } else if self.max == 0.0 {
-            Self::new(f32::NEG_INFINITY, 1.0 / self.min).unwrap()
+            Self::new(f64::NEG_INFINITY, 1.0 / self.min).unwrap()
         } else if self.min == 0.0 {
-            Self::new(1.0 / self.max, f32::INFINITY).unwrap()
+            Self::new(1.0 / self.max, f64::INFINITY).unwrap()
         } else {
             Self::INFINITE
         }
@@ -164,7 +167,7 @@ impl Interval {
     pub fn maximum(self, right: Self) -> Self {
         Self::arithmetic_bounds(java_max(self.min, right.min), java_max(self.max, right.max))
     }
-    pub fn clamp(self, min: f32, max: f32) -> Result<Self, IntervalError> {
+    pub fn clamp(self, min: f64, max: f64) -> Result<Self, IntervalError> {
         if min > max {
             return Err(IntervalError::InvertedBounds);
         }
@@ -179,7 +182,7 @@ impl Interval {
         }
     }
     pub fn abs(self) -> Self {
-        self.even_bounds(f32::abs)
+        self.even_bounds(f64::abs)
     }
     pub fn square(self) -> Self {
         self.even_bounds(|v| v * v)
@@ -189,7 +192,7 @@ impl Interval {
             Ok(Self::NAI)
         } else {
             self.maximum(Self::exact(0.0)?)
-                .map_monotonic(|v| crate::jmath::log(v as f64) as f32)
+                .map_monotonic(|v| crate::jmath::log(v))
         }
     }
     pub fn power(self, exponent: Self) -> Self {
@@ -214,7 +217,7 @@ impl Interval {
         }
         result
     }
-    fn including_value(self, value: f32) -> Self {
+    fn including_value(self, value: f64) -> Self {
         if value.is_nan() {
             self
         } else if self.is_nai() {
@@ -223,7 +226,7 @@ impl Interval {
             Self::new(java_min(self.min, value), java_max(self.max, value)).unwrap()
         }
     }
-    fn power_base(base: f32, exponent: Self) -> Self {
+    fn power_base(base: f64, exponent: Self) -> Self {
         if base.is_nan() || exponent.is_nai() {
             return Self::NAI;
         }
@@ -234,18 +237,18 @@ impl Interval {
         if base == 0.0 {
             let range = if exponent.contains(0.0) {
                 if exponent.max == 0.0 {
-                    Self::new(1.0, f32::INFINITY).unwrap()
+                    Self::new(1.0, f64::INFINITY).unwrap()
                 } else if exponent.min == 0.0 {
                     Self::new(0.0, 1.0).unwrap()
                 } else {
-                    Self::new(0.0, f32::INFINITY).unwrap()
+                    Self::new(0.0, f64::INFINITY).unwrap()
                 }
             } else if exponent.max < 0.0 {
-                Self::exact(f32::INFINITY).unwrap()
+                Self::exact(f64::INFINITY).unwrap()
             } else {
                 Self::exact(0.0).unwrap()
             };
-            return range.multiply_range(Self::exact(1.0_f32.copysign(base)).unwrap());
+            return range.multiply_range(Self::exact(1.0_f64.copysign(base)).unwrap());
         }
         if base == 1.0 {
             return Self::exact(1.0).unwrap();
@@ -258,23 +261,23 @@ impl Interval {
                 );
             }
             if exponent.min.is_infinite() && exponent.max.is_infinite() {
-                return Self::new(0.0, f32::INFINITY).unwrap();
+                return Self::new(0.0, f64::INFINITY).unwrap();
             }
             let (min, max) = if exponent.min.is_infinite() {
                 if base < 1.0 {
-                    (java_power(base, exponent.max), f32::INFINITY)
+                    (java_power(base, exponent.max), f64::INFINITY)
                 } else {
                     (0.0, java_power(base, exponent.max))
                 }
             } else if base < 1.0 {
                 (0.0, java_power(base, exponent.min))
             } else {
-                (java_power(base, exponent.min), f32::INFINITY)
+                (java_power(base, exponent.min), f64::INFINITY)
             };
             return Self::new(min, max).unwrap();
         }
-        let first = (exponent.min as f64).ceil() as f32;
-        let last = (exponent.max as f64).floor() as f32;
+        let first = exponent.min.ceil();
+        let last = exponent.max.floor();
         if last < first {
             return Self::NAI;
         }
@@ -293,7 +296,7 @@ impl Interval {
         }
         result
     }
-    fn even_bounds(self, transform: impl Fn(f32) -> f32) -> Self {
+    fn even_bounds(self, transform: impl Fn(f64) -> f64) -> Self {
         if self.is_nai() {
             return self;
         }
@@ -313,7 +316,7 @@ impl Interval {
     /// only the endpoints; it does not attempt to prove monotonicity.
     pub fn map_monotonic(
         self,
-        mut transform: impl FnMut(f32) -> f32,
+        mut transform: impl FnMut(f64) -> f64,
     ) -> Result<Self, IntervalError> {
         if self.is_nai() {
             return Ok(self);
@@ -338,7 +341,7 @@ impl Interval {
         ])
         .unwrap()
     }
-    pub fn lerp_values(self, first: f32, second: f32) -> Self {
+    pub fn lerp_values(self, first: f64, second: f64) -> Self {
         if self.is_nai() || first.is_nan() || second.is_nan() {
             return Self::NAI;
         }
@@ -380,31 +383,31 @@ impl Interval {
         }
     }
 }
-fn java_power(base: f32, exponent: f32) -> f32 {
-    super::arithmetic::java_power(base as f64, exponent as f64) as f32
+fn java_power(base: f64, exponent: f64) -> f64 {
+    super::arithmetic::java_power(base, exponent)
 }
-fn mul_bound(a: f32, b: f32) -> f32 {
+fn mul_bound(a: f64, b: f64) -> f64 {
     if a == 0.0 || b == 0.0 { 0.0 } else { a * b }
 }
 
-fn lerp_infinite_bound(alpha: f32, first: f32, second: f32) -> f32 {
+fn lerp_infinite_bound(alpha: f64, first: f64, second: f64) -> f64 {
     let a = mul_bound(1.0 - alpha, first);
     let b = mul_bound(alpha, second);
     if a.is_infinite() && b.is_infinite() {
         if alpha <= 0.0 {
             if second > first {
-                f32::NEG_INFINITY
+                f64::NEG_INFINITY
             } else {
-                f32::INFINITY
+                f64::INFINITY
             }
         } else if alpha >= 1.0 {
             if second > first {
-                f32::INFINITY
+                f64::INFINITY
             } else {
-                f32::NEG_INFINITY
+                f64::NEG_INFINITY
             }
         } else {
-            f32::NAN
+            f64::NAN
         }
     } else {
         a + b

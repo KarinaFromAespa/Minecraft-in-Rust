@@ -22,9 +22,9 @@ impl std::error::Error for SplineError {}
 
 #[derive(Clone, Debug)]
 pub struct SplinePoint<C = usize> {
-    pub location: f32,
+    pub location: f64,
     pub value: CubicSpline<C>,
-    pub derivative: f32,
+    pub derivative: f64,
 }
 #[derive(Clone, Debug)]
 pub struct MultipointSpline<C = usize> {
@@ -37,7 +37,7 @@ pub struct MultipointSpline<C = usize> {
 /// equal locations; codec ordering constraints belong to serialized definitions.
 #[derive(Clone, Debug)]
 pub enum CubicSpline<C = usize> {
-    Constant(f32),
+    Constant(f64),
     Multipoint(Arc<MultipointSpline<C>>),
 }
 impl<C: Copy> CubicSpline<C> {
@@ -62,8 +62,8 @@ impl<C: Copy> CubicSpline<C> {
     }
     fn sample(
         &self,
-        coordinate: &mut impl FnMut(C) -> Result<f32, SampleError>,
-    ) -> Result<f32, SampleError> {
+        coordinate: &mut impl FnMut(C) -> Result<f64, SampleError>,
+    ) -> Result<f64, SampleError> {
         let node = match self {
             Self::Constant(value) => return Ok(*value),
             Self::Multipoint(node) => node,
@@ -127,11 +127,11 @@ impl<C: Copy> CubicSpline<C> {
         if input.is_nai() {
             return Ok(input);
         }
-        let mut minimum = f32::INFINITY;
-        let mut maximum = f32::NEG_INFINITY;
+        let mut minimum = f64::INFINITY;
+        let mut maximum = f64::NEG_INFINITY;
         let first = &node.points[0];
         let last = node.points.last().unwrap();
-        let extend = |point: &SplinePoint<C>, input: f32, value: f32| {
+        let extend = |point: &SplinePoint<C>, input: f64, value: f64| {
             if point.derivative == 0.0 {
                 value
             } else {
@@ -296,9 +296,9 @@ impl DensitySampler for SplineSampler {
         &self,
         context: &mut SamplerContext,
         position: [i32; 3],
-    ) -> Result<f32, SampleError> {
+    ) -> Result<f64, SampleError> {
         context.with_buffer(self.coordinates.len(), |context, values| {
-            values.fill(f32::NAN);
+            values.fill(f64::NAN);
             self.spline.sample(&mut |id| {
                 if values[id].is_nan() {
                     values[id] = self.coordinates[id].sample_value(context, position)?;
@@ -310,7 +310,7 @@ impl DensitySampler for SplineSampler {
     fn sample_volume(
         &self,
         context: &mut SamplerContext,
-        output: &mut [f32],
+        output: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(output, volume)?;
@@ -319,7 +319,7 @@ impl DensitySampler for SplineSampler {
             return Ok(());
         }
         check_exact_buffer(output, volume)?;
-        let mut buffers: Vec<Option<Vec<f32>>> =
+        let mut buffers: Vec<Option<Vec<f64>>> =
             (0..self.coordinates.len()).map(|_| None).collect();
         let result = (|| {
             for (index, value) in output.iter_mut().enumerate() {

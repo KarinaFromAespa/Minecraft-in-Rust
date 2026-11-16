@@ -41,10 +41,10 @@ pub trait MaterialSurfaceQueries {
     ) -> Result<usize, DecodeError> {
         Err(DecodeError::Field("missing material density provider"))
     }
-    fn density(&mut self, _index: usize, _position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, _index: usize, _position: BlockPos) -> Result<f64, MaterialRuleError> {
         Err(MaterialRuleError::MissingDensityProvider)
     }
-    fn preliminary_surface(&mut self, _position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn preliminary_surface(&mut self, _position: BlockPos) -> Result<f64, MaterialRuleError> {
         Err(MaterialRuleError::MissingDensityProvider)
     }
     fn possible_biomes(&self) -> Option<BTreeSet<String>> {
@@ -96,10 +96,10 @@ impl<T: MaterialSurfaceQueries + ?Sized> MaterialSurfaceQueries for &mut T {
     ) -> Result<usize, DecodeError> {
         (**self).bind_density(sampler, eager)
     }
-    fn density(&mut self, index: usize, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn density(&mut self, index: usize, position: BlockPos) -> Result<f64, MaterialRuleError> {
         (**self).density(index, position)
     }
-    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f32, MaterialRuleError> {
+    fn preliminary_surface(&mut self, position: BlockPos) -> Result<f64, MaterialRuleError> {
         (**self).preliminary_surface(position)
     }
     fn possible_biomes(&self) -> Option<BTreeSet<String>> {
@@ -249,9 +249,9 @@ impl<S: MaterialSurfaceQueries> Context<S> {
             .into_iter()
             .enumerate()
             {
-                corners[i] = (self
+                corners[i] = self
                     .surface
-                    .preliminary_surface(BlockPos::new(x, 0, z))? as f64)
+                    .preliminary_surface(BlockPos::new(x, 0, z))?
                     .floor();
             }
             let fx = (self.position.x & 15) as f64 / 16.0;
@@ -309,7 +309,7 @@ impl<S: MaterialSurfaceQueries> Context<S> {
             self.column_revision
         };
         if noise.revision != revision {
-            noise.value = f64::from(noise.sampler.get3(
+            noise.value = noise.sampler.get3(
                 f64::from(self.position.x),
                 if noise.is_3d {
                     f64::from(self.position.y)
@@ -317,7 +317,7 @@ impl<S: MaterialSurfaceQueries> Context<S> {
                     0.0
                 },
                 f64::from(self.position.z),
-            ));
+            );
             noise.revision = revision;
         }
         noise.value

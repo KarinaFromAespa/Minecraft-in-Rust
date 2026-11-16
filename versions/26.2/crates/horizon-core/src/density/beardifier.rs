@@ -168,10 +168,10 @@ impl Beardifier {
         self.kernel_junctions = junctions;
         self
     }
-    fn sample_unchecked(&self, [x, y, z]: [i32; 3]) -> f32 {
+    fn sample_unchecked(&self, [x, y, z]: [i32; 3]) -> f64 {
         // Vanilla 26.2's Beardifier computes in double throughout
         // (26.3 switched it to float, which this port mirrors elsewhere):
-        // accumulate here in f64 and round once at the end, or the surface
+        // accumulate here in f64 and return it directly, or the surface
         // near a village flips by a block where the beardifier pushes the
         // density across zero.
         let mut value = 0f64;
@@ -219,7 +219,7 @@ impl Beardifier {
             value += beard(kernel, dx, dy, dz, dy) * 0.4;
         }
         if self.kernel_pieces.is_empty() && self.kernel_junctions.is_empty() {
-            return value as f32;
+            return value;
         }
         let mut density = value;
         for piece in &self.kernel_pieces {
@@ -241,11 +241,11 @@ impl Beardifier {
                 std::array::from_fn(|i| [x, y, z][i].wrapping_sub(junction.source[i]));
             density += junction.kernel.factor(d[0], d[1], d[2], d[1]) * 0.4;
         }
-        density as f32
+        density
     }
 }
 impl DensitySampler for Beardifier {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
         Ok(
             if self
                 .affected
@@ -260,7 +260,7 @@ impl DensitySampler for Beardifier {
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         check_buffer(buffer, volume)?;
@@ -346,7 +346,7 @@ fn kernel() -> &'static [f32; 13824] {
 mod tests {
     use super::*;
 
-    fn sample(beardifier: &Beardifier, position: [i32; 3]) -> f32 {
+    fn sample(beardifier: &Beardifier, position: [i32; 3]) -> f64 {
         beardifier
             .sample_value(&mut SamplerContext::default(), position)
             .unwrap()

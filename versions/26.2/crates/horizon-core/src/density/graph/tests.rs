@@ -49,7 +49,7 @@ fn power_literal_selection_retains_signed_zeros_and_negative_fallback_behavior()
         compiler.compile_raw(invalid_raw).unwrap_err(),
         CompileError::UnpreparedCache
     );
-    for (root, expected) in roots.into_iter().zip([0.0_f32, -0.0, 0.0625, 0.0625]) {
+    for (root, expected) in roots.into_iter().zip([0.0_f64, -0.0, 0.0625, 0.0625]) {
         let value = compiler
             .compile_raw(root)
             .unwrap()
@@ -237,7 +237,7 @@ fn noise_specialization_requires_literal_positive_zero_shifts() {
         .sample_volume(&mut SamplerContext::default(), &mut buffer, volume)
         .unwrap();
     assert_eq!(buffer[0].to_bits(), 0);
-    assert_eq!(buffer[1].to_bits(), (-0.0_f32).to_bits());
+    assert_eq!(buffer[1].to_bits(), (-0.0_f64).to_bits());
 }
 
 #[test]
@@ -449,7 +449,7 @@ fn failed_parent_preparation_retains_successful_child_and_consumes_new_id_on_ret
 #[derive(Debug)]
 struct FailingSampler;
 impl DensitySampler for FailingSampler {
-    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f32, SampleError> {
+    fn sample_value(&self, _: &mut SamplerContext, _: [i32; 3]) -> Result<f64, SampleError> {
         Err(SampleError::ZeroGradientPeriod)
     }
 }
@@ -511,18 +511,18 @@ fn min_range_elimination_is_strict_and_does_not_skip_child_compilation() {
 #[derive(Debug, Default)]
 struct VerticalTrace(Mutex<Vec<DensityVolume>>);
 impl DensitySampler for VerticalTrace {
-    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f32, SampleError> {
-        Ok(position[1] as f32)
+    fn sample_value(&self, _: &mut SamplerContext, position: [i32; 3]) -> Result<f64, SampleError> {
+        Ok(position[1] as f64)
     }
     fn sample_volume(
         &self,
         _: &mut SamplerContext,
-        buffer: &mut [f32],
+        buffer: &mut [f64],
         volume: DensityVolume,
     ) -> Result<(), SampleError> {
         self.0.lock().unwrap().push(volume);
         visit(volume, |index, position| {
-            buffer[index] = position[1] as f32;
+            buffer[index] = position[1] as f64;
             Ok(())
         })
     }

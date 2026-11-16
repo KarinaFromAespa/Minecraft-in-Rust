@@ -41,12 +41,14 @@ pub(super) fn identifier(name: &str) -> Result<String, DecodeError> {
 fn string(raw: &RawValue) -> Result<String, DecodeError> {
     Ok(serde_json::from_str(raw.get())?)
 }
-fn float(raw: &RawValue) -> Result<f32, DecodeError> {
+/// Vanilla 26.2 decodes density constants, spline locations and derivatives
+/// as doubles; parse the JSON number directly as f64 (never via f32).
+fn float(raw: &RawValue) -> Result<f64, DecodeError> {
     number_text(raw)?
         .parse()
         .map_err(|_| DecodeError::Field("float"))
 }
-fn noise_value(raw: &RawValue) -> Result<f32, DecodeError> {
+fn noise_value(raw: &RawValue) -> Result<f64, DecodeError> {
     let value = float(raw)?;
     if (-1e6..=1e6).contains(&value) {
         Ok(value)
@@ -222,7 +224,7 @@ impl Loader {
         &mut self,
         object: &Object,
         name: &'static str,
-        fallback: f32,
+        fallback: f64,
         depth: usize,
     ) -> Result<FunctionId, DecodeError> {
         match optional(object, name) {
@@ -497,7 +499,7 @@ impl Loader {
                 "minecraft:interval_select" => {
                     let thresholds: Vec<Box<RawValue>> =
                         serde_json::from_str(required(&object, "thresholds")?.get())?;
-                    let thresholds: Vec<f32> = thresholds
+                    let thresholds: Vec<f64> = thresholds
                         .iter()
                         .map(|raw| noise_value(raw))
                         .collect::<Result<_, _>>()?;

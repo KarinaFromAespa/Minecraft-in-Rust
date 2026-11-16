@@ -83,16 +83,16 @@ impl ClayBands {
     }
     /// Preserve Java's signed remainder. Extreme or unsupported negative heights
     /// can produce an invalid index, which returns None instead of an exception.
-    pub fn at_noise(&self, y: i32, noise: f32) -> Option<BlockStateId> {
+    pub fn at_noise(&self, y: i32, noise: f64) -> Option<BlockStateId> {
         let offset = round_float(noise * 4.);
         let index = y.wrapping_add(offset).wrapping_add(192) % 192;
         self.0.get(index as usize).copied()
     }
 }
-fn round_float(value: f32) -> i32 {
-    // f64 retains every relevant half-integer boundary of a float that fits an
-    // int. Rust's cast supplies Java's NaN-to-zero and saturating endpoints.
-    (f64::from(value) + 0.5).floor() as i32
+fn round_float(value: f64) -> i32 {
+    // Java's Math.round(double): floor(value + 0.5). Rust's cast supplies
+    // Java's NaN-to-zero and saturating endpoints.
+    (value + 0.5).floor() as i32
 }
 #[derive(Debug)]
 pub struct MaterialSurface<P> {
@@ -128,7 +128,7 @@ impl<P: PositionalRandom> MaterialSurface<P> {
             .at_noise(y, self.clay_offset.get3(f64::from(x), 0., f64::from(z)))
     }
     pub fn surface_depth(&self, x: i32, z: i32) -> i32 {
-        let noise = f64::from(self.surface.get3(f64::from(x), 0., f64::from(z)));
+        let noise = self.surface.get3(f64::from(x), 0., f64::from(z));
         ((noise * 2.75 + 3.)
             + self
                 .random
@@ -137,6 +137,6 @@ impl<P: PositionalRandom> MaterialSurface<P> {
                 * 0.25) as i32
     }
     pub fn surface_secondary(&self, x: i32, z: i32) -> f64 {
-        f64::from(self.secondary.get3(f64::from(x), 0., f64::from(z)))
+        self.secondary.get3(f64::from(x), 0., f64::from(z))
     }
 }
