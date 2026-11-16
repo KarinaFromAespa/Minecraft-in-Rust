@@ -3900,3 +3900,67 @@ from this run. The harness subset took 2h21m (vs 1h29m last run)
 because chunk_generation now runs the full 3-dimension sweep
 instead of failing fast on the oracle crash. Next: fix the End
 first, then the smaller diffs, on a new branch.
+
+## chunk_generation proof run #2 (2026-11-16, run 43983328079)
+
+The fixes for run 43929484440's five remaining diffs, all verified
+against the 26.2 jars, merged as 7847f3cb:
+
+- **End central island cone** (937b93ce): vanilla 26.2's
+  `EndIslandDensityFunction.getHeightValue` seeds height with
+  `clamp(100 - sqrt(sx^2+sz^2) * 8, -100, 80)` — the central island
+  cone — before maxing over outer islands. The Rust's
+  `EndIslandSampler::height` started at -100.0. In 26.3 the cone
+  moved into the data graph (`minecraft:end/islands`); the 26.2
+  bundle has no such entry, so the sampler carries it. Clears
+  342,053 blocks across 27 chunks, all 3 seeds, 0 diffs.
+- **Inline coral placer** (28ae685f): 26.2 coral features carry NO
+  nested placed feature — `CoralFeature` picks one coral block from
+  the `coral_blocks` tag and places it (plus fans/pickles) itself.
+  The port required the nested 26.3 form, so `warm_ocean_vegetation`
+  decoded as unsupported (166 blocks of water). `coral_mushroom`
+  had no Rust arm at all. Tag picks use tag-file order
+  (`HolderSet.getRandomElementOf`); wall fans default to
+  waterlogged=true. Rect 89,101,91,103: 0 diffs.
+- **Climate index branching 6** (2042b947): the multi-noise biome
+  source built its RTree with branching 19; vanilla's
+  `Climate.RTree` uses `CHILDREN_PER_NODE = 6`. The tree shape
+  decides which leaf wins an exact-fitness tie, so four quarts
+  resolved to the wrong biome (forest over dripstone_caves at
+  (98,10,4), jungle over forest at (90,0,0), savanna over
+  dripstone_caves at (11,4,52), lush_caves over beach at
+  (-127,-6,101)). The (98,10,4) flip also desynced the
+  small-copper stream in chunk (24,1): vanilla's biome filter
+  rejects the attempt (dripstone_caves does not list `ore_copper`),
+  the Rust's passed it (forest lists it), consuming 13 extra draws
+  — 72 copper blocks. Branching 6 reproduces vanilla on all four
+  ties (verified with the index probe and a climate oracle). The
+  dead-bush diff resolved with the same fix (a tie quart in the
+  outer ring flipped the feature set).
+- **Template block-entity gate** (53e792ef): vanilla's
+  `StructureTemplate.placeInWorld` loads a block's NBT only when
+  `level.getBlockEntity` returns non-null after the write. The Rust
+  set the block entity whenever the template info carried NBT, so
+  a ruined-portal chest drowned in lava kept its loot-table block
+  entity even though `lava_submerged_block` had swapped the chest
+  itself for lava (portal_3, (118,30,981), the_nether-12345).
+  The load is now gated on a read-back: the block that is really
+  there must carry a block entity, and the loot seed is only drawn
+  when it is a container.
+- **Exporter vault fix** (861bdb1a): the structure-block exporter
+  derived `block_entities` by constructing each block entity at
+  BlockPos.ZERO and silently skipping failures; the vault's
+  constructor throws there, so all 32 vault states were missing
+  from `structure-blocks.json` — which the template gate reads,
+  dropping every trial-chambers vault (8 chunks in the first full
+  re-run). The exporter now falls back to
+  `BlockEntityType.isValid`, which needs no instance. The
+  regenerated file gains exactly `minecraft:vault` (32 states)
+  and `minecraft:piston` (12, runtime-only); everything else is
+  byte-identical.
+
+Local full harness (3 seeds x 3 dimensions, 1774s): **1919 chunks
+across 27 biomes and 174 structure sites, 0 blocks, 0 biome cells,
+0 block entities differing**. A green chunk_generation takes the
+profile to 13/0/4 and completes the E7 eight; D6 needs the owner
+playtest.
