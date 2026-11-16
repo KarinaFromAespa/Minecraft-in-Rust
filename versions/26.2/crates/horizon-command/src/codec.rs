@@ -367,7 +367,7 @@ pub fn resource_or_id(reader: &mut Reader, reg: &Registries, registry: &str) -> 
 
 #[cfg(test)]
 mod predicate_tests {
-    use super::args::RegistryIds;
+    use crate::args::RegistryIds;
     use super::*;
 
     #[test]
