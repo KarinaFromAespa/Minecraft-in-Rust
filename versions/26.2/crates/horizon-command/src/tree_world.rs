@@ -175,20 +175,11 @@ fn rotate_swing(d: &mut Dispatcher, root: usize) {
     d.executes(swing, "swing");
     let targets = d.argument(swing, "targets", ENTITIES);
     d.executes(targets, "swing");
+    // 26.2's /swing ends at the hand: the animation argument (none/whack/
+    // stab) and its duration are 26.3 additions, not in 26.2's tree.
     for hand in ["mainhand", "offhand"] {
         let h = d.literal(targets, hand);
         d.executes(h, "swing");
-        let animation = d.argument(
-            h,
-            "animation",
-            ArgType::StrEnum(
-                &["none", "whack", "stab"],
-                "argument.swing_animation.invalid",
-            ),
-        );
-        d.executes(animation, "swing");
-        let duration = d.argument(animation, "duration", ArgType::Time { min: 1 });
-        d.executes(duration, "swing");
     }
 }
 

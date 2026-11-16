@@ -46,7 +46,9 @@ pub fn register(d: &mut Dispatcher, root: usize) {
         d.executes(m, "schedule.function");
     }
     let clear = d.literal(schedule, "clear");
-    let id = d.argument(clear, "function", ArgType::Id("schedules"));
+    // 26.2's /schedule clear takes the scheduled entry's name as a greedy
+    // string (brigadier:string greedy in the 26.2 tree), not a function id.
+    let id = d.argument(clear, "function", ArgType::Greedy);
     d.executes(id, "schedule.clear");
 
     // random (value|roll) <range> [<sequence>] | reset (*|<sequence>) ...
