@@ -496,10 +496,15 @@ impl BlockStateProvider {
                 direction,
                 rotations,
             } => {
-                // Native orientation selection precedes the nested state draw.
+                // Vanilla 26.2 RotatedBlockProvider draws Axis.getRandom
+                // (nextInt(3) over X, Y, Z) and sets only the axis; 26.3
+                // switched to Direction.getRandom (nextInt(6)) plus facing.
+                // Map the axis to a representative table direction (X->west,
+                // Y->down, Z->north); exact for axis-only blocks, the only
+                // 26.2 use (pile_hay's hay_block).
                 let direction = match direction {
                     Some(value) => *value,
-                    None => random.next_int_bound(6)? as usize,
+                    None => [4, 0, 2][random.next_int_bound(3)? as usize],
                 };
                 let state = source.get_state(world, random, position)?;
                 Some(
