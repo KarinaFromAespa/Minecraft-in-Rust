@@ -596,7 +596,7 @@ mod tests {
                 .sample_value(&mut context, [0; 3])
                 .unwrap()
                 .to_bits(),
-            0x8000_0000
+            0x8000_0000_0000_0000
         );
         assert_eq!(
             compiler
@@ -605,7 +605,7 @@ mod tests {
                 .sample_value(&mut context, [0; 3])
                 .unwrap()
                 .to_bits(),
-            0x3f80_0001
+            0x3ff0_0000_1000_0000
         );
     }
     #[test]
