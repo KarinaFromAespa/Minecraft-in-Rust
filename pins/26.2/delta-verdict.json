@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "0aa45cc338ebb7c2a971d5502961efc91a3dc1d2",
-  "tree": "versions/26.2",
+  "commit": "bd63e37e8a741ec60cd31e9affb6cd75850d77c8",
+  "tree": ".horizon-ports/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-16T07:19:46Z",
+  "checked_at": "2026-11-16T09:20:04Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -26,15 +26,15 @@
         "version.rs: protocol 776, data 4903",
         "regen.json: all 6 generators clean",
         "all 6 tables reproduce exactly",
-        "prepared data present (25649 files)",
+        "prepared data present (20776 files)",
         "tag audit: 710 tags across 20 registries; scanned 245 literals in 2866 files; 0 dead in production code, 5 dead in test fixtures"
       ],
       "evidence": [
-        "versions/26.2/research-lock.json",
-        "versions/26.2/crates/horizon-core/src/version.rs",
+        ".horizon-ports/26.2/research-lock.json",
+        ".horizon-ports/26.2/crates/horizon-core/src/version.rs",
         "pins/26.2/diff-26.3-26.2/regen.json",
         "pins/26.2/regen-determinism.json",
-        "versions/26.2/.local/horizon-client/26.2",
+        ".horizon-ports/26.2/.local/horizon-client/26.2",
         "tools/tag_audit.py"
       ]
     },
@@ -70,7 +70,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 4725212af02d, HEAD is 0aa45cc338eb \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit c0897c3c3df0, HEAD is bd63e37e8a74 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 4725212af02d, HEAD is 0aa45cc338eb \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit c0897c3c3df0, HEAD is bd63e37e8a74 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"

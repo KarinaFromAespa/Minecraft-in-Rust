@@ -5,21 +5,22 @@
     "total": 651
   },
   "ci": {
-    "in_flight_note": "component_patch proof run: oracle ported to the 26.2 APIs (no Removed class — patch map holds Optional values, empty for removals) + Rust set over an unsanitized removal with no prototype returns null instead of MissingPrototype; local run passes (622,757 lines match on both jars). A green component_patch takes the profile to 12/0/5; one E7-eight harness remains (chunk_generation); D6 needs the owner playtest; the stamp quirk still blocks the recorded D4/D5 verdict.",
-    "in_flight_run": 43826191201,
-    "in_flight_tree": "c0897c3c",
-    "last_completed_note": "item_model PASSES on CI: oracle ported to the 26.2 APIs (Predicate listResources, boolean shade, List<BakedQuad> layers, createLookup, abstract MaterialBaker, bundle private ctor) + fixture emits boolean shade + corpus pot_decorations in list form; local run 203,376 stacks match, 0 mismatches; D1/D2/D3 pass, profile 11/0/6; D4/D5 blocked (stamp quirk); D6 blocked.",
-    "last_completed_profile": "11/0/6 (block_properties, command_parse, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
-    "last_completed_run": 43809252744,
-    "last_completed_tree": "4725212a"
+    "in_flight_note": "component_patch green on CI (12/0/5). Next: one E7-eight harness remains (chunk_generation); D6 needs the owner playtest; the stamp quirk still blocks the recorded D4/D5 verdict.",
+    "in_flight_run": null,
+    "in_flight_tree": null,
+    "last_completed_note": "component_patch PASSES on CI: oracle ported to the 26.2 APIs (no Removed class \u2014 patch map holds Optional values, empty for removals) + Rust set over an unsanitized removal with no prototype returns null instead of MissingPrototype; local run 622,757 lines match on both jars; D1/D2/D3 pass, profile 12/0/5; D4/D5 blocked (stamp quirk); D6 blocked.",
+    "last_completed_profile": "12/0/5 (block_properties, command_parse, component_patch, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
+    "last_completed_run": 43826191201,
+    "last_completed_tree": "c0897c3c"
   },
   "harness": {
-    "fail": 6,
+    "fail": 5,
     "oracle_fail": 0,
-    "pass": 11,
+    "pass": 12,
     "passing": [
       "block_properties",
       "command_parse",
+      "component_patch",
       "datafix",
       "entity_components",
       "first_person",

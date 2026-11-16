@@ -3743,3 +3743,21 @@ merge): proves component_patch green on CI after the oracle port above.
 Local component_patch passes (622,757 lines match on both jars); a
 green component_patch here takes the profile to 12/0/5 and leaves one
 of the E7 eight (chunk_generation) still red.
+
+## CI run 43826191201 completed — component_patch PASSES on CI (2026-11-16)
+
+Run 43826191201 on main@c0897c3c (the component_patch merge) completed
+in 1h33m26s, conclusion success. Profile **12/0/5** — component_patch
+newly passes (block_properties, command_parse, component_patch, datafix,
+entity_components, first_person, food, item_model, lan, light,
+resource_pack, save_roundtrip); the harness reaches a real comparison
+for the first time on 26.2 and matches the oracle (622,757 output lines
+match Rust on client and on server, verified locally first).
+**D1/D2/D3 pass** (cargo check 0 errors 0 warnings, protocol tests 444
+green, tag audit clean — 0 dead production, 5 dead test-only). D4/D5
+still read blocked in the recorded verdict, but only on the
+staged-candidate stamp quirk (profile stamped for c0897c3c, judge HEAD
+the staged candidate); D6 blocked (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43826191201/; the pin's recorded evidence
+(profile.json, delta-verdict.json, ci-out logs) now comes from this run.
+One of the E7 eight remains: chunk_generation.
