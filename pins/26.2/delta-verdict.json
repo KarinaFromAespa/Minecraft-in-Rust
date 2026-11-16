@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "6534abf6a37673088978e57a96aa7c192f445423",
+  "commit": "1fc6a8c2dedb2ccb7a7769ce7c4bc359b8b66591",
   "tree": "versions/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-15T23:26:20Z",
+  "checked_at": "2026-11-16T02:03:16Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -17,7 +17,7 @@
     "items_total": 417,
     "items_accepted": 0
   },
-  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-15 |",
+  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-16 |",
   "checks": {
     "D1": {
       "status": "pass",
@@ -70,7 +70,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit a1602d7a6693, HEAD is 6534abf6a376 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit d1b6313def90, HEAD is 1fc6a8c2dedb \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit a1602d7a6693, HEAD is 6534abf6a376 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit d1b6313def90, HEAD is 1fc6a8c2dedb \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"

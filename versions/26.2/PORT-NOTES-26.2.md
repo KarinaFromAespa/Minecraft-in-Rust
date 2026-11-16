@@ -3567,3 +3567,19 @@ command_parse is 34581/34581 at all three permission levels; a green
 command_parse here takes the profile to 9/0/8 and leaves four of the
 E7 eight (component_patch, entity_components, item_model,
 chunk_generation) still red.
+
+## CI run 43779020469 completed — command_parse PASSES on CI (2026-11-16)
+
+Run 43779020469 on main@d1b6313d (the command_parse merge) completed in
+~1h36m, conclusion success. Profile **9/0/8** — command_parse newly passes
+(block_properties, command_parse, datafix, first_person, food, lan, light,
+resource_pack, save_roundtrip); the 94 mismatches from run 43766277138 are
+gone (34581/34581 at permissions 4, 2 and 0, verified locally first).
+**D1/D2/D3 pass** (cargo check 0 errors 0 warnings, protocol tests 444
+green, tag audit clean — 0 dead production, 5 dead test-only). D4/D5 still
+read blocked in the recorded verdict, but only on the staged-candidate
+stamp quirk (profile stamped for d1b6313d, judge HEAD the staged
+candidate); D6 blocked (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43779020469/; the pin's recorded evidence
+(profile.json, delta-verdict.json, ci-out logs) now comes from this run,
+the verdict regenerated locally against the pin.
