@@ -2,7 +2,6 @@
 use crate::{
     block_properties::{BlockPropertiesRegistry, BlockProperty, BoundBlockProperty},
     compression::invalid,
-    fluid::FluidStateTable,
     registry::{BlockRegistry, BlockStateId},
     worldgen::{
         feature::FeatureWorld,
@@ -75,7 +74,6 @@ pub struct BlockPlacement {
     kinds: Vec<Placement>,
     doubles: Vec<DoublePlant>,
     replaceable: BoundBlockProperty,
-    fluids: FluidStateTable,
     air: [BlockStateId; 3],
     defaults: Vec<BlockStateId>,
     moss: Vec<Option<Moss>>,
@@ -181,7 +179,6 @@ impl<'r> BlockPlacementBindings<'r> {
                 kinds,
                 doubles,
                 replaceable: properties.bind(BlockProperty::Replaceable),
-                fluids: FluidStateTable::new(registry)?,
                 air: [
                     default("minecraft:air")?,
                     default("minecraft:cave_air")?,
@@ -320,10 +317,10 @@ impl BlockPlacement {
             Placement::Double(index) => {
                 let above = relative(position, Direction::Up);
                 let current = self.read(world, above)?;
-                if !self.air.contains(&current)
-                    && (self.fluids.get(state) != self.fluids.get(current)
-                        || !self.replaceable.contains(current))
-                {
+                // Vanilla 26.2 SimpleBlockFeature requires the cell above a
+                // double plant to be empty (air), not merely replaceable: a
+                // glow lichen above blocks tall grass.
+                if !self.air.contains(&current) {
                     return Ok(false);
                 }
                 let plant = self.doubles[index];
