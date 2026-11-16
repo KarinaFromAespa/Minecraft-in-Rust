@@ -90,6 +90,13 @@ A profile stamped with a `commit` that does not match HEAD is **refused**, not d
 not evidence about this tree. That is the one cross-file check in the gate, and it exists because
 a profile, a playtest and a verdict are three documents that can otherwise disagree quietly.
 
+One exception, and it is narrow: when the stamp is an ancestor of HEAD and every commit in
+between touches only `docs/`, `pins/`, `.github/` or `*.md` — the commits that record a run —
+D4/D5 accept the profile and say so in the note. Recording a run is itself a commit, so
+without this a release whose substance is met would block forever on its own bookkeeping. Any
+crate, tool or table in that range still blocks; re-publishing the profile at the recorded
+commit removes the note, and the frozen pin should eventually do that once.
+
 Things the gate reads from the tree, not the pin: `research-lock.json`,
 `crates/horizon-core/src/version.rs`, the `diff-<prev>-<release>/report.json` and `regen.json`
 that `version_port.py` writes into its store, `.local/horizon-client/<release>/`, and

@@ -667,6 +667,47 @@ def commit_agrees(stamped: str, actual: str) -> bool:
     return stamped[:short][:7] == actual[:7] or actual.startswith(stamped) or stamped.startswith(actual)
 
 
+DOC_ONLY_PREFIXES = ("docs/", "pins/", ".github/")
+DOC_ONLY_SUFFIXES = (".md",)
+
+
+def _docs_only_since(tree: Path, stamped: str, head: str) -> int | None:
+    """Commits between the profile's stamp and HEAD, if none of them touch code.
+
+    Recording a CI run is itself a commit (PORT-NOTES, pins/<v>/status.json), so a
+    profile stamped for the run's own commit is always one or two behind the commit
+    that records it. That drift is bookkeeping, not evidence loss; a drift that
+    touches a crate, a tool or a table is not, and returns None.
+    """
+    if not stamped or not head or len(stamped) < 7:
+        return None
+    count = subprocess.run(
+        ["git", "-C", str(tree), "rev-list", "--count", f"{stamped}..{head}"],
+        capture_output=True, text=True,
+    )
+    if count.returncode != 0:
+        return None
+    try:
+        behind = int((count.stdout or "0").strip())
+    except ValueError:
+        return None
+    if behind <= 0 or behind > 50:
+        return None
+    diff = subprocess.run(
+        ["git", "-C", str(tree), "diff", "--name-only", f"{stamped}..{head}"],
+        capture_output=True, text=True,
+    )
+    if diff.returncode != 0:
+        return None
+    for path in (line.strip() for line in diff.stdout.splitlines()):
+        if not path:
+            continue
+        if path.startswith(DOC_ONLY_PREFIXES) or path.endswith(DOC_ONLY_SUFFIXES):
+            continue
+        return None
+    return behind
+
+
 def _parity_state(tree: Path, pin: Path, commit: str = "", allow_local: bool = False):
     """Published profile first (the frozen record), then the local run state.
 
@@ -692,6 +733,16 @@ def _parity_state(tree: Path, pin: Path, commit: str = "", allow_local: bool = F
             stale = (
                 f"{profile.name} is stamped for commit {stamped[:12]}, HEAD is {commit[:12]}"
             )
+            behind = _docs_only_since(tree, stamped, commit)
+            if behind is not None:
+                state = normalise_profile(raw or {})
+                if state:
+                    return state, profile, (
+                        f"{profile.name} is stamped for commit {stamped[:12]}, {behind} "
+                        f"commit(s) behind HEAD ({commit[:12]}); the commits in between touch "
+                        "documentation and pin metadata only, so the sweep still describes "
+                        "this tree"
+                    )
             if not allow_local:
                 return None, profile, stale + " — re-record the sweep for this tree"
     for candidate in (tree / ".local/parity-runner/state.json", pin / "ci-out/state.json"):
