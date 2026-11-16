@@ -97,6 +97,19 @@ impl CarvingMask {
         let word = index / 64;
         word < self.words.len() && self.words[word] & (1 << (index & 63)) != 0
     }
+    /// The bit index of an in-range cell, for callers that keep per-cell data
+    /// alongside the mask (ellipsoid tags). Out-of-range coordinates, and
+    /// coordinates the mask's wrapping arithmetic aliases, return `None`.
+    pub fn index(&self, x: i32, y: i32, z: i32) -> Option<u32> {
+        if !(0..16).contains(&x) || !(0..16).contains(&z) || y < self.min_y || y > self.max_y {
+            return None;
+        }
+        Some(
+            (y.wrapping_sub(self.min_y)
+                .wrapping_add(z.wrapping_add(x.wrapping_shl(4)).wrapping_mul(self.height)))
+                as u32,
+        )
+    }
     /// Traverse ascending packed runs, splitting each run at column boundaries.
     /// No per-cell or per-column allocation is required.
     pub fn columns(&self) -> impl Iterator<Item = CarvingColumn> + '_ {
@@ -174,5 +187,69 @@ impl Cursor {
             min_y: mask.min_y.wrapping_add(start.saturating_sub(base) as i32),
             max_y: mask.min_y.wrapping_add((end - base).min(height - 1) as i32),
         })
+    }
+}
+
+/// The ellipsoid that first claimed each carved cell, keyed by the mask's bit
+/// index (`CarvingMask::index`). Vanilla 26.2 marks fluid blocks during the
+/// worm trace, in ellipsoid order, so the apply pass needs to know which
+/// ellipsoid each cell belongs to; the mask alone (visited in packed column
+/// order) cannot reproduce that order. Only cells the mask holds have entries.
+#[derive(Clone, Debug, Default)]
+pub struct EllipsoidTags {
+    tags: std::collections::HashMap<u32, u32>,
+}
+impl EllipsoidTags {
+    pub fn get(&self, index: u32) -> Option<u32> {
+        self.tags.get(&index).copied()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.tags.is_empty()
+    }
+}
+
+/// A carving mask that records, for each cell, the ellipsoid that first
+/// claimed it. The sequence advances on every `begin_ellipsoid` (one per
+/// ellipsoid the carvers visit that can reach the chunk), so the tags order
+/// the cells the way vanilla 26.2's worm trace marks them. A cell claimed by
+/// an earlier ellipsoid keeps its first tag: vanilla's mask check skips
+/// already-carved cells.
+#[derive(Debug)]
+pub struct SequencedMask {
+    mask: CarvingMask,
+    tags: EllipsoidTags,
+    sequence: u32,
+}
+impl SequencedMask {
+    pub fn new(min_y: i32, max_y: i32) -> Result<Self, CarvingMaskError> {
+        Ok(Self {
+            mask: CarvingMask::new(min_y, max_y)?,
+            tags: EllipsoidTags::default(),
+            sequence: 0,
+        })
+    }
+    pub fn into_parts(self) -> (CarvingMask, EllipsoidTags) {
+        (self.mask, self.tags)
+    }
+}
+impl CarverOutput for SequencedMask {
+    type Error = CarvingMaskError;
+    fn min_y(&self) -> i32 {
+        self.mask.min_y()
+    }
+    fn max_y(&self) -> i32 {
+        self.mask.max_y()
+    }
+    fn carve(&mut self, x: i32, y: i32, z: i32) -> Result<(), Self::Error> {
+        if !self.mask.get(x, y, z) {
+            if let Some(index) = self.mask.index(x, y, z) {
+                self.tags.tags.insert(index, self.sequence);
+            }
+            self.mask.carve(x, y, z)?;
+        }
+        Ok(())
+    }
+    fn begin_ellipsoid(&mut self) {
+        self.sequence = self.sequence.wrapping_add(1);
     }
 }

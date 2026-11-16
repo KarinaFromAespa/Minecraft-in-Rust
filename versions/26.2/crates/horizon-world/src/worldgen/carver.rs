@@ -12,7 +12,8 @@ pub use config::{
     CarverDebugSettings, CaveCarverConfiguration,
 };
 pub use generation::{
-    CarverCatalog, MaskGenerationError, WorldCarver, generate_carving_mask, large_feature_random,
+    CarverCatalog, GeneratedCarvingMask, MaskGenerationError, WorldCarver,
+    generate_carving_mask, large_feature_random,
 };
 use horizon_core::{
     carving::{CarveError, CarverOutput, can_reach, carve_ellipsoid_with_budget},

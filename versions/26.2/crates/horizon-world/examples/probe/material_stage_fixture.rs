@@ -468,12 +468,12 @@ where
             inner: aquifer.as_mut(),
             trace: trace.clone(),
         };
-        let result = if generated.is_empty() {
+        let result = if generated.mask.is_empty() {
             Ok(())
         } else {
             apply_carving_mask(
                 &mut chunk,
-                &generated,
+                &generated.mask,
                 rule.clone(),
                 TopMaterialInputs::<R, _> {
                     generation,

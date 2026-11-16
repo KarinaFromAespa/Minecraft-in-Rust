@@ -1985,13 +1985,13 @@ where
         worker.timings.surface += lap(&mut clock);
         if run_carvers {
             let carvers = &data.biome_carvers;
-            let mask = generate_carving_mask(self.seed, pos, generation, false, |origin| {
+            let generated = generate_carving_mask(self.seed, pos, generation, false, |origin| {
                 self.carver_biome(worker, origin)
                     .map(|id| carvers[id.0 as usize].as_slice())
             })
             .map_err(stage("carvers"))?;
             worker.timings.carvers += lap(&mut clock);
-            if !mask.is_empty() {
+            if !generated.mask.is_empty() {
                 let mut resolver = self.source.resolver(
                     &self.climate,
                     self.router.get(RouterField::Erosion).as_ref(),
@@ -2017,7 +2017,7 @@ where
                 let mut carving_shared = None;
                 apply_carving_mask_shared(
                     &mut chunk,
-                    &mask,
+                    &generated.mask,
                     &self.surface_rule,
                     &mut carving_shared,
                     TopMaterialInputs::<R, _> {
@@ -2037,6 +2037,7 @@ where
                     &data.carving_blocks,
                     profile,
                     |[x, y, z]| blender.carving_filter(x, y, z).unwrap_or(true),
+                    Some(&generated.tags),
                 )
                 .map_err(stage("carvers"))?;
             }

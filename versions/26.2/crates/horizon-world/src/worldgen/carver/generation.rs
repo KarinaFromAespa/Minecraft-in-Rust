@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use horizon_core::{
-    carving::{CarverOutput, CarvingMask, CarvingMaskError},
+    carving::{CarverOutput, CarvingMask, CarvingMaskError, EllipsoidTags, SequencedMask},
     position::ChunkPos,
     random::{LegacyRandom, RandomSource},
 };
@@ -190,6 +190,15 @@ impl<E: std::fmt::Display> std::fmt::Display for MaskGenerationError<E> {
 }
 impl<E: std::error::Error + 'static> std::error::Error for MaskGenerationError<E> {}
 
+/// A carving mask plus, for each cell, the ellipsoid that first claimed it.
+/// Vanilla 26.2 marks fluid blocks during the worm trace, in ellipsoid order;
+/// the apply pass sorts the carver's marks by these tags to reproduce it.
+#[derive(Debug)]
+pub struct GeneratedCarvingMask {
+    pub mask: CarvingMask,
+    pub tags: EllipsoidTags,
+}
+
 /// Build the union mask from a 17×17 origin neighborhood, X then Z. The provider
 /// selects each origin's ordered biome carvers using its uncached biome resolver
 /// at the origin's minimum quart X/Z and quart Y=0. Repeated entries keep their
@@ -200,14 +209,14 @@ pub fn generate_carving_mask<'a, E>(
     context: WorldGenerationContext,
     upgrading: bool,
     mut carvers: impl FnMut(ChunkPos) -> Result<&'a [Arc<WorldCarver>], E>,
-) -> Result<CarvingMask, MaskGenerationError<E>> {
+) -> Result<GeneratedCarvingMask, MaskGenerationError<E>> {
     let min = context.min_y.wrapping_add(1);
     let max = context
         .min_y
         .wrapping_add(context.height)
         .wrapping_sub(1)
         .wrapping_sub(if upgrading { 0 } else { 7 });
-    let mut mask = CarvingMask::new(min, max).map_err(MaskGenerationError::Mask)?;
+    let mut output = SequencedMask::new(min, max).map_err(MaskGenerationError::Mask)?;
     for dx in -8..=8 {
         for dz in -8..=8 {
             let origin = ChunkPos::new(target.x.wrapping_add(dx), target.z.wrapping_add(dz));
@@ -220,13 +229,14 @@ pub fn generate_carving_mask<'a, E>(
                     large_feature_random(world_seed.wrapping_add(index as i64), origin);
                 if carver.is_start_chunk(&mut random) {
                     carver
-                        .carve(context, &mut random, target, origin, &mut mask)
+                        .carve(context, &mut random, target, origin, &mut output)
                         .map_err(MaskGenerationError::Carver)?;
                 }
             }
         }
     }
-    Ok(mask)
+    let (mask, tags) = output.into_parts();
+    Ok(GeneratedCarvingMask { mask, tags })
 }
 /// The legacy `WorldgenRandom.setLargeFeatureSeed` stream used by carving.
 pub fn large_feature_random(seed: i64, origin: ChunkPos) -> LegacyRandom {

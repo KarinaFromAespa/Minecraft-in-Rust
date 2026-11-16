@@ -10,7 +10,7 @@ fn origin_order_wraps_coordinates_and_upgrading_changes_the_ceiling() {
     let target = ChunkPos::new(i32::MAX, i32::MIN);
     for upgrading in [false, true] {
         let mut visited = Vec::new();
-        let mask = generate_carving_mask(
+        let generated = generate_carving_mask(
             0,
             target,
             WorldGenerationContext::new(-64, 384, 63),
@@ -21,9 +21,9 @@ fn origin_order_wraps_coordinates_and_upgrading_changes_the_ceiling() {
             },
         )
         .unwrap();
-        assert!(mask.is_empty());
-        assert_eq!(mask.min_y(), -63);
-        assert_eq!(mask.max_y(), if upgrading { 319 } else { 312 });
+        assert!(generated.mask.is_empty());
+        assert_eq!(generated.mask.min_y(), -63);
+        assert_eq!(generated.mask.max_y(), if upgrading { 319 } else { 312 });
         let expected: Vec<_> = (-8..=8)
             .flat_map(|dx| {
                 (-8..=8).map(move |dz| {
