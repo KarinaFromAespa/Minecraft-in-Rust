@@ -246,7 +246,7 @@ fn spline_range_early_return_does_not_skip_coordinate_validation_during_compilat
     let unavailable = graph
         .bind(Arc::new(FailingSampler), Interval::NAI, 2)
         .unwrap();
-    let invalid = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let invalid = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     let nested = CubicSpline::multipoint(
         invalid,
         vec![SplinePoint {
@@ -331,12 +331,12 @@ fn interval_threshold_equality_and_hashing_preserve_distinct_cache_inputs() {
     let mut graph = DensityGraph::new();
     let one = graph.insert(GraphNode::Constant(1.0)).unwrap();
     let zero = graph.insert(GraphNode::Constant(0.0)).unwrap();
-    let shared_nan: Arc<[f32]> = Arc::from([f32::NAN]);
+    let shared_nan: Arc<[f64]> = Arc::from([f64::NAN]);
     let mut ids = Vec::new();
     for thresholds in [
         shared_nan.clone(),
         shared_nan,
-        Arc::from([f32::NAN]),
+        Arc::from([f64::NAN]),
         Arc::from([0.0]),
         Arc::from([-0.0]),
     ] {
@@ -386,11 +386,11 @@ fn structural_identity_preserves_java_float_keys_and_shared_cache_ids() {
     let positive = graph.insert(GraphNode::Constant(0.0)).unwrap();
     let negative = graph.insert(GraphNode::Constant(-0.0)).unwrap();
     assert_ne!(positive, negative);
-    let nan = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let nan = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     assert_eq!(
         nan,
         graph
-            .insert(GraphNode::Constant(f32::from_bits(0xffa00001)))
+            .insert(GraphNode::Constant(f64::from_bits(0xfff4_0000_0000_0001)))
             .unwrap()
     );
     let first = graph.insert(GraphNode::Cache(positive)).unwrap();
@@ -418,7 +418,7 @@ fn failed_parent_preparation_retains_successful_child_and_consumes_new_id_on_ret
     let mut graph = DensityGraph::new();
     let good = graph.insert(GraphNode::Constant(1.0)).unwrap();
     let child = graph.insert(GraphNode::Cache(good)).unwrap();
-    let bad = graph.insert(GraphNode::Constant(f32::NAN)).unwrap();
+    let bad = graph.insert(GraphNode::Constant(f64::NAN)).unwrap();
     let sum = graph
         .insert(GraphNode::Binary {
             kind: GraphBinary::Add,
@@ -589,7 +589,7 @@ fn positive_y_bounds_read_a_y_range_choice_with_a_nonpositive_fallback() {
     let half = choice(&mut graph, y, -59.5, -8.0, minus_one);
     assert_eq!(graph.positive_y_bounds(half), Ok(Some([-59, -9])));
     // The clamped gradient stays in range below its first coordinate.
-    let open = choice(&mut graph, y, f32::NEG_INFINITY, 10.0, minus_one);
+    let open = choice(&mut graph, y, f64::NEG_INFINITY, 10.0, minus_one);
     assert_eq!(graph.positive_y_bounds(open), Ok(Some([i32::MIN, 9])));
     let never = choice(&mut graph, y, 5000.0, 6000.0, minus_one);
     assert_eq!(

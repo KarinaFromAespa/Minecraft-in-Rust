@@ -88,7 +88,7 @@ fn scalar_shortcuts_and_bulk_arithmetic_keep_distinct_results() {
         left: Arc::new(ConstantSampler(0.0)),
         right: Arc::new(ConstantSampler(-0.0)),
         operation: BinaryOp::Minimum {
-            right_min: f32::NEG_INFINITY,
+            right_min: f64::NEG_INFINITY,
         },
     };
     assert_eq!(
@@ -175,9 +175,9 @@ fn range_arithmetic_and_zero_equality_match_reference_special_cases() {
     assert_eq!(zero.multiply_range(Interval::INFINITE), zero);
     assert!(zero.reciprocal().is_nai());
     assert!(
-        Interval::exact(f32::INFINITY)
+        Interval::exact(f64::INFINITY)
             .unwrap()
-            .add_range(Interval::exact(f32::NEG_INFINITY).unwrap())
+            .add_range(Interval::exact(f64::NEG_INFINITY).unwrap())
             .is_nai()
     );
     let cached = Interval::new(-0.0, 1.0).unwrap();
@@ -215,8 +215,8 @@ fn monotonic_mapping_skips_nai_and_rejects_nan_after_both_endpoints() {
     assert_eq!(
         Interval::exact(0.0)
             .unwrap()
-            .lerp_values(f32::INFINITY, f32::NEG_INFINITY),
-        Interval::exact(f32::INFINITY).unwrap()
+            .lerp_values(f64::INFINITY, f64::NEG_INFINITY),
+        Interval::exact(f64::INFINITY).unwrap()
     );
 }
 
@@ -432,14 +432,18 @@ fn grid_interpolation_keeps_incremental_bulk_rounding() {
     sampler
         .sample_volume(&mut context, &mut output, volume)
         .unwrap();
-    assert_eq!(output[7].to_bits(), 0x3f333334);
+    // In f64 the bulk path's repeated addition lands one ulp above the
+    // scalar lerp at y=3 (0.30000000000000004 vs 0.3); at y=7 the two
+    // agree exactly, so the rounding pin lives at y=3.
+    assert_eq!(output[3].to_bits(), 0x3fd3_3333_3333_3334);
     assert_eq!(
         sampler
-            .sample_value(&mut context, [0, 7, 0])
+            .sample_value(&mut context, [0, 3, 0])
             .unwrap()
             .to_bits(),
-        0x3f333333
+        0x3fd3_3333_3333_3333
     );
+    assert_eq!(output[7].to_bits(), 0x3fe6_6666_6666_6666);
     assert_eq!(output[10], 19.0);
     let strided = DensityVolume::new([1, 5, 1], [0; 3], [1, 2, 1]).unwrap();
     let mut selected = [0.0; 5];
@@ -1029,15 +1033,34 @@ fn lerp_samples_its_branches_only_where_alpha_reads_them() {
             self.0.sample_volume(context, buffer, volume)
         }
     }
-    // The overworld's terrain noise: its alpha is often exactly 0 or 1.
-    let blended = BlendedNoise {
-        xz_scale: 0.25,
-        y_scale: 0.125,
-        xz_factor: 80.0,
-        y_factor: 160.0,
-        smear_scale_multiplier: 8.0,
+    // A lerp whose alpha is often exactly 0 or 1: a Perlin noise shifted by
+    // 0.5 and clamped, like the blended noise's main stack.
+    let main: Arc<dyn DensitySampler> = Arc::new(NoiseSampler {
+        noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(12345))),
+        xz_scale: 684.412 * 0.25 / 80.0,
+        y_scale: 684.412 * 0.125 / 160.0,
+    });
+    let shifted = Arc::new(UnarySampler {
+        input: main,
+        operation: UnaryOp::Add(0.5),
+    });
+    let alpha = Arc::new(UnarySampler {
+        input: shifted,
+        operation: UnaryOp::Clamp { min: 0.0, max: 1.0 },
+    });
+    let lerp = LerpSampler {
+        alpha,
+        first: DensityValue::Sampler(Arc::new(NoiseSampler {
+            noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(99))),
+            xz_scale: 0.25,
+            y_scale: 0.125,
+        })),
+        second: DensityValue::Sampler(Arc::new(NoiseSampler {
+            noise: Arc::new(PerlinNoise::new(&mut LegacyRandom::new(100))),
+            xz_scale: 0.25,
+            y_scale: 0.125,
+        })),
     };
-    let lerp = blended.compile(&mut LegacyRandom::new(12345)).unwrap();
     let everywhere = |value: &DensityValue| match value {
         DensityValue::Sampler(sampler) => {
             DensityValue::Sampler(Arc::new(Everywhere(Arc::clone(sampler))))

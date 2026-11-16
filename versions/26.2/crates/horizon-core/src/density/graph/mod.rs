@@ -451,7 +451,7 @@ impl DensityGraph {
             GraphNode::IntervalSelect { thresholds, .. } => {
                 thresholds
                     .iter()
-                    .filter(|v| v.to_bits() == 0x8000_0000)
+                    .filter(|v| v.to_bits() == 0x8000_0000_0000_0000)
                     .count()
                     % 2
                     != 0
