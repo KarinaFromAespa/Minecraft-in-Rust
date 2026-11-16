@@ -5,7 +5,7 @@ use horizon_assets::{
     item_bake::{BakedItemModel, SpriteLookup, SpriteMask, bake_item_model},
     item_model::*,
     math::Mat4,
-    model::{CuboidModel, Direction},
+    model::CuboidModel,
     palette::{PalettedPermutations, apply_palette},
     resolve::{MISSING_MODEL, ModelLibrary},
 };
