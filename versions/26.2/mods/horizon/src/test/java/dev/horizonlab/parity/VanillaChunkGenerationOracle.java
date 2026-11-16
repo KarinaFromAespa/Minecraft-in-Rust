@@ -453,16 +453,21 @@ public final class VanillaChunkGenerationOracle {
             int fx0 = x0 - m, fz0 = z0 - m, fx1 = x1 + m, fz1 = z1 + m;
             int tx0 = fx0 - 1, tz0 = fz0 - 1, tx1 = fx1 + 1, tz1 = fz1 + 1;
             int bx0 = tx0 - 1, bz0 = tz0 - 1, bx1 = tx1 + 1, bz1 = tz1 + 1;
-            int sm = oldChunks.isEmpty() ? 8 : 9; // blending reads the neighbours of old chunks 7 away
-            int sx0 = tx0 - sm, sz0 = tz0 - sm, sx1 = tx1 + sm, sz1 = tz1 + sm;
+            // 26.2 runs the Beardifier during BIOMES (createBiomes -> createNoiseChunk),
+            // which reads the centre chunk's structure references: every chunk that gets
+            // BIOMES must first reach STRUCTURE_REFERENCES, and every chunk that gets
+            // REFERENCES needs STRUCTURE_STARTS at 8. (26.3 moved the Beardifier to the
+            // TERRAIN step, so its oracle gets away with references over the terrain
+            // range only.) The same bx +/- 8 starts range covers blending's reads of
+            // the neighbours of old chunks 7 away.
+            int sx0 = bx0 - 8, sz0 = bz0 - 8, sx1 = bx1 + 8, sz1 = bz1 + 8;
             for (int z = sz0; z <= sz1; z++) for (int x = sx0; x <= sx1; x++) {
                 if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 generator.createStructures(access, state, OracleLevel.structures, chunk, templates, levelKey);
                 chunk.setPersistedStatus(ChunkStatus.STRUCTURE_STARTS);
             }
-            int rm = oldChunks.isEmpty() ? 0 : 1; // Blender.of asks for the centre chunk itself at STRUCTURE_REFERENCES
-            for (int z = tz0 - rm; z <= tz1 + rm; z++) for (int x = tx0 - rm; x <= tx1 + rm; x++) {
+            for (int z = bz0; z <= bz1; z++) for (int x = bx0; x <= bx1; x++) {
                 if (oldChunks.contains(ChunkPos.pack(x, z))) continue;
                 var chunk = chunkAt.apply(x, z);
                 var region = regionFor.apply(ChunkStatus.STRUCTURE_REFERENCES, chunk);
