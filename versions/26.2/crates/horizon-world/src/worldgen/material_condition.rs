@@ -227,14 +227,44 @@ impl<S: MaterialSurfaceQueries> Context<S> {
         if self.minimum_revision != self.column_revision {
             // Vanilla stamps before sampling, including when sampling fails.
             self.minimum_revision = self.column_revision;
-            let value = self.surface.preliminary_surface(BlockPos::new(
-                self.position.x,
-                0,
-                self.position.z,
-            ))?;
-            // 26.3 floors before the saturating Java numeric conversion.
-            let floor = value.floor() as i32;
-            self.minimum = floor.wrapping_add(self.depth).wrapping_sub(8);
+            // Vanilla 26.2's SurfaceRules.Context.getMinSurfaceLevel samples
+            // the preliminary surface at the four corners of the 16-block
+            // cell containing the column and bilinearly interpolates between
+            // them, each corner floored first (as
+            // NoiseChunk.preliminarySurfaceLevel does). Sampling the column
+            // itself gives a different level where the surface varies across
+            // the cell, and the badlands rule then stops several blocks too
+            // shallow.
+            let cx = self.position.x >> 4;
+            let cz = self.position.z >> 4;
+            let x0 = cx << 4;
+            let z0 = cz << 4;
+            let mut corners = [0f64; 4];
+            for (i, (x, z)) in [
+                (x0, z0),
+                (x0.wrapping_add(16), z0),
+                (x0, z0.wrapping_add(16)),
+                (x0.wrapping_add(16), z0.wrapping_add(16)),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                corners[i] = (self
+                    .surface
+                    .preliminary_surface(BlockPos::new(x, 0, z))? as f64)
+                    .floor();
+            }
+            let fx = (self.position.x & 15) as f64 / 16.0;
+            let fz = (self.position.z & 15) as f64 / 16.0;
+            let lerp = |t: f64, a: f64, b: f64| a + t * (b - a);
+            let level = lerp(
+                fz,
+                lerp(fx, corners[0], corners[1]),
+                lerp(fx, corners[2], corners[3]),
+            );
+            self.minimum = (level.floor() as i32)
+                .wrapping_add(self.depth)
+                .wrapping_sub(8);
         }
         Ok(self.minimum)
     }
