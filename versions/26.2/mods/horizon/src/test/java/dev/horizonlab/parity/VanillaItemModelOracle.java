@@ -133,8 +133,8 @@ public final class VanillaItemModelOracle {
         }
         @Override public java.util.Set<String> getNamespaces() { return java.util.Set.of("minecraft"); }
         @Override public List<net.minecraft.server.packs.resources.Resource> getResourceStack(Identifier id) { return getResource(id).stream().toList(); }
-        @Override public Map<Identifier, net.minecraft.server.packs.resources.Resource> listResources(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
-        @Override public Map<Identifier, List<net.minecraft.server.packs.resources.Resource>> listResourceStacks(String directory, net.minecraft.server.packs.resources.ResourceManager.Selector selector) { throw new UnsupportedOperationException(); }
+        @Override public Map<Identifier, net.minecraft.server.packs.resources.Resource> listResources(String directory, java.util.function.Predicate<Identifier> filter) { throw new UnsupportedOperationException(); }
+        @Override public Map<Identifier, List<net.minecraft.server.packs.resources.Resource>> listResourceStacks(String directory, java.util.function.Predicate<Identifier> filter) { throw new UnsupportedOperationException(); }
         @Override public java.util.stream.Stream<net.minecraft.server.packs.PackResources> listPacks() { return java.util.stream.Stream.empty(); }
     };
 
@@ -257,7 +257,7 @@ public final class VanillaItemModelOracle {
         var info = q.materialInfo();
         return map("positions", positions, "uv", uvs, "facing", q.direction().getName(), "tint", info.tintIndex(),
             "sprite", info.sprite().contents().name().toString(),
-            "shade", info.shadeDirectionOverride() == null ? null : info.shadeDirectionOverride().getName(), "light", info.lightEmission());
+            "shade", info.shade(), "light", info.lightEmission());
     }
     static Object matrix(Matrix4f m) {
         var rows = new long[16];
@@ -286,8 +286,8 @@ public final class VanillaItemModelOracle {
             var argument = field(layer, type, "argumentForSpecialRendering");
             out.put("argument", argument instanceof Argument a ? a.json() : JsonNull.INSTANCE);
         } else {
-            var quads = (net.minecraft.client.resources.model.geometry.ItemQuads) field(layer, type, "quads");
-            out.put("quads", quads.all().stream().map(VanillaItemModelOracle::quad).toList());
+            var quads = (java.util.List<net.minecraft.client.resources.model.geometry.BakedQuad>) field(layer, type, "quads");
+            out.put("quads", quads.stream().map(VanillaItemModelOracle::quad).toList());
             out.put("kind", "model");
         }
         return out;
@@ -318,7 +318,7 @@ public final class VanillaItemModelOracle {
         var uf = u.getDeclaredField("theUnsafe"); uf.setAccessible(true); unsafe = uf.get(null);
         allocate = u.getMethod("allocateInstance", Class.class);
         root = Path.of(args[0]);
-        registries = VanillaRegistries.createWorldLookup();
+        registries = VanillaRegistries.createLookup();
         ops = RegistryOps.create(JsonOps.INSTANCE, registries);
         // Default components come from the prepared export of the vanilla reports.
         var defaults = JsonParser.parseString(Files.readString(Path.of(args[3]))).getAsJsonObject();
@@ -376,7 +376,13 @@ public final class VanillaItemModelOracle {
         var missingSprite = new Sprite(BLOCKS, MissingTextureAtlasSprite.create());
         var blockAtlas = new SpriteLoader.Preparations(16, 16, 0, missingSprite, new Regions(false), CompletableFuture.completedFuture(null));
         var itemAtlas = new SpriteLoader.Preparations(16, 16, 0, missingSprite, new Regions(true), CompletableFuture.completedFuture(null));
-        var materials = new net.minecraft.client.resources.model.sprite.MaterialBaker(blockAtlas, itemAtlas);
+        // 26.2's MaterialBaker is abstract; mirror ModelManager's combined baker (item atlas first, block atlas fallback).
+        var materials = new net.minecraft.client.resources.model.sprite.MaterialBaker(missingSprite) {
+            @Override protected net.minecraft.client.resources.model.sprite.Material.Baked bake(net.minecraft.client.resources.model.sprite.Material material) {
+                var baked = bakeForAtlas(material, itemAtlas);
+                return baked != null ? baked : bakeForAtlas(material, blockAtlas);
+            }
+        };
         var dummy = new Sprite(ITEMS, new SpriteContents(Identifier.parse("minecraft:dummy"), new net.minecraft.client.resources.metadata.animation.FrameSize(16, 16), new NativeImage(16, 16, true)));
         SpriteGetter sprites = id -> dummy;
         var bakery = new ModelBakery(EntityModelSet.vanilla(), sprites, null, Map.of(), tagged(items), resolved, discovery.missingModel());
@@ -401,9 +407,10 @@ public final class VanillaItemModelOracle {
                     var stack = ItemStack.CODEC.parse(ops, stackJson).getOrThrow();
                     if (row.has("bundle_selected") && row.get("bundle_selected").getAsInt() >= 0) {
                         var contents = stack.get(DataComponents.BUNDLE_CONTENTS);
-                        var mutable = contents.asMutable();
-                        mutable.toggleSelectedItem(row.get("bundle_selected").getAsInt());
-                        stack.set(DataComponents.BUNDLE_CONTENTS, mutable.toImmutable());
+                        // 26.2 has no BundleContents.Mutable: the selected index is set only by the private (items, selected) constructor.
+                        var ctor = BundleContents.class.getDeclaredConstructor(java.util.List.class, int.class);
+                        ctor.setAccessible(true);
+                        stack.set(DataComponents.BUNDLE_CONTENTS, ctor.newInstance(contents.items(), row.get("bundle_selected").getAsInt()));
                     }
                     var context = ItemDisplayContext.CODEC.parse(JsonOps.INSTANCE, row.get("context")).getOrThrow();
                     frozenTime = row.has("local_time") ? row.get("local_time").getAsString() : "";

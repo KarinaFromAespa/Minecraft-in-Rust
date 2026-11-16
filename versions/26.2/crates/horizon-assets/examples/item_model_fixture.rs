@@ -5,7 +5,7 @@ use horizon_assets::{
     item_bake::{BakedItemModel, SpriteLookup, SpriteMask, bake_item_model},
     item_model::*,
     math::Mat4,
-    model::{CuboidModel, Direction},
+    model::CuboidModel,
     palette::{PalettedPermutations, apply_palette},
     resolve::{MISSING_MODEL, ModelLibrary},
 };
@@ -360,7 +360,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 "facing":q.facing.name(),
                                 "tint":q.tint_index,
                                 "sprite":q.material.sprite,
-                                "shade":q.shade_direction_override.map(Direction::name),
+                                "shade": q.shade,
                                 "light":q.light_emission,
                             })
                         })

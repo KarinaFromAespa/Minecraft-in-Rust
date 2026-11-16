@@ -105,8 +105,9 @@ def corpus(prototypes):
                                                                    {'pattern': 'minecraft:border', 'color': 'blue'}]})
         add(item, 'gui', components={'minecraft:base_color': 'green',
             'minecraft:banner_patterns': [{'pattern': 'minecraft:globe', 'color': 'yellow'}]})
-        add(item, 'gui', components={'minecraft:pot_decorations': {'back': {'id': 'minecraft:brick'},
-            'left': {'id': 'minecraft:angler_pottery_sherd'}, 'front': {'id': 'minecraft:blade_pottery_sherd'}}})
+        # 26.2's PotDecorations codec is a list [back, left, right, front]; the named-side map is 26.3's form.
+        add(item, 'gui', components={'minecraft:pot_decorations': ['minecraft:brick', 'minecraft:angler_pottery_sherd',
+            'minecraft:arms_up_pottery_sherd', 'minecraft:blade_pottery_sherd']})
         add(item, 'gui', components={'minecraft:profile': {'name': 'Notch'}})
         add(item, 'gui', components={'minecraft:bundle_contents': [{'id': 'minecraft:stone', 'count': 3},
                                                                     {'id': 'minecraft:diamond_sword', 'count': 1},
