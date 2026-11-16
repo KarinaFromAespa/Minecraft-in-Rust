@@ -22,8 +22,12 @@ pub(super) struct SeededContext {
     instances: Mutex<HashMap<NoiseId, Arc<dyn Noise>>>,
 }
 impl SeededContext {
-    pub(super) fn end_islands(&self) -> Arc<dyn DensitySampler> {
-        Arc::new(EndIslandSampler::new(self.seed))
+    pub(super) fn end_islands(&self, central: bool) -> Arc<dyn DensitySampler> {
+        Arc::new(if central {
+            EndIslandSampler::with_central_island(self.seed)
+        } else {
+            EndIslandSampler::new(self.seed)
+        })
     }
     pub(super) fn new(seed: i64, legacy: bool) -> Self {
         let factory = if legacy {

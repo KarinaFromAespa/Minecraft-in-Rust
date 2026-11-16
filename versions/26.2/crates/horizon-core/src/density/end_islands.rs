@@ -4,19 +4,46 @@ use crate::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// Java Edition 26.3's outer End island density. The center island is supplied
-/// by the surrounding terrain graph, rather than by this sampler.
+/// End island density: the outer islands, plus — for vanilla 26.2's
+/// `minecraft:end_islands` — the central island cone. Vanilla 26.2's
+/// `EndIslandDensityFunction.getHeightValue` seeds its height with
+/// `clamp(100 - sqrt(sectionX^2 + sectionZ^2) * 8, -100, 80)` before
+/// maxing over the outer islands; without it the main island is air. In
+/// 26.3 the function was renamed to `minecraft:end_outer_islands` and the
+/// cone moved into the data graph (`minecraft:end/islands` = max(central
+/// cone, outer islands)), so the 26.3 sampler is outer-only; `central`
+/// selects the 26.2 behaviour.
 #[derive(Clone, Debug)]
 pub struct EndIslandSampler {
     noise: SimplexNoise,
+    central: bool,
 }
 impl EndIslandSampler {
     pub fn new(world_seed: i64) -> Self {
+        Self::with_central(world_seed, false)
+    }
+    /// Vanilla 26.2's `minecraft:end_islands`: outer islands plus the
+    /// central island cone.
+    pub fn with_central_island(world_seed: i64) -> Self {
+        Self::with_central(world_seed, true)
+    }
+    fn with_central(world_seed: i64, central: bool) -> Self {
         let mut random = LegacyRandom::new(world_seed);
         random.consume_count(17_292);
         Self {
             noise: SimplexNoise::with_skipped_offsets(&mut random, true),
+            central,
         }
+    }
+    /// The central island cone over section coordinates, as vanilla 26.2
+    /// seeds it: `clamp(100 - sqrt(sx^2 + sz^2) * 8, -100, 80)`. Computed
+    /// in i64/f64: vanilla's int products overflow past |section| 46340,
+    /// but the port already widens the island loop to i64 the same way.
+    fn central_cone(section_x: i32, section_z: i32) -> f64 {
+        let dist2 =
+            i64::from(section_x) * i64::from(section_x) + i64::from(section_z) * i64::from(section_z);
+        let cone = 100.0 - (dist2 as f64).sqrt() * 8.0;
+        super::arithmetic::java_min(super::arithmetic::java_max(cone, -100.0), 80.0)
     }
     fn height(&self, x: i32, z: i32) -> f64 {
         // These divisions and remainders truncate toward zero, including for
@@ -25,7 +52,12 @@ impl EndIslandSampler {
         let center_z = z / 2;
         let local_x = x % 2;
         let local_z = z % 2;
-        let mut height = -100.0;
+        // (x, z) are section coordinates here, as in getHeightValue.
+        let mut height = if self.central {
+            Self::central_cone(x, z)
+        } else {
+            -100.0
+        };
         for offset_x in -12_i32..=12 {
             for offset_z in -12_i32..=12 {
                 let island_x = i64::from(center_x.wrapping_add(offset_x));
@@ -87,12 +119,21 @@ impl EndIslandSampler {
         }
         Some(islands)
     }
-    fn density_from_islands(x: i32, z: i32, islands: &[(i32, i32, f64)]) -> f64 {
+    fn density_from_islands(
+        x: i32,
+        z: i32,
+        islands: &[(i32, i32, f64)],
+        central: bool,
+    ) -> f64 {
         let x = x / 8;
         let z = z / 8;
         let center_x = x / 2;
         let center_z = z / 2;
-        let mut height = -100.0;
+        let mut height = if central {
+            Self::central_cone(x, z)
+        } else {
+            -100.0
+        };
         for &(island_x, island_z, scale) in islands {
             let offset_x = island_x - center_x;
             let offset_z = island_z - center_z;
@@ -130,7 +171,9 @@ impl DensitySampler for EndIslandSampler {
             for x in 0..sx {
                 let block_x = volume.block(Axis::X, x).unwrap();
                 let value = match &islands {
-                    Some(islands) => Self::density_from_islands(block_x, block_z, islands),
+                    Some(islands) => {
+                        Self::density_from_islands(block_x, block_z, islands, self.central)
+                    }
                     None => self.density(block_x, block_z),
                 };
                 let start = (x + z * sx) * sy;
@@ -212,6 +255,66 @@ mod tests {
                     .volume_islands(DensityVolume::new(sizes, minimum, steps).unwrap())
                     .is_none()
             );
+        }
+    }
+
+    #[test]
+    fn central_island_cone_matches_vanilla_26_2() {
+        // No outer island can contribute within 1024 blocks of the origin
+        // (the island loop skips everything with x^2+z^2 <= 4096 in island
+        // coordinates), so these values are the cone alone.
+        let mut context = SamplerContext::default();
+        let central = EndIslandSampler::with_central_island(12345);
+        let outer = EndIslandSampler::new(12345);
+        let mut sample = |sampler: &EndIslandSampler, at: [i32; 3]| {
+            sampler.sample_value(&mut context, at).unwrap()
+        };
+        // Origin: cone clamps to 80 -> (80 - 8) / 128.
+        assert_eq!(sample(&central, [0, 64, 0]), 0.5625);
+        // Block (88, 0): section (11, 0), cone 100 - 88 = 12.
+        assert_eq!(sample(&central, [88, 64, 0]), 0.03125);
+        // Block (0, 800): cone clamps to -100, no outer island reaches.
+        assert_eq!(sample(&central, [0, 64, 800]), -0.84375);
+        // The outer-only sampler sees no island at the origin.
+        assert_eq!(sample(&outer, [0, 64, 0]), -0.84375);
+        // Far from the origin both samplers agree (cone is -100 there).
+        assert_eq!(
+            sample(&central, [2048, 64, 2048]).to_bits(),
+            sample(&outer, [2048, 64, 2048]).to_bits()
+        );
+    }
+
+    #[test]
+    fn central_island_volumes_match_scalar_around_the_origin() {
+        let cases = [
+            ([5, 3, 5], [0, -64, 0], [4, 8, 4]),
+            ([5, 3, 5], [-16, 0, -16], [8, 8, 8]),
+            ([5, 3, 5], [-96, 0, -96], [8, 8, 8]),
+            ([5, 3, 5], [80, 0, 40], [3, 16, 5]),
+            ([1, 4, 1], [-15, 0, -17], [1, 1, 1]),
+        ];
+        for seed in [0, 12345, -1] {
+            let sampler = EndIslandSampler::with_central_island(seed);
+            let mut context = SamplerContext::default();
+            for (sizes, minimum, steps) in cases {
+                let volume = DensityVolume::new(sizes, minimum, steps).unwrap();
+                let sentinel = 123.0_f64;
+                let mut output = vec![sentinel; volume.size() + 1];
+                sampler
+                    .sample_volume(&mut context, &mut output, volume)
+                    .unwrap();
+                visit(volume, |index, position| {
+                    let expected = sampler.sample_value(&mut context, position)?;
+                    assert_eq!(
+                        output[index].to_bits(),
+                        expected.to_bits(),
+                        "seed {seed}, position {position:?}, volume {volume:?}"
+                    );
+                    Ok(())
+                })
+                .unwrap();
+                assert_eq!(output[volume.size()], sentinel);
+            }
         }
     }
 }
