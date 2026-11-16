@@ -3512,3 +3512,58 @@ satisfied**; D6 blocked (no playtest). Artifacts at
 ~/workspace/mcir-ci/26.2-run-43766277138/; the pin's recorded evidence
 (profile.json, delta-verdict.json, ci-out logs) now comes from this
 run, the verdict regenerated locally against the pin.
+
+## command_parse: 0 mismatches locally (2026-11-16)
+
+CI run 43766277138 failed command_parse with 94 mismatches (47 unique
+x permission levels 4 and 2). All 47 decompose into five root causes,
+each verified against the 26.2 server jar (javap) and the oracle's own
+tree.json export; the fixes are in the command-parse/26.2 branch, merged
+to main as d1b6313d. Local harness: **34581/34581 at permissions 4, 2
+and 0 — 0 mismatches**; horizon-command unit tests 54/54.
+
+1. Loot codecs dispatch on the wrong key (36 of 47): 26.2's
+   LootItemCondition.TYPED_CODEC dispatches on `condition` and
+   LootItemFunctions.TYPED_CODEC on `function`; 26.3 unified both onto
+   `type`, which the Rust `dispatch` hardcoded. Predicates also lacked
+   the DIRECT_CODEC withAlternative wrapper (single condition or list
+   of them), so vanilla's "Failed to parse either. First: No key
+   condition ...; Second: Not a list: ..." came out as a bare "No key
+   type ...". Fix (codec.rs): `dispatch` takes the key as a parameter;
+   predicate decodes via withAlternative on `condition`, item_modifier
+   via withAlternative on `function`; slot_source and dialog keep
+   `type`. Nested terms decode with DIRECT_CODEC (CompositeLootItem-
+   Condition's terms field is DIRECT_CODEC.listOf()).
+2. `/swing` animation (4 of 47): the animation argument (none/whack/
+   stab) plus its duration are 26.3 additions; 26.2's tree ends at the
+   hand literal. Removed from tree_world.rs; the executor never read
+   the argument.
+3. `/schedule clear` (2 of 47): 26.2's tree takes the scheduled entry's
+   name as a greedy string (brigadier:string greedy), so `schedule
+   clear hello world` parses; the Rust tree used a function id, failing
+   at the space. Tree node is now ArgType::Greedy; cmd_schedule's clear
+   branch reads Arg::Str.
+4. Block particle options (2 of 47): 26.2's BlockState.CODEC
+   (StateHolder.codec) dispatches on `Name` with the map form {Name,
+   Properties}; the Rust check demanded 26.3's `id` key, rejecting
+   `minecraft:block{block_state:{Name:"minecraft:stone"}}`.
+   particle_options now accepts a compound with a string `Name`.
+5. Recipe suggestions (3 of 47): 26.2 has no minecraft:recipe registry
+   (recipes live in the RecipeManager), so the oracle's suggestion
+   provider finds nothing and suggests only the `*` literal; the Rust
+   side suggested all 1561 learnable recipes. The learnable_recipes
+   special case is removed from the Res/ResKey suggest arm.
+   Known nuance: on a live server, CommandSourceStack has a
+   RecipeManager-backed special case that suggests all recipes — the
+   oracle's provider does not model it, so the harness pins the
+   registry-lookup behaviour (no suggestions). Documented, not fixed:
+   changing the oracle's suggestion provider is a separate job.
+
+## CI run 43779020469 dispatched on main (2026-11-16)
+
+Run 43779020469 dispatched on main@d1b6313d (the command_parse merge):
+proves command_parse green on CI after the five fixes above. Local
+command_parse is 34581/34581 at all three permission levels; a green
+command_parse here takes the profile to 9/0/8 and leaves four of the
+E7 eight (component_patch, entity_components, item_model,
+chunk_generation) still red.
