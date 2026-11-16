@@ -3761,3 +3761,80 @@ the staged candidate); D6 blocked (no playtest). Artifacts at
 ~/workspace/mcir-ci/26.2-run-43826191201/; the pin's recorded evidence
 (profile.json, delta-verdict.json, ci-out logs) now comes from this run.
 One of the E7 eight remains: chunk_generation.
+
+## chunk_generation: the last of the E7 eight (2026-11-16)
+
+The harness compared the vanilla 26.2 oracle against the Rust probe on
+seed 12345, overworld, 498 chunks across 56 sites. The branch started
+from a 316-chunk / 24,789-block gap and closed it in stages, each
+verified against the 26.2 jars (decompiled) rather than guessed:
+
+- **f64 density** (521cfa0f, e0df2f0d, ccfb356a, 23ba4ea7): vanilla 26.2
+  computes density in double throughout; the port computed in f32
+  (mirroring 26.3). The smoking gun was an interpolated final density
+  of -3.7e-8 at a terrain boundary — the f32 graph flipped its sign.
+  Converted the noise stack, density graph, climate, blending and
+  state providers to f64 (the f64 noise leaves already existed).
+- **Bilinear preliminary surface** (f8fa58e7): `getMinSurfaceLevel`
+  samples the preliminary surface at the four corners of the 16-block
+  cell and bilinearly interpolates; the port sampled the column itself.
+  Fixed the badlands (5,314 blocks -> 0 in the rect).
+- **Sculk patch tail** (a2f53276): 26.2's `SculkPatchFeature` ends with
+  a catalyst check and extra rare shriekers the port dropped, shifting
+  the shared random stream. 26.3 has no such fields — a genuine 26.2
+  adaptation.
+- **Beardifier fill + f64** (e6609e21, eef72a50): vanilla fills with
+  `add(finalDensity, beardifier)`; the port sampled finalDensity alone.
+  26.2's beardifier computes in double; 26.3 switched to float.
+- **Spring fluid codec** (b0b06a51): `SpringConfiguration` decodes with
+  `FluidState.CODEC` (`{Name, Properties}`); the port only accepted
+  `{id, properties}`, so every spring silently failed to decode.
+- **RotatedBlockProvider** (507096a2): 26.2 draws `Axis.getRandom`
+  (nextInt(3)); the port drew `Direction.getRandom` (nextInt(6)), the
+  26.3 form. Hay-block axes diverged.
+- **Carver hasGrass / worm-trace order** (0f1f25e4, cf9854a3):
+  vanilla's `hasGrass` is per (ellipsoid, column) and its carver shares
+  one aquifer for the whole chunk, so a lava cell's post-processing
+  mark reads the stale `shouldScheduleFluidUpdate` flag left by the
+  previous aquifer call in trace order. The mask apply visited cells
+  column-major; it now visits every masked cell in (ellipsoid tag, x,
+  z, y desc) order — vanilla's trace — with grass tracked per
+  (ellipsoid, column). Fixed the 13 dirt-vs-grass blocks and all 37
+  mark-set diffs (deep lava marks, y -62..-56).
+- **Double plants need an empty cell above** (0bb6fc00): vanilla's
+  `SimpleBlockFeature` refuses a double plant unless
+  `isEmptyBlock(origin.above())`; the port also accepted a replaceable
+  block above, so moss-patch tall grass overwrote the glow lichen the
+  glow_lichen feature had just placed at (22,19,222).
+- **Jigsaw final_state parsing** (1a098b4c): Brigadier's
+  `BlockStateParser` reads properties up to the first `]` and ignores
+  trailing input; the port stripped one trailing `]`, so the savanna
+  lamp post's `final_state` (`...west=false]]`, doubled bracket in the
+  template) resolved to nothing and its fence dropped to air (with
+  short grass growing in its place at the farm lamp).
+
+Two diagnosis notes worth keeping. The dump rows are indexed `lz*16+lx`
+(z-major, as the oracle writes them); an early `lx*16+lz` reading sent
+the dirt investigation to the wrong columns for a while — the density
+probe and the vanilla fill agreed with each other at the misread
+columns and the real cause was the carver, not density. And the
+`hasGrass` chain propagates across ellipsoids in vanilla too (an
+earlier ellipsoid's top-material grass sets a later ellipsoid's flag);
+what saves vanilla at the dirt sites is that the grass-carving
+ellipsoid runs after the dirt-carving ones, so the flag never fires
+there — order, not scoping, is the whole fix.
+
+Local full run PASSES: 498 chunks, 27 biomes, 49 structure sites,
+**0 chunks, 0 blocks, 0 biome cells, 0 block entities**. Terrain rect
+(123,36) exact, rect (1,13) exact, savanna rects exact, (0,1) terrain
+exact. horizon-world lib: 464 passed, 1 failed — the failure is the
+pre-existing `doors_beds_and_plants_place_both_halves` (branch-base,
+pure block-placement logic, untouched here). Merged as 17230850.
+
+## CI run 43929484440 dispatched on main (2026-11-16)
+
+Run 43929484440 dispatched on main@17230850 (the chunk_generation
+merge): proves chunk_generation green on CI after the fixes above.
+Local full run passes (498 chunks, 0 diffs); a green chunk_generation
+here takes the profile to 13/0/4 and completes the E7 eight (D5's
+substance; the recorded verdict follows the judge run).
