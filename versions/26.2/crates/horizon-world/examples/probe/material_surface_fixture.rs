@@ -19,15 +19,15 @@ use std::{
     sync::Arc,
 };
 #[derive(Debug)]
-struct ConstantNoise(f32);
+struct ConstantNoise(f64);
 impl Noise for ConstantNoise {
-    fn range(&self) -> Result<[f32; 2], NanRange> {
-        Ok([f32::NEG_INFINITY, f32::INFINITY])
+    fn range(&self) -> Result<[f64; 2], NanRange> {
+        Ok([f64::NEG_INFINITY, f64::INFINITY])
     }
-    fn get2(&self, _: f64, _: f64) -> f32 {
+    fn get2(&self, _: f64, _: f64) -> f64 {
         panic!("unexpected 2d noise query")
     }
-    fn get3(&self, _: f64, y: f64, _: f64) -> f32 {
+    fn get3(&self, _: f64, y: f64, _: f64) -> f64 {
         assert_eq!(y, 0.);
         self.0
     }
@@ -68,9 +68,9 @@ fn fixture<R: RandomSource>(
         .enumerate()
     {
         let sampler: Arc<dyn Noise> = if let Some(bits) = f["overrides"][i].as_str() {
-            Arc::new(ConstantNoise(f32::from_bits(u32::from_str_radix(
-                bits, 16,
-            )?)))
+            Arc::new(ConstantNoise(f64::from(f32::from_bits(
+                u32::from_str_radix(bits, 16)?,
+            ))))
         } else {
             let id = format!("minecraft:{name}");
             Arc::new(decode_noise(&noises[&id])?.create(&mut root.from_hash_of(&id))?)

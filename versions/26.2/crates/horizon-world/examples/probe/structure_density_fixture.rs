@@ -75,7 +75,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             writeln!(
                 out,
                 "value {:x}",
-                bits(sampler.sample_value(&mut context, std::array::from_fn(|i| n(&p[i])))?)
+                bits(sampler.sample_value(&mut context, std::array::from_fn(|i| n(&p[i])))? as f32)
             )?;
         }
         for a in f["volumes"].as_array().unwrap() {
@@ -88,7 +88,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             sampler.sample_volume(&mut context, &mut buffer, volume)?;
             writeln!(out, "volume {}", buffer.len())?;
             for value in buffer {
-                writeln!(out, "{:x}", bits(value))?;
+                writeln!(out, "{:x}", bits(value as f32))?;
             }
         }
     }

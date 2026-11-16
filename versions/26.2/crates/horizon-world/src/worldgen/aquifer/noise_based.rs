@@ -856,8 +856,10 @@ mod tests {
             &self,
             _: &mut SamplerContext,
             [x, y, z]: [i32; 3],
-        ) -> Result<f32, SampleError> {
-            Ok(self.base + hash(self.salt, x, y, z) as f32 / 16_777_216. * self.span)
+        ) -> Result<f64, SampleError> {
+            Ok(f64::from(
+                self.base + hash(self.salt, x, y, z) as f32 / 16_777_216. * self.span,
+            ))
         }
     }
     fn hash(salt: u32, x: i32, y: i32, z: i32) -> u32 {

@@ -266,7 +266,7 @@ where
     } else if let Some(name) = f["preliminary"].as_str() {
         library.named_density(name)?
     } else {
-        Arc::new(ConstantSampler(f["preliminary"].as_f64().unwrap() as f32))
+        Arc::new(ConstantSampler(f["preliminary"].as_f64().unwrap()))
     };
     let source = f
         .get("biome_source_json")
