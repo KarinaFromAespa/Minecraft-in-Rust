@@ -14,7 +14,7 @@ use super::{
     tree_blocks::{self as tb, PosSet, TreeBlocks},
     value_provider::IntProvider,
 };
-use crate::registry::BlockStateId;
+use crate::{chunk::BlockState, registry::BlockStateId};
 use horizon_core::{geometry::Direction, random::RandomSource};
 use std::{collections::BTreeSet, sync::Arc};
 
@@ -276,10 +276,167 @@ impl VegetationPatchFeature {
     }
 }
 
+/// Which coral shape a feature grows. 26.2's bundle uses all three;
+/// 26.3's uses only tree and claw.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum CoralShape {
+    Tree,
+    Claw,
+    Mushroom,
+}
+
+/// The 26.2 inline coral placer: 26.2 coral features carry no nested placed
+/// feature — `CoralFeature` picks one coral block from the `coral_blocks`
+/// tag and places it (plus fans and pickles) itself. 26.3 moved that logic
+/// into nested `coral/<colour>_block` placed features instead.
+#[derive(Clone, Debug)]
+struct CoralPlacer {
+    /// Default states of `minecraft:coral_blocks`, in tag order: the type
+    /// pick is one `nextInt(size)` draw over this list.
+    coral_blocks: Vec<BlockStateId>,
+    /// Default states of `minecraft:corals`, in tag order (the decoration
+    /// pick above a placed coral block).
+    corals: Vec<BlockStateId>,
+    /// Default states of `minecraft:wall_corals`, one entry per fan, each
+    /// with the four `HORIZONTAL` facings: the fan pick is one `nextInt`
+    /// draw, then the fan faces the direction it was placed in.
+    wall_corals: Vec<[BlockStateId; 4]>,
+    /// `minecraft:sea_pickle` with `pickles` 1..=4.
+    sea_pickles: [BlockStateId; 4],
+    /// Every state of `minecraft:water`. The place gate checks the block,
+    /// not the fluid, so waterlogged blocks do not count.
+    water: Arc<BTreeSet<BlockStateId>>,
+    /// Every state of the `minecraft:corals` tag: a coral block may also be
+    /// placed on another coral.
+    corals_states: Arc<BTreeSet<BlockStateId>>,
+}
+impl CoralPlacer {
+    /// A state descriptor with one property set (the rest keep defaults).
+    fn descriptor(name: &str, key: &str, value: &str) -> BlockState {
+        BlockState {
+            name: name.to_owned(),
+            properties: [(key.to_owned(), value.to_owned())].into_iter().collect(),
+        }
+    }
+    fn resolve(bindings: &FeatureBlockBindings<'_>) -> Result<Self, DecodeError> {
+        let registry = bindings.registry();
+        let tags = &bindings.tags;
+        let ordered = |tag: &str| -> Result<Vec<BlockStateId>, DecodeError> {
+            let names = tags
+                .names(tag)
+                .ok_or_else(|| DecodeError::Registry(format!("unknown block tag {tag}")))?;
+            names
+                .iter()
+                .map(|name| {
+                    registry
+                        .default_state(name)
+                        .ok_or_else(|| DecodeError::Registry(format!("unknown block {name}")))
+                })
+                .collect()
+        };
+        let coral_blocks = ordered("minecraft:coral_blocks")?;
+        let corals = ordered("minecraft:corals")?;
+        let wall_names = tags.names("minecraft:wall_corals").ok_or_else(|| {
+            DecodeError::Registry("unknown block tag minecraft:wall_corals".into())
+        })?;
+        let mut wall_corals = Vec::with_capacity(wall_names.len());
+        for name in wall_names {
+            let by_direction: [BlockStateId; 4] = tb::HORIZONTAL
+                .iter()
+                .map(|direction| {
+                    let facing = match direction {
+                        Direction::North => "north",
+                        Direction::East => "east",
+                        Direction::South => "south",
+                        Direction::West => "west",
+                        _ => unreachable!(),
+                    };
+                    let descriptor = Self::descriptor(name, "facing", facing);
+                    registry.resolve(&descriptor).map_err(|error| {
+                        DecodeError::Registry(format!("coral wall fan {name}: {error}"))
+                    })
+                })
+                .collect::<Result<Vec<BlockStateId>, DecodeError>>()?
+                .try_into()
+                .map_err(|_| DecodeError::Field("coral wall fan directions"))?;
+            wall_corals.push(by_direction);
+        }
+        let sea_pickles: [BlockStateId; 4] = (1..=4)
+            .map(|count| {
+                let descriptor =
+                    Self::descriptor("minecraft:sea_pickle", "pickles", &count.to_string());
+                registry
+                    .resolve(&descriptor)
+                    .map_err(|error| DecodeError::Registry(format!("sea pickle: {error}")))
+            })
+            .collect::<Result<Vec<BlockStateId>, DecodeError>>()?
+            .try_into()
+            .map_err(|_| DecodeError::Field("sea pickle counts"))?;
+        let water = bindings
+            .blocks
+            .get("minecraft:water")
+            .cloned()
+            .ok_or_else(|| DecodeError::Registry("unknown block minecraft:water".into()))?;
+        let corals_states = tags
+            .get("minecraft:corals")
+            .cloned()
+            .ok_or_else(|| DecodeError::Registry("unknown block tag minecraft:corals".into()))?;
+        Ok(Self {
+            coral_blocks,
+            corals,
+            wall_corals,
+            sea_pickles,
+            water,
+            corals_states,
+        })
+    }
+    /// `CoralFeature.placeCoralBlock`: place the chosen coral block if the
+    /// target is water or coral and the cell above is water, then decorate
+    /// (a coral above, else a sea pickle, plus wall fans on the sides).
+    fn place_block<W: FeatureWorld, R: RandomSource>(
+        &self,
+        world: &mut W,
+        random: &mut R,
+        pos: [i32; 3],
+        state: BlockStateId,
+    ) -> TreeResult<bool, W::Error> {
+        let target = read(world, pos)?;
+        if !(self.water.contains(&target) || self.corals_states.contains(&target)) {
+            return Ok(false);
+        }
+        let above = tb::offset(pos, 0, 1, 0);
+        if !self.water.contains(&read(world, above)?) {
+            return Ok(false);
+        }
+        write(world, pos, state, 3)?;
+        if random.next_float() < 0.25 {
+            if !self.corals.is_empty() {
+                let coral = self.corals[random.next_int_bound(self.corals.len() as i32)? as usize];
+                write(world, above, coral, 2)?;
+            }
+        } else if random.next_float() < 0.05 {
+            let pickles = self.sea_pickles[random.next_int_bound(4)? as usize];
+            write(world, above, pickles, 2)?;
+        }
+        for (i, direction) in tb::HORIZONTAL.iter().enumerate() {
+            if random.next_float() < 0.2 {
+                let fan_pos = tb::relative(pos, *direction, 1);
+                if self.water.contains(&read(world, fan_pos)?) && !self.wall_corals.is_empty() {
+                    let fan = self.wall_corals
+                        [random.next_int_bound(self.wall_corals.len() as i32)? as usize];
+                    write(world, fan_pos, fan[i], 2)?;
+                }
+            }
+        }
+        Ok(true)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct CoralFeature {
-    claw: bool,
-    feature: Box<PlacedFeatureDefinition>,
+    shape: CoralShape,
+    feature: Option<Box<PlacedFeatureDefinition>>,
+    placer: Option<CoralPlacer>,
 }
 impl CoralFeature {
     pub(crate) fn decode(
@@ -287,20 +444,31 @@ impl CoralFeature {
         depth: usize,
         remaining: &mut usize,
         nested: &PlacedDecoder<'_>,
+        blocks: Option<&FeatureBlockBindings<'_>>,
     ) -> Result<Self, DecodeError> {
         let object: Object = serde_json::from_str(json)?;
-        let claw = match kind(&object)?.as_str() {
-            "minecraft:coral_tree" => false,
-            "minecraft:coral_claw" => true,
+        let shape = match kind(&object)?.as_str() {
+            "minecraft:coral_tree" => CoralShape::Tree,
+            "minecraft:coral_claw" => CoralShape::Claw,
+            "minecraft:coral_mushroom" => CoralShape::Mushroom,
             _ => return Err(DecodeError::Field("coral feature type")),
         };
+        // 26.3 nests the coral-block placer as a placed feature; 26.2's
+        // configs carry no `feature` and place the coral block inline.
+        let feature = match optional(&object, "feature") {
+            Some(raw) => Some(Box::new(nested(raw.get(), depth + 1, remaining)?)),
+            None => None,
+        };
+        let placer = if feature.is_none() {
+            let bindings = blocks.ok_or(DecodeError::Field("coral feature bindings"))?;
+            Some(CoralPlacer::resolve(bindings)?)
+        } else {
+            None
+        };
         Ok(Self {
-            claw,
-            feature: Box::new(nested(
-                required(&object, "feature")?.get(),
-                depth + 1,
-                remaining,
-            )?),
+            shape,
+            feature,
+            placer,
         })
     }
     pub(crate) fn place<W: FeatureWorld + PlacementContext, R: RandomSource>(
@@ -310,74 +478,128 @@ impl CoralFeature {
         origin: [i32; 3],
         nested: &mut PlacedPlacer<'_, W, R>,
     ) -> TreeResult<bool, W::Error> {
-        let feature = &*self.feature;
-        if !self.claw {
-            let mut pos = origin;
-            let trunk = random.next_int_bound(3)? + 1;
-            for _ in 0..trunk {
-                if !nested(feature, world, random, pos)? {
-                    return Ok(true);
-                }
-                pos = tb::offset(pos, 0, 1, 0);
-            }
-            let top = pos;
-            let branches = random.next_int_bound(3)? + 2;
-            let mut directions = tb::HORIZONTAL;
-            tb::shuffle(&mut directions, random)?;
-            for &direction in directions.iter().take(branches as usize) {
-                let mut pos = tb::relative(top, direction, 1);
-                let height = random.next_int_bound(5)? + 2;
-                let mut segment = 0;
-                let mut j = 0;
-                while j < height && nested(feature, world, random, pos)? {
-                    segment += 1;
-                    pos = tb::offset(pos, 0, 1, 0);
-                    if j == 0 || (segment >= 2 && random.next_float() < 0.25) {
-                        pos = tb::relative(pos, direction, 1);
-                        segment = 0;
+        // One coral type for the whole placement (`CoralFeature.place`),
+        // picked before the shape runs. An empty tag places nothing.
+        let coral = match &self.placer {
+            Some(placer) if !placer.coral_blocks.is_empty() => Some(
+                placer.coral_blocks
+                    [random.next_int_bound(placer.coral_blocks.len() as i32)? as usize],
+            ),
+            Some(_) => return Ok(false),
+            None => None,
+        };
+        // One block placer over both forms: the nested placed feature
+        // (26.3) or the inline coral-block placer (26.2).
+        let mut place_one = |world: &mut W, random: &mut R, pos: [i32; 3]| match (
+            &self.feature,
+            &self.placer,
+            coral,
+        ) {
+            (Some(feature), _, _) => nested(feature, world, random, pos),
+            (None, Some(placer), Some(state)) => placer.place_block(world, random, pos, state),
+            _ => Ok(false),
+        };
+        match self.shape {
+            CoralShape::Tree => {
+                let mut pos = origin;
+                let trunk = random.next_int_bound(3)? + 1;
+                for _ in 0..trunk {
+                    if !place_one(world, random, pos)? {
+                        return Ok(true);
                     }
-                    j += 1;
-                }
-            }
-            return Ok(true);
-        }
-        if !nested(feature, world, random, origin)? {
-            return Ok(false);
-        }
-        let claw = tb::HORIZONTAL[random.next_int_bound(4)? as usize];
-        let branches = random.next_int_bound(2)? + 2;
-        let mut possible = [claw, tb::clockwise(claw), counter_clockwise(claw)];
-        tb::shuffle(&mut possible, random)?;
-        for &branch in possible.iter().take(branches as usize) {
-            let mut pos = origin;
-            let sideways = random.next_int_bound(2)? + 1;
-            pos = tb::relative(pos, branch, 1);
-            let (segment, inway) = if branch == claw {
-                (claw, random.next_int_bound(3)? + 2)
-            } else {
-                pos = tb::offset(pos, 0, 1, 0);
-                let options = [branch, Direction::Up];
-                let segment = options[random.next_int_bound(2)? as usize];
-                (segment, random.next_int_bound(3)? + 3)
-            };
-            let mut i = 0;
-            while i < sideways && nested(feature, world, random, pos)? {
-                pos = tb::relative(pos, segment, 1);
-                i += 1;
-            }
-            pos = tb::relative(pos, segment.opposite(), 1);
-            pos = tb::offset(pos, 0, 1, 0);
-            for _ in 0..inway {
-                pos = tb::relative(pos, claw, 1);
-                if !nested(feature, world, random, pos)? {
-                    break;
-                }
-                if random.next_float() < 0.25 {
                     pos = tb::offset(pos, 0, 1, 0);
                 }
+                let top = pos;
+                let branches = random.next_int_bound(3)? + 2;
+                let mut directions = tb::HORIZONTAL;
+                tb::shuffle(&mut directions, random)?;
+                for &direction in directions.iter().take(branches as usize) {
+                    let mut pos = tb::relative(top, direction, 1);
+                    let height = random.next_int_bound(5)? + 2;
+                    let mut segment = 0;
+                    let mut j = 0;
+                    while j < height && place_one(world, random, pos)? {
+                        segment += 1;
+                        pos = tb::offset(pos, 0, 1, 0);
+                        if j == 0 || (segment >= 2 && random.next_float() < 0.25) {
+                            pos = tb::relative(pos, direction, 1);
+                            segment = 0;
+                        }
+                        j += 1;
+                    }
+                }
+                Ok(true)
+            }
+            CoralShape::Claw => {
+                if !place_one(world, random, origin)? {
+                    return Ok(false);
+                }
+                let claw = tb::HORIZONTAL[random.next_int_bound(4)? as usize];
+                let branches = random.next_int_bound(2)? + 2;
+                let mut possible = [claw, tb::clockwise(claw), counter_clockwise(claw)];
+                tb::shuffle(&mut possible, random)?;
+                for &branch in possible.iter().take(branches as usize) {
+                    let mut pos = origin;
+                    let sideways = random.next_int_bound(2)? + 1;
+                    pos = tb::relative(pos, branch, 1);
+                    let (segment, inway) = if branch == claw {
+                        (claw, random.next_int_bound(3)? + 2)
+                    } else {
+                        pos = tb::offset(pos, 0, 1, 0);
+                        let options = [branch, Direction::Up];
+                        let segment = options[random.next_int_bound(2)? as usize];
+                        (segment, random.next_int_bound(3)? + 3)
+                    };
+                    let mut i = 0;
+                    while i < sideways && place_one(world, random, pos)? {
+                        pos = tb::relative(pos, segment, 1);
+                        i += 1;
+                    }
+                    pos = tb::relative(pos, segment.opposite(), 1);
+                    pos = tb::offset(pos, 0, 1, 0);
+                    for _ in 0..inway {
+                        pos = tb::relative(pos, claw, 1);
+                        if !place_one(world, random, pos)? {
+                            break;
+                        }
+                        if random.next_float() < 0.25 {
+                            pos = tb::offset(pos, 0, 1, 0);
+                        }
+                    }
+                }
+                Ok(true)
+            }
+            CoralShape::Mushroom => {
+                let height = random.next_int_bound(3)? + 3;
+                let width = random.next_int_bound(3)? + 3;
+                let length = random.next_int_bound(3)? + 3;
+                let sink = random.next_int_bound(3)? + 1;
+                for x in 0..=width {
+                    for y in 0..=height {
+                        for z in 0..=length {
+                            let interior_x = x != 0 && x != width;
+                            let interior_y = y != 0 && y != height;
+                            let interior_z = z != 0 && z != length;
+                            // The three edge conditions keep only cells
+                            // with an interior face on two axes; the shell
+                            // check keeps only the box surface; one in ten
+                            // is skipped. The float is drawn only for cells
+                            // that pass the shape checks.
+                            if (interior_x || interior_y)
+                                && (interior_z || interior_y)
+                                && (interior_x || interior_z)
+                                && !(interior_x && interior_y && interior_z)
+                                && random.next_float() >= 0.1
+                            {
+                                let pos = [origin[0] + x, origin[1] + y - sink, origin[2] + z];
+                                place_one(world, random, pos)?;
+                            }
+                        }
+                    }
+                }
+                Ok(true)
             }
         }
-        Ok(true)
     }
 }
 pub(crate) fn counter_clockwise(direction: Direction) -> Direction {

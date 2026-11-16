@@ -362,10 +362,10 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("bamboo bindings"))?,
             )
             .map(Self::Bamboo),
-            "minecraft:kelp" => super::aquatic::KelpFeature::new(
-                blocks.ok_or(DecodeError::Field("kelp bindings"))?,
-            )
-            .map(Self::Kelp),
+            "minecraft:kelp" => {
+                super::aquatic::KelpFeature::new(blocks.ok_or(DecodeError::Field("kelp bindings"))?)
+                    .map(Self::Kelp)
+            }
             "minecraft:seagrass" => super::aquatic::SeagrassFeature::from_json(
                 json,
                 blocks.ok_or(DecodeError::Field("seagrass bindings"))?,
@@ -672,11 +672,11 @@ impl FeatureDefinition {
                 )
                 .map(|f| Self::RootSystem(Box::new(f)))
             }
-            "minecraft:coral_tree" | "minecraft:coral_claw" => {
+            "minecraft:coral_tree" | "minecraft:coral_claw" | "minecraft:coral_mushroom" => {
                 let nested = |json: &str, depth: usize, remaining: &mut usize| {
                     PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
                 };
-                super::vegetation::CoralFeature::decode(json, depth, remaining, &nested)
+                super::vegetation::CoralFeature::decode(json, depth, remaining, &nested, blocks)
                     .map(|f| Self::Coral(Box::new(f)))
             }
             "minecraft:huge_red_mushroom" | "minecraft:huge_brown_mushroom" => {

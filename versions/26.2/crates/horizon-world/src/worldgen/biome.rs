@@ -58,8 +58,13 @@ impl MultiNoiseBiomeSource {
             .into_iter()
             .map(|(point, name)| Ok((point, identifier(&name)?)))
             .collect::<Result<_, DecodeError>>()?;
+        // Vanilla's `Climate.RTree` builds with `CHILDREN_PER_NODE = 6`, and
+        // exact-fitness ties resolve to whichever leaf the tree visits first,
+        // so the branching factor is part of the parity contract, not a
+        // tuning knob: branching 19 put forest over dripstone_caves at
+        // quart (98, 10, 4) where vanilla's tree puts dripstone_caves first.
         Ok(Self {
-            parameters: ClimateIndex::new(entries)?,
+            parameters: ClimateIndex::with_branching(entries, 6)?,
         })
     }
     /// Horizon's quantized import format, not the vanilla biome definition

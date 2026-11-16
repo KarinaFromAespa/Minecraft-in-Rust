@@ -129,7 +129,7 @@ fn rounding_specializes_only_literal_one_and_preserves_input_on_multiple_failure
 #[test]
 fn end_islands_use_the_world_seed_independently_of_the_noise_algorithm() {
     let mut graph = DensityGraph::new();
-    let root = graph.insert(GraphNode::EndIslands).unwrap();
+    let root = graph.insert(GraphNode::EndIslands { central: false }).unwrap();
     assert_eq!(graph.domain_axes(root), Ok(5));
     assert_eq!(
         graph.range(root).unwrap(),

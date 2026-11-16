@@ -163,11 +163,11 @@ impl DensityCompiler {
             GraphNode::BlendDensity(input) => Arc::new(BlendDensitySampler {
                 input: self.compile_raw(input)?,
             }),
-            GraphNode::EndIslands => self
+            GraphNode::EndIslands { central } => self
                 .context
                 .as_ref()
                 .ok_or(CompileError::MissingSeededContext)?
-                .end_islands(),
+                .end_islands(central),
             GraphNode::Noise {
                 noise,
                 xz_scale,

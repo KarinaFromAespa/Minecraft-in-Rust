@@ -342,7 +342,16 @@ impl Loader {
                 "minecraft:blend_alpha" => GraphNode::WorldField(WorldField::BlendAlpha),
                 "minecraft:blend_offset" => GraphNode::WorldField(WorldField::BlendOffset),
                 "minecraft:beardifier" => GraphNode::WorldField(WorldField::Beardifier),
-                "minecraft:end_outer_islands" | "minecraft:end_islands" => GraphNode::EndIslands,
+                // Vanilla 26.2's `minecraft:end_islands` includes the central
+                // island cone in the function itself
+                // (EndIslandDensityFunction seeds its height with
+                // clamp(100 - sqrt(sx^2+sz^2)*8, -100, 80)); 26.3 renamed
+                // the function to `end_outer_islands` and moved the cone
+                // into the data graph (`minecraft:end/islands`). The two
+                // names must not share one node, or the 26.2 main island
+                // comes out as air.
+                "minecraft:end_islands" => GraphNode::EndIslands { central: true },
+                "minecraft:end_outer_islands" => GraphNode::EndIslands { central: false },
                 "minecraft:cache" => GraphNode::Cache(self.input(&object, "input", depth)?),
                 // 26.2's three cache flavours: Cache2D caches per (x, z),
                 // FlatCache precomputes at y = 0 over a region, CacheOnce

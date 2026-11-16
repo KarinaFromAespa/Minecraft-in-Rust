@@ -34,11 +34,26 @@ public final class VanillaStructureBlockExporter {
             }
             if(container)loot.add(Block.getId(state));
             if(state.hasBlockEntity()&&state.getBlock() instanceof EntityBlock entityBlock) {
+                boolean recorded=false;
                 try {
                     var type=net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(entityBlock.newBlockEntity(BlockPos.ZERO,state).getType()).toString();
                     if(!entityTypes.has(type))entityTypes.add(type,new JsonArray());
                     entityTypes.getAsJsonArray(type).add(Block.getId(state));
+                    recorded=true;
                 }catch(Throwable ignored){}
+                if(!recorded) {
+                    // Some block entities cannot be constructed at BlockPos.ZERO (the vault's
+                    // throws), so construction alone silently drops their states from the map;
+                    // fall back to the type registry's validity check, which needs no instance.
+                    for(var type: net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE) {
+                        if(type.isValid(state)) {
+                            var key=net.minecraft.core.registries.BuiltInRegistries.BLOCK_ENTITY_TYPE.getKey(type).toString();
+                            if(!entityTypes.has(key))entityTypes.add(key,new JsonArray());
+                            entityTypes.getAsJsonArray(key).add(Block.getId(state));
+                            break;
+                        }
+                    }
+                }
             }
         }
         var result=new JsonObject();
