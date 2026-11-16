@@ -1939,6 +1939,11 @@ where
             );
             context.clear_lattice();
             filled.map_err(stage("noise"))?;
+            // Vanilla 26.2's fill emits its marks in noise-cell order; the
+            // column-major fill above appends them in a different order, so
+            // reorder them now, before the surface rule or carvers append
+            // theirs.
+            chunk.sort_postprocessing_fill_order(self.settings.cell.0);
         }
         let generation = self.generation();
         worker.timings.noise += lap(&mut clock);

@@ -728,6 +728,33 @@ impl<'r, B: TerrainBlockStates> TerrainChunk<'r, B> {
                 .push(((x & 15) | ((y & 15) << 4) | ((z & 15) << 8)) as u16);
         }
     }
+
+    /// Reorder each section's postprocessing marks into vanilla 26.2's fill
+    /// emission order (`NoiseBasedChunkGenerator.doFill`: cellX, cellZ, cellY
+    /// descending, yInCell descending, xInCell, zInCell). The fill visits
+    /// columns (z, x, y descending) while vanilla 26.2 visits noise cells, so
+    /// the marks it appends land in a different order; sorting them restores
+    /// vanilla's per-section lists. Call immediately after `fill_noise`,
+    /// before the surface rule or carvers append their own marks. `cell_xz`
+    /// is the noise cell's horizontal size in blocks
+    /// (`NoiseSettings.getCellWidth`, 4 for the overworld).
+    pub fn sort_postprocessing_fill_order(&mut self, cell_xz: i32) {
+        for marks in &mut self.postprocessing {
+            marks.sort_by_key(|&packed| {
+                let p = i32::from(packed);
+                let x = p & 15;
+                let y = (p >> 4) & 15;
+                let z = (p >> 8) & 15;
+                (
+                    x.div_euclid(cell_xz),
+                    z.div_euclid(cell_xz),
+                    15 - y,
+                    x.rem_euclid(cell_xz),
+                    z.rem_euclid(cell_xz),
+                )
+            });
+        }
+    }
 }
 
 /// Evaluate final density in bulk before writes, then visit Z/X/descending Y.
