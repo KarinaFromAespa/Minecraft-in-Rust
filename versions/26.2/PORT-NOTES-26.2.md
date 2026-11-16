@@ -3629,3 +3629,59 @@ stamped for 99733862, judge HEAD the staged candidate); D6 blocked (no
 playtest). Artifacts at ~/workspace/mcir-ci/26.2-run-43794559266/; the
 pin's recorded evidence (profile.json, delta-verdict.json, ci-out logs)
 now comes from this run, the verdict regenerated locally against the pin.
+
+## item_model: oracle ported to the 26.2 APIs (2026-11-16)
+
+The harness failed at the oracle compile on CI (run 43794559266):
+`javac` on `VanillaItemModelOracle.java` returned 8 errors, all 26.3 APIs
+absent from the 26.2 client jar (verified with javap against the 26.2
+jar). Fixed in d8645790:
+
+- `ResourceManager.Selector` does not exist in 26.2: `listResources` /
+  `listResourceStacks` take a `Predicate<Identifier>`.
+- `MaterialInfo.shadeDirectionOverride()` does not exist in 26.2:
+  `BakedQuad$MaterialInfo` carries a boolean `shade()` instead (26.3
+  replaced the element's `shade` bool with a direction override). The
+  oracle now emits the boolean, and the Rust fixture emits `q.shade`
+  (already threaded from `element.shade` in bake.rs) instead of the
+  direction name.
+- `ItemQuads` does not exist in 26.2: `LayerRenderState.quads` is a plain
+  `List<BakedQuad>` (26.3 wrapped it; `QuadCollection.getAll()` is the
+  nearby 26.2 shape, not used here).
+- `VanillaRegistries.createWorldLookup()` is `createLookup()` in 26.2.
+- `MaterialBaker` is abstract in 26.2 (constructor takes only the
+  missing sprite): the oracle subclasses it, mirroring
+  `ModelManager$CombinedBlockItemMaterialBaker.bake` — item atlas
+  first via `bakeForAtlas`, block atlas fallback.
+- `BundleContents.asMutable()` does not exist in 26.2 and the codec is
+  a bare list with no selected-item field: bundle selection is set via
+  the private `(List, int)` constructor (reflection, as the oracle
+  already does elsewhere).
+
+The corpus also fed `pot_decorations` in 26.3's named-side map form,
+which 26.2's list codec rejects ("Not a json array"), skipping 1,536
+cases (d5e83ad3): now a four-element list `[back, left, right, front]`,
+so vanilla's `ordered()` encode (missing sides become brick) reproduces
+it exactly. No 35723-registry-size / `state['id']` literals in this
+driver. Local run passes end to end: 203,376 resolved stacks match,
+0 mismatches, 1,678 definitions decoded, 5,268 cases rejected by
+vanilla (2.5%, under the 5% guard) — all pre-existing oracle/corpus
+limitations, none from this port: out-of-range synthetic enchantment
+levels (density 0), bundle_selected set on non-bundle items (the same
+NPE 26.3's `asMutable()` throws), and headless-oracle NPEs (no live
+Minecraft instance / level for camera, scoreboard, shift, attribute,
+respawn properties). Merged as 4725212a.
+
+Follow-up debt (out of scope here, shared code): `horizon-items`
+`decode_components` / `components_tag` still read and write
+`pot_decorations` in the 26.3 map form; 26.2's codec is a list, so
+decorated pots lose their sherds on a game-path round-trip. The
+item_model fixture reads raw JSON and is unaffected.
+
+## CI run 43809252744 dispatched on main (2026-11-16)
+
+Run 43809252744 dispatched on main@4725212a (the item_model merge):
+proves item_model green on CI after the oracle port above. Local
+item_model passes (203,376 stacks match, 0 mismatches); a green
+item_model here takes the profile to 11/0/6 and leaves two of the E7
+eight (component_patch, chunk_generation) still red.
