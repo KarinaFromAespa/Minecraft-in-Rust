@@ -1558,14 +1558,25 @@ pub fn place_in_world<W: FeatureWorld + PlacementContext>(
         }
         placed.push(info.pos);
         if let Some(mut nbt) = info.nbt {
-            if resources.transforms.loot_container(state) {
-                let seed = match loot_random.as_deref_mut() {
-                    Some(random) => random.long(),
-                    None => settings.random.as_deref_mut().map_or(0, |r| r.long()),
-                };
-                nbt.insert("LootTableSeed".into(), Tag::Long(seed));
+            // Vanilla loads the NBT only when a block entity exists at the
+            // position after the write: a processor may have swapped the
+            // block for one without a block entity (lava_submerged_block
+            // turns a lava-drowned chest into lava, NBT and all), and a
+            // full (imposter) chunk swallows the write, so `getBlockEntity`
+            // comes back null and the NBT is dropped. The read-back stands
+            // in for that check, and the loot seed is only drawn when the
+            // block that is really there is a container.
+            let current = world.block_state(info.pos)?;
+            if resources.transforms.entity_type(current).is_some() {
+                if resources.transforms.loot_container(current) {
+                    let seed = match loot_random.as_deref_mut() {
+                        Some(random) => random.long(),
+                        None => settings.random.as_deref_mut().map_or(0, |r| r.long()),
+                    };
+                    nbt.insert("LootTableSeed".into(), Tag::Long(seed));
+                }
+                world.set_block_entity(info.pos, *nbt)?;
             }
-            world.set_block_entity(info.pos, *nbt)?;
         }
         if let Some(previous) = previous {
             if resources.source_fluid(state) {
