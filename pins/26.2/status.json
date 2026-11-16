@@ -5,18 +5,18 @@
     "total": 651
   },
   "ci": {
-    "in_flight_note": "item_model proof run: oracle ported to the 26.2 APIs (ResourceManager Predicate, boolean shade, List<BakedQuad> layers, createLookup, abstract MaterialBaker, bundle private ctor) + fixture emits boolean shade + corpus pot_decorations in list form; local run passes (203,376 stacks match, 0 mismatches). A green item_model takes the profile to 11/0/6; two E7-eight harnesses remain (component_patch, chunk_generation); D6 needs the owner playtest; the stamp quirk still blocks the recorded D4/D5 verdict.",
-    "in_flight_run": 43809252744,
-    "in_flight_tree": "4725212a",
-    "last_completed_note": "entity_components PASSES on CI: harness driver reads 26.2 list-form trigger conditions (ContextAwarePredicate); no Rust change \u2014 advancements::entity + variant components already match the oracle \u2014 D1/D2/D3 pass, profile 10/0/7; D4/D5 blocked (stamp quirk); D6 blocked.",
-    "last_completed_profile": "10/0/7 (block_properties, command_parse, datafix, entity_components, first_person, food, lan, light, resource_pack, save_roundtrip)",
-    "last_completed_run": 43794559266,
-    "last_completed_tree": "99733862"
+    "in_flight_note": "item_model green on CI (11/0/6). Next: two E7-eight harnesses remain (component_patch, chunk_generation); D6 needs the owner playtest; the stamp quirk still blocks the recorded D4/D5 verdict.",
+    "in_flight_run": null,
+    "in_flight_tree": null,
+    "last_completed_note": "item_model PASSES on CI: oracle ported to the 26.2 APIs (Predicate listResources, boolean shade, List<BakedQuad> layers, createLookup, abstract MaterialBaker, bundle private ctor) + fixture emits boolean shade + corpus pot_decorations in list form; local run 203,376 stacks match, 0 mismatches; D1/D2/D3 pass, profile 11/0/6; D4/D5 blocked (stamp quirk); D6 blocked.",
+    "last_completed_profile": "11/0/6 (block_properties, command_parse, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
+    "last_completed_run": 43809252744,
+    "last_completed_tree": "4725212a"
   },
   "harness": {
-    "fail": 7,
+    "fail": 6,
     "oracle_fail": 0,
-    "pass": 10,
+    "pass": 11,
     "passing": [
       "block_properties",
       "command_parse",
@@ -24,6 +24,7 @@
       "entity_components",
       "first_person",
       "food",
+      "item_model",
       "lan",
       "light",
       "resource_pack",

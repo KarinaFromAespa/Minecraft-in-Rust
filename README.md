@@ -22,7 +22,7 @@ the same method that produced the 26.3 rewrite.
 | Delta releases verified | 0 / 92 | 0% |
 | Trees published on main | 10 / 103 | 9.7% |
 | Behaviour items closed | 651 / 3,551 | 18.3% |
-| Harnesses passing (7 profiled versions) | 20 / 119 | 16.8% |
+| Harnesses passing (7 profiled versions) | 21 / 119 | 17.6% |
 
 Phase 0 is 5 of 6 exit conditions met: T1–T3, the complete 1.21.11
 profile, and the 26.3 control baseline (14/17) are in; only the three

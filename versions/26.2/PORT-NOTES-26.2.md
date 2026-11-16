@@ -3685,3 +3685,23 @@ proves item_model green on CI after the oracle port above. Local
 item_model passes (203,376 stacks match, 0 mismatches); a green
 item_model here takes the profile to 11/0/6 and leaves two of the E7
 eight (component_patch, chunk_generation) still red.
+
+## CI run 43809252744 completed — item_model PASSES on CI (2026-11-16)
+
+Run 43809252744 on main@4725212a (the item_model merge) completed in
+~2h1m, conclusion success. Profile **11/0/6** — item_model newly passes
+(block_properties, command_parse, datafix, entity_components,
+first_person, food, item_model, lan, light, resource_pack,
+save_roundtrip); the harness reaches a real comparison for the first
+time on 26.2 and matches the oracle (203,376 stacks, 0 mismatches,
+verified locally first; the run took longer than the 1h28m–1h36m of
+prior runs because item_model now runs its full ~5 min instead of
+failing fast at the oracle compile). **D1/D2/D3 pass** (cargo check 0
+errors 0 warnings, protocol tests 444 green, tag audit clean — 0 dead
+production, 5 dead test-only). D4/D5 still read blocked in the recorded
+verdict, but only on the staged-candidate stamp quirk (profile stamped
+for 4725212a, judge HEAD the staged candidate); D6 blocked (no
+playtest). Artifacts at ~/workspace/mcir-ci/26.2-run-43809252744/; the
+pin's recorded evidence (profile.json, delta-verdict.json, ci-out logs)
+now comes from this run, the verdict regenerated locally against the
+pin. Two of the E7 eight remain: component_patch and chunk_generation.
