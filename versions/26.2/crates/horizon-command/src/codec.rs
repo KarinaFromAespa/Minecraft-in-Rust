@@ -367,8 +367,8 @@ pub fn resource_or_id(reader: &mut Reader, reg: &Registries, registry: &str) -> 
 
 #[cfg(test)]
 mod predicate_tests {
-    use crate::args::RegistryIds;
     use super::*;
+    use crate::args::RegistryIds;
 
     #[test]
     fn inline_constant_combinators_require_decodable_children() {
