@@ -3705,3 +3705,41 @@ playtest). Artifacts at ~/workspace/mcir-ci/26.2-run-43809252744/; the
 pin's recorded evidence (profile.json, delta-verdict.json, ci-out logs)
 now comes from this run, the verdict regenerated locally against the
 pin. Two of the E7 eight remain: component_patch and chunk_generation.
+
+## component_patch: oracle ported to the 26.2 APIs (2026-11-16)
+
+The harness failed at the oracle run on CI (run 43809252744): `java` on
+`VanillaComponentPatchOracle` returned exit 1. The oracle's stderr goes
+to a build log the workflow doesn't ship, so the error was only visible
+by reproducing locally: `ClassNotFoundException:
+net.minecraft.core.component.Removed` at oracle startup. 26.2 has no
+`Removed` class — `DataComponentPatch.map` is a
+`Reference2ObjectMap<DataComponentType<?>, Optional<?>>`, with removals
+as `Optional.empty()` (26.3 replaced that with a `Removed.INSTANCE`
+sentinel). Fixed in d77793db: the `Removed` reflection is gone and
+`patchText` unwraps the `Optional` (empty reads as `none`). All other
+oracle APIs verified present in 26.2 via javap
+(`PatchedDataComponentMap` methods, both builders, `TypedDataComponent`,
+`SharedConstants.tryDetectVersion`, `Bootstrap.bootStrap`); the patch
+builder uses `Reference2ObjectArrayMap`, so iteration order stays
+insertion order as the Rust side expects.
+
+One real mismatch underneath, found once the comparison ran: setting
+over an unsanitized removal marker with no prototype value. 26.3's set
+throws NPE there (the Rust port modelled it as `MissingPrototype` and
+the oracle catches NPE as "result error"), but 26.2's set returns
+`previous.orElse(prototype)` — null when there is no prototype value —
+so the op succeeds and reports `old none`. The Rust `set` now returns
+`Ok(base)` in that case (d77793db); `remove` already matched 26.2
+exactly (verified against the `remove` bytecode). No
+35723-registry-size / `state['id']` literals in this driver. Local run
+passes end to end on both jars: 622,757 output lines match Rust on
+client and on server. Merged as c0897c3c.
+
+## CI run 43826191201 dispatched on main (2026-11-16)
+
+Run 43826191201 dispatched on main@c0897c3c (the component_patch
+merge): proves component_patch green on CI after the oracle port above.
+Local component_patch passes (622,757 lines match on both jars); a
+green component_patch here takes the profile to 12/0/5 and leaves one
+of the E7 eight (chunk_generation) still red.
