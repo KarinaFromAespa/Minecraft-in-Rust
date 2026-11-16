@@ -3,11 +3,18 @@
 //! carvers reach, and this pass applies the cells. Vanilla 26.2 applies each
 //! cell as the carver reaches it (`WorldCarver.carveBlock`); the two phases
 //! agree for vanilla data because the apply visits each masked cell once and
-//! the grass/top-material ordering is equivalent, but two details differ by
-//! construction and are documented here:
-//! * `hasGrass` is per-ellipsoid in vanilla and per mask-column-run here, so
-//!   a grass block carved by one ellipsoid can restore the dirt under a cell
-//!   carved by another ellipsoid in the same column.
+//! the grass/top-material ordering is equivalent, but a few details differ
+//! by construction and are documented here:
+//! * `hasGrass` is per-ellipsoid in vanilla and was per mask-column-run here;
+//!   the apply pass now visits each run's cells in (ellipsoid tag, y desc)
+//!   order and tracks grass per tag, so a grass block carved by one ellipsoid
+//!   restores the dirt only under cells carved by the same ellipsoid in that
+//!   column, and a later ellipsoid's grass cannot reach dirt an earlier
+//!   ellipsoid already carved. Without ellipsoid tags every cell shares one
+//!   tag and the old top-down behaviour remains. Across separate runs in one
+//!   column (a skip-predicate gap) vanilla keeps the flag for the ellipsoid
+//!   while this pass still resets it per run, because runs iterate low-to-high
+//!   within a column.
 //! * The replaceable set and lava level are per-dimension here (every vanilla
 //!   carver in a dimension shares one set and one level); a data-pack carver
 //!   with a custom set or level in a vanilla dimension applies the
@@ -105,10 +112,12 @@ pub struct CarveProfile {
     pub lava_y: i32,
 }
 
-/// Visit mask runs in packed order and each interval top to bottom. The filter
-/// receives local X/Z and absolute Y before any block or aquifer lookup. A run
-/// remembers grass/mycelium even if its aquifer returns no replacement. Exposed
-/// dirt below subsequent carved cells is restored through `top_material`.
+/// Visit mask runs in packed order and each interval's cells in (ellipsoid
+/// tag, y desc) order, matching vanilla 26.2's per-ellipsoid column passes.
+/// The filter receives local X/Z and absolute Y before any block or aquifer
+/// lookup. A run remembers grass/mycelium per ellipsoid tag even if its
+/// aquifer returns no replacement. Exposed dirt below subsequent carved cells
+/// is restored through `top_material`.
 /// Earlier writes, aquifer state and fluid postprocessing survive later errors.
 /// With ellipsoid tags, the marks are emitted in vanilla 26.2's order
 /// (ellipsoid, then X/Z/descending Y within it) instead of mask-column order:
@@ -181,10 +190,29 @@ where
     // 26.2's order at the end; without them they go out inline, as before.
     let mut marks: Vec<(u32, i32, i32, i32)> = Vec::new();
     for column in mask.columns() {
-        let mut found_surface = false;
+        // Vanilla 26.2 carves ellipsoid by ellipsoid, in worm-trace order;
+        // within one ellipsoid a column is visited top-down, and `hasGrass`
+        // is per (ellipsoid, column). The mask merges all ellipsoids, so
+        // visit this run's cells in (tag asc, y desc) order: a grass block
+        // carved by a later ellipsoid must not restore the dirt under a
+        // cell an earlier ellipsoid already carved. Without tags every cell
+        // shares tag 0 and this degrades to the old top-down order.
+        let mut grass_tags: std::collections::BTreeSet<u32> = std::collections::BTreeSet::new();
         let x = cx.wrapping_add(column.x);
         let z = cz.wrapping_add(column.z);
-        for y in (column.min_y..=column.max_y).rev() {
+        let mut cells: Vec<(u32, i32)> = (column.min_y..=column.max_y)
+            .map(|y| {
+                let tag = tags
+                    .and_then(|tags| {
+                        mask.index(column.x, y, column.z)
+                            .and_then(|index| tags.get(index))
+                    })
+                    .unwrap_or(0);
+                (tag, y)
+            })
+            .collect();
+        cells.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.cmp(&a.1)));
+        for (tag, y) in cells {
             if !filter([column.x, y, column.z]) {
                 continue;
             }
@@ -197,7 +225,9 @@ where
             if !replaceable {
                 continue;
             }
-            found_surface |= flags & 2 != 0;
+            if flags & 2 != 0 {
+                grass_tags.insert(tag);
+            }
             if profile.nether {
                 // Nether carving writes directly: lava at or below the level,
                 // cave air above, with no aquifer, grass or post-processing.
@@ -245,7 +275,7 @@ where
                 );
             }
             let below = y.wrapping_sub(1);
-            if found_surface && blocks.flags(chunk.block(x, below, z))? & 4 != 0 {
+            if grass_tags.contains(&tag) && blocks.flags(chunk.block(x, below, z))? & 4 != 0 {
                 let submerged = chunk.block_properties(state).has_fluid();
                 worker.retarget_surface_densities([x, below, z])?;
                 let replacement = top_material_cell(
