@@ -3613,3 +3613,19 @@ entity_components passes (32 cases, 2,496 lines, byte-identical to the
 oracle); a green entity_components here takes the profile to 10/0/7 and
 leaves three of the E7 eight (component_patch, item_model,
 chunk_generation) still red.
+
+## CI run 43794559266 completed — entity_components PASSES on CI (2026-11-16)
+
+Run 43794559266 on main@99733862 (the entity_components merge) completed
+in ~1h28m, conclusion success. Profile **10/0/7** — entity_components newly
+passes (block_properties, command_parse, datafix, entity_components,
+first_person, food, lan, light, resource_pack, save_roundtrip); the harness
+reaches a real comparison for the first time on 26.2 and matches the oracle
+(32 cases, 2,496 lines, verified locally first). **D1/D2/D3 pass** (cargo
+check 0 errors 0 warnings, protocol tests 444 green, tag audit clean — 0
+dead production, 5 dead test-only). D4/D5 still read blocked in the
+recorded verdict, but only on the staged-candidate stamp quirk (profile
+stamped for 99733862, judge HEAD the staged candidate); D6 blocked (no
+playtest). Artifacts at ~/workspace/mcir-ci/26.2-run-43794559266/; the
+pin's recorded evidence (profile.json, delta-verdict.json, ci-out logs)
+now comes from this run, the verdict regenerated locally against the pin.

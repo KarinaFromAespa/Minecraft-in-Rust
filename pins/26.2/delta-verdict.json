@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "1fc6a8c2dedb2ccb7a7769ce7c4bc359b8b66591",
+  "commit": "d44d5469201e7b4adc68ad776a0f9e392bb2ca4c",
   "tree": "versions/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-16T02:03:16Z",
+  "checked_at": "2026-11-16T04:47:33Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -70,7 +70,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit d1b6313def90, HEAD is 1fc6a8c2dedb \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 99733862fa84, HEAD is d44d5469201e \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit d1b6313def90, HEAD is 1fc6a8c2dedb \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 99733862fa84, HEAD is d44d5469201e \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
