@@ -970,6 +970,10 @@ struct Pipeline<R: RandomSource> {
     climate: ClimateSampler,
     aquifer: Option<[Arc<dyn DensitySampler>; 6]>,
     rule: MaterialRule,
+    /// The settings' surface rule without the ore veins: the carver's top
+    /// material applies only it, as vanilla's `CarvingContext.topMaterial`
+    /// applies only the surface RuleSource, never the vein filler.
+    surface_rule: MaterialRule,
     preliminary: Arc<dyn DensitySampler>,
     source: ResolvedBiomeSource,
     surface: MaterialSurface<R::Positional>,
@@ -1202,15 +1206,22 @@ where
             .map(|config| library.compile_aquifer(config))
             .transpose()?
             .map(|samplers| AquiferField::ALL.map(|field| samplers.get(field).clone()));
-        let rule = library.rule(&rule_name)?;
-        // The vein rules run AFTER the surface rule: in vanilla 26.2 the
-        // veins apply during the fill and the surface rule runs after and
-        // overwrites them (bedrock at the floor wins over veins), so veins
-        // are the lowest-priority rule in the sequence.
+        let surface_rule = library.rule(&rule_name)?;
+        // The vein rules run BEFORE the surface rule: in vanilla 26.2 the
+        // veins apply during the fill (`NoiseChunk`'s `OreVeinifier`
+        // filler) and the surface rule runs after — but
+        // `SurfaceSystem.buildSurface` only applies the rule where the
+        // block is still the default block (stone), so it never overwrites
+        // a vein's tuff or ore. Veins first in the sequence is exactly
+        // that order: where a vein places a block the surface rule never
+        // runs, and where it returns nothing the surface rule runs on the
+        // still-stone block. (Veins after the surface rule shadowed them
+        // entirely: the deepslate gradient below y 0 always produces
+        // first, so no vein ever placed a block.)
         let rule = if veins.is_empty() {
-            rule
+            surface_rule.clone()
         } else {
-            let mut children = vec![rule];
+            let mut children = Vec::with_capacity(veins.len() + 1);
             for (kind, roots) in veins {
                 let blocks = kind.blocks();
                 children.push(MaterialRule::OreVein {
@@ -1224,6 +1235,7 @@ where
                     positive_y: kind.positive_y(),
                 });
             }
+            children.push(surface_rule.clone());
             MaterialRule::Sequence(children)
         };
         let preliminary = router.get(RouterField::PreliminarySurfaceLevel).clone();
@@ -1297,6 +1309,7 @@ where
             climate,
             aquifer,
             rule,
+            surface_rule,
             preliminary,
             source,
             surface,
@@ -1974,11 +1987,15 @@ where
                             .unwrap_or(generation.min_y)
                     },
                 };
+                // The carver's top material is the surface rule alone (see
+                // `surface_rule`), with its own compiled-rule cache: the
+                // shared one holds the surface stage's veins-first rule.
+                let mut carving_shared = None;
                 apply_carving_mask_shared(
                     &mut chunk,
                     &mask,
-                    &self.rule,
-                    &mut shared,
+                    &self.surface_rule,
+                    &mut carving_shared,
                     TopMaterialInputs::<R, _> {
                         generation,
                         root: self.root.clone(),
