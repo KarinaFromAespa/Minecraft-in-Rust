@@ -47,7 +47,10 @@ use crate::{
 };
 use horizon_core::{
     biome::{BiomeZoom, obfuscate_seed},
-    density::{DensitySampler, LatticeSamples, SamplerContext},
+    density::{
+        BinaryOp, BinarySampler, ContextBoundSampler, DensitySampler, LatticeSamples,
+        SamplerContext, WorldField,
+    },
     noise::{DensityVolume, Noise},
     position::{BlockPos, ChunkPos},
     random::{LegacyRandom, PositionalRandom, RandomSource, XoroshiroRandom},
@@ -1842,7 +1845,11 @@ where
             .structures
             .as_ref()
             .and_then(|s| s.beardifier(&references, pos));
-        if beard.is_some() || !blender.is_empty() {
+        // Vanilla 26.2's NoiseChunk fills with add(finalDensity, beardifier):
+        // the beardifier is added in code, not referenced by the settings'
+        // graph, so the fill below must add it explicitly when one exists.
+        let has_beard = beard.is_some();
+        if has_beard || !blender.is_empty() {
             let mut fields = horizon_core::density::WorldFields::default();
             if let Some(beard) = beard {
                 fields = fields.with_field(
@@ -1910,10 +1917,22 @@ where
                     .collect()
             };
             context.set_lattice(lattice);
+            let final_density = self.router.get(RouterField::FinalDensity);
+            let combined;
+            let density: &dyn DensitySampler = if has_beard {
+                combined = BinarySampler {
+                    left: final_density.clone(),
+                    right: Arc::new(ContextBoundSampler::new(WorldField::Beardifier)),
+                    operation: BinaryOp::Add,
+                };
+                &combined
+            } else {
+                final_density.as_ref()
+            };
             let filled = fill_noise(
                 &mut chunk,
                 volume,
-                self.router.get(RouterField::FinalDensity).as_ref(),
+                density,
                 context,
                 aquifer.as_mut(),
                 self.settings.default_block,
