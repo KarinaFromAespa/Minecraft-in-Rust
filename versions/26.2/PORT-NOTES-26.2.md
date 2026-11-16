@@ -3583,3 +3583,33 @@ candidate); D6 blocked (no playtest). Artifacts at
 ~/workspace/mcir-ci/26.2-run-43779020469/; the pin's recorded evidence
 (profile.json, delta-verdict.json, ci-out logs) now comes from this run,
 the verdict regenerated locally against the pin.
+
+## entity_components: the trigger conditions are a list in 26.2 (2026-11-16)
+
+The harness never reached a comparison on CI (run 43766277138):
+`test_entity_components_parity.py:27` crashed with `TypeError: list indices
+must be integers or slices, not str` on
+`criterion['conditions']['entity']['predicate']`. The script was the 26.3
+form; 26.2's trigger conditions are a **list**. Verified in the 26.2 server
+jar: `TameAnimalTrigger$TriggerInstance.entity` is
+`Optional<ContextAwarePredicate>` — a ContextAwarePredicate is a list of loot
+conditions — and the 26.2 advancement data agrees: every criterion's entity
+is `[{"condition": "minecraft:entity_properties", "entity": "this",
+"predicate": {...}}]` (11 cat + 9 wolf + 3 frog criteria). The fix is in the
+harness driver only (44e5fda9): iterate the list and take the predicate from
+each `minecraft:entity_properties` element, accepting the bare-object form
+26.3 writes as well. No Rust change: the 26.2 `advancements::entity` and the
+variant components already match the oracle — local run passes end to end
+(32 cases, 2,496 output lines, rust.txt identical to the oracle's).
+The 35723-registry-size / state['id'] debt does not touch this driver
+(neither literal appears in the script, probe, or oracle). Merged as
+99733862.
+
+## CI run 43794559266 dispatched on main (2026-11-16)
+
+Run 43794559266 dispatched on main@99733862 (the entity_components merge):
+proves entity_components green on CI after the driver fix above. Local
+entity_components passes (32 cases, 2,496 lines, byte-identical to the
+oracle); a green entity_components here takes the profile to 10/0/7 and
+leaves three of the E7 eight (component_patch, item_model,
+chunk_generation) still red.
