@@ -22,7 +22,7 @@
     },
     "ranks": {
       "1": 7,
-      "2": 410,
+      "2": 411,
       "3": 177,
       "4": 55,
       "5": 2
@@ -27866,7 +27866,33 @@
         "net/minecraft/data/recipes/packs": 1
       },
       "id": 651
+    },
+    {
+      "rank": 2,
+      "kind": "harness-failed",
+      "title": "pot_decorations game-path codec: 26.2 list of four item ids, not 26.3's named-side map",
+      "module": "crates/horizon-items/src/item_data.rs",
+      "files": [
+        "crates/horizon-items/src/item_data.rs",
+        "crates/horizon-items/examples/pot_decorations_fixture.rs",
+        "mods/horizon/src/test/java/dev/horizonlab/parity/VanillaPotDecorationsOracle.java",
+        "tools/test_pot_decorations_parity.py"
+      ],
+      "harnesses": [
+        "pot_decorations",
+        "item_model",
+        "save_roundtrip"
+      ],
+      "id": 652,
+      "manual": true
     }
   ],
-  "clean": []
+  "clean": [],
+  "amendments": [
+    {
+      "id": 652,
+      "date": "2026-11-17",
+      "reason": "Found post-hoc by the item_model harness job (2026-11-16): horizon-items pot_decorations still used the 26.3 named-side map form on the game path, which 26.2's list codec rejects, so decorated pots lost their sherds on a decode/encode round-trip. The differ never listed it: a codec-form change leaves no class/method signature difference for the diff to catch. Added by hand with the reviewer's agreement as a rank-2 item with a game-path round-trip harness; summary.ranks updated to match so D3 still reads the ledger against this report."
+    }
+  ]
 }
