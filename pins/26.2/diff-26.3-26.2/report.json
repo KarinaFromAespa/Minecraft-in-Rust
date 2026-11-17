@@ -22,7 +22,7 @@
     },
     "ranks": {
       "1": 7,
-      "2": 411,
+      "2": 412,
       "3": 177,
       "4": 55,
       "5": 2
@@ -27885,6 +27885,29 @@
       ],
       "id": 652,
       "manual": true
+    },
+    {
+      "rank": 2,
+      "kind": "harness-failed",
+      "title": "decorated-pot block-entity sherds: 26.2 list form, not 26.3's named-side map; mine/pick/place keep the sherds",
+      "module": "crates/horizon-client-core/src/block_entity_nbt.rs",
+      "files": [
+        "crates/horizon-client-core/src/block_entity_nbt.rs",
+        "crates/horizon-client/src/block_entity_item.rs",
+        "crates/horizon-client/src/game/spill.rs",
+        "crates/horizon-client/src/game/block_items.rs",
+        "crates/horizon-client/src/game/commands/terrain_cmds.rs",
+        "crates/horizon-items/src/items.rs",
+        "tools/loot_mine_pot_components_corpus.py",
+        "tools/test_pot_sherd_templates_parity.py"
+      ],
+      "harnesses": [
+        "loot_mine_pot_components",
+        "pot_sherd_templates",
+        "save_roundtrip"
+      ],
+      "id": 653,
+      "manual": true
     }
   ],
   "clean": [],
@@ -27893,6 +27916,11 @@
       "id": 652,
       "date": "2026-11-17",
       "reason": "Found post-hoc by the item_model harness job (2026-11-16): horizon-items pot_decorations still used the 26.3 named-side map form on the game path, which 26.2's list codec rejects, so decorated pots lost their sherds on a decode/encode round-trip. The differ never listed it: a codec-form change leaves no class/method signature difference for the diff to catch. Added by hand with the reviewer's agreement as a rank-2 item with a game-path round-trip harness; summary.ranks updated to match so D3 still reads the ledger against this report."
+    },
+    {
+      "id": 653,
+      "date": "2026-11-17",
+      "reason": "Follow-up to item 652, found by its own follow-up note: the item path was ported but the block-entity sherds surface (canonical load/save, loot copy, pick/place) still read sherds as the 26.3 named-side map, so a decorated pot mined or picked in-game lost its sherds. The differ never listed it: a codec-form change leaves no class/method signature difference for the diff to catch. Added by hand as a rank-2 item with the loot-mine corpus and the H290 sherd harness ported to the list form; summary.ranks updated to match so D3 still reads the ledger against this report."
     }
   ]
 }
