@@ -3585,6 +3585,25 @@ mod tests {
         }
     }
 
+    #[test]
+    fn conditions_read_the_26_2_condition_key_as_well_as_type() {
+        let items = Items::for_tests(HashMap::new());
+        let properties = horizon_world::chunk::BlockProperties::new();
+        // `survives_explosion` with no explosion always passes; a table
+        // naming it with 26.2's `condition` key must drop, as one using
+        // 26.3's `type` key does.
+        for condition in [
+            json!({"condition": "minecraft:survives_explosion"}),
+            json!({"type": "minecraft:survives_explosion"}),
+        ] {
+            let table = json!({"pools":[{"rolls":1,"conditions": [condition],"entries":[{"type":"minecraft:item","name":"minecraft:dirt"}]}]});
+            let context = ctx(&items, None, &properties, "minecraft:dirt");
+            let drops = context.evaluate(&table, &mut LegacyRandom::new(79));
+            assert_eq!(drops.len(), 1, "{condition}");
+            assert_eq!(&*drops[0].item, "minecraft:dirt");
+        }
+    }
+
     fn ctx<'a>(
         items: &'a Items,
         held: Option<&'a ItemStack>,
