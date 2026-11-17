@@ -5,12 +5,12 @@
     "total": 652
   },
   "ci": {
-    "in_flight_note": "pot_decorations proof run: item 652 merged (248d65a2) - the 26.2 list codec in horizon-items, the game-path pot_decorations parity harness (100/100 cases match on both jars locally), and the ledger amendment (rank 2: 411/411, programme 652/652). Local: horizon-items 114 tests pass; save_roundtrip PASSES locally (213s, 0 diffs) with the change; cargo check --workspace --all-targets 0 errors, 0 warnings. Expect the profile to stay 13/0/4 with D3 green on the new totals; D4/D5 still read blocked (judge-history issue - patch 0006 is dead code in the CI judge, needs a gate design decision); D6 needs the owner playtest.",
-    "in_flight_run": 44007813759,
-    "in_flight_tree": "248d65a2",
-    "last_completed_note": "chunk_generation PASSES on CI (run 43983328079, main@7847f3cb, 1h47m): profile 13/0/4, the E7 eight complete (component_patch, command_parse, datafix, entity_components, item_model, block_properties, save_roundtrip, chunk_generation). Fixes since run 43929484440: the End central island cone; the 26.2 inline coral placer; the climate index built with vanilla branching 6 (exact-fitness ties); template block-entity NBT gated on the block really having one; the structure-block exporter falling back to BlockEntityType.isValid (vault states restored). D1/D2/D3 pass; D4/D5 blocked (stamp quirk - see in_flight_note); D6 blocked.",
+    "in_flight_note": "pot_decorations proof run complete (44007813759) - profile 13/0/4, D3 green on rank-2 411/411. D4/D5 still read blocked: the judge tree is a fresh single-commit repo (port-verify stages the published tree with git init + one commit), so the 0006 ancestor check has no history to walk (rev-list fails). The gate needs a design decision, not another sweep. D6 needs the owner playtest.",
+    "in_flight_run": null,
+    "in_flight_tree": null,
+    "last_completed_note": "pot_decorations proof run (44007813759, main@248d65a2, 1h42m): profile 13/0/4, unchanged - the E7 eight stay green (component_patch, command_parse, datafix, entity_components, item_model, block_properties, save_roundtrip, chunk_generation). Item 652 merged: horizon-items pot_decorations now uses the 26.2 list codec, with the game-path parity harness (100/100 cases on both jars locally). D1/D2/D3 pass - D3 on the new totals (rank-2: 411 closed, 411 total); D4/D5 blocked (judge-history issue - profile stamped 248d65a2, judge HEAD the staged candidate f803f64c); D6 blocked. The four failing harnesses are the same pre-existing ones (command_exec effect_view fixture blocker; hotbar 886/905, byte-identical to the previous run; options key-binding mismatch; sound_event missing sounds.json) - no regressions from the pot change.",
     "last_completed_profile": "13/0/4 (block_properties, chunk_generation, command_parse, component_patch, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
-    "last_completed_run": 43983328079,
+    "last_completed_run": 44007813759,
     "last_completed_tree": "7847f3cb"
   },
   "harness": {

@@ -1,23 +1,23 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "ab2bcf60432067d6b8c9d46e779ae06fa080c0c7",
+  "commit": "f803f64cf723a44c88d679875e753c2ed83d05e1",
   "tree": ".horizon-ports/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-17T01:41:45Z",
+  "checked_at": "2026-11-17T04:48:16Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": 417,
-    "items_total": 417,
+    "items_closed": 418,
+    "items_total": 418,
     "items_accepted": 0
   },
-  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-17 |",
+  "index_line": "| 26.2 | D | \u2014 | 418/418 | 0 | blocked 2026-11-17 |",
   "checks": {
     "D1": {
       "status": "pass",
@@ -27,7 +27,7 @@
         "regen.json: all 6 generators clean",
         "all 6 tables reproduce exactly",
         "prepared data present (20776 files)",
-        "tag audit: 710 tags across 20 registries; scanned 246 literals in 2866 files; 0 dead in production code, 5 dead in test fixtures"
+        "tag audit: 710 tags across 20 registries; scanned 246 literals in 2867 files; 0 dead in production code, 5 dead in test fixtures"
       ],
       "evidence": [
         ".horizon-ports/26.2/research-lock.json",
@@ -53,7 +53,7 @@
       "status": "pass",
       "notes": [
         "rank-1: 7 closed, 0 accepted, 7 total",
-        "rank-2: 410 closed, 0 accepted, 410 total",
+        "rank-2: 411 closed, 0 accepted, 411 total",
         "totals read from summary.ranks",
         "rank-3+: Inherits the 26.3 base answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
       ],
@@ -62,15 +62,15 @@
         "pins/26.2/work-items.json"
       ],
       "metrics": {
-        "items_closed": 417,
-        "items_total": 417,
+        "items_closed": 418,
+        "items_total": 418,
         "items_accepted": 0
       }
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 7847f3cb510c, HEAD is ab2bcf604320 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 248d65a25175, HEAD is f803f64cf723 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 7847f3cb510c, HEAD is ab2bcf604320 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 248d65a25175, HEAD is f803f64cf723 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"

@@ -4077,3 +4077,18 @@ locally to run it); cargo check --workspace --all-targets 0 errors,
 CI proof run 44007813759 dispatched on main@248d65a2 (2026-11-17).
 Expect the profile to stay 13/0/4 with D3 green on the new totals
 (rank 2: 411/411).
+
+CI proof run 44007813759 COMPLETED success (1h41m45s, 2026-11-17):
+profile 13/0/4, unchanged — the E7 eight stay green. D1/D2/D3 pass;
+D3 reads the new totals (rank-2: 411 closed, 0 accepted, 411 total;
+418/418 overall). D4/D5 still blocked on the judge-history issue
+(profile stamped 248d65a2, judge HEAD the staged candidate f803f64c
+— patch 0006 cannot run there); D6 blocked (no playtest). The four
+failing harnesses are the same pre-existing ones, with identical
+failure signatures to run 43983328079 (command_exec: the
+effect_view:always fixture blocker; hotbar: 886/905, byte-identical
+log; options: the key.keyboard.200 vs keypad.double.ampersand
+mismatch; sound_event: missing sounds.json) — no regressions from
+the pot change. Recorded in pins/26.2/profile.json (the published
+profile, 23 entries), delta-verdict.json, ci-out logs, status.json,
+and VERSIONS.md.
