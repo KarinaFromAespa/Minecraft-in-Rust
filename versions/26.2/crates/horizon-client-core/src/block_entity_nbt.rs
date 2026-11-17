@@ -222,24 +222,6 @@ pub fn stack(tag: &Tag) -> Option<Tag> {
 }
 /// `ItemStackTemplate.CODEC`: an item id or `{id, count?, components?}`.
 /// Encoding uses the primary record form, including for a bare item id.
-fn template(tag: &Tag) -> Option<Tag> {
-    match tag {
-        Tag::String(_) => Some(Tag::compound([("id", tag.clone())])),
-        Tag::Compound(_) => {
-            let mut out = vec![("id", string(&text(tag.get("id"))?))];
-            if let Some(count) = int(tag.get("count")).filter(|c| *c != 1) {
-                out.push(("count", Tag::Int(count)));
-            }
-            if let Some(c @ Tag::Compound(map)) = tag.get("components")
-                && !map.is_empty()
-            {
-                out.push(("components", c.clone()));
-            }
-            Some(Tag::compound(out))
-        }
-        _ => None,
-    }
-}
 /// `ItemStackWithSlot` entries of a container of `size` slots, by ascending slot.
 fn items(tag: Option<&Tag>, size: usize) -> Vec<Tag> {
     let mut slots: Vec<Option<Tag>> = vec![None; size];
@@ -666,15 +648,23 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:decorated_pot" => {
-            if let Some(Tag::Compound(sherds)) = tag.get("sherds") {
-                let kept: Compound = ["back", "left", "right", "front"]
-                    .iter()
-                    .filter_map(|side| {
-                        Some(((*side).into(), template(sherds.get(&(*side).into())?)?))
-                    })
-                    .collect();
-                if !kept.is_empty() {
-                    f.put("sherds", Tag::Compound(kept));
+            // `PotDecorations.CODEC`: a size-limited list of up to four item
+            // names in `ordered()` order (back, left, right, front); a side
+            // missing from the list, or a brick, is undecorated, and an
+            // undecorated pot saves no `sherds` key at all. Any other value —
+            // not a list, over four entries, or a non-string element — fails
+            // the codec and loads as EMPTY.
+            if let Some(Tag::List(sherds)) = tag.get("sherds")
+                && sherds.len() <= 4
+                && sherds.iter().all(|side| matches!(side, Tag::String(_)))
+            {
+                let brick = Tag::String("minecraft:brick".into());
+                let mut kept: Vec<Tag> = sherds.clone();
+                while kept.len() < 4 {
+                    kept.push(brick.clone());
+                }
+                if kept.iter().any(|side| side != &brick) {
+                    f.put("sherds", Tag::List(kept));
                 }
             }
             if !f.loot_table() {
@@ -1028,67 +1018,74 @@ mod tests {
 }
 
 #[cfg(test)]
-mod pot_template_tests {
+mod pot_sherds_tests {
     use super::*;
     use horizon_world::nbt::parse_snbt;
 
     #[test]
-    fn decorated_pot_string_template_load_save_uses_item_compound() {
+    fn decorated_pot_list_sherds_load_save_keeps_order_and_pads() {
         let parse = |s: &str| parse_snbt(s).expect("valid input NBT").0;
-        let input = |front: &str| {
-            let mut tag = parse(
-                r#"{id:"minecraft:decorated_pot",x:4,y:200,z:4,sherds:{back:{id:"minecraft:brick"},right:{id:"minecraft:archer_pottery_sherd"}},item:{id:"minecraft:wheat",count:3,components:{"minecraft:custom_name":"H290 item"}}}"#,
-            );
-            let Tag::Compound(root) = &mut tag else {
-                unreachable!()
-            };
-            let Some(Tag::Compound(sides)) = root.get_mut(&"sherds".into()) else {
-                unreachable!()
-            };
-            sides.insert("front".into(), parse(front));
-            tag
+        let input = |sherds: &str| {
+            parse(&format!(
+                r#"{{id:"minecraft:decorated_pot",x:4,y:200,z:4,sherds:{sherds},item:{{id:"minecraft:wheat",count:3,components:{{"minecraft:custom_name":"H290 item"}}}}}}"#
+            ))
         };
         let other_fields = |loaded: &Tag, saved: &Tag| {
             assert_eq!(saved.get("id"), loaded.get("id"));
             for key in ["x", "y", "z", "item"] {
                 assert_eq!(saved.get(key), loaded.get(key), "{key}");
             }
-            let loaded_sides = loaded.get("sherds").unwrap();
-            let saved_sides = saved.get("sherds").unwrap();
-            for side in ["back", "right"] {
-                assert_eq!(saved_sides.get(side), loaded_sides.get(side), "{side}");
-            }
-            assert_eq!(saved_sides.get("left"), None);
         };
-        let plain = r#"{id:"minecraft:angler_pottery_sherd"}"#;
-        let defaults = r#"{id:"minecraft:angler_pottery_sherd",count:1,components:{}}"#;
-        let rich = r#"{id:"minecraft:angler_pottery_sherd",count:3,components:{"minecraft:custom_data":{h290:1},"minecraft:custom_name":"H290 sherd"}}"#;
-        // Actual canonical load/save entry, not the private template helper.
-        for (front, expected) in [(plain, plain), (defaults, plain), (rich, rich)] {
-            let loaded = input(front);
-            let original = loaded.clone();
-            let saved = canonical(&loaded).expect("actual decorated-pot codec");
-            other_fields(&loaded, &saved);
-            assert_eq!(
-                saved.get("sherds").unwrap().get("front"),
-                Some(&parse(expected))
-            );
-            assert_eq!(canonical(&saved).as_ref(), Some(&saved));
-            assert_eq!(loaded, original, "read-only canonicalization");
-        }
-        println!(
-            "H290 actual canonical compound/default/count/components, other sides/item/name and idempotency controls admitted"
+        // A full four-string list keeps its order (back, left, right, front).
+        let loaded = input(
+            r#"["minecraft:brick","minecraft:brick","minecraft:angler_pottery_sherd","minecraft:brick"]"#,
         );
-        let loaded = input(r#""minecraft:angler_pottery_sherd""#);
         let original = loaded.clone();
         let saved = canonical(&loaded).expect("actual decorated-pot codec");
         other_fields(&loaded, &saved);
+        assert_eq!(saved.get("sherds"), loaded.get("sherds"));
+        assert_eq!(canonical(&saved).as_ref(), Some(&saved));
         assert_eq!(loaded, original, "read-only canonicalization");
+        // A short list pads with bricks to four.
+        let loaded = input(r#"["minecraft:archer_pottery_sherd","minecraft:brick"]"#);
+        let saved = canonical(&loaded).expect("actual decorated-pot codec");
         assert_eq!(
-            saved.get("sherds").unwrap().get("front"),
-            Some(&parse(plain)),
-            "string template must save the primary item compound",
+            saved.get("sherds"),
+            Some(&parse(
+                r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick"]"#
+            ))
         );
         assert_eq!(canonical(&saved).as_ref(), Some(&saved));
+        // A compound element is not an item name: the whole list fails the
+        // codec and loads as EMPTY, even beside a valid sherd.
+        let loaded = input(
+            r#"["minecraft:archer_pottery_sherd",{id:"minecraft:angler_pottery_sherd"},"minecraft:brick","minecraft:brick"]"#,
+        );
+        let saved = canonical(&loaded).expect("actual decorated-pot codec");
+        assert_eq!(saved.get("sherds"), None);
+        // A list over four entries fails `sizeLimitedListOf(4)` the same way.
+        let loaded = input(
+            r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]"#,
+        );
+        let saved = canonical(&loaded).expect("actual decorated-pot codec");
+        assert_eq!(saved.get("sherds"), None);
+        // An all-brick list and a map-form value both save no `sherds`: the
+        // first is EMPTY, the second fails the list codec and loads as EMPTY.
+        for sherds in [
+            r#"["minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]"#,
+            r#"{back:{id:"minecraft:brick"},right:{id:"minecraft:angler_pottery_sherd"}}"#,
+        ] {
+            let loaded = input(sherds);
+            let saved = canonical(&loaded).expect("actual decorated-pot codec");
+            other_fields(&loaded, &saved);
+            assert_eq!(saved.get("sherds"), None, "{sherds}");
+            assert_eq!(canonical(&saved).as_ref(), Some(&saved));
+        }
+        let loaded = parse(
+            r#"{id:"minecraft:decorated_pot",x:4,y:200,z:4,item:{id:"minecraft:wheat",count:3}}"#,
+        );
+        let saved = canonical(&loaded).expect("actual decorated-pot codec");
+        assert_eq!(saved.get("sherds"), None);
+        println!("H290 actual canonical list/padding/brick/map-form/missing controls admitted");
     }
 }

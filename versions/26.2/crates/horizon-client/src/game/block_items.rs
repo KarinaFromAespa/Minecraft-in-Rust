@@ -225,8 +225,12 @@ impl Game<'_> {
             self.world.block_entities.get(&key),
             Some(BlockEntity::CopperGolemStatue(_))
         );
+        // A decorated pot has no live block entity: its data lives in the
+        // chunk's saved tag, which `pot_data` reads.
         if (include_data || banner || pot || statue)
-            && let Some(saved) = self.saved_block_entity(key)
+            && let Some(saved) = self
+                .saved_block_entity(key)
+                .or_else(|| pot.then(|| self.pot_data(pos)).flatten())
         {
             let mut picked = block_entity_item::pick(&saved);
             if pot && !include_data {
@@ -325,7 +329,14 @@ impl Game<'_> {
         self.pending.banner.remove(&pos);
         let state = self.world.block(pos[0], pos[1], pos[2]);
         self.sculk_place_entity(state);
-        let Some(saved) = self.saved_block_entity(key) else {
+        // A decorated pot has no live block entity: its data lives in the
+        // chunk's saved tag, which `pot_data` reads, and a placed pot's tag
+        // goes back there rather than into a live entity.
+        let pot = &*self.res.facts().get(state).name == "minecraft:decorated_pot";
+        let Some(saved) = self
+            .saved_block_entity(key)
+            .or_else(|| pot.then(|| self.pot_data(pos)).flatten())
+        else {
             return;
         };
         let placed = block_entity_item::place(&saved, &components(stack), game_master);
@@ -333,6 +344,9 @@ impl Game<'_> {
             return;
         }
         let Some((_, mut entity)) = save::decode_block_entity(&placed) else {
+            if pot {
+                super::spill::put_saved_entity(&mut self.world, pos, placed);
+            }
             return;
         };
         // The new crafter's state flag (CrafterBlock.newBlockEntity), which

@@ -234,12 +234,17 @@ fn collect(part: Part, tag: &Tag) -> Option<(&'static str, Option<Tag>)> {
     })
 }
 
+/// `PotDecorations.EMPTY` in its codec form: `ordered()` is four bricks.
+fn empty_decorations() -> Tag {
+    Tag::List(vec![Tag::String("minecraft:brick".into()); 4])
+}
+
 /// What a type that always collects `component` gives when its NBT leaves the
 /// value out (its empty value, which the NBT omits).
 fn unset(component: &str) -> Option<Tag> {
     Some(match component {
         "minecraft:bees" | "minecraft:banner_patterns" => Tag::List(Vec::new()),
-        "minecraft:pot_decorations" => Tag::Compound(Compound::new()),
+        "minecraft:pot_decorations" => empty_decorations(),
         _ => return None,
     })
 }
@@ -271,15 +276,7 @@ fn container_slot(slot: i32, mut item: Compound) -> Tag {
 fn item_default(component: &str) -> Option<Tag> {
     Some(match component {
         CONTAINER | "minecraft:bees" | "minecraft:banner_patterns" => Tag::List(Vec::new()),
-        "minecraft:pot_decorations" => {
-            let brick = || Tag::compound([("id", Tag::String("minecraft:brick".into()))]);
-            Tag::compound([
-                ("back", brick()),
-                ("front", brick()),
-                ("left", brick()),
-                ("right", brick()),
-            ])
-        }
+        "minecraft:pot_decorations" => empty_decorations(),
         _ => return None,
     })
 }
@@ -715,5 +712,32 @@ mod tests {
         assert!(patch.is_empty());
         let fresh = saved("{id:\"minecraft:sign\",x:0,y:0,z:0}");
         assert_eq!(place(&fresh, &patch, false), fresh);
+    }
+
+    /// A decorated pot picked up carries its sherds as the list-form
+    /// `pot_decorations` component, and placing it back gives the same pot;
+    /// an undecorated pot gives an empty patch.
+    #[test]
+    fn a_decorated_pot_keeps_its_sherds_on_pick_and_place() {
+        let pot = saved(
+            "{id:\"minecraft:decorated_pot\",x:4,y:200,z:4,\
+             sherds:[\"minecraft:brick\",\"minecraft:brick\",\"minecraft:angler_pottery_sherd\",\"minecraft:brick\"],\
+             item:{id:\"minecraft:wheat\",count:3}}",
+        );
+        let patch = pick(&pot);
+        assert_eq!(
+            patch.get(&JavaString::from("minecraft:pot_decorations")),
+            Some(&snbt(
+                "[\"minecraft:brick\",\"minecraft:brick\",\"minecraft:angler_pottery_sherd\",\"minecraft:brick\"]"
+            ))
+        );
+        // The pot's item comes with the pick too (Ctrl + Pick Block).
+        assert!(patch.contains_key(&JavaString::from("minecraft:container")));
+        // Placing it back gives the same pot.
+        let fresh = saved("{id:\"minecraft:decorated_pot\",x:4,y:200,z:4}");
+        assert_eq!(place(&fresh, &patch, false), pot);
+        // An undecorated pot has nothing to carry.
+        assert!(pick(&fresh).is_empty());
+        assert_eq!(place(&fresh, &pick(&fresh), false), fresh);
     }
 }

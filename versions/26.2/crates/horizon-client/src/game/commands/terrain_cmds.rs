@@ -1013,7 +1013,7 @@ mod loot_mine_component_tests {
     use super::*;
     use crate::game::{Audio, Options, Progress, Settings, load_resources};
     use horizon_client::{chunk::Chunk, containers::BlockEntity, save};
-    use horizon_world::nbt::{Compound, Tag};
+    use horizon_world::nbt::Tag;
     use std::sync::Arc;
 
     fn slot(game: &Game<'_>, index: usize) -> ItemStack {
@@ -1033,7 +1033,6 @@ mod loot_mine_component_tests {
     }
 
     #[test]
-    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
     fn loot_mine_copies_actual_empty_and_right_pot_components_into_the_chest() {
         let root = std::path::PathBuf::from(
             std::env::var_os("HORIZON_TEST_RESOURCES").expect("prepared resources required"),
@@ -1080,15 +1079,23 @@ mod loot_mine_component_tests {
         assert!(
             game.run_command("item replace block 12 200 4 container.26 with minecraft:diamond 7")
         );
-        assert!(game.run_command("item replace block 12 200 4 container.2 with minecraft:decorated_pot[minecraft:pot_decorations={}] 1"));
-        let empty = Tag::Compound(Compound::new());
+        let right = "minecraft:angler_pottery_sherd";
+        let decorated_list = Tag::List(vec![
+            Tag::String("minecraft:brick".into()),
+            Tag::String("minecraft:brick".into()),
+            Tag::String(right.into()),
+            Tag::String("minecraft:brick".into()),
+        ]);
+        assert!(game.run_command(&format!(
+            "item replace block 12 200 4 container.2 with minecraft:decorated_pot[minecraft:pot_decorations=[\"minecraft:brick\",\"minecraft:brick\",\"{right}\",\"minecraft:brick\"]] 1"
+        )));
         assert_eq!(
             (&*slot(&game, 26).item, slot(&game, 26).count),
             ("minecraft:diamond", 7)
         );
         assert_eq!(
             decorations(&slot(&game, 2)),
-            Some(empty.clone()),
+            Some(decorated_list.clone()),
             "direct-item parser/encoder positive control"
         );
         assert!(
@@ -1100,13 +1107,12 @@ mod loot_mine_component_tests {
                 .is_some()
         );
         let start = game.world.game_time;
-        let right = "minecraft:angler_pottery_sherd";
         let mut failures = Vec::new();
         for (x, nbt, decorated) in [
             (4, "", false),
             (
                 7,
-                r#"{sherds:{right:{id:"minecraft:angler_pottery_sherd"}}}"#,
+                r#"{sherds:["minecraft:brick","minecraft:brick","minecraft:angler_pottery_sherd","minecraft:brick"]}"#,
                 true,
             ),
         ] {
@@ -1138,11 +1144,12 @@ mod loot_mine_component_tests {
                 assert_eq!(before.get(key), Some(&Tag::Int(value)));
             }
             if decorated {
+                let Some(Tag::List(sherds)) = before.get("sherds") else {
+                    panic!("actual admitted source sherd: no list-form sherds");
+                };
+                assert_eq!(sherds.len(), 4);
                 assert_eq!(
-                    before
-                        .get("sherds")
-                        .and_then(|t| t.get("right"))
-                        .and_then(|t| t.get("id")),
+                    sherds.get(2),
                     Some(&Tag::String(right.into())),
                     "actual admitted source sherd"
                 );
@@ -1164,30 +1171,71 @@ mod loot_mine_component_tests {
                 ("minecraft:decorated_pot", 1),
                 "inventory is the count authority"
             );
-            let expected = if decorated {
-                Tag::compound([("right", Tag::compound([("id", Tag::String(right.into()))]))])
-            } else {
-                empty.clone()
-            };
-            if decorations(&out) != Some(expected) {
+            if decorated {
+                if decorations(&out) != Some(decorated_list.clone()) {
+                    failures.push(format!(
+                        "source {x}: actual saved output pot_decorations missing/wrong"
+                    ));
+                }
+            } else if decorations(&out).is_some() {
                 failures.push(format!(
-                    "source {x}: actual saved output pot_decorations missing/wrong"
+                    "source {x}: an undecorated pot must carry no pot_decorations"
                 ));
             }
             let modeled = out.extra.as_ref().and_then(|d| d.pot_decorations.as_ref());
-            if modeled.is_none_or(|sides| {
-                sides.iter().enumerate().any(|(i, item)| {
-                    if decorated && i == 2 {
-                        item.as_ref()
-                            .is_none_or(|s| &*s.item != right || s.count != 1)
-                    } else {
-                        item.is_some()
-                    }
+            let modeled_ok = if decorated {
+                modeled.is_some_and(|sides| {
+                    sides.iter().enumerate().all(|(i, item)| {
+                        if i == 2 {
+                            item.as_ref()
+                                .is_some_and(|s| &*s.item == right && s.count == 1)
+                        } else {
+                            item.is_none()
+                        }
+                    })
                 })
-            }) {
+            } else {
+                modeled.is_none()
+            };
+            if !modeled_ok {
                 failures.push(format!(
                     "source {x}: actual output component state missing/wrong"
                 ));
+            }
+            // Pick Block on the pot keeps its sherds, and placing the picked
+            // pot back keeps them too.
+            let picked = game.picked_stack(pos, false).expect("pick the pot");
+            assert_eq!(
+                (&*picked.item, picked.count),
+                ("minecraft:decorated_pot", 1),
+                "picked pot"
+            );
+            if decorated {
+                assert_eq!(
+                    decorations(&picked),
+                    Some(decorated_list.clone()),
+                    "picked pot keeps its sherds"
+                );
+            } else {
+                assert_eq!(
+                    decorations(&picked),
+                    None,
+                    "picked undecorated pot carries no component"
+                );
+            }
+            assert!(game.run_command(&format!(
+                "setblock {x} 201 4 decorated_pot[facing=north,cracked=false,waterlogged=false] strict"
+            )));
+            game.apply_placed_item([x, 201, 4], &picked, false);
+            let placed = game.pot_data([x, 201, 4]).expect("placed pot");
+            if decorated {
+                assert_eq!(
+                    placed.get("sherds"),
+                    Some(&decorated_list),
+                    "placed pot keeps its sherds"
+                );
+            } else {
+                assert!(placed.get("sherds").is_none());
             }
             assert_eq!(
                 game.pot_data(pos),
@@ -1199,7 +1247,7 @@ mod loot_mine_component_tests {
                 (&*slot(&game, 26).item, slot(&game, 26).count),
                 ("minecraft:diamond", 7)
             );
-            assert_eq!(decorations(&slot(&game, 2)), Some(empty.clone()));
+            assert_eq!(decorations(&slot(&game, 2)), Some(decorated_list.clone()));
             assert_eq!(game.world.game_time, start);
         }
         assert!(game.run_command("setblock 10 200 4 dirt strict"));

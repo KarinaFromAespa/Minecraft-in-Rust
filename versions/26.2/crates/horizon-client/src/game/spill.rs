@@ -125,9 +125,14 @@ impl Pending {
             patch.extend(copied);
             (stack.damage, stack.extra) = item_data::decode_components(Some(&Tag::Compound(patch)));
         }
-        if &*stack.item == "minecraft:decorated_pot" {
-            // The pot's block entity always copies its decorations, empty or not.
-            let sides = self.pot.remove(&pos).unwrap_or_default();
+        if &*stack.item == "minecraft:decorated_pot"
+            && let Some(sides) = self.pot.remove(&pos)
+            && sides.iter().any(Option::is_some)
+        {
+            // The pot's block entity copies its decorations only when it has
+            // some: `copy_components` of EMPTY is a no-op (setting a
+            // component to the prototype's default removes the patch entry),
+            // so a mined undecorated pot carries no `pot_decorations`.
             stack.data_mut().pot_decorations = Some(Box::new(sides));
         }
         if stack.item.ends_with("_banner")
@@ -165,39 +170,59 @@ impl Pending {
         }
     }
     /// Remember a decorated pot's sherds from its saved block entity.
+    /// `PotDecorations.CODEC` is a size-limited list of item names in
+    /// `ordered()` order (back, left, right, front); a brick or a missing
+    /// index is an undecorated side. Any other value — not a list, over
+    /// four entries, or a non-string element — fails the codec and loads
+    /// as EMPTY.
     pub(super) fn record_saved(&mut self, pos: [i32; 3], tag: &horizon_world::nbt::Tag) {
         use horizon_world::nbt::Tag;
         if tag.get("id") != Some(&Tag::String("minecraft:decorated_pot".into())) {
             return;
         }
-        let sherds = tag.get("sherds");
-        let side = |name: &str| match sherds.and_then(|s| s.get(name)) {
-            Some(Tag::String(id)) => Some(ItemStack {
-                item: std::sync::Arc::from(id.to_string_lossy().as_str()),
-                count: 1,
-                damage: 0,
-                extra: None,
-            }),
-            Some(t) => horizon_client::save::item_from_nbt(t),
-            None => None,
+        let Some(Tag::List(sherds)) = tag.get("sherds") else {
+            self.pot.insert(pos, [None, None, None, None]);
+            return;
         };
-        self.pot.insert(
-            pos,
-            [side("back"), side("left"), side("right"), side("front")],
-        );
+        if sherds.len() > 4 || !sherds.iter().all(|s| matches!(s, Tag::String(_))) {
+            self.pot.insert(pos, [None, None, None, None]);
+            return;
+        }
+        let side = |index: usize| match sherds.get(index) {
+            Some(Tag::String(id)) => {
+                let id = id.to_string_lossy();
+                if id == "minecraft:brick" {
+                    None
+                } else {
+                    Some(ItemStack {
+                        item: std::sync::Arc::from(id.as_str()),
+                        count: 1,
+                        damage: 0,
+                        extra: None,
+                    })
+                }
+            }
+            _ => None,
+        };
+        self.pot.insert(pos, [side(0), side(1), side(2), side(3)]);
     }
-    /// The block entity's dynamic drops: a decorated pot's sherds, left,
-    /// back, front then right (`DecoratedPotBlock.getDrops`).
+    /// The block entity's dynamic drops: a decorated pot's sherds in
+    /// `ordered()` order (back, left, right, front), a brick for each
+    /// undecorated side (`DecoratedPotBlock.getDrops`).
     pub(super) fn dynamic(&self, pos: [i32; 3]) -> Vec<ItemStack> {
-        self.pot
-            .get(&pos)
-            .map_or_else(Vec::new, |[back, left, right, front]| {
-                [left, back, front, right]
-                    .into_iter()
-                    .flatten()
-                    .cloned()
-                    .collect()
-            })
+        self.pot.get(&pos).map_or_else(Vec::new, |sides| {
+            sides
+                .iter()
+                .map(|side| {
+                    side.clone().unwrap_or_else(|| ItemStack {
+                        item: std::sync::Arc::from("minecraft:brick"),
+                        count: 1,
+                        damage: 0,
+                        extra: None,
+                    })
+                })
+                .collect()
+        })
     }
     pub(super) fn clear(&mut self, pos: [i32; 3]) {
         self.pot.remove(&pos);
@@ -916,6 +941,86 @@ mod tests {
                 item_data::encode_components(&dropped),
                 Some(Tag::Compound(components.clone()))
             );
+        }
+    }
+
+    #[test]
+    fn a_mined_decorated_pot_keeps_its_sherds_and_a_cracked_one_drops_four() {
+        let tag = |sherds: &str| {
+            horizon_world::nbt::parse_snbt(&format!(
+                "{{id:\"minecraft:decorated_pot\",x:1,y:64,z:2,sherds:{sherds}}}"
+            ))
+            .expect("pot nbt")
+            .0
+        };
+        let pos = [1, 64, 2];
+        // A decorated pot: the mined item carries the sherds, and the
+        // dynamic drop is all four sides in `ordered()` order, bricks
+        // where a side is undecorated.
+        let mut pending = Pending::default();
+        pending.record_saved(
+            pos,
+            &tag("[\"minecraft:brick\",\"minecraft:brick\",\"minecraft:angler_pottery_sherd\",\"minecraft:brick\"]"),
+        );
+        assert_eq!(
+            pending.dynamic(pos),
+            [
+                ItemStack::new("minecraft:brick", 1),
+                ItemStack::new("minecraft:brick", 1),
+                ItemStack::new("minecraft:angler_pottery_sherd", 1),
+                ItemStack::new("minecraft:brick", 1),
+            ]
+        );
+        let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
+        pending.attach(pos, &mut dropped);
+        assert_eq!(
+            dropped.data().and_then(|d| d.pot_decorations.as_deref()),
+            Some(&[
+                None,
+                None,
+                Some(ItemStack::new("minecraft:angler_pottery_sherd", 1)),
+                None,
+            ])
+        );
+        // An undecorated pot: the mined item carries no component, and the
+        // dynamic drop is four bricks.
+        let mut pending = Pending::default();
+        let plain = horizon_world::nbt::parse_snbt("{id:\"minecraft:decorated_pot\",x:1,y:64,z:2}")
+            .expect("plain pot nbt")
+            .0;
+        pending.record_saved(pos, &plain);
+        assert_eq!(
+            pending.dynamic(pos),
+            [
+                ItemStack::new("minecraft:brick", 1),
+                ItemStack::new("minecraft:brick", 1),
+                ItemStack::new("minecraft:brick", 1),
+                ItemStack::new("minecraft:brick", 1),
+            ]
+        );
+        let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
+        pending.attach(pos, &mut dropped);
+        assert_eq!(dropped.data(), None);
+        // A map-form `sherds` value fails the list codec and loads as EMPTY.
+        let mut pending = Pending::default();
+        pending.record_saved(
+            pos,
+            &tag("{back:{id:\"minecraft:brick\"},right:{id:\"minecraft:angler_pottery_sherd\"}}"),
+        );
+        let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
+        pending.attach(pos, &mut dropped);
+        assert_eq!(dropped.data(), None);
+        // A compound element fails the whole list codec, even beside a
+        // valid sherd, and a list over four entries fails the same way.
+        for sherds in [
+            "[\"minecraft:archer_pottery_sherd\",{id:\"minecraft:angler_pottery_sherd\"},\"minecraft:brick\",\"minecraft:brick\"]",
+            "[\"minecraft:archer_pottery_sherd\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:brick\"]",
+        ] {
+            let mut pending = Pending::default();
+            pending.record_saved(pos, &tag(sherds));
+            let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
+            pending.attach(pos, &mut dropped);
+            assert_eq!(dropped.data(), None, "{sherds}");
         }
     }
 }
