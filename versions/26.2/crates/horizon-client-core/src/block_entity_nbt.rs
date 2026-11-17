@@ -648,18 +648,26 @@ pub fn canonical(tag: &Tag) -> Option<Tag> {
             }
         }
         "minecraft:decorated_pot" => {
-            // `PotDecorations.CODEC`: a size-limited list of up to four item
-            // names in `ordered()` order (back, left, right, front); a side
-            // missing from the list, or a brick, is undecorated, and an
-            // undecorated pot saves no `sherds` key at all. Any other value —
-            // not a list, over four entries, or a non-string element — fails
-            // the codec and loads as EMPTY.
-            if let Some(Tag::List(sherds)) = tag.get("sherds")
-                && sherds.len() <= 4
-                && sherds.iter().all(|side| matches!(side, Tag::String(_)))
-            {
+            // `PotDecorations.CODEC`: a size-limited list of item names in
+            // `ordered()` order (back, left, right, front); a side missing
+            // from the list, a brick, or a value that is not an item name is
+            // undecorated, and an undecorated pot saves no `sherds` key at
+            // all. A list over four entries keeps its first four; a value
+            // that is not a list fails the codec and loads as EMPTY.
+            // (Measured on real 26.2 Java: a compound or int element
+            // bricks only its own side, and a five-element list truncates.
+            // An unknown item-name string fails the whole decode instead,
+            // which this layer cannot check without a registry.)
+            if let Some(Tag::List(sherds)) = tag.get("sherds") {
                 let brick = Tag::String("minecraft:brick".into());
-                let mut kept: Vec<Tag> = sherds.clone();
+                let mut kept: Vec<Tag> = sherds
+                    .iter()
+                    .take(4)
+                    .map(|side| match side {
+                        Tag::String(_) => side.clone(),
+                        _ => brick.clone(),
+                    })
+                    .collect();
                 while kept.len() < 4 {
                     kept.push(brick.clone());
                 }
@@ -1056,19 +1064,31 @@ mod pot_sherds_tests {
             ))
         );
         assert_eq!(canonical(&saved).as_ref(), Some(&saved));
-        // A compound element is not an item name: the whole list fails the
-        // codec and loads as EMPTY, even beside a valid sherd.
+        // A compound element is not an item name: only its own side is
+        // undecorated, and the other sides are kept.
         let loaded = input(
             r#"["minecraft:archer_pottery_sherd",{id:"minecraft:angler_pottery_sherd"},"minecraft:brick","minecraft:brick"]"#,
         );
         let saved = canonical(&loaded).expect("actual decorated-pot codec");
-        assert_eq!(saved.get("sherds"), None);
-        // A list over four entries fails `sizeLimitedListOf(4)` the same way.
+        assert_eq!(
+            saved.get("sherds"),
+            Some(&parse(
+                r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick"]"#
+            ))
+        );
+        assert_eq!(canonical(&saved).as_ref(), Some(&saved));
+        // A list over four entries keeps its first four.
         let loaded = input(
-            r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]"#,
+            r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick","minecraft:angler_pottery_sherd"]"#,
         );
         let saved = canonical(&loaded).expect("actual decorated-pot codec");
-        assert_eq!(saved.get("sherds"), None);
+        assert_eq!(
+            saved.get("sherds"),
+            Some(&parse(
+                r#"["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick"]"#
+            ))
+        );
+        assert_eq!(canonical(&saved).as_ref(), Some(&saved));
         // An all-brick list and a map-form value both save no `sherds`: the
         // first is EMPTY, the second fails the list codec and loads as EMPTY.
         for sherds in [

@@ -171,10 +171,10 @@ impl Pending {
     }
     /// Remember a decorated pot's sherds from its saved block entity.
     /// `PotDecorations.CODEC` is a size-limited list of item names in
-    /// `ordered()` order (back, left, right, front); a brick or a missing
-    /// index is an undecorated side. Any other value — not a list, over
-    /// four entries, or a non-string element — fails the codec and loads
-    /// as EMPTY.
+    /// `ordered()` order (back, left, right, front); a brick, a missing
+    /// index or a value that is not an item name is an undecorated side,
+    /// and a list over four entries keeps its first four. A value that
+    /// is not a list fails the codec and loads as EMPTY.
     pub(super) fn record_saved(&mut self, pos: [i32; 3], tag: &horizon_world::nbt::Tag) {
         use horizon_world::nbt::Tag;
         if tag.get("id") != Some(&Tag::String("minecraft:decorated_pot".into())) {
@@ -184,10 +184,6 @@ impl Pending {
             self.pot.insert(pos, [None, None, None, None]);
             return;
         };
-        if sherds.len() > 4 || !sherds.iter().all(|s| matches!(s, Tag::String(_))) {
-            self.pot.insert(pos, [None, None, None, None]);
-            return;
-        }
         let side = |index: usize| match sherds.get(index) {
             Some(Tag::String(id)) => {
                 let id = id.to_string_lossy();
@@ -1010,17 +1006,27 @@ mod tests {
         let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
         pending.attach(pos, &mut dropped);
         assert_eq!(dropped.data(), None);
-        // A compound element fails the whole list codec, even beside a
-        // valid sherd, and a list over four entries fails the same way.
+        // A compound element bricks only its own side, and a list over
+        // four entries keeps its first four: the mined pot still carries
+        // the valid sherd.
         for sherds in [
             "[\"minecraft:archer_pottery_sherd\",{id:\"minecraft:angler_pottery_sherd\"},\"minecraft:brick\",\"minecraft:brick\"]",
-            "[\"minecraft:archer_pottery_sherd\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:brick\"]",
+            "[\"minecraft:archer_pottery_sherd\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:brick\",\"minecraft:angler_pottery_sherd\"]",
         ] {
             let mut pending = Pending::default();
             pending.record_saved(pos, &tag(sherds));
             let mut dropped = ItemStack::new("minecraft:decorated_pot", 1);
             pending.attach(pos, &mut dropped);
-            assert_eq!(dropped.data(), None, "{sherds}");
+            assert_eq!(
+                dropped.data().and_then(|d| d.pot_decorations.as_deref()),
+                Some(&[
+                    Some(ItemStack::new("minecraft:archer_pottery_sherd", 1)),
+                    None,
+                    None,
+                    None,
+                ]),
+                "{sherds}"
+            );
         }
     }
 }

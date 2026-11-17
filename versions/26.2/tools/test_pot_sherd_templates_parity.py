@@ -15,18 +15,26 @@ RIGHT = 'minecraft:archer_pottery_sherd'
 BRICK = 'minecraft:brick'
 ITEM_NAME = 'H290 item'
 # (name, `sherds` SNBT as set, the four saved sides in order, or None when the
-# value fails `PotDecorations.CODEC` and the key is omitted): a full list is
-# kept, a short list pads with bricks, a compound element or a list over four
-# entries fails the whole codec, and so does the 26.3 named-side map.
+# key is omitted): a full list is kept, a short list pads with bricks, a
+# compound or int element bricks only its own side, a list over four
+# entries keeps its first four, and the 26.3 named-side map, an all-brick
+# list and an empty list all load as EMPTY. (An unknown item-name string
+# fails the whole decode on Java, but the Rust side has no registry here
+# to check names against, so it is not a case; see PORT-NOTES.)
 CASES = [
     ('full', '["minecraft:brick","minecraft:brick","minecraft:archer_pottery_sherd","minecraft:angler_pottery_sherd"]',
      [BRICK, BRICK, RIGHT, FRONT]),
     ('short', '["minecraft:archer_pottery_sherd"]',
      [RIGHT, BRICK, BRICK, BRICK]),
-    ('compound', '["minecraft:archer_pottery_sherd",{id:"minecraft:angler_pottery_sherd"},"minecraft:brick","minecraft:brick"]', None),
+    ('compound', '["minecraft:archer_pottery_sherd",{id:"minecraft:angler_pottery_sherd"},"minecraft:brick","minecraft:brick"]',
+     [RIGHT, BRICK, BRICK, BRICK]),
+    ('int', '["minecraft:archer_pottery_sherd",5,"minecraft:brick","minecraft:brick"]',
+     [RIGHT, BRICK, BRICK, BRICK]),
+    ('over', '["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick","minecraft:angler_pottery_sherd"]',
+     [RIGHT, BRICK, BRICK, BRICK]),
     ('map', '{back:{id:"minecraft:brick"},right:{id:"minecraft:archer_pottery_sherd"}}', None),
     ('bricks', '["minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]', None),
-    ('over', '["minecraft:archer_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]', None),
+    ('empty', '[]', None),
 ]
 
 
@@ -53,7 +61,7 @@ def program():
     cmd('/scoreboard objectives add h290 dummy', 'objective', 1)
     cmd('/execute store result score before h290 run time query gametime', 'clock-start', diagnostic='absolute epoch; relative zero strict')
     for index,(name,sherds,kept) in enumerate(CASES):
-        x = 4 + index*2; pos=f'{x} 200 4'
+        x = 4 + index; pos=f'{x} 200 4'
         item = '{id:"minecraft:wheat",count:3,components:{"minecraft:custom_name":"'+ITEM_NAME+'"}}'
         nbt = '{sherds:'+sherds+',item:'+item+'}'
         cmd(f'/setblock {pos} decorated_pot[facing=north,cracked=false,waterlogged=false]{nbt} strict', name+'-load', 1)
