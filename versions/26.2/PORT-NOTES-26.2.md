@@ -3991,3 +3991,76 @@ candidate's content rather than its ancestry), not another sweep.
 ~/workspace/mcir-ci/26.2-run-43983328079/; the pin's recorded
 evidence (profile.json, delta-verdict.json, ci-out logs) now comes
 from this run.
+
+## pot_decorations: item 652, the game-path codec (2026-11-17)
+
+The item_model job (above) left one follow-up: `horizon-items`
+`decode_components` / `encode_components` still read and wrote
+`minecraft:pot_decorations` in 26.3's named-side map form, while
+vanilla 26.2's `PotDecorations.CODEC` is a list — so decorated pots
+lost their sherds on a game-path decode/encode round-trip. The
+item_model fixture reads raw JSON and was unaffected, and
+save_roundtrip's corpus has no decorated pots, so no harness caught
+it. The reviewer agreed it is a rank-2 item with a game-path
+round-trip harness, not a footnote.
+
+Root cause, verified against the 26.2 client jar (`javap -c` on
+`net.minecraft.world.level.block.entity.PotDecorations`):
+`CODEC = BuiltInRegistries.ITEM.byNameCodec().sizeLimitedListOf(4)`
+xmap'd through `PotDecorations(List)` / `ordered()` — [back, left,
+right, front] item ids. `getItem` maps a brick (or a missing index)
+to empty; `ordered()` fills missing sides with brick. The Rust
+`decode_components` read `p.get("back")` etc. from a compound and
+`encode_components` wrote a named-side compound of item-stack
+templates — the 26.3 form, which 26.2 rejects ("Not a json array").
+
+Fix (`crates/horizon-items/src/item_data.rs`): a shared
+`pot_decorations_from` used by both `decode_components` and the
+per-ID baseline in the tests — list-only, brick and missing indices
+undecorated, a list over four entries dropped like vanilla's failed
+codec, all four undecorated is no component (the existing
+`all_bricks` convention). `encode_components` writes the four-id
+list. The `component_cases` fixture uses the list form with real
+sherds, and two new unit tests pin the round-trip, short lists,
+all-brick, the 26.3 map form, and over-long lists.
+horizon-items: 114/0.
+
+Game-path harness (`tools/test_pot_decorations_parity.py`, probe
+`crates/horizon-items/examples/pot_decorations_fixture.rs`, oracle
+`VanillaPotDecorationsOracle.java`): drives `item_from_nbt` /
+`item_to_nbt` against the codec on 100 cases — every sherd (all 23
+in 26.2, including guster and scrape) in every position, all-brick,
+empty and short lists, full and mixed combos. Decoded sides, the
+re-encoded list and the second decode are all compared: **100/100
+output lines match Rust on both jars**. One documented equivalence:
+vanilla encodes `EMPTY` as four bricks while the Rust model
+collapses it to no component; the driver rewrites Rust `absent` to
+the four-brick list only when the decoded sides are all empty, and
+asserts the decorated pot's default component is `EMPTY` on both
+jars first (the oracle reads it through the data-component
+initializers, which 26.2 binds via
+`VanillaRegistries.createLookup()` — without them
+`Item.components()` throws "Components not bound yet").
+
+Ledger: this was item **652**, added to the report by hand — the
+differ never listed it, because a codec-form change leaves no
+class/method signature difference for the diff to catch. The
+report's `summary.ranks["2"]` went 410 → 411 with an `amendments`
+entry recording why, `work-items.json` rank 2 is 411/411 with
+`generated_from` re-hashed, and `rank2-progress.json` carries the
+per-item evidence. D3 passes on the amended ledger (verified
+locally: rank-2: 411 closed, 0 accepted, 411 total). Programme
+totals move to 652/3,552 behaviour items.
+
+Follow-up debt, same 26.3-ism class, NOT fixed here (separate
+surface, needs its own item): the block-entity sherds path still
+reads `sherds` as a named-side compound — `block_entity_nbt.rs`
+(the decorated_pot arm drops list-form sherds on save),
+`game/spill.rs` `record_saved` (loot-mine/pick-block sherds),
+`block_entity_item.rs` `unset`/`item_default` (empty compound /
+four brick compounds), and the `loot_mine` test in
+`game/commands/terrain_cmds.rs` (pins the map form; `#[ignore]`d).
+On real 26.2 data (list-form sherds) those paths are already inert,
+so this change regresses nothing there — but a decorated pot mined
+or picked in the game still loses its sherds until that surface is
+ported too.

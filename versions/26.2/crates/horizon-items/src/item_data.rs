@@ -58,7 +58,9 @@ pub struct StackData {
     pub dyed_color: Option<i32>,
     /// `minecraft:firework_explosion` (a firework star).
     pub firework_explosion: Option<crate::firework::FireworkExplosion>,
-    /// `minecraft:pot_decorations`: back, left, right, front sherds.
+    /// `minecraft:pot_decorations`: back, left, right, front sherds. On the
+    /// wire and in NBT this is 26.2's list of four item ids, a brick for an
+    /// undecorated side — not 26.3's named-side map.
     pub pot_decorations: Option<Box<[Option<ItemStack>; 4]>>,
     /// `minecraft:bundle_contents`.
     pub bundle_contents: Vec<ItemStack>,
@@ -696,6 +698,28 @@ fn template_from(tag: &Tag) -> Option<ItemStack> {
         }
     }
 }
+/// `PotDecorations` from its 26.2 list form: `BuiltInRegistries.ITEM`
+/// by-name codec, `sizeLimitedListOf(4)`, xmap'd through
+/// `PotDecorations(List)` / `ordered()` — [back, left, right, front] item
+/// ids, a missing index or a brick an undecorated side (`getItem` maps brick
+/// to empty). All four undecorated is no component, as `all_bricks` already
+/// treated the all-brick case. 26.3 moved this to a named-side map; vanilla
+/// 26.2 rejects that form ("Not a json array"), as it does a list over four
+/// entries — a failed component is dropped on load, so both decode to no
+/// component here.
+fn pot_decorations_from(p: &Tag) -> Option<Box<[Option<ItemStack>; 4]>> {
+    let Tag::List(list) = p else { return None };
+    if list.len() > 4 {
+        return None;
+    }
+    let side = |i: usize| match list.get(i) {
+        Some(Tag::String(id)) if id.to_string_lossy() == "minecraft:brick" => None,
+        Some(tag) => template_from(tag),
+        None => None,
+    };
+    let sides = Box::new([side(0), side(1), side(2), side(3)]);
+    (!all_bricks(&sides) && sides.iter().any(|s| s.is_some())).then_some(sides)
+}
 /// The stack a `show_item` hover event holds (`HoverEvent.ShowItem`): its
 /// `{id, count?, components?}` object.
 pub fn stack_from_hover(event: &serde_json::Value) -> Option<ItemStack> {
@@ -993,13 +1017,19 @@ pub fn components_tag(damage: u32, data: Option<&StackData>) -> Option<Tag> {
             entries.push(("minecraft:dyed_color", Tag::Int(color)));
         }
         if let Some(sides) = &d.pot_decorations {
-            let mut sherds = Vec::new();
-            for (name, side) in ["back", "left", "right", "front"].iter().zip(sides.iter()) {
-                if let Some(stack) = side {
-                    sherds.push((*name, template_tag(stack)));
-                }
-            }
-            entries.push(("minecraft:pot_decorations", Tag::compound(sherds)));
+            // 26.2's `PotDecorations.CODEC` is a list of four item ids,
+            // [back, left, right, front]; `ordered()` writes a brick for an
+            // undecorated side. (26.3 moved this to a named-side map.)
+            let sherds = sides
+                .iter()
+                .map(|side| {
+                    Tag::String(match side {
+                        Some(stack) => (&*stack.item).into(),
+                        None => "minecraft:brick".into(),
+                    })
+                })
+                .collect();
+            entries.push(("minecraft:pot_decorations", Tag::List(sherds)));
         }
         if !d.bundle_contents.is_empty() {
             entries.push((
@@ -1234,13 +1264,7 @@ pub fn decode_components(components: Option<&Tag>) -> (u32, Option<Box<StackData
             .filter(|(flight, explosions)| !(*flight == 1 && explosions.is_empty())),
         firework_explosion: seen.firework_explosion.map(explosion_from),
         dyed_color: seen.dyed_color.and_then(int).map(|v| v as i32),
-        pot_decorations: seen
-            .pot_decorations
-            .map(|p| {
-                let side = |name: &str| p.get(name).and_then(template_from);
-                Box::new([side("back"), side("left"), side("right"), side("front")])
-            })
-            .filter(|sides| !all_bricks(sides)),
+        pot_decorations: seen.pot_decorations.and_then(pot_decorations_from),
         bundle_contents: match seen.bundle_contents {
             Some(Tag::List(list)) => list.iter().filter_map(template_from).collect(),
             _ => Vec::new(),
@@ -2478,11 +2502,7 @@ mod tests {
                 .map(|v| v as i32),
             pot_decorations: c
                 .get("minecraft:pot_decorations")
-                .map(|p| {
-                    let side = |name: &str| p.get(name).and_then(template_from);
-                    Box::new([side("back"), side("left"), side("right"), side("front")])
-                })
-                .filter(|sides| !all_bricks(sides)),
+                .and_then(pot_decorations_from),
             bundle_contents: match c.get("minecraft:bundle_contents") {
                 Some(Tag::List(list)) => list.iter().filter_map(template_from).collect(),
                 _ => Vec::new(),
@@ -2590,7 +2610,7 @@ mod tests {
                         "minecraft:fireworks": {flight_duration:2,explosions:[{shape:"large_ball",colors:[I;16711680],has_twinkle:true}]},
                         "minecraft:firework_explosion": {shape:"star",colors:[I;255]},
                         "minecraft:dyed_color": 16711680,
-                        "minecraft:pot_decorations": {back:{id:"minecraft:brick"},front:{id:"minecraft:brick"}},
+                        "minecraft:pot_decorations": ["minecraft:angler_pottery_sherd","minecraft:brick","minecraft:brick","minecraft:blade_pottery_sherd"],
                         "minecraft:bundle_contents": [{id:"minecraft:stone",count:2}],
                         "minecraft:suspicious_stew_effects": [{id:"minecraft:poison",duration:100}],
                         "minecraft:map_post_processing": "lock",
@@ -2718,5 +2738,90 @@ mod charged_projectile_template_tests {
                 Some(&marker)
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod pot_decorations_tests {
+    use super::*;
+
+    fn sides(ids: [Option<&str>; 4]) -> Box<[Option<ItemStack>; 4]> {
+        Box::new(ids.map(|id| id.map(|id| ItemStack::new(id, 1))))
+    }
+
+    #[test]
+    fn decorations_round_trip_as_a_list_of_four_item_ids() {
+        let mut pot = ItemStack::new("minecraft:decorated_pot", 1);
+        pot.data_mut().pot_decorations = Some(sides([
+            Some("minecraft:angler_pottery_sherd"),
+            None,
+            Some("minecraft:blade_pottery_sherd"),
+            None,
+        ]));
+        let encoded = encode_components(&pot).unwrap();
+        // `ordered()`: [back, left, right, front], a brick for an
+        // undecorated side — always four entries.
+        assert_eq!(
+            encoded.get("minecraft:pot_decorations"),
+            Some(&Tag::List(vec![
+                Tag::String("minecraft:angler_pottery_sherd".into()),
+                Tag::String("minecraft:brick".into()),
+                Tag::String("minecraft:blade_pottery_sherd".into()),
+                Tag::String("minecraft:brick".into()),
+            ]))
+        );
+        let (_, decoded) = decode_components(Some(&encoded));
+        let restored = decoded.unwrap().pot_decorations.unwrap();
+        assert_eq!(
+            restored
+                .iter()
+                .map(|s| s.as_ref().map(|s| s.item.as_ref()))
+                .collect::<Vec<_>>(),
+            vec![
+                Some("minecraft:angler_pottery_sherd"),
+                None,
+                Some("minecraft:blade_pottery_sherd"),
+                None,
+            ]
+        );
+    }
+
+    #[test]
+    fn decorations_decode_short_lists_and_all_brick_as_vanilla_does() {
+        let parse = |text: &str| horizon_world::nbt::parse_snbt(text).unwrap().0;
+        // A short list: missing indices are undecorated sides.
+        let (_, decoded) = decode_components(Some(&parse(
+            r#"{"minecraft:pot_decorations":["minecraft:angler_pottery_sherd"]}"#,
+        )));
+        let restored = decoded.unwrap().pot_decorations.unwrap();
+        assert_eq!(restored[0].as_ref().map(|s| s.item.as_ref()), Some("minecraft:angler_pottery_sherd"));
+        assert!(restored[1..].iter().all(|s| s.is_none()));
+        // All brick is `PotDecorations.EMPTY`: no component (and with nothing
+        // else modelled, no extra data at all).
+        let (_, decoded) = decode_components(Some(&parse(
+            r#"{"minecraft:pot_decorations":["minecraft:brick","minecraft:brick","minecraft:brick","minecraft:brick"]}"#,
+        )));
+        assert!(decoded
+            .as_ref()
+            .and_then(|d| d.pot_decorations.as_ref())
+            .is_none());
+        // The 26.3 named-side map is not a list: vanilla 26.2 rejects it,
+        // so the decoder must not resurrect it.
+        let (_, decoded) = decode_components(Some(&parse(
+            r#"{"minecraft:pot_decorations":{back:{id:"minecraft:angler_pottery_sherd"}}}"#,
+        )));
+        assert!(decoded
+            .as_ref()
+            .and_then(|d| d.pot_decorations.as_ref())
+            .is_none());
+        // A list over four entries fails `sizeLimitedListOf(4)`: the
+        // component is dropped, not truncated to the first four.
+        let (_, decoded) = decode_components(Some(&parse(
+            r#"{"minecraft:pot_decorations":["minecraft:angler_pottery_sherd","minecraft:blade_pottery_sherd","minecraft:burn_pottery_sherd","minecraft:danger_pottery_sherd","minecraft:explorer_pottery_sherd"]}"#,
+        )));
+        assert!(decoded
+            .as_ref()
+            .and_then(|d| d.pot_decorations.as_ref())
+            .is_none());
     }
 }

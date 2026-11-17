@@ -21,7 +21,7 @@ the same method that produced the 26.3 rewrite.
 | Era templates at full parity | 0 / 11 | 0% |
 | Delta releases verified | 0 / 92 | 0% |
 | Trees published on main | 10 / 103 | 9.7% |
-| Behaviour items closed | 651 / 3,551 | 18.3% |
+| Behaviour items closed | 652 / 3,552 | 18.4% |
 | Harnesses passing (7 profiled versions) | 22 / 119 | 18.5% |
 
 Phase 0 is 5 of 6 exit conditions met: T1–T3, the complete 1.21.11
