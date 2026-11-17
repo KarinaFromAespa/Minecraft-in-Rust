@@ -4064,3 +4064,16 @@ On real 26.2 data (list-form sherds) those paths are already inert,
 so this change regresses nothing there — but a decorated pot mined
 or picked in the game still loses its sherds until that surface is
 ported too.
+
+Local verification before merge: horizon-items lib tests 114 pass,
+0 fail; the new pot_decorations parity harness passes on both jars
+(100/100 cases each); save_roundtrip PASSES locally (213s, 0 diffs)
+with the change — the first two local attempts failed on environment,
+not the port (no DISPLAY, then the VM missing libxkbcommon-x11 and
+lavapipe, the same pair port-verify v6.7 installs on CI; installed
+locally to run it); cargo check --workspace --all-targets 0 errors,
+0 warnings. Merged to main as 248d65a2.
+
+CI proof run 44007813759 dispatched on main@248d65a2 (2026-11-17).
+Expect the profile to stay 13/0/4 with D3 green on the new totals
+(rank 2: 411/411).
