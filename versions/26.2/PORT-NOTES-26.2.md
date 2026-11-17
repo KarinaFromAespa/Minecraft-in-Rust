@@ -3964,3 +3964,30 @@ across 27 biomes and 174 structure sites, 0 blocks, 0 biome cells,
 0 block entities differing**. A green chunk_generation takes the
 profile to 13/0/4 and completes the E7 eight; D6 needs the owner
 playtest.
+
+## chunk_generation PASSES on CI (run 43983328079, 2026-11-17)
+
+Run 43983328079 (main@7847f3cb, 1h47m, conclusion success):
+**profile 13/0/4** — chunk_generation green, the E7 eight complete
+(component_patch, command_parse, datafix, entity_components,
+item_model, block_properties, save_roundtrip, chunk_generation).
+Failing: command_exec, hotbar, options, sound_event (none in the
+E7 eight). Oracle failures: 0. The CI sweep (3 seeds x 3 dimensions,
+1919 chunks) matches the local full run exactly: 0 blocks, 0 biome
+cells, 0 block entities differing.
+
+**D1/D2/D3 pass** (cargo check 0 errors 0 warnings, protocol tests
+444 green, tag audit clean). **D4/D5 still read blocked** — and
+this run pins down why patch 0006 cannot help as the judge runs
+it: the judge's tree is a fresh single-commit repo (port-verify
+stages the published tree with `git init` + one commit, "published
+tree, as pushed"), so `_docs_only_since`'s `git rev-list
+7847f3cb..ab2bcf60` has no history to walk and fails. The 0006
+allowance was verified in a scratch repo with history; in the CI
+judge's environment it is dead code. D4/D5 need a gate design
+decision (judge against the real repo history, or compare the
+candidate's content rather than its ancestry), not another sweep.
+**D6 blocked** (no playtest). Artifacts at
+~/workspace/mcir-ci/26.2-run-43983328079/; the pin's recorded
+evidence (profile.json, delta-verdict.json, ci-out logs) now comes
+from this run.

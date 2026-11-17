@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "9f14da57c8f84ea47262a09aaaa463083efd8df6",
+  "commit": "ab2bcf60432067d6b8c9d46e779ae06fa080c0c7",
   "tree": ".horizon-ports/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
   "state": "blocked",
-  "checked_at": "2026-11-16T20:56:56Z",
+  "checked_at": "2026-11-17T01:41:45Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -17,7 +17,7 @@
     "items_total": 417,
     "items_accepted": 0
   },
-  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-16 |",
+  "index_line": "| 26.2 | D | \u2014 | 417/417 | 0 | blocked 2026-11-17 |",
   "checks": {
     "D1": {
       "status": "pass",
@@ -27,7 +27,7 @@
         "regen.json: all 6 generators clean",
         "all 6 tables reproduce exactly",
         "prepared data present (20776 files)",
-        "tag audit: 710 tags across 20 registries; scanned 245 literals in 2866 files; 0 dead in production code, 5 dead in test fixtures"
+        "tag audit: 710 tags across 20 registries; scanned 246 literals in 2866 files; 0 dead in production code, 5 dead in test fixtures"
       ],
       "evidence": [
         ".horizon-ports/26.2/research-lock.json",
@@ -70,7 +70,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 172308503cfa, HEAD is 9f14da57c8f8 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 7847f3cb510c, HEAD is ab2bcf604320 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,7 +79,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 172308503cfa, HEAD is 9f14da57c8f8 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 7847f3cb510c, HEAD is ab2bcf604320 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"

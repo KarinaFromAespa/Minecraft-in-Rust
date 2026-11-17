@@ -5,20 +5,21 @@
     "total": 651
   },
   "ci": {
-    "in_flight_note": "chunk_generation proof run #2: the last of the E7 eight. Local full run PASSES (1919 chunks, 27 biomes, 174 structure sites, 0 blocks / 0 biome cells / 0 block entities differing). Fixes since run 43929484440: the End central island cone (vanilla 26.2 seeds EndIslandDensityFunction with clamp(100 - sqrt(sx^2+sz^2)*8, -100, 80); the Rust started at -100); the 26.2 inline coral placer (26.2 coral features carry no nested placed feature - CoralFeature picks one coral block itself; coral_mushroom had no Rust arm); the climate index built with vanilla branching 6, not 19 (the tree shape decides exact-fitness ties - 4 quarts resolved to the wrong biome, and the (98,10,4) flip desynced the small-copper stream for 72 blocks); template block-entity NBT loaded only when the block that is really there has a block entity (lava_submerged_block turned a lava-drowned ruined-portal chest into lava, NBT and all); the structure-block exporter now falls back to BlockEntityType.isValid when construction throws, restoring the 32 vault states it silently dropped. A green chunk_generation takes the profile to 13/0/4 and completes the E7 eight; D6 needs the owner playtest.",
-    "in_flight_run": 43983328079,
-    "in_flight_tree": "7847f3cb",
-    "last_completed_note": "chunk_generation STILL FAILS on CI (run 43929484440, main@17230850, 2h27m): profile stays 12/0/5. Overworld seed 12345 is 0 diffs on CI \u2014 the local fix holds \u2014 but the CI sweep covers 3 seeds x 3 dimensions (1919 chunks): the_end central island is all air in the Rust (vanilla end_stone; 342,053 blocks across 3 seeds, 27 chunks), warm_ocean_vegetation unsupported (coral/seagrass, 166 blocks), copper-ore vein displacement + 3 biome cells at seed -7046029254386353131, 1 biome cell at seed 987654321987, 1 ruined-portal chest block entity. D1/D2/D3 pass; D4/D5 blocked (staged-candidate stamp quirk \u2014 profile stamped 17230850, judge HEAD the staged candidate); D6 blocked.",
-    "last_completed_profile": "12/0/5 (block_properties, command_parse, component_patch, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
-    "last_completed_run": 43929484440,
-    "last_completed_tree": "17230850"
+    "in_flight_note": "chunk_generation green on CI (run 43983328079) - the E7 eight are complete. D4/D5 still read blocked: the profile-stamp quirk persists, and patch 0006 cannot help as the judge runs it - the judge tree is a fresh single-commit repo (port-verify stages the published tree with git init + one commit), so the 0006 ancestor check has no history to walk (rev-list fails). The gate needs a design decision, not another sweep. D6 needs the owner playtest.",
+    "in_flight_run": null,
+    "in_flight_tree": null,
+    "last_completed_note": "chunk_generation PASSES on CI (run 43983328079, main@7847f3cb, 1h47m): profile 13/0/4, the E7 eight complete (component_patch, command_parse, datafix, entity_components, item_model, block_properties, save_roundtrip, chunk_generation). Fixes since run 43929484440: the End central island cone; the 26.2 inline coral placer; the climate index built with vanilla branching 6 (exact-fitness ties); template block-entity NBT gated on the block really having one; the structure-block exporter falling back to BlockEntityType.isValid (vault states restored). D1/D2/D3 pass; D4/D5 blocked (stamp quirk - see in_flight_note); D6 blocked.",
+    "last_completed_profile": "13/0/4 (block_properties, chunk_generation, command_parse, component_patch, datafix, entity_components, first_person, food, item_model, lan, light, resource_pack, save_roundtrip)",
+    "last_completed_run": 43983328079,
+    "last_completed_tree": "7847f3cb"
   },
   "harness": {
-    "fail": 5,
+    "fail": 4,
     "oracle_fail": 0,
-    "pass": 12,
+    "pass": 13,
     "passing": [
       "block_properties",
+      "chunk_generation",
       "command_parse",
       "component_patch",
       "datafix",
