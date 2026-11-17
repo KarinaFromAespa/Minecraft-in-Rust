@@ -704,12 +704,14 @@ fn template_from(tag: &Tag) -> Option<ItemStack> {
 /// ids, a missing index or a brick an undecorated side (`getItem` maps brick
 /// to empty). All four undecorated is no component, as `all_bricks` already
 /// treated the all-brick case. 26.3 moved this to a named-side map; vanilla
-/// 26.2 rejects that form ("Not a json array").
+/// 26.2 rejects that form ("Not a json array"), as it does a list over four
+/// entries — a failed component is dropped on load, so both decode to no
+/// component here.
 fn pot_decorations_from(p: &Tag) -> Option<Box<[Option<ItemStack>; 4]>> {
-    let list = match p {
-        Tag::List(list) => list.as_slice(),
-        _ => &[],
-    };
+    let Tag::List(list) = p else { return None };
+    if list.len() > 4 {
+        return None;
+    }
     let side = |i: usize| match list.get(i) {
         Some(Tag::String(id)) if id.to_string_lossy() == "minecraft:brick" => None,
         Some(tag) => template_from(tag),
@@ -2807,6 +2809,15 @@ mod pot_decorations_tests {
         // so the decoder must not resurrect it.
         let (_, decoded) = decode_components(Some(&parse(
             r#"{"minecraft:pot_decorations":{back:{id:"minecraft:angler_pottery_sherd"}}}"#,
+        )));
+        assert!(decoded
+            .as_ref()
+            .and_then(|d| d.pot_decorations.as_ref())
+            .is_none());
+        // A list over four entries fails `sizeLimitedListOf(4)`: the
+        // component is dropped, not truncated to the first four.
+        let (_, decoded) = decode_components(Some(&parse(
+            r#"{"minecraft:pot_decorations":["minecraft:angler_pottery_sherd","minecraft:blade_pottery_sherd","minecraft:burn_pottery_sherd","minecraft:danger_pottery_sherd","minecraft:explorer_pottery_sherd"]}"#,
         )));
         assert!(decoded
             .as_ref()
