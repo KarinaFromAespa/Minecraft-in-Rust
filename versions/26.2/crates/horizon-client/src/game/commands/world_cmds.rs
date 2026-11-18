@@ -2,6 +2,7 @@
 //! `/particle`, `/attribute`, `/ride` and `/spreadplayers`.
 use super::{Arg, Context, Game, R, Target, err, wrap_degrees};
 use horizon_client::{
+    first_person::Hand,
     mobs::{Damage, DamageKind, MobEvent, Who, finalize},
     scoreboard_cmd::{Holder, Tracker},
     settings::SOUND_SOURCES,
@@ -578,10 +579,17 @@ impl Game<'_> {
                     .unwrap_or(Target::Player),
             ]
         };
+        // `/swing [<targets>] [<hand>]`: the hand is a literal in the tree
+        // (`mainhand`/`offhand`); omitted it is the main hand.
+        let hand = if ctx.literals.iter().any(|l| l == "offhand") {
+            Hand::Off
+        } else {
+            Hand::Main
+        };
         let mut tracker = Tracker::default();
         for t in targets {
             match t {
-                Target::Player => self.swing_arm(),
+                Target::Player => self.swing_hand(hand),
                 Target::Mob(id) => {
                     if let Some(m) = self.mobs.iter_mut().find(|m| m.id == id) {
                         m.ai.swinging = true;

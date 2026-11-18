@@ -3816,6 +3816,11 @@ impl Game<'_> {
         self.lan = Some(host);
         self.chat_capture = Some(Vec::new());
         let level = std::mem::replace(&mut self.ui.registries.permission, c.permission);
+        // A command may swing the guest's arm (`/swing`): the swing the
+        // server started is echoed back to their client, like a use's
+        // (a predicted swing is the client's own and is never echoed).
+        let swings = self.swings_started;
+        let predicted = self.predicted_swings;
         let ok = if self.perform_native_command(c.conn, c.permission, &c.command) {
             true
         } else if c.quiet {
@@ -3823,6 +3828,8 @@ impl Game<'_> {
         } else {
             self.run_command(&c.command)
         };
+        // Read before `leave_guest` restores the host's own count.
+        let echo = self.swings_started != swings && self.predicted_swings == predicted;
         self.ui.registries.permission = level;
         let mut lines = self.chat_capture.take().unwrap_or_default();
         let mut host = self.lan.take().expect("a command puts the hub back");
@@ -3832,6 +3839,7 @@ impl Game<'_> {
             lines.push(self.save_all_reply());
             host = self.lan.take().expect("saving puts the hub back");
         }
+        self.lan_swing_back(&mut host, c.conn, Some(echo));
         host.hub.sync_all_effects();
         if !c.integrated {
             // A teleport into another level happens before its feedback is sent.
@@ -6671,6 +6679,141 @@ mod swing_echo_tests {
         // BedBlock.useWithoutItem: SUCCESS_SERVER, the server's swing only.
         game.lan_guest_packet(&mut host, 2, use_on([6, 200, 4], [0.5, 0.5625, 0.5], 2));
         assert_eq!(swings_back(), 1, "a bed's use is swung back");
+    }
+
+    /// `/swing` runs as a command turn: the swing the server started is
+    /// echoed back to the player's own client, main hand and off hand.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_swing_command_swings_back_to_the_player() {
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.game_dir = Some(
+            std::env::temp_dir().join(format!("horizon-swing-command-unit-{}", std::process::id())),
+        );
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.build_registries();
+        game.set_allow_commands(true);
+        game.lan_host(
+            super::super::lan::LanSettings {
+                port: 0,
+                guest_commands: true,
+                force_game_mode: false,
+            },
+            NetConfig {
+                announce: false,
+                ..NetConfig::loopback(0, "swing-command-test".into(), 2)
+            },
+            HubConfig {
+                default_game_mode: 0,
+                guest_commands: true,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 2,
+                simulation_distance: 2,
+                dimension: "minecraft:overworld".into(),
+                allow_flight: false,
+                seed: 0,
+                max_players: 2,
+                integrated: false,
+                levels: Default::default(),
+            },
+        )
+        .unwrap();
+        let (tx, rx) = mpsc::channel();
+        let mut guest = Guest::new(
+            Joined {
+                conn: 2,
+                uuid: 331,
+                name: "SwingGuest".into(),
+                properties: Vec::new(),
+                info: ClientInformation::new(2),
+                brand: "test".into(),
+                sender: PlayerSender::new(tx, Arc::default()),
+                latency: Arc::new(AtomicI32::new(0)),
+                address: "127.0.0.1:25565".parse().unwrap(),
+                expected: false,
+                configured: Default::default(),
+            },
+            2,
+            [4.5, 200.0, 4.5],
+            2,
+        );
+        guest.dimension = "minecraft:overworld".into();
+        guest.placed = true;
+        guest.loaded = true;
+        let mut host = game.lan.take().unwrap();
+        host.hub.guests.push(guest);
+        let id = host.hub.guests[0].entity_id;
+        let swings_back = || {
+            let mut actions = Vec::new();
+            for out in rx.try_iter() {
+                let bodies = match out {
+                    Out::Packet(body) => vec![body],
+                    Out::Packets(bodies) => bodies,
+                    Out::Disconnect(_) => panic!("unexpected disconnect"),
+                };
+                for body in bodies {
+                    let mut r = horizon_protocol::buf::Reader::new(&body);
+                    let packet_id = r.varint().unwrap();
+                    if let Ok(Clientbound::Animate(p)) = Clientbound::decode(packet_id, r.rest())
+                        && p.id == id
+                    {
+                        actions.push(p.action);
+                    }
+                }
+            }
+            actions
+        };
+        // `/swing`: the main hand (action 0) swings back.
+        game.lan = Some(host);
+        assert!(game.run_guest_command(super::GuestCommand {
+            conn: 2,
+            command: "swing".into(),
+            permission: 2,
+            integrated: false,
+            quiet: false,
+        }));
+        let mut host = game.lan.take().unwrap();
+        assert_eq!(swings_back(), vec![0], "a /swing is swung back");
+        // The swing ends before the next command can start one.
+        for _ in 0..8 {
+            game.lan_swings(&mut host);
+        }
+        // `/swing @s offhand`: the off hand (action 3) swings back.
+        game.lan = Some(host);
+        assert!(game.run_guest_command(super::GuestCommand {
+            conn: 2,
+            command: "swing @s offhand".into(),
+            permission: 2,
+            integrated: false,
+            quiet: false,
+        }));
+        assert_eq!(swings_back(), vec![3], "an off-hand /swing is swung back");
     }
 }
 
