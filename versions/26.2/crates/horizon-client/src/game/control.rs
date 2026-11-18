@@ -242,6 +242,10 @@ impl Game<'_> {
                     self.world_options_text(None);
                     return Ok(());
                 }
+                Screen::MultiplayerOptions => {
+                    self.multiplayer_options_text(None);
+                    return Ok(());
+                }
                 Screen::Inventory | Screen::Creative if self.mod_browser_typing() => {
                     self.mod_browser_text(None, true);
                     return Ok(());
@@ -301,6 +305,8 @@ impl Game<'_> {
             Screen::Options => self.ui.options.type_text(&self.gui.atlas, text),
             // The port, or the game rules' search and number boxes.
             Screen::WorldOptions => self.world_options_text(Some(text)),
+            // Open to LAN's port box.
+            Screen::MultiplayerOptions => self.multiplayer_options_text(Some(text)),
             Screen::Inventory | Screen::Creative if self.mod_browser_typing() => {
                 self.mod_browser_text(Some(text), false)
             }
@@ -1370,6 +1376,7 @@ impl Game<'_> {
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
             Screen::WorldOptions => "world-options",
+            Screen::MultiplayerOptions => "multiplayer-options",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::ServerLinks => "server-links",

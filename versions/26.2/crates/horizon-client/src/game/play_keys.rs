@@ -117,6 +117,7 @@ impl Game<'_> {
                 Screen::DialogWarning => self.screen = Screen::ServerLinks,
                 Screen::Advancements => self.close_advancements(),
                 Screen::WorldOptions => self.world_options_escape(),
+                Screen::MultiplayerOptions => self.multiplayer_options_escape(),
                 Screen::CommandBlock => self.close_command_block(),
                 Screen::BlockEditor => self.close_block_editor(),
                 Screen::Chat => self.close_chat(chat::ChatExit::Intentional),

@@ -936,19 +936,19 @@ impl Game<'_> {
     }
 }
 
-/// What the world options screen shows of an integrated server.
+/// What the world options screens show of an integrated server: the
+/// world's game mode and cheats, its difficulty, and the settings for
+/// other players (the type set for them, or the world's while unset).
 #[derive(Clone, Copy, Debug)]
 pub(super) struct ServerOptions {
     pub default_mode: i32,
-    /// The owner's own game mode.
-    pub personal_mode: i32,
     pub cheats: bool,
     pub difficulty: u8,
     pub hardcore: bool,
     pub difficulty_locked: bool,
     pub port: Option<u16>,
-    pub guest_commands: bool,
-    pub force: bool,
+    pub other_mode: i32,
+    pub other_commands: bool,
 }
 
 /// The server thread's side.
@@ -1184,39 +1184,24 @@ impl Game<'_> {
     }
     /// The world options screen's state, read on the server.
     pub(super) fn server_options(&self) -> ServerOptions {
-        let owner = self.serving.as_ref().map(|s| s.owner);
         let host = self.lan.as_ref();
-        let personal_mode = host
-            .and_then(|h| h.hub.guests.iter().find(|g| Some(g.uuid) == owner))
-            .map_or(self.level.mode(), |g| g.game_mode);
-        let published = self.published_port();
+        let (other_mode, other_commands) =
+            host.map_or((self.level.mode(), self.allow_commands()), |h| {
+                (
+                    h.game_type_for_other_players.unwrap_or(self.level.mode()),
+                    h.commands_allowed_for_other_players
+                        .unwrap_or(self.allow_commands()),
+                )
+            });
         ServerOptions {
             default_mode: self.level.mode(),
-            personal_mode,
             cheats: self.allow_commands(),
             difficulty: self.ui.difficulty,
             hardcore: self.level.hardcore,
             difficulty_locked: self.level.difficulty_locked,
-            port: published,
-            guest_commands: published.is_some() && host.is_some_and(|h| h.settings.guest_commands),
-            force: published.is_none() || host.is_some_and(|h| h.settings.force_game_mode),
-        }
-    }
-    /// `IntegratedServer.setPersonalGameType`: the owner's game mode.
-    pub(super) fn set_owner_mode(&mut self, mode: i32) {
-        let Some(owner) = self.serving.as_ref().map(|s| s.owner) else {
-            return;
-        };
-        if let Some(host) = self.lan.as_mut()
-            && let Some(conn) = host
-                .hub
-                .guests
-                .iter()
-                .find(|g| g.uuid == owner)
-                .map(|g| g.conn)
-        {
-            host.hub
-                .set_game_mode(conn, mode, &self.world, Some(self.collision));
+            port: self.published_port(),
+            other_mode,
+            other_commands,
         }
     }
     /// `IntegratedServer.setWorldAllowCommands`: the owner is an operator

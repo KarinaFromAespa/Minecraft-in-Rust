@@ -74,6 +74,7 @@ impl Screen {
             | Self::Stats
             | Self::Advancements
             | Self::WorldOptions
+            | Self::MultiplayerOptions
             | Self::Friends
             | Self::ServerLinks
             | Self::ConfirmLink
@@ -92,6 +93,7 @@ impl Screen {
             | Self::Stats
             | Self::Advancements
             | Self::WorldOptions
+            | Self::MultiplayerOptions
             | Self::Friends
             | Self::Social
             | Self::ServerLinks
@@ -451,11 +453,8 @@ impl Game<'_> {
             1 => self.open_options(false),
             3 => self.open_stats(),
             4 => self.open_advancements(true),
-            // 26.2: the Multiplayer Options button. The screen behind it
-            // is still the 26.3 WorldOptionsScreen (which holds the LAN
-            // publish controls); a dedicated 26.2 MultiplayerOptionsScreen
-            // layout port is outstanding.
-            9 => self.open_world_options(),
+            // 26.2: the Multiplayer Options button ("Open to LAN").
+            9 => self.open_multiplayer_options(),
             10 => self.screen = Screen::Friends,
             // DialogConnectionAccess.openDialog(Dialogs.SERVER_LINKS).
             11 => {

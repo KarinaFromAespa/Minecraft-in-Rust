@@ -666,6 +666,9 @@ impl Loading {
                 // Mods' settings pages open only in a running game.
                 // The HUD editor needs a world: its button is inactive here.
                 Event::NativeSettings(_) | Event::NativeButton(..) | Event::HudEditor => {}
+                // The World Options button only exists in world; the title
+                // menu never sees it.
+                Event::WorldOptions => {}
                 // The startup menu runs before the game opens a control socket,
                 // and before its sound engine (no clicks, no volume previews,
                 // and no music tracks to list or play).

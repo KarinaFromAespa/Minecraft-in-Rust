@@ -1935,8 +1935,7 @@ impl Game<'_> {
 
     /// `IntegratedServer.setGameTypeForOtherPlayers`: the type a published
     /// world forces on its guests, applied to the other players online now.
-    /// The screen's mode selector (rank 3) calls it at publish.
-    #[allow(dead_code)]
+    /// Open to LAN's Apply calls it before it publishes.
     pub(super) fn set_game_type_for_other_players(&mut self, mode: i32) {
         let Some(host) = self.lan.as_mut() else {
             return;

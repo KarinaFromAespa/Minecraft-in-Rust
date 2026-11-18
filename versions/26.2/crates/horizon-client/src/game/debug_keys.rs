@@ -115,6 +115,7 @@ impl Game<'_> {
             Screen::Chat
                 | Screen::Options
                 | Screen::WorldOptions
+                | Screen::MultiplayerOptions
                 | Screen::CommandBlock
                 | Screen::BlockEditor
         ) || self.sign_edit.is_some()

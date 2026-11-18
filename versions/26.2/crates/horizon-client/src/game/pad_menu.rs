@@ -2358,7 +2358,10 @@ impl Game<'_> {
     fn pad_has_typing_screen(&self) -> bool {
         self.pad_typing()
             || self.title.is_some()
-            || matches!(self.screen, Screen::Options | Screen::WorldOptions)
+            || matches!(
+                self.screen,
+                Screen::Options | Screen::WorldOptions | Screen::MultiplayerOptions
+            )
     }
 
     /// Enter on these goes on to a new line: a dialog's, a sign's or a book's page.
@@ -2470,6 +2473,10 @@ impl Game<'_> {
         } else if self.screen == Screen::WorldOptions {
             if key != Some(KeyCode::Enter) {
                 self.world_options_text(text);
+            }
+        } else if self.screen == Screen::MultiplayerOptions {
+            if key != Some(KeyCode::Enter) {
+                self.multiplayer_options_text(text);
             }
         } else if self.screen == Screen::CommandBlock {
             // Enter is its Done, as on the keyboard.
