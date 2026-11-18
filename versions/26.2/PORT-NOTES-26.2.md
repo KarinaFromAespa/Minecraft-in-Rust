@@ -4092,3 +4092,45 @@ mismatch; sound_event: missing sounds.json) — no regressions from
 the pot change. Recorded in pins/26.2/profile.json (the published
 profile, 23 entries), delta-verdict.json, ci-out logs, status.json,
 and VERSIONS.md.
+
+## Playtest (D6) — partial record, 2026-11-18
+
+The owner playtested the port on his own laptop (ASUS TUF F15) from a
+release build of main, over SSH + Tailscale via his OCI micro server as
+jump host. Repo at D:\Test\Minecraft-in-Rust; prepare + sounds ran
+clean; client built in ~13-15 min per iteration. Recorded in
+pins/26.2/playtest.md (tested build 3f3c7d28, tester V-Cool) with the
+session run log as evidence (playtest-run.log).
+
+Tally: 4 of 8 boxes ticked — world loads, movement/swimming/elytra,
+combat, save round-trip. Containers part-done (chest and crafting table
+verified, anvil untested). Deferred by the tester to a future session:
+redstone sample, worldgen against a vanilla seed, LAN join. D6 does NOT
+pass on this sheet: the gate needs every listed box ticked, and the LAN
+join is a D6 must-hold. Item 653 is still unmerged on be-sherds/26.2,
+so a completed D6 will be recorded against the post-merge HEAD.
+
+Playtest findings fixed and verified in-game in the session (all
+upstream gaps, not 26.2 regressions; no ledger items):
+- /swing never echoed to the swinger (d987f100): command turns never
+  called lan_swing_back; the hand argument was also ignored.
+- World Options showed 6 raw 26.3-only keys (a367b809): the client had
+  merged vanilla 26.2's two screens into one 26.3-style screen; split
+  back into WorldOptionsScreen (from Options) + MultiplayerOptionsScreen
+  (from pause "Open to LAN"), all 39 keys verified in 26.2 en_us.json.
+- Block drops broken (3f3c7d28): the loot kind dispatch read the 26.3
+  `type` field while 26.2 data names kinds in `condition`/`function`,
+  so 895 of 1113 block tables dropped nothing (only the 218 without
+  pool conditions, leaf litter among them, dropped at all). Fixed at
+  the three dispatch sites; the loot_mine executor test passes.
+- No eating animation in third person: no Eat arm pose (FPP has it).
+  Upstream gap, same in 26.3; no fix ordered.
+
+Reported but not bugs: firework rockets work when used per vanilla
+rules (block click to launch, boost only while gliding); creative
+flight underwater is vanilla-correct (the owner was in Creative).
+
+Note: recording the sheet moves HEAD past its stamp — the same quirk
+as the profile stamp (patch 0006 covers profiles, not D6's commit
+match). A completed D6 will need the same treatment; a gate decision,
+not another sweep.
