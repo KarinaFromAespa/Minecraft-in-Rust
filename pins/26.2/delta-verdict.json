@@ -1,23 +1,23 @@
 {
   "schema": "delta-verdict/1",
   "release": "26.2",
-  "commit": "f803f64cf723a44c88d679875e753c2ed83d05e1",
+  "commit": "5bbc8ea372f864b8ab3b0690df4c6781c5520e90",
   "tree": ".horizon-ports/26.2",
   "pin": "pins/26.2",
   "mode": "recorded",
   "verified": false,
-  "state": "blocked",
-  "checked_at": "2026-11-17T04:48:16Z",
+  "state": "failed",
+  "checked_at": "2026-11-18T19:50:51Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": 418,
-    "items_total": 418,
+    "items_closed": 419,
+    "items_total": 419,
     "items_accepted": 0
   },
-  "index_line": "| 26.2 | D | \u2014 | 418/418 | 0 | blocked 2026-11-17 |",
+  "index_line": "| 26.2 | D | \u2014 | 419/419 | 0 | failed 2026-11-18 |",
   "checks": {
     "D1": {
       "status": "pass",
@@ -53,7 +53,7 @@
       "status": "pass",
       "notes": [
         "rank-1: 7 closed, 0 accepted, 7 total",
-        "rank-2: 411 closed, 0 accepted, 411 total",
+        "rank-2: 412 closed, 0 accepted, 412 total",
         "totals read from summary.ranks",
         "rank-3+: Inherits the 26.3 base answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
       ],
@@ -62,15 +62,15 @@
         "pins/26.2/work-items.json"
       ],
       "metrics": {
-        "items_closed": 418,
-        "items_total": 418,
+        "items_closed": 419,
+        "items_total": 419,
         "items_accepted": 0
       }
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 248d65a25175, HEAD is f803f64cf723 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 8f5f13d648d5, HEAD is 5bbc8ea372f8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
@@ -79,16 +79,16 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 248d65a25175, HEAD is f803f64cf723 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 8f5f13d648d5, HEAD is 5bbc8ea372f8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/26.2/profile.json"
       ]
     },
     "D6": {
-      "status": "blocked",
+      "status": "fail",
       "notes": [
-        "no playtest.md: the play gate has not been recorded"
+        "playtest.md: commit 3f3c7d287e9f07ef82e854eef16d3dbc5fff35be is not HEAD (5bbc8ea372f8); 4 checklist box(es) unticked"
       ],
       "evidence": [
         "pins/26.2/playtest.md"

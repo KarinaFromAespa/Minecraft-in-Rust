@@ -4134,3 +4134,45 @@ Note: recording the sheet moves HEAD past its stamp — the same quirk
 as the profile stamp (patch 0006 covers profiles, not D6's commit
 match). A completed D6 will need the same treatment; a gate decision,
 not another sweep.
+
+## Item 653 — block-entity sherds (BE list form) — CLOSED 2026-11-18
+
+Follow-up to item 652: the pot_decorations item component was ported to
+the 26.2 four-id list codec, but the decorated-pot BLOCK-ENTITY surface
+still read `sherds` as a 26.3 named-side compound, so a placed pot lost
+its sherds. The BE surface (block_entity_nbt.rs, block_entity_item.rs,
+block_items.rs, spill.rs, the loot-mine corpus + H290 harness) now reads
+and writes the 26.2 list form, with per-element lenient decode as Java
+measures it. Ledger item 653 appended to report.json + work-items.json
+(rank 2: 412/412, programme 653/653).
+
+The work was done on branch be-sherds/26.2 (Nov 17) and merged to main
+as 87a53fb1 (5 rebased commits) on the owner's resume order. One branch
+commit did not survive the rebase as written: ff9fe1ca (loot conditions
+read the 26.2 `condition` key) was already on main via the playtest
+drops fix 3f3c7d28, which fixed the same dispatch sites — only its
+regression test carried over (8b9ffeda).
+
+CI proof: the first run (44362882077, main@87a53fb1) FAILED at
+lab-prepare, not on the branch — Mojang had republished the 26.2
+version JSON between the Nov 17 run and this one, and the live manifest
+(sha1 cf103b8fab4900562221bf7f23b72725dd9a914a) was unknown to the pin.
+The jars are byte-identical to the pinned ones (client 2dc72797...,
+server 823e2250...); only the asset-index-32 hash and one x86 JVM flag
+changed. Fixed by adding cf103b8f to accepted_manifest_sha1 in
+research-lock.json (8f5f13d6; verified locally via lab.manifest_accepted)
+and re-dispatching.
+
+CI proof run 44365769852 COMPLETED success (1h45m53s, 2026-11-18,
+main@8f5f13d6): profile 13/0/4, unchanged — the E7 eight stay green.
+D1/D2/D3 pass; D3 reads the new totals (rank-2: 412 closed, 0 accepted,
+412 total; 419/419 overall). D4/D5 still blocked on the judge-history
+issue (profile stamped 8f5f13d6, judge HEAD the staged candidate
+5bbc8ea3 — patch 0006 cannot run there); D6 fails (partial playtest
+sheet, 4/8 boxes; the remaining boxes are for community testers per the
+owner's 2026-11-18 word). The four failing harnesses are the same
+pre-existing ones (command_exec: the effect_view:always fixture
+blocker; hotbar: 886/905; options: the key-binding mismatch;
+sound_event: missing sounds.json) — no regressions from the 653 change.
+Recorded in pins/26.2/profile.json (the published profile),
+delta-verdict.json, ci-out logs, status.json, and VERSIONS.md.
