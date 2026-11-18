@@ -2066,7 +2066,14 @@ impl LootContext<'_> {
             Value::Null => return true,
             Value::Array(list) => return list.iter().all(|c| self.condition(c, random)),
             Value::String(s) => (s.as_str(), &Value::Null),
-            Value::Object(o) => (o.get("type").and_then(Value::as_str).unwrap_or(""), c),
+            // 26.2 names a condition's kind `condition`; 26.3 renamed it `type`.
+            Value::Object(o) => (
+                o.get("type")
+                    .or_else(|| o.get("condition"))
+                    .and_then(Value::as_str)
+                    .unwrap_or(""),
+                c,
+            ),
             _ => return false,
         };
         match kind {

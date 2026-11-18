@@ -1382,6 +1382,8 @@ impl<R: RandomSource> Context<'_, R> {
     }
     fn condition(&mut self, c: &Value) -> bool {
         let data = self.data;
+        // 26.2 names a condition's kind `condition`; 26.3 renamed it `type`.
+        let kind = c["type"].as_str().or(c["condition"].as_str()).unwrap_or("");
         match c {
             Value::Null => true,
             Value::Array(list) => list.iter().all(|c| self.condition(c)),
@@ -1389,7 +1391,7 @@ impl<R: RandomSource> Context<'_, R> {
                 Some(p) => self.condition(p),
                 None => false,
             },
-            Value::Object(_) => match c["type"].as_str().unwrap_or("") {
+            Value::Object(_) => match kind {
                 "minecraft:inverted" => !self.condition(&c["term"]),
                 "minecraft:all_of" => c["terms"]
                     .as_array()
@@ -1528,7 +1530,9 @@ impl<R: RandomSource> Context<'_, R> {
     }
     fn run(&mut self, f: &Value, mut stack: LootStack) -> LootStack {
         let data = self.data;
-        match f["type"].as_str().unwrap_or("") {
+        // 26.2 names a function's kind `function`; 26.3 renamed it `type`.
+        let kind = f["type"].as_str().or(f["function"].as_str()).unwrap_or("");
+        match kind {
             "minecraft:sequence" => {
                 for function in f["functions"].as_array().into_iter().flatten() {
                     stack = self.modify(function, stack);
