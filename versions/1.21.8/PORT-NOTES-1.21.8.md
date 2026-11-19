@@ -334,8 +334,70 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 13/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 + 2 zero-diff)
+### Rank 2: 14/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 + 2 zero-diff)
 
+- **Item 21 — `chat.rs` (4 classes, 36 methods, 15 named in Horizon):**
+  the chat screen, its suggestions and the chat component. The 1.21.9
+  chat-draft system is gone entirely: closing the chat loses the text.
+  1. **Drafts removed:** `ChatComponent.latestDraft`/`Draft`/
+     `saveAsDraft`/`discardDraft`/`createScreen`/`openScreen` and
+     `ChatScreen.isDraft`/`exitReason`/`formatChat`/`shouldDiscardDraft`
+     are 1.21.9-only. Deleted `ChatDraft`, `ChatExit`,
+     `should_discard_draft`, `UiState.chat_draft`/`chat_draft_shown`
+     and `keep_chat_draft`; `open_chat_method` opens on its prefix,
+     `open_chat(initial)` and `close_chat()` drop their draft/exit
+     parameters; the grey-italic draft formatter, the
+     Backspace-clears-the-draft branch and the draft test are gone
+     (the test is reworked to pin the 1.21.8 gating, not deleted).
+     The wake-up flow in `tick_in_bed_chat` keeps working: a woken
+     sleeper's typed text still reopens as a plain chat screen. The
+     chat-search aside is still cleared on close, by the `draw_chat`
+     cleanup that already ran when the screen went away.
+  2. **Suggestions gated on the initial text:** 1.21.8's `onEdited`
+     sets `allowSuggestions` to `!value.equals(initial)` —
+     suggestions appear once the text differs from the text the screen
+     opened on, and hide again when edited back to exactly that text.
+     `ChatScreen` now stores `initial`; `edited()` applies the gate
+     (chat layout only — the command-block screen's `onEdited` only
+     refreshes the completions, per `AbstractCommandBlockEditScreen`).
+     A resize keeps the ORIGINAL initial; a suggest-command link
+     resets it to the suggested command (`mouseClicked`), leaving the
+     flag alone. History recall still turns suggestions off, and
+     coming back to the buffer leaves the flag alone
+     (`moveInHistory`).
+  3. **Unknown-command usage:** a mistyped literal is
+     `dispatcherUnknownCommand().create()` in 1.21.8 — the plain
+     `command.unknown.command` line with no context — where 1.21.9
+     used `dispatcherUnknownArgument().createWithContext(reader)`
+     (`command.unknown.argument` with the `^` marker). The Rust's
+     parser tries only the exact-matching literal (`relevant`), so a
+     mistyped literal leaves no errors where Brigadier records a
+     literalIncorrect per command; `update_usage_info` detects that
+     case directly (no errors, unread input, a literal child waiting
+     at the deepest node) and shows the plain line. The
+     context-wrapped `getParseException` fallback stays for trailing
+     garbage after a leaf and for inputs with completions showing
+     (`/ `), where vanilla wraps it too.
+  4. **Callers:** the native chat API (`native_set_chat_input`), the
+     in-bed submit clear and the chat-search toggle now go through
+     `edit_input` (an edit, gated on the old initial) instead of
+     `suggest_command` (which now resets `initial`, as a link click
+     does); the true link paths (chat clicks, dialogs, command-block
+     reload) keep `suggest_command`.
+  Verified already-1.21.8 or unmodelled: the suggestion-list mouse
+  handling and the key bindings are the same in both versions; the
+  `clearMessages` flush-vs-clear difference is only the delayed-
+  message throttle (`previousMessageTime`), which the Rust does not
+  model (no delayed queue in `Chat`); `isAllowedInPortal` is 1.21.9-
+  only and was already handled by item 12. Out of scope, recorded for
+  their owners: the `saveChatDrafts` option definition
+  (`options_file.rs`, `options_ui.rs`, `settings.rs`) is item 59's
+  (Options) — defined and shown but now read nowhere;
+  `InBedChatScreen` is item 348's (rank 3). New tests
+  `suggestions_follow_the_initial_text_and_backspace_eats_one_character`
+  and `a_mistyped_command_is_an_unknown_command_without_context`;
+  the `should_discard_draft` unit test is removed (it pinned
+  1.21.9-only behaviour).
 - **Item 20 — `title.rs` (17 classes, 107 methods, 16 named in Horizon):**
   the title screens: world selection, create world, multiplayer join,
   flat-world customize, onboarding, backup/recover. 1.21.9 laid these

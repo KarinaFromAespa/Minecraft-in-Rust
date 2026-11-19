@@ -119,7 +119,7 @@ impl Game<'_> {
                 Screen::WorldOptions => self.world_options_escape(),
                 Screen::CommandBlock => self.close_command_block(),
                 Screen::BlockEditor => self.close_block_editor(),
-                Screen::Chat => self.close_chat(chat::ChatExit::Intentional),
+                Screen::Chat => self.close_chat(),
                 Screen::Win => self.close_win_screen()?,
                 Screen::DebugOptions => self.close_debug_options(),
                 Screen::Mod => self.close_mod_screen(),

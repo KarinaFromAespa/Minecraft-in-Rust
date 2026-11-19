@@ -1244,10 +1244,11 @@ pub struct SuggestionCompletion {
 /// the suggestion list, Tab completion, history).
 pub struct ChatScreen {
     pub input: TextField,
-    /// `ChatScreen.isDraft`: the box opened with the draft saved last time and
-    /// has not been edited since. A draft draws grey italic, and the first
-    /// Backspace clears the whole box instead of one character.
-    is_draft: bool,
+    /// `ChatScreen.initial`: the text the screen opened on. Suggestions are
+    /// allowed only while the input differs from it (`onEdited`); a
+    /// suggest-command link and a resize leave it alone (a resize keeps the
+    /// original; a link sets it to the suggested command).
+    initial: String,
     width: i32,
     height: i32,
     history_buffer: String,
@@ -1356,13 +1357,12 @@ fn truncate_utf16(s: &str, max_units: usize) -> String {
     s.to_owned()
 }
 impl ChatScreen {
-    /// `ChatScreen.init`: the input at the bottom, focused, holding `initial`,
-    /// which is a draft when `is_draft` (`ChatComponent.createScreen`).
+    /// `ChatScreen.init`: the input at the bottom, focused, holding `initial`.
+    /// Suggestions stay off until the input differs from it (`onEdited`).
     pub fn new(
         m: &Measure,
         c: &Commands,
         initial: &str,
-        is_draft: bool,
         history_len: usize,
         width: i32,
         height: i32,
@@ -1375,7 +1375,7 @@ impl ChatScreen {
         input.set_value(m, initial);
         let mut s = Self {
             input,
-            is_draft,
+            initial: initial.to_owned(),
             width,
             height,
             history_buffer: String::new(),
@@ -1413,7 +1413,7 @@ impl ChatScreen {
         input.set_value(m, command);
         let mut s = Self {
             input,
-            is_draft: false,
+            initial: command.to_owned(),
             width,
             height,
             history_buffer: String::new(),
@@ -1445,15 +1445,21 @@ impl ChatScreen {
         self.completion.take()
     }
     /// Replace the input for a suggest-command link and refresh completions.
+    /// `ChatScreen.mouseClicked`: the link sets `initial` to the suggested
+    /// command, so suggestions stay off until the text is edited away from
+    /// it; `allowSuggestions` itself is untouched by the click.
     pub fn suggest_command(&mut self, m: &Measure, c: &Commands, command: &str) {
         self.input.set_value(m, command);
-        self.edited(m, c);
+        self.initial = command.to_owned();
+        self.update_command_info(m, c);
     }
-    /// `ChatScreen.resize`: a new screen with the current text, still a draft
-    /// while it has not been edited (`ChatScreen.resize` keeps the field).
+    /// `ChatScreen.resize`: a new screen with the current text. `initial`
+    /// keeps the ORIGINAL text the screen opened on (resize never updates
+    /// it), and suggestions are off again until the text differs from it.
     pub fn resize(&mut self, m: &Measure, c: &Commands, width: i32, height: i32) {
         if (width, height) != (self.width, self.height) {
             let value = self.input.value.clone();
+            let initial = std::mem::take(&mut self.initial);
             let auto = self.auto_suggestions;
             let abilities = self.abilities;
             let message = std::mem::take(&mut self.input.message);
@@ -1462,7 +1468,6 @@ impl ChatScreen {
                     m,
                     c,
                     &value,
-                    self.is_draft,
                     self.history_pos,
                     width,
                     height,
@@ -1471,15 +1476,24 @@ impl ChatScreen {
             } else {
                 Self::command_block(m, c, &value, width, height)
             };
+            // A resize rebuilds the screen on the current text, but `initial`
+            // is the text the screen OPENED on, not the text at the resize.
+            if self.layout == SuggestLayout::CHAT {
+                self.initial = initial;
+            }
             self.auto_suggestions = auto;
             self.input.message = message;
         }
     }
-    /// `ChatScreen.onEdited`.
+    /// `ChatScreen.onEdited`: suggestions are allowed only while the input
+    /// differs from the text the screen opened on. The command-block screen
+    /// has no such gate (`AbstractCommandBlockEditScreen.onEdited` only
+    /// refreshes the completions), so its flag is left alone.
     fn edited(&mut self, m: &Measure, c: &Commands) {
-        self.allow_suggestions = true;
+        if self.layout == SuggestLayout::CHAT {
+            self.allow_suggestions = self.input.value != self.initial;
+        }
         self.update_command_info(m, c);
-        self.is_draft = false;
     }
     /// Ctrl+A/C/V/X in the input box.
     pub fn shortcut(
@@ -1643,7 +1657,24 @@ impl ChatScreen {
         let empty = self.pending.as_ref().is_none_or(|p| p.1.is_empty());
         let mut trailing = false;
         if self.input.cursor == self.input.value.chars().count() {
-            if empty && !parse.errors.is_empty() {
+            // The Rust's parser tries only the exact-matching literal
+            // (`relevant`), so a mistyped literal leaves no errors where
+            // Brigadier records a literalIncorrect per command. A parse
+            // with no errors, unread input, and a literal child waiting
+            // at the deepest node is that case: vanilla's literal count
+            // fires. (A leaf with no children is trailing garbage, not
+            // this: it falls through to `getParseException` below.)
+            let last = parse.context.last_child();
+            let deepest = last.nodes.last().map_or(last.root, |(n, _)| *n);
+            let unknown_literal = parse.errors.is_empty()
+                && parse.can_read()
+                && c.dispatcher.nodes[deepest].children.iter().any(|&child| {
+                    matches!(
+                        c.dispatcher.nodes[child].kind,
+                        crate::command::NodeKind::Literal(_)
+                    )
+                });
+            if empty && (!parse.errors.is_empty() || unknown_literal) {
                 let mut literals = 0;
                 for (_, e) in &parse.errors {
                     if e.literal_incorrect {
@@ -1652,18 +1683,13 @@ impl ChatScreen {
                         self.usage.push(e.with_context());
                     }
                 }
-                if literals > 0 {
-                    let reader = crate::command::Reader {
-                        string: &parse.input,
-                        cursor: parse.cursor,
-                    };
+                if literals > 0 || unknown_literal {
+                    // `CommandSuggestions.updateUsageInfo`: a mistyped
+                    // literal is an unknown command, with no context
+                    // (`dispatcherUnknownCommand().create()`).
                     self.usage.push(
-                        crate::command::CommandError::tr_at(
-                            "command.unknown.argument",
-                            &[],
-                            &reader,
-                        )
-                        .with_context(),
+                        crate::command::CommandError::tr("command.unknown.command", &[])
+                            .with_context(),
                     );
                 }
             } else if parse.can_read() {
@@ -1836,14 +1862,6 @@ impl ChatScreen {
         if self.suggestions_key(m, c, key, shift) {
             return ChatAction::None;
         }
-        // ChatScreen.keyPressed: while the box holds an unedited draft, the
-        // first Backspace clears all of it rather than one character.
-        if self.is_draft && key == K::Backspace {
-            self.input.set_value(m, "");
-            self.is_draft = false;
-            self.edited(m, c);
-            return ChatAction::None;
-        }
         match key {
             K::Escape => return ChatAction::Close,
             K::Enter | K::NumpadEnter => {
@@ -1932,7 +1950,15 @@ impl ChatScreen {
             self.history_pos = max;
             let b = self.history_buffer.clone();
             self.input.set_value(m, &b);
+            // `ChatScreen.moveInHistory`: coming back to the buffer leaves
+            // `allowSuggestions` alone (only a recall turns it off), so the
+            // refresh keeps the flag it had, and the list stays hidden.
+            let allow = self.allow_suggestions;
             self.edited(m, c);
+            self.allow_suggestions = allow;
+            if !allow {
+                self.suggestions = None;
+            }
         } else {
             if self.history_pos == max {
                 self.history_buffer = self.input.value.clone();
@@ -1977,13 +2003,8 @@ impl ChatScreen {
         l.offset = ((l.offset as f64 - amount.clamp(-1.0, 1.0)) as i32).clamp(0, max) as usize;
         true
     }
-    /// `CommandSuggestions.formatText`: argument colours over the input. The
-    /// draft formatter (`ChatScreen.formatChat`) is registered before this one
-    /// and wins while the draft is unedited: the whole text is grey italic.
+    /// `CommandSuggestions.formatText`: argument colours over the input.
     fn format(&self, value: &str, offset: usize) -> Text {
-        if self.is_draft {
-            return Text::literal(value).with_color(text::GRAY).italic();
-        }
         let gray = Style::color(text::GRAY);
         let Some(parse) = &self.parse else {
             return Text::literal(value);
