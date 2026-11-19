@@ -2364,3 +2364,44 @@ Rank 2 (492 items, in progress 2026-11-19)
   fixes_c.rs).
   Rank 2 now 199/492 (35 changed, 164 no-change).
   work-items.json rank2.closed = 199 on 2026-11-19.
+- Item 21 (title.rs, 26 classes) CLOSED
+  2026-11-19: CHANGED — Esc closes the Optimize screen; the file-fixing
+  system is gone (dead UI plumbing removed); the restore wait shows
+  "Attempting to restore world...". 26.1's
+  `OptimizeWorldScreen.shouldCloseOnEsc` returned false; 1.21.11 removes
+  the override, so Esc closes it (`removed()`/`tick()` identical) — the
+  Rust's `escape()` now runs the Cancel path, with a new test
+  (`escape_stops_the_optimization`). 1.21.11 deletes FileFixerUpper, the
+  `UpgradeStatusTranslator`, `LevelSummary.requiresFileFixing`,
+  `UPGRADE_AND_PLAY_WORLD` and `BackupStatus.FILE_FIXING_REQUIRED`, so
+  `WorldEntry.file_fixing`, the "Upgrade and Play" label, the
+  `requiresFileFixingTooltip.*` tail, the open-flow file-fixing prompt,
+  `begin_optimize`'s gate arm, `save::needs_file_fixes` and
+  `datafix::files::requires_file_fixing` are all removed; `can_edit` is
+  `!corrupted && !disabled()` and the backup prompt's `(None, None)` arms
+  are `unreachable!`. The stale file-fixing test is removed (broken since
+  rank-1 item 9 stubbed the gate). `makeBackupAndShowToast` is synchronous
+  in 1.21.11 with no waiting screen; `attemptRestore` shows
+  GenericMessageScreen("recover_world.restoring") — the Rust keeps its
+  async worker + wait deliberately, but shows the restoring text for a
+  restore. Comment-only: status texts cite `WorldUpgrader`'s statics
+  (same keys); the render renames (`extractRenderState` -> `render`,
+  `renderLogo`, `renderContent`, `renderContents`,
+  `renderMenuBackground`); `WorldCreationGameRulesScreen` ->
+  `EditGameRulesScreen`; `getUnfixedDataTagWithFallback` ->
+  `getDataTagFallback`; `collectIssues` -> `RecoverWorldDataScreen.collectIssue`.
+  Verified no-ports: `attemptRestore`'s pre-check/fail path identical (the
+  Rust's `attempt_restore` matches 1.21.11 exactly);
+  `PresetFlatWorldScreen.save`, `openDataPackSelectionScreen`,
+  `openExperimentsScreen`, `updateButtonValidity`,
+  `PresetsList$Entry.select` byte-identical (they only lost `private` —
+  method.py misses package-private methods); the DEBUG create branch is
+  the same behaviour in both versions (the Rust's missing debug
+  special-casing is a pre-existing gap, not fixed here); `createInfo`
+  identical; `BackupConfirmScreen.init`/`keyPressed`,
+  `ConfirmExperimentalFeaturesScreen.init`, `tryApplyNewDataPacks`,
+  `blitSlot`/`getDisplayItem` identical. Referrals: item 24 (level.dat
+  split reversal, `createFromExisting` game-rules storage), items 292/609/755
+  (game-rules screens -> unified `EditGameRulesScreen`).
+  Rank 2 now 200/492 (36 changed, 164 no-change).
+  work-items.json rank2.closed = 200 on 2026-11-19.

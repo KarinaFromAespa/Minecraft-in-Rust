@@ -2199,15 +2199,14 @@ fn optimizing_without_a_backup_upgrades_chunks_and_returns_to_the_list() {
     ));
     f.click("I Know What I'm Doing!");
     assert!(matches!(f.title.mode, Mode::Optimize { .. }));
-    // Nothing but a press stops it: no pad button either.
+    // The Cancel button has no pad binding of its own: Escape closes the
+    // screen instead (`shouldCloseOnEsc`'s default in 1.21.11).
     assert!(
         f.title
             .buttons(427.0, 240.0)
             .iter()
             .all(|b| b.action.is_none())
     );
-    // OptimizeWorldScreen ignores Escape.
-    f.title.escape();
     wait_while_optimizing(&mut f);
     assert!(matches!(
         f.title.mode,
@@ -2253,24 +2252,18 @@ fn cancel_stops_the_optimization() {
 }
 
 #[test]
-fn a_world_that_needs_file_fixing_cannot_be_optimized() {
+fn escape_stops_the_optimization() {
     let mut f = Fixture::new();
     f.world("World", "World");
-    let path = f.title.saves.join("World/level.dat");
     f.select();
     f.click("Edit");
-    // SelectWorldScreen only enables Edit for a world that needs no file
-    // fixing (`LevelSummary.canEdit`), so the data goes stale while the
-    // edit screen is open.
-    let mut root = crate::save::read_dat(&path).unwrap();
-    if let Some(Tag::Compound(data)) = root.get_mut("Data") {
-        data.insert("DataVersion".into(), Tag::Int(3000));
-    }
-    crate::save::write_dat(&path, root).unwrap();
     f.click("Optimize World");
     f.click("I Know What I'm Doing!");
-    // `OptimizeWorldScreen.create` returns null: `setScreen(null)`.
-    assert!(matches!(f.title.mode, Mode::Main));
+    assert!(matches!(f.title.mode, Mode::Optimize { .. }));
+    // `OptimizeWorldScreen` no longer overrides `shouldCloseOnEsc` in
+    // 1.21.11: Escape closes it, cancelling the upgrader like Cancel.
+    f.title.escape();
+    assert!(matches!(f.title.mode, Mode::Select { .. }));
     assert!(f.title.optimize.is_none());
 }
 
@@ -2502,7 +2495,7 @@ fn labels_at(f: &Fixture) -> (f32, f32, (f32, f32)) {
 }
 
 /// A button with an icon at its right end (`SpriteIconButton.TextAndIcon`, the
-/// Music & Sounds button of the Accessibility screen): `extractContents` gives
+/// Music & Sounds button of the Accessibility screen): `renderContents` gives
 /// the label `left = x + 2` and `right = x + width - spriteWidth - 4`.
 mod text_and_icon {
     use super::*;

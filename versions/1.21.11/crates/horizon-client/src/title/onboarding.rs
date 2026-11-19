@@ -50,7 +50,7 @@ impl Onboarding {
         ((fade.clamp(0.0, 1.0) - 0.5) / 0.5).clamp(0.0, 1.0)
     }
 
-    /// `extractRenderState`'s fades at `now`: the alpha every widget gets.
+    /// `render`'s fades at `now`: the alpha every widget gets.
     fn fade(&self, now: Instant) -> f32 {
         if self.fade_in_start.get().is_none() && self.fading_in.get() {
             self.fade_in_start.set(Some(now));

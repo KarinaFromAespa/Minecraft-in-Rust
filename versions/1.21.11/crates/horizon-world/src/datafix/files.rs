@@ -82,15 +82,6 @@ pub fn data_version(tag: &Tag, default: i32) -> i32 {
     }
 }
 
-/// Whether the world at `level_version` needs file fixes when it is
-/// opened. 1.21.11 has no `FileFixerUpper`: there is no
-/// `net.minecraft.util.filefix` package, no `FILE_FIXING_REQUIRED` backup
-/// status and no layout migration, so a world never needs file fixes — it
-/// only needs its data upgraded.
-pub fn requires_file_fixing(_level_version: i32) -> bool {
-    false
-}
-
 // ------------------------------------------------------------------ file operations
 
 

@@ -223,19 +223,6 @@ pub fn upgrade_older_world_with(
         .map_err(|e| format!("upgrading {}: {e}", world.display()))?;
     Ok(())
 }
-/// Whether opening the world runs file fixes. 1.21.11 has no file-fixer
-/// system (no `FILE_FIXING_REQUIRED` backup status), so this is always
-/// false: opening an older world only upgrades its data.
-pub fn needs_file_fixes(world: &Path) -> bool {
-    let Some(root) = read_dat(&world.join("level.dat")) else {
-        return false;
-    };
-    let Some(data) = root.get("Data") else {
-        return false;
-    };
-    let version = number(data.get("DataVersion")).unwrap_or(-1);
-    i32::try_from(version).is_ok_and(horizon_world::datafix::files::requires_file_fixing)
-}
 /// `LevelVersion.parse`: the saved game version's name, this build's when the `Version`
 /// compound has no `Name`, and empty without a `Version` (`getWorldVersionName` then
 /// shows `selectWorld.versionUnknown`).
@@ -3258,7 +3245,7 @@ fn try_read_dat(path: &Path) -> std::result::Result<Tag, DatIssue> {
         .map(|(named, _)| named.tag)
         .map_err(|e| DatIssue::Unreadable(e.to_string()))
 }
-/// What `LevelStorageAccess.collectIssues` finds wrong with a level.dat.
+/// What `RecoverWorldDataScreen.collectIssue` finds wrong with a level.dat.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DatIssue {
     /// No such file (`FileNotFoundException`).
@@ -3266,7 +3253,7 @@ pub enum DatIssue {
     /// It exists but does not read as a level: why.
     Unreadable(String),
 }
-/// `LevelStorageAccess.collectIssues`: why level.dat (level.dat_old with
+/// `RecoverWorldDataScreen.collectIssue`: why level.dat (level.dat_old with
 /// `old`) can't be read as the world's level data, `None` when it can.
 pub fn level_dat_issue(dir: &Path, old: bool) -> Option<DatIssue> {
     let file = if old { "level.dat_old" } else { "level.dat" };
@@ -3308,7 +3295,7 @@ pub fn restore_level_data_from_old(dir: &Path) -> bool {
 fn backup_stamp() -> String {
     chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string()
 }
-/// `LevelStorageAccess.getUnfixedDataTagWithFallback`, which the dedicated server's `Main` calls:
+/// `LevelStorageAccess.getDataTagFallback`, which the dedicated server's `Main` calls:
 /// a level.dat that does not read falls back to level.dat_old, which is restored in its place
 /// (`restoreLevelDataFromOld`). Whether it did; `false` leaves the world as it was, for the
 /// caller to refuse (both files broken, or nothing to fall back to).
@@ -8372,7 +8359,6 @@ mod tests {
             )]),
         )
         .unwrap();
-        assert!(!needs_file_fixes(&dir));
         let read = world_gen_settings(&dir).expect("settings");
         assert!(read.get("dimensions").is_some());
         assert!(!world_gen_unstable(&dir));

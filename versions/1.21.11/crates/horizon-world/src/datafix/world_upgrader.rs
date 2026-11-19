@@ -93,7 +93,8 @@ pub fn verify_chunk_pos_and_erase_cache(pos: ChunkPos, upgraded: &mut Tag) -> bo
     changed
 }
 
-/// `UpgradeStatusTranslator.translate`: the translation key of the status line.
+/// `WorldUpgrader`'s status components (`STATUS_UPGRADING_CHUNKS`,
+/// `STATUS_FINISHED_POI`, ...): the translation key of the status line.
 pub fn status_key(progress: &UpgradeProgress) -> String {
     match progress.status() {
         UpgradeStatus::Failed => return "optimizeWorld.stage.failed".into(),
