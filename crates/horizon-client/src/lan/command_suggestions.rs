@@ -381,7 +381,6 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
     ("tag targets remove name", "minecraft:ask_server"),
     ("team join team members", "minecraft:ask_server"),
     ("team leave members", "minecraft:ask_server"),
-    ("test create id", "minecraft:ask_server"),
     ("tick rate rate", "minecraft:ask_server"),
     ("tick sprint time", "minecraft:ask_server"),
     ("tick step time", "minecraft:ask_server"),
