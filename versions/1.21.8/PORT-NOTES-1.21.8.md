@@ -334,7 +334,62 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 55/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58 + 4 zero-diff)
+### Rank 2: 56/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59 + 4 zero-diff)
+
+- **Item 59 — `crates/horizon-client-render/src/options_file.rs`
+  (2 classes, 25 methods, 4 named in Horizon):** Options (13;
+  processOptions, sprintWindow), InputConstants (12; getKey,
+  isKeyDown). The option-definition cleanup this item owns
+  from earlier items: `invertXMouse`, `toggleAttack`,
+  `toggleUse`, `allowCursorChanges` and `saveChatDrafts`
+  are 1.21.9-only, so their `Opt` variants, `Settings`
+  fields, options-file table entries, screen-list entries
+  and tests are all removed (9 files). Attack and use now
+  pass `false` for their toggle option at every call site
+  (they are plain mappings; the option was already ignored
+  for them). `sprintWindow` was never modelled in the Rust,
+  so there was nothing to remove. `invertYMouse` keeps its
+  options-file key in both versions; its lang key is
+  `options.invertMouse` in 1.21.8 (verified present in the
+  1.21.8 `en_us.json`; `options.invertMouseY`,
+  `options.invertMouseX`, `options.allowCursorChanges`,
+  `options.chat.drafts` and `options.sprintWindow` are all
+  absent there). The mouse-settings order test was stale
+  since item 34 (it still expected the 26.3 six-option
+  list); it now expects vanilla 1.21.8's four
+  (sensitivity, invert Y, wheel sensitivity, discrete
+  scroll, per `MouseSettingsScreen.options`). Real fix:
+  Control-click on macOS is unconditional in vanilla
+  (`MouseHandler.onPress` remaps the press and, via the
+  `fakeRightMouse` counter, the release; there is no option
+  in either version, and 1.21.8's `MacosUtil` has no such
+  setter) — the Rust's `ctrlClickEmulatesRightClick`
+  option (default false) is removed and the emulation is
+  now always on on macOS. The volume-slider preview call
+  is removed: 1.21.8's slider callback only updates the
+  source volume, and `SoundPreviewHandler` is 1.21.9-only
+  (the now-uncalled module's deletion belongs to rank-3
+  item 428). Verified no-change: the key names are already
+  the 1.21.8 `left.win`/`right.win` form (the 1.21.9
+  LSUPER/RSUPER rename has no surface); no `MOD_*`
+  constants or vanilla `KeyEvent` exist in the Rust; the
+  simulation-distance minimum is already 5 (1.21.9's
+  debug-only 2 does not apply); the options loader ignores
+  unknown keys, so a 1.21.9 options file still loads
+  cleanly (the harness's `key.spectatorHotbar` entry pins
+  this). The options test run also caught two assertions
+  left stale by item 34: the Accessibility test still
+  expected the Controls link (1.21.9's footer button —
+  1.21.8's footer has only the help link and Done), and
+  the one-page-per-setting test did not know auto-jump,
+  toggle-crouch and toggle-sprint repeat on
+  `ControlsScreen.options` in 1.21.8 (toggleCrouch,
+  toggleSprint, autoJump, operatorItemsTab, verified in
+  the 1.21.8 decomp) — both fixed, 106 options tests
+  pass. Deferred: the `InputQuirks` citations (the whole
+  `client.input` package is 1.21.9-only) belong to rank-2
+  item 238; the `sound_preview` module deletion to rank-3
+  item 428.
 
 - **Item 58 — `crates/horizon-client-render/src/block_entity_anim.rs`
   (7 classes, 26 methods, 5 named in Horizon):**

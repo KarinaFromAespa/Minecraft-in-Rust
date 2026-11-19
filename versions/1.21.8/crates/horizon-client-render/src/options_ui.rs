@@ -5249,11 +5249,13 @@ mod tests {
                 assert_eq!(s.serialize(), before);
             }
         }
-        assert!(widgets.iter().any(|w| matches!(
+        // 1.21.8's `AccessibilityOptionsScreen.addFooter` has only the help
+        // link and Done: the Controls button is 1.21.9's, so no Controls
+        // link is among these widgets.
+        assert!(!widgets.iter().any(|w| matches!(
             w.kind,
             WKind::Button {
                 act: Act::Push(Page::Controls),
-                active: true,
                 ..
             }
         )));
@@ -7519,6 +7521,12 @@ mod tests {
             ("ChatOpacity", &["Accessibility", "Chat"][..]),
             ("TextBackgroundOpacity", &["Accessibility", "Chat"][..]),
             ("ChatLineSpacing", &["Accessibility", "Chat"][..]),
+            // 1.21.8's ControlsScreen.options is toggleCrouch, toggleSprint,
+            // autoJump, operatorItemsTab; the first three are also on the
+            // Accessibility screen.
+            ("AutoJump", &["Accessibility", "Controls"][..]),
+            ("ToggleCrouch", &["Accessibility", "Controls"][..]),
+            ("ToggleSprint", &["Accessibility", "Controls"][..]),
         ]
         .into();
         for (id, pages) in &places {
@@ -7528,11 +7536,12 @@ mod tests {
                 None => assert_eq!(pages.len(), 1, "{id} is on {pages:?}"),
             }
         }
-        // AccessibilityOptionsScreen links Controls, as vanilla's does.
+        // 1.21.8's Accessibility screen has no Controls link (that button
+        // is 1.21.9's), so Controls opens from the Options screen only.
         for (page, from) in &ways_in {
             let from: Vec<&str> = from.iter().map(String::as_str).collect();
             match page.as_str() {
-                "Controls" => assert_eq!(from, ["Accessibility", "Main"]),
+                "Controls" => assert_eq!(from, ["Main"]),
                 _ => assert_eq!(from.len(), 1, "{page} opens from {from:?}"),
             }
         }
