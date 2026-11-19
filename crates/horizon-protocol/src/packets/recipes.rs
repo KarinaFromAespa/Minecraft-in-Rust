@@ -116,7 +116,18 @@ impl SlotDisplay {
             8 => {
                 let base = inner(r)?;
                 let material = inner(r)?;
-                if crate::adapter::ids::quirks().components_before_1_21_5 {
+                // The old form — the pattern as a display of template items — exists only on a
+                // pre-1.21.5 server's wire, so it is read only while decoding from one. The pinned
+                // wire always carries the pattern id: resolving the old form needs the trim-pattern
+                // registry, which only the translator holds (the game decodes pinned bytes with no
+                // such context), so the pinned read never takes the old branch even when the pin
+                // itself predates 1.21.5.
+                let old_pattern_form = matches!(
+                    crate::adapter::ids::active(),
+                    Some((ids, crate::adapter::ids::Way::Up))
+                        if ids.quirks.components_before_1_21_5
+                );
+                if old_pattern_form {
                     let old_pattern = inner(r)?;
                     let mut patterns = Vec::new();
                     old_pattern.legacy_trim_patterns(&mut patterns)?;
