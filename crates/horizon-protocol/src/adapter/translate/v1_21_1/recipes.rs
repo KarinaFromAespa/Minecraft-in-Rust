@@ -619,7 +619,7 @@ mod tests {
         assert_eq!((stack.item, stack.count), (378, 2));
         assert_eq!(
             shaped.requirements,
-            [HolderSet::Items(vec![868]), HolderSet::Items(vec![868])]
+            [HolderSet::Items(vec![851]), HolderSet::Items(vec![851])]
         );
         assert!(!shaped.notify);
         let Some(RecipeDisplay::Smithing { result, .. }) =
@@ -845,7 +845,7 @@ mod tests {
             assert_eq!((stack.item, stack.count), (378, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![868]), HolderSet::Items(vec![868])]
+                [HolderSet::Items(vec![851]), HolderSet::Items(vec![851])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -939,7 +939,7 @@ mod tests {
             assert_eq!((stack.item, stack.count), (378, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![868]), HolderSet::Items(vec![868])]
+                [HolderSet::Items(vec![851]), HolderSet::Items(vec![851])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -1039,7 +1039,7 @@ mod tests {
             assert_eq!((stack.item, stack.count), (378, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![868]), HolderSet::Items(vec![868])]
+                [HolderSet::Items(vec![851]), HolderSet::Items(vec![851])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display

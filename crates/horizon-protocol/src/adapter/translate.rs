@@ -2592,15 +2592,15 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11 is two protocols above the pin: its entities map down to the
-        // 1.21.8 ids, and one the pin lacks (the nautilus) is dropped.
+        // 1.21.11 is four protocols above the pin: its entities map down to the
+        // 1.21.5 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
             (88, 0, None), // nautilus: no 1.21.8 counterpart
-            (153, 0, Some((147, 0))), // zombie villager
+            (153, 0, Some((146, 0))), // zombie villager
             (0, 0, Some((0, 0))),
             (51, 1381, Some((49, 1381))), // falling block, with a state that maps to itself
         ] {
-            // 1.21.11's layout, written by hand: the pinned codec is 1.21.8's now.
+            // 1.21.11's layout, written by hand: the pinned codec is 1.21.5's now.
             let mut w = Writer::new();
             w.varint(7);
             w.uuid(1);

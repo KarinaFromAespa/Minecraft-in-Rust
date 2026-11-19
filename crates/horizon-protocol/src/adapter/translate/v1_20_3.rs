@@ -721,15 +721,15 @@ mod tests {
             ("minecraft:generic.attack_damage", 2),
             ("minecraft:generic.attack_knockback", 3),
             ("minecraft:generic.attack_speed", 4),
-            ("minecraft:generic.flying_speed", 12),
-            ("minecraft:generic.follow_range", 13),
-            ("minecraft:generic.knockback_resistance", 16),
-            ("minecraft:generic.luck", 17),
-            ("minecraft:generic.max_absorption", 18),
-            ("minecraft:generic.max_health", 19),
-            ("minecraft:generic.movement_speed", 22),
-            ("minecraft:horse.jump_strength", 15),
-            ("minecraft:zombie.spawn_reinforcements", 27),
+            ("minecraft:generic.flying_speed", 11),
+            ("minecraft:generic.follow_range", 12),
+            ("minecraft:generic.knockback_resistance", 15),
+            ("minecraft:generic.luck", 16),
+            ("minecraft:generic.max_absorption", 17),
+            ("minecraft:generic.max_health", 18),
+            ("minecraft:generic.movement_speed", 21),
+            ("minecraft:horse.jump_strength", 14),
+            ("minecraft:zombie.spawn_reinforcements", 26),
         ];
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
             let session = Session::new(version);
@@ -768,10 +768,10 @@ mod tests {
 
     #[test]
     fn llama_carpet_colors_resolve_by_item_name_for_each_legacy_registry() {
-        // All sixteen names/IDs come from the vanilla 1.21.8 item report. The old
+        // All sixteen names/IDs come from the vanilla 1.21.5 item report. The old
         // white-carpet ID is424 in1.20.2 and445 in1.20.3, not a shared offset.
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
-            for kind in [76, 129] {
+            for kind in [75, 128] {
                 let session = Session::new(version);
                 session.kinds.lock().unwrap().insert(42, kind);
                 for color in -1..=16 {
@@ -966,7 +966,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_3);
         for (kind, pairs) in [
             (
-                149,
+                148,
                 vec![
                     ("2a0a0199cdcd010b0801ff", "2a0a120114263366990b0801ff"),
                     ("2a0b0800ff", "2a0a120114ff3366990b0800ff"),
@@ -980,7 +980,7 @@ mod tests {
                 ],
             ),
             (
-                76,
+                75,
                 vec![
                     ("2a14010e150102ff", "2a140102ff"),
                     ("2a1401ffffffff0fff", "2aff"),
@@ -1058,7 +1058,7 @@ mod tests {
                 offer.result.item,
                 offer.result.count
             ),
-            (863, 5, 862, 1)
+            (846, 5, 845, 1)
         );
         assert!(offer.cost_b.is_none());
         assert_eq!(

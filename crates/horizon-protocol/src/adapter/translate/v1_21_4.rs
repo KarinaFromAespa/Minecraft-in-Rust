@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn a_saddle_moves_to_equipment_and_boost_stays_in_the_pig_field() {
         let session = Session::new(ServerVersion::V1_21_4);
-        session.kinds.lock().unwrap().insert(42, 95); // minecraft:pig in 1.21.8.
+        session.kinds.lock().unwrap().insert(42, 94); // minecraft:pig in 1.21.5.
         let (id, body) = super::super::clientbound(
             &session,
             State::Play,
@@ -561,7 +561,7 @@ mod tests {
         else {
             panic!("pig")
         };
-        // The boost stays in the pig field: 17 in 1.21.8 (the saddle field
+        // The boost stays in the pig field: 17 in 1.21.5 (the saddle field
         // 1.21.5 removed shifted it down from 18; 1.21.11's ageable shift
         // would put it back at 18, and the boundary undoes that).
         assert_eq!(p.values, [(17, serializer::INT, Value::Int(20))]);
@@ -572,7 +572,7 @@ mod tests {
         };
         assert_eq!(
             (p.id, p.slots[0].0, p.slots[0].1.as_ref().unwrap().item),
-            (42, 7, 801)
+            (42, 7, 800)
         );
     }
 
@@ -580,11 +580,11 @@ mod tests {
     fn removed_fields_and_separate_minecart_updates_keep_their_meaning() {
         let session = Session::new(ServerVersion::V1_21_4);
         // Field ids independently obtained from vanilla SynchedEntityData accessors.
-        // Kinds are the pinned 1.21.8 ids: dolphin 33, turtle 132, mooshroom 83.
+        // Kinds are the pinned 1.21.5 ids: dolphin 33, turtle 131, mooshroom 82.
         for (kind, old, expected) in [
             (33, vec![17, 18, 19], vec![17, 18]),
-            (132, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
-            (83, vec![17], vec![17]),
+            (131, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
+            (82, vec![17], vec![17]),
         ] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut p = play::SetEntityData {
@@ -597,7 +597,7 @@ mod tests {
             entity_data(&session, &mut p);
             assert_eq!(p.values.iter().map(|v| v.0).collect::<Vec<_>>(), expected);
         }
-        session.kinds.lock().unwrap().insert(42, 82); // minecraft:minecart in 1.21.8.
+        session.kinds.lock().unwrap().insert(42, 81); // minecraft:minecart in 1.21.5.
         for (values, expected) in [
             (vec![(11, serializer::INT, Value::Int(7006))], 0),
             (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 7016),

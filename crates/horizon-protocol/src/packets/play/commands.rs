@@ -1,4 +1,4 @@
-//! The command tree (`ClientboundCommandsPacket`): its nodes, the 26.3 argument types
+//! The command tree (`ClientboundCommandsPacket`): its nodes, the 1.21.5 argument types
 //! and their parser properties.
 use crate::{
     Result,
@@ -20,8 +20,9 @@ pub struct CommandNode {
     /// Custom suggestion provider (`minecraft:ask_server`).
     pub suggestions: Option<String>,
 }
-/// The `minecraft:command_argument_type` registry of 26.3 in id order
-/// (ArgumentTypeInfos.bootstrap).
+/// The `minecraft:command_argument_type` registry of 1.21.5 in id order
+/// (ArgumentTypeInfos.bootstrap): 1.21.5 has no `hex_color` (1.21.6) or
+/// `dialog` (1.21.6), and its colour parser is still `minecraft:color`.
 pub const ARGUMENT_TYPES: &[&str] = &[
     "brigadier:bool",
     "brigadier:float",
@@ -39,8 +40,7 @@ pub const ARGUMENT_TYPES: &[&str] = &[
     "minecraft:block_predicate",
     "minecraft:item_stack",
     "minecraft:item_predicate",
-    "minecraft:team_color",
-    "minecraft:hex_color",
+    "minecraft:color",
     "minecraft:component",
     "minecraft:style",
     "minecraft:message",
@@ -78,17 +78,11 @@ pub const ARGUMENT_TYPES: &[&str] = &[
     "minecraft:loot_table",
     "minecraft:loot_predicate",
     "minecraft:loot_modifier",
-    "minecraft:context_float_provider",
-    "minecraft:context_int_provider",
-    "minecraft:slot_source",
-    "minecraft:dialog",
-    "minecraft:feature",
-    "minecraft:swing_animation",
     "minecraft:uuid",
 ];
 
 /// The properties of an argument parser (`ArgumentTypeInfo.Template`) as
-/// one of the 26.3 parsers decoded from the network.
+/// one of the 1.21.5 parsers decoded from the network.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ArgumentProperties {
     None,
