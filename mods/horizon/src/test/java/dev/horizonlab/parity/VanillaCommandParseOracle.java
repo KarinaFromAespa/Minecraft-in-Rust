@@ -96,8 +96,15 @@ public final class VanillaCommandParseOracle {
         // parameter; the lookup helper it delegates to takes only the
         // lookup, the suggestion type and the builder.
         @Override public java.util.concurrent.CompletableFuture<Suggestions> suggestRegistryElements(ResourceKey<? extends Registry<?>> key, SharedSuggestionProvider.ElementSuggestionType elements, com.mojang.brigadier.suggestion.SuggestionsBuilder builder, com.mojang.brigadier.context.CommandContext<?> context) {
-            java.util.Optional<? extends HolderLookup<?>> registry = access.lookup(key);
-            if (registry.isEmpty()) registry = lookup.lookup(key);
+            // 1.21.5's suggestRegistryElements takes a Registry<?>, not the
+            // HolderLookup<?> 1.21.6 takes: RegistryAccess.lookup already
+            // returns a Registry here, and the provider fallback only feeds
+            // it when the lookup itself is a Registry.
+            java.util.Optional<? extends Registry<?>> registry = access.lookup(key);
+            if (registry.isEmpty()) {
+                java.util.Optional<? extends HolderLookup<?>> alt = lookup.lookup(key);
+                if (alt.isPresent() && alt.get() instanceof Registry<?> found) registry = java.util.Optional.of(found);
+            }
             if (registry.isEmpty()) return Suggestions.empty();
             this.suggestRegistryElements(registry.get(), elements, builder);
             return builder.buildFuture();

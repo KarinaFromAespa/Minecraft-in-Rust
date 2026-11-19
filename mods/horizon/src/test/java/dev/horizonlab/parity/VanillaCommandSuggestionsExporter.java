@@ -31,7 +31,13 @@ public final class VanillaCommandSuggestionsExporter {
         for (CommandNode<CommandSourceStack> child : node.getChildren()) {
             String childPath = path.isEmpty() ? child.getName() : path + " " + child.getName();
             if (child instanceof ArgumentCommandNode<CommandSourceStack, ?> arg && arg.getCustomSuggestions() != null) {
-                out.println(childPath + "\t" + SuggestionProviders.getName(arg.getCustomSuggestions()));
+                // 1.21.5's getName takes a SuggestionProvider<SharedSuggestionProvider>;
+                // the node's provider is typed for CommandSourceStack. The cast is
+                // unchecked but safe: getName looks the provider up by identity.
+                @SuppressWarnings("unchecked")
+                com.mojang.brigadier.suggestion.SuggestionProvider<net.minecraft.commands.SharedSuggestionProvider> provider =
+                    (com.mojang.brigadier.suggestion.SuggestionProvider<net.minecraft.commands.SharedSuggestionProvider>) (com.mojang.brigadier.suggestion.SuggestionProvider<?>) arg.getCustomSuggestions();
+                out.println(childPath + "\t" + SuggestionProviders.getName(provider));
             }
             walk(child, childPath, out);
         }
