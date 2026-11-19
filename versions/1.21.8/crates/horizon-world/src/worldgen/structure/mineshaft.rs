@@ -27,7 +27,9 @@ pub const NORMAL: Wood = Wood {
         "minecraft:oak_planks",
         "minecraft:oak_log",
         "minecraft:oak_fence",
-        "minecraft:iron_chain",
+        // 1.21.8 calls it `minecraft:chain`; the iron_chain rename is
+        // DataVersion 4541 (1.21.9), after this version's 4440.
+        "minecraft:chain",
     ],
 };
 pub const MESA: Wood = Wood {
@@ -38,7 +40,7 @@ pub const MESA: Wood = Wood {
         "minecraft:dark_oak_planks",
         "minecraft:dark_oak_log",
         "minecraft:dark_oak_fence",
-        "minecraft:iron_chain",
+        "minecraft:chain",
     ],
 };
 
@@ -718,7 +720,10 @@ impl MineshaftPiece {
                 let empty = replaceable(&name);
                 if !empty && c.world.center_sturdy(p, Direction::Down)? && !falling(&name) {
                     c.world.set([px, wy + 1, pz], c.state(self.wood.fence), 2)?;
-                    let chain = c.state("iron_chain");
+                    // 1.21.8's id is `chain` (`iron_chain` is the 1.21.9
+                    // rename at DataVersion 4541; resolving it here would
+                    // silently fall back to air).
+                    let chain = c.state("chain");
                     for py in wy + 2..wy + distance {
                         c.world.set([px, py, pz], chain, 2)?;
                     }

@@ -1027,7 +1027,9 @@ fn blackstone(name: &str) -> Option<&'static str> {
         "cobblestone_wall" | "mossy_cobblestone_wall" => "blackstone_wall",
         "chiseled_stone_bricks" => "chiseled_polished_blackstone",
         "cracked_stone_bricks" => "cracked_polished_blackstone_bricks",
-        "iron_bars" => "iron_chain",
+        // 1.21.8's id is `chain` (`iron_chain` is the 1.21.9 rename at
+        // DataVersion 4541).
+        "iron_bars" => "chain",
         _ => return None,
     })
 }

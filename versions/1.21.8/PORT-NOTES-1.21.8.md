@@ -289,3 +289,103 @@ re-based to 772; oracles ported to the 1.21.8 API; workspace compiles
 Behaviour port unstarted (0/526). Harness profile: 2 pass / 2 oracle /
 13 fail of 17 measured locally (true oracle count 9; the other six
 fails are real verdicts or environmental). CI port-verify to confirm.
+
+## Behaviour port (2026-11-19)
+
+Direction 1.21.9 -> 1.21.8, 526 items (ranks 9/317/163/35/2).
+Verification method: byte-compare of the named 1.21.9/1.21.8 jars
+(client 2,357 changed / 127 added / 611 removed classes), then a
+Vineflower decompile of the 1,660 named 1.21.9-side and 1,397
+1.21.8-side class files and a `diff -r` of the two source trees
+(68,444 lines, 1,032 files). The running jar is the oracle;
+decompiled code is a reading aid. The report's 1,756 changed classes
+is the semantic (token-hash) count; the byte set is a superset that
+includes constant-pool churn.
+
+### Rank 1: closed 9/9
+
+- **Facts:** version.rs has PROTOCOL_VERSION 772, DATA_VERSION 4440,
+  RESOURCE_PACK_FORMAT (64, 0), DATA_PACK_FORMAT (81, 0) — matches
+  1.21.8's version JSON.
+- **Six regenerates:** regen.json lists all six generators, all
+  "unchanged" against the candidate; regen-determinism.json 6/6
+  byte-for-byte.
+- **Protocol:** ids.rs counts match the report's 1.21.8 counts in all
+  four state/direction groups; all seven removed packets absent;
+  `debug_sample_subscription` present.
+- **Save format:** decompiled diff of the 10 changed datafix classes.
+  1.21.9's DataFixers registers ~10 fix groups at schemas 4530-4548
+  that 1.21.8 lacks (copper golem, shelf, mannequin, chain rename
+  4541, world border, world spawn/respawn) — but the Rust `update()`
+  only applies fixes with `k / 10 <= to_version` (4440), so those
+  are inert for 1.21.8 upgrades and need no change. Four real
+  divergences were fixed:
+  1. `datafix/fixes_c.rs`: removed the two `add_locator_bar_style`
+     registrations at key(4424, 0) — 1.21.9-only AddFieldFix at a
+     schema below 4440, so it WOULD have run on 1.21.8 upgrades.
+  2. `datafix/items.rs` `fix_display`: removed the strict-JSON
+     filtering of custom_name/lore (1.21.9-only validation).
+  3. `datafix/items.rs` `fix_enchantments`: removed the `level > 0`
+     filter (1.21.9-only); the 0..255 clamp is in both versions.
+  4. `datafix/schema.rs`: removed the structured `test_instance_block`
+     arm (1.21.9-only); 1.21.8's V4302 is `registerSimple`.
+  Verified no-ops: ChunkHeightAndBiomeFix (1.21.9's retrogen gate
+  defaults false), StructuresBecomeConfiguredFix (log format only),
+  SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
+  has no world_border.dat file).
+
+### Rank 4 content: closed 2/2 (chain)
+
+1.21.9 renamed `minecraft:chain` to `minecraft:iron_chain` at
+DataVersion 4541; 1.21.8 uses `minecraft:chain`. Fixed four places
+that used the 1.21.9 id: mineshaft `keep` lists + hanging-chain
+state, bastion blackstone replacement (`iron_bars` -> chain),
+`rail_or_chain` rule-test set, and the rule_test_bounds test.
+Verified fine: datafix_scene.py (version-gated >= 4541), the
+adapter id tables (old-version tables correctly use `chain`),
+the 4541 rename fix (inert), datafix/tests.rs (already `chain`).
+
+### Rank 5: closed 2/2 (sample-verified)
+
+The 650-class unported claim was checked with a 14-class random
+sample (seed 42): 10 have no Rust reference at all, 4 are name-only
+mentions (doc comments, data keys), not ports. The 3 new classes
+(GlyphEffectRenderState, GuiRenderState$LayeredElementConsumer,
+ContextNbtProvider) have no Rust reference. A byte-based recount
+gives 566 top-level unnamed changed/removed vs the report's 650 —
+expected, since the report hashes semantic tokens, not bytes.
+
+### 1.21.9-only features: dead by data, no code change
+
+- **Copper golem:** the spawn path is gated on the
+  `minecraft:copper` block tag, which 1.21.8's data does not define
+  (verified in the client jar); the statue/lightning path needs
+  statue blocks, which cannot exist; the entity type is absent from
+  the registry, so `create_triggered` returns None.
+- **Shelf:** interactions need Shelf block entities; none can exist.
+- **Mannequin:** entity type absent; all Rust references are
+  reactive match arms on `m.kind.id`.
+- **Copper chest:** created only by the (dead) copper-golem spawn
+  path.
+- **Code of conduct:** the packet variant is gone from the protocol
+  crate (mechanical rewire); the server-side `code_of_conducts`
+  field has no consumer; `enable-code-of-conduct` defaults false.
+- **Creative tabs / recipe book:** no copper_golem, shelf, or
+  mannequin references; no spawn-egg references outside tests.
+
+### Debt (not fixed here)
+
+- `crates/horizon-port-pack/src/carry.rs` RENAMED_IDS still renames
+  chain -> iron_chain when carrying packs (correct for a 26.3
+  target, wrong for 1.21.8; Horizon-only tooling, no gate coverage).
+- `tools/test_arrow_parity.py` and
+  `tools/test_section_mesh_parity.py` use `iron_chain` in test
+  fixtures (non-gate harnesses).
+- Two `#[test]` functions index `types.types["minecraft:copper_golem"]`
+  (mobs/render.rs) and `["minecraft:mannequin"]` (entity_nbt.rs)
+  after loading prepared data; both return early when the prepared
+  files are absent, so they skip in this tree, but they would panic
+  if the data existed without those types.
+- Dead tags are inherited 26.3-isms from the unported 1.21.11
+  behaviour; triage belongs at 1.21.11, not here (same as 1.21.7 /
+  1.21.9).

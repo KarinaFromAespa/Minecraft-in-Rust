@@ -69,7 +69,7 @@ fn binding_rejects_unknown_tag_blocks_and_duplicate_canonical_tags() {
 }
 #[test]
 fn matter_phase_matches_what_a_block_is_made_of() {
-    // air, cave_air, void_air, stone, then water (level 0), rail, iron_chain.
+    // air, cave_air, void_air, stone, then water (level 0), rail, chain.
     let mut states: Vec<Tag> = [
         "minecraft:air",
         "minecraft:cave_air",
@@ -86,7 +86,7 @@ fn matter_phase_matches_what_a_block_is_made_of() {
             Tag::compound([("level", Tag::String("0".into()))]),
         ),
     ]));
-    for name in ["minecraft:rail", "minecraft:iron_chain"] {
+    for name in ["minecraft:rail", "minecraft:chain"] {
         states.push(Tag::compound([("id", Tag::String(name.into()))]));
     }
     let names = [
@@ -96,7 +96,7 @@ fn matter_phase_matches_what_a_block_is_made_of() {
         "minecraft:stone",
         "minecraft:water",
         "minecraft:rail",
-        "minecraft:iron_chain",
+        "minecraft:chain",
     ];
     let registry = BlockRegistry::from_nbt(&Tag::compound([
         ("DataVersion", Tag::Int(DATA_VERSION)),
