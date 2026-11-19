@@ -234,10 +234,6 @@ impl PredicateBlockResolver for StateProviderBindings<'_> {
 pub struct BlockStateProvider(Node);
 #[derive(Clone, Debug)]
 enum Node {
-    RuleBased {
-        fallback: Option<Box<BlockStateProvider>>,
-        rules: Vec<(BlockPredicate, BlockStateProvider)>,
-    },
     Noise(Box<NoiseProvider>),
     Simple(BlockStateId),
     Weighted(WeightedList<BlockStateId>),
@@ -350,49 +346,24 @@ impl BlockStateProvider {
             required(&object, "type")?.get(),
         )?)?;
         Ok(Self(match kind.as_str() {
-            "minecraft:rule_based" => {
-                let fallback = optional(&object, "fallback")
-                    .map(|raw| {
-                        Self::decode_holder(raw.get(), bindings, depth + 1, remaining, catalog)
-                            .map(Box::new)
-                    })
-                    .transpose()?;
-                let raw_rules: Vec<Box<RawValue>> =
-                    serde_json::from_str(required(&object, "rules")?.get())?;
-                if raw_rules.len() > 8192 {
-                    return Err(DecodeError::Field("provider rule count"));
-                }
-                let mut rules = Vec::with_capacity(raw_rules.len());
-                for raw in raw_rules {
-                    if *remaining == 0 {
-                        return Err(DecodeError::Field("provider node count"));
-                    }
-                    *remaining -= 1;
-                    let rule: Object = serde_json::from_str(raw.get())?;
-                    let predicate = BlockPredicate::decode_with_blocks(
-                        required(&rule, "if_true")?.get(),
-                        depth + 1,
-                        remaining,
-                        Some(bindings),
-                    )?;
-                    let provider = Self::decode_holder(
-                        required(&rule, "then")?.get(),
-                        bindings,
-                        depth + 1,
-                        remaining,
-                        catalog,
-                    )?;
-                    rules.push((predicate, provider));
-                }
-                Node::RuleBased { fallback, rules }
-            }
-            "minecraft:noise" | "minecraft:noise_threshold" | "minecraft:dual_noise" => {
+            // 1.21.11's registry names are the long forms; the short forms
+            // are Horizon's aliases, kept for content that already uses
+            // them. There is NO rule-based type in 1.21.11: the rule-based
+            // provider is a standalone record (RuleBasedBlockStateProvider,
+            // below), used only by DiskConfiguration — 26.x promoted it to
+            // a registered `rule_based_state_provider` subtype.
+            "minecraft:noise"
+            | "minecraft:noise_threshold"
+            | "minecraft:dual_noise"
+            | "minecraft:noise_provider"
+            | "minecraft:noise_threshold_provider"
+            | "minecraft:dual_noise_provider" => {
                 Node::Noise(Box::new(NoiseProvider::decode(&object, bindings, &kind)?))
             }
-            "minecraft:simple" => {
+            "minecraft:simple" | "minecraft:simple_state_provider" => {
                 Node::Simple(bindings.state(required(&object, "state")?.get(), false)?)
             }
-            "minecraft:weighted" => {
+            "minecraft:weighted" | "minecraft:weighted_state_provider" => {
                 Node::Weighted(WeightedList::decode(required(&object, "entries")?, |v| {
                     bindings.state(v.get(), false)
                 })?)
@@ -400,7 +371,7 @@ impl BlockStateProvider {
             "minecraft:random_block" => {
                 Node::RandomBlock(bindings.block_set(required(&object, "blocks")?)?)
             }
-            "minecraft:rotated" => {
+            "minecraft:rotated" | "minecraft:rotated_block_provider" => {
                 let direction = optional(&object, "direction")
                     .map(|v| {
                         let name: String = serde_json::from_str(v.get())?;
@@ -432,7 +403,7 @@ impl BlockStateProvider {
                 )?),
                 bindings.properties()?,
             ),
-            "minecraft:randomized_int" => Node::RandomizedInt {
+            "minecraft:randomized_int" | "minecraft:randomized_int_state_provider" => Node::RandomizedInt {
                 source: Box::new(Self::decode_holder(
                     required(&object, "source")?.get(),
                     bindings,
@@ -454,21 +425,6 @@ impl BlockStateProvider {
         position: [i32; 3],
     ) -> Result<Option<BlockStateId>, StateProviderError<W::Error>> {
         Ok(match &self.0 {
-            Node::RuleBased { fallback, rules } => {
-                for (predicate, provider) in rules {
-                    if predicate
-                        .test(world, position)
-                        .map_err(StateProviderError::Query)?
-                        && let Some(state) = provider.get_optional_state(world, random, position)?
-                    {
-                        return Ok(Some(state));
-                    }
-                }
-                match fallback {
-                    Some(provider) => provider.get_optional_state(world, random, position)?,
-                    None => None,
-                }
-            }
             Node::Noise(provider) => Some(provider.sample(random, position)?),
             Node::Simple(state) => Some(*state),
             Node::Weighted(states) => Some(*states.sample(random)?),
@@ -528,6 +484,11 @@ impl BlockStateProvider {
             }
         })
     }
+    /// 1.21.11's base `getState` takes only random + pos: no vanilla
+    /// provider reads the world. The world stays for the Horizon
+    /// `copy_properties` extension (it copies from the block at the
+    /// position) and for the empty-`random_block` fallback to the
+    /// block at the position.
     pub fn get_state<W: FeatureWorld + PlacementContext>(
         &self,
         world: &mut W,
@@ -538,6 +499,90 @@ impl BlockStateProvider {
             Some(state) => Ok(state),
             None => world.block(position).map_err(StateProviderError::World),
         }
+    }
+}
+
+/// 1.21.11's `RuleBasedBlockStateProvider`: a standalone record, NOT a
+/// `BlockStateProvider` subtype and NOT in the provider-type registry.
+/// Only `DiskConfiguration` uses it, decoded from its own codec
+/// (`fallback` + `rules`, no `type` field). 26.x promoted it to a
+/// registered `rule_based_state_provider` subtype — which is why the
+/// 26.x base `getState` takes a `WorldGenLevel` and `getOptionalState`
+/// exists there. 1.21.11's `getState` always returns a state: the
+/// fallback is required, never absent.
+#[derive(Clone, Debug)]
+pub struct RuleBasedBlockStateProvider {
+    fallback: BlockStateProvider,
+    rules: Vec<(BlockPredicate, BlockStateProvider)>,
+}
+impl RuleBasedBlockStateProvider {
+    pub(crate) fn decode(
+        json: &str,
+        bindings: &StateProviderBindings<'_>,
+        depth: usize,
+        remaining: &mut usize,
+        catalog: Option<&StateProviderCatalog>,
+    ) -> Result<Self, DecodeError> {
+        if depth > 128 || *remaining == 0 {
+            return Err(DecodeError::Field("rule-based provider depth"));
+        }
+        *remaining -= 1;
+        let object: Object = serde_json::from_str(json)?;
+        let fallback = BlockStateProvider::decode_holder(
+            required(&object, "fallback")?.get(),
+            bindings,
+            depth + 1,
+            remaining,
+            catalog,
+        )?;
+        let raw_rules: Vec<Box<RawValue>> =
+            serde_json::from_str(required(&object, "rules")?.get())?;
+        if raw_rules.len() > 8192 {
+            return Err(DecodeError::Field("provider rule count"));
+        }
+        let mut rules = Vec::with_capacity(raw_rules.len());
+        for raw in raw_rules {
+            if *remaining == 0 {
+                return Err(DecodeError::Field("provider node count"));
+            }
+            *remaining -= 1;
+            let rule: Object = serde_json::from_str(raw.get())?;
+            let predicate = BlockPredicate::decode_with_blocks(
+                required(&rule, "if_true")?.get(),
+                depth + 1,
+                remaining,
+                Some(bindings),
+            )?;
+            let provider = BlockStateProvider::decode_holder(
+                required(&rule, "then")?.get(),
+                bindings,
+                depth + 1,
+                remaining,
+                catalog,
+            )?;
+            rules.push((predicate, provider));
+        }
+        Ok(Self { fallback, rules })
+    }
+    /// The first matching rule wins; otherwise the fallback. The nested
+    /// providers' 1.21.11 `getState` takes only random + pos — the world
+    /// is threaded through for the predicates (and the Horizon
+    /// `copy_properties` extension), never read by a vanilla provider.
+    pub fn get_state<W: FeatureWorld + PlacementContext>(
+        &self,
+        world: &mut W,
+        random: &mut impl RandomSource,
+        position: [i32; 3],
+    ) -> Result<BlockStateId, StateProviderError<W::Error>> {
+        for (predicate, provider) in &self.rules {
+            if predicate
+                .test(world, position)
+                .map_err(StateProviderError::Query)?
+            {
+                return provider.get_state(world, random, position);
+            }
+        }
+        self.fallback.get_state(world, random, position)
     }
 }
 
@@ -690,5 +735,158 @@ mod tests {
             "observer powered=false facing=down"
         );
         assert_eq!(ids(22), [22; 6], "hopper facing=north");
+    }
+
+    /// The world a provider is evaluated in: one block everywhere.
+    struct OneBlock {
+        block: BlockStateId,
+    }
+    impl FeatureWorld for OneBlock {
+        type Error = PlacementQueryError;
+        fn block(&mut self, _: [i32; 3]) -> Result<BlockStateId, Self::Error> {
+            Ok(self.block)
+        }
+        fn set_block(
+            &mut self,
+            _: [i32; 3],
+            _: BlockStateId,
+            _: i32,
+        ) -> Result<bool, Self::Error> {
+            Ok(true)
+        }
+    }
+    impl PlacementContext for OneBlock {
+        fn block_state(&mut self, _: [i32; 3]) -> Result<BlockStateId, PlacementQueryError> {
+            Ok(self.block)
+        }
+        fn generation(&self) -> crate::worldgen::anchor::WorldGenerationContext {
+            crate::worldgen::anchor::WorldGenerationContext::new(-64, 384, 63)
+        }
+        fn min_y(&mut self) -> Result<i32, PlacementQueryError> {
+            Ok(-64)
+        }
+        fn height(
+            &mut self,
+            _: crate::heightmap::HeightmapType,
+            _: i32,
+            _: i32,
+        ) -> Result<i32, PlacementQueryError> {
+            Err(PlacementQueryError::Unavailable)
+        }
+    }
+
+    fn bindings<'r>(registry: &'r BlockRegistry) -> StateProviderBindings<'r> {
+        StateProviderBindings::new(registry, BTreeSet::new(), &BTreeMap::new()).unwrap()
+    }
+
+    /// 1.21.11's disk rule-based record: the `disk_clay` shape (a simple
+    /// fallback, no rules) plus one rule — the first matching rule wins,
+    /// otherwise the fallback. The fallback and the rules list are both
+    /// required, and the 26.x typed `rule_based` form does not exist.
+    #[test]
+    fn rule_based_record_decodes_and_evaluates_first_match() {
+        let registry = registry();
+        let bindings = bindings(&registry);
+        let mut random = horizon_core::random::LegacyRandom::new(0);
+        let json = r#"{
+            "fallback": {"type": "minecraft:simple_state_provider", "state": {"Name": "minecraft:stone"}},
+            "rules": [{"if_true": {"type": "minecraft:matching_blocks", "blocks": ["minecraft:stone"]}, "then": {"type": "minecraft:simple_state_provider", "state": {"Name": "minecraft:oak_log"}}}]
+        }"#;
+        let provider =
+            RuleBasedBlockStateProvider::decode(json, &bindings, 0, &mut 65536, None).unwrap();
+        let mut stone = OneBlock {
+            block: BlockStateId(1),
+        };
+        assert_eq!(
+            provider.get_state(&mut stone, &mut random, [0, 0, 0]).unwrap(),
+            BlockStateId(3),
+            "matching rule wins (oak_log default)"
+        );
+        let mut air = OneBlock {
+            block: BlockStateId(0),
+        };
+        assert_eq!(
+            provider.get_state(&mut air, &mut random, [0, 0, 0]).unwrap(),
+            BlockStateId(1),
+            "no match falls back to stone"
+        );
+        let missing = |json: &str| {
+            RuleBasedBlockStateProvider::decode(json, &bindings, 0, &mut 65536, None).is_err()
+        };
+        assert!(missing(r#"{"rules":[]}"#), "fallback is required");
+        assert!(
+            missing(
+                r#"{"fallback":{"type":"minecraft:simple_state_provider","state":{"Name":"minecraft:stone"}}}"#
+            ),
+            "rules are required"
+        );
+        let typed = r#"{"type":"minecraft:rule_based","fallback":{"type":"minecraft:simple_state_provider","state":{"Name":"minecraft:stone"}},"rules":[]}"#;
+        assert!(
+            BlockStateProvider::from_json(typed, &bindings).is_err(),
+            "the 26.x typed rule_based form is not a 1.21.11 provider type"
+        );
+    }
+
+    /// The bundle's long registry names decode alongside Horizon's short
+    /// aliases.
+    #[test]
+    fn long_provider_names_decode() {
+        let registry = registry();
+        let bindings = bindings(&registry);
+        let mut random = horizon_core::random::LegacyRandom::new(0);
+        let mut world = OneBlock {
+            block: BlockStateId(0),
+        };
+        for (json, expected) in [
+            (
+                r#"{"type":"minecraft:simple_state_provider","state":{"Name":"minecraft:stone"}}"#,
+                1,
+            ),
+            (
+                r#"{"type":"minecraft:weighted_state_provider","entries":[{"data":{"Name":"minecraft:furnace","properties":{"facing":"south"}},"weight":1}]}"#,
+                6,
+            ),
+        ] {
+            let provider = BlockStateProvider::from_json(json, &bindings).unwrap();
+            assert_eq!(
+                provider
+                    .get_state(&mut world, &mut random, [0, 0, 0])
+                    .unwrap(),
+                BlockStateId(expected),
+                "{json}"
+            );
+        }
+    }
+
+    #[test]
+    fn rule_based_record_bounds() {
+        let registry = registry();
+        let bindings = bindings(&registry);
+        let rule = serde_json::json!({"if_true": {"type": "true"}, "then": {"Name": "minecraft:stone"}});
+        let record = |rules: Vec<serde_json::Value>| {
+            serde_json::json!({
+                "fallback": {"type": "minecraft:simple_state_provider", "state": {"Name": "minecraft:stone"}},
+                "rules": rules,
+            })
+            .to_string()
+        };
+        let valid = record(vec![rule.clone(); 8192]);
+        assert!(
+            RuleBasedBlockStateProvider::decode(&valid, &bindings, 0, &mut 65536, None).is_ok()
+        );
+        let oversized = record(vec![rule; 8193]);
+        assert!(
+            RuleBasedBlockStateProvider::decode(&oversized, &bindings, 0, &mut 65536, None).is_err()
+        );
+        // Every individual list fits, but the aggregate predicate/provider
+        // tree must share a work budget rather than resetting it per rule.
+        let branching = serde_json::json!({
+            "if_true": {"type": "all_of", "predicates": vec![serde_json::json!({"type": "true"}); 7]},
+            "then": {"Name": "minecraft:stone"},
+        });
+        let oversized = record(vec![branching; 8192]);
+        assert!(
+            RuleBasedBlockStateProvider::decode(&oversized, &bindings, 0, &mut 65536, None).is_err()
+        );
     }
 }

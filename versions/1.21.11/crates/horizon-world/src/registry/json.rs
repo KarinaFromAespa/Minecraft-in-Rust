@@ -37,14 +37,25 @@ impl<'a> BlockStateJsonCodec<'a> {
             counts,
         })
     }
-    /// `full` selects FULL_CODEC, which requires the object representation.
+    /// `full` selects the object form. In 1.21.11 `BlockState.CODEC` is the
+    /// object form with the NBT field names only (`Name`/`Properties`) —
+    /// 26.3's `FULL_CODEC`; a bare block-id string or the `id`/`properties`
+    /// names decode-error in 1.21.11. `full=false` is 26.3's compact `CODEC`
+    /// (string or object with either naming), kept for the 26.3-model
+    /// callers and the block-state-codec harness.
     /// Invalid/missing properties keep their defaults, as vanilla's codec does.
     pub fn decode(&self, json: &str, full: bool) -> io::Result<BlockStateId> {
         let value: Value = serde_json::from_str(json).map_err(|e| invalid(e.to_string()))?;
         let name = if !full && value.is_string() {
             value.as_str()
+        } else if full {
+            // 1.21.11 object form: `Name` only, never `id`.
+            value.get("Name").and_then(Value::as_str)
         } else {
-            value.get("id").and_then(Value::as_str)
+            value
+                .get("id")
+                .or_else(|| value.get("Name"))
+                .and_then(Value::as_str)
         }
         .ok_or_else(|| invalid("missing block identifier"))?;
         let (namespace, path) = name.split_once(':').unwrap_or(("minecraft", name));
@@ -61,7 +72,13 @@ impl<'a> BlockStateJsonCodec<'a> {
             .default_state(&name)
             .ok_or_else(|| invalid("unknown block identifier"))?;
         let mut state = self.registry.state(default).unwrap().clone();
-        if let Some(properties) = value.get("properties").and_then(Value::as_object) {
+        let properties_value = if full {
+            // 1.21.11 object form: `Properties` only, never `properties`.
+            value.get("Properties")
+        } else {
+            value.get("properties").or_else(|| value.get("Properties"))
+        };
+        if let Some(properties) = properties_value.and_then(Value::as_object) {
             for (key, raw) in properties {
                 if !state.properties.contains_key(key) {
                     continue;

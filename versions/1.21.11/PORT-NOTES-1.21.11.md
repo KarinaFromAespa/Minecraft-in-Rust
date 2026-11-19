@@ -1493,5 +1493,68 @@ Rank 2 (492 items, in progress 2026-11-19)
     every skull head pivot on the Y axis. The placed-skull
     renderer already applies the 1.21.11 submitSkull transform.
     The two record classes are visibility only.
-- Rank-2 A-batches 1-9: 90 items closed (20 changed, 70 no-change).
-  work-items.json rank2.closed = 90 on 2026-11-19.
+- A-batch 10 (394, 395, 396, 397, 398, 399, 400, 401, 402, 403),
+  verified 2026-11-19, ported the same day:
+  - 394 no-change (SystemReport): 26.1 has "Memory (heap)" and
+    "Memory (non-head)" detail lines plus `printMemoryUsage`;
+    1.21.11 drops both. The Rust's crash report is Horizon's own
+    format — neither version's lines exist there.
+  - 395 no-change (DedicatedServer$1, DedicatedServerProperties):
+    requireNonNull ctor pattern, LOGGER private -> package-private,
+    `acceptsTransfers` final -> non-final.
+  - 396 no-change (VanillaPackResources): `getMetadataSection` IS
+    structurally different (26.1 lazily loads and caches
+    `resourceMetadata`, warns on parse failure; 1.21.11 re-reads
+    `pack.mcmeta` per call and lets parse errors propagate), but
+    there is no Rust surface — no `getMetadataSection` counterpart.
+  - 397 no-change (Ocelot): `isTrusting` private -> package-private
+    plus `is(Object)` -> `is(Block)`.
+  - 398 no-change (RecipeManager, IngredientCollector,
+    ServerDisplayInfo): access flags only.
+  - 399 no-change (VaultBlockEntity$Server): `ItemInstance` (26.x)
+    vs `ItemStack` (1.21.11) in the `resolveItemsToEject`
+    signature; the body is identical.
+  - 400 no-change (WorldBorder, Moving/StaticBorderExtent): fields
+    private -> package-private; `SavedDataType` takes an
+    `Identifier` (26.1) vs a raw String (1.21.11) — same id, codec,
+    DataFixType; ctor field-init order swaps.
+  - 401 CHANGED (BlockStateProvider): 1.21.11's
+    `RuleBasedBlockStateProvider` is a standalone Record
+    (`fallback` REQUIRED + `rules`, first match wins, else
+    fallback), NOT a provider subtype and NOT in the 1.21.11
+    registry (7 types; 26.1 adds `rule_based_state_provider`).
+    It is used only by DiskConfiguration, and the bundle disk
+    JSONs carry it with NO `type` field, which the Rust's typed
+    decode rejected — the 4 disk features could not load. Ported:
+    `Node::RuleBased` and the `minecraft:rule_based` arm removed;
+    long-name arms added for all 7 vanilla types (the bundle uses
+    `minecraft:simple_state_provider` etc., the decode accepted
+    only short names); new `RuleBasedBlockStateProvider` record
+    type with record-form decode and `get_state`; `disk.rs` decodes
+    the record form and places unconditionally (verified against
+    the 1.21.11 DiskFeature decompile). Supporting fix, pulled
+    forward from item 111: `BlockStateJsonCodec::decode` now reads
+    the NBT names — `full` form `Name`/`Properties` only (verified
+    from the jar: `StateHolder.codec` dispatches on `"Name"`),
+    compact form either naming — mirroring the 26.2 port; the
+    26.1-base codec read `id` only and could not decode any vanilla
+    `{"Name": ...}` state. Tests: 4 state_provider unit tests pass
+    (record decode/eval, long names, record bounds 8192/8193 +
+    shared budget) and the bounds integration test passes with the
+    typed forms asserted rejected. Follow-ups: the client
+    block_transform JSON parser still accepts `minecraft:rule_based`
+    (Horizon content, no content uses it); the port-pack upgrader
+    still maps `rule_based_state_provider` -> `rule_based` (its own
+    item, as with the noise shapes).
+  - 402 no-change (StructureTemplate palettes, JigsawBlockInfo,
+    StructureBlockInfo): access flags plus `is(Object)` ->
+    `is(Block)`.
+  - 403 no-change (PerlinNoise): 1.21.11's `getValue` gains a 6th
+    boolean arg (when true, each level's Y input is `-yo`, a
+    horizontal slice), but the true path is DEAD in 1.21.11 — only
+    `PerlinNoise.class` itself references the 6-arg descriptor in
+    both jars, and its only call passes `false`. The live path is
+    byte-identical to 26.1's 5-arg form, which the Rust's
+    stack/smeared evaluation already implements.
+- Rank-2 A-batches 1-10: 100 items closed (21 changed, 79 no-change).
+  work-items.json rank2.closed = 100 on 2026-11-19.
