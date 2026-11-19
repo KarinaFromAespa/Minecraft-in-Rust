@@ -1,7 +1,7 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
 //! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
-//! books and copper golem statues). Each submits its model at the layer pose
-//! as vanilla's `submit` does (no block-entity placement transform) and
+//! books and copper golem statues). Each renders its model at the layer pose
+//! as vanilla's `render` does (no block-entity placement transform) and
 //! reports `getExtents` over the same posed parts.
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
 use crate::{block_entity_render::ModelPart, hud::Rect, mobs::EntityModelDocument};
@@ -233,7 +233,8 @@ fn skull_texture(kind: &str) -> &'static str {
         _ => "entity/player/wide/steve",
     }
 }
-/// `SkullModelBase.setupAnim` for a head at `animation` (yRot = xRot = 0).
+/// `SkullModelBase.setupAnim(float, float, float)` for a head at `animation`
+/// (yRot = xRot = 0).
 fn skull_pose(kind: &str, animation: f32) -> impl Fn(&str, &mut [f32; 9]) + '_ {
     move |name: &str, p: &mut [f32; 9]| match (kind, name) {
         (_, "head") => {
@@ -422,7 +423,7 @@ fn pot_sides(v: &Value) -> [Option<String>; 4] {
 
 /// `GuiBannerResultRenderer.renderToTexture` under `pose`: the standing
 /// banner flag (`BannerFlagModel.setupAnim(0)`) in the banner base texture,
-/// then `BannerRenderer.submitPatterns` (the base colour and up to 16 layers
+/// then `BannerRenderer.renderPatterns` (the base colour and up to 16 layers
 /// of `(texture, dye)`).
 pub(super) fn submit_banner_result(
     renderer: &ItemRenderer,
@@ -471,7 +472,7 @@ pub(super) fn submit_book(
     draw(book, "root", pose, &pose_for, r, argb(-1), Foil::None, sink);
 }
 
-/// `SpecialModelRenderer.submit`.
+/// `SpecialModelRenderer.render`.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn submit(
     renderer: &ItemRenderer,
@@ -590,7 +591,7 @@ pub(super) fn submit(
                 white,
                 Foil::None,
             );
-            // `submitPatterns`: the base layer in the banner's colour, then up to 16 layers.
+            // `renderPatterns`: the base layer in the banner's colour, then up to 16 layers.
             part(
                 flag,
                 &flag_pose,
@@ -613,13 +614,10 @@ pub(super) fn submit(
             } else {
                 "entity/shield/shield_base_nopattern"
             };
-            // Without patterns: `entitySolidGlint`. With them, vanilla draws
-            // `patternedShieldGlint` last, the glint alone over the finished
-            // plate. A foil quad here is its texture with the glint over it
-            // (the GUI adds the glint masked by the layer's alpha, the world
-            // shader composites it), so every layer carries the foil: each
-            // pixel ends with the glint once, over the layers below it.
-            // Redrawing the base with the foil would cover the patterns.
+            // Only the base plate foils: `renderPatterns` draws it through
+            // the foil buffer, and `renderPatternLayer` draws the base
+            // colour and every pattern layer through the plain buffer, so
+            // a patterned shield's patterns never shimmer.
             let foil = if has_foil { Foil::Standard } else { Foil::None };
             part("shield", &none, base, white, foil);
             if has_patterns {
@@ -628,11 +626,11 @@ pub(super) fn submit(
                     &none,
                     "entity/shield/base",
                     dye(base_color.unwrap_or("white")),
-                    foil,
+                    Foil::None,
                 );
                 for (pattern, color) in patterns.into_iter().take(16) {
                     if let Some(t) = pattern_texture(host, false, &pattern) {
-                        part("shield", &none, &t, dye(&color), foil);
+                        part("shield", &none, &t, dye(&color), Foil::None);
                     }
                 }
             }
@@ -744,10 +742,11 @@ mod tests {
             );
         }
     }
-    /// `ShieldSpecialRenderer.submit` of an enchanted shield with a banner:
-    /// the glint goes over the patterns, and nothing covers them after.
+    /// `ShieldSpecialRenderer.render` of an enchanted shield with a banner:
+    /// only the base plate foils — the base colour and pattern layers draw
+    /// through the plain buffer and never shimmer.
     #[test]
-    fn an_enchanted_banner_shield_keeps_its_patterns_under_the_glint() {
+    fn an_enchanted_banner_shield_foils_only_its_base_plate() {
         let root =
             std::env::temp_dir().join(format!("horizon-shield-glint-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
@@ -826,8 +825,8 @@ mod tests {
             drawn(banner.clone(), true),
             [
                 ("entity/shield/shield_base", Foil::Standard),
-                ("entity/shield/base", Foil::Standard),
-                ("entity/shield/stripe_bottom", Foil::Standard),
+                ("entity/shield/base", Foil::None),
+                ("entity/shield/stripe_bottom", Foil::None),
             ]
         );
         assert_eq!(
@@ -842,6 +841,65 @@ mod tests {
             drawn(Value::Null, true),
             [("entity/shield/shield_base_nopattern", Foil::Standard)]
         );
+    }
+    /// `PlayerHeadSpecialRenderer.render` of a head whose profile has no skin
+    /// ready: the default render info, slim steve — not the profile's
+    /// UUID-hash default skin (a name-only profile's would be slim alex).
+    #[test]
+    fn a_head_without_a_skin_ready_shows_slim_steve() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-head-default-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("items.json"), "{}").unwrap();
+        std::fs::write(
+            root.join("entity-models.json"),
+            serde_json::json!({"minecraft:player_head#main": {
+                "pose": [0, 0, 0, 0, 0, 0, 1, 1, 1],
+                "polygons": [[[0, 0, 0, 0, 0], [1, 0, 0, 1, 0],
+                              [1, 1, 0, 1, 1], [0, 1, 0, 0, 1]]],
+                "children": {}
+            }})
+            .to_string(),
+        )
+        .unwrap();
+        let library = crate::model_library::ParsedModels::default().into_item_library();
+        let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        let sprites: HashMap<String, Rect> = [
+            ("entity/player/slim/steve", 0.0),
+            ("entity/player/slim/alex", 0.5),
+        ]
+        .into_iter()
+        .map(|(t, u0)| {
+            (
+                t.to_owned(),
+                Rect {
+                    u0,
+                    v0: 0.0,
+                    u1: u0 + 0.1,
+                    v1: 0.1,
+                    w: 16,
+                    h: 16,
+                },
+            )
+        })
+        .collect();
+        let mut quads: Vec<ItemQuad> = Vec::new();
+        submit(
+            &renderer,
+            &SpecialModel {
+                kind: SpecialKind::PlayerHead,
+            },
+            &serde_json::json!({"name": "Notch"}),
+            false,
+            Mat4::IDENTITY,
+            &sprites,
+            &super::super::NoHost,
+            &mut quads,
+        );
+        assert_eq!(quads.len(), 1);
+        assert_eq!(quads[0].uv[0][0].min(quads[0].uv[1][0]), 0.0);
+        assert!(quads[0].oit, "a head draws with entityTranslucent");
     }
     /// `DecoratedPotRenderer` draws every part with `RenderTypes.entitySolid`,
     /// whose pipeline culls back faces: the pot's flat `top` and `bottom`

@@ -554,13 +554,15 @@ impl Resolver {
 
 /// A head's skin (`SkullBlockRenderer.getRenderType`, through
 /// `SkinManager.getInsecureSkin` of the fetched profile): the resolved skin
-/// once its texture is in the atlas (`atlas`), else the profile's default.
+/// once its texture is in the atlas (`atlas`), else `None` — the caller
+/// picks the default (the tab list takes the profile's UUID-hash default,
+/// a head item takes slim steve, `DefaultPlayerSkin.getDefaultSkin`).
 pub fn head_skin(
     profile: &serde_json::Value,
     resolver: &mut Resolver,
     downloads: &mut Downloader,
     atlas: impl Fn(&str) -> bool,
-) -> String {
+) -> Option<String> {
     let p = resolver.heads.get(profile);
     // Unresolved-profile resolution is deliberately not cached: pending answers and the
     // resolver's expiring service results must still advance on every draw.
@@ -599,7 +601,7 @@ pub fn head_skin(
         match downloads.state(Kind::Skin, url) {
             Download::Ready if atlas(location) => {
                 downloads.drawn(location);
-                return location.clone();
+                return Some(location.clone());
             }
             // Its slot was evicted: offer the image again.
             Download::Ready => {
@@ -608,7 +610,7 @@ pub fn head_skin(
             _ => {}
         }
     }
-    crate::tab_list::default_skin(p.info.id).to_owned()
+    None
 }
 
 /// `MinecraftProfileTexture.getHash`: the base name of the URL's path.

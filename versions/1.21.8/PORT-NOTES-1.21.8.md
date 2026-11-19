@@ -334,7 +334,45 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 27/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 32, 33, 38, 39, 41 + 4 zero-diff)
+### Rank 2: 28/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 38, 39, 41 + 4 zero-diff)
+
+- **Item 31 — `crates/horizon-client/src/item_render/special.rs` (12 classes, 53 methods, 7 named in Horizon):**
+  BannerRenderer, PlayerHeadSpecialRenderer, ShieldSpecialRenderer,
+  BannerFlagModel, SkullModelBase, SpecialModelRenderer (+ Unbaked,
+  BakingContext$Simple — the last three are 1.21.9-only and gone from the
+  1.21.8 jar).
+  1. **Only a shield's base plate foils:** 1.21.8's `renderPatterns` draws
+     the base plate through the foil buffer and the base colour and every
+     pattern layer through the plain buffer (`renderPatternLayer`), so a
+     patterned shield's patterns never shimmer. The Rust gave every layer
+     `Foil::Standard`, citing `patternedShieldGlint` — a RenderType that
+     exists in NEITHER version (a 26.x-ism). The base-colour and pattern
+     layers now draw with `Foil::None`; the base draw (handle + plate) keeps
+     the foil. The shield test now pins
+     `[(shield_base, Standard), (base, None), (stripe_bottom, None)]`.
+  2. **A head item without a skin ready shows slim steve:** 1.21.8's
+     `PlayerHeadSpecialRenderer` falls back to its default render info
+     (`DefaultPlayerSkin.getDefaultSkin()`, slim steve) whenever the
+     profile is unresolved or its textures are not unpacked yet; 1.21.9's
+     `getOrDefault` falls back to the profile's UUID-hash default instead.
+     `head_skin` now returns `Option<String>` (`None` until the skin is
+     ready) and the PlayerHead arm's existing slim-steve fallback finally
+     applies; the tab-list path (remote.rs) keeps the UUID-hash default.
+     New test `a_head_without_a_skin_ready_shows_slim_steve`.
+  3. **Citations:** `submit` → `render` (module doc, `submit` fn doc,
+     `submit_banner_result`'s `submitPatterns` → `renderPatterns`, the
+     Banner arm, the shield test doc); `SkullModelBase.setupAnim` now cites
+     the 1.21.8 `(float, float, float)` form. The `submit`/`submit_banner_result`
+     fn names stay (internal names, per the item-19 precedent).
+  Verified no-change: the banner render is identical (same transform, same
+  flag formula, same 16-layer cap, same `entitySolid`/`entityNoOutline`
+  types — only the submit/render plumbing differs); 1.21.9's
+  `Model.setupAnim` resetPose is unobservable for the flag (its only
+  animated property is set unconditionally right after); the skull pose
+  formulas are unchanged (the concrete skull models are not in the diff);
+  `getExtents` is unchanged; the head's `entityTranslucent` render type is
+  the same in both versions; the banner phase formula is identical (1.21.9
+  only adds a null-level guard that never triggers in practice).
 
 - **Item 30 — `horizon-client-render/src/skins.rs` (12 classes, 65 methods, 7 named in Horizon):**
   ResolvableProfile, SkinManager, SkinTextureDownloader, SkinManager$1,

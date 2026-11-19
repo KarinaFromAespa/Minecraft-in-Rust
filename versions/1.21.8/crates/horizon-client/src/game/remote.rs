@@ -5837,13 +5837,16 @@ impl Game<'_> {
     pub(super) fn resolve_inline_profiles(&mut self, profiles: &[serde_json::Value]) {
         use horizon_client::skins;
         for profile in profiles {
+            let id = skins::parse_profile(profile).id;
+            // The tab list's skin for the same profile: its UUID-hash
+            // default until the resolved skin is ready.
             let skin = skins::head_skin(
                 profile,
                 &mut self.skin_profiles.borrow_mut(),
                 &mut self.skin_downloads.borrow_mut(),
                 |location| self.gui.atlas.sprites.contains_key(location),
-            );
-            let id = skins::parse_profile(profile).id;
+            )
+            .unwrap_or_else(|| horizon_client::tab_list::default_skin(id).to_owned());
             let name = profile
                 .as_str()
                 .or_else(|| profile.get("name").and_then(serde_json::Value::as_str));

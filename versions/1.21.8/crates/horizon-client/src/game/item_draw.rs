@@ -168,13 +168,15 @@ impl SpecialHost for Host<'_> {
         // SkullBlockRenderer.getPlayerSkin: SkinManager.getInsecureSkin
         // accepts a texture property without a signature, unlike the tab list.
         // An unresolved profile (a name or id only) resolves through the
-        // services (`SkullBlockEntity.fetchGameProfile`).
-        Some(horizon_client::skins::head_skin(
+        // services (`SkullBlockEntity.fetchGameProfile`). `None` until the
+        // skin is ready: the head item then shows slim steve
+        // (`PlayerHeadSpecialRenderer`'s default render info).
+        horizon_client::skins::head_skin(
             profile,
             &mut self.profiles.borrow_mut(),
             &mut self.skins.borrow_mut(),
             |location| self.sprites.contains_key(location),
-        ))
+        )
     }
 }
 
