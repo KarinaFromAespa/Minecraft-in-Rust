@@ -1,0 +1,51 @@
+{
+ "old": "26.1",
+ "new": "1.21.11",
+ "candidate": "/home/hatch/workspace/mcir-work/e6-1.21.11-behaviour/versions/1.21.11",
+ "commit": "80d2e26cafa318de17377cbf09fb7d6be93f1b0e",
+ "generators": {
+  "version_consts": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-core/src/version.rs"
+   ],
+   "stat": {}
+  },
+  "packet_ids": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-protocol/src/ids.rs"
+   ],
+   "stat": {}
+  },
+  "entity_tracking": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-client/src/lan/tracking.rs"
+   ],
+   "stat": {}
+  },
+  "lan_command_order": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-client/src/lan/command_order.rs"
+   ],
+   "stat": {}
+  },
+  "command_suggestions": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-client/src/lan/command_suggestions.rs"
+   ],
+   "stat": {}
+  },
+  "vanilla_command_order": {
+   "status": "unchanged",
+   "outputs": [
+    "crates/horizon-command/src/vanilla_order.rs"
+   ],
+   "stat": {}
+  }
+ },
+ "notes": "Fresh regen 2026-11-19 on behaviour/1.21.11: five generators via port_regen.run_generators; packet_ids run with --report .local/datagen-1.21.11/reports/packets.json (the stock default .local/datagen/out/reports/packets.json does not exist in this tree); vanilla_command_order run with the command-parse oracle tree (.local/command-parse-parity/tree.json) and the fast-profile client_probe fixture (/tmp/rust_tree.json) instead of the debug build port_regen would do. All six tables reproduce byte-identical."
+}

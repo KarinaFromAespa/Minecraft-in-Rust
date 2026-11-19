@@ -789,7 +789,7 @@ drivers, chunk_generation), 3e8a93d (datafix), 8ead9be (command_exec),
 f236b5c (item_model), 19682d1 (component_patch), fbb1c14
 (entity_components driver).
 
-Rank 1 (10 items, in progress 2026-11-19)
+Rank 1 (10 items, CLOSED 2026-11-19)
 - Items 2, 3, 4, 5, 7, 8 verified current: protocol (removed packets
   have no Rust types; step_1_21_11.rs exists; ids.rs current),
   version_consts (--check passes), packet_ids, lan_command_order (236
@@ -816,11 +816,28 @@ Rank 1 (10 items, in progress 2026-11-19)
   Data — that rewire is rank-2 save_roundtrip work.
 - Item 10 facts (f46c381): Realms test headers 1.21.11/774/Java 21;
   production code already reads version.rs.
-- Still owed for rank 1: item 1 (components, +0 -6, ids_shifted 63),
-  item 6 (vanilla_order: INTEGRATED tree generated, needs client_probe
-  + generate_command_order.py + diff), regen.json +
-  regen-determinism.json (D1; deferred until item 6 closes — the fresh
-  regen hashes the six tables, committed vs fresh).
+- Item 6 vanilla_order (verified 2026-11-19, no change): the
+  INTEGRATED vanilla tree (.local/command-parse-parity/tree.json, 75
+  root children, from the command-parse oracle) against the Rust tree
+  (client_probe fast build, finished 24m27s after two SIGTERM/quota
+  retries) through generate_command_order.py gives 27 nodes, byte-
+  identical after rustfmt to the committed vanilla_order.rs.
+- regen.json + regen-determinism.json (D1, 2026-11-19): all six
+  generators run fresh reproduce the committed tables byte-identical
+  (version_consts, entity_tracking, lan_command_order,
+  command_suggestions via port_regen.run_generators; packet_ids with
+  --report .local/datagen-1.21.11/reports/packets.json — the stock
+  default .local/datagen/out/reports/packets.json does not exist in
+  this tree; vanilla_command_order via the oracle tree + fast
+  client_probe fixture). regen.json sits beside report.json
+  (diff-26.1-1.21.11/regen.json); regen-determinism.json in
+  pins/1.21.11/ (committed == fresh, no overrides). D1 now passes
+  the regen/determinism steps locally; the remaining D1 steps
+  (prepared data at .local/horizon-client/1.21.11, tag audit) need
+  the CI judge's prepare layout — the tag audit run locally against
+  the client jar's tag data finds the known 31 dead production tags
+  (see rank-2 tag triage below).
+- Rank 1 closed 10/10 in work-items.json on 2026-11-19.
 - Item 1 components (9e92320): DATA_COMPONENT_TYPES 122 -> 116; dye
   colours from the item name (facts, loom, sheep dyeing); only wolves
   keep sound variants. Two oracles the T4 survey missed needed ports

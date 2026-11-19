@@ -1,10 +1,10 @@
 {
   "release": "1.21.11",
   "generated_from": "2015d5e9a53605e626d6dfb97bd8e8a128345e859f29e4709bf28cbbdd06f09a",
-  "note": "E6 template publish: the pin, tables, packet rewire and adapter re-base are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "note": "E6 template publish: the pin, tables, packet rewire and adapter re-base are done. Rank 1 closed 10/10 on 2026-11-19 (behaviour/1.21.11); rank 2 in progress.",
   "rank1": {
     "total": 10,
-    "closed": 0,
+    "closed": 10,
     "accepted": []
   },
   "rank2": {
