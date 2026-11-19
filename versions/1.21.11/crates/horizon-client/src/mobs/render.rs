@@ -884,7 +884,7 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         S::Phantom => push(
             &mut v,
             "phantom#main",
-            "entity/phantom/phantom_eyes",
+            "entity/phantom_eyes",
             white,
             true,
         ),
@@ -953,12 +953,12 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
             } else {
                 "entity/zombie_villager"
             };
-            // VillagerProfessionLayer: a baby's type texture is in `baby/`.
-            let group = if m.is_baby() { "baby" } else { "type" };
+            // VillagerProfessionLayer: the type texture is always in `type/`
+            // (1.21.11 has no `baby/` folder; 26.x added one for babies).
             push(
                 &mut v,
                 model.clone(),
-                interned(format_args!("{folder}/{group}/{t}")),
+                interned(format_args!("{folder}/type/{t}")),
                 white,
                 false,
             );
@@ -2939,10 +2939,10 @@ mod tests {
                         (m.extra.variant, m.extra.variant2, m.extra.variant3) =
                             (t as u8, p as u8, 5);
                         let layers = layers(&m, m.age as f32);
-                        let group = if baby { "/baby/" } else { "/type/" };
+                        // 1.21.11: babies use the `type/` texture too.
                         assert!(
-                            layers.iter().any(|l| l.texture.contains(group)),
-                            "{kind:?} baby={baby}: no {group} layer"
+                            layers.iter().any(|l| l.texture.contains("/type/")),
+                            "{kind:?} baby={baby}: no /type/ layer"
                         );
                         for layer in layers {
                             let png = root

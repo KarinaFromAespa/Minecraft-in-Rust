@@ -288,7 +288,7 @@ pub const ALL: &[Def] = &[
         Llama,
         "llama",
         "llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -302,7 +302,7 @@ pub const ALL: &[Def] = &[
         TraderLlama,
         "trader_llama",
         "trader_llama#main",
-        "entity/llama/llama_creamy",
+        "entity/llama/creamy",
         A::Llama,
         [
             "entity.llama.ambient",
@@ -898,7 +898,7 @@ pub const ALL: &[Def] = &[
         Phantom,
         "phantom",
         "phantom#main",
-        "entity/phantom/phantom",
+        "entity/phantom",
         A::Phantom,
         [
             "entity.phantom.ambient",

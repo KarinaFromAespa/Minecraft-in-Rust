@@ -1179,3 +1179,68 @@ Rank 2 (492 items, in progress 2026-11-19)
     Server-side.
 - Rank-2 A-batches 1-5: 50 items closed (10 changed, 40 no-change).
   work-items.json rank2.closed = 50 on 2026-11-19.
+- A-batch 6 (339, 340, 341, 342, 343, 344, 345, 347, 348, 351),
+  verified 2026-11-19, ported the same day:
+  - 339 no-change (fish): access flags; `LivingEntity.is(TagKey)`
+    vs `getType().is(TagKey)` (same semantics); Salmon$Variant
+    CODEC declared type (same codec); `is(Object)` -> `is(Block)`.
+    Server-side.
+  - 340 no-change (set_name): MAP_CODEC -> CODEC + `codec()` ->
+    `getType()` (the 26.x loot-function registration refactor);
+    `ResolutionContext`/`ComponentUtils.resolve` vs
+    `CommandSourceStack` + `ComponentUtils.updateForEntity` (same
+    change as item 172's WrittenBookContent). The Rust's set_name
+    does not model entity resolution (no table uses `entity`), so
+    the difference is unobservable.
+  - 341 CHANGED (command storage): 1.21.11 writes
+    `data/command_storage_<namespace>.dat` (flat under data/,
+    `createId` = `"command_storage_" + namespace`, verified by
+    `javap -v`); 26.x writes `data/<namespace>/command_storage.dat`.
+    The Rust wrote the 26.x layout, so a vanilla-written 1.21.11
+    world would never load. `file()` + `load()` rewritten for the
+    flat layout (load scans `command_storage_*.dat` files, namespace
+    from the filename); the NBT shape is the same. The respawn
+    harness glob updated to `command_storage_*.dat` (matches both
+    the Rust's new file and vanilla 1.21.11's).
+  - 342 no-change (recipe-book screen): `extract*` -> `render*`
+    renames (GuiGraphicsExtractor vs GuiGraphics); `ContainerInput`
+    vs `ClickType`. Mojang render-API rename.
+  - 343 no-change (end crystal): 1.21.11 passes a static RENDER_TYPE
+    (entityCutoutNoCull) to submitModel, 26.1 the texture
+    Identifier; same texture, same model. CameraRenderState package
+    move.
+  - 344 CHANGED (phantom + villager textures): the phantom texture
+    MOVED in 26.x — 1.21.11 has `textures/entity/phantom.png` and
+    `phantom_eyes.png` (flat, verified in the client jar), 26.1 has
+    them under `phantom/`. species.rs + render.rs updated.
+    VillagerProfessionLayer: 26.1 passes `"baby"` for baby villagers,
+    1.21.11 ALWAYS passes `"type"` — there is no `baby/` folder in
+    the 1.21.11 jar, so the Rust's baby-villager type texture pointed
+    at a missing file. The baby branch is gone (group always
+    `"type"`); the baby MODEL (`villager_baby#main`) stays. The
+    `/baby/` fallback in the villager-hats lookup stays as a
+    pack-defined-texture fallback (never fires for vanilla textures).
+    RopesLayer is the same RenderType-vs-Identifier API pattern as
+    item 343 (no change).
+  - 345 CHANGED (llama textures): 26.1 has `llama_creamy/white/
+    brown/gray.png` + `llama_*_baby.png` and a `BabyLlamaModel`;
+    1.21.11 has `creamy/white/brown/gray.png` (no `llama_` prefix),
+    no baby textures (babies wear the adult coat), and a plain
+    `LlamaModel` for babies (verified in the client jar). `texture()`
+    now returns `entity/llama/{coat}`; the species defaults updated
+    to `entity/llama/creamy`. `decor()` untouched (equipment
+    textures; `llama_baby#decor` is a model name from the 1.21.11
+    data).
+  - 347 no-change (CharacterEvent): 1.21.11's record carries a
+    `modifiers` component 26.1's lacks, but a jar-wide check shows
+    NO consumer reads it (only KeyboardHandler, which constructs the
+    event) — carried, never consumed. The Rust's modifier-less char
+    handling is observably identical.
+  - 348 no-change (InputConstants): IME/preedit callbacks are 26.x-
+    only (1.21.11 uses `glfwSetCharModsCallback`, consistent with
+    item 347); raw-mouse support is resolved reflectively in 1.21.11
+    (same constant 208901, same behaviour). The Rust uses winit,
+    never GLFW.
+  - 351 no-change (Display inner classes): access flags only.
+- Rank-2 A-batches 1-6: 60 items closed (13 changed, 47 no-change).
+  work-items.json rank2.closed = 60 on 2026-11-19.

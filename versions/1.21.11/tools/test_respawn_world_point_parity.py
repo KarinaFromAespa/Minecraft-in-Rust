@@ -204,7 +204,7 @@ def default_point(entry):
 
 
 def facts(build, label):
-    storage = list((build / label / 'world').rglob('command_storage.dat'))
+    storage = list((build / label / 'world').rglob('command_storage_*.dat'))
     assert len(storage) == 1, storage
     data = nbt.read_dat(storage[0])['data']['contents']['proof']
     result = {'setup/join-deltas': json.loads((build / f'{label}-join-deltas.json').read_text())}
