@@ -70,7 +70,7 @@ const CLASS_RULES: &[(&str, &str)] = &[
 
 const VEGETATION_RULES: &[(&str, &str)] = &[
     ("LilyPadBlock", "LilyPad"),
-    ("VegetationBlock", "TagBelow:minecraft:supports_vegetation"),
+    ("VegetationBlock", "Vegetation"),
     ("AzaleaBlock", "TagBelow:minecraft:supports_azalea"),
     (
         "DryVegetationBlock",
@@ -136,15 +136,17 @@ pub fn bind_definitions(
             };
             // Later versions carry the support set in a TagKey field the exporter
             // reads. 1.21.11's stem classes have no such field: their mayPlaceOn
-            // hardcodes the block check (farmland only), which the rule grammar
-            // cannot express yet, so those blocks get no bound rule here rather
-            // than a wrong one (the behaviour port owns the rule form).
+            // hardcodes the block check (farmland only), which the BlockBelow
+            // rule form carries. The fungus/root classes hardcode theirs too
+            // (item 757); they get no bound rule here rather than a wrong one.
             if let Some(tag) = support_tags
                 .get(name)
                 .and_then(|t| t.get(field))
                 .and_then(Value::as_str)
             {
                 definitions.insert(name, Value::Str(format!("TagBelow:{tag}")));
+            } else if method == "StemBlock" || method == "AttachedStemBlock" {
+                definitions.insert(name, Value::str("BlockBelow:minecraft:farmland"));
             }
         }
     }

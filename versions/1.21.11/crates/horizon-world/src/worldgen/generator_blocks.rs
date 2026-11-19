@@ -34,8 +34,12 @@ fn rule(name: &str) -> Option<SurvivalRule> {
     if let Some(tag) = name.strip_prefix("TagBelow:") {
         return Some(TagBelow(tag.to_owned()));
     }
+    if let Some(block) = name.strip_prefix("BlockBelow:") {
+        return Some(BlockBelow(block.to_owned()));
+    }
     Some(match name {
         "CactusFlower" => CactusFlower,
+        "Vegetation" => Vegetation,
         "Seagrass" => Seagrass,
         "BubbleColumn" => BubbleColumn,
         "RedstoneWire" => RedstoneWire,

@@ -196,9 +196,12 @@ pub struct BlockData {
     pub link: Option<BlockId>,
     /// Second block link: attached stem (stems) or stem (attached stems).
     pub link2: Option<BlockId>,
-    /// Support blocks (stems, plants); a content mod's connecting block's
+    /// Support blocks (plants); a content mod's connecting block's
     /// `connects_to` (a `PipeBlock` alone in its chain).
     pub support_tag: Option<Arc<BlockSet>>,
+    /// Second support tag: the fruit blocks a stem grows on, in versions
+    /// whose stems carry `fruitSupportBlocks` (1.21.11 hardcodes
+    /// farmland-or-dirt instead, so nothing reads this there).
     pub support_tag2: Option<Arc<BlockSet>>,
     pub feature: Option<Arc<str>>,
     pub grow_probability: f64,
@@ -429,7 +432,6 @@ tags! {
     cannot_support_snow_layer = "cannot_support_snow_layer",
     support_override_snow_layer = "support_override_snow_layer",
     maintains_farmland = "maintains_farmland",
-    supports_vegetation = "supports_vegetation",
     supports_crops = "supports_crops",
     supports_cactus = "supports_cactus",
     supports_sugar_cane = "supports_sugar_cane",
@@ -444,7 +446,7 @@ tags! {
     supports_lily_pad = "supports_lily_pad",
     supports_frogspawn = "supports_frogspawn",
     supports_big_dripleaf = "supports_big_dripleaf",
-    supports_small_dripleaf = "supports_small_dripleaf",
+    small_dripleaf_placeable = "small_dripleaf_placeable",
     supports_mangrove_propagule = "supports_mangrove_propagule",
     supports_hanging_mangrove_propagule = "supports_hanging_mangrove_propagule",
     supports_chorus_plant = "supports_chorus_plant",

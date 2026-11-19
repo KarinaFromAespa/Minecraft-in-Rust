@@ -908,11 +908,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let relative = rel(pos, direction);
         let data = b.data(state);
         let below_state = self.below_state(relative);
+        // `StemBlock.randomTick`: the fruit lands on farmland or the dirt tag
+        // in 1.21.11 (the `fruitSupportBlocks` tag field is gone).
         if b.is_air(self.state(relative))
-            && data
-                .support_tag2
-                .as_ref()
-                .is_some_and(|tag| b.in_set(below_state, tag))
+            && (b.in_set(below_state, &b.tags.dirt) || b.is_block(below_state, b.named.farmland))
             && let (Some(fruit), Some(stem)) = (data.link, data.link2)
         {
             self.set_block_and_update(relative, b.default_of(fruit));

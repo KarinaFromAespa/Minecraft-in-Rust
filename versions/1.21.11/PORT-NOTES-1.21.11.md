@@ -2405,3 +2405,38 @@ Rank 2 (492 items, in progress 2026-11-19)
   (game-rules screens -> unified `EditGameRulesScreen`).
   Rank 2 now 200/492 (36 changed, 164 no-change).
   work-items.json rank2.closed = 200 on 2026-11-19.
+- Item 22 (native_hooks.rs, 11 classes) CLOSED
+  2026-11-20: CHANGED — vegetation stands on dirt-or-farmland; stems stand
+  on farmland only and fruit on farmland-or-dirt; the screen narration hint
+  is said before the widget. 1.21.11 deletes `BlockTags.SUPPORTS_VEGETATION`
+  and `VegetationBlock.mayPlaceOn` becomes dirt-tag-or-farmland (the dirt
+  tag holds the same blocks the old tag did, farmland aside) — the Sim's
+  `Class::Vegetation` and the small-dripleaf water fallback follow it, and
+  the registry gains a `SurvivalRule::Vegetation` backed by a dirt ∪
+  farmland set (the old `TagBelow:minecraft:supports_vegetation` was a dead
+  tag literal). 1.21.11 deletes `StemBlock`'s `stemSupportBlocks` /
+  `fruitSupportBlocks` tag fields and hardcodes farmland-only placement and
+  farmland-or-dirt fruiting, so the Sim splits the stem arm off the tag
+  check, `stem_random_tick` checks dirt ∪ farmland, and the registry gains
+  a `BlockBelow` rule form that prepare binds stems to (the form prepare
+  had flagged as missing). `SmallDripleafBlock`'s tag was renamed
+  `small_dripleaf_placeable` (same contents) — drive-by rename, the class
+  has no report item. `Screen.updateNarrationState` narrates the usage hint
+  after the title whenever the screen narrates navigation, before the
+  widget (its no-widget branch is deleted) — `screen_narrator.rs` mirrors
+  the move; four narrator tests updated to the new output. New Sim tests
+  (fixture-gated): vegetation on dirt/farmland, stem on farmland only,
+  small dripleaf on clay/watered dirt. Verified no-ports:
+  `ServerPlayerGameMode` (a redundant spawn-protection check removed;
+  `mayInteract` still gates, and the Rust never sent the message),
+  `PlayerList` (the `load` change is item 24's level.dat reversal; the
+  join-time packet is the clock removal, handled by the adapter),
+  `FireBlock` (only the golden-dandelion odds go — data-driven via
+  prepare), `CampfireBlock` (equivalent `getType()` forms), `Holder`
+  (the Rust's `Holder` is the attachments enum; `direct(T)` survives),
+  `AnvilMenu` (overload resolution), `EntitySelectorOptions$Option` /
+  `DataValue` (access only). Referrals: item 24 (player-tag load), item 27
+  (DoublePlantBlock), item 757 (FungusBlock/RootsBlock rename + hardcoded
+  ground), items 87/519 (`DebugScreenOverlay.extractRenderState` cite).
+  Rank 2 now 201/492 (37 changed, 164 no-change).
+  work-items.json rank2.closed = 201 on 2026-11-20.

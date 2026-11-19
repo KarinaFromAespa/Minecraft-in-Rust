@@ -48,6 +48,12 @@ pub enum SurvivalRule {
     DoublePlant,
     Door,
     TagBelow(String),
+    /// `VegetationBlock.mayPlaceOn`: the dirt tag or farmland (1.21.11
+    /// removed `BlockTags.SUPPORTS_VEGETATION`, so no single tag says it).
+    Vegetation,
+    /// The block below is the named block (`StemBlock.mayPlaceOn`:
+    /// farmland, hardcoded in 1.21.11 with no tag field left to read).
+    BlockBelow(String),
     CactusFlower,
     Seagrass,
     BubbleColumn,
@@ -116,6 +122,8 @@ enum Rule {
     DoublePlant(bool),
     Door(bool),
     TagBelow(usize),
+    Vegetation,
+    BlockBelow(usize),
     CactusFlower,
     Seagrass,
     BubbleColumn,
@@ -193,6 +201,7 @@ pub struct BlockSurvivalRegistry<'r> {
     unstable_bottom_center: BTreeSet<BlockStateId>,
     supports_bamboo: BTreeSet<BlockStateId>,
     bound_tags: Vec<BTreeSet<BlockStateId>>,
+    bound_blocks: Vec<BTreeSet<BlockStateId>>,
     cactus_flower: BTreeSet<BlockStateId>,
     no_seagrass: BTreeSet<BlockStateId>,
     vegetation: BTreeSet<BlockStateId>,
@@ -246,6 +255,8 @@ impl<'r> BlockSurvivalRegistry<'r> {
         let mut skipped = BTreeSet::new();
         let mut tag_names = Vec::<String>::new();
         let mut tag_indices = BTreeMap::<String, usize>::new();
+        let mut block_names = Vec::<String>::new();
+        let mut block_indices = BTreeMap::<String, usize>::new();
         for id in 0..registry.len() {
             let state = registry.state(BlockStateId(id as u32)).unwrap();
             let Some(rule) = definitions.rules.get(&state.name) else {
@@ -405,6 +416,14 @@ impl<'r> BlockSurvivalRegistry<'r> {
                             index
                         }))
                     }
+                    SurvivalRule::Vegetation => Rule::Vegetation,
+                    SurvivalRule::BlockBelow(name) => {
+                        Rule::BlockBelow(*block_indices.entry(name.clone()).or_insert_with(|| {
+                            let index = block_names.len();
+                            block_names.push(name.clone());
+                            index
+                        }))
+                    }
                     SurvivalRule::CactusFlower => Rule::CactusFlower,
                     SurvivalRule::Seagrass => Rule::Seagrass,
                     SurvivalRule::BubbleColumn => Rule::BubbleColumn,
@@ -469,6 +488,20 @@ impl<'r> BlockSurvivalRegistry<'r> {
                 .filter(|id| names.contains(&registry.state(*id).unwrap().name))
                 .collect())
         };
+        let block_states = |name: &str| -> io::Result<BTreeSet<BlockStateId>> {
+            if registry.default_state(name).is_none() {
+                return Err(invalid("unknown survival block"));
+            }
+            Ok((0..registry.len())
+                .map(|i| BlockStateId(i as u32))
+                .filter(|id| registry.state(*id).unwrap().name == name)
+                .collect())
+        };
+        // `VegetationBlock.mayPlaceOn` in 1.21.11: the dirt tag or farmland.
+        // The dirt tag holds the same blocks the removed supports_vegetation
+        // tag did, farmland aside, so the union is exactly the old set.
+        let mut vegetation = tag_states("minecraft:dirt")?;
+        vegetation.extend(block_states("minecraft:farmland")?);
         let fluid_tag = |name: &str| -> io::Result<crate::fluid::FluidMask> {
             fluid_tags
                 .get(name)
@@ -519,9 +552,13 @@ impl<'r> BlockSurvivalRegistry<'r> {
                 .iter()
                 .map(|name| tag_states(name))
                 .collect::<io::Result<_>>()?,
+            bound_blocks: block_names
+                .iter()
+                .map(|name| block_states(name))
+                .collect::<io::Result<_>>()?,
             cactus_flower: tag_states("minecraft:support_override_cactus_flower")?,
             no_seagrass: tag_states("minecraft:cannot_support_seagrass")?,
-            vegetation: tag_states("minecraft:supports_vegetation")?,
+            vegetation,
             dripleaf: tag_states("minecraft:supports_big_dripleaf")?,
             maintains_farmland: tag_states("minecraft:maintains_farmland")?,
             cocoa: tag_states("minecraft:supports_cocoa")?,
@@ -535,7 +572,7 @@ impl<'r> BlockSurvivalRegistry<'r> {
             chorus_flower: tag_states("minecraft:supports_chorus_flower")?,
             lily_pad: tag_states("minecraft:supports_lily_pad")?,
             frogspawn: tag_states("minecraft:supports_frogspawn")?,
-            small_dripleaf: tag_states("minecraft:supports_small_dripleaf")?,
+            small_dripleaf: tag_states("minecraft:small_dripleaf_placeable")?,
             sugar_cane: tag_states("minecraft:supports_sugar_cane")?,
             sugar_cane_adjacent: tag_states("minecraft:supports_sugar_cane_adjacently")?,
             fluid_tags: [
@@ -1152,6 +1189,11 @@ impl<'r> BlockSurvivalRegistry<'r> {
                     .map_err(SurvivalError::Support)
             }
             Rule::TagBelow(index) => Ok(self.bound_tags[index]
+                .contains(&self.read(world, relative(position, Direction::Down))?)),
+            Rule::Vegetation => Ok(self
+                .vegetation
+                .contains(&self.read(world, relative(position, Direction::Down))?)),
+            Rule::BlockBelow(index) => Ok(self.bound_blocks[index]
                 .contains(&self.read(world, relative(position, Direction::Down))?)),
             Rule::CactusFlower => {
                 let below = relative(position, Direction::Down);

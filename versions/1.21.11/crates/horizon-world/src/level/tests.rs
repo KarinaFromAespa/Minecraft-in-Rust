@@ -3007,6 +3007,108 @@ fn torch_survives_on_a_box_opening_down_but_not_on_an_open_lid() {
 }
 
 #[test]
+fn vegetation_stands_on_dirt_or_farmland_but_not_on_stone() {
+    // `VegetationBlock.mayPlaceOn` in 1.21.11: the dirt tag or farmland
+    // (the `supports_vegetation` tag is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let plant_pos = BlockPos::new(0, 2, 0);
+    let dandelion = w.id("dandelion", &[]);
+    w.put(plant_pos, dandelion);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("mud", true),
+        ("farmland", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(dandelion, plant_pos),
+            stands,
+            "a dandelion on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_stem_stands_on_farmland_only() {
+    // `StemBlock.mayPlaceOn` in 1.21.11: farmland, hardcoded (the
+    // `stemSupportBlocks` tag field is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let stem_pos = BlockPos::new(0, 2, 0);
+    let stem = w.id("pumpkin_stem", &[("age", "0")]);
+    w.put(stem_pos, stem);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(stem, stem_pos),
+            stands,
+            "a pumpkin stem on {ground}"
+        );
+    }
+}
+
+#[test]
+fn small_dripleaf_stands_on_clay_or_watered_dirt() {
+    // `SmallDripleafBlock.mayPlaceOn`: the placeable tag (clay, moss) or,
+    // with water above the ground, `VegetationBlock.mayPlaceOn` (dirt or
+    // farmland). The tag was renamed `small_dripleaf_placeable` in 1.21.11.
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let leaf_pos = BlockPos::new(0, 2, 0);
+    let dry = w.id(
+        "small_dripleaf",
+        &[
+            ("half", "lower"),
+            ("facing", "north"),
+            ("waterlogged", "false"),
+        ],
+    );
+    let wet = w.id(
+        "small_dripleaf",
+        &[
+            ("half", "lower"),
+            ("facing", "north"),
+            ("waterlogged", "true"),
+        ],
+    );
+    w.put(ground_pos, w.id("clay", &[]));
+    w.put(leaf_pos, dry);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(dry, leaf_pos),
+        "a small dripleaf stands on clay"
+    );
+    w.put(ground_pos, w.id("dirt", &[]));
+    assert!(
+        !w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(dry, leaf_pos),
+        "a dry small dripleaf does not stand on dirt"
+    );
+    w.put(leaf_pos, wet);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .can_survive(wet, leaf_pos),
+        "a waterlogged small dripleaf stands on dirt"
+    );
+}
+
+#[test]
 fn creative_breaking_piston_head_does_not_drop_piston() {
     for (piston_name, head_type) in [("piston", "normal"), ("sticky_piston", "sticky")] {
         let mut w = world!();

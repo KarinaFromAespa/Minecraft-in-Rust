@@ -372,11 +372,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let data = b.data(state);
         for class in &data.chain {
             let result = match class {
-                Class::AttachedStem | Class::NetherFungus | Class::NetherRoots | Class::Stem => {
-                    data.support_tag
-                        .as_ref()
-                        .is_some_and(|tag| b.in_set(ground, tag))
-                }
+                // `StemBlock`/`AttachedStemBlock.mayPlaceOn`: farmland only in
+                // 1.21.11 (the `stemSupportBlocks`/`supportBlocks` tag fields
+                // are gone); the fungus/root classes keep their tag until
+                // their own item lands (FungusBlock/RootsBlock, item 757).
+                Class::AttachedStem | Class::Stem => b.is_block(ground, b.named.farmland),
+                Class::NetherFungus | Class::NetherRoots => data
+                    .support_tag
+                    .as_ref()
+                    .is_some_and(|tag| b.in_set(ground, tag)),
                 Class::Azalea => b.in_set(ground, &t.supports_azalea),
                 Class::CactusFlower => {
                     let below = self.state(ground_pos);
@@ -407,12 +411,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         && !b.in_set(ground, &t.cannot_support_seagrass)
                 }
                 Class::SmallDripleaf => {
-                    b.in_set(ground, &t.supports_small_dripleaf)
+                    b.in_set(ground, &t.small_dripleaf_placeable)
                         || (self.fluid_at(above(ground_pos)) == crate::fluid::FluidState::WATER
-                            && b.in_set(ground, &t.supports_vegetation))
+                            && (b.in_set(ground, &t.dirt) || b.is_block(ground, b.named.farmland)))
                 }
                 Class::WitherRose => b.in_set(ground, &t.supports_wither_rose),
-                Class::Vegetation => b.in_set(ground, &t.supports_vegetation),
+                // `VegetationBlock.mayPlaceOn`: the dirt tag or farmland in
+                // 1.21.11 (`BlockTags.SUPPORTS_VEGETATION` is gone; the dirt
+                // tag holds the same blocks the old tag did, farmland aside).
+                Class::Vegetation => {
+                    b.in_set(ground, &t.dirt) || b.is_block(ground, b.named.farmland)
+                }
                 _ => continue,
             };
             return result;

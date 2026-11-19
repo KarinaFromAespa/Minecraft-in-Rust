@@ -53,7 +53,7 @@ CLASS_RULES={
 
 VEGETATION_RULES={
     'LilyPadBlock':'LilyPad',
-    'VegetationBlock':'TagBelow:minecraft:supports_vegetation',
+    'VegetationBlock':'Vegetation',
     'AzaleaBlock':'TagBelow:minecraft:supports_azalea',
     'DryVegetationBlock':'TagBelow:minecraft:supports_dry_vegetation',
     'NetherSproutsBlock':'TagBelow:minecraft:supports_nether_sprouts',
@@ -72,7 +72,14 @@ def bind_definitions(classes,placement,support_tags):
         if method in VEGETATION_RULES:definitions[name]=VEGETATION_RULES[method]
         elif method in ['AttachedStemBlock','StemBlock','NetherFungusBlock','NetherRootsBlock']:
             field='stemSupportBlocks' if method=='StemBlock' else 'supportBlocks'
-            definitions[name]='TagBelow:'+support_tags[name][field]
+            # 1.21.11's stem classes have no tag field: their mayPlaceOn
+            # hardcodes farmland. The fungus/root classes hardcode theirs
+            # too (item 757); they get no rule rather than a wrong one.
+            tag=support_tags.get(name,{}).get(field)
+            if tag is not None:
+                definitions[name]='TagBelow:'+tag
+            elif method in ['AttachedStemBlock','StemBlock']:
+                definitions[name]='BlockBelow:minecraft:farmland'
     return definitions
 
 
