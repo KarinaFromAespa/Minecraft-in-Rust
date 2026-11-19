@@ -377,20 +377,64 @@ mod tests {
         let mut w = Writer::new();
         play::Commands::write(&tree, &mut w);
         let body = commands(ids(), &w.data).unwrap();
-        let out = play::Commands::read(&mut Reader::new(&body)).unwrap();
+        // Read the 26.2-numbered body back by hand: the pin codec cannot
+        // resolve 26.2's parser ids (uuid is 56 there, past the pin's
+        // 55-entry registry), and only the parser ids matter here.
+        let mut r = Reader::new(&body);
+        assert_eq!(r.varint().unwrap(), 3);
+        let mut parsers = Vec::new();
+        for _ in 0..3 {
+            let flags = r.u8().unwrap();
+            let count = r.varint().unwrap();
+            for _ in 0..count {
+                r.varint().unwrap();
+            }
+            if flags & 8 != 0 {
+                r.varint().unwrap();
+            }
+            let kind = flags & 3;
+            if kind >= 1 {
+                r.string(32767).unwrap();
+            }
+            let mut parser = None;
+            let mut suggestions = None;
+            if kind == 2 {
+                let id = r.varint().unwrap();
+                let props = if id == STRING_PARSER {
+                    // string: one varint (the string kind).
+                    let start = r.position();
+                    r.varint().unwrap();
+                    r.since(start).to_vec()
+                } else if id == 3 {
+                    // integer: one flag byte, no bounds set in this tree.
+                    let start = r.position();
+                    assert_eq!(r.u8().unwrap(), 0);
+                    r.since(start).to_vec()
+                } else {
+                    Vec::new() // uuid: no properties.
+                };
+                parser = Some((id, props));
+                if flags & 16 != 0 {
+                    suggestions = Some(r.string(32767).unwrap());
+                }
+            }
+            parsers.push((parser, suggestions));
+        }
+        assert_eq!(r.varint().unwrap(), 0);
+        assert!(r.rest().is_empty());
         let uuid_down = ids().command_argument_type.down(uuid);
         match uuid_down {
             // uuid is new in 26.3: a greedy string asking the server.
             None => {
-                assert_eq!(out.nodes[1].parser, Some((STRING_PARSER, vec![2])));
+                assert_eq!(parsers[1].0, Some((STRING_PARSER, vec![2])));
                 assert_eq!(
-                    out.nodes[1].suggestions.as_deref(),
+                    parsers[1].1.as_deref(),
                     Some("minecraft:ask_server")
                 );
             }
-            Some(old) => assert_eq!(out.nodes[1].parser.as_ref().unwrap().0, old),
+            Some(old) => assert_eq!(parsers[1].0.as_ref().unwrap().0, old),
         }
-        assert_eq!(out.nodes[2].parser, Some((3, vec![0])));
+        assert_eq!(parsers[2].0, Some((3, vec![0])));
     }
 
     #[test]
