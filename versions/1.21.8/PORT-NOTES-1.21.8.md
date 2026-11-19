@@ -334,7 +334,34 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 51/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67 + 4 zero-diff)
+### Rank 2: 52/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69 + 4 zero-diff)
+
+- **Item 69 — `crates/horizon-client/src/game/remote_mob_use.rs`
+  (2 classes, 7 methods, 5 named in Horizon) — zero-diff:**
+  Armadillo (5; brushOffScute, handleEntityEvent,
+  mobInteract), Sheep (2; aiStep, mobInteract). The armadillo
+  brush is already the 1.21.8 form in both paths: 1.21.8's
+  `brushOffScute()` spawns one scute outright and fires
+  `ENTITY_INTERACT`, while 1.21.9's two-argument form drops
+  from the `ARMADILLO_BRUSH` entity-interact loot table —
+  both the hand interaction (`interact_armadillo`) and the
+  dispenser (`dispense_brush`) already spawn one scute with
+  the brush sound, the entity-interact event and 16
+  durability, with comments naming the 1.21.9 table. The
+  1.21.8-only `Armadillo.sendDebugPackets` (brain packet) is
+  debug-only and unmodelled, as with the allay. The peek
+  event (64) is modelled with its sound. `Sheep.aiStep` and
+  both `mobInteract` bodies differ only by `isClientSide()`
+  vs `isClientSide` and by `InteractionHand.asEquipmentSlot()`
+  (1.21.9) vs `LivingEntity.getSlotForHand` (1.21.8) — the
+  same hand-to-slot mapping, and no `asEquipmentSlot` exists
+  in the Rust. The sheep shear (per-colour shearing table,
+  shear sound, 1 damage) matches. Known gap (vs both, not
+  fixed here): the hand sheep shear does not post the SHEAR
+  game event that vanilla posts in both versions (the
+  dispenser shear, the snow-golem/bogged shear and the
+  beehive shear all post it). No check run: no files changed
+  since item 67's 0/0 check (item-37 precedent).
 
 - **Item 67 — `crates/horizon-client/src/mobs/spawning.rs` (1 class,
   8 methods, 5 named in Horizon) — citations only:** Zombie
