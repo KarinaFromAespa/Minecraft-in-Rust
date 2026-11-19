@@ -1,18 +1,19 @@
-//! World persistence in the vanilla 26.3 layout, readable by both Horizon and
+//! World persistence in the vanilla 1.21.11 layout, readable by both Horizon and
 //! the vanilla game:
-//! - `level.dat` (`Data`: name, game type, time, spawn, difficulty, version)
-//!   plus the saved-data files `data/minecraft/{weather,world_clocks,
-//!   world_gen_settings,game_rules}.dat`;
-//! - the player in `players/data/<uuid>.dat` (`singleplayer_uuid`);
+//! - `level.dat` (`Data`: name, game type, time, spawn, difficulty, version,
+//!   and the world itself — `WorldGenSettings`, `game_rules`, the weather,
+//!   `Player`, the boss bars, the wandering trader, the dragon fight);
 //! - per dimension `dimensions/minecraft/<name>/region/r.X.Z.mca` (chunks:
 //!   paletted sections with light, heightmaps, block entities, scheduled
-//!   block/fluid ticks) and `entities/r.X.Z.mca` (entities, `entity_nbt`).
+//!   block/fluid ticks) and `entities/r.X.Z.mca` (entities, `entity_nbt`);
+//! - the real saved-data files (`data/minecraft/{chunk_tickets,scoreboard}.dat`,
+//!   the per-player files under `players/data/`).
 //!
 //! Data Horizon does not simulate (structure references, unknown block
-//! entities and entities, player fields such as the ender chest or effects,
-//! game rules) is kept from the loaded files and written back unchanged.
-//! Worlds saved by older Horizon builds (`region/`, `DIM-1/`, `Player` in
-//! `level.dat`) are migrated on open.
+//! entities and entities, player fields such as the ender chest or effects)
+//! is kept from the loaded files and written back unchanged.
+//! Worlds saved by older Horizon builds (`region/`, `DIM-1/`) are migrated
+//! on open.
 use crate::{
     Result,
     beehive::BeehiveExt,
@@ -2397,8 +2398,8 @@ struct DatafixContext {
     generator: Option<String>,
 }
 impl DatafixContext {
-    /// From a dimension folder made by [`dimension_dir`] and the world's
-    /// `world_gen_settings.dat`; None for a folder outside a world's `dimensions/`.
+    /// From a dimension folder made by [`dimension_dir`] and level.dat's
+    /// `Data.WorldGenSettings`; None for a folder outside a world's `dimensions/`.
     fn of(root: &Path) -> Option<Self> {
         let mut parts = Vec::new();
         let mut at = root;
@@ -2425,7 +2426,7 @@ impl DatafixContext {
 }
 /// `SimpleRegionStorage.upgradeChunkTag`, as `ChunkMap.upgradeChunkTag` (chunks),
 /// `EntityStorage` and `SectionStorage.PackedChunk.parse` (POI) call it on every
-/// record they read: a world 26.3 has opened keeps the chunks nobody loaded since
+/// record they read: a world 1.21.11 has opened keeps the chunks nobody loaded since
 /// an older version in that version's format, and `upgrade_older_world` only runs
 /// for an older level.dat. A record without a DataVersion counts as -1 (POI: 1945).
 /// `context` is needed only for an older chunk; without one it stays as saved.
@@ -3328,19 +3329,6 @@ fn restore_level_dat(dir: &Path) {
         let _ = fs::rename(old, path);
     }
 }
-/// `PlayerDataStorage.backup`: a player file that fails to load is copied to
-/// `<uuid>_corrupted_<time>.dat` before it is written over.
-fn back_up_unreadable_player(path: &Path) {
-    if path.is_file()
-        && read_dat(path).is_none()
-        && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
-    {
-        let _ = fs::copy(
-            path,
-            path.with_file_name(format!("{stem}_corrupted_{}.dat", backup_stamp())),
-        );
-    }
-}
 /// Write a gzip NBT file the way vanilla does (`<name>_new`, keep `_old`).
 pub fn write_dat(path: &Path, tag: Tag) -> Result<()> {
     write_dat_as(path, tag, false)
@@ -3435,20 +3423,17 @@ fn read_saved_data(world: &Path, name: &str) -> Option<Tag> {
         .get("data")
         .cloned()
 }
-/// The world's generator settings: world_gen_settings.dat (26.3) or
-/// level.dat's Data.WorldGenSettings.
+/// The world's generator settings: level.dat's Data.WorldGenSettings.
 pub fn world_gen_settings(world: &Path) -> Option<Tag> {
-    // A world still to be file-fixed has them in level.dat in an older shape: they are read as
+    // A world from an older version has them in level.dat in an older shape: they are read as
     // the fixes would leave them, so the questions on opening it are the same ones.
     if let Ok(Some(settings)) = horizon_world::datafix::files::current_world_gen_settings(world) {
         return Some(settings);
     }
-    read_saved_data(world, "world_gen_settings").or_else(|| {
-        read_dat(&world.join("level.dat"))?
-            .get("Data")?
-            .get("WorldGenSettings")
-            .cloned()
-    })
+    read_dat(&world.join("level.dat"))?
+        .get("Data")?
+        .get("WorldGenSettings")
+        .cloned()
 }
 fn write_saved_data(world: &Path, name: &str, data: Tag) -> Result<()> {
     write_dat(
@@ -3543,7 +3528,7 @@ pub(crate) fn read_doubles<const N: usize>(tag: Option<&Tag>) -> Option<[f64; N]
     }
 }
 
-/// Default game rules of a new 26.3 world (`data/minecraft/game_rules.dat`).
+/// Default game rules of a new 1.21.11 world (level.dat's `Data.game_rules`).
 const GAME_RULES: [(&str, i32); 58] = [
     ("spawn_wandering_traders", 1),
     ("block_drops", 1),
@@ -3785,6 +3770,35 @@ pub fn write_world_gen_settings_with(
     single_biome: Option<&str>,
 ) -> Result<()> {
     fs::create_dir_all(dir)?;
+    // `PrimaryLevelData.setTagData` writes the settings into level.dat's `Data`; a world
+    // without a level.dat yet gets one with only them, and the later `Level.write` fills
+    // in the rest. The existing `Data` is kept: only the settings are replaced.
+    let mut root = read_level_dat(dir)
+        .unwrap_or_else(|| Tag::compound([("Data", Tag::Compound(Compound::new()))]));
+    let mut data = compound_or_empty(root.get("Data").cloned());
+    if data.get("DataVersion").is_none() {
+        put(&mut data, "DataVersion", Tag::Int(DATA_VERSION));
+    }
+    put(
+        &mut data,
+        "WorldGenSettings",
+        world_gen_settings_tag(seed, options, flat_settings, single_biome),
+    );
+    if let Tag::Compound(map) = &mut root {
+        map.insert("Data".into(), data);
+    }
+    write_dat(&dir.join("level.dat"), root)
+}
+
+/// The `WorldGenSettings` compound `PrimaryLevelData.setTagData` writes:
+/// the seed, the feature/bonus-chest flags and the three builtin dimensions,
+/// the overworld's generator from the preset.
+fn world_gen_settings_tag(
+    seed: i64,
+    options: WorldGen,
+    flat_settings: Option<Tag>,
+    single_biome: Option<&str>,
+) -> Tag {
     // worldgen/world_preset/flat.json's overworld: the classic flat layers.
     let layer = |block: &str, height: i32| {
         Tag::compound([("block", string(block)), ("height", Tag::Int(height))])
@@ -3876,40 +3890,36 @@ pub fn write_world_gen_settings_with(
             ),
         ]),
     };
-    write_saved_data(
-        dir,
-        "world_gen_settings",
-        Tag::compound([
-            ("seed", Tag::Long(seed)),
-            (
-                "generate_features",
-                Tag::Byte(i8::from(options.structures)),
-            ),
-            ("bonus_chest", Tag::Byte(i8::from(options.bonus_chest))),
-            (
-                "dimensions",
-                Tag::compound([
-                    ("minecraft:overworld", overworld),
-                    (
+    Tag::compound([
+        ("seed", Tag::Long(seed)),
+        (
+            "generate_features",
+            Tag::Byte(i8::from(options.structures)),
+        ),
+        ("bonus_chest", Tag::Byte(i8::from(options.bonus_chest))),
+        (
+            "dimensions",
+            Tag::compound([
+                ("minecraft:overworld", overworld),
+                (
+                    "minecraft:the_nether",
+                    dimension(
                         "minecraft:the_nether",
-                        dimension(
-                            "minecraft:the_nether",
-                            "minecraft:nether",
-                            preset("minecraft:nether"),
-                        ),
+                        "minecraft:nether",
+                        preset("minecraft:nether"),
                     ),
-                    (
+                ),
+                (
+                    "minecraft:the_end",
+                    dimension(
                         "minecraft:the_end",
-                        dimension(
-                            "minecraft:the_end",
-                            "minecraft:end",
-                            Tag::compound([("type", string("minecraft:the_end"))]),
-                        ),
+                        "minecraft:end",
+                        Tag::compound([("type", string("minecraft:the_end"))]),
                     ),
-                ]),
-            ),
-        ]),
-    )
+                ),
+            ]),
+        ),
+    ])
 }
 /// `Player.addAdditionalSaveData`'s impulse state: the position the
 /// current impulse struck from (`current_explosion_impact_pos`, absent
@@ -3943,9 +3953,6 @@ pub struct Level {
     pub previous_game_mode: Option<i32>,
     pub time: i64,
     pub day_time: i64,
-    /// The End's clock (`world_clocks.dat`'s `minecraft:the_end`); `None` in a world that has
-    /// none yet, which starts it at the game time.
-    pub end_clock: Option<i64>,
     /// The world spawn or a legacy bare Overworld spawn column. Personal
     /// points use `respawn_elsewhere` so their blocks are checked on death.
     pub spawn: Option<[f64; 3]>,
@@ -3991,7 +3998,7 @@ pub struct Level {
     pub world_spawn_angle: [f32; 2],
     pub difficulty: String,
     pub hardcore: bool,
-    /// `difficulty_settings.locked` (LevelData.isDifficultyLocked).
+    /// `DifficultyLocked` (LevelData.isDifficultyLocked).
     pub difficulty_locked: bool,
     /// `allowCommands`: read from `level.dat` or chosen on the Create New
     /// World screen; unset is written as off.
@@ -4032,10 +4039,6 @@ pub struct Level {
     /// The player compound as loaded, for fields Horizon does not model
     /// (ender chest, effects, abilities, recipe book, attributes, ...).
     pub player_extra: Option<Tag>,
-    /// The player was read from the file level.dat names (`singleplayer_uuid`,
-    /// or its `.dat_old`): `PlayerList.loadPlayerData` gives the world's owner
-    /// that file, not their own.
-    pub singleplayer_file: bool,
 }
 impl Level {
     /// `PrimaryLevelData.setDifficulty`: the level data holds the world's
@@ -4081,14 +4084,14 @@ impl Level {
         }
     }
     pub fn read(dir: &Path) -> Option<Self> {
-        Self::read_root(dir, read_level_dat(dir)?)
+        Self::read_root(read_level_dat(dir)?)
     }
     /// `read` from level.dat alone, without the level.dat_old fallback: what
     /// `LevelStorageSource.readLevelSummary` reads for the world list.
     pub fn read_summary(dir: &Path) -> Option<Self> {
-        Self::read_root(dir, read_dat(&dir.join("level.dat"))?)
+        Self::read_root(read_dat(&dir.join("level.dat"))?)
     }
-    fn read_root(dir: &Path, root: Tag) -> Option<Self> {
+    fn read_root(root: Tag) -> Option<Self> {
         let data = root.get("Data")?;
         let n = |t: Option<&Tag>| number(t).unwrap_or(0);
         let mut level = Self {
@@ -4103,7 +4106,7 @@ impl Level {
             difficulty: "normal".into(),
             ..Self::default()
         };
-        // 26.3: spawn {pos: [I; x, y, z], dimension, yaw, pitch}; older: SpawnX/Y/Z.
+        // 1.21.11: spawn {pos: [I; x, y, z], dimension, yaw, pitch}; older: SpawnX/Y/Z.
         level.world_spawn = match data.get("spawn").and_then(|s| s.get("pos")) {
             Some(Tag::IntArray(p)) if p.len() == 3 => Some([p[0], p[1], p[2]]),
             _ => data.get("SpawnX").map(|_| {
@@ -4119,11 +4122,17 @@ impl Level {
             _ => 0.0,
         };
         level.world_spawn_angle = [angle("yaw"), angle("pitch")];
-        if let Some(d) = data.get("difficulty_settings") {
-            level.difficulty = text(d.get("difficulty")).unwrap_or_else(|| "normal".into());
-            level.hardcore = n(d.get("hardcore")) != 0;
-            level.difficulty_locked = n(d.get("locked")) != 0;
+        // `PrimaryLevelData.parse`: the flat `Difficulty` (a byte id), `hardcore` and
+        // `DifficultyLocked`, all in `Data`. A missing or out-of-range id is normal.
+        let difficulty_id = number(data.get("Difficulty")).unwrap_or(2);
+        level.difficulty = if (0..4).contains(&difficulty_id) {
+            crate::title::DIFFICULTIES[difficulty_id as usize]
+        } else {
+            "normal"
         }
+        .into();
+        level.hardcore = n(data.get("hardcore")) != 0;
+        level.difficulty_locked = n(data.get("DifficultyLocked")) != 0;
         level.allow_commands = Some(n(data.get("allowCommands")) != 0);
         // WorldDataConfiguration.MAP_CODEC's `enabled_features`, flat in the
         // Data compound and omitted when the flags are vanilla's default.
@@ -4147,7 +4156,9 @@ impl Level {
             .iter()
             .map(|(k, v)| ((*k).to_owned(), *v))
             .collect();
-        let saved_rules = read_saved_data(dir, "game_rules");
+        // `PrimaryLevelData.parse`: the rules are `Data.game_rules`, the same
+        // `minecraft:<name>` → typed value compound.
+        let saved_rules = data.get("game_rules").cloned();
         if let Some(Tag::Compound(map)) = &saved_rules {
             for (k, v) in map {
                 let name = k.to_string_lossy();
@@ -4178,58 +4189,28 @@ impl Level {
             rules.remove(minecart_rule.name);
         }
         level.game_rules = rules;
-        // Seed: world_gen_settings.dat (26.3) or Data.WorldGenSettings.
-        level.seed = read_saved_data(dir, "world_gen_settings")
-            .and_then(|w| number(w.get("seed")))
-            .or_else(|| number(data.get("WorldGenSettings").and_then(|w| w.get("seed"))))
-            .unwrap_or(0);
-        // Day time: the overworld clock (26.3) or Data.DayTime.
-        level.day_time = read_saved_data(dir, "world_clocks")
-            .and_then(|c| {
-                number(
-                    c.get("minecraft:overworld")
-                        .and_then(|o| o.get("total_ticks")),
-                )
-            })
-            .or_else(|| number(data.get("DayTime")))
-            .unwrap_or(level.time);
-        level.end_clock = read_saved_data(dir, "world_clocks").and_then(|c| {
-            number(
-                c.get("minecraft:the_end")
-                    .and_then(|o| o.get("total_ticks")),
-            )
-        });
-        let weather = read_saved_data(dir, "weather");
-        let w = |new: &str, old: &str| {
-            number(weather.as_ref().and_then(|w| w.get(new)))
-                .or_else(|| number(data.get(old)))
-                .unwrap_or(0)
-        };
-        let raining = w("raining", "raining") != 0;
-        let thundering = w("thundering", "thundering") != 0;
+        // Seed: Data.WorldGenSettings.
+        level.seed = number(data.get("WorldGenSettings").and_then(|w| w.get("seed"))).unwrap_or(0);
+        // Day time: Data.DayTime, falling back to the game time as `parse` does.
+        // Every dimension shares it: 1.21.11 has no per-dimension clock.
+        level.day_time = number(data.get("DayTime")).unwrap_or(level.time);
+        let w = |key: &str| number(data.get(key)).unwrap_or(0);
+        let raining = w("raining") != 0;
+        let thundering = w("thundering") != 0;
         level.weather = crate::world::Weather {
-            clear_time: w("clear_weather_time", "clearWeatherTime") as i32,
-            rain_time: w("rain_time", "rainTime") as i32,
-            thunder_time: w("thunder_time", "thunderTime") as i32,
+            clear_time: w("clearWeatherTime") as i32,
+            rain_time: w("rainTime") as i32,
+            thunder_time: w("thunderTime") as i32,
             raining,
             thundering,
             rain_level: if raining { (1.0, 1.0) } else { (0.0, 0.0) },
             thunder_level: if thundering { (1.0, 1.0) } else { (0.0, 0.0) },
         };
-        // The player: players/data/<singleplayer_uuid>.dat, or the legacy Data.Player. With no
-        // `singleplayer_uuid` (a world from a server, a Realms download) the owner loads their
-        // own file, not another player's (`PlayerList.loadPlayerData`): `load_owner` does.
-        let uuid = uuid_from_tag(data.get("singleplayer_uuid"));
-        let player_dir = dir.join("players").join("data");
-        // PlayerDataStorage.load: the player's file, else its .dat_old.
-        let owner = uuid.and_then(|u| {
-            let name = uuid_text(u);
-            read_dat(&player_dir.join(format!("{name}.dat")))
-                .or_else(|| read_dat(&player_dir.join(format!("{name}.dat_old"))))
-        });
-        level.singleplayer_file = owner.is_some();
-        let player = owner.or_else(|| data.get("Player").cloned());
-        level.player_uuid = uuid_from_tag(player.as_ref().and_then(|p| p.get("UUID"))).or(uuid);
+        // The player: Data.Player. With none (a world from a server, a Realms download) the
+        // owner loads their own file, not another player's (`PlayerList.loadPlayerData`):
+        // `load_owner` does.
+        let player = data.get("Player").cloned();
+        level.player_uuid = uuid_from_tag(player.as_ref().and_then(|p| p.get("UUID")));
         let spawn = level
             .world_spawn
             .map(|s| [f64::from(s[0]), f64::from(s[1]), f64::from(s[2])]);
@@ -4645,65 +4626,39 @@ impl Level {
     }
     /// Write every file; a world without a player UUID gets a random one.
     pub fn write(&mut self, dir: &Path) -> Result<()> {
-        self.write_internal(dir, true, false)
+        self.write_internal(dir, true)
     }
 
     /// Dedicated servers save connected players separately.
     pub fn write_without_player(&mut self, dir: &Path) -> Result<()> {
-        self.write_internal(dir, false, false)
+        self.write_internal(dir, false)
     }
 
     /// The temporary world a Realms upload packs
     /// (`RealmsCreateWorldFlow.createTemporaryWorldFolder`): level.dat as
-    /// `WorldData.createTag(null)` writes it — no `singleplayer_uuid` — with the world
-    /// generation and game rules, and no player file or weather/clocks the server makes
-    /// on its own. The caller writes the data packs and removes the folder.
+    /// `WorldData.createTag(null)` writes it on fresh data — no `Player`, since no
+    /// player was loaded — with the world generation and game rules. The caller
+    /// writes the data packs and removes the folder.
     pub fn write_upload(&mut self, dir: &Path) -> Result<()> {
-        self.write_internal(dir, false, true)
+        self.write_internal(dir, false)
     }
 
-    /// The player's file alone, `players/data/<singleplayer_uuid>.dat`
-    /// (`PlayerDataStorage.save`): the one level.dat names.
-    pub fn write_player(&mut self, dir: &Path) -> Result<()> {
-        let uuid = self.ensure_player_uuid();
-        let player_file = dir
-            .join("players")
-            .join("data")
-            .join(format!("{}.dat", uuid_text(uuid)));
-        back_up_unreadable_player(&player_file);
-        write_dat(&player_file, self.player_tag())
-    }
-
-    fn write_internal(&mut self, dir: &Path, write_player: bool, upload: bool) -> Result<()> {
+    fn write_internal(&mut self, dir: &Path, write_player: bool) -> Result<()> {
         fs::create_dir_all(dir)?;
         restore_level_dat(dir);
         let existing = read_dat(&dir.join("level.dat")).and_then(|r| r.get("Data").cloned());
-        let legacy = existing
-            .as_ref()
-            .is_some_and(|d| d.get("Player").is_some() || d.get("WorldGenSettings").is_some());
         let mut data = compound_or_empty(existing);
         if let Tag::Compound(map) = &mut data {
-            // Pre-26.3 keys now stored elsewhere (a legacy Horizon level.dat).
+            // Keys no version of the file keeps: the pre-`spawn` coordinates, the
+            // pre-`world_border` flat border, the old capital `GameRules`, the
+            // 26.x split's `difficulty_settings` and `singleplayer_uuid`.
             for key in [
-                "Player",
-                "WorldGenSettings",
-                "DayTime",
                 "SpawnX",
                 "SpawnY",
                 "SpawnZ",
                 "SpawnAngle",
-                "clearWeatherTime",
-                "rainTime",
-                "thunderTime",
-                "raining",
-                "thundering",
-                "Difficulty",
-                "hardcore",
                 "GameRules",
                 "DimensionData",
-                "WanderingTraderSpawnChance",
-                "WanderingTraderSpawnDelay",
-                "WanderingTraderId",
                 "BorderCenterX",
                 "BorderCenterZ",
                 "BorderSize",
@@ -4713,17 +4668,17 @@ impl Level {
                 "BorderSizeLerpTime",
                 "BorderSizeLerpTarget",
                 "BorderDamagePerBlock",
-                "DifficultyLocked",
-                "ScheduledEvents",
-                "CustomBossEvents",
-                "DragonFight",
+                "difficulty_settings",
+                "singleplayer_uuid",
             ] {
                 map.remove(&JavaString::from(key));
             }
         }
-        // An upload's level.dat names no player (`createTag(null)`); every other file
-        // names this world's own.
-        let uuid = (!upload).then(|| self.ensure_player_uuid());
+        // `PrimaryLevelData.setTagData` writes the player into `Data` when there is
+        // one; a world without a UUID gets one first, as `write` promises.
+        if write_player {
+            self.ensure_player_uuid();
+        }
         // A new world's first spawn point is its world spawn.
         if self.world_spawn.is_none() {
             self.world_spawn = self.spawn.map(|s| {
@@ -4749,26 +4704,6 @@ impl Level {
         if !brands.contains(&string("horizon")) {
             brands.push(string("horizon"));
         }
-        let mut difficulty = compound_or_empty(data.get("difficulty_settings").cloned());
-        put(
-            &mut difficulty,
-            "difficulty",
-            string(if self.difficulty.is_empty() {
-                "normal"
-            } else {
-                &self.difficulty
-            }),
-        );
-        put(
-            &mut difficulty,
-            "hardcore",
-            Tag::Byte(i8::from(self.hardcore)),
-        );
-        put(
-            &mut difficulty,
-            "locked",
-            Tag::Byte(i8::from(self.difficulty_locked)),
-        );
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_millis() as i64);
@@ -4788,6 +4723,7 @@ impl Level {
             ("LevelName", string(&self.name)),
             ("GameType", Tag::Int(self.mode())),
             ("Time", Tag::Long(self.time)),
+            ("DayTime", Tag::Long(self.day_time)),
             ("LastPlayed", Tag::Long(now)),
             (
                 "spawn",
@@ -4798,14 +4734,26 @@ impl Level {
                     ("pitch", Tag::Float(self.world_spawn_angle[1].to_bits())),
                 ]),
             ),
-            ("difficulty_settings", difficulty),
+            // `PrimaryLevelData.setTagData` writes the difficulty as a byte id, the
+            // weather flat, all in `Data`.
+            ("Difficulty", Tag::Byte(self.difficulty_id() as i8)),
+            ("hardcore", Tag::Byte(i8::from(self.hardcore))),
+            (
+                "DifficultyLocked",
+                Tag::Byte(i8::from(self.difficulty_locked)),
+            ),
+            ("clearWeatherTime", Tag::Int(self.weather.clear_time)),
+            ("rainTime", Tag::Int(self.weather.rain_time)),
+            ("thunderTime", Tag::Int(self.weather.thunder_time)),
+            ("raining", Tag::Byte(i8::from(self.weather.raining))),
+            ("thundering", Tag::Byte(i8::from(self.weather.thundering))),
             ("initialized", Tag::Byte(1)),
             ("ServerBrands", Tag::List(brands)),
         ] {
             put(&mut data, key, value);
         }
-        if let Some(uuid) = uuid {
-            put(&mut data, "singleplayer_uuid", uuid_tag(uuid));
+        if write_player {
+            put(&mut data, "Player", self.player_tag());
         }
         if let Tag::Compound(map) = &mut data {
             map.entry("allowCommands".into()).or_insert(Tag::Byte(0));
@@ -4841,75 +4789,52 @@ impl Level {
                 Tag::compound([("Enabled", list(enabled)), ("Disabled", list(disabled))])
             });
         }
-        // Saved data: weather, clocks, and (when missing or legacy) world
-        // generation settings and game rules. An upload's temporary world carries only
-        // what the server needs before its first tick.
-        if !upload {
-            write_saved_data(
-                dir,
-                "weather",
-                Tag::compound([
-                    ("clear_weather_time", Tag::Int(self.weather.clear_time)),
-                    ("rain_time", Tag::Int(self.weather.rain_time)),
-                    ("thunder_time", Tag::Int(self.weather.thunder_time)),
-                    ("raining", Tag::Byte(i8::from(self.weather.raining))),
-                    ("thundering", Tag::Byte(i8::from(self.weather.thundering))),
-                ]),
-            )?;
-            let mut clocks = compound_or_empty(read_saved_data(dir, "world_clocks"));
-            let mut overworld = compound_or_empty(clocks.get("minecraft:overworld").cloned());
-            put(&mut overworld, "total_ticks", Tag::Long(self.day_time));
-            put(&mut clocks, "minecraft:overworld", overworld);
-            let mut end = compound_or_empty(clocks.get("minecraft:the_end").cloned());
+        // `WorldGenSettings`: the saved settings stay (a pack's dimension edits, a
+        // customized generator); a world without any gets the default from its seed.
+        if data.get("WorldGenSettings").is_none() {
             put(
-                &mut end,
-                "total_ticks",
-                Tag::Long(self.end_clock.unwrap_or(self.time)),
+                &mut data,
+                "WorldGenSettings",
+                world_gen_settings_tag(self.seed, WorldGen::default(), None, None),
             );
-            put(&mut clocks, "minecraft:the_end", end);
-            write_saved_data(dir, "world_clocks", clocks)?;
         }
-        if legacy || !saved_data_path(dir, "world_gen_settings").exists() {
-            write_world_gen_settings(dir, self.seed, WorldGen::default())?;
+        // `game_rules`, lowercase, in `Data`: only rules vanilla knows, an unknown
+        // key makes it reject the file.
+        let mut rules = Tag::Compound(Compound::new());
+        for (name, default) in GAME_RULES {
+            let value = self.game_rules.get(name).copied().unwrap_or(default);
+            let tag = if INT_RULES.contains(&name) {
+                Tag::Int(value)
+            } else {
+                Tag::Byte(i8::from(value != 0))
+            };
+            put(&mut rules, &format!("minecraft:{name}"), tag);
         }
-        if !saved_data_path(dir, "game_rules").exists() || !self.game_rules.is_empty() {
-            // Only rules vanilla knows: an unknown key makes it reject the file.
-            let mut rules = Tag::Compound(Compound::new());
-            for (name, default) in GAME_RULES {
-                let value = self.game_rules.get(name).copied().unwrap_or(default);
-                let tag = if INT_RULES.contains(&name) {
-                    Tag::Int(value)
-                } else {
-                    Tag::Byte(i8::from(value != 0))
-                };
-                put(&mut rules, &format!("minecraft:{name}"), tag);
-            }
-            if self
-                .enabled_features
-                .iter()
-                .any(|f| f == crate::gamerules::MINECART_IMPROVEMENTS)
-            {
-                let rule = &crate::gamerules::MAX_MINECART_SPEED;
-                let crate::gamerules::Value::Int(default) = rule.default else {
-                    unreachable!()
-                };
-                let value = self
-                    .game_rules
-                    .get(rule.name)
-                    .copied()
-                    .filter(|v| (rule.min..=rule.max).contains(v))
-                    .unwrap_or(default);
-                put(
-                    &mut rules,
-                    &format!("minecraft:{}", rule.name),
-                    Tag::Int(value),
-                );
-            }
-            write_saved_data(dir, "game_rules", rules)?;
+        if self
+            .enabled_features
+            .iter()
+            .any(|f| f == crate::gamerules::MINECART_IMPROVEMENTS)
+        {
+            let rule = &crate::gamerules::MAX_MINECART_SPEED;
+            let crate::gamerules::Value::Int(default) = rule.default else {
+                unreachable!()
+            };
+            let value = self
+                .game_rules
+                .get(rule.name)
+                .copied()
+                .filter(|v| (rule.min..=rule.max).contains(v))
+                .unwrap_or(default);
+            put(
+                &mut rules,
+                &format!("minecraft:{}", rule.name),
+                Tag::Int(value),
+            );
         }
-        if write_player {
-            self.write_player(dir)?;
-        }
+        put(&mut data, "game_rules", rules);
+        // `DragonFight`, `ScheduledEvents`, `CustomBossEvents`, the wandering trader and
+        // the world border are not modelled here: they survive because nothing above
+        // removes them from the loaded `Data`.
         write_dat(&dir.join("level.dat"), Tag::compound([("Data", data)]))?;
         Ok(())
     }
@@ -7617,15 +7542,14 @@ mod tests {
             ..Level::default()
         };
 
-        // Create a real player file using the existing singleplayer writer.
+        // The player lives in level.dat's `Data.Player`.
         level.write(&dir).unwrap();
-        let uuid = level.player_uuid.unwrap();
-        let player_file = dir
-            .join("players")
-            .join("data")
-            .join(format!("{}.dat", uuid_text(uuid)));
-
-        let before = fs::read(&player_file).unwrap();
+        let player = |dir: &Path| {
+            read_dat(&dir.join("level.dat"))
+                .and_then(|r| r.get("Data").and_then(|d| d.get("Player").cloned()))
+                .expect("the saved player")
+        };
+        let before = player(&dir);
 
         // Simulate an incomplete world-level player state.
         level.position = None;
@@ -7635,38 +7559,13 @@ mod tests {
         // Dedicated saves must update metadata without touching player data.
         level.write_without_player(&dir).unwrap();
 
-        let after = fs::read(&player_file).unwrap();
+        let after = player(&dir);
         assert_eq!(before, after, "dedicated save overwrote player data");
 
         // The world metadata must still be persisted.
         let reopened = Level::read(&dir).unwrap();
         assert_eq!(reopened.day_time, 12345);
 
-        let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn the_ends_clock_keeps_its_own_time() {
-        let dir = std::env::temp_dir().join(format!("horizon-end-clock-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&dir);
-        let mut level = Level {
-            name: "Test".into(),
-            time: 5000,
-            day_time: 9000,
-            ..Level::default()
-        };
-        // A world without one starts the End's clock at its game time.
-        level.write(&dir).unwrap();
-        assert_eq!(Level::read(&dir).unwrap().end_clock, Some(5000));
-        // Then it keeps its own count, apart from the game time and the day.
-        level.time = 8000;
-        level.end_clock = Some(321);
-        level.write(&dir).unwrap();
-        let back = Level::read(&dir).unwrap();
-        assert_eq!(
-            (back.time, back.day_time, back.end_clock),
-            (8000, 9000, Some(321))
-        );
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -7785,7 +7684,17 @@ mod tests {
         assert!(dead.inventory.is_empty());
         assert!(dead.inventory_components.is_empty());
         assert!(dead.player_extra.unwrap().get("equipment").is_none());
-        assert!(dir.join("data/minecraft/world_gen_settings.dat").exists());
+        // The settings, the rules and the player live in level.dat's `Data` now.
+        let data = read_dat(&dir.join("level.dat"))
+            .and_then(|r| r.get("Data").cloned())
+            .expect("level.dat's Data");
+        assert_eq!(
+            number(data.get("WorldGenSettings").and_then(|w| w.get("seed"))),
+            Some(-42)
+        );
+        assert!(data.get("game_rules").is_some());
+        assert!(data.get("Player").is_some());
+        assert!(!dir.join("data").exists());
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -8234,7 +8143,13 @@ mod tests {
         let edit = |change: &dyn Fn(&mut Tag)| {
             let mut tag = settings.clone();
             change(&mut tag);
-            write_saved_data(&dir, "world_gen_settings", tag).unwrap();
+            let mut root = read_dat(&dir.join("level.dat")).unwrap();
+            let mut data = compound_or_empty(root.get("Data").cloned());
+            put(&mut data, "WorldGenSettings", tag);
+            if let Tag::Compound(map) = &mut root {
+                map.insert("Data".into(), data);
+            }
+            write_dat(&dir.join("level.dat"), root).unwrap();
         };
         fn dimension<'a>(tag: &'a mut Tag, key: &str) -> &'a mut Tag {
             tag.get_mut("dimensions").unwrap().get_mut(key).unwrap()
@@ -8332,10 +8247,11 @@ mod tests {
         let _ = fs::remove_dir_all(dir);
     }
 
-    /// A world that still needs its file fixes keeps its generator settings in level.dat; they
-    /// are read as the fixes would leave them, so the question is asked on the first open.
+    /// A world's generator settings in level.dat are read through the datafix path
+    /// (`current_world_gen_settings`), so the stability question is asked on the
+    /// settings as the fixes would leave them.
     #[test]
-    fn world_gen_settings_of_a_world_needing_file_fixes_are_read_in_memory() {
+    fn world_gen_settings_in_level_dat_are_read_through_the_fix_pipeline() {
         let dir = gen_world("stem-prefix");
         write_world_gen_settings(&dir, 7, WorldGen::default()).unwrap();
         let settings = world_gen_settings(&dir).unwrap();
@@ -8346,8 +8262,6 @@ mod tests {
             }
             tag
         };
-        // 26.3 layout moved back to the old one: settings in level.dat, no saved data file.
-        fs::remove_file(saved_data_path(&dir, "world_gen_settings")).unwrap();
         write_dat(
             &dir.join("level.dat"),
             Tag::compound([(

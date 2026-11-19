@@ -40,7 +40,7 @@ impl Fixture {
                         ),
                         (
                             "Version",
-                            Tag::compound([("Name", Tag::String("26.3".into()))]),
+                            Tag::compound([("Name", Tag::String("1.21.11".into()))]),
                         ),
                         ("UnmodeledData", Tag::Long(987654321)),
                     ]),
@@ -1675,16 +1675,11 @@ fn world_list_names_every_game_mode_and_hardcore_in_red() {
                 Tag::compound([
                     ("LevelName", Tag::String(folder.into())),
                     ("GameType", Tag::Int(game_type)),
-                    (
-                        "difficulty_settings",
-                        Tag::compound([
-                            ("difficulty", Tag::String("hard".into())),
-                            ("hardcore", Tag::Byte(i8::from(hardcore))),
-                        ]),
-                    ),
+                    ("Difficulty", Tag::Byte(3)),
+                    ("hardcore", Tag::Byte(i8::from(hardcore))),
                     (
                         "Version",
-                        Tag::compound([("Name", Tag::String("26.3".into()))]),
+                        Tag::compound([("Name", Tag::String("1.21.11".into()))]),
                     ),
                 ]),
             )]),
@@ -1698,14 +1693,23 @@ fn world_list_names_every_game_mode_and_hardcore_in_red() {
     let info = |folder: &str| world_info(worlds.iter().find(|w| w.folder == folder).unwrap());
 
     let hardcore = info("Hardcore");
-    assert_eq!(hardcore.plain(), "Hardcore Mode, Version: 26.3");
+    assert_eq!(hardcore.plain(), "Hardcore Mode, Version: 1.21.11");
     assert_eq!(hardcore.spans[0].text, "Hardcore Mode");
     assert_eq!(hardcore.spans[0].style.color, Some(0xFF0000));
     assert!(hardcore.spans[1..].iter().all(|s| s.style.color.is_none()));
-    assert_eq!(info("Adventure").plain(), "Adventure Mode, Version: 26.3");
-    assert_eq!(info("Spectator").plain(), "Spectator Mode, Version: 26.3");
+    assert_eq!(
+        info("Adventure").plain(),
+        "Adventure Mode, Version: 1.21.11"
+    );
+    assert_eq!(
+        info("Spectator").plain(),
+        "Spectator Mode, Version: 1.21.11"
+    );
     let creative = info("Creative");
-    assert_eq!(creative.plain(), "Creative Mode, Commands, Version: 26.3");
+    assert_eq!(
+        creative.plain(),
+        "Creative Mode, Commands, Version: 1.21.11"
+    );
     assert!(creative.spans.iter().all(|s| s.style.color.is_none()));
 }
 

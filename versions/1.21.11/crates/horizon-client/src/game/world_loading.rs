@@ -183,7 +183,7 @@ impl WorldRequest {
         let mut level = level;
         // `IntegratedServer.setSingleplayerProfile`: a world older Horizon builds made
         // under the offline profile moves its owner to the account at open — the player
-        // file, its `UUID` and level.dat's `singleplayer_uuid`. Its entities follow as
+        // file, its `UUID` and level.dat's `Player`. Its entities follow as
         // their chunks load (`owner_migration`, `entity_nbt::migrate_player_uuid`).
         let owner_migration = owner.and_then(|(player, account)| {
             let old = horizon_protocol::crypto::offline_uuid(&player);
@@ -295,7 +295,8 @@ impl WorldRequest {
         .fast_lava;
         world.game_time = level.time;
         world.day_time = options.time.unwrap_or(level.day_time);
-        world.end_clock = level.end_clock.unwrap_or(level.time);
+        // 1.21.11 has no per-dimension clock: the End shares the world's day time.
+        world.end_clock = world.day_time;
         world.weather = level.weather;
         if let Some(w) = options.weather.as_deref() {
             // /weather: clear, rain or thunder for a long duration.
@@ -311,8 +312,10 @@ impl WorldRequest {
             };
         }
 
-        // Persist new metadata on the worker too, before publishing the world.
-        if !save_root.join("level.dat").exists() {
+        // Persist new metadata on the worker too, before publishing the world. A created
+        // world already has a bare level.dat (the generator settings went in above), so
+        // the new-world check is the `created` flag, not the file's absence.
+        if created || !save_root.join("level.dat").exists() {
             level.write(&save_root)?;
         }
         Ok(PreparedWorld {

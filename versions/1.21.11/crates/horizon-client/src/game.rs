@@ -8966,7 +8966,7 @@ impl Game<'_> {
             .player
             .as_ref()
             .map(|p| p.spawn_extra_particles_on_fall);
-        // Level.write saves the game rules (game_rules.dat) with the rest.
+        // Level.write saves the game rules (level.dat's `game_rules`) with the rest.
         self.level.game_rules = self.ui.rules.by_name();
         // PrimaryLevelData.setDifficulty: /difficulty and the options button change it.
         self.level.difficulty =
@@ -8974,7 +8974,6 @@ impl Game<'_> {
         self.level.time = self.world.game_time;
         self.level.weather = self.world.weather;
         self.level.day_time = self.world.day_time;
-        self.level.end_clock = Some(self.world.end_clock);
         // A server has no player of its own; `enter_guest` puts one in
         // `self.player` only while a command reads it.
         if self.player.is_none() && self.options.dedicated.is_some() {
@@ -9188,8 +9187,9 @@ impl Game<'_> {
         // Minecraft.doWorldLoad: the LevelLoadingScreen while single player's
         // server starts, with the server's chunk map and progress.
         if let Some(starting) = &self.integrated_starting {
-            // WorldOpenFlows.upgradeAndOpenWorld: the server's file fixers run on
-            // FileFixerProgressScreen, before the LevelLoadingScreen has progress.
+            // 1.21.11 has no file-fixing flow (`WorldOpenFlows.upgradeAndOpenWorld` is
+            // gone with it): the upgrade flag is never set, and the fixer screen below
+            // never shows. The upgrade handle still reports the datafix progress.
             let upgrade = starting.handle.upgrade();
             if upgrade.is_file_fixing() {
                 horizon_client::widgets::begin_screen(|| {

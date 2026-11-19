@@ -176,7 +176,7 @@ def main():
         if script.read_bytes() != (ref/'script.jsonl').read_bytes():
             raise ValueError('reference script differs')
         shutil.copyfile(ref/'java.jsonl', out/'java.jsonl')
-        shutil.copyfile(ref/'world_gen_settings.dat', out/'world_gen_settings.dat')
+        shutil.copyfile(ref/'level.dat', out/'level.dat')
     else:
         classes = out/'classes'
         classes.mkdir()
@@ -187,16 +187,18 @@ def main():
         vanilla.mkdir()
         run(['java', '-XX:ActiveProcessorCount=2', '-Xmx3G', '-Dhorizon.parity.flat=true', '-Duser.timezone=UTC', '-cp', str(classes)+os.pathsep+cp,
              'dev.horizonlab.parity.VanillaCommandExecOracle', vanilla/'universe', script, out/'java.jsonl', 1], 'java', cwd=vanilla)
-        shutil.copyfile(vanilla/'universe/harness/data/minecraft/world_gen_settings.dat', out/'world_gen_settings.dat')
+        shutil.copyfile(vanilla/'universe/harness/level.dat', out/'level.dat')
     java = [json.loads(line) for line in (out/'java.jsonl').read_text().splitlines()]
     java_gates, java_positions = evaluate(recorded, java)
     if not all(java_gates.values()):
         raise ValueError(f'Java range control failed: {java_gates}')
     rust = out/'rust'
-    config = rust/'saves/harness/data/minecraft'
+    config = rust/'saves/harness'
     config.mkdir(parents=True)
-    # Transfer only generator configuration, never chunks, actors, RNG or AI state.
-    shutil.copyfile(out/'world_gen_settings.dat', config/'world_gen_settings.dat')
+    # Transfer only the generator configuration, never chunks, actors, RNG or AI state:
+    # level.dat carries it in Data.WorldGenSettings (its time and spawn do not affect
+    # the terrain-only run).
+    shutil.copyfile(out/'level.dat', config/'level.dat')
     env = lab.game_env(HORIZON_PLAYER_NAME='Player', HORIZON_COMMAND_SCRIPT=script,
                        HORIZON_COMMAND_OUTPUT=out/'rust.jsonl', HORIZON_HARNESS_TERRAIN_ONLY='1', HORIZON_API_DISCOVERY='http://127.0.0.1:9/')
     run([binary, '--resources', lab.RESOURCES, '--world', 'harness', '--seed', 1, '--radius', 12],

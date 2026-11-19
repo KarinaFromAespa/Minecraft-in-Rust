@@ -1042,7 +1042,7 @@ mod rope_hold_tests {
     }
 
     #[test]
-    fn legacy_singleplayer_uuid_leash_restores_to_integrated_owner() {
+    fn legacy_offline_uuid_leash_restores_to_integrated_owner() {
         let level_player_uuid = uuid_ints(offline_uuid("Player"));
         let owner_uuid = uuid_ints(offline_uuid("Player46606"));
 
@@ -1055,7 +1055,7 @@ mod rope_hold_tests {
             |_| None,
             |_| None,
         )
-        .expect("restored legacy singleplayer leash");
+        .expect("restored legacy offline leash");
         assert_eq!(holder, Holder::Player);
         assert_eq!(restored_player, Some(owner_uuid));
         assert!(held_by_acting_player(

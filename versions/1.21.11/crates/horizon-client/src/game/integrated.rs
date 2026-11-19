@@ -407,8 +407,8 @@ impl Game<'_> {
         let new_world = create.is_some();
         // `IntegratedServer`'s constructor: `setSingleplayerProfile(minecraft.getGameProfile())`
         // — the signed-in account's own UUID. Only an offline start names its player by the
-        // offline profile. The owner is the world's player, so a world without
-        // `singleplayer_uuid` (a Realms download, `renameAndDropPlayer`) finds the owner's
+        // offline profile. The owner is the world's player, so a world without a `Player`
+        // in level.dat (a Realms download, `renameAndDropPlayer`) finds the owner's
         // `players/data/<uuid>.dat` instead of starting a new player.
         let owner = auth
             .as_ref()

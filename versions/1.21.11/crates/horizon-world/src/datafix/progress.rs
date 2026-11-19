@@ -72,7 +72,9 @@ pub struct UpgradeProgress {
     /// `UpgradeProgress.type`: 0 for none.
     ty: AtomicU8,
     /// The upgrade runs the file fixers (`requiresFileFixing`), which is what
-    /// opens `FileFixerProgressScreen` (`WorldOpenFlows.upgradeAndOpenWorld`).
+    /// opens `FileFixerProgressScreen` — a 26.x flow, gone in 1.21.11
+    /// (`WorldOpenFlows.upgradeAndOpenWorld` does not exist here), so the flag
+    /// is never set.
     file_fixing: AtomicBool,
     // What `WorldUpgrader` (Optimize World) adds.
     finished: AtomicBool,

@@ -327,8 +327,7 @@ impl Game<'_> {
 }
 
 /// The player who owns an integrated server's world: a guest whose state is
-/// the world's own player (`players/data/<singleplayer_uuid>.dat`), as in
-/// single player.
+/// the world's own player (level.dat's `Player`), as in single player.
 pub(super) struct Owner {
     pub uuid: u128,
     /// The world's player as loaded, until the owner joins.

@@ -308,7 +308,7 @@ pub fn extract_archive(
 }
 
 /// `LevelStorageAccess.renameAndDropPlayer`: the folder's name as the world's, and no
-/// singleplayer owner. A failure only logs, as vanilla's does.
+/// player. A failure only logs, as vanilla's does.
 fn rename_and_drop_player(world: &Path, name: &str) {
     let path = world.join("level.dat");
     let Some(mut root) = crate::save::read_dat(&path) else {
@@ -320,7 +320,7 @@ fn rename_and_drop_player(world: &Path, name: &str) {
         return;
     };
     data.insert("LevelName".into(), Tag::String(name.trim().into()));
-    data.remove(&"singleplayer_uuid".into());
+    data.remove(&"Player".into());
     if let Err(e) = crate::save::write_dat(&path, root) {
         log::warn!("Realms: could not name the downloaded world: {e}");
     }
@@ -656,7 +656,7 @@ mod tests {
         dir
     }
 
-    /// A world folder `upload` can pack: a level.dat naming its owner, and one region.
+    /// A world folder `upload` can pack: a level.dat holding its player, and one region.
     fn packed_world(dir: &Path, level_name: &str) -> PathBuf {
         let world = dir.join("source");
         fs::create_dir_all(world.join("region")).unwrap();
@@ -665,7 +665,10 @@ mod tests {
             "Data",
             Tag::compound([
                 ("LevelName", Tag::String(level_name.into())),
-                ("singleplayer_uuid", Tag::IntArray(vec![1, 2, 3, 4])),
+                (
+                    "Player",
+                    Tag::compound([("UUID", Tag::IntArray(vec![1, 2, 3, 4]))]),
+                ),
                 ("DataVersion", Tag::Int(4189)),
             ]),
         )]);
@@ -677,7 +680,7 @@ mod tests {
     }
 
     /// `FileDownload.untarGzipArchive`: the archive's `world/` becomes a world folder named
-    /// after the Realm, its level.dat renamed and its singleplayer owner dropped.
+    /// after the Realm, its level.dat renamed and its player dropped.
     #[test]
     fn an_archive_unpacks_into_a_named_world() {
         let dir = scratch("unpack");
@@ -695,7 +698,7 @@ mod tests {
             data.get(&"LevelName".into()),
             Some(&Tag::String("Friends".into()))
         );
-        assert!(!data.contains_key(&"singleplayer_uuid".into()));
+        assert!(!data.contains_key(&"Player".into()));
         // The world list counts the name: the next download is `Friends-2`.
         let again = extract_archive(&archive, "Friends", &saves, &progress).unwrap();
         assert_eq!(again.file_name().unwrap(), "Friends-2");

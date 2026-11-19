@@ -1896,8 +1896,11 @@ impl Game<'_> {
             GameRules::load_with_features(&self.world_root, &self.level.enabled_features);
         self.ui.clock = WorldClock::default();
         self.ui.command_clocks.clear();
-        // PrimaryLevelData: the difficulty comes back from level.dat's difficulty_settings.
+        // PrimaryLevelData: the difficulty comes back from level.dat's flat `Difficulty`.
         self.ui.difficulty = self.level.difficulty_id();
+        // Horizon's own command-clock file: 1.21.11 has no `world_clocks.dat`, and vanilla
+        // ignores a saved-data file it never asks for, so the rate/partial/pause state
+        // keeps living here.
         if let Ok(bytes) = std::fs::read(self.world_root.join("data/minecraft/world_clocks.dat"))
             && let Ok(raw) = horizon_world::compression::Compression::Gzip.decode(&bytes, 1 << 20)
             && let Ok((root, _)) =
@@ -1924,9 +1927,9 @@ impl Game<'_> {
         self.snapshot_test_defs();
         self.sync_rules();
     }
-    /// Save the clock beside level.dat (Level.write saves the game rules: a
-    /// second writer of game_rules.dat could leave it with the rules loaded
-    /// when the world opened).
+    /// Save the clock beside level.dat (Level.write saves the game rules into
+    /// level.dat: a second writer could leave them with the rules loaded when
+    /// the world opened).
     pub(super) fn save_world_state(&mut self) {
         if self.world_root.as_os_str().is_empty() {
             return;

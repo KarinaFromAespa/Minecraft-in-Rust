@@ -1546,9 +1546,11 @@ fn upload_created_world(
 }
 
 /// `RealmsCreateWorldFlow.createTemporaryWorldFolder`: level.dat as
-/// `WorldData.createTag(null)` writes it (no `singleplayer_uuid`), the world generation
-/// and game rules, and the Create World screen's data packs moved into the world. No
-/// chunks: the Realm generates them when the world first opens.
+/// `WorldData.createTag(null)` writes it on fresh data (no `Player`, since no player
+/// was loaded), the world generation and game rules, and the Create World screen's
+/// data packs moved into the world. No chunks: the Realm generates them when the world
+/// first opens. The upload writes default settings first; the preset follows (the
+/// preset lives on the created world, not on the level).
 fn create_temporary_world(world: &CreatedWorld) -> std::result::Result<PathBuf, String> {
     static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let dir = std::env::temp_dir().join(format!(
@@ -12699,9 +12701,9 @@ mod tests {
         }
     }
 
-    /// `RealmsCreateWorldFlow.createTemporaryWorldFolder`: level.dat without
-    /// `singleplayer_uuid`, the world generation and game rules, and no player file or
-    /// weather/clocks (the Realm's server makes those on its own).
+    /// `RealmsCreateWorldFlow.createTemporaryWorldFolder`: level.dat without a
+    /// `Player`, the world generation and game rules in `Data`, and no player file or
+    /// saved-data files (the Realm's server makes those on its own).
     #[test]
     fn a_generated_upload_world_carries_only_what_the_realm_needs() {
         let mut level = crate::save::Level {
@@ -12731,12 +12733,12 @@ mod tests {
             crate::save::text(level.get("LevelName")).as_deref(),
             Some("New World")
         );
+        assert!(level.get("Player").is_none());
         assert!(level.get("singleplayer_uuid").is_none());
+        assert!(level.get("WorldGenSettings").is_some());
+        assert!(level.get("game_rules").is_some());
         assert!(!dir.join("players").exists());
-        assert!(dir.join("data/minecraft/world_gen_settings.dat").is_file());
-        assert!(dir.join("data/minecraft/game_rules.dat").is_file());
-        assert!(!dir.join("data/minecraft/weather.dat").exists());
-        assert!(!dir.join("data/minecraft/world_clocks.dat").exists());
+        assert!(!dir.join("data").exists());
         let _ = std::fs::remove_dir_all(&dir);
     }
 
