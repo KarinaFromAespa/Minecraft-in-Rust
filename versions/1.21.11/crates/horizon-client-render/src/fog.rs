@@ -216,7 +216,8 @@ pub struct FogInputs<'a> {
     pub blindness: Option<(i32, bool)>,
     /// The darkness effect's blend factor, while the effect is on.
     pub darkness: Option<f32>,
-    /// `GameRenderer.bossOverlayWorldDarkening`: a wither's bar dims the fog.
+    /// `GameRenderer.getDarkenWorldAmount` (26.1's
+    /// `bossOverlayWorldDarkening`): a wither's bar dims the fog.
     pub darken_world: f32,
     /// `BossHealthOverlay.shouldCreateWorldFog`: a boss bar with
     /// `createWorldFog` is shown (the Ender Dragon's).

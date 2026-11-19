@@ -9522,7 +9522,7 @@ impl Game<'_> {
         };
         pr.lap("pr_primitives");
         let at = camera.to_array();
-        // GameRenderer.render3dHud: the debug crosshair, first person with the HUD shown.
+        // `DebugScreenOverlay.render3dCrosshair`: the debug crosshair, first person with the HUD shown.
         let mut crosshair = horizon_client::gizmos::Gizmos::default();
         if debug_crosshair_drawn(
             self.debug_crosshair(),

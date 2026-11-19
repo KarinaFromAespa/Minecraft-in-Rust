@@ -2266,3 +2266,45 @@ Rank 2 (492 items, in progress 2026-11-19)
   `AbstractCommandBlockEditScreen` render renames only.
   Rank 2 now 196/492 (33 changed, 163 no-change).
   work-items.json rank2.closed = 196 on 2026-11-19.
+- Item 18 (camera.rs, 7 classes, 94 methods, 28 named) CLOSED
+  2026-11-19: no behaviour change — comment-only. 1.21.11 guts `Camera`
+  (85 → 46 members) and moves the FOV/projection machinery to
+  `GameRenderer`, but every computation camera.rs mirrors is identical:
+  `tickFov` byte-identical (moved Camera → GameRenderer);
+  `GameRenderer.getFov(camera, partial, useFov)` merges calculateFov /
+  calculateHudFov / modifyFovBasedOnDeathOrFluid with the same ops and
+  constants (panoramic 90, hud base 70, death /(1+2(1−500/(500+min))),
+  fluid ×lerp(scale,1,0.85714287)); `Camera.setup` == `alignWithEntity`
+  (detached/mirrored now params, not read from options); `getMaxZoom` /
+  `move` / `setRotation` identical; `getNearPlane()` == `getNearPlane(fov
+  option)` (window aspect, fov option, (double)0.05f — Rust matches
+  exactly incl. widening order); `getFluidInCamera`, bobView/bobHurt,
+  `getFieldOfViewModifier`, `belowNameDisplay` (moved Entity →
+  AbstractClientPlayer, byte-identical), `getDepthFar` =
+  max(renderDistance×4, cloudRange×16), culling projection
+  max(fov, fovOption) + perspective(0.05, depthFar), view rotation
+  `Matrix4f.rotation(rotation().conjugate())` (now inline in renderLevel /
+  projectPointToScreen), `projectPointToScreen` /
+  `projectHorizonToScreen` (tan ratio, ±90° → ±∞), boss darkening tick
+  (0.05 up / 0.0125 down, field renamed `darkenWorldAmount`), HUD
+  projection 0.05→100 at hudFov — all identical. `CameraRenderState` is
+  a tiny struct in 1.21.11 (blockPos, pos, initialized, entityPos,
+  orientation; no entityRenderState/hudFov/depthFar/projection). Debug
+  crosshair is `DebugScreenOverlay.render3dCrosshair` in both versions
+  (`render3dHud` and `DebugCrosshairRenderer` exist in neither).
+  Two Rust doc claims corrected (wrong in both versions): vanilla passes
+  its projection planes straight (the reversal is the Rust's own
+  reversed-Z pipeline), and `Frustum.getNearPlaneBounds` does not exist
+  (near_plane_bounds is the Rust's own construction). Pre-existing
+  divergences noted, not fixed: sleeping camera moves 0.15 up in the
+  Rust vs 0.3 in both vanilla versions; the Rust's stairs/slabs
+  near-plane view-blocking test matches neither version (vanilla uses
+  the 2-arg `isViewBlocking` = suffocating predicate, no near-plane box
+  in the call chain); hand projection far is depth_far in the Rust vs
+  100.0 in vanilla. Referrals: item 42 (gfx.rs hudFov / Projection /
+  render3dHud cites), 157 (fishing.rs getNearPlane(fov)), 410
+  (locator_bar.rs projectHorizonToScreen), 443 (names.rs
+  belowNameDisplay), 621 (render_tick.rs view-blocking cite + the
+  near-plane divergence), 753 (projection buffer classes).
+  Rank 2 now 197/492 (33 changed, 164 no-change).
+  work-items.json rank2.closed = 197 on 2026-11-19.

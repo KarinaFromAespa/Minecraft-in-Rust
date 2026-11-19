@@ -495,7 +495,7 @@ impl Extras {
     }
 }
 
-/// The field-of-view modifier target `Camera.tickFov` eases toward: vanilla's
+/// The field-of-view modifier target `GameRenderer.tickFov` eases toward: vanilla's
 /// (`getFieldOfViewModifier`) divided by a mod's zoom (`native_zoom`). A
 /// zoom of 1 leaves it as is.
 pub fn fov_target(vanilla: f32, zoom: f32) -> f32 {
@@ -1170,7 +1170,7 @@ mod tests {
 
     #[test]
     fn a_mods_zoom_eases_like_the_spyglass() {
-        // Camera.tickFov halves the distance to the target each tick.
+        // GameRenderer.tickFov halves the distance to the target each tick.
         let mut camera = crate::camera::Camera::default();
         camera.tick(None, 1.0);
         for _ in 0..30 {
