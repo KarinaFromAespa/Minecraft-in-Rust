@@ -91,32 +91,8 @@ packet!(
     /// Links the pause menu's "Server Links..." screen lists.
     ServerLinks { links: Vec<ServerLink> => List<ServerLink> }
 );
-packet!(
-    /// ClientboundShowDialogPacket.CONTEXT_FREE_STREAM_CODEC: the dialog
-    /// itself (`Dialog.DIRECT_CODEC` as NBT).
-    ShowDialog { dialog: Tag => Nbt }
-);
-packet!(
-    /// ServerboundCustomClickActionPacket: a `custom` click event's id and
-    /// payload (a dialog's answer).
-    CustomClickAction { id: String => Ident, payload: Option<Tag> => ClickPayload }
-);
-/// ServerboundCustomClickActionPacket.UNTRUSTED_TAG_CODEC: an optional tag
-/// (`End` when there is none) behind its length, 65536 bytes at most.
-pub struct ClickPayload;
-impl Codec<Option<Tag>> for ClickPayload {
-    fn read(r: &mut Reader) -> Result<Option<Tag>> {
-        let n = r.count(65536)?;
-        let tag = Reader::new(r.bytes(n)?).nbt()?;
-        Ok((tag != Tag::End).then_some(tag))
-    }
-    fn write(v: &Option<Tag>, w: &mut Writer) {
-        let mut tag = Writer::new();
-        tag.nbt(v.as_ref().unwrap_or(&Tag::End));
-        w.varint(tag.data.len() as i32);
-        w.bytes(&tag.data);
-    }
-}
+// No ShowDialog / CustomClickAction: 1.21.5 has no dialog packets
+// (arrived in 1.21.6).
 
 packet_enum!(Clientbound, crate::ids::configuration::clientbound {
     CookieRequest(CookieRequest) = COOKIE_REQUEST,
@@ -134,9 +110,8 @@ packet_enum!(Clientbound, crate::ids::configuration::clientbound {
     UpdateEnabledFeatures(UpdateEnabledFeatures) = UPDATE_ENABLED_FEATURES,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
-    ClearDialog(Empty) = CLEAR_DIALOG,
     ServerLinks(ServerLinks) = SERVER_LINKS,
-    ShowDialog(ShowDialog) = SHOW_DIALOG,
+    // No ClearDialog / ShowDialog: 1.21.5 has no dialog packets (arrived in 1.21.6).
     // No CodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
 });
 
@@ -216,7 +191,7 @@ packet_enum!(Serverbound, crate::ids::configuration::serverbound {
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
     // No AcceptCodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
-    CustomClickAction(CustomClickAction) = CUSTOM_CLICK_ACTION,
+    // No CustomClickAction: 1.21.5 has no dialog packets (arrived in 1.21.6).
 });
 
 #[cfg(test)]
@@ -292,10 +267,6 @@ mod tests {
                     },
                 ],
             }),
-            Clientbound::ShowDialog(ShowDialog {
-                dialog: Tag::compound([("type", Tag::String("minecraft:notice".into()))]),
-            }),
-            Clientbound::ClearDialog(Empty),
         ] {
             round_trip(p, Clientbound::encode, Clientbound::decode);
         }
@@ -306,14 +277,6 @@ mod tests {
             Serverbound::Pong(Ping { id: -3 }),
             Serverbound::ResourcePack(ResourcePackResponse { id: 5, action: 1 }),
             Serverbound::SelectKnownPacks(SelectKnownPacks { packs: vec![] }),
-            Serverbound::CustomClickAction(CustomClickAction {
-                id: "authme:prejoin-register/submit".into(),
-                payload: Some(Tag::compound([("password", Tag::String("hunter2".into()))])),
-            }),
-            Serverbound::CustomClickAction(CustomClickAction {
-                id: "minecraft:x".into(),
-                payload: None,
-            }),
         ] {
             round_trip(p, Serverbound::encode, Serverbound::decode);
         }
@@ -332,17 +295,5 @@ mod tests {
                 Serverbound::decode,
             );
         }
-    }
-
-    /// The bytes vanilla writes: the length, then the tag (a lone `End` byte
-    /// for none).
-    #[test]
-    fn click_payload_is_length_prefixed() {
-        let mut w = Writer::new();
-        ClickPayload::write(&None, &mut w);
-        assert_eq!(w.data, [1, 0]);
-        let mut w = Writer::new();
-        ClickPayload::write(&Some(Tag::Byte(1)), &mut w);
-        assert_eq!(w.data, [2, 1, 1]);
     }
 }

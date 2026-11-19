@@ -245,42 +245,6 @@ fn spawn() -> SpawnInfo {
 }
 
 #[test]
-fn tracked_waypoint_bytes() {
-    // TRACK, a UUID, the default style, red (#FF5555), a block position.
-    let track = Clientbound::TrackedWaypoint(TrackedWaypoint {
-        operation: waypoint_operation::TRACK,
-        id: WaypointId::Uuid(0x0102_0304_0506_0708_090a_0b0c_0d0e_0f10),
-        style: "minecraft:default".into(),
-        color: Some(0xFFFF_5555_u32 as i32),
-        target: WaypointTarget::Block([1, -2, 300]),
-    });
-    let mut expected = vec![131, 1, 0, 1];
-    expected.extend(1..=16u8);
-    expected.push(17);
-    expected.extend(b"minecraft:default");
-    expected.extend([
-        1, 0xFF, 0x55, 0x55, 1, 1, 0xFE, 0xFF, 0xFF, 0xFF, 0x0F, 0xAC, 0x02,
-    ]);
-    assert_eq!(track.encode(), expected);
-    assert_eq!(Clientbound::decode(131, &expected[2..]).unwrap(), track);
-    for target in [
-        WaypointTarget::Empty,
-        WaypointTarget::Chunk([-3, 4]),
-        WaypointTarget::Azimuth(-1.25),
-    ] {
-        let packet = Clientbound::TrackedWaypoint(TrackedWaypoint {
-            operation: waypoint_operation::UPDATE,
-            id: WaypointId::Name("spawn".into()),
-            style: "minecraft:bowtie".into(),
-            color: None,
-            target,
-        });
-        let bytes = packet.encode();
-        assert_eq!(Clientbound::decode(131, &bytes[2..]).unwrap(), packet);
-    }
-}
-
-#[test]
 fn clientbound_round_trips() {
     let packets = vec![
         Clientbound::BundleDelimiter(Empty),
@@ -910,15 +874,6 @@ fn debug_tag_queries_decode_as_their_packets() {
 }
 
 #[test]
-fn change_game_mode_uses_the_game_type_varint() {
-    for mode in 0..=3 {
-        let packet = Serverbound::ChangeGameMode(ChangeGameMode { mode });
-        assert_eq!(packet.encode(), vec![4, mode as u8]);
-        round_trip(packet, Serverbound::encode, Serverbound::decode);
-    }
-}
-
-#[test]
 fn move_entity_deltas_decode_like_vec_delta_codec() {
     let base = [10.0, 64.0, -3.5];
     assert_eq!(
@@ -1226,27 +1181,17 @@ fn boss_event_round_trips() {
 }
 
 /// A registry entry is its id + 1, the dialog itself a 0 then its NBT.
+/// (The dialog packets themselves are gone in 1.21.5; only the holder
+/// codec remains, for the game-side dialog types.)
 #[test]
-fn dialogs_round_trip() {
-    let notice = Tag::compound([("type", Tag::String("minecraft:notice".into()))]);
-    for dialog in [DialogHolder::Registry(3), DialogHolder::Direct(notice)] {
-        crate::packets::round_trip(
-            Clientbound::ShowDialog(ShowDialog { dialog }),
-            Clientbound::encode,
-            Clientbound::decode,
-        );
-    }
+fn dialog_holder_encodes_registry_as_id_plus_one() {
     let mut w = Writer::new();
     DialogHolder::write(&DialogHolder::Registry(3), &mut w);
     assert_eq!(w.data, [4]);
-    crate::packets::round_trip(
-        Serverbound::CustomClickAction(CustomClickAction {
-            id: "minecraft:custom".into(),
-            payload: None,
-        }),
-        Serverbound::encode,
-        Serverbound::decode,
-    );
+    let mut w = Writer::new();
+    let notice = Tag::compound([("type", Tag::String("minecraft:notice".into()))]);
+    DialogHolder::write(&DialogHolder::Direct(notice), &mut w);
+    assert_eq!(w.data[0], 0);
 }
 
 #[test]

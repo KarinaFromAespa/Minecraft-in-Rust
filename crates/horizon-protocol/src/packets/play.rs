@@ -13,7 +13,7 @@ use crate::{
     packets::{
         Empty,
         configuration::{
-            ClientInformation, CookieRequest, CookieResponse, CustomClickAction, CustomPayload,
+            ClientInformation, CookieRequest, CookieResponse, CustomPayload,
             Disconnect, KeepAlive, Ping, ResourcePackPop, ResourcePackPush, ResourcePackResponse,
             ServerLinks, StoreCookie, Transfer, UpdateTags,
         },
@@ -272,10 +272,6 @@ impl Codec<DialogHolder> for DialogHolder {
         }
     }
 }
-packet!(
-    /// ClientboundShowDialogPacket.
-    ShowDialog { dialog: DialogHolder => DialogHolder }
-);
 packet!(
     /// ChatType.Bound.
     ChatTypeBound { chat_type: i32 => HolderId, name: Tag => Nbt, target: Option<Tag> => Opt<Nbt> }
@@ -1741,9 +1737,8 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     Explode(Explode) = EXPLODE,
     UpdateMobEffect(UpdateMobEffect) = UPDATE_MOB_EFFECT,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
-    TrackedWaypoint(TrackedWaypoint) = WAYPOINT,
-    ClearDialog(Empty) = CLEAR_DIALOG,
-    ShowDialog(ShowDialog) = SHOW_DIALOG,
+    // No TrackedWaypoint / ClearDialog / ShowDialog: 1.21.5 has no
+    // waypoint or dialog packets (both arrived in 1.21.6).
 });
 packet!(
     /// ClientboundClearTitlesPacket: whether to also reset the timings.
@@ -1872,10 +1867,6 @@ packet!(
     /// swing; 26.3 split it into `punch` (the swing itself) and the
     /// clientbound `swing_animation` (its look).
     Swing { hand: i32 => VarInt }
-);
-packet!(
-    /// GameType ids: 0 survival, 1 creative, 2 adventure, 3 spectator.
-    ChangeGameMode { mode: i32 => VarInt }
 );
 packet!(LastSeenUpdate { offset: i32 => VarInt, acknowledged: [u8; 3] => Fixed3, checksum: i8 => Byte });
 /// LastSeenMessages.Update's fixed 20-bit BitSet (3 bytes).
@@ -2342,7 +2333,6 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     EntityTagQuery(EntityTagQuery) = ENTITY_TAG_QUERY,
     TeleportToEntity(TeleportToEntity) = TELEPORT_TO_ENTITY,
     Swing(Swing) = SWING,
-    ChangeGameMode(ChangeGameMode) = CHANGE_GAME_MODE,
     Chat(Chat) = CHAT,
     ChatAck(ChatAck) = CHAT_ACK,
     ChatCommand(ChatCommand) = CHAT_COMMAND,
@@ -2361,7 +2351,7 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     ContainerClose(ContainerClose) = CONTAINER_CLOSE,
     CookieResponse(CookieResponse) = COOKIE_RESPONSE,
     CustomPayload(CustomPayload) = CUSTOM_PAYLOAD,
-    CustomClickAction(CustomClickAction) = CUSTOM_CLICK_ACTION,
+    // No CustomClickAction: 1.21.5 has no dialog packets (arrived in 1.21.6).
     EditBook(EditBook) = EDIT_BOOK,
     Interact(Interact) = INTERACT,
     KeepAlive(KeepAlive) = KEEP_ALIVE,

@@ -527,7 +527,8 @@ mod tests {
     #[test]
     fn renumbered_clientbound_play_packets_reach_their_26_3_ids() {
         let v = ServerVersion::V26_2;
-        // keep_alive 44 -> 45, login 49 -> 50, respawn 82 -> 84, clear_dialog 139 -> 142.
+        // keep_alive 44 -> 45, login 49 -> 50, respawn 82 -> 84.
+        // clear_dialog 139 -> None: 1.21.5 has no dialog packets.
         assert_eq!(
             v.clientbound_id(State::Play, 44),
             Some(ids::play::clientbound::KEEP_ALIVE)
@@ -540,10 +541,7 @@ mod tests {
             v.clientbound_id(State::Play, 82),
             Some(ids::play::clientbound::RESPAWN)
         );
-        assert_eq!(
-            v.clientbound_id(State::Play, 139),
-            Some(ids::play::clientbound::CLEAR_DIALOG)
-        );
+        assert_eq!(v.clientbound_id(State::Play, 139), None);
         // Unchanged before the first insertion (add_transient_block at 37).
         assert_eq!(v.clientbound_id(State::Play, 0), Some(0));
         // Past 26.2's 141 packets.
