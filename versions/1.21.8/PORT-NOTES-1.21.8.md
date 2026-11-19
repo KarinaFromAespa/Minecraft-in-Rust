@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 40/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51 + 4 zero-diff)
+### Rank 2: 41/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52 + 4 zero-diff)
+
+- **Item 52 — `crates/horizon-client/src/game/recipe_book.rs` (2
+  classes, 18 methods, 6 named in Horizon) — zero-diff, citations
+  only:** RecipeBookComponent (16; hasClickedOutside, keyPressed,
+  mouseClicked, mouseDragged, tryPlaceRecipe, updateNarration),
+  OverlayRecipeComponent (2). Every change is event-API plumbing
+  or identical logic: the overlay's `mouseClicked` only changes
+  signature; the search hint is gray+italic in both versions
+  (1.21.9's `SEARCH_HINT_STYLE` is GRAY+ITALIC, 1.21.8 styles
+  ITALIC+GRAY, and the Rust renders gray+italic); the render Ctrl
+  freeze is `hasControlDown` vs `Screen.hasControlDown`, same
+  check; `tryPlaceRecipe` drops its shift parameter in 1.21.8 but
+  reads the same Shift state inside; `hasClickedOutside` gains a
+  seventh parameter 1.21.8 never uses, and the Rust's
+  `clicked_outside` matches the rect math exactly (147-wide strip,
+  selected-tab hover); `isSelection` and `CommonInputs.selected`
+  are the identical key set (257/32/335). The 1.21.9-only
+  `mouseDragged` (drag-select in the search box) was already
+  removed by item 38 — no drag references remain. Citations:
+  `isSelection` → `CommonInputs.selected`, and the `try_place`
+  doc notes where 1.21.8 reads Shift. Known gaps (vs both):
+  Escape on the inventory always closes the container in the
+  Rust, while vanilla closes only the book on Escape in a narrow
+  window; the alternatives overlay closes on ANY click in the
+  Rust, while vanilla returns false on a miss and lets the click
+  fall through to the book; the chat key that focuses the search
+  box is hardcoded to T in the Rust, while vanilla uses the
+  rebindable keyChat mapping.
 
 - **Item 51 — `crates/horizon-client/src/game/debug_keys.rs` + the
   `horizon-client/src/debug_keys.rs` engine (5 classes, 18 methods, 6

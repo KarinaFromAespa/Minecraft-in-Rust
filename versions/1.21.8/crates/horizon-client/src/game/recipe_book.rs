@@ -805,9 +805,10 @@ impl Game<'_> {
             .and_then(|b| b.entries.get(entry))
             .map(|e| e.display_id);
     }
-    /// `RecipeBookComponent.keyPressed`: Enter or Space (`isSelection`) places
-    /// the recipe clicked last again, key repeats included, as many as fit
-    /// with Shift. The focused search box takes the key first.
+    /// `RecipeBookComponent.keyPressed`: Enter or Space
+    /// (`CommonInputs.selected`: 257, 32, 335) places the recipe clicked
+    /// last again, key repeats included, as many as fit with Shift. The
+    /// focused search box takes the key first.
     pub(super) fn recipe_book_key(&mut self, key: winit::keyboard::KeyCode) -> bool {
         use winit::keyboard::KeyCode;
         if !matches!(key, KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space) {
@@ -1096,6 +1097,8 @@ impl Game<'_> {
         self.recipe_ui.overlay = None;
     }
     /// `RecipeBookComponent.tryPlaceRecipe`: false when the click is refused.
+    /// 1.21.8 reads the Shift state inside (`Screen.hasShiftDown()`); 1.21.9
+    /// takes it as a parameter. The Rust passes it in, read at the click.
     fn try_place(&mut self, entry_index: usize, use_max: bool) -> bool {
         let Some(book_type) = self.active_book() else {
             return false;
