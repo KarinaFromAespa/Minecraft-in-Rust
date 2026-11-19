@@ -334,7 +334,41 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 24/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38 + 4 zero-diff)
+### Rank 2: 25/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38, 39 + 4 zero-diff)
+
+- **Item 39 — `game/boats.rs` (6 classes, 23 methods, 8 named in Horizon):**
+  AbstractBoatRenderer, ModelLayers, AbstractBoat, AbstractBoatModel,
+  BoatRenderer, AbstractChestBoat.
+  1. **Boat boarding is the 1.21.8 instanceof gate, not the tag:** 1.21.8
+     keeps `WaterAnimal`s, players and creaking off boats; 1.21.9 replaced
+     the checks with the `cannot_be_pushed_onto_boats` tag (which the 1.21.8
+     jar does not have at all, so the Rust's tag lookup excluded nothing).
+     javap-verified: `WaterAnimal` is the `AbstractFish` subtree only (cod,
+     salmon, pufferfish, tropical fish, tadpole) — dolphins, squid and
+     guardians are NOT water animals (`AgeableWaterCreature` extends
+     `AgeableMob`, `Guardian` extends `Monster`), so they board in 1.21.8
+     while the 1.21.9 tag keeps them (and elder guardians) off. New
+     `species_boards_boat` in boat_passengers.rs with the six-species
+     exclusion, replacing the tag lookup; players were already only pushed,
+     never boarded. New test `fish_tadpoles_and_creaking_never_board`.
+  2. **Citations:** `AbstractBoatRenderer.submit` → `.render`,
+     `BoatRenderer.submitTypeAdditions` → `.renderTypeAdditions`
+     (boats.rs). The `extractRenderState` citation stays (item 19's rule).
+  Verified no-change: the boat render transform is identical (translate
+  0.375, rotY 180−yRot, scale −1/−1/1, rotY 90; the water patch hides unless
+  under water, rafts have none); `AbstractBoatModel` is byte-identical in
+  decomp and javap shows only the item-25 bridge difference (44 bytes, the
+  `EntityRenderState` vs `Object` `setupAnim` target); the out-of-control
+  eject (60 ticks), bubble column, `interact` and `remove` are
+  `isClientSide` renames only; `AbstractChestBoat.stopOpen`'s
+  `ContainerUser` → `Player` is API-only (same CONTAINER_CLOSE event, no
+  Rust citation); the `ModelLayers` armor renames are the item-28 pattern
+  (same geometry — `ArmorModelSet` vs per-entity INNER/OUTER_ARMOR); the
+  1.21.9-only layers (COPPER_GOLEM*, BREEZE_EYES, CREAKING_EYES,
+  VILLAGER/ZOMBIE_VILLAGER_NO_HAT, WARDEN_*) have no Rust layer citations
+  (the breeze wind texture path is the same file in both versions).
+  For other items: the copper-golem render code stays unreachable dead code
+  per the item-17/18 pattern (item 229 owns the golem).
 
 - **Item 38 — `crates/horizon-client/src/container_screen.rs` (2 classes, 25 methods, 8 named in Horizon):**
   AbstractContainerScreen, AbstractRecipeBookScreen.

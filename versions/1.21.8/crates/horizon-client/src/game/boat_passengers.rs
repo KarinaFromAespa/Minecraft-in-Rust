@@ -24,6 +24,23 @@ pub(super) fn species_can_ride(species: Species) -> bool {
     !matches!(species, Species::Warden | Species::Wither)
 }
 
+/// `AbstractBoat.tick`'s boarding gate: a fish, a tadpole or a creaking is
+/// never pushed aboard. `instanceof WaterAnimal` is the `AbstractFish`
+/// subtree only — dolphins, squid and guardians are not water animals, so
+/// they board in 1.21.8 (1.21.9's `cannot_be_pushed_onto_boats` tag keeps
+/// them off too). Players are only ever pushed, never boarded.
+pub(super) fn species_boards_boat(species: Species) -> bool {
+    !matches!(
+        species,
+        Species::Cod
+            | Species::Salmon
+            | Species::Pufferfish
+            | Species::TropicalFish
+            | Species::Tadpole
+            | Species::Creaking
+    )
+}
+
 /// `Entity.isVehicle`: a player or a mob rides it.
 fn carries(m: &Mob) -> bool {
     m.rider.is_some() || m.extra.rider.is_some()
@@ -297,10 +314,7 @@ impl Game<'_> {
                     && count < max
                     && m.extra.mount.is_none()
                     && m.width() < super::boats::WIDTH as f32
-                    && !self
-                        .res
-                        .mob_data()
-                        .entity_has("minecraft:cannot_be_pushed_onto_boats", &m.kind.id);
+                    && species_boards_boat(m.species());
                 if boards {
                     // startRiding fails quietly (no push) while the mob's
                     // boarding cooldown runs (Entity.canRide) or the boat
@@ -520,6 +534,35 @@ mod tests {
         assert!(!species_can_ride(Species::Warden));
         assert!(!species_can_ride(Species::Wither));
         assert!(species_can_ride(Species::Cow));
+    }
+
+    #[test]
+    fn fish_tadpoles_and_creaking_never_board() {
+        for s in [
+            Species::Cod,
+            Species::Salmon,
+            Species::Pufferfish,
+            Species::TropicalFish,
+            Species::Tadpole,
+            Species::Creaking,
+        ] {
+            assert!(!species_boards_boat(s));
+        }
+        // Dolphins, squid and guardians are not water animals: they board
+        // in 1.21.8 (1.21.9's tag keeps them off).
+        for s in [
+            Species::Dolphin,
+            Species::Squid,
+            Species::GlowSquid,
+            Species::Guardian,
+            Species::ElderGuardian,
+            Species::Axolotl,
+            Species::Frog,
+            Species::Turtle,
+            Species::Cow,
+        ] {
+            assert!(species_boards_boat(s));
+        }
     }
 
     #[test]
