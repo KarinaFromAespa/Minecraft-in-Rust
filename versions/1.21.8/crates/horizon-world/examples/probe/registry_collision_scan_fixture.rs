@@ -454,8 +454,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
         let mut bound = RegistryCollisionWorld::new(&binding, &mut world)?;
         let context = match f["context"].as_u64().unwrap() {
-            0 => CollisionContext::empty(false),
-            1 => CollisionContext::empty(true),
+            0 => CollisionContext::empty(),
+            // 1.21.8 has no empty-with-fluid-collisions context: mode 1 is
+            // the same empty context (1.21.9's `emptyWithFluidCollisions`).
+            1 => CollisionContext::empty(),
             2 => CollisionContext::position(number(&f["y"])),
             _ => CollisionContext::placement(None),
         };

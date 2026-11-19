@@ -346,7 +346,7 @@ impl MobWorld<'_> {
         };
         let state = self.world.block(x, y, z);
         let at = horizon_core::position::BlockPos::new(x, y, z);
-        let context = horizon_world::collision_context::CollisionContext::empty(false);
+        let context = horizon_world::collision_context::CollisionContext::empty();
         let offset = Vec3::new(f64::from(x), f64::from(y), f64::from(z));
         self.collision
             .collision_shape_with_context(&mut scene, state, at, &context)

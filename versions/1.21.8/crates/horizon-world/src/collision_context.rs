@@ -75,7 +75,13 @@ pub struct CollisionContext<'a> {
     height: Height,
     descending: bool,
     placement: bool,
-    always_fluid: bool,
+    /// The deprecated `EntityCollisionContext(Entity, boolean, boolean)`
+    /// flag: when true the context stands on any fluid
+    /// (`canStandOnFluid` is the always-true predicate), as
+    /// `CollisionContext.of(entity, true)` builds it. 1.21.8 has no
+    /// `alwaysCollideWithFluid` — that boolean replaced this predicate
+    /// in 1.21.9, and liquids never collide as full blocks here.
+    stand_on_any_fluid: bool,
     held: CollisionItem<'a>,
     entity: Option<EntityIdentity>,
     living: bool,
@@ -83,12 +89,14 @@ pub struct CollisionContext<'a> {
     position_only: bool,
 }
 impl<'a> CollisionContext<'a> {
-    pub const fn empty(always_fluid: bool) -> Self {
+    /// `CollisionContext.empty()`: the always-false `canStandOnFluid`
+    /// predicate, so liquids never collide under it.
+    pub const fn empty() -> Self {
         Self {
             height: Height::Default,
             descending: false,
             placement: false,
-            always_fluid,
+            stand_on_any_fluid: false,
             held: CollisionItem::EMPTY,
             entity: None,
             living: false,
@@ -101,7 +109,7 @@ impl<'a> CollisionContext<'a> {
         Self {
             height: Height::Bottom(y),
             position_only: true,
-            ..Self::empty(false)
+            ..Self::empty()
         }
     }
 
@@ -112,14 +120,17 @@ impl<'a> CollisionContext<'a> {
         self
     }
 
-    /// Ordinary EntityCollisionContext. The native factory overload taking an
-    /// explicit fluid flag also uses this path for experimental minecarts.
-    pub fn for_entity(entity: CollisionEntity<'a>, always_fluid: bool) -> Self {
+    /// `CollisionContext.of(entity)` / `of(entity, stand_on_any_fluid)`:
+    /// the deprecated-constructor boolean. `true` is the always-true
+    /// `canStandOnFluid` predicate (`getBlockAndLiquidCollisions` builds
+    /// it); `false` is the living entity's own `canStandOnFluid`, or
+    /// always-false for a non-living one.
+    pub fn for_entity(entity: CollisionEntity<'a>, stand_on_any_fluid: bool) -> Self {
         Self {
             height: Height::Bottom(entity.y),
             descending: entity.descending,
             placement: false,
-            always_fluid,
+            stand_on_any_fluid,
             held: entity.main_hand.unwrap_or(CollisionItem::EMPTY),
             entity: Some(entity.identity),
             living: entity.main_hand.is_some(),
@@ -139,7 +150,7 @@ impl<'a> CollisionContext<'a> {
         let mut context = entity.map_or_else(
             || Self {
                 height: Height::Bottom(-f64::MAX),
-                ..Self::empty(false)
+                ..Self::empty()
             },
             |entity| Self {
                 height: Height::Bottom(y),
@@ -166,8 +177,10 @@ impl<'a> CollisionContext<'a> {
     pub fn is_placement(&self) -> bool {
         self.placement
     }
-    pub fn always_collide_with_fluid(&self) -> bool {
-        self.always_fluid
+    /// Whether this context stands on any fluid (the `of(entity, true)`
+    /// predicate), regardless of the entity's own `canStandOnFluid`.
+    pub fn stand_on_any_fluid(&self) -> bool {
+        self.stand_on_any_fluid
     }
     pub fn is_holding_item(&self, item: &str) -> bool {
         !self.position_only && self.held.is_item(item)
@@ -184,12 +197,17 @@ impl<'a> CollisionContext<'a> {
 
     /// The living-entity callback receives the second fluid even when both fluid
     /// types belong to the same family. Preserve its side effects and failures.
+    /// A stand-on-any-fluid context never consults the callback: its predicate
+    /// is always true, so only the same-family check remains.
     pub fn can_stand_on_fluid<E>(
         &self,
         first: FluidState,
         second: FluidState,
         mut entity_can_stand: impl FnMut(EntityIdentity, FluidState) -> Result<bool, E>,
     ) -> Result<bool, E> {
+        if self.stand_on_any_fluid {
+            return Ok(!first.kind().same_family(second.kind()));
+        }
         if !self.living {
             return Ok(false);
         }

@@ -46,7 +46,7 @@ fn budgets_include_skipped_corners_and_errors_fuse_iteration() {
         let mut world = FailedChunk { calls: 0 };
         let mut scan = BlockCollisionScan::new(
             &mut world,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds(),
             false,
             budget,
@@ -63,7 +63,7 @@ fn budgets_include_skipped_corners_and_errors_fuse_iteration() {
     let mut world = FailedChunk { calls: 0 };
     let mut scan = BlockCollisionScan::new(
         &mut world,
-        CollisionContext::empty(false),
+        CollisionContext::empty(),
         bounds(),
         false,
         1000,
@@ -86,7 +86,7 @@ fn invalid_or_excessive_domains_fail_before_world_queries() {
         assert!(matches!(
             BlockCollisionScan::new(
                 &mut world,
-                CollisionContext::empty(false),
+                CollisionContext::empty(),
                 bounds,
                 false,
                 1000
@@ -98,7 +98,7 @@ fn invalid_or_excessive_domains_fail_before_world_queries() {
     assert!(matches!(
         BlockCollisionScan::new(
             &mut world,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds,
             false,
             1000
@@ -192,7 +192,7 @@ fn cells_follow_the_cursor_order_without_corners() {
         };
         let hits = BlockCollisionScan::new(
             &mut world,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds,
             false,
             1_000_000,
@@ -235,7 +235,7 @@ fn outer_cells_of_contained_sections_are_not_read() {
         };
         let hits = BlockCollisionScan::new(
             &mut world,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds,
             false,
             1_000_000,
@@ -309,7 +309,7 @@ fn each_section_is_asked_once_and_answers_for_its_column() {
         };
         let hits = BlockCollisionScan::new(
             &mut world,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds,
             false,
             1_000_000,
@@ -342,7 +342,7 @@ fn passed_cells_count_toward_the_budget() {
             };
             BlockCollisionScan::new(
                 &mut world,
-                CollisionContext::empty(false),
+                CollisionContext::empty(),
                 bounds,
                 false,
                 budget,
@@ -425,7 +425,7 @@ fn sparse_scan(
     let mut world = Sparse { hooks, queries: 0 };
     let hits = BlockCollisionScan::new(
         &mut world,
-        CollisionContext::empty(false),
+        CollisionContext::empty(),
         bounds,
         suffocating,
         budget,

@@ -655,7 +655,7 @@ impl Game<'_> {
                         &mut scene,
                         state,
                         BlockPos::new(x, y, z),
-                        &CollisionContext::empty(false),
+                        &CollisionContext::empty(),
                     ) else {
                         continue;
                     };

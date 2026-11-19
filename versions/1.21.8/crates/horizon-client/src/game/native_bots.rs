@@ -166,7 +166,7 @@ impl Game<'_> {
         };
         let Ok(scan) = BlockCollisionScan::new(
             &mut scene,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             bounds,
             false,
             COLLISION_CELLS,

@@ -375,7 +375,7 @@ impl Game<'_> {
                 &mut scene,
                 state,
                 BlockPos::new(p[0], p[1], p[2]),
-                &CollisionContext::empty(false),
+                &CollisionContext::empty(),
             )
             .unwrap_or_else(|_| VoxelShape::empty())
     }

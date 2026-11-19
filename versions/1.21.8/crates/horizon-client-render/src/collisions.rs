@@ -321,20 +321,15 @@ impl SceneCollisions<'_, '_> {
     }
 }
 /// `noCollision(null, box)`: block collisions under the empty collision
-/// context, as entity-less queries such as spawn checks use.
+/// context, as entity-less queries such as spawn checks use. In 1.21.8
+/// the empty context's `canStandOnFluid` predicate is always false, so
+/// liquids never collide here — there is no `emptyWithFluidCollisions`
+/// (that, and the full-block liquid shape, arrived in 1.21.9).
 pub fn no_collision_empty<W, E>(world: &mut W, bounds: Aabb) -> bool
 where
     W: BlockCollisionWorld<Error = E> + EntityMovementWorld<Error = E>,
 {
-    no_collision_in(world, bounds, false)
-}
-/// `noCollision(null, box, true)`: the same with liquids colliding as
-/// blocks (`CollisionContext.emptyWithFluidCollisions`).
-pub fn no_collision_or_liquid<W, E>(world: &mut W, bounds: Aabb) -> bool
-where
-    W: BlockCollisionWorld<Error = E> + EntityMovementWorld<Error = E>,
-{
-    no_collision_in(world, bounds, true)
+    no_collision_in(world, bounds)
 }
 /// `CollisionGetter.noCollision(entity, bounds)`: retain the real entity snapshot.
 pub fn no_collision_with_context<W, E>(
@@ -388,7 +383,7 @@ pub fn projectile_can_stand_on(
                 })
         })
 }
-fn no_collision_in<W, E>(world: &mut W, bounds: Aabb, fluids: bool) -> bool
+fn no_collision_in<W, E>(world: &mut W, bounds: Aabb) -> bool
 where
     W: BlockCollisionWorld<Error = E> + EntityMovementWorld<Error = E>,
 {
@@ -396,7 +391,7 @@ where
         world,
         CollisionCheckRequest {
             entity: EntityIdentity(0),
-            context: CollisionContext::empty(fluids),
+            context: CollisionContext::empty(),
             bounds,
             candidate_budget: 1_000_000,
         },

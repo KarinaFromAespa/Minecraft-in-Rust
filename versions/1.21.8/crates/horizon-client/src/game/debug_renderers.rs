@@ -79,7 +79,7 @@ impl Game<'_> {
                         &mut scene,
                         self.world.block(x, y, z),
                         BlockPos::new(x, y, z),
-                        &CollisionContext::empty(false),
+                        &CollisionContext::empty(),
                     ) else {
                         continue;
                     };

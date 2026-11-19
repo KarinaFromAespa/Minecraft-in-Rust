@@ -807,7 +807,7 @@ impl ItemEntity {
             .check_support(self.on_ground, self.bounds(), Some(movement), |bounds| {
                 horizon_world::ground_support::find_supporting_block(
                     &mut scene,
-                    horizon_world::collision_context::CollisionContext::empty(false),
+                    horizon_world::collision_context::CollisionContext::empty(),
                     self.position,
                     bounds,
                     1_000_000,

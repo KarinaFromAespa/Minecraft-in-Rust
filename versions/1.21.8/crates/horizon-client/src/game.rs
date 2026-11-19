@@ -1646,7 +1646,7 @@ impl LevelAccess for GameLevel<'_> {
     fn is_unobstructed(&self, pos: BlockPos, state: BlockStateId) -> bool {
         let player = self.player_collision.as_ref();
         let context = player.map_or_else(
-            || CollisionContext::empty(false),
+            || CollisionContext::empty(),
             |player| {
                 CollisionContext::for_entity(
                     CollisionEntity {

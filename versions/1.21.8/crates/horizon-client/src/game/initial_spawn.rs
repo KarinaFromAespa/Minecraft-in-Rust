@@ -6,7 +6,7 @@ use super::Game;
 use horizon_client::{
     Result,
     assets::Properties,
-    collisions::{SceneCollisions, no_collision_or_liquid},
+    collisions::{SceneCollisions, no_collision_empty},
     random_source,
     world::World,
     world_spawn::{
@@ -60,7 +60,7 @@ impl SpawnLevel for Columns<'_, '_> {
             &mut scene,
             state,
             BlockPos::new(x, y, z),
-            &CollisionContext::empty(false),
+            &CollisionContext::empty(),
         ) else {
             return false;
         };
@@ -232,7 +232,7 @@ impl Game<'_> {
                 &mut scene,
                 self.world.block(pos[0], pos[1], pos[2]),
                 BlockPos::new(pos[0], pos[1], pos[2]),
-                &CollisionContext::empty(false),
+                &CollisionContext::empty(),
             )
             .is_ok_and(|shape| shape.is_empty())
     }
@@ -342,7 +342,12 @@ impl Game<'_> {
         spawn
     }
     /// adjustSpawnLocation's `noCollisionNoLiquid`: a player's box standing at the
-    /// block's bottom centre touches no block or liquid.
+    /// block's bottom centre touches no block or liquid. In 1.21.8 that check
+    /// is `noCollision(player, box, true)`, whose always-stand predicate only
+    /// yields the half-height stable liquid surface above the player's feet —
+    /// which the player's own box never intersects — so for this box it is
+    /// exactly the empty-context check. (1.21.9 made liquids full blocks
+    /// under it instead.)
     fn player_fits(&self, pos: [i32; 3]) -> bool {
         let feet = bottom_center(pos);
         let bounds = Aabb::new(
@@ -354,7 +359,7 @@ impl Game<'_> {
             binding: self.collision,
             subject: None,
         };
-        no_collision_or_liquid(&mut scene, bounds)
+        no_collision_empty(&mut scene, bounds)
     }
     /// adjustSpawnLocation's height fixup: up out of anything solid, then
     /// down onto the ground.

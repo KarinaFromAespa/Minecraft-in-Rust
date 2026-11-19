@@ -789,7 +789,7 @@ impl Game<'_> {
         // Level.getCollisions(null, aabb): CollisionContext.empty().
         if let Ok(scan) = BlockCollisionScan::new(
             &mut scene,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             cell,
             false,
             1_000_000,

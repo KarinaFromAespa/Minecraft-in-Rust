@@ -330,7 +330,7 @@ impl MotionWorld<'_, '_, '_> {
         // stateAbove.getCollisionShape(level, pos): the shape is asked at the
         // column's own position.
         let binding = self.collision_binding;
-        let context = CollisionContext::empty(false);
+        let context = CollisionContext::empty();
         let empty = binding
             .collision_shape_with_context(&mut self.collisions(), above, p, &context)?
             .is_empty()
