@@ -334,7 +334,46 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 58/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66 + 4 zero-diff)
+### Rank 2: 59/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68 + 4 zero-diff)
+
+- **Item 68 — `crates/horizon-client/src/game/integrated.rs`
+  (2 classes, 17 methods, 4 named in Horizon):**
+  IntegratedServer (13; initServer, publishServer,
+  tickPaused, tickServer), IntegratedPlayerList (4).
+  Citations only. The `MAX_PLAYERS` comment now cites
+  the 1.21.8 form (the literal 8 passed to the
+  `IntegratedPlayerList` super-constructor;
+  `IntegratedServer.MAX_PLAYERS` is 1.21.9-only). The
+  pause logic is already 1.21.8's: paused is the window's
+  pause only (no empty-player-list clause — that came in
+  1.21.9), the pause transition saves, and the paused
+  tick drains no packets (`tick_lan` skips
+  `tick_lan_packets` while paused, matching 1.21.8's
+  `tickPaused`, which has no `tickConnection` call);
+  view and simulation distances follow
+  max(2, option) with vanilla's log lines. Flight is
+  allowed on the integrated server (`HubConfig`,
+  `allow_flight: true`), the MOTD names the owner and
+  the world, and permission levels match (owner 4/0,
+  guests 2/0 per the operator level 2). The PvP gate
+  reads the `pvp` game rule — 1.21.8 has no such rule
+  (its `MinecraftServer.isPvpAllowed` reads the `pvp`
+  field, set true by `initServer`; 1.21.9 made it read
+  the rule) — but the rule's removal and its gates are
+  the gamerules item's (item 222, as item 13 deferred),
+  and the integrated behaviour already matches (allowed
+  by default). Known gap (vs both, not fixed):
+  `TOTAL_WORLD_TIME` is not awarded while paused, where
+  vanilla's `tickPaused` awards it to every player in
+  both versions. Deferred (correcting item 24's note,
+  which named this item): the `LevelLoadListener`
+  citations belong to rank-3 items 408/481, the
+  `PrepareSpawnTask` citations to rank-3 item 440, the
+  `NameAndId` type to rank-2 item 74, and the
+  1.21.8-only `ChunkProgressListener*` classes to rank-4
+  item 492. No `selectLevelLoadFocusPos`,
+  `getMaxPlayers` or operator-level citations exist in
+  the Rust.
 
 - **Item 66 — `crates/horizon-client/src/lan/entity.rs`
   (2 classes, 18 methods, 4 named in Horizon):**

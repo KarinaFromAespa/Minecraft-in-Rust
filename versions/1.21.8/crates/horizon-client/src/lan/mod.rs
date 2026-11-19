@@ -56,7 +56,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// IntegratedServer.MAX_PLAYERS.
+/// The integrated server's eight players: 1.21.8 passes the literal 8 to
+/// the `IntegratedPlayerList` super-constructor (1.21.9's
+/// `IntegratedServer.MAX_PLAYERS` constant does not exist here).
 pub const MAX_PLAYERS: usize = 8;
 
 /// Messages from the connection threads to the game thread.
