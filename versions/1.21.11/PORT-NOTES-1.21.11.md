@@ -1587,5 +1587,46 @@ Rank 2 (492 items, in progress 2026-11-19)
     the newer-javac `requireNonNull` on the synthetic outer-this
     param (26.1 only).
   - 415 no-change (TypedDataComponent$1): empty diff, byte-identical.
-- Rank-2 A-batches 1-11: 110 items closed (22 changed, 88 no-change).
-  work-items.json rank2.closed = 110 on 2026-11-19.
+- A-batch 12 (416, 417, 418, 419, 421, 422, 423, 424, 425, 427),
+  verified 2026-11-19, ported the same day:
+  - 416 no-change (SignedMessageChain, LastSeenMessages,
+    ProfilePublicKey$Data): private -> package-private;
+    `LastSeenMessages.EMPTY` final -> non-final; the requireNonNull
+    ctor pattern in the anonymous class.
+  - 417 no-change (NeighborUpdater): 26.1 wraps the shape update in
+    try/catch(Throwable) building a CrashReport ("Exception while
+    updating neighbour shapes") and throwing ReportedException;
+    1.21.11 lets it propagate. The Rust has no crash-report wrapper
+    for shape updates — no surface. Rest is `is(Object)` ->
+    `is(Block)` plus an access flag.
+  - 418 no-change (LocationWrapper, PositionPredicate, PropertyMatcher):
+    private -> package-private only.
+  - 419 no-change (CriterionTriggerInstance): `validate` takes
+    `ValidationContextSource` (26.1) vs `CriterionValidator`
+    (1.21.11), but the Rust has no validation-context surface.
+  - 421 no-change (TextureAtlasSprite): 26.1 adds
+    `transparency()` delegating to `SpriteContents`; 1.21.11 has
+    neither, and the Rust has no per-sprite transparency surface.
+  - 422 no-change (ClientPackSource): `ResourceMetadata` (26.1) vs
+    `BuiltInMetadata` (1.21.11) in the vanilla-pack metadata
+    plumbing, plus a javac codegen difference; same area as 396,
+    no Rust surface.
+  - 423 no-change (TranslatableContents): `resolve` takes a
+    `ResolutionContext` (26.1) vs `(CommandSourceStack, Entity)`
+    (1.21.11) — the 26.x refactor of the same resolve logic; the
+    Rust does not model component resolution at all.
+  - 424 no-change (MobEffect AttributeTemplate, Details): private ->
+    package-private only.
+  - 425 no-change (SonicBoom): empty diff, byte-identical.
+  - 427 CHANGED (PathNavigation): 26.1 gates `recomputePath` on
+    `canUpdatePath()` (a mob that cannot update stays delayed and
+    retries every tick); 1.21.11 recomputes whenever 20+ ticks
+    elapsed, the gate living only inside `createPath` (verified from
+    the jar: `canUpdatePath` is called by `createPath` and `tick`,
+    not by `recomputePath`). Ported: `nav.rs recompute_path` drops
+    the `|| !self.can_update_path()`; the `create_path_raw` and
+    tick gates stay. `canCutCorner`'s FIRE_IN_NEIGHBOR /
+    DAMAGING_IN_NEIGHBOR -> DANGER_FIRE / DANGER_OTHER renames were
+    already ported in item 383.
+- Rank-2 A-batches 1-12: 120 items closed (23 changed, 97 no-change).
+  work-items.json rank2.closed = 120 on 2026-11-19.
