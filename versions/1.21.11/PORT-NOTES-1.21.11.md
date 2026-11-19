@@ -837,3 +837,13 @@ Rank 1 (10 items, in progress 2026-11-19)
   sulfur_cube_archetype (a 26.2 registry, no report item covers it)
   and lacks minecraft:timeline (in 1.21.11's
   RegistryDataLoader.SYNCHRONIZED_REGISTRIES) — rank-2 registry work.
+
+CI run 44448815383 (on a7a9ede, T4 state, completed 2026-11-19):
+profile 5 pass / 1 oracle / 11 fail (v6.4 was 2/2/13). Passing:
+block_properties, component_patch, food, lan, resource_pack.
+Oracle-fail: command_exec. D2 passes (0 errors, 0 warnings; 440
+protocol tests). D1 blocked on the owed regen.json; D3 fails on 0/10
+rank-1 closed (port in progress); D4/D5/D6 blocked (stamp quirk, no
+harness-subset.txt, no playtest.md — all record-time items).
+component_patch green on CI settles the local re-run: no local
+re-run needed.
