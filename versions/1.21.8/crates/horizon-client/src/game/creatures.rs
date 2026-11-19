@@ -3529,7 +3529,7 @@ impl Game<'_> {
                 }
                 MobEvent::StartRiding { rider, vehicle } => {
                     if horizon_client::mobs::riders::start_riding(&mut self.mobs, rider, vehicle) {
-                        // sendEventAndTriggers: the server players already on it.
+                        // Entity.startRiding: the server players already on it.
                         self.note_started_riding(vehicle);
                     }
                 }

@@ -1251,26 +1251,20 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         self.mob(m, Some(g))
     }
     /// `Mob.populateDefaultEquipmentSlots`: a set of armour from the head
-    /// down, of one material.
+    /// down, of one material: `nextInt(2)` plus three 0.095 upgrades over
+    /// leather, gold, chainmail, iron, diamond.
     fn armor(&mut self, m: &mut Mob) {
         if self.float() >= 0.15 * self.special() {
             return;
         }
-        let mut kind = self.int(3);
+        let mut kind = self.int(2);
         for _ in 1..=3 {
-            if self.float() < 0.1087 {
+            if self.float() < 0.095 {
                 kind += 1;
             }
         }
         let partial = if self.difficulty.hard { 0.1 } else { 0.25 };
-        const MATERIAL: [&str; 6] = [
-            "leather",
-            "copper",
-            "golden",
-            "chainmail",
-            "iron",
-            "diamond",
-        ];
+        const MATERIAL: [&str; 5] = ["leather", "golden", "chainmail", "iron", "diamond"];
         let mut first = true;
         // EQUIPMENT_POPULATION_ORDER: head, chest, legs, feet.
         for (slot, piece) in [

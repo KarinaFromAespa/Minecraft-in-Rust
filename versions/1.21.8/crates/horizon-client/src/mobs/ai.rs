@@ -1126,8 +1126,9 @@ pub(super) fn in_rain(m: &Mob, w: &MobWorld) -> bool {
 }
 /// `LivingEntity.baseTick` refills a breather's air by 4, then
 /// `Axolotl.handleAirSupply` (unless the mob has no AI): water or rain fills
-/// it, anywhere else it runs down from the pre-tick value, and at -20 the
-/// axolotl dries out.
+/// it, anywhere else it runs down from the pre-tick value, and at exactly
+/// -20 the axolotl dries out (past -20 does not: 1.21.8 tests `== -20`,
+/// the `<=` `shouldTakeDrowningDamage` came in 1.21.9).
 fn axolotl_air_supply(m: &mut Mob, w: &MobWorld) {
     let before = m.air;
     m.air = (m.air + 4).min(super::axolotl::MAX_AIR);
@@ -1138,7 +1139,7 @@ fn axolotl_air_supply(m: &mut Mob, w: &MobWorld) {
         m.air = super::axolotl::MAX_AIR;
     } else {
         m.air = before - 1;
-        if m.air <= -20 {
+        if m.air == -20 {
             m.air = 0;
             m.damage(2.0, Damage::of(DamageKind::DryOut));
         }

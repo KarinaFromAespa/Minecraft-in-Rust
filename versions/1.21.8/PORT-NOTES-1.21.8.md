@@ -334,8 +334,45 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 14/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 + 2 zero-diff)
+### Rank 2: 15/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23 + 2 zero-diff)
 
+- **Item 23 — `mobs/ai.rs` (9 classes, 26 methods, 14 named in Horizon):**
+  `Mob` and its subclasses' AI step, despawn, equipment and air.
+  1. **Spawn armour (`Mob.populateDefaultEquipmentSlots`):** 1.21.9
+     rolls `nextInt(3)` plus three 0.1087 upgrades over six materials
+     (leather, copper, gold, chainmail, iron, diamond);
+     1.21.8 rolls `nextInt(2)` plus three 0.095 upgrades over five
+     (leather, gold, chainmail, iron, diamond — no copper). Both Rust
+     copies fixed the same way: `spawning.rs::populate_armor` (the
+     natural-spawn path) and `finalize.rs::armor` (the finalize-spawn
+     path). New test `spawn_armour_is_five_materials_with_no_copper`
+     (400 skeletons at a maxed special multiplier: no copper, leather/
+     gold/chainmail all appear; it needs the prepared `.local` data,
+     so it compiles here and runs on CI).
+  2. **Axolotl dry-out (`Axolotl.handleAirSupply`):** 1.21.9 tests
+     `shouldTakeDrowningDamage()` (`air <= -20`); 1.21.8 tests
+     `air == -20`. The axolotl's check is now `==` (past -20 does not
+     dry out — the same rule `breathing.rs` already had for the
+     general path, and the WaterAnimal branch already had). The
+     nautilus's `<=` is left: the nautilus is in neither jar, so its
+     air code is unreachable dead code in this tree.
+  3. **Citations:** `sendEventAndTriggers` exists in neither decomp
+     (a 26.x extraction — in 1.21.8 the `START_RIDING_TRIGGER` fires
+     inline in `Entity.startRiding`); reworded in `advancements.rs`,
+     `boarding.rs`, `world_cmds.rs`, `creatures.rs`, `passengers.rs`.
+  Verified already-1.21.8: the peaceful despawn already uses
+  `despawns_in_peaceful` (item 17's rework — the
+  `shouldDespawnInPeaceful` override set); `usePlayerItem` moved
+  Animal -> Mob with a byte-identical body (both use `UseRemainder`,
+  which exists in 1.21.8 too); the 1.21.9-only `ENTITY_MOUNT`/
+  `ENTITY_DISMOUNT` game events on mount/dismount are unmodelled in
+  the Rust (only the criterion trigger fires, as in both versions);
+  the debug-packet split (`sendDebugPackets` in 1.21.8,
+  `registerDebugValues` in 1.21.9) is unmodelled either way; every
+  other hunk is the `isClientSide()` -> `isClientSide` rename or the
+  `@Nullable` annotation. Pre-existing dead code, noted not removed:
+  the `copper_horse_armor` arm of `horse_armor_stats` (no copper
+  equipment in the 1.21.8 jar at all) and the nautilus air code.
 - **Item 21 — `chat.rs` (4 classes, 36 methods, 15 named in Horizon):**
   the chat screen, its suggestions and the chat component. The 1.21.9
   chat-draft system is gone entirely: closing the chat loses the text.

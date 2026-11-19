@@ -125,26 +125,20 @@ pub fn horse_armor_stats(item: &str) -> (f32, f32) {
     }
 }
 /// `Mob.populateDefaultEquipmentSlots`: sometimes a set of armour, from the
-/// head down, of one random material.
+/// head down, of one random material: `nextInt(2)` plus three 0.095
+/// upgrades over leather, gold, chainmail, iron, diamond.
 fn populate_armor(m: &mut Mob, d: &LocalDifficulty) {
     if m.random.next_float() >= 0.15 * d.special() {
         return;
     }
-    let mut kind = m.random.next_int_bound(3).unwrap_or(0);
+    let mut kind = m.random.next_int_bound(2).unwrap_or(0);
     for _ in 1..=3 {
-        if m.random.next_float() < 0.1087 {
+        if m.random.next_float() < 0.095 {
             kind += 1;
         }
     }
     let partial = if d.hard { 0.1 } else { 0.25 };
-    let material = [
-        "leather",
-        "copper",
-        "golden",
-        "chainmail",
-        "iron",
-        "diamond",
-    ][kind as usize];
+    let material = ["leather", "golden", "chainmail", "iron", "diamond"][kind as usize];
     for (i, piece) in ["helmet", "chestplate", "leggings", "boots"]
         .into_iter()
         .enumerate()
@@ -518,5 +512,45 @@ mod tests {
         let mut random = cow.random.clone();
         crate::mobs::finalize::halloween_head(&mut cow, &mut random, true);
         assert!(cow.extra.head.is_none());
+    }
+    /// `Mob.populateDefaultEquipmentSlots`: five materials, no copper — the
+    /// 1.21.9 form added copper as the second tier and rolled `nextInt(3)`
+    /// with 0.1087 upgrades; 1.21.8 rolls `nextInt(2)` with three 0.095
+    /// upgrades over leather, gold, chainmail, iron, diamond.
+    #[test]
+    fn spawn_armour_is_five_materials_with_no_copper() {
+        let Some(types) = types() else { return };
+        // A long-inhabited hard chunk: the special multiplier is 1, so the
+        // 15% armour gate bites on about one spawn in seven.
+        let difficulty = LocalDifficulty::new(3, 2_000_000, 3_600_000, 1.0);
+        let mut seen = std::collections::BTreeSet::new();
+        let mut armored = 0;
+        for id in 1..=400 {
+            let kind = std::sync::Arc::new(
+                types.types.get("minecraft:skeleton").unwrap().clone(),
+            );
+            let mut m = Mob::new(
+                id,
+                kind,
+                horizon_core::geometry::Vec3::new(0.5, 64.0, 0.5),
+                0.0,
+            );
+            finalize(&mut m, &BiomeFacts::default(), &difficulty);
+            if let Some(head) = m.extra.head.as_deref() {
+                armored += 1;
+                assert!(
+                    !head.contains("copper"),
+                    "a 1.21.8 spawn wears no copper armour: {head}"
+                );
+                seen.insert(head.to_owned());
+            }
+        }
+        assert!(armored > 20, "enough armoured skeletons to tell: {armored}");
+        for material in ["leather_helmet", "golden_helmet", "chainmail_helmet"] {
+            assert!(
+                seen.iter().any(|h| h.ends_with(material)),
+                "a {material} spawns: {seen:?}"
+            );
+        }
     }
 }

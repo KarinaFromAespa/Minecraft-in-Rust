@@ -1770,7 +1770,7 @@ impl Game<'_> {
                         player.teleported = true;
                     }
                     self.previous_position = at;
-                    // sendEventAndTriggers: START_RIDING_TRIGGER.
+                    // Entity.startRiding: START_RIDING_TRIGGER.
                     self.start_riding(id);
                 }
                 return Ok(());

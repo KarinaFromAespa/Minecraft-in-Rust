@@ -2060,8 +2060,8 @@ impl Game<'_> {
                 && adv::conditions(&c["player"], &pctx, w)
         });
     }
-    /// `Entity.startRiding`'s `sendEventAndTriggers`: `START_RIDING_TRIGGER`
-    /// for every `ServerPlayer` in `entityToRide.getIndirectPassengersStream()`.
+    /// `Entity.startRiding`: `START_RIDING_TRIGGER` for every `ServerPlayer`
+    /// in `entityToRide.getIndirectPassengersStream()`.
     pub(super) fn trigger_started_riding(&mut self, vehicle: u32) {
         let mounts: Vec<(u32, Option<u32>)> =
             self.mobs.iter().map(|m| (m.id, m.extra.mount)).collect();

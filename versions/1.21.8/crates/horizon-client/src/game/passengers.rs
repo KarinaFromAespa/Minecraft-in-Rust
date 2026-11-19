@@ -61,7 +61,7 @@ impl Game<'_> {
             return false;
         }
         riders::link(&mut self.mobs, rider, vehicle);
-        // sendEventAndTriggers: the server players already on the vehicle.
+        // Entity.startRiding: the server players already on the vehicle.
         self.note_started_riding(vehicle);
         true
     }
