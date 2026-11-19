@@ -880,6 +880,38 @@ quirk, no harness-subset.txt, no playtest.md — deferred per owner).
 Recorded in pins/1.21.11/ (profile.json stamped 8fa812d,
 delta-verdict.json).
 
+CI run 44484665862 (on a3a429f, A-batches 1-3 state, completed
+2026-11-19, ~2h): profile 5 pass / 5 oracle / 7 fail in the
+17-harness framing (23 entries with the datafix shards). Passing:
+block_properties, component_patch, food, lan, resource_pack —
+unchanged from the two earlier runs. Real comparisons (4):
+command_parse (6337 mismatches), datafix (15056 differences over
+7 worlds), hotbar (889/905), options (options.txt ordering/content
+diffs). Oracle-side (5): chunk_generation (the vanilla oracle
+crashes generating a chunk — "Requested chunk unavailable during
+world generation" in Beardifier, a fixture/setup issue, not a
+comparison), command_exec (SeedAgent.java uses
+`java.lang.classfile`, which does not exist at `--release 21` —
+the seed agent needs a Java 21-compatible form; 26.2 never hit
+this because its Java is 26.x), entity_components, first_person,
+item_model (the oracle java run exits non-zero; its own log is
+not in the artifact, so the cause is unrecorded). Launch/setup
+(3): light and save_roundtrip fail on "missing motion tag" (the
+Rust probe/game fails to launch), sound_event on the missing
+sounds.json (the known unwired-sounds gap). D1 now FAILS (not
+blocked): regen.json exists, so the tag audit ran — 26 dead
+production tags remain (tag triage is part of the port). D2
+passes (0 errors, 0 warnings; 440 protocol tests). D3/D5 blocked
+on file lookup, not on substance: v6.8 resolves the pin when one
+exists, and the pin held no work-items.json or harness-subset.txt
+— both are now recorded in the pin (work-items.json at the
+record-time state, rank2.closed = 90; harness-subset.txt is the
+E6 eight). D4 blocked (stamp quirk: profile stamped a3a429f,
+judge HEAD the staged candidate). D6 blocked (no playtest.md —
+deferred per owner). Recorded in pins/1.21.11/ (profile.json
+stamped a3a429f, delta-verdict.json, work-items.json,
+harness-subset.txt).
+
 Rank 2 (492 items, in progress 2026-11-19)
 - Method: each item's named methods intersected with the diff store
   (rank2-triage.json, workdir scratch): 189 items with no changed named
