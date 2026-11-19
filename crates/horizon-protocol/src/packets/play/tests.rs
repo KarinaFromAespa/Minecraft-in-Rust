@@ -916,6 +916,31 @@ fn player_look_at_round_trips() {
     }
 }
 
+#[test]
+fn add_experience_orb_round_trips() {
+    // 1.21.4's own orb packet (removed in 1.21.5): id, three doubles, a short value.
+    let orb = AddExperienceOrb {
+        id: 42,
+        position: [1.5, 64.0, -2.25],
+        value: 7,
+    };
+    let bytes = Clientbound::AddExperienceOrb(orb.clone()).encode();
+    assert_eq!(bytes.len(), 1 + 1 + 24 + 2);
+    assert_eq!(
+        Clientbound::decode(crate::ids::play::clientbound::ADD_EXPERIENCE_ORB, &bytes[1..])
+            .unwrap(),
+        Clientbound::AddExperienceOrb(orb)
+    );
+    // Cut short, it is an error rather than a packet.
+    assert!(
+        Clientbound::decode(
+            crate::ids::play::clientbound::ADD_EXPERIENCE_ORB,
+            &bytes[1..bytes.len() - 1]
+        )
+        .is_err()
+    );
+}
+
 /// ClientboundChunksBiomesPacket is read, not passed through as an
 /// unknown packet: one column (1, -2) with two bytes of biomes.
 #[test]

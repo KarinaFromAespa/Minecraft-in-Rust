@@ -645,7 +645,7 @@ mod tests {
         };
         assert_eq!(
             (*duration, *experience, station.clone()),
-            (120, 0.75, SlotDisplay::Item(1271))
+            (120, 0.75, SlotDisplay::Item(1260))
         );
         let properties = state.properties();
         let mut r = Reader::new(&properties);
@@ -663,7 +663,7 @@ mod tests {
         let SlotDisplay::ItemStack(stack) = SlotDisplay::read(&mut r).unwrap() else {
             panic!("stonecutting")
         };
-        assert_eq!((stack.item, stack.count), (283, 2));
+        assert_eq!((stack.item, stack.count), (277, 2));
         assert_eq!(r.remaining(), 0);
     }
 

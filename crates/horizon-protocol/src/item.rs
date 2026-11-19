@@ -1787,16 +1787,75 @@ impl Codec<Option<Stack>> for DelimitedSlot {
             w.bytes(patch);
             return;
         }
-        w.varint(s.added.len() as i32);
-        w.varint(s.removed.len() as i32);
+        // The delimited form carries the same tooltip synthesis as the plain
+        // patch: the marker has no wire id of its own, so it becomes the two
+        // hide booleans at its position, and each flagged component's show
+        // flag rides inside its length-prefixed value.
+        let has = |kind: i32| ids::component(kind) >= 0;
+        let pin_tooltip = ids::quirks_written().components_before_1_21_5;
+        let display = s
+            .added
+            .iter()
+            .find(|(k, _)| *k == component::TOOLTIP_DISPLAY)
+            .and_then(|(_, c)| match c {
+                Component::TooltipDisplay { hide, hidden } => Some((*hide, hidden.as_slice())),
+                _ => None,
+            });
+        let (hide, hidden) = display.unwrap_or((false, &[]));
+        let additional =
+            pin_tooltip && hidden.iter().any(|k| v1_21_4::ADDITIONAL.contains(k));
+        let booleans = pin_tooltip && display.is_some() && (hide || additional);
+        let added_count = s
+            .added
+            .iter()
+            .filter(|(k, _)| *k != component::TOOLTIP_DISPLAY && has(*k))
+            .count()
+            + usize::from(booleans && additional)
+            + usize::from(booleans && hide);
+        let removed_marker = pin_tooltip && s.removed.contains(&component::TOOLTIP_DISPLAY);
+        let removed_count = s
+            .removed
+            .iter()
+            .filter(|k| **k != component::TOOLTIP_DISPLAY && has(**k))
+            .count()
+            + usize::from(removed_marker) * 2;
+        w.varint(added_count as i32);
+        w.varint(removed_count as i32);
         for (kind, c) in &s.added {
+            if *kind == component::TOOLTIP_DISPLAY {
+                if booleans {
+                    if additional {
+                        w.varint(ids::component(component::HIDE_ADDITIONAL_TOOLTIP));
+                        w.byte_array(&[]);
+                    }
+                    if hide {
+                        w.varint(ids::component(component::HIDE_TOOLTIP));
+                        w.byte_array(&[]);
+                    }
+                }
+                continue;
+            }
+            if !has(*kind) {
+                continue;
+            }
             w.varint(ids::component(*kind));
             let mut value = Writer::new();
             write_value(*kind, c, &mut value);
+            if pin_tooltip && v1_21_4::TOOLTIP_FLAGS.contains(kind) {
+                value.bool(!hidden.contains(kind));
+            }
             w.byte_array(&value.data);
         }
-        for kind in &s.removed {
+        for kind in s
+            .removed
+            .iter()
+            .filter(|k| **k != component::TOOLTIP_DISPLAY && has(**k))
+        {
             w.varint(ids::component(*kind));
+        }
+        if removed_marker {
+            w.varint(ids::component(component::HIDE_ADDITIONAL_TOOLTIP));
+            w.varint(ids::component(component::HIDE_TOOLTIP));
         }
     }
 }

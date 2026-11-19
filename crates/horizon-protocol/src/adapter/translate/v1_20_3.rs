@@ -1027,7 +1027,7 @@ mod tests {
             assert_eq!(data, expected);
         }
         session.legacy_metadata.lock().unwrap().forget(42);
-        session.kinds.lock().unwrap().insert(42, 148);
+        session.kinds.lock().unwrap().insert(42, 147); // pinned minecraft:player
         let mut data = metadata(ServerVersion::V1_20_3, "2a0b0800ff");
         entity_data(&session, &mut data);
         assert!(

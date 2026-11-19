@@ -678,7 +678,8 @@ mod tests {
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
         assert_eq!(stack.item, 1);
-        // The pinned layout: each entry with a default display, then the shears' sound by default.
+        // The pinned layout: each entry with a default display, then the sheep-shear sound by
+        // default (no item.shears.snip at this pin).
         let mut modifiers = Writer::new();
         modifiers.varint(2);
         for (holder, id, amount, operation, slot) in [
@@ -698,7 +699,7 @@ mod tests {
         for b in [false, false, false, true, true, true, false, false] {
             equippable.bool(b);
         }
-        equippable.varint(1329);
+        equippable.varint(1256);
         assert_eq!(
             stack.added,
             [

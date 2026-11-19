@@ -12,7 +12,10 @@ pub(super) fn read(kind: i32, r: &mut Reader) -> Result<Option<Vec<u8>>> {
 }
 
 pub(super) fn write(kind: i32, bytes: &[u8]) -> Option<Vec<u8>> {
-    if matches!(ids::active(), Some((ids, ids::Way::Down)) if ids.quirks.components_before_1_21_6) {
+    // The target's layout decides: a pre-1.21.6 server, or the pinned version
+    // itself when no session is active (this pin predates 1.21.6, so its own
+    // wire drops the display and shearing fields too).
+    if ids::quirks_written().components_before_1_21_6 {
         rewrite(kind, &mut Reader::new(bytes), false).ok().flatten()
     } else {
         None
@@ -84,8 +87,15 @@ fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Option<Vec<u8>>> {
                     }
                 }
             }
-            let before_5 =
-                ids::active().is_some_and(|(ids, _)| ids.quirks.components_before_1_21_5);
+            // The side whose wire is read: the source when reading up, the
+            // target when writing down; the pinned version when no session
+            // is active (this pin predates 1.21.5, so its wire has no
+            // equip-on-interact field either).
+            let before_5 = if up {
+                ids::quirks().components_before_1_21_5
+            } else {
+                ids::quirks_written().components_before_1_21_5
+            };
             for _ in 0..3 {
                 w.bool(r.bool()?);
             }
@@ -99,7 +109,9 @@ fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Option<Vec<u8>>> {
             }
             if up {
                 w.bool(false); // Equippable's default canBeSheared.
-                w.varint(1329); // Pinned item.shears.snip (1328) as a sound holder.
+                // No item.shears.snip at this pin (a 1.21.5 addition): the
+                // sheep-shear sound (1255) stands in as the shearing sound.
+                w.varint(1256);
             } else {
                 r.bool()?;
                 sound(r, &mut Writer::new())?;
@@ -146,37 +158,37 @@ mod tests {
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01f80601000d02020b6d696e6563726166743a783ff8000000000000000100150b6d696e6563726166743a793fd0000000000000020000",
+                "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "equip_bare",
                 "01f80601001c034700000001010100",
-                "01f80601001c03470000000101010000b10a",
+                "01ef0601001c0347000000010101",
             ),
             (
                 "equip_list",
                 "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
-                "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e90010000000100b10a",
+                "01ef0601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e8f01000000",
             ),
             (
                 "equip_direct",
                 "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
-                "01f80601001c04000e6d696e6563726166743a7465737401408000000000000101010000b10a",
+                "01ef0601001c04000e6d696e6563726166743a746573740140800000000000010101",
             ),
             (
                 "combined",
                 "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
-                "01f80603000d01000b6d696e6563726166743a7a400800000000000000000003111c03470000000101010000b10a",
+                "01ef0603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
             ),
             (
                 "profile",
                 "01f80601003d010b486f72697a6f6e576972650000",
-                "01f80601003d010b486f72697a6f6e576972650000",
+                "01ef06010039010b486f72697a6f6e576972650000",
             ),
             (
                 "container",
                 "01f80601004206030100000000000002fa020000",
-                "01f80601004206030100000000000002fa020000",
+                "01ef0601003e06030100000000000002f3020000",
             ),
         ] {
             let old = bytes(old);
@@ -199,7 +211,13 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            assert_eq!(actual, expected, "{label}");
+            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.4 wire
+            // cannot express, so the pinned oracle drops it and cannot equal
+            // the 1.21.5 stack (the down-write below still proves the full
+            // round-trip).
+            if label != "equip_list" {
+                assert_eq!(actual, expected, "{label}");
+            }
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_5.ids().unwrap(), Way::Down);
@@ -207,10 +225,15 @@ mod tests {
             }
             assert_eq!(w.data, old, "{label}");
             // The cached delimited patch must also contain normalized values.
-            let mut w = Writer::new();
-            DelimitedSlot::write(&stack, &mut w);
-            let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
-            assert_eq!(read_back, stack, "{label}");
+            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.4 wire
+            // cannot express, so the pin round-trip drops it (the down-write
+            // above still proves it survives the 1.21.5 round-trip).
+            if label != "equip_list" {
+                let mut w = Writer::new();
+                DelimitedSlot::write(&stack, &mut w);
+                let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
+                assert_eq!(read_back, stack, "{label}");
+            }
         }
     }
 }
