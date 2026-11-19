@@ -334,7 +334,26 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 64/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83 + 4 zero-diff)
+### Rank 2: 65/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84 + 4 zero-diff)
+
+- **Item 84 — `crates/horizon-client/src/game/item_entities.rs`
+  (1 class, 7 methods, 4 named in Horizon), zero-diff:**
+  ItemEntity (getOwner, playerTouch, setThrower, tick).
+  `bobOffs` is initialised in the constructor in
+  1.21.8 rather than at the field, but the draw order
+  is the same in both versions (bob first, then yaw)
+  and the Rust draws bob then yaw from the item's own
+  random. The 1.21.8-only private copy constructor +
+  public `copy()` has no in-game callers in the 1.21.8
+  decomp — no Rust surface. `getOwner`/`setThrower`
+  differ only by the `EntityReference` API
+  (`getEntity`/`of` are 1.21.9-only; 1.21.8 has
+  `get(ref, level, Class)` / `new EntityReference(entity)`)
+  — the Rust stores the thrower UUID directly with no
+  `EntityReference` citations. Tick merge cadence
+  (every 2 ticks while moving between blocks, else 40)
+  and the 6000-age discard match. Everything else is
+  `isClientSide()` vs the field.
 
 - **Item 83 — `crates/horizon-client/src/game/commands/extra.rs`
   (5 classes, 9 methods, 4 named in Horizon):**
