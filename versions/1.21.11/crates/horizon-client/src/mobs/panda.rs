@@ -523,15 +523,15 @@ pub fn client_tick(m: &mut Mob, thundering: bool) {
 
 // ---- drawing ---------------------------------------------------------------
 
-/// `PandaRenderer.getTextureLocation`.
+/// `PandaRenderer.getTextureLocation`: 1.21.11 names the gene textures
+/// `{gene}_panda` and has no baby panda textures — babies wear the adult
+/// coat (26.x names them `panda_{gene}` and adds `{gene}_panda_baby`).
 pub fn texture(m: &Mob) -> String {
     let v = usize::from(variant(m)).min(GENES.len() - 1);
     let gene = GENES[v];
-    match (m.is_baby(), gene) {
-        (false, "normal") => "entity/panda/panda".into(),
-        (false, g) => format!("entity/panda/panda_{g}"),
-        (true, "normal") => "entity/panda/panda_baby".into(),
-        (true, g) => format!("entity/panda/{g}_panda_baby"),
+    match gene {
+        "normal" => "entity/panda/panda".into(),
+        g => format!("entity/panda/{g}_panda"),
     }
 }
 /// What `PandaRenderState` gives `PandaModel.setupAnim`.

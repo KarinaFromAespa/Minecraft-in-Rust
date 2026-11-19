@@ -959,7 +959,9 @@ pub fn tint(m: &Mob, partial: f32) -> u32 {
     let c = (shade * 255.0) as u32;
     0xFF00_0000 | c << 16 | c << 8 | c
 }
-/// `Wolf.getTexture`.
+/// `Wolf.getTexture`: 1.21.11 has no baby wolf textures (26.x adds one
+/// per variant and state) — babies wear the adult texture, on the baby
+/// model.
 pub fn texture(m: &Mob) -> String {
     let file = WOLF_VARIANTS[(m.extra.variant as usize).min(8)].1;
     let state = if m.extra.tame {
@@ -969,8 +971,7 @@ pub fn texture(m: &Mob) -> String {
     } else {
         ""
     };
-    let baby = if m.is_baby() { "_baby" } else { "" };
-    format!("entity/wolf/{file}{state}{baby}")
+    format!("entity/wolf/{file}{state}")
 }
 
 /// Cat variants (`CatVariants`): registry name, texture file.
@@ -1586,10 +1587,12 @@ pub fn cat_variant(m: &mut Mob, w_moon_full: bool) -> u8 {
     let n = if w_moon_full { 11 } else { 10 };
     m.random.next_int_bound(n).unwrap_or(0) as u8
 }
+/// `CatRenderer.getTextureLocation`: 1.21.11 names the variant textures
+/// bare (`tabby`, `jellie`...) and has no baby cat textures (26.x
+/// prefixes `cat_` and adds one `cat_{v}_baby` per variant).
 pub fn cat_texture(m: &Mob) -> String {
     let v = CAT_VARIANTS[(m.extra.variant as usize).min(10)];
-    let baby = if m.is_baby() { "_baby" } else { "" };
-    format!("entity/cat/cat_{v}{baby}")
+    format!("entity/cat/{v}")
 }
 /// `CatRenderer.setupRotations`: lying cats roll onto their side.
 pub fn cat_rotations(m: &Mob, partial: f32) -> glam::Mat4 {

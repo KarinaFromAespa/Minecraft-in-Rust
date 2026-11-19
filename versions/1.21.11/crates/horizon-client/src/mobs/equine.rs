@@ -937,20 +937,21 @@ pub fn set_flags(m: &mut Mob, flags: u8) {
 pub fn grazes(s: Species) -> bool {
     is_equine(s) && !super::camel::is_camel(s) && !super::llama::is_llama(s)
 }
-/// Body texture and the markings overlay.
+/// Body texture and the markings overlay. 1.21.11 has no baby horse,
+/// donkey, mule, camel or marking textures (26.x adds one per coat):
+/// babies wear the adult texture, on the baby model.
 pub fn texture(m: &Mob) -> String {
-    let baby = if m.is_baby() { "_baby" } else { "" };
     match m.species() {
         Species::Horse => {
             let c = COLORS[(m.extra.variant as usize).min(6)];
-            format!("entity/horse/horse_{c}{baby}")
+            format!("entity/horse/horse_{c}")
         }
-        Species::Donkey => format!("entity/horse/donkey{baby}"),
-        Species::Mule => format!("entity/horse/mule{baby}"),
-        Species::SkeletonHorse => format!("entity/horse/horse_skeleton{baby}"),
-        Species::Camel => format!("entity/camel/camel{baby}"),
+        Species::Donkey => "entity/horse/donkey".into(),
+        Species::Mule => "entity/horse/mule".into(),
+        Species::SkeletonHorse => "entity/horse/horse_skeleton".into(),
+        Species::Camel => "entity/camel/camel".into(),
         Species::CamelHusk => "entity/camel/camel_husk".into(),
-        _ => format!("entity/horse/horse_zombie{baby}"),
+        _ => "entity/horse/horse_zombie".into(),
     }
 }
 pub fn markings(m: &Mob) -> Option<String> {
@@ -961,8 +962,7 @@ pub fn markings(m: &Mob) -> Option<String> {
     if mk.is_empty() {
         return None;
     }
-    let baby = if m.is_baby() { "_baby" } else { "" };
-    Some(format!("entity/horse/horse_markings_{mk}{baby}"))
+    Some(format!("entity/horse/horse_markings_{mk}"))
 }
 /// The model key prefix for the species.
 pub fn model_name(s: Species) -> &'static str {
