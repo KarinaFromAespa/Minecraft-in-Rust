@@ -825,18 +825,13 @@ impl Game<'_> {
             | DebugAction::CopyLocation => false,
         }
     }
-    /// `ServerboundChangeGameModePacket` handled by the integrated server:
-    /// `GameModeCommand.setGameMode` with its feedback.
+    /// The debug gamemode switcher (F3+F4): on a server it runs
+    /// `/gamemode` — 1.21.5 has no change-game-mode packet (it arrived
+    /// in 1.21.6); locally `GameModeCommand.setGameMode` with its
+    /// feedback.
     pub(super) fn change_game_mode(&mut self, mode: GameMode) {
         if self.remote.is_some() {
-            use horizon_protocol::packets::play::ChangeGameMode;
-            let mode = match mode {
-                GameMode::Survival => 0,
-                GameMode::Creative => 1,
-                GameMode::Adventure => 2,
-                GameMode::Spectator => 3,
-            };
-            self.send(Serverbound::ChangeGameMode(ChangeGameMode { mode }));
+            self.send_command(&format!("gamemode {}", mode.name()));
             return;
         }
         if self.set_game_mode(mode) {

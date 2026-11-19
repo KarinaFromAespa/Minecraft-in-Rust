@@ -249,7 +249,6 @@ fn recordable<'a>(
         | P::StoreCookie(_)
         | P::SystemChat(_)
         | P::TabList(_)
-        | P::TrackedWaypoint(_)
         | P::Transfer(_)
         | P::Unknown(..) => None,
         _ => Some((packet_id, Cow::Borrowed(payload))),
@@ -313,8 +312,7 @@ mod tests {
         };
         use play::{
             ChatTypeBound, Clientbound as P, CustomChatCompletions, PlayerInfo, PlayerInfoRemove,
-            PlayerInfoUpdate, ResetScore, SetPlayerTeam, SetScore, TrackedWaypoint, WaypointId,
-            WaypointTarget,
+            PlayerInfoUpdate, ResetScore, SetPlayerTeam, SetScore,
         };
 
         let packets = [
@@ -411,13 +409,6 @@ mod tests {
             P::TabList(play::TabList {
                 header: Tag::String("PlayerName".into()),
                 footer: Tag::End,
-            }),
-            P::TrackedWaypoint(TrackedWaypoint {
-                operation: play::waypoint_operation::TRACK,
-                id: WaypointId::Uuid(7),
-                style: "minecraft:default".into(),
-                color: None,
-                target: WaypointTarget::Empty,
             }),
             P::Transfer(Transfer {
                 host: "private.example".into(),

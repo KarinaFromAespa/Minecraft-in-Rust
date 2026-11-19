@@ -2,6 +2,11 @@
 //! WaypointTransmitter's connections, for players (the transmitters vanilla has
 //! by default: `waypoint_transmit_range` is 0 for every other entity).
 //!
+//! 1.21.5 has no waypoint packet (it arrived in 1.21.6), so the manager
+//! computes the waypoint payloads but nothing sends them: [`Waypoints::tick`]
+//! returns the payloads and the caller drops them. The tracking logic stays
+//! tested and intact for the behaviour port.
+//!
 //! Vanilla updates a player's connections each time the player's position
 //! changes (`Entity.setPosRaw`, then `ServerChunkCache.move`). The hub sees the
 //! position once a tick, after the moves it handled, and updates from there:
@@ -12,7 +17,7 @@
 //! connections with the team's colour (`ServerScoreboard.updatePlayerWaypoint`).
 use crate::fast_hash::FxHashMap as HashMap;
 use horizon_protocol::packets::play::{
-    Clientbound as C, TrackedWaypoint, WaypointId, WaypointTarget, waypoint_operation,
+    TrackedWaypoint, WaypointId, WaypointTarget, waypoint_operation,
 };
 
 /// `Player.createAttributes`: both waypoint ranges.
@@ -160,7 +165,7 @@ struct Tick<'a> {
     /// Players a respawn replaced this tick: a new ServerPlayer, on its first tick.
     fresh: &'a [u128],
     enabled: bool,
-    out: Vec<(u32, C)>,
+    out: Vec<(u32, TrackedWaypoint)>,
 }
 
 impl<'a> Tick<'a> {
@@ -315,14 +320,14 @@ impl<'a> Tick<'a> {
     }
 }
 
-fn waypoint(source: u128, operation: i32, icon: &Icon, target: WaypointTarget) -> C {
-    C::TrackedWaypoint(TrackedWaypoint {
+fn waypoint(source: u128, operation: i32, icon: &Icon, target: WaypointTarget) -> TrackedWaypoint {
+    TrackedWaypoint {
         operation,
         id: WaypointId::Uuid(source),
         style: icon.style.clone(),
         color: icon.color,
         target,
-    })
+    }
 }
 
 impl Waypoints {
@@ -455,14 +460,14 @@ impl Waypoints {
 
     /// One tick: players who left, joined, moved, hid or changed team, and the
     /// `locator_bar` game rule. `respawned` players are removed and added again,
-    /// as `PlayerList.respawn` replaces the ServerPlayer. Returns the packets for
-    /// each connection.
+    /// as `PlayerList.respawn` replaces the ServerPlayer. Returns the waypoint
+    /// payloads for each connection (unsent: 1.21.5 has no waypoint packet).
     pub fn tick(
         &mut self,
         players: &[Player],
         respawned: &[u128],
         locator_bar: bool,
-    ) -> Vec<(u32, C)> {
+    ) -> Vec<(u32, TrackedWaypoint)> {
         self.tick_level(players, &[], respawned, locator_bar)
     }
 
@@ -474,7 +479,7 @@ impl Waypoints {
         away: &[(u128, u32)],
         respawned: &[u128],
         locator_bar: bool,
-    ) -> Vec<(u32, C)> {
+    ) -> Vec<(u32, TrackedWaypoint)> {
         let mut t = Tick {
             players: players.iter().map(|p| (p.uuid, p)).collect(),
             away,
@@ -597,14 +602,11 @@ mod tests {
         }
     }
 
-    /// The packets to `conn`, as (operation, target).
-    fn to(out: &[(u32, C)], conn: u32) -> Vec<(i32, WaypointTarget)> {
+    /// The waypoint payloads to `conn`, as (operation, target).
+    fn to(out: &[(u32, TrackedWaypoint)], conn: u32) -> Vec<(i32, WaypointTarget)> {
         out.iter()
             .filter(|(c, _)| *c == conn)
-            .map(|(_, p)| match p {
-                C::TrackedWaypoint(w) => (w.operation, w.target),
-                other => panic!("{other:?}"),
-            })
+            .map(|(_, w)| (w.operation, w.target))
             .collect()
     }
 

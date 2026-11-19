@@ -2399,8 +2399,6 @@ impl Game<'_> {
                         r.server_links = super::server_links::trusted(links);
                     }
                 }
-                Event::ShowDialog(dialog) => self.show_dialog(&dialog),
-                Event::ClearDialog => self.clear_dialog(),
                 Event::DecodeError(e) => {
                     if let Some(r) = self.remote.as_mut() {
                         r.decode_errors += 1;
@@ -4925,7 +4923,6 @@ impl Game<'_> {
                     }
                 }
             }
-            C::TrackedWaypoint(p) => self.handle_waypoint(&p),
             C::SetExperience(p) => {
                 self.experience = Experience {
                     level: p.level,
@@ -5641,9 +5638,6 @@ impl Game<'_> {
             C::SetTitleText(p) => self.titles.set_title(remote_text(&p.text)),
             C::SetSubtitleText(p) => self.titles.set_subtitle(remote_text(&p.text)),
             C::SetTitlesAnimation(p) => self.titles.set_times(p.fade_in, p.stay, p.fade_out),
-            // ClientCommonPacketListenerImpl.handleShowDialog / handleClearDialog.
-            C::ShowDialog(p) => self.show_play_dialog(&p.dialog),
-            C::ClearDialog(_) => self.clear_dialog(),
             C::ClearTitles(p) => {
                 self.titles.clear();
                 if p.value {

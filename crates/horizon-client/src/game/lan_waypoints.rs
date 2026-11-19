@@ -70,7 +70,6 @@ impl Game<'_> {
             }
         }
         levels.sort();
-        let mut out = Vec::new();
         for level in levels {
             let here: Vec<waypoints::Player> = players
                 .iter()
@@ -83,15 +82,13 @@ impl Game<'_> {
                 .filter_map(|(_, p)| Some((p.uuid, p.conn?)))
                 .collect();
             let manager = host.waypoints.entry(level.clone()).or_default();
-            out.extend(manager.tick_level(&here, &away, &respawned, locator_bar));
+            // The payloads go nowhere: 1.21.5 has no waypoint packet (it
+            // arrived in 1.21.6). The tick still runs so the manager's
+            // connections stay tracked for the behaviour port.
+            let _ = manager.tick_level(&here, &away, &respawned, locator_bar);
             // Nobody left in the level: nothing to remember there.
             if here.is_empty() {
                 host.waypoints.remove(&level);
-            }
-        }
-        for (conn, packet) in out {
-            if let Some(g) = host.hub.guest(conn) {
-                g.send(&packet);
             }
         }
     }

@@ -11,10 +11,7 @@ use horizon_client::{
     snbt,
     text::{self, ClickEvent, InlineObject, Style, Text},
 };
-use horizon_protocol::packets::{
-    Empty,
-    play::{self, Clientbound as C, DialogHolder},
-};
+use horizon_protocol::packets::play::DialogHolder;
 use horizon_world::nbt::Tag;
 use std::{collections::HashMap, time::Instant};
 
@@ -1235,41 +1232,25 @@ impl Game<'_> {
             self.send_dialog(&[Target::Player], &holder);
         }
     }
-    /// `ServerPlayer.openDialog` for each target: the packet to a guest, the
-    /// screen to the window's own player.
+    /// `ServerPlayer.openDialog` for each target: the screen to the
+    /// window's own player. Guests get nothing: 1.21.5 has no dialog
+    /// packet (it arrived in 1.21.6), so `/dialog show` cannot reach
+    /// them; the behaviour port removes the command.
     fn send_dialog(&mut self, targets: &[Target], holder: &DialogHolder) {
-        let packet = C::ShowDialog(play::ShowDialog {
-            dialog: holder.clone(),
-        });
         for &t in targets {
             match t {
-                Target::Player if self.lan_acting.is_some() => {
-                    self.guest_packets.push(packet.clone());
-                }
+                Target::Player if self.lan_acting.is_some() => {}
                 Target::Player => self.show_play_dialog(holder),
-                Target::Guest(conn) => {
-                    if let Some(host) = self.lan.as_ref() {
-                        host.hub.send_to(conn, &packet);
-                    }
-                }
                 _ => {}
             }
         }
     }
     /// `ServerPlayer.closeDialog` for every target of `/dialog clear`.
     fn clear_dialog_to(&mut self, targets: &[Target]) {
-        let packet = C::ClearDialog(Empty);
         for &t in targets {
             match t {
-                Target::Player if self.lan_acting.is_some() => {
-                    self.guest_packets.push(packet.clone());
-                }
+                Target::Player if self.lan_acting.is_some() => {}
                 Target::Player => self.clear_dialog(),
-                Target::Guest(conn) => {
-                    if let Some(host) = self.lan.as_ref() {
-                        host.hub.send_to(conn, &packet);
-                    }
-                }
                 _ => {}
             }
         }

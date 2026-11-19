@@ -2966,49 +2966,6 @@ impl Game<'_> {
             // handleTeleportToEntityPacket: a spectator goes to the player,
             // in whichever level they are.
             S::TeleportToEntity(p) if spectator => self.guest_spectate_teleport(host, gi, p.uuid),
-            S::ChangeGameMode(p) if host.hub.guests[gi].permission >= 2 => {
-                if let Some(mode) = usize::try_from(p.mode)
-                    .ok()
-                    .and_then(|index| horizon_client::command::args::GameMode::ALL.get(index))
-                {
-                    let lines = self.as_guest(host, conn, |g| {
-                        g.chat_capture = Some(Vec::new());
-                        g.change_game_mode(*mode);
-                        g.chat_capture
-                            .take()
-                            .unwrap_or_default()
-                            .iter()
-                            .map(|t| horizon_client::lan::data::component_nbt(&t.component()))
-                            .collect::<Vec<_>>()
-                    });
-                    for content in lines.unwrap_or_default() {
-                        host.hub.send_to(
-                            conn,
-                            &C::SystemChat(play::SystemChat {
-                                content,
-                                overlay: false,
-                            }),
-                        );
-                    }
-                    self.send_admin_feedback(host, Some(conn));
-                }
-            }
-            S::ChangeGameMode(p) => {
-                if let Some(mode) = usize::try_from(p.mode)
-                    .ok()
-                    .and_then(|index| horizon_client::command::args::GameMode::ALL.get(index))
-                {
-                    let name = horizon_client::text::Text::translate(
-                        &format!("gameMode.{}", mode.name()),
-                        &[],
-                    );
-                    eprintln!(
-                        "Player {} tried to change game mode to {} without required permissions",
-                        host.hub.guests[gi].name,
-                        name.plain()
-                    );
-                }
-            }
             // handleEntityTagQuery: a game master's F3+I on an entity of their
             // level gets its Entity.saveWithoutId.
             S::EntityTagQuery(p) if host.hub.guests[gi].permission >= 2 => {

@@ -8,7 +8,6 @@ use horizon_client::{
     hud_layout::GuiDraw,
     locator_bar::{ClientWaypoints, View},
 };
-use horizon_protocol::packets::play::TrackedWaypoint;
 
 /// `Player.getEyeHeight` while standing.
 const PLAYER_EYES: f64 = 1.62;
@@ -19,10 +18,6 @@ fn uuid(ints: [i32; 4]) -> u128 {
 }
 
 impl Game<'_> {
-    /// `ClientPacketListener.handleWaypoint`.
-    pub(super) fn handle_waypoint(&mut self, packet: &TrackedWaypoint) {
-        self.waypoints.apply(packet);
-    }
     /// A new connection or world starts with no waypoints.
     pub(super) fn clear_waypoints(&mut self) {
         self.waypoints = ClientWaypoints::default();
