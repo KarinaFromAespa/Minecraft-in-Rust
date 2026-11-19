@@ -67,7 +67,6 @@ pub const TRACKING: &[(&str, u8, u32, bool)] = &[
     ("minecraft:glow_squid", 10, 3, true),
     ("minecraft:goat", 10, 3, true),
     ("minecraft:guardian", 8, 3, true),
-    ("minecraft:happy_ghast", 10, 3, true),
     ("minecraft:hoglin", 8, 3, true),
     ("minecraft:hopper_minecart", 8, 3, true),
     ("minecraft:horse", 10, 3, true),
