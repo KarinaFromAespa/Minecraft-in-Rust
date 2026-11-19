@@ -893,8 +893,11 @@ impl Dragon {
         // The dragon's eye is 0.85 of its 8 block height, in floats.
         let away = at(p.y + f64::from(8.0f32 * 0.85f32));
         let l = len(away);
-        // `Vec3.normalize` gives zero below 1.0E-5F, then `scale(power)`.
-        if l < 9.999_999_747_378_752e-6 {
+        // 1.21.8's `hurtEntities` skips an entity whose eye is exactly at
+        // the centre; the caller (`explosion_hits_special`) applies that
+        // guard before any damage, so this only sees a non-zero length.
+        // (1.21.9's `Vec3.normalize` gives zero below 1.0E-5F instead.)
+        if l == 0.0 {
             return Some([0.0; 3]);
         }
         let power = (1.0 - dist) * f64::from(exposure);
@@ -3795,6 +3798,18 @@ impl Game<'_> {
         let Some(d) = self.dragon.as_ref() else {
             return;
         };
+        // 1.21.8's `hurtEntities` skips an entity whose eye is exactly at
+        // the centre: no damage to any part, no push. (1.21.9 hurts it
+        // with a zero direction.) The dragon's eye is 0.85 of its 8 block
+        // height, in floats, as in `explosion_knockback`.
+        let eye_y = d.position.y + f64::from(8.0f32 * 0.85f32);
+        let eye_dist = ((d.position.x - center[0]).powi(2)
+            + (eye_y - center[1]).powi(2)
+            + (d.position.z - center[2]).powi(2))
+        .sqrt();
+        if eye_dist == 0.0 {
+            return;
+        }
         let hits = d.explosion_hits(center, radius, |b| {
             let (lo, hi) = (b.min_position(), b.max_position());
             self.seen_percent(center, [lo.x, lo.y, lo.z], [hi.x, hi.y, hi.z])

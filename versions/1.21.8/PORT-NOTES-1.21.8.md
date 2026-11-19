@@ -334,7 +334,44 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 60/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76 + 4 zero-diff)
+### Rank 2: 61/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77 + 4 zero-diff)
+
+- **Item 77 — `crates/horizon-client/src/game/native_hooks.rs`
+  (3 classes, 12 methods, 4 named in Horizon):**
+  BarrelBlockEntity (startOpen), ServerExplosion
+  (explode, hurtEntities), Slime (remove). **Real fix:**
+  the explosion's zero-distance guard. 1.21.8's
+  `hurtEntities` skips an entity whose eye is exactly
+  at the blast centre outright (no damage, no push, no
+  `onExplosionHit`); 1.21.9's `Vec3.normalize` gives a
+  zero direction and still hurts it. The Rust had the
+  1.21.9 form in all three paths — `blast_hit` (mobs,
+  items, orbs, carts, boats, projectiles),
+  `explosion_hurt_player`, and the dragon's
+  `explosion_knockback` (which also carried the 1e-5
+  epsilon) — all three now skip on an exact-zero eye
+  distance, and the epsilon is gone (a non-zero
+  distance normalises, as 1.21.8 divides by it).
+  Citations: `ContainerOpenersCounter.getEntitiesWithContainerOpen`
+  → `getPlayersWithContainerOpen` (3 sites; the
+  1.21.9 form is `ContainerUser`-based, and
+  `ContainerUser` does not exist in 1.21.8 — 1.21.8's
+  counter is player-based, with `incrementOpeners`
+  taking no range). Verified no-change: slime peaceful
+  despawn is already the 1.21.8 form (`setSize` clamps
+  to 1..127, so `getSize() > 0` is always true and the
+  unconditional slime/magma-cube entry in
+  `despawns_in_peaceful` is correct); the explosion's
+  1.21.9-only redirectable-projectile owner-setting is
+  never modelled (the tag itself exists in both jars —
+  only its use in `hurtEntities` is new); `explode`
+  returns `Result<()>` in the Rust, matching 1.21.8's
+  void (1.21.9's int count has no surface); primed TNT
+  already overrides its explosion eye height to 0.0
+  (both versions use its position, not its eye); the
+  opener counting matches 1.21.8's counter (first
+  opener schedules the 5-tick recheck, count clamped
+  at 0, entry dropped at 0).
 
 - **Item 76 — `crates/horizon-client/src/game/native_mob_draw.rs`
   (1 class, 13 methods, 4 named in Horizon):**

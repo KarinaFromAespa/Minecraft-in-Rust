@@ -28,7 +28,7 @@ use horizon_world::nbt::Tag;
 /// The handle of the local player among a bell's gathered entities.
 const PLAYER: u64 = u64::MAX;
 
-/// `ContainerOpenersCounter.getEntitiesWithContainerOpen` as Horizon can
+/// `ContainerOpenersCounter.getPlayersWithContainerOpen` as Horizon can
 /// answer it: of the containers players have open at this moment, the ones at
 /// `key` (`ChestBlockEntity$1.isOwnContainer` compares the menu's container
 /// with the block entity, and a double chest counts for both halves).

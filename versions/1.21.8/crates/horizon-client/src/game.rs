@@ -844,7 +844,7 @@ struct GameLevel<'w> {
     /// recount of the openers replaces (`ContainerOpenersCounter.recheckOpeners`).
     lid_openers: &'w mut HashMap<(i32, i32, i32), i32>,
     /// The containers players have open at this moment, by position: the local
-    /// player's and the guests' (`getEntitiesWithContainerOpen`). A double
+    /// player's and the guests' (`ContainerOpenersCounter.getPlayersWithContainerOpen`). A double
     /// chest is in it as both halves.
     open_containers: &'w [(i32, i32, i32)],
     /// The chests copper golems have open, a double chest as both halves. They
@@ -3869,7 +3869,7 @@ impl Game<'_> {
             .iter()
             .map(|b| point_box(b.at, 0.0, 0.0))
             .collect();
-        // `ContainerOpenersCounter.getEntitiesWithContainerOpen`: the players
+        // `ContainerOpenersCounter.getPlayersWithContainerOpen`: the players
         // whose menu still holds a container of the block at a position. A
         // double chest answers for both halves (`ChestBlockEntity$1` takes a
         // `CompoundContainer`), and a spectator's menu counts for nothing.
