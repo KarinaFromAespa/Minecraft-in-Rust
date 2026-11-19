@@ -191,6 +191,22 @@ impl Loader {
             None => Ok(self.graph.insert(GraphNode::Constant(fallback))?),
         }
     }
+    /// The noise a shift op offsets by: `noise` in 26.3, `argument` holding
+    /// the noise name in 1.21.11 (`singleArgumentCodec(NoiseHolder.CODEC)`).
+    fn shift_noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
+        if object.contains_key("noise") {
+            return self.noise(object);
+        }
+        let raw = required(object, "argument")?;
+        if !raw.get().starts_with('"') {
+            return Err(DecodeError::Field("shift noise"));
+        }
+        let name = identifier(&string(raw)?)?;
+        self.noises
+            .get(&name)
+            .copied()
+            .ok_or_else(|| DecodeError::Registry(format!("unknown noise reference: {name}")))
+    }
     fn noise(&self, object: &Object) -> Result<NoiseId, DecodeError> {
         let raw = required(object, "noise")?;
         if !raw.get().starts_with('"') {
@@ -312,7 +328,7 @@ impl Loader {
                 },
                 "minecraft:shift" | "minecraft:shift_a" | "minecraft:shift_b" => {
                     GraphNode::OffsetNoise {
-                        noise: self.noise(&object)?,
+                        noise: self.shift_noise(&object)?,
                         kind: match kind.as_str() {
                             "minecraft:shift" => ShiftNoiseKind::Shift,
                             "minecraft:shift_a" => ShiftNoiseKind::ShiftA,

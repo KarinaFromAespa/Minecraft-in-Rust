@@ -328,17 +328,17 @@ fn constructor_maluses(m: &mut Mob) {
             S::Villager | S::WanderingTrader | S::Piglin | S::PiglinBrute | S::CopperGolem
         )
     {
-        m.set_malus(P::FireInNeighbor, 16.0);
-        m.set_malus(P::Fire, -1.0);
+        m.set_malus(P::DangerFire, 16.0);
+        m.set_malus(P::DamageFire, -1.0);
     }
     match s {
         S::Fox => {
-            m.set_malus(P::DamagingInNeighbor, 0.0);
-            m.set_malus(P::Damaging, 0.0);
+            m.set_malus(P::DangerOther, 0.0);
+            m.set_malus(P::DamageOther, 0.0);
         }
         S::Parrot => {
-            m.set_malus(P::FireInNeighbor, -1.0);
-            m.set_malus(P::Fire, -1.0);
+            m.set_malus(P::DangerFire, -1.0);
+            m.set_malus(P::DamageFire, -1.0);
             m.set_malus(P::Cocoa, -1.0);
         }
         S::Frog => {
@@ -347,14 +347,14 @@ fn constructor_maluses(m: &mut Mob) {
         }
         S::Goat | S::Wolf => {
             m.set_malus(P::PowderSnow, -1.0);
-            m.set_malus(P::OnTopOfPowderSnow, -1.0);
+            m.set_malus(P::DangerPowderSnow, -1.0);
         }
-        S::CopperGolem => m.set_malus(P::DamagingInNeighbor, 16.0),
+        S::CopperGolem => m.set_malus(P::DangerOther, 16.0),
         S::Blaze => {
             m.set_malus(P::Water, -1.0);
             m.set_malus(P::Lava, 8.0);
-            m.set_malus(P::FireInNeighbor, 0.0);
-            m.set_malus(P::Fire, 0.0);
+            m.set_malus(P::DangerFire, 0.0);
+            m.set_malus(P::DamageFire, 0.0);
         }
         S::ZombifiedPiglin | S::WitherSkeleton => m.set_malus(P::Lava, 8.0),
         _ => {}

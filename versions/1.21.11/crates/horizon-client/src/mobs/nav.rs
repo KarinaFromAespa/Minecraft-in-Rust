@@ -128,7 +128,7 @@ impl Navigation {
     pub fn can_cut_corner(t: PathType) -> bool {
         !matches!(
             t,
-            PathType::FireInNeighbor | PathType::DamagingInNeighbor | PathType::WalkableDoor
+            PathType::DangerFire | PathType::DangerOther | PathType::WalkableDoor
         )
     }
 }

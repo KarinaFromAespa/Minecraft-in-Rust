@@ -852,11 +852,11 @@ impl Goal for Float {
         }
     }
 }
-/// `ClimbOnTopOfPowderSnowGoal`: a powder-snow walker standing in powder snow
+/// `ClimbDangerPowderSnowGoal`: a powder-snow walker standing in powder snow
 /// jumps while the block above is powder snow or has no collision.
 #[derive(Clone, Debug)]
-pub struct ClimbOnTopOfPowderSnow;
-impl Goal for ClimbOnTopOfPowderSnow {
+pub struct ClimbDangerPowderSnow;
+impl Goal for ClimbDangerPowderSnow {
     goal_clone!();
     fn flags(&self) -> u8 {
         JUMP
@@ -884,7 +884,7 @@ impl Goal for ClimbOnTopOfPowderSnow {
     fn every_tick(&self) -> bool {
         true
     }
-    /// `ClimbOnTopOfPowderSnowGoal.tick`: ask the mob to jump.
+    /// `ClimbDangerPowderSnowGoal.tick`: ask the mob to jump.
     fn tick(&mut self, m: &mut Mob, _: &mut Cx) {
         m.ai.jump = true;
     }

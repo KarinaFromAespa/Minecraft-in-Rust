@@ -3,7 +3,7 @@
 use super::{
     Damage, DamageKind, Mob, MobEvent, MobWorld, Species, Who,
     goals::{
-        Avoid, AvoidEntity, ClimbOnTopOfPowderSnow, Cx, Float, Goal, HurtByTarget, LeapAtTarget,
+        Avoid, AvoidEntity, ClimbDangerPowderSnow, Cx, Float, Goal, HurtByTarget, LeapAtTarget,
         LookAtPlayer, MOVE, MeleeAttack, NearestTarget, RandomLookAround, Stroll, goal_clone,
     },
 };
@@ -57,7 +57,7 @@ pub fn register(m: &mut Mob) {
         S::Silverfish => {
             let g = &mut m.ai.goals;
             g.add(1, Float);
-            g.add(1, ClimbOnTopOfPowderSnow);
+            g.add(1, ClimbDangerPowderSnow);
             g.add(3, SilverfishWakeUpFriends);
             g.add(4, MeleeAttack::new(1.0, false));
             g.add(5, SilverfishMergeWithStone::default());
@@ -69,7 +69,7 @@ pub fn register(m: &mut Mob) {
         S::Endermite => {
             let g = &mut m.ai.goals;
             g.add(1, Float);
-            g.add(1, ClimbOnTopOfPowderSnow);
+            g.add(1, ClimbDangerPowderSnow);
             g.add(2, MeleeAttack::new(1.0, false));
             g.add(3, Stroll::avoiding_water(1.0));
             g.add(7, LookAtPlayer::new(8.0));

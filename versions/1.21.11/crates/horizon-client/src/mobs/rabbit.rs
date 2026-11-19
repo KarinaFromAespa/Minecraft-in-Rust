@@ -3,7 +3,7 @@ use super::{
     Mob, MobEvent, MobWorld, Species,
     control::Operation,
     goals::{
-        Avoid, AvoidEntity, Breed, ClimbOnTopOfPowderSnow, Cx, Float, Goal, HurtByTarget, JUMP,
+        Avoid, AvoidEntity, Breed, ClimbDangerPowderSnow, Cx, Float, Goal, HurtByTarget, JUMP,
         LookAtPlayer, MOVE, MeleeAttack, MoveToBlock, NearestTarget, Panic, Stroll, Tempt,
         goal_clone, reduced,
     },
@@ -35,7 +35,7 @@ pub fn register(m: &mut Mob) {
         .collect::<Vec<Species>>();
     let g = &mut m.ai.goals;
     g.add(1, Float);
-    g.add(1, ClimbOnTopOfPowderSnow);
+    g.add(1, ClimbDangerPowderSnow);
     g.add(1, Panic::new(2.2));
     g.add(2, Breed::new(0.8));
     g.add(3, Tempt::new(1.0, food, false));

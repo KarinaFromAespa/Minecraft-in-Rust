@@ -42,7 +42,7 @@ pub fn register(m: &mut Mob) {
     use super::path::PathType;
     m.ai.nav.can_float = true;
     m.set_malus(PathType::Water, -1.0);
-    m.set_malus(PathType::OnTopOfPowderSnow, -1.0);
+    m.set_malus(PathType::DangerPowderSnow, -1.0);
     m.set_malus(PathType::DamageCautious, -1.0);
 }
 /// `Sniffer.setState`.

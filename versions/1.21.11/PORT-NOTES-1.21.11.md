@@ -1393,3 +1393,73 @@ Rank 2 (492 items, in progress 2026-11-19)
     `renderFakeItem` (the known render-API rename pattern).
 - Rank-2 A-batches 1-8: 80 items closed (17 changed, 63 no-change).
   work-items.json rank2.closed = 80 on 2026-11-19.
+- A-batch 9 (379, 380, 381, 382, 383, 384, 385, 386, 387, 391),
+  verified 2026-11-19, ported the same day:
+  - 379 CHANGED (llama decor): 1.21.11 renders the carpet decor on
+    babies too (26.1 skips them); a trader llama is always
+    `trader_llama` — 1.21.11 has no `trader_llama_baby` layer (26.1
+    has both). `decor()` drops the baby exclusion and the
+    trader-baby branch; the `llama_baby#decor` model stays.
+  - 380 no-change (StructureManager): `ChunkPos.pack` ->
+    `asLong`/`toLong`, `unpack` -> ctor, `containing` -> ctor —
+    the known rename pattern, no semantic change.
+  - 381 no-change (dolphin goals): the only real difference is the
+    PlayWithItemsGoal MOVE flag, 26.1-only and server-side; the
+    Rust's dolphin goals already match the 1.21.11 form.
+  - 382 no-change (happy ghast controls): access flags + lambda
+    renumbering only.
+  - 383 CHANGED (PathType): 1.21.11 renames the fire/damage family
+    and drops one value — FireInNeighbor -> DangerFire, Fire ->
+    DamageFire, DamagingInNeighbor -> DangerOther, Damaging ->
+    DamageOther, OnTopOfPowderSnow -> DangerPowderSnow,
+    OnTopOfTrapdoor -> DangerTrapdoor; BigMobsCloseToDanger removed.
+    PATH_TYPES 27 -> 26. Maluses verified from the jars:
+    DANGER_FIRE 8.0, DAMAGE_FIRE 16.0, DANGER_OTHER 8.0,
+    DAMAGE_OTHER -1.0, DANGER_POWDER_SNOW and DANGER_TRAPDOOR 0.0.
+    1.21.11's mob-data.json uses DAMAGE_FIRE (547 states) +
+    DAMAGE_OTHER (20) — with the 26.1 names those fell through to
+    Blocked. Ported across 16 mobs files; `from_name` on the
+    1.21.11 names; `path_type_of_mob`'s big-mob branch replaced
+    with an `entity_width <= 1` guard + Open check.
+  - 384 no-change (raider goals): access flags + lambda
+    renumbering only. Server-side AI.
+  - 385 no-change (DirectoryValidator): access flags +
+    requireNonNull ctor pattern only.
+  - 386 CHANGED (legacy noise wiring): vanilla 1.21.11's
+    `RandomState` gates legacy init on
+    `settings.useLegacyRandomSource()` — the nether's settings set
+    it, the overworld's don't. Under legacy init, temperature and
+    vegetation use the legacy nether-biome sampler with HARDCODED
+    parameters (firstOctave -7, amplitudes [1.0, 1.0]) seeded from
+    the world seed plus 0 and 1, recreated on every lookup; 26.x
+    moved the legacy samplers to dedicated `nether/temperature` and
+    `nether/vegetation` entries. Ported: `seeded.rs noise()` gates
+    the legacy branch on `Factory::Legacy(_)` and matches
+    `minecraft:temperature`/`minecraft:vegetation` with
+    `create_parity(-7, &[1.0, 1.0])`; the `nether/*` matches
+    removed. Two load-blocking gaps in the same path fixed:
+    `density.rs` gains `shift_noise()` (the 1.21.11 shift JSONs
+    carry the offset noise under `argument`, and the decoder
+    required a `noise` field, so registry load failed), and
+    `worldgen.rs decode_noise` now reads the old shape
+    (`firstOctave`/`amplitudes` + `create_parity`) instead of the
+    26.3 shape. The graph test and the `get_noise_sampler` doc
+    updated to match. Follow-ups: the SHIFT -> zero rule only
+    affects code-built routers; the port-pack upgrader still
+    targets 26.3 noise shapes and needs its own item.
+  - 387 no-change (SetComponentsFunction): MAP_CODEC -> CODEC, the
+    codec field rename only; the wire shape is the same.
+  - 391 no-change (worn-skull layer): CustomHeadLayer's skull
+    branch IS really different (1.21.11 scales (1.1875, -1.1875,
+    -1.1875), translates (-0.5, 0, -0.5), and calls submitSkull
+    with a 180 deg rotation, whose body translates (0.5, 0, 0.5)
+    and scales (-1, -1, 1); 26.1 scales uniformly and its
+    submitSkull applies no transform), but it composes to exactly
+    the uniform 1.1875 scale the Rust already applies: the two
+    +/-0.5 translations cancel, and diag(-1.1875, 1.1875, -1.1875)
+    composed with the head's 180 deg yRot is uniform 1.1875, with
+    every skull head pivot on the Y axis. The placed-skull
+    renderer already applies the 1.21.11 submitSkull transform.
+    The two record classes are visibility only.
+- Rank-2 A-batches 1-9: 90 items closed (20 changed, 70 no-change).
+  work-items.json rank2.closed = 90 on 2026-11-19.

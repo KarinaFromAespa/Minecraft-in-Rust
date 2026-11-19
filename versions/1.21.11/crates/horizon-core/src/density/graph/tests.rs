@@ -160,7 +160,7 @@ fn end_islands_use_the_world_seed_independently_of_the_noise_algorithm() {
 }
 
 #[test]
-fn registered_noises_share_ordinary_instances_and_recreate_nether_instances() {
+fn legacy_settings_recreate_temperature_and_vegetation_samplers() {
     let mut builder = crate::noise::NormalNoise::builder();
     builder.set_base_octave(-3).set_octave_count(3).unwrap();
     let definition = builder.build().unwrap();
@@ -172,6 +172,10 @@ fn registered_noises_share_ordinary_instances_and_recreate_nether_instances() {
         graph.register_noise("horizon:sample".to_owned(), definition.clone()),
         Err(CompileError::DuplicateNoise)
     );
+    // 1.21.11's legacy keys; the 26.x `nether/*` names are ordinary here.
+    let temperature = graph
+        .register_noise("minecraft:temperature".to_owned(), definition.clone())
+        .unwrap();
     let nether = graph
         .register_noise("minecraft:nether/vegetation".to_owned(), definition)
         .unwrap();
@@ -187,7 +191,14 @@ fn registered_noises_share_ordinary_instances_and_recreate_nether_instances() {
         assert!(Arc::ptr_eq(&a, &b));
         let a = compiler.get_noise_sampler(nether).unwrap();
         let b = compiler.get_noise_sampler(nether).unwrap();
-        assert!(!Arc::ptr_eq(&a, &b));
+        assert!(Arc::ptr_eq(&a, &b));
+        let a = compiler.get_noise_sampler(temperature).unwrap();
+        let b = compiler.get_noise_sampler(temperature).unwrap();
+        if legacy {
+            assert!(!Arc::ptr_eq(&a, &b));
+        } else {
+            assert!(Arc::ptr_eq(&a, &b));
+        }
         assert_eq!(
             a.get3(-17.25, 64.0, 32.5).to_bits(),
             b.get3(-17.25, 64.0, 32.5).to_bits()

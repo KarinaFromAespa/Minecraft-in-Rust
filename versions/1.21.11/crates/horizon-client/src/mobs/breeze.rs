@@ -26,8 +26,8 @@ const ALLOWED_ANGLES: [i32; 5] = [40, 55, 60, 75, 80];
 
 /// `Breeze`'s constructor: no goals, the brain thinks (`monster_brain`).
 pub fn register(m: &mut Mob) {
-    m.set_malus(super::path::PathType::OnTopOfTrapdoor, -1.0);
-    m.set_malus(super::path::PathType::Fire, -1.0);
+    m.set_malus(super::path::PathType::DangerTrapdoor, -1.0);
+    m.set_malus(super::path::PathType::DamageFire, -1.0);
 }
 /// `Breeze.isInvulnerableTo`: another breeze (or itself).
 pub fn accepts_damage(m: &Mob, source: &Damage) -> bool {

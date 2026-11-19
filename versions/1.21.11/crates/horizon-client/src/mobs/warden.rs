@@ -344,11 +344,11 @@ pub fn register(m: &mut Mob) {
     m.extra.warden = Some(Box::default());
     m.ai.nav.can_float = true;
     m.set_malus(PathType::UnpassableRail, 0.0);
-    m.set_malus(PathType::Damaging, 8.0);
+    m.set_malus(PathType::DamageOther, 8.0);
     m.set_malus(PathType::PowderSnow, 8.0);
     m.set_malus(PathType::Lava, 8.0);
-    m.set_malus(PathType::Fire, 0.0);
-    m.set_malus(PathType::FireInNeighbor, 0.0);
+    m.set_malus(PathType::DamageFire, 0.0);
+    m.set_malus(PathType::DangerFire, 0.0);
     // Brain.Provider.makeBrain: the sensors start on a random phase.
     delay_sensors(m);
 }

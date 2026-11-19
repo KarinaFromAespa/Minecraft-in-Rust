@@ -20,8 +20,8 @@ const SUFFOCATING: f64 = -0.34_f32 as f64;
 pub fn register(m: &mut Mob) {
     m.set_malus(PathType::Water, -1.0);
     m.set_malus(PathType::Lava, 0.0);
-    m.set_malus(PathType::FireInNeighbor, 0.0);
-    m.set_malus(PathType::Fire, 0.0);
+    m.set_malus(PathType::DangerFire, 0.0);
+    m.set_malus(PathType::DamageFire, 0.0);
     let tempt = m.kind.tempt.clone();
     let g = &mut m.ai.goals;
     g.add(1, Panic::new(1.65));

@@ -15,17 +15,17 @@ pub enum PathType {
     WalkableDoor,
     Trapdoor,
     PowderSnow,
-    OnTopOfPowderSnow,
+    DangerPowderSnow,
     Fence,
     Lava,
     Water,
     WaterBorder,
     Rail,
     UnpassableRail,
-    FireInNeighbor,
-    Fire,
-    DamagingInNeighbor,
-    Damaging,
+    DangerFire,
+    DamageFire,
+    DangerOther,
+    DamageOther,
     DoorOpen,
     DoorWoodClosed,
     DoorIronClosed,
@@ -34,11 +34,14 @@ pub enum PathType {
     StickyHoney,
     Cocoa,
     DamageCautious,
-    OnTopOfTrapdoor,
-    BigMobsCloseToDanger,
+    DangerTrapdoor,
 }
-pub const PATH_TYPES: usize = 27;
+pub const PATH_TYPES: usize = 26;
 impl PathType {
+    /// 1.21.11's `PathType` names (`DANGER_*`/`DAMAGE_*`); 26.x renamed
+    /// them (`FIRE`/`FIRE_IN_NEIGHBOR`/`DAMAGING`/`DAMAGING_IN_NEIGHBOR`,
+    /// `ON_TOP_OF_*`) and added `BIG_MOBS_CLOSE_TO_DANGER`. The prepared
+    /// `mob-data.json` carries the 1.21.11 names.
     pub fn from_name(name: &str) -> Self {
         match name {
             "OPEN" => Self::Open,
@@ -46,17 +49,17 @@ impl PathType {
             "WALKABLE_DOOR" => Self::WalkableDoor,
             "TRAPDOOR" => Self::Trapdoor,
             "POWDER_SNOW" => Self::PowderSnow,
-            "ON_TOP_OF_POWDER_SNOW" => Self::OnTopOfPowderSnow,
+            "DANGER_POWDER_SNOW" => Self::DangerPowderSnow,
             "FENCE" => Self::Fence,
             "LAVA" => Self::Lava,
             "WATER" => Self::Water,
             "WATER_BORDER" => Self::WaterBorder,
             "RAIL" => Self::Rail,
             "UNPASSABLE_RAIL" => Self::UnpassableRail,
-            "FIRE_IN_NEIGHBOR" => Self::FireInNeighbor,
-            "FIRE" => Self::Fire,
-            "DAMAGING_IN_NEIGHBOR" => Self::DamagingInNeighbor,
-            "DAMAGING" => Self::Damaging,
+            "DANGER_FIRE" => Self::DangerFire,
+            "DAMAGE_FIRE" => Self::DamageFire,
+            "DANGER_OTHER" => Self::DangerOther,
+            "DAMAGE_OTHER" => Self::DamageOther,
             "DOOR_OPEN" => Self::DoorOpen,
             "DOOR_WOOD_CLOSED" => Self::DoorWoodClosed,
             "DOOR_IRON_CLOSED" => Self::DoorIronClosed,
@@ -65,8 +68,7 @@ impl PathType {
             "STICKY_HONEY" => Self::StickyHoney,
             "COCOA" => Self::Cocoa,
             "DAMAGE_CAUTIOUS" => Self::DamageCautious,
-            "ON_TOP_OF_TRAPDOOR" => Self::OnTopOfTrapdoor,
-            "BIG_MOBS_CLOSE_TO_DANGER" => Self::BigMobsCloseToDanger,
+            "DANGER_TRAPDOOR" => Self::DangerTrapdoor,
             _ => Self::Blocked,
         }
     }
@@ -76,14 +78,14 @@ impl PathType {
             Self::Blocked | Self::PowderSnow | Self::Fence | Self::Lava | Self::UnpassableRail => {
                 -1.0
             }
-            Self::Damaging | Self::DoorWoodClosed | Self::DoorIronClosed | Self::Leaves => -1.0,
+            Self::DamageOther | Self::DoorWoodClosed | Self::DoorIronClosed | Self::Leaves => -1.0,
             Self::Water
             | Self::WaterBorder
-            | Self::FireInNeighbor
-            | Self::DamagingInNeighbor
+            | Self::DangerFire
+            | Self::DangerOther
             | Self::StickyHoney => 8.0,
-            Self::Fire => 16.0,
-            Self::Breach | Self::BigMobsCloseToDanger => 4.0,
+            Self::DamageFire => 16.0,
+            Self::Breach => 4.0,
             _ => 0.0,
         }
     }
@@ -101,12 +103,12 @@ impl MobWorld<'_> {
                 PathType::Open | PathType::Water | PathType::Lava | PathType::Walkable => {
                     PathType::Open
                 }
-                PathType::Fire => PathType::Fire,
-                PathType::Damaging => PathType::Damaging,
+                PathType::DamageFire => PathType::DamageFire,
+                PathType::DamageOther => PathType::DamageOther,
                 PathType::StickyHoney => PathType::StickyHoney,
-                PathType::PowderSnow => PathType::OnTopOfPowderSnow,
+                PathType::PowderSnow => PathType::DangerPowderSnow,
                 PathType::DamageCautious => PathType::DamageCautious,
-                PathType::Trapdoor => PathType::OnTopOfTrapdoor,
+                PathType::Trapdoor => PathType::DangerTrapdoor,
                 _ => self.check_neighbours(x, y, z, PathType::Walkable),
             }
         } else {
@@ -120,8 +122,8 @@ impl MobWorld<'_> {
                 for dz in -1..=1 {
                     if dx != 0 || dz != 0 {
                         match self.path_type_from_state(x + dx, y + dy, z + dz) {
-                            PathType::Damaging => return PathType::DamagingInNeighbor,
-                            PathType::Fire | PathType::Lava => return PathType::FireInNeighbor,
+                            PathType::DamageOther => return PathType::DangerOther,
+                            PathType::DamageFire | PathType::Lava => return PathType::DangerFire,
                             PathType::Water => return PathType::WaterBorder,
                             PathType::DamageCautious => return PathType::DamageCautious,
                             _ => {}
@@ -536,8 +538,8 @@ impl<'a, 'w> Finder<'a, 'w> {
         if t == PathType::Open && y > self.w.world.bottom_y() {
             let below = self.type_from_state(x, y - 1, z);
             t = match below {
-                PathType::Fire | PathType::Lava => PathType::Fire,
-                PathType::Damaging => PathType::Damaging,
+                PathType::DamageFire | PathType::Lava => PathType::DamageFire,
+                PathType::DamageOther => PathType::DamageOther,
                 PathType::Cocoa => PathType::Cocoa,
                 PathType::Fence => {
                     if [x, y - 1, z] != self.mob.block_position() {
@@ -615,14 +617,14 @@ impl<'a, 'w> Finder<'a, 'w> {
             }
         }
         let current = self.path_type(x, y, z);
-        if self.entity_width > 1 {
-            let cheaper = self.malus(current) < highest_malus;
-            if cheaper && self.malus(PathType::BigMobsCloseToDanger) < highest_malus {
-                PathType::BigMobsCloseToDanger
-            } else {
-                highest
-            }
-        } else if current == PathType::Open && highest != PathType::Open && highest_malus == 0.0 {
+        // 1.21.11 has no BIG_MOBS_CLOSE_TO_DANGER branch (26.x-only):
+        // a narrow mob standing on OPEN ground returns OPEN when the
+        // highest type in its bounding box is free, else the highest.
+        if self.entity_width <= 1
+            && current == PathType::Open
+            && highest != PathType::Open
+            && highest_malus == 0.0
+        {
             PathType::Open
         } else {
             highest
