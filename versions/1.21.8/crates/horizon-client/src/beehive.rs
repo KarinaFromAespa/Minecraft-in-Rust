@@ -119,12 +119,17 @@ impl OccupantExt for Occupant {
         crate::entity_nbt::flag(&self.entity_data, "HasNectar")
     }
     fn from_nbt(tag: &Tag) -> Option<Self> {
-        let data = tag.get("entity_data")?;
-        if !matches!(data, Tag::Compound(c) if c.contains_key(&"id".into())) {
-            return None;
-        }
+        // 1.21.8's codec: `entity_data` is optional, defaulting to empty
+        // (`CustomData.CODEC.optionalFieldOf`); a present compound is kept
+        // as-is, with or without an `id` (a bee without one never releases).
+        // 1.21.9's `TypedEntityData` codec requires the field.
+        let data = match tag.get("entity_data") {
+            None => Tag::compound([]),
+            Some(d @ Tag::Compound(_)) => d.clone(),
+            Some(_) => return None,
+        };
         Some(Self {
-            entity_data: data.clone(),
+            entity_data: data,
             ticks_in_hive: int(tag.get("ticks_in_hive"))?,
             min_ticks_in_hive: int(tag.get("min_ticks_in_hive"))?,
         })

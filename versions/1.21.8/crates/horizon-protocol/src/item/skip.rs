@@ -139,9 +139,10 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             string(r)?;
             string(r)
         }),
-        // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
+        // Bees: Occupant (entity data as a plain compound with its `id`,
+        // ticksInHive, minTicksInHive) — 1.21.8's `CustomData` form; 1.21.9's
+        // `TypedEntityData` put a type id varint first.
         68 => list(r, |r| {
-            varint(r)?;
             nbt(r)?;
             varint(r)?;
             varint(r)

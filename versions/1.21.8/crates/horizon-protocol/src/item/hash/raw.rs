@@ -410,9 +410,10 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             }
             HashOps::create_list(slots)
         }
-        // `Bees`: occupants.
+        // `Bees`: occupants, 1.21.8's `CustomData` form (the tag with its
+        // own `id`; 1.21.9's `TypedEntityData` put a type id varint first).
         68 => list(r, |r| {
-            let data = typed_data("minecraft:entity_type", names, r)?;
+            let data = HashOps::from_nbt(&r.nbt().ok()?, &[]);
             let ticks = r.varint().ok()?;
             let min = r.varint().ok()?;
             Some(
@@ -567,7 +568,15 @@ mod tests {
                 "02036c6974047472756506666163696e67056e6f727468",
                 1069123732,
             ),
-            ("bees", 68, "010b0a030003416765000000030003d804", -122152224),
+            // The bees bytes are 1.21.8's `CustomData` form (the tag carries
+            // its own `id`); the hash is the same as 1.21.11's, the codec
+            // form being identical.
+            (
+                "bees",
+                68,
+                "010a030003416765000000030800026964000d6d696e6563726166743a6265650003d804",
+                -122152224,
+            ),
             (
                 "lock",
                 69,
