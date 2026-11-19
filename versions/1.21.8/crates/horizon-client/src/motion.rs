@@ -1986,11 +1986,11 @@ impl MotionWorld<'_, '_, '_> {
         }
         self.player.impulse.try_reset();
     }
-    /// `LavaCauldronBlock.entityInside`: CLEAR_FREEZE, LAVA_IGNITE
-    /// (`Entity.lavaIgnite`, 15 seconds) and then `Entity.lavaHurt` (lava,
-    /// 4), as ordinary lava does to the player.
+    /// `LavaCauldronBlock.entityInside`: LAVA_IGNITE (`Entity.lavaIgnite`,
+    /// 15 seconds — its `igniteForTicks` clears the freeze, so no separate
+    /// clear is needed; CLEAR_FREEZE is 1.21.9-only) and then
+    /// `Entity.lavaHurt` (lava, 4), as ordinary lava does to the player.
     fn lava_cauldron_inside(&mut self) -> Result<()> {
-        self.player.ticks_frozen = 0;
         self.player.ignite_for_ticks(300)?;
         self.environment_hurt("minecraft:lava", 4.0)
     }
@@ -5377,8 +5377,8 @@ mod tests {
             "direct fire hurts during the immunity delay"
         );
         assert_eq!(
-            w.player.ticks_frozen, 0,
-            "fire contact clears freeze during the delay"
+            w.player.ticks_frozen, 138,
+            "fire contact does not clear freeze during the delay (1.21.8 has no CLEAR_FREEZE); only the melt runs"
         );
         assert!(w.player.health.health() < hp);
         w.player.status.fire_resistance = true;
@@ -5390,7 +5390,7 @@ mod tests {
         w.player.fire_ticks = -20;
         w.player.ticks_frozen = 140;
         w.controlled_simulation_tick(Default::default()).unwrap();
-        assert_eq!(w.player.ticks_frozen, 0);
+        assert_eq!(w.player.ticks_frozen, 138);
         assert_eq!(
             w.player.fire_ticks, -19,
             "creative preserves the fire-contact delay"
@@ -5403,6 +5403,10 @@ mod tests {
         assert_eq!(
             w.player.fire_ticks, 1,
             "creative clamps only after ignition"
+        );
+        assert_eq!(
+            w.player.ticks_frozen, 0,
+            "ignition at the end of the delay clears the freeze"
         );
         w.player.ticks_frozen = 140;
         w.player.ignite_for_ticks(160).unwrap();

@@ -334,8 +334,75 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 16/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24 + 2 zero-diff)
+### Rank 2: 17/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26 + 2 zero-diff)
 
+- **Item 26 — `arrows.rs` (8 classes, 27 methods, 12 named in Horizon):**
+  `EntityReference`, `AbstractArrow`, `EnderMan`, `InsideBlockEffectType`,
+  `Arrow`, `ThrownTrident`, `BaseFireBlock`, `LavaFluid` — arrows, their
+  owner, and the freeze-clearing fire/lava effects.
+  1. **`checkLeftOwner` runs after the move:** 1.21.9's `AbstractArrow.tick`
+     calls `checkLeftOwner()` after the rotation sets, before the hit check
+     (a fresh value from the current position/velocity); 1.21.8's tick does
+     not call it — `Projectile.tick` (`super.tick()`, at the END of the
+     flight branch, after inertia and gravity) updates `leftOwner`, so the
+     hit check uses the value from the end of the previous tick. The Rust's
+     `Ticker::tick` called `check_left_owner` pre-hit (the 1.21.9 form); it
+     now runs after `step_move_and_hit` (before the early entity-hit
+     return) and after the move in the no-physics branch. It runs there
+     rather than in `finish()` (which the entity-hit path skips —
+     `finish_entity_hit` runs it later, after the deflection, where the
+     per-tick targets are gone), so it sees the pre-drag velocity and, on a
+     deflecting hit, the pre-deflection one: both second-order (a 1% sweep
+     difference; a deflect while still inside the owner's box). Observable
+     differences vs the old code are confined to the tick-1
+     spawn-outside-owner-box case, water (1.21.9's check uses the
+     water-slowed velocity, 1.21.8's the pre-water one), and owner movement
+     across the swept-box boundary between ticks. The in-ground branch
+     never updates leftOwner in either version — the Rust matches (it
+     returns early, no check, no finish).
+  2. **CLEAR_FREEZE is gone (1.21.9-only):** the enum value's only appliers
+     were BaseFireBlock, LavaCauldronBlock and LavaFluid, and
+     `Entity.igniteForTicks` calls `clearFreeze()` in BOTH versions — so
+     the real 1.21.8-vs-1.21.9 differences are only (a) fire-immune
+     entities in fire/lava (1.21.9 clears freeze, 1.21.8 does not — both
+     `fireIgnite` and `lavaIgnite` gate their whole body on
+     `!fireImmune()`), and (b) negative fire ticks in fire (1.21.9 clears
+     immediately, 1.21.8 only on ignition once the timer climbs to 0, up to
+     20 ticks later). The fixes: the player's `apply_fire_contact` now
+     clears only on ignition (the non-water arm tests `ignite_contact`'s
+     result for >= 0; the water arm tests `fire_ticks >= -1` with no draw —
+     the ignite runs first in vanilla, before EXTINGUISH clears the
+     timer); the mob fire clear moved out of the tick head (it ran
+     unconditionally, before the baseTick decrement) into
+     `block_contact_damage`'s fire arm, gated on the post-ignite timer
+     being >= 0 (the mob lava path already gated on `!fire_immune` and
+     cleared via `ignite_for_ticks(300)`); the player's
+     `lava_cauldron_inside` lost its redundant unconditional clear
+     (players are never fire-immune, so the ignite clears in both
+     versions); `arrows.rs`'s `Effect::ClearFreeze` variant, its two apply
+     calls, the `EFFECT_ORDER` entry and the no-op match arm are removed
+     (`step` is now `[bool; 3]`). The fire test now pins the 1.21.8 form:
+     140 freeze ticks melt to 138 during the delay (no clear), and the
+     ignition at the end of the delay clears to 0.
+  Verified already-1.21.8: `EnderMan.getWalkTargetValue` (the 1.21.9-only
+  0.0F override was never ported — the Rust's hostile branch returns
+  Monster's `-light()`); `EntityReference` (the Rust resolves owners
+  same-level only — `target_by_uuid`/`target_with_uuid` search the
+  current level — matching 1.21.8's single-level `getEntity(UUIDLookup)`;
+  the 1.21.9 any-dimension search was never modelled); `lerpMotion`
+  (Vec3 vs three doubles, same body); `Arrow.tick` (only the
+  `isClientSide()` rename); the `0.1F`/`(float)0.1F` decompiler artifact
+  and the `@Nullable` on `getWeaponItem`. Known gaps, noted not fixed:
+  the deflect owner argument (`deflect` takes the resolved owner in
+  1.21.8 and the bare reference in 1.21.9, so a deflect drops the owner
+  in 1.21.8 when it is not resolvable in the current level) — the Rust's
+  `turn_back`/`trident_bounce` never touch the owner, and owners are
+  never revalidated anywhere in the Rust; the only observable window is
+  damage attribution on a post-deflect second hit by a cross-dimension
+  or dead owner's piercing arrow or trident, and a partial fix (mobs
+  only, when a UUID is known) would be worse than the documented gap.
+  Ownership: `LavaCauldronBlock` itself belongs to item 44 (entities.rs)
+  — only its CLEAR_FREEZE arm was this item's.
 - **Item 24 — `lan/hub.rs` (1 class, 33 methods, 13 named in Horizon):**
   `PlayerList` — the server player list: joining, the level info, the
   border, bans, ops, respawn.

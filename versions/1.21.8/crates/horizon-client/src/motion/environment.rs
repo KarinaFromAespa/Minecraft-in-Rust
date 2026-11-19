@@ -154,7 +154,6 @@ impl MotionWorld<'_, '_, '_> {
         }
         let damage = fire_contact(self.scene, self.assets.registry, self.player.bounds());
         if damage > 0.0 {
-            self.player.ticks_frozen = 0;
             if !self.player.fluids.was_touching_water {
                 let multiplier = self.player.attribute("minecraft:burning_time")?;
                 let ticks = ignite_contact(
@@ -163,7 +162,18 @@ impl MotionWorld<'_, '_, '_> {
                     &mut self.scene.random,
                     multiplier,
                 );
+                // 1.21.8 has no CLEAR_FREEZE: the freeze clears only when
+                // fireIgnite ignites (igniteForTicks), i.e. once the timer
+                // reaches 0 after its climb from -20 — not during the delay.
+                if ticks >= 0 {
+                    self.player.ticks_frozen = 0;
+                }
                 self.player.set_remaining_fire_ticks(ticks);
+            } else if self.player.fire_ticks >= -1 {
+                // In water the ignite is skipped, but a timer at -1 or above
+                // would still have reached 0 on fireIgnite's increment — the
+                // ignite, and its freeze clear, happen without a draw.
+                self.player.ticks_frozen = 0;
             }
             self.environment_hurt("minecraft:in_fire", damage)?;
         } else if self.player.fire_ticks <= 0 {

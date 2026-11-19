@@ -45,6 +45,13 @@ fn block_contact_damage(
             &mut m.random,
             multiplier,
         );
+        // 1.21.8 has no CLEAR_FREEZE: the freeze clears only when fireIgnite
+        // ignites (igniteForTicks), i.e. once the timer reaches 0 after its
+        // climb from -20 — not during the delay, and never for a fire-immune
+        // mob (fireIgnite gates its whole body on !fireImmune).
+        if m.fire_ticks >= 0 {
+            m.ticks_frozen = 0;
+        }
         hurt(m, w, events, fire, Damage::of(DamageKind::InFire));
     }
     if lava && !m.kind.flags.fire_immune {
@@ -1236,9 +1243,6 @@ fn base_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) -> bool {
     }
     let fire = crate::motion::environment::fire_contact(w.world, w.registry, m.bounds());
     let contact_at = m.position;
-    if fire > 0.0 {
-        m.ticks_frozen = 0;
-    }
     // Entity.baseTick counts burning damage and the fire timer before
     // Entity.applyEffectsFromBlocks extinguishes a wet mob later in the tick.
     if m.fire_ticks > 0 {

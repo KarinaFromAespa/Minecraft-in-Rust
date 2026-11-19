@@ -810,7 +810,6 @@ impl Ticker<'_, '_, '_, '_> {
         let x_rot = degrees(movement.y, movement.horizontal_distance());
         self.p.pitch = lerp_rotation(self.p.pitch, x_rot);
         self.p.yaw = lerp_rotation(self.p.yaw, y_rot);
-        self.check_left_owner(targets);
         let mut hit = Hit::None;
         let end = Vec3::new(
             original.x + movement.x,
@@ -819,12 +818,25 @@ impl Ticker<'_, '_, '_, '_> {
         );
         if physics && impact {
             hit = self.step_move_and_hit(original, end, targets, impact);
+            // 1.21.8: `Projectile.tick` (`super.tick()`, at the end of the
+            // flight branch, after inertia and gravity) updates `leftOwner`,
+            // so the hit check above used the value from the end of the
+            // previous tick. 1.21.9 calls `checkLeftOwner()` before the hit
+            // check, from `AbstractArrow.tick` itself. The update runs here,
+            // after the move, rather than in `finish()` (which the entity-hit
+            // path skips — `finish_entity_hit` runs it later, after the
+            // deflection, where the per-tick targets are gone): it sees the
+            // pre-drag velocity and, on a deflecting hit, the pre-deflection
+            // one. Both are second-order (a 1% sweep difference; a deflect
+            // while still inside the owner's box).
+            self.check_left_owner(targets);
             if matches!(hit, Hit::Entity { .. }) {
                 return hit;
             }
         } else {
             self.p.position = end;
             self.apply_effects_from_blocks(original, end);
+            self.check_left_owner(targets);
             if physics {
                 self.st.canceled_impact_inside = true;
             }
@@ -1239,7 +1251,6 @@ impl ArrowScene<'_, '_> {
         self.check_inside_blocks(from, to, &mut visited, &mut effects, &mut visit);
         for effect in effects.finish() {
             match effect {
-                Effect::ClearFreeze => {}
                 Effect::FireIgnite => {
                     // BaseFireBlock.fireIgnite for a non-player entity.
                     if fire_ticks < 0 {
@@ -1306,7 +1317,6 @@ impl ArrowScene<'_, '_> {
             visit(state, p, precise);
             if matches!(name, "minecraft:fire" | "minecraft:soul_fire") {
                 // BaseFireBlock.entityInside (its inFire hurt does nothing to arrows).
-                effects.apply(Effect::ClearFreeze);
                 effects.apply(Effect::FireIgnite);
             }
             if inside_fluid {
@@ -1316,7 +1326,6 @@ impl ArrowScene<'_, '_> {
                     FluidTemplate::Water => effects.apply(Effect::Extinguish),
                     // LavaFluid.entityInside (lavaHurt does nothing to arrows).
                     FluidTemplate::Lava => {
-                        effects.apply(Effect::ClearFreeze);
                         effects.apply(Effect::LavaIgnite);
                     }
                     FluidTemplate::Empty => {}
@@ -1357,16 +1366,15 @@ impl FluidHeightWorld for &ArrowScene<'_, '_> {
     }
 }
 /// `InsideBlockEffectType`s an arrow meets, in their apply order (FREEZE
-/// needs powder snow, which an arrow's collision context passes through).
+/// needs powder snow, which an arrow's collision context passes through;
+/// CLEAR_FREEZE is 1.21.9-only).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Effect {
-    ClearFreeze,
     FireIgnite,
     LavaIgnite,
     Extinguish,
 }
-const EFFECT_ORDER: [Effect; 4] = [
-    Effect::ClearFreeze,
+const EFFECT_ORDER: [Effect; 3] = [
     Effect::FireIgnite,
     Effect::LavaIgnite,
     Effect::Extinguish,
@@ -1375,14 +1383,14 @@ const EFFECT_ORDER: [Effect; 4] = [
 /// in type order, steps in the order they were reached.
 struct Collector {
     last_step: i32,
-    step: [bool; 4],
+    step: [bool; 3],
     effects: Vec<Effect>,
 }
 impl Default for Collector {
     fn default() -> Self {
         Self {
             last_step: -1,
-            step: [false; 4],
+            step: [false; 3],
             effects: Vec::new(),
         }
     }
