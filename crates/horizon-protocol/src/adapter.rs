@@ -178,10 +178,10 @@ impl ServerVersion {
         static V26_2: ids::Ids = ids::Ids {
             quirks: BEFORE_26_3,
             // EntityDataSerializers in 26.2's registration order, against the
-            // pinned 1.21.8's: 26.1 added the cat, cow, pig and chicken sound
+            // pinned 1.21.6's: 26.1 added the cat, cow, pig and chicken sound
             // variants and 1.21.11 the nautilus variant, copper golem states
-            // and profile/arm serializers — none has a 1.21.8 counterpart —
-            // and 1.21.9 dropped compound tags (16), which 1.21.8 still has.
+            // and profile/arm serializers — none has a 1.21.6 counterpart —
+            // and 1.21.9 dropped compound tags (16), which 1.21.6 still has.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 16),
@@ -213,10 +213,10 @@ impl ServerVersion {
         static V1_21_11: ids::Ids = ids::Ids {
             quirks: BEFORE_26_1,
             // EntityDataSerializers in 1.21.11's registration order, against
-            // the pinned 1.21.8's: 1.21.11 added the zombie nautilus variant,
+            // the pinned 1.21.6's: 1.21.11 added the zombie nautilus variant,
             // copper golem states, the resolvable profile and the humanoid arm
-            // — none has a 1.21.8 counterpart — and 1.21.9 dropped compound
-            // tags (16), which 1.21.8 still has.
+            // — none has a 1.21.6 counterpart — and 1.21.9 dropped compound
+            // tags (16), which 1.21.6 still has.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 16),
@@ -250,15 +250,15 @@ impl ServerVersion {
                 simple_spell_particles: true,
                 ..BEFORE_26_1
             },
-            // 1.21.8 IS the pinned version: its serializers are the pin's
-            // (the generated table says Same). The shoulder parrots are
+            // 1.21.8's serializers are the pin's (the generated table says
+            // Same); only its item/sound numbering differs — 1.21.7 added
+            // the lava chicken disc the pin lacks. The shoulder parrots are
             // compound tags (16) in every pre-1.21.9 version including the
             // pin; EntityData::read converts them unconditionally.
             ..v1_21_8_ids::IDS
         };
         static V1_21_6: ids::Ids = ids::Ids {
-            // The same layouts and metadata serializers, with the item/sound numbering before
-            // 1.21.7 added the lava chicken disc. Other registries are shared by generated tables.
+            // 1.21.6 IS the pinned version: the generated table is identity.
             quirks: V1_21_8.quirks,
             ..v1_21_6_ids::IDS
         };
@@ -276,7 +276,7 @@ impl ServerVersion {
                 ..V1_21_5.quirks
             },
             // Vanilla EntityDataSerializers' registration order (not their declaration order),
-            // against the pinned 1.21.8's: 1.21.4 has no cow, wolf sound, pig
+            // against the pinned 1.21.6's: 1.21.4 has no cow, wolf sound, pig
             // or chicken variant yet, so its wolf and frog sit two and four
             // below the pin's.
             entity_data_serializer: ids::Remap::Runs {
@@ -318,7 +318,7 @@ impl ServerVersion {
                 ..V1_20_6.quirks
             },
             // EntityDataSerializers registration order before PARTICLES, WOLF_VARIANT and ARMADILLO_STATE,
-            // against the pinned 1.21.8's.
+            // against the pinned 1.21.6's.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 18),
@@ -471,24 +471,25 @@ mod tests {
             ServerVersion::from_protocol(775),
             Some(ServerVersion::V26_1)
         );
-        // 774 is 1.21.11, one protocol above the pin.
+        // 774 is 1.21.11, three protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(774),
             Some(ServerVersion::V1_21_11)
         );
-        // 773 is 1.21.9/1.21.10, one protocol above the pin.
+        // 773 is 1.21.9/1.21.10, two protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(773),
             Some(ServerVersion::V1_21_10)
         );
-        // 772 is the pinned protocol itself (1.21.8; it resolves to the pin).
+        // 772 is 1.21.7/1.21.8, one protocol above the pin.
         assert_eq!(
             ServerVersion::from_protocol(772),
-            Some(ServerVersion::Current)
+            Some(ServerVersion::V1_21_8)
         );
+        // 771 is the pinned protocol itself (1.21.6; it resolves to the pin).
         assert_eq!(
             ServerVersion::from_protocol(771),
-            Some(ServerVersion::V1_21_6)
+            Some(ServerVersion::Current)
         );
         assert_eq!(
             ServerVersion::from_protocol(770),
