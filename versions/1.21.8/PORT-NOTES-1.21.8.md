@@ -334,7 +334,40 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 56/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59 + 4 zero-diff)
+### Rank 2: 57/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64 + 4 zero-diff)
+
+- **Item 64 — `crates/horizon-client/src/game/perspective.rs`
+  (5 classes, 18 methods, 4 named in Horizon):**
+  PlayerCapeModel (7), WingsLayer (5; getPlayerElytraTexture,
+  submit), SpinAttackEffectModel (4; setupAnim),
+  GuiEntityRenderer (1; renderToTexture), IronBarsBlock
+  (1). Zero-diff. The cape box is identical in both
+  versions and `setupAnim`'s rotation was verified term
+  by term in `mobs/render.rs::cape`; the HumanoidModel-vs-
+  PlayerModel parentage is Java plumbing (the `player#cape`
+  layer comes from version model data). The spin-attack
+  box math matches exactly in `spin_attack_geometry`
+  (age × −(45 + (i+1)×5), wrapped); only the render-state
+  class was renamed (`AvatarRenderState` is 1.21.9's name
+  for `PlayerRenderState` — no such citation exists in the
+  Rust). `WingsLayer`'s diff is submit-vs-render plumbing
+  plus the elytra/cape texture accessor forms, which have
+  no Rust surface; the GUI-entity preview light is full
+  bright (240|240<<8 = 15728880), matching 1.21.8's
+  render call. Iron bars: the 1.21.9 BARS-tag clause is
+  data-driven via `bars_tag`, which the oracle computes
+  as `state.is(bars tag)` — false for every state against
+  the 1.21.8 jar (the tag does not exist), so the Bars
+  rule reduces to 1.21.8's same-block check; no committed
+  data has `bars_tag:true`. Known gap (vs both, not
+  fixed): the skin's elytra texture is never assigned to
+  a mob — wings use the cape texture or the equipment
+  default, so a player with a custom elytra texture
+  renders with their cape texture. Deferred: the
+  `Avatar.*` citations belong to rank-2 item 196 (which
+  owns `world/entity/Avatar`), the `AvatarRenderer.*`
+  citations to rank-2 item 310, the mannequin Avatar refs
+  to item 320.
 
 - **Item 59 — `crates/horizon-client-render/src/options_file.rs`
   (2 classes, 25 methods, 4 named in Horizon):** Options (13;
