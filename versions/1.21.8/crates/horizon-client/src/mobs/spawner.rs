@@ -664,7 +664,7 @@ impl SpawnerExt for Spawner {
     }
 }
 
-/// `TrialSpawnerRenderer.extractSpawnerData`: the spin in degrees and the
+/// `SpawnerRenderer.renderEntityInSpawner`: the spin in degrees and the
 /// scale of a display mob of the given size, between the last two spins.
 pub fn display_pose(o_spin: f64, spin: f64, alpha: f32, width: f32, height: f32) -> (f32, f32) {
     let spin = (o_spin + f64::from(alpha) * (spin - o_spin)) as f32 * 10.0;

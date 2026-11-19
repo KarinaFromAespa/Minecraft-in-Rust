@@ -7863,7 +7863,7 @@ impl Game<'_> {
             // Entity.DATA_SHARED_FLAGS_ID invisible: only the name tag draws (and
             // the outline of a glowing mob, LivingEntityRenderer.getRenderType).
             // A player keeps its armour, elytra and held items
-            // (`LivingEntityRenderer.submit` skips only the body).
+            // (`LivingEntityRenderer.render` skips only the body).
             let layers_only = mob.invisible && outline.is_none() && is_player;
             if mob.invisible && outline.is_none() && !layers_only {
                 continue;
@@ -8029,7 +8029,7 @@ impl Game<'_> {
                     v.layer |= u32::from(tier) << 16;
                 }
             }
-            // AvatarRenderer.shouldRenderLayers: a spectator draws no layers.
+            // PlayerRenderer.shouldRenderLayers: a spectator draws no layers.
             let layers = horizon_client::mobs::render::layers_shown(mob);
             if is_player && layers {
                 // PlayerRenderer's CapeLayer, WingsLayer, ParrotOnShoulderLayer
@@ -8396,8 +8396,9 @@ impl Game<'_> {
         }
     }
 }
-/// `ThrownItemRenderer.submit` turns the item by `CameraRenderState.orientation`
-/// (`Camera.setRotation`): the billboard's right and up axes are the camera's.
+/// `ThrownItemRenderer.render` turns the item by the dispatcher's
+/// `cameraOrientation` (`Camera.setRotation`): the billboard's right and up
+/// axes are the camera's.
 /// They stay continuous at pitch ±90, and in third-person front view they are
 /// the turned-round camera's, not the player's.
 fn thrown_item_axes(

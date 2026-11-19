@@ -334,7 +334,54 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 11/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18 + 2 zero-diff)
+### Rank 2: 12/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 + 2 zero-diff)
+
+- **Item 19 — `mobs/render.rs` (34 classes, 186 methods, 17 named in
+  Horizon):** the mob renderers and layers. One real behaviour fix; the
+  rest is the 1.21.9 submit-API refactor with identical values, so the
+  bulk of the change is citation rewording.
+  1. **Rabbit Toast strips formatting:** 1.21.9 checks the exact custom
+     name (`checkMagicName(entity, "Toast")`); 1.21.8 compares the
+     formatting-stripped display name (`"Toast".equals(
+     ChatFormatting.stripFormatting(getName().getString()))`), so a
+     rabbit named `§6Toast` is Toast too. The Rust now strips formatting
+     before comparing (new test `a_formatted_toast_rabbit_is_toast`).
+     The sheep's `jeb_` check is the same in both versions (exact custom
+     name, `SheepRenderState.isJebSheep()`); only its citation changed.
+  2. **Citations reworded** from the 1.21.9-only `submit` /
+     `submitArmWithItem` / `submitOnShoulder` / `submitStuckItem` /
+     `submitEntityInSpawner` / `AvatarRenderer` / `extractShadow` /
+     `ShadowFeatureRenderer` / `checkMagicName` / `showExtraEars` names
+     to the 1.21.8 `render` / `renderArmWithItem` / `renderOnShoulder` /
+     `renderStuckItem` / `renderEntityInSpawner` / `PlayerRenderer` /
+     `renderShadow` / `renderBlockShadow` / `isJebSheep` / profile-name
+     forms, in `mobs/render.rs`, `shadows.rs`, `mobs/spawner.rs`,
+     `game/perspective.rs` and `game/creatures.rs`.
+     `extractRenderState` citations stay — the extract pattern exists in
+     1.21.8 too. The `submit`→`render` rename is global; each item fixes
+     its own files' citations (other renderers' files still carry theirs).
+  3. **Verified identical:** spawner spin (`lerp × 10`) and scale
+     (`0.53125 / max(w, h)`), salmon size models, warden emissive alphas
+     (`cos(age·0.045)·0.25`, `+π` variant, tendril/heart), breeze wind
+     scroll (0.02/tick) and eyes, energy swirl offsets (creeper `t·0.01`,
+     wither `cos(t·0.02)·3`, V `t·0.01`), skeleton `translateToHand`
+     (±1) and vex (0.55 + offset), wolf armour crack thresholds (0.95 /
+     0.69 / 0.32), witch potion transform, cape `fallFlyingScale`
+     (`clamp(t²/100)`), parrot shoulder offsets (±0.4, −1.3/−1.5),
+     stuck-in-body angles, sheep wool/undercoat guards, deadmau5 ears
+     (profile name), spectator layers rule, shadow radii and the
+     `renderShadow`/`renderBlockShadow` math (radius ≤ 32, strength
+     `(1 − dist²/256)`, 0.5/depth falloff, brightness > 3, full-collision
+     gate, UVs, light 15728880), and the F3+B hitbox gizmos (view arrow
+     ×2.0, blue). `SalmonRenderer$1` is only the synthetic `$SwitchMap`
+     for the variant switch (1.21.9 uses a switch, 1.21.8 if/else — same
+     mapping). The mannequin arm of `avatar()` is unreachable dead code
+     (no mannequin in the 1.21.8 registry), left in place.
+  - **Out of scope:** the `entity_light_block` crouch drop uses an
+    unscaled 0.125 where vanilla uses `scale · −2/16` — a pre-existing
+    approximation, identical in both versions. Server-hitbox debug
+    rendering ("Missing" text, server vector) is unimplemented in the
+    Rust in both versions.
 
 - **Item 14 — `particles.rs` (81 classes, 347 methods, 22 named in Horizon):**
   the particle engine. Two systematic 1.21.9→1.21.8 engine changes, the
