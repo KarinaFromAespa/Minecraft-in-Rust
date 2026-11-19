@@ -178,10 +178,10 @@ impl ServerVersion {
         static V26_2: ids::Ids = ids::Ids {
             quirks: BEFORE_26_3,
             // EntityDataSerializers in 26.2's registration order, against the
-            // pinned 1.21.4's: 26.1 added the cat, cow, pig and chicken sound
+            // pinned 1.21.3's: 26.1 added the cat, cow, pig and chicken sound
             // variants and 1.21.11 the nautilus variant, copper golem states
-            // and profile/arm serializers — none has a 1.21.4 counterpart —
-            // and 1.21.9 dropped compound tags (16), which 1.21.4 still has.
+            // and profile/arm serializers — none has a 1.21.3 counterpart —
+            // and 1.21.9 dropped compound tags (16), which 1.21.3 still has.
             // The 1.21.5 variant serializers (23, 25, 27, 28 in 1.21.5's
             // order) have no pin equivalent and drop.
             entity_data_serializer: ids::Remap::Runs {
@@ -213,10 +213,10 @@ impl ServerVersion {
         static V1_21_11: ids::Ids = ids::Ids {
             quirks: BEFORE_26_1,
             // EntityDataSerializers in 1.21.11's registration order, against
-            // the pinned 1.21.4's: 1.21.11 added the zombie nautilus variant,
+            // the pinned 1.21.3's: 1.21.11 added the zombie nautilus variant,
             // copper golem states, the resolvable profile and the humanoid arm
-            // — none has a 1.21.4 counterpart — and 1.21.9 dropped compound
-            // tags (16), which 1.21.4 still has. The 1.21.5 variant
+            // — none has a 1.21.3 counterpart — and 1.21.9 dropped compound
+            // tags (16), which 1.21.3 still has. The 1.21.5 variant
             // serializers (23, 25, 27, 28 in 1.21.5's order) have no pin
             // equivalent and drop.
             entity_data_serializer: ids::Remap::Runs {
@@ -258,7 +258,7 @@ impl ServerVersion {
                 ..BEFORE_26_1
             },
             // Vanilla EntityDataSerializers' registration order (not their declaration order),
-            // against the pinned 1.21.4's: 1.21.5 added the cow, wolf sound,
+            // against the pinned 1.21.3's: 1.21.5 added the cow, wolf sound,
             // pig and chicken variant serializers (23, 25, 27, 28 in its
             // order), which the pin lacks — they drop — so 1.21.8's wolf and
             // frog sit two and four above the pin's. 1.21.5/1.21.6 share
@@ -287,20 +287,25 @@ impl ServerVersion {
             ..v1_21_5_ids::IDS
         };
         static V1_21_4: ids::Ids = ids::Ids {
-            // 1.21.4 IS the pinned version: the generated table is identity.
+            // 1.21.4 shares the pin's component layout and serializer order;
+            // it only lacks the two 1.21.3 quirks (list custom_model_data and
+            // the trail duration both arrived in 1.21.4).
             quirks: ids::Quirks {
-                wolf_variant_holder: true,
-                components_before_1_21_5: true,
-                components_before_1_21_6: true,
-                ..V1_21_8.quirks
+                integer_custom_model_data: false,
+                trail_without_duration: false,
+                ..V1_21_3.quirks
             },
             ..v1_21_4_ids::IDS
         };
         static V1_21_3: ids::Ids = ids::Ids {
+            // 1.21.3 IS the pinned version: the generated table is identity.
             quirks: ids::Quirks {
+                wolf_variant_holder: true,
+                components_before_1_21_5: true,
+                components_before_1_21_6: true,
                 integer_custom_model_data: true,
                 trail_without_duration: true,
-                ..V1_21_4.quirks
+                ..V1_21_8.quirks
             },
             ..v1_21_3_ids::IDS
         };
@@ -326,7 +331,7 @@ impl ServerVersion {
                 ..V1_20_6.quirks
             },
             // EntityDataSerializers registration order before PARTICLES, WOLF_VARIANT and ARMADILLO_STATE,
-            // against the pinned 1.21.4's.
+            // against the pinned 1.21.3's.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 18),
@@ -479,39 +484,40 @@ mod tests {
             ServerVersion::from_protocol(775),
             Some(ServerVersion::V26_1)
         );
-        // 774 is 1.21.11, five protocols above the pin.
+        // 774 is 1.21.11, six protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(774),
             Some(ServerVersion::V1_21_11)
         );
-        // 773 is 1.21.9/1.21.10, four protocols above the pin.
+        // 773 is 1.21.9/1.21.10, five protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(773),
             Some(ServerVersion::V1_21_10)
         );
-        // 772 is 1.21.7/1.21.8, three protocols above the pin.
+        // 772 is 1.21.7/1.21.8, four protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(772),
             Some(ServerVersion::V1_21_8)
         );
-        // 771 is 1.21.6, two protocols above the pin.
+        // 771 is 1.21.6, three protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(771),
             Some(ServerVersion::V1_21_6)
         );
-        // 770 is 1.21.5, one protocol above the pin.
+        // 770 is 1.21.5, two protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(770),
             Some(ServerVersion::V1_21_5)
         );
-        // 769 is the pinned protocol itself (1.21.4; it resolves to the pin).
+        // 769 is 1.21.4, one protocol above the pin.
         assert_eq!(
             ServerVersion::from_protocol(769),
-            Some(ServerVersion::Current)
+            Some(ServerVersion::V1_21_4)
         );
+        // 768 is the pinned protocol itself (1.21.3; it resolves to the pin).
         assert_eq!(
             ServerVersion::from_protocol(768),
-            Some(ServerVersion::V1_21_3)
+            Some(ServerVersion::Current)
         );
         assert_eq!(
             ServerVersion::from_protocol(767),

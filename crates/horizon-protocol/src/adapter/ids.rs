@@ -183,7 +183,7 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
-    /// The pinned 1.21.4's own wire layouts: what `quirks()` and
+    /// The pinned 1.21.3's own wire layouts: what `quirks()` and
     /// `quirks_written()` return when no other version is active. 1.21.4 is
     /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
     /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
@@ -202,8 +202,8 @@ impl Quirks {
         components_before_1_21_5: true,
         count_first_templates: true,
         optional_profile_fields: true,
-        integer_custom_model_data: false,
-        trail_without_duration: false,
+        integer_custom_model_data: true,
+        trail_without_duration: true,
         components_before_1_21_2: false,
         components_before_1_21: false,
         wolf_variant_holder: true,
