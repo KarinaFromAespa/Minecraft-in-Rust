@@ -2023,11 +2023,19 @@ impl ItemFrame {
             "minecraft:item_frame"
         }
     }
-    /// ItemFrame.createBoundingBox (without a framed map): (min, max).
+    /// ItemFrame.createBoundingBox: a block wide with a framed map, 0.75
+    /// without one. 1.21.9's `survives`/`canCoexist` use this box;
+    /// 1.21.10 split the pop check onto a separate `getPopBox` that is
+    /// always the narrow box.
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let s = self.step().map(f64::from);
         let c: [f64; 3] = std::array::from_fn(|i| f64::from(self.pos[i]) + 0.5 - s[i] * 0.46875);
-        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { 0.75 });
+        let framed_map = self
+            .item
+            .as_ref()
+            .is_some_and(|it| &*it.item == "minecraft:filled_map");
+        let wide = if framed_map { 1.0 } else { 0.75 };
+        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { wide });
         (
             std::array::from_fn(|i| c[i] - size[i] / 2.0),
             std::array::from_fn(|i| c[i] + size[i] / 2.0),

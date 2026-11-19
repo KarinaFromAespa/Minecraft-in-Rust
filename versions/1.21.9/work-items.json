@@ -1,20 +1,20 @@
 {
   "release": "1.21.9",
   "generated_from": "204a7fabc997aaf4dc6bfe0a4ceea08fc21bad3052f85559f6551555953dc40d",
-  "note": "Mechanical-layer publish: the pin, tables, packet set and adapter state are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "note": "Behaviour port complete 2026-11-19 (Stream 3): all 27 items closed, verified against the 1.21.10/1.21.9 named jars (decompiled diff of all 35 changed classes). 4 real code changes in 7de0f6d: stuck multiplier applies to piston moves; bubble-column pushes ungated (player + projectile); ItemFrame bounds map-dependent. The other 23 items verify as no-change: version.rs already regenerated; zero datafix classes changed; the entityInside 5-arg -> 4-arg change is signature-only in 24 of 25 block classes (only BubbleColumnBlock read the boolean); scheduled packet processing has no Rust counterpart; DetectedVersion is version-literal-only and WaterlilyBlock delegates to super.",
   "rank1": {
     "total": 3,
-    "closed": 0,
+    "closed": 3,
     "accepted": []
   },
   "rank2": {
     "total": 20,
-    "closed": 0,
+    "closed": 20,
     "accepted": []
   },
   "rank3": {
     "total": 3,
-    "closed": 0,
+    "closed": 3,
     "accepted": []
   },
   "rank4": {
@@ -24,7 +24,7 @@
   },
   "rank5": {
     "total": 1,
-    "closed": 0,
+    "closed": 1,
     "accepted": []
   },
   "rank3plus": "Inherits the 1.21.10 template's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."

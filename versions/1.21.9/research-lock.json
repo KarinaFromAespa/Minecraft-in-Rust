@@ -4,7 +4,12 @@
     "manifest_sha1": "1b06d2917e16b01b311a74e6e3abf644f390249c",
     "client_sha1": "ce92fd8d1b2460c41ceda07ae7b3fe863a80d045",
     "server_sha1": "11e54c2081420a4d49db3007e66c80a22579ff2a",
-    "java_major": 21
+    "java_major": 21,
+    "accepted_manifest_sha1": [
+      "1b06d2917e16b01b311a74e6e3abf644f390249c",
+      "61826f3fa6b54439cac19731be4305bb2f388c78"
+    ],
+    "accepted_manifest_note": "Mojang republished the 1.21.9 version manifest; the live sha1 61826f3f differs from the pinned 1b06d291 (JVM flags + asset-index hash only; client/server jars byte-identical). Accepted 2026-11-19 so lab-prepare does not fail on the republish."
   },
   "vineflower": {
     "version": "1.12.0",
