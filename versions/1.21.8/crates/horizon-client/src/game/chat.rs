@@ -1703,13 +1703,6 @@ impl Game<'_> {
                 .focused_tags(&self.gui.atlas.font, height, cx, cy);
         horizon_client::hud_layout::paint(batch, &self.gui.atlas, &tag_icons);
         if let Some(style) = self.ui.chat.style_at(&self.gui.atlas.font, height, cx, cy) {
-            // ActiveTextCollector.ClickableStyleFinder: a click event, or an
-            // insertion while Shift is held (ChatScreen.includeInsertions).
-            if style.click.is_some() || (style.insertion.is_some() && self.has_shift_down()) {
-                horizon_client::widgets::request_cursor(
-                    horizon_client::widgets::Cursor::PointingHand,
-                );
-            }
             if let Some(hover) = style.hover {
                 let lines = self.wrapped_rows(&hover, wrap);
                 self.draw_tooltip_lines(batch, &lines, self.cursor.0, self.cursor.1);

@@ -566,7 +566,6 @@ impl Game<'_> {
                             cursor,
                         )
                     {
-                        widgets::widget_cursor(style.click.is_some(), true);
                         if let Some(hover) = style.hover {
                             tooltip = Some(*hover);
                         }

@@ -2262,8 +2262,6 @@ struct Game<'a> {
     left: bool,
     right: bool,
     cursor: (f32, f32),
-    /// The cursor icon the window shows (`widgets::take_cursor` each frame).
-    cursor_icon: horizon_client::widgets::Cursor,
     captured: bool,
     /// Native grab mode used by winit. Linux window managers can drop the
     /// grab without a focus event, leaving `captured` true but stale.
@@ -11488,7 +11486,6 @@ impl Game<'_> {
                         }
                         result => result?,
                     };
-                    horizon_client::spans::time("pr_cursor", || self.apply_cursor_icon());
                     // The frame's spans, taken every frame they are recorded so they never
                     // pile up: the slow-frame line's, and the session's (`perf.frame`).
                     let frame_spans = if horizon_client::spans::recording_here() {
@@ -11842,7 +11839,6 @@ impl<'a> Game<'a> {
             left: false,
             right: false,
             cursor: (0.0, 0.0),
-            cursor_icon: horizon_client::widgets::Cursor::Arrow,
             captured: false,
             capture_mode: None,
             regrab_on_refocus: false,

@@ -313,31 +313,6 @@ impl Game<'_> {
             window.set_cursor_visible(!self.captured);
         }
     }
-    /// `GuiGraphicsExtractor.applyCursor` -> `Window.selectCursor` at the end
-    /// of a frame: the cursor the frame's widgets asked for, set on the window
-    /// only when it changes.
-    pub(super) fn apply_cursor_icon(&mut self) {
-        use horizon_client::widgets::Cursor;
-        let wanted = horizon_client::widgets::take_cursor();
-        // The widgets under the keyboard's hidden pointer aren't under the
-        // mouse (`handleCursor` asks only for a hovered widget).
-        let effective = if self.settings.allow_cursor_changes && !self.key_focus_driving() {
-            wanted
-        } else {
-            Cursor::Arrow
-        };
-        if effective == self.cursor_icon || !self.keyboard_mouse {
-            return;
-        }
-        if let Some(window) = &self.window {
-            window.set_cursor(match effective {
-                Cursor::Arrow => winit::window::CursorIcon::Default,
-                Cursor::PointingHand => winit::window::CursorIcon::Pointer,
-                Cursor::NotAllowed => winit::window::CursorIcon::NotAllowed,
-            });
-        }
-        self.cursor_icon = effective;
-    }
     /// LevelLoadingScreen.onClose -> Gui.setScreen(null) -> grabMouse.
     pub(super) fn capture_loaded_world(&mut self) {
         // Loading may finish after focus was lost or another screen opened.

@@ -700,7 +700,6 @@ fn button_with_room(
         crate::widgets::target([x, y, w, h]);
     }
     crate::widgets::narratable(|| narration([x, y, w, h]).hovered(hover || focused));
-    crate::widgets::widget_cursor(hover, active);
     let sprite = if !active {
         "gui/sprites/widget/button_disabled"
     } else if hover || focused {

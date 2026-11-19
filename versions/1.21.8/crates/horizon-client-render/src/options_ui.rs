@@ -5984,8 +5984,7 @@ mod tests {
     }
 
     #[test]
-    fn pointer_cursor_leaves_a_clicked_option_while_its_focus_stays() {
-        use crate::widgets::{Cursor, take_cursor};
+    fn moving_the_pointer_leaves_a_clicked_options_focus() {
         let atlas = atlas();
         let mut s = Settings::default();
         let mut ui = OptionsUi::default();
@@ -6022,9 +6021,7 @@ mod tests {
             "the accepted click keeps vanilla's focus"
         );
         assert!(!ui.focus_from_keyboard);
-        let _ = take_cursor();
         ui.draw(&s, NONE, &mut HudBatch::new([480, 480]), &atlas, over);
-        assert_eq!(take_cursor(), Cursor::PointingHand);
         ui.draw(
             &s,
             NONE,
@@ -6032,29 +6029,14 @@ mod tests {
             &atlas,
             (-10.0, -10.0),
         );
-        assert_eq!(take_cursor(), Cursor::Arrow, "focus is not mouse hover");
         assert!(
             ui.focus.is_some(),
             "moving the pointer does not clear focus"
         );
-        ui.focus_from_keyboard = true;
-        ui.draw(
-            &s,
-            NONE,
-            &mut HudBatch::new([480, 480]),
-            &atlas,
-            (-10.0, -10.0),
-        );
-        assert_eq!(
-            take_cursor(),
-            Cursor::Arrow,
-            "keyboard focus is not mouse hover either"
-        );
     }
 
     #[test]
-    fn pointer_cursor_leaves_a_disabled_option_without_focusing_it() {
-        use crate::widgets::{Cursor, take_cursor};
+    fn a_disabled_option_rejects_a_click_without_focusing_it() {
         let atlas = atlas();
         let mut s = Settings::default();
         let mut ui = OptionsUi::default();
@@ -6069,9 +6051,6 @@ mod tests {
             })
             .expect("visible disabled button");
         let over = (button.x + 1.0, button.y + 1.0);
-        let _ = take_cursor();
-        ui.draw(&s, NONE, &mut HudBatch::new([480, 480]), &atlas, over);
-        assert_eq!(take_cursor(), Cursor::NotAllowed);
         assert!(
             ui.click(
                 &mut s,
@@ -6089,14 +6068,6 @@ mod tests {
             ui.focus.is_none(),
             "an inactive widget rejects the click before focus"
         );
-        ui.draw(
-            &s,
-            NONE,
-            &mut HudBatch::new([480, 480]),
-            &atlas,
-            (-10.0, -10.0),
-        );
-        assert_eq!(take_cursor(), Cursor::Arrow);
     }
 
     #[test]

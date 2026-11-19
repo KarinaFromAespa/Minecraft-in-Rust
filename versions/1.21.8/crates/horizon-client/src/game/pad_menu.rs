@@ -2001,11 +2001,6 @@ impl Game<'_> {
         self.pad.menu.nudge = None;
     }
 
-    /// The keyboard drives the open menu's focus.
-    pub(super) fn key_focus_driving(&self) -> bool {
-        self.pad.menu.keyboard && self.key_focus_screen()
-    }
-
     /// A pointer event the keyboard sends (a press, the hidden pointer on
     /// the focused widget) is being handled: the screen's narration doesn't
     /// take it for the mouse (`InputType` stays the keyboard's).

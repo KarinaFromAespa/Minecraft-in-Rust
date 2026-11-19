@@ -2753,7 +2753,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     && cursor.0 < rect[0] + rect[2]
                     && cursor.1 >= rect[1]
                     && cursor.1 < rect[1] + rect[3];
-                crate::widgets::widget_cursor(inside, true);
                 let mut text = Text::literal(notice);
                 if inside {
                     text = text.underlined();
@@ -3395,7 +3394,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             let inside =
                 cursor.0 >= b.x && cursor.0 < b.x + b.w && cursor.1 >= b.y && cursor.1 < b.y + 20.0;
             crate::widgets::narratable(|| self.button_narration(&b).hovered(inside));
-            crate::widgets::widget_cursor(inside, b.enabled);
             if inside && let Some(key) = self.button_tooltip(b.id) {
                 button_tooltip = Some((key, [b.x, b.y, b.w, 20.0]));
             }
