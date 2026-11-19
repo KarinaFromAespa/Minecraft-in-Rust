@@ -1,0 +1,80 @@
+{
+ "candidate": "/home/hatch/workspace/mcir-work/e6-1.21.6/ports/1.21.4",
+ "commit": "b658fe174c644cfc61e63b0f2314d0eb40e42b69",
+ "generators": {
+  "command_suggestions": {
+   "outputs": [
+    "crates/horizon-client/src/lan/command_suggestions.rs"
+   ],
+   "stat": {
+    "crates/horizon-client/src/lan/command_suggestions.rs": [
+     0,
+     1
+    ]
+   },
+   "status": "regenerated"
+  },
+  "entity_tracking": {
+   "outputs": [
+    "crates/horizon-client/src/lan/tracking.rs"
+   ],
+   "stat": {
+    "crates/horizon-client/src/lan/tracking.rs": [
+     1,
+     2
+    ]
+   },
+   "status": "regenerated"
+  },
+  "lan_command_order": {
+   "outputs": [
+    "crates/horizon-client/src/lan/command_order.rs"
+   ],
+   "stat": {
+    "crates/horizon-client/src/lan/command_order.rs": [
+     7,
+     86
+    ]
+   },
+   "status": "regenerated"
+  },
+  "packet_ids": {
+   "outputs": [
+    "crates/horizon-protocol/src/ids.rs"
+   ],
+   "stat": {
+    "crates/horizon-protocol/src/ids.rs": [
+     125,
+     129
+    ]
+   },
+   "status": "regenerated"
+  },
+  "vanilla_command_order": {
+   "outputs": [
+    "crates/horizon-command/src/vanilla_order.rs"
+   ],
+   "stat": {
+    "crates/horizon-command/src/vanilla_order.rs": [
+     4,
+     1
+    ]
+   },
+   "status": "regenerated"
+  },
+  "version_consts": {
+   "outputs": [
+    "crates/horizon-core/src/version.rs"
+   ],
+   "stat": {
+    "crates/horizon-core/src/version.rs": [
+     8,
+     8
+    ]
+   },
+   "status": "regenerated"
+  }
+ },
+ "new": "1.21.4",
+ "old": "1.21.5"
+}
