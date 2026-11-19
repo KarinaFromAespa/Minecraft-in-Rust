@@ -334,7 +334,31 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 65/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84 + 4 zero-diff)
+### Rank 2: 66/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86 + 4 zero-diff)
+
+- **Item 86 — `crates/horizon-client/src/game/fishing.rs`
+  (2 classes, 6 methods, 4 named in Horizon), zero-diff:**
+  FishingHook (retrieve, shouldStopFishing, tick),
+  FishingRodItem (use). The `canInteractWithLevel`
+  rework (same as item 72's leash fix): 1.21.9's
+  `shouldStopFishing` gates on `canInteractWithLevel`
+  (alive + not removed + NOT spectator); 1.21.8's
+  checks `!isRemoved() && isAlive()` with NO
+  spectator check. The Rust's `tick_fishing` already
+  has the 1.21.8 form: rod in either hand
+  (`holds_rod`) + distance² ≤ 1024, no spectator
+  check. The hooked-entity tick likewise has no
+  spectator check (rides the hooked entity at 0.8
+  height; unhooks to `State::Flying` when not found;
+  mobs need `alive()`). No `asEquipmentSlot` /
+  `getSlotForHand` citation (the Rust damages the held
+  stack directly via `damage_held`); retrieve damage
+  (3 for item, 5 for entity) matches. Known gap (vs
+  both, not fixed): the local player's hook is NOT
+  discarded on death in the Rust (no death handling
+  in fishing.rs; only the LAN-guest path clears the
+  hook on death) — both versions stop fishing when
+  the owner dies.
 
 - **Item 84 — `crates/horizon-client/src/game/item_entities.rs`
   (1 class, 7 methods, 4 named in Horizon), zero-diff:**
