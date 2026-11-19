@@ -1713,5 +1713,33 @@ Rank 2 (492 items, in progress 2026-11-19)
     normalization.
   - 449 no-change (FeatureSorter$StepFeatureData): record ctor private
     -> package-private.
-- Rank-2 A-batches 1-14: 140 items closed (25 changed, 115 no-change).
-  work-items.json rank2.closed = 140 on 2026-11-19.
+- A-batch 15 (450, 451, 452, 453, 454, 455, 456, 458, 459, 460),
+  verified 2026-11-19, no code changes:
+  - 450 no-change (MusicManager$MusicFrequency): `getNextSongDelay`
+    private -> package-private.
+  - 451 no-change (KeyframeTrackSampler$Segment): record fields/ctor
+    private -> package-private.
+  - 452 no-change (ScreenNarrationCollector$NarrationEntry,
+    Screen$NarratableSearchResult): fields/ctor private ->
+    package-private.
+  - 453 no-change (WritableBookContent): byte-identical after
+    normalization.
+  - 454 no-change (TrapDoorBlock): `fluidState.is(Fluids.WATER)` vs
+    `fluidState.getType() == Fluids.WATER` — equivalent:
+    `TypedInstance.is(T)` is `typeHolder().value() == instance`.
+  - 455 no-change (EntityCollisionContext): `ItemStack.is(Object)` ->
+    `is(Item)`, the known overload rename.
+  - 456 no-change (DimensionType$MonsterSettings):
+    `IntProviders.codec(0, 15)` -> `IntProvider.codec(0, 15)` — same
+    codec, same bounds; the Rust reads dimension_type from JSON.
+  - 458 no-change (InterpolationHandler$InterpolationData): ctor
+    private -> package-private.
+  - 459 no-change (Biome$ClimateSettings): record fields/ctor private
+    -> package-private.
+  - 460 no-change (WorldgenRandom): `createThreadLocalInstance(seed)`
+    vs `create(seed)` — both the same 48-bit LCG
+    (SingleThreadedRandomSource vs LegacyRandomSource share
+    multiplier/increment/mask and setSeed; verified from the jar);
+    thread-safety only, same sequence per seed.
+- Rank-2 A-batches 1-15: 150 items closed (25 changed, 125 no-change).
+  work-items.json rank2.closed = 150 on 2026-11-19.
