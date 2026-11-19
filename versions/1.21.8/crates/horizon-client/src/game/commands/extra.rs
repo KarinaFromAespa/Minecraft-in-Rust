@@ -68,7 +68,10 @@ pub(in crate::game) struct CommandExtras {
     pub pregen: Option<super::pregen::PregenTask>,
 }
 
-use horizon_core::version::{BUILD_TIME, DATA_VERSION, STABLE, VANILLA_VERSION, VERSION_ID};
+use horizon_core::version::{
+    BUILD_TIME, DATA_PACK_FORMAT, DATA_VERSION, RESOURCE_PACK_FORMAT, STABLE, VANILLA_VERSION,
+    VERSION_ID,
+};
 
 fn num(n: impl std::fmt::Display) -> Text {
     Text::literal(n.to_string())
@@ -140,15 +143,9 @@ impl Game<'_> {
                 &[self.target_name(player)],
             ));
         }
-        // EntityType.clientTrackingRange: only a marker's is zero.
-        if let Some(t) = target
-            && self.target_type(t) == "minecraft:marker"
-        {
-            return Err(tr_error(
-                "commands.spectate.cannot_spectate",
-                &[self.target_name(t)],
-            ));
-        }
+        // 1.21.9 refuses to spectate an entity whose type's
+        // `clientTrackingRange` is zero (a marker), with
+        // `commands.spectate.cannot_spectate`; 1.21.8 has no such check.
         // A guest's camera is the hub's: the view moves in the guests' tick.
         let guest = match player {
             Target::Player => self.lan_acting,
@@ -947,11 +944,13 @@ impl Game<'_> {
                 "commands.version.build_time",
                 vec![Text::literal(BUILD_TIME)],
             ),
+            // 1.21.8's `packVersion` returns the int directly ("64", "81");
+            // 1.21.9's returns a `PackVersion` whose `toString` gives "64.0".
             (
                 "commands.version.pack.resource",
-                vec![Text::literal("97.1")],
+                vec![num(RESOURCE_PACK_FORMAT.0)],
             ),
-            ("commands.version.pack.data", vec![Text::literal("121.0")]),
+            ("commands.version.pack.data", vec![num(DATA_PACK_FORMAT.0)]),
         ]
         .into_iter()
         .map(|(key, args)| Text::translate(key, &args))

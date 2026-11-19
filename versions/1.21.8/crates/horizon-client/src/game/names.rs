@@ -76,7 +76,7 @@ impl NameTagLayouts {
         self.next += 1;
         let stable =
             text.resolved().spans.iter().all(|span| {
-                span.style.obfuscated != Some(true) && span.style.inline_object.is_none()
+                span.style.obfuscated != Some(true)
             }) && text.spans.iter().map(|s| s.text.len()).sum::<usize>() <= 1024;
         if slot < MAX_LINES
             && stable

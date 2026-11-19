@@ -900,7 +900,6 @@ impl Game<'_> {
         if !tab_players_needed(shown, changed) {
             // World skins still need download polling and atlas residency checks.
             self.update_remote_skins();
-            self.publish_tab_object_skins();
             return;
         }
         let (mut players, online_mode, upside_down) = match self.remote_tab_players() {

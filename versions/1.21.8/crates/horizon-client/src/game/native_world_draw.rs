@@ -18,7 +18,6 @@ pub struct NativeWorldDraw {
     pub camera: [f64; 3],
     draw: BlockEntityDraw,
     patches: Vec<Patch>,
-    profiles: Vec<serde_json::Value>,
 }
 impl Deref for NativeWorldDraw {
     type Target = BlockEntityDraw;
@@ -45,7 +44,6 @@ impl NativeWorldDraw {
                 Vec::new(),
             ),
             patches: Vec::new(),
-            profiles: Vec::new(),
         }
     }
     /// Translate to a world position, subtracting the camera in f64 first.
@@ -117,7 +115,6 @@ impl NativeWorldDraw {
             }
         }
         self.patches.extend(batch.patches);
-        self.profiles.extend(batch.inline_profiles);
     }
 }
 impl Game<'_> {
@@ -136,7 +133,6 @@ impl Game<'_> {
         // NONE keeps these quads out of shader-pack entity programs.
         self.mark_stage(out.len(), "NONE");
         self.native_world_submit(&mut draw);
-        self.resolve_inline_profiles(&draw.profiles);
         self.map_patches.extend(draw.patches);
         out.extend(draw.draw.into_vertices());
     }

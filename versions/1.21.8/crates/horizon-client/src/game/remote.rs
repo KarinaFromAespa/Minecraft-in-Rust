@@ -705,7 +705,6 @@ pub(super) struct Remote {
     /// The skin texture each profile's players show, once its download is ready.
     skins: HashMap<u128, String>,
     skins_revision: u64,
-    published_skins: Option<(usize, u128, u64, u64)>,
     listed: std::collections::HashSet<u128>,
     /// `ClientboundLoginPacket.onlineMode`: the player list shows heads.
     pub(super) online_mode: bool,
@@ -1236,7 +1235,6 @@ impl Game<'_> {
             own_profile: OwnProfile::Idle,
             skins: HashMap::new(),
             skins_revision: 0,
-            published_skins: None,
             listed: Default::default(),
             online_mode: false,
             level_players: HashMap::new(),
@@ -1466,7 +1464,6 @@ impl Game<'_> {
             own_profile: OwnProfile::Idle,
             skins: HashMap::new(),
             skins_revision: 0,
-            published_skins: None,
             listed: Default::default(),
             online_mode: false,
             level_players: HashMap::new(),
@@ -1554,7 +1551,6 @@ impl Game<'_> {
             r.session.disconnect();
         }
         super::lan::forget_sync_data();
-        self.gui.atlas.clear_object_skins();
         self.server_packs_disconnect();
         self.code_of_conduct = None;
         self.reset_tutorial();
@@ -5762,50 +5758,10 @@ impl Game<'_> {
     /// The player list's view of the connection: the listed players (with
     /// their downloaded skins once ready), online mode, and which players
     /// are in the level with an upside-down name.
-    pub(super) fn publish_tab_object_skins(&mut self) {
-        let Some(r) = self.remote.as_mut() else {
-            return;
-        };
-        let fingerprint = (
-            r.listed.len(),
-            r.listed.iter().fold(0, |xor, uuid| xor ^ uuid),
-            r.skins_revision,
-            self.gui.atlas.object_skins_revision,
-        );
-        if r.published_skins == Some(fingerprint) {
-            return;
-        }
-        for uuid in &r.listed {
-            let Some(p) = r.tab_players.get(uuid) else {
-                continue;
-            };
-            let skin = r.skins.get(uuid).map_or_else(
-                || horizon_client::tab_list::default_skin(*uuid),
-                String::as_str,
-            );
-            for key in [
-                format!("id:{uuid:032x}"),
-                format!("name:{}", p.name.to_ascii_lowercase()),
-            ] {
-                if object_skin_changed(&self.gui.atlas.object_skins, &key, skin) {
-                    self.gui.atlas.set_object_skin(key, skin.to_owned());
-                }
-            }
-        }
-        // Publication itself mutates the atlas; cache its final revision.
-        r.published_skins = Some((
-            fingerprint.0,
-            fingerprint.1,
-            fingerprint.2,
-            self.gui.atlas.object_skins_revision,
-        ));
-    }
-
     pub(super) fn remote_tab_players(
         &mut self,
     ) -> Option<(Vec<horizon_client::tab_list::TabPlayer>, bool, Vec<u128>)> {
         self.update_remote_skins();
-        self.publish_tab_object_skins();
         let mut players: Vec<_> = {
             let r = self.remote.as_ref()?;
             r.listed
@@ -5832,47 +5788,6 @@ impl Game<'_> {
         Some((players, r.online_mode, upside_down))
     }
 
-    /// Resolve inline `object:player` profiles through the same skin cache as
-    /// player heads on items. The next frame uses the uploaded atlas texture.
-    pub(super) fn resolve_inline_profiles(&mut self, profiles: &[serde_json::Value]) {
-        use horizon_client::skins;
-        for profile in profiles {
-            let id = skins::parse_profile(profile).id;
-            // The tab list's skin for the same profile: its UUID-hash
-            // default until the resolved skin is ready.
-            let skin = skins::head_skin(
-                profile,
-                &mut self.skin_profiles.borrow_mut(),
-                &mut self.skin_downloads.borrow_mut(),
-                |location| self.gui.atlas.sprites.contains_key(location),
-            )
-            .unwrap_or_else(|| horizon_client::tab_list::default_skin(id).to_owned());
-            let name = profile
-                .as_str()
-                .or_else(|| profile.get("name").and_then(serde_json::Value::as_str));
-            // The player list's skin for the same profile is drawn too.
-            let keys = [
-                Some(format!("id:{id:032x}")),
-                name.map(|n| format!("name:{}", n.to_ascii_lowercase())),
-            ];
-            for key in keys.iter().flatten() {
-                if let Some(listed) = self.gui.atlas.object_skins.get(key)
-                    && listed.starts_with("skins/")
-                {
-                    let listed = listed.clone();
-                    self.again_skin(&listed);
-                }
-            }
-            self.gui
-                .atlas
-                .set_object_skin(format!("id:{id:032x}"), skin.clone());
-            if let Some(name) = name {
-                self.gui
-                    .atlas
-                    .set_object_skin(format!("name:{}", name.to_ascii_lowercase()), skin);
-            }
-        }
-    }
     fn poll_own_profile(&mut self) {
         let auth = self.auth();
         let Some(r) = self.remote.as_mut() else {
@@ -11842,10 +11757,6 @@ impl Remote {
     }
 }
 
-fn object_skin_changed(published: &HashMap<String, String>, key: &str, skin: &str) -> bool {
-    published.get(key).is_none_or(|previous| previous != skin)
-}
-
 /// The textures to resolve skins from: every list entry's, and for a player
 /// entity whose entry is gone the profile it kept. `kept` first takes, for each
 /// player entity without one, its entry's textures (`AbstractClientPlayer.getPlayerInfo`
@@ -13137,49 +13048,6 @@ mod tests {
         kept.remove(&2);
         listed.clear();
         assert_eq!(super::skin_entries(&players, &listed, &mut kept).len(), 1);
-    }
-
-    #[test]
-    fn tab_publication_fingerprint_tracks_all_inputs() {
-        let fingerprint = |ids: &[u128], skins, atlas| {
-            (
-                ids.len(),
-                ids.iter().fold(0, |xor, uuid| xor ^ uuid),
-                skins,
-                atlas,
-            )
-        };
-        let published = fingerprint(&[7, 8], 1, 2);
-        assert_eq!(published, fingerprint(&[8, 7], 1, 2));
-        assert_ne!(published, fingerprint(&[7, 9], 1, 2));
-        assert_ne!(published, fingerprint(&[7, 8], 2, 2));
-        assert_ne!(published, fingerprint(&[7, 8], 1, 3));
-    }
-
-    #[test]
-    fn tab_object_skin_publication_tracks_changes_and_atlas_clear() {
-        let mut published = std::collections::HashMap::new();
-        let mut writes = 0;
-        for skin in ["skins/first", "skins/first", "skins/second"] {
-            for key in ["id:7", "name:player"] {
-                if super::object_skin_changed(&published, key, skin) {
-                    published.insert(key.to_owned(), skin.to_owned());
-                    writes += 1;
-                }
-            }
-        }
-        assert_eq!(writes, 4, "unchanged skins do not publish either entry");
-        published.clear();
-        assert!(super::object_skin_changed(
-            &published,
-            "id:7",
-            "skins/second"
-        ));
-        assert!(super::object_skin_changed(
-            &published,
-            "name:player",
-            "skins/second"
-        ));
     }
 
     /// An NPC plugin's scale: a base the plugin sets, or a modifier on 1.

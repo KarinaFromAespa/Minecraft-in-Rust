@@ -460,7 +460,7 @@ impl CachedQuads {
             .resolved()
             .spans
             .iter()
-            .any(|s| s.style.obfuscated == Some(true) || s.style.inline_object.is_some());
+            .any(|s| s.style.obfuscated == Some(true));
         Self {
             key: (
                 d.text.clone(),
