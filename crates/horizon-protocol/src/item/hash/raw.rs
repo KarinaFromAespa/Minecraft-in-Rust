@@ -23,9 +23,6 @@ fn named(table: &[&str], r: &mut Reader) -> Option<HashCode> {
 fn registry_entry(registry: &str, names: &dyn Names, r: &mut Reader) -> Option<HashCode> {
     entry(names, registry, r.varint().ok()?)
 }
-fn float(r: &mut Reader) -> Option<HashCode> {
-    Some(HashOps::create_f32(r.f32().ok()?))
-}
 fn int(r: &mut Reader) -> Option<HashCode> {
     Some(HashOps::create_int(r.varint().ok()?))
 }
