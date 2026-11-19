@@ -427,6 +427,108 @@ impl EntityFluidInteraction {
 mod tests {
     use super::*;
 
+    const WATER: FluidTagId = FluidTagId(0);
+    const LAVA: FluidTagId = FluidTagId(1);
+    const WET: &[bool] = &[true];
+
+    /// One source-water block at (0, 4, 0) under a box whose feet are at
+    /// y = 4: the surface sits at 4 + 8/9, the deflated box starts at 4.001.
+    struct Scene {
+        eye: f64,
+    }
+    impl FluidMembership for Scene {
+        fn fluid_in_tag(&self, fluid: FluidKind, tag: FluidTagId) -> bool {
+            if tag == WATER {
+                matches!(fluid, FluidKind::Water | FluidKind::FlowingWater)
+            } else {
+                matches!(fluid, FluidKind::Lava | FluidKind::FlowingLava)
+            }
+        }
+    }
+    impl FluidInteractionWorld for Scene {
+        type Error = std::convert::Infallible;
+        type Chunk = ();
+        fn interaction_box(&mut self) -> Result<Option<Aabb>, Self::Error> {
+            Ok(Some(Aabb::new(
+                Vec3::new(0.001, 4.001, 0.001),
+                Vec3::new(0.599, 5.799, 0.599),
+            )))
+        }
+        fn loaded_chunk(&mut self, _: i32, _: i32) -> Result<Option<()>, Self::Error> {
+            Ok(Some(()))
+        }
+        fn chunk_sections(&mut self, _: ()) -> Result<FluidSections<'_>, Self::Error> {
+            Ok(FluidSections {
+                minimum_section_y: 0,
+                has_fluid: WET,
+            })
+        }
+        fn block_x(&self) -> i32 {
+            0
+        }
+        fn eye_y(&mut self) -> Result<f64, Self::Error> {
+            Ok(self.eye)
+        }
+        fn block_z(&self) -> i32 {
+            0
+        }
+        fn fluid_state(&mut self, p: BlockPos) -> Result<FluidState, Self::Error> {
+            Ok(if p == BlockPos::new(0, 4, 0) {
+                FluidState::WATER
+            } else {
+                FluidState::EMPTY
+            })
+        }
+        fn fluid_height(&mut self, _: FluidState, _: BlockPos) -> Result<f32, Self::Error> {
+            Ok(8.0 / 9.0)
+        }
+        fn camera_height(&mut self, _: FluidState, _: BlockPos) -> Result<f32, Self::Error> {
+            Ok(8.0 / 9.0)
+        }
+        fn flow(&mut self, _: FluidState, _: BlockPos) -> Result<Vec3, Self::Error> {
+            Ok(Vec3::ZERO)
+        }
+    }
+
+    /// `updateFluidHeightAndDoFluidPushing` measures the height from the
+    /// deflated box's bottom (4.001 here), not the entity box's (4.0): the
+    /// 26.x helper's value would be 0.001 higher.
+    #[test]
+    fn immersion_height_is_measured_from_the_deflated_box() {
+        let mut scene = Scene { eye: 5.0 };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        let surface = 4.0 + f64::from(8.0f32 / 9.0);
+        let height = interaction.fluid_height(&scene, WATER);
+        assert!(
+            (height - (surface - 4.001)).abs() < 1e-9,
+            "height from the deflated box: {height}"
+        );
+    }
+
+    /// `updateFluidOnEyes`: the eyes are in the fluid when its surface is
+    /// strictly above them — exactly at eye level does not count.
+    #[test]
+    fn eyes_are_in_only_when_the_surface_is_above_them() {
+        let surface = 4.0 + f64::from(8.0f32 / 9.0);
+        let mut scene = Scene { eye: surface };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        assert!(
+            !interaction.is_eye_in_fluid(&scene, WATER),
+            "a surface exactly at eye level leaves the eyes out"
+        );
+        let mut scene = Scene {
+            eye: surface - 0.001,
+        };
+        let mut interaction = EntityFluidInteraction::new([WATER, LAVA]);
+        assert!(interaction.update(&mut scene, true, 4096).unwrap());
+        assert!(
+            interaction.is_eye_in_fluid(&scene, WATER),
+            "a surface above the eyes puts them in"
+        );
+    }
+
     /// A body the accumulator pushes: the player flag and the velocity it
     /// reads are the only things `apply_to` asks for.
     struct Body {
