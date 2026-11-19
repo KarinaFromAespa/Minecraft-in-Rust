@@ -2933,7 +2933,7 @@ impl Game<'_> {
                     let start = out.len();
                     self.block_model_vertices(state, 0, m, packed, false, out);
                     if flash {
-                        // submitWhiteSolidBlock: OverlayTexture.u(1.0) on the cart's own light.
+                        // renderWhiteSolidBlock: OverlayTexture.u(1.0) on the cart's own light.
                         for v in &mut out[start..] {
                             v.layer = 5;
                         }

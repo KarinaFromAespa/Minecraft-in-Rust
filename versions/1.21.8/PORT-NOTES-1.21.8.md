@@ -334,7 +334,61 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 30/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42 + 4 zero-diff)
+### Rank 2: 31/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43 + 4 zero-diff)
+
+- **Item 43 — `crates/horizon-client/src/game/minecarts.rs` (5 classes, 25 methods, 7 named in Horizon):**
+  AbstractMinecartRenderer, TntMinecartRenderer, MinecartTNT, BaseSpawner,
+  Minecart. Fixes:
+  1. **No spawner gamerule.** 1.21.9's `spawnerBlocksEnabled` gamerule
+     (`GameRules.java:192-193`, category MISC, default true, read via
+     `MinecraftServer.isSpawnerBlockEnabled`) does not exist in 1.21.8:
+     `BaseSpawner.serverTick` gates on `isNearPlayer` alone. The Rust
+     modelled it as the `spawner_blocks_work` gamerule with gates in the
+     spawner tick (`game/spawner.rs`, shared by block-entity spawners and
+     spawner minecarts via `server_tick_spawner_of`) and in
+     `mobs/spawner.rs`'s `server_tick`. Removed the rule definition
+     (`gamerules.rs`), the new-world default (`save.rs` `GAME_RULES`,
+     58 → 57 entries), both gates, the `SpawnerLevel::spawner_blocks_work`
+     trait method and its two implementations (`natural_spawning.rs`, the
+     natural-spawn probe fixture, whose `spawners_work` field and
+     `spawners` case parameter went with it). The trial spawner's gate
+     (`trial_spawner.rs` `can_spawn_in_level`) went with the rule too: it
+     was wrong against both versions — neither version's `TrialSpawner`
+     checks the rule. The datafix rename (`fixes_c.rs`,
+     `spawnerBlocksEnabled` → `minecraft:spawner_blocks_work`) stays: a
+     1.21.9 world's rule renames to a name the registry no longer knows,
+     which loads inert, exactly as vanilla 1.21.8 drops unknown rules on
+     load — and removing it would risk the D4 fixture outputs. All gates
+     and the definition went in one commit: `rules.bool` returns false
+     for an unknown rule, so removing the definition first would have
+     stopped every spawner.
+  2. **Citation:** `submitWhiteSolidBlock` → `renderWhiteSolidBlock`
+     (minecarts.rs). `newRender`/`newExtractState` exist in both
+     versions and stay.
+  Verified no-change: the TNT minecart's collision/fall explosion loses
+  its primer attribution in 1.21.8 (`explode(double)` → `explode(null,
+  double)`; 1.21.9 passes `ignitionSource`), but the Rust never modelled
+  the primer — `explode_cart` attributes every blast to the cart — so
+  the change is unobservable here; the fuse-expiry path still uses
+  `ignitionSource` in both versions, and the power formula
+  (`4.0 + random * 1.5 * min(sqrt(speed), 5)`) matches. The TNT flash and
+  swell match 1.21.8 exactly: `fuseRemainingInTicks = fuse - partialTick
+  + 1.0` (TntMinecartRenderer.java:53), flash `(int)fuse / 5 % 2 == 0`,
+  swell `1 + (1 - fuse/10)^4 * 0.3`. The minecart render is identical
+  (same transform, display-block scale/offset, `isNewRender` split — only
+  submit/render plumbing differs); `Minecart.interact`/`tick`/
+  `positionRider` differ only by the `isClientSide` field vs method;
+  `BaseSpawner`'s spin and delay logic is unchanged (the `getOSpin` →
+  `getoSpin` rename has no Rust citations). `SpawnEggItem` also reads
+  `isSpawnerBlockEnabled` in 1.21.9; the Rust never gated spawn eggs on
+  the rule, which is the 1.21.8 behaviour. Known gaps (vs both versions,
+  not 1.21.8-specific): the Rust never records who primed a TNT cart, so
+  fuse-expiry and flaming-arrow explosions are unattributed where vanilla
+  credits the primer; a primed cart with `tnt_explodes` off is stuck at
+  fuse 0 instead of being discarded (`explode` discards a primed cart
+  when the rule is off); the TNT flash reads the integer fuse where
+  vanilla reads `(int)fuseRemainingInTicks`, which differ by one at
+  exactly partial tick 0.
 
 - **Item 42 — `crates/horizon-client/src/save.rs` (8 classes, 29 methods, 7 named in Horizon):**
   SerializableChunkData, PlayerDataStorage, ThreadedLevelLightEngine,

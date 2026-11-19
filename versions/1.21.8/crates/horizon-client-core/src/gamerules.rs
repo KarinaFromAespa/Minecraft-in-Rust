@@ -111,7 +111,6 @@ pub const RULES: &[Rule] = &[
     b("send_command_feedback", "chat", true),
     b("show_advancement_messages", "chat", true),
     b("show_death_messages", "chat", true),
-    b("spawner_blocks_work", "misc", true),
     b("spawn_mobs", "spawning", true),
     b("spawn_monsters", "spawning", true),
     b("spawn_patrols", "spawning", true),

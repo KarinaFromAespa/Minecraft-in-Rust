@@ -619,9 +619,6 @@ impl horizon_client::mobs::spawner::SpawnerLevel for GameLevel<'_, '_> {
     fn alive_player_near(&self, x: f64, y: f64, z: f64, range: f64) -> bool {
         self.players.iter().any(|p| p.alive_near(x, y, z, range))
     }
-    fn spawner_blocks_work(&self) -> bool {
-        self.game.ui.rules.bool("spawner_blocks_work")
-    }
     fn entity_exists(&self, id: &str) -> bool {
         self.game.res.mob_types().contains_key(id) || self.game.entity_type_exists(id)
     }

@@ -122,8 +122,6 @@ struct World<'a> {
     respawn: Option<[i32; 3]>,
     unloaded: HashSet<(i32, i32)>,
     spawn_mobs: bool,
-    /// The `spawner_blocks_work` game rule.
-    spawners_work: bool,
     /// Types and boxes of living entities (case entities, then spawned mobs).
     entities: RefCell<Vec<(String, Aabb)>>,
     /// Blocks set since the case started (a trial spawner's states).
@@ -363,9 +361,6 @@ impl SpawnerLevel for World<'_> {
             let d = (p[0] - x).powi(2) + (p[1] - y).powi(2) + (p[2] - z).powi(2);
             mode != "spectator" && (range < 0.0 || d < range * range)
         })
-    }
-    fn spawner_blocks_work(&self) -> bool {
-        self.spawners_work
     }
     fn entity_exists(&self, id: &str) -> bool {
         self.s.types.types.contains_key(id) || self.s.entity_types.contains(id)
@@ -741,7 +736,6 @@ pub fn main() -> horizon_client::Result<()> {
             respawn,
             unloaded,
             spawn_mobs: get("rules", "1") != "0",
-            spawners_work: get("spawners", "1") != "0",
             placed: RefCell::new(Vec::new()),
             time: Cell::new(0),
             trial_mobs: RefCell::new(Vec::new()),

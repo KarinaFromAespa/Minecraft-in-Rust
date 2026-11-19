@@ -242,8 +242,6 @@ pub trait SpawnerLevel: NaturalLevel {
     /// `hasNearbyAlivePlayer`: a living non-spectator closer than `range`
     /// (any distance when negative).
     fn alive_player_near(&self, x: f64, y: f64, z: f64, range: f64) -> bool;
-    /// The `spawner_blocks_work` game rule.
-    fn spawner_blocks_work(&self) -> bool;
     /// `EntityType.byString`: the entity type exists.
     fn entity_exists(&self, id: &str) -> bool;
     /// Entities of the exact class of `id` whose box meets `bounds`.
@@ -467,7 +465,7 @@ impl SpawnerExt for Spawner {
         spawn: &mut dyn FnMut(&L, &SpawnerSpawn) -> Option<SpawnerAdded>,
         events: &mut Vec<SpawnerEvent>,
     ) {
-        if !self.near_player(l, pos) || !l.spawner_blocks_work() {
+        if !self.near_player(l, pos) {
             return;
         }
         if self.spawn_delay == -1 {

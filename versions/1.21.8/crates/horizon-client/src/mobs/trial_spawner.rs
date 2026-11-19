@@ -660,7 +660,7 @@ impl TrialSpawnerExt for TrialSpawner {
             || self.active_config().spawn_potentials.iter().any(|(_, w)| *w > 0)
     }
     fn can_spawn_in_level<L: TrialSpawnerLevel>(l: &L) -> bool {
-        l.spawner_blocks_work() && !l.peaceful() && l.mob_spawning()
+        !l.peaceful() && l.mob_spawning()
     }
     fn detect<L: TrialSpawnerLevel>(&self, l: &L, pos: [i32; 3], line_of_sight: bool) -> Vec<Uuid> {
         let range = f64::from(self.required_player_range);
