@@ -2308,3 +2308,26 @@ Rank 2 (492 items, in progress 2026-11-19)
   near-plane divergence), 753 (projection buffer classes).
   Rank 2 now 197/492 (33 changed, 164 no-change).
   work-items.json rank2.closed = 197 on 2026-11-19.
+- Item 19 (mobs/piglin.rs, 11 classes, 99 methods, 26 named) CLOSED
+  2026-11-19: CHANGED — baby piglin ears 5° → 30°. 26.1's
+  `AbstractPiglinModel.setupAnim` read the default ear angle from the
+  virtual `getDefaultEarAngleInDegrees()` (adults 30°, babies 5°, via
+  separate Adult/Baby model classes); 1.21.11 deletes the four
+  subclasses, makes `AbstractPiglinModel` concrete, and uses the literal
+  0.5235988f for every piglin. `ears()` now always uses 0.5235988
+  (bit-equal to 30° × DEG_TO_RAD); new test pins ±0.60359877 at rest for
+  baby and adult. Verified no-ports: hoglin `createBabyLayer` mane flows
+  through prepare (Rust already selects `hoglin_baby#main`); the baby
+  head-lift `head.y += f * 2.5` is new in 1.21.11 but the Rust already
+  has it; piglin clothing parts (sleeves/pants/jacket) are data-driven
+  geometry; `INTERACTABLE_DOORS` is a new memory no piglin code reads;
+  the sensor inlines `findNearbyAdultPiglins` unchanged; Zoglin/HoglinAi/
+  PiglinAi/PiglinBruteAi activity contents identical (brain-provider API
+  refactor only); `SpearAttack`'s new `approachDistanceSq` is stored but
+  never read (Rust's `PiglinSpear` already carries both squared
+  distances); `wantsToDance` switched RNGs (Xoroshiro → LegacyRandom)
+  but the Rust already uses LegacyRandom; `broadcastRetreat`'s
+  `instanceof Piglin` check moved from the consumer into a filter (Rust
+  already skips brutes); `MAX_TIME_BETWEEN_HUNTS` was dead in 26.1.
+  Rank 2 now 198/492 (34 changed, 164 no-change).
+  work-items.json rank2.closed = 198 on 2026-11-19.

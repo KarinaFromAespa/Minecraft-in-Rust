@@ -2025,10 +2025,11 @@ pub fn hoglin_hurt_target(m: &mut Mob, who: Who, cx: &mut Cx) {
     cx.events.push(MobEvent::Sound(sound, m.center(), 1.0, 1.0));
 }
 /// `AbstractPiglinModel.setupAnim`: the ears flap around their default angle
-/// (30 degrees for adults, 5 for babies).
+/// of 30 degrees (0.5235988 radians, the same for babies and adults — 26.1's
+/// baby piglins flapped around 5 degrees instead, via the deleted
+/// `BabyPiglinModel`/`BabyZombifiedPiglinModel`).
 pub fn ears(p: &mut Poses, s: &State) {
-    use horizon_core::geometry::trig::DEG_TO_RAD;
-    let default = if s.baby { 5.0 } else { 30.0 } * DEG_TO_RAD;
+    let default = 0.523_598_8;
     let freq = s.age * 0.1 + s.pos * 0.5;
     let amp = 0.08 + s.speed * 0.4;
     p.zrot("left_ear", -default - (freq * 1.2).mcos() * amp);
@@ -2668,5 +2669,52 @@ mod brute_home_tests {
         piglin.extra.off_hand = Some("minecraft:shield".into());
         stop_admiring(&mut piglin);
         assert_eq!(piglin.extra.off_hand.as_deref(), Some("minecraft:shield"));
+    }
+}
+
+#[cfg(test)]
+mod ear_tests {
+    use super::*;
+    use crate::mobs::Part;
+
+    fn ear_poses() -> Poses {
+        let ear = |name: &str| Part {
+            name: name.to_string(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: Vec::new(),
+        };
+        Poses::new(&Part {
+            name: "root".to_string(),
+            pose: [0.0; 9],
+            polygons: Vec::new(),
+            children: vec![ear("left_ear"), ear("right_ear")],
+        })
+    }
+
+    fn state(baby: bool) -> State {
+        State {
+            pos: 0.0,
+            speed: 0.0,
+            age: 0.0,
+            y_rot: 0.0,
+            x_rot: 0.0,
+            swing: 0.0,
+            baby,
+            partial: 0.0,
+        }
+    }
+
+    /// `AbstractPiglinModel.setupAnim`: at rest (frequency 0, amplitude 0.08)
+    /// a baby piglin's ears sit at the same 30 degrees as an adult's —
+    /// 1.21.11 dropped the 5-degree baby angle.
+    #[test]
+    fn a_baby_piglins_ears_sit_at_thirty_degrees_like_an_adults() {
+        for baby in [false, true] {
+            let mut p = ear_poses();
+            ears(&mut p, &state(baby));
+            assert_eq!(p.get("left_ear")[5], -0.603_598_77, "baby={baby}");
+            assert_eq!(p.get("right_ear")[5], 0.603_598_77, "baby={baby}");
+        }
     }
 }
