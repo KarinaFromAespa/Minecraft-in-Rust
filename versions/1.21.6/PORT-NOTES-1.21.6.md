@@ -172,7 +172,7 @@ complete on this VM, and the profile is to be measured by the CI
   harness saving `state.json` — "Disk quota exceeded". Fixed by
   deleting the candidate's `target/` (4.8G debug build; the check
   and tests were already recorded).
-- Sweep attempt 2: prepare ok; parity recorded **10 FAILs** in
+- Sweep attempt 2: prepare ok; parity recorded **9 FAILs** in
   `.local/parity-runner/state.json` (incl. `active_effect_tick`,
   `active_effects`, `ageable_integer_load` — all expected for
   unported behaviour). The 4th harness (`allay_cooldown`) builds
@@ -206,7 +206,7 @@ complete on this VM, and the profile is to be measured by the CI
   --profile <profile>`; the shared dependency records fix the
   client binary to `fast`). No flag selects dev.
 
-The 10 recorded FAILs are 10 of 658 individual harnesses, not gate
+The 9 recorded FAILs are 9 of 658 individual harnesses, not gate
 harnesses; they are not presented as a profile. `status.json`
 records the harness section as 0/0/0 of 17 with this note, and the
 CI run will fill it in.
