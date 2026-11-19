@@ -732,7 +732,7 @@ fn serverbound_round_trips() {
             sequence: 7,
         }),
         Serverbound::PlayerInput(PlayerInput { flags: 0b0101_0001 }),
-        Serverbound::PlayerLoaded(Empty),
+        Serverbound::PickItem(PickItem { slot: 12 }),
         Serverbound::Swing(Swing { hand: 0 }),
         Serverbound::SetCarriedItem(SetCarriedItem { slot: 4 }),
         Serverbound::UseItemOn(UseItemOn {

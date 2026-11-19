@@ -2264,8 +2264,11 @@ packet!(
     /// ServerboundPaddleBoatPacket: the boat's left and right paddles.
     PaddleBoat { left: bool => Bool, right: bool => Bool }
 );
-packet!(PickItemFromBlock { pos: [i32; 3] => Pos, include_data: bool => Bool });
-packet!(PickItemFromEntity { id: i32 => VarInt, include_data: bool => Bool });
+packet!(
+    /// ServerboundPickItemPacket: the inventory slot the client picked (1.21.3
+    /// and older; 1.21.4 split this into pick_item_from_block/from_entity).
+    PickItem { slot: i32 => VarInt }
+);
 packet!(
     /// ServerboundPlayerActionPacket.Action: 0 start destroy, 1 change destroy
     /// direction, 2 abort, 3 stop destroy, 4 drop all, 5 drop item, 6 release
@@ -2345,14 +2348,12 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     MovePlayerStatus(MovePlayerStatus) = MOVE_PLAYER_STATUS_ONLY,
     MoveVehicle(MoveVehicleRequest) = MOVE_VEHICLE,
     PaddleBoat(PaddleBoat) = PADDLE_BOAT,
-    PickItemFromBlock(PickItemFromBlock) = PICK_ITEM_FROM_BLOCK,
-    PickItemFromEntity(PickItemFromEntity) = PICK_ITEM_FROM_ENTITY,
+    PickItem(PickItem) = PICK_ITEM,
     PingRequest(crate::packets::status::Ping) = PING_REQUEST,
     PlayerAbilities(PlayerAbilitiesRequest) = PLAYER_ABILITIES,
     PlayerAction(PlayerAction) = PLAYER_ACTION,
     PlayerCommand(PlayerCommand) = PLAYER_COMMAND,
     PlayerInput(PlayerInput) = PLAYER_INPUT,
-    PlayerLoaded(Empty) = PLAYER_LOADED,
     Pong(Ping) = PONG,
     RenameItem(RenameItem) = RENAME_ITEM,
     SeenAdvancements(SeenAdvancements) = SEEN_ADVANCEMENTS,

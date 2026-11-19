@@ -192,11 +192,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "login: entity {} in {} ({:?})",
                         p.player_id, p.spawn.dimension, dimension
                     );
-                    c.send(&play::Serverbound::PlayerLoaded(Empty).encode())?;
+                    // 1.21.3 has no player_loaded packet: nothing to send on login.
                 }
                 play::Clientbound::Respawn(p) => {
                     dimension = registries.dimension(p.spawn.dimension_type);
-                    c.send(&play::Serverbound::PlayerLoaded(Empty).encode())?;
+                    // 1.21.3 has no player_loaded packet: nothing to send on respawn.
                 }
                 play::Clientbound::KeepAlive(p) => {
                     c.send(&play::Serverbound::KeepAlive(p).encode())?
