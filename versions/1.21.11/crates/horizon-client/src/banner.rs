@@ -165,22 +165,17 @@ impl Banners {
         format!("{base}.{}", layer.color)
     }
     /// `LoomMenu.isDyeItem`: the dye colour of a loom dye.
-    pub fn loom_dye(&self, items: &Items, stack: &ItemStack) -> Option<Arc<str>> {
-        let tagged = items
-            .item_tags
-            .get("minecraft:loom_dyes")
-            .is_some_and(|t| t.contains(&*stack.item));
-        tagged
-            .then(|| self.dyes.get(&stack.item).cloned())
-            .flatten()
+    pub fn loom_dye(&self, _items: &Items, stack: &ItemStack) -> Option<Arc<str>> {
+        // `LoomMenu$4`: the dye slot accepts any DyeItem — 1.21.11 has no
+        // `#loom_dyes` tag, and `dyes` holds exactly the dye items.
+        self.dyes.get(&stack.item).cloned()
     }
     /// `LoomMenu.isPatternItem`.
-    pub fn is_pattern_item(&self, items: &Items, stack: &ItemStack) -> bool {
-        items
-            .item_tags
-            .get("minecraft:loom_patterns")
-            .is_some_and(|t| t.contains(&*stack.item))
-            && self.provided.contains_key(&stack.item)
+    pub fn is_pattern_item(&self, _items: &Items, stack: &ItemStack) -> bool {
+        // `LoomMenu$5`: the pattern slot accepts any stack with
+        // PROVIDES_BANNER_PATTERNS — 1.21.11 has no `#loom_patterns` tag,
+        // and `provided` holds exactly the items with that component.
+        self.provided.contains_key(&stack.item)
     }
     /// `LoomMenu.getSelectablePatterns`.
     pub fn selectable(&self, pattern_item: Option<&ItemStack>) -> Vec<Arc<str>> {

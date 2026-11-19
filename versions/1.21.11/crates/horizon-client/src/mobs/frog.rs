@@ -390,11 +390,9 @@ impl LaySpawn {
             let open_top =
                 cx.w.collision_bounds(rel)
                     .is_none_or(|b| b.max_position().y < 1.0);
-            let supports = cx.w.fluid(rel[0], rel[1], rel[2]) == Fluid::Water
-                || cx.w.has_tag(
-                    "minecraft:supports_frogspawn",
-                    cx.w.block_name(rel[0], rel[1], rel[2]),
-                );
+            // `FrogspawnBlock.mayPlaceOn`: water below (1.21.11 has no
+            // `#supports_frogspawn` fluid/block tags).
+            let supports = cx.w.fluid(rel[0], rel[1], rel[2]) == Fluid::Water;
             let spawn = [rel[0], rel[1] + 1, rel[2]];
             if open_top && supports && Self::is_air(cx.w, spawn) {
                 if let Some(state) = cx.w.registry.default_state("minecraft:frogspawn") {

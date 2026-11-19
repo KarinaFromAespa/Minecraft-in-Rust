@@ -501,7 +501,7 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
                         .chain(color.map(|c| ("custom_color", Tag::Int(c)))),
                 )
             }
-            // ItemStackTemplate.CODEC: id, count and components.
+            // ItemStack.CODEC: id, count and components.
             Component::Stacks(stacks) => Tag::List(
                 stacks
                     .iter()
@@ -584,7 +584,7 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
     Some(out)
 }
 
-/// An `ItemStackTemplate` as its NBT codec writes it: id, count and components.
+/// An `ItemStack` as its NBT codec writes it: id, count and components.
 fn template_tag(t: &Stack, builtin: &Builtin, synced: &Dynamic) -> Tag {
     let mut entries = vec![
         (

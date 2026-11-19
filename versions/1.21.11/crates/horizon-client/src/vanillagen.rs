@@ -175,7 +175,7 @@ impl VanillaTerrain {
         )
     }
     /// A dimension of a world preset (`worldgen/world_preset`) whose
-    /// `generate_structures` is `structures` (`ChunkGenerator.createStructures`
+    /// `generate_features` is `structures` (`ChunkGenerator.createStructures`
     /// and `findNearestMapStructure` do nothing without).
     pub fn for_world(
         dir: &Path,

@@ -36,7 +36,7 @@ const DYE_NAMES: [&str; 16] = [
 /// The dye colour of a dye item from its name (`minecraft:red_dye` -> "red"):
 /// 1.21.11 has no `minecraft:dye` component, the colour is the item's own
 /// (DyeItem's dyeColor field).
-fn dye_from_name(name: &str) -> Option<&str> {
+pub fn dye_from_name(name: &str) -> Option<&str> {
     let dye = name.strip_prefix("minecraft:")?.strip_suffix("_dye")?;
     DYE_NAMES.contains(&dye).then_some(dye)
 }

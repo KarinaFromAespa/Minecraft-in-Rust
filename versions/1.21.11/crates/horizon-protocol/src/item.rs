@@ -1369,7 +1369,9 @@ impl Codec<Option<Stack>> for DelimitedSlot {
     }
 }
 
-/// ItemStackTemplate.STREAM_CODEC: the item, the count, then the patch.
+/// A full item stack on the wire: the item, the count, then the patch
+/// (`ItemStack.STREAM_CODEC` in 1.21.11; the 26.x `ItemStackTemplate` codec
+/// has the same shape, so the adapter shares this reader).
 pub struct Template;
 impl Codec<Stack> for Template {
     fn read(r: &mut Reader) -> Result<Stack> {
@@ -1689,9 +1691,9 @@ mod tests {
     }
 
     #[test]
-    fn charged_projectiles_are_item_stack_templates() {
+    fn charged_projectiles_are_item_stacks() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
-        // is a list of ItemStackTemplate, the item before the count.
+        // is a list of ItemStack, the item before the count.
         let bytes = [1, 7, 1, 0, 47, 1, 9, 1, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
@@ -1704,9 +1706,9 @@ mod tests {
     }
 
     #[test]
-    fn bundle_contents_are_item_stack_templates() {
+    fn bundle_contents_are_item_stacks() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
-        // ItemStackTemplate, as ChargedProjectiles is.
+        // ItemStack, as ChargedProjectiles is.
         let bytes = [1, 7, 1, 0, 48, 1, 9, 32, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(

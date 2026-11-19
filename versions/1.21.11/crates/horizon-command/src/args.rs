@@ -215,7 +215,7 @@ pub fn slot_ranges() -> Vec<(String, usize)> {
     range(&mut v, "hotbar.", 9);
     range(&mut v, "inventory.", 27);
     range(&mut v, "enderchest.", 27);
-    range(&mut v, "mob.inventory.", 8);
+    range(&mut v, "villager.", 8);
     range(&mut v, "horse.", 15);
     for (name, n) in [
         ("weapon", 1),

@@ -144,8 +144,6 @@ particle_types! {
     RedPoplarLeaves = "red_poplar_leaves",
     OrangePoplarLeaves = "orange_poplar_leaves",
     YellowPoplarLeaves = "yellow_poplar_leaves",
-    PauseMobGrowth = "pause_mob_growth",
-    ResetMobGrowth = "reset_mob_growth",
     BlockMarker = "block_marker",
 }
 impl ParticleType {

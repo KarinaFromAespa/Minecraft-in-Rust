@@ -74,8 +74,7 @@ impl Game<'_> {
                         continue;
                     }
                     // TestInstanceBlockEntity.renderMode: BOX.
-                    let padding = self.test_holder_padding(*pos);
-                    let (offset, size) = b.renderable_box(padding, self.test_rotation(*pos));
+                    let (offset, size) = b.renderable_box(self.test_rotation(*pos));
                     (
                         RenderMode::Box,
                         horizon_client::structure_block::RenderableBox { offset, size },

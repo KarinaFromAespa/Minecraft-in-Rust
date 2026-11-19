@@ -1673,7 +1673,7 @@ fn ageable_step(
         }
     }
     if super::finalize::ageable(m.species()) {
-        make_age_locked_particle(m, events);
+        tick_age_lock_timer(m);
     }
 }
 
@@ -2552,37 +2552,15 @@ pub fn set_age_locked_data(m: &mut Mob) {
     super::finalize::set_age(m, start);
     m.extra.age_lock_particle_timer = 40;
 }
-/// `AgeableMob.makeAgeLockedParticle`: while the golden dandelion's timer
-/// runs, every other tick one pause (locked) or reset (unlocked) growth
-/// particle rises above the mob (`sendParticles`, so the players are sent it).
-pub fn make_age_locked_particle(m: &mut Mob, events: &mut Vec<MobEvent>) {
-    if m.extra.age_lock_particle_timer <= 0 {
-        return;
+/// The age-lock timer ticks down. 1.21.11 emits no particles here: the
+/// pause/reset growth particles and `AgeableMob.makeAgeLockedParticle` are
+/// 26.x-only. The timer doubles as the golden-dandelion cooldown; the whole
+/// age-lock mechanic is 26.x-only (no `isAgeLocked`, no golden dandelion in
+/// 1.21.11) and its removal belongs to the AgeableMob item.
+pub fn tick_age_lock_timer(m: &mut Mob) {
+    if m.extra.age_lock_particle_timer > 0 {
+        m.extra.age_lock_particle_timer -= 1;
     }
-    if m.extra.age_lock_particle_timer % 2 == 0 {
-        let locked = m.extra.age_locked;
-        let (w, h) = (f64::from(m.width()), f64::from(m.height()));
-        let r = &mut m.random;
-        // getRandomX(1.0), getRandomY(0.2) + getBbHeight() + 0.2F or 0, getRandomZ(1.0).
-        let x = m.position.x + w * (2.0 * r.next_double() - 1.0);
-        let y = m.position.y
-            + h * ((2.0 * r.next_double() - 1.0) * 0.2)
-            + h
-            + if locked { f64::from(0.2_f32) } else { 0.0 };
-        let z = m.position.z + w * (2.0 * r.next_double() - 1.0);
-        events.push(MobEvent::LevelParticles {
-            kind: if locked {
-                "pause_mob_growth"
-            } else {
-                "reset_mob_growth"
-            },
-            at: [x, y, z],
-            spread: [0.0; 3],
-            speed: 0.0,
-            count: 1,
-        });
-    }
-    m.extra.age_lock_particle_timer -= 1;
 }
 /// `AgeableMob.ageUp(seconds, forced)`: both writes go through `setAge`, whose
 /// crossing is where a species' `ageBoundaryReached` runs (a goat's and a

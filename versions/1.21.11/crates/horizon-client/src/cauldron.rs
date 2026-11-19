@@ -3,11 +3,12 @@
 //! with vanilla's `useItemOn`.
 use crate::items::{ItemStack, Items};
 
-/// `ItemTags.CAULDRON_CAN_REMOVE_DYE` membership.
+/// `ItemTags.DYEABLE` membership (1.21.11's cauldron dye-removal tag;
+/// 26.x renamed it `CAULDRON_CAN_REMOVE_DYE` with identical contents).
 pub fn removes_dye(items: &Items, item: &str) -> bool {
     items
         .item_tags
-        .get("minecraft:cauldron_can_remove_dye")
+        .get("minecraft:dyeable")
         .is_some_and(|members| members.contains(item))
 }
 use horizon_world::chunk::BlockState;

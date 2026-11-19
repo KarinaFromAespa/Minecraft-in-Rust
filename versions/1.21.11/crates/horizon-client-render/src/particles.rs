@@ -221,6 +221,13 @@ enum Light {
     AgeEmission,
     /// `addSmoothBlockEmission` with the age fraction to the fourth power.
     AgeEmission4,
+    /// 1.21.11's glowing-particle light: the constant 240 (sky 0, block 15).
+    /// 26.x replaced it with `withBlock(light, 15)` (sky preserved).
+    Bright240,
+    /// 1.21.11's non-glowing `FlyTowardsPositionParticle`: the age fraction
+    /// to the fourth power added to the SKY channel. 26.x's
+    /// `addSmoothBlockEmission` adds it to the block channel instead.
+    AgeEmissionSky4,
     /// `FireflyParticle.getLightCoords`: block light fading in and out, no sky.
     Firefly,
     /// A Polytone particle's `light_level`: block light at least this level.
@@ -1099,6 +1106,12 @@ impl Particle {
                 let b = self.age as f32 / self.lifetime as f32;
                 let b = (b * b) * (b * b);
                 (sky, (block + (b.clamp(0.0, 1.0) * 240.0) as u32).min(240))
+            }
+            Light::Bright240 => (0, 240),
+            Light::AgeEmissionSky4 => {
+                let b = self.age as f32 / self.lifetime as f32;
+                let b = (b * b) * (b * b);
+                ((sky + (b.clamp(0.0, 1.0) * 240.0) as u32).min(240), block)
             }
             Light::MinBlock(level) => (sky, block.max(u32::from(level) * 16)),
             Light::Firefly => (
@@ -2889,9 +2902,9 @@ impl ParticleEngine {
                 q.lifetime = (r.next_float() * 10.0) as i32 + 30;
                 q.free_move = true;
                 q.light = if ty == T::VaultConnection {
-                    Light::Block15
+                    Light::Bright240
                 } else {
-                    Light::AgeEmission4
+                    Light::AgeEmissionSky4
                 };
                 q.behaviour = Behaviour::FlyTowards { start: p, alpha };
                 if ty == T::VaultConnection {
@@ -3130,7 +3143,7 @@ impl ParticleEngine {
                 q.scale(if ty == T::SculkCharge { 1.5 } else { 1.0 });
                 q.has_physics = false;
                 q.velocity = v;
-                q.light = Light::Block15;
+                q.light = Light::Bright240;
                 q.behaviour = Behaviour::Animated;
                 q.set = set;
                 if ty == T::SculkCharge {
@@ -3599,16 +3612,6 @@ impl ParticleEngine {
                 q.velocity = v;
                 q.behaviour = Behaviour::Wake;
                 q.set = set;
-                q
-            }
-            // SimpleVerticalParticle.
-            T::PauseMobGrowth | T::ResetMobGrowth => {
-                let mut q = Particle::moving(r, ty, p, v);
-                q.velocity = v;
-                q.gravity = 0.0;
-                q.velocity[1] += if ty == T::ResetMobGrowth { 0.03 } else { -0.03 };
-                q.size *= r.next_float() * 0.6 + 0.5;
-                q.lifetime = 8;
                 q
             }
             // BlockMarker: the block's particle sprite, half a block wide, 80 ticks.

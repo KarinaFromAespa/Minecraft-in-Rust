@@ -1,14 +1,17 @@
-//! The 26.3 client item definitions (`assets/<ns>/items/*.json`): the model
+//! The 1.21.11 client item definitions (`assets/<ns>/items/*.json`): the model
 //! tree (`model`, `composite`, `condition`, `select`, `range_dispatch`,
 //! `special`, `bundle/selected_item`, `empty`), its properties and tints, and
 //! the resolver that turns one stack into render layers
 //! (`ItemModelResolver.updateForTopItem`).
 //!
 //! Baked geometry lives in [`crate::item_bake`]; this module decides *which*
-//! model, tints, foil and transformation each layer gets.
+//! model, tints and foil each layer gets. (1.21.11 has no per-model
+//! `transformation`: 26.x added the field to every Unbaked record and a
+//! `Transformation.compose` at bake; a pack carrying the field parses with
+//! it ignored, as DFU codecs ignore unknown fields.)
 use crate::{
     json::{DecodeError, error as err},
-    math::{Mat4, normalize_quaternion, quaternion_from_axis_angle},
+    math::Mat4,
 };
 use serde_json::{Map, Value};
 use std::{
@@ -309,34 +312,6 @@ fn opaque(color: i32) -> i32 {
     color | (0xFF00_0000u32 as i32)
 }
 
-/// `Transformation.EXTENDED_CODEC`.
-fn transformation(v: &Value) -> Result<Mat4> {
-    if v.is_array() {
-        return Ok(Mat4::from_row_major(vector::<16>(v)?));
-    }
-    let m = object(v)?;
-    let quaternion = |v: &Value| -> Result<[f32; 4]> {
-        if v.is_array() {
-            return Ok(normalize_quaternion(vector::<4>(v)?));
-        }
-        let o = object(v)?;
-        Ok(quaternion_from_axis_angle(
-            float(required(o, "angle")?)?,
-            vector::<3>(required(o, "axis")?)?,
-        ))
-    };
-    let translation = vector::<3>(required(m, "translation")?)?;
-    let left = quaternion(required(m, "left_rotation")?)?;
-    let scale = vector::<3>(required(m, "scale")?)?;
-    let right = quaternion(required(m, "right_rotation")?)?;
-    Ok(Mat4::translation(translation)
-        .rotate(left)
-        .scale(scale)
-        .rotate(right))
-}
-fn optional_transformation(m: &Map<String, Value>) -> Result<Option<Mat4>> {
-    get(m, "transformation").map(transformation).transpose()
-}
 /// `Mth.floor(float)` as `ARGB.as8BitChannel` uses it.
 /// `ARGB.as8BitChannel`: `Mth.floor(value * 255.0F)`.
 fn channel(v: f32) -> i32 {
@@ -377,7 +352,6 @@ impl ClientItem {
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModelLeaf {
     pub model: String,
-    pub transformation: Option<Mat4>,
     pub tints: Vec<TintSource>,
 }
 #[derive(Clone, Debug)]
@@ -386,22 +360,18 @@ pub enum ItemModelNode {
     Model(ModelLeaf),
     Composite {
         models: Vec<ItemModelNode>,
-        transformation: Option<Mat4>,
     },
     Condition {
-        transformation: Option<Mat4>,
         property: ConditionProperty,
         on_true: Box<ItemModelNode>,
         on_false: Box<ItemModelNode>,
     },
     Select {
-        transformation: Option<Mat4>,
         property: SelectProperty,
         cases: Vec<SwitchCase>,
         fallback: Option<Box<ItemModelNode>>,
     },
     RangeDispatch {
-        transformation: Option<Mat4>,
         property: NumericProperty,
         scale: f32,
         /// Sorted by threshold (a stable sort, as `bake` does).
@@ -410,7 +380,6 @@ pub enum ItemModelNode {
     },
     Special {
         base: String,
-        transformation: Option<Mat4>,
         model: SpecialModel,
     },
     BundleSelectedItem,
@@ -430,7 +399,6 @@ impl ItemModelNode {
             let property = ident(required(m, "property")?)?;
             if !property.starts_with("minecraft:") {
                 return Ok(Self::Condition {
-                    transformation: optional_transformation(m)?,
                     property: ConditionProperty::Custom(property),
                     on_true: Box::new(Self::decode(required(m, "on_true")?)?),
                     on_false: Box::new(Self::decode(required(m, "on_false")?)?),
@@ -441,7 +409,6 @@ impl ItemModelNode {
             "minecraft:empty" => Self::Empty,
             "minecraft:model" => Self::Model(ModelLeaf {
                 model: ident(required(m, "model")?)?,
-                transformation: optional_transformation(m)?,
                 tints: match get(m, "tints") {
                     None => Vec::new(),
                     Some(t) => list(t)?
@@ -455,14 +422,11 @@ impl ItemModelNode {
                     .iter()
                     .map(Self::decode)
                     .collect::<Result<_>>()?,
-                transformation: optional_transformation(m)?,
             },
-            "minecraft:condition" if foreign::property_is_foreign(m)? => foreign::wrap(
-                Self::decode(required(m, "on_false")?)?,
-                optional_transformation(m)?,
-            ),
+            "minecraft:condition" if foreign::property_is_foreign(m)? => {
+                Self::decode(required(m, "on_false")?)?
+            }
             "minecraft:condition" => Self::Condition {
-                transformation: optional_transformation(m)?,
                 property: ConditionProperty::decode(m)?,
                 on_true: Box::new(Self::decode(required(m, "on_true")?)?),
                 on_false: Box::new(Self::decode(required(m, "on_false")?)?),
@@ -470,10 +434,9 @@ impl ItemModelNode {
             "minecraft:select" if foreign::property_is_foreign(m)? => {
                 // No case can match a property Horizon cannot read.
                 let fallback = get(m, "fallback").map(Self::decode).transpose()?;
-                foreign::wrap(fallback.unwrap_or(Self::Empty), optional_transformation(m)?)
+                fallback.unwrap_or(Self::Empty)
             }
             "minecraft:select" => {
-                let transformation = optional_transformation(m)?;
                 let property = SelectProperty::decode(m)?;
                 let cases = list(required(m, "cases")?)?
                     .iter()
@@ -490,7 +453,6 @@ impl ItemModelNode {
                     seen.push(value);
                 }
                 Self::Select {
-                    transformation,
                     property,
                     cases,
                     fallback: get(m, "fallback")
@@ -518,13 +480,9 @@ impl ItemModelNode {
                     let chosen = last_index_less_or_equal(&entries, 0.0)
                         .map(|i| entries.swap_remove(i).1)
                         .or(fallback);
-                    return Ok(foreign::wrap(
-                        chosen.unwrap_or(Self::Empty),
-                        optional_transformation(m)?,
-                    ));
+                    return Ok(chosen.unwrap_or(Self::Empty));
                 }
                 Self::RangeDispatch {
-                    transformation: optional_transformation(m)?,
                     property: NumericProperty::decode(m)?,
                     scale: get(m, "scale").map_or(Ok(1.0), float)?,
                     entries,
@@ -537,13 +495,11 @@ impl ItemModelNode {
                 // The mod's own renderer is not run: the base model stands in.
                 Self::Model(ModelLeaf {
                     model: ident(required(m, "base")?)?,
-                    transformation: optional_transformation(m)?,
                     tints: Vec::new(),
                 })
             }
             "minecraft:special" => Self::Special {
                 base: ident(required(m, "base")?)?,
-                transformation: optional_transformation(m)?,
                 model: SpecialModel::decode(required(m, "model")?)?,
             },
             "minecraft:bundle/selected_item" => Self::BundleSelectedItem,
@@ -1162,8 +1118,8 @@ impl ItemModels {
             env,
         };
         match definition {
-            Some(d) => state.node(out, &d.model, &Mat4::IDENTITY),
-            None => state.missing(out, &Mat4::IDENTITY),
+            Some(d) => state.node(out, &d.model),
+            None => state.missing(out),
         }
     }
     /// `ItemModelResolver.shouldPlaySwapAnimation`.
@@ -1197,10 +1153,6 @@ struct Resolve<'a> {
     components: ComponentsView<'a>,
     ctx: &'a Context<'a>,
     env: &'a dyn ItemEnv,
-}
-
-fn compose(parent: &Mat4, own: &Option<Mat4>) -> Mat4 {
-    own.as_ref().map_or(*parent, |t| parent.mul(t))
 }
 
 impl Resolve<'_> {
@@ -1241,19 +1193,20 @@ impl Resolve<'_> {
             .and_then(|v| int(v).ok())
             .unwrap_or(1)
     }
-    fn missing(&self, out: &mut ResolvedItem, transform: &Mat4) {
+    fn missing(&self, out: &mut ResolvedItem) {
         out.layers.push(Layer {
             content: LayerContent::Missing,
             tints: Vec::new(),
             foil: FoilType::None,
-            transform: *transform,
+            // 1.21.11 has no per-model transformation: every layer is identity
+            // here, and the display transform applies at render time.
+            transform: Mat4::IDENTITY,
         });
     }
-    fn node(&mut self, out: &mut ResolvedItem, node: &ItemModelNode, parent: &Mat4) {
+    fn node(&mut self, out: &mut ResolvedItem, node: &ItemModelNode) {
         match node {
             ItemModelNode::Empty => {}
             ItemModelNode::Model(leaf) => {
-                let transform = compose(parent, &leaf.transformation);
                 let foil = if self.has_foil() {
                     if matches!(self.stack.item.as_str(), "minecraft:clock")
                         || self.item_in_compass_tag()
@@ -1272,39 +1225,31 @@ impl Resolve<'_> {
                     },
                     tints,
                     foil,
-                    transform,
+                    transform: Mat4::IDENTITY,
                 });
             }
-            ItemModelNode::Composite {
-                models,
-                transformation,
-            } => {
-                let child = compose(parent, transformation);
+            ItemModelNode::Composite { models } => {
                 for m in models {
-                    self.node(out, m, &child);
+                    self.node(out, m);
                 }
             }
             ItemModelNode::Condition {
-                transformation,
                 property,
                 on_true,
                 on_false,
             } => {
-                let child = compose(parent, transformation);
                 let chosen = if self.condition(property) {
                     on_true
                 } else {
                     on_false
                 };
-                self.node(out, chosen, &child);
+                self.node(out, chosen);
             }
             ItemModelNode::Select {
-                transformation,
                 property,
                 cases,
                 fallback,
             } => {
-                let child = compose(parent, transformation);
                 let value = self.select_value(property);
                 let chosen = value.and_then(|v| {
                     cases
@@ -1313,19 +1258,17 @@ impl Resolve<'_> {
                         .map(|c| &c.model)
                 });
                 match (chosen, fallback) {
-                    (Some(m), _) => self.node(out, m, &child),
-                    (None, Some(f)) => self.node(out, f, &child),
-                    (None, None) => self.missing(out, &child),
+                    (Some(m), _) => self.node(out, m),
+                    (None, Some(f)) => self.node(out, f),
+                    (None, None) => self.missing(out),
                 }
             }
             ItemModelNode::RangeDispatch {
-                transformation,
                 property,
                 scale,
                 entries,
                 fallback,
             } => {
-                let child = compose(parent, transformation);
                 let value = self.numeric(property) * scale;
                 let chosen = if value.is_nan() {
                     None
@@ -1333,17 +1276,12 @@ impl Resolve<'_> {
                     last_index_less_or_equal(entries, value).map(|i| &entries[i].1)
                 };
                 match (chosen, fallback) {
-                    (Some(m), _) => self.node(out, m, &child),
-                    (None, Some(f)) => self.node(out, f, &child),
-                    (None, None) => self.missing(out, &child),
+                    (Some(m), _) => self.node(out, m),
+                    (None, Some(f)) => self.node(out, f),
+                    (None, None) => self.missing(out),
                 }
             }
-            ItemModelNode::Special {
-                base,
-                transformation,
-                model,
-            } => {
-                let transform = compose(parent, transformation);
+            ItemModelNode::Special { base, model } => {
                 out.layers.push(Layer {
                     content: LayerContent::Special {
                         base: base.clone(),
@@ -1356,7 +1294,7 @@ impl Resolve<'_> {
                     } else {
                         FoilType::None
                     },
-                    transform,
+                    transform: Mat4::IDENTITY,
                 });
             }
             ItemModelNode::BundleSelectedItem => {
@@ -1734,7 +1672,8 @@ fn custom_data_at<'a>(data: &'a Value, list: &str, index: i32) -> Option<&'a Val
 fn template_id(t: &Value) -> Option<&str> {
     t.get("id")?.as_str()
 }
-/// `ItemStackTemplate.create`: id, count and a component patch.
+/// An item stack from its `{id, count?, components?}` form (`ItemStack.CODEC`;
+/// 26.x names the same shape `ItemStackTemplate`).
 fn stack_from_template(template: &Value) -> Option<StackView> {
     let id = identifier(template.get("id")?.as_str()?).ok()?;
     let count = template.get("count").map_or(Some(1), |c| int(c).ok())?;

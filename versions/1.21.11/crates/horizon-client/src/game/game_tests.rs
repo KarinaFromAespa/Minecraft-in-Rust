@@ -897,7 +897,7 @@ impl Game<'_> {
             info.start_execution(1);
             self.test_structure_loaded(info);
             if let Some(b) = self.test_bounding_box(info.pos) {
-                // `getTestBounds()`: the structure's box and its padding.
+                // `getTestBounds()`: the structure's box.
                 let width = b.max[0] - b.min[0] + 1;
                 state.row_z = (state.row_z.0.min(b.min[2]), state.row_z.1.max(b.max[2] + 1));
                 state.next.0 += width + 5;
@@ -1007,14 +1007,10 @@ impl Game<'_> {
         true
     }
 
-    /// `getTestBoundingBox`: the structure's box and its padding.
+    /// `getTestBoundingBox`: the structure's box (1.21.11 has no
+    /// test-instance padding; 26.x inflates it by the padding).
     pub(super) fn test_bounding_box(&self, pos: Pos) -> Option<BoundingBox> {
-        let padding = self.test_holder_padding(pos);
-        let inner = self.test_structure_box(pos)?;
-        Some(BoundingBox::new(
-            inner.min.map(|v| v - padding),
-            inner.max.map(|v| v + padding),
-        ))
+        self.test_structure_box(pos)
     }
 
     /// `encaseStructure`: barriers around the box, but for the block itself.
@@ -1155,10 +1151,9 @@ impl Game<'_> {
 
     /// `getTestOrigin`: the block entity's start corner.
     fn test_origin(&self, info: &Info) -> [i32; 3] {
-        let padding = info.def.padding;
         let rotation = self.test_rotation(info.pos);
         self.test_instance_at(info.pos).map_or([0; 3], |b| {
-            b.start_corner([info.pos.0, info.pos.1, info.pos.2], padding, rotation)
+            b.start_corner([info.pos.0, info.pos.1, info.pos.2], rotation)
         })
     }
 

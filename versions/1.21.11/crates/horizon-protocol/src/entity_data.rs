@@ -155,7 +155,7 @@ pub enum ParticleData {
     /// Trail: target (3 doubles), ARGB color, duration.
     /// A duration of -1 is the adapter's internal marker for the pre-1.21.4 client-chosen lifetime.
     Trail([f64; 3], i32, i32),
-    /// An item (ItemStackTemplate: item, count, patch).
+    /// An item (ItemStack: item, count, patch).
     Item(Stack),
     /// Geyser and geyser_plume: water blocks.
     Geyser(i32),

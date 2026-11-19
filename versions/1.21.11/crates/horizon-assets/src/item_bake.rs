@@ -74,7 +74,8 @@ impl BakedItemModel {
         context_index(context).and_then(|i| self.transforms[i].as_ref())
     }
     /// `LayerRenderState.applyTransform`: the display transform followed by
-    /// the item model's own local transformation.
+    /// the layer's local transform (identity in 1.21.11, which has no
+    /// per-model transformation; 26.x composes the model's own here).
     pub fn layer_matrix(&self, context: DisplayContext, local: &Mat4) -> Mat4 {
         item_transform_matrix(self.transform(context), context.left_hand()).mul(local)
     }

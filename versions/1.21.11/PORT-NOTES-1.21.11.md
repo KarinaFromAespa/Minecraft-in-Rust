@@ -879,3 +879,190 @@ item 6 awaiting the client_probe build); D4/D5/D6 blocked (stamp
 quirk, no harness-subset.txt, no playtest.md — deferred per owner).
 Recorded in pins/1.21.11/ (profile.json stamped 8fa812d,
 delta-verdict.json).
+
+Rank 2 (492 items, in progress 2026-11-19)
+- Method: each item's named methods intersected with the diff store
+  (rank2-triage.json, workdir scratch): 189 items with no changed named
+  methods (quick verify) and 303 with real changes. Verification is a
+  normalized `javap -c -p` bytecode diff (javap_diff.py, workdir
+  scratch) of the item's classes, 26.1 vs 1.21.11, plus a Rust-side
+  check against the jars. No-change items are verified, not assumed:
+  the Java diff is read for every item. Batches of 10 in id order
+  ("A" batches = no-change items first).
+- A-batch 1 (70, 73, 91, 108, 135, 144, 150, 154, 172, 192), verified
+  2026-11-19, ported the same day:
+  - 70 no-change (network): Connection access/lambda noise;
+    FriendlyByteBuf ChunkPos helpers renamed (same single-long wire
+    format); 1.21.11's extra readVec3/readLpVec3 already exist in the
+    Rust (Vec3d, LpVec3).
+  - 73 no-change (core): Direction lambda order; 26.1 holder-attached
+    data components are a server-side API 1.21.11 predates; the
+    Rust's registry-sync model (NBT per entry) IS 1.21.11's wire form.
+  - 91 no-change (network/codec): ByteBufCodecs$1..$34 byte-identical
+    (+0/-0); flagged on constant-pool churn only.
+  - 108 CHANGED (item models): 26.1 has a per-model `transformation`
+    on every Unbaked record + `bake(BakingContext, Matrix4fc)`;
+    1.21.11 has neither. Removed from decode + bake in item_model.rs,
+    item_bake.rs, item_model/foreign.rs (+ the foreign wrap test): the
+    `transformation` field, `optional_transformation`,
+    `Transformation.EXTENDED_CODEC`, `compose`, and the `parent`
+    chain in `Resolve::node` (layers are identity now; the display
+    transform still applies at render time via `layer_matrix`). A pack
+    carrying a `transformation` field parses with it ignored.
+    Block-model display transforms untouched (separate feature, exists
+    in 1.21.11 too).
+  - 135 CHANGED (args.rs, one line): the slot range at offset 300,
+    size 8, is `"villager."` in 1.21.11, `"mob.inventory."` in 26.1.
+    Every other range verified identical. (Side find: 1.21.11's
+    `getCustomTabSugggestions`, three g's.)
+  - 144 no-change (nbt): SNBT grammar identical; 1.21.11 adds a
+    convenience `acceptAll(Stream)` overload.
+  - 150 CHANGED (levelgen): NoiseChunk's `fullNoiseDensity` /
+    `getInterpolatedDensity` are 26.1-only (the Rust has no
+    equivalent); NoiseRouterData's `noNewCaves` is 1.21.11-only but
+    the Rust builds routers data-driven from the 1.21.11 datapack
+    JSON (verified: nether.json is the noNewCaves form). WorldOptions
+    codec field renamed `generate_structures` -> `generate_features`
+    in save.rs (read + write) + 2 comment updates. The
+    `rename(generate_features, generate_structures)` fix at key
+    4771 is inert at 1.21.11 (fixer only runs fixes <= DATA_VERSION
+    4671); fixes above 4671 are inert dead code, left alone.
+  - 154 CHANGED (test instances): test-instance padding is 26.x-only
+    (`GameTestInstance.padding()` + `getPadding()` /
+    `getTestBoundingBox()` / `getTestBounds()`). Removed the padding
+    plumbing: `TestDef.padding` (field, decode, `test_holder_padding`),
+    the padding params on `renderable_box` / `structure_box` /
+    `start_corner`, the bounds inflation in `place_test_structure`
+    and `test_bounding_box` (now just the structure box), and the
+    padding offsets in test_locate.rs + structure_blocks.rs. The
+    boxes test now asserts the unpadded values. `export_test` stays a
+    stub (both versions' non-dev behaviour). test_instance_edit.rs
+    PADDING (UI layout) untouched.
+  - 172 CHANGED (components): `BlocksAttacks.bypassedBy` is a TagKey
+    in 1.21.11 (bare identifier on the wire) vs a HolderSet in 26.1.
+    The wire skip in skip.rs now reads it as `optional(ident)`; the
+    damage-reduction `type` stays a holder set in both versions.
+    Bundle weight semantics fold into item 85 (26.1 fallible
+    `DataResult<Fraction>` vs 1.21.11 plain `Fraction`; observable
+    difference only on overflow). ItemContainerContents slot shape
+    identical (comment fixed). WrittenBookContent's generation cap is
+    enforced by the recipe's `allowed_generations` default (0,1).
+  - 192 CHANGED (particle light): 1.21.11 has no `LightCoordsUtil`;
+    glowing particles return constant 240 (sky 0, block 15) where
+    26.1 does `withBlock(light, 15)`, and non-glowing
+    FlyTowardsPosition adds t^4*240 to the SKY channel where 26.1's
+    `addSmoothBlockEmission` adds it to the BLOCK channel. Added
+    `Light::Bright240` (VaultConnection, SculkCharge/Pop) and
+    `Light::AgeEmissionSky4` (Enchant, Nautilus). The shared
+    `Block15` / `AgeEmission4` variants stay for their own items —
+    check each user against its item's Java diff (the withBlock-15
+    -> constant-240 pattern is likely systematic).
+- A-batch 2 (206, 213, 214, 219, 236, 237, 241, 244, 245, 252),
+  verified 2026-11-19, ported the same day:
+  - 206 no-change (renderer): RenderPipelines registry differs
+    (Mojang-internal GPU registry; the Rust builds its own wgpu
+    pipelines). Chest sheet switch-map + GUI render-state renames.
+  - 213 no-change (server/level): ServerBossEvent UUID + `setDirty`
+    (26.x dirty-tracking); broadcast packets identical.
+  - 214 no-change (server): `ReloadableServerResources` 26.x
+    DataComponentInitializers vs 1.21.11's simpler load (consistent
+    with the T4 gap); `WorldStem` WorldDataAndGenSettings -> WorldData.
+  - 219 no-change (item properties): 26.1-only lazy
+    DataComponentInitializers / `craftRemainder(ItemStackTemplate)` /
+    `requiredFeatures`; the 5-entry `CRAFT_REMAINDERS` table verified
+    identical in both versions (all use the `(Item)` overload).
+  - 236 no-change (camel): CamelModel ctor refactor (Mojang-internal);
+    `CamelAnimations` UNCHANGED between versions; CamelAi server-side.
+  - 237 no-change (chunks): `LevelChunkSection` fluid counting —
+    26.1 counts fluids separately (second wire short), 1.21.11 folds
+    them into nonEmptyBlockCount (one short). The adapter already
+    handles both directions; the client never consumes the counts.
+  - 241 no-change (multiplayer): 26.1 sanitizes the server MOTD,
+    1.21.11 assigns directly; the Rust parses status JSON raw.
+  - 244 no-change (screens): InBedChatScreen gating moved into
+    ChatScreen in 26.1 (same behaviour); the Rust has its own in-bed
+    chat. GuiGraphicsExtractor vs GuiGraphics rename.
+  - 245 no-change (loot): `LootTable.validate` helper vs inlined loops
+    (same validation); `VisitedEntry` generics bound only.
+  - 252 CHANGED (post-processing): 1.21.11's `hasPostProcess`
+    (predicate `Blocks.always`) marks SELF on brown/red mushroom +
+    magma_block; soul_sand has none. 26.1's `getPostProcessPos`
+    marks mushrooms SELF, soul_sand + magma ABOVE (bubble columns).
+    `postprocess_self` gains magma_block, `postprocess_above` is now
+    empty. (Out of scope: the `legacy.rs` 12-block structure list —
+    vanilla structure placement uses flags with 16 set in both
+    versions, so the path never fires there; same in both, not a
+    1.21.11 regression.)
+- A-batch 3 (263, 264, 275, 279, 285, 311, 313, 314, 315, 316),
+  verified 2026-11-19, ported the same day:
+  - 263 CHANGED (tags): 26.1-only tags with live Rust references —
+    `loom_dyes`/`loom_patterns` (1.21.11's loom slots check
+    `instanceof DyeItem` / `has(PROVIDES_BANNER_PATTERNS)`; the tag
+    gates dropped, the data-driven lookups ARE the checks),
+    `cauldron_can_remove_dye` -> `dyeable` (identical 6-item
+    contents; DYED_COLOR check already in cauldron.rs),
+    `wolf_collar_dyes` -> DyeItem check (`dye_from_name`, now pub),
+    `supports_frogspawn` (1.21.11's `mayPlaceOn` is water-only; tag
+    branch dropped). EnchantmentTags TRADES_*_SPECIAL exist as
+    constants in 1.21.11 but have no data in either jar; no Rust
+    refs. TagLoader is server-side.
+  - 264 no-change (equine): spawn/aging/breeding/pathfinding diffs,
+    all server-side (26.1 zombie horses return an offspring from
+    `getBreedOffspring`, 1.21.11 returns null).
+  - 275 no-change (RenderSystem): 26.1 `GpuDevice.presentFrame()` vs
+    1.21.11 `GLFW.glfwSwapBuffers` — Mojang GPU-backend plumbing;
+    the Rust never touches RenderSystem.
+  - 279 no-change (dialogs): DialogAction's 3 constants identical
+    (only the CODEC field's declared type differs); ItemBody
+    ItemStackTemplate vs ItemStack (same shape; comment fixed).
+  - 285 no-change (fluids): `isWaterHole` helper vs inlined checks
+    (server-side flow); FluidState StateHolder refactor;
+    `typeHolder()` vs `holder()`; `isFull()` 26.1-only (the Rust's
+    fluid mesher reads heights from the level property).
+  - 311 CHANGED (particles): ONLY PAUSE_MOB_GROWTH and
+    RESET_MOB_GROWTH are 26.1-only particle types. 1.21.11's
+    AgeableMob emits only HAPPY_VILLAGER; the age-lock particle
+    spawn is removed (`make_age_locked_particle` ->
+    `tick_age_lock_timer`, timer decrement only), the enum variants
+    and the render case removed. The item-particle wire decode
+    (`Template::read`, item + count + patch) already matches
+    1.21.11's `ItemStack.STREAM_CODEC` (comment fixed). CORRECTION:
+    the whole age-lock MECHANIC is 26.x-only — 1.21.11's AgeableMob
+    has no `isAgeLocked`/`setAgeLocked`/`ageLockParticleTimer`, and
+    1.21.11's Items has no GOLDEN_DANDELION. Its removal
+    (`age_locked` field, `set_age_locked_data`,
+    `can_use_golden_dandelion`, the golden-dandelion interaction,
+    AgeLocked NBT, `cannot_be_age_locked`) belongs to item 23
+    (rank 2, CHANGED, covers mobs/ai.rs + AgeableMob), not item 311.
+  - 313 no-change (block entities): TypedInstance / ChunkPos
+    methods-vs-fields / `typeHolder()`; SculkCatalyst/Sensor
+    byte-identical.
+  - 314 no-change (entity storage): ctor order + `ChunkPos.pack` ->
+    `toLong`. Server-side.
+  - 315 no-change (container screens): `SnapbackData` is 26.1-only
+    (the Rust has no snapback code); GuiGraphicsExtractor renames.
+  - 316 no-change (HumanoidModel): 26.1-only per-slot armor mesh
+    system (`ADULT/BABY_ARMOR_PARTS_PER_SLOT`,
+    `createBabyArmorMesh(Set)`); 1.21.11-only `setAllVisible`. NO
+    ArmPose or setupAnim changes. The Rust builds humanoid models
+    from `entity-models.json` (1.21.11 jars).
+- Cross-item flags: `ItemStackTemplate` is 26.x-only (absent from
+  both 1.21.11 jars); the JSON/wire shape is usually the same as
+  ItemStack, so most uses need comment-only fixes — verify per item.
+  Fixed so far: item_model.rs (stack_from_template doc),
+  block_entity_nbt.rs:219, block_entity_item.rs:271, dialog.rs:101,
+  entity_data.rs (Item doc), item.rs (Template codec doc + 2 test
+  names), item_sync.rs (2 docs). Still owed by their own items:
+  crafting.rs (recipe result type), stations.rs (smithing),
+  mod_content_tests.rs. Glowing-particle light: check every
+  `Light::Block15` user against its item's Java diff.
+- Tag triage (D1-gating): the tag audit run 2026-11-19 against the
+  client jar's tag data (552 tags) finds 31 dead production tags +
+  5 dead test-only fixtures (deliberate, never fail). Item 263's
+  ports fix 5 of the 31 (loom_dyes, loom_patterns,
+  cauldron_can_remove_dye, supports_frogspawn, wolf_collar_dyes).
+  26 remain to triage (teleport tags, motion/suffocation tags,
+  block-behaviour tags, sulfur_cube_*); each needs its 1.21.11
+  equivalent verified against the jars.
+- Rank-2 A-batches 1-3: 30 items closed (9 changed, 21 no-change).
+  work-items.json rank2.closed = 30 on 2026-11-19.

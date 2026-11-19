@@ -3743,7 +3743,7 @@ impl WorldGen {
             .and_then(|o| o.get("generator"));
         Some(Self {
             preset: generator.map_or(WorldPreset::Normal, WorldPreset::of_generator),
-            structures: flag("generate_structures", true),
+            structures: flag("generate_features", true),
             bonus_chest: flag("bonus_chest", false),
         })
     }
@@ -3895,7 +3895,7 @@ pub fn write_world_gen_settings_with(
         Tag::compound([
             ("seed", Tag::Long(seed)),
             (
-                "generate_structures",
+                "generate_features",
                 Tag::Byte(i8::from(options.structures)),
             ),
             ("bonus_chest", Tag::Byte(i8::from(options.bonus_chest))),

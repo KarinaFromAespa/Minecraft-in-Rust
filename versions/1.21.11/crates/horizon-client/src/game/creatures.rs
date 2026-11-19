@@ -6551,14 +6551,11 @@ impl Game<'_> {
             .items()
             .get(&item)
             .is_some_and(|i| i.max_damage > 0);
-        // Wolf.mobInteract: the owner's #wolf_collar_dyes item only ever dyes the
-        // collar; one of the colour the collar already has does nothing.
-        let wolf_collar_dye = self
-            .res
-            .items()
-            .item_tags
-            .get("minecraft:wolf_collar_dyes")
-            .is_some_and(|t| t.contains(&*item));
+        // Wolf.mobInteract: any DyeItem dyes the collar (1.21.11 has no
+        // #wolf_collar_dyes tag); one of the colour the collar already has
+        // does nothing.
+        let wolf_collar_dye =
+            horizon_client::items::dye_from_name(&item).is_some();
         let parrot_poisonous = self
             .res
             .items()
