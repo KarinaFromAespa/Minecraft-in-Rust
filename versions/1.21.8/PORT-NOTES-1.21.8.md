@@ -334,7 +334,46 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 45/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53 + 4 zero-diff)
+### Rank 2: 46/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55 + 4 zero-diff)
+
+- **Item 55 — `crates/horizon-client/src/game/dragon.rs` (6 classes,
+  22 methods, 5 named in Horizon) — citations only:**
+  EnderDragonRenderer (10; submitRays), EnderDragonModel (3;
+  setupAnim), DragonFireballRenderer (3), EnderDragon (3;
+  aiStep), DragonSittingFlamingPhase (2; doClientTick),
+  DragonLandingPhase (1; doClientTick). The renderer diff is
+  all submission-API plumbing: 1.21.9's `submit` (SubmitNodeCollector
+  + CameraRenderState, `submitModel`/`submitCustomGeometry`) vs
+  1.21.8's `render` (MultiBufferSource + packed light,
+  `renderToBuffer`/direct VertexConsumer) — the geometry and
+  math are identical (base transform, death fade
+  `ARGB.white(t)` = `ARGB.color(floor(t*255), -1)`, the ray
+  seed 432/count/rotations/colours, the eight-segment crystal
+  beam, the fireball's scale-2 billboard quad), and the Rust
+  models the geometry, not the submission API. Citations
+  reworded: `submitRays` → `renderRays` (2 sites),
+  `submitCrystalBeams` → `renderCrystalBeams`. EnderDragonModel
+  has no decomp diff: the item-25 bridge pattern again
+  (1.21.8's class is exactly 44 bytes larger; the only javap
+  difference is the bridge `setupAnim(EntityRenderState)` vs
+  `setupAnim(Object)`). `EnderDragon.aiStep`/`onFlap`/
+  `onSyncedDataUpdated` differ only by `isClientSide()` (method)
+  vs `isClientSide` (field). The landing/flaming breath is
+  already the 1.21.8 form: both phases spawn plain
+  `DRAGON_BREATH` (1.21.9 wraps it in
+  `PowerParticleOption.create(..., 1.0F)`, per item 14), and
+  the Rust's breath sites and flame cloud both use the simple
+  option. Known gaps (vs both, version-identical vanilla, not
+  fixed here): the death dissolve is inverted — vanilla's
+  `rendertype_entity_alpha.fsh` discards where the mask alpha
+  is below the vertex alpha `t`, while the Rust's
+  `dissolve_color` passes `1 - t` and its shader discards
+  where the vertex alpha is below the mask's, dissolving the
+  complementary fragments mid-death (dragon-only overlay 38);
+  the fireball quad sits half a block low (vanilla's is
+  centred 0.5 above the feet, the Rust's on the feet) and is
+  lit full bright on both channels where vanilla forces only
+  block light 15.
 
 - **Item 53 — `crates/horizon-client-render/src/multiline_edit.rs` (3
   classes, 24 methods, 5 named in Horizon):** AbstractWidget

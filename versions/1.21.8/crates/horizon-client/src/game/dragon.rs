@@ -3506,11 +3506,11 @@ impl Game<'_> {
             self.crystal_beam(pos, to - pos, self.visual_ticks() as f32 + a, camera, out);
         }
     }
-    /// `EnderDragonRenderer.submitRays`: untextured, additive death rays.
+    /// `EnderDragonRenderer.renderRays`: untextured, additive death rays.
     fn dragon_rays(&self, base: glam::Mat4, t: f32, out: &mut Vec<Vertex>) {
         dragon_rays(base, t, self.gui.atlas.font.white(), out);
     }
-    /// `submitCrystalBeams`: an eight-sided tube from `from` (+2 up) along
+    /// `renderCrystalBeams`: an eight-sided tube from `from` (+2 up) along
     /// `delta`, the beam texture scrolling along it.
     pub(super) fn crystal_beam(
         &self,
