@@ -1923,3 +1923,55 @@ Rank 2 (492 items, in progress 2026-11-19)
     reversal is item 24, the world-clock removal is item 439).
   Rank 2 now 190/492 (27 changed, 163 no-change).
   work-items.json rank2.closed = 190 on 2026-11-19.
+- Item 12 (game/creatures.rs), changed, ported 2026-11-19: 39 vanilla
+  classes changed (195 methods, 49 named), javap diff 4,466 lines.
+  Ported, all verified against the jars:
+  - MushroomCow: the brown-mooshroom flower-feeding arm lost its
+    adult gate (26.1's `isBaby()` check; 1.21.11 lets babies take the
+    flower's effects).
+  - Dolphin: `FollowPlayerRidden` -> `FollowBoat` — 1.21.11 adds one
+    FollowBoatGoal at priority 8; 26.1 adds two
+    FollowPlayerRiddenEntityGoal (boat + nautilus). Feed arm uses
+    `is_baby()` instead of `can_age_up` (1.21.11 has no age locking).
+  - Goat: `ramming_x_head_rot` flat 30.0 (26.1 gives babies 52.5);
+    `age_boundary_reached` adds/removes horns (babies hornless,
+    adults horned); newborns spawn hornless; `drop_horn`'s baby gate
+    removed (babies have no horns to lose).
+  - Sheep: `Sheep.ate` grows a baby on `is_baby()`, not `can_age_up`.
+  - GlowSquidRenderer: babies use the adult model/texture (1.21.11
+    has no `glow_squid_baby.png`).
+  - GuardianRenderer: texture paths flattened (`entity/guardian`,
+    `entity/guardian_elder`, `entity/guardian_beam`).
+  - SpectralArrowRenderer / TippableArrowRenderer: `arrow_spectral` ->
+    `spectral_arrow`, `arrow_tipped` -> `tipped_arrow`.
+  - ThrownTridentRenderer / SpinAttackEffectLayer: `entity/trident/trident`
+    -> `entity/trident`, `trident_riptide` likewise.
+  - FlameFeatureRenderer: flame vertices at block light 15, sky light
+    0 (1.21.11's hardcoded light 240); 26.1 keeps the entity's sky
+    light.
+  - IronGolem: doc comments updated `canAttack` -> `canAttackType`
+    (behaviour already matched); DyeColor: doc comment cites
+    `makeCraftColorInput` (implementation already 1.21.11's).
+  - No-change, verified against the jars: TamableAnimal (26.1's
+    5-arg `feed` is inlined in 1.21.11's Wolf.mobInteract, same heal),
+    Chicken (the diff is the 26.x sound-variant system; the Rust is
+    already 1.21.11-correct), Goat baby scale / powder-snow malus /
+    brain form (no Rust surface; GoatAi is a separate item), Nautilus
+    (brain form), SnowGolem / Creeper / Bogged / AmethystBlock /
+    NetherPortalBlock / TargetBlock (overload/param noise), Projectile
+    (`is(TagKey)` vs `getType().is(TagKey)`, equivalent),
+    AbstractThrownPotion, Snowball, ThrownEgg (same odds; the variant
+    application has the same outcome), EnderpearlItem / SnowballItem
+    (shoot power 1.5 in both), SpawnEggItem (identical logic, static
+    vs instance shape), Enchantment (`doPostPiercingAttack` vs
+    `doLunge` is a pure rename — same body, component and callers;
+    the FloatAction/Consumer shapes are equivalent),
+    PlayerInteractTrigger (validation plumbing), the renderer
+    `submit` / `submitModel` plumbing (CameraRenderState package move,
+    RenderType param) and the llama-spit texture rename (no hardcoded
+    Rust surface).
+  - Referred: the full age-lock removal is item 23 (mobs/ai.rs);
+    the goat's powder-snow malus is missing in the Rust (upstream
+    gap, both versions).
+  Rank 2 now 191/492 (28 changed, 163 no-change).
+  work-items.json rank2.closed = 191 on 2026-11-19.

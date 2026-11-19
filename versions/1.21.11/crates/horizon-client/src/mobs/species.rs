@@ -1079,7 +1079,7 @@ pub const ALL: &[Def] = &[
         Guardian,
         "guardian",
         "guardian#main",
-        "entity/guardian/guardian",
+        "entity/guardian",
         A::Guardian,
         [
             "entity.guardian.ambient",
@@ -1093,7 +1093,7 @@ pub const ALL: &[Def] = &[
         ElderGuardian,
         "elder_guardian",
         "elder_guardian#main",
-        "entity/guardian/guardian_elder",
+        "entity/guardian_elder",
         A::Guardian,
         [
             "entity.elder_guardian.ambient",
@@ -1442,7 +1442,6 @@ impl Def {
             Species::Armadillo => &["armadillo_baby"],
             Species::Axolotl => &["axolotl_baby"],
             Species::Squid => &["squid_baby"],
-            Species::GlowSquid => &["glow_squid_baby"],
             Species::Salmon => &["salmon_small", "salmon_large"],
             Species::TropicalFish => &["tropical_fish_large"],
             Species::Pufferfish => &["pufferfish_small", "pufferfish_medium"],

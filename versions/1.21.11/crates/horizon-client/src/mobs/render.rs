@@ -547,10 +547,9 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             baby_or(m, "squid#main", "squid_baby#main"),
             b("entity/squid/squid"),
         ),
-        S::GlowSquid => (
-            baby_or(m, "glow_squid#main", "glow_squid_baby#main"),
-            b("entity/squid/glow_squid"),
-        ),
+        // GlowSquidRenderer: one texture and model for babies and adults
+        // alike (26.1 adds a `glow_squid_baby` texture for babies).
+        S::GlowSquid => ("glow_squid#main".into(), b("entity/squid/glow_squid")),
         S::Dolphin => (
             baby_or(m, "dolphin#main", "dolphin_baby#main"),
             b("entity/dolphin/dolphin"),

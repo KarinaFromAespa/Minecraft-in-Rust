@@ -175,8 +175,9 @@ pub fn register(m: &mut Mob) {
             g.add(6, MeleeAttack::new(f64::from(1.2_f32), true));
             g.add(7, super::dolphin::MoveToItem::default());
             g.add(8, super::dolphin::PlayWithItems);
-            g.add(8, super::dolphin::FollowPlayerRidden::new(false));
-            g.add(8, super::dolphin::FollowPlayerRidden::new(true));
+            // `Dolphin.registerGoals`: one FollowBoatGoal at 8 (26.1
+            // adds a second for nautiluses).
+            g.add(8, super::dolphin::FollowBoat::new());
             // `Dolphin.registerGoals`: AvoidEntityGoal(Guardian.class, 8, 1, 1).
             g.add(
                 9,

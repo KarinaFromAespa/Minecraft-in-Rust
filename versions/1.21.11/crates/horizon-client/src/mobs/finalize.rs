@@ -951,7 +951,16 @@ pub fn set_age(m: &mut Mob, age: i32) {
 fn age_boundary_reached(m: &mut Mob) {
     let baby = m.is_baby();
     match m.species() {
-        Species::Goat | Species::Hoglin => {
+        Species::Goat => {
+            if let Some(damage) = age_attack_damage(m.species(), baby) {
+                set_base(m, Attr::AttackDamage, damage);
+            }
+            // Goat.ageBoundaryReached: a baby loses its horns, an adult
+            // grows them back (1.21.11; 26.1 keeps the horns and gates
+            // dropHorn on babies instead).
+            m.extra.lost_horns = [baby; 2];
+        }
+        Species::Hoglin => {
             if let Some(damage) = age_attack_damage(m.species(), baby) {
                 set_base(m, Attr::AttackDamage, damage);
             }

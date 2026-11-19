@@ -731,12 +731,12 @@ impl Mob {
         )
     }
     /// `IronGolem.isPlayerCreated`: a golem a player built, which
-    /// `IronGolem.canAttack` never lets attack a player.
+    /// `IronGolem.canAttackType` never lets attack a player.
     pub fn built_by_player(&self) -> bool {
         self.species() == Species::IronGolem && self.extra.player_created
     }
-    /// `canAttack` for the player: a golem a player built never attacks
-    /// players (`IronGolem.canAttack`), and a pet never attacks its owner
+    /// `canAttackType` for the player: a golem a player built never attacks
+    /// players (`IronGolem.canAttackType`), and a pet never attacks its owner
     /// (`TamableAnimal.canAttack`: `isOwnedBy`). In Peaceful nothing attacks a
     /// player (`LivingEntity.canAttack`, `TargetingConditions.test`: combat
     /// conditions fail when the difficulty is PEACEFUL).
@@ -749,8 +749,8 @@ impl Mob {
                     .as_ref()
                     .is_some_and(|p| super::tame::owned_by(self.extra.owner, p.uuid)))
     }
-    /// `canAttack` of any target: the player rules above, and
-    /// `IronGolem.canAttack`'s refusal of creepers. The callers check that
+    /// `canAttackType` of any target: the player rules above, and
+    /// `IronGolem.canAttackType`'s refusal of creepers. The callers check that
     /// the target is alive and can be seen as an enemy.
     pub fn spares_target(&self, w: &MobWorld, who: Who) -> bool {
         // Dolphin.canAttack: a baby dolphin attacks nobody, so whatever hurt it

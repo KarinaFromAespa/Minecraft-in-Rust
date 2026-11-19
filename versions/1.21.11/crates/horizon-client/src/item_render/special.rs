@@ -551,7 +551,7 @@ pub(super) fn submit(
         }
         SpecialKind::Trident => {
             let foil = if has_foil { Foil::Standard } else { Foil::None };
-            part("trident", &none, "entity/trident/trident", white, foil);
+            part("trident", &none, "entity/trident", white, foil);
         }
         SpecialKind::Banner { color, wall } => {
             let (main, flag) = if *wall {

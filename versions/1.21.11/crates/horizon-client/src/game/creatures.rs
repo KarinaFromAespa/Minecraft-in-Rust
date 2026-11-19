@@ -191,15 +191,16 @@ fn pickable_projectile_hitboxes(
 }
 
 /// `FlameFeatureRenderer`: fire quads stacked up a burning entity's box,
-/// turned to the camera around Y, at full block light. `at` is the entity's
-/// feet relative to the camera.
+/// turned to the camera around Y, at block light 15 and sky light 0
+/// (`fireVertex`'s hardcoded light 240). `at` is the entity's feet
+/// relative to the camera. 26.1 keeps the entity's sky light instead
+/// (`LightCoordsUtil.withBlock(lightCoords, 15)`).
 fn flame_geometry(
     atlas: &horizon_client::hud::HudAtlas,
     at: glam::Vec3,
     width: f32,
     height: f32,
     camera_yaw: f32,
-    light: u8,
     out: &mut Vec<Vertex>,
 ) {
     let (Some(fire0), Some(fire1)) = (
@@ -213,7 +214,7 @@ fn flame_geometry(
     // Mth.rotationAroundAxis(Y, camera.orientation): the camera's turn about Y.
     let turn = glam::Mat3::from_rotation_y(std::f32::consts::PI - camera_yaw.to_radians());
     let lift = 0.3 - (h as i32) as f32 * 0.02;
-    let packed = (u32::from(light >> 4) * 16) | ((15 * 16) << 8);
+    let packed = (15 * 16) << 8;
     let (mut r, mut yo, mut zo, mut ss) = (0.5f32, 0.0f32, 0.0f32, 0);
     while h > 0.0 {
         let tex = if ss % 2 == 0 { fire0 } else { fire1 };
@@ -3959,8 +3960,10 @@ impl Game<'_> {
             }
             // Goat.getBreedOffspring: GoatAi.initMemories, then the baby
             // screams if the parent a coin toss picks does, or on a 2% roll.
+            // A newborn has no horns (Goat.ageBoundaryReached adds them
+            // when it grows up); 26.1's babies keep theirs.
             if p.species() == Species::Goat {
-                child.extra.lost_horns = [false; 2];
+                child.extra.lost_horns = [true; 2];
                 horizon_client::mobs::finalize::goat_init_memories(child, &mut self.world.random);
                 let pick_parent = self.world.random.next_boolean();
                 let parent_screams = if pick_parent {
@@ -6680,9 +6683,10 @@ impl Game<'_> {
                 }])?;
                 self.damage_held_tool();
             }
-            // MushroomCow.mobInteract: a brown adult takes the flower's effects
-            // unless it holds some already, when it only puffs smoke.
-            Species::Mooshroom if m.extra.variant == 1 && !m.is_baby() && flower.is_some() => {
+            // MushroomCow.mobInteract: a brown mooshroom takes the flower's
+            // effects unless it holds some already, when it only puffs
+            // smoke. 1.21.11 has no adult gate here (26.1 added one).
+            Species::Mooshroom if m.extra.variant == 1 && flower.is_some() => {
                 if m.extra.stew_effects.is_some() {
                     stew_particles = Some(false);
                 } else {
@@ -7008,9 +7012,11 @@ impl Game<'_> {
             }
             // Dolphin.mobInteract: a fish makes a baby grow by a tenth and an
             // adult remember it (`gotFish`), to swim to a treasure.
+            // 1.21.11 checks `isBaby()`; 26.1's `canAgeUp()` also refuses
+            // an age-locked baby, and age locking is 26.x-only.
             Species::Dolphin if fish => {
                 eat = Some(("entity.dolphin.eat", 1.0, 1.0));
-                if horizon_client::mobs::ai::can_age_up(m) {
+                if m.is_baby() {
                     let secs = ((-m.extra.age / 20) as f32 * 0.1) as i32;
                     horizon_client::mobs::ai::age_up(m, secs, true);
                 } else {
@@ -8110,7 +8116,7 @@ impl Game<'_> {
             // GuardianRenderer: the laser to the locked target.
             if let Some((time, scale)) = beam
                 && let Some(target) = self.beam_target(mob.ai.target, alpha)
-                && let Some(uv) = lookup("entity/guardian/guardian_beam")
+                && let Some(uv) = lookup("entity/guardian_beam")
             {
                 let a = alpha;
                 let eye = glam::DVec3::new(
@@ -8181,9 +8187,9 @@ impl Game<'_> {
                 };
                 // SpectralArrowRenderer, and TippableArrowRenderer's `getColor() > 0`.
                 let texture = if a.is_spectral_arrow() {
-                    "entity/projectiles/arrow_spectral"
+                    "entity/projectiles/spectral_arrow"
                 } else if a.arrow.as_ref().is_some_and(|s| s.effect_color > 0) {
-                    "entity/projectiles/arrow_tipped"
+                    "entity/projectiles/tipped_arrow"
                 } else {
                     "entity/projectiles/arrow"
                 };
@@ -8227,7 +8233,7 @@ impl Game<'_> {
                     out,
                 );
                 if a.arrow.as_ref().is_some_and(|s| s.on_fire()) {
-                    flame_geometry(atlas, c, 0.5, 0.5, self.yaw, light, out);
+                    flame_geometry(atlas, c, 0.5, 0.5, self.yaw, out);
                 }
                 continue;
             }
@@ -8236,7 +8242,7 @@ impl Game<'_> {
                 let Some(model) = self.trident_model.as_ref() else {
                     continue;
                 };
-                let Some(r) = atlas.sprites.get("entity/trident/trident").copied() else {
+                let Some(r) = atlas.sprites.get("entity/trident").copied() else {
                     continue;
                 };
                 let m = glam::Mat4::from_translation(c)
@@ -8357,7 +8363,7 @@ impl Game<'_> {
             // over its box as any other entity renderer does.
             if a.on_fire() {
                 let size = a.kind.size() as f32;
-                flame_geometry(atlas, c, size, size, self.yaw, light, out);
+                flame_geometry(atlas, c, size, size, self.yaw, out);
             }
             // `ThrownItemRenderer` for a fireball: the item `Fireball.getItem`
             // returns (a fire charge until `setItem` gave it another), its model
@@ -8988,10 +8994,11 @@ fn dye_mix(recipes: &Recipes, random: &mut impl RandomSource, a: u8, b: u8) -> u
     if random.next_boolean() { a } else { b }
 }
 
-/// `DyeColor.findColorMixInRecipes`: the dye colour a two-dye crafting recipe
-/// makes, when its result is a dye. The two dyes are the grid's first row
-/// (`CraftingInput.of(2, 1, ...)`) and the recipe manager answers for it; the
-/// result's `_dye` item names the colour.
+/// `DyeColor.getMixedColor`'s recipe lookup (`makeCraftColorInput`: the two
+/// canonical dye items in the grid's first row, `CraftingInput.of(2, 1, ...)`).
+/// The dye colour a two-dye crafting recipe makes, when its result is a dye;
+/// the result's `_dye` item names the colour. 26.1's `findColorMixInRecipes`
+/// instead tries every dye item of each colour.
 fn dye_color_mix_in_recipes(recipes: &Recipes, a: u8, b: u8) -> Option<u8> {
     let dye = |c: u8| {
         let name = horizon_client::mobs::render::DYE_NAMES[usize::from(c) & 15];

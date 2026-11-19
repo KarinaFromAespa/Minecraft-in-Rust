@@ -3156,7 +3156,7 @@ pub struct PlayerView {
     /// (`getControllingPassenger`).
     pub vehicle: Option<Vehicle>,
 }
-/// What a player rides, for the mobs that follow it (`FollowPlayerRiddenEntityGoal`).
+/// What a player rides, for the mobs that follow it (`FollowBoatGoal`).
 #[derive(Clone, Debug)]
 pub struct Vehicle {
     pub nautilus: bool,

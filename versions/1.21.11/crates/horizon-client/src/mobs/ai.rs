@@ -2975,8 +2975,10 @@ pub fn ate(m: &mut Mob, events: &mut Vec<MobEvent>) {
     });
     if m.species() == Species::Sheep {
         m.extra.sheared = false;
-        // Sheep.ate: only a baby `canAgeUp` (no age lock holds it) grows.
-        if can_age_up(m) {
+        // Sheep.ate: only a baby grows (1.21.11 checks `isBaby`; 26.1's
+        // `canAgeUp` also refuses an age-locked baby, and 1.21.11 has no
+        // age locking).
+        if m.is_baby() {
             // AgeableMob.ageUp(60)
             age_up(m, 60, false);
         }
