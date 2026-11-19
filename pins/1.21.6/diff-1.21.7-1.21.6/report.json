@@ -1,0 +1,996 @@
+{
+  "old": "1.21.7",
+  "new": "1.21.6",
+  "summary": {
+    "facts": {
+      "protocol_version": [
+        772,
+        771
+      ],
+      "world_version": [
+        4438,
+        4435
+      ]
+    },
+    "ranks": {
+      "1": 3,
+      "2": 17,
+      "3": 10,
+      "5": 1
+    },
+    "classes": {
+      "added": 0,
+      "removed": 1,
+      "moved": 0,
+      "changed": 45,
+      "horizon": 29
+    },
+    "generators": {
+      "crates/horizon-core/src/version.rs": "stale"
+    }
+  },
+  "harnesses": null,
+  "regen": null,
+  "items": [
+    {
+      "rank": 1,
+      "kind": "regenerate",
+      "title": "Regenerate crates/horizon-core/src/version.rs",
+      "files": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "command": "python3 tools/gen_version_consts.py",
+      "id": 1
+    },
+    {
+      "rank": 1,
+      "kind": "save-format",
+      "title": "Save format: DataFixers 4438 -> 4435: 0 schemas, 0 fixes added, 0 datafix classes changed",
+      "files": [
+        "crates/horizon-client/src/debug_entries.rs",
+        "crates/horizon-client/src/save.rs",
+        "crates/horizon-protocol/src/adapter/translate/v1_20_3.rs",
+        "crates/horizon-world/src/datafix/json.rs",
+        "crates/horizon-world/src/datafix/mod.rs"
+      ],
+      "harnesses": [
+        "arrow_mob_permission",
+        "blending",
+        "camera",
+        "chat_screen",
+        "chest_load",
+        "chunk_generation",
+        "command_exec",
+        "command_parse",
+        "container_component_names",
+        "container_screen",
+        "container_title",
+        "datafix",
+        "datapack_worldgen",
+        "dragon_contacts",
+        "flat_generation",
+        "game_loop",
+        "hotbar",
+        "mob_ai",
+        "mob_rider_navigation",
+        "options",
+        "portal_tickets",
+        "redstone_catalog",
+        "sculk",
+        "stand_lodestone",
+        "structure_layout",
+        "structure_start_nbt",
+        "toggle_keys",
+        "trading"
+      ],
+      "details": {
+        "schemas": [],
+        "fixes": [],
+        "changed": []
+      },
+      "id": 2
+    },
+    {
+      "rank": 1,
+      "kind": "facts",
+      "title": "Version facts: protocol_version 772 -> 771, world_version 4438 -> 4435",
+      "files": [
+        "crates/horizon-client/src/net.rs:1514",
+        "crates/horizon-core/src/version.rs:11",
+        "crates/horizon-core/src/version.rs:5",
+        "crates/horizon-core/src/version.rs:7",
+        "crates/horizon-core/src/version.rs:9",
+        "crates/horizon-protocol/src/adapter.rs:489",
+        "crates/horizon-protocol/src/adapter.rs:491",
+        "crates/horizon-protocol/src/adapter/v1_20_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_20_6.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_1.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_10.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:6",
+        "crates/horizon-protocol/src/adapter/v1_21_11.rs:7",
+        "crates/horizon-protocol/src/adapter/v1_21_3.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_4.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_5.rs:1",
+        "crates/horizon-protocol/src/adapter/v1_21_8.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_1_2.rs:1",
+        "crates/horizon-protocol/src/adapter/v26_2.rs:1",
+        "crates/horizon-protocol/src/ids.rs:1",
+        "tools/regenerate_registry_id_adapters.py:68"
+      ],
+      "details": {
+        "protocol_version": [
+          772,
+          771
+        ],
+        "world_version": [
+          4438,
+          4435
+        ]
+      },
+      "id": 3
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/game/raids.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game/raids.rs",
+      "files": [
+        "crates/horizon-client/src/game/raids.rs"
+      ],
+      "harnesses": [
+        "conversion_tags",
+        "entity_model",
+        "mob_attributes",
+        "natural_spawn",
+        "spawner",
+        "trading",
+        "trial_spawner",
+        "vault"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/monster/Vindicator": {
+          "methods": 2,
+          "named": [
+            "customServerAiStep"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 4
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/save.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/save.rs",
+      "files": [
+        "crates/horizon-client/src/save.rs"
+      ],
+      "harnesses": [
+        "chest_load",
+        "container_title",
+        "portal_tickets",
+        "trading"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/level/chunk/storage/SimpleRegionStorage": {
+          "methods": 1,
+          "named": [
+            "upgradeChunkTag"
+          ],
+          "removed": false
+        }
+      },
+      "score": 11,
+      "id": 5
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-core/src/version.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+      "module": "crates/horizon-core/src/version.rs",
+      "files": [
+        "crates/horizon-core/src/version.rs"
+      ],
+      "harnesses": [
+        "block_tint",
+        "environment_attribute_modifier",
+        "environment_system",
+        "environment_timeline",
+        "mob_discard",
+        "server_property_numbers",
+        "villager_farming",
+        "world_border_render"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/SharedConstants": {
+          "methods": 1,
+          "named": [
+            "getProtocolVersion"
+          ],
+          "removed": false
+        }
+      },
+      "score": 11,
+      "id": 6
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client-render/src/particles.rs: 1 vanilla classes changed (4 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/particles.rs",
+      "files": [
+        "crates/horizon-client-render/src/particles.rs"
+      ],
+      "harnesses": [
+        "held_item_stack",
+        "item_model",
+        "particle_providers"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/item/ItemStackRenderState": {
+          "methods": 4,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 4,
+      "id": 7
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: client/gui/components: 2 vanilla classes changed (4 methods, 0 named in Horizon)",
+      "module": "widely named: client/gui/components",
+      "files": [
+        "crates/horizon-client-input/src/clipboard.rs",
+        "crates/horizon-client-render/src/chat.rs",
+        "crates/horizon-client-render/src/multiline_edit.rs",
+        "crates/horizon-client-render/src/options_ui.rs",
+        "crates/horizon-client-render/src/screen_draw.rs",
+        "crates/horizon-client-render/src/ui.rs",
+        "crates/horizon-client-render/src/widgets.rs",
+        "crates/horizon-client/src/creative.rs",
+        "crates/horizon-client/src/dialog_screen.rs",
+        "crates/horizon-client/src/game.rs",
+        "crates/horizon-client/src/game/block_editor.rs",
+        "crates/horizon-client/src/game/books.rs",
+        "crates/horizon-client/src/game/clipboard.rs",
+        "crates/horizon-client/src/game/command_blocks.rs",
+        "crates/horizon-client/src/game/creative_screen.rs",
+        "crates/horizon-client/src/game/debug_keys.rs",
+        "crates/horizon-client/src/game/debug_options.rs",
+        "crates/horizon-client/src/game/dialogs.rs",
+        "crates/horizon-client/src/game/key_focus.rs",
+        "crates/horizon-client/src/game/lan_screen.rs",
+        "crates/horizon-client/src/game/narrator.rs",
+        "crates/horizon-client/src/game/pad_menu.rs",
+        "crates/horizon-client/src/game/recipe_book.rs",
+        "crates/horizon-client/src/game/sign_edit.rs",
+        "crates/horizon-client/src/game/social.rs",
+        "crates/horizon-client/src/game/stations.rs",
+        "crates/horizon-client/src/game/stations/anvil.rs",
+        "crates/horizon-client/src/game_rules_screen.rs",
+        "crates/horizon-client/src/multiplayer.rs",
+        "crates/horizon-client/src/realms.rs",
+        "crates/horizon-client/src/recipe_book_screen.rs",
+        "crates/horizon-client/src/social_screen.rs",
+        "crates/horizon-client/src/title.rs",
+        "crates/horizon-client/src/title/buffet.rs",
+        "crates/horizon-client/src/title/create_world.rs",
+        "crates/horizon-client/src/title/flat.rs"
+      ],
+      "harnesses": [
+        "cauldron",
+        "chat_screen",
+        "creative",
+        "menu_click",
+        "pack_screen",
+        "place_recipe",
+        "recipe_book_render",
+        "recipe_book_view"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/components/EditBox": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        },
+        "net/minecraft/client/gui/components/MultiLineEditBox": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 4,
+      "id": 8
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client-render/src/hud.rs: 2 vanilla classes changed (3 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/hud.rs",
+      "files": [
+        "crates/horizon-client-render/src/hud.rs"
+      ],
+      "harnesses": [
+        "block_particles",
+        "breaking_model",
+        "item_model",
+        "particle_providers",
+        "section_mesh"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/texture/TextureAtlas": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        },
+        "net/minecraft/client/renderer/texture/ReloadableTexture": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 3,
+      "id": 9
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/mobs/happy_ghast.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/happy_ghast.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/happy_ghast.rs"
+      ],
+      "harnesses": [
+        "conversion_tags",
+        "entity_model",
+        "mob_attributes",
+        "natural_spawn",
+        "spawner",
+        "trading",
+        "trial_spawner",
+        "vault"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/animal/HappyGhast": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 10
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: client/gui/font/glyphs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "widely named: client/gui/font/glyphs",
+      "files": [],
+      "harnesses": [
+        "block_entity_render",
+        "chat_screen",
+        "hud",
+        "inline_object",
+        "pack_screen",
+        "subtitle",
+        "tab_list",
+        "text_display_render"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/font/glyphs/BakedGlyph": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 11
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/creative.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/creative.rs",
+      "files": [
+        "crates/horizon-client/src/creative.rs"
+      ],
+      "harnesses": [
+        "cauldron",
+        "creative",
+        "menu_click",
+        "place_recipe",
+        "recipe_book_view",
+        "trading"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/item/CreativeModeTabs": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 12
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/first_person.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/first_person.rs",
+      "files": [
+        "crates/horizon-client/src/first_person.rs"
+      ],
+      "harnesses": [
+        "first_person"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/entity/ItemRenderer": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 13
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client/src/mobs/villager.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/villager.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/villager.rs"
+      ],
+      "harnesses": [
+        "mob_ai"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/npc/Villager": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 14
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: client/renderer: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: client/renderer",
+      "files": [
+        "crates/horizon-client-render/src/block_entity_render.rs",
+        "crates/horizon-client-render/src/gfx.rs",
+        "crates/horizon-client-render/src/gfx/core_sky.rs",
+        "crates/horizon-client-render/src/gfx/entity_batch.rs",
+        "crates/horizon-client-render/src/gfx/entity_outline.rs",
+        "crates/horizon-client-render/src/gfx/oit.rs",
+        "crates/horizon-client-render/src/gfx/pack_post/celestial_blend_tests.rs",
+        "crates/horizon-client-render/src/gfx/pack_post/sky_disc_blend_tests.rs",
+        "crates/horizon-client-render/src/gfx/stars.rs",
+        "crates/horizon-client-render/src/gfx/weather.rs",
+        "crates/horizon-client-render/src/hud.rs",
+        "crates/horizon-client-render/src/hud/pack_text.rs",
+        "crates/horizon-client-render/src/hud_layout.rs",
+        "crates/horizon-client-render/src/particles.rs",
+        "crates/horizon-client-render/src/screen_effects.rs",
+        "crates/horizon-client/src/game.rs",
+        "crates/horizon-client/src/game/names.rs",
+        "crates/horizon-shaders/src/post.rs"
+      ],
+      "harnesses": [
+        "recipe_book_render"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/RenderPipelines": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 15
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: net/minecraft: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: net/minecraft",
+      "files": [
+        "crates/horizon-client-core/src/component.rs",
+        "crates/horizon-client-core/src/potions.rs",
+        "crates/horizon-client-render/src/border_render.rs",
+        "crates/horizon-client-render/src/crash.rs",
+        "crates/horizon-client-render/src/gfx.rs",
+        "crates/horizon-client-render/src/graphics.rs",
+        "crates/horizon-client-render/src/hud_layout.rs",
+        "crates/horizon-client-render/src/hud_overlays.rs",
+        "crates/horizon-client-render/src/screen_draw.rs",
+        "crates/horizon-client-render/src/streaming.rs",
+        "crates/horizon-client-render/src/ui.rs",
+        "crates/horizon-client-render/src/vault.rs",
+        "crates/horizon-client/examples/probe/subtitle_fixture.rs",
+        "crates/horizon-client/src/boss_overlay.rs",
+        "crates/horizon-client/src/crafting.rs",
+        "crates/horizon-client/src/entity_nbt.rs",
+        "crates/horizon-client/src/game.rs",
+        "crates/horizon-client/src/game/beehives.rs",
+        "crates/horizon-client/src/game/chat.rs",
+        "crates/horizon-client/src/game/client_ambient.rs",
+        "crates/horizon-client/src/game/commands/extra.rs",
+        "crates/horizon-client/src/game/debug_keys.rs",
+        "crates/horizon-client/src/game/debug_stick.rs",
+        "crates/horizon-client/src/game/dragon.rs",
+        "crates/horizon-client/src/game/explosion.rs",
+        "crates/horizon-client/src/game/held_items.rs",
+        "crates/horizon-client/src/game/initial_spawn.rs",
+        "crates/horizon-client/src/game/lan_actions.rs",
+        "crates/horizon-client/src/game/native_hooks.rs",
+        "crates/horizon-client/src/game/natural_spawning.rs",
+        "crates/horizon-client/src/game/packs.rs",
+        "crates/horizon-client/src/game/paintings.rs",
+        "crates/horizon-client/src/game/remote.rs",
+        "crates/horizon-client/src/game/server_links.rs",
+        "crates/horizon-client/src/game/spectator.rs",
+        "crates/horizon-client/src/game/wind.rs",
+        "crates/horizon-client/src/hotbar.rs",
+        "crates/horizon-client/src/item_render.rs",
+        "crates/horizon-client/src/item_tooltip.rs",
+        "crates/horizon-client/src/mobs.rs",
+        "crates/horizon-client/src/mobs/ai.rs",
+        "crates/horizon-client/src/mobs/creaking_heart.rs",
+        "crates/horizon-client/src/mobs/fall_flying_tests.rs",
+        "crates/horizon-client/src/mobs/villager_brain.rs",
+        "crates/horizon-client/src/raid.rs",
+        "crates/horizon-client/src/realms.rs",
+        "crates/horizon-client/src/save.rs",
+        "crates/horizon-client/src/stopwatches.rs",
+        "crates/horizon-narrator/src/screen.rs",
+        "crates/horizon-protocol/src/packets/configuration.rs",
+        "crates/horizon-threads/src/lib.rs",
+        "crates/horizon-world/src/datafix/mod.rs",
+        "crates/horizon-world/src/level/bonemeal.rs",
+        "crates/horizon-world/src/loot.rs",
+        "crates/horizon-world/src/worldgen/structure/jigsaw.rs",
+        "crates/horizon-world/src/worldgen/structure/processor.rs",
+        "crates/horizon-world/src/worldgen/tree_blocks.rs"
+      ],
+      "harnesses": [
+        "brewing",
+        "creative_mining",
+        "enchant_durability",
+        "enchanting",
+        "furnace",
+        "subtitle",
+        "tooltip_display",
+        "trade_components"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/Util": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 16
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: sounds: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: sounds",
+      "files": [
+        "crates/horizon-client-render/src/sound_preview.rs",
+        "crates/horizon-client/src/game/leads.rs",
+        "crates/horizon-client/src/game/minecarts.rs",
+        "crates/horizon-client/src/game/potent_sulfur.rs",
+        "crates/horizon-client/src/game/storage.rs",
+        "crates/horizon-client/src/game/trident.rs",
+        "crates/horizon-client/src/health.rs",
+        "crates/horizon-client/src/mobs/fox.rs",
+        "crates/horizon-client/src/mobs/parrot.rs",
+        "crates/horizon-items/src/items.rs",
+        "crates/horizon-protocol/src/adapter/client_session/world.rs",
+        "crates/horizon-world/src/level/shapes.rs"
+      ],
+      "harnesses": [
+        "consumable_emission",
+        "consume_effect",
+        "food_properties",
+        "item_wire",
+        "living_fall",
+        "sound_engine",
+        "stored_consume",
+        "teleport_consume"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/sounds/SoundEvents": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 17
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: world/entity/monster/piglin: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: world/entity/monster/piglin",
+      "files": [
+        "crates/horizon-client/src/entity_nbt.rs",
+        "crates/horizon-client/src/game/lan.rs",
+        "crates/horizon-client/src/game/remote.rs",
+        "crates/horizon-client/src/game/remote_mob_data.rs",
+        "crates/horizon-client/src/mobs.rs",
+        "crates/horizon-client/src/mobs/ai.rs",
+        "crates/horizon-client/src/mobs/piglin.rs"
+      ],
+      "harnesses": [
+        "conversion_tags",
+        "entity_model",
+        "mob_attributes",
+        "natural_spawn",
+        "spawner",
+        "trading",
+        "trial_spawner",
+        "vault"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/monster/piglin/AbstractPiglin": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 18
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "widely named: world/item: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: world/item",
+      "files": [],
+      "harnesses": [
+        "bundle_weight",
+        "combat_rules",
+        "component_durability",
+        "held_drop",
+        "item_cooldowns",
+        "item_durability",
+        "item_template",
+        "use_remainder"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/item/Items": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 19
+    },
+    {
+      "rank": 2,
+      "kind": "rerun",
+      "title": "crates/horizon-client-render/src/font.rs: 1 vanilla classes changed (0 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/font.rs",
+      "files": [
+        "crates/horizon-client-render/src/font.rs"
+      ],
+      "harnesses": [
+        "hud",
+        "inline_object",
+        "pack_screen",
+        "subtitle",
+        "tab_list",
+        "text_display",
+        "text_display_render",
+        "text_display_transform"
+      ],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/Font": {
+          "methods": 0,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 0,
+      "id": 20
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/game/inventory_slots.rs: 1 vanilla classes changed (2 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/game/inventory_slots.rs",
+      "files": [
+        "crates/horizon-client/src/game/inventory_slots.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/GuiGraphics": {
+          "methods": 2,
+          "named": [
+            "renderItem"
+          ],
+          "removed": false
+        }
+      },
+      "score": 12,
+      "id": 21
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/mobs/undead.rs: 1 vanilla classes changed (1 methods, 1 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/undead.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/undead.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/ai/goal/MoveThroughVillageGoal": {
+          "methods": 1,
+          "named": [
+            "canUse"
+          ],
+          "removed": false
+        }
+      },
+      "score": 11,
+      "id": 22
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client-render/src/hud/pack_text.rs: 1 vanilla classes changed (4 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/hud/pack_text.rs",
+      "files": [
+        "crates/horizon-client-render/src/hud/pack_text.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/render/GuiRenderer": {
+          "methods": 4,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 4,
+      "id": 23
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client-render/src/block_entity_render.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/block_entity_render.rs",
+      "files": [
+        "crates/horizon-client-render/src/block_entity_render.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/Font$PreparedTextBuilder": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 24
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/mobs/goals.rs: 1 vanilla classes changed (2 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/mobs/goals.rs",
+      "files": [
+        "crates/horizon-client/src/mobs/goals.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/world/entity/ai/goal/RestrictSunGoal": {
+          "methods": 2,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 2,
+      "id": 25
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client-render/src/gfx/panorama.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/gfx/panorama.rs",
+      "files": [
+        "crates/horizon-client-render/src/gfx/panorama.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/texture/CubeMapTexture": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 26
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client-render/src/gfx/submit.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client-render/src/gfx/submit.rs",
+      "files": [
+        "crates/horizon-client-render/src/gfx/submit.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "com/mojang/blaze3d/systems/CommandEncoder": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 27
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "crates/horizon-client/src/game/sign_edit.rs: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "crates/horizon-client/src/game/sign_edit.rs",
+      "files": [
+        "crates/horizon-client/src/game/sign_edit.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/gui/screens/inventory/AbstractSignEditScreen": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 28
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "widely named: client/renderer/fog: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: client/renderer/fog",
+      "files": [
+        "crates/horizon-client-render/src/fog.rs",
+        "crates/horizon-client-render/src/gfx.rs",
+        "crates/horizon-client/src/game.rs",
+        "crates/horizon-client/src/game/render_tick.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "net/minecraft/client/renderer/fog/FogRenderer": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 29
+    },
+    {
+      "rank": 3,
+      "kind": "unproved",
+      "title": "widely named: com/mojang/blaze3d/pipeline: 1 vanilla classes changed (1 methods, 0 named in Horizon)",
+      "module": "widely named: com/mojang/blaze3d/pipeline",
+      "files": [
+        "crates/horizon-client-render/src/gfx.rs",
+        "crates/horizon-client-render/src/gfx/core_sky.rs",
+        "crates/horizon-client-render/src/gfx/entity_outline.rs",
+        "crates/horizon-client-render/src/gfx/pack_post/celestial_blend_tests.rs",
+        "crates/horizon-client-render/src/hud.rs",
+        "crates/horizon-client-render/src/hud/pack_text.rs",
+        "crates/horizon-client-render/src/hud_layout.rs",
+        "crates/horizon-shaders/src/post.rs"
+      ],
+      "harnesses": [],
+      "failed": [],
+      "oracle": [],
+      "classes": {
+        "com/mojang/blaze3d/pipeline/BlendFunction": {
+          "methods": 1,
+          "named": [],
+          "removed": false
+        }
+      },
+      "score": 1,
+      "id": 30
+    },
+    {
+      "rank": 5,
+      "kind": "unported",
+      "title": "17 changed or removed vanilla classes Horizon doesn't port, in 12 packages",
+      "packages": {
+        "com/mojang/blaze3d/opengl": 5,
+        "net/minecraft/client/gui/render/state": 2,
+        "com/mojang/blaze3d/vertex": 1,
+        "net/minecraft": 1,
+        "net/minecraft/client/data/models": 1,
+        "net/minecraft/client/gui/render/pip": 1,
+        "net/minecraft/client/multiplayer/chat/report": 1,
+        "net/minecraft/data/loot/packs": 1,
+        "net/minecraft/data/tags": 1,
+        "net/minecraft/world/entity/decoration": 1,
+        "net/minecraft/world/item": 1,
+        "net/minecraft/client/renderer/item": 1
+      },
+      "id": 31
+    }
+  ],
+  "clean": [
+    "packets",
+    "blocks",
+    "items"
+  ]
+}
