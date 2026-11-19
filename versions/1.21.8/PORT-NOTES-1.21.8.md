@@ -334,7 +334,37 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 31/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43 + 4 zero-diff)
+### Rank 2: 32/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44 + 4 zero-diff)
+
+- **Item 44 — `crates/horizon-client/src/entities.rs` (7 classes, 15 methods, 7 named in Horizon):**
+  ExperienceOrbRenderer, LavaCauldronBlock, Direction, ExperienceOrb,
+  ItemUtils, NameTagItem, PowderSnowBlock. Zero-diff: no code changed,
+  citations only.
+  Citations: `ExperienceOrbRenderer.submit` → `.render` (entities.rs ×2,
+  game.rs); `Direction.axisStepOrder` → `Entity.axisStepOrder`
+  (entities.rs, falling_block.rs) — 1.21.9 moved the method to `Direction`
+  and made it public; 1.21.8 keeps it as `Entity`'s own private static
+  (Entity.java:1125-1127) with the identical rule (|x| < |z| → YZX, else
+  YXZ), used by both `collideWithShapes` and `checkInsideBlocks` (16
+  iterations) in both versions, so the Rust's order logic is already the
+  1.21.8 form.
+  Verified no-change: the orb render math is identical (same icon UVs,
+  sin colour, 0.3 scale, camera billboard — only submit/render plumbing
+  differs); `ExperienceOrb.tick`, `ItemUtils.onContainerDestroyed`,
+  `NameTagItem.interactLivingEntity` and `PowderSnowBlock.entityInside`
+  differ only by the `isClientSide` field vs method; the lava cauldron
+  already matches 1.21.8 (item 26 removed CLEAR_FREEZE — 1.21.9-only —
+  and `lava_cauldron_inside` applies LAVA_IGNITE then lavaHurt, with
+  `ignite_for_ticks` clearing the freeze; the analog output is 3 in both
+  versions, the Direction parameter only changes the signature).
+  **Ownership — the `BlockGetter.forEachBlockIntersectedBetween` rewrite
+  belongs to item 178 (rank 2, `horizon-core/src/geometry/sweep.rs`),
+  NOT here:** 1.21.9 rewrote the sweep (1e-5 threshold, direction-ordered
+  start/end boxes via the 1.21.9-only `BlockPos.betweenCornersInDirection`,
+  furthest-corner DDA), while 1.21.8 visits `betweenClosed` under a
+  0.99999 threshold with a min-corner DDA and no start-box visit — and
+  the Rust's `sweep_intersected_blocks` models the 1.21.9 form
+  (`furthest_corner`, `(1e-5)^2` threshold, `between_corners_in_direction`).
 
 - **Item 43 — `crates/horizon-client/src/game/minecarts.rs` (5 classes, 25 methods, 7 named in Horizon):**
   AbstractMinecartRenderer, TntMinecartRenderer, MinecartTNT, BaseSpawner,

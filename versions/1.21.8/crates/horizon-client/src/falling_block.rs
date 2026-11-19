@@ -198,7 +198,7 @@ pub fn apply_effects_from_blocks(
 /// Each block `checkInsideBlocks` reaches, in order, with whether its
 /// `entityInside` counts the block as intersected (every block of a movement a
 /// block or longer, else only those the box ends in) and the step reaching it.
-/// Each movement sweeps its axes in `Direction.axisStepOrder` within 16
+/// Each movement sweeps its axes in `Entity.axisStepOrder` within 16
 /// iterations, then the end alone. `visit` says whether the box was inside the
 /// block's `getEntityInsideCollisionShape`; only a block it was inside is not
 /// visited again.

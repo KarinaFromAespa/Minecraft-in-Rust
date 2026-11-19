@@ -7146,7 +7146,7 @@ impl Game<'_> {
                     o.position.z.floor() as i32,
                 );
                 let packed = o.render_light(i32::from(light));
-                // `ExperienceOrbRenderer.submit`: the quad runs from
+                // `ExperienceOrbRenderer.render`: the quad runs from
                 // (-0.5, -0.25) to (0.5, 0.75) and is scaled by 0.3, so the
                 // sprite hangs a quarter of its height below the orb's centre.
                 let s = horizon_client::entities::ORB_QUAD_SCALE;
