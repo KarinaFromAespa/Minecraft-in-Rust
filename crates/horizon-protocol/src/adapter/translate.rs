@@ -1166,12 +1166,12 @@ pub(crate) mod v1_21_11 {
 
     /// Entity types (26.3 ids) whose class extends AgeableMob: 26.1 added a second boolean to it, after the
     /// baby flag (16), so their later entity data entries moved up one. Read off 26.1.2's EntityType
-    /// registrations and class hierarchy.
+    /// registrations and class hierarchy. (No happy ghast: 1.21.5 has none — it arrived in 1.21.6.)
     #[rustfmt::skip]
-    pub(crate) const AGEABLE: [i32; 36] = [
+    pub(crate) const AGEABLE: [i32; 35] = [
         entity::ARMADILLO, entity::AXOLOTL, entity::BEE, entity::CAMEL,
         entity::CAT, entity::CHICKEN, entity::COW, entity::DOLPHIN, entity::DONKEY, entity::FOX,
-        entity::FROG, entity::HAPPY_GHAST, entity::GLOW_SQUID, entity::GOAT, entity::HOGLIN,
+        entity::FROG, entity::GLOW_SQUID, entity::GOAT, entity::HOGLIN,
         entity::HORSE, entity::LLAMA, entity::MOOSHROOM, entity::MULE,
         entity::OCELOT, entity::PANDA, entity::PARROT, entity::PIG, entity::POLAR_BEAR,
         entity::RABBIT, entity::SHEEP, entity::SKELETON_HORSE, entity::SNIFFER, entity::SQUID,

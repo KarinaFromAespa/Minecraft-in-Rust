@@ -80,7 +80,7 @@ PINNED_NAMES = {
         cave_spider cherry_boat cherry_chest_boat chest_minecart chicken cod command_block_minecart cow
         creeper dark_oak_boat dark_oak_chest_boat dolphin donkey drowned elder_guardian ender_dragon
         enderman endermite evoker experience_orb falling_block fox frog furnace_minecart ghast giant
-        glow_item_frame glow_squid goat guardian happy_ghast hoglin hopper_minecart horse husk illusioner
+        glow_item_frame glow_squid goat guardian hoglin hopper_minecart horse husk illusioner
         iron_golem item_frame jungle_boat jungle_chest_boat llama magma_cube mangrove_boat
         mangrove_chest_boat minecart mooshroom mule oak_boat oak_chest_boat ocelot
         painting panda parrot phantom pig piglin piglin_brute pillager player polar_bear pufferfish rabbit
