@@ -341,12 +341,12 @@ mod tests {
     }
 
     #[test]
-    fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_6() {
+    fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_8() {
         use crate::item::{Slot, Stack};
-        let ids = ServerVersion::V1_21_6.ids().unwrap();
-        // Vanilla reports: cat is 1250 in both; pigstep is 1266 -> 1267. The newer lava chicken
-        // disc occupies pinned id 1256, with no 1.21.6 counterpart.
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1250), ([3, 0xf2, 0x09, 0, 0], 1267)] {
+        let ids = ServerVersion::V1_21_8.ids().unwrap();
+        // Vanilla reports: cat is 1250 in both; pigstep is 1267 -> 1266. The newer lava chicken
+        // disc occupies 1.21.8 id 1256, with no pinned counterpart; pinned 1256 is mall.
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1250), ([3, 0xf3, 0x09, 0, 0], 1266)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -359,18 +359,19 @@ mod tests {
             }
             assert_eq!(w.data, sent);
         }
-        assert_eq!(ids.item.down(1256), None);
+        assert_eq!(ids.item.up(1256), None);
+        assert_eq!(ids.item.down(1256), Some(1257));
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().item.down(1256),
+            ServerVersion::V1_21_6.ids().unwrap().item.down(1256),
             Some(1256)
         );
         assert_eq!(ids.block_state.up(7016), Some(7016)); // inherited chain axis=x, waterlogged=true
     }
 
     #[test]
-    fn a_1_21_6_sound_after_the_inserted_disc_is_not_off_by_one() {
+    fn a_1_21_8_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1180); // Level-up holder: old registry id 1179 + 1, pinned id 1180.
+        w.varint(1181); // Level-up holder: 1.21.8 registry id 1180 + 1, pinned id 1179.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -379,19 +380,19 @@ mod tests {
         w.f32(0.5);
         w.i64(42);
         let play::Clientbound::Sound(p) = translated_from(
-            ServerVersion::V1_21_6,
+            ServerVersion::V1_21_8,
             packet_ids::play::clientbound::SOUND,
             &w.data,
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1180, None));
+        assert_eq!(p.sound, (1179, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1180),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1179),
             Some(1180)
         );
     }

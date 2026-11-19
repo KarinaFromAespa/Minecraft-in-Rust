@@ -7,64 +7,64 @@ pub const OLD_STATES: u32 = 24276;
 pub const PINNED_STATES: u32 = 27946;
 #[rustfmt::skip]
 pub const BLOCK_STATE_UP: &[(u16, u16, u16)] = &[
-    (0, 0, 22), (22, 26, 17), (39, 45, 112), (151, 160, 29), (180, 192, 54), (234, 249, 199), (433, 476, 1572), (2006, 2049, 2),
-    (2008, 2054, 866), (2874, 2938, 1652), (4526, 4622, 292), (4818, 4922, 464), (5282, 5450, 312), (5594, 5770, 136), (5730, 5908, 68), (5798, 5977, 51),
-    (5849, 7054, 1), (5850, 6028, 560), (6410, 6652, 402), (6812, 7055, 185), (6997, 7368, 275), (7272, 8056, 1304), (8576, 9361, 203), (8779, 9588, 1345),
-    (10124, 11013, 1080), (11204, 12099, 298), (11502, 12429, 256), (11758, 12717, 448), (12206, 13229, 597), (12803, 13858, 6569), (19372, 20432, 1710), (21082, 23376, 622),
-    (21704, 24001, 1), (21705, 24000, 1), (21706, 23999, 1), (21707, 23998, 1), (21708, 24002, 6), (21714, 24016, 696), (22410, 25784, 119), (22529, 25935, 1747),
+    (0, 0, 22), (22, 26, 17), (39, 45, 112), (151, 160, 29), (180, 192, 54), (234, 249, 199), (433, 476, 1575), (2008, 2054, 866),
+    (2874, 2938, 1652), (4526, 4622, 292), (4818, 4922, 464), (5282, 5450, 312), (5594, 5770, 136), (5730, 5908, 68), (5798, 5977, 51), (5849, 7054, 1),
+    (5850, 6028, 560), (6410, 6652, 402), (6812, 7055, 185), (6997, 7368, 275), (7272, 8056, 1304), (8576, 9361, 203), (8779, 9588, 1345), (10124, 11013, 1080),
+    (11204, 12099, 298), (11502, 12429, 256), (11758, 12717, 448), (12206, 13229, 597), (12803, 13858, 6569), (19372, 20432, 1710), (21082, 23376, 622), (21704, 24001, 1),
+    (21705, 24000, 1), (21706, 23999, 1), (21707, 23998, 1), (21708, 24002, 6), (21714, 24016, 696), (22410, 25784, 119), (22529, 25935, 1747),
 ];
 #[rustfmt::skip]
 pub const BLOCK_STATE_DOWN: &[(u16, u16, u16)] = &[
-    (0, 0, 22), (26, 22, 17), (45, 39, 112), (160, 151, 29), (192, 180, 54), (249, 234, 199), (476, 433, 1572), (2049, 2006, 2),
-    (2054, 2008, 866), (2938, 2874, 1652), (4622, 4526, 292), (4922, 4818, 464), (5450, 5282, 312), (5770, 5594, 136), (5908, 5730, 68), (5977, 5798, 51),
-    (6028, 5850, 560), (6652, 6410, 402), (7054, 5849, 1), (7055, 6812, 185), (7368, 6997, 275), (8056, 7272, 1304), (9361, 8576, 203), (9588, 8779, 1345),
-    (11013, 10124, 1080), (12099, 11204, 298), (12429, 11502, 256), (12717, 11758, 448), (13229, 12206, 597), (13858, 12803, 6569), (20432, 19372, 1710), (23376, 21082, 622),
-    (23998, 21707, 1), (23999, 21706, 1), (24000, 21705, 1), (24001, 21704, 1), (24002, 21708, 6), (24016, 21714, 696), (25784, 22410, 119), (25935, 22529, 1747),
+    (0, 0, 22), (26, 22, 17), (45, 39, 112), (160, 151, 29), (192, 180, 54), (249, 234, 199), (476, 433, 1575), (2054, 2008, 866),
+    (2938, 2874, 1652), (4622, 4526, 292), (4922, 4818, 464), (5450, 5282, 312), (5770, 5594, 136), (5908, 5730, 68), (5977, 5798, 51), (6028, 5850, 560),
+    (6652, 6410, 402), (7054, 5849, 1), (7055, 6812, 185), (7368, 6997, 275), (8056, 7272, 1304), (9361, 8576, 203), (9588, 8779, 1345), (11013, 10124, 1080),
+    (12099, 11204, 298), (12429, 11502, 256), (12717, 11758, 448), (13229, 12206, 597), (13858, 12803, 6569), (20432, 19372, 1710), (23376, 21082, 622), (23998, 21707, 1),
+    (23999, 21706, 1), (24000, 21705, 1), (24001, 21704, 1), (24002, 21708, 6), (24016, 21714, 696), (25784, 22410, 119), (25935, 22529, 1747),
 ];
 /// `minecraft:item`: 1255 in 1.20.2, 1415 pinned.
 #[rustfmt::skip]
 pub const ITEM_UP: &[(u16, u16, u16)] = &[
     (0, 0, 13), (13, 26, 17), (30, 44, 12), (42, 57, 30), (72, 88, 10), (82, 102, 16), (98, 122, 18), (116, 141, 14),
-    (130, 156, 10), (140, 167, 10), (150, 178, 11), (161, 190, 12), (174, 203, 1), (175, 205, 3), (178, 211, 19), (197, 232, 26),
-    (223, 261, 1), (224, 258, 1), (225, 262, 1), (226, 266, 11), (237, 278, 40), (277, 319, 10), (287, 330, 9), (296, 340, 43),
-    (339, 390, 29), (368, 420, 199), (567, 620, 102), (669, 723, 15), (684, 739, 12), (696, 752, 4), (700, 764, 8), (708, 773, 4),
-    (712, 785, 7), (719, 793, 9), (728, 818, 7), (735, 826, 15), (750, 843, 6), (756, 851, 1), (758, 855, 1), (759, 857, 49),
-    (808, 856, 1), (809, 906, 44), (853, 951, 11), (864, 963, 24), (888, 989, 3), (891, 1008, 50), (941, 1059, 16), (957, 1076, 1),
-    (958, 1075, 1), (959, 1077, 8), (967, 1086, 5), (972, 1093, 18), (990, 1112, 50), (1040, 1163, 6), (1046, 1170, 2), (1048, 1174, 22),
-    (1070, 1197, 56), (1126, 1255, 12), (1138, 1269, 2), (1140, 825, 1), (1141, 1271, 11), (1152, 1286, 83), (1235, 1371, 8), (1243, 1380, 1),
-    (1244, 1382, 7), (1251, 1390, 4),
+    (130, 156, 10), (140, 167, 10), (150, 178, 11), (161, 190, 14), (175, 205, 3), (178, 211, 19), (197, 232, 26), (223, 261, 1),
+    (224, 258, 1), (225, 262, 1), (226, 266, 11), (237, 278, 40), (277, 319, 10), (287, 330, 9), (296, 340, 43), (339, 390, 29),
+    (368, 420, 199), (567, 620, 102), (669, 723, 15), (684, 739, 12), (696, 752, 4), (700, 764, 8), (708, 773, 4), (712, 785, 7),
+    (719, 793, 9), (728, 818, 7), (735, 826, 15), (750, 843, 6), (756, 851, 2), (758, 855, 1), (759, 857, 49), (808, 856, 1),
+    (809, 906, 44), (853, 951, 11), (864, 963, 24), (888, 989, 3), (891, 1008, 50), (941, 1059, 16), (957, 1076, 1), (958, 1075, 1),
+    (959, 1077, 8), (967, 1086, 5), (972, 1093, 18), (990, 1112, 50), (1040, 1163, 6), (1046, 1170, 2), (1048, 1174, 22), (1070, 1197, 56),
+    (1126, 1255, 12), (1138, 1269, 2), (1140, 825, 1), (1141, 1271, 11), (1152, 1286, 83), (1235, 1371, 8), (1243, 1380, 1), (1244, 1382, 7),
+    (1251, 1390, 4),
 ];
 #[rustfmt::skip]
 pub const ITEM_DOWN: &[(u16, u16, u16)] = &[
     (0, 0, 13), (26, 13, 17), (44, 30, 12), (57, 42, 30), (88, 72, 10), (102, 82, 16), (122, 98, 18), (141, 116, 14),
-    (156, 130, 10), (167, 140, 10), (178, 150, 11), (190, 161, 12), (203, 174, 1), (205, 175, 3), (211, 178, 19), (232, 197, 26),
-    (258, 224, 1), (261, 223, 1), (262, 225, 1), (266, 226, 11), (278, 237, 40), (319, 277, 10), (330, 287, 9), (340, 296, 43),
-    (390, 339, 29), (420, 368, 199), (620, 567, 102), (723, 669, 15), (739, 684, 12), (752, 696, 4), (764, 700, 8), (773, 708, 4),
-    (785, 712, 7), (793, 719, 9), (818, 728, 7), (825, 1140, 1), (826, 735, 15), (843, 750, 6), (851, 756, 1), (855, 758, 1),
-    (856, 808, 1), (857, 759, 49), (906, 809, 44), (951, 853, 11), (963, 864, 24), (989, 888, 3), (1008, 891, 50), (1059, 941, 16),
-    (1075, 958, 1), (1076, 957, 1), (1077, 959, 8), (1086, 967, 5), (1093, 972, 18), (1112, 990, 50), (1163, 1040, 6), (1170, 1046, 2),
-    (1174, 1048, 22), (1197, 1070, 56), (1255, 1126, 12), (1269, 1138, 2), (1271, 1141, 11), (1286, 1152, 83), (1371, 1235, 8), (1380, 1243, 1),
-    (1382, 1244, 7), (1390, 1251, 4),
+    (156, 130, 10), (167, 140, 10), (178, 150, 11), (190, 161, 14), (205, 175, 3), (211, 178, 19), (232, 197, 26), (258, 224, 1),
+    (261, 223, 1), (262, 225, 1), (266, 226, 11), (278, 237, 40), (319, 277, 10), (330, 287, 9), (340, 296, 43), (390, 339, 29),
+    (420, 368, 199), (620, 567, 102), (723, 669, 15), (739, 684, 12), (752, 696, 4), (764, 700, 8), (773, 708, 4), (785, 712, 7),
+    (793, 719, 9), (818, 728, 7), (825, 1140, 1), (826, 735, 15), (843, 750, 6), (851, 756, 2), (855, 758, 1), (856, 808, 1),
+    (857, 759, 49), (906, 809, 44), (951, 853, 11), (963, 864, 24), (989, 888, 3), (1008, 891, 50), (1059, 941, 16), (1075, 958, 1),
+    (1076, 957, 1), (1077, 959, 8), (1086, 967, 5), (1093, 972, 18), (1112, 990, 50), (1163, 1040, 6), (1170, 1046, 2), (1174, 1048, 22),
+    (1197, 1070, 56), (1255, 1126, 12), (1269, 1138, 2), (1271, 1141, 11), (1286, 1152, 83), (1371, 1235, 8), (1380, 1243, 1), (1382, 1244, 7),
+    (1390, 1251, 4),
 ];
 /// `minecraft:entity_type`: 124 in 1.20.2, 151 pinned.
 #[rustfmt::skip]
 pub const ENTITY_TYPE_UP: &[(u16, u16, u16)] = &[
-    (0, 2, 2), (2, 5, 3), (5, 10, 2), (7, 14, 2), (10, 19, 3), (14, 24, 5), (19, 30, 1), (20, 33, 6),
-    (26, 43, 1), (27, 41, 2), (29, 39, 2), (31, 44, 6), (37, 51, 5), (42, 57, 15), (57, 50, 1), (58, 74, 5),
-    (63, 81, 4), (67, 87, 1), (68, 89, 1), (69, 92, 8), (78, 102, 13), (91, 116, 1), (92, 115, 1), (93, 117, 3),
-    (96, 122, 16), (112, 139, 12),
+    (0, 2, 2), (2, 5, 3), (5, 10, 2), (7, 14, 2), (9, 85, 1), (10, 19, 3), (13, 86, 1), (14, 24, 5),
+    (19, 30, 1), (20, 33, 6), (26, 43, 1), (27, 41, 2), (29, 39, 2), (31, 44, 6), (37, 51, 5), (42, 57, 15),
+    (57, 50, 1), (58, 74, 5), (63, 81, 4), (67, 87, 1), (68, 89, 1), (69, 92, 9), (78, 102, 13), (91, 116, 1),
+    (92, 115, 1), (93, 117, 3), (96, 122, 16), (112, 139, 12),
 ];
 #[rustfmt::skip]
 pub const ENTITY_TYPE_DOWN: &[(u16, u16, u16)] = &[
     (2, 0, 2), (5, 2, 3), (10, 5, 2), (14, 7, 2), (19, 10, 3), (24, 14, 5), (30, 19, 1), (33, 20, 6),
     (39, 29, 2), (41, 27, 2), (43, 26, 1), (44, 31, 6), (50, 57, 1), (51, 37, 5), (57, 42, 15), (74, 58, 5),
-    (81, 63, 4), (87, 67, 1), (89, 68, 1), (92, 69, 8), (102, 78, 13), (115, 92, 1), (116, 91, 1), (117, 93, 3),
-    (122, 96, 16), (139, 112, 12),
+    (81, 63, 4), (85, 9, 1), (86, 13, 1), (87, 67, 1), (89, 68, 1), (92, 69, 9), (102, 78, 13), (115, 92, 1),
+    (116, 91, 1), (117, 93, 3), (122, 96, 16), (139, 112, 12),
 ];
 /// `minecraft:particle_type`: 95 in 1.20.2, 114 pinned.
 #[rustfmt::skip]
 pub const PARTICLE_TYPE_UP: &[(u16, u16, u16)] = &[
-    (1, 0, 23), (24, 27, 5), (29, 33, 1), (30, 36, 12), (42, 49, 1), (43, 51, 9), (52, 61, 43),
+    (0, 20, 1), (1, 0, 23), (24, 27, 5), (29, 33, 1), (30, 36, 12), (42, 49, 1), (43, 51, 9), (52, 61, 43),
 ];
 #[rustfmt::skip]
 pub const PARTICLE_TYPE_DOWN: &[(u16, u16, u16)] = &[
@@ -101,19 +101,19 @@ pub const COMMAND_ARGUMENT_TYPE_DOWN: &[(u16, u16, u16)] = &[
 /// `minecraft:block`: 1003 in 1.20.2, 1105 pinned.
 #[rustfmt::skip]
 pub const BLOCK_UP: &[(u16, u16, u16)] = &[
-    (0, 0, 20), (20, 22, 10), (30, 33, 23), (53, 57, 10), (63, 68, 18), (81, 87, 8), (89, 96, 34), (124, 131, 2),
-    (126, 136, 50), (176, 187, 17), (193, 205, 13), (206, 219, 9), (215, 229, 11), (226, 241, 14), (240, 256, 11), (251, 268, 4),
-    (255, 329, 1), (256, 272, 36), (292, 309, 20), (312, 330, 7), (319, 338, 6), (325, 350, 39), (364, 390, 28), (392, 419, 68),
-    (460, 488, 86), (546, 575, 27), (573, 603, 8), (581, 612, 8), (589, 621, 94), (683, 716, 151), (834, 869, 76), (910, 958, 9),
-    (919, 970, 1), (920, 969, 1), (921, 968, 1), (922, 967, 1), (923, 971, 6), (929, 985, 24), (953, 1041, 10), (963, 1053, 40),
+    (0, 0, 20), (20, 22, 10), (30, 33, 23), (53, 57, 10), (63, 68, 18), (81, 87, 8), (89, 96, 37), (126, 136, 50),
+    (176, 187, 17), (193, 205, 13), (206, 219, 9), (215, 229, 11), (226, 241, 14), (240, 256, 11), (251, 268, 4), (255, 329, 1),
+    (256, 272, 36), (292, 309, 20), (312, 330, 7), (319, 338, 6), (325, 350, 39), (364, 390, 28), (392, 419, 68), (460, 488, 86),
+    (546, 575, 27), (573, 603, 8), (581, 612, 8), (589, 621, 94), (683, 716, 151), (834, 869, 76), (910, 958, 9), (919, 970, 1),
+    (920, 969, 1), (921, 968, 1), (922, 967, 1), (923, 971, 6), (929, 985, 24), (953, 1041, 10), (963, 1053, 40),
 ];
 #[rustfmt::skip]
 pub const BLOCK_DOWN: &[(u16, u16, u16)] = &[
-    (0, 0, 20), (22, 20, 10), (33, 30, 23), (57, 53, 10), (68, 63, 18), (87, 81, 8), (96, 89, 34), (131, 124, 2),
-    (136, 126, 50), (187, 176, 17), (205, 193, 13), (219, 206, 9), (229, 215, 11), (241, 226, 14), (256, 240, 11), (268, 251, 4),
-    (272, 256, 36), (309, 292, 20), (329, 255, 1), (330, 312, 7), (338, 319, 6), (350, 325, 39), (390, 364, 28), (419, 392, 68),
-    (488, 460, 86), (575, 546, 27), (603, 573, 8), (612, 581, 8), (621, 589, 94), (716, 683, 151), (869, 834, 76), (958, 910, 9),
-    (967, 922, 1), (968, 921, 1), (969, 920, 1), (970, 919, 1), (971, 923, 6), (985, 929, 24), (1041, 953, 10), (1053, 963, 40),
+    (0, 0, 20), (22, 20, 10), (33, 30, 23), (57, 53, 10), (68, 63, 18), (87, 81, 8), (96, 89, 37), (136, 126, 50),
+    (187, 176, 17), (205, 193, 13), (219, 206, 9), (229, 215, 11), (241, 226, 14), (256, 240, 11), (268, 251, 4), (272, 256, 36),
+    (309, 292, 20), (329, 255, 1), (330, 312, 7), (338, 319, 6), (350, 325, 39), (390, 364, 28), (419, 392, 68), (488, 460, 86),
+    (575, 546, 27), (603, 573, 8), (612, 581, 8), (621, 589, 94), (716, 683, 151), (869, 834, 76), (958, 910, 9), (967, 922, 1),
+    (968, 921, 1), (969, 920, 1), (970, 919, 1), (971, 923, 6), (985, 929, 24), (1041, 953, 10), (1053, 963, 40),
 ];
 /// `minecraft:block_entity_type`: 41 in 1.20.2, 47 pinned.
 #[rustfmt::skip]
@@ -136,9 +136,13 @@ pub const MENU_DOWN: &[(u16, u16, u16)] = &[
 /// `minecraft:attribute`: 14 in 1.20.2, 35 pinned.
 #[rustfmt::skip]
 pub const ATTRIBUTE_UP: &[(u16, u16, u16)] = &[
+    (0, 19, 1), (1, 13, 1), (2, 16, 1), (3, 22, 1), (4, 12, 1), (5, 2, 3), (8, 0, 2), (10, 17, 2),
+    (12, 27, 1), (13, 15, 1),
 ];
 #[rustfmt::skip]
 pub const ATTRIBUTE_DOWN: &[(u16, u16, u16)] = &[
+    (0, 8, 2), (2, 5, 3), (12, 4, 1), (13, 1, 1), (15, 13, 1), (16, 2, 1), (17, 10, 2), (19, 0, 1),
+    (22, 3, 1), (27, 12, 1),
 ];
 /// Canonical item identifiers for item-based cooldowns, indexed by old id.
 #[rustfmt::skip]
@@ -171,7 +175,7 @@ pub const ITEM_NAMES: &[&str] = &[
     "minecraft:dark_oak_wood", "minecraft:mangrove_wood", "minecraft:crimson_hyphae", "minecraft:warped_hyphae", "minecraft:oak_leaves", "minecraft:spruce_leaves",
     "minecraft:birch_leaves", "minecraft:jungle_leaves", "minecraft:acacia_leaves", "minecraft:cherry_leaves", "minecraft:dark_oak_leaves", "minecraft:mangrove_leaves",
     "minecraft:azalea_leaves", "minecraft:flowering_azalea_leaves", "minecraft:sponge", "minecraft:wet_sponge", "minecraft:glass", "minecraft:tinted_glass",
-    "minecraft:lapis_block", "minecraft:sandstone", "minecraft:chiseled_sandstone", "minecraft:cut_sandstone", "minecraft:cobweb", "",
+    "minecraft:lapis_block", "minecraft:sandstone", "minecraft:chiseled_sandstone", "minecraft:cut_sandstone", "minecraft:cobweb", "minecraft:short_grass",
     "minecraft:fern", "minecraft:azalea", "minecraft:flowering_azalea", "minecraft:dead_bush", "minecraft:seagrass", "minecraft:sea_pickle",
     "minecraft:white_wool", "minecraft:orange_wool", "minecraft:magenta_wool", "minecraft:light_blue_wool", "minecraft:yellow_wool", "minecraft:lime_wool",
     "minecraft:pink_wool", "minecraft:gray_wool", "minecraft:light_gray_wool", "minecraft:cyan_wool", "minecraft:purple_wool", "minecraft:blue_wool",
@@ -269,7 +273,7 @@ pub const ITEM_NAMES: &[&str] = &[
     "minecraft:spruce_boat", "minecraft:spruce_chest_boat", "minecraft:birch_boat", "minecraft:birch_chest_boat", "minecraft:jungle_boat", "minecraft:jungle_chest_boat",
     "minecraft:acacia_boat", "minecraft:acacia_chest_boat", "minecraft:cherry_boat", "minecraft:cherry_chest_boat", "minecraft:dark_oak_boat", "minecraft:dark_oak_chest_boat",
     "minecraft:mangrove_boat", "minecraft:mangrove_chest_boat", "minecraft:bamboo_raft", "minecraft:bamboo_chest_raft", "minecraft:structure_block", "minecraft:jigsaw",
-    "minecraft:turtle_helmet", "", "minecraft:flint_and_steel", "minecraft:apple", "minecraft:bow", "minecraft:arrow",
+    "minecraft:turtle_helmet", "minecraft:turtle_scute", "minecraft:flint_and_steel", "minecraft:apple", "minecraft:bow", "minecraft:arrow",
     "minecraft:coal", "minecraft:charcoal", "minecraft:diamond", "minecraft:emerald", "minecraft:lapis_lazuli", "minecraft:quartz",
     "minecraft:amethyst_shard", "minecraft:raw_iron", "minecraft:iron_ingot", "minecraft:raw_copper", "minecraft:copper_ingot", "minecraft:raw_gold",
     "minecraft:gold_ingot", "minecraft:netherite_ingot", "minecraft:netherite_scrap", "minecraft:wooden_sword", "minecraft:wooden_shovel", "minecraft:wooden_pickaxe",
@@ -1101,6 +1105,30 @@ pub const RECIPE_SERIALIZER_NAMES: &[&str] = &[
     "minecraft:crafting_special_firework_rocket", "minecraft:crafting_special_firework_star", "minecraft:crafting_special_firework_star_fade", "minecraft:crafting_special_tippedarrow", "minecraft:crafting_special_bannerduplicate", "minecraft:crafting_special_shielddecoration",
     "minecraft:crafting_special_shulkerboxcoloring", "minecraft:crafting_special_suspiciousstew", "minecraft:crafting_special_repairitem", "minecraft:smelting", "minecraft:blasting", "minecraft:smoking",
     "minecraft:campfire_cooking", "minecraft:stonecutting", "minecraft:smithing_transform", "minecraft:smithing_trim", "minecraft:crafting_decorated_pot",
+];
+/// Explicit old/current registry spellings for legacy NBT name lookups.
+pub const NAME_ALIASES: &[(&str, &str, &str)] = &[
+    ("minecraft:attribute", "minecraft:generic.armor", "minecraft:armor"),
+    ("minecraft:attribute", "minecraft:generic.armor_toughness", "minecraft:armor_toughness"),
+    ("minecraft:attribute", "minecraft:generic.attack_damage", "minecraft:attack_damage"),
+    ("minecraft:attribute", "minecraft:generic.attack_knockback", "minecraft:attack_knockback"),
+    ("minecraft:attribute", "minecraft:generic.attack_speed", "minecraft:attack_speed"),
+    ("minecraft:attribute", "minecraft:generic.flying_speed", "minecraft:flying_speed"),
+    ("minecraft:attribute", "minecraft:generic.follow_range", "minecraft:follow_range"),
+    ("minecraft:attribute", "minecraft:generic.knockback_resistance", "minecraft:knockback_resistance"),
+    ("minecraft:attribute", "minecraft:generic.luck", "minecraft:luck"),
+    ("minecraft:attribute", "minecraft:generic.max_absorption", "minecraft:max_absorption"),
+    ("minecraft:attribute", "minecraft:generic.max_health", "minecraft:max_health"),
+    ("minecraft:attribute", "minecraft:generic.movement_speed", "minecraft:movement_speed"),
+    ("minecraft:attribute", "minecraft:horse.jump_strength", "minecraft:jump_strength"),
+    ("minecraft:attribute", "minecraft:zombie.spawn_reinforcements", "minecraft:spawn_reinforcements"),
+    ("minecraft:block", "minecraft:grass", "minecraft:short_grass"),
+    ("minecraft:entity_type", "minecraft:boat", "minecraft:oak_boat"),
+    ("minecraft:entity_type", "minecraft:chest_boat", "minecraft:oak_chest_boat"),
+    ("minecraft:entity_type", "minecraft:potion", "minecraft:splash_potion"),
+    ("minecraft:item", "minecraft:grass", "minecraft:short_grass"),
+    ("minecraft:item", "minecraft:scute", "minecraft:turtle_scute"),
+    ("minecraft:particle_type", "minecraft:ambient_entity_effect", "minecraft:entity_effect"),
 ];
 /// Every table above, as the adapter reads them.
 pub const IDS: super::ids::Ids = super::ids::Ids {

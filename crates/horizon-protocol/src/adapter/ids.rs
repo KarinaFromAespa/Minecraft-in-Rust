@@ -519,7 +519,7 @@ mod tests {
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
         // A decorated pot (319 in 1.21.11, 307 pinned) as a 1.21.11 server sends it: pot_decorations (65)
-        // lists a brick (1025) and an angler sherd (1372 pinned); damage_resistant (24) a tag id;
+        // lists a brick (1025) and an angler sherd (1371 pinned); damage_resistant (24) a tag id;
         // jukebox_playable (55) a song by holder: the flag set, then the song's id plus one.
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
@@ -534,7 +534,7 @@ mod tests {
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (65, Component::Raw(vec![0, 1, 0xdc, 0x0a, 1, 0, 0, 0, 0])),
+                (65, Component::Raw(vec![0, 1, 0xdb, 0x0a, 1, 0, 0, 0, 0])),
                 (24, Component::Raw(resistant)),
                 (55, Component::Raw(vec![3])),
             ]

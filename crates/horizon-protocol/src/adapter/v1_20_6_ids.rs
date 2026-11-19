@@ -43,18 +43,20 @@ pub const SOUND_EVENT_DOWN: &[(u16, u16, u16)] = &[
 /// `minecraft:data_component_type`: 56 in 1.20.6, 96 pinned.
 #[rustfmt::skip]
 pub const DATA_COMPONENT_TYPE_UP: &[(u16, u16, u16)] = &[
-    (0, 0, 7), (7, 8, 7), (16, 16, 5), (22, 25, 1), (23, 34, 9), (32, 44, 9), (41, 54, 1), (42, 57, 14),
+    (0, 0, 7), (7, 8, 7), (16, 16, 5), (21, 24, 2), (23, 34, 9), (32, 44, 9), (41, 54, 1), (42, 57, 14),
 ];
 #[rustfmt::skip]
 pub const DATA_COMPONENT_TYPE_DOWN: &[(u16, u16, u16)] = &[
-    (0, 0, 7), (8, 7, 7), (16, 16, 5), (25, 22, 1), (34, 23, 9), (44, 32, 9), (54, 41, 1), (57, 42, 14),
+    (0, 0, 7), (8, 7, 7), (16, 16, 5), (24, 21, 2), (34, 23, 9), (44, 32, 9), (54, 41, 1), (57, 42, 14),
 ];
 /// `minecraft:attribute`: 22 in 1.20.6, 35 pinned.
 #[rustfmt::skip]
 pub const ATTRIBUTE_UP: &[(u16, u16, u16)] = &[
+    (0, 0, 7), (7, 10, 10), (17, 22, 1), (18, 24, 2), (20, 27, 2),
 ];
 #[rustfmt::skip]
 pub const ATTRIBUTE_DOWN: &[(u16, u16, u16)] = &[
+    (0, 0, 7), (10, 7, 10), (22, 17, 1), (24, 18, 2), (27, 20, 2),
 ];
 /// `minecraft:enchantment_effect_component_type`: 0 in 1.20.6, 30 pinned.
 #[rustfmt::skip]
@@ -313,7 +315,6 @@ pub const PAINTING_VARIANT_NAMES: &[&str] = &[
 pub const DROPPED_COMPONENTS: &[(u16, &str)] = &[
     (14, "minecraft:hide_additional_tooltip"),
     (15, "minecraft:hide_tooltip"),
-    (21, "minecraft:fire_resistant"),
 ];
 /// Stand-ins for pinned block states 1.20.6 lacks, in the pinned numbering.
 #[rustfmt::skip]

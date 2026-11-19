@@ -336,10 +336,10 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{version:?}");
             let mut expected = Writer::new();
-            // The pinned 1.21.8 pot decorations are four item ids (a brick
+            // The pinned 1.21.6 pot decorations are four item ids (a brick
             // side is undecorated), not templates: templates arrived in 1.21.9.
             expected.bytes(&[1, 1, 3, 1, 36, 0x12, 0x34, 0x56, 0x78, 65, 4]);
-            expected.varint(1372); // Pinned angler_pottery_sherd.
+            expected.varint(1371); // Pinned angler_pottery_sherd.
             expected.varint(980); // Pinned brick.
             expected.varint(980);
             expected.varint(980);

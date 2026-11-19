@@ -27,11 +27,11 @@ pub const ITEM_DOWN: &[(u16, u16, u16)] = &[
 /// `minecraft:entity_type`: 149 in 1.21.4, 151 pinned.
 #[rustfmt::skip]
 pub const ENTITY_TYPE_UP: &[(u16, u16, u16)] = &[
-    (0, 0, 56), (56, 57, 43), (100, 102, 49),
+    (0, 0, 56), (56, 57, 44), (100, 102, 49),
 ];
 #[rustfmt::skip]
 pub const ENTITY_TYPE_DOWN: &[(u16, u16, u16)] = &[
-    (0, 0, 56), (57, 56, 43), (102, 100, 49),
+    (0, 0, 56), (57, 56, 44), (102, 100, 49),
 ];
 /// `minecraft:particle_type`: 112 in 1.21.4, 114 pinned.
 #[rustfmt::skip]
