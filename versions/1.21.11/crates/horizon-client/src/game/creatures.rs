@@ -8851,9 +8851,8 @@ mod tests {
         )
         .unwrap();
         let mut player = PlayerMotion::new(game.motion, Vec3::new(0.0, 64.0, 0.0)).unwrap();
-        player
-            .impulse
-            .set_ignore_fall_damage(true, Some(player.position));
+        player.impulse.impact_position = Some(player.position);
+        player.impulse.set_ignore_fall_damage(true);
         player.fall_distance = 4.0;
         game.player = Some(player);
         let destination = Vec3::new(0.0, 80.0, 0.0);

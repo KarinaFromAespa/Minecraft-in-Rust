@@ -2020,3 +2020,77 @@ Rank 2 (492 items, in progress 2026-11-19)
     tab redraws per-frame).
   Rank 2 now 192/492 (29 changed, 163 no-change).
   work-items.json rank2.closed = 192 on 2026-11-19.
+- Item 14 (game/lan_actions.rs), changed, ported 2026-11-19: 8 vanilla
+  classes changed (119 methods, 54 named), javap diff 6,257 lines,
+  verified by whole-diff constants / method-call / branch-opcode
+  comparisons plus direct reads of every hunk. Ported:
+  - Player impulse context is Player-only in 1.21.11 (moved off
+    LivingEntity): `setIgnoreFallDamageFromCurrentImpulse(boolean)`
+    takes no position (grace 40 if true else 0); the position is set
+    directly by `onExplosionHit` (always the player position, flag =
+    wind charge) and `MaceItem.hurtEnemy` (calculateImpactPosition).
+    `ImpulseContext` gained `ignore_fall_damage`, a 1-arg setter and
+    `tick()` (Player.tick's grace countdown after updatePlayerPose);
+    `cause_living_fall_damage` gates the min-distance on flag AND
+    position; mob `impulse_grace_time` (field, tick-down, NBT
+    save/load, armor-stand default) removed. `LivingFallWorld` gained
+    `ignoring_fall_damage()`; the local player ticks in
+    `simulation_tick_with_fluids`, loaded guests in
+    `tick_guests_inner` (prediction calls are test-only, so no
+    double-decrement).
+  - Player save keys: `Player.addAdditionalSaveData` writes
+    `current_explosion_impact_pos` (nullable),
+    `ignore_fall_damage_from_current_explosion` (always) and the
+    grace time; `LivingEntity` writes none. New `Level.player_impulse`
+    (`ImpulseSave`, via `ImpulseSave::from_impulse`), set in
+    `sync_level` and `playerdata::store`, saved/restored in
+    `GuestSwap`; the writer drops a stale retained impact when a live
+    body has none, and keeps the raw data with no live body. The
+    projection test now covers ignore + impact in all ten phases
+    (only "no body raw retention" keeps the stale values).
+  - `guest_attack`: the border + `within_attack_range` guard now runs
+    before the spectator check, and a spectator's click on a target
+    sets the camera (`guest_set_camera`, 1.21.11 `ServerPlayer.attack`
+    — no pickable check).
+  - `UseItemOn`: no minY check at all; above maxY the build.tooHigh
+    message is sent and the use skipped, but the block updates still
+    run; spawn protection + border fold into one silent mayInteract
+    check (no message, no 26.1 `build_limit_message(true, max_y)`
+    quirk); a placement that did nothing sends build.tooHigh once,
+    for an UP face at maxY only. `spawn_protection_message` removed
+    (no callers left); `build_limit_message` is tooHigh-only.
+  - Dig start: spawn protection + border merged into one silent
+    mayInteract check (the ack puts the block back).
+  - `within_attack_range`: 1.21.11 `entityAttackRange()` reads
+    `getActiveItem` — the item in use while one is being used, else
+    the main-hand item (was: always the acting hand).
+  - No-change, verified: no `handleAttack` / `ServerboundAttackPacket`
+    in the Rust (Interact dispatch already 1.21.11-shaped); game-rule
+    packets are 26.1-only with no Rust surface; container click's
+    `Input` enum is the ClickType ordinals; `sendOverlayMessage` vs
+    `displayClientMessage(msg, true)` is the same wire behaviour;
+    written-book resolve same outcome; PickItemFromEntity prints no
+    profile in the Rust (already 1.21.11); swing duration already
+    main-hand (mob swing hardcodes 6 — pre-existing gap both
+    versions, item 23's file); `applyItemBlocking` identical bodies;
+    Brain NBT shape identical (only the Java API differs — the save.rs
+    comment now says `Brain.serializeStart`); player reach already
+    3.0/4.5 and mobs have no `entity_interaction_range` in the Rust;
+    lunge food gate already present; mayfly + FALL_ONE_CM already in
+    `landing.rs`; propagate order unobservable; eating random already
+    the level random; HoneyBlock `getRandom()` vs `random` same
+    stream; BrewingStandMenu 0 methods changed; PermissionSet usages
+    all in 26.1-only game-rule handlers; `isPickable` ->
+    `canBeHitByProjectile`, `ItemStack.is(Object)` -> `is(Item)`,
+    `$1`/`$2` switch-map renames and jump renumbering all noise;
+    `dispense_fixture` sets only `impact_position`, matching the
+    1.21.11 `VanillaDispenserOracle`.
+  - Follow-ups, not this item: the Java probe oracles are still
+    26.1-shaped (`VanillaLivingFallOracle`, `VanillaSceneMotionOracle`,
+    `VanillaTeleportConsumeOracle` — LivingEntity impulse fields, 2-arg
+    setter; they need Player-based actors to run against 1.21.11, and
+    are not in the 17-harness CI gate); the Rust does not disconnect
+    on an invalid-entity attack (1.21.11's `$1` handler does — noted
+    gap in `guest_attack`).
+  Rank 2 now 193/492 (30 changed, 163 no-change).
+  work-items.json rank2.closed = 193 on 2026-11-19.

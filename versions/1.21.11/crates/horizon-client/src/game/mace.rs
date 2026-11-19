@@ -364,7 +364,9 @@ impl Game<'_> {
             Some(at) if at.y <= p.position.y => at,
             _ => p.position,
         };
-        p.impulse.set_ignore_fall_damage(true, Some(impact));
+        // MaceItem.hurtEnemy: the impact position is set, then the waiver.
+        p.impulse.impact_position = Some(impact);
+        p.impulse.set_ignore_fall_damage(true);
         let fall = p.fall_distance;
         let feet = [p.position.x, p.position.y, p.position.z];
         let sound = if target_on_ground {

@@ -808,10 +808,6 @@ pub fn mob_to_nbt(
     ] {
         map.entry(key.into()).or_insert(value);
     }
-    map.insert(
-        "current_impulse_context_reset_grace_time".into(),
-        Tag::Int(m.impulse_grace_time),
-    );
     // What the mob's class saves: a content mod's living type saves as its
     // template does (the `id` written above stays its own).
     let id = m.kind.class_id();
@@ -2055,8 +2051,6 @@ pub fn mob_from_nbt_with_random(
         m.extra.set_main_hand(None);
     }
     m.death_time = number(tag.get("DeathTime")).unwrap_or(0) as i32;
-    m.impulse_grace_time =
-        number(tag.get("current_impulse_context_reset_grace_time")).unwrap_or(0) as i32;
     // Mob.readAdditionalSaveData overrides what the constructor set (copper
     // golems and elder guardians start persistent).
     m.persistent = flag(tag, "PersistenceRequired");
@@ -3864,7 +3858,6 @@ pub fn armor_stand_to_nbt(a: &ArmorStand, uuid: [i32; 4], raw: Option<&Tag>) -> 
             ("DeathTime", Tag::Short(0)),
             ("AbsorptionAmount", Tag::Float(0)),
             ("FallFlying", Tag::Byte(0)),
-            ("current_impulse_context_reset_grace_time", Tag::Int(0)),
             // AttributeMap.pack: the movement_speed instance the stand's first
             // tick makes (removeFrost), at the registry default.
             (

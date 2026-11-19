@@ -8958,6 +8958,10 @@ impl Game<'_> {
     /// Copy the live player and world state into the `Level` that gets saved.
     pub(super) fn sync_level(&mut self) {
         self.level.player_impulse_grace = self.player.as_ref().map(|p| p.impulse.reset_grace_time);
+        self.level.player_impulse = self
+            .player
+            .as_ref()
+            .map(|p| crate::save::ImpulseSave::from_impulse(&p.impulse));
         self.level.player_fall_particles = self
             .player
             .as_ref()

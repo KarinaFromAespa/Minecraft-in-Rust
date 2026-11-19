@@ -673,10 +673,6 @@ pub fn tick(
         super::strider::pre_tick(m, w, events);
     }
     let was_on_fire = base_tick(m, w, events);
-    // LivingEntity.tick ends with currentImpulseContextResetGraceTime--.
-    if m.impulse_grace_time > 0 {
-        m.impulse_grace_time -= 1;
-    }
     if m.species() == Species::Rabbit {
         super::rabbit::base_tick(m);
     }

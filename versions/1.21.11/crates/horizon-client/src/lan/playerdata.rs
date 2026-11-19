@@ -486,6 +486,10 @@ impl Drop for Autosaves {
 /// RootVehicle compound of the ride (`ServerPlayer.saveParentVehicle`).
 pub fn store(guest: &Guest, level: &mut Level, vehicle: Option<Tag>) {
     level.player_impulse_grace = guest.motion.as_ref().map(|p| p.impulse.reset_grace_time);
+    level.player_impulse = guest
+        .motion
+        .as_ref()
+        .map(|p| crate::save::ImpulseSave::from_impulse(&p.impulse));
     level.player_fall_particles = guest
         .motion
         .as_ref()

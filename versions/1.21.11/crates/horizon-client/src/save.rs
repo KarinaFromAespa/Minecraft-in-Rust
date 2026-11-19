@@ -3924,6 +3924,25 @@ pub fn write_world_gen_settings_with(
         ]),
     )
 }
+/// `Player.addAdditionalSaveData`'s impulse state: the position the
+/// current impulse struck from (`current_explosion_impact_pos`, absent
+/// when there is none) and whether it waives the fall
+/// (`ignore_fall_damage_from_current_explosion`). The two diverge: a
+/// burst that is not a wind charge sets the position and clears the flag.
+#[derive(Clone, Copy, Debug)]
+pub struct ImpulseSave {
+    pub impact: Option<[f64; 3]>,
+    pub ignore_fall_damage: bool,
+}
+impl ImpulseSave {
+    /// The live impulse's save projection.
+    pub fn from_impulse(impulse: &horizon_world::living_fall::ImpulseContext) -> Self {
+        ImpulseSave {
+            impact: impulse.impact_position.map(|v| [v.x, v.y, v.z]),
+            ignore_fall_damage: impulse.ignore_fall_damage,
+        }
+    }
+}
 #[derive(Clone, Debug, Default)]
 pub struct Level {
     pub name: String,
@@ -4010,6 +4029,9 @@ pub struct Level {
     /// Current body's save projection. None before a live body supplies it;
     /// retained raw data stays intact until then.
     pub player_impulse_grace: Option<i32>,
+    /// The live body's impulse position and waiver flag (see
+    /// `ImpulseSave`); None before a live body supplies it.
+    pub player_impulse: Option<ImpulseSave>,
     pub player_fall_particles: Option<bool>,
     pub food_exhaustion: f32,
     pub food_tick_timer: i32,
@@ -4233,6 +4255,7 @@ impl Level {
     }
     pub fn read_player(&mut self, p: &Tag) {
         self.player_impulse_grace = None;
+        self.player_impulse = None;
         self.player_fall_particles = None;
         let n = |k: &str| number(p.get(k));
         let f = |k: &str| float(p.get(k));
@@ -4439,6 +4462,27 @@ impl Level {
             .map(Tag::Int)
             .or_else(|| p.get("current_impulse_context_reset_grace_time").cloned())
             .unwrap_or(Tag::Int(0));
+        // Player.addAdditionalSaveData stores the impact position
+        // nullable (absent when there is none) and the waiver flag
+        // always. A live body with no impact drops a stale retained
+        // position below; without a live body the retained data stays.
+        let impulse_impact = match self.player_impulse {
+            Some(s) => s.impact.map(|at| doubles(&at)),
+            None => p.get("current_explosion_impact_pos").cloned(),
+        };
+        // A live body with no impact drops a stale retained position
+        // (storeNullable writes nothing for it); the impact entry below
+        // is only pushed when there is one to write.
+        if self.player_impulse.is_some_and(|s| s.impact.is_none())
+            && let Tag::Compound(map) = &mut p
+        {
+            map.remove(&JavaString::from("current_explosion_impact_pos"));
+        }
+        let ignore_fall = self
+            .player_impulse
+            .map(|s| Tag::Byte(i8::from(s.ignore_fall_damage)))
+            .or_else(|| p.get("ignore_fall_damage_from_current_explosion").cloned())
+            .unwrap_or(Tag::Byte(0));
         let fall_particles = self
             .player_fall_particles
             .map(|v| Tag::Byte(i8::from(v)))
@@ -4457,12 +4501,16 @@ impl Level {
             ("FallFlying", Tag::Byte(i8::from(self.fall_flying))),
             ("Health", Tag::Float(self.health.to_bits())),
             // Player inherits LivingEntity.makeBrain: a new empty Brain;
-            // Brain.Packed's codec stores its empty memories map.
+            // Brain.serializeStart stores its empty memories map.
             (
                 "Brain",
                 Tag::compound([("memories", Tag::Compound(Default::default()))]),
             ),
             ("current_impulse_context_reset_grace_time", impulse_grace),
+            (
+                "ignore_fall_damage_from_current_explosion",
+                ignore_fall,
+            ),
             ("spawn_extra_particles_on_fall", fall_particles),
             ("AbsorptionAmount", Tag::Float(self.absorption.to_bits())),
             ("foodLevel", Tag::Int(self.food)),
@@ -4571,6 +4619,9 @@ impl Level {
         // ServerPlayer.storeGameTypes: storeNullable, so absent without one.
         if let Some(mode) = self.previous_game_mode {
             entries.push(("previousPlayerGameType", Tag::Int(mode)));
+        }
+        if let Some(impact) = impulse_impact {
+            entries.push(("current_explosion_impact_pos", impact));
         }
         for (key, value) in entries {
             put(&mut p, key, value);

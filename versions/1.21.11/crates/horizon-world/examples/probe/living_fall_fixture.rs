@@ -69,6 +69,9 @@ impl LivingFallWorld for World<'_> {
     fn impact_position(&self) -> Option<Vec3> {
         self.impulse.impact_position
     }
+    fn ignoring_fall_damage(&self) -> bool {
+        self.impulse.ignores_fall_damage()
+    }
     fn y(&self) -> f64 {
         number(&self.f["y"])
     }
@@ -145,10 +148,15 @@ fn run(world: &mut World<'_>) -> io::Result<()> {
         2 => {
             for op in f["ops"].as_array().unwrap() {
                 match op["mode"].as_u64().unwrap() {
-                    0 => world.impulse.set_ignore_fall_damage(
-                        op["ignore"].as_bool().unwrap(),
-                        vector(&op["position"]),
-                    ),
+                    0 => {
+                        // `Player.setIgnoreFallDamageFromCurrentImpulse`
+                        // takes no position in 1.21.11; the op sets the
+                        // field directly, as onExplosionHit and the mace do.
+                        world.impulse.impact_position = vector(&op["position"]);
+                        world
+                            .impulse
+                            .set_ignore_fall_damage(op["ignore"].as_bool().unwrap());
+                    }
                     1 => world
                         .impulse
                         .apply_grace_time(op["ticks"].as_i64().unwrap() as i32),
@@ -178,6 +186,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             impulse: ImpulseContext {
                 reset_grace_time: f["grace"].as_i64().unwrap() as i32,
                 impact_position: vector(&f["impact"]),
+                // Inputs written before the flag existed carry no
+                // "ignore": a set position implied the waiver there.
+                ignore_fall_damage: f["ignore"]
+                    .as_bool()
+                    .unwrap_or(!f["impact"].is_null()),
             },
         };
         if run(&mut world).is_err() {

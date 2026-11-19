@@ -133,7 +133,13 @@ impl Game<'_> {
         let Some(eye) = self.eye_position() else {
             return false;
         };
-        let range = self.held().and_then(|stack| {
+        // `LivingEntity.entityAttackRange` reads `getActiveItem`: the item
+        // in use while one is being used, else the main-hand item.
+        let active = self
+            .using
+            .and_then(|(slot, _)| self.stack_in(slot))
+            .or_else(|| self.held());
+        let range = active.and_then(|stack| {
             self.pack
                 .item_renderer
                 .models

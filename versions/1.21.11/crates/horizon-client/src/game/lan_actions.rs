@@ -172,7 +172,7 @@ pub(super) struct GuestSwap {
     i: usize,
     play: GuestPlay,
     player: Option<PlayerMotion>,
-    player_save_projection: (Option<i32>, Option<bool>),
+    player_save_projection: (Option<i32>, Option<bool>, Option<crate::save::ImpulseSave>),
     /// The guest's eye height and the game's.
     eye: (f32, f32),
     yaw: f32,
@@ -567,6 +567,7 @@ impl Game<'_> {
         let player_save_projection = (
             self.level.player_impulse_grace.take(),
             self.level.player_fall_particles.take(),
+            self.level.player_impulse.take(),
         );
         self.sculk.swap_player(&mut play.sculk);
         // The guest's own CombatTracker: damage to them is not the host's.
@@ -1107,6 +1108,7 @@ impl Game<'_> {
         std::mem::swap(&mut self.level.player_extra, &mut g.saved);
         self.level.player_impulse_grace = player_save_projection.0;
         self.level.player_fall_particles = player_save_projection.1;
+        self.level.player_impulse = player_save_projection.2;
         std::mem::swap(&mut self.stats, &mut play.stats);
         std::mem::swap(&mut self.hook, &mut play.hook);
         self.adv.loaded = adv_loaded;
@@ -2082,25 +2084,6 @@ impl Game<'_> {
         dimension == "minecraft:overworld" && dx.max(dz) <= radius as u32
     }
 
-    /// ServerPlayer.sendSpawnProtectionMessage.
-    fn spawn_protection_message(&self, host: &LanHost, conn: u32, pos: [i32; 3]) {
-        let message = horizon_client::text::Text::translate(
-            "build.spawn_protection",
-            &[horizon_client::text::Text::literal(format!(
-                "{}, {}, {}",
-                pos[0], pos[1], pos[2]
-            ))],
-        )
-        .with_color(horizon_client::text::RED);
-        host.hub.send_to(
-            conn,
-            &C::SystemChat(play::SystemChat {
-                content: horizon_client::lan::data::component_nbt(&message.component()),
-                overlay: true,
-            }),
-        );
-    }
-
     /// `ServerGamePacketListenerImpl.wasBlockPlacementAttempt`: a block item,
     /// or a bucket with something in it, that is not cooling down.
     fn was_block_placement_attempt(&mut self, hand: Hand) -> bool {
@@ -2119,14 +2102,13 @@ impl Game<'_> {
                 ))
     }
 
-    /// `ServerPlayer.sendBuildLimitMessage`: the red overlay with the limit.
-    fn build_limit_message(&self, host: &LanHost, conn: u32, too_high: bool, limit: i32) {
+    /// `ServerGamePacketListenerImpl.handleUseItemOn`'s build-limit
+    /// message: the red overlay with the top of the world
+    /// (`build.tooHigh`; 1.21.11 builds it inline in the handler and
+    /// has no bottom-of-the-world message here).
+    fn build_limit_message(&self, host: &LanHost, conn: u32, limit: i32) {
         let message = horizon_client::text::Text::translate(
-            if too_high {
-                "build.tooHigh"
-            } else {
-                "build.tooLow"
-            },
+            "build.tooHigh",
             &[horizon_client::text::Text::literal(limit.to_string())],
         )
         .with_color(horizon_client::text::RED);
@@ -2231,15 +2213,13 @@ impl Game<'_> {
                     }
                     // ServerPlayerGameMode.handleBlockBreakAction: no dig starts
                     // under spawn protection (the ack puts the block back).
-                    if self.under_spawn_protection(host, gi, a.pos) {
-                        self.spawn_protection_message(host, conn, a.pos);
-                        return;
-                    }
-                    // mayInteract: a block outside the world border can't be
-                    // dug (the ack puts it back on the client).
-                    if !self
-                        .border
-                        .contains(f64::from(a.pos[0]), f64::from(a.pos[2]))
+                    // mayInteract: spawn protection or the world border
+                    // blocks the dig silently (the ack puts the block back
+                    // on the client).
+                    if self.under_spawn_protection(host, gi, a.pos)
+                        || !self
+                            .border
+                            .contains(f64::from(a.pos[0]), f64::from(a.pos[2]))
                     {
                         return;
                     }
@@ -2530,26 +2510,17 @@ impl Game<'_> {
                     ],
                 };
                 let hand = if p.hand == 1 { Hand::Off } else { Hand::Main };
-                // handleUseItemOn: above or below the world nothing is used and
-                // the player is told the limit (the blocks are not resent);
-                // under spawn protection nothing is used or placed; the player
-                // is told and the blocks below go back. mayInteract: nothing is
-                // used on a block outside the world border either.
-                let min_y = self.world.shape.min_y;
+                // handleUseItemOn: above the world the player is told the
+                // limit and nothing is used, but the blocks below still go
+                // back; mayInteract (spawn protection or the world border)
+                // blocks the use silently, with no message either way.
                 let max_y = self.world.shape.max_y() - 1;
                 if p.pos[1] > max_y {
-                    self.build_limit_message(host, conn, true, max_y);
-                    return;
-                }
-                if p.pos[1] < min_y {
-                    self.build_limit_message(host, conn, false, min_y);
-                    return;
-                }
-                if self.under_spawn_protection(host, gi, p.pos) {
-                    self.spawn_protection_message(host, conn, p.pos);
-                } else if self
-                    .border
-                    .contains(f64::from(p.pos[0]), f64::from(p.pos[2]))
+                    self.build_limit_message(host, conn, max_y);
+                } else if !self.under_spawn_protection(host, gi, p.pos)
+                    && self
+                        .border
+                        .contains(f64::from(p.pos[0]), f64::from(p.pos[2]))
                 {
                     if spectator && self.spectator_use_portal(host, conn, gi, p.pos) {
                         return;
@@ -2585,20 +2556,14 @@ impl Game<'_> {
                     let swung = used.map(|u| u.0);
                     self.lan_swing_back(host, conn, swung);
                     self.guest_use_sounds(host, conn, logged, heard);
-                    // A placement that did nothing at the top or bottom of the
-                    // world says why. Vanilla asks twice for the top (once
-                    // before the swing, once in the check that also has the
-                    // bottom), so a player there is told twice.
-                    if let Some((_, false, true)) = used {
-                        if p.face == 1 && p.pos[1] >= max_y {
-                            self.build_limit_message(host, conn, true, max_y);
-                            self.build_limit_message(host, conn, true, max_y);
-                        } else if p.face == 0 && p.pos[1] <= min_y {
-                            self.build_limit_message(host, conn, false, min_y);
-                        }
+                    // A placement that did nothing at the top of the world
+                    // says why, once, for an upward face.
+                    if let Some((_, false, true)) = used
+                        && p.face == 1
+                        && p.pos[1] >= max_y
+                    {
+                        self.build_limit_message(host, conn, max_y);
                     }
-                } else {
-                    self.build_limit_message(host, conn, true, max_y);
                 }
                 // The client predicted a result: correct it with what really is.
                 for pos in [
@@ -3477,16 +3442,22 @@ impl Game<'_> {
         let Some(gi) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
-        if host.hub.guests[gi].spectator() {
-            return;
-        }
-        // handleAttack: a target inside the world border, then
-        // `isWithinAttackRange(mainHandItem, box, 3.0)` before anything else, players,
+        // handleInteract: a target inside the world border, then
+        // `isWithinAttackRange(box, 3.0)` before anything else, players,
         // mobs, objects and fireballs alike.
-        if let Some(target) = self.guest_target_box(host, gi, id)
+        let target = self.guest_target_box(host, gi, id);
+        if let Some(target) = target
             && (!self.inside_border(&target)
                 || self.as_guest(host, conn, |g| g.within_attack_range(&target)) != Some(true))
         {
+            return;
+        }
+        // ServerPlayer.attack: a spectator's click sets the camera on
+        // the target instead of attacking it.
+        if host.hub.guests[gi].spectator() {
+            if target.is_some() {
+                self.guest_set_camera(host, gi, Some(id));
+            }
             return;
         }
         // Native mods, where Player.attack starts: a canceled blow does
@@ -4330,6 +4301,11 @@ impl Game<'_> {
             // guest's own client counts.
             let play = host.play.entry(conn).or_default();
             play.shield_cooldown = play.shield_cooldown.saturating_sub(1);
+            // Player.tick's impulse grace countdown, once a tick for each
+            // player, on the guest's own motion (not the swapped-in body).
+            if let Some(motion) = host.hub.guests[gi].motion.as_mut() {
+                motion.impulse.tick();
+            }
             // ServerItemCooldowns.onCooldownEnded: a finished entry is told to
             // the guest (a duration of 0 removes it).
             for group in play.cooldowns.tick() {
