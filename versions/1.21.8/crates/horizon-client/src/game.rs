@@ -2441,13 +2441,12 @@ struct Game<'a> {
     book_last_click: Option<std::time::Instant>,
     /// Lecterns whose page-turn pulse is running (ticks left).
     lectern_pulses: Vec<((i32, i32, i32), i32)>,
-    /// LevelLoadingScreen.smoothedProgress while the player is not placed yet.
+    /// `LevelLoadingScreen`'s percentage while the player is not placed yet:
+    /// the integrated server's load progress as it stands.
     loading_progress: f32,
     /// `CreateWorldScreen.openCreateWorldScreen`'s data read, on a worker,
     /// while the title says `createWorld.preparing`.
     creation_job: Option<std::thread::JoinHandle<std::result::Result<(), String>>>,
-    /// When `loading_progress` last eased (the server thread's load, 50 ms a step).
-    loading_progress_at: Option<std::time::Instant>,
     /// A received packet started or ended a piston's move: `poll_remote`
     /// syncs the moving pistons once its packets are handled, not once per packet.
     moving_pistons_stale: bool,
@@ -9226,15 +9225,11 @@ impl Game<'_> {
                     .as_ref()
                     .map(|s| s.handle.load_view().clone());
                 let status = |x: i32, z: i32| view.as_ref().and_then(|v| v.status(x, z));
-                let progress = view
-                    .as_ref()
-                    .is_some_and(|v| v.has_progress())
-                    .then_some(self.loading_progress);
-                horizon_client::level_loading::draw(
+                horizon_client::level_loading::draw_single_player(
                     &mut hud,
                     &self.gui.atlas,
-                    Some(&status),
-                    progress,
+                    &status,
+                    self.loading_progress,
                 );
                 pr.lap("pr_loading");
                 drop(prepare);
@@ -11970,7 +11965,6 @@ impl<'a> Game<'a> {
             lectern_pulses: Vec::new(),
             loading_progress: 0.0,
             creation_job: None,
-            loading_progress_at: None,
             moving_pistons_stale: false,
             spawn_origin: None,
             spawn_spiral: Default::default(),

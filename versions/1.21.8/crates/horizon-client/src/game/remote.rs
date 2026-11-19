@@ -487,7 +487,7 @@ fn stepped_move(
     }
     match handler.interpolate_to(entity, path, rotation) {
         Start::Snap(at) => Some(at),
-        Start::Interpolating | Start::Unchanged => None,
+        Start::Interpolating => None,
     }
 }
 
@@ -1188,7 +1188,7 @@ impl Game<'_> {
             loaded_sent: false,
             heard_level: None,
             native_epoch: None,
-            level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
+            level_load: horizon_client::level_loading::LevelLoadTracker::new(),
             sent_info: info,
             predictions: HashMap::new(),
             ticked_before_player: std::collections::HashSet::new(),
@@ -1418,7 +1418,7 @@ impl Game<'_> {
             loaded_sent: false,
             heard_level: None,
             native_epoch: None,
-            level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
+            level_load: horizon_client::level_loading::LevelLoadTracker::new(),
             sent_info: info,
             predictions: HashMap::new(),
             ticked_before_player: std::collections::HashSet::new(),
@@ -2049,27 +2049,22 @@ impl Game<'_> {
         (self.settings.chat_delay * 1000.0) as i64
     }
 
-    /// `ChatListener.tick`: while paused the wait does not run down; with no
-    /// Chat Delay the queue flushes; otherwise the next message the chat takes
-    /// shows once the delay has passed since the last shown one.
+    /// `ChatListener.tick` (1.21.8): no pause handling — the delay runs
+    /// on wall time whether the game is paused or not (the pause freeze
+    /// came in 1.21.9). With no Chat Delay the queue clears at once,
+    /// standing in for `setMessageDelay(0)` (there is no settings hook
+    /// here; the next tick is at most 50 ms later); otherwise the next
+    /// message the chat takes shows once the delay has passed since the
+    /// last shown one.
     pub(super) fn tick_chat_queue(&mut self) {
         let delay = self.chat_delay_ms();
-        // Minecraft.isPaused: a single-player pausing screen, not every pause menu.
-        if self.pause {
-            if delay > 0
-                && let Some(r) = self.remote.as_mut()
-            {
-                r.chat_previous = r.chat_previous.map(|t| t + Duration::from_millis(50));
-            }
-            return;
-        }
         if delay == 0 {
             if self
                 .remote
                 .as_ref()
                 .is_some_and(|r| !r.chat_queue.is_empty())
             {
-                self.flush_chat_queue();
+                self.clear_chat_queue();
             }
             return;
         }
@@ -2089,9 +2084,11 @@ impl Game<'_> {
         }
     }
 
-    /// `ChatListener.flushQueue`: every held-back message shows now, and the
-    /// delay starts over.
-    fn flush_chat_queue(&mut self) {
+    /// `ChatListener.clearQueue` (1.21.8): every held-back message shows
+    /// now. The delay does NOT start over — 1.21.8's clear leaves
+    /// `previousMessageTime` alone (the reset came with 1.21.9's
+    /// `flushQueue` rename).
+    fn clear_chat_queue(&mut self) {
         let Some(queue) = self
             .remote
             .as_mut()
@@ -2101,9 +2098,6 @@ impl Game<'_> {
         };
         for chat in queue {
             self.accept_chat(chat);
-        }
-        if let Some(r) = self.remote.as_mut() {
-            r.chat_previous = None;
         }
     }
 
@@ -2331,7 +2325,7 @@ impl Game<'_> {
                 Event::Reconfiguring => {
                     // handleConfigurationStart: the held-back chat shows, then
                     // clearClientLevel opens ServerReconfigScreen over no level.
-                    self.flush_chat_queue();
+                    self.clear_chat_queue();
                     self.send_chat_acknowledgement();
                     self.close_dialogs();
                     // The server configuring us now (a proxy's next one)
@@ -6519,7 +6513,7 @@ impl Game<'_> {
             r.level_load.player_section_ready();
         }
         r.level_load.tick_client_load(now, check);
-        if !r.level_load.is_level_ready(now) {
+        if !r.level_load.is_level_ready() {
             return;
         }
         r.level_load.finish();
@@ -6527,11 +6521,15 @@ impl Game<'_> {
             r.loaded_sent = true;
             self.send(S::PlayerLoaded(Empty));
         }
-        // LevelLoadingScreen.onClose.
-        self.say_system_now(&horizon_client::text::Text::translate(
-            "narrator.ready_to_play",
-            &[],
-        ));
+        // The screen's close: single player's `LevelLoadingScreen.removed`
+        // says the load is done, multiplayer's `ReceivingLevelScreen.onClose`
+        // says the player is ready to play.
+        let key = if self.integrated.is_some() {
+            "narrator.loading.done"
+        } else {
+            "narrator.ready_to_play"
+        };
+        self.say_system_now(&horizon_client::text::Text::translate(key, &[]));
         self.capture_loaded_world();
     }
 
@@ -10853,10 +10851,11 @@ impl Game<'_> {
             return true;
         }
         if r.joined || loading {
-            // LevelLoadingScreen: the world's terrain comes in. A server's
-            // chunk status view and progress are the integrated server's alone
-            // (`LevelLoadTracker.statusView`, `hasProgress`), and so is what
-            // the narrator says of it.
+            // The loading screen: single player's `LevelLoadingScreen` (the
+            // chunk map and the server's progress) or multiplayer's
+            // `ReceivingLevelScreen` ("Downloading terrain", the portal
+            // background of the reason). Only the integrated server has a
+            // chunk status view and progress to show.
             let progress = self
                 .integrated
                 .as_ref()
@@ -10866,15 +10865,23 @@ impl Game<'_> {
             horizon_client::widgets::begin_screen(|| {
                 super::screen_info::level_loading(progress, &super::screen_info::tr)
             });
-            self.draw_level_loading_background(batch, r.level_load.reason);
             let atlas = &self.gui.atlas;
             match self.integrated.as_ref().map(|i| i.load_view()) {
                 Some(view) => {
+                    let (w, h) = (batch.width, batch.height);
+                    horizon_client::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, false);
                     let status = |x: i32, z: i32| view.status(x, z);
-                    let progress = view.has_progress().then_some(self.loading_progress);
-                    horizon_client::level_loading::draw(batch, atlas, Some(&status), progress);
+                    horizon_client::level_loading::draw_single_player(
+                        batch,
+                        atlas,
+                        &status,
+                        self.loading_progress,
+                    );
                 }
-                None => horizon_client::level_loading::draw(batch, atlas, None, None),
+                None => {
+                    self.draw_level_loading_background(batch, r.level_load.reason);
+                    horizon_client::level_loading::draw(batch, atlas);
+                }
             }
             return true;
         }

@@ -328,14 +328,13 @@ fn ping_all(servers: &[ServerEntry], pings: &Pings, icons: &Icons, file: &Path) 
     }
 }
 /// Save the list after a move or delete, keeping the icons pings stored in
-/// servers.dat since it was loaded, and the Code of Conduct accepted on a server.
+/// servers.dat since it was loaded.
 fn save_servers(file: &Path, servers: &mut [ServerEntry]) {
     let _guard = SAVING.lock();
     let saved = servers::load(file);
     for entry in servers.iter_mut() {
         if let Some(s) = saved.iter().find(|s| s.ip == entry.ip) {
             entry.icon = s.icon.clone();
-            entry.accepted_code_of_conduct = s.accepted_code_of_conduct;
         }
     }
     let _ = servers::save(file, servers);
@@ -485,12 +484,13 @@ fn entry_address(servers: &[ServerEntry], lan: &Scanner, index: usize) -> Option
 
 /// The Server Resource Packs button's label: `CommonComponents.optionNameValue`.
 fn pack_setting_label(packs: Option<bool>) -> String {
+    // 1.21.8's keys are addServer.resourcePack.* (manageServer.* came in 1.21.9).
     let (key, fallback) = match packs {
-        Some(true) => ("manageServer.resourcePack.enabled", "Enabled"),
-        Some(false) => ("manageServer.resourcePack.disabled", "Disabled"),
-        None => ("manageServer.resourcePack.prompt", "Prompt"),
+        Some(true) => ("addServer.resourcePack.enabled", "Enabled"),
+        Some(false) => ("addServer.resourcePack.disabled", "Disabled"),
+        None => ("addServer.resourcePack.prompt", "Prompt"),
     };
-    let name = crate::lang::get_or("manageServer.resourcePack", "Server Resource Packs");
+    let name = crate::lang::get_or("addServer.resourcePack", "Server Resource Packs");
     crate::lang::get_or("options.generic_value", "%s: %s")
         .replacen("%s", &name, 1)
         .replacen("%s", &crate::lang::get_or(key, fallback), 1)

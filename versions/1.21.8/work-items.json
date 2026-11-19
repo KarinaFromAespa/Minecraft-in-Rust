@@ -1,1 +1,31 @@
-{"generated_from": "cb6660fcab11f70ba5216afe67980d3e3310f714531e2ae71e5092efc49bed89", "note": "Behaviour port in progress (2026-11-19): rank 1 closed 9/9 (facts, regenerates, protocol verified; save-format fixed in 4 places), rank 4 content closed 2/2 (chain id), rank 5 closed 2/2 (sample-verified unported). Rank 2/3 open; rank 4 new-classes open.", "rank1": {"accepted": [], "closed": 9, "total": 9}, "rank2": {"accepted": [], "closed": 0, "total": 317}, "rank3": {"accepted": [], "closed": 0, "total": 163}, "rank3plus": "Inherits the 1.21.9 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.", "rank4": {"accepted": [], "closed": 2, "total": 35}, "rank5": {"accepted": [], "closed": 2, "total": 2}, "release": "1.21.8"}
+{
+  "generated_from": "cb6660fcab11f70ba5216afe67980d3e3310f714531e2ae71e5092efc49bed89",
+  "note": "Behaviour port in progress (2026-11-19): rank 1 closed 9/9 (facts, regenerates, protocol verified; save-format fixed in 4 places), rank 4 content closed 2/2 (chain id), rank 5 closed 2/2 (sample-verified unported). Rank 2: 3/317 \u2014 item 10 (remote.rs, 6 fixes: chat queue, command confirmation, server-list CoC field, resource-pack lang keys, interpolation guard, loading-screen split) + 2 zero-diff items (183, 233). Rank 3: 7/163 \u2014 zero-diff items 356, 372, 382, 383, 384, 385, 396 (all classes byte-identical in decompiled output). Rank 4 new-classes open.",
+  "rank1": {
+    "accepted": [],
+    "closed": 9,
+    "total": 9
+  },
+  "rank2": {
+    "accepted": [],
+    "closed": 3,
+    "total": 317
+  },
+  "rank3": {
+    "accepted": [],
+    "closed": 7,
+    "total": 163
+  },
+  "rank3plus": "Inherits the 1.21.9 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
+  "rank4": {
+    "accepted": [],
+    "closed": 2,
+    "total": 35
+  },
+  "rank5": {
+    "accepted": [],
+    "closed": 2,
+    "total": 2
+  },
+  "release": "1.21.8"
+}

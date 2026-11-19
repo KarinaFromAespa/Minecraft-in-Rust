@@ -331,9 +331,6 @@ pub(super) struct Starting {
     player: String,
     /// The save's folder in `saves/`, for the world icon once joined.
     folder: String,
-    /// `Minecraft.doWorldLoad`'s `newWorld`: the loading screen stays 500 ms
-    /// once the level is ready.
-    new_world: bool,
 }
 
 /// The world to open and the player who owns it.
@@ -404,7 +401,6 @@ impl Game<'_> {
         let player = auth
             .as_ref()
             .map_or_else(|| self.options.player_name(), |a| a.name.clone());
-        let new_world = create.is_some();
         // `IntegratedServer`'s constructor: `setSingleplayerProfile(minecraft.getGameProfile())`
         // — the signed-in account's own UUID. Only an offline start names its player by the
         // offline profile. The owner is the world's player, so a world without
@@ -513,7 +509,6 @@ impl Game<'_> {
             ready,
             player,
             folder: folder.to_owned(),
-            new_world,
         });
         // Harnesses, control scripts and runs without a window go on with the world open.
         if self.window.is_none() || super::synchronous_startup(&self.options) {
@@ -558,7 +553,6 @@ impl Game<'_> {
             mut handle,
             player,
             folder,
-            new_world,
             ..
         }) = self.integrated_starting.take()
         else {
@@ -569,12 +563,8 @@ impl Game<'_> {
         self.connect_local(pipe, &player)?;
         if let Some(r) = self.remote.as_mut() {
             r.save_folder = Some(folder.clone());
-            // `new LevelLoadTracker(newWorld ? 500L : 0L)`.
-            r.level_load = horizon_client::level_loading::LevelLoadTracker::new(if new_world {
-                horizon_client::level_loading::LEVEL_LOAD_CLOSE_DELAY_MS
-            } else {
-                0
-            });
+            // A fresh tracker for the new load (1.21.8 has no close delay).
+            r.level_load = horizon_client::level_loading::LevelLoadTracker::new();
         }
         // IntegratedServer.getWorldScreenshotFile: the client grabs the frame
         // the Select World list shows, and needs the save folder for it.
@@ -637,27 +627,16 @@ impl Game<'_> {
         }
     }
 
-    /// `LevelLoadingScreen.tick`'s easing of the server's progress, every 50 ms
-    /// of wall time (the starting server has no client tick yet).
+    /// `LevelLoadingScreen`'s percentage: the server's progress as it stands
+    /// (1.21.8 shows the listener's progress raw; the eased `smoothedProgress`
+    /// came in 1.21.9 with the unified screen).
     pub(super) fn tick_load_progress(&mut self) {
         let view = match (&self.integrated_starting, &self.integrated) {
             (Some(s), _) => s.handle.load_view().clone(),
             (None, Some(i)) => i.load_view().clone(),
             _ => return,
         };
-        let now = Instant::now();
-        let at = self.loading_progress_at.get_or_insert(now);
-        let steps = (now.duration_since(*at).as_millis() / 50).min(20) as u32;
-        *at += Duration::from_millis(u64::from(steps) * 50);
-        if now.duration_since(*at) > Duration::from_secs(1) {
-            *at = now;
-        }
-        for _ in 0..steps {
-            self.loading_progress = horizon_client::level_loading::smooth(
-                self.loading_progress,
-                view.server_progress(),
-            );
-        }
+        self.loading_progress = view.server_progress();
     }
 
     /// The server thread's loop (`MinecraftServer.runServer`): 20 ticks a

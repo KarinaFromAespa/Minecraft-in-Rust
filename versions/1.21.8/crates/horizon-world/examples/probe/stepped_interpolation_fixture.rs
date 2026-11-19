@@ -63,7 +63,6 @@ pub fn main() {
                         set_rot(&mut entity, at.yaw, at.pitch);
                         "s"
                     }
-                    Start::Unchanged => "k",
                     Start::Interpolating => "i",
                 }
             }

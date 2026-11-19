@@ -334,6 +334,72 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
+### Rank 2: 3/317 (item 10 + 2 zero-diff)
+
+- **Item 10 — `game/remote.rs` (14 classes, 85 named methods, 1,490
+  diff lines):** six fixes.
+  1. **Chat queue:** 1.21.9's `ChatListener.tick` freezes the delay
+     clock while paused and `flushQueue` resets it; 1.21.8 has no
+     pause handling and `clearQueue` does not reset it. Removed the
+     pause branch from `tick_chat_queue`; `flush_chat_queue` became
+     `clear_chat_queue` with 1.21.8 semantics.
+  2. **Unattended commands:** 1.21.9's signed-argument case opens a
+     signed confirmation window (Suggest / Copy to clipboard);
+     1.21.8 just logs the error and does nothing. `SignatureRequired`
+     now logs and refuses; the prompt is plain Yes/No
+     (`CommandAccept` removed).
+  3. **Server list:** removed `accepted_code_of_conduct` from
+     `ServerEntry` (1.21.9-only `ServerData` field) and its NBT
+     read/write; `save_servers` no longer copies it;
+     `store_code_of_conduct` removed (the prompt can never open).
+  4. **Resource-pack lang keys:** `manageServer.resourcePack.*` ->
+     `addServer.resourcePack.*` (verified in both jars' en_us.json:
+     1.21.8 has only the `addServer.*` keys).
+  5. **Entity interpolation:** 1.21.9's `interpolateTo` skips the
+     update when an interpolation is active and the target is
+     unchanged; 1.21.8 always overwrites the data (steps reset to
+     full). Removed the guard (`Start::Unchanged` and `PosRot::is`
+     went with it).
+  6. **Loading screens split back into 1.21.8's two screens:**
+     1.21.9 unified them (chunk map + "Downloading terrain" +
+     progress bar + 500 ms close delay + eased progress). 1.21.8 has
+     `ReceivingLevelScreen` (multiplayer: text only, portal
+     background of the reason, 30 s wait from screen creation,
+     `narrator.ready_to_play` on close) and `LevelLoadingScreen`
+     (single player: chunk map + `loading.progress` percentage, no
+     bar, plain background, raw listener progress,
+     `narrator.loading.done` on close). `draw()` is now the
+     multiplayer screen; `draw_single_player()` is the single-player
+     one; the close delay, the smoothing (`smooth()`), and
+     `loading_progress_at` are gone; the 30 s timeout fires while
+     waiting for the server too.
+  - **Verified no-change:** `packetProcessor()` -> `minecraft`
+    (threading API, no Rust equivalent); `seenPlayers`;
+    PlayerRotation relative flags and SetDefaultSpawn RespawnData
+    (mechanical port handled); `startRiding` 3rd arg (client call
+    sites equivalent); `startWaitingForNewLevel` (Rust resets fully,
+    as 1.21.8's fresh manager does); ContainerSetData null check
+    (Rust is None-safe); `determineLevelLoadingReason` (same logic);
+    `isClientSide()` -> field (Interaction, PolarBear, Squid,
+    ClientSideMerchant); PlayerSkin identical; MultiPlayerGameMode
+    (debug logging + equivalent restructure only).
+  - **Upstream gap, not a port gap:** 1.21.8's `handleCustomPayload`
+    dispatches ~19 debug payloads to debug renderers; 1.21.9 moved
+    debug to dedicated packets. Horizon implements neither, same as
+    26.2/26.3 — no code change.
+  - **Deferred:** sprintWindow option + `shouldStopRunSprinting`
+    (item 12, motion.rs); PlayerInfo skin secure check (item 30,
+    skins.rs); `setReducedDebugInfo` (debug entries item);
+    ItemPickupParticle render-state refactor (item 14); the
+    disconnect-screen flow (item 20, title.rs); whether 1.21.8 has
+    the F3+F6 debug options screen (debug-overlay item).
+- **Zero-diff items 183, 233 (rank 2) and 356, 372, 382, 383, 384,
+  385, 396 (rank 3):** all named classes byte-identical in
+  decompiled output, none added/removed — no change. (The diff
+  tool's semantic hash flagged them; the decompiled sources match.)
+
+### Rank 3: 7/163 (zero-diff items, see above)
+
 ### Rank 4 content: closed 2/2 (chain)
 
 1.21.9 renamed `minecraft:chain` to `minecraft:iron_chain` at

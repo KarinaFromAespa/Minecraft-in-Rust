@@ -63,7 +63,8 @@ impl Game<'_> {
             .as_ref()
             .is_some_and(|p| p.backdrop == Backdrop::Panorama)
     }
-    /// `LevelLoadingScreen.extractBackground`.
+    /// `ReceivingLevelScreen.renderBackground`: the portal of the reason, or
+    /// the panorama behind anything else.
     pub(super) fn draw_level_loading_background(
         &self,
         batch: &mut HudBatch,

@@ -1,5 +1,9 @@
-//! LevelLoadingScreen: "Loading terrain..." over the chunk status map and
-//! the server's load progress while a world opens or a portal is crossed.
+//! The two loading screens: single player's `LevelLoadingScreen` ("Loading
+//! N%..." over the chunk status map while the integrated server loads) and
+//! multiplayer's `ReceivingLevelScreen` ("Downloading terrain..." while the
+//! server's chunks come in, with the portal background of the reason).
+//! 1.21.9 unified them into one screen with a progress bar; 1.21.8 keeps
+//! them apart.
 use crate::{
     hud::{HudAtlas, HudBatch},
     text::Text,
@@ -45,7 +49,7 @@ impl Status {
     }
 }
 
-/// `LevelLoadingScreen.Reason`.
+/// `ReceivingLevelScreen.Reason`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reason {
     NetherPortal,
@@ -53,11 +57,9 @@ pub enum Reason {
     Other,
 }
 
-/// `LevelLoadTracker.CLIENT_WAIT_TIMEOUT_MS`.
+/// `ReceivingLevelScreen.CHUNK_LOADING_START_WAIT_LIMIT_MS`: the screen
+/// closes 30 s after it opens, whether or not the server started loading.
 pub const CLIENT_WAIT_TIMEOUT_MS: u64 = 30_000;
-/// `LevelLoadTracker.LEVEL_LOAD_CLOSE_DELAY_MS`: how long a new world's loading
-/// screen stays once the level is ready.
-pub const LEVEL_LOAD_CLOSE_DELAY_MS: u64 = 500;
 
 /// `ClientPacketListener.determineLevelLoadingReason`.
 pub fn reason_for_respawn(player_died: bool, dimension: &str, old_dimension: &str) -> Reason {
@@ -74,18 +76,20 @@ pub fn reason_for_respawn(player_died: bool, dimension: &str, old_dimension: &st
     }
 }
 
-/// `LevelLoadTracker.ClientState`, with the times in milliseconds.
+/// `LevelLoadStatusManager.Status`, with the times in milliseconds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ClientState {
-    /// `WaitingForServer`: until the loading start game event.
+    /// `WAITING_FOR_SERVER`: until the loading start game event. The screen
+    /// still closes on its own 30 s wait, even if the server never starts.
     WaitingForServer { timeout_after: u64 },
-    /// `WaitingForPlayerChunk`: until the section around the player is shown.
+    /// `WAITING_FOR_PLAYER_CHUNK`: until the section around the player is shown.
     WaitingForPlayerChunk {
         player_section_ready: bool,
         timeout_after: u64,
     },
-    /// `ClientLevelReady`.
-    Ready { ready_at: u64 },
+    /// `LEVEL_READY`: the screen closes at once (no close delay in 1.21.8;
+    /// the 500 ms `LEVEL_LOAD_CLOSE_DELAY_MS` came in 1.21.9).
+    Ready,
 }
 
 /// What `WaitingForPlayerChunk.isReady` asks of the player.
@@ -97,24 +101,23 @@ pub struct PlayerCheck {
     pub alive: bool,
 }
 
-/// The client half of `LevelLoadTracker`: what the loading screen waits for
-/// after a login or a respawn, and the screen it is shown on.
+/// The client half of the level load (`LevelLoadStatusManager`, which
+/// `startWaitingForNewLevel` makes fresh each time): what the loading screen
+/// waits for after a login or a respawn, and the screen it is shown on.
 #[derive(Clone, Copy, Debug)]
 pub struct LevelLoadTracker {
     state: Option<ClientState>,
-    close_delay_ms: u64,
-    /// `LevelLoadingScreen.reason`.
+    /// `ReceivingLevelScreen.reason`.
     pub reason: Reason,
 }
 impl LevelLoadTracker {
-    pub fn new(close_delay_ms: u64) -> Self {
+    pub fn new() -> Self {
         Self {
             state: None,
-            close_delay_ms,
             reason: Reason::Other,
         }
     }
-    /// `startClientLoad`, for the screen `reason` (`startWaitingForNewLevel`).
+    /// `startWaitingForNewLevel`, for the screen `reason`.
     pub fn start_client_load(&mut self, now: u64, reason: Reason) {
         self.state = Some(ClientState::WaitingForServer {
             timeout_after: now + CLIENT_WAIT_TIMEOUT_MS,
@@ -154,8 +157,15 @@ impl LevelLoadTracker {
             *player_section_ready = true;
         }
     }
-    /// `tickClientLoad`.
+    /// `LevelLoadStatusManager.tick` plus the screen's own 30 s wait
+    /// (`ReceivingLevelScreen.tick` closes on it in either state).
     pub fn tick_client_load(&mut self, now: u64, player: PlayerCheck) {
+        if let Some(ClientState::WaitingForServer { timeout_after }) = self.state
+            && now > timeout_after
+        {
+            self.state = Some(ClientState::Ready);
+            return;
+        }
         if let Some(ClientState::WaitingForPlayerChunk {
             player_section_ready,
             timeout_after,
@@ -172,13 +182,13 @@ impl LevelLoadTracker {
                 true
             };
             if ready {
-                self.state = Some(ClientState::Ready { ready_at: now });
+                self.state = Some(ClientState::Ready);
             }
         }
     }
-    /// `isLevelReady`.
-    pub fn is_level_ready(&self, now: u64) -> bool {
-        matches!(self.state, Some(ClientState::Ready { ready_at }) if now >= ready_at + self.close_delay_ms)
+    /// `levelReady`.
+    pub fn is_level_ready(&self) -> bool {
+        matches!(self.state, Some(ClientState::Ready))
     }
 }
 
@@ -251,10 +261,10 @@ impl ProgressTracker {
     }
 }
 
-/// The integrated server's side of `LevelLoadTracker`: what its
-/// `LevelLoadListener` reported (`serverProgress`, `hasProgress`) and the
-/// chunk status map around the load focus (`ChunkLoadStatusView`), which the
-/// server thread writes and the window's loading screen reads.
+/// The integrated server's side of the single-player load: what its
+/// `StoringChunkProgressListener` reported (the load progress and the chunk
+/// status map around the load focus), which the server thread writes and the
+/// window's loading screen reads.
 #[derive(Debug, Default)]
 pub struct ServerLoadView {
     tracker: std::sync::Mutex<ProgressTracker>,
@@ -315,11 +325,6 @@ pub fn progress(ready: usize) -> f32 {
     (PREPARE_WEIGHT + ready.min(PLAYER_CHUNKS)) as f32 / total as f32
 }
 
-/// `LevelLoadingScreen.tick`: the bar eases a fifth of the way each tick.
-pub fn smooth(smoothed: f32, progress: f32) -> f32 {
-    smoothed + (progress - smoothed) * 0.2
-}
-
 /// `ARGB.opaque` as the batch's RGBA.
 pub const fn opaque(rgb: u32) -> u32 {
     0xFF00_0000 | (rgb & 0xFF) << 16 | (rgb & 0xFF00) | (rgb >> 16 & 0xFF)
@@ -340,33 +345,47 @@ pub fn brand_background(dark: bool) -> u32 {
     }
 }
 
-/// `LevelLoadingScreen.extractRenderState` over its background: the text,
-/// the progress bar and the chunk map, `status(x, z)` for x and z in
-/// `0..=2 * STATUS_RADIUS` from the map's north-west corner.
-pub fn draw(
+/// `ReceivingLevelScreen.render`: "Downloading terrain" alone, centred 50
+/// above the middle. No chunk map, no progress bar: those belong to the
+/// single-player screen.
+pub fn draw(batch: &mut HudBatch, atlas: &HudAtlas) {
+    let (x_center, y_center) = ((batch.width as i32) / 2, (batch.height as i32) / 2);
+    let text = Text::translate("multiplayer.downloadingTerrain", &[]);
+    let tw = atlas.font.width_text(&text) as i32;
+    batch.text_styled(
+        atlas,
+        &text,
+        (x_center - tw / 2) as f32,
+        (y_center - 50) as f32,
+        u32::MAX,
+        true,
+    );
+}
+
+/// `LevelLoadingScreen.render`: the chunk status map (`renderChunks`, size 2,
+/// margin 0) with the load's percentage above it (`loading.progress`, the
+/// listener's progress clamped to 0..100). No progress bar: 1.21.8's screen
+/// has none.
+pub fn draw_single_player(
     batch: &mut HudBatch,
     atlas: &HudAtlas,
-    status: Option<&dyn Fn(i32, i32) -> Option<Status>>,
-    progress: Option<f32>,
+    status: &dyn Fn(i32, i32) -> Option<Status>,
+    progress: f32,
 ) {
     let (x_center, y_center) = ((batch.width as i32) / 2, (batch.height as i32) / 2);
-    let text_top = match status {
-        Some(status) => {
-            // extractChunksForRendering(size 2, margin 0).
-            let diameter = STATUS_RADIUS * 2 + 1;
-            let start = (x_center - diameter, y_center - diameter);
-            for x in 0..diameter {
-                for z in 0..diameter {
-                    let color = opaque(status(x, z).map_or(0, Status::color));
-                    let (cx, cy) = (start.0 + x * 2, start.1 + z * 2);
-                    batch.fill(atlas, cx as f32, cy as f32, 2.0, 2.0, color);
-                }
-            }
-            y_center - STATUS_RADIUS * 2 - 9 * 3
+    let diameter = STATUS_RADIUS * 2 + 1;
+    let start = (x_center - diameter, y_center - diameter);
+    for x in 0..diameter {
+        for z in 0..diameter {
+            let color = opaque(status(x, z).map_or(0, Status::color));
+            let (cx, cy) = (start.0 + x * 2, start.1 + z * 2);
+            batch.fill(atlas, cx as f32, cy as f32, 2.0, 2.0, color);
         }
-        None => y_center - 50,
-    };
-    let text = Text::translate("multiplayer.downloadingTerrain", &[]);
+    }
+    // `getDiameter() + 9 + 2` above the middle.
+    let text_top = y_center - diameter - 9 - 2;
+    let percent = ((progress * 100.0).floor() as i32).clamp(0, 100).to_string();
+    let text = Text::translate("loading.progress", &[Text::literal(percent)]);
     let tw = atlas.font.width_text(&text) as i32;
     batch.text_styled(
         atlas,
@@ -376,13 +395,6 @@ pub fn draw(
         u32::MAX,
         true,
     );
-    if let Some(progress) = progress {
-        // drawProgressBar(xCenter - 100, textTop + 12, 200, 2).
-        let (left, top) = ((x_center - 100) as f32, (text_top + 9 + 3) as f32);
-        batch.fill(atlas, left, top, 200.0, 2.0, opaque(0));
-        let done = (progress * 200.0).round();
-        batch.fill(atlas, left, top, done, 2.0, opaque(0x00FF00));
-    }
 }
 
 /// `LoadingOverlay.MOJANG_STUDIOS_LOGO_LOCATION`, from the player's own resources.
@@ -659,9 +671,6 @@ mod tests {
         assert_eq!(progress(0), 10.0 / 59.0);
         assert_eq!(progress(49), 1.0);
         assert_eq!(progress(100), 1.0);
-        let eased = smooth(0.0, 1.0);
-        assert_eq!(eased, 0.2);
-        assert!((smooth(eased, 1.0) - 0.36).abs() < 1e-6);
     }
 
     #[test]
@@ -737,7 +746,7 @@ mod tracker_tests {
 
     #[test]
     fn the_load_waits_for_the_server_then_the_players_section() {
-        let mut tracker = LevelLoadTracker::new(0);
+        let mut tracker = LevelLoadTracker::new();
         assert!(!tracker.is_active());
         tracker.start_client_load(1_000, Reason::NetherPortal);
         assert!(tracker.is_active() && tracker.reason == Reason::NetherPortal);
@@ -746,16 +755,16 @@ mod tracker_tests {
         assert!(!tracker.wants_player_section());
         tracker.player_section_ready();
         tracker.tick_client_load(1_050, ALIVE);
-        assert!(!tracker.is_level_ready(1_050));
+        assert!(!tracker.is_level_ready());
         tracker.loading_packets_received();
         assert!(tracker.wants_player_section());
         tracker.tick_client_load(1_100, ALIVE);
-        assert!(!tracker.is_level_ready(1_100));
+        assert!(!tracker.is_level_ready());
         tracker.player_section_ready();
         tracker.tick_client_load(1_150, ALIVE);
-        assert!(tracker.is_level_ready(1_150));
+        assert!(tracker.is_level_ready());
         tracker.finish();
-        assert!(!tracker.is_active() && !tracker.is_level_ready(2_000));
+        assert!(!tracker.is_active() && !tracker.is_level_ready());
     }
 
     #[test]
@@ -774,36 +783,32 @@ mod tracker_tests {
                 ..ALIVE
             },
         ] {
-            let mut tracker = LevelLoadTracker::new(0);
+            let mut tracker = LevelLoadTracker::new();
             tracker.start_client_load(0, Reason::Other);
             tracker.loading_packets_received();
             tracker.tick_client_load(10, player);
-            assert!(tracker.is_level_ready(10));
+            assert!(tracker.is_level_ready());
         }
     }
 
     #[test]
-    fn the_wait_times_out_after_thirty_seconds_but_only_once_the_server_has_started() {
-        let mut tracker = LevelLoadTracker::new(0);
+    fn the_wait_times_out_after_thirty_seconds_even_before_the_server_has_started() {
+        let mut tracker = LevelLoadTracker::new();
         tracker.start_client_load(0, Reason::Other);
-        tracker.tick_client_load(CLIENT_WAIT_TIMEOUT_MS + 1, ALIVE);
-        assert!(!tracker.is_level_ready(CLIENT_WAIT_TIMEOUT_MS + 1));
-        tracker.loading_packets_received();
         tracker.tick_client_load(CLIENT_WAIT_TIMEOUT_MS, ALIVE);
-        assert!(!tracker.is_level_ready(CLIENT_WAIT_TIMEOUT_MS));
+        assert!(!tracker.is_level_ready());
         tracker.tick_client_load(CLIENT_WAIT_TIMEOUT_MS + 1, ALIVE);
-        assert!(tracker.is_level_ready(CLIENT_WAIT_TIMEOUT_MS + 1));
+        assert!(tracker.is_level_ready());
     }
 
     #[test]
-    fn a_new_worlds_screen_stays_for_the_close_delay() {
-        let mut tracker = LevelLoadTracker::new(LEVEL_LOAD_CLOSE_DELAY_MS);
+    fn a_ready_level_closes_its_screen_at_once() {
+        let mut tracker = LevelLoadTracker::new();
         tracker.start_client_load(0, Reason::Other);
         tracker.loading_packets_received();
         tracker.player_section_ready();
         tracker.tick_client_load(100, ALIVE);
-        assert!(!tracker.is_level_ready(599));
-        assert!(tracker.is_level_ready(600));
+        assert!(tracker.is_level_ready());
     }
 
     #[test]

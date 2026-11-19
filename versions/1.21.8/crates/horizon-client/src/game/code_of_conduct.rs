@@ -1,19 +1,17 @@
 //! A server's Code of Conduct bound to the game (`ClientConfigurationPacketListenerImpl.
 //! handleCodeOfConduct` and `CodeOfConductScreen`): the text in a scroll area,
-//! the "do not notify again" box, Acknowledge and Disconnect, and the server
-//! list entry that keeps the accepted text. The server waits in configuration
-//! until the answer, so the connection stays open while the screen shows.
-use super::{Game, Screen, server_packs::saves};
+//! the "do not notify again" box, Acknowledge and Disconnect. Inert in 1.21.8:
+//! there are no code-of-conduct packets, so the prompt can never open, and
+//! 1.21.8's ServerData keeps no accepted text.
+use super::{Game, Screen};
 use horizon_client::{
     Result,
     dialog_screen::BOX,
     font::Font,
     hud::{HudBatch, rgba},
-    multiplayer,
     text::Text,
     ui,
 };
-use horizon_protocol::servers;
 
 /// The text's line height.
 const LINE: f32 = 9.0;
@@ -29,8 +27,6 @@ const COLUMN: f32 = 2.0 * BUTTON.0 + GAP;
 /// An open `CodeOfConductScreen`.
 pub(super) struct Prompt {
     text: String,
-    /// `text.hashCode()`: what the server list keeps once it is accepted.
-    hash: i32,
     /// `stopShowing`: the box is ticked.
     stop_showing: bool,
     scroll: ui::Scroll,
@@ -90,37 +86,14 @@ impl Prompt {
 }
 
 impl Game<'_> {
-    /// `ServerList.saveSingleServer`: the joined address's entry keeps `accepted`.
-    fn store_code_of_conduct(&self, accepted: i32) {
-        let Some(address) = &self.server_packs.address else {
-            return;
-        };
-        let file = multiplayer::servers_file(&saves());
-        let (mut list, mut hidden) = servers::load_all(&file);
-        let mut found = false;
-        for entry in list.iter_mut().filter(|s| &s.ip == address) {
-            entry.accepted_code_of_conduct = accepted;
-            found = true;
-        }
-        // Not among the shown entries: the hidden ones (a Direct Connection's).
-        if !found {
-            for entry in hidden.iter_mut().filter(|s| &s.ip == address) {
-                entry.accepted_code_of_conduct = accepted;
-                found = true;
-            }
-        }
-        if found && let Err(e) = servers::save_all(&file, &list, &hidden) {
-            log::warn!("Horizon: could not save {}: {e}", file.display());
-        }
-    }
-
     // No handle_code_of_conduct: 1.21.8 has no code-of-conduct packets, so
     // the prompt can never open. The screen below stays inert (drawn and
-    // clicked only while a prompt is open, which never happens).
+    // clicked only while a prompt is open, which never happens). There is
+    // no stored acceptance either: 1.21.8's ServerData has no
+    // `acceptedCodeOfConduct` field.
 
     /// `CodeOfConductScreen.onResult`: accepting tells the server, declining
-    /// ends the connection. The entry keeps the text only when it was
-    /// accepted with the box ticked, else the stored text is cleared.
+    /// ends the connection.
     fn answer_code_of_conduct(&mut self, accepted: bool) -> Result<()> {
         let Some(prompt) = self.code_of_conduct.take() else {
             return Ok(());
@@ -130,16 +103,9 @@ impl Game<'_> {
             if self.player.is_some() && self.screen == Screen::Playing {
                 self.capture(true);
             }
-        }
-        let kept = if accepted && prompt.stop_showing {
-            prompt.hash
-        } else {
-            0
-        };
-        self.store_code_of_conduct(kept);
-        if accepted {
             return Ok(());
         }
+        let _ = prompt;
         let reason = Text::translate("multiplayer.disconnect.code_of_conduct", &[]);
         self.leave_server(Some(reason.plain()))
     }
