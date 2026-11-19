@@ -524,7 +524,7 @@ impl PackScreen {
             && let Some(i) = self.lists[side]
                 .entries
                 .iter()
-                .position(|e| e.row == Row::Pack(keep))
+                .position(|e| e.row == Row::Pack(keep.clone()))
         {
             self.lists[side].set_selected(Some(i));
         }
@@ -1018,12 +1018,8 @@ impl PackScreen {
         let (bx, by) = self.add_button(m);
         if d::inside(point, bx, by, ADD_SIZE, ADD_SIZE) {
             let mut browser = crate::pack_browser::Browser::new();
-            // Opens on the text already in the search box, so a player who
-            // searched their own packs first keeps the term; it is then the
-            // browser's box that carries it.
-            browser.query = self.search.value.clone();
             browser.search();
-            self.browser_search.set_value(m, &self.search.value);
+            self.browser_search.set_value(m, "");
             self.browser_focus = true;
             self.browser = Some(browser);
             // Horizon's own screen, so it may ask for the menu panorama.
@@ -1327,7 +1323,7 @@ impl PackScreen {
     fn options_button(&self, side: usize, i: usize) -> Option<(String, i32, i32)> {
         let l = &self.lists[side];
         let e = l.entries.get(i)?;
-        let Row::Pack(id) = &e.row else { return None };
+        let Row::Pack(id) = &e.row;
         if !self.with_options.contains(id) {
             return None;
         }
