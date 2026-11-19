@@ -334,7 +334,47 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 20/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 33 + 3 zero-diff)
+### Rank 2: 21/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 33 + 3 zero-diff)
+
+- **Item 28 — `game/armor_stands.rs` (9 classes, 49 methods, 9 named in Horizon):**
+  HumanoidArmorLayer, ArmorStandRenderer, LivingEntityRenderer,
+  ArmorStandArmorModel, ArmorStandModel, EquipmentLayerRenderer,
+  AbstractMinecart, ArmorStand, AbstractSkullBlock.
+  1. **Upside-down names (`LivingEntityRenderer.isEntityUpsideDown`):**
+     1.21.8 compares the formatting-stripped display name
+     (`ChatFormatting.stripFormatting(getName().getString())`) — a mob
+     named `§6Dinnerbone` hangs upside down, and a PLAYER flips by its
+     profile name (unless its cape is hidden, `PlayerModelPart.CAPE`,
+     bit 0 of the skin customisation); 1.21.9 compared the custom name
+     exactly, so neither case flipped. New `upside_down` in
+     `mobs/render.rs` (custom name first, stripped; else the player's
+     profile bit with the cape gate) and `MobExtra.upside_down_name`,
+     set for the local player in `tick_player_model`, for remote
+     players in `spawn_entity` (from the list entry AddEntity just
+     filed) with a PlayerInfoUpdate backfill for a late entry. LAN
+     guests come through the same remote path (the host window is a
+     client of its own server thread), so they are covered too. New
+     test `a_formatted_dinnerbone_mob_hangs_upside_down` (compiles
+     under check; runs on CI).
+  2. **Citations:** `ArmorStandRenderer.submit` → `.render`,
+     `LivingEntityRenderer.submit` → `.render` (armor_stands.rs).
+  Verified no-change: the armor-model mesh is identical (only the
+  factory changed, `createArmorLayerSet`/`ArmorModelSet` vs
+  `createBodyLayer`); `translateToHand`'s body is identical (signature
+  only); the armor-layer part visibility is the same set in both
+  versions (HEAD head+hat, CHEST body+arms, LEGS body+legs, FEET legs);
+  `renderLayers` draws the same layers, colours and first-layer-only
+  glint in both; `setupAnim` runs before the body in 1.21.8 and inside
+  the layer block in 1.21.9, but the Rust poses before drawing in all
+  paths so the observable result is the same; `shouldRenderLayers`'
+  extra `!layers.isEmpty()` in 1.21.9 is a pure optimisation;
+  `ArmorStand`/`AbstractMinecart.push`/`AbstractSkullBlock` are
+  `isClientSide` renames only; `lerpMotion` is the Vec3-vs-triple
+  form of the same body (item 26's pattern); the `extractRenderState`
+  `customName`/`appearsGlowing` fields are state plumbing, same values.
+  Known gap (pre-existing vs both versions, not fixed): the Rust glints
+  armour trims when the stack has foil, but vanilla draws the trim
+  without foil in both versions (the glint pass is first-layer-only).
 
 - **Item 33 — `game/potions.rs` (3 classes, 18 methods, 10 named in Horizon):**
   Projectile, AreaEffectCloud, PotionItem.

@@ -3104,6 +3104,17 @@ impl Game<'_> {
         if let Some(t) = mob_type {
             let mut mob = Mob::new(id as u32, t, at, head);
             super::remote_mob_data::client_defaults(&mut mob);
+            if kind == "minecraft:player" {
+                // `LivingEntityRenderer.isEntityUpsideDown`: a player flips
+                // by its profile name (the list entry AddEntity just filed
+                // under this id; a late entry is backfilled on
+                // PlayerInfoUpdate).
+                mob.extra.upside_down_name = self
+                    .remote
+                    .as_ref()
+                    .and_then(|r| r.level_player_names.get(&id))
+                    .is_some_and(|n| matches!(n.as_str(), "Dinnerbone" | "Grumm"));
+            }
             (mob.yaw, mob.previous_yaw) = (yaw, yaw);
             (mob.head_pitch, mob.previous_head_pitch) = (pitch, pitch);
             mob.persistent = true;
@@ -5381,6 +5392,10 @@ impl Game<'_> {
             }
             C::DeleteChat(p) => self.handle_delete_chat(&p.signature)?,
             C::PlayerInfoUpdate(p) => {
+                // Profile names that flip their player (`isEntityUpsideDown`),
+                // filed after the list update so a late entry still reaches
+                // an entity that spawned before it.
+                let mut upside_down = Vec::new();
                 if let Some(r) = self.remote.as_mut() {
                     // handlePlayerInfoUpdate: new entries first, then every
                     // action on every known entry.
@@ -5445,8 +5460,23 @@ impl Game<'_> {
                             }
                         }
                         if let Some(name) = e.name {
+                            if matches!(name.as_str(), "Dinnerbone" | "Grumm") {
+                                upside_down.push(e.uuid);
+                            }
                             r.players.insert(e.uuid, name);
                         }
+                    }
+                }
+                for uuid in upside_down {
+                    if let Some(id) = self.remote.as_ref().and_then(|r| {
+                        r.level_players
+                            .iter()
+                            .find(|(_, u)| **u == uuid)
+                            .map(|(id, _)| *id)
+                    }) && let Some(m) =
+                        self.mob_index.get_mut(&mut self.mobs, id as u32)
+                    {
+                        m.extra.upside_down_name = true;
                     }
                 }
             }

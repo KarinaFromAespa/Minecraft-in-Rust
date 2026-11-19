@@ -1108,6 +1108,26 @@ fn enderman_render_offset(m: &Mob, alpha: f32) -> glam::DVec3 {
     let z = random.next_gaussian() * d;
     glam::DVec3::new(x, 0.0, z)
 }
+/// `LivingEntityRenderer.isEntityUpsideDown` in 1.21.8: a living entity
+/// whose display name — its custom name when it has one, else a player's
+/// profile name — strips to Dinnerbone or Grumm hangs upside down, unless
+/// it is a player hiding its cape (`PlayerModelPart.CAPE`, bit 0 of the
+/// skin customisation). 1.21.9 compared the custom name exactly, so a
+/// formatted name never flipped and a player needed a custom name at all.
+fn upside_down(m: &Mob) -> bool {
+    let cape_shown = m.extra.hidden_model_parts & 1 == 0;
+    if m.custom_name.as_deref().is_some_and(|n| {
+        matches!(
+            horizon_client::clipboard::strip_formatting(n).as_str(),
+            "Dinnerbone" | "Grumm"
+        )
+    }) {
+        // A player with such a custom name still needs its cape shown.
+        return !avatar(m) || cape_shown;
+    }
+    avatar(m) && m.extra.upside_down_name && cape_shown
+}
+
 /// `base_transform` from a pose of the entity's origin (`EntityRenderDispatcher.render`
 /// under a pose stack, as `SpawnerRenderer` draws the mob inside a spawner).
 pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 {
@@ -1173,8 +1193,8 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
         let pitch = m.previous_head_pitch + (m.head_pitch - m.previous_head_pitch) * alpha;
         base *= glam::Mat4::from_rotation_x((-90.0 - pitch).to_radians())
             * glam::Mat4::from_rotation_y(((m.age as f32 + alpha) * -75.0).to_radians());
-    } else if matches!(m.custom_name.as_deref(), Some("Dinnerbone" | "Grumm")) {
-        // isEntityUpsideDown
+    } else if upside_down(m) {
+        // isEntityUpsideDown (1.21.8: the stripped display name).
         base *= glam::Mat4::from_translation(glam::Vec3::new(0.0, m.height() + 0.1, 0.0))
             * glam::Mat4::from_rotation_z(PI);
     }
@@ -3405,6 +3425,57 @@ mod tests {
         assert_eq!(body(&mob).1, "entity/rabbit/rabbit_toast");
         mob.custom_name = Some("Toasty".into());
         assert_eq!(body(&mob).1, "entity/rabbit/rabbit_brown");
+    }
+
+    /// `LivingEntityRenderer.isEntityUpsideDown` in 1.21.8 compares the
+    /// formatting-stripped display name, not the exact custom name: a mob
+    /// named `§6Dinnerbone` hangs upside down too. A player flips by its
+    /// profile name (`upside_down_name`), unless its cape is hidden (bit 0
+    /// of `hidden_model_parts`) — a custom-named player needs its cape too.
+    #[test]
+    fn a_formatted_dinnerbone_mob_hangs_upside_down() {
+        let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        kind.species = Species::Rabbit;
+        let mut mob = Mob::new(
+            1,
+            std::sync::Arc::new(kind),
+            horizon_core::geometry::Vec3::ZERO,
+            0.0,
+        );
+        // The point a body-length above the feet: upright it stays at 1.0,
+        // flipped it drops to the height less 0.9 (the turn about the feet
+        // plus the height + 0.1 lift).
+        let up = |m: &Mob| {
+            base_transform_at(m, 0.0, glam::Mat4::IDENTITY)
+                .transform_point3(glam::Vec3::new(0.0, 1.0, 0.0))
+                .y
+        };
+        assert_eq!(up(&mob), 1.0);
+        mob.custom_name = Some("Dinnerbone".into());
+        assert!((up(&mob) - (mob.height() - 0.9)).abs() < 1e-5);
+        mob.custom_name = Some("§6Grumm".into());
+        assert!((up(&mob) - (mob.height() - 0.9)).abs() < 1e-5);
+        mob.custom_name = Some("Dinnerbonex".into());
+        assert_eq!(up(&mob), 1.0);
+        // A player by its profile name, cape shown or not.
+        let mut pkind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        pkind.id = "minecraft:player".into();
+        let mut player = Mob::new(
+            2,
+            std::sync::Arc::new(pkind),
+            horizon_core::geometry::Vec3::ZERO,
+            0.0,
+        );
+        player.extra.upside_down_name = true;
+        assert!((up(&player) - (player.height() - 0.9)).abs() < 1e-5);
+        player.extra.hidden_model_parts = 1;
+        assert_eq!(up(&player), 1.0);
+        player.extra.hidden_model_parts = 0;
+        player.extra.upside_down_name = false;
+        player.custom_name = Some("§6Dinnerbone".into());
+        assert!((up(&player) - (player.height() - 0.9)).abs() < 1e-5);
+        player.extra.hidden_model_parts = 1;
+        assert_eq!(up(&player), 1.0);
     }
 }
 

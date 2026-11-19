@@ -1437,7 +1437,7 @@ impl Game<'_> {
             }
         }
     }
-    /// `ArmorStandRenderer.submit` for stand `a` under `base` (its
+    /// `ArmorStandRenderer.render` for stand `a` under `base` (its
     /// `setupRotations`): the body, the hand and head items, the armour and
     /// the wings, at packed light `packed`. With `skin`, the stand's own models
     /// (body and armour) are posed on the GPU; items and wings stay here.
@@ -1490,8 +1490,8 @@ impl Game<'_> {
         if a.no_base_plate {
             hide("base_plate");
         }
-        // LivingEntityRenderer.submit: an invisible stand has no body render type, but its
-        // layers (held items, custom head, armour) are submitted all the same.
+        // LivingEntityRenderer.render: an invisible stand has no body render type, but its
+        // layers (held items, custom head, armour) are rendered all the same.
         if !a.invisible {
             put(
                 &mut skin,

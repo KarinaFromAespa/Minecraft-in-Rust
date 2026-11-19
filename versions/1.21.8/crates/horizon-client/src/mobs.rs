@@ -1246,6 +1246,10 @@ pub struct Extra {
     /// The skin layers a player hides (`PlayerModelPart` bits, set to
     /// `Avatar.DATA_PLAYER_MODE_CUSTOMISATION` inverted); 0 shows all.
     pub hidden_model_parts: u8,
+    /// This player's profile name is Dinnerbone or Grumm
+    /// (`LivingEntityRenderer.isEntityUpsideDown`: a player flips by its
+    /// profile name in 1.21.8, unless its cape is hidden).
+    pub upside_down_name: bool,
     /// `AvatarRenderState.isSpectator`: a player in spectator mode shows only its head.
     pub spectator: bool,
     pub elytra: ElytraAnimation,

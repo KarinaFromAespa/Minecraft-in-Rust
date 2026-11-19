@@ -511,6 +511,10 @@ impl Game<'_> {
         let bed = self.sleeping.map_or(0, |head| self.bed_facing(head));
         let spectator = self.spectator();
         let ridden = self.ridden_body();
+        // `LivingEntityRenderer.isEntityUpsideDown`: the local player flips
+        // by its own profile name (unless its cape is hidden).
+        let upside_down_name =
+            matches!(self.own_profile_name().as_str(), "Dinnerbone" | "Grumm");
         let Some(m) = self.player_model.as_mut() else {
             return;
         };
@@ -619,6 +623,7 @@ impl Game<'_> {
         };
         m.extra.main_hand_left = self.settings.main_hand_left;
         m.extra.hidden_model_parts = !self.settings.file.model_customisation() & 0x7F;
+        m.extra.upside_down_name = upside_down_name;
         m.extra.spectator = spectator;
         m.extra.using_item = using;
         m.extra.using_off_hand = using_off_hand;
