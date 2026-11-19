@@ -54,7 +54,7 @@ public final class VanillaRegistryCollisionScanOracle {
     }
     static final class EdgePlayer extends net.minecraft.world.entity.player.Player {
         float step;boolean grounded,staying;
-        private EdgePlayer(){super(null,null);}
+        private EdgePlayer(){super(null, null, 0.0F, null);}
         @Override public GameType gameMode(){return GameType.SURVIVAL;}
         @Override public float maxUpStep(){return step;}
         @Override public boolean onGround(){return grounded;}

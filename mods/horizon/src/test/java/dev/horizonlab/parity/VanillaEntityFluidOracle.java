@@ -52,7 +52,7 @@ public final class VanillaEntityFluidOracle {
         @Override public AABB getFluidInteractionBox(){return d.box();}@Override public double getEyeY(){return d.eye();}
         @Override public Vec3 getDeltaMovement(){return d.velocity();}@Override public void setDeltaMovement(Vec3 v){d.set(v);}
     }
-    static final class Human extends net.minecraft.world.entity.player.Player {Data d;Human(){super(null,null);}
+    static final class Human extends net.minecraft.world.entity.player.Player {Data d;Human(){super(null, null, 0.0F, null);}
         @Override public GameType gameMode(){return GameType.SURVIVAL;}
         @Override public boolean isPushedByFluid(){return d.pushed();}
         @Override public void resetFallDistance(){d.query("reset-fall");super.resetFallDistance();}

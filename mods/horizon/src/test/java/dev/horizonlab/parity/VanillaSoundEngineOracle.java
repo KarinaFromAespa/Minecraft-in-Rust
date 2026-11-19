@@ -30,7 +30,7 @@ public final class VanillaSoundEngineOracle {
         boolean underwater;
 
         Actor() {
-            super(null, null, null, null, null, null, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override

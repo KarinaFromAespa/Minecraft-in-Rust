@@ -17,7 +17,7 @@ public final class VanillaPlayerTravelOracle {
     static final class Level extends net.minecraft.server.level.ServerLevel {Data d;Level(){super(null,null,null,null,null,null,false,0L,List.of(),false);}
         @Override public FluidState getFluidState(BlockPos p){d.query("fluid "+p.getX()+" "+p.getY()+" "+p.getZ());return (d.flag("empty")?Fluids.EMPTY:Fluids.WATER).defaultFluidState();}}
     static final class Actor extends Player {
-        Data d;Actor(){super(null,null);}void configure(Level l){setLevel(l);}
+        Data d;Actor(){super(null, null, 0.0F, null);}void configure(Level l){setLevel(l);}
         @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
         @Override public boolean isPassenger(){d.query("passenger");return d.flag("passenger");}
         @Override public boolean isSwimming(){d.query("swimming");return d.flag("swimming");}

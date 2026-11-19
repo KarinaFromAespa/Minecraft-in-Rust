@@ -61,7 +61,7 @@ public final class VanillaDataFixOracle {
             band(out, Integer.parseInt(args[2]));
             System.exit(0);
         }
-        int current = SharedConstants.getCurrentVersion().dataVersion().version();
+        int current = SharedConstants.getCurrentVersion().getDataVersion().getVersion();
         var fixer = DataFixers.getDataFixer();
         // FileFixerUpper.fix through a real level storage access, as the game opens a
         // world: the file fixes on a copy-on-write view swapped in, then level.dat

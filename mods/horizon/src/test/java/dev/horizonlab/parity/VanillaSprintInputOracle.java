@@ -42,7 +42,7 @@ public final class VanillaSprintInputOracle {
     static final class Actor extends LocalPlayer {
         int flags;boolean sprint;List<Boolean> calls;Vehicle vehicle;
         net.minecraft.server.level.ServerPlayer controlled;
-        Actor(){super(null,null,null,null,null,Input.EMPTY,false,null,null);}
+        Actor(){super(null,null,null,null,null,false,false);}
         boolean flag(int bit){return (flags&(1<<bit))!=0;}
         @Override public boolean isMobilityRestricted(){return flag(0);}
         @Override public boolean isPassenger(){return flag(1);}

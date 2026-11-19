@@ -22,7 +22,7 @@ public final class VanillaBlockSupportOracle {
     var shape=state.getBlockSupportShape(EmptyBlockGetter.INSTANCE,BlockPos.ZERO);Integer shapeId=ids.get(shape);if(shapeId==null){shapeId=shapes.size();ids.put(shape,shapeId);shapes.add((CompoundTag)grid.invoke(null,shape));}mapping[id]=shapeId;
    }
    var cachedIds=new com.google.gson.JsonArray();for(int i=0;i<mapping.length;i++)if(mapping[i]>=0)cachedIds.add(i);Files.writeString(dir.resolve("support-cached-states.json"),cachedIds.toString());
-   var root=new CompoundTag();root.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());root.putString("Kind","block_support");root.put("states",states);root.put("shapes",shapes);root.putIntArray("cached_shapes",mapping);
+   var root=new CompoundTag();root.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());root.putString("Kind","block_support");root.put("states",states);root.put("shapes",shapes);root.putIntArray("cached_shapes",mapping);
    try(var out=new DataOutputStream(Files.newOutputStream(dir.resolve("cached-support.nbt")))){NbtIo.write(root,out);}return;
   }
   try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")))) {

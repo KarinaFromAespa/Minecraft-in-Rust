@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import com.mojang.authlib.GameProfile;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -68,7 +69,7 @@ public final class VanillaVehicleContainerOracle {
     /** A player the menu constructor may ask isSpectator() (a loot roll). */
     static final class FakePlayer extends Player {
         FakePlayer(Lvl level) {
-            super(level, new GameProfile(new UUID(1L, 2L), "oracle"));
+            super(level, new BlockPos(0, 0, 0), 0.0F, new GameProfile(new UUID(1L, 2L), "oracle"));
         }
 
         @Override

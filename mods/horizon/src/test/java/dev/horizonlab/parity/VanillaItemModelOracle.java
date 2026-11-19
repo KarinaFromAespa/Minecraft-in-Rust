@@ -32,7 +32,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.registries.VanillaRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.RegistryOps;
-import net.minecraft.util.StrictJsonParser;
+import com.google.gson.JsonParser;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.ItemOwner;
@@ -456,7 +456,7 @@ public final class VanillaItemModelOracle {
     }
     static boolean decode(ResourceLocation id, String text, Map<ResourceLocation, ClientItem> items) {
         try {
-            var parsed = ClientItem.CODEC.parse(ops, StrictJsonParser.parse(new StringReader(text))).result();
+            var parsed = ClientItem.CODEC.parse(ops, JsonParser.parseReader(new StringReader(text))).result();
             parsed.ifPresent(item -> items.put(id, item));
             return parsed.isPresent();
         } catch (Exception e) { return false; }

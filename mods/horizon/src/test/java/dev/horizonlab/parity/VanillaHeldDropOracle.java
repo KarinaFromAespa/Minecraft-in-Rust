@@ -47,7 +47,7 @@ public final class VanillaHeldDropOracle {
     static final class Actor extends LocalPlayer {
         GameType mode;
         int swings;
-        Actor() { super(null, null, null, null, null, null, false, null, null); }
+        Actor() { super(null, null, null, null, null, false, false); }
         @Override public GameType gameMode() { return mode; }
         @Override public boolean isUsingItem() { throw new Done(); }
         @Override public boolean swing(InteractionHand hand, SwingAnimation animation, boolean sendPacket) {

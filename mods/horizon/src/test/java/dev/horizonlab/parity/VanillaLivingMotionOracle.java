@@ -13,7 +13,7 @@ public final class VanillaLivingMotionOracle {
     static final class Data {JsonObject f;PrintWriter out;int calls;Vec3 velocity;LivingEntity passenger;
         void query(String s){out.println(s);int n=calls++;if(n==f.get("fail").getAsInt())throw new Stop();if(n==f.get("mutate_at").getAsInt())velocity=vec(f.get("after_velocity"));}
         boolean flag(String k){return f.get(k).getAsBoolean();}}
-    static final class Human extends net.minecraft.world.entity.player.Player {Human(){super(null,null);}@Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}}
+    static final class Human extends net.minecraft.world.entity.player.Player {Human(){super(null, null, 0.0F, null);}@Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}}
     static final class Actor extends net.minecraft.world.entity.decoration.ArmorStand {
         Data d;Actor(){super(null,null);}
         @Override public Vec3 getDeltaMovement(){return d.velocity;}

@@ -98,7 +98,7 @@ public final class VanillaTeamRulesOracle {
         boolean spectator;
 
         Viewer() {
-            super(null, null, null, null, null, null, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override

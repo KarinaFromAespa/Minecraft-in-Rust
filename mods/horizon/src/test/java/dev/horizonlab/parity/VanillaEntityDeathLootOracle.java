@@ -97,7 +97,7 @@ public final class VanillaEntityDeathLootOracle {
     }
 
     static final class OraclePlayer extends Player {
-        OraclePlayer(Level level) { super(level, new GameProfile(new UUID(1L, 2L), "oracle")); }
+        OraclePlayer(Level level) { super(level, new BlockPos(0, 0, 0), 0.0F, new GameProfile(new UUID(1L, 2L), "oracle")); }
         @Override public GameType gameMode() { return GameType.SURVIVAL; }
         @Override public net.minecraft.world.item.component.ResolvableProfile getProfile() { return net.minecraft.world.item.component.ResolvableProfile.createResolved(this.getGameProfile()); }
     }

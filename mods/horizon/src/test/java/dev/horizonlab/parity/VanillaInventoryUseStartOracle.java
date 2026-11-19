@@ -25,7 +25,7 @@ public final class VanillaInventoryUseStartOracle {
   @Override public boolean releaseUsing(ItemStack s,Level l,LivingEntity a,int ticks){d.event("release "+id+" "+d.id(s)+" "+((Server)l).id+" "+ticks);return false;}
   @Override public ItemStack finishUsingItem(ItemStack s,Level l,LivingEntity a){d.event("finish "+id+" "+d.id(s)+" "+((Server)l).id);return d.items[d.state().getAsJsonArray("finishes").get(id).getAsInt()];}
  }
- static final class Actor extends Player {Data d;Actor(){super(null,null);}@Override public int getId(){d.event("id");return 17;}@Override public GameType gameMode(){return GameType.SURVIVAL;}@Override public boolean isSpectator(){return false;}@Override public boolean isCreative(){return false;}
+ static final class Actor extends Player {Data d;Actor(){super(null, null, 0.0F, null);}@Override public int getId(){d.event("id");return 17;}@Override public GameType gameMode(){return GameType.SURVIVAL;}@Override public boolean isSpectator(){return false;}@Override public boolean isCreative(){return false;}
   @Override public ServerLevel level(){d.event("level");return d.levels[n(d.state(),"level")];}
   @Override public int getUseItemRemainingTicks(){d.event("remaining");return n(d.state(),"virtual_remaining");}
   @Override public void onEquipItem(EquipmentSlot slot,ItemStack old,ItemStack next){d.event("equip "+slot.ordinal()+" "+d.id(old)+" "+d.id(next));}

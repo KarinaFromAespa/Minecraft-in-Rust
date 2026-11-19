@@ -85,7 +85,7 @@ public final class VanillaBlockEntityAnimOracle {
     /** A player the case places: position and game mode (spectators are skipped). */
     static final class Gamer extends Player {
         GameType mode;
-        Gamer() { super(null, null); }
+        Gamer() { super(null, null, 0.0F, null); }
         @Override public GameType gameMode() { return mode; }
         @Override public net.minecraft.world.item.component.ResolvableProfile getProfile() { return null; }
     }

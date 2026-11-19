@@ -41,7 +41,7 @@ public final class VanillaHelmetDamageOracle {
         Level level;
         EnumMap<EquipmentSlot, ItemStack> gear;
         AttributeMap attributes;
-        Actor() { super(null, null); }
+        Actor() { super(null, null, 0.0F, null); }
         @Override public net.minecraft.world.level.GameType gameMode() {
             return net.minecraft.world.level.GameType.SURVIVAL;
         }

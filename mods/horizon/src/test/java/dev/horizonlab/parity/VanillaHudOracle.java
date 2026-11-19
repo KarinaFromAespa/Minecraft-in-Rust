@@ -130,7 +130,7 @@ public final class VanillaHudOracle {
         FoodData food;
         ItemStack offhand = ItemStack.EMPTY;
         List<net.minecraft.world.effect.MobEffectInstance> active = new ArrayList<>();
-        private Actor() { super(null, null, null, null, null, null, false, null, null); }
+        private Actor() { super(null, null, null, null, null, false, false); }
         @Override public float getHealth() { return f("health", 20); }
         @Override public double getAttributeValue(Holder<Attribute> a) { return a == Attributes.MAX_HEALTH ? f("maxHealth", 20) : 0.0; }
         @Override public float getAbsorptionAmount() { return f("absorption", 0); }

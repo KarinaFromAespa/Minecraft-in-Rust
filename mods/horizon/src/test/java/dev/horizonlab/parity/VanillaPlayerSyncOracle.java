@@ -28,7 +28,7 @@ public final class VanillaPlayerSyncOracle {
     }
     public static final class Player extends LocalPlayer {
         boolean ground;
-        public Player() { super(null, null, null, null, null, null, false, null, null); }
+        public Player() { super(null, null, null, null, null, false, false); }
         @Override protected boolean isControlledCamera() { return true; }
         @Override public boolean isSprinting() { return false; }
         @Override public boolean onGround() { return ground; }

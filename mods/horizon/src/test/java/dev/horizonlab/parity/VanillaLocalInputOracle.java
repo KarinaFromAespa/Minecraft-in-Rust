@@ -24,7 +24,7 @@ public final class VanillaLocalInputOracle {
     static float number(JsonElement v){return Float.intBitsToFloat(Integer.parseUnsignedInt(v.getAsString(),16));}
     static final class Actor extends LocalPlayer {
         boolean using,riding,slow;float sneak;
-        Actor(){super(null,null,null,null,null,Input.EMPTY,false,null,null);}
+        Actor(){super(null,null,null,null,null,false,false);}
         @Override public boolean isUsingItem(){return using;}
         @Override public boolean isPassenger(){return riding;}
         @Override public boolean isMovingSlowly(){return slow;}

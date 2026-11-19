@@ -12,7 +12,7 @@ public final class VanillaEntityAttributeOracle {
     static Field field(Class<?> c,String n)throws Exception{var f=c.getDeclaredField(n);f.setAccessible(true);return f;}
     static List<Holder<Attribute>> attributes=new ArrayList<>();
     static JsonObject export()throws Exception {
-        var root=new JsonObject();root.addProperty("data_version",net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());
+        var root=new JsonObject();root.addProperty("data_version",net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());
         var defs=new JsonArray();
         for(var a:attributes){var v=a.value();var d=new JsonObject();d.addProperty("id",a.getRegisteredName());d.addProperty("default",bits(v.getDefaultValue()));d.addProperty("syncable",v.isClientSyncable());if(v instanceof RangedAttribute r){d.addProperty("min",bits(r.getMinValue()));d.addProperty("max",bits(r.getMaxValue()));}defs.add(d);}
         root.add("attributes",defs);var entities=new JsonObject();

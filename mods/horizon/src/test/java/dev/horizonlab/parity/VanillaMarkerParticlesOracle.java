@@ -41,7 +41,7 @@ public final class VanillaMarkerParticlesOracle {
     static String bits(double v) { return String.format("%016x", Double.doubleToLongBits(v)); }
     public static final class Player extends LocalPlayer {
         ItemStack main, off;
-        Player() { super(null, null, null, null, null, null, false, null, null); }
+        Player() { super(null, null, null, null, null, false, false); }
         @Override public ItemStack getMainHandItem() { return main; }
         @Override public ItemStack getItemInHand(InteractionHand hand) {
             return hand == InteractionHand.MAIN_HAND ? main : off;

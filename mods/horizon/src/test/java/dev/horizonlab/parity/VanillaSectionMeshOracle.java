@@ -25,7 +25,7 @@ import net.minecraft.client.resources.model.sprite.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.StrictJsonParser;
+import com.google.gson.JsonParser;
 import net.minecraft.world.level.CardinalLighting;
 import net.minecraft.world.level.ColorResolver;
 import net.minecraft.world.level.EmptyBlockGetter;
@@ -131,7 +131,7 @@ public final class VanillaSectionMeshOracle {
                 var id = BuiltInRegistries.BLOCK.getKey(block);
                 var raw = resource("/assets/" + id.getNamespace() + "/blockstates/" + id.getPath() + ".json");
                 if (raw == null) continue;
-                var definition = BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE, StrictJsonParser.parse(raw)).getOrThrow();
+                var definition = BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(raw)).getOrThrow();
                 roots.putAll(definition.instantiate(block.getStateDefinition(), id::toString));
             }
             var pending = new ArrayList<ResourceLocation>();

@@ -23,7 +23,7 @@ public final class VanillaEdgeBackoffOracle {
         @Override public boolean noCollision(Entity entity,AABB b){d.query(String.format("clear %016x %016x %016x %016x %016x %016x",Double.doubleToLongBits(b.minX),Double.doubleToLongBits(b.minY),Double.doubleToLongBits(b.minZ),Double.doubleToLongBits(b.maxX),Double.doubleToLongBits(b.maxY),Double.doubleToLongBits(b.maxZ)));var values=d.input.getAsJsonArray("clear");int index=d.probes++;return index<values.size()?values.get(index).getAsBoolean():false;}
     }
     static final class Actor extends Player {
-        Data d;Actor(){super(null,null);}void configure(Level level){setLevel(level);}
+        Data d;Actor(){super(null, null, 0.0F, null);}void configure(Level level){setLevel(level);}
         @Override public GameType gameMode(){return GameType.SURVIVAL;}
         @Override public float maxUpStep(){d.query("step");return Float.intBitsToFloat(Integer.parseUnsignedInt(d.input.get("step").getAsString(),16));}
         @Override protected boolean isStayingOnGroundSurface(){d.query("staying");return d.input.get("staying").getAsBoolean();}

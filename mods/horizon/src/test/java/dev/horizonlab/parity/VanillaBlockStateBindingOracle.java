@@ -13,7 +13,7 @@ import net.minecraft.client.resources.model.BlockStateDefinitions;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.util.StrictJsonParser;
+import com.google.gson.JsonParser;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
@@ -56,7 +56,7 @@ public final class VanillaBlockStateBindingOracle {
     private static <T extends Comparable<T>> String value(BlockState state,Property<T> property) {return property.getName(state.getValue(property));}
     private static Object bind(JsonObject row) throws Exception {
         var states=Objects.requireNonNull(mapper.apply(ResourceLocation.parse(row.get("block").getAsString())));
-        var definition=BlockModelDefinition.CODEC.parse(JsonOps.INSTANCE,StrictJsonParser.parse(row.get("json").getAsString())).getOrThrow();
+        var definition=BlockModelDefinition.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(row.get("json").getAsString())).getOrThrow();
         var roots=definition.instantiate(states,()->"horizon:binding_probe");
         var indices=new IdentityHashMap<BlockStateModel.Unbaked,Integer>();
         definition.simpleModels().ifPresent(m->{int index=0;for(var value:m.models().values())indices.put(value,index++);});

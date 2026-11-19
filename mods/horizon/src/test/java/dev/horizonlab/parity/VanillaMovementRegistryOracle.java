@@ -24,8 +24,8 @@ public final class VanillaMovementRegistryOracle {
         for(var state:Block.BLOCK_STATE_REGISTRY){states.add(VanillaStateCodec.encodeFull(state));if(state==state.getBlock().defaultBlockState())defaults.putInt(BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString(),Block.getId(state));}
         for(var block:BuiltInRegistries.BLOCK){var data=new CompoundTag();for(int i=0;i<fields.length;i++)data.putFloat(PROPERTIES[i],fields[i]==null?0.0f:fields[i].getFloat(block));data.putBoolean("fenceGate",block instanceof FenceGateBlock);definitions.put(BuiltInRegistries.BLOCK.getKey(block).toString(),data);}
         var info=new JsonObject();info.addProperty("states",states.size());var ids=new JsonObject();for(var block:BuiltInRegistries.BLOCK)ids.addProperty(BuiltInRegistries.BLOCK.getKey(block).toString(),Block.getId(block.defaultBlockState()));info.add("defaults",ids);Files.writeString(dir.resolve("registry-info.json"),info.toString());
-        var registry=new CompoundTag();registry.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());registry.put("states",states);registry.put("defaults",defaults);
-        var movement=new CompoundTag();movement.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());movement.put("states",states);movement.put("blocks",definitions);
+        var registry=new CompoundTag();registry.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());registry.put("states",states);registry.put("defaults",defaults);
+        var movement=new CompoundTag();movement.putInt("DataVersion",net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());movement.put("states",states);movement.put("blocks",definitions);
         try(var out=new DataOutputStream(Files.newOutputStream(dir.resolve("block-registry.nbt")))){NbtIo.write(registry,out);}try(var out=new DataOutputStream(Files.newOutputStream(dir.resolve("movement-properties.nbt")))){NbtIo.write(movement,out);}
     }
     static final class Level extends net.minecraft.server.level.ServerLevel {

@@ -58,7 +58,7 @@ public final class VanillaFireStarterSoundOracle {
     /** The player a use is made by: only its level and its empty hand are read. */
     static final class Shell extends LocalPlayer {
         Shell() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
         @Override public ItemStack getMainHandItem() { return ItemStack.EMPTY; }
         @Override public ItemStack getItemBySlot(EquipmentSlot slot) { return ItemStack.EMPTY; }

@@ -148,7 +148,7 @@ public final class VanillaFirstPersonOracle {
         boolean inRange;
 
         Player0() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override public AttributeMap getAttributes() { return attributes; }

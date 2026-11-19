@@ -53,7 +53,7 @@ public final class VanillaLivingFluidOracle {
         @Override public boolean isVehicle(){d.query("vehicle");return d.flag("vehicle");}
         @Override protected boolean omnidirectionalAirMover(){d.query("omni");return d.flag("omni");}
     }
-    static final class Human extends net.minecraft.world.entity.player.Player {Human(){super(null,null);}
+    static final class Human extends net.minecraft.world.entity.player.Player {Human(){super(null, null, 0.0F, null);}
         Data d;
         void configure(Level l){setLevel(l);}
         @Override public BlockPos getBlockPosBelowThatAffectsMyMovement(){d.query("support");return new BlockPos(17,-64,-33);}

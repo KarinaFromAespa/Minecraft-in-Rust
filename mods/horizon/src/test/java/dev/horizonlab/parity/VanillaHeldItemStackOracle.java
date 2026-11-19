@@ -20,7 +20,7 @@ public final class VanillaHeldItemStackOracle {
     static final class Player extends LocalPlayer {
         ItemStack main, off;
         HumanoidArm arm;
-        Player() { super(null, null, null, null, null, null, false, null, null); }
+        Player() { super(null, null, null, null, null, false, false); }
         @Override public HumanoidArm getMainArm() { return arm; }
         @Override public ItemStack getMainHandItem() { return main; }
         @Override public ItemStack getOffhandItem() { return off; }

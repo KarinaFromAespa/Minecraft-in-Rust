@@ -146,7 +146,7 @@ public final class VanillaBlockLandingOracle {
         @Override public Fallsounds getFallSounds(){d.query("fall-sounds");return new Fallsounds(SoundEvents.GENERIC_SMALL_FALL,SoundEvents.GENERIC_BIG_FALL);}
     }
     static final class Human extends Player {
-        Data d;Human(){super(null,null);}
+        Data d;Human(){super(null, null, 0.0F, null);}
         @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}

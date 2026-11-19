@@ -47,7 +47,7 @@ public final class VanillaAmbientOracle {
         boolean eyeInWater, spectator;
 
         Actor() {
-            super(null, null, null, null, null, null, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override

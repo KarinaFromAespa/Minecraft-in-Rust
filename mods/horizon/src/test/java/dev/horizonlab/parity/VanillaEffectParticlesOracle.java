@@ -23,7 +23,7 @@ public final class VanillaEffectParticlesOracle {
     }
     static JsonObject export() throws Exception {
         var root = new JsonObject();
-        root.addProperty("data_version", net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());
+        root.addProperty("data_version", net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());
         int alpha = field(MobEffect.class, "AMBIENT_ALPHA").getInt(null);
         if (alpha != 38) throw new AssertionError("ambient alpha changed");
         root.addProperty("ambient_alpha", alpha);

@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import net.minecraft.client.renderer.block.dispatch.*;
 import net.minecraft.client.renderer.block.dispatch.multipart.*;
-import net.minecraft.util.StrictJsonParser;
+import com.google.gson.JsonParser;
 import static dev.horizonlab.parity.VanillaCuboidModelOracle.map;
 
 /** Original adapter around the actual blockstate resource parser and codec. */
@@ -38,7 +38,7 @@ public final class VanillaBlockStateModelOracle {
             for(String line;(line=input.readLine())!=null;) {
                 var row=JsonParser.parseString(line).getAsJsonArray();Object result;
                 BlockStateModelDispatcher decoded;
-                try { decoded=BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,StrictJsonParser.parse(row.get(1).getAsString())).getOrThrow(); }
+                try { decoded=BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(row.get(1).getAsString())).getOrThrow(); }
                 catch(RuntimeException error) {output.write(JSON.toJson(map("name",row.get(0).getAsString(),"error",true)));output.newLine();continue;}
                 result=map("name",row.get(0).getAsString(),"definition",definition(decoded));
                 output.write(JSON.toJson(result));output.newLine();

@@ -55,7 +55,7 @@ public final class VanillaInteractionInputOracle {
     public static class Human extends LocalPlayer {
         boolean using;
         ItemStack held = ItemStack.EMPTY;
-        public Human() { super(null, null, null, null, null, null, false, null, null); }
+        public Human() { super(null, null, null, null, null, false, false); }
         @Override public boolean isUsingItem() { return using; }
         @Override public boolean isSpectator() { return false; }
         @Override public boolean isCreative() { return false; }

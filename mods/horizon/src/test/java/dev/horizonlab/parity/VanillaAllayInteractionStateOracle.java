@@ -31,7 +31,7 @@ public final class VanillaAllayInteractionStateOracle {
  }
  static class Actor extends LocalPlayer {
   ItemStack offered;boolean creative;List<String> returned;
-  Actor(){super(null,null,null,null,null,null,false,null,null);}
+  Actor(){super(null,null,null,null,null,false,false);}
   @Override public ItemStack getItemInHand(InteractionHand hand){return offered;}
   @Override public boolean hasInfiniteMaterials(){return creative;}
   @Override public UUID getUUID(){return new UUID(0,11);}

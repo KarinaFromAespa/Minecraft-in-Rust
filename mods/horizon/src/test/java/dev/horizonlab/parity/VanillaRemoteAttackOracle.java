@@ -79,7 +79,7 @@ public final class VanillaRemoteAttackOracle {
         boolean spin;
 
         Attacker() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override public AttributeMap getAttributes() { return map; }

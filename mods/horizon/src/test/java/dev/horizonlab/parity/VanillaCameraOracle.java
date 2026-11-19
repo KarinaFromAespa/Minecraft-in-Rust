@@ -122,7 +122,7 @@ public final class VanillaCameraOracle {
         Vec3 motion = Vec3.ZERO;
 
         StubPlayer() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override public AttributeMap getAttributes() { return attributes; }

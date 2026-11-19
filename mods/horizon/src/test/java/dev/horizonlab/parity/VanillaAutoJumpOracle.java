@@ -68,7 +68,7 @@ public final class VanillaAutoJumpOracle {
         net.minecraft.world.entity.ai.attributes.AttributeMap attributes;
 
         Jumper() {
-            super(null, null, null, null, null, Input.EMPTY, false, null, null);
+            super(null, null, null, null, null, false, false);
         }
 
         @Override public boolean onGround() { return ground; }

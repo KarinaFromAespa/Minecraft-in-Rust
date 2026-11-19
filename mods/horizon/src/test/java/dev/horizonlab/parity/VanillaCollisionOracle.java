@@ -73,7 +73,7 @@ public final class VanillaCollisionOracle {
             if(id==null){id=shapes.size();ids.put(shape,id);shapes.add(grid(shape));}
             mapping[index++]=id;
         }
-        var data=new CompoundTag();data.putInt("DataVersion",SharedConstants.getCurrentVersion().dataVersion().version());data.put("states",states);data.put("shapes",shapes);data.putIntArray("cached_shapes",mapping);return data;
+        var data=new CompoundTag();data.putInt("DataVersion",SharedConstants.getCurrentVersion().getDataVersion().getVersion());data.put("states",states);data.put("shapes",shapes);data.putIntArray("cached_shapes",mapping);return data;
     }
     private static void write(CompoundTag tag, Path path) throws IOException {
         try (DataOutputStream out = new DataOutputStream(Files.newOutputStream(path))) { NbtIo.write(tag, out); }
@@ -99,9 +99,9 @@ public final class VanillaCollisionOracle {
                 mapping[id] = shapeId;
             }
         }
-        CompoundTag registry = new CompoundTag(); registry.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version()); registry.put("states", states); registry.put("defaults", defaults);
+        CompoundTag registry = new CompoundTag(); registry.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion()); registry.put("states", states); registry.put("defaults", defaults);
         write(registry, base.resolve("block-registry.nbt"));
-        CompoundTag collision = new CompoundTag(); collision.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version()); collision.put("states", states); collision.put("shapes", shapes); collision.putIntArray("cached_shapes", mapping);
+        CompoundTag collision = new CompoundTag(); collision.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion()); collision.put("states", states); collision.put("shapes", shapes); collision.putIntArray("cached_shapes", mapping);
         write(collision, base.resolve("cached-collision.nbt"));
         // The verification inputs (62 MB, printf'd) are the parity harness's; preparing reads none.
         if (!REUSE) writeInputs(base, mapping);

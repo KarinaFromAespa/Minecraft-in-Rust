@@ -90,7 +90,7 @@ public final class VanillaWorldOracle {
     }
     private static CompoundTag chunk(ChunkPos pos, boolean oversized) {
         CompoundTag root = new CompoundTag();
-        root.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version());
+        root.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
         root.putInt("xPos", pos.x()); root.putInt("zPos", pos.z()); root.putInt("yPos", -4);
         root.putString("Status", "minecraft:full");
         root.putString("unknown-future-field", "preserve this exactly");
@@ -127,7 +127,7 @@ public final class VanillaWorldOracle {
             }
         }
         CompoundTag registry = new CompoundTag();
-        registry.putInt("DataVersion", SharedConstants.getCurrentVersion().dataVersion().version());
+        registry.putInt("DataVersion", SharedConstants.getCurrentVersion().getDataVersion().getVersion());
         ListTag states = new ListTag();
         CompoundTag defaults = new CompoundTag();
         for (BlockState state : Block.BLOCK_STATE_REGISTRY) {

@@ -27,7 +27,7 @@ Data d;int id;
         @Override public ItemStack getWeaponItem(){d.event("weapon "+id);return d.state().getAsJsonArray("weapons").get(id).getAsBoolean()?ItemStack.EMPTY:null;}
         @Override public Vec3 position(){d.event("position "+id);return VanillaDamageSourceOracle.position(d.state().getAsJsonArray("positions").get(id));}
     }
-    static final class Human extends Player {Human(){super(null,null);}
+    static final class Human extends Player {Human(){super(null, null, 0.0F, null);}
 Data d;int id;
         @Override public ItemStack getWeaponItem(){d.event("weapon "+id);return d.state().getAsJsonArray("weapons").get(id).getAsBoolean()?ItemStack.EMPTY:null;}
         @Override public Vec3 position(){d.event("position "+id);return VanillaDamageSourceOracle.position(d.state().getAsJsonArray("positions").get(id));}
@@ -40,7 +40,7 @@ Data d;int id;
     }
     public static void main(String[] args)throws Exception{
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);var registry=registry(dir);var names=new TreeSet<ResourceLocation>(Comparator.comparing(ResourceLocation::toString));names.addAll(registry.keySet());var tagNames=new TreeSet<String>();tagNames.addAll(JsonParser.parseString(Files.readString(dir.resolve("tags.json"))).getAsJsonObject().keySet());
-        if(args[0].equals("export")){var root=new JsonObject();root.addProperty("data_version",net.minecraft.SharedConstants.getCurrentVersion().dataVersion().version());var types=new JsonArray();for(var id:names){var t=registry.getValue(id);var d=new JsonObject();d.addProperty("id",id.toString());d.addProperty("message_id",t.msgId());d.addProperty("exhaustion",bits(t.exhaustion()));d.addProperty("scaling",t.scaling().getSerializedName());d.addProperty("effects",t.effects().getSerializedName());d.addProperty("death_message_type",t.deathMessageType().getSerializedName());types.add(d);}root.add("types",types);Files.writeString(dir.resolve("catalog.json"),root.toString());return;}
+        if(args[0].equals("export")){var root=new JsonObject();root.addProperty("data_version",net.minecraft.SharedConstants.getCurrentVersion().getDataVersion().getVersion());var types=new JsonArray();for(var id:names){var t=registry.getValue(id);var d=new JsonObject();d.addProperty("id",id.toString());d.addProperty("message_id",t.msgId());d.addProperty("exhaustion",bits(t.exhaustion()));d.addProperty("scaling",t.scaling().getSerializedName());d.addProperty("effects",t.effects().getSerializedName());d.addProperty("death_message_type",t.deathMessageType().getSerializedName());types.add(d);}root.add("types",types);Files.writeString(dir.resolve("catalog.json"),root.toString());return;}
         var u=Class.forName("sun.misc.Unsafe");var uf=u.getDeclaredField("theUnsafe");uf.setAccessible(true);unsafe=uf.get(null);allocate=u.getMethod("allocateInstance",Class.class);
         try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){
             for(var id:names){var holder=registry.get(id).orElseThrow();var source=new DamageSource(holder);var t=source.type();out.println("definition "+id+" "+source.getMsgId()+" "+bits(source.getFoodExhaustion())+" "+t.scaling().getSerializedName()+" "+t.effects().getSerializedName()+" "+t.deathMessageType().getSerializedName());for(var tag:tagNames)out.println("tag "+tag+" "+source.is(TagKey.create(Registries.DAMAGE_TYPE,ResourceLocation.parse(tag))));}

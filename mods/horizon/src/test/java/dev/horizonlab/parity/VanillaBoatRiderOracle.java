@@ -52,7 +52,7 @@ public final class VanillaBoatRiderOracle {
         @Override public net.minecraft.world.scores.PlayerTeam getTeam(){return null;}
     }
     static class Rider extends LocalPlayer {
-        Rider(){super(null,null,null,null,null,null,false,null,null);}
+        Rider(){super(null,null,null,null,null,false,false);}
         @Override public void tick(){}
         @Override protected void updateBob(){}
         @Override public boolean isSprinting(){return false;}

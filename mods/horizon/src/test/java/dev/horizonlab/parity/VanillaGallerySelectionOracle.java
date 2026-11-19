@@ -13,7 +13,7 @@ import net.minecraft.client.resources.model.sprite.*;
 import net.minecraft.core.*;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.StrictJsonParser;
+import com.google.gson.JsonParser;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -84,7 +84,7 @@ public final class VanillaGallerySelectionOracle {
             var id=BuiltInRegistries.BLOCK.getKey(state.getBlock());
             try(var input=VanillaGallerySelectionOracle.class.getResourceAsStream("/assets/"+id.getNamespace()+"/blockstates/"+id.getPath()+".json")) {
                 var raw=new String(Objects.requireNonNull(input).readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
-                roots.putAll(BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,StrictJsonParser.parse(raw)).getOrThrow().instantiate(state.getBlock().getStateDefinition(),id::toString));
+                roots.putAll(BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(raw)).getOrThrow().instantiate(state.getBlock().getStateDefinition(),id::toString));
             }
         }
         var baker=new Baker();var models=new HashMap<BlockState,BlockStateModel>();
@@ -134,7 +134,7 @@ public final class VanillaGallerySelectionOracle {
             String raw;try(var input=VanillaGallerySelectionOracle.class.getResourceAsStream(resource)) {
                 raw=new String(Objects.requireNonNull(input).readAllBytes(),java.nio.charset.StandardCharsets.UTF_8);
             }
-            var definition=BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,StrictJsonParser.parse(raw)).getOrThrow();
+            var definition=BlockStateModelDispatcher.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(raw)).getOrThrow();
             var root=definition.instantiate(block.getStateDefinition(),id::toString).get(state);
             var baker=new Baker();var model=Objects.requireNonNull(root).bake(state,baker);
             var pos=row.getAsJsonArray("position");var position=new BlockPos(pos.get(0).getAsInt(),pos.get(1).getAsInt(),pos.get(2).getAsInt());
