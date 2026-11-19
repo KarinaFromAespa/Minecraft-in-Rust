@@ -1556,5 +1556,36 @@ Rank 2 (492 items, in progress 2026-11-19)
     both jars, and its only call passes `false`. The live path is
     byte-identical to 26.1's 5-arg form, which the Rust's
     stack/smeared evaluation already implements.
-- Rank-2 A-batches 1-10: 100 items closed (21 changed, 79 no-change).
-  work-items.json rank2.closed = 100 on 2026-11-19.
+- A-batch 11 (405, 407, 408, 409, 410, 411, 412, 413, 414, 415),
+  verified 2026-11-19, ported the same day:
+  - 405 no-change (IntegerProperty): empty diff, byte-identical.
+  - 407 CHANGED (Husk): 26.1's Husk has its own BABY_DIMENSIONS
+    (0.49 x 0.99, eye 0.825) plus a `getDefaultDimensions` override;
+    1.21.11 has neither, so a baby husk inherits Zombie's
+    (ZOMBIE 0.6 x 1.95 scaled 0.5, eye 0.93). Ported: the species
+    table Husk entry `Baby::Abs(0.49, 0.98, 0.825)` ->
+    `Baby::Abs(0.3, 0.975, 0.93)` (bit-exact under f32 halving).
+    The triage listed this as quick — its changed-methods dict only
+    compares methods present in both versions, so a whole method
+    missing in 1.21.11 did not register (same blind spot as 396).
+    The Zombie/Drowned/ZombieVillager entries carry the same 26.1
+    values but belong to their own items.
+  - 408 no-change (EntitySelectorOptions, ScoreboardSaveData):
+    `entityTags()` -> `getTags()`; the `type` selector lambda goes
+    from `entity.is(TagKey)` to `entity.getType().is(TagKey)` (the
+    same check, inlined); `SavedDataType` ctor form, same id/codec.
+  - 409 no-change (GossipContainer entries): private ->
+    package-private only.
+  - 410 no-change (TrackedWaypoint + Type): private ->
+    package-private only.
+  - 411 no-change (Guardian): `setMoving`/`setActiveAttackTarget`
+    private -> package-private only.
+  - 412 no-change (IpBanList, UserBanList): empty diff, byte-identical.
+  - 413 no-change (SimpleBitStorage$InitializationException,
+    Strategy): private -> package-private only.
+  - 414 no-change (RandomSequences): `SavedDataType` ctor form plus
+    the newer-javac `requireNonNull` on the synthetic outer-this
+    param (26.1 only).
+  - 415 no-change (TypedDataComponent$1): empty diff, byte-identical.
+- Rank-2 A-batches 1-11: 110 items closed (22 changed, 88 no-change).
+  work-items.json rank2.closed = 110 on 2026-11-19.
