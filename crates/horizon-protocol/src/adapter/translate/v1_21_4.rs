@@ -477,7 +477,7 @@ mod tests {
                 sections[1].biomes.get(63),
                 sections[1].fluids
             ),
-            (7016, 0, 0)
+            (7006, 0, 0)
         );
     }
 

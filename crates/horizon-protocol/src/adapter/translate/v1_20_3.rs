@@ -770,10 +770,10 @@ mod tests {
 
     #[test]
     fn llama_carpet_colors_resolve_by_item_name_for_each_legacy_registry() {
-        // All sixteen names/IDs come from the vanilla 1.21.5 item report. The old
+        // All sixteen names/IDs come from the vanilla 1.21.4 item report. The old
         // white-carpet ID is424 in1.20.2 and445 in1.20.3, not a shared offset.
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
-            for kind in [75, 128] {
+            for kind in [75, 127] {
                 let session = Session::new(version);
                 session.kinds.lock().unwrap().insert(42, kind);
                 for color in -1..=16 {
@@ -1000,7 +1000,7 @@ mod tests {
                 assert_eq!(old, expected);
             }
         }
-        for item in [Some(490), None] {
+        for item in [Some(483), None] {
             // pinned minecraft:red_carpet, then unequipped
             let (id, body) = session.next_incoming().unwrap();
             let play::Clientbound::SetEquipment(p) = play::Clientbound::decode(id, &body).unwrap()
@@ -1067,12 +1067,12 @@ mod tests {
             (offer.uses, offer.max_uses, offer.xp, offer.price_multiplier),
             (0, 8, 2, 0.05)
         );
-        for (kind, slot) in [(63, 6), (148, 4)] {
+        for (kind, slot) in [(63, 6), (147, 4)] {
             session.kinds.lock().unwrap().insert(42, kind);
             let body = equipment(&session, &bytes("2a0401df080100")).unwrap();
             let p = play::SetEquipment::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.slots[0].0, slot);
-            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1189);
+            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1178);
         }
     }
 

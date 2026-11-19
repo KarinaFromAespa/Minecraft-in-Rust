@@ -393,7 +393,7 @@ mod tests {
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1154),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1140),
             Some(1180)
         );
     }
