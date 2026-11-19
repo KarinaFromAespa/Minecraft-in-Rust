@@ -1066,3 +1066,116 @@ Rank 2 (492 items, in progress 2026-11-19)
   equivalent verified against the jars.
 - Rank-2 A-batches 1-3: 30 items closed (9 changed, 21 no-change).
   work-items.json rank2.closed = 30 on 2026-11-19.
+- A-batch 4 (317, 319, 320, 321, 322, 323, 324, 325, 326, 327),
+  verified 2026-11-19, ported the same day:
+  - 317 no-change (block-entity render context): 26.1
+    `blockModelResolver` vs 1.21.11 `blockRenderDispatcher` +
+    extra `itemRenderer`; `sprites` vs `materials` (echoes item
+    108's BakingContext finding). The Rust has no such record.
+  - 319 no-change (sounds): BlockableEventLoop ctor flag (26.x),
+    `getChannelDebugString` vs `getDebugString` rename,
+    `getSoundCacheDebugStats` 26.1-only. The Rust has its own
+    audio engine.
+  - 320 CHANGED (SoundEvents): 26.1-only (10): GOLDEN_DANDELION_
+    USE/UNUSE (item 23) + 8 HORSE_*_BABY events. 1.21.11-only (22):
+    the standalone CAT/CHICKEN/COW/PIG events + WOLF_STEP — 26.1
+    has NO standalone cat/chicken/cow/pig events (variant methods
+    only); 1.21.11 has only `registerWolfSoundVariants`. Systematic
+    audit of all 1913 hardcoded sound-id literals against the
+    1838-entry 1.21.11 registry: three real misses, all ported.
+    (a) Baby-horse sounds: the Rust played
+    `entity.baby_horse.{ambient,angry,breathe,death,eat,hurt,land,
+    step}`, which exist in NEITHER version (26.1 has
+    `entity.horse.*_baby`, 1.21.11 has none — Horse returns the
+    adult events unconditionally, babies at 1.5x voice pitch).
+    Removed the branches in ai.rs (ambient/hurt/death -> kind
+    sounds), equine.rs (make_mad angry, gallop breathe, step, +
+    the now-unused `let baby`), mounts.rs (eat), living.rs (land).
+    (b) Baby-wolf sounds: `variant_sound` built
+    `entity.baby_wolf.{kind}` — no such events (no BABY_WOLF_*,
+    no baby set in the 7-variant SoundSet). Baby branch removed;
+    baby wolves use their variant set at the baby voice pitch.
+    The non-baby variant logic is correct for 1.21.11
+    (`entity.wolf_{variant}.{kind}` matches the data files; step
+    falls back to `entity.wolf.step`, which exists). (c) Pig eat:
+    `entity.pig.eat` is in NEITHER registry; 1.21.11's Pig has no
+    playEatingSound at all. Pig removed from `eating_sound`
+    (falls to None). Kept: turtle/polar-bear/nautilus baby sounds
+    (all exist in 1.21.11), copper golem + happy ghast sounds
+    (verified against the registry). Flag: the Rust's parrot
+    imitation list has 39 events, the registry 40 —
+    `entity.parrot.imitate.ender_dragon` is missing (vanilla's
+    `imitateNearbyMobs` includes the ender dragon); belongs to the
+    parrot entity item.
+  - 321 no-change (chunk storage): RegionFile access flags +
+    ChunkPos methods-vs-fields; ChunkBuffer writes the same 4 zero
+    bytes + version id in both; SectionStorage renames only.
+  - 322 no-change (weather renderer): the 26.x GPU render-backend
+    rewrite (BufferBuilder + RenderPass vs MultiBufferSource);
+    `renderInstances` itself is IDENTICAL between versions
+    (verified method-body diff; only a 26.1 empty-list guard).
+    The Rust renders weather with its own wgpu code.
+  - 323 no-change (pack resources): 26.1 extracts
+    `topPackDir`/`getResource`/`listResources`/`getNamespaces`
+    overloads, 1.21.11 inlines the same resolution; 26.1's
+    `getNamespaces` additionally checks `isDirectory`.
+  - 324 no-change (AI behaviours): `is(EntityType)` vs
+    `getType() == type` (same semantics); MoveToTargetSink
+    byte-identical. Server-side.
+  - 325 no-change (world): Difficulty `getKey()` is 1.21.11-only
+    (Java API, not wire-visible); InteractionHand gains an id +
+    STREAM_CODEC in 26.1 but ordinals 0/1 are the same wire form;
+    LockCode ItemInstance vs ItemStack rename; Stopwatches
+    SavedDataType ctor Identifier vs String (same name).
+  - 326 no-change (VertexConsumer): 26.1 `putBlockBakedQuad` /
+    `putBakedQuad` with QuadInstance + the NEW BakedQuad vs
+    1.21.11 `putBulkData` with the OLD BakedQuad — the 26.x
+    model-system refactor; the core vertex math is the SAME. The
+    Rust builds quads with its own mesher.
+  - 327 no-change (StreamCodec): interface order, ctor order,
+    lambda naming. Compiler noise; the Rust has its own codecs.
+- A-batch 5 (328, 329, 331, 332, 333, 334, 335, 336, 337, 338),
+  verified 2026-11-19, all no-change:
+  - 328 no-change (allay): Brain provider refactor (26.1 static
+    BRAIN_PROVIDER + `makeBrain(Brain$Packed)` vs 1.21.11
+    `brainProvider()` + `makeBrain(Dynamic)` + AllayAi.makeBrain);
+    SENSOR_TYPES identical; THROW_SOUND_PITCHES identical values.
+    Server-side AI.
+  - 329 no-change (signs): 26.1 implements the `HangingSignBlock`
+    / `PlainSignBlock` interfaces (26.x-only); placement logic
+    identical except `FluidState.is(WATER)` vs `getType() ==
+    WATER` (same semantics).
+  - 331 no-change (zombie nautilus): same Brain refactor;
+    ZOMBIE_NAUTILUS_VARIANT wrapped in `EitherHolder` in 1.21.11
+    (same holder value). Server-side AI.
+  - 332 no-change (phys): AABB$Builder gains a `defined` flag in
+    26.1 (the Rust has no AABB builder); `LP_STREAM_CODEC` is a
+    Vec3 constant only in 26.1 but EXISTS in 1.21.11 as
+    FriendlyByteBuf.readLpVec3/writeLpVec3 (item 70); Vec3
+    STREAM_CODEC is 3 doubles in both.
+  - 333 no-change (ticks): ChunkPos pack/toLong renames only.
+    Server-side.
+  - 334 no-change (pack screen): access flags + ctor order only;
+    the Rust has its own pack screen.
+  - 335 no-change (entity-data serializers): the REGISTRATION
+    ORDER differs — 26.1 registers CAT/COW/PIG/CHICKEN_SOUND_
+    VARIANT (22/24/29/31), 1.21.11 lacks all four, so every
+    serializer after POSE (20) shifts down (HUMANOID_ARM 42->38).
+    Verified the adapter ALREADY handles this: the V1_21_11 Runs
+    table in adapter.rs matches the jar-derived order exactly
+    (up: (0,0,22), (22,23,1), (23,25,4), (27,30,1), (28,32,11)).
+    The DYE_COLOR serializer (43) has no 1.21.11 equivalent —
+    only produced by the Rust's own LAN server, never read from a
+    1.21.11 server. SynchedEntityData/DataItem: access flags only.
+  - 336 no-change (packet listener $1): synthetic-class mismatch
+    — 26.1's `$1` is a switch-map holder, 1.21.11's is an
+    anonymous InteractPacket handler; the comparison is
+    meaningless, the logic lives in the outer class (another
+    item). Server-side.
+  - 337 no-change (player list): ctor order + requireNonNull +
+    access flags; UserWhiteList byte-identical. Server-side.
+  - 338 no-change (debug sync): `ChunkPos.containing(BlockPos)`
+    static vs `new ChunkPos(BlockPos)` ctor (same construction).
+    Server-side.
+- Rank-2 A-batches 1-5: 50 items closed (10 changed, 40 no-change).
+  work-items.json rank2.closed = 50 on 2026-11-19.

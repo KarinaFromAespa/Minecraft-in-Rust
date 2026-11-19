@@ -2405,12 +2405,6 @@ pub fn voice_sounds(m: &Mob) -> [&'static str; 3] {
             };
             [ambient, m.kind.sounds[1], m.kind.sounds[2]]
         }
-        // Horse.getAmbientSound, getHurtSound and getDeathSound by age.
-        Species::Horse if m.is_baby() => [
-            "entity.baby_horse.ambient",
-            "entity.baby_horse.hurt",
-            "entity.baby_horse.death",
-        ],
         // Drowned, Guardian and ElderGuardian: the hurt and death sounds by
         // water or land.
         Species::Drowned if m.fluids.in_water => [
@@ -2591,12 +2585,11 @@ pub fn eating_sound(
     let mut between = || level.next_float() * 0.4 + 0.8;
     let (sound, volume, pitch, entity_sound) = match m.species() {
         // makeSound: getSoundVolume, getVoicePitch.
-        Species::Armadillo | Species::Pig | Species::SulfurCube => {
+        // Pig has no eating sound in 1.21.11 (no playEatingSound override;
+        // Animal.playEatingSound is empty), so it falls to the no-sound arm.
+        Species::Armadillo | Species::SulfurCube => {
             let sound = match m.species() {
                 Species::Armadillo => "entity.armadillo.eat",
-                Species::Pig => {
-                    super::finalize::variant_sound(m, "eat").unwrap_or("entity.pig.eat")
-                }
                 _ => "entity.small_sulfur_cube.eat",
             };
             let pitch = m.voice_pitch();

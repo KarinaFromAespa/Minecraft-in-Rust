@@ -449,7 +449,6 @@ pub fn make_mad(m: &mut Mob, events: &mut Vec<MobEvent>) {
         Species::Mule => "entity.mule.angry",
         Species::ZombieHorse => "entity.zombie_horse.angry",
         Species::Llama | Species::TraderLlama => "entity.llama.angry",
-        _ if m.is_baby() => "entity.baby_horse.angry",
         _ => "entity.horse.angry",
     };
     m.voice(sound, events);
@@ -615,7 +614,6 @@ pub fn play_step(
     };
     let (volume, pitch) = (sound_type.volume, sound_type.pitch);
     let at = [m.position.x, m.position.y, m.position.z];
-    let baby = m.is_baby();
     let can_gallop = !matches!(m.species(), Species::Donkey | Species::Mule);
     if m.rider.is_some() && can_gallop {
         m.ai.steps.gallop += 1;
@@ -629,12 +627,7 @@ pub fn play_step(
             ));
             // Horse.playGallopSound: now and then it breathes too.
             if m.species() == Species::Horse && m.random.next_int_bound(10).unwrap_or(1) == 0 {
-                let breathe = if baby {
-                    "entity.baby_horse.breathe"
-                } else {
-                    "entity.horse.breathe"
-                };
-                events.push(MobEvent::Sound(breathe, at, volume * 0.6, pitch));
+                events.push(MobEvent::Sound("entity.horse.breathe", at, volume * 0.6, pitch));
             }
         } else if count <= 5 {
             events.push(MobEvent::Sound(
@@ -652,12 +645,12 @@ pub fn play_step(
             pitch,
         ));
     } else {
-        let step = if baby {
-            "entity.baby_horse.step"
-        } else {
-            "entity.horse.step"
-        };
-        events.push(MobEvent::Sound(step, at, volume * 0.15, pitch));
+        events.push(MobEvent::Sound(
+            "entity.horse.step",
+            at,
+            volume * 0.15,
+            pitch,
+        ));
     }
 }
 /// `AbstractHorse.isWoodSoundType`: WOOD, NETHER_WOOD, STEM, CHERRY_WOOD and

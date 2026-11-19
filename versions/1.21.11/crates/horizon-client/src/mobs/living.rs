@@ -1319,12 +1319,7 @@ impl Mob {
             super::equine::is_equine(self.species()) && !super::llama::is_llama(self.species());
         if thud && distance > 1.0 && !self.silent {
             let at = [self.position.x, self.position.y, self.position.z];
-            let sound = if self.is_baby() {
-                "entity.baby_horse.land"
-            } else {
-                "entity.horse.land"
-            };
-            events.push(MobEvent::Sound(sound, at, 0.4, 1.0));
+            events.push(MobEvent::Sound("entity.horse.land", at, 0.4, 1.0));
         }
         // AbstractHorse.causeFallDamage hurts the horse first and passes the fall
         // on to its riders only when it was hurt.

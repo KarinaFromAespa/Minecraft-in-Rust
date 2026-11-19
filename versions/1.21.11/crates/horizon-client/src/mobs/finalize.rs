@@ -2381,9 +2381,9 @@ pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
         .and_then(|i| sound_variants(species).get(i as usize))
         .copied()
         .unwrap_or("classic");
-    let id = if m.is_baby() {
-        format!("entity.baby_{name}.{kind}")
-    } else if variant == "classic" || kind == "step" {
+    // Baby wolves use their variant set at the baby voice pitch: there are no
+    // baby_wolf sound events in either version.
+    let id = if variant == "classic" || kind == "step" {
         format!("entity.{name}.{kind}")
     } else {
         format!("entity.{name}_{variant}.{kind}")

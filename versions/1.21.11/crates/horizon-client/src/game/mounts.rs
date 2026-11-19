@@ -469,7 +469,6 @@ impl Game<'_> {
             Species::CamelHusk => "minecraft:entity.camel_husk.eat",
             Species::Donkey => "minecraft:entity.donkey.eat",
             Species::Mule => "minecraft:entity.mule.eat",
-            Species::Horse if m.is_baby() => "minecraft:entity.baby_horse.eat",
             // ZombieHorse.getEatingSound.
             Species::ZombieHorse => "minecraft:entity.zombie_horse.eat",
             _ => "minecraft:entity.horse.eat",
