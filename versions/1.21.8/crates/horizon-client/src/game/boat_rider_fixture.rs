@@ -63,7 +63,6 @@ impl Game<'_> {
                         backward: case.keys[3],
                         ..Keys::default()
                     },
-                    7,
                 )?;
                 let packets = self.remote_vehicle_packets();
                 if case.event != 0 {

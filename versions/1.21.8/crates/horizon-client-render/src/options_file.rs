@@ -186,7 +186,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         b("toggleSprint", false),
         b("toggleAttack", false),
         b("toggleUse", false),
-        i("sprintWindow", 0, 10, 7),
         b("darkMojangStudiosBackground", false),
         b("hideLightningFlashes", false),
         b("hideSplashTexts", false),

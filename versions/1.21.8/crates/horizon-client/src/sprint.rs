@@ -51,7 +51,6 @@ pub struct Conditions {
     pub vehicle_local: bool,
     pub enough_food: bool,
     pub may_fly: bool,
-    pub flying: bool,
     pub shallow_water: bool,
     pub slow_item: bool,
     pub fall_flying: bool,
@@ -76,7 +75,10 @@ impl Conditions {
     fn can_start(self, forward: bool) -> bool {
         !self.sprinting
             && forward
-            && self.possible(self.flying)
+            // 1.21.8's canStartSprinting has no flying exemption for
+            // shallow water (`!isInWater || isUnderWater` stands alone);
+            // the exemption came in 1.21.9's isSprintingPossible(flying).
+            && self.possible(false)
             && !self.slow_item
             && (!self.fall_flying || self.under_water)
             && (!self.moving_slowly || self.under_water)
@@ -85,21 +87,22 @@ impl Conditions {
         if self.swimming {
             !self.possible(true) || !self.in_water || (!forward && !self.on_ground && !shift)
         } else {
-            !self.possible(self.flying)
+            // Same as can_start: no flying exemption in 1.21.8.
+            !self.possible(false)
                 || !forward
                 || (self.horizontal_collision && !self.minor_horizontal_collision)
         }
     }
 }
 impl SprintState {
-    /// Runs the sprint phase. The default vanilla sprint window is seven ticks;
-    /// it is supplied so the options binding can also select 0..10. The setter
-    /// is called for every native request, including repeated true requests.
+    /// Runs the sprint phase. The sprint window is seven ticks, hardcoded
+    /// (`LocalPlayer.aiStep` sets `sprintTriggerTime = 7`; the
+    /// `sprintWindow` option came in 1.21.9). The setter is called for
+    /// every native request, including repeated true requests.
     pub fn tick<E>(
         &mut self,
         keys: Keys,
         conditions: Conditions,
-        window: i32,
         mut set_sprinting: impl FnMut(bool) -> Result<(), E>,
     ) -> Result<(), E> {
         if self.trigger_time > 0 {
@@ -120,7 +123,7 @@ impl SprintState {
                     set_sprinting(true)?;
                     sprinting = true;
                 } else {
-                    self.trigger_time = window;
+                    self.trigger_time = 7;
                 }
             }
             if keys.sprint {
@@ -157,7 +160,6 @@ mod tests {
                     sprinting: current,
                     ..standing()
                 },
-                7,
                 |value| {
                     next = value;
                     Ok::<(), ()>(())

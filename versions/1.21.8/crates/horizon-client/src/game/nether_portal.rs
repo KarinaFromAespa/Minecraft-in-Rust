@@ -290,9 +290,13 @@ impl Game<'_> {
             max_z,
         }
     }
-    /// `ServerLevel.isAllowedToEnterPortal`.
-    pub(super) fn may_enter(&self, target: Dim) -> bool {
-        target != Dim::Nether || self.ui.rules.bool("allow_entering_nether_using_portals")
+    /// `MinecraftServer.isLevelEnabled`: the integrated server always
+    /// allows every dimension. The Nether game rule
+    /// (`allow_entering_nether_using_portals`, `isAllowedToEnterPortal`)
+    /// came in 1.21.9; 1.21.8 gates the Nether only on a dedicated
+    /// server's `allow-nether` property, which this client has no form of.
+    pub(super) fn may_enter(&self, _target: Dim) -> bool {
+        true
     }
     /// The plan of an entity of `width` by `height` at `at` going through the
     /// portal at `entry` (`getDimensionTransitionFromExit` and the scaled,
@@ -595,8 +599,8 @@ impl Game<'_> {
     }
     /// `LocalPlayer.handlePortalTransitionEffect`: whether the confusion
     /// effect grows this tick. Entering a portal closes screens other than
-    /// the chat and death screens and plays `block.portal.trigger` when the
-    /// effect starts from nothing.
+    /// pause screens and the death and win screens, and plays
+    /// `block.portal.trigger` when the effect starts from nothing.
     pub(super) fn client_portal_effect(&mut self) -> bool {
         let inside = std::mem::take(&mut self.portals.client_inside);
         self.portals.client_was_inside = inside;
@@ -604,7 +608,18 @@ impl Game<'_> {
             return false;
         }
         match self.screen {
-            Screen::Playing | Screen::Chat | Screen::Dead => {}
+            // 1.21.8 keeps pause screens (Screen's default), the death
+            // screen and the win screen. Chat closes: ChatScreen's
+            // isPauseScreen is false — keeping it came in 1.21.9's
+            // isAllowedInPortal.
+            Screen::Playing
+            | Screen::Dead
+            | Screen::Paused
+            | Screen::Options
+            | Screen::Stats
+            | Screen::Advancements
+            | Screen::Win
+            | Screen::CommandBlock => {}
             Screen::Inventory | Screen::Creative => {
                 self.close_container();
                 self.carried = None;

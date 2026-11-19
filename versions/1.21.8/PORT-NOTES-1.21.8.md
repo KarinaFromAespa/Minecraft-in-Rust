@@ -334,7 +334,96 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 4/317 (items 10, 11 + 2 zero-diff)
+### Rank 2: 5/317 (items 10, 11, 12 + 2 zero-diff)
+
+- **Item 12 — `motion.rs` (3 classes, 61 named methods, 840 diff
+  lines):** ten fixes.
+  1. **Sprint window option removed:** the `sprintWindow` option
+     (settings field, options-file key, control slider) came in
+     1.21.9; 1.21.8 hardcodes `sprintTriggerTime = 7` in
+     `LocalPlayer.aiStep`. The option is gone from settings, the
+     options UI, and the options file; the sprint tick hardcodes 7.
+  2. **Sprint flying exemption removed:** 1.21.9's
+     `isSprintingPossible(flying)` exempts flying players from the
+     shallow-water sprint block; 1.21.8 has no flying clause in
+     `canStartSprinting` or `shouldStopRunSprinting`. `can_start`
+     and the run branch of `should_stop` now call `possible(false)`.
+     (`isMobilityRestricted` is 1.21.9's name for 1.21.8's
+     `hasBlindness()`, and `isInShallowWater` for its inline
+     `isInWater() && !isUnderWater()` — same predicates.)
+  3. **Portal transition screens:** 1.21.9 keeps Chat open through
+     a portal transition (`isAllowedInPortal`); 1.21.8 closes every
+     screen that is not a pause screen or the death/win screen, and
+     Chat is not a pause screen. Chat now closes.
+  4. **`Entity.move` no-physics flags:** 1.21.9 resets all collision
+     flags when `noPhysics`; 1.21.8 leaves them. Removed the reset
+     from `move_entity`.
+  5. **Fall-damage resetting trace:** 1.21.9 caps the trace at 8.0
+     blocks (`MAX_MOVEMENT_RESETTING_TRACE_DISTANCE`); 1.21.8
+     traces the whole movement vector. The cap is gone.
+  6. **`Movement` record:** 1.21.9 carries the pre-collision
+     movement (`Optional<Vec3>`); 1.21.8 carries a boolean
+     (`axisIndependant`). `MovementRecord.original` became
+     `axis_independent`: real moves record `true`, merged and
+     finalizing records `false`.
+  7. **`applyEffectsFromBlocks`:** 1.21.9 orders the axis split by
+     the pre-collision movement, caps the blocks at 16 a tick, and
+     falls back to a point check at the destination; 1.21.8 orders
+     by the actual displacement (`axisStepOrder(delta)`), has no
+     cap, and no fallback. The budget and fallback are gone from
+     the player and the arrow paths, and `check_inside_blocks`
+     takes no budget and returns no count.
+  8. **Visited blocks:** 1.21.9 only marks blocks it collided with,
+     so a near miss could trigger on a later segment; 1.21.8 marks
+     every non-air block visited as the sweep reaches it. The
+     player's `check_inside_blocks` now inserts first.
+  9. **Wet fire clear:** 1.21.9's `clearFire` keeps negative ticks
+     (`min(0, remaining)`), preserving the player's -20 fire
+     immunity; 1.21.8's zeroes them. Touching water now sets the
+     player's fire ticks to 0.
+  10. **Nether portal gate:** 1.21.9 gates the Nether on the
+      `allow_entering_nether_using_portals` game rule; 1.21.8's
+      integrated `isLevelEnabled` always allows every dimension
+      (only a dedicated server's `allow-nether` property gates it).
+      `may_enter` now always returns true.
+  - **Verified no-change:** `shouldStopSwimSprinting` (identical
+    once 1.21.9's `isSprintingPossible(true)` is expanded — its
+    shallow-water clause is vacuous); walk distance
+    (`length(dx, dz) * 0.6`, a pure move to `addWalkedDistance`);
+    `Axis::step_order` (the same Y-first order in both versions, a
+    pure move to `Direction.axisStepOrder`); the player-tick
+    food/stats/container-close (pure move from `Player.tick` to
+    `ServerPlayer.doTick`); crit blindness check (same predicate);
+    `remove()` container guard (equivalent); `killedEntity`
+    (unused DamageSource param); shoulders (20-tick grace, +0.7
+    respawn, CompoundTag save, 1/200 ambient + imitation — all
+    match); cape (`moveCloak`: 0.25 lerp, 10-block snap per axis);
+    bob (0.4 lerp toward `min(0.1, horizontal speed)`, reset to 0
+    while riding); player dimensions (all six poses match 1.21.8's
+    `POSES` map, including sleeping 0.2/0.2/0.2);
+    `getDefaultDimensions`/`getMainArm`/`isModelPartShown`
+    (moved to `Avatar` in 1.21.9, same behaviour);
+    `getScoreboard()` (pure move); arrows/projectiles `clearFire`
+    `min(0)` (unobservable — `getFireImmuneTicks` is 0 for them, so
+    they never hold negative ticks); remote-entity rotation
+    (no `moveOrInterpolateTo` equivalent — the Rust interpolates
+    with `wrap_degrees` deltas, so the `% 360` difference is
+    unobservable).
+  - **Upstream gaps, not port gaps:** `ENTITY_MOUNT`/`ENTITY_DISMOUNT`
+    game events (fired from different places in the two versions,
+    implemented in neither side of the Rust — only the native-mod
+    `native_entity_mount` hook exists); the fire-immune fire
+    countdown for non-living entities (1.21.8 decrements by 4 a
+    tick, 1.21.9 clears — the Rust decrements by 1 for all
+    projectiles and has no fire-immune branch; living entities are
+    cleared by `LivingEntity.baseTick` in both versions, so only
+    fireballs are affected).
+  - **Deferred:** `setReducedDebugInfo` override + the F3+F6 debug
+    options screen question (debug-entries/debug-overlay items);
+    the `allow_entering_nether_using_portals` game-rule table entry
+    (the rule was added in 1.21.9 and should not be in 1.21.8's
+    table at all — gamerules item); `.notInPeaceful()` on monster
+    types (entities/mob-spawning item).
 
 - **Item 11 — `game/lan_actions.rs` (12 classes, 68 named methods,
   785 diff lines):** ten fixes.

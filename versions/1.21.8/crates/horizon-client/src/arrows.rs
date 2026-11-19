@@ -1234,10 +1234,9 @@ impl ArrowScene<'_, '_> {
         let previous_fire = fire_ticks;
         let mut visited = HashSet::new();
         let mut effects = Collector::default();
-        let used = self.check_inside_blocks(from, to, &mut visited, &mut effects, 16, &mut visit);
-        if 16 - used <= 0 {
-            self.check_inside_blocks(to, to, &mut visited, &mut effects, 1, &mut visit);
-        }
+        // 1.21.8 has no block cap on the sweep and no fallback
+        // point-check; both came in 1.21.9.
+        self.check_inside_blocks(from, to, &mut visited, &mut effects, &mut visit);
         for effect in effects.finish() {
             match effect {
                 Effect::ClearFreeze => {}
@@ -1272,9 +1271,8 @@ impl ArrowScene<'_, '_> {
         to: Vec3,
         visited: &mut HashSet<BlockPos>,
         effects: &mut Collector,
-        max_iterations: i32,
         visit: &mut impl FnMut(BlockStateId, BlockPos, bool),
-    ) -> i32 {
+    ) {
         let deflated = bounds(to).deflate(Vec3::new(
             f64::from(1.0e-5f32),
             f64::from(1.0e-5f32),
@@ -1282,12 +1280,7 @@ impl ArrowScene<'_, '_> {
         ));
         let far = from.distance_squared(to) > 0.999_990_000_000_252_6f64 * 0.999_990_000_000_252_6;
         let mut hits = Vec::new();
-        let mut iterations = 0;
         let _ = sweep_intersected_blocks(from, to, deflated, 1_000_000, |p, iteration| {
-            if iteration >= max_iterations {
-                return false;
-            }
-            iterations = iteration;
             hits.push((p, iteration));
             true
         });
@@ -1330,7 +1323,6 @@ impl ArrowScene<'_, '_> {
                 }
             }
         }
-        iterations + 1
     }
     /// `Entity.collidedWithFluid`: the fluid's box swept from `from` to `to`.
     fn collided_with_fluid(&self, fluid: FluidState, p: BlockPos, from: Vec3, to: Vec3) -> bool {

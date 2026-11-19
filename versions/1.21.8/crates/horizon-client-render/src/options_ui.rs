@@ -134,7 +134,6 @@ pub(crate) fn vanilla_control_options() -> Vec<Opt> {
         Opt::ToggleAttack,
         Opt::ToggleUse,
         Opt::AutoJump,
-        Opt::SprintWindow,
         Opt::QuitShortcuts,
     ];
     if cfg!(target_os = "macos") {
@@ -257,7 +256,6 @@ impl Opt {
             Opt::ToggleAttack => "key.attack",
             Opt::ToggleUse => "key.use",
             Opt::AutoJump => "options.autoJump",
-            Opt::SprintWindow => "options.sprintWindow",
             Opt::QuitShortcuts => "options.quitShortcuts",
             Opt::CtrlClickEmulatesRightClick => "options.ctrlClickEmulatesRightClick",
             Opt::OperatorItemsTab => "options.operatorItemsTab",
@@ -401,7 +399,6 @@ impl Opt {
             Opt::PadMoveDeadzone => unit(s.controller.move_deadzone, 0.0, 0.5),
             Opt::PadLookDeadzone => unit(s.controller.look_deadzone, 0.0, 0.5),
             Opt::PadTriggerThreshold => unit(s.controller.trigger_threshold, 0.1, 0.9),
-            Opt::SprintWindow => unit(s.sprint_window as f32, 0.0, 10.0),
             _ => Kind::Cycle,
         }
     }
@@ -466,7 +463,6 @@ impl Opt {
             Opt::NotificationDisplayTime => Some(95),
             Opt::PadMoveDeadzone | Opt::PadLookDeadzone => Some(50),
             Opt::PadTriggerThreshold => Some(80),
-            Opt::SprintWindow => Some(10),
             _ => None,
         }
     }
@@ -516,14 +512,6 @@ impl Opt {
                 }
             }
             Opt::PanoramaSpeed => percent(c, s.file.double("panoramaScrollSpeed") as f32),
-            Opt::SprintWindow => {
-                let value = if s.sprint_window == 0 {
-                    tr("options.off")
-                } else {
-                    Text::tr("options.value", &[&s.sprint_window])
-                };
-                generic(c, value)
-            }
             Opt::Fov => match s.fov as i32 {
                 70 => generic(c, tr("options.fov.min")),
                 110 => generic(c, tr("options.fov.max")),
@@ -951,7 +939,6 @@ impl Opt {
             Opt::PadMoveDeadzone => s.controller.move_deadzone = step(0.0, 50.0) / 100.0,
             Opt::PadLookDeadzone => s.controller.look_deadzone = step(0.0, 50.0) / 100.0,
             Opt::PadTriggerThreshold => s.controller.trigger_threshold = step(10.0, 90.0) / 100.0,
-            Opt::SprintWindow => s.sprint_window = step(0.0, 10.0) as i32,
             _ => {}
         }
         if self.affects_preset() {
@@ -5411,16 +5398,14 @@ mod tests {
     }
 
     #[test]
-    fn sprint_window_and_new_control_switches_round_trip() {
+    fn new_control_switches_round_trip() {
         let mut settings = Settings::default();
-        set_slider(Opt::SprintWindow, &mut settings, 0.5);
         settings.operator_items_tab = true;
         settings.quit_shortcuts = false;
         settings.ctrl_click_emulates_right_click = true;
         settings.toggle_attack = true;
         settings.toggle_use = true;
         let loaded = Settings::parse(&settings.serialize());
-        assert_eq!(loaded.sprint_window, 5);
         assert!(loaded.operator_items_tab);
         assert!(!loaded.quit_shortcuts);
         assert!(loaded.ctrl_click_emulates_right_click);
@@ -8090,7 +8075,6 @@ mod tests {
             Opt::PadMoveDeadzone,
             Opt::PadLookDeadzone,
             Opt::PadTriggerThreshold,
-            Opt::SprintWindow,
         ];
         for opt in stepped_opts {
             let steps = opt.slider_steps().expect("slider steps");

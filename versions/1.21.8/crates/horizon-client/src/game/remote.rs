@@ -6680,7 +6680,6 @@ impl Game<'_> {
         let entity_collisions = self.player_entity_collisions();
         // Those added before it tick before it: their pushes reach this move.
         let pushed = pushed_after.add_vector(self.remote_pushes(true));
-        let sprint_window = self.settings.sprint_window;
         let Some(player) = self.player.as_mut() else {
             return Ok(());
         };
@@ -6763,7 +6762,7 @@ impl Game<'_> {
         // reaches its own write when this window is a server client.
         self.rope_rot_old = (self.yaw, self.pitch);
         // A passenger moves with its vehicle (Entity.rideTick), not by itself.
-        let riding = self.screen != Screen::Dead && self.remote_ride(keys, sprint_window)?;
+        let riding = self.screen != Screen::Dead && self.remote_ride(keys)?;
         // The server sends no passenger's position: they sit where their
         // vehicles are now.
         self.position_riders();
@@ -6834,7 +6833,7 @@ impl Game<'_> {
                 resources: self.motion,
                 health: &self.health_resources,
             }
-            .controlled_simulation_tick_with_sprint_window(keys, sprint_window)?;
+            .controlled_simulation_tick(keys)?;
         } else {
             // LivingEntity.baseTick counts hurtTime down for a dead or riding
             // player too (controlled_simulation_tick does it otherwise): left
@@ -12603,7 +12602,7 @@ mod tests {
                 "position {at:?}, expected [{x}, {y}, {z}]"
             );
         };
-        assert!(game.remote_ride(Keys::default(), 0).unwrap());
+        assert!(game.remote_ride(Keys::default()).unwrap());
         close(game.player.as_ref().unwrap().position, 2.0, 65.7, 3.0);
         close(
             game.mobs.iter().find(|m| m.id == 41).unwrap().position,
@@ -12621,7 +12620,7 @@ mod tests {
         .unwrap();
         for _ in 0..4 {
             game.tick_remote_entities(true);
-            game.remote_ride(Keys::default(), 0).unwrap();
+            game.remote_ride(Keys::default()).unwrap();
         }
         close(game.player.as_ref().unwrap().position, 12.0, 68.7, -4.0);
         close(
@@ -12648,7 +12647,7 @@ mod tests {
         );
         // A direct stack has no intermediary's 0.5-height offset.
         set(&mut game, 40, vec![7, 41]);
-        game.remote_ride(Keys::default(), 0).unwrap();
+        game.remote_ride(Keys::default()).unwrap();
         close(game.player.as_ref().unwrap().position, 12.0, 68.2, -4.0);
         close(
             game.mobs.iter().find(|m| m.id == 41).unwrap().position,

@@ -5177,7 +5177,7 @@ impl Game<'_> {
                     .add(horizon_world::entity_move::MovementRecord {
                         from,
                         to,
-                        original: Some(delta),
+                        axis_independent: true,
                     });
                 from = to;
             }

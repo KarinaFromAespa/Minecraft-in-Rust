@@ -44,7 +44,11 @@ impl MotionWorld<'_, '_, '_> {
             .mod_fluid()
             .is_some_and(|m| m.fluid.info().entity.can_extinguish);
         if self.player.fluids.was_touching_water || extinguishes {
-            self.player.fire_ticks = self.player.fire_ticks.min(0);
+            // `LivingEntity.baseTick` clears fire when wet, and 1.21.8's
+            // `clearFire` zeroes the ticks outright, wiping the player's
+            // -20 fire immunity; the `min(0)` form that kept it came in
+            // 1.21.9.
+            self.player.fire_ticks = 0;
         }
         Ok(())
     }

@@ -283,7 +283,7 @@ impl Game<'_> {
 
     /// The local player's tick in its vehicle, in place of its own movement:
     /// false when it rides nothing.
-    pub(super) fn remote_ride(&mut self, keys: Keys, sprint_window: i32) -> Result<bool> {
+    pub(super) fn remote_ride(&mut self, keys: Keys) -> Result<bool> {
         let Some(id) = self.riding else {
             return Ok(false);
         };
@@ -293,7 +293,7 @@ impl Game<'_> {
             .driven_mount()
             .map_or((false, false), |m| (equine::can_sprint(m.species()), true));
         if let Some(p) = self.player.as_mut() {
-            p.sprint_input_tick_riding(keys, sprint_window, can_sprint, local)?;
+            p.sprint_input_tick_riding(keys, can_sprint, local)?;
         }
         // Settle an invisible seat riding a moving avatar before reading it.
         // The normal end-of-tick pass alone leaves the local rider a tick behind.
@@ -781,7 +781,7 @@ mod tests {
             if controlled {
                 assert!(matches!(packets[0], S::MoveVehicle(_)), "{row}");
                 let before = game.mobs[0].position;
-                assert!(game.remote_ride(Keys::default(), 0).unwrap());
+                assert!(game.remote_ride(Keys::default()).unwrap());
                 let m = &game.mobs[0];
                 assert_eq!(
                     f64::from(m.ai.zza),
@@ -929,7 +929,7 @@ mod tests {
             ..Keys::default()
         };
         let zza = |game: &mut Game, keys| {
-            assert!(game.remote_ride(keys, 0).unwrap());
+            assert!(game.remote_ride(keys).unwrap());
             game.mobs[0].ai.zza
         };
         assert_eq!(zza(&mut game, forward), 0.0, "the press waits a tick");
@@ -1005,7 +1005,7 @@ mod plugin_seat_tests {
         stand.marker = true;
         game.armor_stands.push(stand);
         game.riding = Some(42);
-        assert!(game.remote_ride(Keys::default(), 0).unwrap());
+        assert!(game.remote_ride(Keys::default()).unwrap());
         let close = |actual: f64, expected: f64| {
             assert!((actual - expected).abs() < 1e-6, "{actual} != {expected}")
         };
@@ -1013,10 +1013,10 @@ mod plugin_seat_tests {
         close(game.player.as_ref().unwrap().position.y, 63.4);
         game.armor_stands[0].marker = false;
         game.armor_stands[0].small = true;
-        game.remote_ride(Keys::default(), 0).unwrap();
+        game.remote_ride(Keys::default()).unwrap();
         close(game.player.as_ref().unwrap().position.y, 64.3875);
         game.armor_stands[0].small = false;
-        game.remote_ride(Keys::default(), 0).unwrap();
+        game.remote_ride(Keys::default()).unwrap();
         close(game.player.as_ref().unwrap().position.y, 65.375);
         let kind = game.res.player_type().clone().unwrap();
         game.mobs
@@ -1026,7 +1026,7 @@ mod plugin_seat_tests {
         for at in [Vec3::new(5.0, 70.0, 6.0), Vec3::new(12.0, 72.0, -4.0)] {
             game.mobs[0].position = at;
             // No manual position_riders call: local ride must resolve the chain itself.
-            game.remote_ride(Keys::default(), 0).unwrap();
+            game.remote_ride(Keys::default()).unwrap();
             let p = game.player.as_ref().unwrap().position;
             close(p.x, at.x);
             close(p.z, at.z);
@@ -1035,11 +1035,11 @@ mod plugin_seat_tests {
         // Direct riding and a scaled avatar share the same attachment calculation.
         game.riding = Some(43);
         game.mobs[0].extra.model_scale = 1.5;
-        game.remote_ride(Keys::default(), 0).unwrap();
+        game.remote_ride(Keys::default()).unwrap();
         close(game.player.as_ref().unwrap().position.y, 74.1);
         game.mobs.clear();
         game.armor_stands.clear();
-        assert!(!game.remote_ride(Keys::default(), 0).unwrap());
+        assert!(!game.remote_ride(Keys::default()).unwrap());
         assert_eq!(game.riding, None);
     }
 }

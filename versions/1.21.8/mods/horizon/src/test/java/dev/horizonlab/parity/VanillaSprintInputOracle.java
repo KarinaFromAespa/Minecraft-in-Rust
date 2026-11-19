@@ -14,11 +14,11 @@ import net.minecraft.client.tutorial.Tutorial;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.*;
 import net.minecraft.world.effect.MobEffect;
+import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.player.*;
 import net.minecraft.world.food.FoodData;
 import net.minecraft.world.item.*;
-import net.minecraft.world.item.component.UseEffects;
 import net.minecraft.world.level.material.Fluid;
 import net.minecraft.tags.TagKey;
 
@@ -34,7 +34,7 @@ public final class VanillaSprintInputOracle {
         @Override public boolean isSpectator(){return false;}
     }
     static final class Vehicle extends net.minecraft.world.entity.decoration.ArmorStand {
-        Actor actor;Vehicle(){super(EntityTypes.ARMOR_STAND,null);}
+        Actor actor;Vehicle(){super(EntityType.ARMOR_STAND,null);}
         @Override public boolean canSprint(){return actor.flag(2);}
         void configure(net.minecraft.world.level.Level level){setLevel(level);}
         @Override protected boolean isLocalClientAuthoritative(){return actor.flag(3);}
@@ -42,12 +42,15 @@ public final class VanillaSprintInputOracle {
     static final class Actor extends LocalPlayer {
         int flags;boolean sprint;List<Boolean> calls;Vehicle vehicle;
         net.minecraft.server.level.ServerPlayer controlled;
-        Actor(){super(null,null,null,null,null,Input.EMPTY,false,null,null);}
+        Actor(){super(null,null,null,null,null,Input.EMPTY,false);}
         boolean flag(int bit){return (flags&(1<<bit))!=0;}
-        @Override public boolean isMobilityRestricted(){return flag(0);}
+        // 1.21.8 has no isMobilityRestricted: LocalPlayer checks the private
+        // hasBlindness(), which reads hasEffect(BLINDNESS).
+        @Override public boolean hasEffect(Holder<MobEffect> effect){return flag(0) && effect == MobEffects.BLINDNESS;}
         @Override public boolean isPassenger(){return flag(1);}
         @Override public Entity getVehicle(){return flag(1)?vehicle:null;}
-        @Override public boolean isInShallowWater(){return flag(6);}
+        // 1.21.8 has no isInShallowWater: the sprint checks inline
+        // isInWater() && !isUnderWater(), both overridden below.
         @Override public boolean isUsingItem(){return flag(7);}
         @Override public boolean isFallFlying(){return flag(9);}
         @Override public boolean isUnderWater(){return flag(10);}
@@ -77,7 +80,7 @@ public final class VanillaSprintInputOracle {
         @Override public boolean isSprinting(){return controlled==null?sprint:controlled.isSprinting();}
         @Override public void setSprinting(boolean value){calls.add(value);sprint=value;if(controlled!=null)controlled.setSprinting(value);}
         @Override public PlayerRideableJumping jumpableVehicle(){throw new Boundary();}
-        void item()throws Exception{useItem=stackConstructor.newInstance(Holder.direct(Items.STONE),1,new PatchedDataComponentMap(DataComponentMap.EMPTY));useItem.set(DataComponents.USE_EFFECTS,new UseEffects(flag(8),false,.2f));}
+        void item()throws Exception{useItem=stackConstructor.newInstance(Holder.direct(Items.STONE),1,DataComponentPatch.EMPTY);}
         int trigger(){return sprintTriggerTime;}
         void trigger(int v){sprintTriggerTime=v;}
     }
@@ -90,7 +93,6 @@ public final class VanillaSprintInputOracle {
             var options=make(Options.class);String[] names={"keyUp","keyDown","keyLeft","keyRight","keyJump","keyShift","keySprint"};
             keys=new KeyMapping[names.length];down=field(KeyMapping.class,"isDown");
             for(int i=0;i<keys.length;i++){keys[i]=make(KeyMapping.class);field(Options.class,names[i]).set(options,keys[i]);}
-            var window=make(OptionInstance.class);field(OptionInstance.class,"value").set(window,7);field(Options.class,"sprintWindow").set(options,window);
             var mc=make(Minecraft.class);field(Minecraft.class,"options").set(mc,options);
             var gui=make(Gui.class);field(Gui.class,"screen").set(gui,make(LevelLoadingScreen.class));field(Minecraft.class,"gui").set(mc,gui);
             field(Minecraft.class,"tutorial").set(mc,make(Tutorial.class));field(Minecraft.class,"gameMode").set(mc,make(Mode.class));
@@ -100,7 +102,7 @@ public final class VanillaSprintInputOracle {
         }
         public net.minecraft.world.phys.Vec2 step(int mask)throws Exception{
             p.flags=(p.controlled.onGround()?1<<14:0)|(p.controlled.horizontalCollision?1<<15:0)|(p.controlled.minorHorizontalCollision?1<<16:0)
-                |(p.controlled.isInShallowWater()?1<<6:0)|(p.controlled.isUnderWater()?1<<10:0)|(p.controlled.isSwimming()?1<<12:0)|(p.controlled.isInWater()?1<<13:0);
+                |(p.controlled.isInWater() && !p.controlled.isUnderWater()?1<<6:0)|(p.controlled.isUnderWater()?1<<10:0)|(p.controlled.isSwimming()?1<<12:0)|(p.controlled.isInWater()?1<<13:0);
             p.horizontalCollision=p.controlled.horizontalCollision;p.minorHorizontalCollision=p.controlled.minorHorizontalCollision;
             p.calls.clear();for(int i=0;i<keys.length;i++)down.setBoolean(keys[i],(mask&(1<<i))!=0);
             try{p.aiStep();throw new AssertionError("missing sprint boundary");}catch(Boundary expected){}
@@ -113,7 +115,7 @@ public final class VanillaSprintInputOracle {
     static void initialize()throws Exception{
         if(unsafe!=null)return;
         var u=Class.forName("sun.misc.Unsafe");unsafe=field(u,"theUnsafe").get(null);allocate=u.getMethod("allocateInstance",Class.class);
-        stackConstructor=ItemStack.class.getDeclaredConstructor(Holder.class,int.class,PatchedDataComponentMap.class);stackConstructor.setAccessible(true);
+        stackConstructor=ItemStack.class.getDeclaredConstructor(Holder.class,int.class,DataComponentPatch.class);stackConstructor.setAccessible(true);
     }
     public static void main(String[] args)throws Exception{
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
@@ -121,7 +123,6 @@ public final class VanillaSprintInputOracle {
         var options=make(Options.class);String[] names={"keyUp","keyDown","keyLeft","keyRight","keyJump","keyShift","keySprint"};
         var keys=new KeyMapping[names.length];var down=field(KeyMapping.class,"isDown");
         for(int i=0;i<keys.length;i++){keys[i]=make(KeyMapping.class);field(Options.class,names[i]).set(options,keys[i]);}
-        var window=make(OptionInstance.class);field(Options.class,"sprintWindow").set(options,window);
         var mc=make(Minecraft.class);field(Minecraft.class,"options").set(mc,options);
         var gui=make(Gui.class);field(Gui.class,"screen").set(gui,make(LevelLoadingScreen.class));field(Minecraft.class,"gui").set(mc,gui);
         field(Minecraft.class,"tutorial").set(mc,make(Tutorial.class));field(Minecraft.class,"gameMode").set(mc,make(Mode.class));
@@ -135,7 +136,7 @@ public final class VanillaSprintInputOracle {
                 int initial=f.get("initial_keys").getAsInt();for(int i=0;i<keys.length;i++)down.setBoolean(keys[i],(initial&(1<<i))!=0);keyboard.tick();
                 for(var element:f.getAsJsonArray("steps")){var step=element.getAsJsonObject();p.flags=step.get("flags").getAsInt();p.calls.clear();p.item();
                     abilities.mayfly=p.flag(4);abilities.flying=p.flag(5);p.getFoodData().setFoodLevel(step.get("food").getAsInt());
-                    p.horizontalCollision=p.flag(15);p.minorHorizontalCollision=p.flag(16);field(OptionInstance.class,"value").set(window,step.get("window").getAsInt());
+                    p.horizontalCollision=p.flag(15);p.minorHorizontalCollision=p.flag(16);
                     int mask=step.get("keys").getAsInt();for(int i=0;i<keys.length;i++)down.setBoolean(keys[i],(mask&(1<<i))!=0);
                     try{p.aiStep();throw new AssertionError("missing sprint boundary");}catch(Boundary expected){}
                     var vector=keyboard.getMoveVector();var calls=new ArrayList<String>();for(boolean value:p.calls)calls.add(Boolean.toString(value));

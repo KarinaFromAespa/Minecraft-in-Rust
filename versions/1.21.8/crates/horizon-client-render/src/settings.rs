@@ -189,8 +189,6 @@ pub struct Settings {
     pub allow_cursor_changes: bool,
     pub toggle_attack: bool,
     pub toggle_use: bool,
-    /// Taps of the sprint key counted as double taps (sprintWindow).
-    pub sprint_window: i32,
     /// Show the operator items tab in a creative inventory.
     pub operator_items_tab: bool,
     /// Allow platform quit shortcuts to close the game window.
@@ -286,7 +284,6 @@ impl Default for Settings {
             invert_x: false,
             toggle_attack: false,
             toggle_use: false,
-            sprint_window: 7,
             operator_items_tab: false,
             quit_shortcuts: true,
             ctrl_click_emulates_right_click: false,
@@ -500,7 +497,6 @@ impl Settings {
             toggle_sprint: f.bool("toggleSprint"),
             toggle_attack: f.bool("toggleAttack"),
             toggle_use: f.bool("toggleUse"),
-            sprint_window: f.int("sprintWindow"),
             operator_items_tab: f.bool("operatorItemsTab"),
             quit_shortcuts: f.bool("quitShortcuts"),
             ctrl_click_emulates_right_click: f.bool("ctrlClickEmulatesRightClick"),
@@ -611,7 +607,6 @@ impl Settings {
         put_b(&mut f, "toggleSprint", self.toggle_sprint);
         put_b(&mut f, "toggleAttack", self.toggle_attack);
         put_b(&mut f, "toggleUse", self.toggle_use);
-        put_i(&mut f, "sprintWindow", self.sprint_window);
         put_b(&mut f, "operatorItemsTab", self.operator_items_tab);
         put_b(&mut f, "quitShortcuts", self.quit_shortcuts);
         put_b(
@@ -797,7 +792,6 @@ pub enum Opt {
     ToggleAttack,
     ToggleUse,
     AutoJump,
-    SprintWindow,
     QuitShortcuts,
     CtrlClickEmulatesRightClick,
     OperatorItemsTab,
