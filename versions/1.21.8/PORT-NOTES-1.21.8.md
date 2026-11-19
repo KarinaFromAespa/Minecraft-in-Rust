@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 79/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96 + 4 zero-diff)
+### Rank 2: 80/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97 + 4 zero-diff)
+
+- **Item 97 — `crates/horizon-client/src/game/frames.rs`
+  (3 classes, 9 methods, 3 named in Horizon),
+  real fix:** ItemFrameRenderer, ItemFrame
+  (interact, survives), HangingEntityItem
+  (useOn). **Coexistence:** 1.21.8's
+  `ItemFrame.survives` blocks on ANY overlapping
+  hanging entity (`getEntities(...,
+  HANGING_ENTITY).isEmpty()`); 1.21.9's
+  `canCoexist(true)` only blocks same-direction
+  ones. `frame_coexists` had the 1.21.9 form —
+  the facing checks are gone. **Culling:** the
+  framed-map box widening (0.75 → 1.0) is
+  1.21.9's `calculateBoundingBox`; 1.21.8's box
+  stays 0.75, map or not — the widening is
+  gone (the collision box itself was already
+  the 1.21.8 form). Verified no-change: the
+  renderer matches both versions (swell over
+  the last 10 ticks, white flash every 5,
+  map scale 0.0078125, item scale 0.5, glow
+  map light 15728850, glow item full bright);
+  flint-and-steel damage goes through
+  `damage_held` (no `asEquipmentSlot` /
+  `getSlotForHand` citation). Deferred:
+  `painting_coexists` (the painting side,
+  `canCoexist(false)`) → rank-3 item 344,
+  which owns HangingEntity. Check 0/0 at
+  `-j 1`.
 
 - **Item 96 — `crates/horizon-client/src/ticket_levels.rs`
   (1 class, 10 methods, 3 named in Horizon),
