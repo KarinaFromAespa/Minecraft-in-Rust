@@ -491,8 +491,9 @@ public final class VanillaDataFixTablesExporter {
         for (int i = 0; i < replay.length; i++) {
             if (replay[i] == null) replay[i] = defaults[i >> 4];
             // Value equality, not identity: the recorded strings were parsed
-            // separately from register's own internal parse.
-            if (!replay[i].equals(map[i])) throw new IllegalStateException("BlockStateData replay differs at id " + i);
+            // separately from register's own internal parse. Null-safe: blocks
+            // with no registered states leave both sides null.
+            if (!java.util.Objects.equals(replay[i], map[i])) throw new IllegalStateException("BlockStateData replay differs at id " + i);
         }
         if (!names.equals(new HashMap<>(byName))) throw new IllegalStateException("BlockStateData replay differs in ID_BY_OLD_NAME");
     }
