@@ -1796,5 +1796,29 @@ Rank 2 (492 items, in progress 2026-11-19)
   - 481 no-change (Spider): `is(Object)` -> `is(Block)`.
   - 482 no-change (ContainerEntity$1): ctor field-init order swap +
     requireNonNull pattern — javac codegen, same fields.
-- Rank-2 A-batches 1-17: 170 items closed (25 changed, 145 no-change).
-  work-items.json rank2.closed = 170 on 2026-11-19.
+- A-batch 18 (484, 485, 486, 488, 489, 490, 491, 492, 493, 494),
+  verified 2026-11-19, no code changes:
+  - 484 no-change (PersistentEntitySectionManager$Callback): ctor
+    flag + requireNonNull pattern + field-init order swap — javac
+    codegen, same fields.
+  - 485 no-change (GameEvent$ListenerInfo): byte-identical after
+    normalization.
+  - 486 no-change (FlatLevelGeneratorSettings): `is(Object)` ->
+    `is(Block)`.
+  - 488 no-change (LootContextParams): `TOOL` is
+    `ContextKey<ItemInstance>` in 26.1 vs `ContextKey<ItemStack>`
+    in 1.21.11, but the Rust models the loot tool as its own
+    `NativeLootTool` (item + enchantments); 26.1's
+    `ADDITIONAL_COST_COMPONENT_ALLOWED` is read only by the two
+    enchant loot functions, whose Rust implementations never add a
+    cost component — already 1.21.11-correct.
+  - 489 no-change (PalettedPermutations): LOGGER flag.
+  - 490 no-change (ClientHandshakePacketListenerImpl$State): enum
+    field flags.
+  - 491 no-change (LevelAccessor): 1.21.11 lists `LevelReader` in
+    the extends clause — Java type hierarchy only.
+  - 492 no-change (ServerLinks$Entry): record field flags.
+  - 493 no-change (LanServerDetection): static field flags.
+  - 494 no-change (TransportItemTarget): record field flags.
+- Rank-2 A-batches 1-18: 180 items closed (25 changed, 155 no-change).
+  work-items.json rank2.closed = 180 on 2026-11-19.
