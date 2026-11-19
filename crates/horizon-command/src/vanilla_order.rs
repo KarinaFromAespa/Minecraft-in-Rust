@@ -68,7 +68,6 @@ pub const ORDER: &[(&str, &[&str])] = &[
             "teleport",
             "tp",
             "tellraw",
-            "test",
             "tick",
             "time",
             "title",
@@ -135,6 +134,10 @@ pub const ORDER: &[(&str, &[&str])] = &[
     (
         "datapack enable name",
         &["after", "before", "last", "first"],
+    ),
+    (
+        "fill from to block",
+        &["replace", "keep", "outline", "hollow", "destroy"],
     ),
     ("item", &["replace", "modify"]),
     ("item replace", &["block", "entity"]),
