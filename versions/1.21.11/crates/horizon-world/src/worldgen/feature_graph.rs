@@ -58,7 +58,6 @@ pub enum FeatureDefinition {
     BonusChest(super::bonus_chest::BonusChestFeature),
     ChorusPlant(super::chorus_plant::ChorusPlantFeature),
     Speleothem(super::speleothem::SpeleothemFeature),
-    Spike(super::spike::SpikeFeature),
     BlueIce(super::blue_ice::BlueIceFeature),
     UnderwaterMagma(super::underwater_magma::UnderwaterMagmaFeature),
     BlockBlob(super::block_blob::BlockBlobFeature),
@@ -76,7 +75,9 @@ pub enum FeatureDefinition {
     MonsterRoom(Box<super::cave::MonsterRoomFeature>),
     Geode(Box<super::cave::GeodeFeature>),
     Iceberg(Box<super::iceberg::IcebergFeature>),
+    IceSpike(Box<super::ice_spike::IceSpikeFeature>),
     RootSystem(Box<super::root_system::RootSystemFeature>),
+    RandomPatch(Box<super::random_patch::RandomPatchFeature>),
     SpeleothemCluster(Box<super::dripstone::SpeleothemClusterFeature>),
     LargeDripstone(Box<super::dripstone::LargeDripstoneFeature>),
     HugeFungus(Box<super::fungus::HugeFungusFeature>),
@@ -115,7 +116,6 @@ pub enum FeatureExecutionError<E> {
     BonusChest(super::bonus_chest::BonusChestError<E>),
     ChorusPlant(super::chorus_plant::ChorusPlantError<E>),
     Speleothem(super::speleothem::SpeleothemError<E>),
-    Spike(super::spike::SpikeError<E>),
     BlueIce(super::blue_ice::BlueIceError<E>),
     UnderwaterMagma(super::underwater_magma::UnderwaterMagmaError<E>),
     SimpleBlock(super::simple_block::SimpleBlockError<E>),
@@ -144,7 +144,6 @@ impl<E: std::fmt::Display> std::fmt::Display for FeatureExecutionError<E> {
             Self::BonusChest(e) => e.fmt(f),
             Self::ChorusPlant(e) => e.fmt(f),
             Self::Speleothem(e) => e.fmt(f),
-            Self::Spike(e) => e.fmt(f),
             Self::BlueIce(e) => e.fmt(f),
             Self::UnderwaterMagma(e) => e.fmt(f),
             Self::SimpleBlock(e) => e.fmt(f),
@@ -372,13 +371,6 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("end podium bindings"))?,
             )
             .map(Self::EndPodium),
-            "minecraft:spike" => super::spike::SpikeFeature::decode(
-                json,
-                blocks.ok_or(DecodeError::Field("spike bindings"))?,
-                depth + 1,
-                remaining,
-            )
-            .map(Self::Spike),
             "minecraft:blue_ice" => super::blue_ice::BlueIceFeature::new(
                 blocks.ok_or(DecodeError::Field("blue ice bindings"))?,
             )
@@ -399,9 +391,9 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("spring bindings"))?,
             )
             .map(Self::Spring),
-            "minecraft:block_blob" => super::block_blob::BlockBlobFeature::decode(
+            "minecraft:forest_rock" => super::block_blob::BlockBlobFeature::decode_forest_rock(
                 json,
-                blocks.ok_or(DecodeError::Field("block blob bindings"))?,
+                blocks.ok_or(DecodeError::Field("forest rock bindings"))?,
                 depth,
                 remaining,
             )
@@ -597,6 +589,13 @@ impl FeatureDefinition {
                 )
                 .map(|f| Self::RootSystem(Box::new(f)))
             }
+            "minecraft:flower" | "minecraft:no_bonemeal_flower" | "minecraft:random_patch" => {
+                let nested = |json: &str, depth: usize, remaining: &mut usize| {
+                    PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
+                };
+                super::random_patch::RandomPatchFeature::decode(json, depth, remaining, &nested)
+                    .map(|f| Self::RandomPatch(Box::new(f)))
+            }
             "minecraft:coral_tree" | "minecraft:coral_claw" => {
                 let nested = |json: &str, depth: usize, remaining: &mut usize| {
                     PlacedFeatureDefinition::decode(json, depth, remaining, empty_tags, blocks)
@@ -685,6 +684,11 @@ impl FeatureDefinition {
                 blocks.ok_or(DecodeError::Field("iceberg bindings"))?,
             )
             .map(|f| Self::Iceberg(Box::new(f))),
+            "minecraft:ice_spike" => super::ice_spike::IceSpikeFeature::decode(
+                json,
+                blocks.ok_or(DecodeError::Field("ice spike bindings"))?,
+            )
+            .map(|f| Self::IceSpike(Box::new(f))),
             "minecraft:multiface_growth" => super::vegetation::MultifaceGrowthFeature::decode(
                 json,
                 blocks.ok_or(DecodeError::Field("multiface bindings"))?,
@@ -888,9 +892,6 @@ impl FeatureDefinition {
             Self::EndPodium(feature) => feature
                 .place(world, origin)
                 .map_err(FeatureExecutionError::EndPodium),
-            Self::Spike(feature) => feature
-                .place(world, random, origin)
-                .map_err(FeatureExecutionError::Spike),
             Self::BlueIce(feature) => feature
                 .place(world, random, origin)
                 .map_err(FeatureExecutionError::BlueIce),
@@ -1038,6 +1039,7 @@ impl FeatureDefinition {
             Self::MonsterRoom(feature) => feature.place(world, random, origin),
             Self::Geode(feature) => feature.place(world, random, origin),
             Self::Iceberg(feature) => feature.place(world, random, origin),
+            Self::IceSpike(feature) => feature.place(world, random, origin),
             Self::SpeleothemCluster(feature) => feature.place(world, random, origin),
             Self::LargeDripstone(feature) => feature.place(world, random, origin),
             Self::HugeFungus(feature) => feature.place(world, random, origin),
@@ -1048,6 +1050,11 @@ impl FeatureDefinition {
             Self::RootSystem(feature) => feature.place(world, random, origin, &mut |f, w, r, p| {
                 f.place_in(&mut placer, w, r, p, run)
             }),
+            Self::RandomPatch(feature) => {
+                feature.place(world, random, origin, &mut |f, w, r, p| {
+                    f.place_in(&mut placer, w, r, p, run)
+                })
+            }
             Self::Tree(feature) => feature.place(world, random, origin, &mut |f, w, r, p| {
                 f.place_inner(w, r, p, run)
             }),

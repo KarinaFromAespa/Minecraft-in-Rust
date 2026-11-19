@@ -1,6 +1,6 @@
 //! `SpecialModelRenderer`s: items drawn with entity models (chests, shulker
-//! boxes, banners, heads, shields, tridents, decorated pots, conduits, bells,
-//! books and copper golem statues). Each submits its model at the layer pose
+//! boxes, banners, heads, shields, tridents, decorated pots, conduits and
+//! copper golem statues). Each submits its model at the layer pose
 //! as vanilla's `submit` does (no block-entity placement transform) and
 //! reports `getExtents` over the same posed parts.
 use super::{Foil, ItemQuad, ItemRenderer, ItemSink, SpecialHost, argb};
@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::{collections::HashMap, f32::consts::PI, path::Path};
 
 /// Entity model layers the special renderers bake (`ModelLayers`).
-const LAYERS: [(&str, &str); 22] = [
+const LAYERS: [(&str, &str); 21] = [
     ("chest", "minecraft:chest#main"),
     ("double_chest_left", "minecraft:double_chest_left#main"),
     ("double_chest_right", "minecraft:double_chest_right#main"),
@@ -27,7 +27,6 @@ const LAYERS: [(&str, &str); 22] = [
     ("dragon", "minecraft:dragon_skull#main"),
     ("piglin", "minecraft:piglin_head#main"),
     ("player", "minecraft:player_head#main"),
-    ("bell", "minecraft:bell#main"),
     ("book", "minecraft:book#main"),
     ("conduit_shell", "minecraft:conduit#shell"),
     ("decorated_pot_base", "minecraft:decorated_pot_base#main"),
@@ -323,20 +322,11 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
         }
     };
     match &model.kind {
-        SpecialKind::Bell => add("bell", &none),
         SpecialKind::Banner { .. } => {
             // `BannerRenderer.getExtents`: the standing models only.
             add("standing_banner", &none);
             add("standing_banner_flag", &flag_pose);
         }
-        SpecialKind::Book {
-            open_angle,
-            page1,
-            page2,
-        } => add(
-            "book",
-            &book_pose(open_angle * (PI / 180.0), *page1, *page2),
-        ),
         SpecialKind::Conduit => add("conduit_shell", &none),
         SpecialKind::Chest {
             openness,
@@ -354,7 +344,6 @@ pub(super) fn extents(renderer: &ItemRenderer, model: &SpecialModel) -> Vec<Vec3
                 }
             }
         }
-        SpecialKind::EndCube { .. } => {}
         SpecialKind::Head {
             kind, animation, ..
         } => add(skull_layer(kind), &skull_pose(kind, *animation)),
@@ -490,18 +479,6 @@ pub(super) fn submit(
         }
     };
     match &model.kind {
-        SpecialKind::Bell => part("bell", &none, "entity/bell/bell_body", white, Foil::None),
-        SpecialKind::Book {
-            open_angle,
-            page1,
-            page2,
-        } => part(
-            "book",
-            &book_pose(open_angle * (PI / 180.0), *page1, *page2),
-            "entity/enchantment/enchanting_table_book",
-            white,
-            Foil::None,
-        ),
         SpecialKind::Conduit => {
             part(
                 "conduit_shell",
@@ -661,9 +638,6 @@ pub(super) fn submit(
                 }
             }
         }
-        // `EndCubeSpecialRenderer` draws the end portal/gateway effect; no
-        // bundled item uses it.
-        SpecialKind::EndCube { .. } => {}
     }
 }
 

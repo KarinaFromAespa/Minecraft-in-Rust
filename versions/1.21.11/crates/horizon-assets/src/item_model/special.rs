@@ -1,21 +1,17 @@
 //! `special` item models: the block-entity style renderers an item can ask
 //! for (`SpecialModelRenderers`), their codec fields and what each reads from
-//! the stack (`extractArgument`).
+//! the stack (`extractArgument`). 1.21.11's registry holds 13 types; the
+//! 26.x bell, book and end_cube kinds are absent, so a model naming one
+//! fails to decode here, as it does in vanilla.
 use super::{Result, float, get, ident, object, required, string};
 use crate::json::error as err;
 use serde_json::{Map, Value, json};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum SpecialKind {
-    Bell,
     Banner {
         color: String,
         wall: bool,
-    },
-    Book {
-        open_angle: f32,
-        page1: f32,
-        page2: f32,
     },
     Conduit,
     Chest {
@@ -28,9 +24,6 @@ pub enum SpecialKind {
         pose: String,
     },
     DecoratedPot,
-    EndCube {
-        effect: String,
-    },
     Head {
         kind: String,
         texture: Option<String>,
@@ -88,18 +81,12 @@ impl SpecialModel {
         let m = object(v)?;
         let float_or = |key: &str, default: f32| get(m, key).map_or(Ok(default), float);
         let kind = match ident(required(m, "type")?)?.as_str() {
-            "minecraft:bell" => SpecialKind::Bell,
             "minecraft:banner" => SpecialKind::Banner {
                 color: one_of(required(m, "color")?, &DYES)?,
                 wall: match get(m, "attachment") {
                     None => false,
                     Some(a) => one_of(a, &["wall", "ground"])? == "wall",
                 },
-            },
-            "minecraft:book" => SpecialKind::Book {
-                open_angle: float(required(m, "open_angle")?)?,
-                page1: float(required(m, "page1")?)?,
-                page2: float(required(m, "page2")?)?,
             },
             "minecraft:conduit" => SpecialKind::Conduit,
             "minecraft:chest" => SpecialKind::Chest {
@@ -118,9 +105,6 @@ impl SpecialModel {
                 )?,
             },
             "minecraft:decorated_pot" => SpecialKind::DecoratedPot,
-            "minecraft:end_cube" => SpecialKind::EndCube {
-                effect: one_of(required(m, "effect")?, &["portal", "gateway"])?,
-            },
             "minecraft:head" => SpecialKind::Head {
                 kind: one_of(
                     required(m, "kind")?,
@@ -155,23 +139,12 @@ impl SpecialModel {
             m.insert(k.to_owned(), v);
         };
         let ty = match &self.kind {
-            SpecialKind::Bell => "bell",
             SpecialKind::Banner { color, wall } => {
                 put("color", json!(color));
                 if *wall {
                     put("attachment", json!("wall"));
                 }
                 "banner"
-            }
-            SpecialKind::Book {
-                open_angle,
-                page1,
-                page2,
-            } => {
-                put("open_angle", json!(open_angle));
-                put("page1", json!(page1));
-                put("page2", json!(page2));
-                "book"
             }
             SpecialKind::Conduit => "conduit",
             SpecialKind::Chest {
@@ -194,10 +167,6 @@ impl SpecialModel {
                 "copper_golem_statue"
             }
             SpecialKind::DecoratedPot => "decorated_pot",
-            SpecialKind::EndCube { effect } => {
-                put("effect", json!(effect));
-                "end_cube"
-            }
             SpecialKind::Head {
                 kind,
                 texture,

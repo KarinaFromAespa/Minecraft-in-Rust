@@ -33,10 +33,11 @@ impl<E: std::fmt::Display> std::fmt::Display for BlockBlobError<E> {
 }
 impl<E: std::error::Error + 'static> std::error::Error for BlockBlobError<E> {}
 impl BlockBlobFeature {
-    pub fn from_json(json: &str, bindings: &FeatureBlockBindings<'_>) -> Result<Self, DecodeError> {
-        Self::decode(json, bindings, 0, &mut 65536)
-    }
-    pub(crate) fn decode(
+    /// `minecraft:forest_rock`: 1.21.11's `BlockStateConfiguration` form of
+    /// the blob — the config carries only `state`, and the support check is
+    /// hardcoded (the block below is dirt or stone). 26.x moved the check
+    /// into the config as `can_place_on`. The place algorithm is the same.
+    pub(crate) fn decode_forest_rock(
         json: &str,
         bindings: &FeatureBlockBindings<'_>,
         depth: usize,
@@ -52,8 +53,12 @@ impl BlockBlobFeature {
                 .codec
                 .decode(required(&object, "state")?.get(), false)
                 .map_err(|e| DecodeError::Registry(e.to_string()))?,
+            // `BlockBlobFeature`'s hardcoded `isDirt || isStone` support
+            // test (air is in neither tag, so no separate non-empty test
+            // is needed). Decoded through the predicate codec so the tag
+            // identifiers normalize the same way as datapack predicates.
             can_place_on: BlockPredicate::decode_with_blocks(
-                required(&object, "can_place_on")?.get(),
+                r#"{"type":"minecraft:any_of","predicates":[{"type":"minecraft:matching_block_tag","tag":"minecraft:dirt"},{"type":"minecraft:matching_block_tag","tag":"minecraft:base_stone_overworld"}]}"#,
                 depth + 1,
                 remaining,
                 Some(bindings),

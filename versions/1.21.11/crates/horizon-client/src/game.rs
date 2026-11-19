@@ -7298,6 +7298,17 @@ impl Game<'_> {
         // Particles (ParticleEngine.extract): camera-facing quads.
         self.mark_stage(out.len(), "PARTICLES");
         let world = &self.world;
+        // `Particle.getLightColor`: 1.21.11 returns 0 when the particle's
+        // chunk is not loaded; 26.x returns sky 15 (15728640).
+        // `World::light` keeps the 26.x fallback for its other callers,
+        // so the particle path guards it here.
+        let particle_light = |b: [i32; 3]| {
+            if world.loaded(b[0], b[2]) {
+                world.light(b[0], b[1], b[2])
+            } else {
+                0
+            }
+        };
         let particle_mode = self.settings.horizon.particle_culling;
         if particle_mode == horizon_client::graphics::ParticleCullingMode::Off {
             self.particles.render(
@@ -7305,7 +7316,7 @@ impl Game<'_> {
                 self.yaw,
                 self.pitch,
                 alpha as f32,
-                &|b| world.light(b[0], b[1], b[2]),
+                &particle_light,
                 &mut out,
             );
         } else {
@@ -7329,7 +7340,7 @@ impl Game<'_> {
                     true,
                     frustum.as_ref(),
                     &mut |min, max| particle_culling.hidden(min, max),
-                    &|b| world.light(b[0], b[1], b[2]),
+                    &particle_light,
                     &mut out,
                 );
             }

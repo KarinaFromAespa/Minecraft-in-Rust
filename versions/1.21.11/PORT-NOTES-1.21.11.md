@@ -1244,3 +1244,104 @@ Rank 2 (492 items, in progress 2026-11-19)
   - 351 no-change (Display inner classes): access flags only.
 - Rank-2 A-batches 1-6: 60 items closed (13 changed, 47 no-change).
   work-items.json rank2.closed = 60 on 2026-11-19.
+- A-batch 7 (352, 353, 354, 358, 360, 361, 362, 363, 364, 365),
+  verified 2026-11-19, ported the same day:
+  - 352 no-change (trial spawner renderer): CameraRenderState
+    package move (`state/level/` -> `state/`) only.
+  - 353 no-change (villager model + AI): 1.21.11's VillagerModel
+    adds `BABY_TRANSFORMER` (0.5 scaling); the Rust renders baby
+    villagers via `villager_baby#main` from entity-models.json
+    (generated from the 1.21.11 jars), which already encodes the
+    baby form. GiveGiftToHero: `getRandom()` -> `random` field.
+    Server-side AI.
+  - 354 CHANGED (particle light): `Particle.getLightColor` returns
+    0 when the particle's chunk is not loaded; 26.x returns
+    15728640 (sky 15, block 0). `World::light` keeps the 26.x 0xF0
+    fallback for its other callers, so both particle `light_at`
+    closures in game.rs now guard with `world.loaded()` and return
+    0 for unloaded chunks. TerrainParticle's 1.21.11-only
+    `getLightColor` override (fall back to the origin block's light
+    when the super value is 0) is a follow-up: the Rust's Particle
+    carries no origin pos, so it needs a struct field + plumbing
+    through `Particle::terrain` + the render path. The grass-block
+    tint exclusion already matched (`terrain_particle_tint` returns
+    None for `Tint::GrassBlock`).
+  - 358 no-change (Potions): `Holder$Reference<Potion>` (26.1) vs
+    `Holder<Potion>` (1.21.11) only — after normalizing that name
+    the dumps are identical (same set, same effects). The Rust
+    reads potions from the registry data.
+  - 360 no-change (Climate): access flags only.
+  - 361 CHANGED (worldgen features): RandomPatch / IceSpike /
+    ForestRock implemented; EndSpike verified no-change; the 26.x
+    `minecraft:spike` and `minecraft:block_blob` types removed.
+    36 configured features use the five types at top level
+    (flower 9, random_patch 24, no_bonemeal_flower 1, forest_rock
+    1, ice_spike 1), plus 3 nested random_patch features inside
+    forest_flowers' selector — all were silently SKIPPED before
+    this port (the dispatch fallback rejects the types, and
+    decoration counts them `unsupported`): no flowers, no random
+    patches, no forest rocks, no ice spikes in 1.21.11 worldgen.
+    - RandomPatchFeature (new file): a nested PlacedFeatureDefinition
+      + tries/xz_spread/y_spread; the tries loop offsets by
+      `nextInt(spread+1) - nextInt(spread+1)` per axis and places
+      the inner feature (with its placement modifiers) at each
+      offset, returning count > 0. All three ids (flower,
+      no_bonemeal_flower, random_patch) decode to it — in 1.21.11
+      all three registry entries are the same class. The catalog's
+      `expand_feature` gains the three ids so a named inner placed
+      feature resolves (mirroring root_system).
+    - IceSpikeFeature (new file): descend through empty blocks to a
+      snow-block footing; origin above by nextInt(4); height
+      nextInt(4)+7; radius height/4+nextInt(2); 1/60 tall spike;
+      tapered packed-ice cone (rim cells alone draw the random
+      float, short-circuit preserved; mirrored below-layer write
+      only when layer != 0 and r > 1); base skirt to y = 50 in
+      runs, dropping past gaps. Replaceable: air/dirt/snow/ice
+      (cone), plus packed ice (skirt); `isDirt` is the dirt tag.
+    - ForestRock: `BlockBlobFeature.place()` was already the 1.21.11
+      algorithm exactly, so only the decode differs — added
+      `decode_forest_rock` (state only; the support check is the
+      hardcoded dirt-or-stone tag predicate, decoded through the
+      predicate codec; air is in neither tag, so no separate
+      non-empty test is needed). The 26.x `minecraft:block_blob`
+      arm + `decode` are gone (1.21.11 has no BLOCK_BLOB entry,
+      no vanilla use).
+    - EndSpike VERIFIED NO-CHANGE against the 1.21.11 SpikeFeature
+      + SpikeCacheLoader decompiles: decode fields, the obsidian
+      cylinder / guarded cage / crystal + bedrock + fire place, and
+      the seed generation (`Util.toShuffledList` Fisher-Yates via
+      `tb::shuffle`, `Mth.floor` centers, radius 2+size/3, height
+      76+size*3, guarded size 1/2) all match end_spike.rs.
+    - The 26.x `minecraft:spike` type is gone with it: dispatch arm
+      + enum/error variants + evaluate arm + spike.rs deleted
+      (1.21.11 has ICE_SPIKE, not SPIKE; no vanilla use).
+    - SimpleBlockFeature half no-change: the only difference is
+      `getOptionalState(level, random, pos)` (26.1, nullable) vs
+      `getState(random, pos)` (1.21.11) — unobservable, since no
+      vanilla 1.21.11 configured feature uses rule_based (the only
+      provider that can return None without a fallback).
+  - 362 no-change (structures): `HolderSet.empty()` vs
+    `HolderSet.direct(new Holder[0])` (same empty set); 1.21.11
+    adds a DataVersion <= 1493 guard returning CHUNK_LOAD_NEEDED
+    instead of datafixing in place — the Rust has no 1493
+    references and no partial-datafix chunk-lookup path.
+    `ChunkPos.pack` -> `toLong`, `x()`/`z()` methods -> fields.
+  - 363 CHANGED (special models): bell, book and end_cube are
+    26.x-only (16 special types in 26.1, 13 in 1.21.11) — removed
+    from SpecialKind (enum + decode arms + to_json) and from the
+    item_render extents/submit matches, and the bell model layer
+    dropped (the book layer stays: `submit_book` renders the GUI
+    book via GuiBookModelRenderer, a different renderer). A pack
+    model naming one now fails to decode, as in vanilla.
+    1.21.11's STATIC_BLOCK_MAPPING/GIFT_CHEST needs no Rust
+    counterpart: the Rust resolves specials through the item
+    model's `special` node, and the Christmas chest texture is
+    already handled.
+  - 364 no-change (Options synthetics): requireNonNull ctors + the
+    switch-map holder with the same three enums (InactivityFpsLimit,
+    PrioritizeChunkUpdates, TextureFilteringMethod), initialized in
+    a different order.
+  - 365 no-change (login/connection): access flags + ctor noise
+    only; server-side.
+- Rank-2 A-batches 1-7: 70 items closed (16 changed, 54 no-change).
+  work-items.json rank2.closed = 70 on 2026-11-19.
