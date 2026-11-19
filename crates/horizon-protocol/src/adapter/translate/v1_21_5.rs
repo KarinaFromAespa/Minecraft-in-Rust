@@ -177,8 +177,8 @@ mod tests {
     #[test]
     fn hanging_fields_move_but_other_entity_fields_stay() {
         let session = Session::new(ServerVersion::V1_21_5);
-        // Pinned 1.21.5 kinds: glow_item_frame 57, item_frame 70, painting 88, player 148.
-        for kind in [57, 70, 88, 148] {
+        // Pinned (1.21.3) kinds: glow_item_frame 58, item_frame 71, painting 89, player 148.
+        for kind in [58, 71, 89, 148] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut data = play::SetEntityData {
                 id: 42,

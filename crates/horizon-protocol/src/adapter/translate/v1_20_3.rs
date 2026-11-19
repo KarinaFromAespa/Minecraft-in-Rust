@@ -770,10 +770,10 @@ mod tests {
 
     #[test]
     fn llama_carpet_colors_resolve_by_item_name_for_each_legacy_registry() {
-        // All sixteen names/IDs come from the vanilla 1.21.4 item report. The old
+        // All sixteen names/IDs come from the vanilla 1.21.3 item report. The old
         // white-carpet ID is424 in1.20.2 and445 in1.20.3, not a shared offset.
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
-            for kind in [75, 127] {
+            for kind in [76, 128] {
                 let session = Session::new(version);
                 session.kinds.lock().unwrap().insert(42, kind);
                 for color in -1..=16 {
@@ -791,8 +791,8 @@ mod tests {
                     };
                     let expected = match color {
                         -1 => None,
-                        0..=15 => Some(469 + color),
-                        _ => Some(469),
+                        0..=15 => Some(460 + color),
+                        _ => Some(460),
                     };
                     assert_eq!(packet.id, 42);
                     assert_eq!(
@@ -982,7 +982,7 @@ mod tests {
                 ],
             ),
             (
-                75,
+                76,
                 vec![
                     ("2a14010e150102ff", "2a140102ff"),
                     ("2a1401ffffffff0fff", "2aff"),
@@ -1000,7 +1000,7 @@ mod tests {
                 assert_eq!(old, expected);
             }
         }
-        for item in [Some(483), None] {
+        for item in [Some(474), None] {
             // pinned minecraft:red_carpet, then unequipped
             let (id, body) = session.next_incoming().unwrap();
             let play::Clientbound::SetEquipment(p) = play::Clientbound::decode(id, &body).unwrap()
@@ -1016,7 +1016,7 @@ mod tests {
             );
         }
         // ItemFrame and BlockDisplay are not LivingEntity: their integer entry must stay an integer.
-        for kind in [70, 15] {
+        for kind in [71, 15] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut data = play::SetEntityData {
                 id: 42,
@@ -1027,7 +1027,7 @@ mod tests {
             assert_eq!(data, expected);
         }
         session.legacy_metadata.lock().unwrap().forget(42);
-        session.kinds.lock().unwrap().insert(42, 147); // pinned minecraft:player
+        session.kinds.lock().unwrap().insert(42, 148); // pinned minecraft:player
         let mut data = metadata(ServerVersion::V1_20_3, "2a0b0800ff");
         entity_data(&session, &mut data);
         assert!(
@@ -1060,7 +1060,7 @@ mod tests {
                 offer.result.item,
                 offer.result.count
             ),
-            (837, 5, 836, 1)
+            (828, 5, 827, 1)
         );
         assert!(offer.cost_b.is_none());
         assert_eq!(

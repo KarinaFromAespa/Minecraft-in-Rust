@@ -158,38 +158,38 @@ mod tests {
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-            ),
+                "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
+            )
             (
                 "equip_bare",
                 "01f80601001c034700000001010100",
-                "01ef0601001c0347000000010101",
-            ),
+                "01e60601001c0347000000010101",
+            )
             (
                 "equip_list",
                 "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
-                "01ef0601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e8f01000000",
-            ),
+                "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
+            )
             (
                 "equip_direct",
                 "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
-                "01ef0601001c04000e6d696e6563726166743a746573740140800000000000010101",
-            ),
+                "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
+            )
             (
                 "combined",
                 "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
-                "01ef0603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-            ),
+                "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
+            )
             (
                 "profile",
                 "01f80601003d010b486f72697a6f6e576972650000",
-                "01ef06010039010b486f72697a6f6e576972650000",
-            ),
+                "01e606010039010b486f72697a6f6e576972650000",
+            )
             (
                 "container",
                 "01f80601004206030100000000000002fa020000",
-                "01ef0601003e06030100000000000002f3020000",
-            ),
+                "01e60601003e06030100000000000002f1020000",
+            )
         ] {
             let old = bytes(old);
             let pinned = bytes(pinned);
@@ -211,7 +211,7 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.4 wire
+            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.3 wire
             // cannot express, so the pinned oracle drops it and cannot equal
             // the 1.21.5 stack (the down-write below still proves the full
             // round-trip).
@@ -225,7 +225,7 @@ mod tests {
             }
             assert_eq!(w.data, old, "{label}");
             // The cached delimited patch must also contain normalized values.
-            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.4 wire
+            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.3 wire
             // cannot express, so the pin round-trip drops it (the down-write
             // above still proves it survives the 1.21.5 round-trip).
             if label != "equip_list" {

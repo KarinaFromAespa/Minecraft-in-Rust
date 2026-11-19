@@ -612,14 +612,14 @@ mod tests {
         };
         assert_eq!((*width, *height), (2, 1));
         assert_eq!(ingredients.len(), 2);
-        assert_eq!(*station, SlotDisplay::Item(314));
+        assert_eq!(*station, SlotDisplay::Item(312));
         let SlotDisplay::ItemStack(stack) = result else {
             panic!("result")
         };
-        assert_eq!((stack.item, stack.count), (371, 2));
+        assert_eq!((stack.item, stack.count), (369, 2));
         assert_eq!(
             shaped.requirements,
-            [HolderSet::Items(vec![842]), HolderSet::Items(vec![842])]
+            [HolderSet::Items(vec![833]), HolderSet::Items(vec![833])]
         );
         assert!(!shaped.notify);
         let Some(RecipeDisplay::Smithing { result, .. }) =
@@ -842,10 +842,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (371, 2));
+            assert_eq!((stack.item, stack.count), (369, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![842]), HolderSet::Items(vec![842])]
+                [HolderSet::Items(vec![833]), HolderSet::Items(vec![833])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -936,10 +936,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (371, 2));
+            assert_eq!((stack.item, stack.count), (369, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![842]), HolderSet::Items(vec![842])]
+                [HolderSet::Items(vec![833]), HolderSet::Items(vec![833])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
@@ -1036,10 +1036,10 @@ mod tests {
             let SlotDisplay::ItemStack(stack) = result else {
                 panic!("result")
             };
-            assert_eq!((stack.item, stack.count), (371, 2));
+            assert_eq!((stack.item, stack.count), (369, 2));
             assert_eq!(
                 state.recipes["horizon_wire:shaped"].requirements,
-                [HolderSet::Items(vec![842]), HolderSet::Items(vec![842])]
+                [HolderSet::Items(vec![833]), HolderSet::Items(vec![833])]
             );
             let Some(RecipeDisplay::Smithing { result, .. }) =
                 &state.recipes["horizon_wire:smithing_trim"].display
