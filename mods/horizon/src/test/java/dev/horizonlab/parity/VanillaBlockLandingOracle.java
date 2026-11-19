@@ -124,6 +124,7 @@ public final class VanillaBlockLandingOracle {
 @Override public int getSeaLevel(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.core.Holder getUncachedNoiseBiome(int p0,int p1,int p2){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder(){throw new UnsupportedOperationException();}
+@Override public void levelEvent(net.minecraft.world.entity.player.Player p0,int p1,net.minecraft.core.BlockPos p2,int p3){throw new UnsupportedOperationException();}
 @Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,net.minecraft.world.entity.Entity p1,net.minecraft.core.Holder p2,net.minecraft.sounds.SoundSource p3,float p4,float p5,long p6){throw new UnsupportedOperationException();}
 @Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,double p1,double p2,double p3,net.minecraft.core.Holder p4,net.minecraft.sounds.SoundSource p5,float p6,float p7,long p8){throw new UnsupportedOperationException();}
 @Override public java.util.List players(){throw new UnsupportedOperationException();}

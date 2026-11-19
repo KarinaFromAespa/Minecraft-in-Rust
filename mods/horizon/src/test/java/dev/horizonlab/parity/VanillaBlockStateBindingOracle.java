@@ -85,7 +85,7 @@ public final class VanillaBlockStateBindingOracle {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
         // 1.21.4 has no BlockStateDefinitions: the state definition comes
         // straight from the block registry.
-        mapper=id->BuiltInRegistries.BLOCK.get(id).getStateDefinition();
+        mapper=id->BuiltInRegistries.BLOCK.getValue(id).getStateDefinition();
         if(args[0].equals("export")){export(Path.of(args[1]));return;}
         try(var input=Files.newBufferedReader(Path.of(args[0]));var output=Files.newBufferedWriter(Path.of(args[1]))) {
             for(String line;(line=input.readLine())!=null;) {
