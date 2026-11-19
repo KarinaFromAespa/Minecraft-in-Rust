@@ -334,7 +334,38 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 76/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92 + 4 zero-diff)
+### Rank 2: 77/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94 + 4 zero-diff)
+
+- **Item 94 — `crates/horizon-client/src/game/sign_edit.rs`
+  (3 classes, 12 methods, 2 named in Horizon),
+  zero-diff:** AbstractSignEditScreen,
+  TextFieldHelper (keyPressed), SignBlockEntity
+  (createCommandSourceStack, updateSignText).
+  TextFieldHelper differs only by the input-API
+  rework (`KeyEvent`/`CharacterEvent` vs raw
+  int/char + `Screen.isSelectAll`/`isCopy`/
+  `isPaste`/`isCut`/`hasControlDown`/
+  `hasShiftDown`) — the key codes are the same
+  (259 backspace, 261 delete, 263/262
+  left/right, 268/269 home/end), and the Rust
+  matches (ArrowUp → line−1 & 3, ArrowDown /
+  Enter / NumpadEnter → line+1 & 3, both with
+  cursor-to-end via `set_value`). The sign
+  editor draws the transparent background
+  explicitly (`render_transparent_background`,
+  the 1.21.8 `renderBackground` override;
+  1.21.9 relies on the base implementation).
+  `sign_command_source` cites
+  `createCommandSourceStack` with the right
+  parameters (middle of the block, rotation
+  zero, game-master level, NULL source); the
+  `getPlainTextName` vs `getName().getString()`
+  difference (identical for a player, as item
+  87 found) has no Rust surface. No vanilla
+  `KeyEvent`/`CharacterEvent`, `isInGameUi`
+  (1.21.9-only) or `TextRenderable`
+  (1.21.9-only) citations exist — the `KeyEvent`
+  in sign_edit.rs is winit's.
 
 - **Item 92 — `crates/horizon-client/src/beehive.rs`
   (2 classes, 14 methods, 3 named in Horizon),
