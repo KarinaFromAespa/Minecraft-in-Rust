@@ -74,8 +74,9 @@ const INTRO_TICKS: f32 = 5.0;
 const INTRO_WIDTH: f32 = 12.0;
 
 /// `ChatVisiblity`: the Chat option's three values.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ChatVisibility {
+    #[default]
     Full,
     System,
     Hidden,
@@ -91,53 +92,10 @@ impl ChatVisibility {
     }
 }
 
-/// What the Chat option lets the chat show, from the visibility alone:
-/// 1.21.11 has no `ChatAbilities` class — sending is ungated once the chat
-/// screen is open (`ChatScreen.handleChatInput` sends whatever is typed),
-/// and the open itself is gated by `Minecraft.openChatScreen`'s `ChatStatus`
-/// (Hidden shows the `chat.disabled.options` overlay instead of opening).
-/// Only receiving is filtered here: System hides player messages, Hidden
-/// hides player and system messages alike.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ChatAbilities {
-    pub receive_player_messages: bool,
-    pub receive_system_messages: bool,
-}
-impl ChatAbilities {
-    pub fn new(visibility: ChatVisibility) -> Self {
-        match visibility {
-            ChatVisibility::Full => Self {
-                receive_player_messages: true,
-                receive_system_messages: true,
-            },
-            ChatVisibility::System => Self {
-                receive_player_messages: false,
-                receive_system_messages: true,
-            },
-            ChatVisibility::Hidden => Self {
-                receive_player_messages: false,
-                receive_system_messages: false,
-            },
-        }
-    }
-    /// `visibleMessagesFilter`: the client's own lines always show.
-    pub fn shows(&self, source: ChatSource) -> bool {
-        match source {
-            ChatSource::Player => self.receive_player_messages,
-            ChatSource::Server => self.receive_system_messages,
-            ChatSource::Client => true,
-        }
-    }
-}
-
-impl Default for ChatAbilities {
-    fn default() -> Self {
-        Self::new(ChatVisibility::Full)
-    }
-}
-
-/// Where a chat line came from (`GuiMessageSource`): the visibility filters
-/// player messages and the server's, while the client's own always show.
+/// Where a chat line came from. 1.21.11 has no `GuiMessageSource` —
+/// `GuiMessage` dropped its `source` field — but the compact-chat dedup
+/// still needs to know (`repeats` only merges lines of the same source),
+/// so the Rust keeps the record itself.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChatSource {
     Player,
@@ -318,8 +276,11 @@ pub struct Chat {
     pub log: bool,
     /// Messages added since the start, for the control socket's events.
     pub received: u64,
-    /// The Chat option's `visibleMessageFilter` (`set_abilities`).
-    abilities: ChatAbilities,
+    /// The Chat option's visibility. 1.21.11 has no `ChatAbilities` and no
+    /// `visibleMessageFilter`: every accepted message is added and logged,
+    /// and the visibility only gates the draw — Hidden draws nothing
+    /// (`ChatComponent.isChatHidden`). Changing it re-wraps nothing.
+    visibility: ChatVisibility,
     /// `ChatComponent.messageDeletionQueue`: deletions of messages still
     /// too new to replace, with the tick from which they may be.
     deletions: Vec<(Box<Signature>, u64)>,
@@ -340,8 +301,9 @@ impl Chat {
     fn max_width(&self) -> i32 {
         (f64::from(self.options.width_px()) / self.options.scale).floor() as i32
     }
-    /// ChatComponent.addMessage: wrap, prepend and trim to 100 lines. A
-    /// message the Chat option hides is dropped, unlogged.
+    /// ChatComponent.addMessage: wrap, prepend and trim to 100 lines.
+    /// Every accepted message is added and logged — 1.21.11 has no
+    /// visibility filter at add time; Hidden only stops the draw.
     pub fn add(
         &mut self,
         atlas: &HudAtlas,
@@ -428,10 +390,7 @@ impl Chat {
         );
     }
     fn push_message(&mut self, font: &crate::font::Font, mut message: Message, focused: bool) {
-        if !self.abilities.shows(message.source) {
-            return;
-        }
-        // ChatComponent.logChatMessage: every message shown is in the log.
+        // ChatComponent.logChatMessage: every message added is in the log.
         let plain = message.content.plain();
         crate::logging::write_only(log::Level::Info, &format!("[CHAT] {plain}"));
         if self.log {
@@ -581,8 +540,7 @@ impl Chat {
     pub fn searching(&self) -> bool {
         self.search.is_some()
     }
-    /// Re-wrap after a width or scale change (ChatComponent.rescaleChat),
-    /// keeping only the messages the Chat option shows.
+    /// Re-wrap after a width or scale change (ChatComponent.rescaleChat).
     pub fn rescale(&mut self, atlas: &HudAtlas) {
         self.rewrap(&atlas.font);
     }
@@ -592,25 +550,15 @@ impl Chat {
         self.lines.clear();
         let mut messages = std::mem::take(&mut self.messages);
         for m in messages.iter_mut().rev() {
-            m.wrapped = if self.abilities.shows(m.source) {
-                self.add_lines(font, m, false)
-            } else {
-                0
-            };
+            m.wrapped = self.add_lines(font, m, false);
         }
         self.messages = messages;
     }
-    /// `ChatComponent.setVisibleMessageFilter`: the Chat option changed;
-    /// the messages it now hides leave the chat, those it shows again return.
-    pub fn set_abilities(&mut self, font: &crate::font::Font, abilities: ChatAbilities) {
-        if self.abilities != abilities {
-            self.abilities = abilities;
-            self.rewrap(font);
-        }
-    }
-    /// Whether a message from `source` would show (`visibleMessagesFilter`).
-    pub fn shows(&self, source: ChatSource) -> bool {
-        self.abilities.shows(source)
+    /// The Chat option changed. 1.21.11 has no `setVisibleMessageFilter`:
+    /// the messages stay whatever the option says, so this only stores
+    /// the visibility for the draw gate (`isChatHidden`).
+    pub fn set_visibility(&mut self, visibility: ChatVisibility) {
+        self.visibility = visibility;
     }
     pub fn clear(&mut self) {
         self.messages.clear();
@@ -731,9 +679,13 @@ impl Chat {
             self.scroll = pos as usize;
         }
     }
-    /// `ChatComponent.extractRenderState` (background mode unless `focused`)
-    /// on a screen `height` GUI pixels tall at `Hud.tickCount` `ticks`.
+    /// `ChatComponent.render` (background mode unless `focused`) on a
+    /// screen `height` GUI pixels tall at `Hud.tickCount` `ticks`. Hidden
+    /// draws nothing at all (`isChatHidden`), even with the screen open.
     pub fn layout(&self, height: i32, ticks: f32, focused: bool) -> Vec<GuiDraw> {
+        if self.visibility == ChatVisibility::Hidden {
+            return Vec::new();
+        }
         let total = self.lines.len();
         if total == 0 {
             return Vec::new();
@@ -900,7 +852,8 @@ impl Chat {
             .min(self.lines_per_page(true));
         let top = chat_bottom - (shown as i32 + row) * entry_height;
         let mut prompt = prompt;
-        // ComponentRenderUtils.clipText.
+        // Clip to the chat width (1.21.11 dropped
+        // `ComponentRenderUtils.clipText`; the clip itself stays).
         let mut width = 0.0;
         let fits = prompt
             .chars()
@@ -1968,7 +1921,7 @@ impl ChatScreen {
         out.push(Text::styled(piece(unformatted, len), gray));
         out
     }
-    /// `ChatScreen.extractRenderState` without the chat lines: the input's
+    /// `ChatScreen.render` without the chat lines: the input's
     /// background (`background`, `Options.getBackgroundColor`), the input,
     /// then the suggestion list or the usage lines.
     pub fn draw(

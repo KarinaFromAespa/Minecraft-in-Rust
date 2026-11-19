@@ -648,7 +648,7 @@ fn enter_sends_whatever_is_typed_once_the_chat_is_open() {
 
 /// The usage under the input never carries a restriction line: 1.21.11 has
 /// no `chat_screen.messages_not_allowed` / `commands_not_allowed` — the Chat
-/// option hides incoming lines, it never explains a send it blocks.
+/// option only stops the draw at Hidden, it never explains a send it blocks.
 #[test]
 fn no_restriction_lines_in_the_usage() {
     let font = font();
@@ -671,11 +671,12 @@ fn no_restriction_lines_in_the_usage() {
     }
 }
 
-/// `ChatComponent.setVisibleMessageFilter`: a message the Chat option hides
-/// on arrival is dropped; one already in the chat leaves it while the option
-/// hides its kind and comes back when it shows it again.
+/// 1.21.11 has no `visibleMessageFilter`: the Chat option never drops a
+/// line or takes one out of the chat — a player message, a system message
+/// and the client's own all stay at every visibility, and changing the
+/// option re-wraps nothing. Only the draw is gated (Hidden draws nothing).
 #[test]
-fn the_chat_option_filters_the_lines_both_ways() {
+fn the_chat_option_never_filters_the_lines() {
     let font = font();
     let mut chat = Chat::default();
     let says = |chat: &mut Chat, text: &str, source| {
@@ -685,44 +686,39 @@ fn the_chat_option_filters_the_lines_both_ways() {
         |chat: &Chat| -> Vec<String> { chat.lines.iter().map(|l| l.content.plain()).collect() };
     says(&mut chat, "player", ChatSource::Player);
     says(&mut chat, "server", ChatSource::Server);
-    chat.set_abilities(&font, ChatAbilities::new(ChatVisibility::System));
-    assert_eq!(shown(&chat), ["server"]);
-    says(&mut chat, "dropped", ChatSource::Player);
-    chat.set_abilities(&font, ChatAbilities::new(ChatVisibility::Hidden));
+    chat.set_visibility(ChatVisibility::System);
+    assert_eq!(shown(&chat), ["server", "player"]);
+    says(&mut chat, "kept", ChatSource::Player);
+    chat.set_visibility(ChatVisibility::Hidden);
     says(&mut chat, "client", ChatSource::Client);
-    assert_eq!(shown(&chat), ["client"]);
-    chat.set_abilities(&font, ChatAbilities::new(ChatVisibility::Full));
-    assert_eq!(shown(&chat), ["client", "server", "player"]);
+    assert_eq!(shown(&chat), ["client", "kept", "server", "player"]);
+    // Hidden draws nothing, but the lines are still there when it lifts.
+    assert!(chat.layout(361, 0.0, false).is_empty());
+    chat.set_visibility(ChatVisibility::Full);
+    assert_eq!(shown(&chat), ["client", "kept", "server", "player"]);
+    assert!(!chat.layout(361, 0.0, false).is_empty());
 }
 
-/// A server's own chat: a guest's line is a player message, so the
-/// Chat option's player-message permission hides it at Commands Only and
-/// Hidden; command feedback (`/list`, `/tp`) is a system message and stays
-/// at Commands Only.
+/// A server's own chat: a guest's line is a player message and command
+/// feedback (`/list`, `/tp`) is a system message, and 1.21.11 adds both
+/// whatever the Chat option says — there is no player-message or
+/// system-message permission left to hide either.
 #[test]
-fn a_guests_line_follows_the_player_message_permission() {
+fn a_guests_line_joins_at_every_visibility() {
     let font = font();
-    let shown = |visibility, source| {
+    let kept = |visibility, source| {
         let mut chat = Chat::default();
-        chat.set_abilities(&font, ChatAbilities::new(visibility));
+        chat.set_visibility(visibility);
         chat.add_message(&font, Text::literal("line"), None, source, 0, false);
         chat.messages.len()
     };
-    for (visibility, player, system) in [
-        (ChatVisibility::Full, 1, 1),
-        (ChatVisibility::System, 0, 1),
-        (ChatVisibility::Hidden, 0, 0),
+    for visibility in [
+        ChatVisibility::Full,
+        ChatVisibility::System,
+        ChatVisibility::Hidden,
     ] {
-        assert_eq!(
-            shown(visibility, ChatSource::Player),
-            player,
-            "{visibility:?}"
-        );
-        assert_eq!(
-            shown(visibility, ChatSource::Server),
-            system,
-            "{visibility:?}"
-        );
+        assert_eq!(kept(visibility, ChatSource::Player), 1, "{visibility:?}");
+        assert_eq!(kept(visibility, ChatSource::Server), 1, "{visibility:?}");
     }
 }
 

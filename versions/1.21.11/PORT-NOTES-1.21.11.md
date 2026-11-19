@@ -2234,3 +2234,35 @@ Rank 2 (492 items, in progress 2026-11-19)
   quirk; D6 deferred. Run 44536718386 (same milestone, on b458e19)
   FAILED on a transient Maven Central 404 (asm 9.9.1 jar) and was
   superseded by this re-dispatch, not recorded.
+- Item 17 (chat.rs, 24 classes, 152 methods, 26 named) CLOSED
+  2026-11-19, changed. 1.21.11 has no add-time chat-visibility
+  filtering: `ChatAbilities` / `ChatRestriction` / `GuiMessageSource`
+  are gone, `ChatListener.showMessageToPlayer` checks only trust /
+  blocked / fully-filtered and `handleSystemMessage` only
+  hideMatchedNames / blocked, and `chatVisibility` is read only by
+  `getChatStatus` (send gate), `isChatHidden` (render gate) and the
+  options screen. Ported: `ChatAbilities` deleted outright; `Chat`
+  keeps just `visibility: ChatVisibility`, `set_abilities` →
+  `set_visibility` (no rewrap); `push_message` always adds + logs;
+  `rewrap` always wraps all messages; the `shows` gates in
+  `signed_chat_line` and `local_chat_line` removed (the first also
+  wrongly suppressed narration, `mark_message_processed` and the
+  chat-delay reset); `layout` returns empty when Hidden
+  (`isChatHidden`). `ChatSource` stays for the compact-chat dedup.
+  Tests rewritten (`the_chat_option_never_filters_the_lines`,
+  `a_guests_line_joins_at_every_visibility`); 28/28 chat tests pass.
+  Comment-only: bed-chat submit re-cited to
+  `InBedChatScreen.keyPressed` (`closeOnSubmit` is gone; the bed
+  screen intercepts Enter itself), `clipText` citation fixed (method
+  removed in 1.21.11), `extractRenderState` → `render`,
+  `addServerSystemMessage` → `addMessage(Component)`. Verified
+  no-ports: `GuiMessage`/`Line`/`Tag` moved to `net/minecraft/client/`
+  (source field dropped, `Line` denormalized to addedTime + tag),
+  render math identical, restricted-chat machinery removed (the Rust
+  never had it), suggestion restriction machinery already removed in
+  item 11, usage offset 14+13=27 and suggestion-list rect identical,
+  `QUEUE_EXPAND_ID` in both versions (the Rust has no queue display —
+  pre-existing gap), `FilterMask` access noise, `clipText` removed,
+  `AbstractCommandBlockEditScreen` render renames only.
+  Rank 2 now 196/492 (33 changed, 163 no-change).
+  work-items.json rank2.closed = 196 on 2026-11-19.

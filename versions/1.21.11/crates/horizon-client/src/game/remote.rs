@@ -1795,8 +1795,9 @@ impl Game<'_> {
         self.to_network(s).map(|s| Hashed::create(&s, &names))
     }
     /// A line in the connection's chat, with its styles, click and hover
-    /// events (ChatComponent.addMessage). The lines the Chat option hides
-    /// are dropped there (its `visibleMessageFilter`).
+    /// events (`ChatComponent.addMessage`). 1.21.11 adds every accepted
+    /// line — there is no visibility filter at add time; Hidden only
+    /// stops the draw — so this always returns true.
     pub(super) fn chat_line(
         &mut self,
         content: horizon_client::text::Text,
@@ -1813,9 +1814,6 @@ impl Game<'_> {
         signature: Option<Signature>,
         trust: ChatTrust,
     ) -> bool {
-        if !self.ui.chat.shows(source) {
-            return false;
-        }
         let text = content.plain();
         let focused = self.screen == Screen::Chat;
         if source == horizon_client::chat::ChatSource::Player {
@@ -1985,8 +1983,9 @@ impl Game<'_> {
     }
 
     /// `showMessageToPlayer`: the line joins the chat if Only Show Secure
-    /// Chat, mods and the Chat option let it through, and the narrator says
-    /// it (`sayChatQueued`).
+    /// Chat and the mods let it through, and the narrator says it
+    /// (`sayChatQueued`). The Chat option never drops a line here —
+    /// 1.21.11 has no visibility filter at add time.
     fn player_chat_line(&mut self, chat: QueuedChat) -> bool {
         let QueuedChat {
             mut line,

@@ -6,7 +6,7 @@ mod suggestion_completion_tests;
 use super::{Game, Screen};
 use horizon_client::{
     chat::{
-        Chat, ChatAbilities, ChatAction, ChatScreen, ChatSource, ChatVisibility, Commands,
+        Chat, ChatAction, ChatScreen, ChatSource, ChatVisibility, Commands,
         SYSTEM_INDICATOR, normalize_chat_message,
     },
     command::{ArgType, Dispatcher, MOD_COMMAND, Registries},
@@ -1212,13 +1212,14 @@ impl Game<'_> {
         );
         button
     }
-    /// What the Chat option lets the chat show, from the visibility alone
-    /// (`ChatComponent`'s visible-message filter: System hides player
-    /// messages, Hidden hides those and the system's).
-    pub(super) fn chat_abilities(&self) -> ChatAbilities {
-        ChatAbilities::new(ChatVisibility::from_option(self.settings.chat_visibility))
+    /// The Chat option's visibility. 1.21.11 has no visibility filter at
+    /// add time: every accepted message joins the chat, and the visibility
+    /// only gates the draw (Hidden draws nothing, `isChatHidden`).
+    pub(super) fn chat_visibility(&self) -> ChatVisibility {
+        ChatVisibility::from_option(self.settings.chat_visibility)
     }
-    /// A chat message from the game (ChatComponent.addServerSystemMessage).
+    /// A chat message from the game (`ChatComponent.addMessage`, tagged
+    /// system or system-single-player by `isSingleplayer`).
     pub(super) fn system_message(&mut self, text: Text) {
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(text);
@@ -1230,14 +1231,14 @@ impl Game<'_> {
             self.chat_line(text, ChatSource::Server);
             return;
         }
-        // The Chat option's Hidden level takes the server's messages too.
+        // The Chat option's Hidden level only stops the draw; the message
+        // itself is added and logged like any other.
         self.local_chat_line(text, Some(SYSTEM_INDICATOR), ChatSource::Server);
     }
     /// A player's chat line on the window's own chat: a guest's message on
-    /// the server's own chat (`HostEvent::Chat`). `ChatListener`
-    /// checks `canReceivePlayerMessages` for these, so Commands Only and
-    /// Hidden drop them; command feedback (`/list`, `/tp`) is a system
-    /// message and takes the system-message permission instead.
+    /// the server's own chat (`HostEvent::Chat`). 1.21.11 adds it whatever
+    /// the Chat option says — there is no `canReceivePlayerMessages` gate
+    /// left; command feedback (`/list`, `/tp`) is a system message.
     pub(super) fn player_message(&mut self, text: Text) {
         if let Some(capture) = self.chat_capture.as_mut() {
             capture.push(text);
@@ -1252,9 +1253,6 @@ impl Game<'_> {
     /// A line on the window's own chat when the Chat option lets `source`
     /// through.
     fn local_chat_line(&mut self, text: Text, indicator: Option<u32>, source: ChatSource) {
-        if !self.ui.chat.shows(source) {
-            return;
-        }
         let focused = self.screen == Screen::Chat;
         self.ui.chat.add(
             &self.gui.atlas,
@@ -1334,8 +1332,10 @@ impl Game<'_> {
                 self.close_chat(ChatExit::Intentional);
             }
             ChatAction::Submit(message) => {
-                // InBedChatScreen sends without closing (`closeOnSubmit` is
-                // false): the box empties and the screen stays.
+                // InBedChatScreen sends without closing: 1.21.11's
+                // `InBedChatScreen.keyPressed` handles Enter itself
+                // (`handleChatInput`, clear the box, reset the scroll)
+                // and never reaches ChatScreen's always-close submit.
                 if self.ui.in_bed_chat && self.sleeping.is_some() {
                     screen.suggest_command(&m, &c, "");
                     self.ui.chat.reset_scroll();
