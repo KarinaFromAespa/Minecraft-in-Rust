@@ -355,7 +355,8 @@ pub enum ArmPose {
     TootHorn,
     /// Looking through a spyglass (`HumanoidModel.ArmPose.SPYGLASS`).
     Spyglass,
-    /// A spear held out (`HumanoidModel.ArmPose.SPEAR`), at rest or charging.
+    /// A spear held out (26.x's spear animations; no spear item exists in
+    /// 1.21.8, so this never poses here).
     Spear,
     /// A brush being used (`HumanoidModel.ArmPose.BRUSH`).
     Brush,
@@ -412,12 +413,15 @@ pub struct Hum {
     pub using_item: bool,
     /// The arm the current swing moves (`Some(true)` for the right one).
     pub swing_right_arm: Option<bool>,
-    /// The swing is a STAB (`SwingAnimationType` 2): a spear's jab.
+    /// The swing is a STAB (26.x's `SwingAnimationType` 2): a spear's jab.
+    /// Unreachable in 1.21.8 — no spear item exists, so every swing is the
+    /// default WHACK.
     pub stab: bool,
     /// `mainArm` is the left one (`Mob.isLeftHanded`): a mob's swing uses it.
     pub left_main: bool,
     /// The spear each arm (right, left) holds, and how long that arm has
-    /// been using it (`ticksUsingItem(arm)`, 0 when it is not).
+    /// been using it (`ticksUsingItem(arm)`, 0 when it is not). Always
+    /// `None` in 1.21.8: no spear item exists.
     pub spear: [Option<crate::spear::Kinetic>; 2],
     pub spear_ticks: [f32; 2],
 }
@@ -533,7 +537,7 @@ fn pose_arm(p: &mut Poses, pose: ArmPose, right: bool, h: &Hum) {
         }
         ArmPose::CrossbowHold => crossbow_hold(p, hx, hy, right),
         ArmPose::CrossbowCharge => crossbow_charge(p, h.charge.0, h.charge.1, right),
-        // SpearAnimations.thirdPersonHandUse.
+        // SpearAnimations.thirdPersonHandUse (26.x; unreachable in 1.21.8).
         ArmPose::Spear => {
             let side = usize::from(!right);
             let Some(kinetic) = h.spear[side] else {
@@ -901,7 +905,9 @@ fn vanilla_setup(
             let throwing = m.kind.anim == Anim::Drowned
                 && m.ai.aggressive
                 && m.extra.main_hand.as_deref() == Some("minecraft:trident");
-            // HumanoidMobRenderer.getArmPose: the arm holding a spear (at rest too).
+            // 1.21.8's `HumanoidMobRenderer.getArmPose` returns EMPTY; the
+            // spear branch is 26.x-only (no spear item exists in 1.21.8,
+            // so `Kinetic::of` never matches here).
             let spear = m
                 .extra
                 .main_hand

@@ -1250,7 +1250,7 @@ pub struct Extra {
     /// (`LivingEntityRenderer.isEntityUpsideDown`: a player flips by its
     /// profile name in 1.21.8, unless its cape is hidden).
     pub upside_down_name: bool,
-    /// `AvatarRenderState.isSpectator`: a player in spectator mode shows only its head.
+    /// `PlayerRenderState.isSpectator`: a player in spectator mode shows only its head.
     pub spectator: bool,
     pub elytra: ElytraAnimation,
     pub swim: SwimAnimation,
@@ -1259,7 +1259,8 @@ pub struct Extra {
     /// The arm the current swing moves (`currentSwing.hand().asArm`): `Some(true)`
     /// for the right arm.
     pub swing_right_arm: Option<bool>,
-    /// The current swing is a STAB (`SwingAnimationType` 2): a spear's jab.
+    /// The current swing is a STAB (26.x's `SwingAnimationType` 2): a
+    /// spear's jab. Unreachable in 1.21.8 — no spear item exists.
     pub swing_stab: bool,
     pub flag: bool,
     pub flag2: bool,

@@ -334,7 +334,36 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 28/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 38, 39, 41 + 4 zero-diff)
+### Rank 2: 29/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41 + 4 zero-diff)
+
+- **Item 35 — `crates/horizon-client/src/mobs/anim.rs` (12 classes, 40 methods, 7 named in Horizon):**
+  HumanoidModel, PlayerModel, CreeperModel, QuadrupedModel, BoggedModel,
+  DonkeyModel, DrownedModel, EndermanModel, EquineSaddleModel, SheepModel,
+  DrownedRenderer, HumanoidMobRenderer. Zero-diff: no code changed, citations
+  only.
+  1. **Citations:** `AvatarRenderState.isSpectator` → `PlayerRenderState`
+     (mobs.rs; `AvatarRenderState` is the 1.21.9 name for the player render
+     state). `HumanoidModel.ArmPose.SPEAR` → 26.x-only: no `SPEAR` constant
+     exists in either version (javap: the enum is identical, 10 constants
+     ending in `BRUSH`; the spear pose is `THROW_SPEAR`, which the Rust
+     implements as `ThrowTrident`). The spear arm pose, the STAB swing and
+     the `Hum.spear` fields are unreachable dead code in 1.21.8 — no spear
+     item exists in the 1.21.8 items table (0 matches), so `Kinetic::of`
+     never matches and every swing is the default WHACK — left in place per
+     the item-17/18/19 pattern, with the comments now saying so; 1.21.8's
+     `HumanoidMobRenderer.getArmPose` returns EMPTY.
+  Verified no-change: the `setupAnim` bodies are identical in both versions
+  (no hunks inside them); the arm-pose formulas were checked term by term
+  against 1.21.8's `poseRightArm`/`poseLeftArm`/`poseBlockingArm` (BLOCK's
+  −0.9424779 and the −4π/9 clamp, BOW's ±0.4, THROW_SPEAR's `x*0.5−π`,
+  SPYGLASS's 1.9198622, TOOT_HORN's −1.4835298, BRUSH's `x*0.5−π/5`);
+  the 8 classes with no decomp diff are the item-25 bridge pattern (each
+  exactly 44 bytes larger in the 1.21.8 jar); `createArmorMeshSet` /
+  `ArmorModelSet` are 1.21.9-only with no Rust citations, and the Rust
+  cites no `DROWNED_ARMOR` layer names (the 1.21.8 tables were
+  regenerated); `copyPropertiesTo` (1.21.8-only) has no Rust equivalent to
+  rename — armor poses flow through the shared `Poses`; the CustomHeadLayer
+  constructor change (no render cache in 1.21.8) is plumbing only.
 
 - **Item 31 — `crates/horizon-client/src/item_render/special.rs` (12 classes, 53 methods, 7 named in Horizon):**
   BannerRenderer, PlayerHeadSpecialRenderer, ShieldSpecialRenderer,
