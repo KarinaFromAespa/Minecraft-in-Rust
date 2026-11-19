@@ -334,7 +334,36 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 73/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70 + 4 zero-diff)
+### Rank 2: 74/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73 + 4 zero-diff)
+
+- **Item 73 — `crates/horizon-client-core/src/text.rs`
+  (2 classes, 25 methods, 3 named in Horizon),
+  citations only:** Style (applyLegacyFormat,
+  applyTo, getFont), LocateCommand. This lands
+  item 27's deferral: 1.21.9's `Style.font` is a
+  `FontDescription` (0 classes in the 1.21.8 jar,
+  4 in 1.21.9); 1.21.8's is a plain
+  `ResourceLocation` with `DEFAULT_FONT =
+  minecraft:default`. The Rust's `Style.font`
+  is already `Option<String>` (a plain id) and
+  `font_id` parses only a plain identifier —
+  the 1.21.8 form; only the doc comment cited
+  `FontDescription.Resource`, reworded to
+  `Style.font`. Verified no-change:
+  `withShadowColor`'s 1.21.9 early return is
+  object-identity only (the Rust has no such
+  builder); LocateCommand differs only by a
+  log-format change (same message text, no Rust
+  surface); `DataSource$Type` exists only in
+  1.21.8 (1 class vs 0) but has no Rust surface
+  (no `DataSource` references in the text code).
+  Known gap (tree-wide, shared with the font
+  oracles): `ParityFont` and the text-display /
+  inline-object oracles still use 1.21.9's
+  `FontDescription` API (`FontManager.glyphs`
+  takes a `FontDescription` in 1.21.9, a
+  `ResourceLocation` in 1.21.8). Check 0/0 at
+  `-j 1`.
 
 - **Item 70 — `crates/horizon-client-render/src/streaming.rs`
   (2 classes, 26 methods, 3 named in Horizon),
