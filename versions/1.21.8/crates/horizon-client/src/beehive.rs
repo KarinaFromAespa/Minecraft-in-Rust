@@ -124,7 +124,7 @@ impl OccupantExt for Occupant {
         // as-is, with or without an `id` (a bee without one never releases).
         // 1.21.9's `TypedEntityData` codec requires the field.
         let data = match tag.get("entity_data") {
-            None => Tag::compound([]),
+            None => Tag::Compound(horizon_world::nbt::Compound::new()),
             Some(d @ Tag::Compound(_)) => d.clone(),
             Some(_) => return None,
         };
