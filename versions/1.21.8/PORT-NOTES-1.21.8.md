@@ -334,7 +334,43 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 36/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+### Rank 2: 37/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+
+- **Item 36 — `crates/horizon-core/src/paletted.rs` (5 classes, 49 methods, 6 named in Horizon):**
+  PalettedContainer, Palette, Strategy, Strategy$1, Strategy$2 (the
+  top-level 1.21.9 `Strategy` and its two implementations; 1.21.8 nests
+  them as `PalettedContainer.Strategy` with anonymous `1`/`2`).
+  1.21.9's refactor moved the strategy out of the container and the
+  registry out of the palette; 1.21.8 threads the `IdMap` through both.
+  Fixes: citations only, plus one dead variant.
+  Citations: `Strategy.createForBlockStates` →
+  `PalettedContainer.Strategy.SECTION_STATES`,
+  `Strategy.createForBiomes` → `...SECTION_BIOMES`,
+  `getConfigurationForBitCount` → `Strategy.getConfiguration`
+  (paletted.rs, horizon-protocol chunk.rs),
+  `getConfigurationForPaletteSize(17)` →
+  `calculateBitsForSerialization(17)` (horizon-world chunk.rs test
+  doc). Removed the dead `PaletteError::BadBits` variant: it described
+  1.21.9's declared-bit-count validation, which `from_packed` never
+  performed — 1.21.8's `unpack` computes the bits from the palette size
+  and has no `bitsPerEntry` to validate against.
+  Verified no-change (thresholds compared term by term, the 1.21.8
+  anonymous strategies decompiled from the jar with Vineflower since
+  they have no decomp files): block states 0 → single, 1–4 → linear 4,
+  5–8 → hashmap, >8 → global with `ceillog2(registry)` bits; biomes
+  0 → single, 1–3 → linear with the requested bits, >3 → global —
+  identical in both versions, and the Rust's `Strategy::config` matches
+  both. The wire form (bits byte + palette + longs) and the NBT form
+  (palette list + long stream) are identical; `pack` computes the same
+  saved width in both versions (global packs use `ceillog2(palette
+  size)`); `unpack` re-encodes global containers in both (1.21.9's
+  `Configuration$Global.alwaysRepack()` is true) and reuses the storage
+  directly for non-global ones; `onResize` rebuilds with the config
+  for bits+1, copies contents in index order, and adds the new value
+  last, as the Rust's `resize` does; `getSerializedSize` is `1 +
+  palette + raw * 8` in both. The Rust's wire-global `max(registry
+  bits, declared bits)` is defensive only — on valid input the declared
+  bits are the registry bits.
 
 - **Item 34 — `crates/horizon-client-render/src/options_ui.rs` (15 classes, 51 methods, 6 named in Horizon):**
   KeyBindsList (+CategoryEntry, +KeyEntry), AbstractContainerWidget,

@@ -15,9 +15,9 @@ pub const BIOMES: usize = 64;
 /// Which palette Strategy a container uses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Strategy {
-    /// Strategy.createForBlockStates.
+    /// PalettedContainer.Strategy.SECTION_STATES.
     Blocks,
-    /// Strategy.createForBiomes.
+    /// PalettedContainer.Strategy.SECTION_BIOMES.
     Biomes,
 }
 impl Strategy {
@@ -27,7 +27,7 @@ impl Strategy {
             Self::Biomes => BIOMES,
         }
     }
-    /// getConfigurationForBitCount: (uses a palette, bits in storage).
+    /// Strategy.getConfiguration: (uses a palette, bits in storage).
     fn configuration(self, bits: u8, global_bits: u8) -> (bool, u8) {
         match (self, bits) {
             (_, 0) => (true, 0),
