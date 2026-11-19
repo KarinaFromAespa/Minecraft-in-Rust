@@ -3179,7 +3179,7 @@ impl OptionsUi {
                         last_category = category;
                         rows.begin(&out, y);
                         let label =
-                            Text::translate(&format!("key.category.minecraft.{category}"), &[])
+                            Text::translate(&format!("key.categories.{category}"), &[])
                                 .with_style(&Style {
                                     bold: Some(true),
                                     underlined: Some(true),

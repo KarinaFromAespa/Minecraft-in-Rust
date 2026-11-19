@@ -127,8 +127,8 @@ def key_cases(rng):
         ops = []
         for _ in range(rng.randrange(1, 50)):
             ops.append(rng.choice([['option', rng.random() < 0.5], ['down', True], ['down', False], ['down', True], ['release'],
-                                   ['restore'], ['click'], ['consume'], ['consume'], ['ingame']]))
-        yield dict(t='key', toggle=toggle, keyboard=rng.random() < 0.7, restore=rng.random() < 0.6, ops=ops)
+                                   ['click'], ['consume'], ['consume']]))
+        yield dict(t='key', toggle=toggle, ops=ops)
 
 
 def make_cases(build):

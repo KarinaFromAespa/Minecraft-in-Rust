@@ -10950,7 +10950,7 @@ impl Game<'_> {
                                 self.smooth_camera_action();
                             }
                             let input = horizon_client::keybinds::mouse_name(button);
-                            for mapped in self.settings.keys.translate_mouse_all(button) {
+                            if let Some(mapped) = self.settings.keys.translate_mouse(button) {
                                 match mapped {
                                     Err(b)
                                         if !self.shared_default_acts(b, Some(input.as_str())) => {}

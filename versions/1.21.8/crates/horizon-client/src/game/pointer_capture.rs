@@ -93,20 +93,20 @@ impl Game<'_> {
     }
     /// `KeyMapping.setAll`: every key physically held is held again, as the
     /// mapping it is bound to, so a key pressed or kept down behind a screen
-    /// counts once the game has the keyboard back. A sneak or sprint that
-    /// toggles keeps its toggle state (`shouldSetOnIngameFocus`).
+    /// counts once the game has the keyboard back. 1.21.8's `setAll` has no
+    /// toggle exemption (1.21.9's `shouldSetOnIngameFocus` skips toggles
+    /// whose option is on): a held shift flips a toggled sneak, as
+    /// `setDown(true)` does under the option.
     pub(super) fn restore_held_keys(&mut self) {
         let held: Vec<KeyCode> = self.physical_keys.iter().copied().collect();
         let toggles = [self.settings.toggle_crouch, self.settings.toggle_sprint];
         for key in held {
-            for mapped in self.settings.keys.translate_all(key) {
+            if let Some(mapped) = self.settings.keys.translate(key) {
                 match mapped {
                     Ok(slot_key @ (KeyCode::ShiftLeft | KeyCode::ControlLeft)) => {
                         let slot = usize::from(slot_key == KeyCode::ControlLeft);
-                        if !toggles[slot] {
-                            self.toggles.0[slot].set_down(true, false);
-                            self.sync_toggle(slot);
-                        }
+                        self.toggles.0[slot].set_down(true, toggles[slot]);
+                        self.sync_toggle(slot);
                     }
                     Ok(other) => {
                         self.keys.insert(other);

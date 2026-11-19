@@ -396,9 +396,10 @@ fn a_dialog_releases_held_keys_like_a_screen() {
     toggles.key(SNEAK, KeyAction::Press, false, true);
     toggles.key(SNEAK, KeyAction::Release, false, true);
     assert!(toggles.is_down(SNEAK));
+    // A screen opens: 1.21.8's `release` is `setDown(false)`, which a
+    // toggle ignores — the sneak stays down, and closing the screen
+    // restores nothing (there is nothing to restore).
     toggles.screen_opened(options);
-    assert!(!toggles.is_down(SNEAK));
-    toggles.screen_closed(options);
     assert!(toggles.is_down(SNEAK));
 }
 /// A key bound to key.pickItem clones over a container screen, as the

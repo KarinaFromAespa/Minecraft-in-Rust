@@ -334,7 +334,71 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 43/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40 + 4 zero-diff)
+### Rank 2: 44/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47 + 4 zero-diff)
+
+- **Item 47 — `crates/horizon-client-input/src/keymapping.rs` (2
+  classes, 31 methods, 5 named in Horizon):** KeyMapping (click,
+  restoreToggleStatesOnScreenClosed, set, setAll),
+  ToggleKeyMapping (release). 1.21.9's toggle-restore machinery
+  does not exist in 1.21.8: no `shouldRestore` flag, no
+  `ToggleKeyMapping.release` override, no
+  `restoreToggleStatesOnScreenClosed`, no
+  `shouldSetOnIngameFocus`. In 1.21.8 `release()` is private and
+  just clears clicks plus `setDown(false)` — which a toggle with
+  its option on ignores, so a toggled sneak or sprint stays down
+  through a screen instead of dropping and being restored; the
+  `KeyState` fields and methods for the restore are gone
+  (`released_by_screen_when_down`, `should_restore_state_on_screen_closed`,
+  `should_set_on_ingame_focus`, `ToggleKeys::screen_closed`), and
+  `release()` is now clicks plus `setDown(false)` for every key.
+  Only sneak and sprint are toggles in 1.21.8 (attack/use toggle
+  options are 1.21.9-only): slots 2–3 of `ToggleKeys` are plain
+  mappings, `reset()` no-ops for them (vanilla's
+  `resetToggleKeys` touches toggles only), and `is_toggle`
+  matches sneak/sprint only. `setAll` has no toggle exemption in
+  1.21.8, so `restore_held_keys` no longer skips toggles with
+  their option on — a held shift flips a toggled sneak on
+  refocus, as vanilla's does. The key MAP is single-valued in
+  1.21.8 (`Map<Key, KeyMapping>`; 1.21.9 holds a list per key),
+  so `translate_all`/`translate_mouse_all`/`mappings_for` are
+  gone: `translate`/`translate_mouse`/`mapping_for` drive the
+  first mapping in list order, and the six call sites change one
+  word each (an `Option` iterates). Vanilla's exact winner is
+  the MAP entry — last in `ALL` iteration order after a
+  `resetMapping` — which the Rust does not reproduce; the first
+  in list order is its documented choice. Categories are plain
+  strings in 1.21.8 with sort order movement, gameplay,
+  inventory, creative, multiplayer, ui, misc (1.21.9's `Category`
+  record orders movement, misc, multiplayer, gameplay,
+  inventory, creative, spectator), and the controls-screen
+  header now translates `key.categories.<name>` — the 1.21.9
+  form `key.category.minecraft.<name>` has no 1.21.8 lang entry.
+  `key.spectatorHotbar` is 1.21.9-only: removed from MAPPINGS
+  and from the `Action` table (the order test ties them), the
+  spectator menu is the hardcoded middle click
+  (`MouseHandler.onMouseMiddleClick`, as `play_mouse` already
+  did — only its comment cited the mapping), `middle_acts`
+  drops the spectator branch, and `key.spectatorOutlines` is
+  misc in 1.21.8, not spectator. Both harness oracles were
+  still 1.21.9-only and never compiled against 1.21.8:
+  `VanillaToggleKeysOracle` (toggleAttack/toggleUse options,
+  the restore call) is ported and verified to compile against
+  the 1.21.8 jar, with the driver restricted to the two toggle
+  options and `close` kept as a no-op pin;
+  `VanillaGameLoopOracle`'s `key` section is ported (1.21.8
+  constructors, no restore/ingame ops) but the oracle as a
+  whole still does not compile — its StubServer/StubPlayers
+  server stubs are 26.x (permissions package, `NameAndId`,
+  NotificationService, an 11-arg `MinecraftServer`
+  constructor, missing `isCommandBlockEnabled`), a separate
+  porting job for the game-loop harness's server area, recorded
+  here, not attempted. Left alone (inherited 26.3-isms, Stream
+  2's): `key.friends`, `key.toggleGui`,
+  `key.toggleSpectatorShaderEffects` are in neither version's
+  Options; the orphaned `toggle_attack`/`toggle_use` settings
+  are item 59's. Known gaps (vs both): the MAP winner choice
+  above; `KeyState` has no unbound state, so `setAll`'s
+  not-UNKNOWN check is unmodelled in the probe.
 
 - **Item 40 — `crates/horizon-assets/src/item_model.rs` (19 classes,
   51 methods, 5 named in Horizon):** CompassAngleState (10;

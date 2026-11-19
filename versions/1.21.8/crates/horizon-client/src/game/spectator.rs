@@ -76,7 +76,9 @@ impl Game<'_> {
         let outcome = self.spectator_gui.on_hotbar_selected(slot, now, menu);
         self.spectator_outcome(outcome);
     }
-    /// `key.spectatorHotbar`: opens the menu, or uses the selected item.
+    /// `MouseHandler.onMouseMiddleClick` as a spectator: opens the menu, or
+    /// uses the selected item (1.21.9 moved this to the
+    /// `key.spectatorHotbar` mapping; 1.21.8 has none).
     pub(super) fn spectator_action_key(&mut self) {
         let now = self.spectator_now();
         let menu = self.spectator_menu_if_needed();

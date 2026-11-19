@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Compare toggle sprint/sneak (and toggle attack/use) with the pinned client:
-the real Options ToggleKeyMappings driven by the real static KeyMapping
-functions as keyboard presses, SDL key repeats and releases, mouse buttons,
-screens opening and closing over the game (releaseAll and
-restoreToggleStatesOnScreenClosed), respawning (resetToggleKeys) and toggle
-options changing mid-sequence, event by event."""
+"""Compare toggle sneak/sprint (and the plain attack/use mappings) with the
+pinned client: the real Options ToggleKeyMappings driven by the real static
+KeyMapping functions as keyboard presses, SDL key repeats and releases, mouse
+buttons, screens opening and closing over the game (releaseAll; closing a
+screen restores nothing in 1.21.8) and respawning (resetToggleKeys), with
+toggle options changing mid-sequence, event by event."""
 import json
 import random
 
@@ -21,7 +21,7 @@ def op(rng, screen):
     if kind == 'button':
         return ['button', rng.choice([2, 3]), rng.random() < 0.5, screen]
     if kind == 'option':
-        return ['option', rng.randrange(4), rng.random() < 0.6]
+        return ['option', rng.randrange(2), rng.random() < 0.6]
     return [kind]
 
 
@@ -36,7 +36,7 @@ def cases(rng):
                     yield dict(ops=[['option', 0, toggled], a, b, c, ['key', 0, 1, False], ['open'], ['close']])
     for _ in range(6000):
         screen = False
-        ops = [['option', i, rng.random() < 0.5] for i in range(4)]
+        ops = [['option', i, rng.random() < 0.5] for i in range(2)]
         for _ in range(rng.randrange(1, 60)):
             o = op(rng, screen)
             if o[0] == 'open':
@@ -60,11 +60,12 @@ def make_cases(build):
 
 
 def main():
-    scope = ('The real Options keyShift/keySprint/keyAttack/keyUse ToggleKeyMappings with their real toggle options and '
-             'shouldRestore flags, driven through the real static KeyMapping.set/click (every mapping bound to the key), '
-             'releaseAll, restoreToggleStatesOnScreenClosed and resetToggleKeys, dispatched as KeyboardHandler.keyPress '
+    scope = ('The real Options keyShift/keySprint ToggleKeyMappings (with their toggle options) and the plain keyAttack/keyUse '
+             'mappings, driven through the real static KeyMapping.set/click (one mapping per key in 1.21.8), '
+             'releaseAll and resetToggleKeys, dispatched as KeyboardHandler.keyPress '
              '(release always; press and SDL repeat only without a screen), MouseHandler.onButton (only without a screen), '
-             'Gui.setScreen and LocalPlayer.respawn call them. Compares down state and pending clicks after every event. '
+             'Gui.setScreen and LocalPlayer.respawn call them. Closing a screen restores nothing in 1.21.8 (no '
+             'restoreToggleStatesOnScreenClosed); the close op pins that. Compares down state and pending clicks after every event. '
              'The screen-consumed keyPressed/keyReleased branches and KeyMapping.setAll (an InputQuirks platform quirk) are '
              'not exercised; KeyboardInput then reads isDown as the sprint and local input harnesses compare.')
     harness.differential(

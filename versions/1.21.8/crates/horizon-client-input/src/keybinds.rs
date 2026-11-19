@@ -34,8 +34,7 @@ pub const MAPPINGS: &[(&str, &str, &str)] = &[
     ("key.togglePerspective", "key.keyboard.f5", "misc"),
     ("key.smoothCamera", "key.keyboard.unknown", "misc"),
     ("key.fullscreen", "key.keyboard.f11", "misc"),
-    ("key.spectatorOutlines", "key.keyboard.unknown", "spectator"),
-    ("key.spectatorHotbar", "key.mouse.middle", "spectator"),
+    ("key.spectatorOutlines", "key.keyboard.unknown", "misc"),
     ("key.swapOffhand", "key.keyboard.f", "inventory"),
     ("key.saveToolbarActivator", "key.keyboard.c", "creative"),
     ("key.loadToolbarActivator", "key.keyboard.x", "creative"),
@@ -87,17 +86,19 @@ pub fn all_mappings() -> impl Iterator<Item = &'static (&'static str, &'static s
 }
 /// Mappings Options builds as `ToggleKeyMapping` (hold or toggle by option).
 pub fn is_toggle(name: &str) -> bool {
-    matches!(name, "key.sneak" | "key.sprint" | "key.use" | "key.attack")
+    matches!(name, "key.sneak" | "key.sprint")
 }
-/// KeyMapping.Category sort order.
+/// `KeyMapping.CATEGORY_SORT_ORDER`: movement, gameplay, inventory,
+/// creative, multiplayer, ui, misc — then Horizon's debug category, which
+/// vanilla has no mapping for.
 pub const CATEGORIES: [&str; 8] = [
     "movement",
-    "misc",
-    "multiplayer",
     "gameplay",
     "inventory",
     "creative",
-    "spectator",
+    "multiplayer",
+    "ui",
+    "misc",
     "debug",
 ];
 
@@ -329,19 +330,6 @@ impl Default for KeyBinds {
         }
     }
 }
-/// Each default key once, in order: two mappings that share a default key
-/// (Pick Block and the spectator hotbar both on the middle button) are one
-/// press of it, not two.
-fn distinct<T: PartialEq>(keys: Vec<T>) -> Vec<T> {
-    let mut out = Vec::with_capacity(keys.len());
-    for k in keys {
-        if !out.contains(&k) {
-            out.push(k);
-        }
-    }
-    out
-}
-
 impl KeyBinds {
     pub fn get(&self, name: &str) -> &str {
         self.keys
@@ -391,18 +379,16 @@ impl KeyBinds {
             .map(|(n, _, _)| *n)
             .collect()
     }
-    /// The mapping a physical input triggers (first in list order).
+    /// The mapping a physical input triggers (first in list order):
+    /// 1.21.8's `KeyMapping` MAP holds one mapping per key, so `set` and
+    /// `click` drive one mapping, not every mapping bound to the key as
+    /// 1.21.9's list-valued MAP does. (Vanilla's winner is the MAP entry —
+    /// the last in `ALL` iteration order after a `resetMapping` — which the
+    /// Rust does not reproduce; the first in list order is its choice.)
     pub fn mapping_for(&self, key: &str) -> Option<&'static str> {
-        self.mappings_for(key).next()
+        all_mappings().map(|m| m.0).find(|n| self.get(n) == key)
     }
-    /// Every mapping a physical input triggers, in list order: like
-    /// `KeyMapping.set`/`click`, one key drives all the mappings bound to it.
-    pub fn mappings_for<'a>(&'a self, key: &'a str) -> impl Iterator<Item = &'static str> + 'a {
-        all_mappings()
-            .map(|m| m.0)
-            .filter(move |n| self.get(n) == key)
-    }
-    /// The mappings bound to `key` that [`KeyBinds::translate_all`] follows:
+    /// The mappings bound to `key` that [`KeyBinds::translate`] follows:
     /// all but the debug keys. Those act only with F3 held
     /// (`KeyboardHandler.handleDebugKeys`, `debug_keys.rs` reads the physical
     /// key and the binding itself); their defaults (A, S, D, T, L, 1 to 4...)
@@ -421,73 +407,53 @@ impl KeyBinds {
     /// Translate a physical key into the default key of the mapping it is
     /// bound to, so game code written against vanilla defaults follows the
     /// player's bindings. `None` means the key now does nothing; mouse
-    /// mappings bound to keys come back as `Err(button)`. The first of
-    /// [`KeyBinds::translate_all`].
+    /// mappings bound to keys come back as `Err(button)`. One mapping per
+    /// key, as `KeyMapping.set` drives one in 1.21.8 (see
+    /// [`KeyBinds::mapping_for`]): a key bound to two mappings drives only
+    /// the first in list order.
     pub fn translate(&self, key: KeyCode) -> Option<Result<KeyCode, MouseButton>> {
-        self.translate_all(key).into_iter().next()
-    }
-    /// The default keys of every mapping `key` is bound to (empty when it
-    /// now does nothing), so a key bound to two mappings (forward and
-    /// sprint) drives both, as `KeyMapping.set` does.
-    pub fn translate_all(&self, key: KeyCode) -> Vec<Result<KeyCode, MouseButton>> {
         let Some(name) = key_name(key) else {
-            return vec![Ok(key)];
+            return Some(Ok(key));
         };
-        let bound: Vec<_> = self
-            .translated_mappings(name)
-            .filter_map(|mapping| {
-                let default = Self::default_of(mapping);
-                match key_code(default) {
-                    Some(code) => Some(Ok(code)),
-                    None => mouse_button(default).map(Err),
-                }
-            })
-            .collect();
-        if !bound.is_empty() {
-            return distinct(bound);
+        if let Some(mapped) = self.translated_mappings(name).find_map(|mapping| {
+            let default = Self::default_of(mapping);
+            match key_code(default) {
+                Some(code) => Some(Ok(code)),
+                None => mouse_button(default).map(Err),
+            }
+        }) {
+            return Some(mapped);
         }
         // An unbound key whose default meaning was moved elsewhere is inert.
         if self.default_moved(name) {
-            return Vec::new();
+            return None;
         }
-        vec![Ok(key)]
+        Some(Ok(key))
     }
-    /// `Minecraft.handleKeybinds`: key.pickItem and key.spectatorHotbar share the middle button by
-    /// default and are separate mappings, so a press of what `input` is bound to acts only as the
-    /// one this player can use: the spectator hotbar for a spectator, pick block otherwise. (Pick
-    /// block does nothing a spectator would see.)
-    pub fn middle_acts(&self, input: &str, spectator: bool) -> bool {
-        let mapping = if spectator {
-            "key.spectatorHotbar"
-        } else {
-            "key.pickItem"
-        };
-        self.get(mapping) == input
+    /// `Minecraft.handleKeybinds`: pick block is the only middle-button
+    /// mapping in 1.21.8 (1.21.9 added a separate spectator-hotbar one),
+    /// so a press of what `input` is bound to acts as pick block when it
+    /// is bound to it. The spectator menu is a hardcoded middle click
+    /// (`MouseHandler.onMouseMiddleClick`), not a mapping.
+    pub fn middle_acts(&self, input: &str) -> bool {
+        self.get("key.pickItem") == input
     }
     /// Translate a mouse button the same way (keys bound to mouse buttons).
     pub fn translate_mouse(&self, button: MouseButton) -> Option<Result<KeyCode, MouseButton>> {
-        self.translate_mouse_all(button).into_iter().next()
-    }
-    /// [`KeyBinds::translate_all`] for a mouse button.
-    pub fn translate_mouse_all(&self, button: MouseButton) -> Vec<Result<KeyCode, MouseButton>> {
         let name = mouse_name(button);
-        let bound: Vec<_> = self
-            .translated_mappings(&name)
-            .filter_map(|mapping| {
-                let default = Self::default_of(mapping);
-                match mouse_button(default) {
-                    Some(b) => Some(Err(b)),
-                    None => key_code(default).map(Ok),
-                }
-            })
-            .collect();
-        if !bound.is_empty() {
-            return distinct(bound);
+        if let Some(mapped) = self.translated_mappings(&name).find_map(|mapping| {
+            let default = Self::default_of(mapping);
+            match mouse_button(default) {
+                Some(b) => Some(Err(b)),
+                None => key_code(default).map(Ok),
+            }
+        }) {
+            return Some(mapped);
         }
         if self.default_moved(&name) {
-            return Vec::new();
+            return None;
         }
-        vec![Err(button)]
+        Some(Err(button))
     }
     /// `AbstractContainerScreen.checkHotbarMouseClicked`: off hand, then hotbar.
     pub fn container_mouse_key(&self, button: MouseButton, creative: bool) -> Option<KeyCode> {
@@ -529,24 +495,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn mappings_sharing_the_middle_button_act_as_themselves() {
+    fn middle_button_acts_as_pick_block() {
+        // Pick block is the only middle-button mapping in 1.21.8 (1.21.9
+        // added a separate spectator-hotbar one).
         let middle = "key.mouse.middle";
         let z = "key.keyboard.z";
         let mut keys = KeyBinds::default();
-        assert!(keys.middle_acts(middle, false) && keys.middle_acts(middle, true));
-        // The spectator hotbar on Z: the middle button only picks, and Z never picks.
-        keys.set("key.spectatorHotbar", z);
-        assert!(keys.middle_acts(middle, false));
-        assert!(!keys.middle_acts(middle, true));
-        assert!(keys.middle_acts(z, true));
-        assert!(!keys.middle_acts(z, false));
-        // Pick block on Z instead: the other way round.
-        keys.reset_all();
+        assert!(keys.middle_acts(middle));
+        assert!(!keys.middle_acts(z));
+        // Pick block on Z instead: Z picks, the middle button does not.
         keys.set("key.pickItem", z);
-        assert!(keys.middle_acts(z, false));
-        assert!(!keys.middle_acts(z, true));
-        assert!(keys.middle_acts(middle, true));
-        assert!(!keys.middle_acts(middle, false));
+        assert!(keys.middle_acts(z));
+        assert!(!keys.middle_acts(middle));
     }
     #[test]
     fn container_mouse_hotkeys_follow_slot_bindings_and_pick_item_priority() {
@@ -636,22 +596,21 @@ mod tests {
         // and must not hand them back their gameplay meaning.
         let mut k = KeyBinds::default();
         k.set("key.hotbar.1", "key.keyboard.q");
-        assert_eq!(k.translate_all(KeyCode::Digit1), []);
-        assert_eq!(
-            k.translate_all(KeyCode::KeyQ),
-            [Ok(KeyCode::KeyQ), Ok(KeyCode::Digit1)]
-        );
+        assert_eq!(k.translate(KeyCode::Digit1), None);
+        // Q is bound to drop and to hotbar slot 1: one mapping per key in
+        // 1.21.8, so only the first in list order (drop) fires.
+        assert_eq!(k.translate(KeyCode::KeyQ), Some(Ok(KeyCode::KeyQ)));
         k.set("key.inventory", "key.keyboard.a");
         k.set("key.left", "key.keyboard.e");
-        assert_eq!(k.translate_all(KeyCode::KeyA), [Ok(KeyCode::KeyE)]);
-        assert_eq!(k.translate_all(KeyCode::KeyE), [Ok(KeyCode::KeyA)]);
+        assert_eq!(k.translate(KeyCode::KeyA), Some(Ok(KeyCode::KeyE)));
+        assert_eq!(k.translate(KeyCode::KeyE), Some(Ok(KeyCode::KeyA)));
         k.set("key.back", "key.keyboard.down");
-        assert_eq!(k.translate_all(KeyCode::KeyS), []);
+        assert_eq!(k.translate(KeyCode::KeyS), None);
         // Keys left alone still act, and a moved debug key changes nothing.
         k.set("key.debug.fpsCharts", "key.keyboard.9");
-        assert_eq!(k.translate_all(KeyCode::Digit2), [Ok(KeyCode::Digit2)]);
-        assert_eq!(k.translate_all(KeyCode::Digit9), [Ok(KeyCode::Digit9)]);
-        assert_eq!(k.translate_all(KeyCode::F3), [Ok(KeyCode::F3)]);
+        assert_eq!(k.translate(KeyCode::Digit2), Some(Ok(KeyCode::Digit2)));
+        assert_eq!(k.translate(KeyCode::Digit9), Some(Ok(KeyCode::Digit9)));
+        assert_eq!(k.translate(KeyCode::F3), Some(Ok(KeyCode::F3)));
     }
     #[test]
     fn display_names() {

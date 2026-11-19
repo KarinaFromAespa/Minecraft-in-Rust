@@ -10,13 +10,15 @@ import java.util.*;
 import net.minecraft.client.*;
 
 /**
- * Drives the real Options key mappings (keyShift, keySprint, keyAttack and
- * keyUse are ToggleKeyMappings reading toggleCrouch/toggleSprint/toggleAttack/
- * toggleUse) through the real static KeyMapping.set/click, releaseAll,
- * restoreToggleStatesOnScreenClosed and resetToggleKeys, dispatched as
- * KeyboardHandler.keyPress, MouseHandler.onButton, Gui.setScreen and
- * LocalPlayer.respawn call them, and prints each mapping's down state and
- * pending clicks after every event.
+ * Drives the real Options key mappings (keyShift and keySprint are
+ * ToggleKeyMappings reading toggleCrouch/toggleSprint; keyAttack and keyUse
+ * are plain KeyMappings in 1.21.8 — their toggle options are 1.21.9-only)
+ * through the real static KeyMapping.set/click, releaseAll and
+ * resetToggleKeys, dispatched as KeyboardHandler.keyPress,
+ * MouseHandler.onButton, Gui.setScreen and LocalPlayer.respawn call them,
+ * and prints each mapping's down state and pending clicks after every
+ * event. Closing a screen restores nothing in 1.21.8 (no
+ * restoreToggleStatesOnScreenClosed): the close op pins that.
  */
 public final class VanillaToggleKeysOracle {
     static Field field(Class<?> type, String name) throws Exception {
@@ -35,7 +37,7 @@ public final class VanillaToggleKeysOracle {
         field(Minecraft.class, "instance").set(null, shell);
         Options options = new Options(shell, Files.createTempDirectory("opts").toFile());
         KeyMapping[] mappings = {options.keyShift, options.keySprint, options.keyAttack, options.keyUse};
-        List<OptionInstance<Boolean>> toggles = List.of(options.toggleCrouch(), options.toggleSprint(), options.toggleAttack(), options.toggleUse());
+        List<OptionInstance<Boolean>> toggles = List.of(options.toggleCrouch(), options.toggleSprint());
         Field keyField = field(KeyMapping.class, "key");
         Field clicks = field(KeyMapping.class, "clickCount");
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8));
@@ -44,13 +46,12 @@ public final class VanillaToggleKeysOracle {
             for (var line : (Iterable<String>) lines::iterator) {
                 var c = JsonParser.parseString(line).getAsJsonObject();
                 out.println("== " + n++);
-                // A fresh session: everything up, no pending clicks or remembered releases.
-                for (int i = 0; i < 4; i++) {
+                // A fresh session: everything up, no pending clicks.
+                for (int i = 0; i < 2; i++) {
                     toggles.get(i).set(false);
                 }
                 KeyMapping.resetToggleKeys();
                 KeyMapping.releaseAll();
-                KeyMapping.restoreToggleStatesOnScreenClosed();
                 for (var m : mappings) {
                     while (m.consumeClick()) {
                     }
@@ -85,7 +86,9 @@ public final class VanillaToggleKeysOracle {
                             }
                         }
                         case "open" -> KeyMapping.releaseAll();
-                        case "close" -> KeyMapping.restoreToggleStatesOnScreenClosed();
+                        // Closing a screen restores nothing in 1.21.8.
+                        case "close" -> {
+                        }
                         case "respawn" -> KeyMapping.resetToggleKeys();
                         default -> throw new IllegalArgumentException(name);
                     }

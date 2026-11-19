@@ -264,7 +264,7 @@ fn scroll(c: &Value, out: &mut impl Write) -> Result<()> {
 
 fn key(c: &Value, out: &mut impl Write) -> Result<()> {
     let mut state = if b(&c["toggle"]) {
-        KeyState::toggle(b(&c["restore"]), b(&c["keyboard"]))
+        KeyState::toggle()
     } else {
         KeyState::plain()
     };
@@ -277,12 +277,8 @@ fn key(c: &Value, out: &mut impl Write) -> Result<()> {
             "option" => option = b(&op[1]),
             "down" => state.set_down(b(&op[1]), option),
             "release" => state.release(option),
-            "restore" => {
-                result = format!(" {}", state.should_restore_state_on_screen_closed(option))
-            }
             "click" => state.click(),
             "consume" => result = format!(" {}", state.consume_click()),
-            "ingame" => result = format!(" {}", state.should_set_on_ingame_focus(option)),
             _ => panic!("{name}"),
         }
         writeln!(out, "{name}{result} {}", state.is_down)?;

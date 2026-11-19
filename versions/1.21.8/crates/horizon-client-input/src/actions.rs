@@ -57,7 +57,6 @@ actions! {
     SmoothCamera, "key.smoothCamera", None;
     Fullscreen, "key.fullscreen", Some(KeyCode::F11);
     SpectatorOutlines, "key.spectatorOutlines", None;
-    SpectatorHotbar, "key.spectatorHotbar", None;
     SwapOffhand, "key.swapOffhand", Some(KeyCode::KeyF);
     SaveToolbarActivator, "key.saveToolbarActivator", Some(KeyCode::KeyC);
     LoadToolbarActivator, "key.loadToolbarActivator", Some(KeyCode::KeyX);
