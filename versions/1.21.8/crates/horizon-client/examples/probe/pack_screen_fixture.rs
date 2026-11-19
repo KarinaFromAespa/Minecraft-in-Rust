@@ -146,8 +146,7 @@ pub fn main() -> horizon_client::Result<()> {
                     screen.click(&m, f("x"), f("y"));
                 }
                 "scroll" => screen.scroll(f("x"), f("y"), f("amount")),
-                "type" => screen.type_text(&m, a["text"].as_str().unwrap_or_default()),
-                "erase" => screen.erase(&m, f("count") as isize),
+                // No "type"/"erase": 1.21.8's pack screen has no search box.
                 _ => {}
             }
             if std::env::var_os("PACK_DEBUG").is_some() {
@@ -155,12 +154,7 @@ pub fn main() -> horizon_client::Result<()> {
             }
         }
         let mouse = (int(&c["mouse"][0]), int(&c["mouse"][1]));
-        let draws = screen.draw(
-            &m,
-            mouse,
-            c["blink"].as_u64().unwrap_or(0),
-            c["now"].as_i64().unwrap_or(0),
-        );
+        let draws = screen.draw(&m, mouse, c["now"].as_i64().unwrap_or(0));
         let screen_name = if screen.confirming() {
             "confirm"
         } else {

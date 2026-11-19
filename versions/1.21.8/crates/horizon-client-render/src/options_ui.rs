@@ -1609,8 +1609,6 @@ pub struct OptionsUi {
     data_pack_stamp: (Vec<(String, Option<std::time::SystemTime>)>, Instant),
     /// A reload failure, dismissed before returning to the current page.
     pub resource_error: Option<String>,
-    /// When the pack screen's search box took the focus (its cursor blink).
-    pack_focus: Instant,
     /// The selection carried over from a pack screen made again over a changed pack list
     /// (`update_pack_infos`) differs from the settings'.
     pack_reselected: bool,
@@ -1702,7 +1700,6 @@ impl Default for OptionsUi {
             data_pack_resources: Default::default(),
             data_pack_stamp: (Vec::new(), Instant::now()),
             resource_error: None,
-            pack_focus: Instant::now(),
             pack_reselected: false,
             in_world: false,
             minecart_improvements: false,
@@ -3610,11 +3607,10 @@ impl OptionsUi {
         if self.page() == Page::Packs {
             self.watch_data_packs(atlas, (w, h));
             ui::menu_background(batch, atlas, 0.0, 0.0, w, h, self.in_world);
-            let blink = self.pack_focus.elapsed().as_millis() as u64;
             let m = crate::screen_draw::Measure(&atlas.font);
             let mouse = (cursor.0.floor() as i32, cursor.1.floor() as i32);
             let packs = self.packs(atlas, (w, h));
-            let mut draws = packs.draw(&m, mouse, blink, crate::hud_overlays::now_ms());
+            let mut draws = packs.draw(&m, mouse, crate::hud_overlays::now_ms());
             packs.bind_icons(&mut draws, atlas, &mut batch.patches);
             crate::screen_draw::paint(batch, atlas, &draws);
             return;
@@ -3986,11 +3982,7 @@ impl OptionsUi {
             if p.button_at(&m, x as f64, y as f64) {
                 events.push(Event::ButtonClick);
             }
-            let before = p.search_focused();
             let action = p.click(&m, x as f64, y as f64);
-            if !before && p.search_focused() {
-                self.pack_focus = Instant::now();
-            }
             match action {
                 crate::pack_screen::Action::OpenFolder => events.push(match &self.data_pack_dir {
                     Some(dir) => Event::OpenDataPackFolder(dir.clone()),
@@ -4474,7 +4466,6 @@ impl OptionsUi {
                 }
             }
             None => {
-                self.pack_focus = Instant::now();
                 let title = if self.data_pack_dir.is_some() {
                     "dataPack.title"
                 } else {

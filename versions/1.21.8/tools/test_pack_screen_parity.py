@@ -6,17 +6,16 @@ Create World opens), a pack repository (titles and descriptions as text componen
 with legacy formatting codes, colours and styles; pack sources; compatible,
 too old, too new or unknown packs; required, fixed and positioned packs;
 icons), an initial selection, a GUI size, in a world or not, and what the
-player does: clicks on the lists (an entry's icon arrows, an entry, a
-header, the scroll bar, empty space), on the search box, typing and erasing
-in it, the mouse wheel over the lists, and the ConfirmScreen an incompatible
-pack opens (yes, no, or left open). A fifth of the cases are in another
+player does: clicks on the lists (an entry's icon arrows, an entry, the
+title band, the scroll bar, empty space) and the mouse wheel over the lists,
+and the ConfirmScreen an incompatible pack opens (yes, no, or left open). A fifth of the cases are in another
 language, most of them one whose "Open Pack Folder" is wider than its button
 (#6129), at a fixed clock: that label scrolls (defaultScrollingHelper). The Java oracle
 (VanillaPackScreenOracle) runs a real PackSelectionScreen through these and
 records every GuiGraphicsExtractor call of the screen shown at the end
 (widgets, list backgrounds, scissor, separators, scroll bars, entries with
 their incompatibility tint, hover overlay and arrows, the selection
-outline, the search box, the buttons and their tooltip);
+outline, the buttons and their tooltip);
 examples/probe/pack_screen_fixture runs horizon_client::pack_screen, which the
 game's pack screen is, through the same actions. The call lists must agree.
 
@@ -92,19 +91,18 @@ def cases(count):
         selected = rng.sample(ids, rng.randint(0, len(ids)))
         cx = width // 2
         left, right = cx - 15 - 200, cx + 15
-        top, bottom = 49, height - 33
+        top, bottom = 33, height - 33
 
         def point():
             r = rng.random()
             if r < 0.6:
                 x0 = rng.choice([left, right])
                 row = rng.randint(0, 9)
-                y = top + 2 + 13 + 36 * row + rng.randint(-2, 35)
+                y = top + 17 + 36 * row + rng.randint(-2, 35)
                 x = x0 + rng.choice([rng.randint(0, 40), rng.randint(0, 200), rng.randint(2, 36), rng.randint(194, 199)])
                 return x, min(y, bottom - 1)
-            if r < 0.7:
-                return rng.randint(cx - 100, cx + 99), rng.randint(30, 44)
             if r < 0.8:
+                # The title band above the first row.
                 return rng.choice([left, right]) + rng.randint(0, 199), rng.randint(top, top + 16)
             return rng.randint(0, width - 1), rng.randint(0, bottom - 1)
         def safe(x, y):
@@ -113,22 +111,18 @@ def cases(count):
         actions = []
         for _ in range(rng.choice([0, 1, 2, 4, 8, 14])):
             r = rng.random()
-            if r < 0.7:
-                x, y = point() if r < 0.6 else (rng.randint(cx - 160, cx + 160), rng.randint(height // 2 - 30, height // 2 + 60))
+            if r < 0.85:
+                x, y = point() if r < 0.7 else (rng.randint(cx - 160, cx + 160), rng.randint(height // 2 - 30, height // 2 + 60))
                 if safe(x, y):
                     actions.append({'type': 'click', 'x': x, 'y': y})
-            elif r < 0.8:
+            else:
                 x, y = point()
                 actions.append({'type': 'scroll', 'x': x, 'y': y, 'amount': rng.choice([-3, -1, 1, 2, 0.5])})
-            elif r < 0.93:
-                actions.append({'type': 'type', 'text': rng.choice(['a', 'e', 'pack', 'file', 'Faith', 'z', ' ', 'zzz', 'x32 by'])})
-            else:
-                actions.append({'type': 'erase', 'count': rng.randint(1, 4)})
         mouse = rng.choice([point(), point(), point(), (rng.randint(0, width - 1), rng.randint(0, height - 1)),
                             (rng.randint(cx - 154, cx + 154), height - 26 + rng.randint(0, 19)),
                             (rng.randint(cx - 160, cx + 160), rng.randint(height // 2 - 30, height // 2 + 60))])
         out.append({'width': width, 'height': height, 'inWorld': rng.random() < 0.3, 'packs': packs, 'selected': selected,
-                    'actions': actions, 'mouse': list(mouse), 'blink': rng.choice([0, 100, 400, 650]),
+                    'actions': actions, 'mouse': list(mouse),
                     # Create World's Data Packs screen is the same screen under its own title.
                     'title': 'dataPack.title' if n % 4 == 3 else 'resourcePack.title',
                     'lang': clock.choice(LANGS) if clock.random() < 0.2 else 'en_us',
@@ -175,7 +169,7 @@ def main():
     for e in sorted(set(errors))[:5]:
         print('ORACLE ERROR', e[:1500])
     for c, v, r in bad[:args.detail]:
-        brief = {k: c[k] for k in ('title', 'width', 'height', 'inWorld', 'selected', 'actions', 'mouse', 'blink', 'lang', 'now')}
+        brief = {k: c[k] for k in ('title', 'width', 'height', 'inWorld', 'selected', 'actions', 'mouse', 'lang', 'now')}
         print('MISMATCH', json.dumps(brief)[:1500])
         if v.get('screen') != r.get('screen'):
             print(f'   screen: vanilla {v.get("screen")} | horizon {r.get("screen")}')
