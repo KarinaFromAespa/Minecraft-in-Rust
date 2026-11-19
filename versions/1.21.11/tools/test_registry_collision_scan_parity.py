@@ -93,7 +93,7 @@ def main():
     with (build/'inputs.txt').open('w') as output:
         for fixture in corpus(facts):
             output.write(json.dumps(fixture, separators=(',', ':'))+'\n');count += 1
-    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json',
+    fixture_paths = [build/name for name in ['inputs.txt', 'facts.json', 'definitions.json', 'motion.json',
                                             'block-registry.nbt', 'cached-collision.nbt', 'tags.json']]
     fixtures = base.source_hashes(fixture_paths)
     run(['cargo', 'build', '--locked', '--release', '-p', 'horizon-world', '--example', 'world_probe'], 'compile-rust')
