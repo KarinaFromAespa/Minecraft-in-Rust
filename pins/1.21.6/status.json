@@ -1,0 +1,24 @@
+{
+ "behaviour": {
+  "closed": 0,
+  "note": "Pin/table infrastructure complete (cross-protocol 772 -> 771, world 4438 -> 4435, adapter re-based to 771, 2/6 tables regenerated, 4 reproduce byte-for-byte); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 31 items: 3 rank-1 (pin, save-format step 4438 -> 4435 with 0 schemas/fixes/classes changed, version facts), 17 rank-2 (harness reruns), 10 rank-3 (unproved), 1 rank-5 (17 vanilla classes Horizon does not port). The Lava Chicken music disc (item + sound event, both 1.21.7 additions) is removed; packets are byte-identical between 1.21.7 and 1.21.6.",
+  "total": 31
+ },
+ "harness": {
+  "fail": 13,
+  "note": "CI port-verify run 44496248958 (main@6c5d03f3, success, 1h29m29s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 8: 6 more oracle-compile failures hide in the fail column (datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac CalledProcessError in the harness logs). Real fails: command_parse (slot_source error-message divergence), component_patch (java runtime failure), entity_components (harness Python bug), hotbar (891/905 cases match), light (missing motion tag), save_roundtrip (server closed connection), sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
+  "oracle_fail": 2,
+  "pass": 2,
+  "total": 17
+ },
+ "notes": "CI PROOF run 44496248958 (2026-11-19): verdict failed \u2014 D1 fail (37 dead production tags, inherited from the unported 1.21.11 behaviour), D2 pass (0 errors/0 warnings, 432 protocol tests), D3 fail (0/3 rank-1 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (no harness-subset.txt at run time), D6 blocked (no playtest; deferred by the owner). SlotDisplay codec still uses 26.3 numbering (carried from 1.21.8 via 1.21.7); the eight SlotDisplay entries are identical in 1.21.6 and 1.21.7, same order, so the 772 fix values apply unchanged. jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths. The 1.21.7 oracles compile cleanly against the 1.21.6 jars with zero fixes (horizon-prepare exit 0).",
+ "profile_recorded": "2026-11-19",
+ "protocol": 771,
+ "protocol_tests": {
+  "fail": 0,
+  "note": "CI run 44496248958: 432 pass, none failing (the 2 sandbox-network tests pass on CI, which has network).",
+  "pass": 432
+ },
+ "role": "E6 delta (from 1.21.7)",
+ "version": "1.21.6"
+}

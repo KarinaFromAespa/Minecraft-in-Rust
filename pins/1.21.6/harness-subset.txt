@@ -1,0 +1,11 @@
+# E6 (1.21.x) regression subset, per docs/DELTA-BAR.md (patch 0005).
+# Template 1.21.11; subset frozen by the gate's membership rule — do not
+# pick names from what happens to pass at 1.21.6.
+component_patch
+item_model
+block_properties
+command_parse
+food
+hotbar
+datafix
+save_roundtrip
