@@ -64,7 +64,10 @@ pub trait HeartHost {
     fn create_mob(&mut self, kind: Arc<MobType>, at: Vec3) -> Mob;
     /// `Level.addFreshEntity`.
     fn add_mob(&mut self, m: Mob);
-    /// `ServerLevel.isSpawningMonsters` (rules and difficulty).
+    /// Whether monsters may spawn: difficulty not peaceful and the
+    /// mob-spawning rule on (`CreakingHeartBlockEntity.serverTick`
+    /// checks both inline; 1.21.9 folded them into
+    /// `ServerLevel.isSpawningMonsters`).
     fn spawning_monsters(&self) -> bool;
 }
 

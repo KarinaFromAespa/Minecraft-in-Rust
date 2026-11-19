@@ -334,7 +334,43 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 50/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65 + 4 zero-diff)
+### Rank 2: 51/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67 + 4 zero-diff)
+
+- **Item 67 — `crates/horizon-client/src/mobs/spawning.rs` (1 class,
+  8 methods, 5 named in Horizon) — citations only:** Zombie
+  (finalizeSpawn, hurtServer, killedEntity, setBaby, tick).
+  `setBaby`/`tick` differ only by `isClientSide()` (method)
+  vs `isClientSide` (field). The reinforcement gate is
+  already the 1.21.8 form: `call_reinforcements` checks the
+  `spawn_mobs` rule directly (1.21.9's `isSpawningMonsters()`
+  is the rule plus non-peaceful, equivalent here because the
+  gate is already Hard-only), with the 50 attempts, the
+  7..40 range and the ±0.05 caller/callee charges.
+  `killedEntity` drops its `DamageSource` parameter in
+  1.21.8 (the body is identical); the Rust's `zombie_killed`
+  takes no damage source and `infects` matches (always on
+  Hard, half the time on Normal). The chicken jockeys mount
+  through `riders::link` (no force parameter). The
+  1.21.8-only `dropCustomDeathLoot`/`getSkull` skull drop is
+  already the Rust's form: `drops.rs` drops a charged
+  creeper's victim's head directly (zombie head for a plain
+  zombie; Husk, Drowned, Zombie Villager and Zombified
+  Piglin all override `getSkull` to return empty, verified
+  in the 1.21.8 decomp), with the one-head-per-explosion limit
+  in `creatures.rs` (`droppedSkulls < 1`) — 1.21.9 moved the
+  drop to the charged-creeper loot table instead.
+  `ServerLevel.isSpawningMonsters` is 1.21.9-only
+  (javap: absent from 1.21.8's `ServerLevel`); the three
+  citations reworded to 1.21.8's inline form (difficulty not
+  peaceful and the mob-spawning rule on, as
+  `CreakingHeartBlockEntity.serverTick` checks them). Known
+  gap (vs both, not fixed here): both strider-jockey paths
+  (the game's `spawn_strider_jockey` and finalize's `Ctx`)
+  gate the 1-in-30 zombified-piglin jockey on monsters
+  spawning, but neither vanilla version gates it —
+  `EntityType.create` checks difficulty only, so with
+  doMobSpawning off on a non-peaceful difficulty vanilla
+  still spawns the jockey and the Rust does not.
 
 - **Item 65 — `crates/horizon-client/src/game/raids.rs` (4 classes,
   8 methods, 5 named in Horizon) — zero-diff:** VillageSiege

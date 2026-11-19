@@ -108,7 +108,9 @@ pub trait FinalizeLevel {
     fn structures_with_piece_at(&self, pos: [i32; 3]) -> Vec<String>;
     /// `EnvironmentAttributes.MOON_PHASE` at a block (0 full moon to 7).
     fn moon_phase(&self, pos: [i32; 3]) -> usize;
-    /// `ServerLevel.isSpawningMonsters`.
+    /// Whether monsters may spawn: difficulty not peaceful and the
+    /// mob-spawning rule on (1.21.8 checks both inline at each site;
+    /// 1.21.9 folded them into `ServerLevel.isSpawningMonsters`).
     fn spawning_monsters(&self) -> bool;
     /// `Level.noCollision(AABB)`.
     fn no_collision(&self, bounds: Aabb) -> bool;
