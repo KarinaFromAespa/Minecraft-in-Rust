@@ -334,7 +334,42 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 47/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61 + 4 zero-diff)
+### Rank 2: 48/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62 + 4 zero-diff)
+
+- **Item 62 — `crates/horizon-client/src/mobs/tame.rs` (5 classes,
+  10 methods, 5 named in Horizon) — zero-diff:** Wolf (4;
+  aiStep, getTexture, mobInteract, tick), WolfModel (3;
+  setupAnim), CatRenderer (1), CatVariants (1), WolfVariants
+  (1). `Wolf` differs only by `isClientSide()` (method) vs
+  `isClientSide` (field) at four sites; the shake start/cancel
+  (events 8/56), the anger update and the bone-tame gate all
+  match, and `getTexture` has no diff at all — the Rust's
+  `texture()` (tame → `_tame`, else angry → `_angry`, else
+  wild) matches it. The variant registrations differ only by
+  the `ClientAsset` form: 1.21.9 wraps each path in
+  `ClientAsset.ResourceTexture`, 1.21.8 passes a plain
+  `ClientAsset` — the paths are identical, and no
+  `ClientAsset`/`ResourceTexture` type exists in the Rust.
+  The 9 wolf variants and their biome selectors match
+  `WolfVariants.bootstrap` exactly (pale fallback, spotted
+  savanna, snowy grove, black old-growth pine taiga, ashen
+  snowy taiga, rusty jungle, woods forest, chestnut
+  old-growth spruce taiga, striped badlands), as do the 11
+  cat variants. WolfModel has no decomp diff: the bridge
+  pattern again (1.21.8 exactly 44 bytes larger; only the
+  bridge `setupAnim(EntityRenderState)` vs
+  `setupAnim(Object)`). CatRenderer also has no decomp diff
+  and identical javap signatures — its one changed method is
+  `extractRenderState`, whose bytecode differs only by
+  `assetInfo()` returning `ClientAsset` vs
+  `ClientAsset$ResourceTexture` (the rest is constant-pool
+  renumbering), which the decompiler normalises away. Known
+  gap (vs both, not fixed here): the Rust appends `_baby`
+  to a baby wolf's texture, but no `wolf_baby.png` exists in
+  either jar — vanilla renders a baby wolf with the same
+  texture, scaled — so a baby wolf's texture lookup misses
+  and it draws nothing. No check run: no files changed
+  since item 55's 0/0 check (item-37 precedent).
 
 - **Item 61 — `crates/horizon-client/src/mobs/allay.rs` (3 classes,
   11 methods, 5 named in Horizon) — zero-diff:** AllayModel (6;
