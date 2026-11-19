@@ -8,7 +8,7 @@ use horizon_client::{
     mobs::{Mob, Species, render},
 };
 
-/// `CarriedBlockLayer.submit`: block models use coordinates in [0, 1].
+/// `CarriedBlockLayer.render`: block models use coordinates in [0, 1].
 fn carried_block_matrix(base: glam::Mat4) -> glam::Mat4 {
     base * glam::Mat4::from_translation(glam::Vec3::new(0.0, 0.6875, -0.75))
         * glam::Mat4::from_rotation_x(20.0f32.to_radians())
@@ -66,7 +66,7 @@ fn antenna_block_matrix(head: glam::Mat4, flowerbed_shift: bool) -> glam::Mat4 {
     }
 }
 
-/// `ElderGuardianParticle.lifetime`.
+/// `MobAppearanceParticle.lifetime`.
 pub(super) const APPARITION_TICKS: i32 = 30;
 
 impl Game<'_> {
@@ -74,7 +74,7 @@ impl Game<'_> {
     pub(super) fn tick_apparition(&mut self) {
         self.creatures.elder_apparition = (self.creatures.elder_apparition - 1).max(0);
     }
-    /// `ElderGuardianParticleGroup`: the ghostly elder guardian that swings
+    /// `MobAppearanceParticle`: the ghostly elder guardian that swings
     /// up in front of the camera while the curse is laid, fading in and out.
     pub(super) fn elder_apparition_geometry(&self, alpha: f64, out: &mut Vec<Vertex>) {
         let left = self.creatures.elder_apparition;
@@ -176,7 +176,7 @@ impl Game<'_> {
             render::draw(flag, m, &flag_poses, r, color, light, 0, out);
         }
     }
-    /// `BlockModelRenderState.submit` of a block state's baked model, as every block layer of
+    /// `BlockRenderDispatcher.renderSingleBlock` of a block state's baked model, as every block layer of
     /// a mob draws it (`CarriedBlockLayer`, `MushroomCowMushroomLayer`, `SnowGolemHeadLayer`,
     /// `IronGolemFlowerLayer`, `BlockDecorationLayer`): lit, through
     /// `Sheets.cutoutBlockItemSheet` or `translucentBlockItemSheet`, whose `ITEM_CUTOUT` and
@@ -397,11 +397,11 @@ impl Game<'_> {
         mut skin: Option<&mut super::creatures::Skinned>,
         out: &mut Vec<Vertex>,
     ) {
-        // ItemInHandLayer submits with OverlayTexture.NO_OVERLAY: no hurt tint.
+        // ItemInHandLayer renders with OverlayTexture.NO_OVERLAY: no hurt tint.
         for (item, off_hand) in [(&mob.extra.main_hand, false), (&mob.extra.off_hand, true)] {
             let Some(item) = item else { continue };
             let left = off_hand != mob.main_arm_left();
-            // PlayerItemInHandLayer.submitArmWithItem (avatars only): a spyglass
+            // PlayerItemInHandLayer.renderArmWithItem (players only): a spyglass
             // in use, with no swing in progress, is held to the eye (`heldOnHead`).
             let spyglass_to_eye = &**item == "minecraft:spyglass"
                 && (&*mob.kind.id == "minecraft:player" || mob.species() == Species::Mannequin)
