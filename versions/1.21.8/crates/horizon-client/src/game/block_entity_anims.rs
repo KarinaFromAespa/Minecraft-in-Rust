@@ -699,8 +699,9 @@ impl Game<'_> {
             Some(BlockEntity::Conduit(target)) => Some(*target),
             _ => None,
         };
-        // EntityReference.getLivingEntity: a reference no loaded mob answers
-        // is no target, and no new one is chosen in its place this time.
+        // EntityReference.get(ref, level, LivingEntity.class): a reference
+        // no loaded mob answers is no target, and no new one is chosen in
+        // its place this time.
         let current = match saved {
             Some(Some(uuid)) => Some(self.mob_by_uuid(uuid)),
             Some(None) => None,

@@ -334,7 +334,26 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 52/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69 + 4 zero-diff)
+### Rank 2: 53/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71 + 4 zero-diff)
+
+- **Item 71 — `crates/horizon-client/src/game/block_entity_anims.rs`
+  (3 classes, 6 methods, 5 named in Horizon) — citations only:**
+  ConduitBlockEntity (4; clientTick, selectNewTarget,
+  updateAndAttackTarget), BellBlockEntity (1; updateEntities),
+  TheEndGatewayBlockEntity (1; triggerCooldown). The conduit
+  resolves its target through `EntityReference.get(ref, level,
+  LivingEntity.class)` in 1.21.8; 1.21.9's convenience
+  `EntityReference.getLivingEntity(ref, level)` (three sites)
+  and the `EntityReference.of(entity)` factory in
+  `selectNewTarget` do not exist in 1.21.8 (the constructor
+  is used instead) — the same resolution either way, and the
+  one Rust citation reworded to the 1.21.8 form. The target
+  rules match: an unanswered reference is no target with no
+  replacement chosen that tick, a living target inside 8
+  blocks is kept, otherwise a random hostile in water or rain
+  within the ±8 box is picked, and the target takes 4 magic
+  damage. Bell and gateway differ only by `isClientSide()`
+  (method) vs `isClientSide` (field).
 
 - **Item 69 — `crates/horizon-client/src/game/remote_mob_use.rs`
   (2 classes, 7 methods, 5 named in Horizon) — zero-diff:**
