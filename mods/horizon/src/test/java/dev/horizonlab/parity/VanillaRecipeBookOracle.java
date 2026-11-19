@@ -54,7 +54,7 @@ public final class VanillaRecipeBookOracle {
     }
 
     static String compound(CompoundTag tag) {
-        List<String> keys = new ArrayList<>(tag.keySet());
+        List<String> keys = new ArrayList<>(tag.getAllKeys());
         Collections.sort(keys);
         StringBuilder out = new StringBuilder();
         for (String k : keys) {

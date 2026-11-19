@@ -65,7 +65,7 @@ public final class VanillaScoreboardOracle {
     static JsonElement canon(Tag tag) {
         if (tag instanceof CompoundTag c) {
             JsonObject o = new JsonObject();
-            for (String k : new TreeSet<>(c.keySet())) {
+            for (String k : new TreeSet<>(c.getAllKeys())) {
                 o.add(k, canon(c.get(k)));
             }
             return o;
@@ -81,22 +81,22 @@ public final class VanillaScoreboardOracle {
             return new JsonPrimitive("'" + s);
         }
         if (tag instanceof ByteTag b) {
-            return new JsonPrimitive(b.value() + "b");
+            return new JsonPrimitive(b.getAsByte() + "b");
         }
         if (tag instanceof ShortTag s) {
-            return new JsonPrimitive(s.value() + "s");
+            return new JsonPrimitive(s.getAsShort() + "s");
         }
         if (tag instanceof IntTag i) {
-            return new JsonPrimitive(i.value() + "i");
+            return new JsonPrimitive(i.getAsInt() + "i");
         }
         if (tag instanceof LongTag l) {
-            return new JsonPrimitive(l.value() + "L");
+            return new JsonPrimitive(l.getAsLong() + "L");
         }
         if (tag instanceof FloatTag f) {
-            return new JsonPrimitive("f:" + Integer.toHexString(Float.floatToRawIntBits(f.value())));
+            return new JsonPrimitive("f:" + Integer.toHexString(Float.floatToRawIntBits(f.getAsFloat())));
         }
         if (tag instanceof DoubleTag d) {
-            return new JsonPrimitive("d:" + Long.toHexString(Double.doubleToRawLongBits(d.value())));
+            return new JsonPrimitive("d:" + Long.toHexString(Double.doubleToRawLongBits(d.getAsDouble())));
         }
         if (tag instanceof IntArrayTag a) {
             JsonObject o = new JsonObject();

@@ -173,7 +173,7 @@ public final class VanillaTradingOracle {
             case CompoundTag c -> {
                 sb.append('{');
                 boolean first = true;
-                for (String k : new TreeSet<>(c.keySet())) {
+                for (String k : new TreeSet<>(c.getAllKeys())) {
                     if (!first) sb.append(',');
                     first = false;
                     quote(k, sb);
@@ -190,13 +190,13 @@ public final class VanillaTradingOracle {
                 }
                 sb.append(']');
             }
-            case StringTag s -> quote(s.value(), sb);
-            case ByteTag b -> sb.append(b.value()).append('b');
-            case ShortTag s -> sb.append(s.value()).append('s');
-            case IntTag i -> sb.append(i.value());
-            case LongTag l -> sb.append(l.value()).append('L');
-            case FloatTag f -> sb.append("f:").append(Integer.toHexString(Float.floatToRawIntBits(f.value())));
-            case DoubleTag d -> sb.append("d:").append(Long.toHexString(Double.doubleToRawLongBits(d.value())));
+            case StringTag s -> quote(s.getAsString(), sb);
+            case ByteTag b -> sb.append(b.getAsByte()).append('b');
+            case ShortTag s -> sb.append(s.getAsShort()).append('s');
+            case IntTag i -> sb.append(i.getAsInt());
+            case LongTag l -> sb.append(l.getAsLong()).append('L');
+            case FloatTag f -> sb.append("f:").append(Integer.toHexString(Float.floatToRawIntBits(f.getAsFloat())));
+            case DoubleTag d -> sb.append("d:").append(Long.toHexString(Double.doubleToRawLongBits(d.getAsDouble())));
             case ByteArrayTag a -> {
                 sb.append("[B;");
                 byte[] v = a.getAsByteArray();

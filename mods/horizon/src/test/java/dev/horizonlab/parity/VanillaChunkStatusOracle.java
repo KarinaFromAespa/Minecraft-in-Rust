@@ -29,7 +29,7 @@ public final class VanillaChunkStatusOracle {
                 if(tag instanceof StringTag)out.println("lookup "+ChunkStatus.byName(row.get(1).getAsString()).getName());
                 var result=ChunkStatus.CODEC.parse(NbtOps.INSTANCE,tag).result();
                 if(result.isEmpty())out.println("decoded error");
-                else {var status=result.get();var encoded=ChunkStatus.CODEC.encodeStart(NbtOps.INSTANCE,status).getOrThrow();out.println("decoded "+status.getIndex()+" "+((StringTag)encoded).value());}
+                else {var status=result.get();var encoded=ChunkStatus.CODEC.encodeStart(NbtOps.INSTANCE,status).getOrThrow();out.println("decoded "+status.getIndex()+" "+((StringTag)encoded).getAsString());}
             }
         }
     }

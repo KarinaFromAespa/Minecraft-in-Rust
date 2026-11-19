@@ -570,14 +570,14 @@ public final class VanillaChunkGenerationOracle {
             case net.minecraft.nbt.LongTag t -> out.append("l").append(t.longValue());
             case net.minecraft.nbt.FloatTag t -> out.append("f").append(Float.floatToRawIntBits(t.floatValue()));
             case net.minecraft.nbt.DoubleTag t -> out.append("d").append(Double.doubleToRawLongBits(t.doubleValue()));
-            case net.minecraft.nbt.StringTag t -> out.append('"').append(t.value().replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+            case net.minecraft.nbt.StringTag t -> out.append('"').append(t.getAsString().replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
             case net.minecraft.nbt.ByteArrayTag t -> { out.append("B["); for (byte v : t.getAsByteArray()) out.append(v).append(','); out.append(']'); }
             case net.minecraft.nbt.IntArrayTag t -> { out.append("I["); for (int v : t.getAsIntArray()) out.append(v).append(','); out.append(']'); }
             case net.minecraft.nbt.LongArrayTag t -> { out.append("L["); for (long v : t.getAsLongArray()) out.append(v).append(','); out.append(']'); }
             case net.minecraft.nbt.ListTag t -> { out.append('['); for (var item : t) { canonical(item, out); out.append(','); } out.append(']'); }
             case net.minecraft.nbt.CompoundTag t -> {
                 out.append('{');
-                for (String key : new TreeSet<>(t.keySet())) { out.append(key).append('='); canonical(t.get(key), out); out.append(','); }
+                for (String key : new TreeSet<>(t.getAllKeys())) { out.append(key).append('='); canonical(t.get(key), out); out.append(','); }
                 out.append('}');
             }
             default -> throw new IllegalStateException(tag.getClass().getName());

@@ -89,13 +89,13 @@ public final class ParityData {
 
     private static void canon(Tag tag, StringBuilder out) {
         switch (tag) {
-            case ByteTag t -> out.append(t.value()).append('b');
-            case ShortTag t -> out.append(t.value()).append('s');
-            case IntTag t -> out.append(t.value());
-            case LongTag t -> out.append(t.value()).append('L');
-            case FloatTag t -> out.append(t.value()).append('f');
-            case DoubleTag t -> out.append(t.value()).append('d');
-            case StringTag t -> out.append('"').append(t.value().replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
+            case ByteTag t -> out.append(t.getAsByte()).append('b');
+            case ShortTag t -> out.append(t.getAsShort()).append('s');
+            case IntTag t -> out.append(t.getAsInt());
+            case LongTag t -> out.append(t.getAsLong()).append('L');
+            case FloatTag t -> out.append(t.getAsFloat()).append('f');
+            case DoubleTag t -> out.append(t.getAsDouble()).append('d');
+            case StringTag t -> out.append('"').append(t.getAsString().replace("\\", "\\\\").replace("\"", "\\\"")).append('"');
             case ByteArrayTag t -> {
                 out.append("[B;");
                 byte[] a = t.getAsByteArray();
@@ -125,7 +125,7 @@ public final class ParityData {
             case CompoundTag t -> {
                 out.append('{');
                 boolean first = true;
-                for (String key : new TreeSet<>(t.keySet())) {
+                for (String key : new TreeSet<>(t.getAllKeys())) {
                     if (!first) out.append(',');
                     first = false;
                     out.append(key).append(':');

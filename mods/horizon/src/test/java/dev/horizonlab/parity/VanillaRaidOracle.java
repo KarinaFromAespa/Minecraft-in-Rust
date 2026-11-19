@@ -326,20 +326,20 @@ public final class VanillaRaidOracle {
     /** NBT as canonical text: sorted compound keys, exact numbers. */
     static String canon(Tag tag) {
         return switch (tag) {
-            case ByteTag b -> b.value() + "b";
-            case ShortTag v -> v.value() + "s";
-            case IntTag v -> Integer.toString(v.value());
-            case LongTag v -> v.value() + "L";
-            case FloatTag v -> "f" + bits(v.value());
-            case DoubleTag v -> "d" + bits(v.value());
-            case StringTag v -> "\"" + v.value() + "\"";
+            case ByteTag b -> b.getAsByte() + "b";
+            case ShortTag v -> v.getAsShort() + "s";
+            case IntTag v -> Integer.toString(v.getAsInt());
+            case LongTag v -> v.getAsLong() + "L";
+            case FloatTag v -> "f" + bits(v.getAsFloat());
+            case DoubleTag v -> "d" + bits(v.getAsDouble());
+            case StringTag v -> "\"" + v.getAsString() + "\"";
             case ByteArrayTag v -> { StringBuilder s = new StringBuilder("[B;"); for (byte x : v.getAsByteArray()) s.append(x).append(","); yield s + "]"; }
             case IntArrayTag v -> { StringBuilder s = new StringBuilder("[I;"); for (int x : v.getAsIntArray()) s.append(x).append(","); yield s + "]"; }
             case LongArrayTag v -> { StringBuilder s = new StringBuilder("[L;"); for (long x : v.getAsLongArray()) s.append(x).append(","); yield s + "]"; }
             case ListTag v -> { StringBuilder s = new StringBuilder("["); for (Tag x : v) s.append(canon(x)).append(","); yield s + "]"; }
             case CompoundTag v -> {
                 StringBuilder s = new StringBuilder("{");
-                for (String k : new TreeSet<>(v.keySet())) s.append(k).append(":").append(canon(v.get(k))).append(",");
+                for (String k : new TreeSet<>(v.getAllKeys())) s.append(k).append(":").append(canon(v.get(k))).append(",");
                 yield s + "}";
             }
             default -> "?";
