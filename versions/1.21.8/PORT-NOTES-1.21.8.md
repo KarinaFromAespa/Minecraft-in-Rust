@@ -334,7 +334,56 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 41/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52 + 4 zero-diff)
+### Rank 2: 42/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52 + 4 zero-diff)
+
+- **Item 27 — `crates/horizon-client-render/src/font.rs` (30 classes,
+  96 methods, 5 named in Horizon) — zero-diff, citations only:**
+  FontSet (20; computeGlyphInfo, getGlyph, getRandomGlyph),
+  FontManager (15; getFontSetRaw), UnihexProvider$Glyph$1 (8),
+  TrueTypeGlyphProvider (7), UnihexProvider$Glyph (6),
+  TrueTypeGlyphProvider$Glyph (5), Font$GlyphVisitor$1 (5),
+  Font$GlyphVisitor (4), BitmapProvider$Glyph (4),
+  FontTexture (2; add), FontTexture$Node (2), BitmapProvider (2),
+  UnihexProvider (2), plus 17 one-or-zero-method classes
+  (GlyphBitmap, Font$Provider, FontManager$CachedFontProvider and
+  its CachedEntry, FontSet$1/$2/DelayedBake/SelectedGlyphs/Source,
+  UnihexProvider$Glyph$2, FontDescription and its
+  AtlasSprite/PlayerSprite/Resource, TrueTypeGlyphProvider$Glyph$1
+  /GlyphEntry, BitmapProvider$Glyph$1). 1.21.9 rewrote the font
+  plumbing — `UnbakedGlyph`/`GlyphBitmap` replace `GlyphInfo`/
+  `SheetGlyphInfo`, `SelectedGlyphs`/`DelayedBake`/`GlyphStitcher`
+  replace the direct glyph/info caches, `CachedFontProvider`
+  replaces the single-entry `lastFontSetCache`, and the new
+  `FontDescription` (Resource/AtlasSprite/PlayerSprite, absent
+  from the 1.21.8 jar) lets a style name a sprite font — but every
+  observable rule the Rust models is identical: the provider
+  selection and fishy rule (`computeGlyphInfo` picks the first
+  provider's glyph for `any` and the first non-fishy one for the
+  obfuscated pick, under both names), the bitmap/unihex
+  (width/2+1, 0.5 offsets)/TrueType/space advance formulas, the
+  by-width obfuscation bucketing (`ceil(advance)`, MISSING
+  excluded), the 0.01 UV inset, the white and missing glyphs.
+  The one semantic move, obfuscation's random source (1.21.9
+  passes the `Font`'s own random, 1.21.8 uses `FontSet`'s shared
+  static `RANDOM`, and 1.21.8's `Font.random` field is never read),
+  is unobservable — both are unseeded single-purpose streams —
+  and the Rust's per-Font stream, reseeded per frame for
+  determinism, is Horizon's own either way. Citations reworded:
+  `FontDescription.DEFAULT` → `Style.DEFAULT_FONT`,
+  `SelectedGlyphs` → `GlyphInfoFilter` (4 sites),
+  `GlyphBitmap` → `SheetGlyphInfo` (2 sites), `Font.random` →
+  `FontSet.RANDOM` with the stream note. Deferred: the
+  `FontDescription` handling in `component.rs`
+  (`PlayerSprite`/`AtlasSprite.defaultFallback`, rank-3 item 435)
+  and the `FontDescription.Resource` citation in `text.rs`
+  (rank-2 item 73) — the Rust's `inline_object` JSON parsing is
+  not 1.21.9's codec (which only serializes Resource), so those
+  items adjudicate it. Known gaps (vs both): `fishy_advance`
+  tests only the plain advance, while vanilla tests the bold
+  advance too (a 31.5-advance bitmap glyph is fishy in vanilla,
+  not in the Rust); the obfuscation candidates are the glyphs
+  already in the atlas (or below U+0250), not every glyph of the
+  font set as vanilla picks.
 
 - **Item 52 — `crates/horizon-client/src/game/recipe_book.rs` (2
   classes, 18 methods, 6 named in Horizon) — zero-diff, citations

@@ -19,11 +19,11 @@ use std::{
     sync::Arc,
 };
 
-/// `FontDescription.DEFAULT`.
+/// `Style.DEFAULT_FONT`.
 pub const DEFAULT: &str = "minecraft:default";
 
 /// A glyph ready to draw: atlas UVs and its box relative to the pen
-/// position (GlyphBitmap left/top/right/bottom), in GUI pixels.
+/// position (SheetGlyphInfo left/top/right/bottom), in GUI pixels.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Glyph {
     pub rect: Option<Rect>,
@@ -104,8 +104,8 @@ struct FontSet {
     providers: Vec<Provider>,
     /// Every char drawn looks up here, so the hasher is Fx, not SipHash.
     glyphs: crate::fast_hash::FxHashMap<char, Glyph>,
-    /// `SelectedGlyphs.nonFishy` of the characters whose first glyph has a fishy advance (the
-    /// others use `glyphs`): what obfuscated text draws.
+    /// `GlyphInfoFilter`'s non-fishy glyph of the characters whose first glyph has a fishy
+    /// advance (the others use `glyphs`): what obfuscated text draws.
     non_fishy: crate::fast_hash::FxHashMap<char, Glyph>,
     /// `glyphsByWidth` for obfuscated text (built on first use), by `ceil(advance)`.
     by_width: Option<HashMap<i32, Vec<char>>>,
@@ -122,7 +122,11 @@ struct Cache {
     /// Every font by id, the default one first (the common lookup).
     sets: Vec<(String, FontSet)>,
     region: Region,
-    /// `Font.random`: picks obfuscated glyphs.
+    /// Obfuscated glyphs draw from this stream. Vanilla 1.21.8 draws them
+    /// from `FontSet`'s shared static `RANDOM`, 1.21.9 from the `Font`'s
+    /// own `random`; both are unseeded single-purpose streams, so the
+    /// distinction is unobservable. The game reseeds this one per frame
+    /// for deterministic obfuscation.
     random: horizon_core::random::LegacyRandom,
 }
 pub struct Font {
@@ -275,8 +279,8 @@ fn used_width(pixels: &[u8], stride: u32, (cx, cy, cw, ch): (u32, u32, u32, u32)
         .map_or(0, |x| x + 1)
 }
 /// `FontSet.hasFishyAdvance`: an advance under 0 or over 32. Such a glyph is still the one drawn
-/// (`SelectedGlyphs.any` is the first provider's); only `SelectedGlyphs.nonFishy`, what obfuscated
-/// text draws, moves on to the next provider that has the character. Packs rely on it: a `space`
+/// (`GlyphInfoFilter`'s first glyph is the first provider's); only the non-fishy one, what
+/// obfuscated text draws, moves on to the next provider that has the character. Packs rely on it: a `space`
 /// provider's kerning runs from -512 to 512, and a tall bitmap's glyphs pass 32. Horizon keeps one
 /// advance per glyph and tests it here.
 fn fishy_advance(advance: f32) -> bool {
@@ -498,7 +502,7 @@ impl TrueType {
             }
         });
         let os = self.oversample;
-        // GlyphBitmap: bitmap_left / bitmap_top over the oversampling, and
+        // SheetGlyphInfo: bitmap_left / bitmap_top over the oversampling, and
         // top = 7 - bearingTop.
         let (left, top) = (bounds.min.x / os, 7.0 + bounds.min.y / os);
         (
@@ -713,7 +717,7 @@ impl Font {
                     pending: Vec::new(),
                     full: false,
                 },
-                // `Font.random`: `RandomSource.create()`.
+                // `FontSet.RANDOM`: `RandomSource.create()`.
                 random: crate::random_source::create(),
             }),
             generation: std::cell::Cell::new(next_generation()),
@@ -846,9 +850,9 @@ impl Font {
         set.glyphs.insert(c, glyph);
         glyph
     }
-    /// `FontSet.getRandomGlyph`'s `SelectedGlyphs.nonFishy`: the glyph of the first provider whose
-    /// advance is not fishy, else the missing glyph. A character whose first glyph is fine has
-    /// the same one for both.
+    /// `FontSet.getRandomGlyph`'s non-fishy glyph (`GlyphInfoFilter`): the glyph of the first
+    /// provider whose advance is not fishy, else the missing glyph. A character whose first glyph
+    /// is fine has the same one for both.
     fn glyph_non_fishy(&self, id: &str, c: char) -> Glyph {
         let any = self.glyph_of(id, c);
         if !fishy_advance(any.advance) {
@@ -1654,9 +1658,9 @@ mod tests {
         assert!(!font.take_patches().is_empty());
     }
 
-    /// `FontSet.computeGlyphInfo`: `SelectedGlyphs.any` is the first provider's glyph, fishy
-    /// advance or not, and is what is drawn and measured; `nonFishy`, what obfuscated text draws,
-    /// is the first provider whose advance is within 0..32, else the missing glyph.
+    /// `FontSet.computeGlyphInfo`: `GlyphInfoFilter`'s first glyph is the first provider's,
+    /// fishy advance or not, and is what is drawn and measured; the non-fishy one, what obfuscated
+    /// text draws, is the first provider whose advance is within 0..32, else the missing glyph.
     #[test]
     fn a_fishy_glyph_is_drawn_and_only_obfuscated_text_falls_through() {
         // 64 opaque columns: the first provider's 'a' advances 65, past the 32 vanilla
