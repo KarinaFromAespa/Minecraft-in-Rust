@@ -1685,5 +1685,33 @@ Rank 2 (492 items, in progress 2026-11-19)
   - 437 no-change (VibrationSystem): the ChunkPos rename pattern in
     `areAdjacentChunksTicking` (same 3x3 loop); CODEC final ->
     non-final plus access flags.
-- Rank-2 A-batches 1-13: 130 items closed (24 changed, 106 no-change).
-  work-items.json rank2.closed = 130 on 2026-11-19.
+- A-batch 14 (438, 440, 441, 443, 444, 445, 446, 447, 448, 449),
+  verified 2026-11-19, ported the same day:
+  - 438 no-change (ChannelAccess, AbstractSoundInstance): access flags
+    only plus the requireNonNull outer-this pattern (26.1 only).
+  - 440 no-change (MapItemSavedData$MapDecorationLocation): record ctor
+    private -> package-private.
+  - 441 no-change (DebugLevelSource): the ChunkPos rename pattern
+    (`x()`/`z()` -> record fields), same logic.
+  - 443 no-change (MobRenderer): byte-identical after normalization.
+  - 444 no-change (ServerOpList): byte-identical after normalization.
+  - 445 no-change (WaypointTransmitter): ChunkPos `x()`/`z()` ->
+    record fields in the view-distance check, same logic.
+  - 446 CHANGED (CopperGolemOxidationLevels): the oxidation texture
+    filenames differ — 26.1 `copper_golem_exposed/weathered/oxidized`
+    vs 1.21.11 `exposed/weathered/oxidized_copper_golem` (verified
+    from both jars' asset listings; the unaffected level is
+    `copper_golem.png` in both). Ported: the three paths in
+    `block_entity_render.rs` (the statue renderer reuses the entity
+    texture files) + six in its tests renamed to the 1.21.11 forms.
+    The mob renderer resolves textures through the prepared model /
+    atlas system and has no hardcoded paths.
+  - 447 no-change (WalkNodeEvaluator$1): PathType renames in the
+    switch map (FIRE -> DAMAGE_FIRE, DAMAGING -> DAMAGE_OTHER),
+    already ported in item 383.
+  - 448 no-change (MoonBrightnessCheck): byte-identical after
+    normalization.
+  - 449 no-change (FeatureSorter$StepFeatureData): record ctor private
+    -> package-private.
+- Rank-2 A-batches 1-14: 140 items closed (25 changed, 115 no-change).
+  work-items.json rank2.closed = 140 on 2026-11-19.

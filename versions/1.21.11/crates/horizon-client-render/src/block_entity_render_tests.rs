@@ -1459,15 +1459,15 @@ fn copper_statue_cache_covers_weathering_waxing_and_all_poses() {
         ("copper_golem_statue", "entity/copper_golem/copper_golem"),
         (
             "exposed_copper_golem_statue",
-            "entity/copper_golem/copper_golem_exposed",
+            "entity/copper_golem/exposed_copper_golem",
         ),
         (
             "weathered_copper_golem_statue",
-            "entity/copper_golem/copper_golem_weathered",
+            "entity/copper_golem/weathered_copper_golem",
         ),
         (
             "oxidized_copper_golem_statue",
-            "entity/copper_golem/copper_golem_oxidized",
+            "entity/copper_golem/oxidized_copper_golem",
         ),
         (
             "waxed_copper_golem_statue",
@@ -1475,15 +1475,15 @@ fn copper_statue_cache_covers_weathering_waxing_and_all_poses() {
         ),
         (
             "waxed_exposed_copper_golem_statue",
-            "entity/copper_golem/copper_golem_exposed",
+            "entity/copper_golem/exposed_copper_golem",
         ),
         (
             "waxed_weathered_copper_golem_statue",
-            "entity/copper_golem/copper_golem_weathered",
+            "entity/copper_golem/weathered_copper_golem",
         ),
         (
             "waxed_oxidized_copper_golem_statue",
-            "entity/copper_golem/copper_golem_oxidized",
+            "entity/copper_golem/oxidized_copper_golem",
         ),
     ];
     let poses = ["standing", "running", "sitting", "star"];

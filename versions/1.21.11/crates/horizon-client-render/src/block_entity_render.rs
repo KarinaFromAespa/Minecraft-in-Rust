@@ -510,15 +510,15 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
         ("copper_golem_statue", "entity/copper_golem/copper_golem"),
         (
             "exposed_copper_golem_statue",
-            "entity/copper_golem/copper_golem_exposed",
+            "entity/copper_golem/exposed_copper_golem",
         ),
         (
             "weathered_copper_golem_statue",
-            "entity/copper_golem/copper_golem_weathered",
+            "entity/copper_golem/weathered_copper_golem",
         ),
         (
             "oxidized_copper_golem_statue",
-            "entity/copper_golem/copper_golem_oxidized",
+            "entity/copper_golem/oxidized_copper_golem",
         ),
     ] {
         if unwaxed == prefix {
