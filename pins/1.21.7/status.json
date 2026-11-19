@@ -1,0 +1,24 @@
+{
+  "behaviour": {
+    "closed": 5,
+    "total": 5,
+    "note": "Behaviour port complete 2026-11-19 (Stream 3): all 5 items closed, verified against the 1.21.7/1.21.8 jars (named jars from the publish pipeline; 1.21.7 jar sha1s match research-lock). Item 1 (version.rs regen): already done by the mechanical publish; values confirmed against SharedConstants (4438/772/64/81). Item 2 (save-format 4440->4438): server jar comparison shows only DetectedVersion + SharedConstants changed, zero datafix classes, zero schemas/fixes. Item 3 (facts): no stale 4440 in code; DATA_VERSION 4438 in version.rs. Item 4 (SharedConstants): exactly 3 constants differ (WORLD_VERSION, VERSION_STRING, snapshot protocol 259->258, which the tree never references); 0 methods. Item 5 (6 unported classes): DetectedVersion + ReportEnvironment differ only in the version-string/data-version literals; GlProgram, VertexArrayCache, VertexFormat are OpenGL/GPU code Horizon does not port (wgpu renderer); GraphicsWorkarounds was removed by Mojang. No Rust code changes needed. Manifest pin: Mojang republished the 1.21.7 version JSON (live 5149e9aa, jars byte-identical); added to accepted_manifest_sha1 (283bff6)."
+  },
+  "harness": {
+    "pass": 2,
+    "oracle_fail": 2,
+    "fail": 13,
+    "total": 17,
+    "note": "CI port-verify run 44441686979 (main@d37f448, success, 1h35m41s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 9: 7 more oracle-compile failures hide in the fail column (component_patch, datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac errors in the harness logs). Real fails: command_parse, entity_components (harness Python bug), hotbar, light, save_roundtrip (launch + save-format divergence), sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail."
+  },
+  "notes": "CI PROOF run 44441686979 (2026-11-19): verdict failed \u2014 D1 fail (37 dead production tags), D2 pass (0 errors/0 warnings, 432 protocol tests), D3 pass (5/5 items), D4 blocked on the stamp quirk in the CI judge (local re-check with the recorded profile: FAIL \u2014 datafix + save_roundtrip both fail), D5 blocked on the missing subset file at dispatch (local re-check with the E6 subset now in the pin: FAIL \u2014 7 of 8 failing, only block_properties passes), D6 blocked (no playtest.md \u2014 deferred by owner). D6 deferred, never claimed. TAG AUDIT 2026-11-19 (local, jar-extracted tag inventory: 524 tags, 16 registries): 37 dead production tags, 6 dead test-only (deliberate fixtures) \u2014 CI confirms the same 37. All 37 are 26.3-era/1.21.8+-era tags the inherited 26.3-base code references that 1.21.7 data does not define. NOT triaged in this stream: they are inherited from the unported 1.21.11 behaviour, and the fixes belong at the 1.21.11 level, flowing down the chain \u2014 triaging here would duplicate Stream 2. Locations: dead-tags-1.21.7.json in the Stream 3 workdir. SlotDisplay codec still uses 26.3 numbering (carried from 1.21.8); five generated tables are hand-corrected to it and must be regenerated to old->pin when the behaviour port rewires the codec. jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths: 1.21.7 jars reference it but Mojang never shipped the jar.",
+  "profile_recorded": "2026-11-19",
+  "protocol": 772,
+  "protocol_tests": {
+    "pass": 432,
+    "fail": 0,
+    "note": "CI run 44441686979: 432 pass, none failing (the 2 sandbox-network tests pass on CI, which has network)."
+  },
+  "role": "E6 delta (from 1.21.8)",
+  "version": "1.21.7"
+}

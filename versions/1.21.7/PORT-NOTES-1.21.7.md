@@ -228,11 +228,47 @@ under an hour, as the delta size suggests.
 
 Pin set (protocol 772, world 4438); 2 of 6 tables regenerated, 4
 reproduce byte-for-byte; no packet or adapter change (same protocol);
-workspace compiles (0 errors, 0 warnings); protocol tests 430 pass /
-2 fail (sandbox-network pair only); prepare verified ok end-to-end.
-Behaviour port complete 2026-11-19 (5/5, see below). Harness profile: 2 pass / 2 oracle /
-13 fail of 17 measured locally (true oracle count 9; the other six
-fails are real verdicts or environmental). CI port-verify to confirm.
+workspace compiles (0 errors, 0 warnings); protocol tests 432 pass /
+0 fail on CI (430/2 locally — the sandbox-network pair passes where
+there is network); prepare verified ok end-to-end.
+Behaviour port complete 2026-11-19 (5/5, see below). Harness profile:
+CI run 44441686979 (main@d37f448, success, 1h35m41s): 2 pass / 2 oracle /
+13 fail of 17 (true oracle count 9 — see "CI proof" below). Verdict:
+failed (D1 fail, D2 pass, D3 pass, D4/D5/D6 blocked). D6 deferred
+(owner). Metadata moved to pins/1.21.7/ with the record.
+
+## CI proof (run 44441686979, 2026-11-19)
+
+port-verify on main@d37f448, success in 1h35m41s. Profile **2 pass /
+2 oracle / 13 fail** of 17 — identical to the local run. Passing:
+block_properties, lan. Classified oracle: chunk_generation (8 errors),
+command_exec (71 errors in its log). The classifier undercounts as
+before: 7 more oracle-compile failures hide in the fail column
+(component_patch, datafix ×6 worlds, first_person, food, item_model,
+options, resource_pack — javac errors in the harness logs), so the
+true oracle count is **9** and the honest reading is 2 pass / 9 oracle /
+6 real fail. The real fails: command_parse (7,546 mismatches),
+entity_components (the harness-side list bug — `TypeError: list
+indices must be integers`), hotbar (891/905), light (real mismatch),
+save_roundtrip (game launch fails with "missing motion tag", and the
+vanilla log shows the same bare-name-vs-map BlockState form divergence
+26.2's save fix addressed), sound_event (missing sounds.json — the
+sounds step). Published profile: 23 entries (17 + datafix#1..#6),
+2 pass / 21 fail.
+
+Verdict (recorded in pins/1.21.7/delta-verdict.json): **failed**.
+D1 fail — the tag audit finds the same 37 dead production tags
+locally predicted (5 named + 32 more); every other D1 sub-check
+passed. D2 pass — cargo check 0 errors/0 warnings, protocol tests
+432 with none failing. D3 pass — rank-1 3/3, rank-2 1/1. D4 blocked —
+the profile stamp quirk (profile stamped d37f448, judge's staged
+candidate HEAD 54a40370; patch 0006 is dead code in the CI judge, as
+on 26.2); a local re-check against the recorded profile gives the
+substance verdict: FAIL, datafix + save_roundtrip both fail. D5
+blocked — no harness-subset.txt existed at dispatch; the E6 subset
+is now in the pin, and a local re-check gives FAIL, 7 of 8 failing
+(only block_properties passes). D6 blocked — no playtest.md; the
+playtest is deferred by the owner, never claimed.
 
 ## Behaviour port (2026-11-19, Stream 3)
 

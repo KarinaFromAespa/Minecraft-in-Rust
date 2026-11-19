@@ -1,0 +1,93 @@
+{
+  "schema": "delta-verdict/1",
+  "release": "1.21.7",
+  "commit": "54a403702d5397c5c36eda6f183a1b22924d8bd4",
+  "tree": ".horizon-ports/1.21.7",
+  "pin": "versions/1.21.7",
+  "mode": "recorded",
+  "verified": false,
+  "state": "failed",
+  "checked_at": "2026-11-19T03:36:46Z",
+  "scalars": {
+    "tier": "D",
+    "suite_pass": null,
+    "suite_total": null,
+    "suite_exempt": 0,
+    "items_closed": 4,
+    "items_total": 4,
+    "items_accepted": 0
+  },
+  "index_line": "| 1.21.7 | D | \u2014 | 4/4 | 0 | failed 2026-11-19 |",
+  "checks": {
+    "D1": {
+      "status": "fail",
+      "notes": [
+        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+32 more)"
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.7/research-lock.json",
+        ".horizon-ports/1.21.7/crates/horizon-core/src/version.rs",
+        ".horizon-ports/1.21.7/diff-1.21.8-1.21.7/regen.json",
+        "versions/1.21.7/regen-determinism.json",
+        ".horizon-ports/1.21.7/.local/horizon-client/1.21.7",
+        "tools/tag_audit.py"
+      ]
+    },
+    "D2": {
+      "status": "pass",
+      "notes": [
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 432, none failing"
+      ],
+      "evidence": [
+        "versions/1.21.7/ci-out/cargo-check.log",
+        "versions/1.21.7/ci-out/cargo-test-protocol.log"
+      ]
+    },
+    "D3": {
+      "status": "pass",
+      "notes": [
+        "rank-1: 3 closed, 0 accepted, 3 total",
+        "rank-2: 1 closed, 0 accepted, 1 total",
+        "totals read from summary.ranks",
+        "rank-3+: Inherits the 1.21.8 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.7/diff-1.21.8-1.21.7/report.json",
+        "versions/1.21.7/work-items.json"
+      ],
+      "metrics": {
+        "items_closed": 4,
+        "items_total": 4,
+        "items_accepted": 0
+      }
+    },
+    "D4": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit d37f448e07ae, HEAD is 54a403702d53 \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "versions/1.21.7/profile.json"
+      ]
+    },
+    "D5": {
+      "status": "blocked",
+      "notes": [
+        "no harness-subset.txt: the era's regression subset is undefined"
+      ],
+      "evidence": [
+        "versions/1.21.7/harness-subset.txt"
+      ]
+    },
+    "D6": {
+      "status": "blocked",
+      "notes": [
+        "no playtest.md: the play gate has not been recorded"
+      ],
+      "evidence": [
+        "versions/1.21.7/playtest.md"
+      ]
+    }
+  }
+}
