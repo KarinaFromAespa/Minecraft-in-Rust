@@ -229,7 +229,9 @@ impl Game<'_> {
                 let Some(stack) = stack else { continue };
                 let item = self.resolve_item(
                     stack,
-                    DisplayContext::OnShelf,
+                    // 1.21.8 has no shelf block and no `ON_SHELF` context;
+                    // item 425 removes this renderer. `Fixed` until then.
+                    DisplayContext::Fixed,
                     None,
                     seed.wrapping_add(slot as i32),
                 );

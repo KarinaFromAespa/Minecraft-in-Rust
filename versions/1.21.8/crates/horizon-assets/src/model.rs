@@ -198,7 +198,7 @@ pub enum DisplayTransform {
     Inherit,
     Explicit(Option<ItemTransform>),
 }
-pub const DISPLAY_CONTEXTS: [&str; 9] = [
+pub const DISPLAY_CONTEXTS: [&str; 8] = [
     "thirdperson_lefthand",
     "thirdperson_righthand",
     "firstperson_lefthand",
@@ -207,11 +207,10 @@ pub const DISPLAY_CONTEXTS: [&str; 9] = [
     "gui",
     "ground",
     "fixed",
-    "on_shelf",
 ];
 #[derive(Clone, Debug, PartialEq)]
 pub struct ItemTransforms {
-    pub contexts: [DisplayTransform; 9],
+    pub contexts: [DisplayTransform; 8],
 }
 
 impl CuboidModel {

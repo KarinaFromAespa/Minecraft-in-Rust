@@ -334,7 +334,66 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 42/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52 + 4 zero-diff)
+### Rank 2: 43/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40 + 4 zero-diff)
+
+- **Item 40 — `crates/horizon-assets/src/item_model.rs` (19 classes,
+  51 methods, 5 named in Horizon):** CompassAngleState (10;
+  calculate), ItemModelResolver (6; appendItemLayers,
+  updateForTopItem), NeedleDirectionHelper (4; get),
+  BuiltInRegistries (3), MissingItemModel (2),
+  RangeSelectItemModel (2), CompassAngleState$CompassTarget (2) +
+  CompassTarget$1–$4 (2 each), Time (2; calculate),
+  Time$TimeSource (2) + TimeSource$1–$3 (2 each),
+  ItemDisplayContext (2), ItemOwner (1),
+  ItemOwner$OffsetFromOwner (1). `ItemOwner` is 1.21.9-only:
+  1.21.8 passes `LivingEntity` (resolver, missing/range models)
+  or `Entity` (compass, time, needle helper) where 1.21.9 passes
+  an `ItemOwner` — the Rust already passes a plain `OwnerState`,
+  so only the citations change (item_model.rs, item_draw.rs
+  `owner_at`/`player_owner`). `ItemDisplayContext.ON_SHELF` is
+  1.21.9-only (the shelf block): the variant is removed from
+  `DisplayContext` (9 entries), the display-transform arrays
+  shrink 9→8 (item_bake.rs, model.rs `DISPLAY_CONTEXTS`), and the
+  item-display byte 9 / `"on_shelf"` arms go from lan_entities.rs,
+  persist/display.rs and text_displays.rs; shelf.rs renders with
+  `Fixed` until rank-3 item 425 deletes the renderer.
+  Compass/time/wobbler math verified term-by-term against the
+  1.21.8 jar (Wobbler $1/$2 decompiled with Vineflower — the inner
+  classes have no decomp files): the spin hash
+  (`seed * 1327217883 / 2.1474836E9`), the 0.8/0.9 factors, the
+  center-based atan2, the `distToCenterSqr < 1e-5` validity, the
+  local-player wobble gate and the 0.5−(y−0.25) targets all match;
+  the one open question is the Spawn target's dimension — 1.21.8's
+  code pairs `getSharedSpawnPos()` with the current level's
+  dimension, which would point in the Nether, against observed
+  behaviour (compasses spin there in every version, and no 1.21.x
+  changelog lists a compass fix), so the Rust keeps the Overworld
+  dimension (the 1.21.9 `RespawnData` form). The clock was frozen:
+  `level_state_now` read the sun angle from the environment
+  sampler, which has no 1.21.8 data (no `attributes`/`timelines`
+  in 1.21.8 dimension data — the environment system is 26.x), so
+  it always read the 0.0 default; it now computes
+  `DimensionType.timeOfDay(day_time) * 360` directly, with the
+  Nether/End fixed times (18000/6000) from the 1.21.8
+  dimension-type JSONs. The same gap made `Environment::load`
+  fail at startup — `AttributeMap::parse` hard-errors on the
+  missing `attributes` field — so a missing field is now an empty
+  map (environment.rs has no owning item; the full 1.21.8
+  environment synthesis, real sky/fog/light values, is a separate
+  job). The clock's random spin in the Nether/End comes from its
+  item model (fallback `time` source `random`), identical in both
+  versions. `BuiltInRegistries`' 1.21.9-only
+  `DEBUG_SUBSCRIPTION`/`INCOMING_RPC_METHOD`/`OUTGOING_RPC_METHOD`
+  registries have no Rust counterpart. Deferred: the `ItemOwner`
+  citation in native_block_entity_draw.rs (rank-2 item 125 — the
+  shelf offset owner is 1.21.9-only) and the `RespawnData.of`
+  citation in respawn_anchor.rs (rank-2 item 93). Known gaps (vs
+  both): `runs_normally` is hardcoded true in `level_state_now`
+  (vanilla reads the tick-rate manager); the compass dimension
+  check compares against the render level, vanilla against the
+  owner's level (the same in practice); the random streams (Time
+  RANDOM, compass spin) are Horizon's env stream, not vanilla's
+  per-instance `RandomSource` (unobservable).
 
 - **Item 27 — `crates/horizon-client-render/src/font.rs` (30 classes,
   96 methods, 5 named in Horizon) — zero-diff, citations only:**

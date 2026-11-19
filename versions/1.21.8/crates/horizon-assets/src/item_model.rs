@@ -166,10 +166,9 @@ pub enum DisplayContext {
     Gui,
     Ground,
     Fixed,
-    OnShelf,
 }
 impl DisplayContext {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 9] = [
         Self::None,
         Self::ThirdPersonLeftHand,
         Self::ThirdPersonRightHand,
@@ -179,7 +178,6 @@ impl DisplayContext {
         Self::Gui,
         Self::Ground,
         Self::Fixed,
-        Self::OnShelf,
     ];
     pub fn name(self) -> &'static str {
         match self {
@@ -192,7 +190,6 @@ impl DisplayContext {
             Self::Gui => "gui",
             Self::Ground => "ground",
             Self::Fixed => "fixed",
-            Self::OnShelf => "on_shelf",
         }
     }
     pub fn by_name(name: &str) -> Option<Self> {
@@ -983,7 +980,8 @@ pub struct GlobalPos {
     pub dimension: String,
     pub pos: [i32; 3],
 }
-/// The living entity holding the item (`ItemOwner`).
+/// The living entity holding the item (a `LivingEntity`; 1.21.9's
+/// `ItemOwner` abstraction does not exist in 1.21.8).
 #[derive(Clone, Debug, Default)]
 pub struct OwnerState {
     pub position: [f64; 3],
@@ -1012,9 +1010,11 @@ pub struct OwnerState {
 pub struct LevelState {
     pub dimension: String,
     pub game_time: i64,
-    /// `EnvironmentAttributes.SUN_ANGLE` at the owner, in degrees.
+    /// `Level.getSunAngle` in degrees: `DimensionType.timeOfDay(day_time) * 360`
+    /// (1.21.8 has no environment attributes or timelines, so the sun angle
+    /// is computed from the day time, not sampled from `SUN_ANGLE`).
     pub sun_angle: f32,
-    /// `EnvironmentAttributes.MOON_PHASE` index at the owner.
+    /// `DimensionType.moonPhase(day_time)`: `(day_time / 24000) % 8`.
     pub moon_phase: i32,
     pub respawn: Option<GlobalPos>,
     /// `tickRateManager().runsNormally()`.

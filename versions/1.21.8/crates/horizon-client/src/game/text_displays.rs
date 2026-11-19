@@ -321,7 +321,6 @@ impl Game<'_> {
                         6 => DisplayContext::Gui,
                         7 => DisplayContext::Ground,
                         8 => DisplayContext::Fixed,
-                        9 => DisplayContext::OnShelf,
                         _ => DisplayContext::None,
                     };
                     // updateForNonLiving: seeded by the entity id.

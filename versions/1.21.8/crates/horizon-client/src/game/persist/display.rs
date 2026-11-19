@@ -105,7 +105,6 @@ impl Game<'_> {
                         "gui",
                         "ground",
                         "fixed",
-                        "on_shelf",
                     ],
                 );
                 let item = tag

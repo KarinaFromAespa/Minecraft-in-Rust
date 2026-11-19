@@ -51,7 +51,7 @@ pub struct BakedItemModel {
     pub uses_block_light: bool,
     pub particle: Material,
     /// By [`crate::model::DISPLAY_CONTEXTS`]; `None` is `NO_TRANSFORM`.
-    pub transforms: [Option<ItemTransform>; 9],
+    pub transforms: [Option<ItemTransform>; 8],
 }
 
 fn context_index(context: DisplayContext) -> Option<usize> {
@@ -65,7 +65,6 @@ fn context_index(context: DisplayContext) -> Option<usize> {
         DisplayContext::Gui => 5,
         DisplayContext::Ground => 6,
         DisplayContext::Fixed => 7,
-        DisplayContext::OnShelf => 8,
     })
 }
 impl BakedItemModel {
