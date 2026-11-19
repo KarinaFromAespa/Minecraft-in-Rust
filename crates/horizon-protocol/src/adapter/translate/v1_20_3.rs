@@ -1067,12 +1067,12 @@ mod tests {
             (offer.uses, offer.max_uses, offer.xp, offer.price_multiplier),
             (0, 8, 2, 0.05)
         );
-        for (kind, slot) in [(63, 6), (147, 4)] {
+        for (kind, slot) in [(64, 6), (148, 4)] {
             session.kinds.lock().unwrap().insert(42, kind);
             let body = equipment(&session, &bytes("2a0401df080100")).unwrap();
             let p = play::SetEquipment::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.slots[0].0, slot);
-            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1178);
+            assert_eq!(p.slots[0].1.as_ref().unwrap().item, 1168);
         }
     }
 

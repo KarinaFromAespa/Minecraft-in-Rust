@@ -296,21 +296,34 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
             }
             11 | 12 => predicates(value)?,
             13 => attributes(value)?,
-            14 => Component::CustomModelData {
-                floats: list(value.get("floats"))
-                    .iter()
-                    .map(|v| d::as_number(v).map_or(0.0, |v| v.float_value()))
-                    .collect(),
-                flags: list(value.get("flags"))
-                    .iter()
-                    .map(|v| d::as_bool(Some(v), false))
-                    .collect(),
-                strings: list(value.get("strings"))
-                    .iter()
-                    .filter_map(|v| text(Some(v)))
-                    .collect(),
-                colors: int_array(value.get("colors")),
-            },
+            14 => {
+                // Before 1.21.4 the saved form is one integer, not the four
+                // lists; the datafixer for this pin leaves it as an int.
+                if let Some(n) = d::as_number(value) {
+                    Component::CustomModelData {
+                        floats: vec![n.float_value()],
+                        flags: Vec::new(),
+                        strings: Vec::new(),
+                        colors: Vec::new(),
+                    }
+                } else {
+                    Component::CustomModelData {
+                        floats: list(value.get("floats"))
+                            .iter()
+                            .map(|v| d::as_number(v).map_or(0.0, |v| v.float_value()))
+                            .collect(),
+                        flags: list(value.get("flags"))
+                            .iter()
+                            .map(|v| d::as_bool(Some(v), false))
+                            .collect(),
+                        strings: list(value.get("strings"))
+                            .iter()
+                            .filter_map(|v| text(Some(v)))
+                            .collect(),
+                        colors: int_array(value.get("colors")),
+                    }
+                }
+            }
             component::TOOLTIP_DISPLAY => {
                 hide |= d::as_bool(value.get("hide_tooltip"), false);
                 hidden.extend(
@@ -2134,7 +2147,7 @@ mod tests {
             (
                 "crossbow",
                 "019e09010a03000644616d616765000000000900124368617267656450726f6a656374696c65730a000000020800026964000f6d696e6563726166743a6172726f77010005436f756e740100080002696400196d696e6563726166743a66697265776f726b5f726f636b6574010005436f756e74010a00037461670a000946697265776f726b73010006466c6967687402000000010007436861726765640100",
-                "01d1090100270201bd0600000182090100380200",
+                "01d1090100270201b80600000182090100380200",
             ),
             (
                 "bundle",
@@ -2191,7 +2204,7 @@ mod tests {
             (
                 "entity",
                 "019408010a0a0009456e7469747954616708000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0100044e6f41490103000e486f72697a6f6e46697874757265000000070000",
-                "01c10801002f5e0a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f41490100",
+                "01c10801002f5f0a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f41490100",
             ),
             (
                 "predicate_nbt",
@@ -2285,7 +2298,7 @@ mod tests {
             (
                 "crossbow",
                 "01f708010a0900124368617267656450726f6a656374696c65730a000000020800026964000f6d696e6563726166743a6172726f77010005436f756e740100080002696400196d696e6563726166743a66697265776f726b5f726f636b6574010005436f756e74010a00037461670a000946697265776f726b73010006466c6967687402000000010007436861726765640103000644616d6167650000000000",
-                "01d1090100270201bd0600000182090100380200",
+                "01d1090100270201b80600000182090100380200",
             ),
             (
                 "bundle",
@@ -2342,7 +2355,7 @@ mod tests {
             (
                 "entity",
                 "01ed07010a0a0009456e7469747954616708000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f4149010000",
-                "01c10801002f5e0a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f41490100",
+                "01c10801002f5f0a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f41490100",
             ),
             (
                 "predicate_nbt",

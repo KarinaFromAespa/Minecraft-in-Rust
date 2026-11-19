@@ -599,7 +599,7 @@ mod tests {
         }
         session.kinds.lock().unwrap().insert(42, 82); // minecraft:minecart pinned (1.21.3).
         for (values, expected) in [
-            (vec![(11, serializer::INT, Value::Int(7003))], 0),
+            (vec![(11, serializer::INT, Value::Int(7006))], 0),
             (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 7003),
             (vec![(13, serializer::BOOLEAN, Value::Bool(false))], 0),
         ] {

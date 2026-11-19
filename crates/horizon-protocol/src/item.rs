@@ -721,8 +721,9 @@ impl Component {
                 strings,
                 colors,
             } => {
-                if matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.integer_custom_model_data)
-                {
+                // The target's layout: the pinned 1.21.3 writes one VarInt, as
+                // does any older target; 1.21.4+ targets get the four lists.
+                if ids::quirks_written().integer_custom_model_data {
                     w.varint(floats.first().copied().unwrap_or(0.0) as i32);
                     return;
                 }
