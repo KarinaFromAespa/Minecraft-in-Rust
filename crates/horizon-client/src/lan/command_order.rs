@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw tick time title trigger weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -105,10 +105,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ("bossbar get id", "value max visible players"),
     ("clone", "begin from"),
     ("clone begin end", "destination to"),
-    (
-        "clone begin end destination",
-        "replace masked filtered strict",
-    ),
+    ("clone begin end destination", "replace masked filtered"),
     ("clone begin end destination replace", "force move normal"),
     ("clone begin end destination masked", "force move normal"),
     (
@@ -116,24 +113,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "force move normal",
     ),
     (
-        "clone begin end destination strict",
-        "replace masked filtered",
-    ),
-    (
-        "clone begin end destination strict replace",
-        "force move normal",
-    ),
-    (
-        "clone begin end destination strict masked",
-        "force move normal",
-    ),
-    (
-        "clone begin end destination strict filtered filter",
-        "force move normal",
-    ),
-    (
         "clone begin end to targetDimension destination",
-        "replace masked filtered strict",
+        "replace masked filtered",
     ),
     (
         "clone begin end to targetDimension destination replace",
@@ -147,26 +128,10 @@ pub const ORDER: &[(&str, &str)] = &[
         "clone begin end to targetDimension destination filtered filter",
         "force move normal",
     ),
-    (
-        "clone begin end to targetDimension destination strict",
-        "replace masked filtered",
-    ),
-    (
-        "clone begin end to targetDimension destination strict replace",
-        "force move normal",
-    ),
-    (
-        "clone begin end to targetDimension destination strict masked",
-        "force move normal",
-    ),
-    (
-        "clone begin end to targetDimension destination strict filtered filter",
-        "force move normal",
-    ),
     ("clone from sourceDimension begin end", "destination to"),
     (
         "clone from sourceDimension begin end destination",
-        "replace masked filtered strict",
+        "replace masked filtered",
     ),
     (
         "clone from sourceDimension begin end destination replace",
@@ -181,24 +146,8 @@ pub const ORDER: &[(&str, &str)] = &[
         "force move normal",
     ),
     (
-        "clone from sourceDimension begin end destination strict",
-        "replace masked filtered",
-    ),
-    (
-        "clone from sourceDimension begin end destination strict replace",
-        "force move normal",
-    ),
-    (
-        "clone from sourceDimension begin end destination strict masked",
-        "force move normal",
-    ),
-    (
-        "clone from sourceDimension begin end destination strict filtered filter",
-        "force move normal",
-    ),
-    (
         "clone from sourceDimension begin end to targetDimension destination",
-        "replace masked filtered strict",
+        "replace masked filtered",
     ),
     (
         "clone from sourceDimension begin end to targetDimension destination replace",
@@ -210,22 +159,6 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "clone from sourceDimension begin end to targetDimension destination filtered filter",
-        "force move normal",
-    ),
-    (
-        "clone from sourceDimension begin end to targetDimension destination strict",
-        "replace masked filtered",
-    ),
-    (
-        "clone from sourceDimension begin end to targetDimension destination strict replace",
-        "force move normal",
-    ),
-    (
-        "clone from sourceDimension begin end to targetDimension destination strict masked",
-        "force move normal",
-    ),
-    (
-        "clone from sourceDimension begin end to targetDimension destination strict filtered filter",
         "force move normal",
     ),
     ("damage target amount damageType", "at by"),
@@ -437,14 +370,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ("experience add target amount", "points levels"),
     ("experience set target amount", "points levels"),
     ("experience query target", "points levels"),
-    (
-        "fill from to block",
-        "outline hollow destroy strict replace keep",
-    ),
-    (
-        "fill from to block replace filter",
-        "outline hollow destroy strict",
-    ),
+    ("fill from to block", "replace keep outline hollow destroy"),
     ("forceload", "add remove query"),
     ("forceload remove", "from all"),
     ("function name", "arguments with"),
@@ -565,7 +491,7 @@ pub const ORDER: &[(&str, &str)] = &[
         "scoreboard players display numberformat targets objective",
         "blank fixed styled",
     ),
-    ("setblock pos block", "destroy keep replace strict"),
+    ("setblock pos block", "destroy keep replace"),
     (
         "spreadplayers center spreadDistance maxRange",
         "respectTeams under",
@@ -596,11 +522,6 @@ pub const ORDER: &[(&str, &str)] = &[
     ("teleport targets", "location destination"),
     ("teleport targets location", "rotation facing"),
     ("teleport targets location facing", "entity facingLocation"),
-    (
-        "test",
-        "run runmultiple runthese runclosest runthat runfailed verify locate resetclosest resetthese resetthat clearthat clearthese clearall stop pos create",
-    ),
-    ("test runfailed", "onlyRequiredTests numberOfTimes"),
     ("tick", "query rate step sprint unfreeze freeze"),
     ("tick step", "stop time"),
     ("tick sprint", "stop time"),
