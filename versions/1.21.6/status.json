@@ -7,7 +7,7 @@
  "harness": {
   "fail": 0,
   "failing": [],
-  "note": "No local profile: the harness sweep could not complete on this VM. The sweep recorded 10 FAILs before the horizon-client binary build (profile fast) hit parity's 3600s per-harness timeout; four further attempts to pre-build the client all failed (one VM restart, three OOM kills of the horizon_client lib rustc at ~3 GB RSS under 3-stream load; taskset -c 0 and a swapfile did not help \u2014 swapon is blocked in the container). Parity builds the client only in the fast profile (the recorded artifacts fix it); there is no dev-profile switch. The profile is to be measured on CI (port-verify dispatched after merge).",
+  "note": "No local profile: the harness sweep could not complete on this VM. The sweep recorded 9 FAILs before the horizon-client binary build (profile fast) hit parity's 3600s per-harness timeout; four further attempts to pre-build the client all failed (one VM restart, three OOM kills of the horizon_client lib rustc at ~3 GB RSS under 3-stream load; taskset -c 0 and a swapfile did not help \u2014 swapon is blocked in the container). Parity builds the client only in the fast profile (the recorded artifacts fix it); there is no dev-profile switch. The profile is to be measured on CI (port-verify dispatched after merge).",
   "oracle_fail": 0,
   "oracle_failing": [],
   "pass": 0,
