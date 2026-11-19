@@ -436,6 +436,7 @@ impl Game<'_> {
             self.has_shift_down(),
             false,
         );
+        let reached_end = !matches!(release, Release::Nothing);
         match (release, Target::of(slot, outside)) {
             (Release::QuickCraft, _) => self.inventory_release(),
             (Release::Click(input), Target::Outside) => {
@@ -453,6 +454,13 @@ impl Game<'_> {
                 }
             }
             _ => self.inv_drag = None,
+        }
+        // `mouseReleased` ends with `lastClickTime = 0` when the hand is
+        // empty: a release that places the carried stack ends the
+        // double-click chain, so a quick shift-click on the same slot
+        // quick-moves only that slot. The early returns (`Nothing`) skip it.
+        if reached_end && self.carried.is_none() {
+            self.last_inv_click = None;
         }
     }
     /// A press of the pick block button (`keyPickItem`, the middle button by
@@ -502,6 +510,7 @@ impl Game<'_> {
             self.has_shift_down(),
             true,
         );
+        let reached_end = !matches!(release, Release::Nothing);
         match (release, slot) {
             (Release::QuickCraft, _) => self.inventory_release(),
             (Release::Click(input), Some(slot)) if !outside => {
@@ -509,6 +518,11 @@ impl Game<'_> {
                 self.menu_click(Some(slot), 2, input);
             }
             _ => self.inv_drag = None,
+        }
+        // `mouseReleased` ends with `lastClickTime = 0` when the hand is
+        // empty (see `inventory_mouse_release`).
+        if reached_end && self.carried.is_none() {
+            self.last_inv_click = None;
         }
     }
     /// Mouse release: finishes a quick craft drag (one slot is a plain click).

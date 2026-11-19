@@ -10540,7 +10540,6 @@ impl Game<'_> {
                         }
                         if self.screen == Screen::Inventory {
                             self.station_drag();
-                            self.recipe_book_drag();
                         }
                         if matches!(self.screen, Screen::Inventory | Screen::Creative) {
                             self.inventory_drag_move();
@@ -10998,7 +10997,6 @@ impl Game<'_> {
                         Screen::Inventory => {
                             self.inventory_mouse_release(button == MouseButton::Right);
                             self.station_release();
-                            self.recipe_book_release();
                         }
                         Screen::Chat if pressed && button == MouseButton::Left => self.chat_click(),
                         Screen::Creative if pressed => {

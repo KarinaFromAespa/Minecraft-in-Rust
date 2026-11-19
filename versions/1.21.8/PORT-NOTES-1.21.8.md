@@ -334,7 +334,49 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 23/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33 + 4 zero-diff)
+### Rank 2: 24/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38 + 4 zero-diff)
+
+- **Item 38 — `crates/horizon-client/src/container_screen.rs` (2 classes, 25 methods, 8 named in Horizon):**
+  AbstractContainerScreen, AbstractRecipeBookScreen.
+  1. **A release that empties the hand ends the double-click chain:**
+     1.21.8's `mouseReleased` ends with `lastClickTime = 0` when the carried
+     stack is empty (after the early returns for a cancelled drag and
+     `skipNextRelease`), so after placing a stack a quick shift-click on the
+     same slot quick-moves only that slot; 1.21.9 tracks the double-click
+     globally in `MouseHandler` (same button + < 250 ms, no reset), which is
+     what the Rust had. New `Release::End` (the release ran to the end and
+     clicked nothing) distinct from `Release::Nothing` (an early return);
+     both release paths clear `last_inv_click` when the release ran to the
+     end and the hand is empty afterwards. New test
+     `a_release_with_an_empty_hand_runs_to_the_end`.
+  2. **No drag-selection in the recipe-book search box:** 1.21.9's
+     `AbstractRecipeBookScreen.mouseDragged` delegates to
+     `RecipeBookComponent.mouseDragged`, which drags the focused search
+     box's selection (`EditBox.onDrag`); 1.21.8 has neither override —
+     `AbstractContainerScreen.mouseDragged` swallows every drag — so a drag
+     never reaches the search box. Removed `recipe_book_drag` /
+     `recipe_book_release` and the `search_drag` flag (click-to-place the
+     cursor still works; `drag_to` stays as the shared `EditBox.onDrag`
+     primitive).
+  3. **Citations:** `MouseHandler`'s `doubleClick` → the screen's own
+     `lastClickTime`/`lastClickButton` (container_screen.rs double-click doc
+     + test doc).
+  Verified no-change: the double-click rule itself (same slot + same button
+  + < 250 ms, `None` for a click outside) already matches 1.21.8, and the
+  triple-click protection (clearing after PICKUP_ALL / QUICK_MOVE_ALL) was
+  already there; a book-handled press leaves the chain alone in 1.21.8
+  (the Rust returns before `double_click`, matching); the container
+  background is already the transparent one (`render_transparent_background`,
+  not the 1.21.9 `super.renderBackground`); `hasClickedOutside`'s button
+  parameter is unused in both versions (including the recipe-book override);
+  key handling (inventory close, hotbar swap, pick-item clone, drop with
+  ctrl) and the quick-craft drag are the same logic, API only; the shift /
+  control detection (`hasShiftDown` vs the event) reads the same keys.
+  Known gaps (pre-existing vs both versions, not fixed): extra mouse
+  buttons (4/5) bound to hotbar/offhand keys do nothing over containers
+  (`checkHotbarMouseClicked` is unmodelled); touchscreen container input
+  (`clickedSlot`/`draggingItem`/quick-drop) is unmodelled — both paths are
+  identical in the two versions.
 
 - **Item 37 — `crates/horizon-client/src/block_entity_item.rs` (4 classes, 17 methods, 9 named in Horizon):**
   ItemStack, Spawner, BlockItem, JukeboxBlock. Zero-diff: no code changed.

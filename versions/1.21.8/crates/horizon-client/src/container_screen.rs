@@ -96,9 +96,10 @@ impl Button {
 }
 
 /// `AbstractContainerScreen.mouseClicked`'s double click: the same slot and
-/// the same button within 250 ms (`MouseHandler`'s `doubleClick`), with
-/// `lastClickSlot` replaced by every click that reaches the container logic —
-/// `None` for a click outside the window, which ends the chain.
+/// the same button within 250 ms (`lastClickTime`/`lastClickButton`, which
+/// the screen keeps itself), with `lastClickSlot` replaced by every click
+/// that reaches the container logic — `None` for a click outside the window,
+/// which ends the chain.
 pub fn double_click(
     last: &mut Option<(std::time::Instant, Option<usize>, bool)>,
     slot: Option<usize>,
@@ -140,6 +141,13 @@ pub enum Release {
     Click(Input),
     /// `quickCraftToSlots` over the dragged slots.
     QuickCraft,
+    /// The release ran to the end of `mouseReleased` and clicked nothing: the
+    /// hand was already empty. The double-click chain still ends there
+    /// (`lastClickTime = 0`), unlike `Nothing`'s early returns.
+    End,
+    /// An early return of `mouseReleased`: another button cancelled the drag,
+    /// or the press already clicked (`skipNextRelease`). The double-click
+    /// chain survives it.
     Nothing,
 }
 
@@ -229,7 +237,7 @@ impl Clicks {
         if quick_crafting && dragged {
             Release::QuickCraft
         } else if carried_empty {
-            Release::Nothing
+            Release::End
         } else if pick_item {
             Release::Click(Input::Clone)
         } else if shift && !matches!(target, Target::Outside) {
@@ -326,6 +334,30 @@ mod tests {
         assert_eq!(
             clicks.release(&out, Button::Right, true, false, true, false),
             Release::Nothing
+        );
+    }
+
+    #[test]
+    fn a_release_with_an_empty_hand_runs_to_the_end() {
+        let mut clicks = Clicks::default();
+        // A press on the screen's background (no slot, not outside) sets no
+        // skip and starts no drag; its release with an empty hand runs to
+        // the end of `mouseReleased` (`lastClickTime = 0`), unlike the
+        // early returns.
+        assert_eq!(
+            clicks.press(&Target::<usize>::Nothing, Button::Left, true, false, false),
+            None
+        );
+        assert_eq!(
+            clicks.release(
+                &Target::<usize>::Nothing,
+                Button::Left,
+                true,
+                false,
+                false,
+                false
+            ),
+            Release::End
         );
     }
 
@@ -483,7 +515,7 @@ mod tests {
 
     /// `AbstractContainerScreen.mouseClicked`: `this.lastClickSlot = slot`
     /// runs for every click that reaches the container logic, and
-    /// `doubleclick` is the same slot and button within `MouseHandler`'s
+    /// `doubleclick` is the same slot and button within the screen's own
     /// 250 ms. A click outside is a click on no slot (`null`), so the next
     /// click on a real slot is not a double click.
     #[test]
