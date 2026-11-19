@@ -139,9 +139,9 @@ pub fn move_entity<W: EntityMoveWorld>(
     }
     let stuck = world.stuck_multiplier();
     if stuck.length_squared() > 1.0e-7 {
-        if mover != MoverType::Piston {
-            movement = movement.multiply(stuck);
-        }
+        // 1.21.9 applies the stuck multiplier to every move, pistons
+        // included; 1.21.10 exempted `MoverType.PISTON` from it.
+        movement = movement.multiply(stuck);
         world.set_stuck_multiplier(Vec3::ZERO);
         world.set_velocity(Vec3::ZERO)?;
     }

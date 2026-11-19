@@ -1220,8 +1220,9 @@ impl Projectile {
         };
     }
     /// `applyEffectsFromBlocks`' bubble columns (`Entity.checkInsideBlocks`):
-    /// the blocks the box swept through from `from`, each once, pushing when
-    /// the move was long or the final box (deflated by 1e-5F) is inside it.
+    /// the blocks the box swept through from `from`, each once. 1.21.9
+    /// pushes on every one; 1.21.10 gated the push on the move being long
+    /// or the final box being inside the cell.
     fn bubble_columns_along(&mut self, w: &impl ProjectileWorld, from: Vec3) {
         self.bubble_columns_since(from, |p| w.bubble_column(p));
     }
@@ -1237,7 +1238,6 @@ impl Projectile {
         let to = self.position;
         let eps = f64::from(1.0e-5_f32);
         let deflated = self.bounds().deflate(Vec3::new(eps, eps, eps));
-        let far = from.distance_squared(to) > 0.999_990_000_000_252_6f64 * 0.999_990_000_000_252_6;
         let mut cells = Vec::new();
         let mut used = 0;
         let _ = horizon_core::geometry::sweep_intersected_blocks(
@@ -1278,13 +1278,7 @@ impl Projectile {
             let Some((drag, surface)) = column([p.x, p.y, p.z]) else {
                 continue;
             };
-            let cell = Aabb::new(
-                Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z)),
-                Vec3::new(f64::from(p.x + 1), f64::from(p.y + 1), f64::from(p.z + 1)),
-            );
-            if far || deflated.intersects(cell) {
-                self.bubble_column_push(drag, surface, [p.x, p.y, p.z]);
-            }
+            self.bubble_column_push(drag, surface, [p.x, p.y, p.z]);
         }
     }
     /// One tick that meets nothing: what `tick` would have done had its hit been

@@ -1765,10 +1765,6 @@ impl MotionWorld<'_, '_, '_> {
             f64::from(1.0e-5_f32),
             f64::from(1.0e-5_f32),
         ));
-        // Mth.square(0.9999900000002526): a long move counts every block it
-        // crosses as precise.
-        let far = 0.999_990_000_000_252_6_f64;
-        let moved_far = from.distance_squared(to) > far * far;
         let mut hits = Vec::new();
         let mut iterations = 0;
         let alive = !self.player.health.dead_or_dying();
@@ -1931,9 +1927,11 @@ impl MotionWorld<'_, '_, '_> {
                     }
                     "minecraft:cobweb" => self.web_inside(),
                     "minecraft:sweet_berry_bush" => self.sweet_berry_bush_inside(state)?,
+                    // 1.21.9's `BubbleColumnBlock.entityInside` runs for
+                    // every block the sweep crosses; 1.21.10 gated it on
+                    // the move being long (`entityInside`'s 5th argument).
                     "minecraft:bubble_column" => {
-                        let precise = moved_far || deflated.intersects(Aabb::block(p));
-                        self.bubble_column_inside(state, p, precise)?
+                        self.bubble_column_inside(state, p)?
                     }
                     "minecraft:nether_portal" => self
                         .player

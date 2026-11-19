@@ -296,16 +296,13 @@ impl MotionWorld<'_, '_, '_> {
     }
     /// `BubbleColumnBlock.entityInside` with `Player.onAboveBubbleColumn` /
     /// `onInsideBubbleColumn`: pushed up (or dragged down), faster at the
-    /// surface, never while flying.
+    /// surface, never while flying. 1.21.9 runs it for every column block
+    /// the sweep crosses; 1.21.10 added a moved-distance gate.
     pub(super) fn bubble_column_inside(
         &mut self,
         state: BlockStateId,
         p: BlockPos,
-        precise: bool,
     ) -> Result<()> {
-        if !precise {
-            return Ok(());
-        }
         let drag = self
             .assets
             .registry

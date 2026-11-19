@@ -549,19 +549,10 @@ impl Game<'_> {
             let entity_start = out.len();
             self.mark_entity(entity_start, f.kind());
             let map = f.item.as_ref().and_then(super::maps::map_id);
-            // EntityRenderer.shouldRender: its box (a block wide with a map),
-            // measured from the box's centre.
+            // EntityRenderer.shouldRender: its box (a block wide with a
+            // map, from `ItemFrame::bounds`), measured from the box's centre.
             let (lo, hi) = f.bounds();
-            let (mut lo, mut hi) = (glam::DVec3::from(lo), glam::DVec3::from(hi));
-            if map.is_some() {
-                let s = f.step();
-                for i in 0..3 {
-                    if s[i] == 0 {
-                        let c = (lo[i] + hi[i]) / 2.0;
-                        (lo[i], hi[i]) = (c - 0.5, c + 0.5);
-                    }
-                }
-            }
+            let (lo, hi) = (glam::DVec3::from(lo), glam::DVec3::from(hi));
             if !self.entity_in_view(camera, (lo + hi) / 2.0, range, lo, hi) {
                 continue;
             }
