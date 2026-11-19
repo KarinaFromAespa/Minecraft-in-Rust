@@ -2224,3 +2224,13 @@ Rank 2 (492 items, in progress 2026-11-19)
     `DoubleBlockCombiner` are access/rename/overload noise.
   Rank 2 now 195/492 (32 changed, 163 no-change).
   work-items.json rank2.closed = 195 on 2026-11-19.
+- CI run 44538822133 (items 11+462+12+13 milestone, on fcfc909)
+  SUCCESS 2026-11-19, profile unchanged: 5 pass of 23
+  (block_properties, component_patch, food, lan, resource_pack),
+  18 fail — every harness status identical to run 44518329820, only
+  host/timing/content-key fields differ. D1 fails on the same 26 dead
+  production tags; D2 passes (0/0, 440 protocol tests); D3 fails
+  (rank-2 303 open at the pin snapshot); D4/D5 blocked on the stamp
+  quirk; D6 deferred. Run 44536718386 (same milestone, on b458e19)
+  FAILED on a transient Maven Central 404 (asm 9.9.1 jar) and was
+  superseded by this re-dispatch, not recorded.

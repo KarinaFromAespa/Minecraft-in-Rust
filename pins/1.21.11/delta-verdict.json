@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "5e9da79996a854113a1f4649687fd9ccff28628f",
+  "commit": "e800cdb0ea6d2d5885176769d6385137601ce0da",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-19T13:11:39Z",
+  "checked_at": "2026-11-19T15:29:52Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -47,7 +47,7 @@
     "D3": {
       "status": "fail",
       "notes": [
-        "rank-2: 372 of 492 item(s) neither closed nor accepted"
+        "rank-2: 303 of 492 item(s) neither closed nor accepted"
       ],
       "evidence": [
         ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
@@ -57,7 +57,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 9b7791ecc69d, HEAD is 5e9da79996a8 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit fcfc90949c78, HEAD is e800cdb0ea6d \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
@@ -66,7 +66,7 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 9b7791ecc69d, HEAD is 5e9da79996a8 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit fcfc90949c78, HEAD is e800cdb0ea6d \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
