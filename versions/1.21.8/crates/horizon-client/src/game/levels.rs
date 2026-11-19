@@ -316,7 +316,7 @@ impl Game<'_> {
 
     /// `MinecraftServer.prepareLevels` activates every level's saved tickets:
     /// a level holding saved `PORTAL` tickets opens with the world and ticks
-    /// while they hold it (`shouldKeepDimensionActive`).
+    /// while they hold it (their chunks stay ticketed).
     pub(super) fn open_saved_portal_levels(&mut self) -> Result<()> {
         if self.options.execution_role.is_client() {
             return Ok(());
@@ -849,8 +849,8 @@ impl Game<'_> {
                     // A pending portal arrival keeps its destination level
                     // running so it can land and tick (the portal ticket).
                     || !self.arrival_chunks(*d).is_empty()
-                    // A portal ticket keeps its dimension active
-                    // (`TicketType.shouldKeepDimensionActive`).
+                    // A portal ticket keeps its dimension's level open
+                    // (its chunks stay ticketed).
                     || !self.portal_tickets_in(*d).is_empty()
             })
             .collect();
