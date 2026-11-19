@@ -1150,11 +1150,11 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         };
-        // chest's first state: 3018 in 1.21.8, 3987 in 26.2; grass_block 8 in both.
+        // chest's first state: 3018 in 1.21.5, 3987 in 26.2; grass_block 8 in both.
         assert_eq!(update(3018), 3987);
         assert_eq!(update(8), 8);
-        // calcite's state is renumbered: 23376 in 1.21.8, 27160 in 26.2.
-        assert_eq!(update(23376), 27160);
+        // calcite's state is renumbered: 23344 in 1.21.5, 27160 in 26.2.
+        assert_eq!(update(23344), 27160);
         // 26.2 has every block 1.21.8 has (it only adds), so no state needs a
         // stand-in for this client; stand-ins apply to older ones.
     }
@@ -1173,12 +1173,12 @@ mod tests {
             let mut payload = Reader::new(r.rest());
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 862 in 1.21.8, 926 in 26.2.
-        assert_eq!(slot(862), 926);
-        // birch_planks: 38 in 1.21.8, 65 in 26.2.
+        // diamond: 845 in 1.21.5, 926 in 26.2.
+        assert_eq!(slot(845), 926);
+        // birch_planks: 38 in 1.21.5, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 1059 in 1.21.8, 1133 in 26.2.
-        assert_eq!(slot(1059), 1133);
+        // filled_map: 1042 in 1.21.5, 1133 in 26.2.
+        assert_eq!(slot(1042), 1133);
     }
 
     #[test]
@@ -1221,17 +1221,17 @@ mod tests {
             kind
         };
         assert_eq!(kind_of(&s.clientbound(&add(12)).unwrap().unwrap()), 12);
-        assert_eq!(kind_of(&s.clientbound(&add(125)).unwrap().unwrap()), 131);
+        assert_eq!(kind_of(&s.clientbound(&add(124)).unwrap().unwrap()), 131);
     }
 
     #[test]
     fn a_newer_client_gets_its_own_player_indexes() {
         let s = in_play();
-        // Register a player (149 in 1.21.8) so track_entities knows the kind.
+        // Register a player (148 in 1.21.5) so track_entities knows the kind.
         let add = play::Clientbound::AddEntity(play::AddEntity {
             id: 7,
             uuid: 1,
-            kind: 149,
+            kind: 148,
             position: [0.0; 3],
             velocity: [0.0; 3],
             pitch: 0,
@@ -1240,7 +1240,7 @@ mod tests {
             data: 0,
         });
         s.clientbound(&add.encode()).unwrap().unwrap();
-        // 1.21.8's player fields: absorption 15, score 16, skin mask 17, main arm 18.
+        // 1.21.5's player fields: absorption 15, score 16, skin mask 17, main arm 18.
         let data = play::Clientbound::SetEntityData(play::SetEntityData {
             id: 7,
             values: vec![
@@ -1289,7 +1289,7 @@ mod tests {
     #[test]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 1.21.8's 55. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 26.2's 56 is 1.21.5's 54. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1297,7 +1297,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((862, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((845, 3)));
             }
             other => panic!("{other:?}"),
         }

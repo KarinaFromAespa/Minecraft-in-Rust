@@ -1012,7 +1012,7 @@ enum Older {
 }
 
 /// `minecraft:brick` (1.21.8): an older pot's undecorated side.
-const BRICK: i32 = 980;
+const BRICK: i32 = 963;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).
