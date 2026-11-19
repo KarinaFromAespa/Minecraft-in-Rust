@@ -937,6 +937,37 @@ owner). Recorded in pins/1.21.11/ (profile.json stamped 336b435,
 delta-verdict.json, work-items.json at record-time state,
 rank2.closed = 120).
 
+CI run 44518329820 (on 9b7791e, A-batches 14-19 state, completed
+2026-11-19, ~1h22m): profile 5 pass / 1 oracle / 11 fail in the
+17-harness framing (5/18 over 23 entries with the datafix shards).
+Passing: block_properties, component_patch, food, lan, resource_pack
+— unchanged from run 44499421617. Real comparisons (4):
+command_parse (6337 mismatches, identical), datafix (15054
+differences over 7 worlds, shard 1 — identical), hotbar (889/905,
+identical), options (options.txt ordering/content diffs, 185 vs
+194 lines — identical). Oracle-side (5): chunk_generation (same
+Beardifier "Requested chunk unavailable" oracle crash), command_exec
+(SeedAgent.java `java.lang.classfile` at `--release 21` — the
+known harness-tooling follow-up), entity_components, first_person,
+item_model (oracle java runs exit non-zero). Launch/setup (3):
+light ("missing motion tag"), save_roundtrip (server closed the
+connection), sound_event (missing sounds.json). D1 FAILS on the
+same 26 dead production tags. D2 passes (0 errors, 0 warnings;
+440 protocol tests). D3 FAILS with real totals now (the pin held
+work-items.json at dispatch): rank-2 372 of 492 neither closed nor
+accepted at the pin snapshot (120 closed). D4/D5 blocked (stamp
+quirk: profile stamped 9b7791e, judge HEAD the staged candidate).
+D6 blocked (no playtest.md — deferred per owner). Recorded in
+pins/1.21.11/ (profile.json stamped 9b7791e, delta-verdict.json,
+work-items.json at record-time state, rank2.closed = 189).
+
+Two earlier runs landed the same day with the same profile 5/1/11
+and the same verdict shape: 44506660231 (on 5184978, A-batches 8-9
+state, D3 rank-2 402 open at its pin snapshot) and 44513629292 (on
+7090c16, A-batches 10-12 state, D3 rank-2 372 open). Both
+superseded by 44518329820; their profiles are not recorded in the
+pin.
+
 Rank 2 (492 items, in progress 2026-11-19)
 - Method: each item's named methods intersected with the diff store
   (rank2-triage.json, workdir scratch): 189 items with no changed named

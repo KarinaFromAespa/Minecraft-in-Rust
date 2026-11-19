@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "d5f4e4c190778876d7223386311c5477c796caf3",
+  "commit": "5e9da79996a854113a1f4649687fd9ccff28628f",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-19T11:07:08Z",
+  "checked_at": "2026-11-19T13:11:39Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -45,18 +45,19 @@
       ]
     },
     "D3": {
-      "status": "blocked",
+      "status": "fail",
       "notes": [
-        "no work-items.json: record closure per rank in the pin"
+        "rank-2: 372 of 492 item(s) neither closed nor accepted"
       ],
       "evidence": [
-        ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json"
+        ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
+        "pins/1.21.11/work-items.json"
       ]
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 336b4355fb97, HEAD is d5f4e4c19077 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 9b7791ecc69d, HEAD is 5e9da79996a8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
@@ -65,10 +66,10 @@
     "D5": {
       "status": "blocked",
       "notes": [
-        "no harness-subset.txt: the era's regression subset is undefined"
+        "profile.json is stamped for commit 9b7791ecc69d, HEAD is 5e9da79996a8 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "pins/1.21.11/harness-subset.txt"
+        "pins/1.21.11/profile.json"
       ]
     },
     "D6": {
