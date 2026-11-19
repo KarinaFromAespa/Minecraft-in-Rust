@@ -847,3 +847,18 @@ rank-1 closed (port in progress); D4/D5/D6 blocked (stamp quirk, no
 harness-subset.txt, no playtest.md — all record-time items).
 component_patch green on CI settles the local re-run: no local
 re-run needed.
+
+CI run 44460096417 (on 8fa812d, items 1/9/10 state, completed
+2026-11-19, 1h54m): profile 5 pass / 1 oracle / 11 fail — unchanged
+from 44448815383 (same passing set: block_properties,
+component_patch, food, lan, resource_pack; oracle-fail:
+command_exec). Items 1/9/10 move no harness: item 1's component
+removals sit inside the already-green component_patch, item 9's
+save changes sit inside save_roundtrip/datafix (failing for other
+reasons), item 10 is test-only. D2 passes (0 errors, 0 warnings;
+440 protocol tests). D1 blocked on the owed regen.json; D3 fails on
+0/10 rank-1 closed (port in progress — rank-1 code is 9/10 done,
+item 6 awaiting the client_probe build); D4/D5/D6 blocked (stamp
+quirk, no harness-subset.txt, no playtest.md — deferred per owner).
+Recorded in pins/1.21.11/ (profile.json stamped 8fa812d,
+delta-verdict.json).

@@ -1,0 +1,81 @@
+{
+  "schema": "delta-verdict/1",
+  "release": "1.21.11",
+  "commit": "f1f2fbb255e537be063e9e2ab7145fa7d3753a73",
+  "tree": ".horizon-ports/1.21.11",
+  "pin": "versions/1.21.11",
+  "mode": "recorded",
+  "verified": false,
+  "state": "failed",
+  "checked_at": "2026-11-19T06:36:27Z",
+  "scalars": {
+    "tier": "T",
+    "suite_pass": null,
+    "suite_total": null,
+    "suite_exempt": 0,
+    "items_closed": null,
+    "items_total": null,
+    "items_accepted": 0
+  },
+  "index_line": "| 1.21.11 | T | \u2014 | \u2014 | 0 | failed 2026-11-19 |",
+  "checks": {
+    "D1": {
+      "status": "blocked",
+      "notes": [
+        "no regen.json: run `version_port.py regen` and keep its output"
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.11/research-lock.json",
+        ".horizon-ports/1.21.11/crates/horizon-core/src/version.rs"
+      ]
+    },
+    "D2": {
+      "status": "pass",
+      "notes": [
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 440, none failing"
+      ],
+      "evidence": [
+        "versions/1.21.11/ci-out/cargo-check.log",
+        "versions/1.21.11/ci-out/cargo-test-protocol.log"
+      ]
+    },
+    "D3": {
+      "status": "fail",
+      "notes": [
+        "rank-1: 10 of 10 item(s) neither closed nor accepted"
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.11/diff-26.1-1.21.11/report.json",
+        "versions/1.21.11/work-items.json"
+      ]
+    },
+    "D4": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit 8fa812d75148, HEAD is f1f2fbb255e5 \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "versions/1.21.11/profile.json"
+      ]
+    },
+    "D5": {
+      "status": "blocked",
+      "notes": [
+        "no harness-subset.txt: the era's regression subset is undefined"
+      ],
+      "evidence": [
+        "versions/1.21.11/harness-subset.txt"
+      ]
+    },
+    "D6": {
+      "status": "blocked",
+      "notes": [
+        "no playtest.md: the play gate has not been recorded"
+      ],
+      "evidence": [
+        "versions/1.21.11/playtest.md"
+      ]
+    }
+  }
+}
