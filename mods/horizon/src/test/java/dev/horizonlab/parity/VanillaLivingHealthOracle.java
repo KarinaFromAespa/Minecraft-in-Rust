@@ -14,7 +14,7 @@ public final class VanillaLivingHealthOracle {
         void query(String text){out.println(text);int n=calls++;if(n==f.get("fail").getAsInt())throw new Stop();if(n==f.get("mutate_at").getAsInt()){changed=true;active=1;try{entityData.set(actor,stores[active]);dead.setBoolean(actor,world().get("dead").getAsBoolean());}catch(Exception e){throw new AssertionError(e);}}}
     }
     static final class Actor extends Player {Data d;Actor(){super(null, null, 0.0F, null);}
-        @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public float getHealth(){d.query("health");return super.getHealth();}
         @Override public double getAttributeValue(Holder<Attribute> a){String name=a==Attributes.MAX_HEALTH?"max-health":a==Attributes.MAX_ABSORPTION?"max-absorption":"unknown";d.query(name);return number(d.world().get(name));}
         @Override public void setHealth(float v){d.query("set "+bits(v));super.setHealth(v);}

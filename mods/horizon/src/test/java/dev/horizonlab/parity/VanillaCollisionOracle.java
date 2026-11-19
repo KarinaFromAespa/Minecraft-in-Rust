@@ -90,7 +90,7 @@ public final class VanillaCollisionOracle {
             int id = states.size();
             if (Block.BLOCK_STATE_REGISTRY.getId(state) != id) throw new AssertionError("non-dense states");
             Tag encoded = encode(state); states.add(encoded);
-            if (state == state.getBlock().defaultBlockState()) defaults.putInt(((CompoundTag)encoded).getStringOr("id", ""), id);
+            if (state == state.getBlock().defaultBlockState()) defaults.putInt(((CompoundTag)encoded).getString("id"), id);
             VoxelShape shape = cached(state);
             if (shape == null) mapping[id] = -1;
             else {
@@ -165,7 +165,7 @@ public final class VanillaCollisionOracle {
                 for (String line;(line=input.readLine())!=null;) {
                     Input in=new Input(line); int id=in.integer(); BlockPos offset=new BlockPos(in.integer(),in.integer(),in.integer());
                     AABB box=new AABB(in.vector(),in.vector()); Vec3 start=in.vector(),end=in.vector(),point=in.vector(); double amount=in.number();
-                    VoxelShape local=cached(Block.BLOCK_STATE_REGISTRY.byId(id)); VoxelShape moved=local.move(offset);
+                    VoxelShape local=cached(Block.BLOCK_STATE_REGISTRY.byId(id)); VoxelShape moved=local.move(offset.getX(), offset.getY(), offset.getZ());
                     values(out,"collide",moved.collide(Direction.Axis.X,box,amount),moved.collide(Direction.Axis.Y,box,amount),moved.collide(Direction.Axis.Z,box,amount));
                     hit(out,local.clip(start,end,offset));
                     Optional<Vec3> nearest=moved.closestPointTo(point); if(nearest.isEmpty()) out.println("closest none"); else values(out,"closest",nearest.get().x,nearest.get().y,nearest.get().z);

@@ -314,10 +314,9 @@ public final class VanillaCommandExecOracle {
                                 hand.equals("off") ? new net.minecraft.world.item.ItemStack(stick)
                                     : net.minecraft.world.item.ItemStack.EMPTY);
                             var other = new net.minecraft.world.entity.player.Player(level,
-                                new GameProfile(new UUID(0, 2), "OtherRider")) {
-                                public net.minecraft.world.level.GameType gameMode() {
-                                    return net.minecraft.world.level.GameType.SURVIVAL;
-                                }
+                                new net.minecraft.core.BlockPos(0, 0, 0), 0.0F, new GameProfile(new UUID(0, 2), "OtherRider")) {
+                                @Override public boolean isCreative() { return false; }
+                                @Override public boolean isSpectator() { return false; }
                             };
                             if (!first && !other.startRiding(mount, true, true)) throw new IllegalStateException("first passenger rejected");
                             if (!player.startRiding(mount, true, true)) throw new IllegalStateException("player passenger rejected");

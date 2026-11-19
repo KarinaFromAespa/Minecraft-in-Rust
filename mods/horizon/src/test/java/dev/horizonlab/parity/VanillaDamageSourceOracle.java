@@ -31,7 +31,8 @@ Data d;int id;
 Data d;int id;
         @Override public ItemStack getWeaponItem(){d.event("weapon "+id);return d.state().getAsJsonArray("weapons").get(id).getAsBoolean()?ItemStack.EMPTY:null;}
         @Override public Vec3 position(){d.event("position "+id);return VanillaDamageSourceOracle.position(d.state().getAsJsonArray("positions").get(id));}
-        @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return getAbilities().instabuild;}
+        @Override public boolean isSpectator(){return false;}
         @Override public Abilities getAbilities(){d.event("abilities "+id);var a=new Abilities();a.instabuild=d.state().getAsJsonArray("creative").get(id).getAsBoolean();return a;}
     }
     static MappedRegistry<DamageType> registry(Path dir)throws Exception {

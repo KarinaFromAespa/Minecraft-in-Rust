@@ -73,17 +73,17 @@ public final class VanillaVehicleContainerOracle {
         }
 
         @Override
-        public GameType gameMode() {
-            return GameType.SURVIVAL;
-        }
-
-        @Override
         public ResolvableProfile getProfile() {
             return ResolvableProfile.createResolved(this.getGameProfile());
         }
 
         @Override
         public boolean isSpectator() {
+            return false;
+        }
+
+        @Override
+        public boolean isCreative() {
             return false;
         }
     }

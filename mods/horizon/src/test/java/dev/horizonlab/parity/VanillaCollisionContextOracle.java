@@ -36,7 +36,7 @@ public final class VanillaCollisionContextOracle {
         ItemStack held;
         int calls,lastFluid;
         public PlayerSnapshot(){super(null, null, 0.0F, null);}
-        @Override public GameType gameMode(){return GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public boolean isDescending(){return descending;}
         @Override public ItemStack getMainHandItem(){return held;}
         @Override public boolean canStandOnFluid(FluidState state){

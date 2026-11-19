@@ -86,7 +86,8 @@ public final class VanillaBlockEntityAnimOracle {
     static final class Gamer extends Player {
         GameType mode;
         Gamer() { super(null, null, 0.0F, null); }
-        @Override public GameType gameMode() { return mode; }
+        @Override public boolean isCreative(){return false;}
+        @Override public boolean isSpectator(){return mode == GameType.SPECTATOR;}
         @Override public net.minecraft.world.item.component.ResolvableProfile getProfile() { return null; }
     }
 

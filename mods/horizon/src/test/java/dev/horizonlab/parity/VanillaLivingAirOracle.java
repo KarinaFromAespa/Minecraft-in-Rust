@@ -67,7 +67,7 @@ public final class VanillaLivingAirOracle {
         @Override protected double getEffectiveGravity(){d.query("gravity");return number(d.f.get("gravity"));}
         @Override public boolean shouldDiscardFriction(){d.query("discard");return d.flag("discard");}
         @Override protected boolean omnidirectionalAirMover(){d.query("omni");return d.flag("omni");}
-        @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
     }
     static Method method(Class<?> owner,String name,Class<?>... args)throws Exception{var m=owner.getDeclaredMethod(name,args);m.setAccessible(true);return m;}
     public static void main(String[] args)throws Exception{

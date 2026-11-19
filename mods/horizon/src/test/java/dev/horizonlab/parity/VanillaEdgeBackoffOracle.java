@@ -24,7 +24,7 @@ public final class VanillaEdgeBackoffOracle {
     }
     static final class Actor extends Player {
         Data d;Actor(){super(null, null, 0.0F, null);}void configure(Level level){setLevel(level);}
-        @Override public GameType gameMode(){return GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public float maxUpStep(){d.query("step");return Float.intBitsToFloat(Integer.parseUnsignedInt(d.input.get("step").getAsString(),16));}
         @Override protected boolean isStayingOnGroundSurface(){d.query("staying");return d.input.get("staying").getAsBoolean();}
         @Override public boolean onGround(){d.query("ground");return d.input.get("ground").getAsBoolean();}

@@ -9,7 +9,6 @@ import net.minecraft.client.renderer.block.model.BlockElementFace;
 import net.minecraft.client.renderer.block.model.BlockElementRotation;
 import net.minecraft.client.renderer.block.model.BlockModel;
 import net.minecraft.client.renderer.block.model.ItemTransform;
-import net.minecraft.client.renderer.block.model.SimpleUnbakedGeometry;
 import net.minecraft.world.item.ItemDisplayContext;
 import org.joml.Vector3fc;
 
@@ -27,7 +26,8 @@ public final class VanillaCuboidModelOracle {
     static Object transform(ItemTransform value) {
         if (value == ItemTransform.NO_TRANSFORM) return "inherit";
         if (value == null) return null;
-        return map("rotation", vector(value.rotation()), "translation", vector(value.translation()), "scale", vector(value.scale()));
+        // 1.21.4 ItemTransform carries public fields, not record accessors.
+        return map("rotation", vector(value.rotation), "translation", vector(value.translation), "scale", vector(value.scale));
     }
     private static Object rotation(BlockElementRotation value) {
         if (value == null) return null;
@@ -39,24 +39,42 @@ public final class VanillaCuboidModelOracle {
     }
     private static Object face(BlockElementFace value) {
         if (value == null) return null;
-        var uv = value.uvs();
+        var uv = value.uv();
+        // 1.21.4 has no per-face rotation field: the rotation lives on the
+        // BlockFaceUV as an int in degrees (0/90/180/270), and the uv box
+        // is the public float[] uvs (minU, minV, maxU, maxV).
         return map("cull", direction(value.cullForDirection()), "tint", value.tintIndex(), "texture", value.texture(),
-            "rotation", value.rotation().ordinal(), "uv", uv == null ? null : new long[]{bits(uv.minU()), bits(uv.minV()), bits(uv.maxU()), bits(uv.maxV())});
+            "rotation", uv == null ? 0 : uv.rotation, "uv", uv == null ? null : new long[]{bits(uv.uvs[0]), bits(uv.uvs[1]), bits(uv.uvs[2]), bits(uv.uvs[3])});
     }
     static Object element(BlockElement value) {
         if (value == null) return null;
         var faces = new TreeMap<String, Object>();
-        value.faces().forEach((key, f) -> faces.put(key.getName(), face(f)));
+        // 1.21.4 BlockElement carries public fields, not record accessors.
+        value.faces.forEach((key, f) -> faces.put(key.getName(), face(f)));
         // 1.21.11 elements carry a boolean shade flag; the per-face shade direction override
         // the later cuboid format reports does not exist yet.
-        return map("from", vector(value.from()), "to", vector(value.to()), "faces", faces,
-            "rotation", rotation(value.rotation()), "shade", value.shade(), "light", value.lightEmission());
+        return map("from", vector(value.from), "to", vector(value.to), "faces", faces,
+            "rotation", rotation(value.rotation), "shade", value.shade, "light", value.lightEmission);
+    }
+    @SuppressWarnings("unchecked")
+    private static List<BlockElement> elements(BlockModel value) throws Exception {
+        // 1.21.4 BlockModel has no geometry(): elements are the
+        // package-private getElements() list (empty when the model has none).
+        var method = BlockModel.class.getDeclaredMethod("getElements"); method.setAccessible(true);
+        return (List<BlockElement>)method.invoke(value);
+    }
+    private static Object parent(BlockModel value) throws Exception {
+        // 1.21.4 BlockModel has no parent(): the parent location is the
+        // package-private getParentLocation().
+        var method = BlockModel.class.getDeclaredMethod("getParentLocation"); method.setAccessible(true);
+        var location = method.invoke(value);
+        return location == null ? null : location.toString();
     }
     private static Object model(BlockModel value) throws Exception {
         if (value == null) return null;
         var textures = new TreeMap<String, Object>();
         // Slot implementation records are package-private; inspect only their public accessors.
-        for (var entry : value.textureSlots().values().entrySet()) {
+        for (var entry : value.getTextureSlots().values().entrySet()) {
             Object slot = entry.getValue();
             var cls = slot.getClass();
             if (cls.getSimpleName().equals("Reference")) {
@@ -69,21 +87,18 @@ public final class VanillaCuboidModelOracle {
                 textures.put(entry.getKey(), map("sprite", material.texture().toString()));
             }
         }
-        List<Object> elements = null;
-        if (value.geometry() != null) {
-            elements = new ArrayList<>();
-            for (var element : ((SimpleUnbakedGeometry)value.geometry()).elements()) elements.add(element(element));
-        }
+        List<Object> elements = new ArrayList<>();
+        for (var element : elements(value)) elements.add(element(element));
         Object display = null;
-        if (value.transforms() != null) {
+        if (value.getTransforms() != null) {
             var transforms = new TreeMap<String, Object>();
             for (var context : ItemDisplayContext.values()) {
-                if (context != ItemDisplayContext.NONE) transforms.put(context.getSerializedName(), transform(value.transforms().getTransform(context)));
+                if (context != ItemDisplayContext.NONE) transforms.put(context.getSerializedName(), transform(value.getTransforms().getTransform(context)));
             }
             display = transforms;
         }
-        return map("parent", value.parent() == null ? null : value.parent().toString(), "ao", value.ambientOcclusion(),
-            "gui", value.guiLight() == null ? null : value.guiLight().name().toLowerCase(Locale.ROOT), "textures", textures, "elements", elements, "display", display);
+        return map("parent", parent(value), "ao", value.getAmbientOcclusion(),
+            "gui", value.getGuiLight() == null ? null : value.getGuiLight().name().toLowerCase(Locale.ROOT), "textures", textures, "elements", elements, "display", display);
     }
     public static void main(String[] args) throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();

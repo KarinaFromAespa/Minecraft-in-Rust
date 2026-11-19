@@ -433,7 +433,7 @@ public final class VanillaNaturalSpawnOracle {
         }
         @Override public boolean isSpectator() { return mode == GameType.SPECTATOR; }
         @Override public boolean isCreative() { return mode == GameType.CREATIVE; }
-        @Override public GameType gameMode() { return mode; }
+        
         @Override public boolean isAlive() { return true; }
         // Vault key insertion: no attributes, stats or abilities on the stand-in.
         @Override public float getLuck() { return 0.0F; }

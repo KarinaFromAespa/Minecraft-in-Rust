@@ -48,7 +48,8 @@ public final class VanillaHeldDropOracle {
         GameType mode;
         int swings;
         Actor() { super(null, null, null, null, null, false, false); }
-        @Override public GameType gameMode() { return mode; }
+        @Override public boolean isCreative(){return mode == GameType.CREATIVE;}
+        @Override public boolean isSpectator(){return mode == GameType.SPECTATOR;}
         @Override public boolean isUsingItem() { throw new Done(); }
         @Override public boolean swing(InteractionHand hand, SwingAnimation animation, boolean sendPacket) {
             if (hand != InteractionHand.MAIN_HAND || !animation.equals(SwingAnimation.DEFAULT) || sendPacket)

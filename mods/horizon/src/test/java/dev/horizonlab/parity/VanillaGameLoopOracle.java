@@ -126,6 +126,7 @@ public final class VanillaGameLoopOracle {
 
         @Override public boolean isScoping() { return scoping; }
         @Override public boolean isSpectator() { return spectator; }
+        @Override public boolean isCreative() { return false; }
     }
 
     static Minecraft shell;

@@ -33,7 +33,7 @@ public final class VanillaConsumableOracle {
   @Override public boolean hasInfiniteMaterials(){d.event("infinite");return d.config().get("infinite").getAsBoolean();}
   @Override public void gameEvent(Holder<GameEvent> event){if(event!=GameEvent.EAT&&event!=GameEvent.DRINK)throw new AssertionError();d.event("game-event "+(event==GameEvent.DRINK));}
 }
- static final class Human extends Player {Data d;Human(){super(null, null, 0.0F, null);}@Override public GameType gameMode(){return GameType.SURVIVAL;}@Override public boolean isSpectator(){return false;}@Override public boolean isCreative(){return false;}
+ static final class Human extends Player {Data d;Human(){super(null, null, 0.0F, null);}@Override public boolean isSpectator(){return false;}@Override public boolean isCreative(){return false;}
   @Override public void spawnItemParticles(ItemStack s,int count){if(s!=d.stack)throw new AssertionError();d.event("spawn "+count);super.spawnItemParticles(s,count);}
   @Override public void playSound(SoundEvent s,float volume,float pitch){d.event("sound "+(s==SoundEvents.GENERIC_EAT.value()?0:s==SoundEvents.PLAYER_BURP?1:-1)+" "+Integer.toUnsignedString(Float.floatToIntBits(volume))+" "+Integer.toUnsignedString(Float.floatToIntBits(pitch)));}
   @Override public RandomSource getRandom(){d.event("random");return d.random[n(d.config(),"virtual_random")];}

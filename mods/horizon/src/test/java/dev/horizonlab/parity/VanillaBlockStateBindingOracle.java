@@ -1,15 +1,14 @@
 package dev.horizonlab.parity;
 
 import com.google.gson.*;
-import com.mojang.serialization.JsonOps;
 import java.nio.file.*;
 import java.util.*;
 import net.minecraft.client.renderer.block.model.BlockModelDefinition;
-import net.minecraft.client.renderer.block.model.BlockStateModel;
-import net.minecraft.client.renderer.block.model.multipart.MultiPartModel;
+import net.minecraft.client.renderer.block.model.MultiVariant;
+import net.minecraft.client.renderer.block.model.UnbakedBlockStateModel;
+import net.minecraft.client.renderer.block.model.multipart.MultiPart;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.client.resources.model.BlockStateDefinitions;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.Property;
@@ -54,20 +53,26 @@ public final class VanillaBlockStateBindingOracle {
         var values=new TreeSet<String>();for(var value:property.getPossibleValues())values.add(property.getName(value));return values;
     }
     private static <T extends Comparable<T>> String value(BlockState state,Property<T> property) {return property.getName(state.getValue(property));}
+    @SuppressWarnings("unchecked")
     private static Object bind(JsonObject row) throws Exception {
         var states=Objects.requireNonNull(mapper.apply(ResourceLocation.parse(row.get("block").getAsString())));
-        var definition=BlockModelDefinition.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(row.get("json").getAsString())).getOrThrow();
-        var roots=definition.instantiate(states,()->"horizon:binding_probe");
-        var indices=new IdentityHashMap<BlockStateModel.Unbaked,Integer>();
-        definition.simpleModels().ifPresent(m->{int index=0;for(var value:m.models().values())indices.put(value,index++);});
+        // 1.21.4 has no BlockModelDefinition.CODEC: parse with fromJsonElement.
+        // There is no BlockStateModel/MultiPartModel either: instantiate()
+        // returns MultiVariant roots for simple definitions and MultiPart
+        // roots for multipart ones, both UnbakedBlockStateModel.
+        var definition=BlockModelDefinition.fromJsonElement(JsonParser.parseString(row.get("json").getAsString()));
+        var roots=definition.instantiate(states,"horizon:binding_probe");
+        var indices=new IdentityHashMap<MultiVariant,Integer>();
+        var variants=(Map<String,MultiVariant>)field(definition,"variants");
+        int index=0;for(var value:variants.values())indices.put(value,index++);
         var selected=new ArrayList<Object>();
         for(var state:states.getPossibleStates()) {
-            var root=roots.get(state);
+            UnbakedBlockStateModel root=roots.get(state);
             if(root==null) {selected.add(null);continue;}
-            if(root instanceof BlockStateModel.SimpleCachedUnbakedRoot) {
-                var index=indices.get(field(root,"contents"));if(index==null)throw new AssertionError("unrecognized simple root");
-                selected.add(map("variant",index));
-            } else if(root instanceof MultiPartModel.Unbaked) {
+            if(root instanceof MultiVariant variant) {
+                var i=indices.get(variant);if(i==null)throw new AssertionError("unrecognized simple root");
+                selected.add(map("variant",i));
+            } else if(root instanceof MultiPart) {
                 var group=root.visualEqualityGroup(state);Object parts=null;
                 for(var f:group.getClass().getDeclaredFields())if(it.unimi.dsi.fastutil.ints.IntList.class.isAssignableFrom(f.getType())) {f.setAccessible(true);parts=f.get(group);}
                 if(parts==null)throw new AssertionError("unrecognized multipart group");
@@ -77,8 +82,10 @@ public final class VanillaBlockStateBindingOracle {
         return selected;
     }
     public static void main(String[] args) throws Exception {
-        net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();// In 1.21.11 definitionLocationToBlockStateMapper() is not public; call it reflectively.
-        var mapperMethod=BlockStateDefinitions.class.getDeclaredMethod("definitionLocationToBlockStateMapper");mapperMethod.setAccessible(true);mapper=(java.util.function.Function<ResourceLocation,StateDefinition<Block,BlockState>>)mapperMethod.invoke(null);
+        net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
+        // 1.21.4 has no BlockStateDefinitions: the state definition comes
+        // straight from the block registry.
+        mapper=id->BuiltInRegistries.BLOCK.get(id).getStateDefinition();
         if(args[0].equals("export")){export(Path.of(args[1]));return;}
         try(var input=Files.newBufferedReader(Path.of(args[0]));var output=Files.newBufferedWriter(Path.of(args[1]))) {
             for(String line;(line=input.readLine())!=null;) {

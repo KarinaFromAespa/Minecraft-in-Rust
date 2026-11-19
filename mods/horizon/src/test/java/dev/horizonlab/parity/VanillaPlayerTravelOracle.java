@@ -18,7 +18,7 @@ public final class VanillaPlayerTravelOracle {
         @Override public FluidState getFluidState(BlockPos p){d.query("fluid "+p.getX()+" "+p.getY()+" "+p.getZ());return (d.flag("empty")?Fluids.EMPTY:Fluids.WATER).defaultFluidState();}}
     static final class Actor extends Player {
         Data d;Actor(){super(null, null, 0.0F, null);}void configure(Level l){setLevel(l);}
-        @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public boolean isPassenger(){d.query("passenger");return d.flag("passenger");}
         @Override public boolean isSwimming(){d.query("swimming");return d.flag("swimming");}
         @Override public Vec3 getLookAngle(){d.query("look");return vec(d.f.get("look"));}

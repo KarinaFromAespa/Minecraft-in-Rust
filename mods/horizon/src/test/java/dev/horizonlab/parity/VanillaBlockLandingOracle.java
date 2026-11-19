@@ -118,13 +118,14 @@ public final class VanillaBlockLandingOracle {
 @Override public net.minecraft.world.entity.Entity getEntity(int p0){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.ticks.LevelTickAccess getFluidTicks(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.saveddata.maps.MapItemSavedData getMapData(net.minecraft.world.level.saveddata.maps.MapId p0){throw new UnsupportedOperationException();}
+@Override public net.minecraft.world.level.saveddata.maps.MapId getFreeMapId(){throw new UnsupportedOperationException();}
+@Override public void setMapData(net.minecraft.world.level.saveddata.maps.MapId p0,net.minecraft.world.level.saveddata.maps.MapItemSavedData p1){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.scores.Scoreboard getScoreboard(){throw new UnsupportedOperationException();}
 @Override public int getSeaLevel(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.core.Holder getUncachedNoiseBiome(int p0,int p1,int p2){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.level.border.WorldBorder getWorldBorder(){throw new UnsupportedOperationException();}
-@Override public void levelEvent(net.minecraft.world.entity.Entity p0,int p1,net.minecraft.core.BlockPos p2,int p3){throw new UnsupportedOperationException();}
-@Override public void playSeededSound(net.minecraft.world.entity.Entity p0,net.minecraft.world.entity.Entity p1,net.minecraft.core.Holder p2,net.minecraft.sounds.SoundSource p3,float p4,float p5,long p6){throw new UnsupportedOperationException();}
-@Override public void playSeededSound(net.minecraft.world.entity.Entity p0,double p1,double p2,double p3,net.minecraft.core.Holder p4,net.minecraft.sounds.SoundSource p5,float p6,float p7,long p8){throw new UnsupportedOperationException();}
+@Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,net.minecraft.world.entity.Entity p1,net.minecraft.core.Holder p2,net.minecraft.sounds.SoundSource p3,float p4,float p5,long p6){throw new UnsupportedOperationException();}
+@Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,double p1,double p2,double p3,net.minecraft.core.Holder p4,net.minecraft.sounds.SoundSource p5,float p6,float p7,long p8){throw new UnsupportedOperationException();}
 @Override public java.util.List players(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.item.crafting.RecipeAccess recipeAccess(){throw new UnsupportedOperationException();}
 @Override public void sendBlockUpdated(net.minecraft.core.BlockPos p0,net.minecraft.world.level.block.state.BlockState p1,net.minecraft.world.level.block.state.BlockState p2,int p3){throw new UnsupportedOperationException();}
@@ -132,14 +133,14 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Other extends Marker {
         Data d;Other(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
     }
     static final class Living extends net.minecraft.world.entity.decoration.ArmorStand {
         Data d;Living(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
@@ -147,16 +148,17 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Human extends Player {
         Data d;Human(){super(null, null, 0.0F, null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
         @Override public Fallsounds getFallSounds(){d.query("fall-sounds");return new Fallsounds(SoundEvents.GENERIC_SMALL_FALL,SoundEvents.GENERIC_BIG_FALL);}
-        @Override public GameType gameMode(){return GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}
+        @Override public boolean isSpectator(){return false;}
     }
     static final class Undead extends net.minecraft.world.entity.monster.Zombie {
         Data d;Undead(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
@@ -164,7 +166,7 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Reptile extends net.minecraft.world.entity.animal.Turtle {
         Data d;Reptile(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
@@ -172,7 +174,7 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Flying extends net.minecraft.world.entity.ambient.Bat {
         Data d;Flying(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
@@ -180,14 +182,14 @@ public final class VanillaBlockLandingOracle {
     }
     static final class Item extends net.minecraft.world.entity.item.ItemEntity {
         Data d;Item(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
     }
     static final class Tnt extends net.minecraft.world.entity.item.PrimedTnt {
         Data d;Tnt(){super(null,null);}
-        @Override public boolean causeFallDamage(double distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
+        @Override public boolean causeFallDamage(float distance,float multiplier,DamageSource source){return d.damage(distance,multiplier,source);}
         @Override public boolean isSuppressingBounce(){d.query("suppress");return d.flag("suppress");}
         @Override public DamageSources damageSources(){d.query("entity-sources");return d.sources;}
         @Override public void playSound(SoundEvent s,float volume,float pitch){d.entitySound(s,volume,pitch);}
@@ -200,7 +202,7 @@ public final class VanillaBlockLandingOracle {
         VanillaCollisionOracle.main(new String[]{"generate",dir.toString()});VanillaMovementRegistryOracle.export(dir);
         var definitions=new JsonObject();var metadata=new JsonArray();java.lang.reflect.Field base=null;try{base=FarmBlock.class.getDeclaredField("baseBlock");base.setAccessible(true);}catch(NoSuchFieldException missing){} var sound=BlockBehaviour.class.getDeclaredField("soundType");sound.setAccessible(true); // no baseBlock field in 1.21.11: turnToDirt hardcodes dirt; the soundType field declaration follows on this line in the original layoutvar sound=BlockBehaviour.class.getDeclaredField("soundType");sound.setAccessible(true);
         var owners=Set.of(Block.class,HayBlock.class,HoneyBlock.class,SlimeBlock.class,PowderSnowBlock.class,PointedDripstoneBlock.class,FarmBlock.class,TurtleEggBlock.class,BedBlock.class); // BedBlock declares fallOn in 1.21.11
-        for(var block:BuiltInRegistries.BLOCK){var owner=block.getClass().getMethod("fallOn",Level.class,BlockState.class,BlockPos.class,Entity.class,double.class).getDeclaringClass();if(!owners.contains(owner))throw new AssertionError(owner);var bounce=block.getClass().getMethod("updateEntityMovementAfterFallOn",BlockGetter.class,Entity.class).getDeclaringClass();if(bounce!=Block.class&&bounce!=BedBlock.class&&bounce!=SlimeBlock.class)throw new AssertionError(bounce);var entry=new JsonObject();entry.addProperty("fall",owner.getSimpleName());entry.addProperty("bounce",bounce!=Block.class);if(owner==FarmBlock.class)entry.addProperty("base",BuiltInRegistries.BLOCK.getKey(base==null?Blocks.DIRT:(Block)base.get(block)).toString());if(owner==HoneyBlock.class){var type=(SoundType)sound.get(block);entry.addProperty("volume",String.format("%08x",Float.floatToIntBits(type.getVolume())));entry.addProperty("pitch",String.format("%08x",Float.floatToIntBits(type.getPitch())));if(type.getFallSound()!=SoundEvents.HONEY_BLOCK_FALL)throw new AssertionError();}definitions.add(BuiltInRegistries.BLOCK.getKey(block).toString(),entry);}
+        for(var block:BuiltInRegistries.BLOCK){var owner=block.getClass().getMethod("fallOn",Level.class,BlockState.class,BlockPos.class,Entity.class,float.class).getDeclaringClass();if(!owners.contains(owner))throw new AssertionError(owner);var bounce=block.getClass().getMethod("updateEntityMovementAfterFallOn",BlockGetter.class,Entity.class).getDeclaringClass();if(bounce!=Block.class&&bounce!=BedBlock.class&&bounce!=SlimeBlock.class)throw new AssertionError(bounce);var entry=new JsonObject();entry.addProperty("fall",owner.getSimpleName());entry.addProperty("bounce",bounce!=Block.class);if(owner==FarmBlock.class)entry.addProperty("base",BuiltInRegistries.BLOCK.getKey(base==null?Blocks.DIRT:(Block)base.get(block)).toString());if(owner==HoneyBlock.class){var type=(SoundType)sound.get(block);entry.addProperty("volume",String.format("%08x",Float.floatToIntBits(type.getVolume())));entry.addProperty("pitch",String.format("%08x",Float.floatToIntBits(type.getPitch())));if(type.getFallSound()!=SoundEvents.HONEY_BLOCK_FALL)throw new AssertionError();}definitions.add(BuiltInRegistries.BLOCK.getKey(block).toString(),entry);}
         for(var state:Block.BLOCK_STATE_REGISTRY){var row=new JsonObject();row.addProperty("id",Block.getId(state));row.addProperty("name",BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());metadata.add(row);}
         Files.writeString(dir.resolve("landing-definitions.json"),definitions.toString());Files.writeString(dir.resolve("landing-states.json"),metadata.toString());
     }
@@ -214,7 +216,7 @@ public final class VanillaBlockLandingOracle {
             Level world;if(d.flag("server")){var w=make(ServerWorld.class);w.d=d;world=w;}else{var w=make(ClientWorld.class);w.d=d;world=w;}
             var kind=kinds[f.get("kind").getAsInt()];var entity=(Entity)make(kind);var dataField=kind.getDeclaredField("d");dataField.set(entity,d);dimensions.set(entity,EntityDimensions.scalable(single(f.get("width")),single(f.get("height"))));d.occupants=new ArrayList<>();for(var box:f.getAsJsonArray("entities")){var e=make(Occupant.class);e.d=d;e.id=d.occupants.size();e.setBoundingBox(box(box));d.occupants.add(e);}
             var p=f.getAsJsonArray("position");var position=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());var state=d.state;
-            try{if(d.flag("bounce"))state.getBlock().updateEntityMovementAfterFallOn(world,entity);else state.getBlock().fallOn(world,state,position,entity,number(f.get("distance")));out.println("ok");}catch(Stop e){out.println("error");}
+            try{if(d.flag("bounce"))state.getBlock().updateEntityMovementAfterFallOn(world,entity);else state.getBlock().fallOn(world,state,position,entity,(float)number(f.get("distance")));out.println("ok");}catch(Stop e){out.println("error");}
             out.println("state "+Block.getId(d.state));for(var e:d.occupants)out.println(bounds("final "+e.id,e.getBoundingBox()));out.println("queries "+d.calls);
         }}
     }

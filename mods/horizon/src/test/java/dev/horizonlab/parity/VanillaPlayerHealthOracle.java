@@ -12,7 +12,7 @@ public final class VanillaPlayerHealthOracle {
     static Field field(Class<?> c,String n)throws Exception{var f=c.getDeclaredField(n);f.setAccessible(true);return f;}
     static final class Data {JsonObject op;PrintWriter out;AttributeMap attributes;SynchedEntityData data;int calls;
         void event(String s){out.println(s);if(calls++==op.get("fail").getAsInt())throw new Stop();}}
-    static final class Actor extends Player {Data d;Actor(){super(null, null, 0.0F, null);}@Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+    static final class Actor extends Player {Data d;Actor(){super(null, null, 0.0F, null);}@Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public double getAttributeValue(Holder<Attribute> a){return d.attributes.getValue(a);}
         @Override public void onSyncedDataUpdated(EntityDataAccessor<?> a){var key=a.id()==healthKey.id()?healthKey:absorptionKey;d.event("updated "+key.id()+" "+bits(d.data.get(key))+" "+d.data.isDirty());if(d.op.get("pack_callback").getAsBoolean())d.out.println("callback-pack "+values(d.data.packDirty()));}
         @Override public void onSyncedDataUpdated(List<SynchedEntityData.DataValue<?>> v){d.event("assigned "+values(v));}

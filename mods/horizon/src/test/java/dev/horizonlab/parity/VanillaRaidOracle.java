@@ -268,7 +268,7 @@ public final class VanillaRaidOracle {
         PlayerAdvancements adv;
         @Override public boolean isSpectator() { return mode == GameType.SPECTATOR; }
         @Override public boolean isCreative() { return mode == GameType.CREATIVE; }
-        @Override public GameType gameMode() { return mode; }
+        
         @Override public boolean isAlive() { return alive; }
         @Override public MobEffectInstance getEffect(Holder<MobEffect> effect) {
             return effect == MobEffects.RAID_OMEN && omen >= 0 ? new MobEffectInstance(MobEffects.RAID_OMEN, 600, omen) : null;

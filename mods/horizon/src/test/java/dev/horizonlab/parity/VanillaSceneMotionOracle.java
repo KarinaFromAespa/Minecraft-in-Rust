@@ -203,7 +203,7 @@ public final class VanillaSceneMotionOracle {
         @Override protected void playHurtSound(DamageSource source){events.add("hurt-sound");}
         @Override protected SoundEvent getDeathSound(){return SoundEvents.PLAYER_DEATH;}
         @Override public void makeSound(SoundEvent sound){events.add("death-sound");}
-        @Override public GameType gameMode(){return GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}
         @Override public AttributeMap getAttributes(){return attrs;}
         @Override protected boolean getSharedFlag(int bit){return (flags&(1<<bit))!=0;}
         @Override protected void setSharedFlag(int bit,boolean v){flags=(byte)(v?flags|(1<<bit):flags&~(1<<bit));}

@@ -83,7 +83,7 @@ public final class VanillaLivingFluidOracle {
         @Override public boolean isFree(double x,double y,double z){d.query("free "+vector(new Vec3(x,y,z)));if(d.flag("free_mutate"))d.velocity=new Vec3(31,32,33);return d.flag("free");}
         @Override public boolean isVehicle(){d.query("vehicle");return d.flag("vehicle");}
         @Override protected boolean omnidirectionalAirMover(){d.query("omni");return d.flag("omni");}
-        @Override public net.minecraft.world.level.GameType gameMode(){return net.minecraft.world.level.GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
     }
     static Method method(Class<?> owner,String name,Class<?>... args)throws Exception{var m=owner.getDeclaredMethod(name,args);m.setAccessible(true);return m;}
     public static void main(String[] args)throws Exception{

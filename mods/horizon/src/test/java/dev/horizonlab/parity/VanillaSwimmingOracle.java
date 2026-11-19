@@ -20,7 +20,7 @@ public final class VanillaSwimmingOracle {
         @Override public boolean isUnderWater(){d.query("under");return super.isUnderWater();}@Override public void setSwimming(boolean v){d.set(v);}
     }
     static final class Human extends Player {Data d;Human(){super(null, null, 0.0F, null);}
-        @Override public GameType gameMode(){return GameType.SURVIVAL;}
+        @Override public boolean isCreative(){return false;}@Override public boolean isSpectator(){return false;}
         @Override public boolean isSwimming(){return d.swimming();}@Override public boolean isInWater(){return d.water();}@Override public boolean isSprinting(){return d.sprint();}@Override public boolean isPassenger(){return d.passenger();}
         @Override public boolean isUnderWater(){d.query("under");return super.isUnderWater();}@Override public void setSwimming(boolean v){d.set(v);}
     }

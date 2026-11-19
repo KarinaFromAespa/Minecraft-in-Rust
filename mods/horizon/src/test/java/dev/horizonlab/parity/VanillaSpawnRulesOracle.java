@@ -105,7 +105,7 @@ public final class VanillaSpawnRulesOracle {
     static final class OraclePlayer extends Player {
         final GameType mode;
         OraclePlayer(Level level, GameType mode) { super(level, new BlockPos(0, 0, 0), 0.0F, new GameProfile(new UUID(1L, 2L), "oracle")); this.mode = mode; }
-        @Override public GameType gameMode() { return mode; }
+        
         @Override public boolean isCreative() { return mode == GameType.CREATIVE; }
         @Override public boolean isSpectator() { return mode == GameType.SPECTATOR; }
         @Override public net.minecraft.world.item.component.ResolvableProfile getProfile() { return net.minecraft.world.item.component.ResolvableProfile.createResolved(this.getGameProfile()); }
