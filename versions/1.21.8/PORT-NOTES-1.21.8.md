@@ -334,7 +334,38 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 25/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38, 39 + 4 zero-diff)
+### Rank 2: 26/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38, 39, 41 + 4 zero-diff)
+
+- **Item 41 — `horizon-client-input/src/mouse.rs` (2 classes, 19 methods, 8 named in Horizon):**
+  MouseHandler, MacosUtil.
+  1. **No X inversion:** 1.21.9 added `invertMouseX` (`turnPlayer` flips
+     `xo` when set); 1.21.8 inverts Y only (`invertYMouse`). Removed
+     `invert_x` from `LookOptions`, `turn_player` (yaw is always `+xo`
+     now) and `motion_for_turn`, plus the `look_options()` construction,
+     the game_loop probe's `ix` read (the 1.21.8 oracle ignores it too)
+     and the test literals. Per the item-21 precedent, the orphaned
+     option definition (`Opt::InvertX`, `settings.invert_x`, the
+     `invertXMouse` options.txt key) is left for item 59 (Options) — it
+     is now read nowhere.
+  2. **Citations:** `InputQuirks.RESTORE_KEY_STATE_AFTER_MOUSE_GRAB` →
+     `!Minecraft.ON_OSX` (pointer_capture.rs grab comment; the quirk
+     equals `!ON_OSX`, verified in 1.21.9's InputQuirks).
+  Verified no-change: the spectator middle-click already matches 1.21.8
+  (middle-click as a spectator opens/uses the menu instead of firing
+  pick-item — 1.21.9 dropped `onMouseMiddleClick` entirely and fires the
+  key mapping); the double-click is per-screen only in the Rust (no global
+  `MouseHandler` tracker — the 1.21.8 form, item 38); the grab key-restore
+  and the macOS Ctrl+click emulation are the same in both versions (the
+  quirk flags equal `!ON_OSX` / `ON_OSX`); `onScroll`/`onMove`/setup/drop
+  are `Window.handle()` vs `getWindow()` renames with identical bodies;
+  the sensitivity/smoothing/scoping turn math is unchanged (only the
+  invert lines differ); `MacosUtil`'s `Window` → `long` params are API-only.
+  For other items: item 59 (Options) owns the `Opt::InvertX` /
+  `settings.invert_x` / `invertXMouse` definition removal, the InvertY
+  lang key (`options.invertMouseY` → 1.21.8's `options.invertMouse`), and
+  the `ctrlClickEmulatesRightClick` option — it exists in NEITHER version
+  (vanilla emulates Ctrl+click unconditionally on macOS) and the Rust's
+  defaults it to false, so macOS Ctrl+click does nothing by default.
 
 - **Item 39 — `game/boats.rs` (6 classes, 23 methods, 8 named in Horizon):**
   AbstractBoatRenderer, ModelLayers, AbstractBoat, AbstractBoatModel,

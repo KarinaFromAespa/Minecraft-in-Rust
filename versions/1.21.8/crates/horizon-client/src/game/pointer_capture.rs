@@ -13,7 +13,6 @@ impl Game<'_> {
             sensitivity: f64::from(self.settings.sensitivity),
             smooth_camera: self.smooth_camera,
             scoping: self.scoping(),
-            invert_x: self.settings.invert_x,
             invert_y: self.settings.invert_y,
         }
     }
@@ -160,8 +159,8 @@ impl Game<'_> {
             return;
         }
         if capture && !self.captured && !cfg!(target_os = "macos") {
-            // MouseHandler.grabMouse: KeyMapping.setAll unless
-            // InputQuirks.RESTORE_KEY_STATE_AFTER_MOUSE_GRAB is off (macOS).
+            // MouseHandler.grabMouse: KeyMapping.setAll unless on macOS
+            // (`!Minecraft.ON_OSX`).
             self.restore_held_keys();
         }
         let Some(window) = &self.window else { return };

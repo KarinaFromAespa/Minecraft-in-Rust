@@ -137,7 +137,6 @@ pub struct LookOptions {
     pub smooth_camera: bool,
     /// First-person camera and the player is scoping (spyglass).
     pub scoping: bool,
-    pub invert_x: bool,
     pub invert_y: bool,
 }
 
@@ -260,7 +259,7 @@ impl MouseLook {
             (self.accumulated_dx * sens, self.accumulated_dy * sens)
         };
         (
-            if look.invert_x { -xo } else { xo },
+            xo,
             if look.invert_y { -yo } else { yo },
         )
     }
@@ -307,12 +306,12 @@ pub fn degrees_per_count(look: LookOptions) -> f64 {
 }
 
 /// The mouse motion that turns the view by `dyaw` and `dpitch` degrees with
-/// these options, the inverted axes included.
+/// these options, the inverted Y axis included.
 pub fn motion_for_turn(dyaw: f64, dpitch: f64, look: LookOptions) -> (f64, f64) {
     let per_count = degrees_per_count(look);
     let flip = |inverted: bool| if inverted { -1.0 } else { 1.0 };
     (
-        dyaw / per_count * flip(look.invert_x),
+        dyaw / per_count,
         dpitch / per_count * flip(look.invert_y),
     )
 }
@@ -372,7 +371,6 @@ mod tests {
         sensitivity: 0.5,
         smooth_camera: false,
         scoping: false,
-        invert_x: false,
         invert_y: false,
     };
 
@@ -444,7 +442,6 @@ mod tests {
             PLAIN,
             LookOptions {
                 sensitivity: 0.9,
-                invert_x: true,
                 invert_y: true,
                 ..PLAIN
             },
@@ -505,7 +502,6 @@ mod tests {
                     sensitivity: 0.5,
                     smooth_camera: false,
                     scoping: false,
-                    invert_x: false,
                     invert_y: false,
                 },
             )
