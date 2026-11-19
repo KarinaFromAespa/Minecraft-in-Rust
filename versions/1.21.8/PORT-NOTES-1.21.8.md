@@ -334,7 +334,56 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 69/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89 + 4 zero-diff)
+### Rank 2: 70/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54 + 4 zero-diff)
+
+- **Item 54 — `crates/horizon-client/src/game/mob_blocks.rs`
+  (16 classes, 44 methods, 3 named in Horizon),
+  citations only:** the mob block layers
+  (MushroomCowMushroomLayer, PlayerItemInHandLayer,
+  CarriedBlockLayer, DolphinCarryingItemLayer,
+  FoxHeldItemLayer, IronGolemFlowerLayer,
+  PandaHoldsItemLayer, SnowGolemHeadLayer) +
+  removed-in-1.21.8: CopperGolemModel,
+  CopperGolemRenderer, ElderGuardianParticle (+
+  Provider, + Group, + 2 inner classes),
+  BlockDecorationLayer. 1.21.9's submit-based
+  rendering (`SubmitNodeCollector`, `submit`,
+  `submitBlock`, `outlineColor`, `appearsGlowing()`
+  method) vs 1.21.8's render-based
+  (`MultiBufferSource`, `render`, `renderSingleBlock`,
+  `appearsGlowing` field) — geometry/transforms are
+  IDENTICAL in every layer (verified in the diff).
+  Rewords: `CarriedBlockLayer.submit` →
+  `CarriedBlockLayer.render` (the matrix matches
+  1.21.8's render exactly: translate 0/0.6875/−0.75,
+  X 20°, Y 45°, translate 0.25/0.1875/0.25, scale
+  (−0.5, −0.5, 0.5), Y 90°);
+  `BlockModelRenderState.submit` →
+  `BlockRenderDispatcher.renderSingleBlock`;
+  `ItemInHandLayer submits` → `renders`;
+  `PlayerItemInHandLayer.submitArmWithItem (avatars
+  only)` → `renderArmWithItem (players only)`.
+  **Apparition:** 1.21.8 has only
+  `MobAppearanceParticle`; 1.21.9 has only
+  `ElderGuardianParticle` + `ElderGuardianParticleGroup`
+  — both implementations term-for-term identical
+  (lifetime 30, fade 0.05 + 0.5·sin(age/lifetime·π),
+  camera rotation, X rotation 60° − 150°·t, scale
+  0.42553192 with −Y/−Z, translate (0, −0.56, 3.5),
+  full-bright 15728880, NO_OVERLAY), and the Rust's
+  `elder_apparition_geometry` matches; only its
+  citations were reworded to `MobAppearanceParticle`.
+  Horizon's own API names `submit_item_world` /
+  `submit_item_unlit` stay (like `native_mob_submit`).
+  Deferred: `BlockDecorationLayer` +
+  `CopperGolemModel.applyBlockOnAntennaTransform` /
+  `CopperGolemRenderer` / `CopperGolemModel`
+  citations → item 229 (owns the golem, which does
+  not exist in 1.21.8); the mannequin in the spyglass
+  check → item 320; `Avatar.*` → item 196;
+  `ItemInHandRenderer.submitArmWithItem` citations in
+  first_person.rs → rank-3 item 355. Check 0/0 at
+  `-j 1`.
 
 - **Item 89 — `crates/horizon-client/src/vanillagen.rs`
   (2 classes, 5 methods, 4 named in Horizon), zero-diff:**
