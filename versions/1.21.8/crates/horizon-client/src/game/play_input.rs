@@ -257,8 +257,9 @@ impl Game<'_> {
         let options = [
             self.settings.toggle_crouch,
             self.settings.toggle_sprint,
-            self.settings.toggle_attack,
-            self.settings.toggle_use,
+            // Attack and use are plain mappings in 1.21.8: no toggle option.
+            false,
+            false,
         ];
         if !playing {
             self.toggles.screen_opened(options);
@@ -398,13 +399,11 @@ impl Game<'_> {
                 if pressed {
                     self.attack_clicks += 1;
                 }
-                self.toggles
-                    .button(2, pressed, false, self.settings.toggle_attack);
+                self.toggles.button(2, pressed, false, false);
                 self.left = self.toggles.is_down(2);
             }
             MouseButton::Right => {
-                self.toggles
-                    .button(3, pressed, false, self.settings.toggle_use);
+                self.toggles.button(3, pressed, false, false);
                 self.right = self.toggles.is_down(3);
                 // handleKeybinds consumes use clicks without acting while an
                 // item is in use. Minecraft.tick runs them after the attack

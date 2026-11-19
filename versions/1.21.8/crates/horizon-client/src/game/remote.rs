@@ -9735,14 +9735,12 @@ impl Game<'_> {
         use horizon_client::interaction_input::Button;
         let input = match button {
             MouseButton::Left => {
-                self.toggles
-                    .button(2, pressed, false, self.settings.toggle_attack);
+                self.toggles.button(2, pressed, false, false);
                 self.left = self.toggles.is_down(2);
                 Some(Button::Attack)
             }
             MouseButton::Right => {
-                self.toggles
-                    .button(3, pressed, false, self.settings.toggle_use);
+                self.toggles.button(3, pressed, false, false);
                 self.right = self.toggles.is_down(3);
                 Some(Button::Use)
             }

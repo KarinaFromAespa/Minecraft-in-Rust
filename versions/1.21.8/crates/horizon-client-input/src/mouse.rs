@@ -350,7 +350,7 @@ pub struct RightClickEmulation {
 }
 impl RightClickEmulation {
     /// Whether the left button's `pressed` or released event is a right click.
-    /// `enabled` is the option on macOS.
+    /// `enabled` is macOS (`MouseHandler.onPress` emulates unconditionally there).
     pub fn is_right_click(&mut self, pressed: bool, control: bool, enabled: bool) -> bool {
         if pressed {
             self.emulating = enabled && control;
@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn control_click_is_a_right_click_until_released() {
         let mut e = RightClickEmulation::default();
-        // The option off, or no Control: a left click stays one.
+        // Emulation off (not macOS), or no Control: a left click stays one.
         assert!(!e.is_right_click(true, true, false));
         assert!(!e.is_right_click(false, true, false));
         assert!(!e.is_right_click(true, false, true));

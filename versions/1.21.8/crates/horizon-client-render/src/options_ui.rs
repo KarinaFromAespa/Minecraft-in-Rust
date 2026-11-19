@@ -128,9 +128,7 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
 ];
 
 /// `ControlsScreen.options` in 1.21.8, in vanilla order, plus Horizon's
-/// own quit shortcuts. The macOS-only Control-click switch is omitted on
-/// other platforms just as `InputQuirks.EMULATE_RIGHT_CLICK_WITH_CTRL_KEY`
-/// does in Java.
+/// own quit shortcuts.
 pub(crate) fn vanilla_control_options() -> Vec<Opt> {
     let mut options = vec![
         Opt::ToggleCrouch,
@@ -138,9 +136,6 @@ pub(crate) fn vanilla_control_options() -> Vec<Opt> {
         Opt::AutoJump,
         Opt::QuitShortcuts,
     ];
-    if cfg!(target_os = "macos") {
-        options.push(Opt::CtrlClickEmulatesRightClick);
-    }
     options.push(Opt::OperatorItemsTab);
     options
 }
@@ -179,7 +174,6 @@ impl Opt {
             Opt::ChatDelay => "chatDelay",
             Opt::HideMatchedNames => "hideMatchedNames",
             Opt::OnlySecureChat => "onlyShowSecureChat",
-            Opt::SaveChatDrafts => "saveChatDrafts",
             Opt::DistortionEffects => "screenEffectScale",
             Opt::FovEffects => "fovEffectScale",
             Opt::DarknessPulsing => "darknessEffectScale",
@@ -197,7 +191,6 @@ impl Opt {
             Opt::SoundDevice => "soundDevice",
             Opt::OperatorItemsTab => "operatorItemsTab",
             Opt::QuitShortcuts => "quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "ctrlClickEmulatesRightClick",
             Opt::ModelPart(i) => MODEL_PART_KEYS[i],
             Opt::AllowServerListing => "allowServerListing",
             Opt::RealmsNotifications => "realmsNotifications",
@@ -216,10 +209,8 @@ impl Opt {
             Opt::SimulationDistance => "options.simulationDistance",
             Opt::Sensitivity => "options.sensitivity",
             Opt::WheelSensitivity => "options.mouseWheelSensitivity",
-            Opt::InvertX => "options.invertMouseX",
-            Opt::InvertY => "options.invertMouseY",
+            Opt::InvertY => "options.invertMouse",
             Opt::DiscreteScroll => "options.discrete_mouse_scroll",
-            Opt::AllowCursorChanges => "options.allowCursorChanges",
             Opt::Volume(_) => "soundCategory.master",
             Opt::SoundDevice => "options.audioDevice",
             Opt::GuiScale => "options.guiScale",
@@ -254,11 +245,8 @@ impl Opt {
             Opt::MenuBlur => "options.accessibility.menu_background_blurriness",
             Opt::ToggleCrouch => "key.sneak",
             Opt::ToggleSprint => "key.sprint",
-            Opt::ToggleAttack => "key.attack",
-            Opt::ToggleUse => "key.use",
             Opt::AutoJump => "options.autoJump",
             Opt::QuitShortcuts => "options.quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "options.ctrlClickEmulatesRightClick",
             Opt::OperatorItemsTab => "options.operatorItemsTab",
             Opt::ChatVisibility => "options.chat.visibility",
             Opt::ChatColors => "options.chat.color",
@@ -274,7 +262,6 @@ impl Opt {
             Opt::AutoSuggestions => "options.autoSuggestCommands",
             Opt::HideMatchedNames => "options.hideMatchedNames",
             Opt::OnlySecureChat => "options.onlyShowSecureChat",
-            Opt::SaveChatDrafts => "options.chat.drafts",
             Opt::ReducedDebugInfo => "options.reducedDebugInfo",
             Opt::HighContrast => "options.accessibility.high_contrast",
             Opt::ShowSubtitles => "options.showSubtitles",
@@ -701,7 +688,6 @@ impl Opt {
             Opt::HideSplashTexts => on_off(s.file.bool("hideSplashTexts")),
             Opt::HideMatchedNames
             | Opt::OnlySecureChat
-            | Opt::SaveChatDrafts
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
@@ -725,10 +711,8 @@ impl Opt {
             Opt::NarratorHotkey => on_off(s.file.bool("narratorHotkey")),
             Opt::RotateWithMinecarts => on_off(s.file.bool("rotateWithMinecart")),
             Opt::HighContrastBlockOutlines => on_off(s.file.bool("highContrastBlockOutline")),
-            Opt::InvertX => on_off(s.invert_x),
             Opt::InvertY => on_off(s.invert_y),
             Opt::DiscreteScroll => on_off(s.discrete_scroll),
-            Opt::AllowCursorChanges => on_off(s.allow_cursor_changes),
             Opt::ViewBobbing => on_off(s.view_bobbing),
             Opt::Vsync => on_off(s.vsync),
             Opt::Fullscreen => on_off(s.fullscreen),
@@ -789,19 +773,8 @@ impl Opt {
             } else {
                 "options.off"
             }),
-            Opt::ToggleAttack => tr(if s.toggle_attack {
-                "options.key.toggle"
-            } else {
-                "options.key.hold"
-            }),
-            Opt::ToggleUse => tr(if s.toggle_use {
-                "options.key.toggle"
-            } else {
-                "options.key.hold"
-            }),
             Opt::AutoJump => on_off(s.auto_jump),
             Opt::QuitShortcuts => on_off(s.quit_shortcuts),
-            Opt::CtrlClickEmulatesRightClick => on_off(s.ctrl_click_emulates_right_click),
             Opt::OperatorItemsTab => on_off(s.operator_items_tab),
             Opt::ChatVisibility => tr([
                 "options.chat.visibility.full",
@@ -999,7 +972,6 @@ impl Opt {
             | Opt::MonochromeLogo
             | Opt::HideMatchedNames
             | Opt::OnlySecureChat
-            | Opt::SaveChatDrafts
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
@@ -1016,10 +988,8 @@ impl Opt {
                 let n = next(s.narrator().id() as u8, 4);
                 s.set_narrator(horizon_narrator::Status::by_id(i32::from(n)));
             }
-            Opt::InvertX => s.invert_x = !s.invert_x,
             Opt::InvertY => s.invert_y = !s.invert_y,
             Opt::DiscreteScroll => s.discrete_scroll = !s.discrete_scroll,
-            Opt::AllowCursorChanges => s.allow_cursor_changes = !s.allow_cursor_changes,
             Opt::ViewBobbing => s.view_bobbing = !s.view_bobbing,
             Opt::Vsync => s.vsync = !s.vsync,
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
@@ -1086,13 +1056,8 @@ impl Opt {
             Opt::ToggleCrouch => s.toggle_crouch = !s.toggle_crouch,
             Opt::ToggleSprint => s.toggle_sprint = !s.toggle_sprint,
             Opt::SkinLayers3d => s.extras.three_d_skin_layers = !s.extras.three_d_skin_layers,
-            Opt::ToggleAttack => s.toggle_attack = !s.toggle_attack,
-            Opt::ToggleUse => s.toggle_use = !s.toggle_use,
             Opt::AutoJump => s.auto_jump = !s.auto_jump,
             Opt::QuitShortcuts => s.quit_shortcuts = !s.quit_shortcuts,
-            Opt::CtrlClickEmulatesRightClick => {
-                s.ctrl_click_emulates_right_click = !s.ctrl_click_emulates_right_click
-            }
             Opt::OperatorItemsTab => s.operator_items_tab = !s.operator_items_tab,
             Opt::ChatVisibility => s.chat_visibility = next(s.chat_visibility, 3),
             Opt::ChatColors => s.chat_colors = !s.chat_colors,
@@ -2883,7 +2848,6 @@ impl OptionsUi {
                 Opt::HideMatchedNames,
                 Opt::ReducedDebugInfo,
                 Opt::OnlySecureChat,
-                Opt::SaveChatDrafts,
             ]),
             Page::Accessibility => pairs(ACCESSIBILITY_OPTIONS),
             Page::Font => pairs(&[Opt::ForceUnicode, Opt::JapaneseGlyphs]),
@@ -5215,7 +5179,7 @@ mod tests {
     }
 
     #[test]
-    fn mouse_settings_match_java_26_3_option_order() {
+    fn mouse_settings_match_java_1_21_8_option_order() {
         let mut ui = OptionsUi::default();
         ui.show(Page::Mouse);
         let mut options = Vec::new();
@@ -5231,11 +5195,9 @@ mod tests {
             options,
             vec![
                 Opt::Sensitivity,
+                Opt::InvertY,
                 Opt::WheelSensitivity,
                 Opt::DiscreteScroll,
-                Opt::InvertX,
-                Opt::InvertY,
-                Opt::AllowCursorChanges,
             ]
         );
     }
@@ -5243,14 +5205,11 @@ mod tests {
     #[test]
     fn mouse_settings_round_trip_with_java_defaults() {
         let mut settings = Settings::default();
-        assert!(!settings.invert_x);
-        assert!(settings.allow_cursor_changes);
-        Opt::InvertX.cycle(&mut settings, false, [854, 480]);
-        Opt::AllowCursorChanges.cycle(&mut settings, false, [854, 480]);
+        assert!(!settings.invert_y);
+        Opt::InvertY.cycle(&mut settings, false, [854, 480]);
         let loaded = Settings::parse(&settings.serialize());
-        assert!(loaded.invert_x);
-        assert!(!loaded.allow_cursor_changes);
-        assert!(!loaded.file.bool("allowCursorChanges"));
+        assert!(loaded.invert_y);
+        assert!(loaded.file.bool("invertYMouse"));
     }
 
     #[test]
@@ -5390,14 +5349,9 @@ mod tests {
         let mut settings = Settings::default();
         settings.operator_items_tab = true;
         settings.quit_shortcuts = false;
-        settings.ctrl_click_emulates_right_click = true;
-        settings.toggle_attack = true;
-        settings.toggle_use = true;
         let loaded = Settings::parse(&settings.serialize());
         assert!(loaded.operator_items_tab);
         assert!(!loaded.quit_shortcuts);
-        assert!(loaded.ctrl_click_emulates_right_click);
-        assert!(loaded.toggle_attack && loaded.toggle_use);
     }
 
     #[test]
@@ -5419,9 +5373,7 @@ mod tests {
             Opt::ChunkFade,
             Opt::ImprovedTransparency,
             Opt::ChatDelay,
-            Opt::SaveChatDrafts,
             Opt::MusicToast,
-            Opt::CtrlClickEmulatesRightClick,
         ] {
             assert!(opt.available(), "{opt:?} is read and must be clickable");
         }

@@ -10469,8 +10469,9 @@ impl Game<'_> {
                             for (slot, needs_toggle) in [
                                 self.settings.toggle_crouch,
                                 self.settings.toggle_sprint,
-                                self.settings.toggle_attack,
-                                self.settings.toggle_use,
+                                // Attack and use are plain mappings: no toggle option.
+                                false,
+                                false,
                             ]
                             .into_iter()
                             .enumerate()

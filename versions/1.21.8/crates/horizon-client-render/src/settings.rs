@@ -184,17 +184,10 @@ pub struct Settings {
     pub keys: KeyBinds,
     /// Every option in its stored form (the typed fields above mirror it).
     pub file: OptionsFile,
-    pub invert_x: bool,
-    /// Allow widgets to replace the default mouse cursor icon.
-    pub allow_cursor_changes: bool,
-    pub toggle_attack: bool,
-    pub toggle_use: bool,
     /// Show the operator items tab in a creative inventory.
     pub operator_items_tab: bool,
     /// Allow platform quit shortcuts to close the game window.
     pub quit_shortcuts: bool,
-    /// On macOS, turn Control-click into a right click.
-    pub ctrl_click_emulates_right_click: bool,
     /// Horizon's own graphics settings (`horizon-graphics.txt`, not options.txt).
     pub horizon: crate::graphics::Graphics,
     /// The graphics API the game started with: `Options.preferredGraphicsBackendFromStartup`.
@@ -253,7 +246,6 @@ impl Default for Settings {
             invert_y: false,
             mouse_wheel_sensitivity: 1.0,
             discrete_scroll: false,
-            allow_cursor_changes: true,
             toggle_crouch: false,
             toggle_sprint: false,
             auto_jump: false,
@@ -281,12 +273,8 @@ impl Default for Settings {
             resource_packs: Vec::new(),
             keys: KeyBinds::default(),
             file: OptionsFile::default(),
-            invert_x: false,
-            toggle_attack: false,
-            toggle_use: false,
             operator_items_tab: false,
             quit_shortcuts: true,
-            ctrl_click_emulates_right_click: false,
             horizon: Default::default(),
             startup_api: Default::default(),
             video_modes: Vec::new(),
@@ -488,18 +476,13 @@ impl Settings {
             inactivity_fps_limit: f.name("inactivityFpsLimit"),
             prioritize_chunk_updates: f.int("prioritizeChunkUpdates") as u8,
             menu_blur: f.int("menuBackgroundBlurriness"),
-            invert_x: f.bool("invertXMouse"),
             invert_y: f.bool("invertYMouse"),
             mouse_wheel_sensitivity: f.double("mouseWheelSensitivity") as f32,
             discrete_scroll: f.bool("discrete_mouse_scroll"),
-            allow_cursor_changes: f.bool("allowCursorChanges"),
             toggle_crouch: f.bool("toggleCrouch"),
             toggle_sprint: f.bool("toggleSprint"),
-            toggle_attack: f.bool("toggleAttack"),
-            toggle_use: f.bool("toggleUse"),
             operator_items_tab: f.bool("operatorItemsTab"),
             quit_shortcuts: f.bool("quitShortcuts"),
-            ctrl_click_emulates_right_click: f.bool("ctrlClickEmulatesRightClick"),
             horizon: Default::default(),
             startup_api: Default::default(),
             video_modes: Vec::new(),
@@ -594,7 +577,6 @@ impl Settings {
             i32::from(self.prioritize_chunk_updates),
         );
         put_i(&mut f, "menuBackgroundBlurriness", self.menu_blur);
-        put_b(&mut f, "invertXMouse", self.invert_x);
         put_b(&mut f, "invertYMouse", self.invert_y);
         put_f(
             &mut f,
@@ -602,18 +584,10 @@ impl Settings {
             self.mouse_wheel_sensitivity,
         );
         put_b(&mut f, "discrete_mouse_scroll", self.discrete_scroll);
-        put_b(&mut f, "allowCursorChanges", self.allow_cursor_changes);
         put_b(&mut f, "toggleCrouch", self.toggle_crouch);
         put_b(&mut f, "toggleSprint", self.toggle_sprint);
-        put_b(&mut f, "toggleAttack", self.toggle_attack);
-        put_b(&mut f, "toggleUse", self.toggle_use);
         put_b(&mut f, "operatorItemsTab", self.operator_items_tab);
         put_b(&mut f, "quitShortcuts", self.quit_shortcuts);
-        put_b(
-            &mut f,
-            "ctrlClickEmulatesRightClick",
-            self.ctrl_click_emulates_right_click,
-        );
         put_b(&mut f, "autoJump", self.auto_jump);
         put_s(&mut f, "lang", &self.language);
         put_b(&mut f, "forceUnicodeFont", self.force_unicode);
@@ -757,9 +731,7 @@ pub enum Opt {
     Sensitivity,
     WheelSensitivity,
     DiscreteScroll,
-    InvertX,
     InvertY,
-    AllowCursorChanges,
     Volume(usize),
     SoundDevice,
     GuiScale,
@@ -789,11 +761,8 @@ pub enum Opt {
     MenuBlur,
     ToggleCrouch,
     ToggleSprint,
-    ToggleAttack,
-    ToggleUse,
     AutoJump,
     QuitShortcuts,
-    CtrlClickEmulatesRightClick,
     OperatorItemsTab,
     ChatVisibility,
     ChatColors,
@@ -810,7 +779,6 @@ pub enum Opt {
     HideMatchedNames,
     ReducedDebugInfo,
     OnlySecureChat,
-    SaveChatDrafts,
     HighContrast,
     ShowSubtitles,
     MusicFrequency,
