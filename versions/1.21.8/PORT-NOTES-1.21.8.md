@@ -334,7 +334,39 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 57/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64 + 4 zero-diff)
+### Rank 2: 58/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66 + 4 zero-diff)
+
+- **Item 66 — `crates/horizon-client/src/lan/entity.rs`
+  (2 classes, 18 methods, 4 named in Horizon):**
+  ChunkMap$TrackedEntity (9; updatePlayer), ServerEntity
+  (9; handleMinecartPosRot, sendChanges,
+  sendDirtyEntityData). Zero-diff. 1.21.9's
+  `ServerEntity.Synchronizer` interface (sendToTracking-
+  Players / AndSelf / Filtered) is replaced in 1.21.8 by
+  two broadcast consumers plus `broadcastAndSend`; no
+  `Synchronizer` or `sendToTrackingPlayers` citation
+  exists in the Rust. The passenger filter is the same
+  set either way: 1.21.9's predicate (a tracking player
+  receives the SetPassengers packet iff its mount status
+  is unchanged) and 1.21.8's ignore list (the symmetric
+  difference of the passenger lists, via
+  `mountedOrDismounted`) both exclude exactly the players
+  that mounted or dismounted. The 1.21.9-only
+  `isTrackedByAnyPlayer`, `forEachEntityTrackedBy` and
+  `forEachReadyToSendChunk`, and the `debugSynchronizers`
+  hooks in `updatePlayer`/`removePlayer`, have no Rust
+  surface; 1.21.8-only `ChunkMap.getChunks` likewise.
+  Verified against both versions' `sendChanges` (the
+  logic is identical apart from the broadcast call):
+  the 7.6293945E-6 move threshold, 400-tick teleport
+  delay, 60-tick position refresh, 1.0E-7 velocity
+  threshold, the passenger rotation-only branch, the
+  minecart substep queue (`MoveMinecartPacket`, 1.0F
+  fallback weight), dirty data then attributes, and the
+  ±1 packed head-rotation send. Known gap (vs both, not
+  fixed): the Rust broadcasts SetPassengers to every
+  tracking viewer, without excluding the players that
+  mounted or dismounted as vanilla does in both versions.
 
 - **Item 64 — `crates/horizon-client/src/game/perspective.rs`
   (5 classes, 18 methods, 4 named in Horizon):**
