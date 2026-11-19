@@ -1179,23 +1179,30 @@ mod tests {
 
     #[test]
     fn the_previous_game_mode_is_kept_and_saved() {
-        // ServerPlayerGameMode.changeGameModeForPlayer: the mode left becomes
-        // the previous one, and the mode in use changes nothing.
-        // ServerPlayer.addAdditionalSaveData writes previousPlayerGameType (an
-        // int) only when there is one.
+        // ServerPlayerGameMode.changeGameModeForPlayer (1.21.8): the mode
+        // changes, the previous one stays what it was — the mode left
+        // becoming the previous is 1.21.9. ServerPlayer.addAdditionalSaveData
+        // writes previousPlayerGameType (an int) only when there is one.
         let mut g = guest();
         assert_eq!(g.previous_game_mode, None);
         let (tag, _) = round_trip(&g);
         assert_eq!(tag.get("previousPlayerGameType"), None);
         g.change_game_mode(1);
-        assert_eq!((g.game_mode, g.previous_game_mode), (1, Some(0)));
+        assert_eq!((g.game_mode, g.previous_game_mode), (1, None));
+        g.change_game_mode(1);
+        assert_eq!((g.game_mode, g.previous_game_mode), (1, None));
+        g.change_game_mode(3);
+        assert_eq!((g.game_mode, g.previous_game_mode), (3, None));
+        let (tag, back) = round_trip(&g);
+        assert_eq!(tag.get("previousPlayerGameType"), None);
+        assert_eq!((back.game_mode, back.previous_game_mode), (3, None));
+        // A previous loaded from a save survives mode changes and round-trips.
+        g.previous_game_mode = Some(0);
         g.change_game_mode(1);
         assert_eq!((g.game_mode, g.previous_game_mode), (1, Some(0)));
-        g.change_game_mode(3);
-        assert_eq!((g.game_mode, g.previous_game_mode), (3, Some(1)));
         let (tag, back) = round_trip(&g);
-        assert_eq!(tag.get("previousPlayerGameType"), Some(&Tag::Int(1)));
-        assert_eq!((back.game_mode, back.previous_game_mode), (3, Some(1)));
+        assert_eq!(tag.get("previousPlayerGameType"), Some(&Tag::Int(0)));
+        assert_eq!((back.game_mode, back.previous_game_mode), (1, Some(0)));
     }
 
     #[test]

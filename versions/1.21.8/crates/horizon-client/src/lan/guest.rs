@@ -732,11 +732,12 @@ impl Guest {
     pub fn client_loaded(&self) -> bool {
         !self.dead && self.load_timeout == 0
     }
-    /// `ServerPlayerGameMode.changeGameModeForPlayer`: the mode left becomes
-    /// the previous one; the mode already in use changes nothing.
+    /// `ServerPlayerGameMode.changeGameModeForPlayer`: the mode changes, the
+    /// previous one stays what it was (1.21.8 passes the old previous
+    /// through; the mode left becoming the previous is 1.21.9). The mode
+    /// already in use changes nothing.
     pub fn change_game_mode(&mut self, mode: i32) {
         if mode != self.game_mode {
-            self.previous_game_mode = Some(self.game_mode);
             self.game_mode = mode;
             // GameType.updatePlayerAbilities sets mayfly for the new mode.
             self.allow_flight = false;

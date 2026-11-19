@@ -1228,8 +1228,7 @@ impl Game<'_> {
         }
         if new_mode != g.game_mode {
             let conn = g.conn;
-            host.hub
-                .set_game_mode(conn, new_mode, &self.world, Some(self.collision));
+            host.hub.set_game_mode(conn, new_mode);
         }
         // LivingEntity.checkTotemDeathProtection's entity event, to every
         // client around, the guest's own included; this window draws it too.
@@ -4142,8 +4141,7 @@ impl Game<'_> {
                 self.native_player_game_mode_changed(uuid, &name, from, SPECTATOR, &mut cancel);
             }
             if !cancel {
-                host.hub
-                    .set_game_mode(conn, SPECTATOR, &self.world, Some(self.collision));
+                host.hub.set_game_mode(conn, SPECTATOR);
             }
         }
         if let Some(config) = elsewhere {

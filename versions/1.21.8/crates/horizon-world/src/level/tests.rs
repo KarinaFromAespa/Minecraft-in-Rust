@@ -1143,7 +1143,6 @@ fn bucket_source_removal_drains_spread_water() {
                 None,
                 BucketContent::Fluid(crate::fluid::FluidKind::Water),
                 "minecraft:item.bucket.empty",
-                false,
                 false
             )
             .is_some()
@@ -2592,7 +2591,6 @@ fn dispenser_buckets_pick_up_and_empty() {
                 None,
                 content,
                 sound,
-                false,
                 creative,
             )
             .is_some()
@@ -2682,7 +2680,6 @@ fn a_bucket_replaces_a_bubble_column_and_breaks_a_flower() {
             water,
             sound,
             false,
-            false,
         )
     };
     let broke = |w: &World| {
@@ -2718,7 +2715,7 @@ fn clicked_bucket_pours_beside_a_refusing_block() {
     let sound = "minecraft:item.bucket.empty";
     let content = BucketContent::Fluid(crate::fluid::FluidKind::Water);
     let air = w.b().air();
-    let click = |w: &mut World, sneaking: bool| {
+    let click = |w: &mut World| {
         w.f.behaviours.bucket_empty(
             &mut w.level,
             &mut w.ticks,
@@ -2726,27 +2723,27 @@ fn clicked_bucket_pours_beside_a_refusing_block() {
             Some(above),
             content,
             sound,
-            sneaking,
             false,
         )
     };
-    // Sneak-clicking a slab pours beside it, where Shift no longer counts.
+    // Clicking a slab waterlogs it: sneaking changes nothing (the 1.21.9
+    // shift redirect, which poured beside a waterloggable block, is gone).
     let slab = w.id("oak_slab", &[]);
     w.put(at, slab);
-    assert_eq!(click(&mut w, true), Some(above));
-    assert_eq!(w.prop(at, "waterlogged"), "false");
-    assert_eq!(w.name(above), "water[level=0]");
+    assert_eq!(click(&mut w), Some(at));
+    assert_eq!(w.prop(at, "waterlogged"), "true");
+    assert_eq!(w.get(above), air);
     // A double slab holds no water: the click fills the block beside it.
     w.put(above, air);
     let double = w.id("oak_slab", &[("type", "double")]);
     w.put(at, double);
-    assert_eq!(click(&mut w, false), Some(above));
+    assert_eq!(click(&mut w), Some(above));
     assert_eq!(w.prop(at, "type"), "double");
     assert_eq!(w.name(above), "water[level=0]");
     // Both refusing empties nothing.
     let stone = w.id("stone", &[]);
     w.put(above, stone);
-    assert_eq!(click(&mut w, false), None);
+    assert_eq!(click(&mut w), None);
     assert_eq!(w.prop(at, "type"), "double");
     assert_eq!(w.get(above), stone);
 }
@@ -3238,7 +3235,6 @@ fn water_douses_a_lit_campfire_with_the_extinguish_sound() {
         None,
         BucketContent::Fluid(crate::fluid::FluidKind::Water),
         "minecraft:item.bucket.empty",
-        false,
         false,
     );
     assert_eq!(placed, Some(at));

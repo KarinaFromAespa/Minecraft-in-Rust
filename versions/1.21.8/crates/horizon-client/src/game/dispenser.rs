@@ -1320,7 +1320,7 @@ impl Game<'_> {
             horizon_client::items::bucket_contents(&item).expect("filled bucket dispatcher");
         let target_pos = Self::pos_of(target);
         let emptied = self.with_level(|b, level, ticks| {
-            b.bucket_empty(level, ticks, target_pos, None, content, sound, false, false)
+            b.bucket_empty(level, ticks, target_pos, None, content, sound, false)
         });
         self.process_level_events()?;
         if emptied.is_none() {

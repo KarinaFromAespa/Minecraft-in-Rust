@@ -25,7 +25,6 @@ use horizon_protocol::{
     entity_data::{Value, serializer},
     packets::play::{self, Clientbound as C},
 };
-use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
     collections::HashMap,
@@ -1173,11 +1172,7 @@ pub const HELP: &[&str] = &[
 /// (setting a mode does nothing when it is already theirs). A world open to
 /// LAN is an integrated server, which leaves out the players who have game
 /// master permission; a dedicated server does not.
-fn enforce_guest_game_mode(
-    host: &mut LanHost,
-    world: &World,
-    collision: &BlockCollisionRegistry<'_>,
-) {
+fn enforce_guest_game_mode(host: &mut LanHost) {
     if !host.hub.config.force_game_mode {
         return;
     }
@@ -1191,7 +1186,7 @@ fn enforce_guest_game_mode(
         .map(|g| g.conn)
         .collect();
     for conn in stale {
-        host.hub.set_game_mode(conn, mode, world, Some(collision));
+        host.hub.set_game_mode(conn, mode);
     }
 }
 
@@ -1790,7 +1785,7 @@ impl Game<'_> {
             host.hub.config.default_game_mode = mode;
             // `setWorldGameType` and `DefaultGameModeCommands.setMode`: a
             // world that forces its mode puts the guests online in it.
-            enforce_guest_game_mode(host, &self.world, self.collision);
+            enforce_guest_game_mode(host);
         }
     }
 
@@ -1799,7 +1794,7 @@ impl Game<'_> {
         if let Some(host) = self.lan.as_mut() {
             host.settings.force_game_mode = force;
             host.hub.config.force_game_mode = force;
-            enforce_guest_game_mode(host, &self.world, self.collision);
+            enforce_guest_game_mode(host);
         }
     }
 

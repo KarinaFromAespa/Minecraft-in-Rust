@@ -8801,15 +8801,6 @@ impl Game<'_> {
                 self.level_event_at(3003, hit.pos, 0);
                 self.audio
                     .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
-                // The other half of a double chest: its particles, and a second
-                // sound from the clicked block.
-                if let Some(other) =
-                    old.and_then(|old| super::storage::chest_connected_pos(old, hit.pos))
-                {
-                    self.level_event_at(3003, other, 0);
-                    self.audio
-                        .play("minecraft:item.honeycomb.wax_on", Some(at), 1.0, 1.0);
-                }
             }
             waxes
         } else if let Some((_, sound, _, _, particle, _)) =
@@ -9182,12 +9173,11 @@ impl Game<'_> {
         let pos = horizon_core::position::BlockPos::new(target[0], target[1], target[2]);
         let [x, y, z] = hit.beside();
         let beside = Some(horizon_core::position::BlockPos::new(x, y, z));
-        let sneaking = self.remote_shift_down();
         let creative = self.creative;
         self.with_level(|b, level, ticks| {
             let mut level = DryLevel::new(level);
             let emptied = b.bucket_empty(
-                &mut level, ticks, pos, beside, content, sound, sneaking, creative,
+                &mut level, ticks, pos, beside, content, sound, creative,
             );
             // Water poured into a liquid container (where it went, which may
             // be the block beside a refusing one) fills it server-side only.

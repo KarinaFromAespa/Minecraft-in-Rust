@@ -1437,9 +1437,10 @@ impl LevelAccess for GameLevel<'_> {
     fn is_raining_at(&self, pos: BlockPos) -> bool {
         self.behaviours.is_raining_at(self, pos)
     }
-    /// `getEntitiesWithContainerOpen` is not empty: a player or guest has the
+    /// `getPlayersWithContainerOpen` is not empty: a player or guest has the
     /// container open, or a copper golem has the chest open
-    /// (`CopperGolem.hasContainerOpen`).
+    /// (`CopperGolem.hasContainerOpen` — unreachable here, no copper golem
+    /// in the 1.21.8 registry; its removal is the copper-golem item's).
     fn container_open(&self, pos: BlockPos) -> bool {
         let key = (pos.x, pos.y, pos.z);
         self.open_containers.contains(&key) || self.golem_chests.contains(&key)
@@ -8256,15 +8257,9 @@ impl Game<'_> {
             let pos = BlockPos::new(target[0], target[1], target[2]);
             let [x, y, z] = hit.beside();
             let beside = Some(BlockPos::new(x, y, z));
-            // `Player.isShiftKeyDown`: a block that refuses the fluid (any
-            // non-air block under Shift) passes it to the block beside, where
-            // Shift no longer counts.
-            let sneaking = self.keys.held(Mapping::Sneak);
             let creative = self.creative;
             let emptied = self.with_level(|b, level, ticks| {
-                b.bucket_empty(
-                    level, ticks, pos, beside, content, sound, sneaking, creative,
-                )
+                b.bucket_empty(level, ticks, pos, beside, content, sound, creative)
             });
             self.process_level_events()?;
             let Some(emptied) = emptied else {
@@ -8325,7 +8320,6 @@ impl Game<'_> {
             if let Some(waxed) = old.and_then(|old| self.res.transformers().waxed(registry, old))
                 && let Ok(state) = registry.resolve(&waxed)
             {
-                let other = old.and_then(|old| storage::chest_connected_pos(old, hit.pos));
                 // HoneycombItem.useOn: ITEM_USED_ON_BLOCK before the swap.
                 self.trigger_block("minecraft:item_used_on_block", hit.pos, stack);
                 self.level_set(hit.pos, state)?;
@@ -8338,19 +8332,6 @@ impl Game<'_> {
                     self.sculk_actor(),
                     Some(state),
                 );
-                // A double chest's other half: its game event and particles, and
-                // a second sound from the clicked block.
-                if let Some(other) = other {
-                    let now = self.world.block(other[0], other[1], other[2]);
-                    self.post_block_game_event(
-                        "minecraft:block_change",
-                        other,
-                        self.sculk_actor(),
-                        Some(now),
-                    );
-                    self.level_event_at(3003, other, 0);
-                    self.wax_on_sound(at(hit.pos));
-                }
                 self.award_stat("used", &stack.item, 1);
                 if !self.creative {
                     self.consume_held();
@@ -8983,7 +8964,11 @@ impl Game<'_> {
         let level = &mut self.level;
         level.creative = self.creative;
         level.game_mode = mode;
-        level.previous_game_mode = self.previous_mode.map(game_mode::mode_id_of);
+        // `previous_game_mode` is NOT written back: 1.21.8's
+        // `ServerPlayerGameMode.changeGameModeForPlayer` passes the old
+        // previous through, so the saved value stays the loaded one (the
+        // live `previous_mode` is the client's `setLocalMode` model, for
+        // F3+F4 and the switcher only).
         level.spawn = self.spawn.map(|s| [s.x, s.y, s.z]);
         level.respawn_elsewhere = self.respawn_config.map(|c| c.saved());
         level.rotation = [self.yaw, self.pitch];
