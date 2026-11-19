@@ -1143,9 +1143,15 @@ mod tests {
             });
             let sent = s.clientbound(&p.encode()).unwrap().unwrap();
             let mut r = Reader::new(&sent);
-            // block_update: 8 in both.
+            // block_update: 9 pinned, 8 in 26.2. The body is decoded with the pinned
+            // id: the layout is the same, only the number differs.
             assert_eq!(r.varint().unwrap(), 8);
-            match play::Clientbound::decode(8, r.rest()).unwrap() {
+            match play::Clientbound::decode(
+                packet_ids::play::clientbound::BLOCK_UPDATE,
+                r.rest(),
+            )
+            .unwrap()
+            {
                 play::Clientbound::BlockUpdate(b) => b.state,
                 other => panic!("{other:?}"),
             }
@@ -1177,8 +1183,8 @@ mod tests {
         assert_eq!(slot(836), 926);
         // birch_planks: 38 in 1.21.4, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 1025 in 1.21.4, 1133 in 26.2.
-        assert_eq!(slot(1025), 1133);
+        // filled_map: 1031 in 1.21.4, 1133 in 26.2.
+        assert_eq!(slot(1031), 1133);
     }
 
     #[test]

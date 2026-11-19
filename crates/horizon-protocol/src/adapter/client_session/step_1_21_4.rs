@@ -659,9 +659,11 @@ mod tests {
 
     #[test]
     fn the_variants_1_21_5_added_are_dropped_going_down() {
-        // The sent serializers are 1.21.5's numbering (chicken variant 28,
-        // wolf variant 24, wolf sound variant 25); the pin has no chicken or
-        // wolf-sound variant, and its wolf variant is 23.
+        // The indexes are 1.21.5's layout (what retarget maps): chicken variant 17, wolf
+        // variant 22, wolf sound variant 23. The serializers are the pinned ones — the step
+        // preserves them and the down-renumbering converts them later — so the kept wolf
+        // entry is sent with the pin's wolf variant (23), not 1.21.5's (24). The dropped
+        // entries' serializers never surface.
         let mut chicken = play::SetEntityData {
             id: 1,
             values: vec![(17, 28, Value::Id(3))],
@@ -673,7 +675,10 @@ mod tests {
         assert!(chicken.values.is_empty());
         let mut wolf = play::SetEntityData {
             id: 1,
-            values: vec![(22, 24, Value::Id(1)), (23, 25, Value::Id(2))],
+            values: vec![
+                (22, serializer::WOLF_VARIANT, Value::Id(1)),
+                (23, 25, Value::Id(2)),
+            ],
         };
         entity_data(Some(translate::client_layout_v1_21_4::WOLF), &mut wolf);
         assert_eq!(
