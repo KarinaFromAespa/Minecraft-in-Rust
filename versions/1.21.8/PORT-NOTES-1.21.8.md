@@ -334,7 +334,32 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 48/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62 + 4 zero-diff)
+### Rank 2: 49/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63 + 4 zero-diff)
+
+- **Item 63 — `crates/horizon-client/src/mobs/shulker.rs` (2 classes,
+  9 methods, 5 named in Horizon) — zero-diff:** Shulker (6;
+  setPos, setRawPeekAmount, startRiding, tick), ShulkerModel
+  (3; setupAnim). `Shulker` differs only by `isClientSide()`
+  (method) vs `isClientSide` (field) at five sites, plus
+  `startRiding`'s signature: 1.21.9 added a third `force`
+  argument that 1.21.8's two-argument form lacks, and the
+  Rust's `riders::start_riding` is two-argument, so the extra
+  parameter has no surface here; the override body
+  (attach face back to DOWN, client teleport slide cleared)
+  matches `on_start_riding`. Every named method's body is
+  verified against the Rust: `tick` (a shell that rides
+  nothing re-attaches or teleports when it cannot stay, then
+  eases the peek and pushes on change), `setPos`
+  (`client_set_pos`: block-centre snap off a vehicle, the
+  `tickCount == 0` guard, the lid closing on a block change,
+  the 6-tick slide from the block left), `setRawPeekAmount`
+  (open/close sounds at 1.0/1.0, CONTAINER_OPEN/CLOSE game
+  events, and the covered-shell +20 armor in `armor::values`
+  when the raw peek is 0). ShulkerModel has no decomp diff:
+  the bridge pattern again (1.21.8 exactly 44 bytes larger;
+  only the bridge `setupAnim(EntityRenderState)` vs
+  `setupAnim(Object)`). No check run: no files changed since
+  item 55's 0/0 check (item-37 precedent).
 
 - **Item 62 — `crates/horizon-client/src/mobs/tame.rs` (5 classes,
   10 methods, 5 named in Horizon) — zero-diff:** Wolf (4;
