@@ -1,0 +1,102 @@
+package dev.horizonlab.parity;
+
+import com.google.gson.*;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import net.minecraft.client.renderer.block.model.BlockElement;
+import net.minecraft.client.renderer.block.model.BlockElementFace;
+import net.minecraft.client.renderer.block.model.BlockElementRotation;
+import net.minecraft.client.renderer.block.model.BlockModel;
+import net.minecraft.client.renderer.block.model.ItemTransform;
+import net.minecraft.client.renderer.block.model.SimpleUnbakedGeometry;
+import net.minecraft.world.item.ItemDisplayContext;
+import org.joml.Vector3fc;
+
+/** Original adapter around the pinned client parser. No model assets are embedded. */
+public final class VanillaCuboidModelOracle {
+    private static final Gson JSON = new GsonBuilder().serializeNulls().create();
+    private static long bits(float value) { return Integer.toUnsignedLong(Float.floatToIntBits(value)); }
+    private static Object vector(Vector3fc value) { return new long[]{bits(value.x()), bits(value.y()), bits(value.z())}; }
+    private static String direction(net.minecraft.core.Direction value) { return value == null ? null : value.getName(); }
+    static Map<String, Object> map(Object... values) {
+        var result = new TreeMap<String, Object>();
+        for (int i=0;i<values.length;i+=2) result.put((String)values[i], values[i+1]);
+        return result;
+    }
+    static Object transform(ItemTransform value) {
+        if (value == ItemTransform.NO_TRANSFORM) return "inherit";
+        if (value == null) return null;
+        return map("rotation", vector(value.rotation()), "translation", vector(value.translation()), "scale", vector(value.scale()));
+    }
+    private static Object rotation(BlockElementRotation value) {
+        if (value == null) return null;
+        // 1.21.10 rotations are single-axis records (origin, axis, angle,
+        // rescale); the sealed SingleAxisRotation/EulerXYZRotation split
+        // came later. Emit the same single-axis shape.
+        Object angles = map("axis", value.axis().getName(), "angle", bits(value.angle()));
+        return map("origin", vector(value.origin()), "value", angles, "rescale", value.rescale());
+    }
+    private static Object face(BlockElementFace value) {
+        if (value == null) return null;
+        var uv = value.uvs();
+        return map("cull", direction(value.cullForDirection()), "tint", value.tintIndex(), "texture", value.texture(),
+            "rotation", value.rotation().ordinal(), "uv", uv == null ? null : new long[]{bits(uv.minU()), bits(uv.minV()), bits(uv.maxU()), bits(uv.maxV())});
+    }
+    static Object element(BlockElement value) {
+        if (value == null) return null;
+        var faces = new TreeMap<String, Object>();
+        value.faces().forEach((key, f) -> faces.put(key.getName(), face(f)));
+        // 1.21.11 elements carry a boolean shade flag; the per-face shade direction override
+        // the later cuboid format reports does not exist yet.
+        return map("from", vector(value.from()), "to", vector(value.to()), "faces", faces,
+            "rotation", rotation(value.rotation()), "shade", value.shade(), "light", value.lightEmission());
+    }
+    private static Object model(BlockModel value) throws Exception {
+        if (value == null) return null;
+        var textures = new TreeMap<String, Object>();
+        // Slot implementation records are package-private; inspect only their public accessors.
+        for (var entry : value.textureSlots().values().entrySet()) {
+            Object slot = entry.getValue();
+            var cls = slot.getClass();
+            if (cls.getSimpleName().equals("Reference")) {
+                var target = cls.getDeclaredMethod("target"); target.setAccessible(true);
+                textures.put(entry.getKey(), map("reference", target.invoke(slot)));
+            } else {
+                var method = cls.getDeclaredMethod("material"); method.setAccessible(true);
+                var material = (net.minecraft.client.resources.model.Material)method.invoke(slot);
+                // 1.21.11's Material names its sprite texture(); it has no translucency flag.
+                textures.put(entry.getKey(), map("sprite", material.texture().toString()));
+            }
+        }
+        List<Object> elements = null;
+        if (value.geometry() != null) {
+            elements = new ArrayList<>();
+            for (var element : ((SimpleUnbakedGeometry)value.geometry()).elements()) elements.add(element(element));
+        }
+        Object display = null;
+        if (value.transforms() != null) {
+            var transforms = new TreeMap<String, Object>();
+            for (var context : ItemDisplayContext.values()) {
+                if (context != ItemDisplayContext.NONE) transforms.put(context.getSerializedName(), transform(value.transforms().getTransform(context)));
+            }
+            display = transforms;
+        }
+        return map("parent", value.parent() == null ? null : value.parent().toString(), "ao", value.ambientOcclusion(),
+            "gui", value.guiLight() == null ? null : value.guiLight().name().toLowerCase(Locale.ROOT), "textures", textures, "elements", elements, "display", display);
+    }
+    public static void main(String[] args) throws Exception {
+        net.minecraft.SharedConstants.tryDetectVersion();
+        try (var input=Files.newBufferedReader(Path.of(args[0])); var output=Files.newBufferedWriter(Path.of(args[1]))) {
+            for (String line; (line=input.readLine())!=null;) {
+                var row=JsonParser.parseString(line).getAsJsonArray();
+                BlockModel decoded;
+                try { decoded=BlockModel.fromStream(new StringReader(row.get(1).getAsString())); }
+                catch (RuntimeException failure) {
+                    output.write(JSON.toJson(map("name", row.get(0).getAsString(), "error", true))); output.newLine(); continue;
+                }
+                output.write(JSON.toJson(map("name", row.get(0).getAsString(), "model", model(decoded)))); output.newLine();
+            }
+        }
+    }
+}
