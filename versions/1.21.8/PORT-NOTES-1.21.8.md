@@ -334,8 +334,37 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 17/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26 + 2 zero-diff)
+### Rank 2: 18/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26 + 3 zero-diff)
 
+- **Item 25 — `mobs/body_anim.rs` (15 classes, 40 methods, 11 named in Horizon):**
+  Armadillo/Bat/Bee/Fox/Frog/Goat/Llama/Parrot/PolarBear/Rabbit/SnowGolem/
+  Strider/Endermite/Silverfish models + `KeyframeAnimation`. Zero-diff —
+  no code changes.
+  1. **The 12 models differ only by the `setupAnim` bridge signature:**
+     their decompiled sources have no diff hunks at all, and javap shows
+     the only bytecode difference is the `super.setupAnim` call target
+     (`EntityModel.setupAnim(Object)` in 1.21.9 vs
+     `setupAnim(EntityRenderState)` in 1.21.8) plus the synthetic
+     `setupAnim(Object)` bridge 1.21.9 carries (it just checkcasts and
+     delegates to the real method). Every 1.21.8 class file is exactly 44
+     bytes larger — the longer type descriptor in the constant pool.
+     Bodies and constants identical (the item-17 ArrowModel pattern).
+     The shape: 1.21.8's `EntityModel<T extends EntityRenderState>`
+     declares `setupAnim(T)`; 1.21.9's `EntityModel` extends `Model<S>`,
+     whose `setupAnim(S)` erases to Object.
+  2. **Endermite/Silverfish:** only the `@Override` annotation on
+     `setupAnim` (1.21.9's `EntityModel` declares no `setupAnim` to
+     override) plus the same bridge difference; the bodies are identical,
+     and the Rust's arms match them exactly (age*0.9 + i*0.15*π phase,
+     cos*π*0.01/0.05 and sin*π*0.1/0.2 with the (1+|i-2|)/|i-2| factors,
+     silverfish layer links 2/4/1).
+  3. **`KeyframeAnimation`:** 1.21.8 keeps a shared `scratchVector` field;
+     1.21.9 allocates a fresh `Vector3f` per `apply()` call. Unobservable
+     — the vector is pure per-entry temp, never retained; the Rust's
+     `keyframes::Animation::apply` samples into per-channel locals and
+     models no scratch vector at all.
+  Verified: no `submit`/`extractRenderState`/`RenderState` citations in
+  `body_anim.rs` (18 `setupAnim` mentions, all valid in both versions).
 - **Item 26 — `arrows.rs` (8 classes, 27 methods, 12 named in Horizon):**
   `EntityReference`, `AbstractArrow`, `EnderMan`, `InsideBlockEffectType`,
   `Arrow`, `ThrownTrident`, `BaseFireBlock`, `LavaFluid` — arrows, their
