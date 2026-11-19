@@ -1,11 +1,10 @@
-//! Test instance blocks on the server: `handleTestInstanceBlockAction` and
-//! the `TestInstanceBlockEntity` operations behind it (reset, save, export,
-//! the structure's placement), over the game tests the registry holds.
+//! Test instance blocks on the server: the `TestInstanceBlockEntity`
+//! operations (reset, save, export, the structure's placement), over the
+//! game tests the registry holds. 1.21.4 has no test-instance-block action
+//! packet, so no guest handler lives here.
 use super::{
     Game,
-    game_tests::Info,
-    lan::LanHost,
-    structure_blocks::{create_seed, template_size},
+    structure_blocks::create_seed,
     test_entities::{aabb_of, inflate},
 };
 use horizon_client::{
@@ -14,12 +13,10 @@ use horizon_client::{
     containers::BlockEntity,
     hud::HudBatch,
     mesher::Vertex,
-    structure_block::rotation_from_ordinal,
-    test_instance_block::{Data, Status, TestInstanceBlock},
+    test_instance_block::{Status, TestInstanceBlock},
     text::{self, Text},
 };
 use horizon_core::{position::BlockPos, ticks::TickArea};
-use horizon_protocol::packets::play::{self, Clientbound as C};
 use horizon_world::{
     level::{TemplateSettings, flags},
     worldgen::structure::{BoundingBox, Mirror, Rotation},
@@ -29,14 +26,6 @@ type Pos = (i32, i32, i32);
 
 /// `GameTestBlockHighlightRenderer.highlightPos`'s colour, 1610678016: ARGB 0x6000FF00.
 const HIGHLIGHT_FILL: u32 = 0x6000_FF00;
-
-/// `ServerboundTestInstanceBlockActionPacket.Action`.
-const INIT: i32 = 0;
-const QUERY: i32 = 1;
-const RESET: i32 = 3;
-const SAVE: i32 = 4;
-const EXPORT: i32 = 5;
-const RUN: i32 = 6;
 
 /// The `GameTestInstance` a registry entry describes: `TestData` and what
 /// `describe()` prints.
@@ -60,7 +49,6 @@ pub(super) struct TestDef {
     pub(super) required_successes: i32,
     /// The dimension the test runs in (`TestData.dimension`).
     pub(super) dimension: String,
-    description: Text,
 }
 
 #[cfg(test)]
@@ -81,7 +69,6 @@ impl TestDef {
             setup_ticks,
             max_attempts: 1,
             required_successes: 1,
-            description: Text::literal(""),
         }
     }
 }
@@ -100,29 +87,7 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
             .unwrap_or(1)
             .clamp(1, i64::from(i32::MAX)) as i32
     };
-    // GameTestInstance.describe: the type, the function (function tests
-    // only), then the structure, batch and dimension.
     let block_based = string("type") == Some("minecraft:block_based");
-    let mut description = Text::translate(
-        "test_instance.description.type",
-        &[Text::translate(
-            if block_based {
-                "test_instance.type.block_based"
-            } else {
-                "test_instance.type.function"
-            },
-            &[],
-        )
-        .with_color(0x5555FF)],
-    )
-    .append(Text::literal("\n"));
-    if !block_based && let Some(function) = function {
-        description = description.append(row("test_instance.description.function", function));
-    }
-    description = description
-        .append(row("test_instance.description.structure", &structure))
-        .append(row("test_instance.description.batch", &environment))
-        .append(row("test_instance.description.dimension", dimension));
     Some(TestDef {
         structure,
         rotation: string("rotation")
@@ -157,16 +122,7 @@ fn parse_test_def(json: &serde_json::Value) -> Option<TestDef> {
             .clamp(0, i64::from(i32::MAX)) as i32,
         max_attempts: positive("max_attempts"),
         required_successes: positive("required_successes"),
-        description,
     })
-}
-/// `GameTestInstance.descriptionRow`: the row's value in blue, then a line break.
-fn row(key: &str, value: &str) -> Text {
-    Text::translate(key, &[Text::literal(value).with_color(0x5555FF)]).append(Text::literal("\n"))
-}
-
-fn red(key: &str, args: &[Text]) -> Text {
-    Text::translate(key, args).with_color(text::RED)
 }
 
 impl Game<'_> {
@@ -380,89 +336,6 @@ impl Game<'_> {
         }
     }
 
-    /// `ServerGamePacketListenerImpl.handleTestInstanceBlockAction` for a
-    /// guest: only a creative player with game master commands. A query or
-    /// the screen's first look answers with a status packet.
-    pub(super) fn lan_test_instance_action(
-        &mut self,
-        host: &mut LanHost,
-        conn: u32,
-        p: play::TestInstanceBlockAction,
-    ) {
-        let Some(g) = host.hub.guest(conn) else {
-            return;
-        };
-        let allowed = g.creative() && g.permission >= 2;
-        let reply = self
-            .as_guest_messaged(host, conn, |game| {
-                allowed
-                    .then(|| game.apply_test_instance_action(&p))
-                    .flatten()
-            })
-            .flatten();
-        if let Some((status, size)) = reply {
-            host.hub.send_to(
-                conn,
-                &C::TestInstanceBlockStatus(play::TestInstanceBlockStatus {
-                    status: horizon_client::lan::data::component_nbt(&status.component()),
-                    size,
-                }),
-            );
-        }
-    }
-
-    fn apply_test_instance_action(
-        &mut self,
-        p: &play::TestInstanceBlockAction,
-    ) -> Option<(Text, Option<[i32; 3]>)> {
-        let pos = (p.pos[0], p.pos[1], p.pos[2]);
-        self.test_instance_at(pos)?;
-        // `ByIdMap.continuous(.., ZERO)`: an unknown action is INIT.
-        let action = if (0..=RUN).contains(&p.action) {
-            p.action
-        } else {
-            INIT
-        };
-        if action != QUERY && action != INIT {
-            // `blockEntity.set(packet.data())`.
-            let data = Data {
-                test: p.data.test.clone(),
-                size: p.data.size,
-                rotation: rotation_from_ordinal(p.data.rotation).unwrap_or(Rotation::None),
-                ignore_entities: p.data.ignore_entities,
-                status: Status::by_index(p.data.status),
-                error_message: p.data.error_message.clone(),
-            };
-            if let Some(b) = self.test_instance_mut(pos) {
-                b.data = data;
-            }
-            match action {
-                RESET => self.reset_test(pos),
-                SAVE => {
-                    self.save_test(pos);
-                }
-                EXPORT => self.export_test(pos),
-                RUN => self.run_test(pos),
-                _ => {}
-            }
-            self.mark_block_entity_updated(pos);
-            return None;
-        }
-        let def = p.data.test.as_deref().and_then(|key| self.test_def(key));
-        let status = def.map_or_else(
-            || red("test_instance.description.no_test", &[]),
-            |d| d.description,
-        );
-        // QUERY: the size of the test's structure.
-        let size = (action == QUERY)
-            .then(|| {
-                let def = p.data.test.as_deref().and_then(|key| self.test_def(key))?;
-                let entry = self.template_entry(&def.structure)?;
-                Some(template_size(&entry.tag))
-            })
-            .flatten();
-        Some((status, size))
-    }
 
     /// `getStructureBoundingBox`.
     pub(super) fn test_structure_box(&self, pos: Pos) -> Option<BoundingBox> {
@@ -628,91 +501,4 @@ impl Game<'_> {
         });
     }
 
-    /// `saveTest`: the test's structure id, saved from the world.
-    fn save_test(&mut self, pos: Pos) -> Option<String> {
-        let id = self
-            .test_holder(pos)
-            .map(|t| t.structure)
-            .or_else(|| self.test_instance_at(pos).and_then(|b| b.data.test.clone()));
-        let Some(id) = id else {
-            self.system_message(red(
-                "test_instance_block.error.unable_to_save",
-                &[pos.0, pos.1, pos.2].map(|v| Text::literal(v.to_string())),
-            ));
-            return None;
-        };
-        let block = self.test_instance_at(pos)?.clone();
-        let padding = self.test_holder(pos).map_or(0, |t| t.padding);
-        let corner = TestInstanceBlock::structure_pos_of(
-            [0, 1, 2].map(|i| [pos.0, pos.1, pos.2][i] + padding),
-        );
-        self.save_structure_area(
-            &id,
-            corner,
-            block.data.size,
-            block.data.ignore_entities,
-            "",
-            true,
-            true,
-        );
-        Some(id)
-    }
-
-    /// `exportTest`: saves, then writes to the test template folder, which
-    /// only a development build has.
-    fn export_test(&mut self, pos: Pos) {
-        if self.save_test(pos).is_some() {
-            self.system_message(
-                Text::literal("Test structure exporting is disabled").with_color(text::RED),
-            );
-        }
-    }
-
-    /// `runTest`: the checks, the structure's placement and the test.
-    fn run_test(&mut self, pos: Pos) {
-        let coordinates = [pos.0, pos.1, pos.2].map(|v| Text::literal(v.to_string()));
-        let Some(def) = self.test_holder(pos) else {
-            self.system_message(red("test_instance_block.error.no_test", &coordinates));
-            return;
-        };
-        if !self.place_test_structure(pos) {
-            self.system_message(red(
-                "test_instance_block.error.no_test_structure",
-                &coordinates,
-            ));
-            return;
-        }
-        self.clear_error_markers(pos);
-        // GameTestTicker.SINGLETON.clear(), FailedTestTracker.forgetFailedTests().
-        self.clear_game_tests();
-        self.game_tests.failed.clear();
-        let Some(block) = self.test_instance_at(pos) else {
-            return;
-        };
-        let key = block.data.test.clone().unwrap_or_default();
-        let rotation = block.data.rotation;
-        let key = if key.contains(':') {
-            key
-        } else {
-            format!("minecraft:{key}")
-        };
-        self.system_message(Text::translate(
-            "test_instance_block.starting",
-            &[Text::literal(key.clone())],
-        ));
-        let id = self.game_tests.next_id();
-        let info = Info::new(id, key, def, Some(pos), self.dim, rotation);
-        self.track_and_start_runner(vec![info], false, None, false);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rows_print_the_value_in_blue_then_a_line_break() {
-        let text = row("test_instance.description.structure", "minecraft:empty");
-        assert!(text.plain().ends_with('\n'));
-    }
 }

@@ -1,12 +1,11 @@
-//! Test blocks on the server: `handleSetTestBlock` and the mode a placed
-//! test block starts with.
-use super::{Game, lan::LanHost};
+//! Test blocks on the server: the mode a placed test block starts with.
+//! 1.21.4 has no set-test-block packet, so no guest handler lives here.
+use super::Game;
 use horizon_client::{
     containers::BlockEntity,
     test_block::{Effects, TestBlock, TestBlockMode},
 };
 use horizon_core::position::BlockPos;
-use horizon_protocol::packets::play;
 
 type Pos = (i32, i32, i32);
 
@@ -115,41 +114,5 @@ impl Game<'_> {
             return;
         };
         self.apply_test_block_effects(pos, effects);
-    }
-
-    /// `handleSetTestBlock` for a guest: only a creative player with game
-    /// master commands edits the block.
-    pub(super) fn lan_set_test_block(
-        &mut self,
-        host: &mut LanHost,
-        conn: u32,
-        p: play::SetTestBlock,
-    ) {
-        let Some(g) = host.hub.guest(conn) else {
-            return;
-        };
-        let allowed = g.creative() && g.permission >= 2;
-        self.as_guest(host, conn, |game| {
-            if allowed {
-                game.apply_set_test_block(&p);
-            }
-        });
-    }
-
-    fn apply_set_test_block(&mut self, p: &play::SetTestBlock) {
-        let pos = (p.pos[0], p.pos[1], p.pos[2]);
-        if self.test_block_mut(pos).is_none() {
-            return;
-        }
-        let mode = TestBlockMode::by_id(p.mode);
-        // TestBlockEntity.setMode: the entity's and the block state's.
-        if let Some(b) = self.test_block_mut(pos) {
-            b.mode = mode;
-        }
-        self.set_mode_property(pos, "minecraft:test_block", mode.serialized_name());
-        if let Some(b) = self.test_block_mut(pos) {
-            b.message = p.message.clone();
-        }
-        self.mark_block_entity_updated(pos);
     }
 }

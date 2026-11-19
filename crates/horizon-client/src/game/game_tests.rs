@@ -622,22 +622,6 @@ impl Game<'_> {
         }
     }
 
-    /// `TestCommand.trackAndStartRunner` for tests already built (batched by
-    /// environment, 50 to a batch): the tracker and its listeners, then
-    /// `GameTestRunner.start`.
-    pub(super) fn track_and_start_runner(
-        &mut self,
-        infos: Vec<Info>,
-        halt_on_error: bool,
-        grid: Option<Grid>,
-        from_command: bool,
-    ) {
-        let batches = batch_infos(infos, 50);
-        self.track_and_start_batches(
-            batches,
-            RunnerOptions::new(halt_on_error, grid, from_command),
-        );
-    }
 
     /// `TestCommand.trackAndStartRunner` for batches already made.
     pub(super) fn track_and_start_batches(&mut self, batches: Vec<Batch>, options: RunnerOptions) {

@@ -6,12 +6,11 @@ use super::{
 };
 use horizon_client::{
     containers::BlockEntity,
-    structure_block::rotation_ordinal,
     test_instance_block::TestInstanceBlock,
     text::{self, Text},
     ui::EditBox,
 };
-use horizon_protocol::packets::play::{self, Serverbound as S};
+use horizon_protocol::packets::play::Serverbound as S;
 use horizon_world::worldgen::structure::Rotation;
 
 const ID: usize = 0;
@@ -24,14 +23,6 @@ const DONE: u8 = 3;
 const CANCEL: u8 = 4;
 const ROTATION: u8 = 5;
 const ENTITIES: u8 = 6;
-
-/// `ServerboundTestInstanceBlockActionPacket.Action`.
-const ACTION_INIT: i32 = 0;
-const ACTION_QUERY: i32 = 1;
-const ACTION_SET: i32 = 2;
-const ACTION_RESET: i32 = 3;
-const ACTION_SAVE: i32 = 4;
-const ACTION_RUN: i32 = 6;
 
 /// The screen's width, and the gap between its buttons.
 const WIDTH: f32 = 316.0;
@@ -107,35 +98,15 @@ impl TestInstanceEditor {
         self.rotation == Rotation::None && parse_id(&self.edits[ID].value).is_some()
     }
 
-    /// `sendToServer`: the packet, and whether the id was a valid one.
-    fn packet(&self, pos: Pos, action: i32) -> (S, bool) {
-        let id = parse_id(&self.edits[ID].value);
-        let valid = id.is_some();
-        (
-            S::TestInstanceBlockAction(play::TestInstanceBlockAction {
-                pos: [pos.0, pos.1, pos.2],
-                action,
-                data: play::TestInstanceData {
-                    test: id,
-                    size: self.size(),
-                    rotation: rotation_ordinal(self.rotation),
-                    ignore_entities: !self.include_entities,
-                    status: 0,
-                    error_message: None,
-                },
-            }),
-            valid,
-        )
-    }
-
-    /// `updateTestInfo`: ask the server, or say the id is wrong.
-    fn update_info(&mut self, pos: Pos, init: bool) -> Vec<S> {
-        let (packet, valid) = self.packet(pos, if init { ACTION_INIT } else { ACTION_QUERY });
-        if !valid {
+    /// `updateTestInfo`, local-only: 1.21.4 has no test-instance-block
+    /// action packet, so the screen cannot ask the server for the test's
+    /// description — it only says when the id is wrong.
+    fn update_info(&mut self, _pos: Pos, _init: bool) -> Vec<S> {
+        if parse_id(&self.edits[ID].value).is_none() {
             self.info =
                 Text::translate("test_instance.description.invalid_id", &[]).with_color(text::RED);
         }
-        vec![packet]
+        Vec::new()
     }
 }
 
@@ -268,11 +239,10 @@ impl Editor for TestInstanceEditor {
         _alt: bool,
     ) -> Outcome {
         let delta = if shift { -1 } else { 1 };
-        let send = |editor: &Self, action: i32| Outcome::Send(editor.packet(pos, action).0);
         match id {
-            RESET => return send(self, ACTION_RESET),
-            SAVE if self.save_allowed() => return send(self, ACTION_SAVE),
-            RUN => return send(self, ACTION_RUN),
+            // Reset, save and run need the server's test runner, and
+            // 1.21.4 has no packet to ask it with: the buttons do nothing.
+            RESET | SAVE | RUN => {}
             DONE => return self.done(entity, pos),
             CANCEL => return Outcome::Cancel,
             ROTATION => self.rotation = cycle(&Rotation::ALL, self.rotation, delta),
@@ -282,9 +252,17 @@ impl Editor for TestInstanceEditor {
         Outcome::Stay
     }
 
-    /// `onDone`: the SET action.
-    fn done(&mut self, _entity: &mut BlockEntity, pos: Pos) -> Outcome {
-        Outcome::Send(self.packet(pos, ACTION_SET).0)
+    /// `onDone`: the SET action, applied to the block entity directly.
+    /// 1.21.4 has no test-instance-block action packet, so the edit is
+    /// local-only and no guest sees it.
+    fn done(&mut self, entity: &mut BlockEntity, _pos: Pos) -> Outcome {
+        if let BlockEntity::TestInstanceBlock(b) = entity {
+            b.data.test = parse_id(&self.edits[ID].value);
+            b.data.size = self.size();
+            b.data.rotation = self.rotation;
+            b.data.ignore_entities = !self.include_entities;
+        }
+        Outcome::Close
     }
 
     fn cancel(&mut self, _entity: &mut BlockEntity) {}
@@ -312,31 +290,6 @@ impl Editor for TestInstanceEditor {
             Vec::new()
         }
     }
-
-    /// `setStatus`: a failure's message, then the description; a size fills
-    /// the boxes.
-    fn status(&mut self, entity: &BlockEntity, status: Text, size: Option<[i32; 3]>) {
-        let mut description = Text::empty();
-        if let BlockEntity::TestInstanceBlock(b) = entity
-            && let Some(error) = &b.data.error_message
-        {
-            let message = Text::empty()
-                .with_color(text::RED)
-                .append(super::remote::remote_text(error));
-            description = description
-                .append(Text::translate(
-                    "test_instance.description.failed",
-                    &[message],
-                ))
-                .append(Text::literal("\n\n"));
-        }
-        self.info = description.append(status);
-        if let Some(size) = size {
-            for (i, v) in size.into_iter().enumerate() {
-                self.edits[SIZE + i].set_value(&v.to_string());
-            }
-        }
-    }
 }
 
 impl Game<'_> {
@@ -353,7 +306,6 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use horizon_client::structure_block::rotation_from_ordinal;
 
     fn editor() -> TestInstanceEditor {
         let mut b = TestInstanceBlock::default();
@@ -383,31 +335,31 @@ mod tests {
         e.rotation = Rotation::None;
         e.edits[ID].set_value("Bad Id");
         assert!(!e.save_allowed());
-        // An invalid id still asks, and says so.
+        // An invalid id says so, without asking the server.
         let packets = e.update_info((0, 0, 0), false);
-        assert_eq!(packets.len(), 1);
+        assert!(packets.is_empty());
         assert!(!e.info.plain().is_empty());
     }
 
     #[test]
-    fn actions_carry_the_screens_values() {
+    fn done_applies_the_screens_values_locally() {
         let mut e = editor();
         let mut entity = BlockEntity::TestInstanceBlock(Box::default());
         e.press(&mut entity, (0, 0, 0), ENTITIES, false, false);
         e.press(&mut entity, (0, 0, 0), ROTATION, false, false);
         e.edits[SIZE].set_value("60");
-        let Outcome::Send(S::TestInstanceBlockAction(p)) =
-            e.press(&mut entity, (1, 2, 3), RESET, false, false)
-        else {
-            panic!("reset sends the action");
+        assert!(matches!(e.done(&mut entity, (1, 2, 3)), Outcome::Close));
+        let BlockEntity::TestInstanceBlock(b) = &entity else {
+            panic!("the entity is still a test instance block");
         };
-        assert_eq!((p.pos, p.action), ([1, 2, 3], ACTION_RESET));
-        assert_eq!(p.data.test.as_deref(), Some("minecraft:always_pass"));
-        assert_eq!(p.data.size, [48, 4, 5]);
-        assert!(p.data.ignore_entities);
-        assert_eq!(
-            rotation_from_ordinal(p.data.rotation),
-            Some(Rotation::Clockwise90)
-        );
+        assert_eq!(b.data.test.as_deref(), Some("minecraft:always_pass"));
+        assert_eq!(b.data.size, [48, 4, 5]);
+        assert!(b.data.ignore_entities);
+        assert_eq!(b.data.rotation, Rotation::Clockwise90);
+        // Reset, save and run have no local form: they stay on the screen.
+        assert!(matches!(
+            e.press(&mut entity, (1, 2, 3), RESET, false, false),
+            Outcome::Stay
+        ));
     }
 }

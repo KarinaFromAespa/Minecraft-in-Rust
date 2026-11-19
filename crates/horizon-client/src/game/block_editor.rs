@@ -94,6 +94,10 @@ pub(super) enum Outcome {
     SendAll(Vec<S>),
     /// Close, after the editor reverted what it changed.
     Cancel,
+    /// Close without sending: the editor applied its values locally.
+    /// 1.21.4 has no packet for the test-block screens, so their Done
+    /// buttons close this way.
+    Close,
 }
 
 /// One edit screen's widgets and rules.
@@ -119,8 +123,6 @@ pub(super) trait Editor {
     fn edited(&mut self, _edit: usize, _pos: Pos) -> Vec<S> {
         Vec::new()
     }
-    /// A status from the server (`ClientboundTestInstanceBlockStatus`).
-    fn status(&mut self, _entity: &BlockEntity, _status: Text, _size: Option<[i32; 3]>) {}
     /// A slider moved to `value` (0..1).
     fn slide(&mut self, _id: u8, _value: f32) {}
     /// Done: the packet that carries the screen's values.
@@ -253,6 +255,7 @@ impl Game<'_> {
                 self.close_block_editor();
             }
             Outcome::Cancel => self.close_block_editor(),
+            Outcome::Close => self.close_block_editor(),
         }
     }
 
@@ -559,23 +562,6 @@ impl Game<'_> {
         for packet in packets {
             self.send(packet);
         }
-    }
-
-    /// A status for the open screen.
-    pub(super) fn block_editor_status(&mut self, status: Text, size: Option<[i32; 3]>) {
-        let Some(mut screen) = self.block_editor.take() else {
-            return;
-        };
-        if let Some(entity) = self.world.block_entities.get(&screen.pos) {
-            screen.editor.status(entity, status, size);
-        }
-        screen.values = screen
-            .editor
-            .edits()
-            .iter()
-            .map(|e| e.value.clone())
-            .collect();
-        self.block_editor = Some(screen);
     }
 
     fn block_editor_type_into(&mut self, screen: &mut BlockEditScreen, focus: usize, c: char) {

@@ -3984,6 +3984,24 @@ impl Game<'_> {
                     self.remove_entity(id);
                 }
             }
+            // ClientPacketListener.handleAddExperienceOrb: 1.21.4 spawns
+            // orbs with their own packet (removed in 1.21.5); the value
+            // rides the packet, not a later SetEntityData.
+            C::AddExperienceOrb(p) => {
+                self.audio.remove_sound_entity(p.id as u32);
+                if let Some(r) = self.remote.as_mut() {
+                    r.ticked_before_player.remove(&(p.id as u32));
+                }
+                self.spawn_entity(
+                    p.id,
+                    "minecraft:experience_orb",
+                    [p.position[0], p.position[1], p.position[2]],
+                    [0.0, 0.0, 0.0],
+                );
+                if let Some(o) = self.orbs.iter_mut().find(|o| o.id == p.id as u32) {
+                    o.value = p.value as i32;
+                }
+            }
             C::MoveEntityPos(play::MoveEntityPos(m))
             | C::MoveEntityPosRot(play::MoveEntityPosRot(m))
             | C::MoveEntityRot(play::MoveEntityRot(m)) => {
@@ -5233,10 +5251,7 @@ impl Game<'_> {
                 }
             }
             // No GameTestHighlightPos: 1.21.8 has no game_test_highlight_pos packet.
-            // ClientPacketListener.handleTestInstanceBlockStatus.
-            C::TestInstanceBlockStatus(p) => {
-                self.block_editor_status(remote_text(&p.status), p.size);
-            }
+            // No TestInstanceBlockStatus: 1.21.4 has no test-instance-block status packet.
             C::SystemChat(p) => {
                 // The component as sent, translated in the client's own
                 // language; mods may change or cancel it. ChatListener.handleOverlay

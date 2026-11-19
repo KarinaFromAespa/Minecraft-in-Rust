@@ -241,7 +241,17 @@ fn added_issuer_actor_missing_guest_and_restoration_controls() {
         Dim::Overworld,
         Rotation::None,
     );
-    game.track_and_start_runner(vec![info], false, None, false);
+    // One batch, built by hand: the runner wrapper went with the test
+    // instance block's run action (1.21.4 has no such packet).
+    let environment = info.def.environment.clone();
+    game.track_and_start_batches(
+        vec![Batch {
+            index: 0,
+            environment,
+            infos: vec![info],
+        }],
+        RunnerOptions::new(false, None, false),
+    );
     assert!(
         game.game_tests
             .runner

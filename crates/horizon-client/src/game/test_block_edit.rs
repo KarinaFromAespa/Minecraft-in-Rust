@@ -9,7 +9,6 @@ use horizon_client::{
     text::Text,
     ui::EditBox,
 };
-use horizon_protocol::packets::play::{self, Serverbound as S};
 
 const DONE: u8 = 0;
 const CANCEL: u8 = 1;
@@ -115,13 +114,15 @@ impl Editor for TestBlockEditor {
         Outcome::Stay
     }
 
-    /// `onDone`: the mode and message, as the screen has them.
-    fn done(&mut self, _entity: &mut BlockEntity, pos: Pos) -> Outcome {
-        Outcome::Send(S::SetTestBlock(play::SetTestBlock {
-            pos: [pos.0, pos.1, pos.2],
-            mode: self.mode.id(),
-            message: self.edits[0].value.clone(),
-        }))
+    /// `onDone`: the mode and message, as the screen has them — applied
+    /// to the block entity directly. 1.21.4 has no set-test-block packet,
+    /// so the edit is local-only and no guest sees it.
+    fn done(&mut self, entity: &mut BlockEntity, _pos: Pos) -> Outcome {
+        if let BlockEntity::TestBlock(b) = entity {
+            b.mode = self.mode;
+            b.message = self.edits[0].value.clone();
+        }
+        Outcome::Close
     }
 
     fn cancel(&mut self, _entity: &mut BlockEntity) {}
@@ -148,7 +149,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn done_sends_the_mode_and_message() {
+    fn done_applies_the_mode_and_message_locally() {
         let block = TestBlock {
             mode: TestBlockMode::Log,
             message: "hello".into(),
@@ -158,10 +159,11 @@ mod tests {
         let mut e = TestBlockEditor::new(&block);
         let mut entity = BlockEntity::TestBlock(Box::new(block));
         e.press(&mut entity, (0, 0, 0), MODE, false, false);
-        let Outcome::Send(S::SetTestBlock(p)) = e.done(&mut entity, (4, 5, 6)) else {
-            panic!("done sends the block");
+        assert!(matches!(e.done(&mut entity, (4, 5, 6)), Outcome::Close));
+        let BlockEntity::TestBlock(b) = &entity else {
+            panic!("the entity is still a test block");
         };
-        assert_eq!((p.pos, p.mode, p.message.as_str()), ([4, 5, 6], 2, "hello"));
+        assert_eq!((b.mode.id(), b.message.as_str()), (2, "hello"));
         // Shift steps back, wrapping from the first mode to the last.
         e.mode = TestBlockMode::Start;
         e.press(&mut entity, (0, 0, 0), MODE, true, false);
