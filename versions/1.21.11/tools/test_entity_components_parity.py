@@ -24,11 +24,23 @@ def predicates():
     for name in ADVANCEMENTS:
         data = json.loads((folder / f'{name}.json').read_text())
         for criterion in data['criteria'].values():
-            predicate = criterion['conditions']['entity']['predicate']
-            out.append(predicate)
-            components = {'minecraft:components': predicate['minecraft:components']}
-            out.append(components)
-            out.append(dict(components, **{'minecraft:entity_type': 'minecraft:pig'}))
+            # 1.21.11: the trigger's entity is a ContextAwarePredicate, a LIST
+            # of loot conditions (TameAnimalTrigger$TriggerInstance.entity is
+            # Optional<ContextAwarePredicate> in the 1.21.11 server jar); each
+            # entity_properties element carries the EntityPredicate. 26.3
+            # writes the single condition as a bare object; accept both. The
+            # 1.21.11 predicate keys are the bare names (components, type),
+            # not the minecraft:-prefixed forms.
+            entity = criterion['conditions']['entity']
+            conditions = entity if isinstance(entity, list) else [entity]
+            for condition in conditions:
+                if condition.get('condition') not in (None, 'minecraft:entity_properties'):
+                    continue
+                predicate = condition['predicate']
+                out.append(predicate)
+                components = {'components': predicate['components']}
+                out.append(components)
+                out.append(dict(components, **{'type': 'minecraft:pig'}))
     return out
 
 
