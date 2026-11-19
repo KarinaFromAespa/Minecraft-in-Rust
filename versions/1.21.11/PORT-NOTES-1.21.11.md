@@ -1741,5 +1741,39 @@ Rank 2 (492 items, in progress 2026-11-19)
     (SingleThreadedRandomSource vs LegacyRandomSource share
     multiplier/increment/mask and setSeed; verified from the jar);
     thread-safety only, same sequence per seed.
-- Rank-2 A-batches 1-15: 150 items closed (25 changed, 125 no-change).
-  work-items.json rank2.closed = 150 on 2026-11-19.
+- A-batch 16 (461, 463, 464, 465, 467, 468, 469, 470, 471, 472),
+  verified 2026-11-19, no code changes. Item 462 deferred as
+  changed (see below); 472 pulled in to keep the batch at 10.
+  - 461 no-change (ThrottlingChunkTaskDispatcher): `ChunkPos.unpack`
+    -> `new ChunkPos(long)` in a debug lambda, same value.
+  - 463 no-change (ModelPart): `Util.getRandom(cubes, random)`
+    inlined as `cubes.get(random.nextInt(cubes.size()))` — identical
+    (verified: that is exactly `Util.getRandom`'s body), same draw;
+    Vertex u/v flags.
+  - 464 no-change (PlayerModel): 1.21.11 has a `setAllVisible`
+    override 26.1 lacks entirely, but it has no vanilla callers in
+    either version and the Rust has no `set_all_visible` — no surface.
+  - 465 no-change (ChatListener$Message): record ctor flag.
+  - 467 no-change (SpriteSourceList$1): requireNonNull outer-this
+    pattern (26.1 only).
+  - 468 no-change (ArgumentUtils): typeSwitch descriptor is a javac
+    codegen difference, same tableswitch (as item 434).
+  - 469 no-change (VanillaRegistries): 26.1-only registries
+    (PIG/COW/CHICKEN/CAT_SOUND_VARIANT, WORLD_CLOCK, VILLAGER_TRADE,
+    TRADE_SET) have no Rust surface here — `sound_variants` covers
+    wolves only (already 1.21.11-correct); world clocks belong to
+    item 439; trade_set/villager_trade are data-driven datapack kinds.
+  - 470 no-change (MultiPackResourceManager): catch type narrows
+    `Exception` -> `IOException` — Java plumbing, no Rust surface.
+  - 471 no-change (ContextMap): ctor flag.
+  - 472 no-change (WeightedList$Compact): ctor flag.
+  - 462 DEFERRED as changed (GuiEventListener): 26.1 adds
+    `preeditUpdated(PreeditEvent)`; preedit is entirely 26.x
+    (1.21.11 has no PreeditEvent, IMEPreeditOverlay, or preedit.png)
+    while the Rust implements it (`preedit.rs`, `game/ime.rs`, call
+    sites in game.rs, multiline_edit.rs, screen_draw.rs, ui.rs,
+    sign_edit.rs). The triage missed it — its changed-methods dict
+    only compares methods present in both versions (the 396/407
+    blind spot). Removal belongs with the changed items.
+- Rank-2 A-batches 1-16: 160 items closed (25 changed, 135 no-change).
+  work-items.json rank2.closed = 160 on 2026-11-19.
