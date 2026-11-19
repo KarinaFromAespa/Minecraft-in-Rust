@@ -512,7 +512,6 @@ fn clientbound_round_trips() {
                 data: Some(crate::entity_data::ParticleData::ColorScale(0xFF0000, 1.5)),
             },
             override_limiter: true,
-            always_show: false,
             pos: [0.5, 101.0, 3.0],
             dist: [0.2, 0.0, 0.2],
             max_speed: [0.0; 3],

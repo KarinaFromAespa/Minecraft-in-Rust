@@ -1107,8 +1107,8 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (1.21.4): an older pot's undecorated side.
-const BRICK: i32 = 954;
+/// `minecraft:brick` (1.21.3): an older pot's undecorated side.
+const BRICK: i32 = 945;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).

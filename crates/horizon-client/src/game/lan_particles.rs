@@ -132,7 +132,6 @@ pub(super) fn send_soul_particle(host: &super::lan::LanHost, at: [f64; 3], veloc
     let packet = C::LevelParticles(play::LevelParticles {
         particle: Particle { id, data: None },
         override_limiter: false,
-        always_show: false,
         pos: at,
         dist: velocity.map(|v| v as f32),
         max_speed: [1.0; 3],
@@ -174,7 +173,6 @@ pub(super) fn send_snowflake_particle(
     let packet = C::LevelParticles(play::LevelParticles {
         particle: Particle { id, data: None },
         override_limiter: false,
-        always_show: false,
         pos: at,
         dist: [0.0; 3],
         max_speed: velocity.map(|v| v as f32),
@@ -208,7 +206,6 @@ pub(super) fn send_hub_level_particles(
     let packet = C::LevelParticles(play::LevelParticles {
         particle,
         override_limiter: false,
-        always_show: false,
         pos: at,
         dist: spread.map(|d| d as f32),
         max_speed: [speed as f32; 3],
@@ -239,7 +236,6 @@ impl Game<'_> {
         let packet = C::LevelParticles(play::LevelParticles {
             particle,
             override_limiter: false,
-            always_show: false,
             pos: at,
             dist: [0.0; 3],
             max_speed: [0.0; 3],
@@ -320,7 +316,6 @@ impl Game<'_> {
         let packet = C::LevelParticles(play::LevelParticles {
             particle,
             override_limiter: false,
-            always_show: false,
             pos: at,
             dist: [0.0; 3],
             max_speed: [speed as f32; 3],
@@ -578,7 +573,8 @@ impl Game<'_> {
         // ClientLevel.addParticle: the camera's 32 blocks and the Particles
         // option, unless the packet or the type overrides the limiter.
         let add = |particles: &mut horizon_client::particles::ParticleEngine, at, v| {
-            particles.add_with(&options, at, v, p.override_limiter, p.always_show);
+            // 1.21.3 has no alwaysShow flag on the wire: never force-visible.
+            particles.add_with(&options, at, v, p.override_limiter, false);
         };
         if p.count == 0 {
             add(
@@ -658,7 +654,6 @@ impl Game<'_> {
         let body = C::LevelParticles(play::LevelParticles {
             particle,
             override_limiter: false,
-            always_show: false,
             pos: at,
             dist: spread.map(|d| d as f32),
             max_speed: speed.map(|v| v as f32),

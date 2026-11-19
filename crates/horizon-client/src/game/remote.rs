@@ -5453,9 +5453,6 @@ impl Game<'_> {
                             if let Some(order) = e.list_order {
                                 t.list_order = order;
                             }
-                            if let Some(hat) = e.show_hat {
-                                t.show_hat = hat;
-                            }
                             match e.listed {
                                 Some(true) => {
                                     r.listed.insert(e.uuid);

@@ -683,10 +683,11 @@ pub struct PlayerInfo {
     pub latency: Option<i32>,
     pub display_name: Option<Option<Tag>>,
     pub list_order: Option<i32>,
-    pub show_hat: Option<bool>,
+    // 1.21.3 has no UPDATE_HAT action (it arrived in 1.21.4): tab-list
+    // player skins always include their hat layer at this pin.
 }
 /// Actions bits: ADD_PLAYER, INITIALIZE_CHAT, UPDATE_GAME_MODE, UPDATE_LISTED,
-/// UPDATE_LATENCY, UPDATE_DISPLAY_NAME, UPDATE_LIST_ORDER, UPDATE_HAT.
+/// UPDATE_LATENCY, UPDATE_DISPLAY_NAME, UPDATE_LIST_ORDER.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlayerInfoUpdate {
     pub actions: u8,
@@ -727,9 +728,6 @@ impl Codec<PlayerInfoUpdate> for PlayerInfoUpdate {
             }
             if actions & 64 != 0 {
                 e.list_order = Some(r.varint()?);
-            }
-            if actions & 128 != 0 {
-                e.show_hat = Some(r.bool()?);
             }
             entries.push(e);
         }
@@ -772,9 +770,6 @@ impl Codec<PlayerInfoUpdate> for PlayerInfoUpdate {
             }
             if v.actions & 64 != 0 {
                 w.varint(e.list_order.unwrap_or(0));
-            }
-            if v.actions & 128 != 0 {
-                w.bool(e.show_hat.unwrap_or(false));
             }
         }
     }
@@ -896,7 +891,8 @@ impl Codec<Vec<(u8, Option<Stack>)>> for Equipment {
 packet!(SetEquipment { id: i32 => VarInt, slots: Vec<(u8, Option<Stack>)> => Equipment });
 packet!(SetExperience { progress: f32 => Float, level: i32 => VarInt, total: i32 => VarInt });
 packet!(SetHealth { health: f32 => Float, food: i32 => VarInt, saturation: f32 => Float });
-packet!(SetHeldSlot { slot: i32 => VarInt });
+// 1.21.3 sends the held slot as a byte; the VarInt form arrived in 1.21.4.
+packet!(SetHeldSlot { slot: i8 => Byte });
 packet!(
     /// ClientboundSetCameraPacket: the entity the view is attached to (the
     /// player's own id puts it back on the player).
@@ -1088,16 +1084,15 @@ impl Codec<SetObjective> for SetObjective {
     }
 }
 /// ClientboundLevelParticlesPacket: a particle, whether it ignores the
-/// client's particle setting (`overrideLimiter`) and its distance limit
-/// (`alwaysShow`), where, the spread and the speed on each axis, how many
-/// (0: one, moving by speed times spread) and the randomization type
-/// (0 default: gaussian spread and speed; 1 ALTERNATIVE: nextDouble times
-/// spread, the packet's max speed as velocity).
+/// client's particle setting (`overrideLimiter`), where, the spread and
+/// the speed on each axis, how many (0: one, moving by speed times spread)
+/// and the randomization type (0 default: gaussian spread and speed;
+/// 1 ALTERNATIVE: nextDouble times spread, the packet's max speed as
+/// velocity). 1.21.3 has no `alwaysShow` flag (it arrived in 1.21.4).
 #[derive(Clone, Debug, PartialEq)]
 pub struct LevelParticles {
     pub particle: Particle,
     pub override_limiter: bool,
-    pub always_show: bool,
     pub pos: [f64; 3],
     pub dist: [f32; 3],
     pub max_speed: [f32; 3],
@@ -1109,7 +1104,6 @@ impl Codec<LevelParticles> for LevelParticles {
         Ok(Self {
             particle: Particle::read(r)?,
             override_limiter: r.bool()?,
-            always_show: r.bool()?,
             pos: Vec3d::read(r)?,
             dist: [r.f32()?, r.f32()?, r.f32()?],
             max_speed: [r.f32()?, r.f32()?, r.f32()?],
@@ -1120,7 +1114,6 @@ impl Codec<LevelParticles> for LevelParticles {
     fn write(v: &Self, w: &mut Writer) {
         v.particle.write(w);
         w.bool(v.override_limiter);
-        w.bool(v.always_show);
         Vec3d::write(&v.pos, w);
         for f in v.dist.iter().chain(&v.max_speed) {
             w.f32(*f);

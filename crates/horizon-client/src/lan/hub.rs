@@ -1369,7 +1369,7 @@ impl Hub {
             latency: Some(latency),
             display_name: Some(self.list_name(uuid)),
             list_order: Some(0),
-            show_hat: Some(guest.is_none_or(|g| g.info.model_customisation & 0x40 != 0)),
+            // 1.21.3 has no UPDATE_HAT action: the hat layer always shows.
         }
     }
     /// The name a player's Tab list entry shows in place of theirs
@@ -1477,7 +1477,7 @@ impl Hub {
         }));
         g.send(&g.abilities());
         g.send(&C::SetHeldSlot(play::SetHeldSlot {
-            slot: g.selected as i32,
+            slot: g.selected as i8,
         }));
         // PlayerList.placeNewPlayer: ClientboundUpdateRecipesPacket.
         g.send(&raw(ids::UPDATE_RECIPES, self.sync.recipes.clone()));
@@ -1676,7 +1676,7 @@ impl Hub {
         }));
         g.send(&g.abilities());
         g.send(&C::SetHeldSlot(play::SetHeldSlot {
-            slot: g.selected as i32,
+            slot: g.selected as i8,
         }));
         self.resend_teleport(i, None);
         self.send_active_effects(i);
@@ -4205,8 +4205,6 @@ impl Hub {
                     let g = &mut self.guests[i];
                     let old_main_hand = g.info.main_hand;
                     let old_language = g.info.language.clone();
-                    // PlayerModelPart.HAT (bit 6): the tab list shows the hat layer.
-                    let was_hat = g.info.model_customisation & 0x40 != 0;
                     g.view_distance =
                         guest_view(info.view_distance, self.config.view_distance, g.view_limit);
                     g.info = info;
@@ -4217,19 +4215,8 @@ impl Hub {
                         events.push(HostEvent::LocaleChanged(conn, g.info.language.clone()));
                     }
                     g.center = None;
-                    let hat = g.info.model_customisation & 0x40 != 0;
-                    let uuid = g.uuid;
-                    // ServerGamePacketListenerImpl.handleClientInformation: UPDATE_HAT to everyone.
-                    if hat != was_hat {
-                        self.broadcast(&C::PlayerInfoUpdate(play::PlayerInfoUpdate {
-                            actions: 128,
-                            entries: vec![play::PlayerInfo {
-                                uuid,
-                                show_hat: Some(hat),
-                                ..Default::default()
-                            }],
-                        }));
-                    }
+                    // 1.21.3 has no UPDATE_HAT action: a hat-layer toggle has
+                    // no wire update to send (hats always show at this pin).
                 }
                 S::PlayerInput(p) => {
                     let g = &mut self.guests[i];
@@ -5197,7 +5184,7 @@ impl Hub {
         self.send_inventory(i);
         let g = &mut self.guests[i];
         g.send(&C::SetHeldSlot(play::SetHeldSlot {
-            slot: g.selected as i32,
+            slot: g.selected as i8,
         }));
         self.send_active_effects(i);
         let g = &mut self.guests[i];

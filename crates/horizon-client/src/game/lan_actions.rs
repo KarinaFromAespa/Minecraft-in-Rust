@@ -2450,7 +2450,7 @@ impl Game<'_> {
                         host.hub.send_to(
                             conn,
                             &C::SetHeldSlot(play::SetHeldSlot {
-                                slot: old_slot as i32,
+                                slot: old_slot as i8,
                             }),
                         );
                         return;
@@ -3042,7 +3042,7 @@ impl Game<'_> {
                     host.hub.send_to(
                         conn,
                         &C::SetHeldSlot(play::SetHeldSlot {
-                            slot: g.selected as i32,
+                            slot: g.selected as i8,
                         }),
                     );
                 }

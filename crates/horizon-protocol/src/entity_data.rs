@@ -165,7 +165,7 @@ impl Particle {
                     },
                 ))
             }
-            15 | 44 => {
+            15 | 43 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -175,8 +175,8 @@ impl Particle {
             }
             7 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
             7 | 36 => Some(ParticleData::Scalar(r.f32()?)),
-            101 => Some(ParticleData::Delay(r.varint()?)),
-            47 => {
+            100 => Some(ParticleData::Delay(r.varint()?)),
+            46 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -186,8 +186,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            45 | 48 => Some(ParticleData::Item(Template::read(r)?)), // item and item_slime
-            46 => {
+            44 | 47 => Some(ParticleData::Item(Template::read(r)?)), // item and item_slime
+            45 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -214,7 +214,7 @@ impl Particle {
                 })
             }
             // Every other registered particle carries no data. (The geyser
-            // particles a later release adds do not exist in 1.21.4.)
+            // particles a later release adds do not exist in 1.21.3.)
             _ => None,
         };
         Ok(Particle { id, data })
@@ -256,7 +256,10 @@ impl Particle {
             ParticleData::Trail(at, c, d) => {
                 at.iter().for_each(|v| w.f64(*v));
                 w.i32(*c);
-                w.varint(*d);
+                // Before 1.21.4 the trail carried no duration.
+                if !ids::quirks_written().trail_without_duration {
+                    w.varint(*d);
+                }
             }
             ParticleData::Item(s) => Template::write(s, w),
             ParticleData::Mod(name) => w.string(name),
@@ -286,8 +289,8 @@ fn legacy_rgb(r: &mut Reader) -> Result<i32> {
 }
 
 /// Serializer ids in EntityDataSerializers registration order, as of the
-/// pinned 1.21.4 (from the named jar's `<clinit>` register calls, not the
-/// field declaration order). 1.21.4 still has COMPOUND_TAG (16) and no cow,
+/// pinned 1.21.3 (from the named jar's `<clinit>` register calls, not the
+/// field declaration order). 1.21.3 still has COMPOUND_TAG (16) and no cow,
 /// wolf-sound, pig or chicken variants — those arrived in 1.21.5 — nor the
 /// sound variants, copper golem states, resolvable profile, humanoid arm or
 /// dye colour of 1.21.9 and later.
@@ -535,7 +538,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 46); // minecraft:vibration is particle 46 in 1.21.4.
+                assert_eq!(p.id, 45); // minecraft:vibration is particle 45 in 1.21.3.
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -664,7 +667,7 @@ mod tests {
             for (pinned, expected) in [
                 (7, ParticleData::Scalar(1.0)),
                 (15, ParticleData::ColorPower(-1, 1.0)),
-                (44, ParticleData::ColorPower(-1, 1.0)), // instant_effect
+                (43, ParticleData::ColorPower(-1, 1.0)), // instant_effect
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
@@ -778,9 +781,9 @@ mod tests {
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (1.21.4 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (1.21.3 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes. (The geyser shapes have no 1.21.4 particle type; they
+    /// still decodes. (The geyser shapes have no 1.21.3 particle type; they
     /// are covered by the 26.3 tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
@@ -789,12 +792,12 @@ mod tests {
             (7, Some(ParticleData::Scalar(1.0))),
             (13, Some(ParticleData::ColorScale(0xff0000, 1.5))),
             (14, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            // 1.21.4 carries no spell-particle options: the effect's colour
+            // 1.21.3 carries no spell-particle options: the effect's colour
             // and power are the read defaults (-1, 1.0), not wire data.
             (15, Some(ParticleData::ColorPower(-1, 1.0))),
             (20, Some(ParticleData::Color(0x7f00ff00))),
             (
-                48,
+                47,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -809,14 +812,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                46,
+                45,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                46,
+                45,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -825,8 +828,9 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (47, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (101, Some(ParticleData::Delay(6))),
+            // The pin's trail carries no duration: it reads back as -1.
+            (46, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, -1))),
+            (100, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });

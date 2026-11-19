@@ -22,19 +22,66 @@ pub(super) fn clientbound(
         }
         cb::SET_HELD_SLOT => w.varint(i32::from(r.i8()?)),
         cb::PLAYER_INFO_UPDATE => {
-            let mut p = play::PlayerInfoUpdate::read(&mut r)?;
-            if p.actions & 1 != 0 {
-                // Before UPDATE_HAT, tab-list player skins always included their hat layer.
-                p.actions |= 128;
-                for entry in &mut p.entries {
-                    entry.show_hat = Some(true);
-                }
+            let p = play::PlayerInfoUpdate::read(&mut r)?;
+            if p.actions & 1 == 0 {
+                // No ADD_PLAYER: the 1.21.4 form is identical (no hat bit).
+                return Ok(None);
             }
-            play::PlayerInfoUpdate::write(&p, &mut w);
+            // Before UPDATE_HAT, tab-list player skins always included their
+            // hat layer: 1.21.4's form sets the bit and a true bool per entry.
+            // The pin codec has no hat field, so the 1.21.4 form is written
+            // by hand.
+            write_with_hat(&p, &mut w);
         }
         _ => return Ok(None),
     }
     Ok(Some(w.data))
+}
+
+/// A player-info update in 1.21.4's layout: the pin form's fields, the
+/// UPDATE_HAT bit set, and a true hat bool after each entry's fields.
+fn write_with_hat(p: &play::PlayerInfoUpdate, w: &mut Writer) {
+    w.u8(p.actions | 128);
+    w.varint(p.entries.len() as i32);
+    for e in &p.entries {
+        w.uuid(e.uuid);
+        if p.actions & 1 != 0 {
+            w.string(e.name.as_deref().unwrap_or(""));
+            w.varint(e.properties.len() as i32);
+            e.properties
+                .iter()
+                .for_each(|prop| crate::packets::login::Property::write(prop, w));
+        }
+        if p.actions & 2 != 0 {
+            w.bool(e.chat_session.is_some());
+            if let Some((id, expires, key, sig)) = &e.chat_session {
+                w.uuid(*id);
+                w.i64(*expires);
+                w.byte_array(key);
+                w.byte_array(sig);
+            }
+        }
+        if p.actions & 4 != 0 {
+            w.varint(e.game_mode.unwrap_or(0));
+        }
+        if p.actions & 8 != 0 {
+            w.bool(e.listed.unwrap_or(false));
+        }
+        if p.actions & 16 != 0 {
+            w.varint(e.latency.unwrap_or(0));
+        }
+        if p.actions & 32 != 0 {
+            let name = e.display_name.clone().flatten();
+            w.bool(name.is_some());
+            if let Some(t) = &name {
+                w.nbt(t);
+            }
+        }
+        if p.actions & 64 != 0 {
+            w.varint(e.list_order.unwrap_or(0));
+        }
+        w.bool(true);
+    }
 }
 
 #[cfg(test)]
@@ -42,7 +89,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn legacy_particle_flags_survive_the_whole_pipeline_with_registry_ids() {
+    fn legacy_particle_flag_survives_the_whole_pipeline_with_registry_ids() {
         let session = Session::new(ServerVersion::V1_21_3);
         let mut old = Writer::new();
         old.bool(true);
@@ -70,7 +117,6 @@ mod tests {
             panic!("particle")
         };
         assert!(p.override_limiter);
-        assert!(!p.always_show);
         assert_eq!(p.pos, [1.0, 2.0, -3.0]);
         assert_eq!(p.dist, [0.25, 0.5, 0.75]);
         assert_eq!(p.max_speed, [1.5; 3]);
@@ -78,7 +124,8 @@ mod tests {
         assert_eq!(p.particle.id, 1);
         assert_eq!(
             p.particle.data,
-            Some(crate::entity_data::ParticleData::State(7009))
+            // chain[axis=y,waterlogged=false] is 7006 at this pin, not 7009.
+            Some(crate::entity_data::ParticleData::State(7006))
         );
     }
 
@@ -97,7 +144,7 @@ mod tests {
             let _up = ids::renumbering(ids, Way::Up);
             crate::entity_data::Particle::read(&mut r).unwrap()
         };
-        assert_eq!(particle.id, 47); // minecraft:trail is particle 47 in 1.21.4.
+        assert_eq!(particle.id, 46); // minecraft:trail is particle 46 in 1.21.3.
         assert_eq!(
             particle.data,
             Some(crate::entity_data::ParticleData::Trail(
@@ -112,36 +159,23 @@ mod tests {
     #[test]
     fn old_heart_states_and_both_creaking_types_retain_their_meaning() {
         let ids = ServerVersion::V1_21_3.ids().unwrap();
-        // All three axes and disabled/dormant/active states, from independent vanilla reports.
-        // The pinned 1.21.4 creaking_heart states are 2917..2928 in active-major
-        // order (active, then axis, then natural); both quiet states collapse
-        // to active=false, so down prefers dormant for them.
-        for (old, pinned) in (2917..2926).zip([
-            2924, 2924, 2918, // x: disabled, dormant, active
-            2926, 2926, 2920, // y
-            2928, 2928, 2922, // z
-        ]) {
-            assert_eq!(ids.block_state.up(old), Some(pinned));
+        // 1.21.3 IS the pinned version, so its own tables are identity: the
+        // nine heart states (2917..2925, axis-major, creaking
+        // disabled/dormant/active) and both creaking entities (29, 30) map
+        // to themselves in both directions. The collapse of the two creaking
+        // types onto one is a newer version's DOWN table, not this one.
+        for state in 2917..2926 {
+            assert_eq!(ids.block_state.up(state), Some(state));
+            assert_eq!(ids.block_state.down(state), Some(state));
         }
-        for (pinned, old) in [
-            (2918, 2919),
-            (2920, 2922),
-            (2922, 2925),
-            (2924, 2918),
-            (2926, 2921),
-            (2928, 2924),
-        ] {
-            assert_eq!(ids.block_state.down(pinned), Some(old));
-            assert_eq!(ids.block_state.down(pinned - 1), Some(old)); // natural=true also maps back
-        }
-        // Both creaking entities collapse to the pinned minecraft:creaking (29 in 1.21.4).
         assert_eq!(ids.entity_type.up(29), Some(29));
-        assert_eq!(ids.entity_type.up(30), Some(29));
+        assert_eq!(ids.entity_type.up(30), Some(30));
         assert_eq!(ids.entity_type.down(29), Some(29));
+        assert_eq!(ids.entity_type.down(30), Some(30));
     }
 
     #[test]
-    fn player_list_additions_show_hats_and_partial_updates_keep_their_scope() {
+    fn player_list_updates_keep_their_scope_and_lose_the_hat() {
         let session = Session::new(ServerVersion::V1_21_3);
         let mut old = Writer::new();
         old.u8(0x7f);
@@ -164,22 +198,23 @@ mod tests {
             .1
             .unwrap();
         let p = play::PlayerInfoUpdate::read(&mut Reader::new(&translated)).unwrap();
-        assert_eq!(p.actions, 255);
+        // The 1.21.3 step adds UPDATE_HAT on the way up to 26.2's layout and
+        // pin_layout strips it again: the pin sees the seven actions as sent.
+        assert_eq!(p.actions, 0x7f);
         assert_eq!(p.entries[0].name.as_deref(), Some("First"));
         assert_eq!(p.entries[0].latency, Some(150));
         assert_eq!(p.entries[1].list_order, Some(-1));
-        assert!(p.entries.iter().all(|p| p.show_hat == Some(true)));
         let mut partial = Writer::new();
         partial.u8(16);
         partial.varint(1);
         partial.uuid(1);
         partial.varint(201);
-        let translated = super::super::clientbound(&session, State::Play, id, &partial.data)
+        let (_, body) = super::super::clientbound(&session, State::Play, id, &partial.data)
             .unwrap()
-            .unwrap()
-            .1
             .unwrap();
-        assert_eq!(translated, partial.data);
+        // A latency-only update has no ADD_PLAYER, so no hat is added or
+        // stripped: the packet passes through unchanged.
+        assert_eq!(body, None);
     }
 
     #[test]

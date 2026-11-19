@@ -381,11 +381,14 @@ pub fn clientbound(
     Ok(Some((id, Some(out))))
 }
 
-/// The five packets 1.21.9 reshaped, brought from 26.2's layout (what the
-/// steps above produce) to the pinned 1.21.8 wire. `None` when the packet
+/// The packets a newer release reshaped, brought from 26.2's layout (what the
+/// steps above produce) to the pinned 1.21.3 wire. `None` when the packet
 /// is laid out alike. Velocities quantize twice (shorts → LpVec3 → shorts)
 /// on the round trip, by at most one short unit (1/8000 of a block per
-/// tick); the steps' tests assert within 0.001.
+/// tick); the steps' tests assert within 0.001. The five 1.21.9 packets are
+/// joined by the two 1.21.4 ones: the held slot (a VarInt since 1.21.4, a
+/// byte at this pin) and the player-info hat (an action since 1.21.4, absent
+/// at this pin).
 fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     use crate::{
         buf::{LpVec3, Opt, Vec3d},
@@ -435,6 +438,19 @@ fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> 
             let _pitch = r.f32()?;
             play::SetDefaultSpawnPosition::write(&p, &mut w);
         }
+        cb::SET_HELD_SLOT => {
+            // 26.2's layout sends the slot as a VarInt; the pin reads a byte.
+            w.i8(r.varint()? as i8);
+        }
+        cb::PLAYER_INFO_UPDATE => {
+            // 26.2's layout may carry UPDATE_HAT (bit 128) with a bool per
+            // entry; the pin has no such action, so the bit and the bools go.
+            let stripped = strip_hat(payload)?;
+            let Some(stripped) = stripped else {
+                return Ok(None);
+            };
+            w.bytes(&stripped);
+        }
         cb::EXPLODE => {
             let center = Vec3d::read(&mut r)?;
             let _radius = r.f32()?;
@@ -463,6 +479,66 @@ fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> 
         }
         _ => return Ok(None),
     }
+    Ok(Some(w.data))
+}
+
+/// A `PLAYER_INFO_UPDATE` payload in 26.2's layout with the UPDATE_HAT action
+/// stripped to the pinned 1.21.3 form; `None` when the packet carries no hat
+/// action and is already laid out as the pin's. The hat bool sits after each
+/// entry's other fields, so the entries are parsed field by field (mirroring
+/// the pin codec's read) and re-emitted without it.
+fn strip_hat(payload: &[u8]) -> Result<Option<Vec<u8>>> {
+    use crate::buf::Codec;
+    let mut r = Reader::new(payload);
+    let actions = r.u8()?;
+    if actions & 128 == 0 {
+        return Ok(None);
+    }
+    let n = r.count(r.remaining())?;
+    let mut entries = Vec::with_capacity(n.min(256));
+    for _ in 0..n {
+        let mut e = play::PlayerInfo {
+            uuid: r.uuid()?,
+            ..play::PlayerInfo::default()
+        };
+        if actions & 1 != 0 {
+            e.name = Some(r.string(16)?);
+            let count = r.count(16)?;
+            e.properties = (0..count)
+                .map(|_| crate::packets::login::Property::read(&mut r))
+                .collect::<Result<_>>()?;
+        }
+        if actions & 2 != 0 && r.bool()? {
+            e.chat_session =
+                Some((r.uuid()?, r.i64()?, r.byte_array(512)?, r.byte_array(4096)?));
+        }
+        if actions & 4 != 0 {
+            e.game_mode = Some(r.varint()?);
+        }
+        if actions & 8 != 0 {
+            e.listed = Some(r.bool()?);
+        }
+        if actions & 16 != 0 {
+            e.latency = Some(r.varint()?);
+        }
+        if actions & 32 != 0 {
+            e.display_name = Some(if r.bool()? { Some(r.nbt()?) } else { None });
+        }
+        if actions & 64 != 0 {
+            e.list_order = Some(r.varint()?);
+        }
+        // The hat bool: read and dropped.
+        let _show_hat = r.bool()?;
+        entries.push(e);
+    }
+    let mut w = Writer::new();
+    play::PlayerInfoUpdate::write(
+        &play::PlayerInfoUpdate {
+            actions: actions & !128,
+            entries,
+        },
+        &mut w,
+    );
     Ok(Some(w.data))
 }
 
@@ -1007,7 +1083,8 @@ fn advancements(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
 pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
     let override_limiter = r.bool()?;
-    let always_show = r.bool()?;
+    // 26.2's layout carries alwaysShow; the pinned 1.21.3 has no such flag, so it goes.
+    let _always_show = r.bool()?;
     let pos = [r.f64()?, r.f64()?, r.f64()?];
     let dist = [r.f32()?, r.f32()?, r.f32()?];
     let speed = r.f32()?;
@@ -1021,7 +1098,6 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
         &play::LevelParticles {
             particle,
             override_limiter,
-            always_show,
             pos,
             dist,
             max_speed: [speed; 3],
@@ -2563,15 +2639,15 @@ mod tests {
     #[test]
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
-        // 1.21.11 is four protocols above the pin: its entities map down to the
-        // 1.21.5 ids, and one the pin lacks (the nautilus) is dropped.
+        // 1.21.11 is six protocols above the pin: its entities map down to the
+        // 1.21.3 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
-            (88, 0, None), // nautilus: no 1.21.8 counterpart
-            (153, 0, Some((145, 0))), // zombie villager
+            (88, 0, None), // nautilus: no 1.21.3 counterpart
+            (153, 0, Some((146, 0))), // zombie villager
             (0, 0, Some((0, 0))),
-            (51, 1381, Some((49, 1381))), // falling block, with a state that maps to itself
+            (51, 1381, Some((50, 1381))), // falling block, with a state that maps to itself
         ] {
-            // 1.21.11's layout, written by hand: the pinned codec is 1.21.5's now.
+            // 1.21.11's layout, written by hand: the pinned codec is 1.21.3's now.
             let mut w = Writer::new();
             w.varint(7);
             w.uuid(1);
@@ -2716,8 +2792,8 @@ mod tests {
         assert_eq!(old.bits, 15);
         let new = renumber_states(ids, &old, 15);
         assert_eq!(new.bits, 15);
-        // oak_slab type=top waterlogged=true is 13330 in 26.2, 12041 in 1.21.4.
-        assert_eq!(new.get(330), 12041);
+        // oak_slab type=top waterlogged=true is 13330 in 26.2, 11497 in 1.21.3.
+        assert_eq!(new.get(330), 11497);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 

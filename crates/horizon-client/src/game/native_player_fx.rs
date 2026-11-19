@@ -134,8 +134,7 @@ impl Game<'_> {
                     C::LevelParticles(play::LevelParticles {
                         particle,
                         override_limiter: force,
-                        always_show: false,
-                        pos: at,
+                                        pos: at,
                         dist: spread.map(|d| d as f32),
                         max_speed: [speed as f32; 3],
                         count,

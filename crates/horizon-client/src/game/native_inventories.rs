@@ -519,7 +519,7 @@ impl Game<'_> {
             hub.send_inventory(i);
             let g = &hub.guests[i];
             g.send(&Clientbound::SetHeldSlot(SetHeldSlot {
-                slot: g.selected as i32,
+                slot: g.selected as i8,
             }));
         }
         Ok(())

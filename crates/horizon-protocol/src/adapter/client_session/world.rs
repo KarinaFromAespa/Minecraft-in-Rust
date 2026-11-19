@@ -33,8 +33,65 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
         }
         cb::ENTITY_POSITION_SYNC => Sent::Rewritten(position_sync(payload)?),
         cb::ANIMATE => animate(payload)?,
+        cb::SET_HELD_SLOT => Sent::Rewritten(held_slot(payload)?),
+        cb::PLAYER_INFO_UPDATE => Sent::Rewritten(player_info_update(payload)?),
         _ => return Ok(None),
     }))
+}
+
+/// 26.2 reads the held slot as a VarInt; the pin sends a byte.
+fn held_slot(payload: &[u8]) -> Result<Vec<u8>> {
+    let mut w = Writer::new();
+    w.varint(i32::from(Reader::new(payload).i8()?));
+    Ok(w.data)
+}
+
+/// 26.2's player info carries UPDATE_HAT (bit 128) with a bool per entry; the
+/// pin has no such action, so the bit is set and every entry shows its hat
+/// (hats always show at this pin).
+fn player_info_update(payload: &[u8]) -> Result<Vec<u8>> {
+    let p = play::PlayerInfoUpdate::read(&mut Reader::new(payload))?;
+    let mut w = Writer::new();
+    w.u8(p.actions | 128);
+    w.varint(p.entries.len() as i32);
+    for e in &p.entries {
+        w.uuid(e.uuid);
+        if p.actions & 1 != 0 {
+            w.string(e.name.as_deref().unwrap_or(""));
+            w.varint(e.properties.len() as i32);
+            e.properties.iter().for_each(|prop| crate::packets::login::Property::write(prop, &mut w));
+        }
+        if p.actions & 2 != 0 {
+            w.bool(e.chat_session.is_some());
+            if let Some((id, expires, key, sig)) = &e.chat_session {
+                w.uuid(*id);
+                w.i64(*expires);
+                w.byte_array(key);
+                w.byte_array(sig);
+            }
+        }
+        if p.actions & 4 != 0 {
+            w.varint(e.game_mode.unwrap_or(0));
+        }
+        if p.actions & 8 != 0 {
+            w.bool(e.listed.unwrap_or(false));
+        }
+        if p.actions & 16 != 0 {
+            w.varint(e.latency.unwrap_or(0));
+        }
+        if p.actions & 32 != 0 {
+            let name = e.display_name.clone().flatten();
+            w.bool(name.is_some());
+            if let Some(t) = &name {
+                w.nbt(t);
+            }
+        }
+        if p.actions & 64 != 0 {
+            w.varint(e.list_order.unwrap_or(0));
+        }
+        w.bool(true);
+    }
+    Ok(w.data)
 }
 
 /// 26.2's add-entity carries the velocity as an LpVec3 before the angles;
@@ -193,8 +250,8 @@ fn light_update(payload: &[u8]) -> Result<Vec<u8>> {
 }
 
 /// A particle in 26.2's numbering, its block state too, or its stand-in; `None` when 26.2 has neither (a
-/// native mod's particle). The options stay: the stand-ins in the 26.2 tables (pinned 43..=45 as 41)
-/// carry none, as the particles they stand for; a stand-in with other options would need them rebuilt.
+/// native mod's particle). The options stay: 26.2 has every pinned particle, so the stand-in table is
+/// empty at this pin; a stand-in with options would need them rebuilt.
 fn particle_down(ids: &Ids, p: &Particle) -> Option<Particle> {
     let mut p = p.clone();
     p.id = down_or_substitute(ids.particle_type, ids.substitutes.particle_type, p.id)?;
@@ -224,7 +281,8 @@ fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Sent> {
         .fold(0.0f32, |a, v| if v.abs() > a.abs() { v } else { a });
     let mut w = Writer::new();
     w.bool(p.override_limiter);
-    w.bool(p.always_show);
+    // 1.21.3 has no alwaysShow flag: 26.2's form gets false.
+    w.bool(false);
     p.pos.iter().for_each(|v| w.f64(*v));
     p.dist.iter().for_each(|v| w.f32(*v));
     w.f32(speed);
@@ -502,7 +560,6 @@ mod tests {
             let p = play::LevelParticles {
                 particle,
                 override_limiter: true,
-                always_show: false,
                 pos: [1.5, 64.0, -3.25],
                 dist: [0.5, 0.25, 0.5],
                 max_speed: [0.1; 3],
@@ -522,7 +579,6 @@ mod tests {
             assert_eq!(
                 (
                     q.override_limiter,
-                    q.always_show,
                     q.pos,
                     q.dist,
                     q.max_speed,
@@ -530,7 +586,6 @@ mod tests {
                 ),
                 (
                     p.override_limiter,
-                    p.always_show,
                     p.pos,
                     p.dist,
                     p.max_speed,
@@ -539,24 +594,24 @@ mod tests {
             );
             q.particle
         };
-        // entity_effect (20 in 1.21.8, 28 in 26.2) carries a colour, alike
+        // entity_effect (20 pinned, 28 in 26.2) carries a colour, alike
         // in both numberings.
         let colour = Particle {
             id: 20,
             data: Some(ParticleData::Color(0x00ff00ff)),
         };
         assert_eq!(send(colour.clone()), colour);
-        // block (1) carries a state: chest's 3018 goes down to 3987 and comes back.
+        // block (1) carries a state: chest's 3015 goes down to 3987 and comes back.
         let block = Particle {
             id: 1,
-            data: Some(ParticleData::State(3018)),
+            data: Some(ParticleData::State(3015)),
         };
         assert_eq!(send(block.clone()), block);
-        // ash is 81 in 1.21.8 and 91 in 26.2: renumbered both ways, it comes
+        // ash is 79 pinned and 91 in 26.2: renumbered both ways, it comes
         // back as itself.
         assert_eq!(
-            send(Particle { id: 81, data: None }),
-            Particle { id: 81, data: None }
+            send(Particle { id: 79, data: None }),
+            Particle { id: 79, data: None }
         );
     }
 
@@ -569,7 +624,6 @@ mod tests {
                 data: Some(ParticleData::Color(0)),
             },
             override_limiter: false,
-            always_show: false,
             pos: [0.0; 3],
             dist: [0.0; 3],
             max_speed: [0.1, -0.4, 0.2],
