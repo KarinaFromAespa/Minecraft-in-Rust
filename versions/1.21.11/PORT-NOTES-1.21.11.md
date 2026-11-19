@@ -912,6 +912,31 @@ deferred per owner). Recorded in pins/1.21.11/ (profile.json
 stamped a3a429f, delta-verdict.json, work-items.json,
 harness-subset.txt).
 
+CI run 44499421617 (on 336b435, A-batches 6-7 state, completed
+2026-11-19, ~2h20m): profile 5 pass / 1 oracle / 11 fail in the
+17-harness framing (5/18 over 23 entries with the datafix shards).
+Passing: block_properties, component_patch, food, lan, resource_pack
+— unchanged from run 44484665862. Real comparisons (4):
+command_parse (6337 mismatches, identical), datafix (15054
+differences over 7 worlds, vs 15056 — noise), hotbar (889/905,
+identical), options (options.txt ordering/content diffs, 185 vs
+194 lines). Oracle-side (5): chunk_generation (same Beardifier
+"Requested chunk unavailable" oracle crash), command_exec
+(SeedAgent.java `java.lang.classfile` at `--release 21` — the
+known harness-tooling follow-up), entity_components, first_person,
+item_model (oracle java runs exit non-zero). Launch/setup (3):
+light ("missing motion tag"), save_roundtrip (server closed the
+connection), sound_event (missing sounds.json). D1 FAILS on the
+same 26 dead production tags. D2 passes (0 errors, 0 warnings;
+440 protocol tests). D3/D5 blocked on file lookup — this run was
+dispatched on 336b435, before the pin held work-items.json or
+harness-subset.txt (both added in the 44484665862 record). D4
+blocked (stamp quirk: profile stamped 336b435, judge HEAD the
+staged candidate). D6 blocked (no playtest.md — deferred per
+owner). Recorded in pins/1.21.11/ (profile.json stamped 336b435,
+delta-verdict.json, work-items.json at record-time state,
+rank2.closed = 120).
+
 Rank 2 (492 items, in progress 2026-11-19)
 - Method: each item's named methods intersected with the diff store
   (rank2-triage.json, workdir scratch): 189 items with no changed named

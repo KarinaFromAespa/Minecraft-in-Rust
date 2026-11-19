@@ -1,13 +1,13 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.11",
-  "commit": "0f9da186f1393902c33541b83776f5800f9b8a31",
+  "commit": "d5f4e4c190778876d7223386311c5477c796caf3",
   "tree": ".horizon-ports/1.21.11",
   "pin": "pins/1.21.11",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-19T09:51:00Z",
+  "checked_at": "2026-11-19T11:07:08Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
@@ -56,7 +56,7 @@
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit a3a429f4aa0f, HEAD is 0f9da186f139 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 336b4355fb97, HEAD is d5f4e4c19077 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
         "pins/1.21.11/profile.json"
