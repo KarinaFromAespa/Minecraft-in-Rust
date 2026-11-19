@@ -1157,9 +1157,9 @@ fn boss_event_round_trips() {
         },
     });
     let body = add.encode();
-    // Packet id 9, then the uuid, operation 0, and the property byte
+    // Packet id 10, then the uuid, operation 0, and the property byte
     // (darken 1, fog 4).
-    assert_eq!(body[0], 9);
+    assert_eq!(body[0], 10);
     assert_eq!(*body.last().unwrap(), 5);
     round_trip(add, Clientbound::encode, Clientbound::decode);
     round_trip(

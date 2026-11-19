@@ -510,10 +510,6 @@ mod tests {
             Some(ServerVersion::Current)
         );
         assert_eq!(
-            ServerVersion::from_protocol(769),
-            Some(ServerVersion::V1_21_4)
-        );
-        assert_eq!(
             ServerVersion::from_protocol(768),
             Some(ServerVersion::V1_21_3)
         );

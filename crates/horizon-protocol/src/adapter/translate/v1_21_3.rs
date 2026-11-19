@@ -113,15 +113,28 @@ mod tests {
     fn old_heart_states_and_both_creaking_types_retain_their_meaning() {
         let ids = ServerVersion::V1_21_3.ids().unwrap();
         // All three axes and disabled/dormant/active states, from independent vanilla reports.
-        // The pinned 1.21.6 creaking_heart states are the natural=false half of 2920..2938.
-        for (old, pinned) in
-            (2917..2926).zip([2921, 2923, 2925, 2927, 2929, 2931, 2933, 2935, 2937])
-        {
+        // The pinned 1.21.4 creaking_heart states are 2917..2928 in active-major
+        // order (active, then axis, then natural); both quiet states collapse
+        // to active=false, so down prefers dormant for them.
+        for (old, pinned) in (2917..2926).zip([
+            2924, 2924, 2918, // x: disabled, dormant, active
+            2926, 2926, 2920, // y
+            2928, 2928, 2922, // z
+        ]) {
             assert_eq!(ids.block_state.up(old), Some(pinned));
+        }
+        for (pinned, old) in [
+            (2918, 2919),
+            (2920, 2922),
+            (2922, 2925),
+            (2924, 2918),
+            (2926, 2921),
+            (2928, 2924),
+        ] {
             assert_eq!(ids.block_state.down(pinned), Some(old));
             assert_eq!(ids.block_state.down(pinned - 1), Some(old)); // natural=true also maps back
         }
-        // Both creaking entities collapse to the pinned minecraft:creaking (29 in 1.21.6).
+        // Both creaking entities collapse to the pinned minecraft:creaking (29 in 1.21.4).
         assert_eq!(ids.entity_type.up(29), Some(29));
         assert_eq!(ids.entity_type.up(30), Some(29));
         assert_eq!(ids.entity_type.down(29), Some(29));
