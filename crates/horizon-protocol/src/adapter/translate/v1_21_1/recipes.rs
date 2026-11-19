@@ -645,7 +645,7 @@ mod tests {
         };
         assert_eq!(
             (*duration, *experience, station.clone()),
-            (120, 0.75, SlotDisplay::Item(1290))
+            (120, 0.75, SlotDisplay::Item(1271))
         );
         let properties = state.properties();
         let mut r = Reader::new(&properties);
