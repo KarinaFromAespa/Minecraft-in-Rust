@@ -334,7 +334,32 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 61/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77 + 4 zero-diff)
+### Rank 2: 62/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78 + 4 zero-diff)
+
+- **Item 78 — `crates/horizon-client/src/mobs/piglin.rs`
+  (5 classes, 12 methods, 4 named in Horizon), zero-diff:**
+  AbstractPiglinModel, HoglinModel, PiglinModel
+  (setupAnim), Hoglin (getAmbientSound),
+  MemoryModuleType. HoglinModel and PiglinModel differ
+  only by the `setupAnim` bridge signature (1.21.8
+  `setupAnim(EntityRenderState)` vs 1.21.9
+  `setupAnim(Object)`, each exactly 44 bytes larger in
+  1.21.8 — the item-25 bridge pattern, javap-verified
+  from files extracted from the jars); no `setupAnim`
+  body changed. `AbstractPiglinModel.createArmorMeshSet`
+  is 1.21.9-only and has no Rust surface. Hoglin
+  differs only by `isClientSide()` vs the field plus
+  the 1.21.8-only debug `sendDebugPackets` (debug-only,
+  unmodelled, as item 50's camel); the hoglin ambient
+  sound is already activity-based
+  (`HoglinAi.getSoundForCurrentActivity`). The three
+  1.21.9-only memory modules (`VISITED_BLOCK_POSITIONS`,
+  `UNREACHABLE_TRANSPORT_BLOCK_POSITIONS`,
+  `TRANSPORT_ITEMS_COOLDOWN_TICKS`) are used only by
+  the copper golem's transport AI (`transport_items.rs`,
+  `CountDownTransport`, `set_transport_cooldown`), so
+  their removal belongs to item 229, which owns the
+  golem (as items 17/45/58 deferred its other parts).
 
 - **Item 77 — `crates/horizon-client/src/game/native_hooks.rs`
   (3 classes, 12 methods, 4 named in Horizon):**
