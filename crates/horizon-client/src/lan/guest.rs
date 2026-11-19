@@ -79,7 +79,8 @@ pub struct SentEffect {
     pub tick_count: i32,
 }
 
-/// ServerGamePacketListenerImpl.CLIENT_LOADED_TIMEOUT_TIME.
+/// 1.21.4's ServerGamePacketListenerImpl.CLIENT_LOADED_TIMEOUT_TIME.
+/// Unused at this pin (1.21.3 has no load timer); kept for the 1.21.4 shape.
 pub const CLIENT_LOADED_TIMEOUT: u8 = 60;
 
 pub struct Guest {
@@ -235,15 +236,17 @@ pub struct Guest {
     /// (`native_client_entity_spawn`), by id, with their types: no level
     /// holds them, and they go with the guest.
     pub client_entities: crate::fast_hash::FxHashMap<i32, String>,
-    /// The client finished loading terrain (ServerboundPlayerLoadedPacket).
+    /// The client finished loading terrain. 1.21.3 has no player_loaded
+    /// packet and no load timer, so guests count as loaded from join;
+    /// this only ever reads false where a test sets it directly.
     pub loaded: bool,
-    /// Since it joined or respawned, the client hasn't said it loaded the level
-    /// (ServerboundPlayerLoadedPacket): it may still be on its loading screen, where it doesn't
-    /// move, even once the server stops waiting for it (`load_timeout`).
+    /// Whether the client is still loading the level. Always false at
+    /// this pin (see `loaded`); kept for the 1.21.4 shape.
     pub loading: bool,
-    /// Ticks left before the server stops waiting for that packet
-    /// (ServerGamePacketListenerImpl.clientLoadedTimeoutTimer): 60 at join and
-    /// after a respawn, 0 once it comes.
+    /// Ticks left before the server stops waiting for the client to load.
+    /// Always 0 at this pin (1.21.4's
+    /// ServerGamePacketListenerImpl.clientLoadedTimeoutTimer, 60 at join
+    /// and after a respawn); kept for the 1.21.4 shape.
     pub load_timeout: u8,
     // Chunks.
     pub center: Option<(i32, i32)>,
@@ -520,9 +523,11 @@ impl Guest {
             moved: false,
             tab_hidden: Default::default(),
             client_entities: Default::default(),
-            loaded: false,
-            loading: true,
-            load_timeout: CLIENT_LOADED_TIMEOUT,
+            // 1.21.3 has no player_loaded packet and no client-load timer:
+            // a guest counts as loaded from the moment it joins.
+            loaded: true,
+            loading: false,
+            load_timeout: 0,
             center: None,
             sent_chunks: Default::default(),
             far_sent_chunks: Default::default(),

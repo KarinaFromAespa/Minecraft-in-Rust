@@ -589,7 +589,10 @@ pub(super) struct Remote {
     /// holds its abilities from the login on; here the player is made at
     /// the first teleport, which takes them then.
     abilities: Option<play::PlayerAbilities>,
-    loaded_sent: bool,
+    /// The level-load finished (the loading screen closed). 1.21.4's
+    /// `loaded_sent`: the server heard player_loaded; 1.21.3 has no such
+    /// packet, so the flag is purely local now.
+    level_ready: bool,
     /// The dimension of the client level the mods heard made
     /// (`native_client_level_load`), to be told dropped once.
     heard_level: Option<String>,
@@ -1185,7 +1188,7 @@ impl Game<'_> {
             was_living_flags: 0,
             last_recorded_pose: None,
             abilities: None,
-            loaded_sent: false,
+            level_ready: false,
             heard_level: None,
             native_epoch: None,
             level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
@@ -1415,7 +1418,7 @@ impl Game<'_> {
             last_recorded_pose: None,
             carried: std::cell::Cell::new(None),
             abilities: None,
-            loaded_sent: false,
+            level_ready: false,
             heard_level: None,
             native_epoch: None,
             level_load: horizon_client::level_loading::LevelLoadTracker::new(0),
@@ -2184,10 +2187,11 @@ impl Game<'_> {
                 (p.position.z.floor() as i32) >> 4,
             )
         });
-        if loaded && self.remote.as_ref().is_some_and(|r| !r.loaded_sent) {
-            self.send(S::PlayerLoaded(Empty));
+        // 1.21.3 has no player_loaded packet: the flag is purely local now,
+        // marking that the level-load finished.
+        if loaded && self.remote.as_ref().is_some_and(|r| !r.level_ready) {
             let r = self.remote.as_mut().unwrap();
-            r.loaded_sent = true;
+            r.level_ready = true;
             r.level_load.finish();
         }
         Ok(())
@@ -2602,7 +2606,7 @@ impl Game<'_> {
         r.hashed_seed = spawn.seed;
         r.game_mode = spawn.game_type;
         r.flat = spawn.flat;
-        r.loaded_sent = false;
+        r.level_ready = false;
         // A replacement LevelLoadingScreen starts its bar from nothing (the
         // first one carries on from the server's start).
         if self.player.is_some() {
@@ -6491,8 +6495,8 @@ impl Game<'_> {
 
     /// `ClientPacketListener.tick`'s `LevelLoadTracker.tickClientLoad`: the
     /// player's section is shown once its column is lit; when the level is
-    /// ready the loading screen closes and the server hears `PlayerLoaded`
-    /// (`notifyPlayerLoaded`).
+    /// ready the loading screen closes. (1.21.4's server hears `PlayerLoaded`
+    /// here; 1.21.3 has no such packet.)
     fn tick_client_load(&mut self) {
         let Some(player) = self.player.as_ref() else {
             return;
@@ -6532,10 +6536,7 @@ impl Game<'_> {
             return;
         }
         r.level_load.finish();
-        if !r.loaded_sent {
-            r.loaded_sent = true;
-            self.send(S::PlayerLoaded(Empty));
-        }
+        r.level_ready = true;
         // LevelLoadingScreen.onClose.
         self.say_system_now(&horizon_client::text::Text::translate(
             "narrator.ready_to_play",
@@ -6704,7 +6705,7 @@ impl Game<'_> {
             // calls sendChanges: rotations and the 20-tick position reminder
             // must continue, as well as moves into the unloaded area.
             if let Some(r) = self.remote.as_ref()
-                && r.loaded_sent
+                && r.level_ready
             {
                 let input = r.last_input;
                 self.remote_send_state(input);
@@ -9766,7 +9767,7 @@ impl Game<'_> {
         // `Screen` in vanilla) stops the attack and use mappings from acting,
         // and `KeyMapping.releaseAll` let go of the buttons when it opened
         // (`track_toggle_screens`), so a dig held into a book ends (#9729).
-        let ready = r.loaded_sent
+        let ready = r.level_ready
             && self.screen == Screen::Playing
             && self.sleeping.is_none()
             && !self.screen_over_playing();
@@ -11067,9 +11068,10 @@ impl Game<'_> {
             "address": horizon_client::net::shown_address(&r.session.address),
             "name": r.session.name,
             "joined": r.joined,
-            // ServerboundPlayerLoadedPacket sent: the level around the
-            // player is ready, and the client ticks and sends its moves.
-            "loaded": r.loaded_sent,
+            // The level around the player is ready, and the client ticks
+            // and sends its moves. (1.21.4 reports this to the server with
+            // player_loaded; 1.21.3 has no such packet.)
+            "loaded": r.level_ready,
             "status": r.status,
             "entity_id": r.entity_id,
             "dimension": r.dimension.name,
@@ -11673,26 +11675,46 @@ impl horizon_client::interaction_input::InteractionWorld for RemoteInputWorld<'_
         self.0.remote_use();
     }
     fn pick(&mut self) {
-        // Minecraft.pickBlockOrEntity: an entity before the block is asked
-        // for (`handlePickItemFromEntity`), else the block.
-        if let Some(entity) = self.0.pick_entity_hit() {
-            if let Some(id) = entity {
-                if self.0.native_interaction(2, Hand::Main).is_some() {
-                    return;
-                }
-                self.0.send(S::PickItemFromEntity(play::PickItemFromEntity {
-                    id,
-                    include_data: self.0.has_control_down(),
-                }));
-            }
-        } else if let Some(hit) = self.0.pick() {
-            if self.0.native_interaction(2, Hand::Main).is_some() {
-                return;
-            }
-            self.0.send(S::PickItemFromBlock(play::PickItemFromBlock {
-                pos: hit.pos,
-                include_data: self.0.has_control_down(),
+        // Minecraft.pickBlock (1.21.3): the client resolves the pick stack
+        // and its inventory slot itself; only a main-inventory match reaches
+        // the server, as pick_item(slot). 1.21.4 split this into
+        // pick_item_from_block/from_entity; 1.21.3 has neither packet.
+        let stack = match self.0.pick_entity_hit() {
+            Some(entity) => entity.and_then(|id| self.0.entity_pick_result(id)),
+            None => self.0.pick().and_then(|hit| {
+                let include_data = self.0.creative && self.0.has_control_down();
+                self.0.picked_stack(hit.pos, include_data)
+            }),
+        };
+        let Some(stack) = stack else {
+            return;
+        };
+        if self.0.native_interaction(2, Hand::Main).is_some() {
+            return;
+        }
+        if self.0.creative {
+            // setPickedItem + handleCreativeModeItemAdd: the selected hotbar
+            // slot takes the stack, and the server hears set_creative_mode_slot.
+            let selected = self.0.selected;
+            self.0.inventory[selected] = Some(stack.clone());
+            let item = self.0.to_network(&Some(stack));
+            self.0.send(S::SetCreativeModeSlot(play::SetCreativeModeSlot {
+                slot: creative_sync_slot(selected),
+                item,
             }));
+            return;
+        }
+        let Some(slot) = self.0.inventory[..36].iter().position(|s| {
+            s.as_ref()
+                .is_some_and(|s| s.same_item_same_components(&stack))
+        }) else {
+            return;
+        };
+        if slot < 9 {
+            // A hotbar match selects locally; vanilla sends nothing.
+            self.0.selected = slot;
+        } else {
+            self.0.send(S::PickItem(play::PickItem { slot: slot as i32 }));
         }
     }
     fn use_delay(&self) -> u32 {

@@ -759,7 +759,7 @@ mod controller_tests {
         g.dimension = "minecraft:overworld".into();
         g.placed = true;
         g.loaded = true;
-        // PlayerLoaded came in: its moves count.
+        // The load timeout expired: its moves count.
         g.load_timeout = 0;
         (g, rx)
     }

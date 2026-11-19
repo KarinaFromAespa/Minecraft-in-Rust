@@ -40,6 +40,18 @@ pub fn pick(
     true
 }
 
+/// `Inventory.pickSlot`: the selected slot becomes the suitable hotbar slot
+/// and its contents swap with `slot`'s. Out-of-range slots are ignored (a
+/// guest may send any varint; vanilla would throw, we drop it).
+pub fn pick_slot(items: &mut [Option<ItemStack>], selected: &mut usize, slot: usize) -> bool {
+    if slot >= items.len() {
+        return false;
+    }
+    *selected = suitable_hotbar_slot(items, *selected);
+    items.swap(*selected, slot);
+    true
+}
+
 /// `getSuitableHotbarSlot`: from the selected slot on, the first empty one,
 /// else the first without enchantments, else the selected one.
 fn suitable_hotbar_slot(items: &[Option<ItemStack>], selected: usize) -> usize {

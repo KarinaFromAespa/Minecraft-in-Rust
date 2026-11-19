@@ -80,8 +80,6 @@ horizon-bots: load-test bots for a Minecraft Java Edition 26.3 server (offline m
   --attack-rounds N      stop after N rounds of attacks (each hits every target seen so far once);
                          default no limit
   --no-swing             attack without swinging (a kill aura hiding its swing, for the anticheat's tests)
-  --no-loaded            never say the level is loaded (ServerboundPlayerLoadedPacket): a vanilla server
-                         ignores the player's moves and actions for its first 3 seconds
   --no-read              stop reading from the server once spawned (a client that lets the
                          server's replies pile up)
   --join-every SECONDS   default 1
@@ -172,7 +170,6 @@ struct Options {
     crits: bool,
     flood: usize,
     no_read: bool,
-    no_loaded: bool,
     height: f64,
     ground: bool,
     /// --raw: (tick after joining, packet id, body).
@@ -210,7 +207,6 @@ fn options() -> Result<Options, String> {
         crits: false,
         flood: 100,
         no_read: false,
-        no_loaded: false,
         height: 24.0,
         ground: false,
         raw: Vec::new(),
@@ -238,10 +234,6 @@ fn options() -> Result<Options, String> {
         }
         if arg == "--crits" {
             o.crits = true;
-            continue;
-        }
-        if arg == "--no-loaded" {
-            o.no_loaded = true;
             continue;
         }
         if arg == "--ground" {
@@ -1158,9 +1150,7 @@ fn run_bot(
         println!("{}", json!({ "spawn": spawn }));
     }
     let send = |body: Vec<u8>| lock(&writer).send(&body).is_ok();
-    if !o.no_loaded {
-        send(raw(sb::PLAYER_LOADED, |_| {}));
-    }
+    // 1.21.3 has no player_loaded packet: nothing to send on join.
     bot.deaf.store(o.no_read, Ordering::Relaxed);
     // What the costly floods need in hand (creative: the server takes the bot's word for it).
     let tool = match behaviour {

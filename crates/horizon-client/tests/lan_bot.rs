@@ -939,7 +939,6 @@ fn status_and_join() {
         let (mut login_seen, mut teleported, mut time, mut info) = (false, false, false, false);
         let mut commands = false;
         let deadline = Instant::now() + Duration::from_secs(15);
-        let mut sent_loaded = false;
         let mut block_update = None;
         while Instant::now() < deadline {
             match bot.recv_play()? {
@@ -982,9 +981,9 @@ fn status_and_join() {
                     bot.send(S::ChunkBatchReceived(play::ChunkBatchReceived {
                         chunks_per_tick: 20.0,
                     }));
-                    if !sent_loaded && chunks >= 9 {
-                        bot.send(S::PlayerLoaded(Empty));
-                        sent_loaded = true;
+                    // 1.21.3 has no player_loaded packet: the guest counts
+                    // as loaded from join, so the move goes once 9 chunks are in.
+                    if chunks >= 9 {
                         bot.send(S::MovePlayerPosRot(play::MovePlayerPosRot {
                             x: 9.5,
                             y: f64::from(MIN_Y + 5),
@@ -1672,12 +1671,12 @@ fn a_synced_mod_block_entity_reaches_the_chunks_players_once_a_tick() {
     assert_eq!(data, [([shown.0, shown.1, shown.2], on(1))]);
 }
 
-/// #4301: the damage-immunity term `ServerPlayer.isInvulnerableTo` takes from
-/// its connection (`!hasClientLoaded`) is cleared by a respawn, kept through a
-/// level change, and comes back with ServerboundPlayerLoadedPacket: a respawned
-/// guest cannot be hurt at the spot it died in before its client is back.
+/// #4301 at the 1.21.3 pin: there is no client-loaded term here (no
+/// player_loaded packet, no load timer), so a respawn does not unload the
+/// client and a level change keeps it loaded: the guest counts as loaded
+/// throughout.
 #[test]
-fn a_respawned_guest_is_immune_until_its_client_loads_the_world() {
+fn a_respawned_guest_stays_loaded() {
     let Some(resources) = resources() else {
         return;
     };
@@ -1690,7 +1689,6 @@ fn a_respawned_guest_is_immune_until_its_client_loads_the_world() {
         assert!(Instant::now() < deadline, "guest did not join");
         thread::yield_now();
     }
-    s.hub.guests[0].load_timeout = 0;
     assert!(s.hub.guests[0].client_loaded());
     let border = horizon_client::worldborder::WorldBorder::default();
     let at = [8.5, f64::from(MIN_Y + 5), 8.5];
@@ -1713,22 +1711,19 @@ fn a_respawned_guest_is_immune_until_its_client_loads_the_world() {
     };
     s.hub.respawn(0, at, [0.0; 2], &ctx);
     assert!(
-        !s.hub.guests[0].client_loaded(),
-        "a respawn unloads the client"
+        s.hub.guests[0].client_loaded(),
+        "a respawn does not unload the client at this pin"
     );
-    // A level change does not clear it: vanilla resets the loaded state on death and respawn
-    // only, and covers a portal with its separate `isChangingDimension` term.
+    // A level change keeps it loaded too.
     s.hub.change_level(0, at, 0.0, None, false, 0, &ctx);
     assert!(
-        !s.hub.guests[0].client_loaded(),
-        "a level change keeps the cleared state from the respawn"
+        s.hub.guests[0].client_loaded(),
+        "a level change keeps the client loaded"
     );
-    // The client's ServerboundPlayerLoadedPacket once the new level is in.
-    s.hub.guests[0].inbox.push_back((S::PlayerLoaded(Empty), 0));
     s.tick(&[]);
     assert!(
         s.hub.guests[0].client_loaded(),
-        "the packet marks it loaded"
+        "ticking keeps the client loaded"
     );
 }
 
@@ -2080,7 +2075,6 @@ fn a_26_2_client_joins_only_a_server_that_accepts_older_clients() {
                     )?;
                     if chunks >= 9 && placed.is_none() {
                         placed = Some(None);
-                        bot.send(S::PlayerLoaded(Empty).encode())?;
                         bot.send(
                             S::MovePlayerPosRot(play::MovePlayerPosRot {
                                 x: 9.5,
@@ -2194,7 +2188,6 @@ fn a_26_2_clients_walk_dig_swing_and_teleport_confirmations_read_as_26_3s() {
             }
             if chunks >= 9 && confirmed > 0 && !sent {
                 sent = true;
-                bot.send(S::PlayerLoaded(Empty).encode())?;
                 // A walk from the spawn (8.5, 8.5), on the stone: one move, as vanilla kicks a second in a tick.
                 bot.send(
                     S::MovePlayerPos(play::MovePlayerPos {

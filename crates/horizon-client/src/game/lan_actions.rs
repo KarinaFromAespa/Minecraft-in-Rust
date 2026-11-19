@@ -3016,35 +3016,36 @@ impl Game<'_> {
                     .unwrap_or_default();
                 host.hub.send_stats(conn, &stats);
             }
-            // handlePickItemFromBlock: a block within the block reach plus 1, its
-            // data only with infinite materials.
-            S::PickItemFromBlock(p) => {
-                self.guest_pick_item(host, conn, false, p.pos, 0, |g| {
-                    // handlePickItemFromBlock: within reach and loaded.
-                    if !g.world.loaded(p.pos[0], p.pos[2]) {
-                        return None;
-                    }
-                    let eye = g.eye_position()?;
-                    let d2: f64 = (0..3)
-                        .map(|a| {
-                            let lo = f64::from(p.pos[a]);
-                            (eye[a] - eye[a].clamp(lo, lo + 1.0)).powi(2)
-                        })
-                        .sum();
-                    let range = g.reach() + 1.0;
-                    if d2 >= range * range {
-                        return None;
-                    }
-                    g.picked_stack(p.pos, g.creative && p.include_data)
-                });
-            }
-            // handlePickItemFromEntity.
-            S::PickItemFromEntity(p) => {
-                self.guest_pick_item(host, conn, true, [0; 3], p.id, |g| {
-                    g.within_entity_range(p.id)
-                        .then(|| g.entity_pick_result(p.id))
-                        .flatten()
-                });
+            // handlePickItem: the guest already resolved the pick to an
+            // inventory slot (1.21.3 has no pick_item_from_block/entity
+            // packets); the server just applies pickSlot and echoes the
+            // selected slot. The pick-item mod hook has no call site at
+            // this pin: the server never learns what the guest picked.
+            S::PickItem(p) => {
+                let Ok(slot) = usize::try_from(p.slot) else {
+                    return;
+                };
+                if slot >= 36 {
+                    return;
+                }
+                if self
+                    .as_guest(host, conn, |g| {
+                        horizon_client::pick_item::pick_slot(
+                            &mut g.inventory[..36],
+                            &mut g.selected,
+                            slot,
+                        );
+                    })
+                    .is_some()
+                    && let Some(g) = host.hub.guests.iter().find(|g| g.conn == conn)
+                {
+                    host.hub.send_to(
+                        conn,
+                        &C::SetHeldSlot(play::SetHeldSlot {
+                            slot: g.selected as i32,
+                        }),
+                    );
+                }
             }
             _ => {}
         }
@@ -3073,49 +3074,6 @@ impl Game<'_> {
             c.remove(&"id".into());
         }
         Some(tag)
-    }
-
-    /// `ServerGamePacketListenerImpl.tryPickItem` for the guest: a matching stack
-    /// is selected, else a creative player gets the item; the held slot is sent
-    /// back and the changed slots follow with the tick's inventory changes.
-    fn guest_pick_item(
-        &mut self,
-        host: &mut LanHost,
-        conn: u32,
-        from_entity: bool,
-        pos: [i32; 3],
-        entity_id: i32,
-        stack: impl FnOnce(&mut Self) -> Option<ItemStack>,
-    ) {
-        let Some((uuid, name)) = host.hub.guest(conn).map(|g| (g.uuid, g.name.clone())) else {
-            return;
-        };
-        let picked = self.as_guest(host, conn, |g| {
-            let stack = stack(g)?;
-            let infinite = g.creative;
-            let mut cancel = false;
-            g.native_player_pick_item(uuid, &name, from_entity, pos, entity_id, &mut cancel);
-            if cancel {
-                return None;
-            }
-            horizon_client::pick_item::pick(
-                &mut g.inventory[..36],
-                &mut g.selected,
-                &stack,
-                infinite,
-            );
-            Some(())
-        });
-        if picked.flatten().is_some()
-            && let Some(g) = host.hub.guests.iter().find(|g| g.conn == conn)
-        {
-            host.hub.send_to(
-                conn,
-                &C::SetHeldSlot(play::SetHeldSlot {
-                    slot: g.selected as i32,
-                }),
-            );
-        }
     }
 
     /// Whether the mods let a creative player set `slot` to `stack`

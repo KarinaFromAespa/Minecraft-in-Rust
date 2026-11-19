@@ -1285,10 +1285,10 @@ fn requeue_cost() {
     }
 }
 
-/// A single-player memory connection sends every ready view column before
-/// `PlayerLoaded`. After that, on a respawn, and for a socket guest, the
-/// batch is `chunks_per_tick` again (64). An unlit column stays out, and
-/// the gates that send nothing still do.
+/// A single-player memory connection sends every ready view column while
+/// its guest is marked unloaded. Once loaded, on a respawn, and for a
+/// socket guest, the batch is `chunks_per_tick` again (64). An unlit column
+/// stays out, and the gates that send nothing still do.
 #[test]
 fn memory_connection_first_view_sends_every_ready_column() {
     let (mut hub, _rx) = hub_with_a_guest();
@@ -1333,7 +1333,7 @@ fn memory_connection_first_view_sends_every_ready_column() {
     let loaded = hub
         .next_batch(0, &world, None)
         .expect("a loaded client still receives chunks");
-    assert_eq!(loaded.near.len(), 64, "PlayerLoaded puts the cap back");
+    assert_eq!(loaded.near.len(), 64, "a loaded client is capped again");
 
     hub.guests[0].address = "127.0.0.1:25565".parse().unwrap();
     hub.guests[0].loaded = false;

@@ -1,6 +1,6 @@
-//! Pick Block on an entity (`Minecraft.pickBlockOrEntity`'s entity case and
-//! `ServerGamePacketListenerImpl.handlePickItemFromEntity`): the client aims,
-//! the server answers with `Entity.getPickResult`.
+//! Pick Block on an entity (`Minecraft.pickBlock`'s entity case): the client
+//! aims and takes `Entity.getPickResult` itself (1.21.3 has no
+//! pick_item_from_entity packet for the server to answer).
 use super::Game;
 use horizon_client::{items::ItemStack, save::uuid_text};
 

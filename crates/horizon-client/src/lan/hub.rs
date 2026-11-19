@@ -171,7 +171,9 @@ pub enum HostEvent {
     MainHandChanged(u32, bool),
     /// A guest changed their client language option.
     LocaleChanged(u32, String),
-    /// A guest's client finished loading the level around them.
+    /// A guest's client finished loading the level around them. Never
+    /// fires at this pin: 1.21.3 has no player_loaded packet, so guests
+    /// count as loaded from join (kept for the 1.21.4 shape).
     PlayerLoaded(u32),
     /// A guest changed recipe book settings.
     RecipeBookSettings {
@@ -2417,7 +2419,6 @@ impl Hub {
                 }
                 S::ChatAck(c) => self.chat_ack(i, c.offset, events),
                 S::AcceptTeleportation(_)
-                | S::PlayerLoaded(_)
                 | S::ChunkBatchReceived(_)
                 | S::ClientInformation(_)
                 | S::ClientTickEnd(_)
@@ -2925,8 +2926,9 @@ impl Hub {
     /// with their places in the queue. What the view leaves of the quota goes
     /// to the far ring, as far as its brake lets it reach. A memory connection
     /// that has not loaded yet sends every ready view column in that one
-    /// batch; the quota recorded for it covers them, so the tick after
-    /// `PlayerLoaded` is capped again.
+    /// batch; the quota recorded for it covers them, so a loaded client is
+    /// capped again. (Real 1.21.3 guests load at join, so the burst only
+    /// fires where a test marks a guest unloaded.)
     fn next_batch<'w>(
         &mut self,
         i: usize,
@@ -4013,8 +4015,9 @@ impl Hub {
         let g = &mut self.guests[i];
         g.first_good = g.position;
         g.known_moves = g.received_moves;
-        // ServerPlayer.tick: tickClientLoadTimeout.
-        g.load_timeout = g.load_timeout.saturating_sub(1);
+        // 1.21.3 has no player_loaded packet and no client-load timer
+        // (1.21.4's ServerPlayer.tick: tickClientLoadTimeout): guests count
+        // as loaded from join, so there is no load state to tick here.
         let mut budget = PACKETS_PER_TICK;
         // An action the game runs after this pass has a move queued behind it: the
         // move waits for the next tick, but the arm swing the client sent right after
@@ -4039,7 +4042,6 @@ impl Hub {
                 | S::PlayerAbilities(_)
                 | S::MovePlayerStatus(_)
                 | S::MovePlayerRot(_)
-                | S::PlayerLoaded(_)
                 | S::ChunkBatchReceived(_)
                 | S::ClientInformation(_)
                 | S::RecipeBookChangeSettings(_)
@@ -4118,14 +4120,6 @@ impl Hub {
                 }
                 S::MovePlayerStatus(p) => {
                     self.move_player(i, None, None, p.flags, ctx, events);
-                }
-                // handleAcceptPlayerLoad: markClientLoaded.
-                S::PlayerLoaded(_) => {
-                    let g = &mut self.guests[i];
-                    g.loaded = true;
-                    g.loading = false;
-                    g.load_timeout = 0;
-                    events.push(HostEvent::PlayerLoaded(conn));
                 }
                 // PlayerChunkSender.onChunkBatchReceivedByClient.
                 S::ChunkBatchReceived(p) => {
@@ -5035,10 +5029,8 @@ impl Hub {
         let g = &mut self.guests[i];
         // PlayerList.respawn: into the level in place (the respawn level).
         g.dimension = self.config.dimension.clone();
-        // restartClientLoadTimerAfterRespawn: the client loads a whole new level before it
-        // reports it loaded.
-        g.load_timeout = super::guest::CLIENT_LOADED_TIMEOUT;
-        g.loading = true;
+        // 1.21.3 has no player_loaded packet and no load timer, so a
+        // respawn does not unload the client: it stays loaded.
         // ServerPlayer.restoreFrom: the new player's abilities are its mode's.
         g.allow_flight = false;
         // ServerLevel.removePlayerImmediately: the dead player's

@@ -417,11 +417,11 @@ impl Game<'_> {
             MouseButton::Middle if pressed => {
                 // handleKeybinds: the number keys select before key.pickItem.
                 self.select_queued_hotbar();
-                // Minecraft.pickBlockOrEntity -> the server's handlePickItemFromBlock:
-                // the block's clone item, with its block entity's data on Ctrl in
-                // creative, picked from the inventory (`pick_item`).
+                // Minecraft.pickBlock: the block's clone item, with its block
+                // entity's data on Ctrl in creative, picked from the inventory
+                // (`pick_item`).
                 if let Some(entity) = self.pick_entity_hit() {
-                    // handlePickItemFromEntity: the entity's pick result.
+                    // The entity's pick result.
                     if let Some(stack) = entity.and_then(|id| self.entity_pick_result(id)) {
                         let infinite = self.creative;
                         horizon_client::pick_item::pick(

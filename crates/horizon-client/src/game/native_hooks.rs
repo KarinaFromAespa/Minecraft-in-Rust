@@ -4956,6 +4956,12 @@ impl Game<'_> {
     /// block. The player's state is swapped in, though helpers that look them
     /// up through `self.lan` may find nothing while a guest packet is handled.
     /// Set `cancel` to leave the inventory and client unchanged. 269.
+    ///
+    /// No call site at the 1.21.3 pin: the server never learns what the guest
+    /// picked (pick_item carries only a slot), so the hook never fires here;
+    /// it returns with the pick packets in 1.21.4. The signature stays: the
+    /// build script generates the native mod API from it.
+    #[allow(dead_code)]
     pub(super) fn native_player_pick_item(
         &mut self,
         player: u128,
@@ -4976,6 +4982,7 @@ impl Game<'_> {
             cancel,
         );
     }
+
     /// A server player tries to sleep in the bed whose head is at `pos`
     /// (NeoForge's `CanPlayerSleepEvent`, vanilla's `ServerPlayer.startSleepInBed`).
     /// `problem` is what vanilla found, first problem only: `too_far_away`,
