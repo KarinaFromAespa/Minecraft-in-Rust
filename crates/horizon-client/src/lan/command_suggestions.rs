@@ -161,6 +161,7 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
     ("deop targets", "minecraft:ask_server"),
     ("execute if data storage source", "minecraft:ask_server"),
     ("execute if function name", "minecraft:ask_server"),
+    ("execute if predicate predicate", "minecraft:ask_server"),
     ("execute if score target", "minecraft:ask_server"),
     (
         "execute if score target targetObjective < source",
@@ -200,6 +201,7 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
     ("execute summon entity", "minecraft:summonable_entities"),
     ("execute unless data storage source", "minecraft:ask_server"),
     ("execute unless function name", "minecraft:ask_server"),
+    ("execute unless predicate predicate", "minecraft:ask_server"),
     ("execute unless score target", "minecraft:ask_server"),
     (
         "execute unless score target targetObjective < source",
@@ -223,6 +225,80 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
     ),
     ("function name", "minecraft:ask_server"),
     ("function name with storage source", "minecraft:ask_server"),
+    (
+        "item modify block pos slot modifier",
+        "minecraft:ask_server",
+    ),
+    (
+        "item modify entity targets slot modifier",
+        "minecraft:ask_server",
+    ),
+    (
+        "item replace block pos slot from block source sourceSlot modifier",
+        "minecraft:ask_server",
+    ),
+    (
+        "item replace block pos slot from entity source sourceSlot modifier",
+        "minecraft:ask_server",
+    ),
+    (
+        "item replace entity targets slot from block source sourceSlot modifier",
+        "minecraft:ask_server",
+    ),
+    (
+        "item replace entity targets slot from entity source sourceSlot modifier",
+        "minecraft:ask_server",
+    ),
+    ("loot give players fish loot_table", "minecraft:ask_server"),
+    ("loot give players loot loot_table", "minecraft:ask_server"),
+    (
+        "loot insert targetPos fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot insert targetPos loot loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace block targetPos slot count fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace block targetPos slot count loot loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace block targetPos slot fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace block targetPos slot loot loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace entity entities slot count fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace entity entities slot count loot loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace entity entities slot fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot replace entity entities slot loot loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot spawn targetPos fish loot_table",
+        "minecraft:ask_server",
+    ),
+    (
+        "loot spawn targetPos loot loot_table",
+        "minecraft:ask_server",
+    ),
     ("op targets", "minecraft:ask_server"),
     ("pardon targets", "minecraft:ask_server"),
     ("pardon-ip target", "minecraft:ask_server"),
@@ -293,7 +369,6 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
         "stopsound targets record sound",
         "minecraft:available_sounds",
     ),
-    ("stopsound targets ui sound", "minecraft:available_sounds"),
     (
         "stopsound targets voice sound",
         "minecraft:available_sounds",

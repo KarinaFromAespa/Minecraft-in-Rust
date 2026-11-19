@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode dialog difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed version setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger waypoint weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw test tick time title trigger weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -426,11 +426,10 @@ pub const ORDER: &[(&str, &str)] = &[
         "data modify storage target targetPath merge string",
         "entity block storage",
     ),
-    ("datapack", "enable disable list create"),
+    ("datapack", "enable disable list"),
     ("datapack enable name", "after before last first"),
     ("datapack list", "available enabled"),
     ("debug", "start stop function"),
-    ("dialog", "show clear"),
     ("difficulty", "peaceful easy normal hard"),
     ("effect", "clear give"),
     ("effect give targets effect", "seconds infinite"),
@@ -530,7 +529,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ("place", "feature jigsaw structure template"),
     (
         "playsound sound",
-        "master music record weather block hostile neutral player ambient voice ui",
+        "master music record weather block hostile neutral player ambient voice",
     ),
     ("random", "value roll reset"),
     ("random reset", "* sequence"),
@@ -573,7 +572,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ),
     (
         "stopsound targets",
-        "* master music record weather block hostile neutral player ambient voice ui",
+        "* master music record weather block hostile neutral player ambient voice",
     ),
     ("tag targets", "add remove list"),
     ("team", "list add remove empty join leave modify"),
@@ -613,10 +612,6 @@ pub const ORDER: &[(&str, &str)] = &[
         "clear reset title subtitle actionbar times",
     ),
     ("trigger objective", "add set"),
-    ("waypoint", "list modify"),
-    ("waypoint modify waypoint", "color style"),
-    ("waypoint modify waypoint color", "color hex reset"),
-    ("waypoint modify waypoint style", "reset set"),
     ("weather", "clear rain thunder"),
     ("worldborder", "add set center damage get warning"),
     ("worldborder damage", "amount buffer"),
