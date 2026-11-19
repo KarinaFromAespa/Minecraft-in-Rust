@@ -148,9 +148,9 @@ pub(super) struct Minecart {
     /// `Entity.firstTick`: not ticked yet (saved as `HasTicked`).
     pub first_tick: bool,
     /// `Entity.isInWater` (`wasTouchingWater`): `AbstractMinecart.tick`
-    /// updates it after the move (`updateFluidInteraction`), so the move
-    /// goes by where the cart was a tick before, and a new cart's first
-    /// move is a dry one.
+    /// updates it after the move (`updateInWaterStateAndDoFluidPushing`), so
+    /// the move goes by where the cart was a tick before, and a new cart's
+    /// first move is a dry one.
     pub in_water: bool,
     /// Command block minecarts: the cart's `BaseCommandBlock` (command,
     /// success count, last output, output tracking). The block-only flags of
@@ -1496,12 +1496,15 @@ impl Game<'_> {
             }
         }
         // OldMinecartBehavior.tick ends with pushAndPickupEntities, before
-        // AbstractMinecart.tick's updateFluidInteraction. The experiment still
-        // uses this fallback until its per-move pickup/push retry is ported.
+        // AbstractMinecart.tick's updateInWaterStateAndDoFluidPushing. The
+        // experiment still uses this fallback until its per-move pickup/push
+        // retry is ported.
         self.push_from_ticked_cart(c, slot, index);
-        // AbstractMinecart.tick: updateFluidInteraction, a stream pushes the cart.
+        // AbstractMinecart.tick: updateInWaterStateAndDoFluidPushing, a stream
+        // pushes the cart.
         c.in_water = c.push_by_fluid(&self.world, &self.res.motion().fluids).0 > 0.0;
-        // updateFluidInteraction: being in water resets the fall distance.
+        // updateInWaterStateAndDoFluidPushing: being in water resets the
+        // fall distance.
         if c.in_water {
             c.fall_distance = 0.0;
         }

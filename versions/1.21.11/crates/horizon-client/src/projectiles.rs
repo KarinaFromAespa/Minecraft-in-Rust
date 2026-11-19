@@ -251,8 +251,9 @@ pub struct Projectile {
     /// drains them.
     pub bubble_surfaces: Vec<[i32; 3]>,
     /// `Entity.wasTouchingWater`: what the last tick's
-    /// `updateFluidInteraction` found around the box after the move, read by
-    /// the next tick's inertia (false until the first tick has moved it).
+    /// `updateInWaterStateAndDoFluidPushing` found around the box after the
+    /// move, read by the next tick's inertia (false until the first tick has
+    /// moved it).
     pub touching_water: bool,
     /// `Entity.noGravity` (`NoGravity` in its save): `getGravity` is 0.
     pub no_gravity: bool,
@@ -311,8 +312,9 @@ pub fn stuck_speed_of(name: &str) -> Option<Vec3> {
 }
 pub trait ProjectileWorld {
     fn clip(&self, from: Vec3, to: Vec3) -> Option<(Vec3, [i32; 3], [i32; 3])>;
-    /// `Entity.isInWater` as `updateFluidInteraction` sets it: some water
-    /// block's surface reaches the bottom of the box (deflated by 0.001).
+    /// `Entity.isInWater` as `updateInWaterStateAndDoFluidPushing` sets it:
+    /// some water block's surface reaches the bottom of the box (deflated by
+    /// 0.001).
     fn in_water(&self, bounds: Aabb) -> bool;
     fn targets(&self) -> &[(Who, Aabb)];
     /// Server-only mod-block contacts along the completed movement.
@@ -1526,7 +1528,7 @@ impl Projectile {
         if !self.is_fireball() {
             self.update_rotation();
         }
-        // Entity.baseTick's updateFluidInteraction, after the move.
+        // Entity.baseTick's updateInWaterStateAndDoFluidPushing, after the move.
         self.touching_water = w.in_water(self.bounds());
         let alive =
             self.position.y > -128.0 && self.age < if self.is_fireball() { 1200 } else { 6000 };

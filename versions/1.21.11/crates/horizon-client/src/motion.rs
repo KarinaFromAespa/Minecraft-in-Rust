@@ -403,7 +403,7 @@ pub struct PlayerMotion {
     pub health: crate::health::PlayerHealth,
     /// Status effects and armor protection seen by movement and damage.
     pub status: crate::effects::StatusFlags,
-    /// Water and lava around the player (`Entity.fluidInteraction`).
+    /// Water and lava around the player (`Entity.fluidHeight` / `fluidOnEyes`).
     pub fluids: PlayerFluids,
     /// `Entity.isInPowderSnow` / `wasInPowderSnow`.
     pub in_powder_snow: bool,

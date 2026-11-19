@@ -6764,8 +6764,9 @@ impl Game<'_> {
         // The server sends no passenger's position: they sit where their
         // vehicles are now.
         self.position_riders();
-        // Entity.getFluidInteractionBox asks the vehicle: a boat afloat shelters
-        // its passenger's eyes (AbstractBoat.modifyPassengerFluidInteractionBox).
+        // The boat rules ask the vehicle: a boat afloat shelters its
+        // passenger's eyes (`updateFluidOnEyes`) and skips the passenger's
+        // water state (`updateInWaterStateAndDoWaterCurrentPushing`).
         let boat = self
             .riding
             .and_then(|id| self.boats.iter().find(|b| b.id == id))

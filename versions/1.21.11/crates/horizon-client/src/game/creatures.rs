@@ -9015,8 +9015,8 @@ mod pearl_tests {
     use super::*;
 
     /// A pearl's water test is `Entity.isInWater`: `wasTouchingWater` from the
-    /// last `updateFluidInteraction`, water whose surface reaches its 0.25
-    /// box (#3072), not the block at its feet.
+    /// last `updateInWaterStateAndDoFluidPushing`, water whose surface reaches
+    /// its 0.25 box (#3072), not the block at its feet.
     #[test]
     fn a_pearl_feels_the_water_its_box_touches() {
         // The throwable air drag is the float 0.99 widened to a double.

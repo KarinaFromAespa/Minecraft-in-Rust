@@ -752,7 +752,7 @@ impl Game<'_> {
         }
         // `Entity.baseTick`: the boat is immersed and pushed by the current it
         // sits in (`isPushedByFluid`), before `floatBoat` scales the velocity.
-        // updateFluidInteraction: in water the fall resets.
+        // updateInWaterStateAndDoFluidPushing: in water the fall resets.
         if b.push_by_fluid(&self.world, &self.res.motion().fluids).0 > 0.0 {
             b.fall_distance = 0.0;
         }
@@ -1412,10 +1412,11 @@ impl Game<'_> {
         }
         false
     }
-    /// `AbstractBoat.modifyPassengerFluidInteractionBox`: the ridden boat's box
-    /// and whether it is underwater, for `Entity.getFluidInteractionBox`. A boat
-    /// keeps only the part of the passenger's box above its own top, so a boat
-    /// bobbing on water never sinks the passenger's eyes or body.
+    /// The ridden boat's box and whether it is underwater, for the passenger's
+    /// fluid box: a boat afloat keeps only the part of the passenger's box
+    /// above its own top (1.21.11 short-circuits the water state instead —
+    /// same answer), so a boat bobbing on water never sinks the passenger's
+    /// eyes or body.
     pub(super) fn riding_boat_fluid_box(&self) -> Option<RiddenBoat> {
         self.boats
             .iter()

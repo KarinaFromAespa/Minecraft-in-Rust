@@ -202,9 +202,9 @@ impl MobWorld<'_> {
                 }
             }
         }
-        // EntityFluidInteraction.update: the eyes are in a fluid block of
-        // the box in the entity's column, between its bottom and its height
-        // for the camera.
+        // `Entity.updateFluidOnEyes`: the eyes are in the fluid of the eye
+        // block when its surface is strictly above them (only the block the
+        // eye sits in can pass the strict check).
         for y in lo.y.floor() as i32..=(hi.y.ceil() as i32 - 1) {
             let (fluid, h) = self.fluid_height(ex, y, ez);
             if fluid != Fluid::Water || f64::from(y) + h < lo.y || eye_y < f64::from(y) {
@@ -222,7 +222,7 @@ impl MobWorld<'_> {
             } else {
                 h
             };
-            if eye_y <= f64::from(y) + camera {
+            if eye_y < f64::from(y) + camera {
                 out.eye_in_water = true;
             }
         }
@@ -291,7 +291,6 @@ impl MobWorld<'_> {
         bounds: Aabb,
         modded: Option<FluidKind>,
     ) -> (CurrentAccumulator, CurrentAccumulator) {
-        let base_y = bounds.min_position().y;
         let b = bounds.deflate(Vec3::new(0.001, 0.001, 0.001));
         let (lo, hi) = (b.min_position(), b.max_position());
         let mut scene = FlowScene(self);
@@ -325,7 +324,10 @@ impl MobWorld<'_> {
                     if surface < lo.y {
                         continue;
                     }
-                    current.height = current.height.max(surface - base_y);
+                    // The current's height is the immersion height:
+                    // `updateFluidHeightAndDoFluidPushing` measures both from
+                    // the deflated box's bottom.
+                    current.height = current.height.max(surface - lo.y);
                     let mut flow = flow_at(&mut scene, state, p).unwrap_or(Vec3::ZERO);
                     if current.height < 0.4 {
                         flow = flow.scale(current.height);
@@ -983,12 +985,13 @@ impl Mob {
             speed: f64::from(0.15_f32),
         });
     }
-    /// Entity.updateFluidInteraction: the fluid state, then touching water
-    /// resets the fall and entering it (after the first tick) splashes.
+    /// `Entity.updateInWaterStateAndDoFluidPushing` + `updateFluidOnEyes`:
+    /// the fluid state, then touching water resets the fall and entering it
+    /// (after the first tick) splashes.
     pub(super) fn update_fluids(&mut self, w: &MobWorld, events: &mut Vec<MobEvent>) {
         let was_touching_water = self.fluids.in_water;
         self.fluids = w.fluids(self.bounds(), self.eye_y());
-        // EntityFluidInteraction.applyCurrentTo: the flow pushes the mob.
+        // `updateFluidHeightAndDoFluidPushing`: the flow pushes the mob.
         if (self.fluids.in_water || self.fluids.in_lava) && self.pushed_by_fluid() {
             let (water, lava) = w.fluid_currents(self.bounds(), None);
             let lava_scale = if w.dimension_type.fast_lava {

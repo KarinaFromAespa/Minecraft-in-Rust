@@ -443,7 +443,7 @@ impl Game<'_> {
         self.native_break_speed(pos, state, speed, &mut speed);
         speed / hardness / if harvest { 30.0 } else { 100.0 }
     }
-    /// `EntityFluidInteraction`: compare the eyes with the camera fluid surface.
+    /// `Entity.updateFluidOnEyes`: compare the eyes with the camera fluid surface.
     fn mining_eyes_in_water(&self) -> bool {
         use horizon_client::blocks::Fluid;
         let Some(eye) = self.eye_position() else {

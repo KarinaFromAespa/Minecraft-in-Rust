@@ -559,8 +559,8 @@ impl ItemEntity {
             false,
         )
     }
-    /// `Entity.updateFluidInteraction`: water resets the fall, and entering
-    /// it after the first tick runs `doWaterSplashEffect`.
+    /// `Entity.updateInWaterStateAndDoFluidPushing`: water resets the fall,
+    /// and entering it after the first tick runs `doWaterSplashEffect`.
     pub fn water_entry<F: FnMut(ItemSplash)>(
         &mut self,
         in_water: bool,

@@ -495,7 +495,7 @@ pub fn main() -> Result<()> {
                     )?;
                 }
                 // Entity.baseTick's fluid phase alone (wasEyeInWater,
-                // updateFluidInteraction, lava fall halving, firstTick).
+                // updateInWaterStateAndDoFluidPushing, lava fall halving, firstTick).
                 "fluid_tick" => world.fluid_base_tick()?,
                 // LivingEntity.baseTick's air supply alone.
                 "air_tick" => world.tick_environment_damage()?,
