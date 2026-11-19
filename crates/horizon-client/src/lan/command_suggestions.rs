@@ -5,11 +5,43 @@
 
 pub const SUGGESTIONS: &[(&str, &str)] = &[
     (
+        "advancement grant targets from advancement",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement grant targets only advancement",
+        "minecraft:ask_server",
+    ),
+    (
         "advancement grant targets only advancement criterion",
         "minecraft:ask_server",
     ),
     (
+        "advancement grant targets through advancement",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement grant targets until advancement",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement revoke targets from advancement",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement revoke targets only advancement",
+        "minecraft:ask_server",
+    ),
+    (
         "advancement revoke targets only advancement criterion",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement revoke targets through advancement",
+        "minecraft:ask_server",
+    ),
+    (
+        "advancement revoke targets until advancement",
         "minecraft:ask_server",
     ),
     ("bossbar get id", "minecraft:ask_server"),
@@ -299,6 +331,8 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
     ("random reset sequence", "minecraft:ask_server"),
     ("random roll range sequence", "minecraft:ask_server"),
     ("random value range sequence", "minecraft:ask_server"),
+    ("recipe give targets recipe", "minecraft:all_recipes"),
+    ("recipe take targets recipe", "minecraft:all_recipes"),
     ("schedule clear function", "minecraft:ask_server"),
     ("schedule function function", "minecraft:ask_server"),
     ("scoreboard players add targets", "minecraft:ask_server"),

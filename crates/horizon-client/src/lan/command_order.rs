@@ -6,7 +6,7 @@
 pub const ORDER: &[(&str, &str)] = &[
     (
         "",
-        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride rotate say schedule scoreboard seed setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw tick time title trigger weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
+        "advancement attribute execute bossbar clear clone damage data datapack debug defaultgamemode difficulty effect me enchant experience xp fill fillbiome forceload function gamemode gamerule give help item kick kill list locate loot msg tell w particle place playsound random reload recipe return ride say schedule scoreboard seed setblock spawnpoint setworldspawn spectate spreadplayers stopsound summon tag team teammsg tm teleport tp tellraw tick time title trigger weather worldborder jfr ban-ip banlist ban deop op pardon pardon-ip perf save-all save-off save-on setidletimeout stop transfer whitelist publish",
     ),
     ("advancement", "grant revoke"),
     (
@@ -367,9 +367,9 @@ pub const ORDER: &[(&str, &str)] = &[
     ("effect", "clear give"),
     ("effect give targets effect", "seconds infinite"),
     ("experience", "add set query"),
-    ("experience add target amount", "points levels"),
-    ("experience set target amount", "points levels"),
-    ("experience query target", "points levels"),
+    ("experience add targets amount", "points levels"),
+    ("experience set targets amount", "points levels"),
+    ("experience query targets", "points levels"),
     ("fill from to block", "replace keep outline hollow destroy"),
     ("forceload", "add remove query"),
     ("forceload remove", "from all"),
@@ -464,8 +464,6 @@ pub const ORDER: &[(&str, &str)] = &[
     ("recipe take targets", "recipe *"),
     ("return", "value fail run"),
     ("ride target", "mount dismount"),
-    ("rotate target", "rotation facing"),
-    ("rotate target facing", "entity facingLocation"),
     ("schedule", "function clear"),
     ("schedule function function time", "append replace"),
     ("scoreboard", "objectives players"),
