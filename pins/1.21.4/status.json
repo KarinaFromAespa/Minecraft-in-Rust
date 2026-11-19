@@ -1,0 +1,24 @@
+{
+ "behaviour": {
+  "closed": 0,
+  "note": "Pin/table infrastructure complete (cross-protocol 770 -> 769, world 4325 -> 4189, packet rewire: play/clientbound +1 -1 with 117 renumbered (add_experience_orb in, test_instance_block_status out), play/serverbound -2 with 5 renumbered (set_test_block, test_instance_block_action out); adapter re-based to 769; data_component_type re-pinned to the 67-entry 1.21.4 registry; 6/6 tables regenerated; oracles ported to the 1.21.4 APIs); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 548 items: 10 rank-1 (pin, 6 regenerate items, save-format step 4325 -> 4189 with 0 schemas, 4 fixes added, 93 datafix classes changed, version facts), 348 rank-2 (harness reruns), 149 rank-3 (unproved), 39 rank-4, 2 rank-5. The test instance blocks, splash/lingering potions (replaced by potion), 31 data components, 11 items and 52 sound events are removed; the experience orb packet returns.",
+  "total": 548
+ },
+ "harness": {
+  "fail": 13,
+  "note": "CI port-verify run 44573439703 (main@58535d82, success, 1h30m32s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 8: 6 more oracle-compile failures hide in the fail column (datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac CalledProcessError in the harness logs). Real fails: command_parse (10,320 mismatches), component_patch (java runtime failure), entity_components (harness Python TypeError bug), hotbar (329/905 cases match), light (missing motion tag), save_roundtrip (server closed connection), sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
+  "oracle_fail": 2,
+  "pass": 2,
+  "total": 17
+ },
+ "notes": "CI PROOF run 44573439703 (2026-11-19): verdict failed \u2014 D1 fail (44 dead production tags, inherited from the unported 1.21.11 behaviour), D2 pass (0 errors/0 warnings, 426 protocol tests), D3 fail (0/10 rank-1 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (no harness-subset.txt at run time), D6 blocked (no playtest; deferred by the owner). Quirks::PINNED fixed for the 1.21.4 pin (components_before_1_21_6 and components_before_1_21_5 both true; the published 1.21.5 tree still carries the stale false). jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths. Oracles ported to the 1.21.4 APIs (abstract Player.isCreative/isSpectator, no Player.gameMode, float fall damage, VoxelShape.move with Vec3, pre-refactor model API); horizon-prepare exit 0 in 167.0 s.",
+ "profile_recorded": "2026-11-19",
+ "protocol": 769,
+ "protocol_tests": {
+  "fail": 0,
+  "note": "CI run 44573439703: 426 pass, none failing (the 2 sandbox-network tests pass on CI, which has network).",
+  "pass": 426
+ },
+ "role": "E6 delta (from 1.21.5)",
+ "version": "1.21.4"
+}
