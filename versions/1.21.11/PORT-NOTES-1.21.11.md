@@ -2331,3 +2331,36 @@ Rank 2 (492 items, in progress 2026-11-19)
   already skips brutes); `MAX_TIME_BETWEEN_HUNTS` was dead in 26.1.
   Rank 2 now 198/492 (34 changed, 164 no-change).
   work-items.json rank2.closed = 198 on 2026-11-19.
+- Item 20 (mobs/villager_brain.rs, 32 classes, 148 methods, 18 named) CLOSED
+  2026-11-19: CHANGED — baby villager dims, finalizeSpawn typing gate,
+  VillagerDataFinalized write dropped. 1.21.11 deletes
+  `Villager.getDefaultDimensions` (BABY_DIMENSIONS 0.49 x 0.99, eyes 0.63),
+  so a baby takes the type's box at `getAgeScale` 0.5: 0.3 x 0.975, eyes
+  0.81 (`Baby::Abs` -> `Baby::Scale(0.5, None)`, new dims test).
+  `Villager.finalizeSpawn` types by biome only for command, spawn egg,
+  spawner or dispenser — the `DATA_VILLAGER_DATA_FINALIZED` flag is gone
+  and structure villagers keep their template's type (verified in the
+  desert `unemployed.nbt`); the Rust's `StructureMobFinalizer` was
+  overwriting it. Zombie villagers get the mirror rule
+  (`REASONS_NOT_TO_SET_TYPE`); both reason sets pinned by a test.
+  `Villager` no longer writes `VillagerDataFinalized` (entity_nbt write
+  removed; the zombie-villager save/cure half is item 664's).
+  `MemorySlot` doc cites updated to `ExpirableValue`. Verified no-ports:
+  the Brain core loop and every memory accessor are semantically
+  identical across the storage refactor (expiry identical; the empty-
+  memory `getTimeUntilExpiry` MAX -> 0 change is unobservable — every
+  `.ttl()` caller is value-guarded); brain serialization already matches
+  the 1.21.11 codec (`value` + lenient optional `ttl`); activity lists
+  identical (provider supplier -> explicit `addActivity`); goal packages
+  identical (profession param never loaded); `pickNextTarget` reservoir
+  sampling identical; `startSleeping` moved its LAST_SLEPT / walk-target
+  work out of `SleepInBed` with no net change; `shouldRestock` day count
+  is the same value via `getDayCount`; `getBreedOffspring`'s added
+  finalizeSpawn(BREEDING) is a no-op for the Rust's birth path.
+  Referrals: item 129 (updateTrades -> hardcoded `VillagerTrades.TRADES`
+  + TRADE_REBALANCE flag; the class is new in 1.21.11), 751 (the
+  `VillagerTrades$*` listings), 664 (zombie-villager save/cure +
+  `data_finalized` removal), datafix (`VillagerDataFinalized` in
+  fixes_c.rs).
+  Rank 2 now 199/492 (35 changed, 164 no-change).
+  work-items.json rank2.closed = 199 on 2026-11-19.

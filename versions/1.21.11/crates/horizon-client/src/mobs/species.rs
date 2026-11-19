@@ -596,6 +596,8 @@ pub const ALL: &[Def] = &[
         None,
         Baby::None
     ),
+    // 1.21.11 drops `Villager.getDefaultDimensions` (its BABY_DIMENSIONS):
+    // a baby takes the type's box at `LivingEntity.getAgeScale`'s 0.5.
     def!(
         Villager,
         "villager",
@@ -608,7 +610,7 @@ pub const ALL: &[Def] = &[
             "entity.villager.death"
         ],
         None,
-        Baby::Abs(0.49, 0.98, 0.63)
+        Baby::Scale(0.5, None)
     ),
     def!(
         WanderingTrader,

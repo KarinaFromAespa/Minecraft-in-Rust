@@ -19,10 +19,10 @@ use horizon_core::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// `MemorySlot.NEVER_EXPIRE`.
+/// `ExpirableValue.of(value)`'s TTL: `Long.MAX_VALUE`, never expiring.
 pub(super) const NEVER: i64 = i64::MAX;
 
-/// `MemorySlot`: a value and its time to live.
+/// `ExpirableValue`: a value and its time to live.
 #[derive(Clone, Debug)]
 pub struct Slot<T> {
     v: Option<T>,
@@ -37,7 +37,8 @@ impl<T> Default for Slot<T> {
     }
 }
 impl<T> Slot<T> {
-    /// `MemorySlot.tick` (`Brain.forgetOutdatedMemories`).
+    /// `ExpirableValue.tick` under `Brain.tick`: a present value with a
+    /// finite TTL counts down, and clears at zero.
     pub(super) fn tick(&mut self) {
         if self.v.is_some() && self.ttl != NEVER {
             if self.ttl <= 0 {
@@ -465,7 +466,7 @@ pub fn tick(m: &mut Mob, w: &MobWorld, lr: &mut LegacyRandom, events: &mut Vec<M
         let seed = i64::from(m.id);
         init(m, w.game_time, w.day_time, seed);
     }
-    // forgetOutdatedMemories
+    // Brain.tick forgets outdated memories first
     mem(m).tick();
     tick_sensors(m, w, lr);
     let mut list = std::mem::take(&mut brain_mut(m).list);

@@ -2082,7 +2082,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
                     if reason == Reason::Breeding {
                         m.extra.variant2 = 0;
                     }
-                    self.villager_type(m);
+                    // `Villager.finalizeSpawn`: only a command, a spawn egg,
+                    // a spawner or a dispenser types the villager by its
+                    // biome; a structure villager keeps the type its
+                    // template carries, a bred or loaded one its own.
+                    if finalize_types_villager_by_biome(reason) {
+                        self.villager_type(m);
+                    }
                 }
                 self.ageable(m, g.or(Some(Group::Ageable(Ageable::babies(false)))))
             }
@@ -2166,7 +2172,13 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             }
             S::Zombie | S::ZombifiedPiglin => self.zombie(m, g, reason),
             S::ZombieVillager => {
-                self.villager_type(m);
+                // `ZombieVillager.finalizeSpawn`: `REASONS_NOT_TO_SET_TYPE`
+                // (load, dimension travel, conversion, spawn egg, spawner)
+                // keeps the data it arrived with; every other reason types
+                // it by its biome.
+                if finalize_types_zombie_villager_by_biome(reason) {
+                    self.villager_type(m);
+                }
                 m.extra.variant2 = super::zombie_villager::constructor_profession(m);
                 self.zombie(m, g, reason)
             }
@@ -2430,6 +2442,34 @@ pub fn variant_name(s: Species, index: u8) -> &'static str {
             .unwrap_or("temperate"),
     }
 }
+/// `Villager.finalizeSpawn` types by biome only for a command, a spawn
+/// egg, a spawner of either kind (`EntitySpawnReason.isSpawner`) or a
+/// dispenser.
+fn finalize_types_villager_by_biome(reason: Reason) -> bool {
+    matches!(
+        reason,
+        Reason::Command
+            | Reason::SpawnItemUse
+            | Reason::Spawner
+            | Reason::TrialSpawner
+            | Reason::Dispenser
+    )
+}
+
+/// `ZombieVillager.finalizeSpawn` types by biome for every reason except
+/// `REASONS_NOT_TO_SET_TYPE`.
+fn finalize_types_zombie_villager_by_biome(reason: Reason) -> bool {
+    !matches!(
+        reason,
+        Reason::Load
+            | Reason::DimensionTravel
+            | Reason::Conversion
+            | Reason::SpawnItemUse
+            | Reason::Spawner
+            | Reason::TrialSpawner
+    )
+}
+
 /// `VillagerType.byBiome` (index into `render::VILLAGER_TYPES`: plains,
 /// desert, jungle, savanna, snow, swamp, taiga).
 pub fn villager_type(biome: &str) -> u8 {
@@ -2748,6 +2788,49 @@ mod tests {
         assert_eq!(villager_type("minecraft:badlands"), 1);
         assert_eq!(villager_type("minecraft:grove"), 4);
         assert_eq!(villager_type("minecraft:plains"), 0);
+    }
+    /// `Villager.finalizeSpawn` types by biome only for a command, a spawn
+    /// egg, a spawner or a dispenser, while `ZombieVillager.finalizeSpawn`
+    /// types for every reason except load, dimension travel, conversion
+    /// and the egg/spawner pair.
+    #[test]
+    fn only_some_spawn_reasons_type_a_villager_by_its_biome() {
+        let villager: Vec<Reason> = Reason::ALL
+            .into_iter()
+            .filter(|r| finalize_types_villager_by_biome(*r))
+            .collect();
+        assert_eq!(
+            villager,
+            [
+                Reason::Spawner,
+                Reason::SpawnItemUse,
+                Reason::Command,
+                Reason::Dispenser,
+                Reason::TrialSpawner,
+            ]
+        );
+        let zombie_villager: Vec<Reason> = Reason::ALL
+            .into_iter()
+            .filter(|r| finalize_types_zombie_villager_by_biome(*r))
+            .collect();
+        assert_eq!(
+            zombie_villager,
+            [
+                Reason::Natural,
+                Reason::ChunkGeneration,
+                Reason::Structure,
+                Reason::Breeding,
+                Reason::MobSummoned,
+                Reason::Jockey,
+                Reason::Event,
+                Reason::Reinforcement,
+                Reason::Triggered,
+                Reason::Bucket,
+                Reason::Command,
+                Reason::Dispenser,
+                Reason::Patrol,
+            ]
+        );
     }
     /// A worn piece that wears (Thorns' `ChangeItemDamage`) keeps its
     /// enchantments and trim, and the next wear adds to the last.
