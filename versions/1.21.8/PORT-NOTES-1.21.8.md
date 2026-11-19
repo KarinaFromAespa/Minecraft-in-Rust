@@ -334,7 +334,66 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 70/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54 + 4 zero-diff)
+### Rank 2: 71/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57 + 4 zero-diff)
+
+- **Item 57 — `crates/horizon-client-render/src/pack_screen.rs`
+  (6 classes, 39 methods, 3 named in Horizon):**
+  PackSelectionScreen (init),
+  TransferableSelectionList (updateList),
+  AbstractContainerEventHandler (setFocused).
+  **The search box is 1.21.9-only — removed:** the
+  `EditBox` + `updateFilteredEntries`/`filterEntries`
+  (id/title/description filter), `Focus::Search`, the
+  initial focus (1.21.8's init sets none), the
+  49 px header (now the default 33 px: title y 5,
+  drop info y 19, spacing 5), the lists at y 33 with
+  height−66 (was y 49, height−82), the blink timer
+  (`pack_focus` in options_ui.rs) and the `blink_ms`
+  draw parameter. `type_text`/`erase`/`shortcut` now
+  serve only the browser's own box.
+  **The list is 1.21.8's:** the title is a fixed
+  `renderHeader` (underlined + bold, centred, at
+  `min(y+3, y+4−scroll)`), not a `HeaderEntry` row
+  (1.21.9-only); rows are 36 px from y+17
+  (headerHeight 13 + 4); row width is the full 200
+  (was width−4); `row_left` gains vanilla's +2; the
+  icon sits at the row's own origin (1.21.9 inset it
+  by the 2 px content padding); the incompatible
+  tint spans the row, stopping 7 px short with a
+  scrollbar; the name/description truncate at 157
+  with no scrollbar narrowing; the selection outline
+  is vanilla's `renderSelection` (±2 px vertical,
+  right edge at the scrollbar when shown).
+  `populateLists` restores each list's previous
+  selection by pack id (1.21.9 selected the
+  transferred pack and focused its list); a click
+  focuses the list it hit, unless it opened the
+  incompatible-pack ConfirmScreen (which clears the
+  focus as `setScreen` does). `set_focus` drops the
+  1.21.9 early return (1.21.8 always unfocuses +
+  refocuses). The Add button (Horizon's own) sits
+  right of the header's centred column, centred on
+  the 33 px header, and opens the browser with an
+  empty query. **Harness:** the parity driver
+  (top 33, first row y+17, no type/erase/blink),
+  the fixture (no type/erase arms, no blink) and
+  the oracle (no search field, `mouseClicked(x, y,
+  0)` / `mouseReleased(x, y, 0)` — the
+  `client.input` package does not exist in 1.21.8)
+  are ported. Known gap (tree-wide, shared with
+  the Loom, RecipeBook and Hud oracles):
+  `GuiGraphicsExtractor` / `ActiveTextCollector` /
+  `TextAlignment` do not exist in 1.21.8, so the
+  oracle's Capture class still targets 1.21.9's
+  render-state extraction and the harness cannot
+  run against the 1.21.8 jar until that family is
+  ported to 1.21.8's `GuiGraphics` (noted in the
+  oracle's header). Verified no-change: keyboard
+  transfer (Space/Enter/Shift+arrows,
+  `keyboardSelection` + `updateFocus`) has no Rust
+  surface at all — a gap vs both versions, not a
+  1.21.9-ism. Check 0/0 at `-j 1`; render-lib
+  `pack_screen` tests 7 passed / 0 failed.
 
 - **Item 54 — `crates/horizon-client/src/game/mob_blocks.rs`
   (16 classes, 44 methods, 3 named in Horizon),
