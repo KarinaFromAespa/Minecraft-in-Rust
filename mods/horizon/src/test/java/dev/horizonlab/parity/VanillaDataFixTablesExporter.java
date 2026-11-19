@@ -30,15 +30,17 @@ import net.minecraft.util.datafix.DataFixers;
 public final class VanillaDataFixTablesExporter {
     private static final String FIXES = "net.minecraft.util.datafix.fixes.";
     private static final String BLOCK_STATE_DATA = FIXES + "BlockStateData";
-    private static final String REGISTER = "(ILcom/mojang/serialization/Dynamic;[Lcom/mojang/serialization/Dynamic;)V";
+    // 1.21.4's register takes SNBT strings, not Dynamics: (int, String, String...).
+    // The 1.21.5 form (int, Dynamic, Dynamic...) came with the datafix refactor.
+    private static final String REGISTER = "(ILjava/lang/String;[Ljava/lang/String;)V";
 
     /** The {@code register} calls seen by {@link #record}, in order: the new state, then the legacy ones. */
-    private static final List<Dynamic<?>[]> CALLS = new ArrayList<>();
+    private static final List<String[]> CALLS = new ArrayList<>();
     private static final List<Integer> IDS = new ArrayList<>();
 
     /** Called first thing in vanilla's {@code BlockStateData.register} (see {@link #recordedBlockStateData}). */
-    public static void record(int id, Dynamic<?> state, Dynamic<?>[] legacy) {
-        var all = new Dynamic<?>[legacy.length + 1];
+    public static void record(int id, String state, String[] legacy) {
+        var all = new String[legacy.length + 1];
         all[0] = state;
         System.arraycopy(legacy, 0, all, 1, legacy.length);
         IDS.add(id);
@@ -115,11 +117,21 @@ public final class VanillaDataFixTablesExporter {
         IDS.clear();
         var type = recordedBlockStateData();
         if (CALLS.isEmpty()) throw new IllegalStateException("BlockStateData registered nothing");
-        checkReplay(type);
-        var lines = new ArrayList<String>(CALLS.size());
-        for (int i = 0; i < CALLS.size(); i++) {
+        // Parse the recorded SNBT strings with vanilla's own parse(): register
+        // parses them internally too, so the recorded strings reproduce the
+        // table exactly (as values, not as the same objects).
+        var parse = type.getMethod("parse", String.class);
+        var calls = new ArrayList<Dynamic<?>[]>(CALLS.size());
+        for (var call : CALLS) {
+            var parsed = new Dynamic<?>[call.length];
+            for (int j = 0; j < call.length; j++) parsed[j] = (Dynamic<?>)parse.invoke(null, call[j]);
+            calls.add(parsed);
+        }
+        checkReplay(type, calls);
+        var lines = new ArrayList<String>(calls.size());
+        for (int i = 0; i < calls.size(); i++) {
             var line = new StringBuilder().append(IDS.get(i));
-            for (var state : CALLS.get(i)) {
+            for (var state : calls.get(i)) {
                 var json = state.convert(JsonOps.INSTANCE).getValue().getAsJsonObject();
                 var keys = new TreeSet<>(json.keySet());
                 if (!keys.contains("Name") || !Set.of("Name", "Properties").containsAll(keys))
@@ -463,22 +475,24 @@ public final class VanillaDataFixTablesExporter {
      * The calls replayed as horizon-world's block_state_data.rs reads them give vanilla's own finished
      * tables: the state of every id (by identity) and the id of every legacy name.
      */
-    private static void checkReplay(Class<?> type) throws Exception {
+    private static void checkReplay(Class<?> type, List<Dynamic<?>[]> calls) throws Exception {
         Dynamic<?>[] map = (Dynamic<?>[]) field(type, "MAP");
         Object2IntMap<String> byName = cast(field(type, "ID_BY_OLD_NAME"));
         var replay = new Dynamic<?>[map.length];
         var defaults = new Dynamic<?>[map.length >> 4];
         var names = new HashMap<String, Integer>();
-        for (int i = 0; i < CALLS.size(); i++) {
+        for (int i = 0; i < calls.size(); i++) {
             int id = IDS.get(i);
-            var call = CALLS.get(i);
+            var call = calls.get(i);
             replay[id] = call[0];
             if (defaults[id >> 4] == null) defaults[id >> 4] = call[0];
             for (int j = 1; j < call.length; j++) names.putIfAbsent(call[j].get("Name").asString(""), id);
         }
         for (int i = 0; i < replay.length; i++) {
             if (replay[i] == null) replay[i] = defaults[i >> 4];
-            if (replay[i] != map[i]) throw new IllegalStateException("BlockStateData replay differs at id " + i);
+            // Value equality, not identity: the recorded strings were parsed
+            // separately from register's own internal parse.
+            if (!replay[i].equals(map[i])) throw new IllegalStateException("BlockStateData replay differs at id " + i);
         }
         if (!names.equals(new HashMap<>(byName))) throw new IllegalStateException("BlockStateData replay differs in ID_BY_OLD_NAME");
     }
