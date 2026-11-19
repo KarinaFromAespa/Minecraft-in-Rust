@@ -472,7 +472,7 @@ mod tests {
             let p = play::Explode::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.center, [1.25, 64.0, -2.75]);
             // The old packet's radius and block count do not survive: the
-            // pinned 1.21.5 packet carries neither (the radius only chooses
+            // pinned 1.21.4 packet carries neither (the radius only chooses
             // the particle above).
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
             assert_eq!(

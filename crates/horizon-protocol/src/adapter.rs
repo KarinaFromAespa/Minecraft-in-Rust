@@ -178,28 +178,28 @@ impl ServerVersion {
         static V26_2: ids::Ids = ids::Ids {
             quirks: BEFORE_26_3,
             // EntityDataSerializers in 26.2's registration order, against the
-            // pinned 1.21.5's: 26.1 added the cat, cow, pig and chicken sound
+            // pinned 1.21.4's: 26.1 added the cat, cow, pig and chicken sound
             // variants and 1.21.11 the nautilus variant, copper golem states
-            // and profile/arm serializers — none has a 1.21.6 counterpart —
-            // and 1.21.9 dropped compound tags (16), which 1.21.6 still has.
+            // and profile/arm serializers — none has a 1.21.4 counterpart —
+            // and 1.21.9 dropped compound tags (16), which 1.21.4 still has.
+            // The 1.21.5 variant serializers (23, 25, 27, 28 in 1.21.5's
+            // order) have no pin equivalent and drop.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 16),
                     (16, 17, 6),
-                    (23, 23, 1),
-                    (25, 24, 4),
-                    (30, 28, 1),
-                    (33, 29, 4),
-                    (39, 33, 2),
+                    (25, 23, 1),
+                    (27, 24, 1),
+                    (33, 25, 4),
+                    (39, 29, 2),
                 ],
                 down: &[
                     (0, 0, 16),
                     (17, 16, 6),
-                    (23, 23, 1),
-                    (24, 25, 4),
-                    (28, 30, 1),
-                    (29, 33, 4),
-                    (33, 39, 2),
+                    (23, 25, 1),
+                    (24, 27, 1),
+                    (25, 33, 4),
+                    (29, 39, 2),
                 ],
             },
             ..v26_2_ids::IDS
@@ -213,22 +213,28 @@ impl ServerVersion {
         static V1_21_11: ids::Ids = ids::Ids {
             quirks: BEFORE_26_1,
             // EntityDataSerializers in 1.21.11's registration order, against
-            // the pinned 1.21.5's: 1.21.11 added the zombie nautilus variant,
+            // the pinned 1.21.4's: 1.21.11 added the zombie nautilus variant,
             // copper golem states, the resolvable profile and the humanoid arm
-            // — none has a 1.21.6 counterpart — and 1.21.9 dropped compound
-            // tags (16), which 1.21.6 still has.
+            // — none has a 1.21.4 counterpart — and 1.21.9 dropped compound
+            // tags (16), which 1.21.4 still has. The 1.21.5 variant
+            // serializers (23, 25, 27, 28 in 1.21.5's order) have no pin
+            // equivalent and drop.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 16),
-                    (16, 17, 12),
-                    (29, 29, 4),
-                    (35, 33, 2),
+                    (16, 17, 6),
+                    (23, 23, 1),
+                    (25, 24, 1),
+                    (29, 25, 4),
+                    (35, 29, 2),
                 ],
                 down: &[
                     (0, 0, 16),
-                    (17, 16, 12),
-                    (29, 29, 4),
-                    (33, 35, 2),
+                    (17, 16, 6),
+                    (23, 23, 1),
+                    (24, 25, 1),
+                    (25, 29, 4),
+                    (29, 35, 2),
                 ],
             },
             ..v1_21_11_ids::IDS
@@ -236,10 +242,11 @@ impl ServerVersion {
         static V1_21_10: ids::Ids = ids::Ids {
             quirks: BEFORE_26_1,
             // As 1.21.11's, without the zombie nautilus variant 1.21.11 added
-            // after the chicken's and without the humanoid arm.
+            // after the chicken's and without the humanoid arm. The 1.21.5
+            // variant serializers have no pin equivalent and drop.
             entity_data_serializer: ids::Remap::Runs {
-                up: &[(0, 0, 16), (16, 17, 16), (34, 33, 2)],
-                down: &[(0, 0, 16), (17, 16, 16), (33, 34, 2)],
+                up: &[(0, 0, 16), (16, 17, 6), (23, 23, 1), (25, 24, 1), (28, 25, 4), (34, 29, 2)],
+                down: &[(0, 0, 16), (17, 16, 6), (23, 23, 1), (24, 25, 1), (25, 28, 4), (29, 34, 2)],
             },
             ..v1_21_10_ids::IDS
         };
@@ -250,39 +257,42 @@ impl ServerVersion {
                 simple_spell_particles: true,
                 ..BEFORE_26_1
             },
-            // 1.21.8's serializers are the pin's (the generated table says
-            // Same); only its item/sound numbering differs — 1.21.6/1.21.7
-            // added entries the pin lacks (happy ghast, the lava chicken
-            // disc, dialogs). The shoulder parrots are
+            // Vanilla EntityDataSerializers' registration order (not their declaration order),
+            // against the pinned 1.21.4's: 1.21.5 added the cow, wolf sound,
+            // pig and chicken variant serializers (23, 25, 27, 28 in its
+            // order), which the pin lacks — they drop — so 1.21.8's wolf and
+            // frog sit two and four above the pin's. 1.21.5/1.21.6 share
+            // this order. The shoulder parrots are
             // compound tags (16) in every pre-1.21.9 version including the
             // pin; EntityData::read converts them unconditionally.
+            entity_data_serializer: ids::Remap::Runs {
+                up: &[(0, 0, 23), (24, 23, 1), (26, 24, 1), (29, 25, 6)],
+                down: &[(0, 0, 23), (23, 24, 1), (24, 26, 1), (25, 29, 6)],
+            },
             ..v1_21_8_ids::IDS
         };
         static V1_21_6: ids::Ids = ids::Ids {
             quirks: V1_21_8.quirks,
+            // 1.21.6 registers serializers in the same order as 1.21.8.
+            entity_data_serializer: V1_21_8.entity_data_serializer,
             ..v1_21_6_ids::IDS
         };
         static V1_21_5: ids::Ids = ids::Ids {
-            // 1.21.5 IS the pinned version: the generated table is identity.
             quirks: ids::Quirks {
                 components_before_1_21_6: true,
                 ..V1_21_8.quirks
             },
+            // 1.21.5 registers serializers in the same order as 1.21.8.
+            entity_data_serializer: V1_21_8.entity_data_serializer,
             ..v1_21_5_ids::IDS
         };
         static V1_21_4: ids::Ids = ids::Ids {
+            // 1.21.4 IS the pinned version: the generated table is identity.
             quirks: ids::Quirks {
                 wolf_variant_holder: true,
                 components_before_1_21_5: true,
-                ..V1_21_5.quirks
-            },
-            // Vanilla EntityDataSerializers' registration order (not their declaration order),
-            // against the pinned 1.21.5's: 1.21.4 has no cow, wolf sound, pig
-            // or chicken variant yet, so its wolf and frog sit two and four
-            // below the pin's.
-            entity_data_serializer: ids::Remap::Runs {
-                up: &[(0, 0, 23), (23, 24, 1), (24, 26, 1), (25, 29, 6)],
-                down: &[(0, 0, 23), (24, 23, 1), (26, 24, 1), (29, 25, 6)],
+                components_before_1_21_6: true,
+                ..V1_21_8.quirks
             },
             ..v1_21_4_ids::IDS
         };
@@ -292,7 +302,6 @@ impl ServerVersion {
                 trail_without_duration: true,
                 ..V1_21_4.quirks
             },
-            entity_data_serializer: V1_21_4.entity_data_serializer,
             ..v1_21_3_ids::IDS
         };
         static V1_21_1: ids::Ids = ids::Ids {
@@ -300,7 +309,6 @@ impl ServerVersion {
                 components_before_1_21_2: true,
                 ..V1_21_3.quirks
             },
-            entity_data_serializer: V1_21_3.entity_data_serializer,
             ..v1_21_1_ids::IDS
         };
         static V1_20_6: ids::Ids = ids::Ids {
@@ -309,7 +317,6 @@ impl ServerVersion {
                 wolf_variant_holder: false,
                 ..V1_21_1.quirks
             },
-            entity_data_serializer: V1_21_1.entity_data_serializer,
             ..v1_20_6_ids::IDS
         };
         static V1_20_3: ids::Ids = ids::Ids {
@@ -319,21 +326,21 @@ impl ServerVersion {
                 ..V1_20_6.quirks
             },
             // EntityDataSerializers registration order before PARTICLES, WOLF_VARIANT and ARMADILLO_STATE,
-            // against the pinned 1.21.5's.
+            // against the pinned 1.21.4's.
             entity_data_serializer: ids::Remap::Runs {
                 up: &[
                     (0, 0, 18),
                     (18, 19, 4),
-                    (22, 26, 1),
-                    (23, 29, 3),
-                    (26, 33, 2),
+                    (22, 24, 1),
+                    (23, 25, 3),
+                    (26, 29, 2),
                 ],
                 down: &[
                     (0, 0, 18),
                     (19, 18, 4),
-                    (26, 22, 1),
-                    (29, 23, 3),
-                    (33, 26, 2),
+                    (24, 22, 1),
+                    (25, 23, 3),
+                    (29, 26, 2),
                 ],
             },
             ..v1_20_3_ids::IDS
@@ -472,29 +479,34 @@ mod tests {
             ServerVersion::from_protocol(775),
             Some(ServerVersion::V26_1)
         );
-        // 774 is 1.21.11, four protocols above the pin.
+        // 774 is 1.21.11, five protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(774),
             Some(ServerVersion::V1_21_11)
         );
-        // 773 is 1.21.9/1.21.10, three protocols above the pin.
+        // 773 is 1.21.9/1.21.10, four protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(773),
             Some(ServerVersion::V1_21_10)
         );
-        // 772 is 1.21.7/1.21.8, two protocols above the pin.
+        // 772 is 1.21.7/1.21.8, three protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(772),
             Some(ServerVersion::V1_21_8)
         );
-        // 771 is 1.21.6, one protocol above the pin.
+        // 771 is 1.21.6, two protocols above the pin.
         assert_eq!(
             ServerVersion::from_protocol(771),
             Some(ServerVersion::V1_21_6)
         );
-        // 770 is the pinned protocol itself (1.21.5; it resolves to the pin).
+        // 770 is 1.21.5, one protocol above the pin.
         assert_eq!(
             ServerVersion::from_protocol(770),
+            Some(ServerVersion::V1_21_5)
+        );
+        // 769 is the pinned protocol itself (1.21.4; it resolves to the pin).
+        assert_eq!(
+            ServerVersion::from_protocol(769),
             Some(ServerVersion::Current)
         );
         assert_eq!(
