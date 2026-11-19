@@ -1,0 +1,24 @@
+{
+ "behaviour": {
+  "closed": 0,
+  "note": "Pin/table infrastructure complete (cross-protocol 769 -> 768, world 4189 -> 4082, packet rewire: pick_item restored, pick_item_from_block/entity and player_loaded removed, 25 play serverbound packets renumbered; adapter re-based to 768; 6/6 tables regenerated; component codec re-pinned to the 1.21.3 wire (custom_model_data int form); oracles ported to the 1.21.3 APIs); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 313 items: 9 rank-1 (pin, 6 regenerate items, save-format step 4189 -> 4082 with 0 schemas, 2 fixes added, 4 datafix classes changed, version facts), 189 rank-2 (harness reruns), 90 rank-3 (unproved), 23 rank-4, 2 rank-5. The resin and eyeblossom content (11 blocks, 10 items), the pale oak leaves particle and 15 sound events are removed; the creaking transient entity (30) returns; LevelParticles loses alwaysShow, SetHeldSlot is a byte, PlayerInfoUpdate loses UPDATE_HAT.",
+  "total": 313
+ },
+ "harness": {
+  "fail": 13,
+  "note": "CI port-verify run 44610173674 (main@f4bd438c, success, 1h30m40s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 9: 7 more oracle-compile failures hide in the fail column (component_patch, datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac CalledProcessError in the harness logs; component_patch's oracle itself fails to compile against the 1.21.3 jars, unlike at 1.21.4/1.21.5 where it failed at runtime). Real fails: command_parse (10,378 mismatches), entity_components (harness Python TypeError bug), hotbar (329/905 cases match), light (missing motion tag), save_roundtrip (server closed connection), sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
+  "oracle_fail": 2,
+  "pass": 2,
+  "total": 17
+ },
+ "notes": "CI PROOF run 44610173674 (2026-11-19): verdict failed \u2014 D1 fail (46 dead production tags, inherited from the unported 1.21.11 behaviour), D2 pass (0 errors/0 warnings, 426 protocol tests), D3 fail (0/9 rank-1 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (no harness-subset.txt at run time), D6 blocked (no playtest; deferred by the owner). Quirks::PINNED fixed for the 1.21.3 pin (components_before_1_21_6 and components_before_1_21_5 both true; the published 1.21.5 tree still carries the stale false). jsr305 (javax.annotation.Nullable) is committed at tools/jsr305-3.0.2.jar and on the javac classpaths. Oracles ported to the 1.21.3 APIs (AttributeMap.resetBaseValue replicated from the 1.21.4 bytecode, Level dragonParts removed, BlockModel textureMap/parentLocation/hasAmbientOcclusion); horizon-prepare exit 0 in 641.2 s. Pick resolution is client-side at this pin and guests are loaded from join (vanilla 1.21.3 has no load gating).",
+ "profile_recorded": "2026-11-19",
+ "protocol": 768,
+ "protocol_tests": {
+  "fail": 0,
+  "note": "CI run 44610173674: 426 pass, none failing (the 2 sandbox-network tests pass on CI, which has network).",
+  "pass": 426
+ },
+ "role": "E6 delta (from 1.21.4)",
+ "version": "1.21.3"
+}

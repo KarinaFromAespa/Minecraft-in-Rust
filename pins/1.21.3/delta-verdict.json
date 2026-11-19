@@ -1,0 +1,85 @@
+{
+  "schema": "delta-verdict/1",
+  "release": "1.21.3",
+  "commit": "69faf8ca52ec6f8bfb41b4d890e5af82eb6580dc",
+  "tree": ".horizon-ports/1.21.3",
+  "pin": "versions/1.21.3",
+  "mode": "recorded",
+  "verified": false,
+  "state": "failed",
+  "checked_at": "2026-11-19T22:05:38Z",
+  "scalars": {
+    "tier": "D",
+    "suite_pass": null,
+    "suite_total": null,
+    "suite_exempt": 0,
+    "items_closed": null,
+    "items_total": null,
+    "items_accepted": 0
+  },
+  "index_line": "| 1.21.3 | D | \u2014 | \u2014 | 0 | failed 2026-11-19 |",
+  "checks": {
+    "D1": {
+      "status": "fail",
+      "notes": [
+        "tag audit: dead production tag(s): minecraft:bee_attractive, minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread (+41 more)"
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.3/research-lock.json",
+        ".horizon-ports/1.21.3/crates/horizon-core/src/version.rs",
+        ".horizon-ports/1.21.3/diff-1.21.4-1.21.3/regen.json",
+        "versions/1.21.3/regen-determinism.json",
+        ".horizon-ports/1.21.3/.local/horizon-client/1.21.3",
+        "tools/tag_audit.py"
+      ]
+    },
+    "D2": {
+      "status": "pass",
+      "notes": [
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 426, none failing"
+      ],
+      "evidence": [
+        "versions/1.21.3/ci-out/cargo-check.log",
+        "versions/1.21.3/ci-out/cargo-test-protocol.log"
+      ]
+    },
+    "D3": {
+      "status": "fail",
+      "notes": [
+        "rank-1: 9 of 9 item(s) neither closed nor accepted"
+      ],
+      "evidence": [
+        ".horizon-ports/1.21.3/diff-1.21.4-1.21.3/report.json",
+        "versions/1.21.3/work-items.json"
+      ]
+    },
+    "D4": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit f4bd438c1ace, HEAD is 69faf8ca52ec \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "versions/1.21.3/profile.json"
+      ]
+    },
+    "D5": {
+      "status": "blocked",
+      "notes": [
+        "no harness-subset.txt: the era's regression subset is undefined"
+      ],
+      "evidence": [
+        "versions/1.21.3/harness-subset.txt"
+      ]
+    },
+    "D6": {
+      "status": "blocked",
+      "notes": [
+        "no playtest.md: the play gate has not been recorded"
+      ],
+      "evidence": [
+        "versions/1.21.3/playtest.md"
+      ]
+    }
+  }
+}
