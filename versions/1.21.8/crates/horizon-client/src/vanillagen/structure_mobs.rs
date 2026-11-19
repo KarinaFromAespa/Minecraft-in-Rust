@@ -123,9 +123,7 @@ impl FinalizeLevel for Level<'_> {
         finalize::is_halloween()
     }
     fn create(&mut self, kind: &str, _: Reason) -> Option<Mob> {
-        if self.difficulty == 0 && !finalize::allowed_in_peaceful(kind) {
-            return None;
-        }
+        // `EntityType.create` has no peaceful check in either version.
         let t = self.data.types.get(kind)?.clone();
         self.next_id += 1;
         Some(Mob::new(self.next_id, t, Vec3::ZERO, 0.0))

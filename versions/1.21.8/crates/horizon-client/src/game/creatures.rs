@@ -190,7 +190,7 @@ fn pickable_projectile_hitboxes(
     out
 }
 
-/// `FlameFeatureRenderer`: fire quads stacked up a burning entity's box,
+/// `EntityRenderDispatcher.renderFlame`: fire quads stacked up a burning entity's box,
 /// turned to the camera around Y, at full block light. `at` is the entity's
 /// feet relative to the camera.
 fn flame_geometry(
@@ -3635,12 +3635,9 @@ impl Game<'_> {
                     }
                 }
                 MobEvent::GiftLoot { mob, table, at } => {
-                    // Turtle.ageBoundaryReached and Panda.afterSneeze: only
-                    // with mob loot on.
-                    if matches!(
-                        table,
-                        "minecraft:gameplay/turtle_grow" | "minecraft:gameplay/panda_sneeze"
-                    ) && !self.ui.rules.bool("mob_drops")
+                    // Panda.afterSneeze: only with mob loot on.
+                    if matches!(table, "minecraft:gameplay/panda_sneeze")
+                        && !self.ui.rules.bool("mob_drops")
                     {
                         continue;
                     }
@@ -5899,10 +5896,11 @@ impl Game<'_> {
                 });
                 if p.owner == Some(Who::Player) && taken && !cancel {
                     // ThrownEnderpearl: 5% endermite where the player was
-                    // (when monsters spawn), teleport, 5 damage.
+                    // (mob spawning on only — no difficulty check in 1.21.8;
+                    // the mite then despawns via `Mob.checkDespawn` in
+                    // peaceful), teleport, 5 damage.
                     if self.world.random.next_float() < 0.05
-                        && self.ui.rules.bool("spawn_monsters")
-                        && self.ui.difficulty != 0
+                        && self.ui.rules.bool("spawn_mobs")
                         && let Some(pl) = self.player.as_ref()
                     {
                         let from = pl.position;
@@ -7124,8 +7122,8 @@ impl Game<'_> {
             self.mob_event_particles(self.mobs[index].id, if trusts { 41 } else { 40 });
         }
         if let Some(fresh) = stew_particles {
-            // `SpellParticleOption.create(EFFECT, -1, 1)` is the plain white
-            // effect particle; the smoke is the already-fed answer.
+            // `ParticleTypes.EFFECT` is the plain white effect particle; the
+            // smoke is the already-fed answer.
             let ty = if fresh {
                 ParticleType::Effect
             } else {
@@ -7156,9 +7154,10 @@ impl Game<'_> {
         }
         // Turtle.ageBoundaryReached: food that finishes a baby's growth.
         if baby_turtle && !self.mobs[index].is_baby() {
-            self.handle_mob_events(vec![MobEvent::GiftLoot {
+            self.handle_mob_events(vec![MobEvent::DropItem {
                 mob: self.mobs[index].id,
-                table: "minecraft:gameplay/turtle_grow",
+                item: "minecraft:turtle_scute".into(),
+                count: 1,
                 at: feet,
             }])?;
         }
@@ -7510,16 +7509,6 @@ impl Game<'_> {
         )
         .then_some(hit)
     }
-    /// Shared peaceful-mode eligibility for spawn eggs.
-    pub(super) fn spawn_egg_allowed(&self, item: &str) -> bool {
-        let kind = item.trim_end_matches("_spawn_egg");
-        self.ui.difficulty != 0
-            || self
-                .res
-                .mob_types()
-                .get(kind)
-                .is_none_or(|t| horizon_client::mobs::spawn_rules::allowed_in_peaceful(t.species))
-    }
     /// `SpawnEggItem.useOn` for a block, or `use` for a fluid source.
     fn use_spawn_egg(&mut self, stack: &ItemStack) -> Result<bool> {
         let fluid = matches!(self.guest_use, Some(super::GuestUse::Item(_)));
@@ -7531,10 +7520,8 @@ impl Game<'_> {
             return Ok(false);
         };
         let kind = stack.item.trim_end_matches("_spawn_egg").to_owned();
-        if !self.spawn_egg_allowed(&stack.item) {
-            self.use_failed = true;
-            return Ok(true);
-        }
+        // No peaceful failure in 1.21.8: the egg always spawns, and a
+        // monster then despawns via `Mob.checkDespawn` on its first tick.
         if fluid
             && !self.may_build()
             && !self.can_place_on_in_adventure([
@@ -7585,7 +7572,10 @@ impl Game<'_> {
             horizon_client::entity_nbt::apply_item_components(m, stack);
         }
         self.apply_spawn_egg_entity_data(id, stack);
-        self.post_block_game_event("minecraft:entity_place", p, Some(Who::Player), None);
+        // `SpawnEggItem.useOn`: the ENTITY_PLACE event is at the CLICKED
+        // pos in 1.21.8 (the spawn pos is the 1.21.9 change); the fluid
+        // path's entity is in the same block as the hit.
+        self.post_block_game_event("minecraft:entity_place", hit.pos, Some(Who::Player), None);
         self.award_stat("used", &stack.item, 1);
         self.swing_arm();
         if !self.creative
@@ -7600,7 +7590,7 @@ impl Game<'_> {
     }
     /// `EntityType.updateCustomEntityTag`: the egg's `minecraft:entity_data` on
     /// the mob it spawned, once the guards let it through, as
-    /// `TypedEntityData.loadInto`: the mob's own compound, the data merged over
+    /// `CustomData.loadInto`: the mob's own compound, the data merged over
     /// it, loaded back into the same mob (`/data merge entity`'s loader).
     pub(super) fn apply_spawn_egg_entity_data(&mut self, id: u32, stack: &ItemStack) {
         let Some(i) = self.mobs.iter().position(|m| m.id == id) else {

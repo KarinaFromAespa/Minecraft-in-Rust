@@ -1659,11 +1659,14 @@ fn ageable_step(
                 if m.species() == Species::Villager {
                     super::villager_brain::age_boundary_reached(m, w, level_random, events);
                 }
-                // Turtle.ageBoundaryReached: a grown turtle drops a scute.
+                // Turtle.ageBoundaryReached: a grown turtle drops a scute,
+                // straight from `spawnAtLocation` — there is no turtle_grow
+                // loot table in 1.21.8, and no mob-drops gate on it.
                 if m.species() == Species::Turtle {
-                    events.push(MobEvent::GiftLoot {
+                    events.push(MobEvent::DropItem {
                         mob: m.id,
-                        table: "minecraft:gameplay/turtle_grow",
+                        item: "minecraft:turtle_scute".into(),
+                        count: 1,
                         at: [m.position.x, m.position.y, m.position.z],
                     });
                 }
@@ -2298,7 +2301,7 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
         return true;
     }
     // Mob.checkDespawn discards disallowed types even when persistent or NoAI.
-    if w.difficulty.effective == 0.0 && !super::spawn_rules::allowed_in_peaceful(m.species()) {
+    if w.difficulty.effective == 0.0 && super::spawn_rules::despawns_in_peaceful(m.species()) {
         return false;
     }
     let Some(p) = w.nearest_player else {
@@ -4890,10 +4893,11 @@ mod age_up_tests {
                                         .iter()
                                         .filter(|event| matches!(
                                             event,
-                                            MobEvent::GiftLoot {
-                                                table: "minecraft:gameplay/turtle_grow",
+                                            MobEvent::DropItem {
+                                                item,
+                                                count: 1,
                                                 ..
-                                            }
+                                            } if &**item == "minecraft:turtle_scute"
                                         ))
                                         .count(),
                                     1,

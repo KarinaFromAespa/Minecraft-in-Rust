@@ -405,13 +405,13 @@ impl Game<'_> {
     /// `PhantomSpawner.tick`: tired players under an open night sky draw
     /// phantoms. A custom spawner ticks only while `spawn_mobs` is on
     /// (`ServerChunkCache.tickChunks`), and this one only spawns enemies
-    /// (`ServerLevel.isSpawningMonsters`: `spawn_monsters` too). Every
+    /// (difficulty not peaceful). Every
     /// player of the level counts: the game's own and the hosted ones (a
     /// server thread's players are all hosted).
     pub(super) fn spawn_phantoms(&mut self) {
         let rules = &self.ui.rules;
         if !rules.bool("spawn_mobs")
-            || !rules.bool("spawn_monsters")
+            || self.ui.difficulty == 0
             || !rules.bool("spawn_phantoms")
             || self.dim != Dim::Overworld
         {

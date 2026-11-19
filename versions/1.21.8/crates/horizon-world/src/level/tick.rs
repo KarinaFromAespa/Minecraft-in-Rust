@@ -350,11 +350,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 Class::Farmland => self.farmland_random_tick(state, pos),
                 Class::NetherPortal => {
                     // NetherPortalBlock.randomTick: only the overworld sets
-                    // NETHER_PORTAL_SPAWNS_PIGLINS.
+                    // NETHER_PORTAL_SPAWNS_PIGLINS. Mob spawning on, and the
+                    // difficulty roll (which fails on its own in peaceful).
                     let rules = self.level.game_rules();
                     let difficulty = self.level.difficulty();
                     if rules.spawn_mobs
-                        && rules.spawn_monsters
                         && difficulty != 0
                         && self.level.dimension_type().nether_portal_spawns_piglin
                         && self.rand_int(2000) < difficulty

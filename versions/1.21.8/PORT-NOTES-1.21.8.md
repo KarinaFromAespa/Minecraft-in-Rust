@@ -334,7 +334,135 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 6/317 (items 10, 11, 12, 13 + 2 zero-diff)
+### Rank 2: 7/317 (items 10, 11, 12, 13, 17 + 2 zero-diff)
+
+- **Item 17 — `game/creatures.rs` (33 classes, 108 methods, 39
+  named):** the peaceful rework plus spawn-egg, turtle and creeper
+  fixes.
+  1. **No `notInPeaceful` flag:** 1.21.9's `EntityType` flag (36
+     types), `spawn_monsters` rule and `ServerLevel.isSpawningMonsters`
+     are gone. 1.21.8 has two separate rules instead: the despawn
+     (`Mob.checkDespawn` discards in peaceful iff
+     `shouldDespawnInPeaceful` — the Monster class except Piglin,
+     plus Ghast, Phantom and the slimes, whose `size > 0` is
+     always true since sizes clamp to 1..127) and the per-predicate
+     spawn gate (each type's own check). `allowed_in_peaceful`
+     (both copies) is replaced by `despawns_in_peaceful` — the 36
+     flagged types minus Hoglin (an Animal, stays in both versions)
+     and Parched (26.x-only).
+  2. **Per-predicate spawn gates:** the global flag gate in
+     `check_spawn_rules` is gone; the difficulty check moved into
+     the predicates that have it in vanilla, verified against the
+     1.21.8 `SpawnPlacements` registrations (javap bootstrap
+     methods) and the check bodies: `monster_rules`
+     (`checkMonsterSpawnRules`) now checks peaceful, as do the
+     Blaze/Breeze/Zoglin (`checkAnyLightMonsterSpawnRules`),
+     Endermite/Silverfish and Pillager
+     (`checkPatrollingMonsterSpawnRules`) arms. Drowned, Guardian,
+     Ghast, MagmaCube, Slime and ZombifiedPiglin already checked
+     inline. Phantom (`Mob.checkMobSpawnRules`), Hoglin and Piglin
+     (custom predicates) correctly check nothing — a spawner-spawned
+     phantom passes in peaceful, then despawns.
+  3. **ZombieHorse spawn rules:** it sat in the monster group (a
+     pre-existing deviation); vanilla registers it with
+     `checkZombieHorseSpawnRules` — spawner checks the light, else
+     `Animal.checkAnimalSpawnRules`, no difficulty check. It now
+     shares the SkeletonHorse arm.
+  4. **`/summon` has no peaceful failure** in 1.21.8 (no
+     `ERROR_FAILED_PEACEFUL`): the check is gone; a summoned monster
+     despawns via `checkDespawn` on its first tick.
+  5. **Spawn eggs have no peaceful failure:** `spawn_egg_allowed`
+     and the red "Disabled in Peaceful" tooltip
+     (`spawn_egg_peaceful_line`, with its test) are gone, server-side
+     and in the remote client's prediction. The ENTITY_PLACE event
+     is at the CLICKED pos in 1.21.8 (the spawn pos is the 1.21.9
+     change). The egg's `entity_data` handling already read the type
+     from the compound — the 1.21.8 `CustomData` model — so only the
+     `TypedEntityData` comment references changed
+     (`CustomData.loadInto`/`contains`).
+  6. **No spawner-enabled gate on eggs:** 1.21.8 sets a spawner (or
+     trial spawner) unconditionally; the `spawner_blocks_work` gate
+     and the `advMode.notEnabled.spawner` message are gone from
+     `use_spawn_egg_on_spawner`. (The spawner TICK gates stay —
+     the spawner item's scope; they must go before the gamerules
+     item removes the rule from the table, or `rules.bool` returns
+     false and all spawners stop.)
+  7. **`spawn_monsters` gates reverted to difficulty:** natural
+     spawning (`spawn_enemies = difficulty != 0`), phantoms,
+     patrols, village sieges, zombie reinforcements (Hard +
+     doMobSpawning only), the endermite roll on pearl landing
+     (doMobSpawning only, no difficulty check), the creaking-heart
+     spawn check, and the Nether-portal pigman tick (doMobSpawning
+     + the difficulty roll, which fails on its own in peaceful).
+     The rule's table entry, save mapping, datafix conversion and
+     the `LevelData` field stay for the gamerules/datafix items.
+  8. **`EntityType.create` has no peaceful check** (in either
+     version — the old comments were wrong): the gates in the
+     structure-mob creator, the finalize-spawn fixture's creator
+     (its `peaceful` field went with it) and the zombie-horse rider
+     spawn are gone; the rider spawns in peaceful and despawns via
+     `checkDespawn` (the peaceful discard runs before the
+     persistence/passenger checks). The natural-spawn fixture's
+     case-entity skip now uses the despawn predicate, citing
+     `checkDespawn`.
+  9. **Turtle scute is a direct drop:** 1.21.9 drops it from the
+     `turtle_grow` loot table; 1.21.8 calls
+     `spawnAtLocation(Items.TURTLE_SCUTE, 1)` — no table (it does
+     not exist in the 1.21.8 data pack) and no mob-drops gate. All
+     three sites (age boundary, fed growth, the age test) now emit
+     `MobEvent::DropItem`; the gift-loot handler's mob-drops gate
+     keeps only the panda.
+  10. **Charged-creeper heads are per-victim direct drops:**
+      1.21.9's `Creeper.killedEntity` + `charged_creeper` loot table
+      (which does not exist in the 1.21.8 data pack — no heads
+      dropped at all) is replaced by the 1.21.8
+      `dropCustomDeathLoot` model, inside the loot-table block so
+      the order (loot, equipment, head) and the mob-drops gate
+      match: creeper, zombie, skeleton, wither skeleton and piglin
+      heads, with Stray and Bogged inheriting Skeleton's (the
+      1.21.9 table's exact-type conditions exclude them) and
+      Husk/Drowned/Zombie Villager/Zombified Piglin returning an
+      empty skull. The one-head-per-explosion rule still runs
+      through `charged_exploders`.
+  - **Verified no-change:** EatBlockGoal (the only diff is the
+    canUse chance wrapped in `adjustedTickDelay`, unobservable
+    without the /tick rate feature the Rust does not implement —
+    `reduced()` is the scheduler's own halving); NetherPortalBlock
+    (beyond the gate above); MushroomCow flower-feed particle
+    (already plain `EFFECT` — comment only) and DragonFireball
+    particles (already plain `DRAGON_BREATH`); ThrownEnderpearl
+    vanish/tick (no `wonGame` exemption in the Rust, no pearl
+    chunk tickets, and the owner-lookup distinction is
+    unobservable in the always-in-memory host/guest model);
+    `AbstractHurtingProjectile.onDeflection` (bodies identical,
+    signature only); ArrowModel (decompiled sources identical;
+    javap shows only the `setupAnim` bridge signature differing);
+    all 8 renderer diffs (1.21.9 submit-API refactor, identical
+    transforms and values); FlameFeatureRenderer (1.21.9-only name
+    for the same fire quads — comment now cites
+    `EntityRenderDispatcher.renderFlame`); `isClientSide()` →
+    field renames, `asEquipmentSlot()` → `getSlotForHand`,
+    `usePlayerItem` moved Animal → Mob (byte-identical body),
+    `EntityReference` API change, Bee End clause (redundant),
+    Bee debug packets (neither debug system is implemented);
+    `loadEntityRecursive` / `STREAM_CODEC` / vehicle-attachment
+    plumbing; BaseSpawner's peaceful gate (identical in both
+    versions).
+  - **Deferred:** the `TypedEntityData` wire format
+    (`entity_data`/`block_entity_data`/`bees` as id + compound) is
+    items 257/170/92/181/314's scope — the 1.21.8 wire form is the
+    plain `CustomData` compound (`skip.rs`, `hash/raw.rs`
+    incl. test vectors, `v1_20_3.rs` encode/decode/normalize,
+    `item_sync.rs` `block_entity_data_tag`); the copper-golem
+    pumpkin pattern (`try_spawn_copper_golem` in `golems.rs`)
+    eats the pumpkin and copper block and spawns nothing while
+    the type is absent from the 1.21.8 registry — item 229's
+    removal; the `spawner_blocks_work` tick gates (spawner item,
+    see fix 6); the `spawn_monsters` table entry and friends
+    (gamerules/datafix items). Copper golem and mannequin
+    `Species` variants, tables and AI modules remain as dead code:
+    neither type is in the data-driven 1.21.8 registry, so
+    nothing can spawn them except the golem pattern above.
 
 - **Item 13 — `game/dedicated.rs` (5 classes, 167 methods, 44 named,
   985 diff lines):** six fixes.

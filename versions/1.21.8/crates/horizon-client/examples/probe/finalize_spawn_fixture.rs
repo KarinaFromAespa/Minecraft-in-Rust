@@ -33,7 +33,6 @@ struct Level<'a> {
     structure: Option<(String, [i32; 6])>,
     phase: usize,
     monsters: bool,
-    peaceful: bool,
     time: i64,
     halloween: bool,
     roof: Option<i32>,
@@ -101,9 +100,7 @@ impl FinalizeLevel for Level<'_> {
         self.halloween
     }
     fn create(&mut self, kind: &str, _reason: Reason) -> Option<Mob> {
-        if self.peaceful && !finalize::allowed_in_peaceful(kind) {
-            return None;
-        }
+        // `EntityType.create` has no peaceful check in either version.
         let t = Arc::new(self.types.types.get(kind)?.clone());
         let index = self.created;
         self.created += 1;
@@ -475,7 +472,6 @@ pub fn main() -> horizon_client::Result<()> {
             }),
             phase,
             monsters: get("monsters", "1") != "0",
-            peaceful: base == 0,
             time,
             halloween,
             roof: c

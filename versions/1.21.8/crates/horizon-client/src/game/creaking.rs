@@ -321,11 +321,10 @@ impl Game<'_> {
             .put(key, BlockEntity::CreakingHeart(heart));
         Ok(())
     }
-    /// `ServerLevel.isSpawningMonsters`.
+    /// `CreakingHeartBlockEntity.serverTick`: a heart spawns its creaking
+    /// only outside peaceful, with mob spawning on.
     fn spawning_monsters(&self) -> bool {
-        self.ui.difficulty != 0
-            && self.ui.rules.bool("spawn_mobs")
-            && self.ui.rules.bool("spawn_monsters")
+        self.ui.difficulty != 0 && self.ui.rules.bool("spawn_mobs")
     }
     /// Hearts that came with generated or loaded chunks get their block
     /// entity (`newBlockEntity`) the first time their chunk is seen lit.

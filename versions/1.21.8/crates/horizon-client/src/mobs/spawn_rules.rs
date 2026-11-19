@@ -130,10 +130,13 @@ pub fn fire_immune(s: Species) -> bool {
             | S::ZombifiedPiglin
     )
 }
-/// `EntityType.isAllowedInPeaceful`.
-pub fn allowed_in_peaceful(s: Species) -> bool {
+/// `Mob.shouldDespawnInPeaceful`: the Monster class (Piglin excepted), plus
+/// Ghast, Phantom and the slimes, whose `size > 0` is always true (sizes
+/// clamp to 1..127). There is no `notInPeaceful` flag in 1.21.8: the
+/// peaceful despawn is this per-class rule, not a type flag.
+pub fn despawns_in_peaceful(s: Species) -> bool {
     use Species as S;
-    !matches!(
+    matches!(
         s,
         S::Blaze
             | S::Bogged
@@ -149,11 +152,9 @@ pub fn allowed_in_peaceful(s: Species) -> bool {
             | S::Ghast
             | S::Giant
             | S::Guardian
-            | S::Hoglin
             | S::Husk
             | S::Illusioner
             | S::MagmaCube
-            | S::Parched
             | S::Phantom
             | S::PiglinBrute
             | S::Pillager
@@ -279,7 +280,8 @@ fn bright<L: SpawnLevel>(l: &L, x: i32, y: i32, z: i32) -> bool {
 fn mob_rules<L: SpawnLevel>(s: Species, l: &L, reason: Reason, x: i32, y: i32, z: i32) -> bool {
     reason.is_spawner() || is_valid_spawn(s, l, x, y - 1, z)
 }
-/// `Monster.checkMonsterSpawnRules`.
+/// `Monster.checkMonsterSpawnRules`: peaceful first, then darkness and
+/// `Mob.checkMobSpawnRules`.
 fn monster_rules<L: SpawnLevel>(
     s: Species,
     l: &L,
@@ -289,7 +291,8 @@ fn monster_rules<L: SpawnLevel>(
     y: i32,
     z: i32,
 ) -> bool {
-    (reason.ignores_light() || is_dark_enough(l, random, x, y, z))
+    !l.peaceful()
+        && (reason.ignores_light() || is_dark_enough(l, random, x, y, z))
         && mob_rules(s, l, reason, x, y, z)
 }
 /// `Animal.checkAnimalSpawnRules` with the given spawnable-on tag.
@@ -317,9 +320,11 @@ pub fn check_spawn_rules<L: SpawnLevel>(
     z: i32,
 ) -> bool {
     use Species as S;
-    if !allowed_in_peaceful(s) && l.peaceful() {
-        return false;
-    }
+    // 1.21.8 has no `notInPeaceful` flag: each predicate checks the
+    // difficulty itself (`checkMonsterSpawnRules`,
+    // `checkAnyLightMonsterSpawnRules`, the custom Ghast/Slime/MagmaCube/
+    // Drowned/Guardian/ZombifiedPiglin rules), and Hoglin, Piglin and
+    // Phantom do not check it at all.
     let below = |l: &L| name(l, x, y - 1, z).to_owned();
     match s {
         S::Axolotl => tag(l, "minecraft:axolotls_spawnable_on", x, y - 1, z),
@@ -373,7 +378,9 @@ pub fn check_spawn_rules<L: SpawnLevel>(
             }
             tag(l, "minecraft:bats_spawnable_on", x, y - 1, z) && mob_rules(s, l, reason, x, y, z)
         }
-        S::Blaze | S::Breeze | S::Zoglin => mob_rules(s, l, reason, x, y, z),
+        // `Monster.checkAnyLightMonsterSpawnRules`: difficulty, then
+        // `Mob.checkMobSpawnRules`.
+        S::Blaze | S::Breeze | S::Zoglin => !l.peaceful() && mob_rules(s, l, reason, x, y, z),
         S::Camel => tag(l, "minecraft:camels_spawnable_on", x, y - 1, z) && bright(l, x, y, z),
         S::CamelHusk | S::Husk | S::Parched => {
             monster_rules(s, l, reason, random, x, y, z)
@@ -392,7 +399,9 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         | S::Panda
         | S::TraderLlama => animal_rules(l, reason, "minecraft:animals_spawnable_on", x, y, z),
         S::Endermite | S::Silverfish => {
-            if !mob_rules(s, l, reason, x, y, z) {
+            // `Endermite/Silverfish.check*SpawnRules` both start from
+            // `checkAnyLightMonsterSpawnRules`, so peaceful fails first.
+            if l.peaceful() || !mob_rules(s, l, reason, x, y, z) {
                 return false;
             }
             reason.is_spawner()
@@ -436,7 +445,11 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         S::Ocelot => random.next_int_bound(3).unwrap_or(0) != 0,
         S::Parrot => tag(l, "minecraft:parrots_spawnable_on", x, y - 1, z) && bright(l, x, y, z),
         S::Hoglin | S::Piglin => below(l) != "minecraft:nether_wart_block",
-        S::Pillager => l.block_light(x, y, z) <= 8 && mob_rules(s, l, reason, x, y, z),
+        // `PatrollingMonster.checkPatrollingMonsterSpawnRules`: block light,
+        // then `checkAnyLightMonsterSpawnRules`.
+        S::Pillager => {
+            !l.peaceful() && l.block_light(x, y, z) <= 8 && mob_rules(s, l, reason, x, y, z)
+        }
         S::PolarBear => {
             if l.biome_tag("minecraft:polar_bears_spawn_on_alternate_blocks", x, y, z) {
                 bright(l, x, y, z)
@@ -452,7 +465,10 @@ pub fn check_spawn_rules<L: SpawnLevel>(
             }
         }
         S::Rabbit => tag(l, "minecraft:rabbits_spawnable_on", x, y - 1, z) && bright(l, x, y, z),
-        S::SkeletonHorse => {
+        // `SkeletonHorse/ZombieHorse.check*SpawnRules`: a spawner checks the
+        // light, anything else is `Animal.checkAnimalSpawnRules` — no
+        // difficulty check, so both horses spawn in peaceful.
+        S::SkeletonHorse | S::ZombieHorse => {
             if reason.is_spawner() {
                 reason.ignores_light() || bright(l, x, y, z)
             } else {
@@ -493,7 +509,6 @@ pub fn check_spawn_rules<L: SpawnLevel>(
         | S::WitherSkeleton
         | S::Creaking
         | S::Zombie
-        | S::ZombieHorse
         | S::ZombieVillager
         | S::Evoker
         | S::Illusioner

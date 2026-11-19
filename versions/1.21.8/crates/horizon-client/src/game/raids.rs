@@ -1278,7 +1278,8 @@ impl Game<'_> {
                 game.world.day_time,
             )
         };
-        let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
+        // `PatrolSpawner.tick` takes spawnEnemies: difficulty not peaceful.
+        let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.difficulty != 0;
         let mut random = std::mem::replace(
             &mut self.world.random,
             horizon_core::random::LegacyRandom::new(0),
@@ -1319,7 +1320,8 @@ impl Game<'_> {
         if self.dim != Dim::Overworld {
             return;
         }
-        let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.rules.bool("spawn_monsters");
+        // `VillageSiege.tick` takes spawnEnemies: difficulty not peaceful.
+        let enemies = self.ui.rules.bool("spawn_mobs") && self.ui.difficulty != 0;
         if self.sky_darken() < 4 || !enemies {
             self.raiding.siege.tonight = false;
             self.raiding.siege.set_up = false;

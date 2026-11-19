@@ -893,50 +893,6 @@ fn skeleton(s: Species) -> bool {
 fn raider(s: Species) -> bool {
     super::raider::is_raider(s)
 }
-/// `EntityType.isAllowedInPeaceful`: the types built with `notInPeaceful`.
-pub fn allowed_in_peaceful(kind: &str) -> bool {
-    !matches!(
-        kind.strip_prefix("minecraft:").unwrap_or(kind),
-        "blaze"
-            | "bogged"
-            | "breeze"
-            | "cave_spider"
-            | "creaking"
-            | "creeper"
-            | "drowned"
-            | "elder_guardian"
-            | "enderman"
-            | "endermite"
-            | "evoker"
-            | "ghast"
-            | "giant"
-            | "guardian"
-            | "hoglin"
-            | "husk"
-            | "illusioner"
-            | "magma_cube"
-            | "parched"
-            | "phantom"
-            | "piglin_brute"
-            | "pillager"
-            | "ravager"
-            | "silverfish"
-            | "skeleton"
-            | "slime"
-            | "spider"
-            | "stray"
-            | "vex"
-            | "vindicator"
-            | "warden"
-            | "witch"
-            | "wither"
-            | "wither_skeleton"
-            | "zoglin"
-            | "zombie"
-            | "zombie_villager"
-            | "zombified_piglin"
-    )
-}
 /// `AgeableMob.getBabyStartAge` (a sniffer's is -48000).
 pub fn baby_start_age(s: Species) -> i32 {
     if s == Species::Sniffer {

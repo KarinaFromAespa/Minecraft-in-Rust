@@ -435,13 +435,7 @@ impl Game<'_> {
             Some(BlockEntity::TrialSpawner(_)) => true,
             _ => return None,
         };
-        if !self.ui.rules.bool("spawner_blocks_work") {
-            self.system_message(horizon_client::text::Text::translate(
-                "advMode.notEnabled.spawner",
-                &[],
-            ));
-            return Some(false);
-        }
+        // No spawner-enabled gate in 1.21.8: the egg always sets the spawner.
         if trial {
             // TrialSpawnerBlockEntity.setEntityId and setEntityData:
             // overrideEntityToSpawn, which ends in setState(INACTIVE).

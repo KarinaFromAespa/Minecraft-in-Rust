@@ -113,7 +113,7 @@ pub fn spawn_egg_entity_data<'a>(
 /// `EntityType.appendDefaultStackConfig` for a hanging entity or armor stand an
 /// item places: `Entity.applyImplicitComponents` stores the item's
 /// `minecraft:custom_data` as the entity's `data`, then `updateCustomEntityTag`
-/// (`TypedEntityData.loadInto`) merges the item's `minecraft:entity_data` over
+/// (`CustomData.loadInto`) merges the item's `minecraft:entity_data` over
 /// the entity's saved tag `own` when its type is `kind`.
 pub fn stack_configured_entity(stack: &crate::items::ItemStack, kind: &str, own: &Tag) -> Tag {
     let mut tag = own.clone();
@@ -379,7 +379,7 @@ pub fn place(saved: &Tag, components: &Compound, game_master: bool) -> Tag {
     let Tag::Compound(mut tag) = saved.clone() else {
         return saved.clone();
     };
-    // TypedEntityData.loadInto: saveCustomOnly, merge, loadCustomOnly when changed.
+    // CustomData.loadInto: saveCustomOnly, merge, loadCustomOnly when changed.
     if let Some(Tag::Compound(data)) = components.get(&JavaString::from(BLOCK_ENTITY_DATA))
         && data
             .get(&JavaString::from("id"))
@@ -721,7 +721,7 @@ mod tests {
         assert!(carries_record(&jukebox(
             "{id:\"minecraft:jukebox\",RecordItem:{id:\"minecraft:music_disc_cat\",count:1}}"
         )));
-        // The key alone counts: `TypedEntityData.contains` never checks the
+        // The key alone counts: `CustomData.contains` never checks the
         // type, and the state it sets is the one the block is placed as.
         assert!(carries_record(&jukebox(
             "{id:\"minecraft:chest\",RecordItem:{id:\"minecraft:music_disc_cat\",count:1}}"

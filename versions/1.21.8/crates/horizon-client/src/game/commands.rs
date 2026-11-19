@@ -2595,9 +2595,8 @@ impl Game<'_> {
         {
             return Err(err("commands.summon.invalidPosition", &[]));
         }
-        if self.ui.difficulty == 0 && !horizon_client::mobs::finalize::allowed_in_peaceful(&kind) {
-            return Err(err("commands.summon.failed.peaceful", &[]));
-        }
+        // No peaceful failure in 1.21.8: /summon spawns any type, and a
+        // monster then despawns via `Mob.checkDespawn` on its first tick.
         let short = kind.trim_start_matches("minecraft:").to_owned();
         if let Some(Arg::Str(nbt)) = ctx.get("nbt").cloned() {
             // With an NBT argument the entity is built from it, unfinalized.

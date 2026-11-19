@@ -187,7 +187,7 @@ impl Game<'_> {
             random: horizon_client::random_source::entity(),
         };
         // `EntityType.createDefaultStackConfig`: the item's `custom_data`, then its
-        // `entity_data` merged over the frame (`TypedEntityData.loadInto`), before
+        // `entity_data` merged over the frame (`CustomData.loadInto`), before
         // `survives` runs on the configured frame.
         let kind = frame.kind();
         let own = horizon_client::entity_nbt::item_frame_to_nbt(&frame, [0; 4], None);

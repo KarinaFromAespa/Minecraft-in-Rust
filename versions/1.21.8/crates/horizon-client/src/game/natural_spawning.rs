@@ -812,7 +812,9 @@ impl<'a> Game<'a> {
         }
         laps.lap("sn_inhabited");
         let spawn_mobs = self.ui.rules.bool("spawn_mobs");
-        let spawn_enemies = self.ui.rules.bool("spawn_monsters");
+        // 1.21.8 has no `spawn_monsters` rule: enemies spawn whenever the
+        // difficulty is not peaceful (`NaturalSpawner.spawnForChunk`).
+        let spawn_enemies = self.ui.difficulty != 0;
         let mut random = std::mem::replace(&mut self.world.random, LegacyRandom::new(0));
         let mut pending = Vec::new();
         let last_state;

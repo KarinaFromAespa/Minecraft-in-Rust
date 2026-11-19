@@ -519,16 +519,11 @@ impl Game<'_> {
                 }
             }
             Species::Strider if !baby => self.spawn_strider_jockey(id, at),
-            // ZombieHorse.finalizeSpawn: a zombie with an iron spear. The rider
-            // comes from EntityType.create, which makes no zombie in peaceful
-            // (canSpawn), so a peaceful zombie horse spawns without one.
-            Species::ZombieHorse
-                if mounts.zombie_horse_rider
-                    && (self.ui.difficulty != 0
-                        || horizon_client::mobs::spawn_rules::allowed_in_peaceful(
-                            Species::Zombie,
-                        )) =>
-            {
+            // ZombieHorse.finalizeSpawn: a zombie with an iron spear. The
+            // rider comes from `EntityType.create`, which has no peaceful
+            // check: in peaceful it spawns and `Mob.checkDespawn` discards
+            // it on its first tick.
+            Species::ZombieHorse if mounts.zombie_horse_rider => {
                 if let Some(zombie) = self.spawn_mob("minecraft:zombie", at, false) {
                     if let Some(z) = self.mobs.iter_mut().find(|m| m.id == zombie) {
                         z.extra.set_main_hand(Some("minecraft:iron_spear".into()));
