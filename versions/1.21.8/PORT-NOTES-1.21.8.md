@@ -334,7 +334,23 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 34/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45, 48 + 4 zero-diff)
+### Rank 2: 35/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+
+- **Item 50 — `crates/horizon-client/src/game/mounts.rs` (4 classes, 9 methods, 7 named in Horizon):**
+  Camel, Strider, Pig, FoodOnAStickItem. Zero-diff: no code changed.
+  Verified no-change: `Pig` differs only by the `isClientSide` field vs
+  method; the camel's 1.21.8-only `sendDebugPackets` override (sending
+  the entity-brain debug packet) is debug-only and unmodelled in the
+  Rust — no citations; the strider's `getAmbientSound` loses only a
+  `@Nullable` annotation, and its `spawnJockey` `startRiding(this,
+  true, false)` → `(this, true)` is the 1.21.9-only third argument
+  (`force`, false by default) — the Rust mounts the jockey via the
+  generic `mount_mob` link with no force model and no citation of the
+  3-arg form; `FoodOnAStickItem.use` switches
+  `InteractionHand.asEquipmentSlot()` (1.21.9-only) for
+  `LivingEntity.getSlotForHand(hand)` with the identical result
+  (MAIN_HAND → MAINHAND, OFF_HAND → OFFHAND), and the Rust cites
+  neither name (the steering works off main/off-hand items directly).
 
 - **Item 48 — `crates/horizon-client/src/game/llamas.rs` (2 classes, 10 methods, 7 named in Horizon):**
   AbstractHorse, Llama. Zero-diff: no code changed.
