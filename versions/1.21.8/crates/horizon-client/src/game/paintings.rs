@@ -81,14 +81,17 @@ impl PaintingVariants {
 fn overlaps(a: ([f64; 3], [f64; 3]), b: ([f64; 3], [f64; 3])) -> bool {
     (0..3).all(|i| a.0[i] < b.1[i] && b.0[i] < a.1[i])
 }
-/// `HangingEntity.canCoexist(true)` for an item frame.
+/// `ItemFrame.survives`' coexistence in 1.21.8: no overlapping hanging
+/// entity at all (`getEntities(..., HANGING_ENTITY).isEmpty()`).
+/// (1.21.9's `HangingEntity.canCoexist(true)` only blocks same-direction
+/// ones.)
 pub(super) fn frame_coexists(f: &ItemFrame, frames: &[ItemFrame], paintings: &[Painting]) -> bool {
     !frames
         .iter()
-        .any(|o| o.id != f.id && o.facing == f.facing && overlaps(o.bounds(), f.bounds()))
+        .any(|o| o.id != f.id && overlaps(o.bounds(), f.bounds()))
         && !paintings
             .iter()
-            .any(|o| o.step() == f.step() && overlaps(o.bounds(), f.bounds()))
+            .any(|o| overlaps(o.bounds(), f.bounds()))
 }
 /// `HangingEntity.canCoexist(false)` for a painting.
 fn painting_coexists(p: &Painting, paintings: &[Painting], frames: &[ItemFrame]) -> bool {
