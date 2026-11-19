@@ -1,9 +1,9 @@
 {
   "minecraft": {
-    "version": "1.21.7",
-    "manifest_sha1": "48c9b004f6add2f9dca3cca46cb036d1bed91cb4",
-    "client_sha1": "a2db1ea98c37b2d00c83f6867fb8bb581a593e07",
-    "server_sha1": "05e4b48fbc01f0385adb74bcff9751d34552486c",
+    "version": "1.21.6",
+    "manifest_sha1": "207b4f08c3f45142111bfc385be1fb6ac29a35df",
+    "client_sha1": "740a125b83dd3447feaa3c5e891ead7fbb21ae28",
+    "server_sha1": "6e64dcabba3c01a7271b4fa6bd898483b794c59b",
     "java_major": 21
   },
   "vineflower": {
