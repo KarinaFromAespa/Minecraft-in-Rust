@@ -106,7 +106,7 @@ impl WorldBorder {
     pub fn target_size(&self) -> f64 {
         self.geometry.lerp_target()
     }
-    /// `getLerpTime`: ticks left in a size change (0 when none).
+    /// `getLerpRemainingTime`: ticks left in a size change (0 when none).
     pub fn remaining_ticks(&self) -> i64 {
         self.geometry.lerp_time()
     }

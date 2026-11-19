@@ -334,7 +334,65 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 18/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24, 26 + 3 zero-diff)
+### Rank 2: 19/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26 + 3 zero-diff)
+
+- **Item 22 — `game/commands.rs` (12 classes, 76 methods, 10 named in Horizon):**
+  Level, EntitySelectorParser, WorldBorderCommand, LocalCoordinates,
+  SetSpawnCommand, SetWorldSpawnCommand, LevelData, CommandSourceStack,
+  Commands, SummonCommand, ListPlayersCommand, AbstractMinecartContainer.
+  1. **`/spawnpoint` and `/setworldspawn` take an angle, not a rotation:**
+     1.21.8's commands take `AngleArgument` (a single yaw, default 0.0F,
+     relative to the source's yaw, wrapped via `Mth.wrapDegrees`);
+     1.21.9's take `RotationArgument` (yaw + pitch) with `RespawnData`.
+     The trees now use `ArgType::Angle` (arg `angle`); both handlers read
+     `Arg::Angle` and resolve against the source yaw. The spawnpoint
+     success drops the pitch (x, y, z, angle, dim, name|count);
+     setworldspawn's drops the pitch and the dimension (x, y, z, angle).
+     The `RespawnConfig` already stored yaw only.
+  2. **`/setworldspawn` fails outside the Overworld:** 1.21.8 returns 0
+     with `commands.setworldspawn.failure.not_overworld` when the source
+     level isn't the Overworld and stores via `setDefaultSpawnPos(pos,
+     angle)`; 1.21.9 sets the spawn in any dimension. The command now
+     gates on `Dim::Overworld` and stores `[angle, 0.0]` (the `[f32; 2]`
+     shape is kept — the save already wrote only `[0]` as `SpawnAngle`).
+     The join snap in `lan.rs` now sets pitch 0.0 outright, and the lan
+     test is rewritten for the angle form (the pitch-clamp case is gone).
+  3. **`/worldborder` edits the Overworld border from any dimension:**
+     1.21.8's `WorldBorderCommand` uses `server.overworld().getWorldBorder()`
+     in every subcommand; 1.21.9 uses the source level's border. All reads
+     go through `overworld_border()` and all edits through a new
+     `edit_overworld_border` helper (writes where the Overworld border
+     lives — live, parked, or level.dat's — re-derives the active level's
+     view, mirrors into the parked Nether/End borders); the old
+     `mirror_border_to_other_levels` (Overworld-only tail) is folded into
+     it. `getLerpTime` citation reworded to `getLerpRemainingTime`.
+  4. **`/fetchprofile` removed (1.21.9-only):** the tree, the dispatch arm,
+     `cmd_fetchprofile`, the `ProfileFetch` queue + tick + pending check,
+     `report_resolved_profile`, `encode_profile` + its tests, the four
+     `commands.fetchprofile.*` quiet keys, and the harness's profile-fetch
+     wait. The `skin_profiles` resolver itself stays (used by skins).
+  5. **Selector rotation predicate wraps in double:** 1.21.8's
+     `createRotationPredicate` uses `WrappedMinMaxBounds` +
+     `Mth.wrapDegrees(double)`; 1.21.9's uses `MinMaxBounds$FloatDegrees`
+     + float wrap. `rotation_in` now wraps in f64 (the bounds still parse
+     as floats, widened exactly). `read_float_bounds` citation reworded
+     to `WrappedMinMaxBounds.fromReader`.
+  Verified no-change: `/summon` peaceful failure (item 17);
+  `LocalCoordinates` record vs class (the Rust's `Coordinates` derives
+  `PartialEq` — same value equality); selector distance/level defaults
+  (Option-None is ANY; the level predicate fails non-players in both);
+  `ListPlayersCommand` getId (API only); `CommandSourceStack`
+  isOp/withEntity (Rust-internal op checks; players have no custom names
+  in the Rust, so getPlainTextName == getName); Commands debug gates (no
+  ChaseCommand/verbose-errors in the Rust; `/raid` behind the Rust's own
+  dev flag); `Level.hasEntities`/`getEntityInAnyDimension` (1.21.9-only,
+  unmodelled — item 26); `tickBlockEntities`/`PalettedContainerFactory`
+  (internal/unmodelled); AbstractMinecartContainer (isClientSide rename).
+  Known gaps (pre-existing vs both versions, not fixed): the shared-spawn
+  border adjustment (vanilla moves a respawn outside the border to the
+  border-centre heightmap position in both versions; the Rust returns the
+  stored spawn); `/worldborder add` drops the remaining lerp time
+  (vanilla adds `getLerpRemainingTime() + time`).
 
 - **Item 25 — `mobs/body_anim.rs` (15 classes, 40 methods, 11 named in Horizon):**
   Armadillo/Bat/Bee/Fox/Frog/Goat/Llama/Parrot/PolarBear/Rabbit/SnowGolem/

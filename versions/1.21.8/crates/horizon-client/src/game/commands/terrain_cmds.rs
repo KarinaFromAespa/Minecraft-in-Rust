@@ -402,6 +402,11 @@ impl Game<'_> {
         }
     }
     pub(super) fn cmd_worldborder(&mut self, id: &str, ctx: &Context) -> R<i32> {
+        // `WorldBorderCommand` edits `server.overworld().getWorldBorder()` in
+        // every subcommand in 1.21.8 — from any dimension. (1.21.9 edits the
+        // source level's border.) Reads go through `overworld_border()` and
+        // writes through `edit_overworld_border`, which re-derives the active
+        // level's view and mirrors into the parked Nether/End borders.
         let float2 = |v: f64| super::percent_f(v, 2);
         let double = match ctx.get("distance") {
             Some(Arg::Double(d)) => *d,
@@ -413,7 +418,7 @@ impl Game<'_> {
         };
         let out = match id {
             "worldborder.get" => {
-                let size = self.border.size();
+                let size = self.overworld_border().size();
                 self.feedback(Text::translate(
                     "commands.worldborder.get",
                     &[Text::literal(super::percent_f(size, 0))],
@@ -421,7 +426,7 @@ impl Game<'_> {
                 Ok((size + 0.5).floor() as i32)
             }
             "worldborder.set" | "worldborder.add" => {
-                let current = self.border.size();
+                let current = self.overworld_border().size();
                 let distance = if id == "worldborder.add" {
                     current + double
                 } else {
@@ -441,7 +446,7 @@ impl Game<'_> {
                 }
                 let shown = Text::literal(super::percent_f(distance, 1));
                 if time > 0 {
-                    self.border.lerp_to(distance, time);
+                    self.edit_overworld_border(|b| b.lerp_to(distance, time));
                     let key = if distance > current {
                         "commands.worldborder.set.grow"
                     } else {
@@ -452,7 +457,7 @@ impl Game<'_> {
                         &[shown, Text::literal(ticks_to_seconds(time))],
                     ));
                 } else {
-                    self.border.set_size(distance);
+                    self.edit_overworld_border(|b| b.set_size(distance));
                     self.feedback(Text::translate(
                         "commands.worldborder.set.immediate",
                         &[shown],
@@ -466,7 +471,7 @@ impl Game<'_> {
                     .position_arg(ctx, "pos")
                     .unwrap_or_else(|| self.source_position());
                 let (x, z) = (p[0], p[2]);
-                if self.border.center() == [x, z] {
+                if self.overworld_border().center() == [x, z] {
                     return Err(err("commands.worldborder.center.failed", &[]));
                 }
                 if x.abs() > 2.999_998_4e7 || z.abs() > 2.999_998_4e7 {
@@ -475,7 +480,7 @@ impl Game<'_> {
                         &[&"2.9999984E7"],
                     ));
                 }
-                self.border.set_center([x, z]);
+                self.edit_overworld_border(|b| b.set_center([x, z]));
                 self.native_world_border_center_changed();
                 self.feedback(Text::translate(
                     "commands.worldborder.center.success",
@@ -489,12 +494,12 @@ impl Game<'_> {
                     Some(Arg::Float(v)) => f64::from(*v),
                     _ => 0.0,
                 };
-                let slot = if amount {
-                    &mut self.border.damage_per_block
+                let current = if amount {
+                    self.overworld_border().damage_per_block
                 } else {
-                    &mut self.border.safe_zone
+                    self.overworld_border().safe_zone
                 };
-                if *slot == value {
+                if current == value {
                     return Err(err(
                         if amount {
                             "commands.worldborder.damage.amount.failed"
@@ -504,7 +509,13 @@ impl Game<'_> {
                         &[],
                     ));
                 }
-                *slot = value;
+                self.edit_overworld_border(|b| {
+                    if amount {
+                        b.damage_per_block = value;
+                    } else {
+                        b.safe_zone = value;
+                    }
+                });
                 self.feedback(Text::translate(
                     if amount {
                         "commands.worldborder.damage.amount.success"
@@ -520,10 +531,10 @@ impl Game<'_> {
                     Some(Arg::Int(v)) => *v,
                     _ => 0,
                 };
-                if self.border.warning_distance == d {
+                if self.overworld_border().warning_distance == d {
                     return Err(err("commands.worldborder.warning.distance.failed", &[]));
                 }
-                self.border.warning_distance = d;
+                self.edit_overworld_border(|b| b.warning_distance = d);
                 self.feedback(Text::translate(
                     "commands.worldborder.warning.distance.success",
                     &[num(d)],
@@ -535,10 +546,10 @@ impl Game<'_> {
                     Some(Arg::Int(v)) => *v,
                     _ => 0,
                 };
-                if self.border.warning_time == ticks {
+                if self.overworld_border().warning_time == ticks {
                     return Err(err("commands.worldborder.warning.time.failed", &[]));
                 }
-                self.border.warning_time = ticks;
+                self.edit_overworld_border(|b| b.warning_time = ticks);
                 self.feedback(Text::translate(
                     "commands.worldborder.warning.time.success",
                     &[Text::literal(ticks_to_seconds(i64::from(ticks)))],
@@ -546,12 +557,6 @@ impl Game<'_> {
                 Ok(ticks)
             }
         };
-        // A successful edit in the Overworld mirrors into the other
-        // levels' borders (`Level$1`); a read or a Nether/End edit does
-        // not (`mirror_border_to_other_levels` checks the dimension).
-        if out.is_ok() && id != "worldborder.get" {
-            self.mirror_border_to_other_levels();
-        }
         out
     }
 

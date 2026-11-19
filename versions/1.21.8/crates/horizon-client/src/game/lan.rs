@@ -1199,7 +1199,7 @@ impl Game<'_> {
             })
     }
 
-    /// MinecraftServer.setRespawnData: every placed player hears a changed world spawn.
+    /// `ServerLevel.setDefaultSpawnPos`: every placed player hears a changed world spawn.
     pub(super) fn lan_broadcast_world_spawn(&self) {
         if let Some(host) = &self.lan {
             for guest in host.hub.guests.iter().filter(|guest| guest.placed) {
@@ -2909,12 +2909,8 @@ impl Game<'_> {
             g.previous_position = feet;
             // PlayerList.placeNewPlayer snaps the newcomer to the shared
             // spawn's angle, pitch 0 — the world's `SpawnAngle` (a yaw
-            // alone in 1.21.8; the stored pitch is the setworldspawn
-            // command's, item 22's).
-            (g.yaw, g.pitch) = (
-                self.level.world_spawn_angle[0],
-                self.level.world_spawn_angle[1],
-            );
+            // alone in 1.21.8; `setworldspawn` stores no pitch).
+            (g.yaw, g.pitch) = (self.level.world_spawn_angle[0], 0.0);
             g.head_yaw = g.yaw;
             g.health = 20.0;
             g.food = 20;
@@ -4363,50 +4359,37 @@ mod world_spawn_sync_tests {
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2]
         );
         game.lan.as_mut().unwrap().hub.compass_targets.clear();
-        // Rotation alone is a changed RespawnData, even at the same block.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
+        // An angle alone is a changed spawn, even at the same block.
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
         assert_eq!(sent[0].pos, [-7, 90, 12]);
-        // 1.21.8's spawn packet carries yaw only; the pitch is stored but
-        // not sent.
+        // 1.21.8's spawn packet carries yaw only.
         assert_eq!(sent[0].yaw, 45.0);
         println!(
             "world-spawn\tangle\t{}\t{}\t{}\t{:.1}",
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45")));
         assert!(spawns(&rx).is_empty());
-        // RespawnData.of wraps yaw and clamps pitch before storing or comparing.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405 100")));
+        // `AngleArgument.getAngle` wraps the yaw before storing or comparing;
+        // there is no pitch to clamp in 1.21.8.
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
-        assert_eq!(game.level.world_spawn_angle, [45.0, 90.0]);
+        assert_eq!(game.level.world_spawn_angle, [45.0, 0.0]);
         assert_eq!(sent[0].yaw, 45.0);
         println!(
             "world-spawn\tnormalized\t{}\t{}\t{}\t{:.1}",
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
-        for command in [
-            "setworldspawn -7 90 12 45 90",
-            "setworldspawn -7 90 12 405 100",
-        ] {
+        for command in ["setworldspawn -7 90 12 45", "setworldspawn -7 90 12 405"] {
             game.as_console(|game| assert!(game.run_command(command)));
             assert!(
                 spawns(&rx).is_empty(),
-                "equivalent normalized rotations are unchanged"
+                "equivalent normalized angles are unchanged"
             );
         }
-        // Clamp raw pitch: wrapping -270 first would incorrectly produce +90.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405 -270")));
-        let sent = spawns(&rx);
-        assert_eq!(sent.len(), 1);
-        assert_eq!(game.level.world_spawn_angle, [45.0, -90.0]);
-        assert_eq!(sent[0].yaw, 45.0);
-        println!(
-            "world-spawn\tclamped\t{}\t{}\t{}\t{:.1}",
-            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
-        );
     }
 
     #[test]

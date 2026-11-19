@@ -184,15 +184,30 @@ fn format_double(v: f64) -> String {
 /// `EntitySelectorParser.createRotationPredicate`: the wrapped angle lies in
 /// the wrapped range, which runs through 180 when its minimum is above its
 /// maximum (defaults 0 and 359).
+/// `EntitySelectorParser.createRotationPredicate`: 1.21.8 wraps the bounds
+/// and the angle in double (`WrappedMinMaxBounds` + `Mth.wrapDegrees(double)`,
+/// the bounds parsed as floats and widened); 1.21.9 wraps in float
+/// (`MinMaxBounds$FloatDegrees`).
 fn rotation_in((lo, hi): (Option<f64>, Option<f64>), angle: f32) -> bool {
-    let min = wrap_degrees(lo.unwrap_or(0.0) as f32);
-    let max = wrap_degrees(hi.unwrap_or(359.0) as f32);
-    let angle = wrap_degrees(angle);
+    let min = wrap_degrees_f64(lo.unwrap_or(0.0));
+    let max = wrap_degrees_f64(hi.unwrap_or(359.0));
+    let angle = wrap_degrees_f64(f64::from(angle));
     if min > max {
         angle >= min || angle <= max
     } else {
         angle >= min && angle <= max
     }
+}
+/// `Mth.wrapDegrees(double)`.
+fn wrap_degrees_f64(degrees: f64) -> f64 {
+    let mut d = degrees % 360.0;
+    if d >= 180.0 {
+        d -= 360.0;
+    }
+    if d < -180.0 {
+        d += 360.0;
+    }
+    d
 }
 /// `Mth.wrapDegrees`.
 fn wrap_degrees(angle: f32) -> f32 {
@@ -1269,7 +1284,6 @@ impl Game<'_> {
             "save-all" => self.cmd_save_all(),
             "save-off" | "save-on" => self.cmd_auto_save(id == "save-on"),
             "transfer" => self.cmd_transfer(ctx),
-            "fetchprofile" => self.cmd_fetchprofile(ctx),
             "publish" => self.cmd_publish(ctx),
             "unpublish" => self.cmd_unpublish(),
             "debug" => self.cmd_debug(ctx),
@@ -3805,12 +3819,15 @@ impl Game<'_> {
                 p[2].floor() as i32,
             ]
         };
-        let rot = match ctx.get("rotation") {
-            Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
-            _ => [0.0, 0.0],
+        // `AngleArgument.getAngle`: a single yaw, relative to the source's yaw,
+        // wrapped to (-180, 180]; 1.21.9's rotation (yaw + pitch) came with
+        // `RespawnData` and is not in 1.21.8.
+        let yaw = match ctx.get("angle") {
+            Some(Arg::Angle(c)) => {
+                wrap_degrees(c.get(f64::from(self.source_rotation()[0])) as f32)
+            }
+            _ => 0.0,
         };
-        let yaw = ((rot[0] + 180.0).rem_euclid(360.0)) - 180.0;
-        let pitch = rot[1].clamp(-90.0, 90.0);
         // SetSpawnCommand: a forced point in the source's level, for each target.
         let level = self.dim;
         for &t in &targets {
@@ -3840,12 +3857,13 @@ impl Game<'_> {
         }
         let dim = Text::literal(self.dim.id());
         let p = pos.map(|v| Text::literal(v.to_string()));
+        // 1.21.8's success carries (x, y, z, angle, dimension, name|count);
+        // the pitch is a 1.21.9 `RespawnData` addition.
         let mut args = vec![
             p[0].clone(),
             p[1].clone(),
             p[2].clone(),
             Text::literal(java_float(f64::from(yaw))),
-            Text::literal(java_float(f64::from(pitch))),
             dim,
         ];
         let key = if targets.len() == 1 {
@@ -3859,6 +3877,12 @@ impl Game<'_> {
         Ok(targets.len() as i32)
     }
     fn cmd_setworldspawn(&mut self, ctx: &Context) -> R<i32> {
+        // SetWorldSpawnCommand: the world spawn is the Overworld's; in any
+        // other dimension the command fails (1.21.9 sets the spawn in the
+        // source's level instead, via `RespawnData`).
+        if self.dim != Dim::Overworld {
+            return Err(err("commands.setworldspawn.failure.not_overworld", &[]));
+        }
         let pos = if ctx.get("pos").is_some() {
             self.block_pos_arg(ctx, "pos")?
         } else {
@@ -3869,13 +3893,19 @@ impl Game<'_> {
                 p[2].floor() as i32,
             ]
         };
-        let rot = match ctx.get("rotation") {
-            Some(Arg::Coords(c)) => c.rotation(self.source_rotation()),
-            _ => [0.0, 0.0],
+        // `AngleArgument.getAngle`: a single yaw, relative to the source's
+        // yaw, wrapped to (-180, 180]. The stored angle keeps its `[f32; 2]`
+        // shape (the pitch is always 0.0 in 1.21.8); the save writes only
+        // `[0]` as `SpawnAngle`.
+        let yaw = match ctx.get("angle") {
+            Some(Arg::Angle(c)) => {
+                wrap_degrees(c.get(f64::from(self.source_rotation()[0])) as f32)
+            }
+            _ => 0.0,
         };
-        // SetWorldSpawnCommand uses RespawnData.of before storing or comparing.
-        let rot = [wrap_degrees(rot[0]), rot[1].clamp(-90.0, 90.0)];
-        // LevelData.setRespawnData: the world's spawn (level.dat `spawn`).
+        let rot = [yaw, 0.0];
+        // `ServerLevel.setDefaultSpawnPos`: the world's spawn (level.dat
+        // `SpawnX/Y/Z` + `SpawnAngle`), broadcast on change.
         let previous_point = self.world_spawn_position().map(|v| v.floor() as i32);
         let old = self.level.world_spawn.replace(pos);
         let old_angle = self.level.world_spawn_angle;
@@ -3895,13 +3925,13 @@ impl Game<'_> {
                 f64::from(pos[2]) + 0.5,
             ));
         }
+        // 1.21.8's success carries (x, y, z, angle) only; the pitch and the
+        // dimension are 1.21.9 `RespawnData` additions.
         let args = [
             Text::literal(pos[0].to_string()),
             Text::literal(pos[1].to_string()),
             Text::literal(pos[2].to_string()),
             Text::literal(java_float(f64::from(rot[0]))),
-            Text::literal(java_float(f64::from(rot[1]))),
-            Text::literal(self.dim.id()),
         ];
         self.feedback(Text::translate("commands.setworldspawn.success", &args));
         Ok(1)

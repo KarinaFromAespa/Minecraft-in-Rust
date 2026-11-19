@@ -1,21 +1,18 @@
 //! Commands that act on the player and the hosted game rather than the world:
 //! `/spectate` (SpectateCommand), `/waypoint` (WaypointCommand), `/dialog`
 //! (DialogCommand), `/posteffect` (PostEffectCommand), `/kick`,
-//! `/fetchprofile`, `/publish`, `/unpublish`, `/debug`, `/jfr` and
+//! `/publish`, `/unpublish`, `/debug`, `/jfr` and
 //! `/version`, with vanilla's feedback and failures.
 use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::actions::Action;
 use horizon_client::{
     command::CommandError,
-    skins::{NameOrId, Resolve, ResolvedProfile},
-    snbt,
-    text::{self, ClickEvent, InlineObject, Style, Text},
+    text::{self, Style, Text},
 };
 use horizon_protocol::packets::{
     Empty,
     play::{self, Clientbound as C, DialogHolder},
 };
-use horizon_world::nbt::Tag;
 use std::{collections::HashMap, time::Instant};
 
 /// Waypoint.Icon: the locator bar style and colour of a transmitter.
@@ -33,84 +30,6 @@ impl Default for WaypointIcon {
     }
 }
 
-/// A `/fetchprofile` lookup in flight: what it resolves, the message ids it
-/// answers with (`commands.fetchprofile.<kind>.success|failure`), the
-/// argument they show, and the source to answer.
-pub(in crate::game) struct ProfileFetch {
-    key: NameOrId,
-    kind: &'static str,
-    argument: Text,
-    source: Option<super::execute::Source>,
-}
-
-/// `ResolvableProfile.CODEC` of a resolved profile as NBT (`id` as an int
-/// array, `name`, and `properties` only when there are some, each with its
-/// `signature` only when signed), and the same as the JSON a head object
-/// draws from.
-fn encode_profile(profile: &ResolvedProfile) -> (Tag, serde_json::Value) {
-    let ints = [
-        (profile.id >> 96) as i32,
-        (profile.id >> 64) as i32,
-        (profile.id >> 32) as i32,
-        profile.id as i32,
-    ];
-    let mut fields = vec![
-        ("id", Tag::IntArray(ints.to_vec())),
-        ("name", Tag::String(profile.name.as_str().into())),
-    ];
-    let mut json = serde_json::json!({ "id": ints, "name": profile.name });
-    if !profile.properties.is_empty() {
-        let mut list = Vec::new();
-        let mut json_list = Vec::new();
-        for (name, value, signature) in &profile.properties {
-            let mut entry = vec![
-                ("name", Tag::String(name.as_str().into())),
-                ("value", Tag::String(value.as_str().into())),
-            ];
-            let mut j = serde_json::json!({ "name": name, "value": value });
-            if let Some(signature) = signature {
-                entry.push(("signature", Tag::String(signature.as_str().into())));
-                j["signature"] = signature.clone().into();
-            }
-            list.push(Tag::compound(entry));
-            json_list.push(j);
-        }
-        fields.push(("properties", Tag::List(list)));
-        json["properties"] = json_list.into();
-    }
-    (Tag::compound(fields), json)
-}
-#[cfg(test)]
-mod fetchprofile_tests {
-    use super::*;
-    #[test]
-    fn unsigned_profile_without_properties_omits_them() {
-        let profile = ResolvedProfile {
-            id: 0x0000_0001_0000_0002_0000_0003_0000_0004,
-            name: "Steve".into(),
-            properties: Vec::new(),
-        };
-        let (tag, json) = encode_profile(&profile);
-        assert_eq!(snbt::to_snbt(&tag), "{id:[I;1,2,3,4],name:\"Steve\"}");
-        assert!(json.get("properties").is_none());
-    }
-    #[test]
-    fn properties_keep_the_signature_only_when_signed() {
-        let profile = ResolvedProfile {
-            id: 1,
-            name: "Alex".into(),
-            properties: vec![
-                ("textures".into(), "v".into(), Some("s".into())),
-                ("other".into(), "w".into(), None),
-            ],
-        };
-        let (tag, _) = encode_profile(&profile);
-        assert_eq!(
-            snbt::to_snbt(&tag),
-            "{id:[I;0,0,0,1],name:\"Alex\",properties:[{name:\"textures\",signature:\"s\",value:\"v\"},{name:\"other\",value:\"w\"}]}"
-        );
-    }
-}
 /// Server-side player and server state these commands keep.
 #[derive(Default)]
 pub(in crate::game) struct CommandExtras {
@@ -129,8 +48,6 @@ pub(in crate::game) struct CommandExtras {
     pub profiler: Option<(Instant, u64)>,
     /// `debugCommandProfilerDelayStart`: the profiler starts with the next tick.
     pub profiler_delay: bool,
-    /// `/fetchprofile name|id` lookups still running.
-    pub profile_fetches: Vec<ProfileFetch>,
     /// The `/jfr start` recording: when it started and the tick count then.
     pub jfr: Option<(Instant, u64, String)>,
     /// Waypoint icons changed by `/waypoint modify`.
@@ -279,7 +196,6 @@ impl Game<'_> {
             self.cmds.profiler_delay = false;
             self.cmds.profiler = Some((Instant::now(), self.ticks));
         }
-        self.tick_profile_fetches();
         self.tick_camera();
         self.tick_waypoints();
     }
@@ -783,157 +699,6 @@ impl Game<'_> {
             return Err(err("commands.kick.owner.failed", &[]));
         }
         Ok(count)
-    }
-
-    // ---- /fetchprofile --------------------------------------------------
-
-    /// `FetchProfileCommand.resolveName` and `resolveId`: the lookup runs on
-    /// background threads (`Util.nonCriticalIoPool`, here the cached profile
-    /// resolver's), and the answer is reported by a later tick;
-    /// `printForEntity` reports the player's own profile at once.
-    pub(super) fn cmd_fetchprofile(&mut self, ctx: &Context) -> R<i32> {
-        if ctx.literals.iter().any(|l| l == "name") {
-            let name = match ctx.get("name") {
-                Some(Arg::Str(s)) => s.clone(),
-                _ => String::new(),
-            };
-            self.cmds.profile_fetches.push(ProfileFetch {
-                key: NameOrId::Name(name.clone()),
-                kind: "name",
-                argument: Text::literal(name),
-                source: self.command_source,
-            });
-            return Ok(1);
-        }
-        if ctx.literals.iter().any(|l| l == "id") {
-            let id = match ctx.get("id") {
-                Some(Arg::Str(s)) => horizon_client::command::selector::java_uuid(s),
-                _ => None,
-            }
-            .unwrap_or_default();
-            // `Component.translationArg(id)`: the UUID's string form.
-            self.cmds.profile_fetches.push(ProfileFetch {
-                key: NameOrId::Id(id),
-                kind: "id",
-                argument: Text::literal(horizon_protocol::crypto::uuid_string(id)),
-                source: self.command_source,
-            });
-            return Ok(1);
-        }
-        let t = self.one_entity(ctx, "entity", false)?;
-        if t != Target::Player {
-            return Err(tr_error(
-                "commands.fetchprofile.no_profile",
-                &[self.target_name(t)],
-            ));
-        }
-        // The player in place: a guest's own profile while their command runs.
-        let id = horizon_client::lan::playerdata::ints_uuid(self.acting_uuid());
-        let name = self.acting_player_name().to_owned();
-        self.report_resolved_profile(
-            "commands.fetchprofile.entity.success",
-            Text::literal(&name),
-            &ResolvedProfile {
-                id,
-                name,
-                properties: Vec::new(),
-            },
-        );
-        Ok(1)
-    }
-    /// The answers of the profile lookups that have come in
-    /// (`server.execute(() -> result.ifPresentOrElse(...))`).
-    /// Whether a `/fetchprofile` lookup is still in flight (the command
-    /// harness waits for them, as vanilla's oracle resolves at once).
-    pub(in crate::game) fn profile_fetches_pending(&mut self) -> bool {
-        let mut resolver = self.skin_profiles.borrow_mut();
-        self.cmds
-            .profile_fetches
-            .iter()
-            .any(|f| matches!(resolver.state(&f.key), Resolve::Pending))
-    }
-    fn tick_profile_fetches(&mut self) {
-        let fetches = std::mem::take(&mut self.cmds.profile_fetches);
-        for fetch in fetches {
-            let state = self.skin_profiles.borrow_mut().state(&fetch.key);
-            match state {
-                Resolve::Pending => self.cmds.profile_fetches.push(fetch),
-                Resolve::Done(result) => {
-                    let outer = std::mem::replace(&mut self.command_source, fetch.source);
-                    match result {
-                        Some(profile) => self.report_resolved_profile(
-                            &format!("commands.fetchprofile.{}.success", fetch.kind),
-                            fetch.argument,
-                            &profile,
-                        ),
-                        None => self.command_failure(Text::translate(
-                            &format!("commands.fetchprofile.{}.failure", fetch.kind),
-                            &[fetch.argument],
-                        )),
-                    }
-                    self.command_source = outer;
-                }
-            }
-        }
-    }
-    /// `FetchProfileCommand.reportResolvedProfile`: the profile as
-    /// `ResolvableProfile.CODEC` encodes it (`id`, `name`, and `properties`
-    /// only when there are some), four clickable actions and the head object,
-    /// sent with `sendSuccess(..., false)`.
-    fn report_resolved_profile(
-        &mut self,
-        message_id: &str,
-        argument: Text,
-        profile: &ResolvedProfile,
-    ) {
-        let (profile_tag, json) = encode_profile(profile);
-        let encoded_profile = snbt::to_snbt(&profile_tag);
-        // `Component.object(new PlayerSprite(profile, true))`, encoded: `hat`
-        // is left out at its default.
-        let encoded_component = snbt::to_snbt(&Tag::compound([("player", profile_tag)]));
-        let mut head = Text::literal("\u{FFFC}");
-        head.spans[0].style.inline_object = Some(InlineObject::Player {
-            profile: json,
-            hat: true,
-            fallback: format!("[{} head]", profile.name),
-        });
-        let item = |key: &str, args: &[Text], click: ClickEvent| {
-            let inner = Text::translate(key, args)
-                .with_color(text::GREEN)
-                .with_style(&Style {
-                    click: Some(click),
-                    ..Style::default()
-                });
-            Text::translate("chat.square_brackets", &[inner])
-        };
-        let mut clickable = item(
-            "commands.fetchprofile.copy_component",
-            &[],
-            ClickEvent::CopyToClipboard(encoded_profile.clone()),
-        );
-        clickable.push(" ");
-        clickable.push(item(
-            "commands.fetchprofile.give_item",
-            &[],
-            ClickEvent::RunCommand(format!(
-                "give @s minecraft:player_head[profile={encoded_profile}]"
-            )),
-        ));
-        clickable.push(" ");
-        clickable.push(item(
-            "commands.fetchprofile.summon_mannequin",
-            &[],
-            ClickEvent::RunCommand(format!(
-                "summon minecraft:mannequin ~ ~ ~ {{profile:{encoded_profile}}}"
-            )),
-        ));
-        clickable.push(" ");
-        clickable.push(item(
-            "commands.fetchprofile.copy_text",
-            &[head.with_color(text::WHITE)],
-            ClickEvent::CopyToClipboard(encoded_component),
-        ));
-        self.feedback_unbroadcast(Text::translate(message_id, &[argument, clickable]));
     }
 
     // ---- /publish, /unpublish -------------------------------------------

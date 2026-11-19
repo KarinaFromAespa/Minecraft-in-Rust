@@ -137,15 +137,43 @@ impl Game<'_> {
         }
         self.level.border = self.overworld_border().clone();
     }
-    /// The Overworld border's listener (`Level$1`): an Overworld edit
-    /// mirrors into the other levels' borders (their centres scaled).
-    /// Parked levels take the mirrored border; a Nether/End edit never
-    /// mirrors back, so only an Overworld edit calls this.
-    pub(super) fn mirror_border_to_other_levels(&mut self) {
-        if self.dim != super::Dim::Overworld {
+    /// Run `f` on the Overworld's border, wherever it lives: `WorldBorderCommand`
+    /// edits `server.overworld().getWorldBorder()` from any dimension in
+    /// 1.21.8 (1.21.9 edits the source level's border). The edit then
+    /// re-derives the active level's view and mirrors into the parked
+    /// Nether/End borders — vanilla's `Level$1` delegates are live, so a
+    /// Nether/End border tracks the Overworld's at once.
+    pub(super) fn edit_overworld_border(
+        &mut self,
+        f: impl FnOnce(&mut horizon_client::worldborder::WorldBorder),
+    ) {
+        if self.dim == super::Dim::Overworld {
+            f(&mut self.border);
+            let overworld = self.border.clone();
+            self.mirror_overworld_border(&overworld);
             return;
         }
-        let overworld = self.border.clone();
+        let mut overworld = self.overworld_border().clone();
+        f(&mut overworld);
+        // The active level's view re-derives from the edited border, and
+        // the edited border goes back where the Overworld border lives.
+        self.border = self.load_border(self.dim, &overworld);
+        if self.levels.parked_border(super::Dim::Overworld).is_some() {
+            self.levels
+                .set_parked_border(super::Dim::Overworld, overworld.clone());
+        } else {
+            self.level.border = overworld.clone();
+        }
+        self.mirror_overworld_border(&overworld);
+    }
+    /// The Overworld border's listener (`Level$1`): mirror an Overworld edit
+    /// into the parked Nether/End borders (their centres scaled). A parked
+    /// level takes the mirrored border; the level in place re-derives its
+    /// view from the Overworld border instead.
+    fn mirror_overworld_border(
+        &mut self,
+        overworld: &horizon_client::worldborder::WorldBorder,
+    ) {
         for dim in [super::Dim::Nether, super::Dim::End] {
             let derived =
                 overworld.for_coordinate_scale(self.dimension_type_of(dim).coordinate_scale);
