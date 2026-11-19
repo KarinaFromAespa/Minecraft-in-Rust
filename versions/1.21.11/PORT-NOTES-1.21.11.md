@@ -2174,3 +2174,53 @@ Rank 2 (492 items, in progress 2026-11-19)
     change to the 1.0 clock-rate default).
   Rank 2 now 194/492 (31 changed, 163 no-change).
   work-items.json rank2.closed = 194 on 2026-11-19.
+- Item 16 (block_entity_render.rs), changed, ported 2026-11-19: 33 vanilla
+  classes changed (219 methods, 20 named), javap diff 8,286 lines,
+  verified by whole-diff constants / method-call comparisons plus
+  direct jar reads (SignRenderer, SkullModel, DragonHeadModel,
+  LightCoordsUtil, TheEndPortalBlockEntity, SignBlock subclasses).
+  Ported:
+  - Four texture-path moves, jar-verified in the 1.21.11 client jar
+    (10 sites): `entity/end_portal/end_portal` -> `entity/end_portal`,
+    `entity/beacon/beacon_beam` -> `entity/beacon_beam`,
+    `entity/end_portal/end_gateway_beam` -> `entity/end_gateway_beam`,
+    `entity/enchantment/enchanting_table_book` ->
+    `entity/enchanting_table_book`.
+  - Chest Christmas precedence: 1.21.11's `getChestMaterial` checks
+    xmas before copper (26.1 checked copper first), so copper chests
+    wear the christmas textures on 24-26 December and only ender
+    chests keep theirs. Both xmas sites now match the four copper
+    chest blocks (waxed variants are unwaxed by `classify` first).
+  - Comment-only: sign text cites `SignRenderer.translateSign` /
+    `HangingSignRenderer.translateBase` + `translateSignText` (the
+    unified `SignRenderer` replaces `StandingSignRenderer`); end
+    portal cites `getOffsetDown/getOffsetUp` and `renderCube`/
+    `renderFace`; lectern cites `bookState = new State(0, 0.1, 0.9,
+    1.2)`; `BookModel.State` cites the (animationPos, pageFlip1,
+    pageFlip2, open) record.
+  - Verified no-ports: sign transforms identical in every value
+    (2/3 scale, hanging text 0.9, offsets (0, 1/3, 0.046666667) /
+    (0, -0.32, 0.073), wall (0, -0.3125, -0.4375); rotation via
+    `convertToDegrees`/`toYRot()` in both versions) — only the
+    structure changed (precomputed `SignTransformations` ->
+    `translateSign`/`translateSignText`); end-portal caps identical
+    (0.375/0.75, `shouldRenderFace` Y-only in both, so the
+    full-height side faces in 1.21.11's `renderCube` are never drawn
+    for portals) and the winding preserved; book openness formula
+    moved into `setupAnim` with the same values (the Rust already
+    computes it); copper golem y-rot move is a no-op by the
+    Rz(PI) conjugation; skull rotation moved from the PoseStack into
+    the model state, identical by the (-1,-1,1) conjugation, and the
+    `entityCutoutNoCullZOffset` switch matches the Rust's already
+    two-sided entity pipeline; chest transform and lid easing
+    (`1-(1-open)^3`) identical; `BrightnessCombiner` is an exact
+    inline of `LightCoordsUtil.max`; conduit constants/calls
+    identical (only the `CondiutRenderState` typo rename); shulker
+    `prepareModel` repeats the 26.1 matrix sequence exactly; enchant
+    table and lectern book states carry the same four values;
+    `LayerDefinitions` only reorders plus the Adult/Baby model merge
+    (other items) and the moved, byte-identical `createSignLayer`;
+    font/glyph classes, `BellModel$State`, `TextFeatureRenderer` and
+    `DoubleBlockCombiner` are access/rename/overload noise.
+  Rank 2 now 195/492 (32 changed, 163 no-change).
+  work-items.json rank2.closed = 195 on 2026-11-19.

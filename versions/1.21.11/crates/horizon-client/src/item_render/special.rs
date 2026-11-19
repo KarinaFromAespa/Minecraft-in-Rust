@@ -450,7 +450,7 @@ pub(super) fn submit_book(
     let (Some(book), Some(r)) = (
         renderer.part("book"),
         sprites
-            .get("entity/enchantment/enchanting_table_book")
+            .get("entity/enchanting_table_book")
             .copied(),
     ) else {
         return;

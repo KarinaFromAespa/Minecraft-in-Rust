@@ -363,7 +363,7 @@ enum Kind {
     EndGateway {
         state: u32,
     },
-    /// Sign text (`StandingSignRenderer` / `HangingSignRenderer`); the boards are block models.
+    /// Sign text (`SignRenderer` / `HangingSignRenderer`); the boards are block models.
     Sign {
         hanging: bool,
         wall: bool,
@@ -2385,8 +2385,18 @@ impl BlockEntityRenderer {
                     let light = scene.world.light(other[0], other[1], other[2]);
                     *packed = (*packed >> 4).max(light >> 4) << 4 | (*packed & 15).max(light & 15);
                 }
-                let texture = if matches!(block.as_str(), "chest" | "trapped_chest")
-                    && extended_christmas()
+                // ChestRenderer.getChestMaterial checks xmas before copper in
+                // 1.21.11, so copper chests wear the christmas textures too;
+                // only ender chests keep theirs.
+                let texture = if matches!(
+                    block.as_str(),
+                    "chest"
+                        | "trapped_chest"
+                        | "copper_chest"
+                        | "exposed_copper_chest"
+                        | "weathered_copper_chest"
+                        | "oxidized_copper_chest"
+                ) && extended_christmas()
                 {
                     match part {
                         ChestPart::Single => "entity/chest/christmas",
@@ -2774,7 +2784,7 @@ impl BlockEntityRenderer {
                     }
                     let mut m = base;
                     if *hanging {
-                        // HangingSignRenderer.textTransformation.
+                        // HangingSignRenderer.translateBase + AbstractSignRenderer.translateSignText.
                         m *= Mat4::from_translation(Vec3::new(0.5, 0.9375, 0.5))
                             * Mat4::from_rotation_y((-angle).to_radians())
                             * Mat4::from_translation(Vec3::new(0.0, -0.3125, 0.0));
@@ -2784,7 +2794,7 @@ impl BlockEntityRenderer {
                         m *= Mat4::from_translation(Vec3::new(0.0, -0.32, 0.073))
                             * Mat4::from_scale(s * 0.014_062_5);
                     } else {
-                        // StandingSignRenderer.textTransformation.
+                        // SignRenderer.translateSign + AbstractSignRenderer.translateSignText.
                         m *= Mat4::from_translation(Vec3::splat(0.5))
                             * Mat4::from_rotation_y((-angle).to_radians());
                         if *wall {
@@ -2811,10 +2821,18 @@ impl BlockEntityRenderer {
                 y_rot,
                 ..
             } => {
-                // ChestRenderer.getChestMaterial: normal and trapped chests use the christmas
-                // sprites on 24-26 December. Copper and ender chests keep theirs.
-                let texture = if matches!(block.as_str(), "chest" | "trapped_chest")
-                    && extended_christmas()
+                // ChestRenderer.getChestMaterial: normal, trapped and copper chests use
+                // the christmas sprites on 24-26 December (1.21.11 checks xmas
+                // before copper). Only ender chests keep theirs.
+                let texture = if matches!(
+                    block.as_str(),
+                    "chest"
+                        | "trapped_chest"
+                        | "copper_chest"
+                        | "exposed_copper_chest"
+                        | "weathered_copper_chest"
+                        | "oxidized_copper_chest"
+                ) && extended_christmas()
                 {
                     match part {
                         ChestPart::Single => "entity/chest/christmas",
@@ -3099,8 +3117,8 @@ impl BlockEntityRenderer {
                 }
             }
             Kind::EndPortal => {
-                // TheEndPortalRenderer.TRANSFORMATION: y from 6/16 to 12/16; only the
-                // vertical faces (TheEndPortalBlockEntity.shouldRenderFace).
+                // AbstractEndPortalRenderer.getOffsetDown/getOffsetUp: y from 6/16 to
+                // 12/16; only the vertical faces (TheEndPortalBlockEntity.shouldRenderFace).
                 let m = base
                     * Mat4::from_translation(Vec3::new(0.0, 0.375, 0.0))
                     * Mat4::from_scale(Vec3::new(1.0, 0.375, 1.0));
@@ -3110,7 +3128,7 @@ impl BlockEntityRenderer {
                 let anim = (scene.anim)(pos);
                 let b = gateway_beam(anim.gateway, scene.partial, scene.max_y, scene.game_time);
                 if b.height > 0
-                    && let Some(s) = sprite("entity/end_portal/end_gateway_beam")
+                    && let Some(s) = sprite("entity/end_gateway_beam")
                 {
                     beam(
                         base,
@@ -3220,7 +3238,7 @@ impl BlockEntityRenderer {
                 shine(out);
             }
             Kind::EnchantingTable => {
-                let book = "entity/enchantment/enchanting_table_book";
+                let book = "entity/enchanting_table_book";
                 let (Some(model), Some(paint)) = (
                     shapes.models.get("book"),
                     paint(
@@ -3252,7 +3270,7 @@ impl BlockEntityRenderer {
                 } else {
                     "book"
                 };
-                let book = "entity/enchantment/enchanting_table_book";
+                let book = "entity/enchanting_table_book";
                 let (Some(model), Some(paint)) = (
                     shapes.models.get(key),
                     paint(shapes.texture(key, book, scene.sprites), 0xFFFFFF, packed),
@@ -3264,7 +3282,7 @@ impl BlockEntityRenderer {
                     * Mat4::from_rotation_y((-y_rot).to_radians())
                     * Mat4::from_rotation_z(67.5f32.to_radians())
                     * Mat4::from_translation(Vec3::new(0.0, -0.125, 0.0));
-                // LecternRenderer.BOOK_STATE = forAnimation(0, 0.1, 0.9, 1.2).
+                // LecternRenderer.bookState = new State(0, 0.1, 0.9, 1.2).
                 draw_part(
                     model,
                     "root",
@@ -3620,8 +3638,8 @@ pub fn gateway_beam(
 /// layers of `end_portal.png` over `end_sky.png`, End gateways 16.
 pub const END_PORTAL_LAYER: u32 = 9;
 pub const END_GATEWAY_LAYER: u32 = 10;
-/// `AbstractEndPortalRenderer.FACES`: the unit cube's corners for each face
-/// (`Direction` order) in `FaceInfo` vertex order.
+/// `AbstractEndPortalRenderer.renderCube`: the unit cube's corners for each face
+/// (`Direction` order) in `renderFace` vertex order.
 #[rustfmt::skip]
 const PORTAL_FACES: [[[f32; 3]; 4]; 6] = [
     [[0.0, 0.0, 1.0], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 1.0]],
@@ -3631,7 +3649,7 @@ const PORTAL_FACES: [[[f32; 3]; 4]; 6] = [
     [[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 1.0]],
     [[1.0, 1.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]],
 ];
-/// `AbstractEndPortalRenderer.submitCube`: position-only quads (the portal
+/// `AbstractEndPortalRenderer.renderCube`: position-only quads (the portal
 /// shader projects its textures from the screen; uv, colour and light are unused).
 /// `rendertype_end_portal` culls back faces, as `entitySolid` does, so the cube's
 /// two Y faces are one-sided: only the one facing the camera draws.
