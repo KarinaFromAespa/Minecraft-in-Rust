@@ -1653,5 +1653,37 @@ Rank 2 (492 items, in progress 2026-11-19)
     tick gates stay. `canCutCorner`'s FIRE_IN_NEIGHBOR /
     DAMAGING_IN_NEIGHBOR -> DANGER_FIRE / DANGER_OTHER renames were
     already ported in item 383.
-- Rank-2 A-batches 1-12: 120 items closed (23 changed, 97 no-change).
-  work-items.json rank2.closed = 120 on 2026-11-19.
+- A-batch 13 (428, 429, 430, 431, 432, 433, 434, 435, 436, 437),
+  verified 2026-11-19, ported the same day:
+  - 428 no-change (Mannequin): 26.1's `aiStep` override (super +
+    updateSwingTime) is gone in 1.21.11, and nothing in the 1.21.11
+    mannequin's tick chain calls updateSwingTime (verified: no
+    Mannequin/Avatar aiStep; `LivingEntity.aiStep`/`tick` never call
+    it; only `Player.aiStep` and `Monster.aiStep` do) — but nothing
+    in vanilla mechanics sets a mannequin swinging, so the Rust's
+    shared `tick_swing` is a no-op for them either way. Follow-up:
+    the Rust ticks swings for all mobs, vanilla 1.21.11 only for
+    players + monsters — a shared-tick divergence for the tick items.
+    `getProfile` public -> protected is Java-only.
+  - 429 no-change (PrimedTnt$1): `is(Object)` -> `is(Block)` x2.
+  - 430 CHANGED (ZombifiedPiglin): BABY_DIMENSIONS goes from 26.1's
+    own 0.49 x 0.99 / eye 0.78 to 1.21.11's ZOMBIFIED_PIGLIN 0.6 x
+    1.95 scaled 0.5, eye 0.97. Ported: the species table entry
+    `Baby::Abs(0.49, 0.98, 0.78)` -> `Baby::Abs(0.3, 0.975, 0.97)`.
+    The Piglin entry's identical values belong to the Piglin item.
+  - 431 no-change (Blaze): PathType renames, already ported in 383;
+    `setCharged` access flag.
+  - 432 no-change (ChestType, Property$Value): 26.1's ChestType
+    `CODEC` and Property$Value `valueName()` are gone in 1.21.11;
+    the Rust handles chest_type as a string and has no `value_name`.
+  - 433 no-change (WorldCarver): `is(Object)` -> `is(Block)` x6.
+  - 434 no-change (WorldPresets): typeSwitch descriptor is a javac
+    codegen difference, same 3-case switch; Bootstrap ctor flag.
+  - 435 no-change (ChunkMap$DistanceManager): the requireNonNull
+    outer-this pattern (26.1 only).
+  - 436 no-change (PoiSection): ctor access flag.
+  - 437 no-change (VibrationSystem): the ChunkPos rename pattern in
+    `areAdjacentChunksTicking` (same 3x3 loop); CODEC final ->
+    non-final plus access flags.
+- Rank-2 A-batches 1-13: 130 items closed (24 changed, 106 no-change).
+  work-items.json rank2.closed = 130 on 2026-11-19.
