@@ -445,6 +445,19 @@ fn dye(value: Option<&Tag>) -> i32 {
 }
 fn text_component(value: &Tag) -> Tag {
     match value {
+        // A pre-1.21.5 save keeps text components as JSON strings; the unflatten
+        // fix is keyed 4290, a 1.21.5 fix, so it does not run for this pin. The
+        // component is unflattened here, when it is built: the pin codec writes
+        // the tag verbatim, and a raw JSON string on the wire would read as
+        // literal text on the server.
+        Tag::String(s) => {
+            if let Some(parsed) = horizon_world::datafix::json::parse_lenient(&s.0)
+                && let Some(tag) = horizon_world::datafix::json::to_nbt(&parsed)
+            {
+                return text_component(&tag);
+            }
+            value.clone()
+        }
         Tag::Compound(map) if map.len() == 1 => {
             value.get("text").cloned().unwrap_or_else(|| value.clone())
         }
@@ -1538,18 +1551,18 @@ mod tests {
                 &[
                     (1, "minecraft:stone", "minecraft:stone"),
                     (134, "minecraft:oak_log", "minecraft:oak_log"),
-                    (307, "minecraft:decorated_pot", "minecraft:decorated_pot"),
-                    (319, "minecraft:chest", "minecraft:chest"),
-                    (552, "minecraft:shulker_box", "minecraft:shulker_box"),
-                    (842, "minecraft:arrow", "minecraft:arrow"),
-                    (845, "minecraft:diamond", "minecraft:diamond"),
-                    (878, "minecraft:diamond_sword", "minecraft:diamond_sword"),
+                    (301, "minecraft:decorated_pot", "minecraft:decorated_pot"),
+                    (313, "minecraft:chest", "minecraft:chest"),
+                    (545, "minecraft:shulker_box", "minecraft:shulker_box"),
+                    (833, "minecraft:arrow", "minecraft:arrow"),
+                    (836, "minecraft:diamond", "minecraft:diamond"),
+                    (869, "minecraft:diamond_sword", "minecraft:diamond_sword"),
                     (
                         880,
                         "minecraft:diamond_pickaxe",
                         "minecraft:diamond_pickaxe",
                     ),
-                    (888, "minecraft:stick", "minecraft:stick"),
+                    (879, "minecraft:stick", "minecraft:stick"),
                     (
                         897,
                         "minecraft:leather_chestplate",
@@ -1561,30 +1574,30 @@ mod tests {
                         "minecraft:diamond_chestplate",
                     ),
                     (954, "minecraft:brick", "minecraft:brick"),
-                    (972, "minecraft:compass", "minecraft:compass"),
-                    (974, "minecraft:bundle", "minecraft:bundle"),
-                    (1042, "minecraft:filled_map", "minecraft:filled_map"),
-                    (1059, "minecraft:potion", "minecraft:potion"),
-                    (1109, "minecraft:pig_spawn_egg", "minecraft:pig_spawn_egg"),
-                    (1152, "minecraft:writable_book", "minecraft:writable_book"),
-                    (1153, "minecraft:written_book", "minecraft:written_book"),
-                    (1167, "minecraft:player_head", "minecraft:player_head"),
+                    (961, "minecraft:compass", "minecraft:compass"),
+                    (963, "minecraft:bundle", "minecraft:bundle"),
+                    (1031, "minecraft:filled_map", "minecraft:filled_map"),
+                    (1048, "minecraft:potion", "minecraft:potion"),
+                    (1098, "minecraft:pig_spawn_egg", "minecraft:pig_spawn_egg"),
+                    (1141, "minecraft:writable_book", "minecraft:writable_book"),
+                    (1142, "minecraft:written_book", "minecraft:written_book"),
+                    (1156, "minecraft:player_head", "minecraft:player_head"),
                     (
                         1174,
                         "minecraft:firework_rocket",
                         "minecraft:firework_rocket",
                     ),
-                    (1175, "minecraft:firework_star", "minecraft:firework_star"),
-                    (1176, "minecraft:enchanted_book", "minecraft:enchanted_book"),
-                    (1196, "minecraft:white_banner", "minecraft:white_banner"),
-                    (1254, "minecraft:crossbow", "minecraft:crossbow"),
+                    (1164, "minecraft:firework_star", "minecraft:firework_star"),
+                    (1165, "minecraft:enchanted_book", "minecraft:enchanted_book"),
+                    (1185, "minecraft:white_banner", "minecraft:white_banner"),
+                    (1243, "minecraft:crossbow", "minecraft:crossbow"),
                     (
                         1255,
                         "minecraft:suspicious_stew",
                         "minecraft:suspicious_stew",
                     ),
-                    (1267, "minecraft:goat_horn", "minecraft:goat_horn"),
-                    (1287, "minecraft:beehive", "minecraft:beehive"),
+                    (1256, "minecraft:goat_horn", "minecraft:goat_horn"),
+                    (1276, "minecraft:beehive", "minecraft:beehive"),
                     (
                         1352,
                         "minecraft:angler_pottery_sherd",
@@ -1597,12 +1610,12 @@ mod tests {
                 &[
                     (1, "minecraft:stone", "minecraft:stone"),
                     (49, "minecraft:oak_log", "minecraft:oak_log"),
-                    (188, "minecraft:chest", "minecraft:chest"),
-                    (427, "minecraft:player_head", "minecraft:player_head"),
-                    (531, "minecraft:white_banner", "minecraft:white_banner"),
-                    (645, "minecraft:shulker_box", "minecraft:shulker_box"),
-                    (871, "minecraft:beehive", "minecraft:beehive"),
-                    (1091, "minecraft:decorated_pot", "minecraft:decorated_pot"),
+                    (185, "minecraft:chest", "minecraft:chest"),
+                    (423, "minecraft:player_head", "minecraft:player_head"),
+                    (527, "minecraft:white_banner", "minecraft:white_banner"),
+                    (641, "minecraft:shulker_box", "minecraft:shulker_box"),
+                    (865, "minecraft:beehive", "minecraft:beehive"),
+                    (1083, "minecraft:decorated_pot", "minecraft:decorated_pot"),
                 ],
             ),
             (
@@ -1710,7 +1723,7 @@ mod tests {
             ),
             (
                 "minecraft:item",
-                1223,
+                1212,
                 "minecraft:tipped_arrow",
                 "minecraft:tipped_arrow",
             ),
@@ -1875,7 +1888,7 @@ mod tests {
             "01fa06010a0900054974656d730a000000010800026964000f6d696e6563726166743a6772617373010005436f756e74020000",
         ));
         let Component::Stacks(items) =
-            &mut bundle.added.iter_mut().find(|(id, _)| *id == 41).unwrap().1
+            &mut bundle.added.iter_mut().find(|(id, _)| *id == 40).unwrap().1
         else {
             panic!("bundle")
         };
@@ -1918,7 +1931,7 @@ mod tests {
             Slot::read(&mut Reader::new(&old)).unwrap().unwrap()
         };
         assert!(cache.lock().unwrap().original(&stack).is_some());
-        let Component::Raw(data) = &mut stack.added.iter_mut().find(|(id, _)| *id == 49).unwrap().1
+        let Component::Raw(data) = &mut stack.added.iter_mut().find(|(id, _)| *id == 47).unwrap().1
         else {
             panic!("entity data")
         };
