@@ -334,7 +334,26 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 77/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94 + 4 zero-diff)
+### Rank 2: 78/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95 + 4 zero-diff)
+
+- **Item 95 — `crates/horizon-client/src/mobs/creaking.rs`
+  (2 classes, 10 methods, 3 named in Horizon),
+  zero-diff:** CreakingModel (setupAnim),
+  Creaking (aiStep, tick). Creaking.java differs
+  only by `isClientSide()` vs the field (3 sites)
+  plus the 1.21.8-only debug `sendDebugPackets`
+  (debug-only, unmodelled — as item 50's camel
+  and item 78's hoglin). CreakingModel differs
+  only by the eyes-layer mechanism: 1.21.9's
+  `createEyesLayer()` (a separate LayerDefinition
+  retaining only the head) vs 1.21.8's
+  `getHeadModelParts(state)` (NO_PARTS or the
+  head, by `eyesGlowing`) — the same visual
+  result, and the Rust models neither mechanism
+  (it pushes the `creaking#eyes` layer when
+  `eyes_glowing`, with no `createEyesLayer` /
+  `getHeadModelParts` citation). `setupAnim`
+  is identical in both versions.
 
 - **Item 94 — `crates/horizon-client/src/game/sign_edit.rs`
   (3 classes, 12 methods, 2 named in Horizon),
