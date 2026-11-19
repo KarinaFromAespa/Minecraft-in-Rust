@@ -252,8 +252,48 @@ was fixed by seeding a hash-verified copy.
 
 Pin set (protocol 773, world 4554); 2 of 6 tables regenerated, 4
 confirmed unchanged; no packet change; no adapter re-base needed;
-workspace compiles (0 errors, 0 warnings); protocol tests 438 pass /
-2 fail (sandbox-network pair only). Behaviour port complete 2026-11-19
-(27/27, Stream 3). Tag audit: 33 dead production tags (inherited
-26.3-isms, triage deferred to the 1.21.11 level). Harness profile: not
-measured locally; CI to measure. D6 deferred (owner).
+workspace compiles (0 errors, 0 warnings); protocol tests 440 pass /
+0 fail on CI (438/2 locally — the sandbox-network pair passes where
+there is network). Behaviour port complete 2026-11-19 (27/27, Stream
+3). Tag audit: 33 dead production tags (inherited 26.3-isms, triage
+deferred to the 1.21.11 level). Harness profile: CI run 44455152997
+(main@382fb55, success, ~1h20m): 2 pass / 2 oracle / 13 fail of 17
+(true oracle count 8 — see "CI proof" below). Verdict: failed (D1
+fail, D2 pass, D3 pass, D4/D5/D6 blocked). D6 deferred (owner).
+Metadata moved to pins/1.21.9/ with the record.
+
+## CI proof (run 44455152997, 2026-11-19)
+
+port-verify on main@382fb55, success in ~1h20m. Profile **2 pass /
+2 oracle / 13 fail** of 17 — identical to 1.21.7's. Passing:
+block_properties, lan. Classified oracle: chunk_generation,
+command_exec. The classifier undercounts as before: 6 more
+oracle-compile failures hide in the fail column (component_patch,
+datafix ×6 worlds, first_person, food, item_model, resource_pack —
+javac errors in the harness logs; options fails without a javac
+error on this version, unlike 1.21.7), so the true oracle count is
+**8** and the honest reading is 2 pass / 8 oracle / 7 real fail.
+Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.
+
+Verdict (recorded in pins/1.21.9/delta-verdict.json): **failed**.
+D1 fail — the tag audit finds the same 33 dead production tags
+locally predicted. D2 pass — cargo check 0 errors/0 warnings,
+protocol tests 440 with none failing. D3 pass — rank-1 3/3, rank-2
+20/20. D4 blocked — the profile stamp quirk (profile stamped
+382fb55, judge's staged candidate HEAD 564bd0f7; patch 0006 is dead
+code in the CI judge, as on 26.2 and 1.21.7); a local re-check
+against the recorded profile gives the substance verdict: FAIL,
+datafix + save_roundtrip both fail. D5 blocked — on the stamp quirk
+too (the E6 subset file WAS in the tree at dispatch, so D5 reached
+the stamp check); a local re-check with the subset now in the pin
+gives FAIL, 7 of 8 failing (only block_properties passes). D6
+blocked — no playtest.md; the playtest is deferred by the owner,
+never claimed.
+
+The bubble-column lib tests (`bubble` filter: 3 tests in
+arrows_client_tests and falling_block) could not be run locally:
+the first attempt OOM-killed the horizon-client test compile (6 GB
+VM, Stream 2 building concurrently), and the
+`--no-default-features` retry was SIGTERM'd at ~28 min by the
+runtime. cargo check --workspace --all-targets (0/0) type-checks
+the test targets, and the gate runs on CI's 16 GB runners.

@@ -1,0 +1,24 @@
+{
+  "behaviour": {
+    "closed": 27,
+    "total": 27,
+    "note": "Behaviour port complete 2026-11-19 (Stream 3): 27/27 closed. 4 code changes (7de0f6d): piston stuck multiplier, bubble-column gate removal (player + projectile), ItemFrame map-dependent bounds. All other items verified no-change against the decompiled 1.21.10/1.21.9 jars (entityInside signature-only in 24/25 blocks; zero datafix changes; no scheduled packet processing in Rust). D3 passes locally. CI proof pending."
+  },
+  "harness": {
+    "pass": 2,
+    "oracle_fail": 2,
+    "fail": 13,
+    "total": 17,
+    "note": "CI port-verify run 44455152997 (main@382fb55, success, ~1h20m): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail \u2014 identical to 1.21.7. TRUE oracle count is 8: 6 more oracle-compile failures hide in the fail column (component_patch, datafix x6 worlds, first_person, food, item_model, resource_pack \u2014 javac errors in the harness logs). Real fails: command_parse, entity_components, hotbar, light, options, save_roundtrip, sound_event. Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail."
+  },
+  "notes": "CI PROOF run 44455152997 (2026-11-19): verdict failed \u2014 D1 fail (33 dead production tags), D2 pass (0 errors/0 warnings, 440 protocol tests), D3 pass (rank-1 3/3, rank-2 20/20), D4 blocked on the stamp quirk (local re-check with the recorded profile: FAIL \u2014 datafix + save_roundtrip both fail), D5 blocked on the stamp quirk (the E6 subset file WAS in the tree at dispatch, so D5 reached the stamp check; local re-check with the subset now in the pin: FAIL \u2014 7 of 8 failing, only block_properties passes), D6 blocked (no playtest.md \u2014 deferred by owner). D6 deferred, never claimed. TAG AUDIT 2026-11-19 (local, jar-extracted tag inventory: 626 files; CI confirms the same 33): 33 dead production tags, all 26.3-era/1.21.10-era tags the inherited 26.3-base code references that 1.21.9 data does not define (1.21.9 data defines copper, copper_chests, shearable_from_copper_golem, wooden_shelves \u2014 4 fewer than 1.21.7). NOT triaged in this stream: inherited from the unported 1.21.11 behaviour; fixes belong at the 1.21.11 level, flowing down the chain. Locations: dead-tags-1.21.9.json in the Stream 3 workdir. Bubble-column lib tests could not be run locally: the first attempt OOM-killed the horizon-client test compile (6 GB VM, Stream 2 building concurrently), the --no-default-features retry was SIGTERM'd at ~28 min by the runtime. cargo check --workspace --all-targets (0/0) type-checks the test targets; CI runs the gate.",
+  "profile_recorded": "2026-11-19",
+  "protocol": 773,
+  "protocol_tests": {
+    "pass": 440,
+    "fail": 0,
+    "note": "CI run 44455152997: 440 pass, none failing (the 2 sandbox-network tests pass on CI, which has network)."
+  },
+  "role": "E6 delta (from 1.21.10)",
+  "version": "1.21.9"
+}
