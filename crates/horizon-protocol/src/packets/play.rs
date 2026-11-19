@@ -4,7 +4,7 @@ use crate::{
     buf::{
         Bool, Byte, BytesN, ChunkPos, Codec, Double, Float, Ident, Int, List, Long, Nbt,
         Opt, OptVarInt, Pos, Reader, SectionPos, Short, ShortVec3, Str, StrN, UByte, Uuid, VarInt,
-        VarLong, VarVec3i, Vec3d, Writer,
+        VarLong, Vec3d, Writer,
     },
     chunk::{ChunkData, LightData},
     entity_data::{EntityData, Particle, Value},
@@ -77,6 +77,17 @@ packet!(
     data: i32 => VarInt,
     velocity: [f64; 3] => ShortVec3,
 });
+packet!(
+    /// `ClientboundAddExperienceOrbPacket` as 1.21.4 sends it: id, position
+    /// and value (a short on the wire). Removed in 1.21.5 — orbs spawn
+    /// through AddEntity there — so this packet exists only at the 1.21.4
+    /// pin and below.
+    AddExperienceOrb {
+        id: i32 => VarInt,
+        position: [f64; 3] => Vec3d,
+        value: i16 => Short,
+    }
+);
 packet!(Animate { id: i32 => VarInt, action: u8 => UByte });
 packet!(BlockChangedAck { sequence: i32 => VarInt });
 packet!(
@@ -1611,6 +1622,7 @@ impl Codec<BossEvent> for BossEvent {
 packet_enum!(Clientbound, crate::ids::play::clientbound {
     BundleDelimiter(Empty) = BUNDLE_DELIMITER,
     AddEntity(AddEntity) = ADD_ENTITY,
+    AddExperienceOrb(AddExperienceOrb) = ADD_EXPERIENCE_ORB,
     Animate(Animate) = ANIMATE,
     AwardStats(AwardStats) = AWARD_STATS,
     BlockChangedAck(BlockChangedAck) = BLOCK_CHANGED_ACK,
@@ -1727,7 +1739,6 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     TagQuery(TagQuery) = TAG_QUERY,
     TakeItemEntity(TakeItemEntity) = TAKE_ITEM_ENTITY,
     TeleportEntity(TeleportEntity) = TELEPORT_ENTITY,
-    TestInstanceBlockStatus(TestInstanceBlockStatus) = TEST_INSTANCE_BLOCK_STATUS,
     TickingState(TickingState) = TICKING_STATE,
     TickingStep(TickingStep) = TICKING_STEP,
     Transfer(Transfer) = TRANSFER,
@@ -2027,33 +2038,6 @@ packet!(
         selection_priority: i32 => VarInt,
         placement_priority: i32 => VarInt
     }
-);
-packet!(
-    /// ServerboundSetTestBlockPacket: the test block's edit screen; `mode` is
-    /// a `TestBlockMode` id.
-    SetTestBlock { pos: [i32; 3] => Pos, mode: i32 => VarInt, message: String => Str }
-);
-packet!(
-    /// `TestInstanceBlockEntity.Data.STREAM_CODEC`: the test, size, rotation
-    /// (ordinal), ignore-entities flag, status (index) and error message.
-    TestInstanceData {
-        test: Option<String> => Opt<Ident>,
-        size: [i32; 3] => VarVec3i,
-        rotation: i32 => VarInt,
-        ignore_entities: bool => Bool,
-        status: i32 => VarInt,
-        error_message: Option<Tag> => Opt<Nbt>
-    }
-);
-packet!(
-    /// ServerboundTestInstanceBlockActionPacket: `action` is the `Action` id
-    /// (INIT 0, QUERY 1, SET 2, RESET 3, SAVE 4, EXPORT 5, RUN 6).
-    TestInstanceBlockAction { pos: [i32; 3] => Pos, action: i32 => VarInt, data: TestInstanceData => TestInstanceData }
-);
-packet!(
-    /// ClientboundTestInstanceBlockStatus: the test's description and, for a
-    /// query, the size of its structure.
-    TestInstanceBlockStatus { status: Tag => Nbt, size: Option<[i32; 3]> => Opt<VarVec3i> }
 );
 packet!(
     /// ServerboundJigsawGeneratePacket: the jigsaw block's Generate button.
@@ -2383,8 +2367,6 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     SetCommandMinecart(SetCommandMinecart) = SET_COMMAND_MINECART,
     SetCreativeModeSlot(SetCreativeModeSlot) = SET_CREATIVE_MODE_SLOT,
     SetJigsawBlock(SetJigsawBlock) = SET_JIGSAW_BLOCK,
-    SetTestBlock(SetTestBlock) = SET_TEST_BLOCK,
-    TestInstanceBlockAction(TestInstanceBlockAction) = TEST_INSTANCE_BLOCK_ACTION,
     SetStructureBlock(SetStructureBlock) = SET_STRUCTURE_BLOCK,
     SignUpdate(SignUpdate) = SIGN_UPDATE,
     UseItem(UseItem) = USE_ITEM,

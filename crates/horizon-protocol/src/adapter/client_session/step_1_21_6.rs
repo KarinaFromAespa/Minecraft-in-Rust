@@ -1,15 +1,13 @@
 //! 1.21.8's packets in 1.21.6's layout for a 1.21.6 client (and 1.21.5): the mirror of `translate`'s `mod v1_21_6`
-//! (1.21.6 to 1.21.8). Two packets differ, and entity data is laid out alike.
+//! (1.21.6 to 1.21.8). One packet differs, and entity data is laid out alike.
 //! - set_equipment: 1.21.8 added the saddle slot (7) to its equipment enum. A 1.21.6 client has no such slot, so
 //!   its entries are removed. A packet with nothing else in it is dropped.
-//! - serverbound test_instance_block_action: a test is an identifier in 1.21.8 and a VarInt id in 1.21.6. A
-//!   packet that names a test is dropped (see `translate::v1_21_6::names_test`); one that names none is laid
-//!   out alike and passes.
 //!
+//! The test-block packets are gone at the 1.21.4 pin: 1.21.4 has no test_instance_block_action or
+//! set_test_block, so the id tables drop them and nothing here needs rewriting.
 //! Entity data: no index or type changed between 1.21.6 and 1.21.8. The serializer ids differ only from 1.21.9.
 use crate::{
     Result, State,
-    adapter::translate,
     buf::{Codec, Reader, Writer},
     ids as packet_ids,
     packets::play,
@@ -49,13 +47,8 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Out> 
 }
 
 /// The pinned serverbound packet `id` as the 1.21.6 client sent it (`payload`) in 26.3's layout, for the server.
-pub(super) fn serverbound(state: State, id: i32, payload: &[u8]) -> Result<Out> {
-    use packet_ids::play::serverbound as sb;
-    if (state, id) == (State::Play, sb::TEST_INSTANCE_BLOCK_ACTION)
-        && translate::v1_21_6::names_test(payload)?
-    {
-        return Ok(Out::Dropped);
-    }
+/// 1.21.4 has no test-block packets, so nothing here needs rewriting: the id tables drop them.
+pub(super) fn serverbound(_state: State, _id: i32, _payload: &[u8]) -> Result<Out> {
     Ok(Out::Untouched)
 }
 
@@ -64,10 +57,7 @@ mod tests {
     //! Each packet written here is read back with `translate`'s 1.21.6 reader (the serverbound one, which
     //! takes the 1.21.8 layout the client sends) or the pinned codec for the clientbound one.
     use super::*;
-    use crate::{
-        adapter::{ServerVersion, session::Session},
-        item::Stack,
-    };
+    use crate::item::Stack;
 
     #[test]
     fn set_equipment_loses_the_saddle_and_keeps_the_other_slots() {
@@ -136,57 +126,6 @@ mod tests {
             )
             .unwrap(),
             Out::Untouched
-        );
-    }
-
-    /// A serverbound test_instance_block_action with the given test, in 26.3's layout.
-    fn test_action(test: Option<&str>) -> Vec<u8> {
-        let p = play::TestInstanceBlockAction {
-            pos: [1, 2, 3],
-            action: 6,
-            data: play::TestInstanceData {
-                test: test.map(str::to_string),
-                size: [3, 4, 5],
-                rotation: 2,
-                ignore_entities: true,
-                status: 1,
-                error_message: None,
-            },
-        };
-        let mut w = Writer::new();
-        play::TestInstanceBlockAction::write(&p, &mut w);
-        w.data
-    }
-
-    #[test]
-    fn a_test_action_naming_no_test_passes_both_ways() {
-        let session = Session::new(ServerVersion::V1_21_6);
-        let payload = test_action(None);
-        let sb = packet_ids::play::serverbound::TEST_INSTANCE_BLOCK_ACTION;
-        // The client's side: the reader passes it, renumbered to 1.21.6's id.
-        let (_, read) = translate::serverbound(&session, State::Play, sb, &payload)
-            .unwrap()
-            .unwrap();
-        assert_eq!(read, payload);
-        // The writer (the client's own packet, back up to the pinned layout) leaves it alone.
-        assert_eq!(
-            serverbound(State::Play, sb, &payload).unwrap(),
-            Out::Untouched
-        );
-    }
-
-    #[test]
-    fn a_test_action_naming_a_test_is_dropped_both_ways() {
-        let session = Session::new(ServerVersion::V1_21_6);
-        let payload = test_action(Some("minecraft:always_pass"));
-        let sb = packet_ids::play::serverbound::TEST_INSTANCE_BLOCK_ACTION;
-        assert_eq!(
-            translate::serverbound(&session, State::Play, sb, &payload).unwrap(),
-            None
-        );
-        assert_eq!(
-            serverbound(State::Play, sb, &payload).unwrap(),
-            Out::Dropped
         );
     }
 }

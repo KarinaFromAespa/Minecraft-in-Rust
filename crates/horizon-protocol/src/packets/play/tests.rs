@@ -1258,57 +1258,6 @@ fn set_structure_block_round_trips_and_clamps_like_vanilla() {
     assert_eq!(read.integrity, 1.0);
 }
 
-#[test]
-fn test_instance_packets_round_trip() {
-    let data = TestInstanceData {
-        test: Some("minecraft:always_pass".into()),
-        size: [3, 4, 5],
-        rotation: 2,
-        ignore_entities: true,
-        status: 1,
-        error_message: Some(Tag::String("bad".into())),
-    };
-    round_trip(
-        Serverbound::TestInstanceBlockAction(TestInstanceBlockAction {
-            pos: [1, 2, 3],
-            action: 6,
-            data: data.clone(),
-        }),
-        Serverbound::encode,
-        Serverbound::decode,
-    );
-    let empty = TestInstanceData {
-        test: None,
-        error_message: None,
-        ..data
-    };
-    let mut w = Writer::new();
-    TestInstanceData::write(&empty, &mut w);
-    // Absent test, three sizes, rotation, flag, status, absent error.
-    assert_eq!(w.data, [0, 3, 4, 5, 2, 1, 1, 0]);
-    round_trip(
-        Clientbound::TestInstanceBlockStatus(TestInstanceBlockStatus {
-            status: Tag::String("ok".into()),
-            size: Some([1, 2, 3]),
-        }),
-        Clientbound::encode,
-        Clientbound::decode,
-    );
-}
-
-#[test]
-fn set_test_block_round_trips() {
-    round_trip(
-        Serverbound::SetTestBlock(SetTestBlock {
-            pos: [1, 2, 3],
-            mode: 3,
-            message: "passed".into(),
-        }),
-        Serverbound::encode,
-        Serverbound::decode,
-    );
-}
-
 /// A `SetTime` packet captured from a vanilla 26.3 server at join, two
 /// clocks: `Long 13071`, then `VarInt 2`, `(0, 66678, 0.0, 1.0)` and
 /// `(1, 13071, 0.0, 1.0)`. Reading the clock as a holder id + 1 turns the

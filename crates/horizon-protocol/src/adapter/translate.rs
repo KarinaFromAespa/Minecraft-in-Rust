@@ -662,16 +662,6 @@ pub fn serverbound(
             w.bytes(r.rest());
             renumbered(id, w.data)
         }
-        // 1.21.6 names a test by a VarInt id, 26.3 by its identifier: a named test is dropped (v1_21_6).
-        (State::Play, sb::TEST_INSTANCE_BLOCK_ACTION)
-            if session.version.at_most(ServerVersion::V1_21_6) =>
-        {
-            if v1_21_6::names_test(payload)? {
-                Ok(None)
-            } else {
-                renumbered(id, payload.to_vec())
-            }
-        }
         (State::Play, sb::SET_CREATIVE_MODE_SLOT | sb::CONTAINER_CLICK) => {
             let p = play::Serverbound::decode(id, payload)?;
             let payload = {
@@ -1474,25 +1464,6 @@ pub(crate) mod v26_1 {
             };
             assert_eq!(t.parameters.unwrap().color, None);
         }
-    }
-}
-
-/// 1.21.6 to 1.21.8. Clientbound nothing changes for a server: 1.21.6 sends set_equipment without the saddle
-/// slot (7), which 1.21.8 added, and entity data is laid out alike (the serializer ids differ only from 1.21.9,
-/// see adapter.rs). Serverbound, 1.21.8's `test_instance_block_action` names its test by identifier and 1.21.6
-/// by a VarInt id in a registry.
-pub(crate) mod v1_21_6 {
-    use super::*;
-
-    /// Whether a serverbound `test_instance_block_action` (play) names a test: the position, the action, then
-    /// the test's presence flag, which is the only field that differs. A test is an identifier in 26.3 and an
-    /// id in 1.21.6, which needs the registry's entries in the server's order; Horizon doesn't keep those.
-    // TODO(step3): translate a named test to 1.21.6's VarInt id. Until then a packet that names one is dropped.
-    pub(crate) fn names_test(payload: &[u8]) -> Result<bool> {
-        let mut r = Reader::new(payload);
-        r.i64()?;
-        r.varint()?;
-        r.bool()
     }
 }
 
