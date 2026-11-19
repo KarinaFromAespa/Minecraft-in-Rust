@@ -402,9 +402,9 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (calcite: 23344 pinned, 27160 in 26.2), and one on the global palette:
+        // A section of one state (calcite: 23329 pinned, 27160 in 26.2), and one on the global palette:
         // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[23344; chunk::BLOCKS], Strategy::Blocks, 15);
+        let one = Paletted::from_values(&[23329; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
@@ -776,7 +776,16 @@ mod tests {
             .clientbound_id_down(State::Play, packet_ids::play::clientbound::ANIMATE)
             .unwrap();
         assert_eq!(r.varint().unwrap(), animate);
-        assert_eq!(play::Clientbound::decode(animate, r.rest()).unwrap(), swing);
+        // animate is 3 pinned, 2 in 26.2: the body is decoded with the pinned id, as the
+        // block-update test does — the layout is the same, only the number differs.
+        assert_eq!(
+            play::Clientbound::decode(
+                packet_ids::play::clientbound::ANIMATE,
+                r.rest()
+            )
+            .unwrap(),
+            swing
+        );
     }
 
     #[test]
