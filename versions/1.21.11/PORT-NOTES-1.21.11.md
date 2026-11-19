@@ -1878,3 +1878,48 @@ Rank 2 (492 items, in progress 2026-11-19)
   focused field through `ime_commit`, the 1.21.11 path.
   Rank 2 now 189/492 (26 changed, 163 no-change).
   work-items.json rank2.closed = 189 on 2026-11-19.
+- Item 11 (game.rs: Minecraft, Gui, KeyboardHandler, ServerLevel,
+  Block, BucketItem + 23 more classes), changed, ported 2026-11-19
+  in parts (8fab09a, 048308d, 2e1d353, 91c3505; the preedit part
+  landed with item 462 in bd11312):
+  - Lightmap debug key (26.1-only F3+4): removed the
+    DebugLightmapTexture action, keybind, debug chart + toggle —
+    the only Options KeyMapping difference between the jars.
+  - Chat gating: the 26.x ChatAbilities/ChatRestriction system is
+    gone; 1.21.11 gates opening chat on ChatStatus (Hidden -> red
+    `chat.disabled.options` overlay + narration, screen stays
+    closed) and never gates sending once open. Removed the send
+    gates (chat screen, native_send_chat, remote send_chat,
+    send_unattended_command) and the restricted prompt.
+  - Spectator click-to-spectate: 26.1 spectates client-side in
+    startAttack; 1.21.11 spectates server-side
+    (ServerPlayer.attack) and never swings as a spectator. The
+    Rust now spectates the hit mob/painting via set_camera and
+    never swings; the guest-side guard belongs to item 14.
+  - Screens: ShareToLanScreen replaces WorldOptionsScreen
+    (1.21.11 has no WorldOptions/Restrictions/MultiplayerOptions
+    screens): game-mode cycle SURVIVAL/SPECTATOR/CREATIVE/
+    ADVENTURE, allow-cheats toggle, port box with tryParsePort
+    validation, pause-menu button gated to
+    singleplayer-unpublished. Item 644 (ShareToLanScreen, rank 3)
+    is already ported by this change.
+  - No-change, verified against the jars: Gui.tick (one
+    `is(Object)` -> `is(Item)` overload line), isBlocked (the
+    Rust's social_hides matches 1.21.11's else-branch;
+    shouldHideMessageFrom is byte-identical; the chat-status
+    branch's effect is already produced by the receive-side
+    visibility filter), startUseItem (merged vs split interact
+    API, same behaviour), doWorldLoad, pick (moved to
+    GameRenderer, identical), pauseIfInactive (inlined in
+    GameRenderer.render, identical), close/destroy/disconnect/
+    handleKeybinds/setScreen/shouldEntityAppearGlowing/
+    setCameraEntity/tick/runTick (render-loop plumbing,
+    relocations or the preedit removal), Block's 7 methods,
+    BucketItem, NoteBlock, SpawnerBlock, TurtleEggBlock,
+    TripWireBlock, FrogspawnBlock, ToastManager/TitleScreen/
+    ParticleEngine extract renames, AbstractFurnaceScreen
+    (numbers identical), PackConfirmScreen, ServerLevel
+    weather/tick (identical algorithms; the level.dat split
+    reversal is item 24, the world-clock removal is item 439).
+  Rank 2 now 190/492 (27 changed, 163 no-change).
+  work-items.json rank2.closed = 190 on 2026-11-19.
