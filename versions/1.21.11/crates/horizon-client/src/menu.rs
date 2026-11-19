@@ -1,5 +1,5 @@
 //! `AbstractContainerMenu.clicked` over vanilla's slot layouts: every
-//! `ContainerInput` (pickup, quick move, swap, clone, throw, the three quick
+//! `ClickType` (pickup, quick move, swap, clone, throw, the three quick
 //! craft drags, pickup all) for the player inventory, the crafting table, the
 //! chest family, hoppers, dispensers, shulker boxes, the furnaces, the brewing
 //! stand, the crafter (its client menu and the block entity's server menu with

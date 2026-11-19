@@ -494,7 +494,9 @@ pub const ALL: &[Def] = &[
             "entity.squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        // 1.21.11 dropped Squid.getDefaultDimensions and BABY_DIMENSIONS:
+        // a baby squid is the type dims scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         GlowSquid,
@@ -508,7 +510,9 @@ pub const ALL: &[Def] = &[
             "entity.glow_squid.death"
         ],
         None,
-        Baby::Abs(0.5, 0.5, 0.37)
+        // As the squid: 1.21.11 dropped the baby override, so the type dims
+        // scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         Tadpole,

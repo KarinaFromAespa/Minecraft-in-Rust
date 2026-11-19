@@ -4342,7 +4342,7 @@ impl Hub {
                         held = self.move_queued(i);
                     }
                 }
-                // ContainerInput's codec (ByIdMap, OutOfBoundsStrategy.ZERO) reads an
+                // ClickType's codec (ByIdMap, OutOfBoundsStrategy.ZERO) reads an
                 // unknown click type as PICKUP.
                 S::ContainerClick(mut p) => {
                     if !(0..=6).contains(&p.input) {

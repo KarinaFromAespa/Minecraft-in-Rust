@@ -573,9 +573,6 @@ pub(super) struct Remote {
     /// `BlockStatePredictionHandler.currentSequenceNr`: the level's, so a new level (a login,
     /// another dimension) counts from 0 again.
     sequence: i32,
-    /// `BlockStatePredictionHandler.lastTeleportSequence`: the sequence of the last
-    /// teleport, so a prediction made before it keeps its block but not its snap.
-    last_teleport_sequence: i32,
     position_sender: horizon_client::player_sync::PositionSender,
     last_input: u8,
     was_sprinting: bool,
@@ -1176,7 +1173,6 @@ impl Game<'_> {
             view_distance: self.settings.render_distance,
             simulation_distance: self.settings.simulation_distance,
             sequence: 0,
-            last_teleport_sequence: -1,
             position_sender: Default::default(),
             last_input: 0,
             was_sprinting: false,
@@ -1406,7 +1402,6 @@ impl Game<'_> {
             view_distance: self.settings.render_distance,
             simulation_distance: self.settings.simulation_distance,
             sequence: 0,
-            last_teleport_sequence: -1,
             position_sender: Default::default(),
             last_input: 0,
             was_sprinting: false,
@@ -1833,8 +1828,8 @@ impl Game<'_> {
                 focused,
             );
         } else {
-            // addServerSystemMessage and addClientSystemMessage both carry
-            // GuiMessageTag.systemSinglePlayer: the grey bar at the line's left.
+            // `ChatComponent.addMessage` carries GuiMessageTag.systemSinglePlayer
+            // for a system line: the grey bar at the line's left.
             let indicator = Some(horizon_client::chat::SYSTEM_INDICATOR);
             self.ui.chat.add(
                 &self.gui.atlas,
@@ -2946,7 +2941,6 @@ impl Game<'_> {
         let Some(r) = self.remote.as_mut() else {
             return;
         };
-        let last_teleport = r.last_teleport_sequence;
         let settled: Vec<_> = r
             .predictions
             .iter()
@@ -2965,7 +2959,7 @@ impl Game<'_> {
             // the player, and then it goes to the position the prediction
             // remembered.
             let meets = self.block_meets_player(pos, prediction.state);
-            if let Some(at) = snap_target(prediction.player_pos, last_teleport, sequence, meets) {
+            if let Some(at) = snap_target(prediction.player_pos, meets) {
                 self.snap_player_to(at);
             }
         }
@@ -6409,11 +6403,6 @@ impl Game<'_> {
             (yaw, pitch),
             p,
         );
-        // BlockStatePredictionHandler.onTeleport: a prediction made before this
-        // one keeps its block but not the player position it remembered.
-        if let Some(r) = self.remote.as_mut() {
-            r.last_teleport_sequence = r.sequence;
-        }
         // handleMovePlayer: a passenger keeps its own position and look (its vehicle
         // carries it), so a vehicle a datapack teleports every tick doesn't snap the
         // rider's view; the teleport is still accepted, with where the player is.
@@ -10326,7 +10315,7 @@ impl Game<'_> {
             None => (0, "inventory".to_owned()),
         }
     }
-    /// `MultiPlayerGameMode.handleContainerInput` for each click of `ops` on
+    /// `MultiPlayerGameMode.handleInventoryMouseClick` for each click of `ops` on
     /// the server's open menu (a quick craft drag is several): the verified
     /// menu engine predicts them on this client's copy, then each goes out as
     /// a `ContainerClick` with the slots it changed and the carried stack
@@ -10452,7 +10441,7 @@ impl Game<'_> {
         }
     }
     /// A click outside a server's window (slot -999): predicted like
-    /// `MultiPlayerGameMode.handleContainerInput` (the carried stack after
+    /// `MultiPlayerGameMode.handleInventoryMouseClick` (the carried stack after
     /// `doClick`; the server drops the stack and swings the hand).
     pub(super) fn remote_throw(&mut self, right: bool, input: horizon_client::menu::Input) {
         use horizon_client::menu::Input;
@@ -11242,7 +11231,7 @@ fn creative_sync_slot(i: usize) -> i16 {
     }) as i16
 }
 
-/// `MultiPlayerGameMode.handleContainerInput` for each click on the engine's
+/// `MultiPlayerGameMode.handleInventoryMouseClick` for each click on the engine's
 /// copy of the menu: the click with the slots it changed and the carried
 /// stack after it, and whether a click dropped a stack. Every drop of
 /// `AbstractContainerMenu.doClick` (a THROW, a click outside the window, a
@@ -11271,7 +11260,7 @@ fn menu_items(m: &horizon_client::menu::Menu) -> Vec<Option<ItemStack>> {
 }
 
 /// The slots whose stack is no longer `before`'s (`ItemStack.matches`).
-/// `MultiPlayerGameMode.handleContainerInput`'s changed slots, in the order the packet writes them.
+/// `MultiPlayerGameMode.handleInventoryMouseClick`'s changed slots, in the order the packet writes them.
 fn changed_slots(
     before: &[Option<ItemStack>],
     m: &horizon_client::menu::Menu,
@@ -11330,7 +11319,7 @@ fn open_hash_order(keys: &[i16]) -> Vec<i16> {
     zero.then_some(0).into_iter().chain(rest).collect()
 }
 
-/// ServerboundContainerClickPacket's `ContainerInput` ordinal.
+/// ServerboundContainerClickPacket's `ClickType` ordinal.
 pub(super) fn input_ordinal(input: Input) -> i32 {
     match input {
         Input::Pickup => 0,
@@ -11920,16 +11909,11 @@ pub(super) fn shape_meets(
 }
 
 /// `ClientLevel.syncBlockState`'s snap: a restored block that meets the player
-/// sends it back to the position the prediction remembered, unless the player
-/// was teleported after that prediction was made
-/// (`lastTeleportSequence < sequence`: the remembered position is stale).
-pub(super) fn snap_target(
-    recorded: [f64; 3],
-    last_teleport_sequence: i32,
-    sequence: i32,
-    meets: bool,
-) -> Option<[f64; 3]> {
-    (meets && last_teleport_sequence < sequence).then_some(recorded)
+/// sends it back to the position the prediction remembered. 1.21.11 dropped
+/// `BlockStatePredictionHandler.onTeleport` and its `lastTeleportSequence`, so
+/// the snap no longer cares whether a teleport came after the prediction.
+pub(super) fn snap_target(recorded: [f64; 3], meets: bool) -> Option<[f64; 3]> {
+    meets.then_some(recorded)
 }
 
 /// [`Remote::has_level`]: logged in (a Login arrived) and no reconfiguration
@@ -12744,17 +12728,11 @@ mod tests {
         );
         assert!(!shape_meets(&VoxelShape::empty(), [0, 64, 0], player));
 
-        // The snap itself: the remembered position, unless a teleport came after
-        // the prediction (`lastTeleportSequence < sequence`).
+        // The snap itself: the remembered position whenever the block meets
+        // the player (1.21.11 dropped the teleport check).
         let at = [0.5, 64.0, 0.5];
-        assert_eq!(snap_target(at, -1, 3, true), Some(at));
-        assert_eq!(snap_target(at, -1, 3, false), None, "a block it clears");
-        assert_eq!(snap_target(at, 3, 3, true), None, "teleported at 3");
-        assert_eq!(
-            snap_target(at, 2, 3, true),
-            Some(at),
-            "teleported before it"
-        );
+        assert_eq!(snap_target(at, true), Some(at));
+        assert_eq!(snap_target(at, false), None, "a block it clears");
     }
 
     /// `MultiPlayerGameMode.useItem`'s `shouldSwing`: the SUCCESS answers

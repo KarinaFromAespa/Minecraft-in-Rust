@@ -211,7 +211,9 @@ pub fn interact(
         .unwrap_or(0);
     let item = &*held.item;
     let water_potion = held.data().and_then(|d| d.potion.as_deref()) == Some("minecraft:water");
-    // Dispatcher.get: tags first, then the item map.
+    // InteractionMap.get: the item map (1.21.11 dropped the 26.1 Dispatcher's
+    // tag map; the dyeable tag's members are exactly the items it registers,
+    // so the tag check below still answers the same for vanilla data).
     if kind == "water" && removes_dye {
         if held.data().and_then(|d| d.dyed_color).is_none() {
             return pass();

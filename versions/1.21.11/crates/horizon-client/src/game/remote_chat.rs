@@ -8,6 +8,7 @@
 use super::{Game, Screen, books::BookScreen, dialogs::ClosedDialog};
 use horizon_client::{
     auth::{self, ChatKeyPair},
+    chat::ChatVisibility,
     command::{Dispatcher, Registries},
     confirm_screen::Choice,
     hud::HudBatch,
@@ -350,6 +351,13 @@ impl Game<'_> {
         };
         // screenAfterCommand: what stays once it has run, a dialog included.
         let over_screen = self.screen != Screen::Playing || self.dialog_open();
+        // openSignedCommandSendConfirmationWindow suggests the command into
+        // the chat box only when no screen is open and the chat is allowed
+        // (`getChatStatus().isChatAllowed(isLocalServer())`: Hidden by
+        // options means not allowed; the launcher and profile statuses need
+        // inputs this client does not have). Otherwise it copies instead.
+        let chat_allowed =
+            ChatVisibility::from_option(self.settings.chat_visibility) != ChatVisibility::Hidden;
         let (message, accept) = match check {
             CommandCheck::NoIssues => {
                 // Verification above excludes message arguments. Use the ordinary sender so
@@ -367,7 +375,7 @@ impl Game<'_> {
             ),
             CommandCheck::SignatureRequired => (
                 "multiplayer.confirm_command.signature_required",
-                if over_screen {
+                if over_screen || !chat_allowed {
                     CommandAccept::Copy
                 } else {
                     CommandAccept::Suggest

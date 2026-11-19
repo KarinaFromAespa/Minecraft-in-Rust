@@ -356,7 +356,7 @@ impl Game<'_> {
     }
 
     /// `PiercingWeapon.attack` of the spear in the main hand, for a left
-    /// click: every mob along the view is stabbed, then `postPiercingAttack`
+    /// click: every mob along the view is stabbed, then `lungeForwardMaybe`
     /// (Lunge), the hit sound and the swing. Gives the sound of the jab
     /// (`makeSound`), which everyone but the user hears from the server.
     pub(super) fn jab(&mut self) -> Option<&'static str> {
@@ -378,7 +378,7 @@ impl Game<'_> {
                 }
             }
         }
-        // Player.onAttack, then postPiercingAttack.
+        // Player.onAttack, then lungeForwardMaybe.
         self.attack_ticks = 0;
         self.post_piercing_attack();
         if hit {

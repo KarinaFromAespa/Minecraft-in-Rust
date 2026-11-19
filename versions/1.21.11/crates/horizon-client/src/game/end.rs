@@ -597,9 +597,9 @@ impl Game<'_> {
         if self.dimension_type().skybox != horizon_world::dimension_type::Skybox::End {
             return;
         }
-        // getDefaultClockTime: the End's own clock (the client keeps the
-        // dimension's default clock in day_time), not the game time.
-        self.end.flash.tick(self.world.day_time);
+        // EndFlashState.tick(getGameTime): 1.21.11 drives the flash from the
+        // game time, not the default clock (the day time) 26.1 used.
+        self.end.flash.tick(self.world.game_time);
         if self.end.flash.started_this_tick() && self.win.is_none() {
             let flash = &self.end.flash;
             let instance = horizon_client::sound_engine::SoundInstance::directional(

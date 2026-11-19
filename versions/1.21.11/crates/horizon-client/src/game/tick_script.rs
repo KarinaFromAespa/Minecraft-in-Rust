@@ -102,7 +102,7 @@ impl Game<'_> {
 impl Game<'_> {
     /// `click-slot SLOT [right] [shift]` without a renderer: horizon-ctl's version clicks where the
     /// slot is drawn, and `--headless` draws nothing. The vanilla driver clicks the menu itself
-    /// (`MultiPlayerGameMode.handleContainerInput`), and so does this.
+    /// (`MultiPlayerGameMode.handleInventoryMouseClick`), and so does this.
     fn tick_script_click(&mut self, line: &str) -> bool {
         let words: Vec<&str> = line.split_whitespace().collect();
         let (Some(&"click-slot"), Some(Ok(slot))) =

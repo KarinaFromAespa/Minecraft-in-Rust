@@ -2094,3 +2094,83 @@ Rank 2 (492 items, in progress 2026-11-19)
     gap in `guest_attack`).
   Rank 2 now 193/492 (30 changed, 163 no-change).
   work-items.json rank2.closed = 193 on 2026-11-19.
+- Item 15 (game/remote.rs), changed, ported 2026-11-19: 20 vanilla
+  classes changed (111 methods, 32 named), javap diff 3,836 lines,
+  verified by whole-diff constants / method-call / branch-opcode
+  comparisons plus direct jar reads (EntityType, EndFlashState,
+  CauldronInteraction, EnchantmentHelper, ChatStatus, LevelAccessor)
+  and the lunge.json data diff. Ported:
+  - `BlockStatePredictionHandler` lost `onTeleport` and
+    `lastTeleportSequence` in 1.21.11: `endPredictionsUpTo` always
+    passes the prediction's player position to `syncBlockState`.
+    Removed `Remote.last_teleport_sequence` (field, both inits, the
+    handleMovePlayer set) and simplified `snap_target` to
+    `(recorded, meets)` — `meets.then_some(recorded)` — with the
+    snap test rewritten for the always-snap rule.
+  - Squid and glow squid lost their baby override
+    (`Squid.getDefaultDimensions` / `BABY_DIMENSIONS`): babies fall
+    back to `LivingEntity.getDefaultDimensions`, type dims x
+    `getAgeScale` (0.5). Both species defs changed from
+    `Baby::Abs(0.5, 0.5, 0.37)` to `Baby::Scale(0.5, None)` — with
+    the jar-verified 0.8 x 0.8 type dims (eye 0.4), babies are
+    (0.4, 0.4, 0.2). No render change (the squid_baby model stays;
+    the glow squid keeps one model/texture for both).
+  - End flash: `ClientLevel.tick` calls
+    `EndFlashState.tick(getGameTime())` in 1.21.11, not
+    `tick(getDefaultClockTime())` — `tick_end_flash` now passes
+    `world.game_time` instead of `world.day_time`.
+  - Signed-command confirmation: `openSignedCommandSendConfirmationWindow`
+    suggests into the chat box only when no screen is open AND the
+    chat is allowed (`getChatStatus().isChatAllowed(isLocalServer())`:
+    Hidden-by-options means not allowed; the launcher/profile
+    statuses need inputs this client does not have). The Rust never
+    had the gate — `send_unattended_command` now offers Copy instead
+    of Suggest when the chat is Hidden.
+  - Comment-only: `handleContainerInput` -> `handleInventoryMouseClick`
+    and `ContainerInput` -> `ClickType` (remote.rs, remote_stations.rs,
+    tick_script.rs, container_screen.rs, menu.rs, lan/hub.rs,
+    horizon-protocol play.rs — the Rust's `Input` enum is already the
+    ClickType ordinals); `signed_chat_line` cites `ChatComponent.addMessage`
+    (1.21.11's single entry); cauldron.rs cites `InteractionMap`;
+    enchant_effects.rs cites `doLungeEffects` (the
+    `minecraft:post_piercing_attack` data key is unchanged) and the
+    lunge gate's mayfly form (spectators never jab, so may-fly is
+    creative here); spear.rs cites `lungeForwardMaybe`;
+    shader_packs.rs cites the internal default-clock model (1.21.11
+    has no `getDefaultClockTime`; `getGameTime` is a `LevelAccessor`
+    default).
+  - No-change, verified: `getShade` already matches 1.21.11 exactly
+    (`lighting::cardinal`); `getBlockTint` averaging identical (the
+    `& 255` masks are no-ops on averages); SetTime/clocks/tickTime
+    owned by the translate layer (round-trip tested); chat gating
+    already at the ChatComponent level; SystemChat overlay already
+    routed; disguised chat already tag-less Secure; attack already
+    sends ATTACK with the sneak flag for all modes, local effects
+    only when not spectator; interact already sends INTERACT_AT then
+    INTERACT; demo mode has no Rust surface; game-rule packets are
+    26.1-only; `handleUpdateTags` has no client handler; difficulty
+    change has no reaction; `lungeForwardMaybe` is a client no-op
+    (LivingEntity's body runs only on ServerLevel; Player's override
+    gates the same call on food/mayfly; the lunge.json data diff
+    shows only the food term moving from data to the Player gate,
+    and the spectator difference is unreachable — spectators never
+    jab); cauldron `InteractionMap` is item-keyed with a
+    TRY_WITH_EMPTY_HAND default (same as 26.1's DEFAULT), and the
+    dyeable tag's members are exactly the items 1.21.11 registers
+    for dye removal; Interaction entity handling never used the
+    dropped Vec3; merchant screen already 276x166 with the tooltip
+    drawn last; `ClientLevel.update()` (light) has no Rust
+    equivalent (light runs on chunk changes); `prepareWeather` is a
+    no-op for a fresh client level (isRaining false); marker
+    particles never use a random for the marker spawn itself, and
+    the animateTick position sampling is unseeded in both versions;
+    leaf tint already resolves through the pack colormap/default;
+    no client `handleLowDiskSpaceWarning` surface; `setPermissions`
+    has no gamemaster reaction; `ClientPacketListener.getId()` has
+    no Rust surface; `ClientChunkCache` hunks are accessor noise;
+    `tickDayTime` defaults false until the first SetTime packet, but
+    the server sends SetTime at login, so the pre-first-packet
+    window is a few ticks at most (translate-layer concern, no
+    change to the 1.0 clock-rate default).
+  Rank 2 now 194/492 (31 changed, 163 no-change).
+  work-items.json rank2.closed = 194 on 2026-11-19.
