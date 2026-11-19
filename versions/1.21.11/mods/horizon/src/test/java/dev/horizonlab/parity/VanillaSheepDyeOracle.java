@@ -32,7 +32,7 @@ public final class VanillaSheepDyeOracle {
         }
     }
     static class Actor extends LocalPlayer {
-        Actor() { super(null, null, null, null, null, null, false, null, null); }
+        Actor() { super(null, null, null, null, null, null, false); }
         @Override public Level level() { return world; }
     }
     static class Subject extends Sheep {

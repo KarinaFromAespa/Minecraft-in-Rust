@@ -52,7 +52,10 @@ def main():
                       'dev.horizonlab.parity.VanillaSheepDyeOracle', build / 'client.txt'],
                      build, 'client', env=env)
         h.run_logged([*probe, build / 'rust.txt'], build, 'rust', env=env)
-    matched = h.compare(build / 'client.txt', build / 'rust.txt', 1152)
+    # 4 initials x 2 hands x 3 items x 1 patch x 2 sheared x 2 alive x 2 client
+    # x 2 steps: 1.21.11 has no `minecraft:dye` component to patch, so the
+    # patch loop runs once instead of three times (1152 in 26.x).
+    matched = h.compare(build / 'client.txt', build / 'rust.txt', 384)
     h.base.ensure_sources_unchanged(sources, hashes)
     lab.write_json(report, dict(
         schema=1, minecraft=lock['minecraft']['version'], sources_sha256=hashes,

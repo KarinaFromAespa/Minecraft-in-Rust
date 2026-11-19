@@ -821,3 +821,19 @@ Rank 1 (10 items, in progress 2026-11-19)
   + generate_command_order.py + diff), regen.json +
   regen-determinism.json (D1; deferred until item 6 closes — the fresh
   regen hashes the six tables, committed vs fresh).
+- Item 1 components (9e92320): DATA_COMPONENT_TYPES 122 -> 116; dye
+  colours from the item name (facts, loom, sheep dyeing); only wolves
+  keep sound variants. Two oracles the T4 survey missed needed ports
+  in the same files: VanillaSheepDyeOracle used DataComponents.DYE
+  (does not exist in 1.21.11) and a 9-arg LocalPlayer ctor (7 in
+  1.21.11) — both fixed, and the harness expectation is 384 lines
+  (patch loop runs once). VanillaFinalizeSpawnOracle still does NOT
+  compile (13+ errors: ServerLevel 11-arg ctor, getNextEntityId,
+  cubemob package, DataComponentInitializers, EntityTypes) — a T4
+  gap, NOT in the 17-harness CI profile, to port as follow-up work;
+  its DATA_SOUND_VARIANT_ID reads for pig/cow/chicken/cat were
+  already removed (the fields do not exist; the reads threw at
+  runtime). Also noted, not item 1: SYNCHRONIZED keeps
+  sulfur_cube_archetype (a 26.2 registry, no report item covers it)
+  and lacks minecraft:timeline (in 1.21.11's
+  RegistryDataLoader.SYNCHRONIZED_REGISTRIES) — rank-2 registry work.
