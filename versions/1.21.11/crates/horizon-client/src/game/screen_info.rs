@@ -18,15 +18,10 @@ fn join_lines(parts: &[&str]) -> String {
 }
 
 /// `ChatScreen.updateNarrationState` (and `InBedChatScreen`'s): its title,
-/// how to send (and that the chat is restricted), and the message typed so
-/// far one level in. No widget and no navigation.
-pub(super) fn chat(in_bed: bool, value: &str, restricted: bool, tr: Tr<'_>) -> ScreenInfo {
+/// how to send, and the message typed so far one level in. No widget and
+/// no navigation.
+pub(super) fn chat(in_bed: bool, value: &str, tr: Tr<'_>) -> ScreenInfo {
     let usage = tr("chat_screen.usage", &[]);
-    let usage = if restricted {
-        join_for_narration(&[&usage, &tr("chat_screen.restricted.narration", &[])])
-    } else {
-        usage
-    };
     let id = if in_bed { "chat/in_bed" } else { "chat" };
     let info = ScreenInfo::new(id, tr("chat_screen.title", &[]))
         .without_widgets()
@@ -121,7 +116,7 @@ mod tests {
 
     #[test]
     fn the_chat_narrates_its_usage_and_the_message_typed_but_no_widget() {
-        let empty = chat(false, "", false, &keys);
+        let empty = chat(false, "", &keys);
         assert_eq!(empty.id, "chat");
         assert_eq!(empty.title, "chat_screen.title");
         assert!(!empty.widgets && !empty.navigation);
@@ -129,7 +124,7 @@ mod tests {
             empty.extra,
             [(ElementType::Usage, 0, vec!["chat_screen.usage".to_owned()])]
         );
-        let typed = chat(true, "hello", true, &keys);
+        let typed = chat(true, "hello", &keys);
         assert_eq!(typed.id, "chat/in_bed");
         assert_eq!(
             typed.extra,
@@ -137,7 +132,7 @@ mod tests {
                 (
                     ElementType::Usage,
                     0,
-                    vec!["chat_screen.usage. chat_screen.restricted.narration".to_owned()]
+                    vec!["chat_screen.usage".to_owned()]
                 ),
                 (
                     ElementType::Title,

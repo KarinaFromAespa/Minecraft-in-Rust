@@ -10211,11 +10211,11 @@ impl Game<'_> {
         }
     }
     /// ClientPacketListener.sendChat / sendCommand, signed with a chat
-    /// session (game/remote_chat.rs). The Chat option's Hidden and System
-    /// levels keep chat out and Hidden keeps the commands out (ChatAbilities).
+    /// session (game/remote_chat.rs). 1.21.11 sends whatever is typed — the
+    /// Chat option gates opening the chat screen, not sending.
     pub(super) fn send_chat(&mut self, message: &str) {
         let message = message.trim();
-        if message.is_empty() || !self.chat_abilities().allows(message) {
+        if message.is_empty() {
             return;
         }
         if let Some(command) = message.strip_prefix('/') {
@@ -12667,11 +12667,12 @@ mod tests {
         );
     }
 
-    /// A mod's chat goes out only from a joined player, and only what the
-    /// Chat option allows.
+    /// A mod's chat goes out only from a joined player. 1.21.11 sends
+    /// whatever is typed — the Chat option gates opening the chat screen,
+    /// not sending — so the visibility never blocks a send here.
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
-    fn mod_chat_needs_a_joined_player_and_what_the_chat_option_allows() {
+    fn mod_chat_needs_a_joined_player_whatever_the_chat_option() {
         use super::super::{
             Audio, Game, Options, Progress, Settings, execution_role::ExecutionRole, load_resources,
         };
@@ -12714,15 +12715,13 @@ mod tests {
         assert!(game.native_send_chat("/warp spawn").is_err());
         game.remote.as_mut().unwrap().joined = true;
         assert!(game.native_send_chat("  ").is_err());
-        // Full, then Commands Only, then Hidden.
-        game.settings.chat_visibility = 0;
-        assert!(game.native_send_chat("hello").is_ok());
-        assert!(game.native_send_chat("/warp spawn").is_ok());
-        game.settings.chat_visibility = 1;
-        assert!(game.native_send_chat("hello").is_err());
-        assert!(game.native_send_chat("/warp spawn").is_ok());
-        game.settings.chat_visibility = 2;
-        assert!(game.native_send_chat("/warp spawn").is_err());
+        // Full, then Commands Only, then Hidden: sending is ungated at
+        // every level once the player has joined.
+        for visibility in [0, 1, 2] {
+            game.settings.chat_visibility = visibility;
+            assert!(game.native_send_chat("hello").is_ok());
+            assert!(game.native_send_chat("/warp spawn").is_ok());
+        }
     }
 
     /// `Entity.isColliding` and the snap `ClientLevel.syncBlockState` makes: a

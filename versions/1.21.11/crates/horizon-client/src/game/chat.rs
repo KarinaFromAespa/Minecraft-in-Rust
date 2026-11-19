@@ -13,7 +13,7 @@ use horizon_client::{
     gamerules::GameRules,
     hud::HudBatch,
     screen_draw::Measure,
-    text::{ClickEvent, Style, Text},
+    text::{self, ClickEvent, Style, Text},
 };
 use horizon_world::registry::{BlockRegistry, BlockStateId};
 use std::{
@@ -990,12 +990,24 @@ impl Game<'_> {
         }
         self.ui.registries.custom_completions = self.remote_custom_completions();
     }
-    /// `ChatComponent.createScreen`: T or / opens the chat with the draft kept
+    /// `Minecraft.openChatScreen`: T or / opens the chat with the draft kept
     /// last time, when this method can restore it (a command draft only for
-    /// /), else with its prefix.
+    /// /), else with its prefix — unless the Chat option hides the chat
+    /// (`ChatStatus.DISABLED_BY_OPTIONS`), in which case the red
+    /// `chat.disabled.options` overlay shows instead and the screen stays
+    /// closed. (The launcher and profile statuses need inputs this client
+    /// does not have, so they never arise here.)
     pub(super) fn open_chat_method(&mut self, prefix: &str) {
         // handleKeybinds: the number keys select before key.chat and key.command.
         self.select_queued_hotbar();
+        if ChatVisibility::from_option(self.settings.chat_visibility) == ChatVisibility::Hidden
+        {
+            let message =
+                Text::translate("chat.disabled.options", &[]).with_color(text::RED);
+            self.send_overlay_message(message.clone());
+            self.say_system_now(&message);
+            return;
+        }
         let command = prefix == "/";
         let draft = self
             .ui
@@ -1033,7 +1045,6 @@ impl Game<'_> {
             self.ui.chat.recent.len(),
             b.width as i32,
             b.height as i32,
-            self.chat_abilities(),
         );
         screen.auto_suggestions = self.settings.auto_suggestions;
         self.ui.chat_screen = Some(screen);
@@ -1201,7 +1212,9 @@ impl Game<'_> {
         );
         button
     }
-    /// `Minecraft.computeChatAbilities` from the Chat option.
+    /// What the Chat option lets the chat show, from the visibility alone
+    /// (`ChatComponent`'s visible-message filter: System hides player
+    /// messages, Hidden hides those and the system's).
     pub(super) fn chat_abilities(&self) -> ChatAbilities {
         ChatAbilities::new(ChatVisibility::from_option(self.settings.chat_visibility))
     }
@@ -1395,11 +1408,11 @@ impl Game<'_> {
     /// ChatScreen.handleChatInput: the message comes in normalized
     /// (`normalizeChatMessage`: trimmed, whitespace runs collapsed, cut to the
     /// 256 UTF-16 units the packet holds), into history, then as a command or
-    /// a chat line. The Chat option's restrictions stop the message here too,
-    /// so a control-socket `chat` cannot send what the player's setting hides.
+    /// a chat line. 1.21.11 sends whatever is typed once the screen is open —
+    /// the Chat option gates opening the screen, not sending.
     pub(super) fn handle_chat_input(&mut self, message: &str) {
         let message = normalize_chat_message(message);
-        if message.is_empty() || !self.chat_abilities().allows(&message) {
+        if message.is_empty() {
             return;
         }
         self.ui.chat.add_recent(&message);
@@ -1732,16 +1745,11 @@ impl Game<'_> {
         let Some(mut screen) = self.ui.chat_screen.take() else {
             return;
         };
-        // ChatScreen.updateNarrationState: the restricted prompt is
-        // `displayMode.showRestrictedPrompt`, the abilities' restrictions.
+        // ChatScreen.updateNarrationState: its title, how to send, and the
+        // message typed so far one level in.
         let in_bed = self.ui.in_bed_chat && self.sleeping.is_some();
         horizon_client::widgets::begin_screen(|| {
-            super::screen_info::chat(
-                in_bed,
-                screen.value(),
-                screen.abilities.any_restriction(),
-                &super::screen_info::tr,
-            )
+            super::screen_info::chat(in_bed, screen.value(), &super::screen_info::tr)
         });
         let m = Measure(&self.gui.atlas.font);
         let c = Commands {
@@ -2460,7 +2468,6 @@ mod tests {
             0,
             width as i32,
             height as i32,
-            ChatAbilities::new(ChatVisibility::Full),
         );
         screen.draw(&m, (0, 0), 0, 0);
         Game::leave_bed_draws(&m, (0, 0), width, height);

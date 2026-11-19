@@ -85,7 +85,6 @@ fn chat_completion_reaches_mods_from_keyboard_and_mouse_in_own_process() {
         0,
         640,
         360,
-        ChatAbilities::new(ChatVisibility::Full),
     ));
     game.chat_type("😀 hi st");
     game.chat_key_code(KeyCode::Tab, None);

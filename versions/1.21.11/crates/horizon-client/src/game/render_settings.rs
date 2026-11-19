@@ -131,7 +131,7 @@ impl Game<'_> {
     }
 
     pub(super) fn apply_settings(&mut self) {
-        // LocalPlayer.refreshChatAbilities: the chat shows what the Chat option allows.
+        // The Chat option's visible-message filter: the chat shows what it allows.
         let abilities = self.chat_abilities();
         self.ui.chat.set_abilities(&self.gui.atlas.font, abilities);
         let render_distance_changed = self.streaming.radius != self.settings.render_distance;

@@ -483,10 +483,13 @@ impl Restrictions {
             1 => Some("chat_restriction.chat_disabled_by_options"),
             _ => None,
         };
-        let abilities = horizon_client::chat::ChatAbilities::new(
-            horizon_client::chat::ChatVisibility::from_option(chat_visibility),
-        );
-        let (chat, commands) = (abilities.send_messages, abilities.send_commands);
+        // What the Chat option allows the player to send: Full both, System
+        // commands only, Hidden neither.
+        let (chat, commands) = match chat_visibility {
+            0 => (true, true),
+            1 => (false, true),
+            _ => (false, false),
+        };
         // The body's widgets: text blocks (lines, top) and the action's top.
         let mut blocks = Vec::new();
         let mut action = None;

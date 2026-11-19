@@ -91,36 +91,30 @@ impl ChatVisibility {
     }
 }
 
-/// `ChatAbilities`: what the Chat option allows, as `Minecraft.computeChatAbilities`
-/// derives it from the visibility alone (`ChatRestriction`).
+/// What the Chat option lets the chat show, from the visibility alone:
+/// 1.21.11 has no `ChatAbilities` class — sending is ungated once the chat
+/// screen is open (`ChatScreen.handleChatInput` sends whatever is typed),
+/// and the open itself is gated by `Minecraft.openChatScreen`'s `ChatStatus`
+/// (Hidden shows the `chat.disabled.options` overlay instead of opening).
+/// Only receiving is filtered here: System hides player messages, Hidden
+/// hides player and system messages alike.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ChatAbilities {
-    pub send_messages: bool,
-    pub send_commands: bool,
     pub receive_player_messages: bool,
     pub receive_system_messages: bool,
 }
 impl ChatAbilities {
-    /// `ChatRestriction.CHAT_AND_COMMANDS_DISABLED_BY_OPTIONS` (Hidden) takes
-    /// chat, commands, player messages and system messages;
-    /// `CHAT_DISABLED_BY_OPTIONS` (System) takes the chat and player messages.
     pub fn new(visibility: ChatVisibility) -> Self {
         match visibility {
             ChatVisibility::Full => Self {
-                send_messages: true,
-                send_commands: true,
                 receive_player_messages: true,
                 receive_system_messages: true,
             },
             ChatVisibility::System => Self {
-                send_messages: false,
-                send_commands: true,
                 receive_player_messages: false,
                 receive_system_messages: true,
             },
             ChatVisibility::Hidden => Self {
-                send_messages: false,
-                send_commands: false,
                 receive_player_messages: false,
                 receive_system_messages: false,
             },
@@ -132,18 +126,6 @@ impl ChatAbilities {
             ChatSource::Player => self.receive_player_messages,
             ChatSource::Server => self.receive_system_messages,
             ChatSource::Client => true,
-        }
-    }
-    /// `ChatAbilities.hasAnyRestrictions`: the Chat option takes something.
-    pub fn any_restriction(&self) -> bool {
-        *self != Self::new(ChatVisibility::Full)
-    }
-    /// Whether the chat screen may send `input` (`hasAllowedInput`).
-    pub fn allows(&self, input: &str) -> bool {
-        if input.starts_with('/') {
-            self.send_commands
-        } else {
-            self.send_messages
         }
     }
 }
@@ -881,31 +863,14 @@ impl Chat {
         out
     }
     /// Draws [`Chat::layout`] into the HUD batch, and with the chat screen
-    /// open the restricted prompt above the lines.
+    /// open the search prompt above the lines.
     pub fn draw(&self, batch: &mut HudBatch, atlas: &HudAtlas, ticks: f32, focused: bool) {
         let draws = self.layout(batch.height as i32, ticks, focused);
         hud_layout::paint(batch, atlas, &draws);
-        let restricted = focused && self.abilities.any_restriction();
-        if restricted {
-            let prompt = self.restricted_prompt(&atlas.font, batch.height as i32);
-            hud_layout::paint(batch, atlas, &prompt);
-        }
         if focused && self.search_prompt {
-            let row = if restricted { 2 } else { 1 };
-            let prompt = self.search_prompt(&atlas.font, batch.height as i32, row);
+            let prompt = self.search_prompt(&atlas.font, batch.height as i32, 1);
             hud_layout::paint(batch, atlas, &prompt);
         }
-    }
-    /// `ChatComponent.extractRenderState` for `FOREGROUND_RESTRICTED`: a
-    /// background row and the red, underlined "Chat is restricted" line in
-    /// the row above the messages, clipped to the chat's width.
-    fn restricted_prompt(&self, font: &crate::font::Font, height: i32) -> Vec<GuiDraw> {
-        let prompt = Text::translate("chat_screen.restricted", &[]).with_style(&Style {
-            color: Some(text::RED),
-            underlined: Some(true),
-            ..Style::default()
-        });
-        self.prompt_above(font, height, prompt, 1)
     }
     /// PvP & HUD's chat search: a yellow "Search chat:" line above the lines while the box holds
     /// the query.
@@ -1269,8 +1234,6 @@ pub struct ChatScreen {
     allow_suggestions: bool,
     keep_suggestions: bool,
     pub auto_suggestions: bool,
-    /// `CommandSuggestions.setRestrictions`: what the Chat option allows.
-    pub abilities: ChatAbilities,
     pub layout: SuggestLayout,
 }
 /// Local completions waiting for the server's reply to request `id`.
@@ -1366,7 +1329,6 @@ impl ChatScreen {
         history_len: usize,
         width: i32,
         height: i32,
-        abilities: ChatAbilities,
     ) -> Self {
         let mut input = TextField::new(4, height - 12, width - 4, 12);
         input.max_length = 256;
@@ -1392,7 +1354,6 @@ impl ChatScreen {
             allow_suggestions: false,
             keep_suggestions: false,
             auto_suggestions: true,
-            abilities,
             layout: SuggestLayout::CHAT,
         };
         s.update_command_info(m, c);
@@ -1430,7 +1391,6 @@ impl ChatScreen {
             allow_suggestions: true,
             keep_suggestions: false,
             auto_suggestions: true,
-            abilities: ChatAbilities::new(ChatVisibility::Full),
             layout: SuggestLayout::COMMAND_BLOCK,
         };
         s.update_command_info(m, c);
@@ -1455,19 +1415,9 @@ impl ChatScreen {
         if (width, height) != (self.width, self.height) {
             let value = self.input.value.clone();
             let auto = self.auto_suggestions;
-            let abilities = self.abilities;
             let message = std::mem::take(&mut self.input.message);
             *self = if self.layout == SuggestLayout::CHAT {
-                Self::new(
-                    m,
-                    c,
-                    &value,
-                    self.is_draft,
-                    self.history_pos,
-                    width,
-                    height,
-                    abilities,
-                )
+                Self::new(m, c, &value, self.is_draft, self.history_pos, width, height)
             } else {
                 Self::command_block(m, c, &value, width, height)
             };
@@ -1581,14 +1531,6 @@ impl ChatScreen {
             self.pending = Some((range.0, list));
             self.usage_width = 0;
             self.usage_position = 0;
-            // CommandSuggestions.updateCommandInfo: the Chat option may take
-            // the messages.
-            if !self.abilities.send_messages {
-                let line =
-                    Text::translate("chat_screen.messages_not_allowed", &[]).with_color(text::RED);
-                self.usage_width = m.width(&line);
-                self.usage.push(line);
-            }
         } else {
             self.awaiting = None;
             self.pending = None;
@@ -1692,15 +1634,6 @@ impl ChatScreen {
                 self.usage.push(e.with_context());
             }
             self.usage.extend(entries);
-        }
-        // CommandSuggestions.updateUsageInfo: the Chat option may take the
-        // commands, under the usage. (Vanilla also counts a command with a
-        // message argument, `/say hi`, as a message; Horizon's parse keeps no
-        // argument kinds, so only a bare message does.)
-        if !self.abilities.send_commands {
-            self.usage.push(
-                Text::translate("chat_screen.commands_not_allowed", &[]).with_color(text::RED),
-            );
         }
         self.usage_width = self.usage.iter().map(|u| m.width(u)).max().unwrap_or(0);
         self.usage_position = if self.usage.is_empty() {
@@ -1847,11 +1780,9 @@ impl ChatScreen {
         match key {
             K::Escape => return ChatAction::Close,
             K::Enter | K::NumpadEnter => {
-                // ChatScreen.keyPressed: without `hasAllowedInput` the input
-                // stays, unsent, and the screen stays open.
-                if !self.abilities.allows(&self.input.value) {
-                    return ChatAction::None;
-                }
+                // ChatScreen.keyPressed: 1.21.11's handleChatInput sends
+                // whatever is typed — the Chat option gates opening the
+                // screen (`Minecraft.openChatScreen`), not sending.
                 return ChatAction::Submit(self.normalized());
             }
             K::ArrowUp => self.move_in_history(m, c, history, -1),
