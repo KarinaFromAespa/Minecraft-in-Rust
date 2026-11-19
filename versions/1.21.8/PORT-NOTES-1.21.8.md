@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 49/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63 + 4 zero-diff)
+### Rank 2: 50/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65 + 4 zero-diff)
+
+- **Item 65 — `crates/horizon-client/src/game/raids.rs` (4 classes,
+  8 methods, 5 named in Horizon) — zero-diff:** VillageSiege
+  (2; tick), Raid (2; spawnGroup, tick), Raids (2; tick),
+  PatrolSpawner (2; tick). The spawner `tick` signature is
+  three-argument in 1.21.8 (`CustomSpawner.tick(level,
+  spawnEnemies, spawnFriendlies)`) and two-argument in 1.21.9,
+  but both spawners read only the first boolean, and the
+  Rust's patrol tick takes exactly that one (`spawn_mobs`
+  and difficulty not peaceful), as the siege tick does; the
+  bodies are identical apart from parameter renumbering (the
+  patrol's 12000 + nextInt(1200) cadence, the 1-in-5 roll,
+  the 24..48-block offset, the difficulty-based group size,
+  the ±4 jitter; the siege's midnight 1-in-10 roll). The
+  1.21.9-only pieces have no Rust surface: the `DEBUG_RAIDS`
+  boss-bar rename in `Raid.tick`, `Raids.getRaidCentersInChunk`
+  (debug-only), and the 1.21.8-only `DebugPackets.sendRaids`
+  in `Raids.tick` (debug-only, unmodelled, as with the
+  shulker/allay debug packets). The ravager mount in
+  `spawnGroup` is `startRiding(vehicle)` in 1.21.8 vs the
+  three-argument form in 1.21.9; the Rust mounts through
+  `riders::link` with no force/silent parameters. Known gap
+  (vs both, not fixed here): the patrol spawner has no
+  day-5 gate — vanilla requires `getDayTime() / 24000 >= 5`
+  before the 1-in-5 roll, so the Rust can spawn patrols
+  before day 5 and consumes the roll's random draw on those
+  days where vanilla draws nothing. No check run: no files
+  changed since item 55's 0/0 check (item-37 precedent).
 
 - **Item 63 — `crates/horizon-client/src/mobs/shulker.rs` (2 classes,
   9 methods, 5 named in Horizon) — zero-diff:** Shulker (6;
