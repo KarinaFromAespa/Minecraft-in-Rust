@@ -1,7 +1,7 @@
 //! A new world's spawn and its first player's position: MinecraftServer.
 //! setInitialSpawn walks a chunk spiral around NoiseBasedChunkGenerator.
-//! getOrigin, then PlayerSpawnFinder.findSpawn picks a free column around
-//! the world spawn within the respawn radius.
+//! getOrigin, then ServerPlayer.adjustSpawnLocation picks a free column
+//! around the world spawn within the respawn radius.
 use super::Game;
 use horizon_client::{
     Result,
@@ -313,7 +313,7 @@ impl Game<'_> {
         })
     }
     /// ServerPlayer.adjustSpawnLocation for a server's new player: where
-    /// PlayerSpawnFinder.findSpawn puts their feet around the world spawn
+    /// the coprime-stride search puts their feet around the world spawn
     /// (`spawn`, the feet there), so that players new to a world don't all
     /// stand in one spot. Vanilla waits for each candidate's chunk; a server
     /// tick can't, so a candidate in a chunk not loaded yet is passed over,
@@ -341,7 +341,7 @@ impl Game<'_> {
         }
         spawn
     }
-    /// PlayerSpawnFinder.noCollisionNoLiquid: a player's box standing at the
+    /// adjustSpawnLocation's `noCollisionNoLiquid`: a player's box standing at the
     /// block's bottom centre touches no block or liquid.
     fn player_fits(&self, pos: [i32; 3]) -> bool {
         let feet = bottom_center(pos);
@@ -356,7 +356,7 @@ impl Game<'_> {
         };
         no_collision_or_liquid(&mut scene, bounds)
     }
-    /// PlayerSpawnFinder.fixupSpawnHeight: up out of anything solid, then
+    /// adjustSpawnLocation's height fixup: up out of anything solid, then
     /// down onto the ground.
     fn fixup_spawn_height(&self, pos: [i32; 3]) -> Vec3 {
         let [x, mut y, z] = pos;

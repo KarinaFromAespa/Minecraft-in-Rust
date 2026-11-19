@@ -19,7 +19,7 @@ pub trait SpawnLevel {
     fn spawn_height(&self) -> i32;
 }
 
-/// PlayerSpawnFinder.getLevelRespawnPos: the block above the column's top
+/// PlayerRespawnLogic.getOverworldRespawnPos: the block above the column's top
 /// full-topped collision, unless water, lava or only non-colliding blocks
 /// are on top. A level with a ceiling (`caveWorld`) searches from the
 /// generator's spawn height, under the roof, not from the heightmap that
@@ -48,7 +48,7 @@ pub fn level_respawn_pos(level: &impl SpawnLevel, x: i32, z: i32) -> Option<[i32
     None
 }
 
-/// PlayerSpawnFinder.getSpawnPosInChunk: the first valid column, x-major.
+/// PlayerRespawnLogic.getSpawnPosInChunk: the first valid column, x-major.
 pub fn spawn_pos_in_chunk(level: &impl SpawnLevel, cx: i32, cz: i32) -> Option<[i32; 3]> {
     for x in cx * 16..cx * 16 + 16 {
         for z in cz * 16..cz * 16 + 16 {
@@ -119,8 +119,10 @@ pub enum SpawnCandidate {
     Suggestion,
 }
 
-/// PlayerSpawnFinder: the columns of the square of `radius` around the
-/// suggestion in a random coprime-stride order, then the suggestion.
+/// `ServerPlayer.adjustSpawnLocation`'s search: the columns of the square
+/// of `radius` around the suggestion in a random coprime-stride order, then
+/// the suggestion. (1.21.9 extracted this into `PlayerSpawnFinder` and
+/// capped the attempts at 1024; 1.21.8 tries every column of the square.)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PlayerSpawnFinder {
     pub suggestion: [i32; 3],
@@ -131,11 +133,11 @@ pub struct PlayerSpawnFinder {
     next: i32,
 }
 impl PlayerSpawnFinder {
-    /// `radius` is the respawn radius already clamped to the world border
-    /// (findSpawn); `random(n)` draws the start offset in `0..n`.
+    /// `radius` is the respawn radius already clamped to the world border;
+    /// `random(n)` draws the start offset in `0..n`.
     pub fn new(suggestion: [i32; 3], radius: i32, random: impl FnOnce(i32) -> i32) -> Self {
         let side = i64::from(radius) * 2 + 1;
-        let count = (side * side).min(1024) as i32;
+        let count = (side * side).min(i64::from(i32::MAX)) as i32;
         Self {
             suggestion,
             radius,

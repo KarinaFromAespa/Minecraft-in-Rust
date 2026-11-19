@@ -1142,12 +1142,16 @@ impl Game<'_> {
         // (ServerPlayer.forceSetRotation) sends the rotation alone, rider or not.
         let forced = std::mem::take(&mut self.rotation_forced);
         let turned = !forced && [self.yaw, self.pitch] != [g.yaw, g.pitch];
-        [g.yaw, g.pitch] = [self.yaw, self.pitch];
         if forced {
+            // 1.21.8's forceSetRotation sends the packet only; the server's
+            // stored rotation waits for the client's next move packet
+            // (1.21.9's 4-arg form sets it at once, via super).
             g.send(&C::PlayerRotation(play::PlayerRotation {
-                yaw: g.yaw,
-                pitch: g.pitch,
+                yaw: self.yaw,
+                pitch: self.pitch,
             }));
+        } else {
+            [g.yaw, g.pitch] = [self.yaw, self.pitch];
         }
         self.yaw = yaw;
         self.pitch = pitch;
@@ -2100,7 +2104,8 @@ impl Game<'_> {
     }
 
     /// `ServerGamePacketListenerImpl.wasBlockPlacementAttempt`: a block item,
-    /// or a bucket with something in it, that is not cooling down.
+    /// or any bucket (1.21.8 counts even an empty one; the non-empty
+    /// requirement came in 1.21.9), that is not cooling down.
     fn was_block_placement_attempt(&mut self, hand: Hand) -> bool {
         let Some(stack) = self.with_hand(hand, |g| g.held().cloned()) else {
             return false;
@@ -2108,7 +2113,13 @@ impl Game<'_> {
         let Some(info) = self.items().get(&stack.item).cloned() else {
             return false;
         };
-        (info.block.is_some() || horizon_client::items::bucket_contents(&stack.item).is_some())
+        (info.block.is_some()
+            // 1.21.8 counts any BucketItem, empty or full (the non-empty
+            // requirement came in 1.21.9); a milk bucket is one too, and
+            // bucket_contents answers None for it.
+            || stack.item.as_ref() == "minecraft:bucket"
+            || stack.item.as_ref() == "minecraft:milk_bucket"
+            || horizon_client::items::bucket_contents(&stack.item).is_some())
             && !self
                 .cooldowns
                 .is_on_cooldown(&horizon_client::cooldowns::group(

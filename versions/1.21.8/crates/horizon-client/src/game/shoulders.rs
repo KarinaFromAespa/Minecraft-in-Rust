@@ -53,7 +53,6 @@ impl Game<'_> {
             || !p.ground.on_ground
             || p.fluids.was_touching_water
             || p.in_powder_snow
-            || p.flying
         {
             return;
         }
@@ -73,9 +72,10 @@ impl Game<'_> {
         self.mobs[i].removed = true;
     }
 
-    /// `ServerPlayer.handleShoulderEntities`: the parrots leave the shoulder
-    /// of a player who falls, swims, flies, sleeps, is hurt, dying, a
-    /// spectator or spinning with a riptide.
+    /// `Player.aiStep`'s shoulder check (plus the separate removals on
+    /// hurt, death, riptide spin and becoming a spectator, folded in here):
+    /// the parrots leave the shoulder of a player who falls, swims, flies,
+    /// sleeps, is hurt, dying, a spectator or spinning with a riptide.
     pub(super) fn handle_shoulder_entities(&mut self) {
         for key in KEYS {
             self.play_shoulder_entity_ambient_sound(key);
@@ -103,7 +103,7 @@ impl Game<'_> {
         }
     }
 
-    /// `ServerPlayer.playShoulderEntityAmbientSound`: a parrot that is not
+    /// `Player.playShoulderEntityAmbientSound`: a parrot that is not
     /// `Silent` chirps or imitates a mob within 20 blocks, one tick in 200
     /// (drawn from the level's random; the player's own is not kept).
     fn play_shoulder_entity_ambient_sound(&mut self, key: &str) {
@@ -147,7 +147,7 @@ impl Game<'_> {
         }
     }
 
-    /// `ServerPlayer.removeEntitiesOnShoulder` (not within a second of the
+    /// `Player.removeEntitiesOnShoulder` (not within a second of the
     /// landing) and `respawnEntityOnShoulder`: the parrots come back at the
     /// player, still owned by them.
     fn remove_entities_on_shoulder(&mut self) {

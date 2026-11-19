@@ -151,9 +151,10 @@ impl Hub {
         }
     }
 
-    /// tryHandleChat: an illegal character disconnects; with chat hidden a
-    /// message (not a command) is refused. Whether to go on.
-    pub fn try_handle_chat(&mut self, i: usize, message: &str, command: bool) -> bool {
+    /// tryHandleChat: an illegal character disconnects; with chat hidden
+    /// the message or command is refused (1.21.8 checks both; the
+    /// command exemption came in 1.21.9). Whether to go on.
+    pub fn try_handle_chat(&mut self, i: usize, message: &str) -> bool {
         let conn = self.guests[i].conn;
         if !message.chars().all(allowed) {
             self.kick(
@@ -163,7 +164,7 @@ impl Hub {
             return false;
         }
         // ChatVisiblity.HIDDEN.
-        if !command && self.guests[i].info.chat_visibility == 2 {
+        if self.guests[i].info.chat_visibility == 2 {
             self.guests[i].send(&C::SystemChat(play::SystemChat {
                 content: red("chat.disabled.options"),
                 overlay: false,
@@ -238,7 +239,7 @@ impl Hub {
         let Some(last_seen) = self.apply_last_seen(i, &c.last_seen, events) else {
             return;
         };
-        if !self.try_handle_chat(i, &c.message, false) {
+        if !self.try_handle_chat(i, &c.message) {
             return;
         }
         let (enforce, now) = (self.enforces_secure_chat(), now_millis());

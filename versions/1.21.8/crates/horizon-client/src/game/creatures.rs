@@ -7329,11 +7329,13 @@ impl Game<'_> {
         let (id, at) = (m.id, m.position);
         let feet = [at.x, at.y, at.z];
         let tool = self.held().cloned();
-        let table = "minecraft:brush/armadillo";
-        let mut stacks = self.sequence_loot(table, table, tool.as_ref());
+        // 1.21.8's brushOffScute spawns one scute outright; the
+        // brush/armadillo loot table (and dropFromEntityInteractLootTable)
+        // came in 1.21.9, so there is no table to roll here.
+        let mut stacks = vec![ItemStack::new("minecraft:armadillo_scute", 1)];
         let kind = super::native_hooks::mob_kind(&self.mobs[index]);
         self.native_use_drops(
-            table,
+            "minecraft:brush/armadillo",
             feet,
             None,
             Some((id, &kind)),

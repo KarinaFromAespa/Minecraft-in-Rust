@@ -334,7 +334,81 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 3/317 (item 10 + 2 zero-diff)
+### Rank 2: 4/317 (items 10, 11 + 2 zero-diff)
+
+- **Item 11 — `game/lan_actions.rs` (12 classes, 68 named methods,
+  785 diff lines):** ten fixes.
+  1. **Save format — world spawn and player respawn:** 1.21.8
+     stores the world spawn as `SpawnX`/`SpawnY`/`SpawnZ` +
+     `SpawnAngle` (yaw only) in level.dat, and the player respawn
+     as `{dimension, pos, angle, forced}`; 1.21.9 uses the `spawn`
+     compound `{pos, dimension, yaw, pitch}` and respawn
+     `{dimension, pos, yaw, pitch, forced}` (RespawnData). The
+     level read/write and the player respawn read/write now use
+     the 1.21.8 form (pitch does not survive a round-trip).
+  2. **Spawn search cap:** the 1024 candidate cap is 1.21.9's
+     `PlayerSpawnFinder.ABSOLUTE_MAX_ATTEMPTS`; 1.21.8 has no
+     `PlayerSpawnFinder` and `adjustSpawnLocation` tries every
+     column of the square (cap `i32::MAX`).
+  3. **Shoulder entities:** removed the extra `flying` gate in
+     `parrot_to_shoulder` — 1.21.8's `Player.setEntityOnShoulder`
+     checks passenger/onGround/water/powderSnow only. (The shoulder
+     logic moved from `Player` to `ServerPlayer` in 1.21.9; the
+     docs now cite the 1.21.8 home.)
+  4. **Block-placement attempt:** 1.21.8 counts any `BucketItem`,
+     empty or full; the non-empty requirement came in 1.21.9.
+     Empty buckets and milk buckets now count (the milk bucket is
+     a `BucketItem` that `bucket_contents` answers None for).
+  5. **Chat HIDDEN check:** 1.21.9 exempts commands from the
+     hidden-chat refusal; 1.21.8 refuses both messages and
+     commands. `try_handle_chat` lost its `command` parameter.
+  6. **Drowning:** exactly `-20`, not `-20` or less — the `<=`
+     `shouldTakeDrowningDamage` came in 1.21.9. Air that jumps
+     past -20 without landing on it does not drown (test pinned).
+  7. **Shield block:** removed the `blocked <= 0` early return in
+     `after_block` — 1.21.8 runs `hurtBlockingItem` and
+     `blockUsingItem` even when nothing was blocked (the `> 0`
+     gate came in 1.21.9), so a zero-block hit still damages the
+     shield per its damage function, knocks back, and disables.
+  8. **Armadillo brush:** 1.21.8's `brushOffScute` spawns one
+     scute outright; the `brush/armadillo` loot table (and
+     `dropFromEntityInteractLootTable`) came in 1.21.9. Rolling
+     the missing table dropped nothing — both the player and the
+     dispenser paths now spawn a fixed scute.
+  9. **`/rotate` for guests:** 1.21.8's `ServerPlayer.forceSetRotation`
+     sends the rotation packet only; the server's stored rotation
+     waits for the client's next move packet. (1.21.9's 4-arg form
+     sets it at once via super.) The `as_guest` swap-back now
+     sends the packet with the new rotation without updating the
+     guest's stored yaw/pitch.
+  10. **Datafix test:** `level_data_of_1_20_moves_to_the_new_fields`
+      expected the 4548/4658/4771 fixes, all inert for to=4440;
+      rewritten as `level_data_of_1_20_keeps_its_1_21_8_fields`.
+  - **Verified no-change:** chest sounds hardcoded (1.21.9's
+    per-block getters are 1.21.9-only); `RespawnConfig` already
+    yaw-only; idle timeout tick-based with no wonGame exemption;
+    container openers player-only (no `ContainerUser`);
+    `getAnalogOutputSignal` Direction param and `isClientSide()`
+    -> field (Java only); fire clear (mobs clear fire ticks for
+    fire-immune, same net effect as 1.21.8's `LivingEntity.baseTick`
+    clear); `killedEntity` (identical override, unused DamageSource
+    param); `shouldDropLoot`/`doMobLoot` (`death_loot_table` applies
+    the 1.21.8 gate); sleep tick (wake on dead/bed-gone only, no
+    `canInteractWithLevel`); the doTick food/stats/container-close
+    (pure move from `Player.tick` to `ServerPlayer.doTick`, same
+    guard and order); `loadGameTypes` (inlined identically in
+    1.21.9); WorldBorder safe zone (pure rename
+    `getDamageSafeZone` -> `getSafeZone`); `getSlotForHand`,
+    `asLivingEntity`, `EntityReference.of` (Java API only);
+    `TeleportTransition` (covered by `RespawnConfig` + the spawn
+    finder).
+  - **Upstream gap, not a port gap:** 1.21.8's debug-sample
+    subscription (`debug_sample_subscription` packet + server-sent
+    `debug_sample` packets) is implemented on neither side of the
+    Rust — same as the 1.21.8 debug custom payloads (item 10).
+  - **Deferred:** `/setworldspawn` (1.21.8 takes a single `angle`
+    arg and fails outside the Overworld; 1.21.9 takes a `rotation`
+    arg) — commands item's fix.
 
 - **Item 10 — `game/remote.rs` (14 classes, 85 named methods, 1,490
   diff lines):** six fixes.

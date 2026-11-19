@@ -2128,11 +2128,9 @@ impl Game<'_> {
                 continue;
             }
             let at = self.mobs[i].position;
-            let drops = self.sequence_loot(
-                "minecraft:brush/armadillo",
-                "minecraft:brush/armadillo",
-                Some(&stack),
-            );
+            // 1.21.8's brushOffScute spawns one scute outright; the
+            // brush/armadillo loot table came in 1.21.9.
+            let drops = vec![ItemStack::new("minecraft:armadillo_scute", 1)];
             for d in drops {
                 self.spawn_at_location(at, 0.0, d);
             }

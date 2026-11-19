@@ -4094,22 +4094,22 @@ impl Level {
             difficulty: "normal".into(),
             ..Self::default()
         };
-        // 26.3: spawn {pos: [I; x, y, z], dimension, yaw, pitch}; older: SpawnX/Y/Z.
-        level.world_spawn = match data.get("spawn").and_then(|s| s.get("pos")) {
-            Some(Tag::IntArray(p)) if p.len() == 3 => Some([p[0], p[1], p[2]]),
-            _ => data.get("SpawnX").map(|_| {
-                [
-                    n(data.get("SpawnX")) as i32,
-                    n(data.get("SpawnY")) as i32,
-                    n(data.get("SpawnZ")) as i32,
-                ]
-            }),
-        };
-        let angle = |k: &str| match data.get("spawn").and_then(|s| s.get(k)) {
-            Some(Tag::Float(b)) => f32::from_bits(*b),
-            _ => 0.0,
-        };
-        level.world_spawn_angle = [angle("yaw"), angle("pitch")];
+        // 1.21.8: the world spawn is SpawnX/Y/Z + SpawnAngle (yaw only).
+        // The `spawn` compound with yaw/pitch came in 1.21.9.
+        level.world_spawn = data.get("SpawnX").map(|_| {
+            [
+                n(data.get("SpawnX")) as i32,
+                n(data.get("SpawnY")) as i32,
+                n(data.get("SpawnZ")) as i32,
+            ]
+        });
+        level.world_spawn_angle = [
+            match data.get("SpawnAngle") {
+                Some(Tag::Float(b)) => f32::from_bits(*b),
+                _ => 0.0,
+            },
+            0.0,
+        ];
         if let Some(d) = data.get("difficulty_settings") {
             level.difficulty = text(d.get("difficulty")).unwrap_or_else(|| "normal".into());
             level.hardcore = n(d.get("hardcore")) != 0;
@@ -4301,7 +4301,7 @@ impl Level {
             let forced = number(respawn.get("forced")).is_some_and(|v| v != 0);
             // Forced points, including Overworld ones, are validated through
             // their blocks on death, just like beds and respawn anchors.
-            let yaw = match respawn.get("yaw") {
+            let yaw = match respawn.get("angle") {
                 Some(Tag::Float(b)) => f32::from_bits(*b),
                 _ => 0.0,
             };
@@ -4537,11 +4537,13 @@ impl Level {
         }
         // A respawn point other than the world spawn: an anchor elsewhere, or a bed.
         if let Some((dimension, block, yaw, forced)) = &self.respawn_elsewhere {
+            // 1.21.8's RespawnConfig: {dimension, pos, angle, forced} — no
+            // pitch, and the yaw key is `angle` (the `yaw`/`pitch` form came
+            // in 1.21.9 with RespawnData).
             let mut respawn = vec![
                 ("dimension", string(dimension)),
                 ("pos", Tag::IntArray(block.to_vec())),
-                ("yaw", Tag::Float(yaw.to_bits())),
-                ("pitch", Tag::Float(0f32.to_bits())),
+                ("angle", Tag::Float(yaw.to_bits())),
             ];
             if *forced {
                 respawn.push(("forced", Tag::Byte(1)));
@@ -4561,8 +4563,7 @@ impl Level {
                     Tag::compound([
                         ("dimension", string("minecraft:overworld")),
                         ("pos", Tag::IntArray(block.to_vec())),
-                        ("yaw", Tag::Float(0f32.to_bits())),
-                        ("pitch", Tag::Float(0f32.to_bits())),
+                        ("angle", Tag::Float(0f32.to_bits())),
                         ("forced", Tag::Byte(1)),
                     ]),
                 ));
@@ -4645,15 +4646,14 @@ impl Level {
             .is_some_and(|d| d.get("Player").is_some() || d.get("WorldGenSettings").is_some());
         let mut data = compound_or_empty(existing);
         if let Tag::Compound(map) = &mut data {
-            // Pre-26.3 keys now stored elsewhere (a legacy Horizon level.dat).
+            // Keys now stored elsewhere (a legacy Horizon level.dat), plus
+            // the 1.21.9 `spawn` compound, which 1.21.8 does not have (its
+            // world spawn is SpawnX/Y/Z + SpawnAngle, written below).
             for key in [
                 "Player",
                 "WorldGenSettings",
                 "DayTime",
-                "SpawnX",
-                "SpawnY",
-                "SpawnZ",
-                "SpawnAngle",
+                "spawn",
                 "clearWeatherTime",
                 "rainTime",
                 "thunderTime",
@@ -4751,14 +4751,13 @@ impl Level {
             ("GameType", Tag::Int(self.mode())),
             ("Time", Tag::Long(self.time)),
             ("LastPlayed", Tag::Long(now)),
+            // 1.21.8's world spawn: SpawnX/Y/Z + SpawnAngle (yaw only).
+            ("SpawnX", Tag::Int(spawn[0])),
+            ("SpawnY", Tag::Int(spawn[1])),
+            ("SpawnZ", Tag::Int(spawn[2])),
             (
-                "spawn",
-                Tag::compound([
-                    ("pos", Tag::IntArray(spawn.to_vec())),
-                    ("dimension", string("minecraft:overworld")),
-                    ("yaw", Tag::Float(self.world_spawn_angle[0].to_bits())),
-                    ("pitch", Tag::Float(self.world_spawn_angle[1].to_bits())),
-                ]),
+                "SpawnAngle",
+                Tag::Float(self.world_spawn_angle[0].to_bits()),
             ),
             ("difficulty_settings", difficulty),
             ("initialized", Tag::Byte(1)),
@@ -7694,7 +7693,8 @@ mod tests {
         );
         assert_eq!(back.dimension, "minecraft:the_nether");
         assert_eq!(back.world_spawn, Some([8, 64, 8]));
-        assert_eq!(back.world_spawn_angle, [45.0, -10.0]);
+        // 1.21.8 stores only the yaw (SpawnAngle); the pitch does not survive.
+        assert_eq!(back.world_spawn_angle, [45.0, 0.0]);
         assert_eq!(back.spawn, Some([8.0, 64.0, 8.0]));
         assert_eq!(
             back.respawn_elsewhere,

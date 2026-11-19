@@ -74,7 +74,7 @@ impl Game<'_> {
         let Some(i) = host.hub.guests.iter().position(|g| g.conn == conn) else {
             return;
         };
-        if !host.hub.try_handle_chat(i, command, true) {
+        if !host.hub.try_handle_chat(i, command) {
             return;
         }
         let permission = host.hub.guests[i].permission;
@@ -115,7 +115,7 @@ impl Game<'_> {
         let mut signed = None;
         let mut ran = false;
         if let Some(last_seen) = host.hub.apply_last_seen(i, &p.last_seen, &mut events)
-            && host.hub.try_handle_chat(i, &p.command, true)
+            && host.hub.try_handle_chat(i, &p.command)
         {
             ran = true;
             let permission = host.hub.guests[i].permission;
