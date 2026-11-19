@@ -12,7 +12,6 @@ pub mod attributes;
 pub mod border;
 pub mod chunk_sync;
 pub mod chunks;
-pub mod code_of_conduct;
 mod command_order;
 pub mod command_suggestions;
 pub mod commands;

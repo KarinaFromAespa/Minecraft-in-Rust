@@ -828,6 +828,16 @@ fn lost(shared: &Shared, user: &str, text: &str) {
     }
 }
 
+/// How the configuration phase names a player in the log: `name (uuid)`.
+/// 1.21.8's `ServerConfigurationPacketListenerImpl.onDisconnect` logs the
+/// GameProfile object itself, and authlib renders it with a
+/// `ToStringBuilder` (`com.mojang.authlib.GameProfile@<hash>[id=...,
+/// name=...,properties=...]`), whose identity hash no Rust rendering can
+/// reproduce; the name and id carry the same information.
+fn profile_log(name: &str, uuid: u128) -> String {
+    format!("{name} ({})", uuid_string(uuid))
+}
+
 /// UNIQUE_THREAD_ID: the User Authenticator threads are numbered from 1.
 static AUTHENTICATORS: AtomicU32 = AtomicU32::new(0);
 
@@ -1153,7 +1163,7 @@ fn serve_login(
             put_back();
             shared.release(uuid);
             // ServerConfigurationPacketListenerImpl.onDisconnect.
-            let profile = format!("{name} ({})", uuid_string(uuid));
+            let profile = profile_log(&name, uuid);
             lost(shared, &profile, "Disconnected");
             Err(err)
         }
@@ -1323,7 +1333,7 @@ fn login_and_configure(
             );
             (log.write)("Server thread", "INFO", &line);
         }
-        lost(shared, &format!("{name} ({})", uuid_string(uuid)), text);
+        lost(shared, &profile_log(name, uuid), text);
         return Ok(None);
     }
     // Custom component IDs need Horizon's registry check. The server may also
@@ -1344,7 +1354,7 @@ fn login_and_configure(
                 format!("Disconnecting {name}: its client is \"{brand}\", not Horizon ({text})");
             (log.write)("Server thread", "INFO", &line);
         }
-        lost(shared, &format!("{name} ({})", uuid_string(uuid)), text);
+        lost(shared, &profile_log(name, uuid), text);
         return Ok(None);
     }
     // A Horizon client hears that this server runs its mods' quiet commands
@@ -1414,7 +1424,7 @@ fn login_and_configure(
                 text.as_str(),
             ));
             let _ = send(c, cfg::Clientbound::Disconnect(cfg::Disconnect { reason }));
-            lost(shared, &format!("{name} ({})", uuid_string(uuid)), &text);
+            lost(shared, &profile_log(name, uuid), &text);
             return Ok(None);
         }
     }
@@ -1452,7 +1462,7 @@ fn login_and_configure(
             let _ = send(c, cfg::Clientbound::Disconnect(cfg::Disconnect { reason }));
             lost(
                 shared,
-                &format!("{name} ({})", uuid_string(uuid)),
+                &profile_log(name, uuid),
                 crate::content_identity::MISMATCH,
             );
             return Ok(None);
@@ -1468,7 +1478,7 @@ fn login_and_configure(
     {
         let (reason, text) = pack_rejected(shared, name, rejected);
         let _ = send(c, cfg::Clientbound::Disconnect(cfg::Disconnect { reason }));
-        lost(shared, &format!("{name} ({})", uuid_string(uuid)), &text);
+        lost(shared, &profile_log(name, uuid), &text);
         return Ok(None);
     }
     send(c, cfg::Clientbound::FinishConfiguration(Empty))?;
@@ -1586,7 +1596,6 @@ fn offer_pack(
     })
 }
 
-/// ServerCodeOfConductConfigurationTask: send the text, then wait for
 /// Read configuration packets until `answer` has a result, sending a
 /// keep-alive every `KEEP_ALIVE_EVERY` meanwhile
 /// (ServerConfigurationPacketListenerImpl.tick).

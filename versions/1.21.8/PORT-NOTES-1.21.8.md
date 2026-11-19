@@ -334,7 +334,62 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 38/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 50 + 4 zero-diff)
+### Rank 2: 39/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50 + 4 zero-diff)
+
+- **Item 49 — `crates/horizon-client/src/lan/conn.rs` (6 classes, 20 methods, 6 named in Horizon):**
+  ServerConfigurationPacketListenerImpl (11; addOptionalTasks,
+  onDisconnect, startConfiguration, tick),
+  ServerCommonPacketListenerImpl (3; handleResourcePackResponse),
+  ServerLoginPacketListenerImpl (3; handleHello),
+  ServerConnectionListener$2 (1), ServerLoginPacketListenerImpl$1
+  (1), ServerCodeOfConductConfigurationTask (1; removed). Fixes:
+  1. **The server-side code of conduct is gone.** 1.21.9's
+     `ServerCodeOfConductConfigurationTask` and
+     `DedicatedServer.readCodeOfConducts` / `getCodeOfConducts`
+     (which `addOptionalTasks` called) do not exist in 1.21.8 — the
+     whole `net.minecraft.server.network.config` package is absent
+     from the 1.21.8 decomp. Item 13 had already cut the wiring and
+     the configuration flow already skips the task; this item
+     removes the dead `lan/code_of_conduct.rs` module (`read` +
+     `pick` + tests, zero callers) and its `pub mod` declaration,
+     plus the dangling `ServerCodeOfConductConfigurationTask` doc
+     line on `wait_alive`. The client-side prompt is rank-3 item
+     378's; the unread `code_of_conduct` server.properties field
+     is rank-3 item 483's.
+  2. **The configuration log names the profile honestly.** 1.21.9's
+     configuration `onDisconnect` logs `name (uuid)`; 1.21.8 logs
+     the GameProfile object itself, which authlib 6.0.58 renders
+     with a `ToStringBuilder` (`com.mojang.authlib.GameProfile@
+     <hash>[id=...,name=...,properties=...]`, verified by
+     decompiling the 1.21.8-pinned authlib jar) — its identity hash
+     no Rust rendering can reproduce. The six config-phase
+     `lost()` call sites now share a `profile_log` helper that
+     renders `name (uuid)` and documents why.
+  Verified no-change: the login `onDisconnect` is identical in both
+  versions (`getUserName()` = name + loggable address, which
+  `user_name` matches); `handleHello`'s singleplayer-profile,
+  online, forwarding and offline branches match (the name
+  comparison is case-insensitive in both); `authenticate`'s
+  `hasJoinedServer` log and refusal texts are identical (the
+  `getSessionService()` / `services().sessionService()` split has
+  no Rust citation); `try_admit`'s duplicate wait matches
+  `disconnectAllPlayersWithProfile` + `WAITING_FOR_DUPE_DISCONNECT`
+  (by uuid in both); the configuration flow is already 1.21.8's —
+  brand, server links, features, known packs, registry data, tags,
+  resource pack, finish — with no PrepareSpawnTask anywhere
+  (1.21.9's `returnToWorld`/`spawnPlayer` split has no Rust
+  equivalent; placement is the hub's, item 24); `tick` is
+  keep-alive only in the Rust, as in 1.21.8 (1.21.9 ticks the
+  current task and disconnects with `configuration_error`, which
+  has no Rust equivalent); keep-alive 15 s and read timeout 30 s
+  match; the resource-pack decline log and disconnect reason
+  match; `startMemoryChannel` verified present in the 1.21.8 jar
+  (javap — the outer class file is missing from the decomp);
+  `ServerConnectionListener$1` (ReadTimeoutHandler) is unchanged
+  between versions; the `DEBUG_FAKE_LATENCY_MS` / LatencySimulator
+  debug pipeline has no Rust equivalent; `NameAndId` is unused by
+  conn.rs (the Rust's own type lives in horizon-server-files for
+  user lists, item 24's note stands).
 
 - **Item 46 — `crates/horizon-client-render/src/ui.rs` (2 classes, 22 methods, 6 named in Horizon):**
   EditBox (19; charTyped, findClickedPositionInText, keyPressed,
