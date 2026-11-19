@@ -1158,7 +1158,10 @@ pub(super) fn potted_by_content(
 }
 
 /// `NoteBlockInstrument` serialized names in declaration order.
-pub const INSTRUMENTS: [&str; 27] = [
+/// 1.21.11 has 23; the 26.x copper trumpets (trumpet, trumpet_exposed,
+/// trumpet_oxidized, trumpet_weathered) do not exist here — a note block
+/// on copper plays the harp, the unmapped default.
+pub const INSTRUMENTS: [&str; 23] = [
     "harp",
     "basedrum",
     "snare",
@@ -1175,10 +1178,6 @@ pub const INSTRUMENTS: [&str; 27] = [
     "bit",
     "banjo",
     "pling",
-    "trumpet",
-    "trumpet_exposed",
-    "trumpet_oxidized",
-    "trumpet_weathered",
     "zombie",
     "skeleton",
     "creeper",
@@ -1189,7 +1188,7 @@ pub const INSTRUMENTS: [&str; 27] = [
 ];
 /// `NoteBlockInstrument.worksAboveNoteBlock` (mob heads and custom heads).
 pub fn instrument_works_above(index: u8) -> bool {
-    index >= 20
+    index >= 16
 }
 fn instrument_index(name: &str) -> u8 {
     INSTRUMENTS

@@ -1345,3 +1345,51 @@ Rank 2 (492 items, in progress 2026-11-19)
     only; server-side.
 - Rank-2 A-batches 1-7: 70 items closed (16 changed, 54 no-change).
   work-items.json rank2.closed = 70 on 2026-11-19.
+- A-batch 8 (366, 367, 368, 369, 370, 373, 374, 375, 376, 378),
+  verified 2026-11-19, ported the same day:
+  - 366 no-change (evoker/spellcaster goals): access flags +
+    requireNonNull ctors + lambda method order. IllagerSpell has 6
+    values in both versions. Server-side AI.
+  - 367 no-change (NBT): ByteTag$Cache, one access-flag line.
+  - 368 CHANGED (note block instruments): 26.1 has 27 instruments,
+    1.21.11 has 23 — TRUMPET, TRUMPET_EXPOSED, TRUMPET_OXIDIZED and
+    TRUMPET_WEATHERED (the copper-trumpet instruments, Type
+    BASE_BLOCK) are 26.x-only; everything after PLING shifts down 4
+    ordinals. `INSTRUMENTS` cut 27 -> 23 and `instrument_works_above`
+    rethresholded 20 -> 16 (the mob-head instruments now start at
+    16). With the 27-entry table a 1.21.11 zombie instrument (index
+    16 in the data) read as "trumpet" and failed the works-above
+    test, in both `note_block_instrument` and the play/trigger
+    paths. A note block on copper now falls back to harp, as
+    vanilla 1.21.11 does for unmapped base blocks. (WallBlock's
+    `FluidState.is(WATER)` vs `getType() == WATER` is the same
+    semantics; WallBlock$1 is switch-map order.) The separate
+    8-entry INSTRUMENTS in fixes_old.rs is the pre-1.13 datafix
+    table, untouched.
+  - 369 no-change (SimpleContainer): 1.21.11 HAS a listeners list +
+    addListener/removeListener, and `setChanged()` notifies them;
+    26.1's `setChanged()` is an empty no-op. The Rust already
+    models this through `ContainerHooks::changed` (`set` and
+    `remove` both call it) — the 1.21.11 form.
+  - 370 no-change (font): access flags + ctor order + `Matrix4fc`
+    vs `Matrix4f` in renderSprite. Mojang font plumbing.
+  - 373 no-change (camel husk): `interact(Player, Hand, Vec3)` vs
+    `(Player, Hand)` (the 26.x signature gained the hit position);
+    26.1 adds a `canFallInLove()` override returning false.
+    `isBaby()` is false in both. Server-side.
+  - 374 no-change (player): Abilities$Packed (same 7 components),
+    Input, Player synthetics — access flags + ctor order only.
+  - 375 no-change (MatrixUtil): `checkPropertyRaw` public vs
+    private; `checkProperty` ORs cached properties in 26.1 vs
+    re-determines in 1.21.11 (unobservable for a maintained
+    matrix); `isOrthonormal` exists only in 1.21.11, but the Rust
+    never checks orthonormality (precomputed quarter-turn tables).
+  - 376 no-change (RenderType): 26.1-only `hasBlending()` /
+    `outputTarget()`; invokevirtual vs invokeinterface for the GPU
+    device/pass (the 26.x backend turned interfaces into classes).
+    Mojang GPU plumbing.
+  - 378 no-change (widgets): interface order; `extractWidgetRenderState`
+    vs `renderWidget`, `item` -> `renderItem`, `fakeItem` ->
+    `renderFakeItem` (the known render-API rename pattern).
+- Rank-2 A-batches 1-8: 80 items closed (17 changed, 63 no-change).
+  work-items.json rank2.closed = 80 on 2026-11-19.
