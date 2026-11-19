@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 68/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88 + 4 zero-diff)
+### Rank 2: 69/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89 + 4 zero-diff)
+
+- **Item 89 — `crates/horizon-client/src/vanillagen.rs`
+  (2 classes, 5 methods, 4 named in Horizon), zero-diff:**
+  ChunkGenerator (applyBiomeDecoration,
+  createReferences, createStructures,
+  findNearestMapStructure), ChunkStatusTasks. All
+  differences are 1.21.9-only debug flags, off by
+  default in release vanilla: `DEBUG_DISABLE_FEATURES`
+  (findNearestMapStructure + decoration task),
+  `DEBUG_FEATURE_COUNT` +
+  `FeatureCountTracker.chunkDecorated`,
+  `DEBUG_DISABLE_STRUCTURES` (createStructures). No
+  debug-flag citations exist anywhere in the Rust;
+  the Rust models the always-run path. The 1.21.8-only
+  `DebugPackets.sendStructurePacket` in
+  createReferences is debug-only and unmodelled.
+  `Configuration$Global` is 1.21.9-only with no Rust
+  surface. The `createStructures` body (weighted
+  structure pick with `LegacyRandomSource(0)` +
+  `setLargeFeatureSeed`) is otherwise identical.
 
 - **Item 88 — `crates/horizon-client/src/mobs/panda.rs`
   (2 classes, 5 methods, 4 named in Horizon), zero-diff:**
