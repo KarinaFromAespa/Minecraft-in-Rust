@@ -4,7 +4,11 @@
     "manifest_sha1": "48c9b004f6add2f9dca3cca46cb036d1bed91cb4",
     "client_sha1": "a2db1ea98c37b2d00c83f6867fb8bb581a593e07",
     "server_sha1": "05e4b48fbc01f0385adb74bcff9751d34552486c",
-    "java_major": 21
+    "java_major": 21,
+    "accepted_manifest_sha1": [
+      "5149e9aa052c041683a5b2d80aecaaabde953b87"
+    ],
+    "accepted_manifest_note": "Mojang republished the 1.21.7 version JSON (asset-index-26 hash + one x86 JVM flag); the client/server jars are byte-identical to the pinned sha1s."
   },
   "vineflower": {
     "version": "1.12.0",
