@@ -2054,9 +2054,9 @@ fn ticking_chunk(world: &World, x: i32, z: i32) -> bool {
     };
     center.lit && world.chunks.surrounded((x, z))
 }
-/// `TicketStorage.canTicketExpire` for a `PORTAL` ticket: its chunk's holder is
-/// ready for saving once the futures of its level are done, the chunk lit and
-/// its neighbours loaded out to one chunk at a ticking level
+/// `TicketStorage.purgeStaleTickets`' gate for a `PORTAL` ticket: its chunk's
+/// holder is ready for saving once the futures of its level are done, the
+/// chunk lit and its neighbours loaded out to one chunk at a ticking level
 /// (`prepareTickingChunk`) and two at an entity-ticking one
 /// (`prepareEntityTickingChunk`). The ticket's own level stands for the
 /// holder's: the area it waits for is the one its own streaming loads.
@@ -9591,10 +9591,20 @@ impl Game<'_> {
         let title = self.shows_panorama();
         let (yaw, pitch) = if title {
             // PanoramaRenderer: the title cube spins at 0.1 degrees per tick, pitched 10 degrees.
+            // AccessibilityOnboardingScreen's renderPanorama passes false: its panorama does not
+            // spin (a zero speed holds the yaw; `update` still tracks the clock, so no jump when
+            // the title returns).
+            let spinning = !self.title.as_ref().is_some_and(|t| {
+                matches!(t.mode, horizon_client::title::Mode::Onboarding(_))
+            });
             (
                 self.panorama_rotation.update(
                     self.started.elapsed().as_secs_f32(),
-                    self.settings.file.double("panoramaScrollSpeed") as f32,
+                    if spinning {
+                        self.settings.file.double("panoramaScrollSpeed") as f32
+                    } else {
+                        0.0
+                    },
                 ),
                 10.0,
             )

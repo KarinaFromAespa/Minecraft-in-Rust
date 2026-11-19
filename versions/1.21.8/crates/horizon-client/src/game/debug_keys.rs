@@ -690,7 +690,16 @@ impl Game<'_> {
                 }
                 true
             }
-            DebugAction::SwitchGameMode if self.open_screen() == OpenScreen::None => {
+            DebugAction::SwitchGameMode
+                if matches!(
+                    self.open_screen(),
+                    OpenScreen::None | OpenScreen::PauseWithoutMenu
+                ) =>
+            {
+                // KeyboardHandler's gate: no screen, or a PauseScreen without
+                // its menu. (1.21.9 adds a WinScreen exclusion, unreachable
+                // behind that gate, and a canSwitchGameMode check the player
+                // check below already covers.)
                 if self.player.is_none() || !self.gamemaster() {
                     self.debug_translated("debug.gamemodes.error");
                 } else {

@@ -1566,6 +1566,15 @@ impl Game<'_> {
         self.resend_commands_filtered();
     }
 
+    /// `DedicatedPlayerList.saveOps`: the operators list is written at once
+    /// after an op or deop (1.21.9 dropped the immediate save); a failure
+    /// warns and the change still stands in memory.
+    pub(super) fn save_ops(&mut self, lists: &Arc<Mutex<Lists>>) {
+        if let Err(e) = lists.lock().unwrap().ops.save() {
+            log("WARN", &format!("Failed to save operators list: {e}"));
+        }
+    }
+
     /// A player on the server, by name.
     pub(super) fn online_player(&self, name: &str) -> Option<NameAndId> {
         let hub = &self.lan.as_ref()?.hub;
@@ -1844,6 +1853,9 @@ impl Game<'_> {
                 self.console_reply(Text::translate(key, &[lit(&user.name)]));
                 let lists = state.lists.clone();
                 self.sync_ops(&lists);
+                if changed {
+                    self.save_ops(&lists);
+                }
                 // DeOpCommands.deopPlayers.
                 if command == "deop" && changed {
                     self.kick_unlisted_players(&lists);

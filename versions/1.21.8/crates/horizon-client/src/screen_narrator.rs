@@ -713,8 +713,8 @@ impl ScreenNarrator {
         };
         let mut said = Vec::new();
         if opened || resized {
-            // Screen.init: `triggerImmediateNarration(false)`, then the
-            // suppression (until the next key for a keyboard user).
+            // Screen.init: `triggerImmediateNarration(false)`, then two
+            // seconds of suppression.
             let text = run(open, &ctx(true), false, Trigger::System);
             if adopting {
                 if let Some((at, was_disabled, trigger)) = pending {
@@ -722,7 +722,7 @@ impl ScreenNarrator {
                 }
             } else {
                 said.push(text);
-                open.state.after_init(now, self.input.is_keyboard());
+                open.state.after_init(now);
             }
         }
         if narrate_now

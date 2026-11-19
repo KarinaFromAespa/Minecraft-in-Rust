@@ -155,6 +155,7 @@ impl Game<'_> {
                     };
                     if added {
                         self.sync_ops(&lists);
+                        self.save_ops(&lists);
                         count += 1;
                         self.feedback(Text::translate("commands.op.success", &[lit(&player.name)]));
                     }
@@ -171,6 +172,7 @@ impl Game<'_> {
                     };
                     if removed {
                         self.sync_ops(&lists);
+                        self.save_ops(&lists);
                         count += 1;
                         self.feedback(Text::translate(
                             "commands.deop.success",

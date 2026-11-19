@@ -334,7 +334,91 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 7/317 (items 10, 11, 12, 13, 17 + 2 zero-diff)
+### Rank 2: 8/317 (items 10, 11, 12, 13, 16, 17 + 2 zero-diff)
+
+- **Item 16 — `game.rs` (37 classes, 178 methods, 33 named in
+  Horizon):** buckets, honeycomb, game mode, ops, narration,
+  panorama and the F3+F4 gate.
+  1. **Bucket shift removed:** 1.21.9 places adjacent when sneaking
+     at a replaceable/liquid-container target; 1.21.8 places into
+     the block (`isAir || canBeReplaced || canPlaceLiquid`, no
+     shift). The `sneaking` parameter is gone from both
+     `bucket_empty` fns (game, remote, dispenser call sites and 5
+     tests updated); clicking a slab now waterlogs it.
+  2. **Honeycomb double-chest event removed:** 1.21.9 fires
+     BLOCK_CHANGE + level event 3003 on the connected half of a
+     double copper chest; 1.21.8 waxes one block only. The
+     second-half event and sound are gone (game + remote);
+     `chest_connected_pos` went with them. The wax table itself is
+     data-driven from the 1.21.8 pack, so no table change.
+  3. **Game mode:** (a) `Guest::change_game_mode` no longer
+     records the mode left as previous — 1.21.8 preserves it
+     (only set at load from `previousPlayerGameType` and copied on
+     restore). (b) The host save no longer writes the client-model
+     previous back: the saved value stays the loaded one. The
+     client's own `previous_mode` (F3+F4, the switcher) is the
+     `setLocalMode` model, byte-identical in both versions —
+     untouched. (c) The flying-disable-near-ground on mode change
+     is gone (`set_mode` and the hub's `set_game_mode`, with the
+     now-dead `world`/`collision` params and their callers).
+  4. **Op/deop save at once:** 1.21.8's
+     `DedicatedPlayerList.op/deop` call `saveOps()` immediately;
+     1.21.9 dropped it (its base `op/deop` never save). A new
+     `save_ops` helper (warn on failure, as vanilla does) runs
+     after a successful in-game `/op`/`/deop` and console
+     op/deop. The management-server callers are Horizon-only
+     tooling, left alone.
+  5. **Narration suppression is always two seconds:** 1.21.9's
+     `init` suppresses forever for keyboard users; 1.21.8 always
+     suppresses `NARRATE_SUPPRESS_AFTER_INIT_TIME` (2 s).
+     `ScreenNarration::after_init` lost its `keyboard` parameter;
+     the keyboard-forever test is rewritten for the 2-second
+     rule.
+  6. **The onboarding panorama does not spin:**
+     `AccessibilityOnboardingScreen.renderPanorama` passes false
+     in 1.21.8 (1.21.9's `panoramaShouldSpin` override says the
+     same). The title cube now runs at zero speed while the title
+     mode is Onboarding — `Rotation::update` still tracks the
+     clock, so no jump when the title returns.
+  7. **F3+F4 over a pauseless pause screen:**
+     `KeyboardHandler`'s gate is no screen, or a PauseScreen
+     without its menu, in both versions; the switcher arm now
+     accepts `PauseWithoutMenu` too.
+  - **Verified no-change:** spawner flags (each spawner ticks with
+    its own inline gates; cat and trader match both versions);
+    portal ticket expiry (PORTAL semantics identical);
+    skeleton-trap lightning rods (only `minecraft:lightning_rod`
+    exists in the 1.21.8 registry); explosions (the `Explode`
+    packet is already the 1.21.8 form); save format (`SpawnX/Y/Z`
+    + `SpawnAngle`, rank 1); whitelist persistence (item 13);
+    trapped-chest sounds (the `contains("chest")` arm plays the
+    chest sounds, same in both versions); RCON/console source
+    position (the spawn pos in both versions); dedicated-start
+    whitelist and max-players from properties; absolute max world
+    size (the default 29,999,984 already); `getAnalogOutputSignal`
+    (bodies identical); the 8 renderer diffs (submit-API refactor,
+    identical transforms/values); `isClientSide()` renames;
+    AnvilScreen/TitleScreen input API (same behaviour);
+    `isInGameUi` (a pure refactor — containers and sign editors
+    override `renderBackground` with the transparent gradient in
+    1.21.8, the base checks the flag in 1.21.9; same picture);
+    `removeWidget` focus-clear (the Rust's widgets are drawn per
+    frame, not objects — no `removeWidget` to fix);
+    `canInterruptScreen`/F3+F6 (1.21.9-only; the debug options
+    screen stays as Horizon debug UI, as the 1.21.7 port kept
+    it); F3+F4's WinScreen exclusion (unreachable behind the
+    `KeyboardHandler` gate in both versions) and
+    `canSwitchGameMode` (subsumed by the player check);
+    `getEntityInAnyDimension` (the only Rust cross-dimension
+    lookup is the native-mod API); `waitForEntities`
+    (server/test plumbing, unmodeled); the debug classes,
+    GameTestTicker and TextureManager.
+  - **Known gaps (unmodeled, upstream model):** level emptiness
+    (`emptyTime`/`hasActiveTickets`) and START/spawn-chunk tickets
+    — parked levels do not tick at all. The copper-golem opener
+    machinery (`golem_chests`, built from `chest_openers`) is
+    dead in this tree and goes with item 229; the container
+    recount itself is players-only, as in 1.21.8.
 
 - **Item 17 — `game/creatures.rs` (33 classes, 108 methods, 39
   named):** the peaceful rework plus spawn-egg, turtle and creeper

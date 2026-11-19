@@ -19,7 +19,6 @@ use horizon_client::{
     },
     mobs::{Mob, Species, Who, leash::Holder},
     text::Text,
-    world::World,
 };
 use horizon_protocol::{
     entity_data::{Value, serializer},
