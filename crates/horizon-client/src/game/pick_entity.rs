@@ -98,3 +98,4 @@ impl Game<'_> {
         };
         Some(ItemStack::new(&item, 1))
     }
+}
