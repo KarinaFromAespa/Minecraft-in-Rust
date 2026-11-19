@@ -334,7 +334,36 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 63/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79 + 4 zero-diff)
+### Rank 2: 64/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83 + 4 zero-diff)
+
+- **Item 83 — `crates/horizon-client/src/game/commands/extra.rs`
+  (5 classes, 9 methods, 4 named in Horizon):**
+  Component (`object`), SpectateCommand (`spectate`),
+  FetchProfileCommand (removed), KickCommand
+  (`kickPlayers`), VersionCommand (`dumpVersion`).
+  **Spectate:** removed the 1.21.9-only
+  `cannot_spectate` check — 1.21.8 has no such check,
+  you can spectate any entity. **Version:** `/version`
+  reported hardcoded 26.3 pack formats ("97.1" /
+  "121.0"); it now uses
+  `horizon_core::version::RESOURCE_PACK_FORMAT` /
+  `DATA_PACK_FORMAT` (64/81), rendered as ints as
+  1.21.8's `packVersion` does (1.21.9's
+  `PackVersion.toString()` gives "64.0").
+  **Object components:** `Component.object(ObjectInfo)`
+  / `ObjectContents` do not exist in 1.21.8 (0 classes
+  in the jar, 3 in 1.21.9) — removed the whole
+  `InlineObject` system (the enum, the `Style` field,
+  the parser and round-trip arms, the U+FFFC advance
+  and glyph branches, the object-skin publication and
+  inline-profile resolution, the probe fixture) and
+  `tools/test_inline_object_parity.py`, which pinned
+  the 1.21.9-only behaviour. Verified no-change:
+  `/fetchprofile` already removed by item 22; kick
+  already matches 1.21.8 (filters on the singleplayer
+  owner); no `DataSource` package-path citations; the
+  protocol text codec has no object handling. Check
+  0/0 at `-j 1`.
 
 - **Item 79 — `crates/horizon-client/src/game/trading.rs`
   (2 classes, 10 methods, 4 named in Horizon), zero-diff:**
