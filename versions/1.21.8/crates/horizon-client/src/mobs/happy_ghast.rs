@@ -598,10 +598,6 @@ pub fn sounds(m: &Mob) -> [&'static str; 3] {
         ]
     }
 }
-/// `getSoundVolume`: 4 for adults, 1 for ghastlings.
-pub fn volume(m: &Mob) -> f32 {
-    if m.is_baby() { 1.0 } else { 4.0 }
-}
 /// `HappyGhastModel.setupAnim`: the tentacles, and the body squeezed under a harness.
 pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     // HappyGhastHarnessModel.setupAnim: the goggles down while ridden

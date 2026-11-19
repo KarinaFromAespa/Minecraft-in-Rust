@@ -2656,7 +2656,6 @@ pub fn eating_sound(
 pub fn sound_volume(m: &Mob) -> f32 {
     match m.species() {
         Species::Ghast => 5.0,
-        Species::HappyGhast => super::happy_ghast::volume(m),
         Species::Warden => 4.0,
         Species::Slime | Species::MagmaCube | Species::SulfurCube => {
             0.4 * m.extra.size.max(1) as f32
