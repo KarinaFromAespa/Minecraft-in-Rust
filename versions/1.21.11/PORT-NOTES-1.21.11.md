@@ -1836,3 +1836,14 @@ Rank 2 (492 items, in progress 2026-11-19)
   - 502 no-change (Score$Packed): record field flags.
 - Rank-2 A-batches 1-19: 188 items closed (25 changed, 163 no-change).
   work-items.json rank2.closed = 188 on 2026-11-19.
+- Item 462 (GuiEventListener), changed, ported 2026-11-19 as part of
+  item 11's preedit removal: 26.1's `preeditUpdated(PreeditEvent)`
+  default method has no 1.21.11 counterpart — preedit is entirely
+  26.x (no `PreeditEvent`, `IMEPreeditOverlay` or `preedit.png` in
+  the 1.21.11 client jar). Removed the Rust's preedit overlay
+  (`horizon-client-render/src/preedit.rs`, the `report_caret` calls,
+  `Game::ime_preedit`/`flush_ime`, the `Ime::Preedit`/`Disabled`
+  arms and the key suppression); committed text still reaches the
+  focused field through `ime_commit`, the 1.21.11 path.
+  Rank 2 now 189/492 (26 changed, 163 no-change).
+  work-items.json rank2.closed = 189 on 2026-11-19.

@@ -2292,8 +2292,6 @@ struct Game<'a> {
     focus_after_run: Option<bool>,
     /// Whether the window currently accepts input method events.
     ime_allowed: bool,
-    /// The candidate window's area last given to the window, in pixels.
-    ime_area: Option<[i32; 4]>,
     /// When the window lost focus, while it is still without
     /// (`Minecraft.lastActiveTime`: pausing waits 500 ms).
     focus_lost: Option<Instant>,
@@ -9681,7 +9679,6 @@ impl Game<'_> {
         pr.lap("pr_projection");
         // GUI hooks project against this frame's camera, including its bob/spin and FOV.
         let mut hud = horizon_client::spans::time("hud", || self.hud(size));
-        self.flush_ime(&mut hud);
         self.native_gui_render_post(&mut hud, self.ui.hide_gui, self.focused);
         self.resolve_inline_profiles(&hud.inline_profiles);
         pr.lap("pr_hud");
@@ -10100,18 +10097,6 @@ impl Game<'_> {
         {
             title.drop_file(path.clone());
         }
-        // GLFW never hands a field the keys an input method consumes: while a
-        // composition is open, and the Enter or Escape that ends it (winit on
-        // Windows still sends that one right after `Ime::Commit`).
-        if let WindowEvent::KeyboardInput {
-            event: key_event, ..
-        } = &event
-            && key_event.state == ElementState::Pressed
-            && self.text_field_focused()
-            && horizon_client::preedit::should_suppress_key()
-        {
-            return;
-        }
         // A character that comes with no key (Windows' Alt codes, `Alt` + digits on the numeric
         // keypad: a `WM_CHAR` after the Alt is released) reaches winit as a key event with no
         // physical key. GLFW's char callback types it in the focused text field (`charTyped`),
@@ -10466,13 +10451,8 @@ impl Game<'_> {
                     self.begin_closing_save(true)?;
                 }
                 // Input method composition: the committed text types like a key's text.
+                // (1.21.11 has no preedit overlay; the OS shows the composition.)
                 WindowEvent::Ime(winit::event::Ime::Commit(text)) => self.ime_commit(&text),
-                WindowEvent::Ime(winit::event::Ime::Preedit(text, cursor)) => {
-                    self.ime_preedit(&text, cursor)
-                }
-                WindowEvent::Ime(winit::event::Ime::Disabled) => {
-                    horizon_client::preedit::set_preedit(None)
-                }
                 WindowEvent::Resized(size) => {
                     if let Some(r) = &mut self.renderer {
                         r.resize(size.width, size.height);
@@ -11893,7 +11873,6 @@ impl<'a> Game<'a> {
             unclaimed_window: false,
             focus_after_run: None,
             ime_allowed: false,
-            ime_area: None,
             focus_lost: None,
             modifiers: winit::keyboard::ModifiersState::empty(),
             fullscreen: horizon_client::window::FullscreenState::new(false),

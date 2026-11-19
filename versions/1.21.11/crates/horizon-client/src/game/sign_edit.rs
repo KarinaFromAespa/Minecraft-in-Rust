@@ -841,7 +841,6 @@ impl Game<'_> {
             if edit.edit.cursor_visible() {
                 batch.fill(atlas, caret_x, ly, 1.0, line_height, color);
             }
-            horizon_client::preedit::report_caret(caret_x, ly, line_height);
         }
         let (bx, by) = done_button(w, h);
         horizon_client::widgets::declare_action(

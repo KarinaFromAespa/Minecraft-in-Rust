@@ -1,12 +1,10 @@
 //! Input method (IME) text: committed composition goes to the focused text
 //! field through the same sinks the keyboard and `horizon-ctl type` use.
 //! The window only asks the OS for an input method while such a field has
-//! focus, so movement keys keep arriving as plain key events.
+//! focus, so movement keys keep arriving as plain key events. 1.21.11 has
+//! no preedit overlay (`PreeditEvent` is 26.x): the OS shows the
+//! composition window itself, and only committed text reaches the game.
 use super::{Game, Screen, books::BookScreen};
-use horizon_client::{
-    hud::HudBatch,
-    preedit::{self, PreeditEvent},
-};
 
 impl Game<'_> {
     /// Whether a text box has focus right now (the fields `ime_commit` can fill).
@@ -52,60 +50,11 @@ impl Game<'_> {
         {
             window.set_ime_allowed(want);
             self.ime_allowed = want;
-            // The field lost the focus (or a new one took it): the composition
-            // and the candidate window's place belong to the old one.
-            self.ime_area = None;
-            if !want {
-                preedit::reset();
-            }
-        }
-    }
-
-    /// `WindowEvent::Ime(Preedit)`: `KeyboardHandler.textEditing`. The text
-    /// still being composed is shown under the focused field's caret.
-    pub(super) fn ime_preedit(&mut self, text: &str, cursor: Option<(usize, usize)>) {
-        if !self.text_field_focused() {
-            preedit::reset();
-            return;
-        }
-        if text.is_empty() {
-            preedit::set_preedit(None);
-            return;
-        }
-        preedit::set_preedit(PreeditEvent::from_winit(text, cursor));
-    }
-
-    /// With the frame's GUI built: draw the composition over it and move the
-    /// input method's candidate window to the caret
-    /// (`TextInputManager.setTextInputArea`, in window pixels).
-    pub(super) fn flush_ime(&mut self, hud: &mut HudBatch) {
-        preedit::draw_overlay(hud, &self.gui.atlas);
-        let Some([x0, y0, x1, y1]) = preedit::take_text_input_area() else {
-            return;
-        };
-        let scale = hud.scale;
-        let x = (x0 * scale).round() as i32;
-        let y = (y0 * scale).round() as i32;
-        let width = (((x1 - x0) * scale).round() as i32).max(1);
-        let height = (((y1 - y0) * scale).round() as i32).max(1);
-        let area = [x, y, width, height];
-        if self.ime_area == Some(area) {
-            return;
-        }
-        if let Some(window) = &self.window
-            && self.ime_allowed
-        {
-            window.set_ime_cursor_area(
-                winit::dpi::PhysicalPosition::new(x, y),
-                winit::dpi::PhysicalSize::new(width as u32, height as u32),
-            );
-            self.ime_area = Some(area);
         }
     }
 
     /// Text the input method committed (`WindowEvent::Ime(Commit)`).
     pub(super) fn ime_commit(&mut self, text: &str) {
-        preedit::mark_committed();
         if text.is_empty() {
             return;
         }
