@@ -334,8 +334,82 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 12/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 + 2 zero-diff)
+### Rank 2: 13/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 + 2 zero-diff)
 
+- **Item 20 — `title.rs` (17 classes, 107 methods, 16 named in Horizon):**
+  the title screens: world selection, create world, multiplayer join,
+  flat-world customize, onboarding, backup/recover. 1.21.9 laid these
+  out with `HeaderAndFooterLayout` and the `getContentX/Y` inset;
+  1.21.8 uses fixed bounds and draws at the row's own left edge.
+  1. **World-list double-click:** 1.21.8's `WorldListEntry.mouseClicked`
+     joins on an icon click at once (`x - rowLeft <= 32`) and on a text
+     click only within 250 ms of the last click on that entry
+     (`lastClickTime`); a world that cannot be played swallows the
+     click without even selecting. The Rust joined on any second click
+     of the selected row and selected disabled worlds. New
+     `last_world_click` field on `Title`; new test
+     `a_world_row_joins_on_its_icon_or_a_fast_second_click` (fast
+     second click joins, 260 ms later it only selects, icon joins at
+     once, locked world swallows). A row-click join is also silent in
+     1.21.8 (no sound in `mouseClicked` or `joinWorld`; only the
+     list's Enter path plays the click), so `click()` no longer sounds
+     `Action::Play` — the Play button sounds via its hit, Enter via
+     `confirm_key_size`.
+  2. **World-list geometry:** list bounds 49/`h-60` -> 48/`h-64`
+     (`SelectWorldScreen` y0 48, height `h-112`); row content at the
+     row's left edge (icon, name at +35, id/info lines), not 2 px in;
+     the hover icon-light test is x-only (`rx < 32`, as in
+     `WorldListEntry.render`). Footer buttons Edit/Delete/Re-Create/
+     Back 71 -> 72 wide at -154/-76/+4/+82 (1.21.9's grid used 71).
+     New test `the_world_list_footer_buttons_are_72_wide_below`.
+  3. **Multiplayer geometry (`multiplayer.rs`):** list bounds 33/`h-60`
+     -> 32/`h-64`; title drawn centred at y 20 (was 12, the 1.21.9
+     header's centred StringWidget); footer buttons `h-52`/`h-28` ->
+     `h-54`/`h-30` (two 20 px rows + 4 px spacer centred in the
+     64 px footer). Tests updated (`rows_sit_two_pixels...`,
+     drag/icon-arrow anchors 37 -> 36) and a new footer test
+     `the_footer_buttons_fill_the_64_pixel_footer`.
+  4. **Flat customize (`title/flat.rs`):** the height labels' right
+     edge is `rowRight - 8` in 1.21.8 (the 1.21.9 content right is
+     `rowRight - 2`) — header and layer rows; material title, slot and
+     name sit at the row's left edge, not 2 px in. Layer narration is
+     only `narrator.select(item)` (1.21.9 appended the height title
+     and value), and the header is not narrated at all (1.21.8 has no
+     header entry — `renderHeader`, not a row). The delete-by-index
+     and `selection_after_removal` logic already matched 1.21.8.
+  5. **Onboarding fade (`title/onboarding.rs`):** `onClose` sets
+     `fadeOutStart` unconditionally in 1.21.8, so a second close
+     restarts the fade; the Rust guarded it once (the 1.21.9 form).
+     Test extended with a double-close restart.
+  6. **Citations:** `extractSelection`/`extractContent`/
+     `extractWidgetRenderState` -> `renderSelection`/`render`/
+     `renderWidget`; `WorldListEntry.keyPressed` -> the list's
+     `WorldSelectionList.keyPressed` (Enter joins there in 1.21.8);
+     `deleteLayer` -> the inline delete; the multiplayer
+     `HeaderAndFooterLayout(33, 60)` note -> the 1.21.8 manual layout.
+  Verified already-1.21.8: the seed hint is DARK_GRAY; the search
+  filter clears the selection (`clearEntries` nulls it); Enter joins
+  the selected world/server; F5 refreshes only the multiplayer list;
+  the add-server default name is `selectServer.defaultName`; the
+  Play/Edit/Delete/Re-Create gates match `LevelSummary`
+  (`primaryActionActive`/`canEdit`/`canRecreate` = `!isDisabled`,
+  `canDelete` always true, verified via javap on both jars);
+  `CreateWorldScreen.keyPressed` and the `lastScreen` return are the
+  same behaviour; `setScreenAndShow`/`forceSetScreen` and the
+  `renderCentered`/`renderLeftAligned` label calls are API-only.
+  Out of scope, recorded for their owners: the server-row content
+  inset and double-click are `ServerSelectionList`'s (item 334, rank
+  3) — note the item-15 claim that the server list already does the
+  250 ms window is wrong, the Rust joins on any second click there;
+  the add/edit-server screen itself is `ManageServerScreen` (item
+  334) / `EditServerScreen` (item 496, rank 4); the `PlainTextButton`
+  pointing-hand cursor is 1.21.9-only API (the widgets/cursor item).
+  Pre-existing gaps vs both versions, noted not fixed: the Rust never
+  speaks the onboarding narrator message (1.21.8 at volume 1.0,
+  1.21.9 at the voice volume); the flat list uses 20 px rows and a
+  fixed header where vanilla uses 24 px rows and a scrolling header;
+  the search box sits at y 21 (vanilla 22); `getEntryAtPosition`
+  uses -2 where vanilla uses -4; the selection rects sit 2 px high.
 - **Item 19 — `mobs/render.rs` (34 classes, 186 methods, 17 named in
   Horizon):** the mob renderers and layers. One real behaviour fix; the
   rest is the 1.21.9 submit-API refactor with identical values, so the
