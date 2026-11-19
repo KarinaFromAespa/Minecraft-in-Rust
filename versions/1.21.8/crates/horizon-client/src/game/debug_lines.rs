@@ -140,7 +140,6 @@ impl Game<'_> {
                         d.line(format!("Post: {}", effects.join(", ")));
                     }
                 }
-                "simple_performance_impactors" => self.debug_performance_lines(d),
                 "sound_cache" => {
                     let (buffers, bytes) = self.audio.cache_stats();
                     d.line(overlay::sound_cache_line(buffers, bytes));

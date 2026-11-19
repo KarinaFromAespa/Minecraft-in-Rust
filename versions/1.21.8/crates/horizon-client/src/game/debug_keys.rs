@@ -1,4 +1,4 @@
-//! The debug keys in the game (26.3 `KeyboardHandler.keyPress`,
+//! The debug keys in the game (1.21.8 `KeyboardHandler.keyPress`,
 //! `handleDebugKeys` and `tick`): F3 combinations, F3+Escape, the held
 //! debug-crash keys, and the debug renderers they switch on.
 use super::{Game, Screen};
@@ -94,14 +94,12 @@ impl Game<'_> {
                 }
             } else if key == KeyCode::Escape {
                 self.close_gamemode_switcher(false);
-            } else if name == self.settings.keys.get("key.debug.debugOptions") {
-                // The debug options screen interrupts the switcher too
-                // (`canInterruptScreen`): it closes, then F6 opens over the game.
-                self.close_gamemode_switcher(false);
-                self.toggle_debug_options();
             } else if matches!(key, KeyCode::F2 | KeyCode::F11) {
                 return false;
             }
+            // Any other key is the switcher's: 1.21.8 has no screen
+            // interrupt (`canInterruptScreen` is 1.21.9-only), so F6 over the
+            // switcher does nothing.
             return true;
         }
         // Vanilla types into a focused EditBox through charTyped, which no
@@ -253,12 +251,12 @@ impl Game<'_> {
     pub(super) fn debug_chart_lines(&self) -> [String; 3] {
         let keys = &self.settings.keys;
         let modifier = keys.get("key.debug.modifier");
+        let prefix = if modifier == "key.keyboard.unknown" {
+            String::new()
+        } else {
+            format!("{}+", keybinds::display_name(modifier).plain())
+        };
         let key = |mapping: &str| {
-            let prefix = if modifier == "key.keyboard.unknown" {
-                String::new()
-            } else {
-                format!("{}+", keybinds::display_name(modifier).plain())
-            };
             format!(
                 "[{prefix}{}]",
                 keybinds::display_name(keys.get(mapping)).plain()
@@ -293,7 +291,12 @@ impl Game<'_> {
                 ),
                 chart("key.debug.lightmapTexture", "Lightmap", c.lightmap),
             ),
-            format!("To edit: press {}", key("key.debug.debugOptions")),
+            // 1.21.8's footer; 1.21.9 says "To edit: press F3 + F6" here
+            // instead (its debug options screen, gone in 1.21.8).
+            format!(
+                "For help: press [{prefix}{}]",
+                keybinds::display_name("key.keyboard.q").plain()
+            ),
         ]
     }
     /// `Gui.extractRenderState`'s debug overlay, over everything the frame
@@ -398,7 +401,12 @@ impl Game<'_> {
         self.debug_refresh.set(Some((Instant::now(), rate)));
         rate
     }
-    /// `DebugEntryFps`.
+    /// `Minecraft.fpsString`: `"%d fps T: %s%s%s%s B: %d%s"` — the limit,
+    /// vsync, the graphics mode, the clouds and the biome blend radius, all
+    /// on the one line. (1.21.9 splits the last three into the separate
+    /// `DebugEntrySimplePerformanceImpactors` line.) The present mode and
+    /// the refresh rate are Horizon's own additions, kept after the limit;
+    /// the GPU part stays empty, as in vanilla without a frame profiler.
     pub(super) fn debug_fps_line(&self, d: &mut debug_overlay::Displayer) {
         let limit = self.framerate_limit();
         let present = self
@@ -425,44 +433,29 @@ impl Game<'_> {
                     (self.fps * (1.0 + share)).round() as i32
                 )
             });
+        // `GraphicsStatus.toString`: fast, fancy or fabulous; Horizon's
+        // `custom` preset has no vanilla word and is printed as it stands.
+        let clouds = match self.settings.clouds.as_str() {
+            "false" => "",
+            "fast" => " fast-clouds",
+            _ => " fancy-clouds",
+        };
         d.priority(format!(
-            "{} fps{generated} T: {}{present} @{refresh}Hz",
+            "{} fps{generated} T: {}{present} @{refresh}Hz{}{}{} B: {}",
             self.fps.round() as i32,
             if limit == 260 {
                 "inf".into()
             } else {
                 limit.to_string()
             },
+            if self.settings.vsync { " vsync " } else { " " },
+            self.settings.graphics_preset,
+            clouds,
+            self.settings.biome_blend,
         ));
     }
-    /// `DebugEntrySimplePerformanceImpactors`.
-    pub(super) fn debug_performance_lines(&self, d: &mut debug_overlay::Displayer) {
-        let s = &self.settings;
-        d.line(format!(
-            "{}{}B: {}",
-            if s.improved_transparency {
-                "improved-transparency "
-            } else {
-                ""
-            },
-            match s.clouds.as_str() {
-                "false" => "",
-                "fast" => "fast-clouds ",
-                _ => "fancy-clouds ",
-            },
-            s.biome_blend
-        ));
-        d.line("Filtering: None");
-        d.line(format!(
-            "Terrain Rendering: {}",
-            if self.renderer.as_ref().is_some_and(|r| r.multi_draw) {
-                "multidrawindirect"
-            } else {
-                "naive"
-            }
-        ));
-    }
-    /// `DebugEntrySystemSpecs` (no Java line: Horizon has no JVM).
+    /// `DebugScreenOverlay.getSystemInformation` (no Java line: Horizon has
+    /// no JVM). 1.21.9 renders the same lines from `DebugEntrySystemSpecs`.
     pub(super) fn debug_system_lines(
         &self,
         d: &mut debug_overlay::Displayer,
@@ -534,7 +527,9 @@ impl Game<'_> {
             d.group("system", [r.hdr_line()]);
         }
     }
-    /// `DebugEntryTps` for local and remote connections.
+    /// `DebugScreenOverlay.getGameInformation`'s server line, for local and
+    /// remote connections (1.21.9 renders the identical line from
+    /// `DebugEntryTps`).
     pub(super) fn debug_tps_line(&self, d: &mut debug_overlay::Displayer) {
         if self.player.is_some() {
             let [tx, rx] = self.debug_charts.packet_rates.map(|n| n.round() as i64);
@@ -635,7 +630,11 @@ impl Game<'_> {
                 self.debug_translated("debug.reload_chunks.message");
                 true
             }
-            DebugAction::ShowHitboxes if player => {
+            // `EntityRenderDispatcher.setRenderHitBoxes`: 1.21.8 toggles it
+            // with no player or reduced-info gate (1.21.9 gates on both and
+            // routes through the debug entries). The entries' flag is the
+            // Rust's store for the dispatcher's flag.
+            DebugAction::ShowHitboxes => {
                 let on = self
                     .debug_entries
                     .toggle_status("entity_hitboxes", self.debug);
@@ -651,7 +650,10 @@ impl Game<'_> {
                 self.ui.chat.clear();
                 true
             }
-            DebugAction::ShowChunkBorders if player => {
+            // `DebugRenderer.switchRenderChunkborder`: 1.21.8 toggles it with
+            // no player or reduced-info gate (1.21.9 gates on both). The
+            // entries' flag is the Rust's store for the renderer's flag.
+            DebugAction::ShowChunkBorders => {
                 let on = self
                     .debug_entries
                     .toggle_status("chunk_borders", self.debug);
@@ -697,9 +699,9 @@ impl Game<'_> {
                 ) =>
             {
                 // KeyboardHandler's gate: no screen, or a PauseScreen without
-                // its menu. (1.21.9 adds a WinScreen exclusion, unreachable
-                // behind that gate, and a canSwitchGameMode check the player
-                // check below already covers.)
+                // its menu. 1.21.8 errors only without permission level 2 and
+                // otherwise always opens the switcher (1.21.9 also excludes
+                // the win screen and checks `canSwitchGameMode`).
                 if self.player.is_none() || !self.gamemaster() {
                     self.debug_translated("debug.gamemodes.error");
                 } else {
@@ -828,10 +830,7 @@ impl Game<'_> {
             // Screens and overlays Horizon does not draw yet (the profiler and
             // its chart): the keys are used up as in vanilla.
             DebugAction::Profiling | DebugAction::ProfilingChart => true,
-            DebugAction::ShowHitboxes
-            | DebugAction::ShowChunkBorders
-            | DebugAction::SwitchGameMode
-            | DebugAction::CopyLocation => false,
+            DebugAction::SwitchGameMode | DebugAction::CopyLocation => false,
         }
     }
     /// `ServerboundChangeGameModePacket` handled by the integrated server:

@@ -334,7 +334,95 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 39/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50 + 4 zero-diff)
+### Rank 2: 40/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51 + 4 zero-diff)
+
+- **Item 51 — `crates/horizon-client/src/game/debug_keys.rs` + the
+  `horizon-client/src/debug_keys.rs` engine (5 classes, 18 methods, 6
+  named in Horizon):** KeyboardHandler (14; charTyped, getClipboard,
+  handleDebugKeys, keyPress, setClipboard, tick), DebugEntryFps (1;
+  removed), DebugEntrySimplePerformanceImpactors (1; removed),
+  DebugEntrySystemSpecs (1; removed), DebugEntryTps (1; removed).
+  The whole `net.minecraft.client.gui.components.debug` package
+  exists only in 1.21.9. Fixes:
+  1. **F3+B and F3+G are ungated.** 1.21.8 toggles hitboxes
+     (`EntityRenderDispatcher.setRenderHitBoxes`) and chunk borders
+     (`DebugRenderer.switchRenderChunkborder`) with no player or
+     reduced-info gate; 1.21.9 gates both on `player != null &&
+     !reducedDebugInfo` and routes through the debug entries. The
+     `if player` guards are gone (and the two actions leave the
+     fallthrough arm); the entries' flags stay as the Rust's store
+     for the two vanilla flags — the registry rework is item 308's.
+  2. **Debug keys only run in game.** 1.21.8 runs `handleDebugKeys`
+     only under `$$17` (no screen, or a pauseless pause screen);
+     1.21.9 runs it whenever F3 is held, whatever the screen. The
+     engine now gates the dispatch on `handles_global`, and `$$17`
+     no longer includes the game-mode switcher (1.21.9-only). F3
+     released over another screen neither toggles the overlay nor
+     spends the modifier — 1.21.9 toggles regardless, so releasing
+     F3 to confirm a game-mode switch also flipped the overlay.
+     Tests rewritten: the behind-a-screen test now asserts nothing
+     runs and nothing toggles, plus a switcher-release test; the
+     refused-action test now refuses CopyLocation (hitboxes no
+     longer refuse without a player).
+  3. **The FPS line is 1.21.8's fpsString.** 1.21.8 renders `"%d fps
+     T: %s%s%s%s B: %d%s"` on one line (limit, vsync, graphics
+     mode, clouds, biome blend); 1.21.9 splits the last three into
+     `DebugEntrySimplePerformanceImpactors`. The performance
+     content is merged back into `debug_fps_line` (vsync from the
+     setting, graphics mode from `graphics_preset` —
+     `GraphicsStatus.toString` is lowercase fast/fancy/fabulous,
+     javap-verified; Horizon's `custom` prints as it stands —
+     clouds, `B: {blend}`); `debug_performance_lines` and its
+     dispatch arm are removed, with them the Horizon-only
+     "Filtering: None" and "Terrain Rendering:" lines. The present
+     mode, refresh rate and frame-generation additions stay, and
+     the GPU part stays empty, as in vanilla without a frame
+     profiler.
+  4. **The charts footer says "For help: press F3 + Q".** 1.21.8's
+     footer; 1.21.9's "To edit: press F3 + F6" pointed at the
+     debug-options screen, gone in 1.21.8.
+  5. **F6 does not interrupt the game-mode switcher.**
+     `canInterruptScreen` is 1.21.9-only; in 1.21.8 F6 over the
+     switcher does nothing. The interrupt branch is removed; F3+F6
+     in game still opens the debug options screen, which stays as
+     Horizon debug UI per item 16 (item 468 owns the screen).
+  Citations reworded: `DebugEntryFps` → `Minecraft.fpsString`;
+  `DebugEntryTps` → `DebugScreenOverlay.getGameInformation` (the
+  TPS line is identical in both versions — 1.21.8's third
+  game-information line, not 1.21.9-only as first assumed);
+  `DebugEntrySystemSpecs` →
+  `DebugScreenOverlay.getSystemInformation` (same lines in both);
+  `DebugScreenEntries.toggleDebugOverlay` →
+  `DebugScreenOverlay.toggleOverlay`.
+  Verified no-change: 1.21.8's `handleChunkDebugKeys` is dead code
+  (defined, never called anywhere in the client), so the Rust's
+  lack of chunk-key actions matches both versions' release builds;
+  F3+F1 toggles hideGui with F3 held — the Rust's flow already
+  does that, matching 1.21.8 against 1.21.9's else-if chain;
+  F3+C/F3+I/F3+N/F3+F4 match 1.21.8's reduced-info and
+  permission-2 checks (CopyLocation returns false when reduced,
+  CopyRecreate always returns true, Spectate falls back to the
+  previous mode or Creative); the TPS line's content matches
+  1.21.8's exactly, as does the system-specs content; the crash
+  countdown (10 s, message at 1 s, warnings each second) matches;
+  the `key.debug.*` mappings exist in NEITHER version — both
+  vanilla handlers switch on raw key codes, so the Rust's
+  mapping-based dispatch (a 26.x model) stays, its defaults
+  matching vanilla's codes. The `simple_performance_impactors`
+  registry entries stay (they now dispatch to nothing) for item
+  308. Known gaps (vs both): F3+Q help is unimplemented (no Help
+  action in the Rust, so the footer advertises a dead key); the
+  profiler digit keys have no pie chart to drive
+  (Profiling/ProfilingChart are stubs); F1 over a pauseless pause
+  screen does not toggle hideGui in the Rust (vanilla toggles
+  under `$$17`); the F4 post-effect toggle is unmodelled
+  (F3+F4 opens the switcher but never toggles the effect);
+  F3+4 lightmap and F3+X improved transparency exist in neither
+  version (26.x additions, out of the diff's scope);
+  `charTyped`'s surrogate-pair split is a Java UTF-16 artifact
+  with no Rust equivalent. Deferred: `version_lines` (item 83's
+  file, `game/commands/extra.rs`) hardcodes 26.3 pack versions
+  97.1/121.0 — 1.21.8's are 64.0/81.0.
 
 - **Item 49 — `crates/horizon-client/src/lan/conn.rs` (6 classes, 20 methods, 6 named in Horizon):**
   ServerConfigurationPacketListenerImpl (11; addOptionalTasks,
