@@ -334,7 +334,45 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 75/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80 + 4 zero-diff)
+### Rank 2: 76/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92 + 4 zero-diff)
+
+- **Item 92 — `crates/horizon-client/src/beehive.rs`
+  (2 classes, 14 methods, 3 named in Horizon),
+  real fix:** BeehiveBlockEntity$Occupant
+  (create, createEntity, of), $BeeData.
+  **Wire fix:** 1.21.9's Occupant holds
+  `TypedEntityData` (a type-id varint, then the
+  compound); 1.21.8's holds plain `CustomData`
+  (the compound with its own `id`). The Bees
+  component's skip arm and hash arm both read
+  the 1.21.9 form — a real wire desync for
+  beehive items — now the 1.21.8 form (compound
+  + 2 varints; the hash reads the compound
+  directly, as the `CustomData` arm does). The
+  test vector's bytes are the 1.21.8 form; its
+  hash is unchanged (−122152224), the codec
+  form being identical in both versions.
+  **NBT leniency:** 1.21.8's Occupant codec
+  makes `entity_data` optional (default empty);
+  1.21.9's requires it. `from_nbt` now accepts
+  a missing `entity_data` (empty compound) and
+  a compound without an `id` (a bee without
+  one never releases, as vanilla's
+  `createEntity` returns null for it). Verified
+  no-change: the Rust's Occupant was already
+  the 1.21.8 form otherwise (`create` writes
+  `id: minecraft:bee`; `of` strips the ignored
+  tags, 2400/600 min ticks; release loads the
+  entity from the tag's own `id`, keeps the
+  bee in when loading fails, and the honey
+  delivery matches); the debug
+  `registerDebugValues` / `sendHiveInfo`
+  branches are unmodelled in both. Deferred:
+  the generic `TypedEntityData` protocol layer
+  (entity_data / block_entity_data components)
+  → items 257/170. Check 0/0 at `-j 1`;
+  protocol-lib hash test passes with the new
+  vector.
 
 - **Item 80 — `crates/horizon-core/src/version.rs`
   (3 classes, 20 methods, 3 named in Horizon),
