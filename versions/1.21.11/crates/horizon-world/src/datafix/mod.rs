@@ -382,22 +382,19 @@ pub fn saved_data_type(relative: &str) -> Option<Ty> {
     {
         return Some(Ty::SavedMapData);
     }
+    // Only the types 1.21.11's DataFixTypes defines: the other saved-data
+    // files (custom boss events, game rules, dragon fight, wandering trader,
+    // weather, scheduled events, world gen settings, world clocks) are read
+    // through their codecs with no data fix in 1.21.11, so they are left
+    // untouched.
     Some(match name {
-        "minecraft/custom_boss_events" => Ty::SavedCustomBossEvents,
         "minecraft/scoreboard" => Ty::SavedScoreboard,
         "minecraft/chunk_tickets" => Ty::SavedTickets,
         "minecraft/world_border" => Ty::SavedWorldBorder,
-        "minecraft/game_rules" => Ty::SavedGameRules,
-        "minecraft/ender_dragon_fight" => Ty::SavedEnderDragonFight,
-        "minecraft/wandering_trader" => Ty::SavedWanderingTrader,
         "minecraft/maps/last_id" => Ty::SavedMapIndex,
-        "minecraft/weather" => Ty::SavedWeather,
-        "minecraft/scheduled_events" => Ty::SavedScheduledEvents,
-        "minecraft/world_gen_settings" => Ty::SavedWorldGenSettings,
         "minecraft/random_sequences" => Ty::SavedRandomSequences,
         "minecraft/stopwatches" => Ty::SavedStopwatches,
         "minecraft/raids" => Ty::SavedRaids,
-        "minecraft/world_clocks" => Ty::SavedWorldClocks,
         _ => return None,
     })
 }

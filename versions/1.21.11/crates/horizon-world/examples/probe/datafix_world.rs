@@ -1,5 +1,5 @@
-//! Upgrade a copy of a world saved by 1.20 to 26.2 to the 26.3 format, as
-//! vanilla 26.3 does when it opens it and reads every file:
+//! Upgrade a copy of a world saved by an older version to the 1.21.11 format, as
+//! vanilla 1.21.11 does when it opens it and reads every file:
 //! `datafix_world IN_WORLD OUT_WORLD [TARGET]` (used by tools/test_datafix_parity.py).
 //! With a TARGET DataVersion only the data fixes up to it run, on a world in the
 //! layout of before 1.16.
