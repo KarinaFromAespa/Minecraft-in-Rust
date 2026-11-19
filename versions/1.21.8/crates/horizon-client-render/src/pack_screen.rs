@@ -1687,7 +1687,7 @@ mod icon_tests {
         assert_eq!(id, "file/Configurable");
         let (cx, cy) = (bx + OPTIONS_SIZE / 2, by + OPTIONS_SIZE / 2);
         // Hovered, it explains itself.
-        let draws = screen.draw(&m, (cx, cy), 0, 0);
+        let draws = screen.draw(&m, (cx, cy), 0);
         assert!(draws.iter().any(|d| matches!(d, Draw::Tooltip { .. })));
         assert_eq!(
             screen.click(&m, cx as f64, cy as f64),
@@ -1713,7 +1713,7 @@ mod icon_tests {
             pack("file/Iconless", None),
         ];
         let screen = PackScreen::new(&m, tr("resourcePack.title"), 480, 320, false, packs, &[]);
-        let mut draws = screen.draw(&m, (0, 0), 0, 0);
+        let mut draws = screen.draw(&m, (0, 0), 0);
         let mut patches = Vec::new();
         screen.bind_icons(&mut draws, &atlas, &mut patches);
         let icons: Vec<&str> = draws
