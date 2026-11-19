@@ -104,7 +104,6 @@ public final class VanillaBlockLandingOracle {
         @Override public void levelEvent(int event,BlockPos p,int data){d.query("level-event "+event+" "+pos(p)+" "+data);}
         @Override public List<Entity> getEntities(Entity excluded,AABB bounds){return d.entities(excluded,bounds);}
 @Override public void destroyBlockProgress(int p0,net.minecraft.core.BlockPos p1,int p2){throw new UnsupportedOperationException();}
-@Override public java.util.Collection dragonParts(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures(){throw new UnsupportedOperationException();}
 @Override public void explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.core.Holder p11){throw new UnsupportedOperationException();}
 @Override public void gameEvent(net.minecraft.core.Holder p0,net.minecraft.world.phys.Vec3 p1,net.minecraft.world.level.gameevent.GameEvent.Context p2){throw new UnsupportedOperationException();}

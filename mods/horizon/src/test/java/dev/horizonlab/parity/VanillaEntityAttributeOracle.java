@@ -20,6 +20,16 @@ public final class VanillaEntityAttributeOracle {
         root.add("entities",entities);return root;
     }
     @SuppressWarnings("unchecked") static AttributeSupplier supplier(EntityType<?> e){return DefaultAttributes.getSupplier((EntityType<? extends LivingEntity>)e);}
+    // 1.21.3 has no AttributeMap.resetBaseValue (it arrived in 1.21.4 with
+    // the attribute base reset command): replicate it — false when the
+    // supplier lacks the attribute, else the instance's base back to the
+    // supplier's base value.
+    static boolean resetBaseValue(AttributeMap map, AttributeSupplier supplier, Holder<Attribute> a) {
+        if (!supplier.hasAttribute(a)) return false;
+        var instance = map.getInstance(a);
+        if (instance != null) instance.setBaseValue(supplier.getBaseValue(a));
+        return true;
+    }
     @SuppressWarnings("unchecked") public static void main(String[] args)throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
         for(var a:BuiltInRegistries.ATTRIBUTE)attributes.add(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(a));
@@ -34,7 +44,7 @@ public final class VanillaEntityAttributeOracle {
                     case "modifier":out.println("modifier "+bits(map.getModifierValue(a,id)));break;
                     case "has_modifier":out.println("has_modifier "+map.hasModifier(a,id));break;
                     case "ensure":out.println("ensure "+(map.getInstance(a)!=null));break;
-                    case "reset":out.println("reset "+map.resetBaseValue(a));break;
+                    case "reset":out.println("reset "+resetBaseValue(map,supplier(entity),a));break;
                     case "ack_update":map.getAttributesToUpdate().remove(instances.get(a));break;
                     case "ack_sync":map.getAttributesToSync().remove(instances.get(a));break;
                     default:{var instance=map.getInstance(a);if(instance==null){out.println("absent");break;}var modifier=new AttributeModifier(id,number(op.get("amount")),AttributeModifier.Operation.values()[op.get("operation").getAsInt()]);switch(mode){

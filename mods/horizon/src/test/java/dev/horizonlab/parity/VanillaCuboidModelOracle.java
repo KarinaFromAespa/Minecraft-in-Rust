@@ -58,33 +58,30 @@ public final class VanillaCuboidModelOracle {
     }
     @SuppressWarnings("unchecked")
     private static List<BlockElement> elements(BlockModel value) throws Exception {
-        // 1.21.4 BlockModel has no geometry(): elements are the
-        // package-private getElements() list (empty when the model has none).
-        var method = BlockModel.class.getDeclaredMethod("getElements"); method.setAccessible(true);
-        return (List<BlockElement>)method.invoke(value);
+        // 1.21.3 BlockModel.getElements() is public.
+        return value.getElements();
     }
     private static Object parent(BlockModel value) throws Exception {
-        // 1.21.4 BlockModel has no parent(): the parent location is the
-        // package-private getParentLocation().
-        var method = BlockModel.class.getDeclaredMethod("getParentLocation"); method.setAccessible(true);
-        var location = method.invoke(value);
+        // 1.21.3 BlockModel has no getParentLocation(): the parent location
+        // is the protected parentLocation field.
+        var field = BlockModel.class.getDeclaredField("parentLocation"); field.setAccessible(true);
+        var location = field.get(value);
         return location == null ? null : location.toString();
     }
     private static Object model(BlockModel value) throws Exception {
         if (value == null) return null;
         var textures = new TreeMap<String, Object>();
-        // Slot implementation records are package-private; inspect only their public accessors.
-        for (var entry : value.getTextureSlots().values().entrySet()) {
-            Object slot = entry.getValue();
-            var cls = slot.getClass();
-            if (cls.getSimpleName().equals("Reference")) {
-                var target = cls.getDeclaredMethod("target"); target.setAccessible(true);
-                textures.put(entry.getKey(), map("reference", target.invoke(slot)));
+        // 1.21.3 has no texture slots: the protected textureMap holds
+        // Either<Material, String> per key — a sprite, or a "#name" reference.
+        var field = BlockModel.class.getDeclaredField("textureMap"); field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        var slots = (Map<String, com.mojang.datafixers.util.Either<net.minecraft.client.resources.model.Material, String>>)field.get(value);
+        for (var entry : slots.entrySet()) {
+            var either = entry.getValue();
+            if (either.right().isPresent()) {
+                textures.put(entry.getKey(), map("reference", either.right().get()));
             } else {
-                var method = cls.getDeclaredMethod("material"); method.setAccessible(true);
-                var material = (net.minecraft.client.resources.model.Material)method.invoke(slot);
-                // 1.21.11's Material names its sprite texture(); it has no translucency flag.
-                textures.put(entry.getKey(), map("sprite", material.texture().toString()));
+                textures.put(entry.getKey(), map("sprite", either.left().get().texture().toString()));
             }
         }
         List<Object> elements = new ArrayList<>();
@@ -97,7 +94,7 @@ public final class VanillaCuboidModelOracle {
             }
             display = transforms;
         }
-        return map("parent", parent(value), "ao", value.getAmbientOcclusion(),
+        return map("parent", parent(value), "ao", value.hasAmbientOcclusion(),
             "gui", value.getGuiLight() == null ? null : value.getGuiLight().name().toLowerCase(Locale.ROOT), "textures", textures, "elements", elements, "display", display);
     }
     public static void main(String[] args) throws Exception {
