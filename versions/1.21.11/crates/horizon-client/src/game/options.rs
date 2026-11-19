@@ -389,8 +389,6 @@ impl Game<'_> {
                     self.settings.save(&Self::options_path());
                     self.screen = if let Some(screen) = self.panel.recipes_settings_return.take() {
                         screen
-                    } else if std::mem::take(&mut self.options_to_world_options) {
-                        Screen::WorldOptions
                     } else if self.options_from_title {
                         Screen::Playing
                     } else {

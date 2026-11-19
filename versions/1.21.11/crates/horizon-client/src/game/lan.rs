@@ -219,7 +219,7 @@ impl SyncPreload {
     }
 }
 
-/// The settings of the open world (WorldOptionsScreen's multiplayer section).
+/// The settings of the open world (ShareToLanScreen's Start).
 #[derive(Clone, Copy, Debug)]
 pub struct LanSettings {
     pub port: u16,
@@ -1373,7 +1373,7 @@ impl Game<'_> {
             return Err("no world of this game to open".into());
         };
         self.system_message(Text::translate(
-            "menu.multiplayerOptions.publish.started.lan",
+            "commands.publish.started",
             &[Text::literal(port.to_string())],
         ));
         Ok(())
@@ -1904,23 +1904,6 @@ impl Game<'_> {
         if let Some(host) = self.lan.as_ref() {
             host.hub.lan.shared.set_enable_status(enable);
         }
-    }
-
-    /// New command access and game mode forcing settings of the open world.
-    pub(super) fn lan_apply_settings(&mut self, guest_commands: bool, force: bool) {
-        if let Some(server) = &self.integrated {
-            server.call(move |g| g.lan_apply_settings(guest_commands, force));
-            return;
-        }
-        // An integrated server gives guests commands only where the world
-        // allows them (IntegratedServer.getCustomPermissionLevel).
-        let effective = guest_commands && (!self.serving() || self.allow_commands());
-        if let Some(host) = self.lan.as_mut() {
-            host.settings.guest_commands = guest_commands;
-            host.hub.config.guest_commands = effective;
-        }
-        self.set_force_game_mode(force);
-        self.resend_commands_filtered();
     }
 
     pub(super) fn lan_port(&self) -> Option<u16> {

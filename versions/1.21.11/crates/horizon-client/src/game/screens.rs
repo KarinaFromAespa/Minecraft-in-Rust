@@ -72,7 +72,7 @@ impl Screen {
             | Self::Options
             | Self::Stats
             | Self::Advancements
-            | Self::WorldOptions
+            | Self::ShareToLan
             | Self::Friends
             | Self::ServerLinks
             | Self::ConfirmLink
@@ -91,7 +91,7 @@ impl Screen {
             Self::Options
             | Self::Stats
             | Self::Advancements
-            | Self::WorldOptions
+            | Self::ShareToLan
             | Self::Friends
             | Self::Social
             | Self::ServerLinks
@@ -134,7 +134,9 @@ fn pause_grid(w: f32, h: f32, extra_rows: u8) -> (f32, f32) {
 /// `additions`: the `pause_screen_additions` button instead of the links one
 /// (vanilla shows one or the other, never both); its label is the dialog's
 /// external title, so the caller draws it (id 14).
-/// https://mcsrc.dev/2/26.3/net/minecraft/client/gui/screens/PauseScreen
+/// `published`: the world is already open to LAN, so the Share to LAN
+/// button is gone (PauseScreen hides it once published).
+/// https://mcsrc.dev/2/1.21.11/net/minecraft/client/gui/screens/PauseScreen
 fn pause_buttons(
     w: f32,
     h: f32,
@@ -142,6 +144,7 @@ fn pause_buttons(
     links: bool,
     additions: bool,
     split: bool,
+    published: bool,
 ) -> Vec<(f32, f32, f32, &'static str, u8, bool)> {
     let row3 = links || additions;
     let (x0, y0) = pause_grid(w, h, u8::from(row3) + u8::from(split));
@@ -163,29 +166,31 @@ fn pause_buttons(
         let y = y0 + 122.0 + if row3 { 24.0 } else { 0.0 };
         v.push((x0 + 4.0, y, 204.0, SPLIT_SETTINGS, 30, true));
     }
-    v.extend([
-        (x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true),
-        (
+    v.push((x0 + 4.0, y0 + 122.0 + down, 98.0, "menu.options", 1, true));
+    // PauseScreen: Share to LAN only in singleplayer, and only while the
+    // world is not yet published.
+    if !remote && !published {
+        v.push((
             x0 + 110.0,
             y0 + 122.0 + down,
             98.0,
-            "options.worldOptions.button",
+            "menu.shareToLan",
             9,
             true,
-        ),
-        (
-            x0 + 4.0,
-            y0 + 146.0 + down,
-            204.0,
-            if remote {
-                "menu.disconnect"
-            } else {
-                "menu.returnToMenu"
-            },
-            2,
-            true,
-        ),
-    ]);
+        ));
+    }
+    v.push((
+        x0 + 4.0,
+        y0 + 146.0 + down,
+        204.0,
+        if remote {
+            "menu.disconnect"
+        } else {
+            "menu.returnToMenu"
+        },
+        2,
+        true,
+    ));
     v
 }
 
@@ -332,6 +337,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.lan_port().is_some(),
         ) {
             let is_focused = self.pause_focus == Some(id);
             let hover = active && (ui::hovered(self.cursor, x, y, bw, 20.0) || is_focused);
@@ -443,7 +449,7 @@ impl Game<'_> {
             1 => self.open_options(false),
             3 => self.open_stats(),
             4 => self.open_advancements(true),
-            9 => self.open_world_options(),
+            9 => self.open_share_to_lan(),
             10 => self.screen = Screen::Friends,
             // DialogConnectionAccess.openDialog(Dialogs.SERVER_LINKS).
             11 => {
@@ -497,6 +503,7 @@ impl Game<'_> {
             links,
             additions.is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.lan_port().is_some(),
         )
         .into_iter()
         .find(|b| b.5 && ui::hovered(self.cursor, b.0, b.1, b.2, 20.0))
@@ -537,6 +544,7 @@ impl Game<'_> {
             links,
             self.pause_screen_additions().is_some(),
             self.options.split_guest || self.split_hud.menu,
+            self.lan_port().is_some(),
         );
         let mut active_ids: Vec<u8> = buttons.into_iter().filter(|b| b.5).map(|b| b.4).collect();
         let friends = self.friends_view().shown;
@@ -585,6 +593,7 @@ impl Game<'_> {
                     links,
                     self.pause_screen_additions().is_some(),
                     self.options.split_guest || self.split_hud.menu,
+                    self.lan_port().is_some(),
                 );
                 let mut rects: Vec<(u8, f32, f32, f32)> = buttons
                     .into_iter()
@@ -932,7 +941,7 @@ mod tests {
             Screen::Options,
             Screen::Stats,
             Screen::Advancements,
-            Screen::WorldOptions,
+            Screen::ShareToLan,
         ] {
             assert!(screen.blurs_background(false));
             assert!(screen.blurs_background(true));
@@ -955,7 +964,7 @@ mod tests {
         }
     }
 
-    /// `Screen.isPauseScreen` per 26.3: the class default is true, and only
+    /// `Screen.isPauseScreen` per 1.21.11: the class default is true, and only
     /// these classes override it false; the game-master editors keep the
     /// default. A world with one of the true screens open stops ticking
     /// (`Minecraft.pause` through `Gui.isPausing`).
@@ -981,7 +990,7 @@ mod tests {
             Screen::Options,
             Screen::Stats,
             Screen::Advancements,
-            Screen::WorldOptions,
+            Screen::ShareToLan,
             Screen::Friends,
             Screen::ServerLinks,
             Screen::ConfirmLink,
@@ -996,13 +1005,22 @@ mod tests {
     }
 
     #[test]
-    fn pause_menu_uses_disconnect_for_servers_and_keeps_world_options() {
+    fn pause_menu_uses_disconnect_for_servers_and_offers_share_to_lan_only_unpublished() {
         for (remote, label) in [(false, "menu.returnToMenu"), (true, "menu.disconnect")] {
-            let buttons = pause_buttons(427.0, 240.0, remote, false, false, false);
+            let buttons = pause_buttons(427.0, 240.0, remote, false, false, false, false);
             let quit = buttons.iter().find(|b| b.4 == 2).unwrap();
             assert_eq!(quit.3, label);
             assert!(quit.5);
-            assert!(buttons.iter().any(|b| b.4 == 9 && b.5));
+        }
+        // Singleplayer, unpublished: the Open to LAN button is there.
+        let buttons = pause_buttons(427.0, 240.0, false, false, false, false, false);
+        let lan = buttons.iter().find(|b| b.4 == 9).unwrap();
+        assert_eq!(lan.3, "menu.shareToLan");
+        assert!(lan.5);
+        // On a server, or once published, it is gone.
+        for (remote, published) in [(true, false), (false, true)] {
+            let buttons = pause_buttons(427.0, 240.0, remote, false, false, false, published);
+            assert!(buttons.iter().all(|b| b.4 != 9));
         }
     }
 
@@ -1023,8 +1041,8 @@ mod tests {
 
     #[test]
     fn server_links_adds_a_full_width_row_above_options() {
-        let with = pause_buttons(427.0, 240.0, true, true, false, false);
-        let without = pause_buttons(427.0, 240.0, true, false, false, false);
+        let with = pause_buttons(427.0, 240.0, true, true, false, false, false);
+        let without = pause_buttons(427.0, 240.0, true, false, false, false, false);
         let links = with.iter().find(|b| b.4 == 11).unwrap();
         assert_eq!(links.2, 204.0);
         assert_eq!(links.3, "menu.server_links");
@@ -1046,8 +1064,8 @@ mod tests {
     fn pause_screen_additions_takes_the_server_links_row() {
         // getCustomAdditions: one additions button in row 3, never next to the
         // links button, so the grid keeps one extra row either way.
-        let with = pause_buttons(427.0, 240.0, true, true, true, false);
-        let links = pause_buttons(427.0, 240.0, true, true, false, false);
+        let with = pause_buttons(427.0, 240.0, true, true, true, false, false);
+        let links = pause_buttons(427.0, 240.0, true, true, false, false, false);
         assert!(with.iter().all(|b| b.4 != 11));
         let button = with.iter().find(|b| b.4 == 14).unwrap();
         assert_eq!(
@@ -1067,7 +1085,7 @@ mod tests {
     #[test]
     fn split_settings_preserves_dialog_rows_and_icon_actions() {
         for (links, additions) in [(false, false), (true, false), (false, true), (true, true)] {
-            let buttons = pause_buttons(427.0, 300.0, true, links, additions, true);
+            let buttons = pause_buttons(427.0, 300.0, true, links, additions, true, false);
             let split = buttons.iter().find(|b| b.4 == 30).unwrap();
             let options = buttons.iter().find(|b| b.4 == 1).unwrap();
             assert_eq!(options.1, split.1 + 24.0);
@@ -1080,7 +1098,7 @@ mod tests {
             }
             assert!(buttons.iter().all(|b| b.4 != 12 && b.4 != 13));
             assert!(
-                !pause_buttons(427.0, 300.0, true, links, additions, false)
+                !pause_buttons(427.0, 300.0, true, links, additions, false, false)
                     .iter()
                     .any(|b| b.4 == 30)
             );

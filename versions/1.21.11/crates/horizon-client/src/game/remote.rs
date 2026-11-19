@@ -4670,12 +4670,11 @@ impl Game<'_> {
                 if p.event == 2 {
                     self.remote_kinetic_hit(p.id);
                 }
-                // LocalPlayer.setPermissions also refreshes an open World Options screen.
+                // LocalPlayer.setPermissions.
                 if (24..=28).contains(&p.event)
                     && self.remote.as_ref().is_some_and(|r| r.entity_id == p.id)
                 {
                     self.ui.registries.permission = (p.event - 24) as u8;
-                    self.remote_world_options_permission(p.event >= 26);
                 }
                 // Player.handleEntityEvent 22 / 23: reduced debug info on / off.
                 if (22..=23).contains(&p.event)
@@ -4886,7 +4885,6 @@ impl Game<'_> {
             C::ChangeDifficulty(p) => {
                 self.ui.difficulty = p.difficulty.clamp(0, 3) as u8;
                 self.level.difficulty_locked = p.locked;
-                self.remote_world_options_difficulty(self.ui.difficulty, p.locked);
             }
             // ClientPacketListener.handleSetHealth: LocalPlayer.hurtTo.
             C::SetHealth(p) => {

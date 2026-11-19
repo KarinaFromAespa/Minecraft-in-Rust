@@ -647,8 +647,8 @@ enum Screen {
     Stats,
     /// The Advancements screen.
     Advancements,
-    /// WorldOptionsScreen (game/lan_screen.rs).
-    WorldOptions,
+    /// ShareToLanScreen (game/lan_screen.rs).
+    ShareToLan,
     /// Play with Friends, from the pause menu's Friends button
     /// (`friends_screen`, game/friends.rs).
     Friends,
@@ -694,7 +694,7 @@ impl Screen {
             Screen::Dead => "dead",
             Screen::Stats => "stats",
             Screen::Advancements => "advancements",
-            Screen::WorldOptions => "world_options",
+            Screen::ShareToLan => "share_to_lan",
             Screen::Friends => "friends",
             Screen::Social => "social",
             Screen::CommandBlock => "command_block",
@@ -2908,9 +2908,7 @@ struct Game<'a> {
     friends: Option<friends::Sharing>,
     /// The Social Interactions screen and the players whose chat is hidden (game/social.rs).
     social: social::Social,
-    world_options: Option<lan_screen::WorldOptions>,
-    /// Chat Settings opened from RestrictionsScreen: Done returns to World Options.
-    options_to_world_options: bool,
+    share_to_lan: Option<lan_screen::ShareToLan>,
     command_block_screen: Option<command_blocks::CommandBlockScreen>,
     block_editor: Option<block_editor::BlockEditScreen>,
     /// `StructureTemplateManager.structureRepository`: the templates in memory
@@ -6268,7 +6266,7 @@ impl Game<'_> {
             Screen::Stats => self.draw_stats(&mut batch),
             Screen::Advancements => self.draw_advancements(&mut batch),
             Screen::Mod => {}
-            Screen::WorldOptions => self.draw_world_options(&mut batch),
+            Screen::ShareToLan => self.draw_share_to_lan(&mut batch),
             Screen::Friends => self.draw_friends_screen(&mut batch),
             Screen::Social => self.draw_social_screen(&mut batch),
             Screen::ServerLinks => self.draw_server_links(&mut batch),
@@ -10547,9 +10545,6 @@ impl Game<'_> {
                         if self.screen == Screen::HudEditor {
                             self.hud_editor_drag();
                         }
-                        if self.screen == Screen::WorldOptions {
-                            self.world_options_drag();
-                        }
                         if self.screen == Screen::Creative {
                             let (_, oy) = Self::creative_origin(&b);
                             self.creative_screen.drag_scrollbar(self.cursor.1 - oy);
@@ -10708,9 +10703,6 @@ impl Game<'_> {
                     }
                     if self.screen == Screen::Stats && d != 0.0 {
                         self.stats_scroll(d);
-                    }
-                    if self.screen == Screen::WorldOptions && d != 0.0 {
-                        self.world_options_scroll(d);
                     }
                     if self.screen == Screen::ServerLinks && d != 0.0 {
                         self.server_links_scroll(d);
@@ -11031,8 +11023,8 @@ impl Game<'_> {
                         {
                             self.pause_click()?
                         }
-                        Screen::WorldOptions if pressed && button == MouseButton::Left => {
-                            self.world_options_click()
+                        Screen::ShareToLan if pressed && button == MouseButton::Left => {
+                            self.share_to_lan_click()
                         }
                         Screen::ServerLinks if pressed && button == MouseButton::Left => {
                             self.server_links_click()?
@@ -11057,9 +11049,6 @@ impl Game<'_> {
                         }
                         Screen::DialogWarning if pressed && button == MouseButton::Left => {
                             self.dialog_warning_click()?
-                        }
-                        Screen::WorldOptions if button == MouseButton::Left => {
-                            self.world_options_release()
                         }
                         Screen::Friends if pressed && button == MouseButton::Left => {
                             self.friends_screen_click()
@@ -11225,10 +11214,10 @@ impl Game<'_> {
                     }
                 }
                 WindowEvent::KeyboardInput { event, .. }
-                    if self.screen == Screen::WorldOptions
+                    if self.screen == Screen::ShareToLan
                         && !matches!(event.physical_key, PhysicalKey::Code(KeyCode::Escape)) =>
                 {
-                    self.world_options_key(&event)
+                    self.share_to_lan_key(&event)
                 }
                 WindowEvent::KeyboardInput { event, .. } if self.screen == Screen::Win => {
                     self.win_key(&event)?
@@ -12217,8 +12206,7 @@ impl<'a> Game<'a> {
             integrated: None,
             level_shapes: Default::default(),
             serving: None,
-            world_options: None,
-            options_to_world_options: false,
+            share_to_lan: None,
             command_block_screen: None,
             block_editor: None,
             structure_templates: HashMap::new(),

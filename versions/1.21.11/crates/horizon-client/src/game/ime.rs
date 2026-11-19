@@ -32,7 +32,7 @@ impl Game<'_> {
             // The language list's search, the settings search and the pack
             // screen's search (OptionsUi::typing).
             Screen::Options => self.ui.options.typing(),
-            Screen::WorldOptions => self.world_options_typing(),
+            Screen::ShareToLan => self.share_to_lan_typing(),
             Screen::Creative => self.mod_browser_typing() || self.creative_screen.tab().search,
             Screen::BlockEditor => self.block_editor.as_ref().is_some_and(|s| s.text_focused()),
             Screen::Inventory => {
@@ -95,7 +95,7 @@ impl Game<'_> {
                 Screen::Social => self.social_type(&text),
                 Screen::DebugOptions => self.debug_options_type(&text),
                 Screen::Options => self.ui.options.type_text(&self.gui.atlas, &text),
-                Screen::WorldOptions => self.world_options_text(Some(&text)),
+                Screen::ShareToLan => self.share_to_lan_text(Some(&text)),
                 Screen::BlockEditor => self.block_editor_type(&text),
                 Screen::Inventory | Screen::Creative if self.mod_browser_typing() => {
                     self.mod_browser_text(Some(&text), false)

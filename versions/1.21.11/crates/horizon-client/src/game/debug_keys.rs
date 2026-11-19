@@ -112,7 +112,7 @@ impl Game<'_> {
             self.screen,
             Screen::Chat
                 | Screen::Options
-                | Screen::WorldOptions
+                | Screen::ShareToLan
                 | Screen::CommandBlock
                 | Screen::BlockEditor
         ) || self.sign_edit.is_some()
