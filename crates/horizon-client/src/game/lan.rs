@@ -376,16 +376,12 @@ fn mob_variant_meta(
                 meta.push((18, serializer::INT, Value::Int(i32::from(e.variant))));
             }
         }
-        // Frog.DATA_VARIANT_ID, Pig's, Cow's and Chicken's (after the entries
-        // of their parents): registry holders.
-        "minecraft:frog" | "minecraft:pig" | "minecraft:cow" | "minecraft:chicken" => {
-            let (index, serializer, registry) = match kind {
-                "minecraft:frog" => (18, serializer::FROG_VARIANT, "minecraft:frog_variant"),
-                "minecraft:pig" => (19, serializer::PIG_VARIANT, "minecraft:pig_variant"),
-                "minecraft:cow" => (18, serializer::COW_VARIANT, "minecraft:cow_variant"),
-                // The outer pattern admits only these four kinds.
-                _ => (18, serializer::CHICKEN_VARIANT, "minecraft:chicken_variant"),
-            };
+        // Frog.DATA_VARIANT_ID (after AgeableMob's two): a registry holder.
+        // Pig, Cow and Chicken gain variant fields in 1.21.5; the pin has
+        // none, so they carry no variant metadata here.
+        "minecraft:frog" => {
+            let (index, serializer, registry) =
+                (18, serializer::FROG_VARIANT, "minecraft:frog_variant");
             // Each registry's default (`define(DATA_VARIANT_ID, ... TEMPERATE)`)
             // stays out of the pairing data, as other default values do.
             let name = horizon_client::mobs::finalize::variant_name(m.species(), e.variant);

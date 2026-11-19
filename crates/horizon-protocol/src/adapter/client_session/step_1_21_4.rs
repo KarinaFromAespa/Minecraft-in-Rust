@@ -659,9 +659,12 @@ mod tests {
 
     #[test]
     fn the_variants_1_21_5_added_are_dropped_going_down() {
+        // The sent serializers are 1.21.5's numbering (chicken variant 28,
+        // wolf variant 24, wolf sound variant 25); the pin has no chicken or
+        // wolf-sound variant, and its wolf variant is 23.
         let mut chicken = play::SetEntityData {
             id: 1,
-            values: vec![(17, serializer::CHICKEN_VARIANT, Value::Id(3))],
+            values: vec![(17, 28, Value::Id(3))],
         };
         entity_data(
             Some(translate::client_layout_v1_21_4::CHICKEN),
@@ -670,10 +673,7 @@ mod tests {
         assert!(chicken.values.is_empty());
         let mut wolf = play::SetEntityData {
             id: 1,
-            values: vec![
-                (22, serializer::WOLF_VARIANT, Value::Id(1)),
-                (23, serializer::WOLF_SOUND_VARIANT, Value::Id(2)),
-            ],
+            values: vec![(22, 24, Value::Id(1)), (23, 25, Value::Id(2))],
         };
         entity_data(Some(translate::client_layout_v1_21_4::WOLF), &mut wolf);
         assert_eq!(

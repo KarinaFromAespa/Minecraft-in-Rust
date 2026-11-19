@@ -1150,11 +1150,11 @@ mod tests {
                 other => panic!("{other:?}"),
             }
         };
-        // chest's first state: 3018 in 1.21.5, 3987 in 26.2; grass_block 8 in both.
-        assert_eq!(update(3018), 3987);
+        // chest's first state: 3009 in 1.21.4, 3987 in 26.2; grass_block 8 in both.
+        assert_eq!(update(3009), 3987);
         assert_eq!(update(8), 8);
-        // calcite's state is renumbered: 23344 in 1.21.5, 27160 in 26.2.
-        assert_eq!(update(23344), 27160);
+        // calcite's state is renumbered: 23329 in 1.21.4, 27160 in 26.2.
+        assert_eq!(update(23329), 27160);
         // 26.2 has every block 1.21.8 has (it only adds), so no state needs a
         // stand-in for this client; stand-ins apply to older ones.
     }
@@ -1173,12 +1173,12 @@ mod tests {
             let mut payload = Reader::new(r.rest());
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 845 in 1.21.5, 926 in 26.2.
-        assert_eq!(slot(845), 926);
-        // birch_planks: 38 in 1.21.5, 65 in 26.2.
+        // diamond: 836 in 1.21.4, 926 in 26.2.
+        assert_eq!(slot(836), 926);
+        // birch_planks: 38 in 1.21.4, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 1042 in 1.21.5, 1133 in 26.2.
-        assert_eq!(slot(1042), 1133);
+        // filled_map: 1025 in 1.21.4, 1133 in 26.2.
+        assert_eq!(slot(1025), 1133);
     }
 
     #[test]
@@ -1198,11 +1198,11 @@ mod tests {
             })
             .encode()
         };
-        // 26.2 has every entity type 1.21.8 has (it only adds the sulfur
+        // 26.2 has every entity type 1.21.4 has (it only adds the sulfur
         // cube and the poplar boats), so nothing is dropped for this client:
-        // birch_boat is 12 in both, and the tadpole is renumbered (125 in
-        // 1.21.8, 131 in 26.2). The sent packet is 26.2's layout, read by
-        // hand: the pinned codec is 1.21.8's now.
+        // birch_boat is 12 in both, and the tadpole is renumbered (123 in
+        // 1.21.4, 131 in 26.2). The sent packet is 26.2's layout, read by
+        // hand: the pinned codec is 1.21.4's now.
         let kind_of = |sent: &[u8]| {
             let mut r = Reader::new(sent);
             // add_entity: 1 in both.
@@ -1221,17 +1221,17 @@ mod tests {
             kind
         };
         assert_eq!(kind_of(&s.clientbound(&add(12)).unwrap().unwrap()), 12);
-        assert_eq!(kind_of(&s.clientbound(&add(124)).unwrap().unwrap()), 131);
+        assert_eq!(kind_of(&s.clientbound(&add(123)).unwrap().unwrap()), 131);
     }
 
     #[test]
     fn a_newer_client_gets_its_own_player_indexes() {
         let s = in_play();
-        // Register a player (148 in 1.21.5) so track_entities knows the kind.
+        // Register a player (147 in 1.21.4) so track_entities knows the kind.
         let add = play::Clientbound::AddEntity(play::AddEntity {
             id: 7,
             uuid: 1,
-            kind: 148,
+            kind: 147,
             position: [0.0; 3],
             velocity: [0.0; 3],
             pitch: 0,
@@ -1240,7 +1240,7 @@ mod tests {
             data: 0,
         });
         s.clientbound(&add.encode()).unwrap().unwrap();
-        // 1.21.5's player fields: absorption 15, score 16, skin mask 17, main arm 18.
+        // 1.21.4's player fields: absorption 15, score 16, skin mask 17, main arm 18.
         let data = play::Clientbound::SetEntityData(play::SetEntityData {
             id: 7,
             values: vec![
@@ -1253,7 +1253,7 @@ mod tests {
         let sent = s.clientbound(&data.encode()).unwrap().unwrap();
         // The sent packet is in 26.2's layout, so it is read by hand: the pin
         // codec would stop at serializer 42 (26.2's HUMANOID_ARM), which the
-        // pinned 1.21.8 has no counterpart for.
+        // pinned 1.21.4 has no counterpart for.
         let mut r = Reader::new(&sent);
         r.varint().unwrap();
         let mut values = Vec::new();
@@ -1289,7 +1289,7 @@ mod tests {
     #[test]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 1.21.5's 54. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 26.2's 56 is 1.21.4's 54. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1297,7 +1297,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((845, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((836, 3)));
             }
             other => panic!("{other:?}"),
         }

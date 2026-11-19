@@ -132,12 +132,12 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 1.21.8: block,
+        // `minecraft:particle_type` registry order as of 1.21.4: block,
         // block_marker, falling_dust, dust_pillar and block_crumble carry a
-        // block state; entity_effect, tinted_leaves and flash a colour.
+        // block state; entity_effect and flash a colour.
         let data = match id {
-            1 | 2 | 28 | 108 | 112 => Some(ParticleData::State(ids::block_state(r.varint()?))),
-            20 | 35 | 41 => Some(ParticleData::Color(r.i32()?)),
+            1 | 2 | 28 | 107 | 111 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            20 | 40 => Some(ParticleData::Color(r.i32()?)),
             13 => {
                 let color = if ids::quirks().components_before_1_21_2 {
                     legacy_rgb(r)?
@@ -165,7 +165,7 @@ impl Particle {
                     },
                 ))
             }
-            15 | 45 => {
+            15 | 44 => {
                 if ids::quirks().simple_spell_particles {
                     Some(ParticleData::ColorPower(-1, 1.0))
                 } else {
@@ -174,9 +174,9 @@ impl Particle {
                 }
             }
             7 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
-            7 | 37 => Some(ParticleData::Scalar(r.f32()?)),
-            102 => Some(ParticleData::Delay(r.varint()?)),
-            48 => {
+            7 | 36 => Some(ParticleData::Scalar(r.f32()?)),
+            101 => Some(ParticleData::Delay(r.varint()?)),
+            47 => {
                 let at = [r.f64()?, r.f64()?, r.f64()?];
                 let color = r.i32()?;
                 let duration = if ids::quirks().trail_without_duration {
@@ -186,8 +186,8 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            46 => Some(ParticleData::Item(Template::read(r)?)),
-            47 => {
+            48 => Some(ParticleData::Item(Template::read(r)?)),
+            46 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
                         "minecraft:block" => 0,
@@ -214,7 +214,7 @@ impl Particle {
                 })
             }
             // Every other registered particle carries no data. (The geyser
-            // particles a later release adds do not exist in 1.21.8.)
+            // particles a later release adds do not exist in 1.21.4.)
             _ => None,
         };
         Ok(Particle { id, data })
@@ -222,7 +222,7 @@ impl Particle {
     pub fn write(&self, w: &mut Writer) {
         w.varint(self.id);
         let Some(data) = &self.data else { return };
-        // Through 1.21.8 the spell particles carried no options at all: a
+        // Through 1.21.4 the spell particles carried no options at all: a
         // target that still reads them that way gets the id alone. The
         // effect pair are the only ColorPower carriers; dragon breath is the
         // Scalar one without options (sculk charge keeps its scalar), so it
@@ -286,10 +286,11 @@ fn legacy_rgb(r: &mut Reader) -> Result<i32> {
 }
 
 /// Serializer ids in EntityDataSerializers registration order, as of the
-/// pinned 1.21.8 (from the named jar's `<clinit>` register calls, not the
-/// field declaration order). 1.21.8 still has COMPOUND_TAG (16) and no sound
-/// variants, copper golem states, resolvable profile, humanoid arm or dye
-/// colour — those arrived in 1.21.9 and later.
+/// pinned 1.21.4 (from the named jar's `<clinit>` register calls, not the
+/// field declaration order). 1.21.4 still has COMPOUND_TAG (16) and no cow,
+/// wolf-sound, pig or chicken variants — those arrived in 1.21.5 — nor the
+/// sound variants, copper golem states, resolvable profile, humanoid arm or
+/// dye colour of 1.21.9 and later.
 pub mod serializer {
     pub const BYTE: i32 = 0;
     pub const INT: i32 = 1;
@@ -314,18 +315,14 @@ pub mod serializer {
     pub const OPTIONAL_UNSIGNED_INT: i32 = 20;
     pub const POSE: i32 = 21;
     pub const CAT_VARIANT: i32 = 22;
-    pub const COW_VARIANT: i32 = 23;
-    pub const WOLF_VARIANT: i32 = 24;
-    pub const WOLF_SOUND_VARIANT: i32 = 25;
-    pub const FROG_VARIANT: i32 = 26;
-    pub const PIG_VARIANT: i32 = 27;
-    pub const CHICKEN_VARIANT: i32 = 28;
-    pub const OPTIONAL_GLOBAL_POS: i32 = 29;
-    pub const PAINTING_VARIANT: i32 = 30;
-    pub const SNIFFER_STATE: i32 = 31;
-    pub const ARMADILLO_STATE: i32 = 32;
-    pub const VECTOR3: i32 = 33;
-    pub const QUATERNION: i32 = 34;
+    pub const WOLF_VARIANT: i32 = 23;
+    pub const FROG_VARIANT: i32 = 24;
+    pub const OPTIONAL_GLOBAL_POS: i32 = 25;
+    pub const PAINTING_VARIANT: i32 = 26;
+    pub const SNIFFER_STATE: i32 = 27;
+    pub const ARMADILLO_STATE: i32 = 28;
+    pub const VECTOR3: i32 = 29;
+    pub const QUATERNION: i32 = 30;
 }
 fn read_value(kind: i32, r: &mut Reader) -> Result<Option<Value>> {
     use serializer::*;
@@ -383,14 +380,14 @@ fn read_value(kind: i32, r: &mut Reader) -> Result<Option<Value>> {
             )
         }
         // VarInt-encoded: direction, block states, optional ints, pose, the
-        // holder-registry variants (cat to chicken, painting) and the enum
+        // holder-registry variants (cat, wolf, frog, painting) and the enum
         // states (sniffer, armadillo).
         // Block states as an older server numbers them (the optional one sends air, 0, for none).
         BLOCK_STATE | OPTIONAL_BLOCK_STATE => Value::Id(ids::block_state(r.varint()?)),
         DIRECTION
         | OPTIONAL_UNSIGNED_INT
         | POSE
-        | CAT_VARIANT..=CHICKEN_VARIANT
+        | CAT_VARIANT..=FROG_VARIANT
         | PAINTING_VARIANT..=ARMADILLO_STATE => Value::Id(r.varint()?),
         PARTICLE => Value::Particle(Particle::read(r)?),
         PARTICLES => {
@@ -538,7 +535,7 @@ mod tests {
                     let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                     Particle::read(&mut r).unwrap()
                 };
-                assert_eq!(p.id, 47); // minecraft:vibration is particle 47 in 1.21.8.
+                assert_eq!(p.id, 46); // minecraft:vibration is particle 46 in 1.21.4.
                 assert_eq!(p.data, Some(ParticleData::Vibration { source, ticks }));
                 assert_eq!(r.u8().unwrap(), 99);
                 let mut w = Writer::new();
@@ -773,17 +770,17 @@ mod tests {
         EntityData::write(&entries, &mut w);
         #[rustfmt::skip]
         let bytes = [
-            11, 33, 0x3F, 0x80, 0, 0, 0xC0, 0, 0, 0, 0x3E, 0x80, 0, 0,
-            13, 34, 0, 0, 0, 0, 0, 0, 0, 0, 0x3F, 0x35, 0x04, 0xF3, 0x3F, 0x35, 0x04, 0xF3,
+            11, 29, 0x3F, 0x80, 0, 0, 0xC0, 0, 0, 0, 0x3E, 0x80, 0, 0,
+            13, 30, 0, 0, 0, 0, 0, 0, 0, 0, 0x3F, 0x35, 0x04, 0xF3, 0x3F, 0x35, 0x04, 0xF3,
             0xFF,
         ];
         assert_eq!(w.data, bytes);
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (1.21.8 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (1.21.4 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes. (The geyser shapes have no 1.21.8 particle type; they
+    /// still decodes. (The geyser shapes have no 1.21.4 particle type; they
     /// are covered by the 26.3 tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
@@ -792,12 +789,12 @@ mod tests {
             (7, Some(ParticleData::Scalar(1.0))),
             (13, Some(ParticleData::ColorScale(0xff0000, 1.5))),
             (14, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            // 1.21.8 carries no spell-particle options: the effect's colour
+            // 1.21.4 carries no spell-particle options: the effect's colour
             // and power are the read defaults (-1, 1.0), not wire data.
             (15, Some(ParticleData::ColorPower(-1, 1.0))),
             (20, Some(ParticleData::Color(0x7f00ff00))),
             (
-                46,
+                48,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -812,14 +809,14 @@ mod tests {
                 Some(ParticleData::Mod("mymod:spark".to_owned())),
             ),
             (
-                47,
+                46,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Block([-12, 64, 300]),
                     ticks: 20,
                 }),
             ),
             (
-                47,
+                46,
                 Some(ParticleData::Vibration {
                     source: PositionSource::Entity {
                         id: 99,
@@ -828,8 +825,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            (48, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
-            (102, Some(ParticleData::Delay(6))),
+            (47, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, 40))),
+            (101, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });
