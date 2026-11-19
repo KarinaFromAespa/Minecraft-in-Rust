@@ -334,7 +334,39 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 22/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33 + 3 zero-diff)
+### Rank 2: 23/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33 + 4 zero-diff)
+
+- **Item 37 — `crates/horizon-client/src/block_entity_item.rs` (4 classes, 17 methods, 9 named in Horizon):**
+  ItemStack, Spawner, BlockItem, JukeboxBlock. Zero-diff: no code changed.
+  `place()` already matches 1.21.8's `updateCustomBlockEntityTag` (the item's
+  data merges only when its `id` names the placed type — a missing or
+  unparseable id skips the merge, as 1.21.8's `parseEntityType` returning
+  null does — op-only types only for a game master); `op_warning` matches
+  1.21.8's `shouldPrintOpWarning` (no warning when the id does not parse),
+  and the OP_ONLY sets are identical in both versions (6 block entity types,
+  3 entity types, verified against both decomps); `carries_record` matches
+  `JukeboxBlock.setPlacedBy` (EMPTY contains no `RecordItem`); `pick()`
+  writes the `id` into the compound, the 1.21.8 `CustomData` form (the
+  1.21.9 `TypedEntityData` wire form is items 257/170's); the spawner
+  tooltip matches (`Spawner.getSpawnEntityDisplayName`'s SpawnData → entity
+  → id chain, gray, spawner and trial spawner alike, after BLOCK_STATE);
+  the Rust renders neither of 1.21.9's new tooltip lines (PROFILE,
+  ENTITY_DATA); `hurtAndBreak`'s hand→slot mapping is the same in both
+  versions (`getSlotForHand` vs `asEquipmentSlot`, item 17's rename); the
+  jukebox comparator output is direction-independent in both versions (item
+  16's `getAnalogOutputSignal` finding).
+  Known gap (real 1.21.8 difference, not fixed here): `PlayerHeadItem.
+  verifyComponentsAfterLoad` — the only override in 1.21.8 (the base is a
+  no-op) — resolves a head's profile eagerly on load, so an id-only player
+  head gains its name (`%s's Head`) after the fetch; 1.21.9 dropped the calls
+  and the Rust resolves head profiles lazily at render (`skins::head_skin`),
+  so an id-only head stays "Player Head". Load-time resolution would be a
+  Game-layer feature across the inventory-load paths; only command-created
+  id-only heads are affected (name-carrying heads and skins already work).
+  For other items: the `TypedEntityData.loadInto` citations in
+  mobs/spawner.rs:274 and mobs/trial_spawner.rs:401,404 belong to items 151
+  and 192; the protocol-layer TypedEntityData sites (item_sync.rs,
+  horizon-protocol) belong to items 257/170 (item 17's finding).
 
 - **Item 32 — `horizon-client-render/src/camera.rs` (5 classes, 31 methods, 9 named in Horizon):**
   GameRenderer, AbstractClientPlayer, Frustum, CameraRenderState (1.21.9-only,
