@@ -26,10 +26,7 @@ use horizon_world::{
         CollisionCheckRequest, EntityMovementWorld, MovementRequest, no_world_collision,
         resolve_world_movement,
     },
-    worldgen::{
-        tags::TagDefinitions,
-        terrain::{TerrainBlockStates, TerrainChunk},
-    },
+    worldgen::terrain::{TerrainBlockStates, TerrainChunk},
 };
 use serde_json::Value;
 use std::{
@@ -343,7 +340,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok((
                 name,
                 match kind.as_str() {
-                    "tagged_full" => SuffocationDefinition::TaggedFullCollision,
+                    "motion_full" => SuffocationDefinition::MotionFullCollision,
                     "always" => SuffocationDefinition::Always,
                     "never" => SuffocationDefinition::Never,
                     "not_extended" => SuffocationDefinition::NotExtendedPiston,
@@ -353,24 +350,10 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             ))
         })
         .collect::<io::Result<BTreeMap<_, _>>>()?;
-    let resources: BTreeMap<String, String> =
-        serde_json::from_str(&fs::read_to_string(dir.join("tags.json"))?)?;
-    let mut tags = TagDefinitions::default();
-    for (name, json) in resources {
-        tags.apply_json(&name, "vanilla", &json)?;
-    }
-    let built = tags.build(|name, _| registry.default_state(name).map(|_| name.to_owned()))?;
-    if !built.missing.is_empty() {
-        return Err("unresolved native block tags".into());
-    }
-    let natural = built
-        .tags
-        .get("minecraft:causes_suffocation")
-        .ok_or("missing suffocation tag")?
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    let binding = SuffocationRegistry::new(collisions, &definitions, &natural)?;
+    let motion: Vec<String> =
+        serde_json::from_str(&fs::read_to_string(dir.join("motion.json"))?)?;
+    let motion: BTreeSet<String> = motion.into_iter().collect();
+    let binding = SuffocationRegistry::new(collisions, &definitions, &motion)?;
     let fluids = FluidPresence::new(&registry)?;
     let properties = Properties(Arc::new(
         (0..registry.len())

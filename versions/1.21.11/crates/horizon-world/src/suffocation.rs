@@ -1,4 +1,6 @@
-//! Native suffocation predicates bound to a registry and a resolved block-tag set.
+//! Native suffocation predicates bound to a registry and the motion-blocking set.
+//! 1.21.11 has no causes_suffocation tag: the default rule is blocksMotion with
+//! a full collision shape, so the binding set is the motion set from motion.json.
 use crate::{
     block_collision::{BlockCollisionRegistry, CollisionQueryError, DynamicCollisionWorld},
     compression::invalid,
@@ -13,7 +15,7 @@ use std::{
 
 #[derive(Clone, Copy, Debug)]
 pub enum SuffocationDefinition {
-    TaggedFullCollision,
+    MotionFullCollision,
     Always,
     Never,
     NotExtendedPiston,
@@ -35,20 +37,20 @@ impl<'r> SuffocationRegistry<'r> {
         &self.collisions
     }
 
-    /// Rebind after the causes_suffocation tag changes. Definition keys and tag
+    /// Bind definitions to the registry. Definition keys and motion-set
     /// members are canonical block identifiers from the same pinned registry.
     pub fn new(
         collisions: Arc<BlockCollisionRegistry<'r>>,
         definitions: &BTreeMap<String, SuffocationDefinition>,
-        causes_suffocation: &BTreeSet<String>,
+        blocks_motion: &BTreeSet<String>,
     ) -> io::Result<Self> {
         let registry = collisions.registry();
         if definitions
             .keys()
-            .chain(causes_suffocation)
+            .chain(blocks_motion)
             .any(|name| registry.default_state(name).is_none())
         {
-            return Err(invalid("unknown suffocation definition or tag member"));
+            return Err(invalid("unknown suffocation definition or motion member"));
         }
         let mut full_shapes = HashMap::new();
         let mut rules = Vec::with_capacity(registry.len());
@@ -69,8 +71,8 @@ impl<'r> SuffocationRegistry<'r> {
                     })
                 }
                 SuffocationDefinition::ClosedShulker => Rule::Shulker,
-                SuffocationDefinition::TaggedFullCollision => {
-                    if !causes_suffocation.contains(&state.name) {
+                SuffocationDefinition::MotionFullCollision => {
+                    if !blocks_motion.contains(&state.name) {
                         Rule::Constant(false)
                     } else if let Some(shape) = collisions.cached_shapes().cached_shape(id)? {
                         let identity = std::ptr::from_ref(shape);
