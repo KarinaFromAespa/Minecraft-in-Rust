@@ -4350,16 +4350,6 @@
       }
     },
     {
-      "name": "player_toggle_entity_age_lock",
-      "version": 1,
-      "target": "horizon_client::game::native_hooks::Game<'_>::native_player_toggle_entity_age_lock",
-      "neoforge": "none (NeoForge has no such event)",
-      "side": "server",
-      "mod_api": {
-        "contract": "listen"
-      }
-    },
-    {
       "name": "player_toggle_sneak",
       "version": 1,
       "target": "horizon_client::game::native_hooks::Game<'_>::native_player_toggle_sneak",
