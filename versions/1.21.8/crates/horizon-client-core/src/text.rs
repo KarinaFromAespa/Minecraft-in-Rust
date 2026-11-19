@@ -83,8 +83,9 @@ pub struct Style {
     pub hover_entity: Option<Box<Value>>,
     /// `Style.insertion`: the text a Shift-click puts in the chat box.
     pub insertion: Option<String>,
-    /// The font (`FontDescription.Resource`), a full id like
-    /// `minecraft:alt`; the default font when unset.
+    /// The font (`Style.font`, a `ResourceLocation`), a full id like
+    /// `minecraft:alt`; the default font when unset. (1.21.9 made it a
+    /// `FontDescription`.)
     pub font: Option<String>,
 }
 /// A style's `font` field: an identifier (`alt` is `minecraft:alt`).
