@@ -334,7 +334,141 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 8/317 (items 10, 11, 12, 13, 16, 17 + 2 zero-diff)
+### Rank 2: 9/317 (items 10, 11, 12, 13, 15, 16, 17 + 2 zero-diff)
+
+- **Item 15 — `realms.rs` (50 classes, 271 methods, 25 named in
+  Horizon):** the Realms screens, options, invites, upload and
+  list narration.
+  1. **Renew copies and opens:** 1.21.9 shows a `ConfirmLinkScreen`
+     for `onRenew`; 1.21.8 copies the extend link to the clipboard
+     AND opens it directly. New `Outcome::CopyAndOpenUri` /
+     `Action::CopyAndOpenUri`, handled in both title-action sites
+     (clipboard set, then the URI opened). The other confirm-link
+     flows stay — notification links confirm in both versions
+     (`VisitUrl.buildOpenLinkButton` uses `ConfirmLinkScreen` in
+     1.21.8 too).
+  2. **Notification layout is multi-row:** 1.21.9 is one
+     variable-height entry; 1.21.8 is a message row plus
+     `Mth.positiveCeilDiv(wrapHeight + 7, 36) - 1` empty rows and
+     a separate button row, the text wrapped at 216 in an outline
+     (`-12303292`) and the button 150x20 centred under it.
+     `draw_notice` is reworked to that form.
+  3. **Slot button action is minigame-based:** 1.21.9 switches
+     unless `activeSlot || empty && expired`; 1.21.8 unless
+     `activeSlot || minigame && expired`. The click condition now
+     reads `minigame`, not `empty`.
+  4. **`RealmWorldOptions` has its three dropped fields back:**
+     1.21.8's DTO carries `pvp`, `spawnMonsters` and
+     `commandBlocks` (nullable); 1.21.9 dropped them. Both upload
+     flows set them: create-from-world takes `allowCommands` for
+     command blocks, the upload screen passes hardcoded true
+     (`createFromSettings(settings, true, version)`); pvp and
+     spawn monsters stay false, as Java's defaults do.
+  5. **Slot options screen reworked:** PvP, spawn-monsters and
+     command-blocks toggles back (ids 25/26/27 — the first
+     100–102 run collided with the row-button range arm and was
+     moved). NORMAL reads the slot's values; other world types
+     default all three true. Spawn-monsters off opens the warning
+     popup (`mco.configure.world.spawn_toggle.message`) — only
+     Continue clears it. `save_slot_options` saves all three,
+     keeping the slot's stored values for ADVENTUREMAP/EXPERIENCE/
+     INSPIRATION and gating spawn monsters on NORMAL +
+     non-peaceful.
+  6. **Pending invites reworked:** footer Accept/Done/Reject
+     (100x20, visible only with a selection) plus the per-row
+     15x15 Accept/Reject buttons; rows 260 wide, list y 32 to
+     h−40, face 32px at the row origin. The row buttons and the
+     footer share `answer_pending_invite`; a list refresh clears
+     the selection, as vanilla's removal does.
+  7. **Upload-select reworked:** no search box (1.21.9-only), no
+     icons, no double-click-to-upload; entries are name, id line
+     (`mco.upload.entry.id`, folder + short date) and the world
+     info line, rows 60% of the screen width, list from row(0)
+     to h−40. The list filters by `canUpload` (`!locked`;
+     `requiresManualConversion` is true only for two 1.20.5
+     snapshots, which the Rust does not model). The orphaned
+     `world_icons` cache went with the icons.
+  8. **Invite duplicate check removed:** 1.21.9 refuses an invite
+     to a player already on the server; 1.21.8 refuses only a
+     blank name. The duplicate branch and the `Invite` screen's
+     `players` field are gone; the test now pins blank-refused,
+     duplicate-goes-through.
+  9. **Players tab header scrolls:** 1.21.8 has no `HeaderEntry` —
+     the invited count is the list's `renderHeader`, drawn at
+     `getY() + 4 - scrollAmount()`, so it scrolls with the list.
+     The Rust's heading now subtracts the scroll amount and sits
+     inside the clip region.
+  10. **Template screen:** the minigame warning lines are at
+      row(−1)/row(0) in GREY (not 25/38 in `0xFFBABABA`), the
+      list top is 53 when warning, the footer spacing is 10, and
+      the entry version/recommended-players colours are
+      `0xFF6C6C6C`/`0xFF4C4C4C`.
+  11. **Slot names cut to 64:** 1.21.8 truncates the slot name
+      inline at 64 wide with "..." whatever the button's size;
+      1.21.9 made it a StringWidget with
+      `setMaxWidth(width - 2)`. The clamp is now a fixed 64.
+  12. **Container-list narration:** 1.21.8's
+      `ContainerObjectSelectionList.updateWidgetNarration` adds
+      `narration.component_list.usage` unconditionally, and its
+      entry adds it for a focused row with more than one
+      narratable; 1.21.9 dropped both. The Rust adds both lines
+      (the collector keys by type and depth, so the screen, list
+      and row lines all read, as in vanilla); the container-list
+      test expectations are updated. `ObjectSelectionList` is
+      identical in both versions — no change there.
+  13. **Slider narration:** 1.21.8's `updateWidgetNarration`
+      always uses `narration.slider.usage.focused` for a focused
+      slider; the `keyboard_cannot_change_value` variant is
+      1.21.9-only. The branch is gone from the narrator and its
+      test. The branch was the last reader of the narrator's
+      last-input-type tracking, so the `input` field is gone from
+      `ScreenNarrator` and `Ctx` (the `set_input` callers stay —
+      Tab and the arrows still move the focus off a clicked
+      widget).
+  14. **Terms link copies and opens:** vanilla's
+      `RealmsTermsScreen.mouseClicked` copies the terms URL to the
+      clipboard and opens it, in both versions; the Rust only
+      opened it. It now returns `CopyAndOpenUri` (a pre-existing
+      deviation, fixed with the plumbing this item built for
+      renew).
+  - **Verified no-change:** server-row double-click (the Rust
+    already does same-row + < 250ms, matching 1.21.8's
+    `lastClickTime` rule); `renderOnlinePlayers` and the
+    refresh-entries server re-selection (same net effect);
+    `NotificationButton` tooltip; the subscription tab (labels
+    already left-aligned, the info panel already the 1.21.8
+    `FocusableTextWidget` form) and the settings tab's region
+    label (already left-aligned — 1.21.8's `.alignLeft()`);
+    configure-tab reset (the 1.21.9 preservation only shows on
+    window resize, and the Rust has no resize hook into the
+    Realms screen); feature flags (not implemented in the Rust);
+    `setScreenAndShow`/`forceSetScreen`,
+    `CreateWorldScreen.openFresh`'s callback form, the generic
+    error screen's render and `canInterruptWithAnotherScreen`
+    (no interrupt gate in the Rust), the backup-info screen's
+    size API; the backup-screen and backup-info entries, the
+    region-selection entry and the long-running-task screen
+    (render/input API only, same coordinates and colours);
+    `RealmsUtil.renderPlayerFace` (session-service skins vs the
+    render cache, same visible result); the slider sprites
+    (`getSprite`/`getHandleSprite` identical; the `dragging`
+    `||` is a provable no-op); the singleplayer world list
+    (empty list opens Create New World, no text truncation or
+    tooltips, icon-click and Enter join, filter change clears
+    the selection — all already the 1.21.8 form; the "World N"
+    empty-name branch is dead in vanilla since `getLevelName`
+    falls back to the folder).
+  - **Out of scope (other items):** the cursor API is entirely
+    1.21.9-only (no `CursorTypes`/`requestCursor` in the 1.21.8
+    jar) — removing the Rust's cursor system belongs to the
+    widgets/ui item, not this one; the Rust has no RESIZE_EW
+    cursor for sliders, so nothing slider-specific to remove.
+    Two pre-existing deviations vs both versions, noted not
+    fixed: the world list joins on any second click of the
+    selected row (vanilla wants a 250ms double-click), and an
+    empty `LevelName` draws empty (vanilla shows the folder);
+    the list-refresh reload on edit/recreate returns is the
+    1.21.9 always-reload form, with no visible difference.
 
 - **Item 16 — `game.rs` (37 classes, 178 methods, 33 named in
   Horizon):** buckets, honeycomb, game mode, ops, narration,

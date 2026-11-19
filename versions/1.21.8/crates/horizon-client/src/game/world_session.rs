@@ -41,6 +41,11 @@ impl Game<'_> {
                 use horizon_client::clipboard::Clipboard;
                 self.clipboard.set(&text);
             }
+            Action::CopyAndOpenUri(uri) => {
+                use horizon_client::clipboard::Clipboard;
+                self.clipboard.set(&uri);
+                packs::open_uri(&uri);
+            }
             Action::Play { folder } => self.open_world(&folder, None, None, false, None)?,
             Action::Create {
                 folder,

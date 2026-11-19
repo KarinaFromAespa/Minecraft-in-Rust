@@ -382,6 +382,9 @@ pub enum Action {
     OpenUri(String),
     /// `ConfirmLinkScreen.copyToClipboard`.
     CopyText(String),
+    /// `RealmsMainScreen.onRenew`: the renew link to the clipboard and the
+    /// browser at once, with no confirm screen.
+    CopyAndOpenUri(String),
     Play {
         folder: String,
     },
@@ -628,7 +631,8 @@ fn experimental_features(data: &horizon_world::nbt::Tag) -> bool {
 }
 /// LevelSummary.createInfo: a hardcore world's mode in red (CommonColors.RED),
 /// else `gameMode.` + its GameType name, then commands and the version.
-fn world_info(world: &WorldEntry) -> crate::text::Text {
+/// Shared with the Realms upload list, whose entries show the same info line.
+pub(crate) fn world_info(world: &WorldEntry) -> crate::text::Text {
     // LevelSummary.createInfo: a locked world says so in red (ChatFormatting.RED).
     if world.locked {
         return crate::text::Text::colored(
@@ -3754,6 +3758,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     },
                     crate::realms::Outcome::OpenUri(uri) => Action::OpenUri(uri),
                     crate::realms::Outcome::Copy(text) => Action::CopyText(text),
+                    crate::realms::Outcome::CopyAndOpenUri(uri) => {
+                        Action::CopyAndOpenUri(uri)
+                    }
                     crate::realms::Outcome::CreateWorld(request) => {
                         // `RealmsCreateWorldFlow.createWorld`: Create New World's settings
                         // upload into the Realm's slot instead of a local world.
@@ -4315,6 +4322,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 ),
                 crate::realms::Outcome::OpenUri(uri) => (Action::OpenUri(uri), true),
                 crate::realms::Outcome::Copy(text) => (Action::CopyText(text), true),
+                crate::realms::Outcome::CopyAndOpenUri(uri) => {
+                    (Action::CopyAndOpenUri(uri), true)
+                }
                 _ => (Action::None, false),
             };
         }

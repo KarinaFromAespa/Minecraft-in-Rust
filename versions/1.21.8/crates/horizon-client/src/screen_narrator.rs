@@ -54,15 +54,14 @@ struct Open {
     last_repeat: i64,
 }
 
-/// The screens' narration: the open screen's state, the player's last input
-/// type (`Minecraft.lastInputType`) and the widget a click focused.
+/// The screens' narration: the open screen's state and the widget a click
+/// focused.
 #[derive(Debug)]
 pub struct ScreenNarrator {
     epoch: Instant,
     /// The clock tests set; `None` reads `epoch`.
     clock: Option<i64>,
     open: Option<Open>,
-    input: InputType,
     /// `ContainerEventHandler.mouseClicked`'s `setFocused`: the widget last
     /// clicked keeps the focus until the screen changes.
     click_focus: Option<u64>,
@@ -87,7 +86,6 @@ impl Default for ScreenNarrator {
             epoch: Instant::now(),
             clock: None,
             open: None,
-            input: InputType::None,
             click_focus: None,
             frame: Narration::default(),
             generation: 0,
@@ -108,7 +106,6 @@ struct Ctx<'a> {
     click_focus: Option<u64>,
     /// The controller's focus ring (GUI pixels).
     pad_focus: Option<[f32; 4]>,
-    input: InputType,
     /// `init`'s narration runs before the screen renders: nothing is hovered.
     init: bool,
     /// The frame's tooltip is the hovered widget's (HINT). Not inside a
@@ -300,14 +297,13 @@ fn narrate(
         What::Slider { message, active } => {
             out.add(ElementType::Title, ctx.tr("gui.narrate.slider", &[message]));
             if *active {
-                // AbstractSliderButton.setFocused: `canChangeValue` when the
-                // focus came from the mouse or Tab.
-                let key = if !focused {
-                    "narration.slider.usage.hovered"
-                } else if matches!(ctx.input, InputType::Mouse | InputType::KeyboardTab) {
+                // 1.21.8's `updateWidgetNarration`: a focused slider always reads
+                // the focused usage — the `keyboard_cannot_change_value` variant
+                // is 1.21.9's (`canChangeValue` still gates the arrow keys).
+                let key = if focused {
                     "narration.slider.usage.focused"
                 } else {
-                    "narration.slider.usage.focused.keyboard_cannot_change_value"
+                    "narration.slider.usage.hovered"
                 };
                 out.add(ElementType::Usage, ctx.tr(key, &[]));
             }
@@ -423,7 +419,8 @@ fn narrate(
         What::ContainerList { rows, hovered_row } => {
             // ContainerObjectSelectionList.updateWidgetNarration: the row
             // under the mouse for the mouse and the system, else the focused
-            // one; its widget one level deeper, the row's position here.
+            // one; its widget one level deeper, the row's position here, and
+            // (1.21.8 only) the component-list usage, always.
             let list = n.identity();
             let hovered_row = hovered_row.filter(|_| !ctx.init);
             let row = match (out.trigger(), hovered_row) {
@@ -446,6 +443,12 @@ fn narrate(
                     );
                 }
             }
+            // 1.21.8 adds the component-list usage unconditionally at the
+            // end; 1.21.9 dropped it from the list's narration.
+            out.add(
+                ElementType::Usage,
+                ctx.tr("narration.component_list.usage", &[]),
+            );
             return;
         }
     }
@@ -486,6 +489,14 @@ fn narrate_row(
                 &[&num(i + 1), &num(children.len())],
             ),
         );
+        // 1.21.8 adds the component-list usage for a focused row with more
+        // than one narratable; 1.21.9 dropped it from the entry's narration.
+        if priority == Priority::Focused {
+            out.add(
+                ElementType::Usage,
+                ctx.tr("narration.component_list.usage", &[]),
+            );
+        }
     }
     narrate(&mut out.nest(), children[i], ctx, row_last);
 }
@@ -512,7 +523,6 @@ impl ScreenNarrator {
     /// `Minecraft.setLastInputType`: the mouse's buttons, Tab and the arrows.
     /// Tab and the arrows move the focus off what a click focused.
     pub fn set_input(&mut self, input: InputType) {
-        self.input = input;
         if input.is_keyboard() {
             self.click_focus = None;
         }
@@ -677,11 +687,6 @@ impl ScreenNarrator {
         let opened = self.open.as_ref().is_none_or(|o| o.id != info.id);
         let resized = !opened && self.open.as_ref().is_some_and(|o| o.gui != gui);
         if opened {
-            // Minecraft.setScreen over no screen: `setLastInputType(NONE)`,
-            // so a screen opened from the game is never a keyboard one.
-            if self.open.is_none() && !adopting {
-                self.input = InputType::None;
-            }
             self.click_focus = None;
             self.open = Some(Open {
                 id: info.id.clone(),
@@ -703,7 +708,6 @@ impl ScreenNarrator {
             cursor,
             click_focus: self.click_focus,
             pad_focus,
-            input: self.input,
             init,
             tooltips: true,
             tr,
@@ -949,8 +953,8 @@ mod tests {
             ),
         ];
         h.draw(0, &screen, &items);
-        // The controller's ring focuses the slider, as the arrows would:
-        // the keyboard can't change it before Enter.
+        // The controller's ring focuses the slider, as the arrows would; 1.21.8
+        // reads the focused usage whatever the input type was.
         h.pad_focus = Some(items[0].rect);
         h.at(3000).set_input(InputType::KeyboardArrow);
         h.n.keyboard_action();
@@ -959,7 +963,7 @@ mod tests {
             [
                 "gui.narrate.slider(FOV: 70). narrator.position.screen(1, 3). \
                  narration.component_list.usage. \
-                 narration.slider.usage.focused.keyboard_cannot_change_value"
+                 narration.slider.usage.focused"
             ]
         );
         h.pad_focus = None;
@@ -1122,7 +1126,7 @@ mod tests {
             [
                 "gui.narrate.button(VSync: ON). narrator.position.screen(1, 2). \
                  narrator.position.list(2, 3). narrator.position.object_list(2, 2). \
-                 narration.button.usage.hovered"
+                 narration.component_list.usage. narration.button.usage.hovered"
             ]
         );
         // A click on a row's widget focuses it, and the list with it: the
@@ -1130,9 +1134,15 @@ mod tests {
         h.press(4000);
         assert_eq!(h.n.click_focus, Some(widgets::key_of(&"VSync: ON")));
         h.at(4100).keyboard_action();
+        // The screen, the list and the row each add the component-list usage
+        // in 1.21.8; the list's line was already said while hovering, so the
+        // screen's and the row's are the new ones.
         assert_eq!(
             h.draw(4301, &screen, &items),
-            ["narration.component_list.usage. narration.button.usage.focused"]
+            [
+                "narration.component_list.usage. narration.component_list.usage. \
+                 narration.button.usage.focused"
+            ]
         );
     }
 
@@ -1215,14 +1225,13 @@ mod tests {
                  narration.button.usage.hovered"
             ]
         );
-        // A screen opened from the game forgets the keyboard.
+        // A screen opened from the game re-narrates its title from scratch.
         h.n.frame.screen = None;
         h.n.step(100_300, GUI, h.cursor, None, false, &keys);
         assert_eq!(
             h.draw(100_400, &options, &items),
             ["Options. narrator.screen.usage"]
         );
-        assert_eq!(h.n.input, InputType::None);
     }
 
     #[test]

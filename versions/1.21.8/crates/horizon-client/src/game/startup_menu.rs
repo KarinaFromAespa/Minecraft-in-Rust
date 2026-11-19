@@ -778,6 +778,11 @@ impl Loading {
                 use horizon_client::clipboard::Clipboard;
                 self.menu.clipboard.set(&text);
             }
+            Action::CopyAndOpenUri(uri) => {
+                use horizon_client::clipboard::Clipboard;
+                self.menu.clipboard.set(&uri);
+                super::packs::open_uri(&uri);
+            }
             Action::DataPacks { dir, selected } => {
                 let resources = self.vanilla_root.clone();
                 self.menu.options.open_data_packs(dir, selected, resources);
