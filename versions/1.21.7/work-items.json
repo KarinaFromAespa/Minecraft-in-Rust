@@ -1,1 +1,31 @@
-{"generated_from":"d803283d053a457c84ebf61910f1e51c395a5c67d9de724f7026c2d9879d0e0e","note":"Mechanical-layer publish: the pin, tables and verification are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) — D3 fails until the behaviour port closes or formally accepts them.","rank1":{"accepted":[],"closed":0,"total":3},"rank2":{"accepted":[],"closed":0,"total":1},"rank3":{"accepted":[],"closed":0,"total":0},"rank3plus":"Inherits the 1.21.8 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.","rank4":{"accepted":[],"closed":0,"total":0},"rank5":{"accepted":[],"closed":0,"total":1},"release":"1.21.7"}
+{
+    "generated_from": "d803283d053a457c84ebf61910f1e51c395a5c67d9de724f7026c2d9879d0e0e",
+    "note": "Behaviour port complete 2026-11-19: all 5 items closed (3 rank-1, 1 rank-2, 1 rank-5), verified against the 1.21.7/1.21.8 jars. No code changes were needed beyond the pin fix (research-lock accepted_manifest_sha1): the mechanical publish had already regenerated version.rs, and the remaining items verify as no-change (see PORT-NOTES).",
+    "rank1": {
+        "accepted": [],
+        "closed": 3,
+        "total": 3
+    },
+    "rank2": {
+        "accepted": [],
+        "closed": 1,
+        "total": 1
+    },
+    "rank3": {
+        "accepted": [],
+        "closed": 0,
+        "total": 0
+    },
+    "rank3plus": "Inherits the 1.21.8 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
+    "rank4": {
+        "accepted": [],
+        "closed": 0,
+        "total": 0
+    },
+    "rank5": {
+        "accepted": [],
+        "closed": 1,
+        "total": 1
+    },
+    "release": "1.21.7"
+}
