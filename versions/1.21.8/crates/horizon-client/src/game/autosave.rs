@@ -48,6 +48,10 @@ impl Game<'_> {
         self.save_bossbars();
         self.save_schedule();
         self.save_warden_tracker();
+        // The Overworld's border is level.dat's: refresh the level's copy
+        // before the write (the snapshot path saves metadata without a
+        // level save, so this runs here, not only in `save_level`).
+        self.save_border();
         self.sync_level();
         // Level::write can synchronously replace the integrated owner file.
         let _ = self.finish_player_autosaves(true);

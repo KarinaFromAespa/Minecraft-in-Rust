@@ -334,7 +334,75 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 5/317 (items 10, 11, 12 + 2 zero-diff)
+### Rank 2: 6/317 (items 10, 11, 12, 13 + 2 zero-diff)
+
+- **Item 13 — `game/dedicated.rs` (5 classes, 167 methods, 44 named,
+  985 diff lines):** six fixes.
+  1. **World border persistence:** 1.21.9 keeps a border per level in
+     `data/minecraft/world_border.dat`; 1.21.8 keeps the one border in
+     level.dat's `Border*` keys. `Level` gained a `border` field, read
+     and written with the rest of level.dat (`save.rs`); the
+     per-level file read/write is gone (`load_border`/`save_border`
+     reworked, `border_path` removed, `WorldBorder::pack/unpack`
+     replaced by `pack_level_dat/unpack_level_dat`).
+  2. **Other dimensions derive their border:** the Nether and the End
+     start from the Overworld's border with the centre divided by
+     their coordinate scale (`Level$1`: Nether /8, End /1) — a new
+     `WorldBorder::for_coordinate_scale`, used at world open (from
+     the loaded level), when a parked level opens (from the live
+     Overworld border), and by the mod API (`native_world_border`
+     now answers each level's own bounds, not the live border's for
+     every dimension).
+  3. **Overworld edits mirror:** an Overworld `/worldborder` edit
+     mirrors into the parked Nether/End borders (the delegate
+     listener); a Nether/End edit never propagates back, and only
+     the Overworld border reaches level.dat. `save_border` refreshes
+     the level's copy from the live Overworld border before every
+     level.dat write, including the snapshot path
+     (`save_game_metadata`).
+  4. **Whitelist kick on enforce alone:** 1.21.8's
+     `kickUnlistedPlayers` kicks on `enforceWhitelist` alone; the
+     `&& isUsingWhitelist()` came in 1.21.9. A reload or a removal
+     with enforce on but the list off still kicks.
+  5. **Ban reason null renders literally:** 1.21.8 passes the raw
+     reason, and a null one renders as the literal `"null"`
+     (`TranslatableContents` TEXT_NULL) — in the ban entry, the
+     `/ban` and `/ban-ip` success messages. The default-text form
+     came in 1.21.9's `getReasonMessage()`.
+  6. **No code of conduct:** `readCodeOfConducts` and the
+     `codeofconduct` folder came in 1.21.9. The dedicated start no
+     longer reads the folder (an unreadable one never stops the
+     start), the property is ignored, and `LanHost.code_of_conducts`
+     is gone. (`isAutoSave`/`setAutoSave` are 1.21.9's names for
+     1.21.8's per-level `noSave` flip — doc note only; the shared
+     flag stays.)
+  - **Tests:** the two border persistence tests now assert the
+    shared model — a Nether-only size does not survive a reopen,
+    the Nether/End re-derive from the Overworld after a set, and
+    the Nether centre is the Overworld's /8 — plus a level.dat
+    round-trip and a centre-scaling unit test. The in-memory test
+    (a Nether set leaves the Overworld alone) is unchanged: it
+    holds in 1.21.8 too.
+  - **Verified no-change:** spawn protection (Overworld + shared
+    spawn), console source in Overworld, default-spawn packet
+    pos+yaw only, force-game-mode flag only, integrated PvP/flight
+    true, no command-block enable gate, `GameProfileCache` /
+    `usercache.json`, `prepareLevels` / spawn-chunk logic is
+    server-startup only.
+  - **Known gap, not a port gap:** a size lerp in progress
+    desyncs across parked levels — the parked Nether resumes its
+    lerp from the mirrored state when re-entered, while vanilla's
+    Nether border ticks continuously. Parked levels don't tick at
+    all in the Rust (upstream model), so this rides with that.
+  - **Deferred:** remove 1.21.9-only game rules from the table
+    (`spawn_monsters`, `pvp`, `command_blocks_enabled`,
+    `spawner_blocks_enabled`,
+    `allow_entering_nether_using_portals` — gamerules item);
+    `.notInPeaceful()` (entities item); the datafix file fixer's
+    `world_border.dat` code is inert here (file fixes gate at
+    `version <= CURRENT` = 4440, the border fixes are 4772+ —
+    datafix item's scope). The JSON-RPC management server is
+    Horizon-only tooling, left alone.
 
 - **Item 12 — `motion.rs` (3 classes, 61 named methods, 840 diff
   lines):** ten fixes.

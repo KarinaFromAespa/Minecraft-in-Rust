@@ -780,7 +780,11 @@ pub(super) fn ban_message(ban: &BanEntry<NameAndId>) -> Tag {
 fn ban_reason(reason: &Option<String>) -> Tag {
     match reason {
         Some(r) => Tag::String(JavaString::from(r.as_str())),
-        None => translatable("multiplayer.disconnect.banned.reason.default", &[]),
+        // `BanListEntry.getReason()`: 1.21.8 passes the raw reason, and a
+        // null one renders as the literal "null" (`TranslatableContents`
+        // TEXT_NULL). The default-text form came in 1.21.9's
+        // `getReasonMessage()`.
+        None => Tag::String(JavaString::from("null")),
     }
 }
 fn translatable_tag(key: &str, args: Vec<Tag>) -> Tag {
@@ -863,12 +867,15 @@ fn ban_ip_info(names: &[&str]) -> Option<Text> {
     ))
 }
 
-/// `MinecraftServer.isAutoSave`: all of Horizon's server levels share this save flag.
+/// `MinecraftServer.isAutoSave` (1.21.9's name for it; 1.21.8's
+/// save-on/save-off commands flip each level's `noSave` directly):
+/// all of Horizon's server levels share this save flag.
 fn auto_save(state: &ServerState) -> bool {
     state.lists.lock().unwrap().autosave
 }
 
-/// `MinecraftServer.setAutoSave`: enable or disable periodic saves and report whether it changed.
+/// `MinecraftServer.setAutoSave` (same note as `auto_save`): enable or
+/// disable periodic saves and report whether it changed.
 pub(super) fn set_auto_save(lists: &Mutex<Lists>, enabled: bool) -> bool {
     let mut l = lists.lock().unwrap();
     let changed = l.autosave != enabled;
@@ -1109,13 +1116,9 @@ impl Game<'_> {
             gate_lists.lock().unwrap().can_login(address, &user)
         });
         let bypass_lists = lists.clone();
-        // DedicatedServer's constructor: `enable-code-of-conduct` reads the
-        // `codeofconduct` folder, and a folder it can't read stops the start.
-        let code_of_conducts = if props.code_of_conduct {
-            horizon_client::lan::code_of_conduct::read(std::path::Path::new("codeofconduct"))?
-        } else {
-            Vec::new()
-        };
+        // No code of conduct: 1.21.8 has none (`readCodeOfConducts` and
+        // the `codeofconduct` folder came in 1.21.9), so the property is
+        // ignored and an unreadable folder never stops the start.
         let favicon = std::fs::read("server-icon.png")
             .ok()
             .filter(|b| png_size(b) == Some((64, 64)));
@@ -1168,7 +1171,6 @@ impl Game<'_> {
                 log_ips: props.log_ips,
             }),
             resource_pack: props.resource_pack.clone(),
-            code_of_conducts,
             // DedicatedServer.serverLinks: `bug-report-link` as the only link
             // (ServerLinks.KnownLinkType.BUG_REPORT is id 0).
             levels: self.level_shapes,
@@ -1889,15 +1891,7 @@ impl Game<'_> {
                         "commands.ban.success",
                         &[
                             lit(&user.name),
-                            reason.as_deref().map_or_else(
-                                || {
-                                    Text::translate(
-                                        "multiplayer.disconnect.banned.reason.default",
-                                        &[],
-                                    )
-                                },
-                                lit,
-                            ),
+                            reason.as_deref().map_or_else(|| lit("null"), lit),
                         ],
                     ));
                     self.kick_uuid(user.id, translatable("multiplayer.disconnect.banned", &[]));
@@ -1937,10 +1931,7 @@ impl Game<'_> {
                     "commands.banip.success",
                     &[
                         lit(&ip),
-                        reason.as_deref().map_or_else(
-                            || Text::translate("multiplayer.disconnect.banned.reason.default", &[]),
-                            lit,
-                        ),
+                        reason.as_deref().map_or_else(|| lit("null"), lit),
                     ],
                 ));
                 let banned: Vec<(u128, String)> = self
@@ -2240,12 +2231,15 @@ impl Game<'_> {
     /// whitelist on, whoever is online and not on the whitelist file is
     /// disconnected (operators are not spared here).
     pub(super) fn kick_unlisted_players(&mut self, lists: &Arc<Mutex<Lists>>) {
+        // `MinecraftServer.kickUnlistedPlayers`: 1.21.8 kicks on enforce
+        // alone; the `&& isUsingWhitelist()` came in 1.21.9. A reload or a
+        // removal with enforce on but the list off still kicks here.
         let unlisted: Vec<u128> = {
             let l = lists.lock().unwrap();
             let Some(host) = self.lan.as_ref() else {
                 return;
             };
-            if !(l.enforce_whitelist && l.use_whitelist) {
+            if !l.enforce_whitelist {
                 return;
             }
             host.hub

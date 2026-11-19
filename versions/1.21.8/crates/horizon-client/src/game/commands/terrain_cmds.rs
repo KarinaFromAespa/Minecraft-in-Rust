@@ -409,7 +409,7 @@ impl Game<'_> {
             Some(Arg::Int(t)) => i64::from(*t),
             _ => 0,
         };
-        match id {
+        let out = match id {
             "worldborder.get" => {
                 let size = self.border.size();
                 self.feedback(Text::translate(
@@ -543,7 +543,14 @@ impl Game<'_> {
                 ));
                 Ok(ticks)
             }
+        };
+        // A successful edit in the Overworld mirrors into the other
+        // levels' borders (`Level$1`); a read or a Nether/End edit does
+        // not (`mirror_border_to_other_levels` checks the dimension).
+        if out.is_ok() && id != "worldborder.get" {
+            self.mirror_border_to_other_levels();
         }
+        out
     }
 
     // ---- /loot ---------------------------------------------------------------------------------

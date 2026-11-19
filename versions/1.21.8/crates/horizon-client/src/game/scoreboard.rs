@@ -102,38 +102,54 @@ impl Game<'_> {
     fn scoreboard_path(&self) -> std::path::PathBuf {
         self.world_root.join("data/minecraft/scoreboard.dat")
     }
-    /// `ServerLevel.getWorldBorder`'s file: each dimension's own
-    /// `data/minecraft/world_border.dat`.
-    fn border_path(&self, dim: super::Dim) -> std::path::PathBuf {
-        save::dimension_dir(&self.world_root, dim.id()).join("data/minecraft/world_border.dat")
-    }
-    /// The border `dim`'s level saved. The Overworld also reads the root file older Horizon
-    /// builds wrote for their one shared border; the other levels start from the default.
-    pub(super) fn load_border(&self, dim: super::Dim) -> horizon_client::worldborder::WorldBorder {
-        let mut root = save::read_dat(&self.border_path(dim));
-        if root.is_none() && dim == super::Dim::Overworld {
-            root = save::read_dat(&self.world_root.join("data/minecraft/world_border.dat"));
+    /// The Overworld's border as it is now: live when the Overworld is in
+    /// place, its parked copy when another level is, level.dat's when the
+    /// Overworld has not been opened yet (a player who spawns in another
+    /// dimension).
+    pub(super) fn overworld_border(&self) -> &horizon_client::worldborder::WorldBorder {
+        if self.dim == super::Dim::Overworld {
+            &self.border
+        } else if let Some(b) = self.levels.parked_border(super::Dim::Overworld) {
+            b
+        } else {
+            &self.level.border
         }
-        root.as_ref()
-            .and_then(|root| root.get("data"))
-            .map(horizon_client::worldborder::WorldBorder::unpack)
-            .unwrap_or_default()
     }
-    /// Save the border of the level in place (`SavedData`, one per level).
-    pub(super) fn save_border(&self) {
-        if !self.score.loaded || self.remote.is_some() {
+    /// The border `dim`'s level starts with (`ServerLevel.getWorldBorder`,
+    /// 1.21.8): the Overworld's border, its centre scaled by the
+    /// dimension's coordinate scale (`Level$1`). There is no per-level
+    /// `world_border` SavedData file in 1.21.8.
+    pub(super) fn load_border(
+        &self,
+        dim: super::Dim,
+        overworld: &horizon_client::worldborder::WorldBorder,
+    ) -> horizon_client::worldborder::WorldBorder {
+        overworld.for_coordinate_scale(self.dimension_type_of(dim).coordinate_scale)
+    }
+    /// The Overworld's border is the one border level.dat keeps
+    /// (`PrimaryLevelData`): refresh the level's copy from it, so the
+    /// level.dat write that follows saves it. A Nether/End edit never
+    /// reaches level.dat (the delegates don't propagate back), and a
+    /// client holds no levels to save.
+    pub(super) fn save_border(&mut self) {
+        if self.remote.is_some() {
             return;
         }
-        if self.border != horizon_client::worldborder::WorldBorder::default()
-            && let Err(e) = save::write_dat(
-                &self.border_path(self.dim),
-                Tag::compound([
-                    ("data", self.border.pack()),
-                    ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-                ]),
-            )
-        {
-            log::warn!("the world border of {} was not written: {e}", self.dim.id());
+        self.level.border = self.overworld_border().clone();
+    }
+    /// The Overworld border's listener (`Level$1`): an Overworld edit
+    /// mirrors into the other levels' borders (their centres scaled).
+    /// Parked levels take the mirrored border; a Nether/End edit never
+    /// mirrors back, so only an Overworld edit calls this.
+    pub(super) fn mirror_border_to_other_levels(&mut self) {
+        if self.dim != super::Dim::Overworld {
+            return;
+        }
+        let overworld = self.border.clone();
+        for dim in [super::Dim::Nether, super::Dim::End] {
+            let derived =
+                overworld.for_coordinate_scale(self.dimension_type_of(dim).coordinate_scale);
+            self.levels.set_parked_border(dim, derived);
         }
     }
     /// `ScoreboardSaveData` read from `data/minecraft/scoreboard.dat`.

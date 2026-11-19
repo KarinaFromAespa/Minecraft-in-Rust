@@ -172,24 +172,32 @@ impl WorldBorder {
             z.clamp(min_z + half, (max_z - half).max(min_z + half)),
         ]
     }
-    pub fn pack(&self) -> horizon_world::nbt::Tag {
+    /// The `Border*` keys of level.dat (`PrimaryLevelData`): 1.21.8 keeps
+    /// the one world border in level.dat, not in a per-level SavedData
+    /// file. A `BorderSizeLerpTime` of 0 means no size change in progress.
+    pub fn pack_level_dat(&self) -> horizon_world::nbt::Tag {
         use horizon_world::nbt::Tag;
         Tag::compound([
-            ("center_x", Tag::Double(self.center()[0].to_bits())),
-            ("center_z", Tag::Double(self.center()[1].to_bits())),
-            ("size", Tag::Double(self.size().to_bits())),
+            ("BorderCenterX", Tag::Double(self.center()[0].to_bits())),
+            ("BorderCenterZ", Tag::Double(self.center()[1].to_bits())),
+            ("BorderSize", Tag::Double(self.size().to_bits())),
             (
-                "damage_per_block",
+                "BorderDamagePerBlock",
                 Tag::Double(self.damage_per_block.to_bits()),
             ),
-            ("safe_zone", Tag::Double(self.safe_zone.to_bits())),
-            ("warning_blocks", Tag::Int(self.warning_distance)),
-            ("warning_time", Tag::Int(self.warning_time)),
-            ("lerp_target", Tag::Double(self.target_size().to_bits())),
-            ("lerp_time", Tag::Long(self.remaining_ticks())),
+            ("BorderSafeZone", Tag::Double(self.safe_zone.to_bits())),
+            ("BorderWarningBlocks", Tag::Int(self.warning_distance)),
+            ("BorderWarningTime", Tag::Int(self.warning_time)),
+            (
+                "BorderSizeLerpTarget",
+                Tag::Double(self.target_size().to_bits()),
+            ),
+            ("BorderSizeLerpTime", Tag::Long(self.remaining_ticks())),
         ])
     }
-    pub fn unpack(tag: &horizon_world::nbt::Tag) -> Self {
+    /// Read the `Border*` keys of a level.dat compound (defaults where a
+    /// key is absent, as the codec's `orElse` does).
+    pub fn unpack_level_dat(tag: &horizon_world::nbt::Tag) -> Self {
         use horizon_world::nbt::Tag;
         let d = |k: &str, default: f64| match tag.get(k) {
             Some(Tag::Double(b)) => f64::from_bits(*b),
@@ -199,21 +207,32 @@ impl WorldBorder {
             Some(Tag::Int(v)) => *v,
             _ => default,
         };
-        let size = d("size", MAX_SIZE).clamp(1.0, MAX_SIZE);
+        let size = d("BorderSize", MAX_SIZE).clamp(1.0, MAX_SIZE);
         let mut b = Self {
-            damage_per_block: d("damage_per_block", 0.2),
-            safe_zone: d("safe_zone", 5.0),
-            warning_distance: i("warning_blocks", 5),
-            warning_time: i("warning_time", 300),
+            damage_per_block: d("BorderDamagePerBlock", 0.2),
+            safe_zone: d("BorderSafeZone", 5.0),
+            warning_distance: i("BorderWarningBlocks", 5),
+            warning_time: i("BorderWarningTime", 300),
             ..Self::default()
         };
-        b.set_center([d("center_x", 0.0), d("center_z", 0.0)]);
+        b.set_center([d("BorderCenterX", 0.0), d("BorderCenterZ", 0.0)]);
         b.set_size(size);
-        if let Some(Tag::Long(t)) = tag.get("lerp_time")
+        if let Some(Tag::Long(t)) = tag.get("BorderSizeLerpTime")
             && *t > 0
         {
-            let to = d("lerp_target", size);
+            let to = d("BorderSizeLerpTarget", size);
             b.lerp_between(size, to.clamp(1.0, MAX_SIZE), *t);
+        }
+        b
+    }
+    /// The border another dimension sees (`Level$1`): the same size, lerp,
+    /// damage and warnings, but the centre divided by that dimension's
+    /// coordinate scale (the Nether's 8, the End's 1).
+    pub fn for_coordinate_scale(&self, scale: f64) -> Self {
+        let mut b = self.clone();
+        if scale != 1.0 {
+            let [x, z] = self.center();
+            b.set_center([x / scale, z / scale]);
         }
         b
     }
@@ -260,7 +279,12 @@ mod tests {
         b.set_center([3.5, -7.0]);
         b.damage_per_block = 1.5;
         b.warning_distance = 9;
-        let back = WorldBorder::unpack(&b.pack());
+        let back = WorldBorder::unpack_level_dat(&b.pack_level_dat());
         assert_eq!(back, b);
+        // The Nether sees the same border with the centre scaled by 8.
+        let nether = b.for_coordinate_scale(8.0);
+        assert_eq!(nether.center(), [3.5 / 8.0, -7.0 / 8.0]);
+        assert_eq!(nether.size(), 500.0);
+        assert_eq!(nether.damage_per_block, 1.5);
     }
 }

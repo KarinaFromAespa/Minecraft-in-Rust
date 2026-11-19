@@ -7586,10 +7586,11 @@ impl Game<'_> {
         self.prefetch_advancement_tree();
         self.restore_player_state = true;
         self.rand_sequences = rand_sequences;
-        // ServerLevel.getWorldBorder: the level in place reads its own saved
-        // border when it is made, before any command (the parked levels read
-        // theirs in `open_level`).
-        self.border = self.load_border(dim);
+        // ServerLevel.getWorldBorder: the level in place reads the
+        // Overworld's border from level.dat when it is made, its centre
+        // scaled by its own coordinate scale (the parked levels derive
+        // theirs from the live Overworld border in `open_level`).
+        self.border = self.load_border(dim, &level.border);
         self.set_mode_id(level.mode());
         self.previous_mode = level.previous_game_mode.map(game_mode::mode_from_id);
         let mut inventory = vec![None; 36];

@@ -3943,6 +3943,10 @@ pub struct Level {
     /// The world spawn or a legacy bare Overworld spawn column. Personal
     /// points use `respawn_elsewhere` so their blocks are checked on death.
     pub spawn: Option<[f64; 3]>,
+    /// The world's one world border (level.dat's `Border*` keys): the
+    /// Overworld's border, which the other dimensions derive theirs from
+    /// (`WorldBorder::for_coordinate_scale`).
+    pub border: crate::worldborder::WorldBorder,
     /// A respawn point resolved through its block when the player respawns
     /// (a bed, a respawn anchor, a forced point in any dimension):
     /// dimension, block, yaw and `forced`.
@@ -4110,6 +4114,9 @@ impl Level {
             },
             0.0,
         ];
+        // The world's one world border lives in level.dat (1.21.8; the
+        // per-level `world_border` SavedData came in 1.21.9).
+        level.border = crate::worldborder::WorldBorder::unpack_level_dat(data);
         if let Some(d) = data.get("difficulty_settings") {
             level.difficulty = text(d.get("difficulty")).unwrap_or_else(|| "normal".into());
             level.hardcore = n(d.get("hardcore")) != 0;
@@ -4758,6 +4765,35 @@ impl Level {
             (
                 "SpawnAngle",
                 Tag::Float(self.world_spawn_angle[0].to_bits()),
+            ),
+            // The world's one world border (1.21.8; the per-level
+            // `world_border` SavedData came in 1.21.9).
+            (
+                "BorderCenterX",
+                Tag::Double(self.border.center()[0].to_bits()),
+            ),
+            (
+                "BorderCenterZ",
+                Tag::Double(self.border.center()[1].to_bits()),
+            ),
+            ("BorderSize", Tag::Double(self.border.size().to_bits())),
+            (
+                "BorderDamagePerBlock",
+                Tag::Double(self.border.damage_per_block.to_bits()),
+            ),
+            (
+                "BorderSafeZone",
+                Tag::Double(self.border.safe_zone.to_bits()),
+            ),
+            ("BorderWarningBlocks", Tag::Int(self.border.warning_distance)),
+            ("BorderWarningTime", Tag::Int(self.border.warning_time)),
+            (
+                "BorderSizeLerpTarget",
+                Tag::Double(self.border.target_size().to_bits()),
+            ),
+            (
+                "BorderSizeLerpTime",
+                Tag::Long(self.border.remaining_ticks()),
             ),
             ("difficulty_settings", difficulty),
             ("initialized", Tag::Byte(1)),

@@ -259,10 +259,6 @@ pub struct NetConfig {
     /// server.properties `resource-pack`: offered to every player during
     /// configuration (a dedicated server's; MinecraftServer.getServerResourcePack).
     pub resource_pack: Option<crate::server::properties::ResourcePackInfo>,
-    /// `enable-code-of-conduct`: the `codeofconduct/<language>.txt` texts
-    /// (`MinecraftServer.getCodeOfConducts`), offered before the resource
-    /// pack. Empty: no code of conduct.
-    pub code_of_conducts: Vec<(String, String)>,
     /// MinecraftServer.serverLinks (a dedicated server's `bug-report-link`):
     /// sent in configuration when non-empty
     /// (ServerConfigurationPacketListenerImpl.startConfiguration).
@@ -332,7 +328,6 @@ impl NetConfig {
             arrivals: None,
             log: None,
             resource_pack: None,
-            code_of_conducts: Vec::new(),
             server_links: Vec::new(),
             horizon_clients_only: false,
             accept_older_clients: false,
