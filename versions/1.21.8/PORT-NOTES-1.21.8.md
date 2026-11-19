@@ -334,7 +334,26 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 33/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45 + 4 zero-diff)
+### Rank 2: 34/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45, 48 + 4 zero-diff)
+
+- **Item 48 — `crates/horizon-client/src/game/llamas.rs` (2 classes, 10 methods, 7 named in Horizon):**
+  AbstractHorse, Llama. Zero-diff: no code changed.
+  Verified no-change: 1.21.9's `AbstractHorse.addPassenger` override
+  (snapping the rider's rotation to the horse's view rotation on any
+  passenger add) does not exist in 1.21.8, and the Rust never modelled
+  it — both `start_riding` paths (`Game::start_riding`,
+  `riders::start_riding`) link without snapping, so the Rust already
+  behaves like 1.21.8; the `doPlayerRide` yaw set at the mount call
+  sites (mounts.rs, llamas.rs) matches both versions. `setOwner` is
+  behaviour-identical (`EntityReference.of(null)` returns null, exactly
+  the 1.21.8 ternary) and the Rust stores the owner as a plain UUID
+  with no `of` citation. `handleEating`'s food values, the temper and
+  love rules, `standIfPossible`, `makeMad`, `openCustomInventoryScreen`
+  and `Llama.handleEating` differ only by the `isClientSide` field vs
+  method. Known gap (vs both versions, not 1.21.8-specific):
+  `doPlayerRide` sets the player's pitch too (`setXRot`), while the
+  Rust sets only the yaw on mounting. Deferred: the `EntityReference.of`
+  citation in `game/tnt.rs:531` belongs to item 99 (rank 2, tnt.rs).
 
 - **Item 45 — `crates/horizon-client/src/mobs.rs` (6 classes, 14 methods, 7 named in Horizon):**
   Piglin, RemotePlayer, BellBlock, EntityModel, AvatarRenderState
