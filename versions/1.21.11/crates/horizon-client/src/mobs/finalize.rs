@@ -325,10 +325,6 @@ pub struct SpawnRegistries {
     pub wolf: VariantRegistry,
     pub frog: VariantRegistry,
     pub zombie_nautilus: VariantRegistry,
-    pub pig_sound: VariantRegistry,
-    pub cow_sound: VariantRegistry,
-    pub chicken_sound: VariantRegistry,
-    pub cat_sound: VariantRegistry,
     pub wolf_sound: VariantRegistry,
 }
 impl SpawnRegistries {
@@ -359,10 +355,6 @@ impl SpawnRegistries {
             wolf: r("wolf_variant"),
             frog: r("frog_variant"),
             zombie_nautilus: r("zombie_nautilus_variant"),
-            pig_sound: r("pig_sound_variant"),
-            cow_sound: r("cow_sound_variant"),
-            chicken_sound: r("chicken_sound_variant"),
-            cat_sound: r("cat_sound_variant"),
             wolf_sound: r("wolf_sound_variant"),
         }
     }
@@ -1843,22 +1835,19 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         let s = m.species();
         match s {
             S::Pig | S::Cow | S::Chicken => {
-                let (v, sound): (
-                    fn(&SpawnRegistries) -> &VariantRegistry,
-                    fn(&SpawnRegistries) -> &VariantRegistry,
-                ) = match s {
-                    S::Pig => (|r| &r.pig, |r| &r.pig_sound),
-                    S::Cow => (|r| &r.cow, |r| &r.cow_sound),
-                    _ => (|r| &r.chicken, |r| &r.chicken_sound),
+                // 1.21.11 has no pig/cow/chicken sound variants (only wolves
+                // do), so finalizeSpawn picks the variant alone.
+                let v: fn(&SpawnRegistries) -> &VariantRegistry = match s {
+                    S::Pig => |r| &r.pig,
+                    S::Cow => |r| &r.cow,
+                    _ => |r| &r.chicken,
                 };
                 self.variant(m, v);
-                self.sound(m, sound);
                 self.ageable(m, g)
             }
             S::Cat => {
                 let g = self.ageable(m, g);
                 self.variant(m, |r| &r.cat);
-                self.sound(m, |r| &r.cat_sound);
                 g
             }
             S::Wolf => {
@@ -2364,33 +2353,26 @@ pub fn saves_variant_name(s: Species) -> bool {
             | Species::ZombieNautilus
     )
 }
-/// The `*_sound_variant` registry of a species, in registry order.
+/// The `*_sound_variant` registry of a species, in registry order. Only
+/// wolves have one in 1.21.11 (WolfSoundVariant); pigs, cows, chickens and
+/// cats play their plain species sounds.
 pub fn sound_variants(s: Species) -> &'static [&'static str] {
     match s {
-        Species::Pig => &["big", "classic", "mini"],
-        Species::Cow => &["classic", "moody"],
-        Species::Chicken => &["classic", "picky"],
-        Species::Cat => &["classic", "royal"],
         Species::Wolf => &["angry", "big", "classic", "cute", "grumpy", "puglin", "sad"],
         _ => &[],
     }
 }
-/// A sound of the mob's `*_sound_variant` set (`Pig.getSoundSet`,
-/// `Wolf.getSoundSet`, `Cat.getSoundSet`, ...): `kind` is the sound's key
-/// (`ambient`, `hurt`, `step`, `growl`, `purreow`...). Babies use the species'
-/// baby set (cows have none); an adult's set is `entity.<species>.*` for
-/// `classic` and `entity.<species>_<variant>.*` otherwise, except the
-/// footsteps that every variant shares (not the cow's). None for a species
-/// without sound variants.
+/// A sound of the wolf's `WolfSoundVariant` set (`Wolf.getSoundSet`):
+/// `kind` is the sound's key (`ambient`, `hurt`, `step`, `growl`, `pant`...).
+/// Babies use the baby set; an adult's set is `entity.wolf.*` for `classic`
+/// and `entity.wolf_<variant>.*` otherwise, except the footsteps that every
+/// variant shares. None for a species without sound variants (only wolves
+/// have them in 1.21.11); the callers fall back to the plain species sound.
 pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
     use std::{collections::HashMap, sync::Mutex};
     let species = m.species();
     let name = match species {
-        Species::Pig => "pig",
-        Species::Cow => "cow",
-        Species::Chicken => "chicken",
         Species::Wolf => "wolf",
-        Species::Cat => "cat",
         _ => return None,
     };
     let variant = m
@@ -2399,9 +2381,9 @@ pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
         .and_then(|i| sound_variants(species).get(i as usize))
         .copied()
         .unwrap_or("classic");
-    let id = if m.is_baby() && species != Species::Cow {
+    let id = if m.is_baby() {
         format!("entity.baby_{name}.{kind}")
-    } else if variant == "classic" || (kind == "step" && species != Species::Cow) {
+    } else if variant == "classic" || kind == "step" {
         format!("entity.{name}.{kind}")
     } else {
         format!("entity.{name}_{variant}.{kind}")

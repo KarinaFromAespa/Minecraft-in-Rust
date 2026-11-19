@@ -109,7 +109,14 @@ impl Banners {
         if let Some(raw) = defaults {
             for (item, c) in raw {
                 let id: Arc<str> = Arc::from(item.as_str());
-                if let Some(dye) = c["minecraft:dye"].as_str() {
+                // 1.21.11 has no `minecraft:dye` component: a dye item's
+                // colour is its own name (`minecraft:red_dye` is red).
+                let dye = c["minecraft:dye"].as_str().or_else(|| {
+                    item.strip_prefix("minecraft:")?
+                        .strip_suffix("_dye")
+                        .filter(|d| crate::mobs::render::DYE_NAMES.contains(d))
+                });
+                if let Some(dye) = dye {
                     banners.dyes.insert(id.clone(), Arc::from(dye));
                 }
                 match &c["minecraft:provides_banner_patterns"] {

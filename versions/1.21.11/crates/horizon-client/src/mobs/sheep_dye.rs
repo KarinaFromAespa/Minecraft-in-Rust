@@ -1,10 +1,10 @@
 //! `DyeItem.interactLivingEntity`: the client hears it, the server changes wool.
 use super::{Mob, Species, render::DYE_NAMES};
 use crate::items::ItemStack;
-use horizon_world::nbt::Tag;
 
-/// The sixteen vanilla DyeItems dispatch this interaction. Their DYE component
-/// can be overridden or removed without changing the underlying Item class.
+/// The sixteen vanilla DyeItems dispatch this interaction. In 1.21.11 the
+/// colour is the item's own (DyeItem's dyeColor field): there is no
+/// `minecraft:dye` component to override or remove.
 fn color(stack: &ItemStack) -> Option<u8> {
     if stack.count == 0 {
         return None;
@@ -13,22 +13,7 @@ fn color(stack: &ItemStack) -> Option<u8> {
         .item
         .strip_prefix("minecraft:")?
         .strip_suffix("_dye")?;
-    let default = DYE_NAMES.iter().position(|&d| d == name)? as u8;
-    if let Some(data) = stack.data() {
-        if data.other("!minecraft:dye").is_some() {
-            return None;
-        }
-        if let Some(value) = data.other("minecraft:dye") {
-            let Tag::String(name) = value else {
-                return None;
-            };
-            return DYE_NAMES
-                .iter()
-                .position(|&d| d == name.to_string_lossy())
-                .map(|i| i as u8);
-        }
-    }
-    Some(default)
+    DYE_NAMES.iter().position(|&d| d == name).map(|i| i as u8)
 }
 
 /// Whether this invocation plays DYE_USE. Client state is deliberately left
@@ -77,20 +62,10 @@ mod tests {
     }
 
     #[test]
-    fn component_patch_controls_color_but_does_not_make_a_stone_a_dye_item() {
-        let mut stack = ItemStack::new("minecraft:red_dye", 1);
-        stack
-            .data_mut()
-            .set_other("minecraft:dye", Some(Tag::String("blue".into())));
-        assert_eq!(color(&stack), Some(11));
-        stack
-            .data_mut()
-            .set_other("!minecraft:dye", Some(Tag::Compound(Default::default())));
-        assert_eq!(color(&stack), None);
-        let mut stone = ItemStack::new("minecraft:stone", 1);
-        stone
-            .data_mut()
-            .set_other("minecraft:dye", Some(Tag::String("red".into())));
-        assert_eq!(color(&stone), None);
+    fn the_color_is_the_items_own_name_not_a_component() {
+        assert_eq!(color(&ItemStack::new("minecraft:red_dye", 1)), Some(14));
+        assert_eq!(color(&ItemStack::new("minecraft:blue_dye", 1)), Some(11));
+        assert_eq!(color(&ItemStack::new("minecraft:stone", 1)), None);
+        assert_eq!(color(&ItemStack::new("minecraft:red_dye", 0)), None);
     }
 }

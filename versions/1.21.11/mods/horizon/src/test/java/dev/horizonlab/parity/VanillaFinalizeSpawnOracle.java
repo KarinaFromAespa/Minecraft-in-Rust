@@ -254,21 +254,19 @@ public final class VanillaFinalizeSpawnOracle {
 
     /** The species state finalizeSpawn sets. */
     static void variant(Entity e, List<String> v) {
+        // 1.21.11 has no pig/cow/chicken/cat sound variants (no
+        // DATA_SOUND_VARIANT_ID on those classes); only wolves do.
         if (e instanceof net.minecraft.world.entity.animal.pig.Pig p) {
             v.add(id(p.getVariant()));
-            v.add(id((Holder<?>) data(p, p.getClass(), "DATA_SOUND_VARIANT_ID")));
         } else if (e instanceof net.minecraft.world.entity.animal.cow.Cow c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, net.minecraft.world.entity.animal.cow.Cow.class, "DATA_SOUND_VARIANT_ID")));
         } else if (e instanceof net.minecraft.world.entity.animal.cow.MushroomCow m) {
             v.add(m.getVariant().getSerializedName());
         } else if (e instanceof net.minecraft.world.entity.animal.chicken.Chicken c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, c.getClass(), "DATA_SOUND_VARIANT_ID")));
             v.add("jockey=" + c.isChickenJockey());
         } else if (e instanceof net.minecraft.world.entity.animal.feline.Cat c) {
             v.add(id(c.getVariant()));
-            v.add(id((Holder<?>) data(c, c.getClass(), "DATA_SOUND_VARIANT_ID")));
         } else if (e instanceof net.minecraft.world.entity.animal.wolf.Wolf w) {
             v.add(id((Holder<?>) call(w, net.minecraft.world.entity.animal.wolf.Wolf.class, "getVariant")));
             v.add(id((Holder<?>) data(w, w.getClass(), "DATA_SOUND_VARIANT_ID")));

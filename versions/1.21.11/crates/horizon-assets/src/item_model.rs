@@ -25,8 +25,7 @@ type Result<T> = std::result::Result<T, DecodeError>;
 
 /// `BuiltInRegistries.DATA_COMPONENT_TYPE`, which `has_component` and the
 /// `component` select validate against (checked by the harness).
-pub const DATA_COMPONENT_TYPES: [&str; 122] = [
-    "minecraft:additional_trade_cost",
+pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:attack_animation",
     "minecraft:attack_range",
     "minecraft:attribute_modifiers",
@@ -45,17 +44,14 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:can_break",
     "minecraft:can_place_on",
     "minecraft:cat/collar",
-    "minecraft:cat/sound_variant",
     "minecraft:cat/variant",
     "minecraft:charged_projectiles",
-    "minecraft:chicken/sound_variant",
     "minecraft:chicken/variant",
     "minecraft:compostable",
     "minecraft:consumable",
     "minecraft:container",
     "minecraft:container_loot",
     "minecraft:cooking_fuel",
-    "minecraft:cow/sound_variant",
     "minecraft:cow/variant",
     "minecraft:creative_slot_lock",
     "minecraft:cushion/color",
@@ -67,7 +63,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:damage_type",
     "minecraft:death_protection",
     "minecraft:debug_stick_state",
-    "minecraft:dye",
     "minecraft:dyed_color",
     "minecraft:enchantable",
     "minecraft:enchantment_glint_override",
@@ -105,7 +100,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 122] = [
     "minecraft:painting/variant",
     "minecraft:parrot/variant",
     "minecraft:piercing_weapon",
-    "minecraft:pig/sound_variant",
     "minecraft:pig/variant",
     "minecraft:pot_decorations",
     "minecraft:potion_contents",

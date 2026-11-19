@@ -6381,23 +6381,14 @@ pub fn apply_item_components(m: &mut Mob, stack: &crate::items::ItemStack) {
             m.extra.variant3 = id as u8;
         }
     }
-    // Chicken, Cow and Pig.applyImplicitComponents: their variant and sound
-    // variant components, both registry names (`minecraft:warm`,
-    // `minecraft:picky`).
+    // Chicken, Cow and Pig.applyImplicitComponents: their variant component
+    // (a registry name like `minecraft:warm`). 1.21.11 has no sound-variant
+    // components for them, so the sound side stays None.
     let species = m.species();
     let (variant, sound) = match species {
-        crate::mobs::Species::Chicken => (
-            Some("minecraft:chicken/variant"),
-            Some("minecraft:chicken/sound_variant"),
-        ),
-        crate::mobs::Species::Cow => (
-            Some("minecraft:cow/variant"),
-            Some("minecraft:cow/sound_variant"),
-        ),
-        crate::mobs::Species::Pig => (
-            Some("minecraft:pig/variant"),
-            Some("minecraft:pig/sound_variant"),
-        ),
+        crate::mobs::Species::Chicken => (Some("minecraft:chicken/variant"), None),
+        crate::mobs::Species::Cow => (Some("minecraft:cow/variant"), None),
+        crate::mobs::Species::Pig => (Some("minecraft:pig/variant"), None),
         // ZombieNautilus.applyImplicitComponents: the variant only.
         crate::mobs::Species::ZombieNautilus => (Some("minecraft:zombie_nautilus/variant"), None),
         // Fox and Frog.applyImplicitComponent: `setVariant` from the component
@@ -7085,7 +7076,7 @@ mod sheep_nbt_tests {
     }
 
     #[test]
-    fn farm_animals_keep_their_variant_and_sound_variant() {
+    fn farm_animals_keep_their_variant_and_wolves_their_sound_variant() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
@@ -7109,20 +7100,29 @@ mod sheep_nbt_tests {
             text(tag.get("variant")).as_deref(),
             Some("minecraft:temperate")
         );
-        assert_eq!(
-            text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:classic")
-        );
-        // Spawned in a warm biome with the mini sounds.
+        // 1.21.11 pigs have no sound variant: none is saved, even if one was set.
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
         (m.extra.variant, m.extra.sound_variant) = (1, Some(2));
         let tag = mob_to_nbt(&m, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:warm"));
+        assert_eq!(text(tag.get("sound_variant")).as_deref(), None);
+        let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
+        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, None));
+        // A wolf keeps its sound variant through the save.
+        let mut wolf = Mob::new(
+            2,
+            types["minecraft:wolf"].clone(),
+            Vec3::new(0.0, 4.0, 0.0),
+            0.0,
+        );
+        wolf.extra.sound_variant = Some(3);
+        let tag = mob_to_nbt(&wolf, [1, 2, 3, 4], None, None, |_| None);
         assert_eq!(
             text(tag.get("sound_variant")).as_deref(),
-            Some("minecraft:mini")
+            Some("minecraft:cute")
         );
         let back = mob_from_nbt(&tag, &types, 2, None).unwrap();
-        assert_eq!((back.extra.variant, back.extra.sound_variant), (1, Some(2)));
+        assert_eq!(back.extra.sound_variant, Some(3));
         let mut hen = Mob::new(
             3,
             types["minecraft:chicken"].clone(),
@@ -7134,22 +7134,14 @@ mod sheep_nbt_tests {
         assert_eq!(text(tag.get("variant")).as_deref(), Some("minecraft:cold"));
         let back = mob_from_nbt(&tag, &types, 4, None).unwrap();
         assert_eq!((back.extra.variant, back.extra.egg_time), (2, 7795));
-        // The sound variants are indices into the registries finalizeSpawn draws from.
+        // The wolf sound variants are indices into the registry finalizeSpawn draws from.
         use crate::mobs::{Species, finalize};
         let registries = finalize::SpawnRegistries::load(&root);
-        for (species, registry) in [
-            (Species::Pig, &registries.pig_sound),
-            (Species::Cow, &registries.cow_sound),
-            (Species::Chicken, &registries.chicken_sound),
-            (Species::Cat, &registries.cat_sound),
-            (Species::Wolf, &registries.wolf_sound),
-        ] {
-            assert_eq!(
-                finalize::sound_variants(species),
-                registry.names,
-                "{species:?}"
-            );
-        }
+        assert_eq!(
+            finalize::sound_variants(Species::Wolf),
+            registries.wolf_sound.names,
+            "wolf"
+        );
     }
 
     #[test]

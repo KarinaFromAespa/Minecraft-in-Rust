@@ -13,6 +13,34 @@ use std::{
     sync::Arc,
 };
 
+/// The sixteen dye colours, in DyeColor id order.
+const DYE_NAMES: [&str; 16] = [
+    "white",
+    "orange",
+    "magenta",
+    "light_blue",
+    "yellow",
+    "lime",
+    "pink",
+    "gray",
+    "light_gray",
+    "cyan",
+    "purple",
+    "blue",
+    "brown",
+    "green",
+    "red",
+    "black",
+];
+
+/// The dye colour of a dye item from its name (`minecraft:red_dye` -> "red"):
+/// 1.21.11 has no `minecraft:dye` component, the colour is the item's own
+/// (DyeItem's dyeColor field).
+fn dye_from_name(name: &str) -> Option<&str> {
+    let dye = name.strip_prefix("minecraft:")?.strip_suffix("_dye")?;
+    DYE_NAMES.contains(&dye).then_some(dye)
+}
+
 fn tool_number(value: &horizon_world::nbt::Tag) -> Option<f32> {
     horizon_world::datafix::dynamic::as_number(value).map(|n| n.float_value())
 }
@@ -937,7 +965,10 @@ impl Items {
                         .as_str()
                         .map(str::to_owned),
                     jukebox_song: c["minecraft:jukebox_playable"].as_str().map(str::to_owned),
-                    dye: c["minecraft:dye"].as_str().map(str::to_owned),
+                    dye: c["minecraft:dye"]
+                        .as_str()
+                        .map(str::to_owned)
+                        .or_else(|| dye_from_name(name).map(str::to_owned)),
                     cushion_color: c["minecraft:cushion/color"].as_str().map(str::to_owned),
                     block_transformer: c["minecraft:block_transformer"].as_str().map(str::to_owned),
                     bundle: c.get("minecraft:bundle_contents").is_some(),
