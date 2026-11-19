@@ -317,7 +317,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             )
         })?),
         // FoodProperties.DIRECT_CODEC: nutrition, saturation, canAlwaysEat.
-        20 => {
+        21 => {
             let nutrition = int(r)?;
             let saturation = float(r)?;
             bool_or(
@@ -331,7 +331,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // Consumable: consumeSeconds, animation, sound, hasConsumeParticles, effects.
-        21 => {
+        22 => {
             let seconds = float(r)?;
             let animation = int(r)?;
             let snd = sound(r, names)?;
@@ -355,7 +355,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             .build()
         }
         // UseCooldown: seconds, cooldownGroup.
-        23 => {
+        24 => {
             let seconds = float(r)?;
             RecordHash::new()
                 .field("seconds", HashOps::create_f32(seconds))
@@ -363,14 +363,14 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
                 .build()
         }
         // DamageResistant, Repairable: a holder set.
-        24 => RecordHash::new()
+        25 => RecordHash::new()
             .field("types", holder_set("minecraft:damage_type", names, r)?)
             .build(),
         29 => RecordHash::new()
             .field("items", holder_set("minecraft:item", names, r)?)
             .build(),
         // Tool: rules, defaultMiningSpeed, damagePerBlock, canDestroyBlocksInCreative.
-        25 => {
+        26 => {
             let rules = list(r, |r| {
                 let blocks = holder_set("minecraft:block", names, r)?;
                 let speed = optional(r, float)?;
@@ -388,18 +388,6 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             let rec = float_or(rec, "default_mining_speed", mining, 1.0);
             let rec = int_or(rec, "damage_per_block", damage, 1);
             bool_or(rec, "can_destroy_blocks_in_creative", creative, true).build()
-        }
-        // Weapon: itemDamagePerAttack, disableBlockingForSeconds.
-        26 => {
-            let damage = int(r)?;
-            let seconds = float(r)?;
-            float_or(
-                int_or(RecordHash::new(), "item_damage_per_attack", damage, 1),
-                "disable_blocking_for_seconds",
-                seconds,
-                0.0,
-            )
-            .build()
         }
         // Equippable.
         28 => {
@@ -449,68 +437,12 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             }
             .build()
         }
-        // BlocksAttacks.
-        33 => {
-            let delay = float(r)?;
-            let scale = float(r)?;
-            let reductions = list(r, |r| {
-                let angle = float(r)?;
-                let types = optional(r, |r| holder_set("minecraft:damage_type", names, r))?;
-                let (base, factor) = (float(r)?, float(r)?);
-                Some((angle, types, base, factor))
-            })?;
-            let item = [float(r)?, float(r)?, float(r)?];
-            let bypassed = optional(r, |r| holder_set("minecraft:damage_type", names, r))?;
-            let block = optional(r, |r| sound(r, names))?;
-            let disabled = optional(r, |r| sound(r, names))?;
-            let rec = float_or(RecordHash::new(), "block_delay_seconds", delay, 0.0);
-            let rec = float_or(rec, "disable_cooldown_scale", scale, 1.0);
-            // The default is one reduction: 90 degrees, any damage, base 0, factor 1.
-            let is_default = matches!(
-                &reductions[..],
-                [(a, None, b, f)] if a.to_bits() == 90f32.to_bits() && *b == 0.0 && *f == 1.0
-            );
-            let rec = if is_default {
-                rec
-            } else {
-                rec.field(
-                    "damage_reductions",
-                    HashOps::create_list(reductions.into_iter().map(
-                        |(angle, types, base, factor)| {
-                            float_or(RecordHash::new(), "horizontal_blocking_angle", angle, 90.0)
-                                .optional("type", types)
-                                .field("base", HashOps::create_f32(base))
-                                .field("factor", HashOps::create_f32(factor))
-                                .build()
-                        },
-                    )),
-                )
-            };
-            let rec = if item.map(f32::to_bits) == [1.0f32, 0.0, 1.0].map(f32::to_bits) {
-                rec
-            } else {
-                rec.field(
-                    "item_damage",
-                    RecordHash::new()
-                        .field("threshold", HashOps::create_f32(item[0]))
-                        .field("base", HashOps::create_f32(item[1]))
-                        .field("factor", HashOps::create_f32(item[2]))
-                        .build(),
-                )
-            };
-            rec.optional("bypassed_by", bypassed)
-                .optional("block_sound", block.map(|s| s.code))
-                .optional("disabled_sound", disabled.map(|s| s.code))
-                .build()
-        }
         // `JukeboxSong.CODEC` is a `RegistryFixedCodec`: a direct song cannot be
         // encoded (vanilla's client would throw), so only a reference hashes.
-        55 => match int(r)? {
+        52 => match int(r)? {
             0 => return None,
             id => entry(names, "minecraft:jukebox_song", id - 1)?,
         },
-        56 => holder_set("minecraft:banner_pattern", names, r)?,
-        71 => sound(r, names)?.code,
         // AdventureModePredicate (can_place_on, can_break): `compactListCodec`
         // writes one predicate as itself and `nonEmptyList` refuses none.
         11 | 12 => {
@@ -522,7 +454,7 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             }
         }
         // UseRemainder: one template.
-        22 => super::raw::template_code(r, names)?,
+        23 => super::raw::template_code(r, names)?,
         _ => return None,
     })
 }

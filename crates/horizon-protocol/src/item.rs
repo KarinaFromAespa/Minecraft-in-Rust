@@ -2045,7 +2045,7 @@ mod tests {
             .push((component::OMINOUS_BOTTLE_AMPLIFIER, Component::Int(3)));
         let mut w = Writer::new();
         Slot::write(&Some(bottle.clone()), &mut w);
-        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 54, 3]);
+        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 51, 3]);
         round::<Option<Stack>, Slot>(Some(bottle));
         let mut quill = Stack::new(1099, 1);
         quill.added.push((
@@ -2103,9 +2103,9 @@ mod tests {
     #[test]
     fn charged_projectiles_are_item_stack_templates() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
-        // is a list of ItemStackTemplate, count-first in 1.21.8 (the item
+        // is a list of ItemStackTemplate, count-first in 1.21.4 (the item
         // before the count arrived in 1.21.9).
-        let bytes = [1, 7, 1, 0, 40, 1, 1, 9, 0, 0];
+        let bytes = [1, 7, 1, 0, 39, 1, 1, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::CHARGED_PROJECTILES),
@@ -2119,8 +2119,8 @@ mod tests {
     #[test]
     fn bundle_contents_are_item_stack_templates() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
-        // ItemStackTemplate, count-first in 1.21.8, as ChargedProjectiles is.
-        let bytes = [1, 7, 1, 0, 41, 1, 32, 9, 0, 0];
+        // ItemStackTemplate, count-first in 1.21.4, as ChargedProjectiles is.
+        let bytes = [1, 7, 1, 0, 40, 1, 32, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::BUNDLE_CONTENTS),
@@ -2134,7 +2134,7 @@ mod tests {
     #[test]
     fn filtered_book_pages_are_read_and_kept() {
         // A writable book with one page "hi" and its filtered "**".
-        let bytes = [1, 7, 1, 0, 45, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
+        let bytes = [1, 7, 1, 0, 43, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::WRITABLE_BOOK_CONTENT),
@@ -2157,14 +2157,14 @@ mod tests {
 
     #[test]
     fn unknown_components_are_errors() {
-        // 96 is past DataComponents' last id (shulker/color, 95).
+        // 96 is past DataComponents' last id (container_loot, 66).
         let bytes = [1, 5, 1, 0, 96];
         assert!(Slot::read(&mut Reader::new(&bytes)).is_err());
     }
 
     #[test]
     fn profiles_round_trip() {
-        // 1.21.8's profile carries no skin patch on the wire (it arrived in
+        // 1.21.4's profile carries no skin patch on the wire (it arrived in
         // 1.21.11), so the round-tripped profile has the default skin.
         let mut sword = Stack::new(900, 1);
         sword.added.push((
@@ -2181,15 +2181,15 @@ mod tests {
 
     #[test]
     fn a_partial_profile_decodes_from_the_wire() {
-        // count 1, item 1, one added component of kind 61 (profile): a partial
+        // count 1, item 1, one added component of kind 57 (profile): a partial
         // profile with an empty name, a UUID and one unsigned texture
-        // property. 1.21.8's profile is optional fields only — no Either
+        // property. 1.21.4's profile is optional fields only — no Either
         // tag, no skin patch (those arrived in 1.21.11).
         let uuid = [
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 61, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 57, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
@@ -2211,9 +2211,10 @@ mod tests {
     #[test]
     fn direct_trim_decodes_complete_official_inventory_stack_payload() {
         // Slot portion of our actual Java26.3 ClientboundContainerSetSlotPacket,
-        // re-based to the pinned 1.21.10 component numbering (the trim kind byte);
+        // re-based to the pinned 1.21.4 component numbering (the trim kind byte)
+        // with the trim's trailing show flag, which 1.21.4's codec carries;
         // complete packet and official client decode retained with H284 proof.
-        let hex = "01bd080200000a0300046b6565700000011c002f000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e00";
+        let hex = "01bd080200000a0300046b6565700000011c002d000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e0001";
         let bytes: Vec<u8> = (0..hex.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
@@ -2318,13 +2319,14 @@ mod tests {
         for (value, valid) in [(1, true), (-1, false), (i32::MIN, false)] {
             let mut v = Writer::new();
             v.varint(value);
-            // break_sound (71): a bare sound holder (`value`).
+            // instrument (50): a bare holder (`value`).
             // can_break: one predicate whose blocks are a holder set (`value`, an empty
-            // list when 1), with no properties, NBT or component matchers.
+            // list when 1), with no properties, NBT or component matchers,
+            // and its trailing show flag (a tooltip-flagged component).
             let mut can_break = vec![1, 1];
             can_break.extend_from_slice(&v.data);
-            can_break.extend([0, 0, 0, 0]);
-            for (kind, bytes) in [(71, v.data.clone()), (component::CAN_BREAK, can_break)] {
+            can_break.extend([0, 0, 0, 0, 1]);
+            for (kind, bytes) in [(component::INSTRUMENT, v.data.clone()), (component::CAN_BREAK, can_break)] {
                 let read = slot(kind, &bytes);
                 if valid {
                     assert!(
