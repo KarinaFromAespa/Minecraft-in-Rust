@@ -334,7 +334,32 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 46/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55 + 4 zero-diff)
+### Rank 2: 47/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61 + 4 zero-diff)
+
+- **Item 61 — `crates/horizon-client/src/mobs/allay.rs` (3 classes,
+  11 methods, 5 named in Horizon) — zero-diff:** AllayModel (6;
+  setupAnim, translateToHand), Allay (4; aiStep, setDancing,
+  tick), FlyingPathNavigation (1). `AllayModel.translateToHand`
+  drops its render-state parameter in 1.21.8 (and `ArmedModel`
+  loses its type parameter), but the body is identical — the
+  state was unused — and the Rust's `allay_hand` already
+  implements that body (root and body, translate (0, 0.0625,
+  0.1875), right arm's pitch, 0.7 scale, shift (0.0625, 0, 0)).
+  `setupAnim` has no decomp diff: the bridge pattern again
+  (javap shows only the bridge `setupAnim(EntityRenderState)`
+  vs `setupAnim(Object)`, plus 1.21.9's extra `translateToHand`
+  bridge from the generic interface; 1.21.8's class is the
+  smaller one here, 6693 vs 7029 bytes). `Allay.aiStep`/
+  `tick`/`setDancing` differ only by `isClientSide()` (method)
+  vs `isClientSide` (field); the heal-every-10-ticks
+  (`passive_heal`), the dancing gate (`isEffectiveAi`, not
+  panicking) and the hold clock all match. The two 1.21.8-only
+  debug calls — `Allay.sendDebugPackets` (sends the brain
+  packet) and `FlyingPathNavigation`'s per-tick
+  `sendPathFindingPacket` — are debug-only and unmodelled, as
+  with the camel in item 50; no `DebugPackets` code exists in
+  the Rust. No check run: no files changed since item 55's
+  0/0 check (item-37 precedent).
 
 - **Item 55 — `crates/horizon-client/src/game/dragon.rs` (6 classes,
   22 methods, 5 named in Horizon) — citations only:**
