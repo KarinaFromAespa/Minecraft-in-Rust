@@ -12,14 +12,6 @@ pub const SUGGESTIONS: &[(&str, &str)] = &[
         "advancement revoke targets only advancement criterion",
         "minecraft:ask_server",
     ),
-    (
-        "attribute target attribute modifier remove id",
-        "minecraft:ask_server",
-    ),
-    (
-        "attribute target attribute modifier value get id",
-        "minecraft:ask_server",
-    ),
     ("bossbar get id", "minecraft:ask_server"),
     ("bossbar remove id", "minecraft:ask_server"),
     ("bossbar set id", "minecraft:ask_server"),

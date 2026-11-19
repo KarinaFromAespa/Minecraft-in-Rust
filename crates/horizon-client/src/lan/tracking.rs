@@ -35,6 +35,7 @@ pub const TRACKING: &[(&str, u8, u32, bool)] = &[
     ("minecraft:command_block_minecart", 8, 3, true),
     ("minecraft:cow", 10, 3, true),
     ("minecraft:creaking", 8, 3, true),
+    ("minecraft:creaking_transient", 8, 3, true),
     ("minecraft:creeper", 8, 3, true),
     ("minecraft:dark_oak_boat", 10, 3, true),
     ("minecraft:dark_oak_chest_boat", 10, 3, true),

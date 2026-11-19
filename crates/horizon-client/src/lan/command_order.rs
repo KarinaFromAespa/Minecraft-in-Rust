@@ -18,7 +18,7 @@ pub const ORDER: &[(&str, &str)] = &[
         "only from until through everything",
     ),
     ("attribute target attribute", "get base modifier"),
-    ("attribute target attribute base", "set get reset"),
+    ("attribute target attribute base", "set get"),
     ("attribute target attribute modifier", "add remove value"),
     (
         "attribute target attribute modifier add id value",
