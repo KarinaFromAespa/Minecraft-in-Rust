@@ -844,7 +844,7 @@ impl Game<'_> {
                     match open.fields.get_mut(input) {
                         Some(Some(Field::Line(edit))) => {
                             edit.focused = true;
-                            edit.click(&self.gui.atlas, cursor.0, false, false);
+                            edit.click(&self.gui.atlas, cursor.0, false);
                         }
                         Some(Some(Field::Multi(edit))) => {
                             [edit.x, edit.y, edit.width, edit.height] = [x, y, w, h];

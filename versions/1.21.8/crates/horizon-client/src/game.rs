@@ -10546,7 +10546,6 @@ impl Game<'_> {
                             && let Some(title) = &mut self.title
                         {
                             title.drag(self.cursor, (b.width, b.height));
-                            title.drag_field(&self.gui.atlas, self.cursor.0);
                         }
                         if self.dragging && self.screen == Screen::Options {
                             let _ = b;
@@ -10761,7 +10760,6 @@ impl Game<'_> {
                 } if self.title_input_active() && self.screen != Screen::Options => {
                     if let Some(title) = &mut self.title {
                         title.release();
-                        title.release_field();
                     }
                 }
                 WindowEvent::MouseInput {

@@ -931,7 +931,6 @@ impl Game<'_> {
         self.advancements_mouse(false, [0, 0]);
         if let Some(title) = &mut self.title {
             title.release();
-            title.release_field();
         }
         self.capture(false);
         self.keyboard_mouse = false;

@@ -1421,7 +1421,7 @@ impl Game<'_> {
         s.rename.x = x;
         s.rename.y = y;
         s.rename.width = w;
-        s.rename.click(&self.gui.atlas, mx, shift, false);
+        s.rename.click(&self.gui.atlas, mx, shift);
         true
     }
     /// AnvilScreen's name box, drawn after the station picture.

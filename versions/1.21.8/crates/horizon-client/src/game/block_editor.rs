@@ -367,7 +367,7 @@ impl Game<'_> {
         let shift = self.has_shift_down();
         let alt = self.keys.raw(&KeyCode::AltLeft);
         let atlas_click = |game: &Game<'_>, edit: &mut EditBox| {
-            edit.click(&game.gui.atlas, cursor.0, false, false);
+            edit.click(&game.gui.atlas, cursor.0, false);
         };
         let Some(items) = self.with_block_editor(|s, e| s.editor.items(e, b.width, b.height))
         else {

@@ -4258,19 +4258,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             self.caret.get_mut().press(atlas, field, rect, x, shift);
         }
     }
-    /// The pointer moved with the button held (`EditBox.onDrag`).
-    pub fn drag_field(&mut self, atlas: &HudAtlas, x: f32) {
-        if self.rules.get_mut().is_some() {
-            return;
-        }
-        if let Some(field) = caret_field(&mut self.mode, self.search_focused, &mut self.search) {
-            self.caret.get_mut().drag(atlas, field, x);
-        }
-    }
-    /// The button was released: drags stop selecting.
-    pub fn release_field(&mut self) {
-        self.caret.get_mut().release();
-    }
     /// Clipboard replacements also invalidate a selection in the filtered list.
     pub fn search_changed(&mut self) {
         if self.search_focused

@@ -334,7 +334,67 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 37/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+### Rank 2: 38/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 50 + 4 zero-diff)
+
+- **Item 46 — `crates/horizon-client-render/src/ui.rs` (2 classes, 22 methods, 6 named in Horizon):**
+  EditBox (19; charTyped, findClickedPositionInText, keyPressed,
+  onClick, onDrag, setHint), SpriteIconButton$TextAndIcon (3). Fixes:
+  1. **No cursor API.** 1.21.9's `CursorTypes` / `GuiGraphicsExtractor.
+     requestCursor` / `AbstractWidget.handleCursor` do not exist in
+     1.21.8 (no `CursorTypes` in the jar). Removed the whole
+     machinery: `widgets::Cursor`, `request_cursor`,
+     `widget_cursor`, `take_cursor` and their tests, every call site
+     (chat links, creative tabs, pack screen, settings shell,
+     dialogs, title buttons, `ui::button`), `Game::apply_cursor_icon`
+     and the `cursor_icon` field, `Creative::tab_wants_hand` and its
+     test, and the now-dead `Game::key_focus_driving`. The window
+     always shows the arrow. The `Opt::AllowCursorChanges` option
+     definition stays — item 59 (Options) owns it, per items 21/34/41.
+  2. **No double-click word select, no drag select.** 1.21.9's
+     `findClickedPositionInText` / `selectWord` / `onDrag` are
+     1.21.9-only; 1.21.8's `EditBox` has only `onClick` (move the
+     cursor, Shift extends) and `AbstractWidget.onDrag` is an empty
+     no-op. Removed `Caret`'s `last_click`/`held`, `press`'s 250 ms
+     double-click detection, `Caret::drag`/`release`,
+     `EditBox::click`'s `double` parameter and word branch,
+     `EditBox::drag_to`, `Title::drag_field`/`release_field` and
+     their call sites (game.rs, split.rs, startup_menu.rs), and the
+     pinning test assertions. `EditBox::select_word_at_cursor`
+     stays: it is `MultilineTextField.selectWordAtCursor` for book
+     pages, not the single-line path.
+  3. **The insert bar is fixed light grey.** 1.21.8's `renderWidget`
+     draws it with the literal `-3092272` (`CURSOR_INSERT_COLOR`,
+     0xFFD0D0D0); 1.21.9 draws it in the text colour. The bar now
+     uses `rgba(208, 208, 208, 255)` in `append_field` and
+     `EditBox::draw`, and `-3092272` in `TextField::draw`
+     (screen_draw.rs); the "_" keeps the text colour in all three,
+     as in both versions.
+  Citations: `SpriteIconButton.withTootip` → dropped (the pause
+  menu's icon row is Horizon's own; vanilla's `PauseScreen` uses
+  plain link buttons in both versions);
+  `EditBox.findClickedPositionInText` → `onClick`'s inline measure;
+  `EditBox.extractWidgetRenderState` → `EditBox.renderWidget`;
+  `AbstractSliderButton.extractWidgetRenderState` →
+  `renderWidget`; `TextCursorUtils.isCursorVisible` and
+  `setInvertHighlightedTextColor` exist in NEITHER version (26.x
+  names) → the blink is `renderWidget`'s inline `(millis -
+  focusedTime) / 300 % 2 == 0`, the highlight is
+  `GuiGraphics.textHighlight` (invert pass + blue fill).
+  Verified no-change: the single `format: Option<&Text>` passed to
+  `EditBox::draw` is already 1.21.8's single-formatter model (not
+  1.21.9's `TextFormatter` list); hints are explicitly styled
+  wherever the Rust sets them (pack screen's gray-italic search
+  hints, settings shell's muted hint), so `setHint`'s restyle of
+  empty-style hints never applies; the Rust has no `WidgetSprites`
+  (icon buttons use a single sprite, as in 1.21.8);
+  `TextField::click` already takes only (x, extend);
+  `position_at`'s clamp-then-measure gives the same boundary as
+  1.21.8's truncate-then-measure; the `insert` rule (`cursor < len
+  || len >= max`) and the suggestion colour (-8355712) match
+  `renderWidget` exactly. Known gap (vs both): the book screen's
+  double-click word select (`book_last_click`, `select_word_at_cursor`)
+  belongs to the multiline item, as do the `GuiGraphicsExtractor`
+  citations in debug_chart/cartography/inventory_slots/loom/pvp.
 
 - **Item 36 — `crates/horizon-core/src/paletted.rs` (5 classes, 49 methods, 6 named in Horizon):**
   PalettedContainer, Palette, Strategy, Strategy$1, Strategy$2 (the

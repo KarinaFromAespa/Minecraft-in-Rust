@@ -426,7 +426,7 @@ impl SplitProfiles {
             if let Some(field) = &mut self.new {
                 field.focused = ui::hovered((x, y), field.x, field.y, field.width, field.height);
                 if field.focused {
-                    field.click(atlas, x, false, false);
+                    field.click(atlas, x, false);
                 }
             }
             return Click::Nothing;

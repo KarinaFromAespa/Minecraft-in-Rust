@@ -952,7 +952,10 @@ impl TextField {
         }
         if show_cursor {
             if insert {
-                fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, color);
+                // EditBox.CURSOR_INSERT_COLOR (-3092272): the bar is fixed
+                // light grey, not the text colour (1.21.9 draws it in the
+                // text colour).
+                fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, -3092272);
             } else {
                 text(
                     out,

@@ -447,7 +447,7 @@ impl Game<'_> {
         search.x = x;
         search.y = y;
         search.width = w;
-        search.click(&self.gui.atlas, mx, shift, false);
+        search.click(&self.gui.atlas, mx, shift);
         true
     }
 }

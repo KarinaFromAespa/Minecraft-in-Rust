@@ -4064,7 +4064,7 @@ impl OptionsUi {
                 self.focus = Some(FocusId::Search);
                 self.focus_from_keyboard = false;
                 self.can_change_value = false;
-                search.click(atlas, x, false, false);
+                search.click(atlas, x, false);
                 self.scroll = 0.0;
                 events.push(Event::ButtonClick);
                 return events;
@@ -4077,7 +4077,7 @@ impl OptionsUi {
                 self.focus = Some(FocusId::Search);
                 self.focus_from_keyboard = false;
                 self.can_change_value = false;
-                search.click(atlas, x, false, false);
+                search.click(atlas, x, false);
                 self.scroll = 0.0;
                 return events;
             }

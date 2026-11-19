@@ -373,7 +373,7 @@ impl Game<'_> {
             s.search.height,
         );
         if s.search.focused {
-            s.search.click(&self.gui.atlas, self.cursor.0, shift, false);
+            s.search.click(&self.gui.atlas, self.cursor.0, shift);
         }
         let inside = self.cursor.1 >= top && self.cursor.1 < bottom;
         let mut clicked = None;

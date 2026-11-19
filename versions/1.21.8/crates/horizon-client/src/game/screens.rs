@@ -204,7 +204,8 @@ fn feedback_link() -> &'static str {
         "https://aka.ms/snapshotfeedback?ref=game"
     }
 }
-/// `PauseScreen.createPauseMenu`'s icon tooltips (`SpriteIconButton.withTootip`).
+/// The pause menu's icon row (`PauseScreen.createPauseMenu`'s feedback
+/// buttons, drawn as icons): each icon shows its label as a tooltip.
 const ICON_LABELS: [&str; 4] = [
     "menu.reportBugs",
     "menu.sendFeedback",
@@ -422,7 +423,7 @@ impl Game<'_> {
                 });
             }
         }
-        // SpriteIconButton.withTootip: the label as a tooltip.
+        // Each icon shows its label as a tooltip on hover.
         if let Some(tip) = tooltip {
             let lines: Vec<Text> = atlas
                 .font
