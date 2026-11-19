@@ -788,3 +788,36 @@ drivers, chunk_generation), 3e8a93d (datafix), 8ead9be (command_exec),
 29ea9a9 (suffocation Rust, after cargo check), 4a1de47 (first_person),
 f236b5c (item_model), 19682d1 (component_patch), fbb1c14
 (entity_components driver).
+
+Rank 1 (10 items, in progress 2026-11-19)
+- Items 2, 3, 4, 5, 7, 8 verified current: protocol (removed packets
+  have no Rust types; step_1_21_11.rs exists; ids.rs current),
+  version_consts (--check passes), packet_ids, lan_command_order (236
+  nodes, real server jar) and command_suggestions (122 nodes) all
+  normalized-identical; entity_tracking 157/157 after the generator
+  regex fix (045f7f6: single-line registers spanned into the next
+  entry).
+- Item 9 save-format (2b1a914): 1.21.11 has no FileFixerUpper
+  (net.minecraft.util.filefix arrived with DataVersion 4772 in 26.1)
+  and no FILE_FIXING_REQUIRED backup status (BackupStatus is only
+  NONE/DOWNGRADE/UPGRADE_TO_SNAPSHOT, verified from the client jar).
+  Deleted fix_1493/4772/4773/4899, level_dat_to_saved_data and their
+  helpers (move_file, resolve, delete, dimensions, read_level,
+  write_level, read/write_saved_data, regex_move); requires_file_fixing
+  always false; upgrade_band is data fixes only (the oracle's band is
+  too); upgrade_world_data_with follows the pre-26.x layout (overworld
+  at the root, DIM-1/DIM1, playerdata/, advancements/, stats/);
+  generators and current_world_gen_settings read level.dat's
+  WorldGenSettings; saved_data_type keeps only the 9 types 1.21.11's
+  DataFixTypes defines (matches the ported oracle's savedDataType).
+  needs_file_fixes is always false now. NOT in item 9: the save.rs
+  settings store still writes world_gen_settings.dat / world_clocks.dat
+  / game_rules.dat as saved-data files (26.x) instead of level.dat's
+  Data — that rewire is rank-2 save_roundtrip work.
+- Item 10 facts (f46c381): Realms test headers 1.21.11/774/Java 21;
+  production code already reads version.rs.
+- Still owed for rank 1: item 1 (components, +0 -6, ids_shifted 63),
+  item 6 (vanilla_order: INTEGRATED tree generated, needs client_probe
+  + generate_command_order.py + diff), regen.json +
+  regen-determinism.json (D1; deferred until item 6 closes — the fresh
+  regen hashes the six tables, committed vs fresh).
