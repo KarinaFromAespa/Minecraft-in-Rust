@@ -1820,5 +1820,19 @@ Rank 2 (492 items, in progress 2026-11-19)
   - 492 no-change (ServerLinks$Entry): record field flags.
   - 493 no-change (LanServerDetection): static field flags.
   - 494 no-change (TransportItemTarget): record field flags.
-- Rank-2 A-batches 1-18: 180 items closed (25 changed, 155 no-change).
-  work-items.json rank2.closed = 180 on 2026-11-19.
+- A-batch 19 (495, 496, 497, 498, 499, 500, 501, 502),
+  verified 2026-11-19, no code changes. This closes the last quick
+  rank-2 items: of the 189 triage-EMPTY items, 188 are closed (item
+  462 deferred as changed in A16). Rank 2 now stands at 188/492;
+  the remaining 304 are changed items.
+  - 495 no-change (Raid$RaiderType): enum field flags.
+  - 496 no-change (NormalNoise$NoiseParameters): record field flags.
+  - 497 no-change (Pack$Metadata): `description` flag.
+  - 498 no-change (ServerRecipeBook$Packed): record field flags.
+  - 499 no-change (Vindicator): field flags + the synthetic
+    `access$000` moved in class-file order (same body).
+  - 500 no-change (TrialSpawnerStateData$Packed): record field flags.
+  - 501 no-change (BiomeFilter): CODEC final -> non-final.
+  - 502 no-change (Score$Packed): record field flags.
+- Rank-2 A-batches 1-19: 188 items closed (25 changed, 163 no-change).
+  work-items.json rank2.closed = 188 on 2026-11-19.
