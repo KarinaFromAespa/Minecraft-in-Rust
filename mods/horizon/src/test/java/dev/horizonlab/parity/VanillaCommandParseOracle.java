@@ -44,7 +44,6 @@ import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
 import net.minecraft.server.players.PlayerList;
-import net.minecraft.tags.TagLoader;
 import net.minecraft.world.flag.FeatureFlagSet;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.level.Level;
@@ -96,11 +95,11 @@ public final class VanillaCommandParseOracle {
         // parameter; the lookup helper it delegates to takes only the
         // lookup, the suggestion type and the builder.
         @Override public java.util.concurrent.CompletableFuture<Suggestions> suggestRegistryElements(ResourceKey<? extends Registry<?>> key, SharedSuggestionProvider.ElementSuggestionType elements, com.mojang.brigadier.suggestion.SuggestionsBuilder builder, com.mojang.brigadier.context.CommandContext<?> context) {
-            // 1.21.5's suggestRegistryElements takes a Registry<?>, not the
-            // HolderLookup<?> 1.21.6 takes: RegistryAccess.lookup already
-            // returns a Registry here, and the provider fallback only feeds
-            // it when the lookup itself is a Registry.
-            java.util.Optional<? extends Registry<?>> registry = access.lookup(key);
+            // 1.21.1's RegistryAccess.lookup returns a RegistryLookup, not a
+            // Registry: use registry() for the Registry the 3-arg helper
+            // takes, and keep the provider fallback for lookups that happen
+            // to be Registries.
+            java.util.Optional<? extends Registry<?>> registry = access.registry(key);
             if (registry.isEmpty()) {
                 java.util.Optional<? extends HolderLookup<?>> alt = lookup.lookup(key);
                 if (alt.isPresent() && alt.get() instanceof Registry<?> found) registry = java.util.Optional.of(found);
@@ -134,26 +133,34 @@ public final class VanillaCommandParseOracle {
         repo.setSelected(List.of("vanilla"));
         var resources = new MultiPackResourceManager(PackType.SERVER_DATA, repo.openAllSelected());
         var layers = RegistryLayer.createRegistryAccess();
-        var staticTags = TagLoader.loadTagsForExistingRegistries(resources, layers.getLayer(RegistryLayer.STATIC));
-        var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLDGEN), staticTags);
-        // 1.21.10's RegistryDataLoader.load is the synchronous
+        // 1.21.1 has no TagLoader.loadTagsForExistingRegistries /
+        // buildUpdatedLookups (those arrived with the 1.21.2 tag rework):
+        // tags bind onto the registries inside
+        // ReloadableServerRegistries.reload, so the worldgen and dimension
+        // loads take the plain layer accesses, in vanilla's WorldLoader
+        // order (worldgen first, dimensions against the access that already
+        // includes it).
+        // 1.21.1's RegistryDataLoader.load is the synchronous
         // three-argument form vanilla's own WorldLoader uses.
-        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES);
-        var dims = RegistryDataLoader.load(resources, java.util.stream.Stream.concat(context.stream(), world.listRegistries()).toList(), RegistryDataLoader.DIMENSION_REGISTRIES);
-        var worldLayers = layers.replaceFrom(RegistryLayer.WORLDGEN, world, dims);
-        var loaded = ReloadableServerRegistries.reload(worldLayers, staticTags, resources, Runnable::run).join();
+        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, layers.getAccessForLoading(RegistryLayer.WORLDGEN), RegistryDataLoader.WORLDGEN_REGISTRIES);
+        var withWorldgen = layers.replaceFrom(RegistryLayer.WORLDGEN, world);
+        RegistryAccess.Frozen dims = RegistryDataLoader.load(resources, withWorldgen.getAccessForLoading(RegistryLayer.DIMENSIONS), RegistryDataLoader.DIMENSION_REGISTRIES);
+        var worldLayers = withWorldgen.replaceFrom(RegistryLayer.DIMENSIONS, dims);
+        var loaded = ReloadableServerRegistries.reload(worldLayers, resources, Runnable::run).join();
         // The data pack managers (advancements, functions, recipes) a running server holds.
         // The int is the function compilation permission level:
         // vanilla passes getFunctionCompilationLevel(), which a default
         // dedicated server reads as 2 from server.properties.
         var managers = net.minecraft.server.ReloadableServerResources.loadResources(
-            resources, worldLayers, staticTags, FeatureFlags.VANILLA_SET, Commands.CommandSelection.INTEGRATED,
+            resources, worldLayers, FeatureFlags.VANILLA_SET, Commands.CommandSelection.INTEGRATED,
             2, Runnable::run, Runnable::run).join();
-        HolderLookup.Provider lookup = loaded.lookupWithUpdatedTags();
-        // No DataComponentInitializers in 1.21.10: item default components
+        // 1.21.1's reload returns the LayeredRegistryAccess directly (no
+        // lookupWithUpdatedTags/layers wrappers): its composite access is
+        // the tag-bound provider.
+        HolderLookup.Provider lookup = loaded.compositeAccess();
+        // No DataComponentInitializers in 1.21.1: item default components
         // are fixed at registration during Bootstrap (see ParityData).
-        staticTags.forEach(Registry.PendingTags::apply);
-        RegistryAccess access = loaded.layers().compositeAccess();
+        RegistryAccess access = loaded.compositeAccess();
 
         if (args[0].equals("registries")) {
             exportRegistries(out, access, lookup, repo, resources, managers);
@@ -177,7 +184,7 @@ public final class VanillaCommandParseOracle {
         // overworld level. (1.21.10's MinecraftServer holds no stopwatches,
         // random sequences, scheduled-events queue or clock manager fields;
         // those live elsewhere or do not exist in this version.)
-        put(server, MinecraftServer.class, "registries", loaded.layers());
+        put(server, MinecraftServer.class, "registries", loaded);
         Class<?> reloadable = Class.forName("net.minecraft.server.MinecraftServer$ReloadableResources");
         var reloadableCtor = reloadable.getDeclaredConstructor(net.minecraft.server.packs.resources.CloseableResourceManager.class, net.minecraft.server.ReloadableServerResources.class);
         reloadableCtor.setAccessible(true);
@@ -292,9 +299,9 @@ public final class VanillaCommandParseOracle {
     static void exportRegistries(Path out, RegistryAccess access, HolderLookup.Provider lookup, net.minecraft.server.packs.repository.PackRepository repo, MultiPackResourceManager resources, net.minecraft.server.ReloadableServerResources managers) throws Exception {
         JsonObject o = new JsonObject();
         Set<String> learnable = new TreeSet<>();
-        // In 1.21.10 recipes are not a registry lookup; they live in the RecipeManager.
-        // ResourceKey has location() here, not 1.21.11's identifier().
-        managers.getRecipeManager().getRecipes().stream().filter(h -> !h.value().isSpecial()).forEach(h -> learnable.add(h.id().location().toString()));
+        // In 1.21.1 recipes are not a registry lookup; they live in the RecipeManager.
+        // RecipeHolder.id() is a ResourceLocation here, not a ResourceKey.
+        managers.getRecipeManager().getRecipes().stream().filter(h -> !h.value().isSpecial()).forEach(h -> learnable.add(h.id().toString()));
         JsonArray learnableArr = new JsonArray();
         learnable.forEach(learnableArr::add);
         o.add("learnable_recipes", learnableArr);
@@ -394,7 +401,7 @@ public final class VanillaCommandParseOracle {
         o.add("objectives", arr(OBJECTIVES));
         o.add("tracked", arr(TRACKED));
         JsonObject by = new JsonObject();
-        lookup.listRegistryKeys().sorted(java.util.Comparator.comparing(k -> k.location().toString())).forEach(key -> {
+        lookup.listRegistries().sorted(java.util.Comparator.comparing(k -> k.location().toString())).forEach(key -> {
             var reg = lookup.lookupOrThrow(key);
             JsonObject entry = new JsonObject();
             java.util.List<String> ids = reg.listElementIds().map(k -> k.location().toString()).sorted().toList();
@@ -425,7 +432,7 @@ public final class VanillaCommandParseOracle {
     }
 
     static <T> JsonArray dynamic(RegistryAccess access, ResourceKey<? extends Registry<T>> key) {
-        return ids(access.lookupOrThrow(key));
+        return ids(access.registryOrThrow(key));
     }
 
     static <T> JsonArray tags(HolderLookup.Provider lookup, ResourceKey<? extends Registry<T>> key) {

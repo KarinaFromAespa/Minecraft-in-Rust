@@ -15,7 +15,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.repository.ServerPacksSource;
 import net.minecraft.server.packs.resources.MultiPackResourceManager;
-import net.minecraft.tags.TagLoader;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 
@@ -41,21 +40,22 @@ public final class ParityData {
         repo.setSelected(List.of("vanilla"));
         var resources = new MultiPackResourceManager(PackType.SERVER_DATA, repo.openAllSelected());
         var layers = RegistryLayer.createRegistryAccess();
-        var staticTags = TagLoader.loadTagsForExistingRegistries(resources, layers.getLayer(RegistryLayer.STATIC));
-        var context = TagLoader.buildUpdatedLookups(layers.getAccessForLoading(RegistryLayer.WORLDGEN), staticTags);
-        // 1.21.11's RegistryDataLoader.load is the synchronous three-argument
+        // 1.21.1 has no TagLoader.loadTagsForExistingRegistries /
+        // buildUpdatedLookups (those arrived with the 1.21.2 tag rework):
+        // tags bind onto the registries inside
+        // ReloadableServerRegistries.reload, so the worldgen load takes
+        // the plain layer access.
+        // 1.21.1's RegistryDataLoader.load is the synchronous three-argument
         // form vanilla's own WorldLoader uses (no executor, no future).
-        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, context, RegistryDataLoader.WORLDGEN_REGISTRIES);
+        RegistryAccess.Frozen world = RegistryDataLoader.load(resources, layers.getAccessForLoading(RegistryLayer.WORLDGEN), RegistryDataLoader.WORLDGEN_REGISTRIES);
         var worldLayers = layers.replaceFrom(RegistryLayer.WORLDGEN, world);
-        var loaded = ReloadableServerRegistries.reload(worldLayers, staticTags, resources, Runnable::run).join();
-        loot = new ReloadableServerRegistries.Holder(loaded.lookupWithUpdatedTags());
-        lookup = loaded.lookupWithUpdatedTags();
-        // 1.21.11 has no DataComponentInitializers mechanism: item default
+        var loaded = ReloadableServerRegistries.reload(worldLayers, resources, Runnable::run).join();
+        loot = new ReloadableServerRegistries.Holder(loaded.compositeAccess());
+        lookup = loaded.compositeAccess();
+        // 1.21.1 has no DataComponentInitializers mechanism: item default
         // components are fixed at item registration during Bootstrap, and
-        // vanilla's load sequence has no post-load component step. Only the
-        // static tags are applied, as ReloadableServerResources does.
-        staticTags.forEach(Registry.PendingTags::apply);
-        access = loaded.layers().compositeAccess();
+        // vanilla's load sequence has no post-load component step.
+        access = loaded.compositeAccess();
         ops = RegistryOps.create(NbtOps.INSTANCE, lookup);
         var unsafeField = Class.forName("sun.misc.Unsafe").getDeclaredField("theUnsafe");
         unsafeField.setAccessible(true);
