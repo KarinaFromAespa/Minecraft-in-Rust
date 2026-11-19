@@ -146,9 +146,10 @@ impl Game<'_> {
             (sky.star_brightness > 0.0).then(|| (frame(sky.star_angle), sky.star_brightness));
         (out, stars)
     }
-    /// `renderPlayerHand` (`AvatarRenderer.renderHand`): the player's own
-    /// `left` or right arm with its skin at pose `m`, in its rest pose
-    /// turned 0.1 radians outwards.
+    /// `PlayerRenderer.renderRightHand`/`renderLeftHand` (from
+    /// `ItemInHandRenderer.renderArmWithItem`, `GameRenderer.renderItemInHand`):
+    /// the player's own `left` or right arm with its skin at pose `m`, in its
+    /// rest pose turned 0.1 radians outwards.
     pub(super) fn first_person_arm(
         &self,
         left: bool,

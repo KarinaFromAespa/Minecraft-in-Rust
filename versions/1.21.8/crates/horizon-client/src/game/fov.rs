@@ -215,8 +215,8 @@ impl Game<'_> {
         glam::Mat4::from_cols_array(&bob_matrix(&state, tilt, self.settings.view_bobbing).m)
             * self.native_shake_matrix(partial)
     }
-    /// `AbstractClientPlayer.tick` and `aiStep` (`ClientAvatarState.tick`,
-    /// `updateBob`), `rideTick`'s `resetBob` and `LocalPlayer.move`'s walked
+    /// `AbstractClientPlayer.tick` (`Player.moveCloak`) and `Player.aiStep`'s
+    /// bob, `Player.rideTick`'s bob reset and `LocalPlayer.move`'s walked
     /// distance, after the player's movement this tick. `before` is the
     /// ground state, velocity and position at the start of the tick.
     pub(super) fn tick_avatar(&mut self, before: (bool, [f64; 3], [f64; 3]), riding: bool) {

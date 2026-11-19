@@ -632,7 +632,7 @@ impl Game<'_> {
         m.extra.ints[5] = charge_duration;
         m.extra.elytra.tick(fall_flying, crouching, velocity);
         m.extra.swim.tick(visually_swimming, in_water);
-        // The local player's ClientAvatarState, its cloak in the model's frame
+        // The local player's walk/bob/cloak state, its cloak in the model's frame
         // (the model stands 0.125 lower while crouching).
         m.extra.avatar = avatar;
         if crouching {

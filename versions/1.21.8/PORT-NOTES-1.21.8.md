@@ -334,7 +334,68 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 21/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 33 + 3 zero-diff)
+### Rank 2: 22/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33 + 3 zero-diff)
+
+- **Item 32 — `horizon-client-render/src/camera.rs` (5 classes, 31 methods, 9 named in Horizon):**
+  GameRenderer, AbstractClientPlayer, Frustum, CameraRenderState (1.21.9-only,
+  removed), Camera.
+  1. **`Player.moveCloak` snaps AND eases:** 1.21.8 snaps the cloak to the
+     player from 10 blocks away and then UNCONDITIONALLY eases a quarter of
+     the original gap, so after a teleport the cloak overshoots 25% past the
+     player (d=20 → cloak = pos+5) and decays back geometrically, pinning the
+     cape at max flap/lean for several ticks; 1.21.9's
+     `ClientAvatarState.moveCloak` snaps OR eases, mutually exclusive. The
+     Rust's `AvatarBob::tick` had the 1.21.9 if/else; the ease is now
+     unconditional. A fresh cloak starts at the origin in both versions, so
+     the first tick at spawn snaps the whole drop and eases a quarter of it
+     past the player — pinned by the new test
+     `a_teleport_overshoots_the_cloak` (the walk/cape test now starts the
+     cloak at the player's position). The fix reaches remote players too:
+     `mobs.rs` ticks `extra.avatar` for them.
+  2. **No deferred subtitles:** 1.21.9 defers the subtitles over an in-game
+     screen (`Gui.renderDeferredSubtitles`, drawn from
+     `Screen.renderBackground`) and keeps them under F1; 1.21.8 draws them in
+     the HUD pass (`Gui.renderSubtitleOverlay`) under any open screen, and F1
+     hides them with the rest of the HUD. Removed `Subtitles::Deferred` and
+     the `in_game_ui` helper (`Screen.isInGameUi` is 1.21.9-only) — the rule
+     is now HUD shown → Now, F1 → Hidden — and the F1 branch in game.rs; the
+     test is reworked to `the_subtitles_follow_the_hud`.
+  3. **Citations:** `ClientAvatarState` → `Player`'s walk/bob/cloak fields
+     (module doc, `AvatarBob`, `tick`, `resetBob` → `Player.rideTick`,
+     `updateBob` → `Player.aiStep`, `addWalkedDistance` → the direct
+     `walkDist +=` in `LocalPlayer.move`, game.rs avatar field, fov.rs
+     `tick_avatar`, perspective.rs, mobs.rs avatar tick and field doc);
+     `AvatarRenderer.extractCapeState` → `PlayerRenderer.extractCapeState`;
+     `CameraRenderState.entityRenderState` → the camera entity itself
+     (`BobState`); `AvatarRenderer.renderHand` → `PlayerRenderer.
+     renderRightHand`/`renderLeftHand` (frame_geometry.rs).
+  Verified no-change: the bob-model formulas are identical in both versions
+  (only the location differs — `ClientAvatarState` vs `Player.aiStep`/
+  `rideTick`/`AbstractClientPlayer.tick`); the cape math is identical
+  (`PlayerRenderer.extractCapeState` vs `AvatarRenderer.extractCapeState`,
+  same constants); `FOG_DISTANCE_SCALE` (1/12) is declared in 1.21.8's
+  `Camera` but never used anywhere; post-effect clearing is equivalent (the
+  Rust's single Option is the 1.21.8 form); the Rust models neither of
+  1.21.9's new `Frustum` methods (`offset`, `pointInFrustum`); the debug
+  crosshair gate is the same in both versions (`showDebugScreen()` includes
+  `!hideGui` in 1.21.8); `LevelRenderer.tick`'s stale-crack cleanup (every
+  20 ticks, > 400 ticks) is the same in both versions, only the call site
+  moved (`Minecraft.tick` vs `GameRenderer.tick`); the first-person hand
+  renders identically (`PlayerRenderer.renderHand`, zRot ±0.1F);
+  `renderItemInHand` differs only by variable renumbering; the culling
+  projection is the same math (`max(fov, options.fov)`); `getFieldOfViewModifier`
+  is not in the diff.
+  For other items: the tab list flips a Dinnerbone/Grumm head even when the
+  player's cape is hidden (scoreboard.rs local path, remote.rs remote path)
+  — 1.21.8's `LivingEntityRenderer.isEntityUpsideDown` does not; the
+  PlayerTabOverlay item should consult `MobExtra.upside_down_name` (item
+  28), which already encodes the full rule; tab_list.rs:345 still cites
+  `AvatarRenderer.isPlayerUpsideDown`. names.rs:919 still cites
+  `AvatarRenderer.scale` (0.9375, verified 1.21.8 `PlayerRenderer.scale` in
+  item 19). The `Hud.extract*`/`extractBackground` citations (hud_layout,
+  hud_overlays, cartography, loom, screens, dialogs, command_blocks,
+  game.rs) belong to the HUD/screen items. The debug-entries system stays
+  as Horizon debug UI per item 16's decision.
 
 - **Item 28 — `game/armor_stands.rs` (9 classes, 49 methods, 9 named in Horizon):**
   HumanoidArmorLayer, ArmorStandRenderer, LivingEntityRenderer,

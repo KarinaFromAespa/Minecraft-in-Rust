@@ -1254,7 +1254,7 @@ pub struct Extra {
     pub spectator: bool,
     pub elytra: ElytraAnimation,
     pub swim: SwimAnimation,
-    /// `ClientAvatarState` of a player: the cloak, bob and walked distance its cape swings with.
+    /// A player's cloak, bob and walked distance (`Player`'s fields), which its cape swings with.
     pub avatar: crate::camera::AvatarBob,
     /// The arm the current swing moves (`currentSwing.hand().asArm`): `Some(true)`
     /// for the right arm.
@@ -5040,9 +5040,9 @@ impl Mob {
         let visually = e.synced_pose == 3 || (!e.fall_flying && e.synced_pose == 1);
         e.elytra.tick(e.fall_flying, e.crouching, self.velocity);
         e.swim.tick(visually, in_water);
-        // AbstractClientPlayer.tick's ClientAvatarState.tick (from where the
-        // player was before this tick's move), RemotePlayer.aiStep's
-        // updateBob and rideTick's resetBob.
+        // AbstractClientPlayer.tick's Player.moveCloak (from where the
+        // player was before this tick's move), RemotePlayer.aiStep's bob
+        // (Player.aiStep) and Player.rideTick's bob reset.
         e.avatar.tick([p.x, p.y, p.z]);
         if e.passenger {
             e.avatar.reset_bob();

@@ -2575,7 +2575,7 @@ struct Game<'a> {
     /// Where the options screen returns: true = title, false = pause menu.
     options_from_title: bool,
     dragging: bool,
-    /// `ClientAvatarState`: walked distance and view bob.
+    /// The player's walked distance, view bob and cloak (`Player`'s fields).
     avatar: horizon_client::camera::AvatarBob,
     flash: u32,
     /// OptiFine custom sky layers' eased brightness (`custom_sky.rs`).
@@ -5974,13 +5974,9 @@ impl Game<'_> {
         let (wi, hi) = (w as i32, h as i32);
         let in_studio = self.studio_replay.is_some();
         let show_hud = !self.ui.hide_gui && !in_studio;
-        // Hud.extractRenderState asks `Screen.isInGameUi` twice: such a screen
-        // defers the subtitles over itself, and keeps them while F1 hides the
-        // rest of the HUD.
-        let subtitles = subtitles(
-            show_hud,
-            in_game_ui(self.screen, self.book.is_some() || self.sign_edit.is_some()),
-        );
+        // `Gui.render` hides the subtitles with the rest of the HUD under F1;
+        // 1.21.8 has no deferral over an in-game screen.
+        let subtitles = subtitles(show_hud);
         self.ui.room = self.hud_room(w, h, show_hud);
         // What the gameplay guide keeps off starts after the view's full overlays.
         let mut guide_from = 0;
@@ -6213,11 +6209,6 @@ impl Game<'_> {
                     g.draw_subtitles(batch);
                 });
             }
-        } else if subtitles == Subtitles::Deferred {
-            // F1 hid the HUD, but an in-game screen still shows the subtitles.
-            self.gui_layer("minecraft:subtitle_overlay", &mut batch, |g, batch| {
-                g.draw_subtitles(batch);
-            });
         }
         let atlas = &self.gui.atlas;
         if show_hud
@@ -12984,7 +12975,7 @@ pub(crate) fn closest_space_nudge(
     out
 }
 
-use subtitles::{Subtitles, in_game_ui, subtitles};
+use subtitles::{Subtitles, subtitles};
 
 mod hud_render;
 
