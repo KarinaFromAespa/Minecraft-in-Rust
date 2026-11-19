@@ -325,14 +325,6 @@ impl MultiLineEdit {
         }
         end
     }
-    /// `selectWordAtCursor`.
-    fn select_word_at_cursor(&mut self) {
-        let (begin, end) = self.previous_word();
-        self.seek_cursor(begin);
-        self.selecting = true;
-        self.seek_cursor(end);
-    }
-
     /// `MultilineTextField.keyPressed` for the keys that are not shortcuts.
     /// True when the key was used.
     pub fn key(&mut self, font: &Font, key: KeyCode, ctrl: bool, shift: bool) -> bool {
@@ -404,8 +396,10 @@ impl MultiLineEdit {
     }
 
     /// `AbstractTextAreaWidget.mouseClicked`: a press on the scroll bar
-    /// holds it, else `onClick` places the cursor (`double`: selects the word).
-    pub fn click(&mut self, font: &Font, cursor: (f32, f32), shift: bool, double: bool) {
+    /// holds it, else `onClick` places the cursor. 1.21.8's `onClick`
+    /// always places it; the double-click word select is 1.21.9-only
+    /// (`MultilineTextField.selectWordAtCursor` does not exist here).
+    pub fn click(&mut self, font: &Font, cursor: (f32, f32), shift: bool) {
         let bar = self.x + self.width;
         if self.scroll.press(
             cursor,
@@ -416,12 +410,8 @@ impl MultiLineEdit {
         ) {
             return;
         }
-        if double {
-            self.select_word_at_cursor();
-        } else {
-            self.selecting = shift;
-            self.seek_screen(font, cursor);
-        }
+        self.selecting = shift;
+        self.seek_screen(font, cursor);
     }
     /// `onDrag`: the selection follows the pointer, or the held scroll bar does.
     pub fn drag(&mut self, font: &Font, cursor: (f32, f32), shift: bool) {
@@ -766,19 +756,15 @@ mod tests {
         edit.set_value(&font, "abcd\nefgh");
         let advance = font.advance('a', &Style::default());
         // The second line, after two characters.
-        edit.click(
-            &font,
-            (4.0 + 2.0 * advance + 1.0, 4.0 + 9.0 + 1.0),
-            false,
-            false,
-        );
+        edit.click(&font, (4.0 + 2.0 * advance + 1.0, 4.0 + 9.0 + 1.0), false);
         assert_eq!(edit.cursor(), 7);
         // Shift extends the selection.
-        edit.click(&font, (4.0 + 1.0, 4.0 + 1.0), true, false);
+        edit.click(&font, (4.0 + 1.0, 4.0 + 1.0), true);
         assert_eq!(edit.selected_text(), "abcd\nef");
-        // A double click, after the plain click that starts it, selects the word.
-        edit.click(&font, (4.0 + 1.0, 4.0 + 1.0), false, false);
-        edit.click(&font, (4.0 + 1.0, 4.0 + 1.0), false, true);
-        assert_eq!(edit.selected_text(), "abcd");
+        // A second click just places the cursor again: 1.21.8 has no
+        // double-click word select (1.21.9's `selectWordAtCursor`).
+        edit.click(&font, (4.0 + 1.0, 4.0 + 1.0), false);
+        assert_eq!(edit.cursor(), 0);
+        assert!(!edit.has_selection());
     }
 }

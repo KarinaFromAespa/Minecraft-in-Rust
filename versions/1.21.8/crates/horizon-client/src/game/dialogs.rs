@@ -849,7 +849,7 @@ impl Game<'_> {
                         Some(Some(Field::Multi(edit))) => {
                             [edit.x, edit.y, edit.width, edit.height] = [x, y, w, h];
                             edit.set_focused(true);
-                            edit.click(&self.gui.atlas.font, cursor, shift, false);
+                            edit.click(&self.gui.atlas.font, cursor, shift);
                             open.selecting = Some(input);
                         }
                         _ => {}

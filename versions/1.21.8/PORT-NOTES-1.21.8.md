@@ -334,7 +334,42 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 44/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47 + 4 zero-diff)
+### Rank 2: 45/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53 + 4 zero-diff)
+
+- **Item 53 — `crates/horizon-client-render/src/multiline_edit.rs` (3
+  classes, 24 methods, 5 named in Horizon):** AbstractWidget
+  (isMouseOver, mouseClicked), AbstractTextAreaWidget
+  (mouseClicked), MultilineTextField (keyPressed,
+  selectWordAtCursor). The only behavioural change is the
+  double-click word select: 1.21.9's
+  `MultilineTextField.selectWordAtCursor` (called from
+  `MultiLineEditBox.onClick` on a double click) does not exist
+  in 1.21.8, where `onClick` always places the cursor — so the
+  Rust's `select_word_at_cursor` is gone and `MultiLineEdit::click`
+  loses its `double` parameter (one non-test caller, dialogs.rs).
+  Everything else in the diff is event-API plumbing or
+  identical logic: 1.21.9's `isActive()` is `visible && active`,
+  exactly 1.21.8's inline check, so mouseClicked/nextFocusPath/
+  isMouseOver behave the same; the text area's `isMouseOver`
+  (box plus the 6-wide scroll bar) is identical in both, as is
+  the Rust's `hovered()`; `keyPressed`'s switch is identical
+  (select-all/copy/paste/cut, Enter, word/char backspace and
+  delete, word/char arrows, line up/down unless Ctrl, PageUp/
+  PageDown to the ends, Home/End per line or whole text with
+  Ctrl) and the Rust's `key()` matches it case for case;
+  `onDrag` drag-selects in both versions (unlike the
+  single-line EditBox, item 46), so `drag()` stays; the
+  scrollbar press/drag/wheel match `updateScrolling`/
+  `mouseDragged`/`mouseScrolled` (rate 4.0, scroller height
+  clamped 32..height−8). 1.21.9's `renderScrollbar` takes the
+  mouse only to request a hover cursor — the cursor API is
+  1.21.9-only (item 46) and the sprites drawn are identical.
+  Deferred to rank-3 item 331 (books.rs, owns
+  `MultiLineEditBox.onClick`/`onDrag`): the book page's
+  double-click, which calls `ui::EditBox::select_word_at_cursor`
+  (a different method, on the book page's `ui::EditBox`, not
+  this module's) — its removal belongs with the book page's
+  click handling, not here.
 
 - **Item 47 — `crates/horizon-client-input/src/keymapping.rs` (2
   classes, 31 methods, 5 named in Horizon):** KeyMapping (click,
