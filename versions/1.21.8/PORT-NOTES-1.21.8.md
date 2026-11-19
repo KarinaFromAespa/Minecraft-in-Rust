@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 62/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78 + 4 zero-diff)
+### Rank 2: 63/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79 + 4 zero-diff)
+
+- **Item 79 — `crates/horizon-client/src/game/trading.rs`
+  (2 classes, 10 methods, 4 named in Horizon), zero-diff:**
+  MerchantScreen (mouseClicked, mouseDragged),
+  AbstractVillager (getOffers, notifyTradeUpdated).
+  AbstractVillager differs only by `isClientSide()` vs
+  the field (4 sites). MerchantScreen differs only by
+  the 1.21.9 input rework (`MouseButtonEvent` vs raw
+  doubles, `renderContents` vs `render`) — the math is
+  identical and the Rust matches it term by term: the
+  drag scroll `(y − 18 − 13.5) / (139 − 27) × max +
+  0.5` clamped to [0, offers−7], the scroller hitbox
+  (x in (94, 100), y in (18, 158], offers > 7), the
+  wheel scroll `(int)(scrollOff − scrollY)` clamped,
+  and the 7 offer buttons (88×20 at y 18+20i). The
+  `notifyTradeUpdated` sound gate (`ambientSoundTime >
+  −80 + 20`, reset to −80) matches. No
+  `renderContents` or `MouseButtonEvent` citation
+  exists in the Rust; the `mouseClicked`/`mouseDragged`
+  citations name methods identical in both versions.
 
 - **Item 78 — `crates/horizon-client/src/mobs/piglin.rs`
   (5 classes, 12 methods, 4 named in Horizon), zero-diff:**
