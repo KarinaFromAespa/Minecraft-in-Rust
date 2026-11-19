@@ -120,8 +120,10 @@ pub fn display_caster(
 }
 
 /// `EntityRenderDispatcher.render`'s shadow gates: the radius clamped to
-/// `MAX_SHADOW_RADIUS` (32) and the strength faded over 256 blocks squared
-/// from the camera. None when either is 0 or less, so no shadow is drawn.
+/// 32 (1.21.8 inlines the literal in the `renderShadow` call; 1.21.9's
+/// `MAX_SHADOW_RADIUS` constant does not exist here) and the strength
+/// faded over 256 blocks squared from the camera. None when either is 0
+/// or less, so no shadow is drawn.
 fn shadow_gates(radius: f32, strength: f32, dist_sq: f64) -> Option<(f32, f32)> {
     let radius = radius.min(32.0);
     if radius <= 0.0 {
@@ -184,7 +186,9 @@ pub fn shadow(
     let r = f64::from(radius);
     let (x0, x1) = ((pos.x - r).floor() as i32, (pos.x + r).floor() as i32);
     let (z0, z1) = ((pos.z - r).floor() as i32, (pos.z + r).floor() as i32);
-    let depth = (pow / 0.5 - 1.0).min(radius);
+    // `EntityRenderDispatcher.renderShadow`: the scan reaches min(pow / 0.5,
+    // radius) below the feet (1.21.9's `extractShadow` subtracts 1.0 here).
+    let depth = (pow / 0.5).min(radius);
     let (y0, y1) = (
         (pos.y - f64::from(depth)).floor() as i32,
         pos.y.floor() as i32,

@@ -334,7 +334,39 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 59/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68 + 4 zero-diff)
+### Rank 2: 60/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76 + 4 zero-diff)
+
+- **Item 76 — `crates/horizon-client/src/game/native_mob_draw.rs`
+  (1 class, 13 methods, 4 named in Horizon):**
+  EntityRenderer (extractRenderState, extractShadow,
+  submit, submitNameTag). **Real fix:** the shadow scan
+  depth. 1.21.8's `EntityRenderDispatcher.renderShadow`
+  scans `min(pow / 0.5, radius)` below the feet; 1.21.9's
+  `extractShadow` subtracts 1.0. The Rust had the
+  1.21.9 form, so shadows stopped one block short — the
+  `− 1.0` is gone. The rest of the shadow algorithm is
+  identical in both versions (radius clamped to 32,
+  strength faded over 256 blocks squared, per-block
+  alpha falling 0.5 per block of depth, brightness > 3,
+  full-collision blocks only, UVs −dx/2/radius + 0.5) —
+  verified term by term against 1.21.8's `renderShadow`
+  / `renderBlockShadow`. Citations: `submit` → `render`
+  (the Rust API name `native_mob_submit` stays — it is
+  Horizon's own), `submitNameTag` → `renderNameTag` (2
+  sites), `MAX_SHADOW_RADIUS` → the literal 32 (1.21.8
+  inlines it in the dispatcher's call),
+  `EntityRenderer.extractShadow` →
+  `EntityRenderDispatcher.renderShadow`. Verified
+  no-change: the name-tag math matches 1.21.8's
+  `renderNameTag` (0.025 scale, y + 0.5, deadmau5 −10,
+  see-through + normal double draw, background opacity
+  0.25, 4096 distance-squared gate); the leash
+  extraction is identical in both versions (quad leashes
+  modelled); no `finalizeRenderState`, `shadowPieces`,
+  `outlineColor` or server-hitbox code exists in the
+  Rust. Deferred: the `CameraRenderState` citation to
+  item 32 (which owns it), `SubmitNodeCollector` to item
+  214, the hitbox debug-entries gate to rank-3 item 420.
 
 - **Item 68 — `crates/horizon-client/src/game/integrated.rs`
   (2 classes, 17 methods, 4 named in Horizon):**

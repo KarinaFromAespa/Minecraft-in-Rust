@@ -1,5 +1,5 @@
 //! Custom names: `NameTagItem.interactLivingEntity` and the name tag
-//! (`EntityRenderer.submitNameTag`): above the head, facing the camera,
+//! (`EntityRenderer.renderNameTag`): above the head, facing the camera,
 //! on a translucent black background, shown when the name is visible or the
 //! mob is under the crosshair within 64 blocks, as its team's name tag
 //! visibility allows, in the team's colours, with its score in the
@@ -599,7 +599,7 @@ impl Game<'_> {
         }
         tags
     }
-    /// `SubmitNodeCollection.submitNameTag`: a discrete name is drawn once,
+    /// `EntityRenderer.renderNameTag`: a discrete name is drawn once,
     /// faded, on its background; any other in full over the world, its faded
     /// copy and background in `see_through`, over everything.
     pub(super) fn name_tag_geometry(
