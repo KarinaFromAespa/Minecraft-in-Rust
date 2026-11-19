@@ -619,6 +619,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 }
                 sup!()
             }
+            Class::Magma => {
+                // MagmaBlock.updateShape: water appearing above schedules the
+                // bubble-column check (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
+                if dir == Direction::Up && b.is_block(nstate, n.water) {
+                    self.schedule_tick(pos, block, 20);
+                }
+                sup!()
+            }
             Class::MangrovePropagule => {
                 self.waterlogged_tick(state, pos);
                 survive_or_air!(dir == Direction::Up)

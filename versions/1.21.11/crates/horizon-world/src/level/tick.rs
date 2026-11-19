@@ -65,6 +65,19 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let below_state = self.below_state(pos);
                     self.bubble_column_update(pos, state, below_state);
                 }
+                Class::Magma => {
+                    // MagmaBlock.tick: BubbleColumnBlock.updateColumn above,
+                    // so magma placed under water starts (or stops) the
+                    // bubble column there.
+                    let above_pos = above(pos);
+                    let above_state = self.state(above_pos);
+                    self.bubble_column_update_for(
+                        b.named.bubble_column,
+                        above_pos,
+                        above_state,
+                        state,
+                    );
+                }
                 Class::Button => self.button_tick(pos, state),
                 Class::Diode => self.diode_tick(pos, state),
                 Class::Composter => {

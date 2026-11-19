@@ -550,7 +550,7 @@ pub(super) fn do_hurt_target(
     super::ai::do_hurt_target(m, target, &mut cx);
 }
 
-/// The brain's attack target (`Warden.getTarget` before `asValidTarget`).
+/// The brain's attack target (the raw `Warden.getTarget` field).
 pub fn brain_target(m: &Mob) -> Option<Who> {
     warden_brain::mem_ref(m).and_then(|mem| mem.attack_target.value())
 }

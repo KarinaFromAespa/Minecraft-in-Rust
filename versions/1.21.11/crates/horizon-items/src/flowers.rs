@@ -7,9 +7,8 @@
 //! In `Blocks`'s constructor order. `wither_rose` is a `WitherRoseBlock` and
 //! the eyeblossoms take their values from `EyeblossomBlock.Type`; all three
 //! reach `FlowerBlock`'s constructor, so all are suspicious effect holders.
-pub const FLOWER_STEW_EFFECTS: [(&str, &str, i32); 17] = [
+pub const FLOWER_STEW_EFFECTS: [(&str, &str, i32); 16] = [
     ("minecraft:dandelion", "minecraft:saturation", 7),
-    ("minecraft:golden_dandelion", "minecraft:saturation", 7),
     ("minecraft:torchflower", "minecraft:night_vision", 100),
     ("minecraft:poppy", "minecraft:night_vision", 100),
     ("minecraft:blue_orchid", "minecraft:saturation", 7),
@@ -42,12 +41,11 @@ mod tests {
 
     #[test]
     fn every_flower_maps_to_its_blocks_stew_effect() {
-        // Read off `Blocks`'s constructor sites: 15 effect-bearing factories
-        // (14 `FlowerBlock` sites plus `WitherRoseBlock`), then the two
+        // Read off `Blocks`'s constructor sites: 14 effect-bearing factories
+        // (13 `FlowerBlock` sites plus `WitherRoseBlock`), then the two
         // eyeblossoms' `EyeblossomBlock.Type` values.
         let expected = [
             ("minecraft:dandelion", "minecraft:saturation", 7),
-            ("minecraft:golden_dandelion", "minecraft:saturation", 7),
             ("minecraft:torchflower", "minecraft:night_vision", 100),
             ("minecraft:poppy", "minecraft:night_vision", 100),
             ("minecraft:blue_orchid", "minecraft:saturation", 7),
@@ -65,7 +63,7 @@ mod tests {
             ("minecraft:closed_eyeblossom", "minecraft:nausea", 140),
         ];
         assert_eq!(FLOWER_STEW_EFFECTS, expected);
-        assert_eq!(FLOWER_STEW_EFFECTS.len(), 17);
+        assert_eq!(FLOWER_STEW_EFFECTS.len(), 16);
         for (flower, effect, ticks) in expected {
             assert_eq!(stew_effect(flower), Some((effect, ticks)), "{flower}");
         }

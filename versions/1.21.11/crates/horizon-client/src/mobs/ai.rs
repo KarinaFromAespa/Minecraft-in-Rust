@@ -601,10 +601,14 @@ pub fn is_monster(s: Species) -> bool {
     )
 }
 /// One full entity tick. Returns false when the mob is gone.
-/// `Mob.getTarget` / `Mob.setTarget` (`asValidTarget`): a player in creative
-/// or spectator mode or in Peaceful is never a mob's target, however the target was set (an
-/// alert from another mob included). A `NeutralMob` angry at that player stops
-/// being angry (`NeutralMob.updatePersistentAnger`).
+/// A player in creative or spectator mode or in Peaceful is never a mob's
+/// target, however the target was set (an alert from another mob included).
+/// 1.21.11 drops `Mob.asValidTarget` from `getTarget`/`setTarget`, so the
+/// invalidation now comes from the targeting goals' `TargetingConditions`
+/// (which refuse creative and spectator players through
+/// `canBeSeenAsEnemy`, and the species' `canAttackType`); this per-tick
+/// clear reaches the same outcome a tick earlier. A `NeutralMob` angry at
+/// that player stops being angry (`NeutralMob.updatePersistentAnger`).
 fn drop_invalid_player_target(m: &mut Mob, w: &MobWorld) {
     if m.ai.target == Some(Who::Player)
         && w.player
@@ -1639,10 +1643,10 @@ fn ageable_step(
         m.extra.forced_age_timer -= 1;
     }
     // AgeableMob.aiStep: an age counts only for its subclasses (a tadpole
-    // counts its own age up, a zombie's baby age never moves). `canAgeUp`:
-    // a baby grows unless an age lock holds it; a breeding pause counts down.
+    // counts its own age up, a zombie's baby age never moves). A baby grows;
+    // a breeding pause counts down.
     if m.alive() && super::finalize::ageable(m.species()) {
-        if can_age_up(m) {
+        if m.is_baby() {
             let (bw, bh, _) = m.dims();
             // AgeableMob.setAge(getAge() + 1): the crossing is where a species'
             // ageBoundaryReached runs (a goat's and a hoglin's attack damage, a
@@ -1667,9 +1671,6 @@ fn ageable_step(
         } else if m.extra.age > 0 {
             m.extra.age -= 1;
         }
-    }
-    if super::finalize::ageable(m.species()) {
-        tick_age_lock_timer(m);
     }
 }
 
@@ -2271,15 +2272,16 @@ pub fn despawn_check(m: &mut Mob, w: &MobWorld) -> bool {
     }
     true
 }
-/// `Mob.requiresCustomPersistence` and its overrides: a passenger or a leashed
-/// mob, a raider in a raid, an enderman carrying a block, a tame nautilus, a
-/// sulfur cube holding a block or let out of a bucket, a fish or axolotl
-/// let out of a bucket (`AbstractFish`/`Axolotl`: `|| fromBucket()`). The spawn
-/// caps do not count these mobs either (`NaturalSpawner.createState`).
+/// `Mob.requiresCustomPersistence` and its overrides: a passenger, a raider
+/// in a raid, an enderman carrying a block, a tame nautilus, a sulfur cube
+/// holding a block or let out of a bucket, a fish or axolotl let out of a
+/// bucket (`AbstractFish`/`Axolotl`: `|| fromBucket()`). A leash does not
+/// hold a mob: 1.21.11 drops `|| isLeashed()` from the base rule, so a
+/// leashed mob despawns like any other. The spawn caps do not count these
+/// mobs either (`NaturalSpawner.createState`).
 pub fn requires_custom_persistence(m: &Mob) -> bool {
     super::riders::keeps_alive(m)
         || m.extra.from_bucket
-        || m.extra.leash.is_some()
         || super::raider::state(m).is_some_and(|s| s.raid_id.is_some())
         || m.species() == Species::Enderman && m.extra.carried.is_some()
         || super::nautilus::is_nautilus(m.species()) && m.extra.tame
@@ -2476,14 +2478,13 @@ pub fn voice_sounds(m: &Mob) -> [&'static str; 3] {
     }
 }
 /// Whether `Animal.mobInteract` takes the animal's food: an adult at age 0
-/// that `canFallInLove` (not in love yet) or a baby that `canAgeUp` (not age
-/// locked). Tamed wolves and cats only sit or stand when it does not.
+/// that `canFallInLove` (not in love yet) or a baby (`isBaby`).
 pub fn takes_food(m: &Mob) -> bool {
     // `Turtle.canFallInLove` is `super.canFallInLove() && !this.hasEgg()`: a
     // turtle that already carries an egg refuses its food instead of breeding.
     let breedable =
         m.extra.in_love <= 0 && !(m.species() == Species::Turtle && super::turtle::has_egg(m));
-    (m.extra.age == 0 && breedable) || (m.extra.age < 0 && !m.extra.age_locked)
+    (m.extra.age == 0 && breedable) || m.extra.age < 0
 }
 /// `Animal.mobInteract` with its food in hand: an adult that can fall in
 /// love does, a baby grows up by a tenth, and either plays its eating sound
@@ -2517,40 +2518,6 @@ pub fn feed_animal(
         sound = Some(("entity.strider.eat", 1.0, pitch));
     }
     Some(sound)
-}
-/// `AgeableMob.canAgeUp`: a baby that no age lock holds back.
-pub fn can_age_up(m: &Mob) -> bool {
-    m.is_baby() && !m.extra.age_locked
-}
-/// `AgeableMob.canUseGoldenDandelion`: a golden dandelion in hand, a baby
-/// whose particle timer has run out, and a type outside
-/// `#minecraft:cannot_be_age_locked`.
-pub fn can_use_golden_dandelion(
-    item: &str,
-    baby: bool,
-    cooldown: i32,
-    cannot_be_age_locked: bool,
-) -> bool {
-    item == "minecraft:golden_dandelion" && baby && cooldown == 0 && !cannot_be_age_locked
-}
-/// `AgeableMob.setAgeLockedData`: a golden dandelion flips the lock, puts the
-/// age back to a baby's starting age (`getBabyStartAge`) and starts the
-/// particle timer (40 ticks).
-pub fn set_age_locked_data(m: &mut Mob) {
-    m.extra.age_locked = !m.extra.age_locked;
-    let start = super::finalize::baby_start_age(m.species());
-    super::finalize::set_age(m, start);
-    m.extra.age_lock_particle_timer = 40;
-}
-/// The age-lock timer ticks down. 1.21.11 emits no particles here: the
-/// pause/reset growth particles and `AgeableMob.makeAgeLockedParticle` are
-/// 26.x-only. The timer doubles as the golden-dandelion cooldown; the whole
-/// age-lock mechanic is 26.x-only (no `isAgeLocked`, no golden dandelion in
-/// 1.21.11) and its removal belongs to the AgeableMob item.
-pub fn tick_age_lock_timer(m: &mut Mob) {
-    if m.extra.age_lock_particle_timer > 0 {
-        m.extra.age_lock_particle_timer -= 1;
-    }
 }
 /// `AgeableMob.ageUp(seconds, forced)`: both writes go through `setAge`, whose
 /// crossing is where a species' `ageBoundaryReached` runs (a goat's and a
@@ -3391,6 +3358,22 @@ mod despawn_tests {
         for s in [Species::Zombie, Species::ZombieVillager, Species::Pillager] {
             assert!(!never_removed_when_far(s), "{s:?}");
         }
+    }
+
+    /// `Mob.requiresCustomPersistence`: 1.21.11 drops `|| isLeashed()`, so
+    /// a leashed mob despawns like any other; a passenger still persists.
+    #[test]
+    fn a_leashed_mob_has_no_custom_persistence_but_a_passenger_does() {
+        use std::sync::Arc;
+        let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        kind.species = Species::Zombie;
+        kind.category = "monster".into();
+        let mut m = Mob::new(1, Arc::new(kind), Vec3::ZERO, 0.0);
+        m.extra.leash = Some(super::super::leash::Holder::Player);
+        assert!(!requires_custom_persistence(&m), "leashed");
+        m.extra.leash = None;
+        m.extra.mount = Some(2);
+        assert!(requires_custom_persistence(&m), "passenger");
     }
 
     /// `Cat.removeWhenFarAway` (`!isTame() && tickCount > 2400`) and
@@ -4460,10 +4443,10 @@ mod feed_tests {
     use crate::mobs::MobTypes;
     use std::sync::Arc;
 
-    /// `Animal.mobInteract` (#2780): food grows a tamed baby cat or wolf
-    /// (`canAgeUp`), so `Wolf.mobInteract` and `Cat.mobInteract` see the click
-    /// consumed and do not make it sit. Only an adult that cannot breed now,
-    /// or an age-locked baby, leaves the food to the sit toggle.
+    /// `Animal.mobInteract` (#2780): food grows a tamed baby cat or wolf, so
+    /// `Wolf.mobInteract` and `Cat.mobInteract` see the click consumed and
+    /// do not make it sit. Only an adult that cannot breed now leaves the
+    /// food to the sit toggle.
     #[test]
     fn food_grows_a_tamed_baby_cat_or_wolf() {
         let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -4484,10 +4467,6 @@ mod feed_tests {
             // getSpeedUpSecondsWhenFeeding(24000): a tenth of 1200 seconds.
             assert_eq!(m.extra.age, -24000 + 120 * 20, "{id}: grew a tenth");
             assert_eq!(m.extra.in_love, 0, "{id}: a baby does not fall in love");
-
-            m.extra.age_locked = true;
-            assert!(!takes_food(&m), "{id}: an age-locked baby cannot grow");
-            m.extra.age_locked = false;
 
             m.extra.age = 0;
             assert!(takes_food(&m), "{id}: an adult can breed");
@@ -4810,65 +4789,55 @@ mod age_up_tests {
     use super::*;
     use std::sync::Arc;
 
-    /// Official Java 26.3: NoAI leaves both age clocks running. AgeLocked
-    /// holds a baby's age, but a positive breeding cooldown still expires.
+    /// Official Java 26.3: NoAI leaves both age clocks running. A baby's age
+    /// counts up and a positive breeding cooldown still expires.
     #[test]
-    fn age_clocks_tick_with_no_ai_and_respect_baby_age_lock() {
+    fn age_clocks_tick_with_no_ai() {
         let ran = crate::mobs::world::with_test_world(&[], |w, types| {
             for species in ["pig", "cow", "horse", "turtle"] {
                 for no_ai in [true, false] {
-                    for locked in [false, true] {
-                        for age in [-2, 2] {
-                            let kind =
-                                Arc::new(types.types[&format!("minecraft:{species}")].clone());
-                            let mut m = Mob::new(1, kind, Vec3::new(4.0, 220.0, 4.0), 0.0);
-                            m.no_ai = no_ai;
-                            m.no_gravity = true;
-                            m.persistent = true;
-                            m.extra.age_locked = locked;
-                            super::super::finalize::set_age(&mut m, age);
-                            let (mut random, mut events) = (LegacyRandom::new(0), Vec::new());
-                            let expected = if age > 0 {
-                                [1, 0, 0, 0]
-                            } else if locked {
-                                [-2, -2, -2, -2]
-                            } else {
-                                [-1, 0, 0, 0]
-                            };
-                            for (elapsed, expected_age) in expected.into_iter().enumerate() {
-                                let previous_age = m.extra.age;
-                                let previous_position = m.position;
-                                tick(&mut m, w, &mut random, &mut events);
-                                assert_eq!(
-                                    m.extra.age,
-                                    expected_age,
-                                    "{species}: NoAI={no_ai}, AgeLocked={locked}, initial Age={age}, tick={}",
-                                    elapsed + 1
-                                );
-                                if no_ai {
-                                    assert_eq!(m.velocity, Vec3::ZERO);
-                                    // Growing dimensions can reposition the mob at adulthood.
-                                    if previous_age != -1 || expected_age != 0 {
-                                        assert_eq!(m.position, previous_position);
-                                    }
+                    for age in [-2, 2] {
+                        let kind = Arc::new(types.types[&format!("minecraft:{species}")].clone());
+                        let mut m = Mob::new(1, kind, Vec3::new(4.0, 220.0, 4.0), 0.0);
+                        m.no_ai = no_ai;
+                        m.no_gravity = true;
+                        m.persistent = true;
+                        super::super::finalize::set_age(&mut m, age);
+                        let (mut random, mut events) = (LegacyRandom::new(0), Vec::new());
+                        let expected = if age > 0 { [1, 0, 0, 0] } else { [-1, 0, 0, 0] };
+                        for (elapsed, expected_age) in expected.into_iter().enumerate() {
+                            let previous_age = m.extra.age;
+                            let previous_position = m.position;
+                            tick(&mut m, w, &mut random, &mut events);
+                            assert_eq!(
+                                m.extra.age,
+                                expected_age,
+                                "{species}: NoAI={no_ai}, initial Age={age}, tick={}",
+                                elapsed + 1
+                            );
+                            if no_ai {
+                                assert_eq!(m.velocity, Vec3::ZERO);
+                                // Growing dimensions can reposition the mob at adulthood.
+                                if previous_age != -1 || expected_age != 0 {
+                                    assert_eq!(m.position, previous_position);
                                 }
                             }
-                            if species == "turtle" && age < 0 && !locked {
-                                assert_eq!(
-                                    events
-                                        .iter()
-                                        .filter(|event| matches!(
-                                            event,
-                                            MobEvent::GiftLoot {
-                                                table: "minecraft:gameplay/turtle_grow",
-                                                ..
-                                            }
-                                        ))
-                                        .count(),
-                                    1,
-                                    "growing up drops one scute"
-                                );
-                            }
+                        }
+                        if species == "turtle" && age < 0 {
+                            assert_eq!(
+                                events
+                                    .iter()
+                                    .filter(|event| matches!(
+                                        event,
+                                        MobEvent::GiftLoot {
+                                            table: "minecraft:gameplay/turtle_grow",
+                                            ..
+                                        }
+                                    ))
+                                    .count(),
+                                1,
+                                "growing up drops one scute"
+                            );
                         }
                     }
                 }
@@ -6065,7 +6034,6 @@ mod trader_llama_no_ai_tests {
                 for guard in [
                     "tame",
                     "persistent",
-                    "age-lock",
                     "rider",
                     "other-mob-leash",
                     "player-leash",
@@ -6074,7 +6042,6 @@ mod trader_llama_no_ai_tests {
                     match guard {
                         "tame" => mob.extra.tame = true,
                         "persistent" => mob.persistent = true,
-                        "age-lock" => mob.extra.age_locked = true,
                         "rider" => mob.rider = Some(super::super::equine::Rider::default()),
                         "other-mob-leash" => {
                             mob.extra.leash = Some(super::super::leash::Holder::Mob(51))

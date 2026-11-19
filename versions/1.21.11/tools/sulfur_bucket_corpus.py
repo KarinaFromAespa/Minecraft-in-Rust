@@ -5,7 +5,7 @@
 adult, unprimed cube is removed (`discard`), and the held stack becomes
 `ItemUtils.createFilledResult(held, player, sulfur_cube_bucket)`. The bucket
 carries `saveToBucketTag`: the default bucket data, the body block
-(`sulfur_cube_content`) and the cube's `age` and `age_locked`.
+(`sulfur_cube_content`) and the cube's `age`.
 
 Every click is the connected player's real Interact packet (`mob_interact`)
 on a live cube with a fixed UUID. Before each click the player, its held

@@ -761,7 +761,7 @@ impl Mob {
         match who {
             Who::Player => self.spares_players(w),
             Who::Mob(id) => {
-                // `Mob.canAttack` refuses a Ghast for every mob.
+                // `Mob.canAttackType` refuses a Ghast for every mob.
                 w.seen(id).is_some_and(|s| s.species == Species::Ghast)
                     || (self.species() == Species::IronGolem
                         && w.seen(id).is_some_and(|s| s.species == Species::Creeper))
@@ -3035,9 +3035,10 @@ mod built_by_player_tests {
         Mob::new(1, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `IronGolem.canAttack`: only a golem a player built spares players, so
-    /// the save restore drops that target (`Mob.asValidTarget`) while another
-    /// mob's `PlayerCreated` byte means nothing.
+    /// `IronGolem.canAttackType`: only a golem a player built spares players,
+    /// so the save restore drops that target (the target goal re-checks via
+    /// `TargetingConditions`) while another mob's `PlayerCreated` byte means
+    /// nothing.
     #[test]
     fn only_a_golem_spares_the_player_that_built_it() {
         let mut built = mob(Species::IronGolem);

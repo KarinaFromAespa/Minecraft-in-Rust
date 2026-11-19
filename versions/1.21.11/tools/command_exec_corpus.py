@@ -5524,7 +5524,7 @@ def zombie_nautilus_ignored_age():
 
     def ignored(uid, tag):
         subject(uid, 'zombie_nautilus', tag)
-        for field in ('Age', 'ForcedAge', 'AgeLocked'):
+        for field in ('Age', 'ForcedAge'):
             out.append(cmd(f'/data get entity {uid} {field}'))
             check(f'/execute unless data entity {uid} {field}')
 
@@ -5545,11 +5545,11 @@ def zombie_nautilus_ignored_age():
         saved = (f'{{UUID:[I;254,0,0,{serial}],Tags:["ignored_age","{tag}"],'
                  'NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b,Health:15f')
         if age is not None:
-            saved += f',Age:{age},ForcedAge:12,AgeLocked:1b'
+            saved += f',Age:{age},ForcedAge:12'
         check(f'/summon minecraft:zombie_nautilus 10.5 200 10.5 {saved}}}')
         ignored(uid, tag)
         for merged in (0, -24000, 37):
-            check(f'/data merge entity {uid} {{Age:{merged},ForcedAge:12,AgeLocked:1b}}')
+            check(f'/data merge entity {uid} {{Age:{merged},ForcedAge:12}}')
             ignored(uid, tag)
         out += setup(f'/kill {uid}')
     out += setup('/execute store result score #after ignored_age run time query gametime')
@@ -5559,7 +5559,7 @@ def zombie_nautilus_ignored_age():
     uid = '000000fe-0000-0000-0000-000000000005'
     check('/summon minecraft:nautilus 10.5 200 10.5 '
           '{UUID:[I;254,0,0,5],Tags:["ignored_age","normal_age"],NoAI:1b,NoGravity:1b,'
-          'Silent:1b,PersistenceRequired:1b,Health:15f,Age:-24000,ForcedAge:12,AgeLocked:0b}')
+          'Silent:1b,PersistenceRequired:1b,Health:15f,Age:-24000,ForcedAge:12}')
     for expected in (-24000, -23999):
         if expected == -23999:
             out += setup('/execute store result score #before ignored_age run time query gametime',
@@ -5571,8 +5571,7 @@ def zombie_nautilus_ignored_age():
         subject(uid, 'nautilus', 'normal_age')
         check(f'/data get entity {uid} Age', expected)
         check(f'/data get entity {uid} ForcedAge', 12)
-        check(f'/data get entity {uid} AgeLocked', 0)
-        check(f'/execute as {uid} if entity @s[nbt={{Age:{expected},ForcedAge:12,AgeLocked:0b}}]')
+        check(f'/execute as {uid} if entity @s[nbt={{Age:{expected},ForcedAge:12}}]')
     out += setup('/kill @e[tag=ignored_age]', '/tick unfreeze')
     out.append({'op': 'tick', 'n': 25})
     out += setup('/kill @e[type=item]', '/fill 0 199 0 15 199 15 air',

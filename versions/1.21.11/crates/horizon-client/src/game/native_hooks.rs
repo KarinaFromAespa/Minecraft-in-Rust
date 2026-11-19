@@ -280,8 +280,6 @@
 //!
 //! API 283 adds A server player completed a merchant trade (`native_player_trade`).
 //!
-//! API 282 adds A server player toggled an entity's age lock (`native_player_toggle_entity_age_lock`).
-//!
 //! API 281 adds Player about to travel through an End gateway, cancellable (`native_player_teleport_end_gateway`).
 //!
 //! API 280 adds A server player swapped with an equipment slot (`native_player_swap_with_equipment_slot`).
@@ -5821,24 +5819,6 @@ impl Game<'_> {
         entity_id: u32,
     ) {
         mod_api::dispatch_player_unleash_entity(self, mod_api::mods(), player, name, entity_id);
-    }
-    /// A server player toggled an ageable mob's age lock with a golden
-    /// dandelion, after the lock and item use changed. 282.
-    pub(super) fn native_player_toggle_entity_age_lock(
-        &mut self,
-        player: u128,
-        name: &str,
-        entity_id: u32,
-        locked: bool,
-    ) {
-        mod_api::dispatch_player_toggle_entity_age_lock(
-            self,
-            mod_api::mods(),
-            player,
-            name,
-            entity_id,
-            locked,
-        );
     }
     /// A server player swapped their main and off hands, after both inventory
     /// slots changed. Guest lookup helpers may find nothing during packet

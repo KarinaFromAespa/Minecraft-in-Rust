@@ -1556,8 +1556,6 @@ API 280 adds A server player swapped their main hand with an equipment slot: `na
 
 API 281 adds A player is about to travel through an End gateway (`native_player_teleport_end_gateway(player, name, gateway, cancel)`). Set `cancel` to leave them at the entrance without starting the gateway cooldown. Bundles need "hooks": 281.
 
-API 282 adds A server player used a golden dandelion on an ageable mob: `native_player_toggle_entity_age_lock(player, name, entity_id, locked)` fires after the lock and item use changed. Bundles need "hooks": 282.
-
 API 283 adds A server player completed a villager or wandering trader trade, after the merchant menu applied the trade: `native_player_trade(player, name, entity_id)` gives the merchant's network id. Bundles need "hooks": 283.
 
 API 284 adds A server player's action removed an entity's leash: `native_player_unleash_entity(player, name, entity_id)` fires after the leash state is cleared. Bundles need "hooks": 284.
@@ -2492,7 +2490,6 @@ For mods that run where the world is simulated: a dedicated server, a LAN host, 
 - **`native_player_pickup_arrow(player, name, entity_id, item)`**: a server player picked up an arrow after it was removed and its pickup was applied. `item` is the pickup item id. Guest lookup helpers may not find the guest during packet handling.
 - **`native_player_stonecutter_recipe_select(player, name, recipe)`**: a server player selected stonecutter recipe button `recipe`, after the menu accepted it. Guest lookup helpers may not find the guest during packet handling.
 - **`native_player_swap_with_equipment_slot(player, name, slot)`**: a server player swapped their main hand with `slot` (currently `offhand`), after both hands changed. Guest lookup helpers may not find the guest during packet handling.
-- **`native_player_toggle_entity_age_lock(player, name, entity_id, locked)`**: a server player used a golden dandelion on an ageable mob, after its age lock changed and the item was used.
 - **`native_player_unleash_entity(player, name, entity_id)`**: a server player's action removed an entity's leash, after its leash state was cleared. Guest lookup helpers may not find the guest during packet handling.
 - **`native_player_velocity(player, name, velocity)`**: the server synced changed motion to a player, with `velocity` in blocks per tick. Guest lookup helpers may not find the guest during packet handling.
 - **`native_player_stop_spectating_entity(player, name, entity_id)`**: a spectator's camera returned to their own player after they stopped watching `entity_id`.

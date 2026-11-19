@@ -464,29 +464,28 @@ pub enum HeldItem {
     Refused,
 }
 /// That branch for a click with `item` (empty for none): no rider, not
-/// opening a tamed adult's inventory (`sneaking`), not a baby while the
-/// player holds a golden dandelion (`dandelion`; zombie horses skip that
-/// check). An untamed mount is made mad here.
+/// opening a tamed adult's inventory (`sneaking`). An untamed mount is made
+/// mad here.
 pub fn held_item(
     m: &mut Mob,
     item: &str,
     sneaking: bool,
-    dandelion: bool,
     events: &mut Vec<MobEvent>,
 ) -> Option<HeldItem> {
     let species = m.species();
-    let checks_dandelion = match species {
-        Species::Horse | Species::Donkey | Species::Mule => true,
-        Species::Llama | Species::TraderLlama => true,
-        Species::ZombieHorse => false,
-        _ => return None,
-    };
+    if !matches!(
+        species,
+        Species::Horse
+            | Species::Donkey
+            | Species::Mule
+            | Species::Llama
+            | Species::TraderLlama
+            | Species::ZombieHorse
+    ) {
+        return None;
+    }
     let open_inventory = !m.is_baby() && m.extra.tame && sneaking;
-    if m.rider.is_some()
-        || open_inventory
-        || (checks_dandelion && m.is_baby() && dandelion)
-        || item.is_empty()
-    {
+    if m.rider.is_some() || open_inventory || item.is_empty() {
         return None;
     }
     // ZombieHorse.isFood: the zombie_horse_food tag.

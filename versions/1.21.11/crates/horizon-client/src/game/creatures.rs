@@ -6229,69 +6229,6 @@ impl Game<'_> {
             self.particles.add(&options, at, v);
         }
     }
-    /// `AgeableMob.mobInteract`: whether a click with `item` on `m` gets to
-    /// the golden dandelion check (`canUseGoldenDandelion`, which a tadpole
-    /// calls with `isBaby` true). A panda that is scared or on its back and an
-    /// armadillo in its shell answer in their own `mobInteract` first.
-    pub(super) fn age_lock_takes(&self, m: &Mob, item: &str) -> bool {
-        let species = m.species();
-        let baby = if species == Species::Tadpole {
-            true
-        } else if horizon_client::mobs::finalize::ageable(species) {
-            m.is_baby()
-                && !(species == Species::Panda
-                    && (horizon_client::mobs::panda::scared(m)
-                        || horizon_client::mobs::panda::is_on_back(m)))
-                && !(species == Species::Armadillo && horizon_client::mobs::armadillo::scared(m))
-        } else {
-            false
-        };
-        let cannot = self
-            .res
-            .mob_data()
-            .entity_has("minecraft:cannot_be_age_locked", &m.kind.id);
-        horizon_client::mobs::ai::can_use_golden_dandelion(
-            item,
-            baby,
-            m.extra.age_lock_particle_timer,
-            cannot,
-        )
-    }
-    /// `AgeableMob.setAgeLocked`: a golden dandelion on mob `index` flips its
-    /// age lock (a tadpole's or an ageable mob's own `setAgeLockedData`) and is
-    /// used up; a locked mob stays (`setPersistenceRequired`), and the lock's
-    /// use or unuse sound plays at its block for everyone near.
-    pub(super) fn set_age_locked(&mut self, index: usize) {
-        let m = &mut self.mobs[index];
-        if m.species() == Species::Tadpole {
-            horizon_client::mobs::aquatic::set_age_locked_data(m);
-        } else {
-            horizon_client::mobs::ai::set_age_locked_data(m);
-        }
-        self.consume_held();
-        let m = &mut self.mobs[index];
-        let locked = m.extra.age_locked;
-        if locked {
-            m.persistent = true;
-        }
-        // Level.playSound(null, blockPosition, ..): the middle of the block.
-        let at = [
-            m.position.x.floor() + 0.5,
-            m.position.y.floor() + 0.5,
-            m.position.z.floor() + 0.5,
-        ];
-        let chunk = (
-            m.position.x.floor() as i32 >> 4,
-            m.position.z.floor() as i32 >> 4,
-        );
-        self.world.modified.insert(chunk);
-        let sound = if locked {
-            "minecraft:item.golden_dandelion.use"
-        } else {
-            "minecraft:item.golden_dandelion.unuse"
-        };
-        self.audio.play(sound, Some(at), 1.0, 1.0);
-    }
     /// The mob a normal interaction can reach: a packet's exact validated ID,
     /// or the crosshair's mob before its blocking shape.
     pub(super) fn mob_interaction_target(&self, target: Option<InteractTarget>) -> Option<usize> {
@@ -6431,27 +6368,6 @@ impl Game<'_> {
             if let (Some(player), Some(name)) = (self.lan_acting_uuid, self.lan_acting_name.clone())
             {
                 self.native_player_bucket_entity(player, &name, id, &species);
-            }
-            self.swing_arm();
-            return Ok(true);
-        }
-        // AgeableMob.mobInteract: a golden dandelion on a baby freezes its
-        // growth, or lets it grow again.
-        if self.mobs[index].alive() && self.age_lock_takes(&self.mobs[index], &item) {
-            let entity_id = self.mobs[index].id;
-            self.set_age_locked(index);
-            if let (Some(player), Some(name)) = (self.lan_acting_uuid, self.lan_acting_name.clone())
-            {
-                self.native_player_toggle_entity_age_lock(
-                    player,
-                    &name,
-                    entity_id,
-                    self.mobs[index].extra.age_locked,
-                );
-            }
-            if let Some(stack) = &held {
-                let target = self.mob_entity(&self.mobs[index]);
-                self.trigger_item_entity("minecraft:player_interacted_with_entity", stack, &target);
             }
             self.swing_arm();
             return Ok(true);
@@ -7026,7 +6942,7 @@ impl Game<'_> {
             }
             // Tadpole.feed: frog food ages it by a tenth of the time left to
             // grow into a frog (it grows on its next tick once past 24000).
-            Species::Tadpole if is_food && !m.extra.age_locked => {
+            Species::Tadpole if is_food => {
                 consume = true;
                 let left = 24_000 - m.extra.age;
                 m.extra.age += ((left / 20) as f32 * 0.1) as i32 * 20;

@@ -262,7 +262,7 @@ pub fn trader_llama_tick(m: &mut Mob, w: &MobWorld) {
         _ => None,
     };
     let leashed_other = m.extra.leash.is_some() && trader.is_none();
-    if m.extra.tame || leashed_other || m.rider.is_some() || m.extra.age_locked || m.persistent {
+    if m.extra.tame || leashed_other || m.rider.is_some() || m.persistent {
         return;
     }
     m.extra.ints[0] = trader.unwrap_or(m.extra.ints[0]) - 1;

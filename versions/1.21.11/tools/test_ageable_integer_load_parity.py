@@ -65,10 +65,10 @@ def program(full=False):
         uuid = f'00000037-0000-0000-0000-{n:012x}'
         values = '' if source is None else ',' + ','.join(k + ':' + source for k in FIELDS)
         cmd(f'/summon pig 4.5 200 4.5 {{UUID:[I;55,0,0,{n}],Health:10f,NoAI:1b,NoGravity:1b,'
-            f'PersistenceRequired:1b,AgeLocked:1b,Tags:["h055"]{values}}}', case + '-summon', 1)
+            f'PersistenceRequired:1b,Tags:["h055"]{values}}}', case + '-summon', 1)
         cmd(f'/execute as {uuid} if entity @s[type=pig,tag=h055]', case + '-type', 1)
         for key, result in [('UUID', 4), ('Health', 10), ('Pos', 3), ('NoAI', 1),
-                            ('NoGravity', 1), ('PersistenceRequired', 1), ('AgeLocked', 1)]:
+                            ('NoGravity', 1), ('PersistenceRequired', 1)]:
             cmd(f'/data get entity {uuid} {key}', case + '-' + key, result)
         for key in FIELDS:
             label = case + '-' + key

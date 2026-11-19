@@ -2440,3 +2440,39 @@ Rank 2 (492 items, in progress 2026-11-19)
   ground), items 87/519 (`DebugScreenOverlay.extractRenderState` cite).
   Rank 2 now 201/492 (37 changed, 164 no-change).
   work-items.json rank2.closed = 201 on 2026-11-20.
+- Item 23 (mobs/ai.rs, 7 classes) CLOSED
+  2026-11-20: CHANGED — the age lock is gone, and with it every ageable
+  species' entity-data index shifts down by one. 1.21.11 deletes the whole
+  age-lock mechanic (`AGE_LOCKED`, `setAgeLocked`, `canAgeUp`,
+  `isAgeLocked`, the `AgeLocked` NBT key, the golden dandelion, the
+  `#cannot_be_age_locked` tag), so the Rust deletes `Extra.age_locked` /
+  `age_lock_particle_timer`, `can_age_up`, `set_age_locked_data`,
+  `tick_age_lock_timer`, `age_lock_takes`, `set_age_locked`, the
+  golden-dandelion interact branch and the golden-dandelion stew effect,
+  and mod API hook 282 (`native_player_toggle_entity_age_lock`, now a
+  gap). The mob-AI / ageable-load / command-exec harness drivers and both
+  Java oracles drop their age-lock fixtures (the squid oracle's
+  `isAgeLocked` override would not compile against 1.21.11). AgeableMob
+  keeps only DATA_BABY_ID (16), so every accessor of every ageable species
+  shifts down exactly 1 — verified by counting `defineId` calls per class
+  hierarchy in both jars — and both the send side (`lan.rs`) and the
+  receive side (`remote_mob_data.rs`) shift together (Panda 17–22, Wolf
+  interested 19 / collar 20 / anger 21 / variant 22, Cat variant 19 /
+  lying 20 / relaxing 21 / collar 22, Llama strength 19 / variant 20,
+  Villager data 18, and the rest); Piglin, Zombie and all non-ageable
+  species do not shift. The client-invented llama/donkey/mule "chested"
+  entry moves 19→18 to keep its spare slot. Slime size at 18 is a
+  PRE-EXISTING BUG (vanilla has it at 16 in both versions) — noted, not
+  fixed. `Mob.requiresCustomPersistence` drops the leash clause: leashed
+  mobs can despawn in 1.21.11 (new test). MagmaBlock gains bubble-column
+  maintenance (`onPlace` / `updateShape` schedule a tick in 20; `tick`
+  runs `BubbleColumnBlock.updateColumn` above) — the Sim gains the three
+  arms; SoulSandBlock (item 68) has the identical trio. Verified no-ports:
+  `Mob` target validation (`asValidTarget` gone; the per-tick drop mirrors
+  `TargetingConditions`), HappyGhast/Hoglin brain-provider refactor
+  (content is items 38/19), NaturalSpawner, Creaking path navigation.
+  Referrals: item 47 (NeutralMob Peaceful removal + Ghast anger), item 48
+  (`TargetingConditions` + `canAttackType`), item 58 (lunge), item 68
+  (soul sand), items 97/178 (water side), item 24 (save.rs).
+  Rank 2 now 202/492 (38 changed, 164 no-change).
+  work-items.json rank2.closed = 202 on 2026-11-20.
