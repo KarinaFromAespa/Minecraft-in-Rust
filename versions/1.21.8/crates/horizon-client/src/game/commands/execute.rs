@@ -697,8 +697,9 @@ impl Game<'_> {
         };
         let found: Vec<Target> = match c.literals.last().map(String::as_str) {
             Some("owner") => match entity {
-                // OwnableEntity.getOwner → EntityReference.getLivingEntity:
-                // a marker or a display with that UUID is not an owner.
+                // OwnableEntity.getOwner → EntityReference.get(owner, level,
+                // LivingEntity.class): a marker or a display with that UUID is
+                // not an owner.
                 Target::Mob(id) => self
                     .mobs
                     .iter()

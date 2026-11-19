@@ -334,7 +334,36 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 81/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98 + 4 zero-diff)
+### Rank 2: 82/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99 + 4 zero-diff)
+
+- **Item 99 — `crates/horizon-client/src/game/tnt.rs`
+  (3 classes, 9 methods, 3 named in Horizon),
+  citations only:** TntRenderer (submit/render),
+  PrimedTnt (constructor, tick, getOwner),
+  TntBlock (useItemOn). Two rewords to the 1.21.8
+  forms: `tnt_owner_uuid`'s doc cited
+  `EntityReference.of(owner)` (1.21.9-only
+  factory — its body is exactly the 1.21.8
+  `owner != null ? new EntityReference(owner) :
+  null`), and execute.rs's `/execute on owner`
+  comment cited `EntityReference.getLivingEntity`
+  (1.21.9-only wrapper over `get(ref, level,
+  LivingEntity.class)`; absent from 1.21.8).
+  Verified no-change: the TntRenderer diff is
+  only the 1.21.9 submit-pipeline rework — the
+  swell (`1 + clamp(1 - fuse/10, 0, 1) * 0.3`),
+  flash (`(int)fuse / 5 % 2 == 0`) and
+  `fuse - partialTick + 1` are identical in both
+  versions and match `tnt_geometry`; flint-and-
+  steel damage goes through `damage_held` (no
+  `asEquipmentSlot` / `getSlotForHand` citation
+  — both map hand to slot the same way);
+  `isClientSide()` vs the field is mechanical.
+  Pre-existing divergence, not a delta (identical
+  in both versions, left alone): `tnt_geometry`
+  swells with `g^4 * 0.3` where vanilla uses
+  `g * 0.3`. Comment-only change; no check run
+  (tree unchanged since item 98's 0/0 check).
 
 - **Item 98 — `crates/horizon-client/src/game/lan.rs`
   (3 classes, 9 methods, 3 named in Horizon),

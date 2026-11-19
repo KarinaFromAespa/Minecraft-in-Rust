@@ -528,7 +528,8 @@ impl Game<'_> {
             self.persist.raw.get(&id),
         )
     }
-    /// `EntityReference.of(owner)`: the UUID of the player or mob that lit it.
+    /// `new EntityReference(owner)` (null when there is no owner): the UUID of
+    /// the player or mob that lit it.
     fn tnt_owner_uuid(&mut self, owner: Option<Who>, guest: Option<u32>) -> Option<[i32; 4]> {
         match owner? {
             Who::Player => match guest {
