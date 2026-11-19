@@ -340,7 +340,8 @@ pub struct ArrowScene<'a, 'r> {
     pub tnt_explodes: bool,
     pub owners: &'a dyn OwnerLookup,
 }
-/// `EntityReference.getEntity` for an owner the arrow only knows by UUID.
+/// `EntityReference.get` for an owner the arrow only knows by UUID (this
+/// level only in 1.21.8; 1.21.9's `getEntity` looks through every level).
 pub trait OwnerLookup {
     /// A loaded entity other than a player has this UUID.
     fn non_player_entity(&self, uuid: [i32; 4]) -> bool;

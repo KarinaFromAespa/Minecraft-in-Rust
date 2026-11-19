@@ -334,7 +334,54 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 19/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26 + 3 zero-diff)
+### Rank 2: 20/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 33 + 3 zero-diff)
+
+- **Item 33 — `game/potions.rs` (3 classes, 18 methods, 10 named in Horizon):**
+  Projectile, AreaEffectCloud, PotionItem.
+  1. **A deflect drops an owner that no longer resolves (closes the item-26
+     gap):** 1.21.8's `Projectile.deflect` takes the resolved owner —
+     `hitTargetOrDeflectSelf`, `onHit`'s AIM_DEFLECT, `AbstractArrow.
+     onHitEntity` (refusal) and `ThrownTrident.onHitEntity` (bounce) all
+     pass `getOwner()` — so an owner unresolvable in the current level is
+     dropped, UUID and all; 1.21.9 passes the bare `owner` reference,
+     which survives. New `resolved_owner` (the owner's (Who, UUID, guest)
+     as it resolves now — a UUID-only owner links to a guest who has
+     since joined, else a mob by UUID, like `claim_owner`) and
+     `drop_unresolved_owner` in `game/deflect.rs`, applied at the breeze
+     REVERSE site, the AIM_DEFLECT site (resolve first, then the look,
+     so a UUID-only owner aims too), `finish_arrow_hit` (refusals and
+     trident bounces, after the events loop so the shoot event still sees
+     the pre-deflect owner), and the thrown-potion breeze deflect
+     (thrower, name and guest all dropped). The player-attack deflect
+     needs nothing (the player is present).
+  2. **Citations:** `isOutsideOwnerCollisionRange` → `checkLeftOwner`
+     (the 1.21.8 name; the 1.21.9 name was the private helper);
+     `EntityReference.getEntity` → `EntityReference.get` (arrows.rs
+     `OwnerLookup`, creatures.rs `player_with_uuid`) — javap confirms
+     1.21.8's static `get(ref, UUIDLookup, Class)` with public
+     constructors, while `of`/`getEntity(ref, Level)`/`getLivingEntity`/
+     `getPlayer` are 1.21.9-only; `store`/`read` exist in both.
+  Verified no-change: the thrown-potion leftOwner check runs before the
+  move, like `Projectile.tick` in both versions (the check's position in
+  `Projectile.tick` is identical; only `AbstractArrow`'s early call and
+  the `leftOwnerChecked` guard differ — item 26); `leftOwnerChecked` was
+  never modelled (the Rust's `if !left_owner` guard is the 1.21.8 form);
+  `onDeflection`'s extra entity arg is unused (only
+  `AbstractHurtingProjectile` overrides it, and it uses only the boolean);
+  `PotionItem.useOn` already awards the stat (the 1.21.8 form; 1.21.9
+  dropped it), once — the caller returns at once; `AreaEffectCloud`
+  owners are same-level `Who`s by construction; `setRadius` is the
+  `isClientSide` rename.
+  Known gaps (pre-existing vs both versions, not fixed): the arrow
+  world-border bounce is unmodelled (`AbstractArrow`/`FishingHook`
+  return true for `shouldBounceOnWorldBorder`; arrows.rs has no border
+  handling); `onDeflection(false)` halving a fireball's acceleration is
+  unmodelled (only the 0.1 case is implemented).
+  For other items: item 196 (`TamableAnimal.die` — combat.rs
+  `tell_owner_pet_died` cites the 1.21.9 all-dimensions `getEntity`;
+  1.21.8 resolves same-level only); item 71 (block_entity_anims.rs
+  `getLivingEntity` citation); item 399 (commands/execute.rs
+  `getLivingEntity` citation).
 
 - **Item 22 — `game/commands.rs` (12 classes, 76 methods, 10 named in Horizon):**
   Level, EntitySelectorParser, WorldBorderCommand, LocalCoordinates,

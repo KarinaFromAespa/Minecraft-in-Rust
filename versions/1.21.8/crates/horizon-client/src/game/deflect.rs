@@ -178,6 +178,53 @@ impl Game<'_> {
         Some(horizon_world::view_direction::view_vector(pitch, yaw))
     }
 
+    /// `Projectile.getOwner` of `p` in this level, as the (owner, UUID, guest)
+    /// a deflect stores: the owner as it resolves now — a guest who has since
+    /// joined, else a mob by UUID, for one known only by UUID (loaded from
+    /// NBT while the owner was gone) — or all None when it does not resolve.
+    /// 1.21.8's `deflect` takes that resolved owner (`EntityReference.get`,
+    /// this level only); 1.21.9 passes the bare `owner` reference, which
+    /// survives an unresolvable owner.
+    pub(super) fn resolved_owner(
+        &self,
+        p: &Projectile,
+    ) -> (Option<Who>, Option<[i32; 4]>, Option<u32>) {
+        if p.owner.is_some() {
+            if self.owner_look(p.owner, p.guest).is_some() {
+                (p.owner, p.owner_uuid, p.guest)
+            } else {
+                (None, None, None)
+            }
+        } else if let Some(uuid) = p.owner_uuid {
+            let guest = self.lan.as_ref().and_then(|host| {
+                host.hub
+                    .guests
+                    .iter()
+                    .find(|g| {
+                        horizon_client::lan::playerdata::uuid_ints(g.uuid) == uuid
+                    })
+                    .map(|g| g.conn)
+            });
+            if let Some(conn) = guest {
+                (Some(Who::Player), Some(uuid), Some(conn))
+            } else if let Some(id) = self.mob_by_uuid(uuid) {
+                (Some(Who::Mob(id)), Some(uuid), None)
+            } else {
+                (None, None, None)
+            }
+        } else {
+            (None, None, None)
+        }
+    }
+
+    /// `Projectile.deflect` in 1.21.8: the deflected projectile's owner
+    /// becomes its resolved owner — an owner that no longer resolves in
+    /// this level is dropped, UUID and guest with it.
+    pub(super) fn drop_unresolved_owner(&self, p: &mut Projectile) {
+        let (owner, owner_uuid, guest) = self.resolved_owner(p);
+        (p.owner, p.owner_uuid, p.guest) = (owner, owner_uuid, guest);
+    }
+
     /// `Projectile.deflect(AIM_DEFLECT, player, player, true)`.
     pub(super) fn deflect(&mut self, i: usize) {
         let dir = view_vector(self.yaw, self.pitch);

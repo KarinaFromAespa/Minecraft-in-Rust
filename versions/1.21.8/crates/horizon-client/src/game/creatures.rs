@@ -2220,9 +2220,9 @@ impl Game<'_> {
             None => self.last_hurt_by_player.remove(&victim),
         };
     }
-    /// The player in the world with `uuid` (`EntityReference.getPlayer`), as
-    /// `last_hurt_by_player` keeps them: None for the player in place, else the
-    /// guest's connection.
+    /// The player in the world with `uuid` (`EntityReference.get`, this
+    /// level only), as `last_hurt_by_player` keeps them: None for the player
+    /// in place, else the guest's connection.
     fn player_with_uuid(&self, uuid: [i32; 4]) -> Option<Option<u32>> {
         if self.player.is_some()
             && horizon_client::mobs::tame::owned_by(Some(uuid), self.acting_uuid())
@@ -4755,6 +4755,10 @@ impl Game<'_> {
                     && breezes.contains(&id)
                 {
                     super::wind::reverse(p, jitter);
+                    // `Projectile.deflect` in 1.21.8 takes the resolved owner
+                    // (`getOwner()`): one that no longer resolves in this
+                    // level is dropped with the turn.
+                    self.drop_unresolved_owner(p);
                     if p.arrow.is_some() {
                         horizon_client::arrows::finish_entity_hit(p, &scene, EntityHit::Deflected);
                         let a = p.arrow.as_mut().expect("an arrow");
@@ -4802,7 +4806,12 @@ impl Game<'_> {
                 } = hit
                     && let Some(j) = pickable_projectile_hit(id)
                 {
-                    let (owner, owner_uuid, guest) = (p.owner, p.owner_uuid, p.guest);
+                    // 1.21.8's `onHit` passes `getOwner()` (resolved in this
+                    // level) for both the deflector and the owner: an owner
+                    // that no longer resolves is dropped, and the aim is
+                    // left alone. (1.21.9 passes the bare `owner`
+                    // reference, which survives.)
+                    let (owner, owner_uuid, guest) = self.resolved_owner(p);
                     let look = self.owner_look(owner, guest);
                     let wind = &mut projectiles[j];
                     super::deflect::aim_deflect(wind, look, owner, owner_uuid, guest);
@@ -5264,6 +5273,17 @@ impl Game<'_> {
             } else {
                 self.arrow_event(arrow.position, event);
             }
+        }
+        // A deflect (`AbstractArrow.onHitEntity` on a refusal, or a
+        // trident's bounce after a hurt) takes the resolved owner in
+        // 1.21.8: one that no longer resolves in this level is dropped
+        // before the arrow flies on. The events above still see the
+        // pre-deflect owner (the shot happened before the turn).
+        let deflected = matches!(outcome, EntityHit::Refused)
+            || matches!(outcome, EntityHit::Hurt)
+                && matches!(arrow.kind, ProjectileKind::Trident);
+        if deflected {
+            self.drop_unresolved_owner(&mut arrow);
         }
         if keep {
             self.add_projectile(arrow);
