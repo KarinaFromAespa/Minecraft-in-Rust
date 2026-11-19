@@ -183,28 +183,30 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
-    /// The pinned 1.21.8's own wire layouts: what `quirks()` and
-    /// `quirks_written()` return when no other version is active. 1.21.8 is
+    /// The pinned 1.21.4's own wire layouts: what `quirks()` and
+    /// `quirks_written()` return when no other version is active. 1.21.4 is
     /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
     /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
-    /// stacks, optional profile fields) and the last release whose spell
-    /// particles carried no options. (The shoulder parrots are compound tags
-    /// in 1.21.8 too, but EntityData::read converts them unconditionally —
-    /// no quirk gates that.)
+    /// stacks, optional profile fields), pre-1.21.6 (no attribute display or
+    /// shearing in equippable) and pre-1.21.5 (tooltip booleans instead of
+    /// tooltip_display), and the last release whose spell particles carried
+    /// no options and whose wolf variants were holders. (The shoulder parrots
+    /// are compound tags in 1.21.4 too, but EntityData::read converts them
+    /// unconditionally — no quirk gates that.)
     pub const PINNED: Self = Self {
         tag_slot_display_is_id: true,
         pot_decorations_are_items: true,
         either_holders_and_tag_resistance: true,
         stacks_in_components: true,
-        components_before_1_21_6: false,
-        components_before_1_21_5: false,
+        components_before_1_21_6: true,
+        components_before_1_21_5: true,
         count_first_templates: true,
         optional_profile_fields: true,
         integer_custom_model_data: false,
         trail_without_duration: false,
         components_before_1_21_2: false,
         components_before_1_21: false,
-        wolf_variant_holder: false,
+        wolf_variant_holder: true,
         legacy_item_nbt: false,
         legacy_item_data_version: 0,
         components_as_json: false,
@@ -562,34 +564,29 @@ mod tests {
             assert_eq!(r.remaining(), 0);
             stack
         };
-        // Stone (1 in both) as a 1.21.11 server sends a stack whose instrument, provides_trim_material,
-        // damage_type, chicken/variant and zombie_nautilus/variant are held: the flag set, then the
-        // holder as 26.3 reads it (an id plus one, or a registry id). damage_type (8 in 1.21.11) and
-        // zombie_nautilus/variant (94) are 1.21.11 components the pin lacks, so the adapter drops
-        // them; the other three survive with their pinned ids.
-        let mut sent = vec![1, 1, 5, 0];
+        // Stone (1 in both) as a 1.21.11 server sends a stack whose instrument, jukebox_playable,
+        // provides_trim_material, damage_type, chicken/variant and zombie_nautilus/variant are held:
+        // the flag set, then the holder as 26.3 reads it (an id plus one, or a registry id).
+        // damage_type (8 in 1.21.11), zombie_nautilus/variant (94), chicken/variant (93) and
+        // provides_trim_material (60) are 1.21.11 components the pin lacks, so the adapter drops
+        // them; the other two survive with their pinned ids.
+        let mut sent = vec![1, 1, 6, 0];
         sent.extend([older(k::INSTRUMENT), 1, 2]);
-        sent.extend([older(k::PROVIDES_TRIM_MATERIAL), 1, 5]);
+        sent.extend([older(k::JUKEBOX_PLAYABLE), 1, 2]);
         sent.extend([8, 1, 3]); // damage_type, 1.21.11 id
-        sent.extend([older(k::CHICKEN_VARIANT), 1, 2]);
+        sent.extend([93, 1, 2]); // chicken/variant, 1.21.11 id
         sent.extend([94, 1, 0]); // zombie_nautilus/variant, 1.21.11 id
+        sent.extend([60, 1, 5]); // provides_trim_material, 1.21.11 id
         let stack = read(&sent);
         let kinds: Vec<i32> = stack.added.iter().map(|(kind, _)| *kind).collect();
-        assert_eq!(
-            kinds,
-            [
-                k::INSTRUMENT,
-                k::PROVIDES_TRIM_MATERIAL,
-                k::CHICKEN_VARIANT,
-            ]
-        );
+        assert_eq!(kinds, [k::INSTRUMENT, k::JUKEBOX_PLAYABLE]);
         assert_eq!(stack.added[0].1, Component::Instrument(1));
         // An instrument named by its key has no pinned holder: the component goes, the rest reads on.
         let mut sent = vec![1, 1, 2, 0, older(k::INSTRUMENT), 0, 26];
         sent.extend(b"minecraft:ponder_goat_horn");
-        sent.extend([older(k::CHICKEN_VARIANT), 1, 2]);
+        sent.extend([older(k::JUKEBOX_PLAYABLE), 1, 2]);
         let kinds: Vec<i32> = read(&sent).added.iter().map(|(kind, _)| *kind).collect();
-        assert_eq!(kinds, [k::CHICKEN_VARIANT]);
+        assert_eq!(kinds, [k::JUKEBOX_PLAYABLE]);
     }
 
     #[test]

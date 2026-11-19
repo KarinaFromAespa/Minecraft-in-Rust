@@ -1352,14 +1352,6 @@ fn network_stack(
         // These built-ins use their own stream codecs, not the custom NBT route.
         for (name, kind) in [
             (
-                "minecraft:provides_trim_material",
-                horizon_protocol::item::component::PROVIDES_TRIM_MATERIAL,
-            ),
-            (
-                "minecraft:provides_banner_patterns",
-                horizon_protocol::item::component::PROVIDES_BANNER_PATTERNS,
-            ),
-            (
                 "minecraft:can_place_on",
                 horizon_protocol::item::component::CAN_PLACE_ON,
             ),
@@ -1916,14 +1908,6 @@ mod tests {
     #[test]
     fn builtin_removal_markers_survive_actual_saved_stack_adoption() {
         for (name, kind) in [
-            (
-                "minecraft:provides_trim_material",
-                component::PROVIDES_TRIM_MATERIAL,
-            ),
-            (
-                "minecraft:provides_banner_patterns",
-                component::PROVIDES_BANNER_PATTERNS,
-            ),
             ("minecraft:can_place_on", component::CAN_PLACE_ON),
             ("minecraft:can_break", component::CAN_BREAK),
         ] {

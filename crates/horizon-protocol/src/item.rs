@@ -56,7 +56,7 @@ impl Drop for Nested {
     }
 }
 
-/// minecraft:data_component_type registry ids (1.21.10).
+/// minecraft:data_component_type registry ids (1.21.4).
 pub mod component {
     pub const CUSTOM_DATA: i32 = 0;
     pub const MAX_STACK_SIZE: i32 = 1;
@@ -76,49 +76,58 @@ pub mod component {
     /// `ItemAttributeModifiers`: a list of entries, each with a display from 1.21.6 on.
     pub const ATTRIBUTE_MODIFIERS: i32 = 13;
     pub const CUSTOM_MODEL_DATA: i32 = 14;
-    pub const TOOLTIP_DISPLAY: i32 = 15;
-    pub const REPAIR_COST: i32 = 16;
-    pub const CREATIVE_SLOT_LOCK: i32 = 17;
-    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 18;
+    /// 1.21.4's two tooltip booleans, which the pin codec folds into the
+    /// synthesized `TOOLTIP_DISPLAY` below (1.21.5 folded them into one
+    /// component; the pin predates it).
+    pub const HIDE_ADDITIONAL_TOOLTIP: i32 = 15;
+    pub const HIDE_TOOLTIP: i32 = 16;
+    pub const REPAIR_COST: i32 = 17;
+    pub const CREATIVE_SLOT_LOCK: i32 = 18;
+    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 19;
     /// `Consumable.STREAM_CODEC`: consumeSeconds first.
-    pub const CONSUMABLE: i32 = 21;
+    pub const CONSUMABLE: i32 = 22;
     pub const EQUIPPABLE: i32 = 28;
     pub const GLIDER: i32 = 30;
     /// `DeathProtection`: the `death_effects` a stack runs when it saves its holder.
     pub const DEATH_PROTECTION: i32 = 32;
-    pub const BLOCKS_ATTACKS: i32 = 33;
-    pub const STORED_ENCHANTMENTS: i32 = 34;
-    pub const PROFILE: i32 = 61;
-    pub const BANNER_PATTERNS: i32 = 63;
-    pub const BASE_COLOR: i32 = 64;
-    pub const DYED_COLOR: i32 = 35;
-    pub const MAP_ID: i32 = 37;
-    pub const MAP_POST_PROCESSING: i32 = 39;
-    pub const CHARGED_PROJECTILES: i32 = 40;
-    pub const BUNDLE_CONTENTS: i32 = 41;
-    pub const POTION_CONTENTS: i32 = 42;
-    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 44;
-    pub const WRITABLE_BOOK_CONTENT: i32 = 45;
-    pub const WRITTEN_BOOK_CONTENT: i32 = 46;
-    pub const TRIM: i32 = 47;
-    pub const INSTRUMENT: i32 = 52;
-    pub const PROVIDES_TRIM_MATERIAL: i32 = 53;
-    pub const PROVIDES_BANNER_PATTERNS: i32 = 56;
-    pub const CHICKEN_VARIANT: i32 = 86;
-    pub const LODESTONE_TRACKER: i32 = 58;
-    pub const FIREWORK_EXPLOSION: i32 = 59;
-    pub const FIREWORKS: i32 = 60;
-    pub const BLOCK_ENTITY_DATA: i32 = 51;
-    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 54;
-    pub const USE_REMAINDER: i32 = 22;
-    pub const POT_DECORATIONS: i32 = 65;
-    pub const JUKEBOX_PLAYABLE: i32 = 55;
-    pub const DAMAGE_RESISTANT: i32 = 24;
-    pub const CONTAINER: i32 = 66;
-    /// Not a pinned component: 1.21.10 has no `sulfur_cube_content` (a 26.3
+    pub const STORED_ENCHANTMENTS: i32 = 33;
+    pub const PROFILE: i32 = 57;
+    pub const BANNER_PATTERNS: i32 = 59;
+    pub const BASE_COLOR: i32 = 60;
+    pub const DYED_COLOR: i32 = 34;
+    pub const MAP_ID: i32 = 36;
+    pub const MAP_POST_PROCESSING: i32 = 38;
+    pub const CHARGED_PROJECTILES: i32 = 39;
+    pub const BUNDLE_CONTENTS: i32 = 40;
+    pub const POTION_CONTENTS: i32 = 41;
+    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 42;
+    pub const WRITABLE_BOOK_CONTENT: i32 = 43;
+    pub const WRITTEN_BOOK_CONTENT: i32 = 44;
+    pub const TRIM: i32 = 45;
+    pub const INSTRUMENT: i32 = 50;
+    pub const LODESTONE_TRACKER: i32 = 54;
+    pub const FIREWORK_EXPLOSION: i32 = 55;
+    pub const FIREWORKS: i32 = 56;
+    pub const BLOCK_ENTITY_DATA: i32 = 49;
+    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 51;
+    pub const USE_REMAINDER: i32 = 23;
+    pub const POT_DECORATIONS: i32 = 61;
+    pub const JUKEBOX_PLAYABLE: i32 = 52;
+    pub const DAMAGE_RESISTANT: i32 = 25;
+    pub const CONTAINER: i32 = 62;
+    /// Not a pinned component: 1.21.4 has no `tooltip_display` (a 1.21.5
+    /// addition). The negative value is an internal marker only, so the
+    /// synthesized form the pin codec builds from the two hide booleans
+    /// can never match a canonical id here.
+    pub const TOOLTIP_DISPLAY: i32 = -1003;
+    /// Not a pinned component: 1.21.4 has no `sulfur_cube_content` (a 26.3
     /// addition). The negative value is an internal marker only, so the
     /// 26.2-facing arms that name it can never match a canonical id here.
     pub const SULFUR_CUBE_CONTENT: i32 = -1000;
+    /// Not a pinned component: 1.21.4 has no `painting/variant` (a 1.21.5
+    /// addition). Kept for the client's internal painting stacks, which
+    /// carry the variant as a component; the value is out of the pin's
+    /// registry range, so it can never match a canonical id here.
     pub const PAINTING_VARIANT: i32 = 89;
     /// `SignText.STREAM_CODEC`: a sign item's text, front and back. Also not
     /// pinned components (26.3 additions); internal markers, as above.
@@ -378,7 +387,10 @@ impl Component {
                 Self::Stacks((0..n).map(|_| Template::read(r)).collect::<Result<_>>()?)
             }
             DYED_COLOR => Self::Int(r.i32()?),
-            UNBREAKABLE | CREATIVE_SLOT_LOCK => Self::Unit,
+            UNBREAKABLE
+            | CREATIVE_SLOT_LOCK
+            | HIDE_TOOLTIP
+            | HIDE_ADDITIONAL_TOOLTIP => Self::Unit,
             ENCHANTMENT_GLINT_OVERRIDE => Self::Bool(r.bool()?),
             CUSTOM_NAME | ITEM_NAME => Self::Text(r.nbt()?),
             CUSTOM_DATA => Self::Nbt(r.nbt()?),
@@ -480,19 +492,6 @@ impl Component {
                     strings,
                     colors,
                 }
-            }
-            TOOLTIP_DISPLAY => {
-                let hide = r.bool()?;
-                let n = r.count(r.remaining())?;
-                let mut hidden = Vec::with_capacity(n.min(64));
-                for _ in 0..n {
-                    let raw = r.varint()?;
-                    // An older server's numbering, and components the pinned version lacks hide nothing.
-                    if ids::dropped_component(raw).is_none() {
-                        hidden.push(ids::component(raw));
-                    }
-                }
-                Self::TooltipDisplay { hide, hidden }
             }
             FIREWORKS => {
                 let flight = r.varint()?;
@@ -617,10 +616,7 @@ impl Component {
                         || !quirks.components_before_1_21_5);
                 if matches!(
                     kind,
-                    component::INSTRUMENT
-                        | component::PROVIDES_TRIM_MATERIAL
-                        | component::JUKEBOX_PLAYABLE
-                        | component::CHICKEN_VARIANT
+                    component::INSTRUMENT | component::JUKEBOX_PLAYABLE
                 ) && either_holder
                 {
                     w.bool(true);
@@ -739,6 +735,11 @@ impl Component {
                 w.varint(colors.len() as i32);
                 colors.iter().for_each(|c| w.i32(*c));
             }
+            // The 1.21.5+ wire form (a bool, then the hidden ids). The pin has
+            // no tooltip_display: `write_patch` routes around this arm and
+            // emits the two hide booleans instead, and `v1_21_4::write_stack`
+            // splits it the same way for older versions. The arm stays so the
+            // match is exhaustive — and so a newer-target synthesis can use it.
             Self::TooltipDisplay { hide, hidden } => {
                 w.bool(*hide);
                 // Without the components an older client being written for lacks.
@@ -958,19 +959,103 @@ fn read_removed(r: &mut Reader, negative: usize) -> Result<Vec<i32>> {
     for _ in 0..negative {
         let raw = r.varint()?;
         if ids::dropped_component(raw).is_none() {
-            removed.push(ids::component(raw));
+            let kind = ids::component(raw);
+            // A pre-1.21.5 stack removes the tooltip booleans; the pin codec
+            // holds them as the synthesized display, so the removal names it.
+            let kind = if ids::quirks().components_before_1_21_5
+                && matches!(
+                    kind,
+                    component::HIDE_ADDITIONAL_TOOLTIP | component::HIDE_TOOLTIP
+                ) {
+                component::TOOLTIP_DISPLAY
+            } else {
+                kind
+            };
+            if !removed.contains(&kind) {
+                removed.push(kind);
+            }
         }
     }
     Ok(removed)
 }
 
+/// The tooltip state a pre-1.21.5 stack reader accumulates: the two hide
+/// booleans and the tooltip-flagged components shown false, folded into one
+/// synthesized `TooltipDisplay` when the patch is complete (the pin has no
+/// tooltip_display component; 1.21.5 folded these into one).
+struct Tooltip {
+    hide: bool,
+    additional: bool,
+    hidden: Vec<i32>,
+}
+
+impl Tooltip {
+    fn new() -> Self {
+        Self {
+            hide: false,
+            additional: false,
+            hidden: Vec::new(),
+        }
+    }
+
+    /// An added component of a pre-1.21.5 stack: the hide booleans are
+    /// swallowed (`false`: not an added component), anything else passes
+    /// through, and a hidden flag joins the hidden list.
+    fn added(&mut self, kind: i32, shown: Option<bool>) -> bool {
+        use component::*;
+        match kind {
+            HIDE_ADDITIONAL_TOOLTIP => {
+                self.additional = true;
+                false
+            }
+            HIDE_TOOLTIP => {
+                self.hide = true;
+                false
+            }
+            _ => {
+                if shown == Some(false) {
+                    self.hidden.push(kind);
+                }
+                true
+            }
+        }
+    }
+
+    /// The synthesized component, if the stack hides anything. The additional
+    /// flag hides the item-specific providers present on the stack.
+    fn finish(mut self, added: &[(i32, Component)]) -> Option<(i32, Component)> {
+        if self.additional {
+            self.hidden.extend(
+                added
+                    .iter()
+                    .map(|(kind, _)| *kind)
+                    .filter(|kind| v1_21_4::ADDITIONAL.contains(kind)),
+            );
+        }
+        if self.hide || !self.hidden.is_empty() {
+            self.hidden.sort_unstable();
+            self.hidden.dedup();
+            Some((
+                component::TOOLTIP_DISPLAY,
+                Component::TooltipDisplay {
+                    hide: self.hide,
+                    hidden: self.hidden,
+                },
+            ))
+        } else {
+            None
+        }
+    }
+}
+
 /// An added component `raw` (the sender's id) and its value from `r`: its pinned id, the value, and the
-/// value's bytes in the pinned layout. An older server's component the pinned version lacks is read past
-/// (`None`), and one whose layout changed since that server's version is read in its layout.
+/// value's bytes in the pinned layout, plus the show flag for a tooltip-flagged component of a pre-1.21.5
+/// stack (`None` otherwise). An older server's component the pinned version lacks is read past (`None`),
+/// and one whose layout changed since that server's version is read in its layout.
 fn read_added<'a>(
     raw: i32,
     r: &mut Reader<'a>,
-) -> Result<Option<(i32, Component, std::borrow::Cow<'a, [u8]>)>> {
+) -> Result<Option<(i32, Component, std::borrow::Cow<'a, [u8]>, Option<bool>)>> {
     // Every way a stack holds another passes through here.
     let _nested = Nested::enter()?;
     if let Some(name) = ids::dropped_component(raw) {
@@ -991,12 +1076,23 @@ fn read_added<'a>(
             } else {
                 Component::read(kind, &mut Reader::new(&bytes))?
             };
-            Ok(Some((kind, component, bytes.into())))
+            Ok(Some((kind, component, bytes.into(), None)))
         }
         Older::Pinned => {
             let start = r.position();
             let component = Component::read(kind, r)?;
-            Ok(Some((kind, component, r.since(start).into())))
+            // A pre-1.21.5 stack carries a show flag after each
+            // tooltip-flagged component's value; it rides in the value
+            // bytes, and the stack reader folds it into the synthesized
+            // TooltipDisplay.
+            let shown = if ids::quirks().components_before_1_21_5
+                && v1_21_4::TOOLTIP_FLAGS.contains(&kind)
+            {
+                Some(r.bool()?)
+            } else {
+                None
+            };
+            Ok(Some((kind, component, r.since(start).into(), shown)))
         }
     }
 }
@@ -1011,8 +1107,8 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (1.21.8): an older pot's undecorated side.
-const BRICK: i32 = 963;
+/// `minecraft:brick` (1.21.4): an older pot's undecorated side.
+const BRICK: i32 = 954;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).
@@ -1022,12 +1118,11 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
     Ok(match kind {
         // EitherHolder.streamCodec: ByteBufCodecs.either(the holder, its ResourceKey), a flag set for the
         // holder, which then reads as the pinned one does. A key names an entry of the server's registry
-        // that the pinned holder can't point to without its numbering.
-        INSTRUMENT
-        | PROVIDES_TRIM_MATERIAL
-        | JUKEBOX_PLAYABLE
-        | CHICKEN_VARIANT
-            if quirks.either_holders_and_tag_resistance =>
+        // that the pinned holder can't point to without its numbering. The instrument's wrapper started
+        // in 1.21.5, so a pre-1.21.5 stack sends its holder bare; the jukebox's predates it.
+        INSTRUMENT | JUKEBOX_PLAYABLE
+            if quirks.either_holders_and_tag_resistance
+                && (kind == JUKEBOX_PLAYABLE || !quirks.components_before_1_21_5) =>
         {
             if r.bool()? {
                 Older::Pinned
@@ -1133,12 +1228,70 @@ fn skip_sound(r: &mut Reader) -> Result<()> {
 
 fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
     match name {
-        // Unit.STREAM_CODEC: the pre-1.21.2 tooltip and fire flags 1.21.10 no
-        // longer has (fire_resistant became damage_resistant; the two hide
-        // flags folded into tooltip_display).
+        // Unit.STREAM_CODEC: the pre-1.21.2 fire flag 1.21.4 no longer has
+        // (fire_resistant became damage_resistant). The two hide flags are
+        // pin components now, so an older server's map to them instead of
+        // dropping; the arms stay so a stray one still reads past.
         "minecraft:fire_resistant"
         | "minecraft:hide_tooltip"
         | "minecraft:hide_additional_tooltip" => Ok(()),
+        // TooltipDisplay.STREAM_CODEC (1.21.5+): hide, then the hidden ids.
+        "minecraft:tooltip_display" => {
+            r.bool()?;
+            let n = r.count(r.remaining())?;
+            for _ in 0..n {
+                r.varint()?;
+            }
+            Ok(())
+        }
+        // Weapon.STREAM_CODEC (1.21.5+): itemDamagePerAttack, disableBlockingForSeconds.
+        "minecraft:weapon" => {
+            r.varint()?;
+            r.f32().map(drop)
+        }
+        // BlocksAttacks.STREAM_CODEC (1.21.5+).
+        "minecraft:blocks_attacks" => skip::blocks_attacks(r),
+        // FLOAT: potion_duration_scale (1.21.5+).
+        "minecraft:potion_duration_scale" => r.f32().map(drop),
+        // EitherHolder (1.21.5+): a flag, then a holder id or a key.
+        "minecraft:provides_trim_material" | "minecraft:chicken/variant" => {
+            if r.bool()? {
+                r.varint().map(drop)
+            } else {
+                r.string(32767).map(drop)
+            }
+        }
+        // A holder set: provides_banner_patterns (1.21.5+).
+        "minecraft:provides_banner_patterns" => skip::holder_set(r),
+        // SoundEvent.STREAM_CODEC: break_sound (1.21.5+).
+        "minecraft:break_sound" => skip::sound(r),
+        // Holder<PaintingVariant> (1.21.5+): a reference's id plus one, or 0
+        // and the variant itself.
+        "minecraft:painting/variant" => skip::component(component::PAINTING_VARIANT, r),
+        // A VarInt (a registry or holder id): the 1.21.5 mob variants and
+        // colours (except painting/variant, which has its own holder arm above).
+        "minecraft:villager/variant"
+        | "minecraft:wolf/variant"
+        | "minecraft:wolf/sound_variant"
+        | "minecraft:wolf/collar"
+        | "minecraft:fox/variant"
+        | "minecraft:salmon/size"
+        | "minecraft:parrot/variant"
+        | "minecraft:tropical_fish/base_color"
+        | "minecraft:tropical_fish/pattern"
+        | "minecraft:tropical_fish/pattern_color"
+        | "minecraft:mooshroom/variant"
+        | "minecraft:rabbit/variant"
+        | "minecraft:pig/variant"
+        | "minecraft:cow/variant"
+        | "minecraft:frog/variant"
+        | "minecraft:horse/variant"
+        | "minecraft:llama/variant"
+        | "minecraft:axolotl/variant"
+        | "minecraft:cat/variant"
+        | "minecraft:cat/collar"
+        | "minecraft:sheep/color"
+        | "minecraft:shulker/color" => r.varint().map(drop),
         // SulfurCubeContent (a 26.2 component 1.21.10 predates): one item stack
         // template, read and dropped.
         "minecraft:sulfur_cube_content" => Template::read(r).map(drop),
@@ -1221,12 +1374,20 @@ impl WirePatch {
         let positive = r.count(65536)?;
         let negative = r.count(65536)?;
         let mut added = Vec::with_capacity(positive.min(64));
+        let mut tooltip = Tooltip::new();
         for _ in 0..positive {
             let raw = r.varint()?;
             let len = r.count(r.remaining())?;
-            if let Some((kind, component, _)) = read_added(raw, &mut Reader::new(r.bytes(len)?))? {
-                added.push((kind, component));
+            if let Some((kind, component, _, shown)) =
+                read_added(raw, &mut Reader::new(r.bytes(len)?))?
+            {
+                if tooltip.added(kind, shown) {
+                    added.push((kind, component));
+                }
             }
+        }
+        if let Some(display) = tooltip.finish(&added) {
+            added.push(display);
         }
         Ok((added, read_removed(&mut r, negative)?))
     }
@@ -1348,11 +1509,17 @@ fn read_template(r: &mut Reader) -> Result<Stack> {
     let positive = r.count(65536)?;
     let negative = r.count(65536)?;
     let mut added = Vec::with_capacity(positive.min(64));
+    let mut tooltip = Tooltip::new();
     for _ in 0..positive {
         let raw = r.varint()?;
-        if let Some((kind, component, _)) = read_added(raw, r)? {
-            added.push((kind, component));
+        if let Some((kind, component, _, shown)) = read_added(raw, r)? {
+            if tooltip.added(kind, shown) {
+                added.push((kind, component));
+            }
         }
+    }
+    if let Some(display) = tooltip.finish(&added) {
+        added.push(display);
     }
     let removed = read_removed(r, negative)?;
     Ok(Stack {
@@ -1433,16 +1600,76 @@ fn value_down(kind: i32, quirks: ids::Quirks, pinned: &[u8]) -> Result<Vec<u8>> 
 }
 
 /// A stack's components, without those an older client being written for lacks.
+/// A pre-1.21.5 target reads the pin's tooltip as the two hide booleans
+/// (1.21.4 has no tooltip_display), with a show flag after every
+/// tooltip-flagged component's value; a 1.21.5+ target gets no tooltip at all
+/// (the synthesized display has no newer-side form without a name lookup).
 fn write_patch(s: &Stack, w: &mut Writer) {
     let has = |kind: i32| ids::component(kind) >= 0;
-    w.varint(s.added.iter().filter(|(k, _)| has(*k)).count() as i32);
-    w.varint(s.removed.iter().filter(|k| has(**k)).count() as i32);
-    for (kind, c) in s.added.iter().filter(|(k, _)| has(*k)) {
+    let pin_tooltip = ids::quirks_written().components_before_1_21_5;
+    let display = s
+        .added
+        .iter()
+        .find(|(k, _)| *k == component::TOOLTIP_DISPLAY)
+        .and_then(|(_, c)| match c {
+            Component::TooltipDisplay { hide, hidden } => Some((*hide, hidden.as_slice())),
+            _ => None,
+        });
+    let (hide, hidden) = display.unwrap_or((false, &[]));
+    // The additional flag hides the item-specific providers; it shows in the
+    // hidden list exactly when one of them is hidden (the flagged kinds are
+    // disjoint from the additional set).
+    let additional =
+        pin_tooltip && hidden.iter().any(|k| v1_21_4::ADDITIONAL.contains(k));
+    let booleans = pin_tooltip && display.is_some() && (hide || additional);
+    let added = s
+        .added
+        .iter()
+        .filter(|(k, _)| *k != component::TOOLTIP_DISPLAY && has(*k));
+    let added_count = added.clone().count()
+        + usize::from(booleans && additional)
+        + usize::from(booleans && hide);
+    let removed_marker = pin_tooltip && s.removed.contains(&component::TOOLTIP_DISPLAY);
+    let removed_count = s
+        .removed
+        .iter()
+        .filter(|k| **k != component::TOOLTIP_DISPLAY && has(**k))
+        .count()
+        + usize::from(removed_marker) * 2;
+    w.varint(added_count as i32);
+    w.varint(removed_count as i32);
+    for (kind, c) in s.added.iter() {
+        if *kind == component::TOOLTIP_DISPLAY {
+            if booleans {
+                // Unit components: the kind only, no value bytes.
+                if additional {
+                    w.varint(ids::component(component::HIDE_ADDITIONAL_TOOLTIP));
+                }
+                if hide {
+                    w.varint(ids::component(component::HIDE_TOOLTIP));
+                }
+            }
+            continue;
+        }
+        if !has(*kind) {
+            continue;
+        }
         w.varint(ids::component(*kind));
         write_value(*kind, c, w);
+        if pin_tooltip && v1_21_4::TOOLTIP_FLAGS.contains(kind) {
+            w.bool(!hidden.contains(kind));
+        }
     }
-    for kind in s.removed.iter().filter(|k| has(**k)) {
+    for kind in s
+        .removed
+        .iter()
+        .filter(|k| **k != component::TOOLTIP_DISPLAY && has(**k))
+    {
         w.varint(ids::component(*kind));
+    }
+    if removed_marker {
+        w.varint(ids::component(component::HIDE_ADDITIONAL_TOOLTIP));
+        w.varint(ids::component(component::HIDE_TOOLTIP));
     }
 }
 
@@ -1468,6 +1695,7 @@ fn read_stack(r: &mut Reader, delimited: bool) -> Result<Option<Stack>> {
     let negative = r.count(65536)?;
     let mut added = Vec::with_capacity(positive.min(64));
     let mut values = Vec::with_capacity(positive.min(64));
+    let mut tooltip = Tooltip::new();
     for _ in 0..positive {
         let raw = r.varint()?;
         let read = if delimited {
@@ -1485,21 +1713,35 @@ fn read_stack(r: &mut Reader, delimited: bool) -> Result<Option<Stack>> {
         } else {
             read_added(raw, r)?
         };
-        if let Some((kind, component, value)) = read {
-            values.push(value);
-            added.push((kind, component));
+        if let Some((kind, component, value, shown)) = read {
+            if tooltip.added(kind, shown) {
+                values.push(value);
+                added.push((kind, component));
+            }
         }
     }
     let removed = read_removed(r, negative)?;
-    let mut patch = Writer::new();
-    patch.varint(added.len() as i32);
-    patch.varint(removed.len() as i32);
-    for ((kind, _), value) in added.iter().zip(&values) {
-        patch.varint(*kind);
-        patch.byte_array(value);
-    }
-    removed.iter().for_each(|kind| patch.varint(*kind));
-    let wire = (!added.is_empty() || !removed.is_empty()).then(|| patch.data.into());
+    // A synthesized display has no wire bytes of its own, so the patch is
+    // kept only when nothing was synthesized: an echo then rebuilds from the
+    // values (which carry the show flags) instead of replaying a short patch.
+    let synthesized = match tooltip.finish(&added) {
+        Some(display) => {
+            added.push(display);
+            true
+        }
+        None => false,
+    };
+    let wire = (!synthesized && (!added.is_empty() || !removed.is_empty())).then(|| {
+        let mut patch = Writer::new();
+        patch.varint(added.len() as i32);
+        patch.varint(removed.len() as i32);
+        for ((kind, _), value) in added.iter().zip(&values) {
+            patch.varint(*kind);
+            patch.byte_array(value);
+        }
+        removed.iter().for_each(|kind| patch.varint(*kind));
+        patch.data.into()
+    });
     Ok(Some(Stack {
         item,
         count,
@@ -2011,19 +2253,21 @@ mod tests {
     #[test]
     fn components_read_past_keep_their_bytes() {
         // Vanilla 26.3's encoding (tools/test_item_wire_parity.py), re-based to the
-        // pinned 1.21.10 numbering, of a chestplate's
+        // pinned 1.21.4 numbering, of a chestplate's
         // armour trim (decoded: both holders are references), a banner's patterns
         // (one direct), a pot's sherds and a stew's effects: one server's
         // inventory, recipe book and advancements had them. The pot's value is
-        // in 1.21.8's own form (four item ids: brick, angler, brick, skull).
+        // in 1.21.4's own form (four item ids: brick, angler, brick, skull).
+        // The trim carries its show flag (a tooltip-flagged component).
         for (hex, kind) in [
-            ("01bd0801002f0502", 47),
-            ("01890b01003f02200e000b6d696e6563726166743a7801790b", 63),
-            ("01880301004104d407dc0ad407f10a", 65),
-            ("01a40801002c020f6412a001", 44),
+            ("01bd0801002d050201", 45),
+            ("01890b01003b02200e000b6d696e6563726166743a7801790b", 59),
+            ("01880301003d04ba07bd0aba07d20a", 61),
+            ("01a40801002a020f6412a001", 42),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            // 1.21.8's instrument is an EitherHolder: the flag, then the holder.
-            ("01bd080100340102", 52),
+            // 1.21.4's instrument sends its holder bare (the EitherHolder
+            // wrapper started in 1.21.5).
+            ("01bd0801003202", 50),
         ] {
             let bytes: Vec<u8> = (0..hex.len())
                 .step_by(2)
@@ -2033,15 +2277,15 @@ mod tests {
             let stack = Slot::read(&mut r).unwrap();
             assert_eq!(r.remaining(), 0, "component {kind}");
             let expected = |c: &Component| match kind {
-                47 => {
+                45 => {
                     *c == Component::Trim {
                         material: 4,
                         pattern: 1,
                     }
                 }
                 // night_vision for 100 ticks, poison for the default 160.
-                44 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
-                52 => *c == Component::Instrument(1),
+                42 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
+                50 => *c == Component::Instrument(1),
                 _ => matches!(c, Component::Raw(_)),
             };
             assert!(

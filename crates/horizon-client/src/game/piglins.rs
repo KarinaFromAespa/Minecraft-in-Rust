@@ -28,7 +28,9 @@ impl Game<'_> {
     fn piglin_loved(&self, item: &str) -> bool {
         self.item_in_tag("minecraft:piglin_loved", item)
     }
-    /// `ItemStack.has(DataComponents.BLOCKS_ATTACKS)` for an item id.
+    /// Whether `item` blocks attacks: the item's own blocking (a shield's).
+    /// 1.21.4 has no `blocks_attacks` component (a 1.21.5 addition); the
+    /// `ItemInfo` carries the blocking instead.
     fn item_blocks_attacks(&self, item: &str) -> bool {
         self.res
             .items()

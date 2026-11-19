@@ -114,38 +114,38 @@ const KINDS: &[(&str, i32)] = &[
     ("can_break", 12),
     ("attribute_modifiers", 13),
     ("custom_model_data", 14),
-    ("tooltip_display", 15),
-    ("repair_cost", 16),
-    ("enchantment_glint_override", 18),
-    ("stored_enchantments", 34),
-    ("dyed_color", 35),
-    ("map_id", 37),
-    ("map_decorations", 38),
-    ("charged_projectiles", 40),
-    ("bundle_contents", 41),
-    ("potion_contents", 42),
-    ("suspicious_stew_effects", 44),
-    ("writable_book_content", 45),
-    ("written_book_content", 46),
-    ("trim", 47),
-    ("debug_stick_state", 48),
-    ("entity_data", 49),
-    ("bucket_entity_data", 50),
-    ("block_entity_data", 51),
-    ("instrument", 52),
-    ("recipes", 57),
-    ("lodestone_tracker", 58),
-    ("firework_explosion", 59),
-    ("fireworks", 60),
-    ("profile", 61),
-    ("banner_patterns", 63),
-    ("base_color", 64),
-    ("pot_decorations", 65),
-    ("container", 66),
-    ("block_state", 67),
-    ("bees", 68),
-    ("lock", 69),
-    ("container_loot", 70),
+    ("tooltip_display", component::TOOLTIP_DISPLAY),
+    ("repair_cost", 17),
+    ("enchantment_glint_override", 19),
+    ("stored_enchantments", 33),
+    ("dyed_color", 34),
+    ("map_id", 36),
+    ("map_decorations", 37),
+    ("charged_projectiles", 39),
+    ("bundle_contents", 40),
+    ("potion_contents", 41),
+    ("suspicious_stew_effects", 42),
+    ("writable_book_content", 43),
+    ("written_book_content", 44),
+    ("trim", 45),
+    ("debug_stick_state", 46),
+    ("entity_data", 47),
+    ("bucket_entity_data", 48),
+    ("block_entity_data", 49),
+    ("instrument", 50),
+    ("recipes", 53),
+    ("lodestone_tracker", 54),
+    ("firework_explosion", 55),
+    ("fireworks", 56),
+    ("profile", 57),
+    ("banner_patterns", 59),
+    ("base_color", 60),
+    ("pot_decorations", 61),
+    ("container", 62),
+    ("block_state", 63),
+    ("bees", 64),
+    ("lock", 65),
+    ("container_loot", 66),
 ];
 pub(super) fn reading() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Up)) if ids.quirks.legacy_item_nbt)
@@ -254,11 +254,11 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
         };
         let value = match kind {
             0 => Component::Nbt(value.clone()),
-            1..=3 | 16 | 39 => Component::Int(number(Some(value), 0)),
+            1..=3 | 17 | 38 => Component::Int(number(Some(value), 0)),
             4 => Component::Unit,
             5 | 6 => Component::Text(text_component(value)),
             8 => Component::Lore(list(Some(value)).iter().map(text_component).collect()),
-            10 | 34 => {
+            10 | 33 => {
                 let levels = value.get("levels").unwrap_or(value);
                 let mut out = Vec::new();
                 if let Tag::Compound(levels) = levels {
@@ -290,16 +290,16 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     .collect(),
                 colors: int_array(value.get("colors")),
             },
-            15 => Component::TooltipDisplay {
+            component::TOOLTIP_DISPLAY => Component::TooltipDisplay {
                 hide: d::as_bool(value.get("hide_tooltip"), false),
                 hidden: list(value.get("hidden_components"))
                     .iter()
                     .filter_map(|v| component_id(&text(Some(v))?))
                     .collect(),
             },
-            18 => Component::Bool(d::as_bool(Some(value), false)),
-            35 => Component::Int(number(Some(value), 0)),
-            38 => {
+            19 => Component::Bool(d::as_bool(Some(value), false)),
+            34 => Component::Int(number(Some(value), 0)),
+            37 => {
                 let mut value = value.clone();
                 if let Tag::Compound(entries) = &mut value {
                     for entry in entries.values_mut() {
@@ -310,15 +310,15 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                 }
                 raw_nbt(&value)
             }
-            48 | 50 | 57 | 69 | 70 => raw_nbt(value),
-            40 | 41 => Component::Stacks(
+            46 | 48 | 53 | 65 | 66 => raw_nbt(value),
+            39 | 40 => Component::Stacks(
                 list(Some(value))
                     .iter()
                     .map(|v| from_tag(v, None))
                     .collect::<Result<_>>()?,
             ),
-            42 => potion(value)?,
-            44 => Component::StewEffects(
+            41 => potion(value)?,
+            42 => Component::StewEffects(
                 list(Some(value))
                     .iter()
                     .map(|v| {
@@ -329,7 +329,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     })
                     .collect::<Result<_>>()?,
             ),
-            45 => {
+            43 => {
                 let pages = list(value.get("pages"));
                 let filtered = pages.iter().any(|p| p.get("filtered").is_some());
                 Component::WritableBook {
@@ -344,7 +344,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     },
                 }
             }
-            46 => {
+            44 => {
                 let title = value.get("title").unwrap_or(&Tag::End);
                 let pages = list(value.get("pages"));
                 let filtered = pages.iter().any(|p| p.get("filtered").is_some());
@@ -368,14 +368,14 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     },
                 })
             }
-            47 => Component::Trim {
+            45 => Component::Trim {
                 material: id_tag("minecraft:trim_material", value.get("material"))?,
                 pattern: id_tag("minecraft:trim_pattern", value.get("pattern"))?,
             },
-            49 => typed_data(value, "minecraft:entity_type")?,
-            51 => typed_data(value, "minecraft:block_entity_type")?,
-            52 => Component::Instrument(id_tag("minecraft:instrument", Some(value))?),
-            58 => {
+            47 => typed_data(value, "minecraft:entity_type")?,
+            49 => typed_data(value, "minecraft:block_entity_type")?,
+            50 => Component::Instrument(id_tag("minecraft:instrument", Some(value))?),
+            54 => {
                 let target = if let Some(target) = value.get("target") {
                     let coords = int_array(target.get("pos"));
                     if coords.len() == 3 {
@@ -395,16 +395,16 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     tracked: d::as_bool(value.get("tracked"), true),
                 }
             }
-            59 => Component::FireworkExplosion(explosion(value)),
-            60 => Component::Fireworks {
+            55 => Component::FireworkExplosion(explosion(value)),
+            56 => Component::Fireworks {
                 flight: number(value.get("flight_duration"), 0),
                 explosions: list(value.get("explosions"))
                     .iter()
                     .map(explosion)
                     .collect(),
             },
-            61 => Component::Profile(profile(value)),
-            63 => Component::BannerPatterns(
+            57 => Component::Profile(profile(value)),
+            59 => Component::BannerPatterns(
                 list(Some(value))
                     .iter()
                     .map(|v| {
@@ -415,10 +415,10 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     })
                     .collect::<Result<_>>()?,
             ),
-            64 => Component::Int(dye(Some(value))),
-            65 => decorations(value)?,
-            66 => container(value)?,
-            67 => {
+            60 => Component::Int(dye(Some(value))),
+            61 => decorations(value)?,
+            62 => container(value)?,
+            63 => {
                 let mut w = Writer::new();
                 let Tag::Compound(map) = value else {
                     return Err(Error::new("block state is not a map"));
@@ -430,7 +430,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                 }
                 Component::Raw(w.data)
             }
-            68 => bees(value)?,
+            64 => bees(value)?,
             _ => continue,
         };
         stack.added.push((kind, value));
@@ -809,7 +809,7 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                     d::set(&mut tag, "CustomModelData", Tag::Int(*value as i32));
                 }
             }
-            (15, Component::TooltipDisplay { hide: all, hidden }) => {
+            (component::TOOLTIP_DISPLAY, Component::TooltipDisplay { hide: all, hidden }) => {
                 if *all {
                     hide |= 255;
                 }
@@ -820,36 +820,36 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                         4 => 4,
                         12 => 8,
                         11 => 16,
-                        34 => 32,
-                        35 => 64,
-                        47 => 128,
+                        33 => 32,
+                        34 => 64,
+                        45 => 128,
                         k if v1_21_4::ADDITIONAL.contains(k) => 32,
                         _ => 0,
                     };
                 }
             }
-            (18, Component::Bool(true)) => {
+            (19, Component::Bool(true)) => {
                 if stack.component(component::ENCHANTMENTS).is_none() {
                     d::set(&mut tag, "Enchantments", Tag::List(Vec::new()));
                 }
             }
-            (35, Component::Int(value)) => set_sub(&mut tag, "display", "color", Tag::Int(*value)),
-            (37, Component::Int(value)) => d::set(&mut tag, "map", Tag::Int(*value)),
-            (40 | 41, Component::Stacks(values)) => {
+            (34, Component::Int(value)) => set_sub(&mut tag, "display", "color", Tag::Int(*value)),
+            (36, Component::Int(value)) => d::set(&mut tag, "map", Tag::Int(*value)),
+            (39 | 40, Component::Stacks(values)) => {
                 d::set(
                     &mut tag,
-                    if *kind == 40 {
+                    if *kind == 39 {
                         "ChargedProjectiles"
                     } else {
                         "Items"
                     },
                     Tag::List(values.iter().map(legacy_saved).collect::<Result<_>>()?),
                 );
-                if *kind == 40 {
+                if *kind == 39 {
                     d::set(&mut tag, "Charged", Tag::Byte(i8::from(!values.is_empty())));
                 }
             }
-            (42,
+            (41,
                 Component::Potion {
                     potion,
                     color,
@@ -880,7 +880,7 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                     } // New custom potion names have no old field.
                 }
             }
-            (44, Component::StewEffects(values)) => d::set(
+            (42, Component::StewEffects(values)) => d::set(
                 &mut tag,
                 "effects",
                 Tag::List(
@@ -1201,8 +1201,8 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             "AttributeModifiers",
             Tag::List(legacy_attributes(&mut r)?),
         ),
-        48 => d::set(tag, "DebugProperty", r.nbt()?),
-        49 | 51 => {
+        46 => d::set(tag, "DebugProperty", r.nbt()?),
+        47 | 49 => {
             let id = r.varint()?;
             let mut data = r.nbt()?;
             if let Some(name) = data.get("CustomName").cloned() {
@@ -1212,7 +1212,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
                 &mut data,
                 "id",
                 d::string(&registry_name(
-                    if kind == 49 {
+                    if kind == 47 {
                         "minecraft:entity_type"
                     } else {
                         "minecraft:block_entity_type"
@@ -1222,7 +1222,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             );
             d::set(
                 tag,
-                if kind == 49 {
+                if kind == 47 {
                     "EntityTag"
                 } else {
                     "BlockEntityTag"
@@ -1230,15 +1230,15 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
                 data,
             );
         }
-        50 => {
+        48 => {
             if let Tag::Compound(data) = r.nbt()? {
                 for (key, value) in data {
                     d::set(tag, &key.to_string_lossy(), value);
                 }
             }
         }
-        57 => d::set(tag, "Recipes", r.nbt()?),
-        65 => {
+        53 => d::set(tag, "Recipes", r.nbt()?),
+        61 => {
             let mut sherds = Vec::new();
             for _ in 0..4 {
                 sherds.push(if r.bool()? {
@@ -1560,7 +1560,7 @@ mod tests {
                         "minecraft:diamond_chestplate",
                         "minecraft:diamond_chestplate",
                     ),
-                    (963, "minecraft:brick", "minecraft:brick"),
+                    (954, "minecraft:brick", "minecraft:brick"),
                     (972, "minecraft:compass", "minecraft:compass"),
                     (974, "minecraft:bundle", "minecraft:bundle"),
                     (1042, "minecraft:filled_map", "minecraft:filled_map"),
@@ -1744,18 +1744,18 @@ mod tests {
                     Component::Raw(data)
                         if matches!(
                             *kind,
-                            38 | 48 | 49 | 50 | 51 | 57 | 65 | 66 | 68 | 69 | 70
+                            37 | 46 | 47 | 48 | 49 | 53 | 61 | 62 | 64 | 65 | 66
                         ) =>
                     {
                         let mut r = Reader::new(data);
                         let mut w = Writer::new();
                         match *kind {
-                            49 | 51 => {
+                            47 | 49 => {
                                 w.varint(r.varint().unwrap());
                                 w.nbt(&r.nbt().unwrap());
                             }
-                            65 | 66 => {
-                                let n = if *kind == 65 {
+                            61 | 62 => {
+                                let n = if *kind == 61 {
                                     4
                                 } else {
                                     let n = r.varint().unwrap();
@@ -1772,7 +1772,7 @@ mod tests {
                                     }
                                 }
                             }
-                            68 => {
+                            64 => {
                                 let n = r.varint().unwrap();
                                 w.varint(n);
                                 for _ in 0..n {

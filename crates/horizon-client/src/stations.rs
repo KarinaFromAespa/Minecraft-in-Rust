@@ -1128,8 +1128,9 @@ impl StationRecipes {
         })
     }
 }
-/// `ItemStack.get(DataComponents.PROVIDES_TRIM_MATERIAL)`: the stack's
-/// component (a name or an inline definition), else the item's default.
+/// The trim material `stack` provides: its `provides_trim_material` entry
+/// when one is set (a 1.21.5 component, so only a test or a newer save can
+/// carry it here), else the item's default.
 fn trim_material(
     e: &Enchantments,
     stack: &ItemStack,
@@ -1264,7 +1265,7 @@ mod tests {
     }
 
     /// Smithing: `SmithingTrimRecipe.applyTrim` reads the addition's
-    /// `PROVIDES_TRIM_MATERIAL`, a named material or an inline definition.
+    /// trim material, a named material or an inline definition.
     #[test]
     fn smithing_trim_reads_the_additions_trim_material() {
         let e = sample();
@@ -1906,7 +1907,7 @@ mod tests {
         );
         assert_eq!(r.cost, 1);
         assert_eq!(r.result.unwrap().damage, 0);
-        // Smithing: the addition's PROVIDES_TRIM_MATERIAL is the trim's material.
+        // Smithing: the addition's trim material is the trim's material.
         let mut gold = ItemStack::new("minecraft:gold_ingot", 1);
         gold.data_mut().set_other(
             "minecraft:provides_trim_material",

@@ -265,9 +265,9 @@ pub struct BlocksAttacks {
     pub disabled_sound: Option<String>,
 }
 impl BlocksAttacks {
-    /// The `blocks_attacks` `stack` has (`ItemStack.get(DataComponents.BLOCKS_ATTACKS)`):
-    /// its own component when it carries one (`/give @s diamond_sword[blocks_attacks={}]`,
-    /// or a server's item), else its item's (`item`, a shield's).
+    /// The `blocks_attacks` `stack` has: its own component when it carries
+    /// one (only a test or a newer save can set it — 1.21.4 has no such
+    /// component), else its item's (`item`, a shield's).
     pub fn of_stack<'a>(
         stack: &ItemStack,
         item: Option<&'a ItemInfo>,

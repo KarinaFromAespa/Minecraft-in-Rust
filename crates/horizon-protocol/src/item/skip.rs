@@ -12,7 +12,7 @@ use crate::{
 
 type Read = fn(&mut Reader) -> Result<()>;
 
-/// DataComponents' registry order (1.21.10) for the ids `Component::read`
+/// DataComponents' registry order (1.21.4) for the ids `Component::read`
 /// doesn't decode itself.
 pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
     match kind {
@@ -20,26 +20,23 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
         30 => Ok(()),
         // Components without a network codec go as their NBT: intangible_projectile,
         // map_decorations, debug_stick_state, recipes, lock, container_loot.
-        19 | 38 | 48 | 57 | 69..=70 => nbt(r),
+        20 | 37 | 46 | 53 | 65 | 66 => nbt(r),
         // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id):
-        // enchantable, ominous_bottle_amplifier, base_color, the mob variants and
-        // colours (except painting/variant, which has its own holder arm below).
-        27 | 54 | 64 | 72..=88 | 90..=95 => varint(r),
-        // FLOAT: potion_duration_scale.
-        43 => f32(r),
+        // enchantable, ominous_bottle_amplifier, base_color.
+        27 | 51 | 60 => varint(r),
         // Identifier.STREAM_CODEC: tooltip_style, note_block_sound.
-        31 | 62 => ident(r),
+        31 | 58 => ident(r),
         // AdventureModePredicate: can_place_on, can_break.
         11..=12 => list(r, block_predicate),
         13 => list(r, attribute_modifier),
         // FoodProperties.DIRECT_STREAM_CODEC: nutrition, saturation, canAlwaysEat.
-        20 => {
+        21 => {
             varint(r)?;
             f32(r)?;
             boolean(r)
         }
         // Consumable: consumeSeconds, animation, sound, hasConsumeParticles, onConsumeEffects.
-        21 => {
+        22 => {
             f32(r)?;
             varint(r)?;
             sound(r)?;
@@ -47,35 +44,29 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             list(r, consume_effect)
         }
         // UseRemainder: one template.
-        22 => template(r),
+        23 => template(r),
         // UseCooldown: seconds, cooldownGroup.
-        23 => {
+        24 => {
             f32(r)?;
             optional(r, ident)
         }
-        // DamageResistant, Repairable, provides_banner_patterns: a holder set.
-        24 | 29 | 56 => holder_set(r),
-        25 => tool(r),
-        // Weapon: itemDamagePerAttack, disableBlockingForSeconds.
-        26 => {
-            varint(r)?;
-            f32(r)
-        }
+        // DamageResistant, Repairable: a holder set.
+        25 | 29 => holder_set(r),
+        26 => tool(r),
         28 => equippable(r),
         // DeathProtection: deathEffects.
         32 => list(r, consume_effect),
-        33 => blocks_attacks(r),
         // MapColor: a big-endian int.
-        36 => i32(r),
+        35 => i32(r),
         // BundleContents: templates.
-        41 => list(r, template),
+        40 => list(r, template),
         // SuspiciousStewEffects: effect, duration.
-        44 => list(r, |r| {
+        42 => list(r, |r| {
             varint(r)?;
             varint(r)
         }),
         // ArmorTrim: material, then Holder<TrimPattern> (assetId, description, decal).
-        47 => {
+        45 => {
             trim_material(r)?;
             holder(r, |r| {
                 ident(r)?;
@@ -84,46 +75,45 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             })
         }
         // TypedEntityData (entity_data, block_entity_data): the type id, then a compound.
-        49 | 51 => {
+        47 | 49 => {
             varint(r)?;
             nbt(r)
         }
         // CustomData: bucket_entity_data.
-        50 => nbt(r),
+        48 => nbt(r),
         // InstrumentComponent: Holder<Instrument> (soundEvent, useDuration, range,
         // durabilityDamage, description).
-        52 => holder(r, |r| {
+        50 => holder(r, |r| {
             sound(r)?;
             f32(r)?;
             f32(r)?;
             varint(r)?;
             nbt(r)
         }),
-        53 => trim_material(r),
         // JukeboxPlayable: Holder<JukeboxSong> (soundEvent, description, lengthInSeconds,
         // comparatorOutput).
-        55 => holder(r, |r| {
+        52 => holder(r, |r| {
             sound(r)?;
             nbt(r)?;
             f32(r)?;
             varint(r)
         }),
         // LodestoneTracker: target (GlobalPos: dimension, BlockPos), tracked.
-        58 => {
+        54 => {
             optional(r, |r| {
                 ident(r)?;
                 r.i64().map(drop)
             })?;
             boolean(r)
         }
-        59 => firework_explosion(r),
+        55 => firework_explosion(r),
         // Fireworks: flightDuration, explosions.
-        60 => {
+        56 => {
             varint(r)?;
             list(r, firework_explosion)
         }
         // BannerPatternLayers: Holder<BannerPattern> (assetId, translationKey), colour.
-        63 => list(r, |r| {
+        59 => list(r, |r| {
             holder(r, |r| {
                 ident(r)?;
                 string(r)
@@ -131,22 +121,21 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             varint(r)
         }),
         // PotDecorations: back, left, right, front.
-        65 => (0..4).try_for_each(|_| optional(r, template)),
+        61 => (0..4).try_for_each(|_| optional(r, template)),
         // ItemContainerContents: optional templates.
-        66 => list(r, |r| optional(r, template)),
+        62 => list(r, |r| optional(r, template)),
         // BlockItemStateProperties: a string to string map.
-        67 => list(r, |r| {
+        63 => list(r, |r| {
             string(r)?;
             string(r)
         }),
         // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
-        68 => list(r, |r| {
+        64 => list(r, |r| {
             varint(r)?;
             nbt(r)?;
             varint(r)?;
             varint(r)
         }),
-        71 => sound(r),
         // Holder<PaintingVariant>: width, height, assetId, title, author.
         89 => holder(r, |r| {
             varint(r)?;
@@ -208,7 +197,7 @@ fn holder(r: &mut Reader, direct: Read) -> Result<()> {
 }
 /// ByteBufCodecs.holderSet: 0 and a tag id, or the size plus one and the ids.
 /// Vanilla's `new ArrayList(size)` refuses a negative size.
-fn holder_set(r: &mut Reader) -> Result<()> {
+pub(super) fn holder_set(r: &mut Reader) -> Result<()> {
     match r.varint()? {
         0 => ident(r),
         n => {
@@ -221,7 +210,7 @@ fn holder_set(r: &mut Reader) -> Result<()> {
     }
 }
 /// SoundEvent.STREAM_CODEC: a holder of a location and an optional fixed range.
-fn sound(r: &mut Reader) -> Result<()> {
+pub(super) fn sound(r: &mut Reader) -> Result<()> {
     holder(r, |r| {
         ident(r)?;
         optional(r, f32)
@@ -350,7 +339,7 @@ fn equippable(r: &mut Reader) -> Result<()> {
 }
 /// BlocksAttacks: blockDelaySeconds, disableCooldownScale, damageReductions (angle, type,
 /// base, factor), itemDamage (threshold, base, factor), bypassedBy, blockSound, disableSound.
-fn blocks_attacks(r: &mut Reader) -> Result<()> {
+pub(super) fn blocks_attacks(r: &mut Reader) -> Result<()> {
     f32(r)?;
     f32(r)?;
     list(r, |r| {

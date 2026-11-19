@@ -9,10 +9,10 @@ pub(super) fn reading() -> bool {
 pub(super) fn writing() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_5)
 }
-pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 10, 11, 12, 13, 34, 35, 47, 53];
+pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 10, 11, 12, 13, 33, 34, 45, 52];
 // The old hide_additional_tooltip hid item-specific tooltip providers.
 pub(super) const ADDITIONAL: &[i32] = &[
-    63, 68, 51, 67, 41, 40, 66, 70, 59, 60, 52, 37, 89, 65, 42, 79, 46,
+    59, 64, 49, 63, 40, 39, 62, 66, 55, 56, 50, 36, 61, 41, 44,
 ];
 
 pub(super) fn tooltip_ids() -> (i32, i32) {
@@ -122,7 +122,7 @@ pub(super) fn read_added_legacy(raw: i32, r: &mut Reader) -> Result<Option<(i32,
 pub(super) fn read_component(kind: i32, r: &mut Reader) -> Result<Component> {
     match kind {
         // can_place_on, can_break, tool (pinned ids).
-        11 | 12 | 25 => Ok(Component::Raw(rewrite(kind, r, true)?)),
+        11 | 12 | 26 => Ok(Component::Raw(rewrite(kind, r, true)?)),
         component::TRIM => {
             let material = r.varint()?;
             let pattern = r.varint()?;
@@ -195,7 +195,7 @@ pub(super) fn write_stack(stack: Option<&Stack>, w: &mut Writer) {
 
 pub(super) fn write_component(kind: i32, value: &Component, w: &mut Writer) {
     match (kind, value) {
-        (11 | 12 | 25, Component::Raw(bytes)) => {
+        (11 | 12 | 26, Component::Raw(bytes)) => {
             let rewritten =
                 rewrite(kind, &mut Reader::new(bytes), false).unwrap_or_else(|_| bytes.clone());
             w.bytes(&rewritten);
@@ -231,7 +231,7 @@ pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
     let n = r.count(65536)?;
     w.varint(n as i32);
     for _ in 0..n {
-        if kind == 25 { // tool
+        if kind == 26 { // tool
             block_set(r, &mut w)?;
             let speed = r.bool()?;
             w.bool(speed);
@@ -260,7 +260,7 @@ pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
             }
         }
     }
-    if kind == 25 { // tool
+    if kind == 26 { // tool
         w.f32(r.f32()?);
         w.varint(r.varint()?);
         if up {

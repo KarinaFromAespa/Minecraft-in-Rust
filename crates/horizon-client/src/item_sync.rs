@@ -109,11 +109,12 @@ fn glider_and_slot(
     (glider, slot)
 }
 
-/// The `consumable` and `blocks_attacks` the server's patch adds to `stack`,
-/// components this client otherwise reads past (a server's sword made to
-/// block, `diamond_sword[blocks_attacks={},consumable={...}]`): the added
-/// consumable's `Consumable.consumeTicks` (`consumeSeconds * 20`), and
-/// whether `blocks_attacks` is added.
+/// The `consumable` the server's patch adds to `stack`, a component this
+/// client otherwise reads past (a server's sword made to block,
+/// `diamond_sword[consumable={...}]`): the added consumable's
+/// `Consumable.consumeTicks` (`consumeSeconds * 20`). The pin has no
+/// `blocks_attacks` component (a 1.21.5 addition), so the second value is
+/// always false; it stays so the callers' shape is unchanged.
 pub fn patched_use(stack: &ItemStack) -> (Option<i32>, bool) {
     let Some((added, _)) = stack
         .data()
@@ -124,15 +125,11 @@ pub fn patched_use(stack: &ItemStack) -> (Option<i32>, bool) {
     };
     let mut out = (None, false);
     for (kind, c) in &added {
-        match (*kind, c) {
-            (component::CONSUMABLE, Component::Raw(bytes)) => {
-                out.0 = Reader::new(bytes)
-                    .f32()
-                    .ok()
-                    .map(|seconds| (seconds * 20.0) as i32);
-            }
-            (component::BLOCKS_ATTACKS, _) => out.1 = true,
-            _ => {}
+        if let (component::CONSUMABLE, Component::Raw(bytes)) = (*kind, c) {
+            out.0 = Reader::new(bytes)
+                .f32()
+                .ok()
+                .map(|seconds| (seconds * 20.0) as i32);
         }
     }
     out
@@ -273,6 +270,13 @@ fn item_name(builtin: &Builtin, id: i32) -> Arc<str> {
 /// The item's patched components as vanilla's `components` compound.
 fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag> {
     let name = |id: i32| {
+        // The pin has no tooltip_display component: the codec synthesizes it
+        // from the two hide booleans under an internal marker kind, and the
+        // client's model keeps the synthesized form (the tooltip reads it by
+        // name), so the marker resolves here instead of in the registry.
+        if id == component::TOOLTIP_DISPLAY {
+            return Some("minecraft:tooltip_display");
+        }
         builtin
             .get("minecraft:data_component_type")
             .and_then(|types| types.name(id))
@@ -1511,7 +1515,6 @@ mod tests {
         for (id, name) in [
             (component::ITEM_NAME, "minecraft:item_name"),
             (component::RARITY, "minecraft:rarity"),
-            (component::TOOLTIP_DISPLAY, "minecraft:tooltip_display"),
             (component::BANNER_PATTERNS, "minecraft:banner_patterns"),
         ] {
             components[id as usize] = name.to_owned();
