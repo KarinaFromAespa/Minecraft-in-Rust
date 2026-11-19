@@ -906,6 +906,31 @@ impl HandWorld for GameHands<'_, '_> {
     fn attack_entity(&mut self) -> bool {
         self.game.attack()
     }
+    fn spectate_hit_entity(&mut self) -> bool {
+        use super::commands::Target;
+        // ServerPlayer.attack: a spectator's click spectates the entity
+        // hit instead of attacking it. The painting wins when nearer than
+        // the mob, as `Game::attack` orders them; frames, stands, boats,
+        // carts and the dragon have no separable hit yet, so they stay
+        // unspectated for now.
+        if let Some((i, d)) = self.game.painting_hit()
+            && self.game.mob_hit().is_none_or(|m| d < m.1)
+            && self.game.before_block(d)
+        {
+            self.game
+                .set_camera(Some(Target::Painting(self.game.paintings[i].id)));
+            return true;
+        }
+        let Some((index, distance, _)) = self.game.mob_hit() else {
+            return false;
+        };
+        if !self.game.before_block(distance) || !self.game.held_range_allows(distance) {
+            return false;
+        }
+        self.game
+            .set_camera(Some(Target::Mob(self.game.mobs[index].id)));
+        true
+    }
     fn block_action_restricted(&mut self, pos: [i32; 3]) -> bool {
         self.game.block_action_restricted(pos)
     }
