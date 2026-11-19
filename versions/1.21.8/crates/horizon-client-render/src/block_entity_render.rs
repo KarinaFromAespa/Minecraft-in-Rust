@@ -2987,7 +2987,7 @@ impl BlockEntityRenderer {
                         Mat4::from_rotation_y((180.0 - y_rot).to_radians()),
                         Vec3::splat(0.5),
                     );
-                // DecoratedPotRenderer.submit: the wobble tilts around the base centre.
+                // DecoratedPotRenderer.render: the wobble tilts around the base centre.
                 let pivot = Vec3::new(0.5, 0.0, 0.5);
                 if let Some((positive, progress)) = a.wobble
                     && (0.0..=1.0).contains(&progress)

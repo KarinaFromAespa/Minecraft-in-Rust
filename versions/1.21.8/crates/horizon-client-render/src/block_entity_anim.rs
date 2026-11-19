@@ -1026,10 +1026,14 @@ impl BlockEntityAnims {
         if let Some(w) = self.pots.get(&pos)
             && w.style.is_some()
         {
-            // extractRenderState never copies lastWobbleStyle into the render
-            // state, so DecoratedPotRenderer.submit always takes the
-            // non-POSITIVE branch (with the style's own duration).
-            anim.wobble = Some((false, w.progress(game_time, partial)));
+            // DecoratedPotRenderer.render reads lastWobbleStyle directly, so
+            // a POSITIVE wobble takes the X/Z tilt branch (1.21.9's
+            // extractRenderState never copies the style into the render
+            // state, so its submit always takes the non-POSITIVE branch).
+            anim.wobble = Some((
+                w.style == Some(WobbleStyle::Positive),
+                w.progress(game_time, partial),
+            ));
         }
         anim
     }

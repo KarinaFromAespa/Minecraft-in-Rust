@@ -334,7 +334,51 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 54/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72 + 4 zero-diff)
+### Rank 2: 55/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58 + 4 zero-diff)
+
+- **Item 58 — `crates/horizon-client-render/src/block_entity_anim.rs`
+  (7 classes, 26 methods, 5 named in Horizon):**
+  DecoratedPotRenderer (16; extractRenderState, submit),
+  ChestModel (3; setupAnim), EndGatewayBlock (2;
+  entityInside), EnchantingTableBlockEntity (2),
+  ChestRenderer$1 (1; removed), EnchantTableRenderState (1;
+  removed), BlockTags (1). Real fix, the one item 18
+  deferred here: the decorated-pot wobble style. 1.21.8's
+  `DecoratedPotRenderer.render` reads `lastWobbleStyle`
+  directly and takes the POSITIVE branch (the X/Z tilt) when
+  POSITIVE; 1.21.9's `extractRenderState` never copies the
+  style into the render state, so its `submit` always takes
+  the non-POSITIVE (Y-rotation) branch. The Rust forced the
+  style to non-POSITIVE at the render-state assembly; it now
+  passes the real style through. The renderer already
+  implemented both branches exactly (verified term by term
+  against 1.21.8's `render`), and the style table is
+  verified from the jar (POSITIVE ordinal 0, duration 7;
+  NEGATIVE ordinal 1, duration 10; `triggerEvent(1, style)`
+  sets the start tick and style — the class has no decomp
+  file, so it was decompiled from the jar with Vineflower).
+  The rest of the pot diff is submit-vs-render API plumbing
+  (MaterialSet, SubmitNodeCollector, CrumblingOverlay are
+  1.21.9-only). ChestModel differs only by the `Model<Float>`
+  vs raw `Model` generics and `setupAnim(Float)` vs
+  `setupAnim(float)`; the lid math is identical.
+  EndGatewayBlock differs only by `isClientSide()`, and the
+  enchanting table only by the `DEFAULT_NAME` constant
+  (same `container.enchant` string). The nine 1.21.9-only
+  block tags (`wooden_shelves`, `copper_chests`,
+  `lightning_rods`, `copper`, `chains`,
+  `copper_golem_statues`, `lanterns`, `bars`,
+  `incorrect_for_copper_tool`) have three live Rust
+  references, all deferred to their owners: `wooden_shelves`
+  in the shelf renderer (rank-3 item 425 deletes it),
+  `copper_chests` in the golem's item transport and
+  `copper` in the golem pattern spawn (rank-2 item 229
+  owns the copper golem); `lightning_rods`, `chains`,
+  `lanterns`, `bars` and `incorrect_for_copper_tool` are
+  unreferenced, and the `minecraft:copper` hits in
+  stations.rs are the armour-trim material, not the tag.
+  No `ChestRenderer$1` or `EnchantTableRenderState`
+  citations exist in the Rust.
 
 - **Item 72 — `crates/horizon-client/src/game/boat_leads.rs`
   (3 classes, 6 methods, 5 named in Horizon):** Leashable (4;
