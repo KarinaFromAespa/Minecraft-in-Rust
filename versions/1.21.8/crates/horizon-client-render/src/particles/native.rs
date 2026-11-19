@@ -140,7 +140,7 @@ mod tests {
         assert_eq!(copy.position, [1.0, 0.0, 0.0]); // controller state cloned independently
         assert!(matches!(p.sprite, Sprite::Index(1))); // clamped frame
         p.size = 0.1;
-        e.particles.push(p.clone());
+        e.particles.push_back(p.clone());
         let mut vertices = Vec::new();
         e.render(DVec3::ZERO, 0.0, 0.0, 0.5, &|_| 0, &mut vertices);
         assert_eq!(vertices.len(), 4);

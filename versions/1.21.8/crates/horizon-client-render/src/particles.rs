@@ -1,4 +1,4 @@
-//! Client particle engine (`ParticleEngine`, `Particle`, `SingleQuadParticle`)
+//! Client particle engine (`ParticleEngine`, `Particle`, `TextureSheetParticle`)
 //! and the vanilla particle types players see most: block crumbs, smoke,
 //! flames, lava pops, drips, splashes and rain, bubbles, portal and enchant
 //! glyphs, crits, hearts, villager particles, explosions, campfire smoke,
@@ -21,7 +21,7 @@ use horizon_protocol::entity_data::PositionSource;
 use horizon_world::block_collision::BlockCollisionRegistry;
 use std::{
     array,
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     path::Path,
 };
 
@@ -41,8 +41,8 @@ pub struct ParticleOptions {
     pub block: Option<(String, u32)>,
     /// RGB(A) for dust, spells, entity effects and tinted leaves.
     pub color: [f32; 4],
-    /// `DustParticleOptions.scale`, `PowerParticleOption.power`, `SpellParticleOption.power`,
-    /// `SculkChargeParticleOptions.roll`, `ShriekParticleOption.delay`.
+    /// `DustParticleOptions.scale`, `SculkChargeParticleOptions.roll`,
+    /// `ShriekParticleOption.delay`.
     pub scale: f32,
     /// `DustColorTransitionOptions.toColor` (`color` is the from colour).
     pub to_color: [f32; 3],
@@ -484,7 +484,7 @@ fn mod_curve([start, end]: [f32; 2], age: i32, lifetime: i32) -> f32 {
     start + (end - start) * progress
 }
 
-/// One live particle (`Particle` + `SingleQuadParticle` state).
+/// One live particle (`Particle` + `TextureSheetParticle` state).
 #[derive(Clone, Debug)]
 pub struct Particle {
     pub ty: ParticleType,
@@ -849,13 +849,13 @@ pub fn along_axis(
 }
 
 impl Particle {
-    /// `Particle(level, x, y, z)` + `SingleQuadParticle` (no initial velocity).
+    /// `Particle(level, x, y, z)` + `TextureSheetParticle` (no initial velocity).
     fn at(random: &mut LegacyRandom, ty: ParticleType, p: [f64; 3]) -> Self {
         let mut particle = Self::base_at(random, ty, p);
         particle.size = 0.1 * (random.next_float() * 0.5 + 0.5) * 2.0;
         particle
     }
-    /// `Particle(level, x, y, z)` without `SingleQuadParticle` (`NoRenderParticle`).
+    /// `Particle(level, x, y, z)` without `TextureSheetParticle` (`NoRenderParticle`).
     fn base_at(random: &mut LegacyRandom, ty: ParticleType, p: [f64; 3]) -> Self {
         let mut particle = Self::blank(ty, p);
         particle.lifetime = (4.0 / (random.next_float() * 0.9 + 0.1)) as i32;
@@ -935,7 +935,7 @@ impl Particle {
         particle.size = 0.1 * (random.next_float() * 0.5 + 0.5) * 2.0;
         particle
     }
-    /// `Particle(level, x, y, z, xa, ya, za)` without `SingleQuadParticle`.
+    /// `Particle(level, x, y, z, xa, ya, za)` without `TextureSheetParticle`.
     fn base_moving(random: &mut LegacyRandom, ty: ParticleType, p: [f64; 3], v: [f64; 3]) -> Self {
         let lifetime = (4.0 / (random.next_float() * 0.9 + 0.1)) as i32;
         let mut d = [
@@ -997,7 +997,7 @@ impl Particle {
         self.velocity[1] = (self.velocity[1] - f64::from(0.1f32)) * power + f64::from(0.1f32);
         self.velocity[2] *= power;
     }
-    /// `SingleQuadParticle.scale` (quad and collision box).
+    /// `Particle.scale` (quad and collision box).
     pub fn scale(&mut self, scale: f32) {
         self.size *= scale;
         self.set_size(0.2 * scale, 0.2 * scale);
@@ -1176,10 +1176,10 @@ pub struct ParticleSnapshot {
     pub position: [f64; 3],
     pub velocity: [f64; 3],
     pub previous: [f64; 3],
-    /// `SingleQuadParticle` state; `None` for `NoRenderParticle`s.
+    /// `TextureSheetParticle` state; `None` for `NoRenderParticle`s.
     pub quad: Option<QuadSnapshot>,
 }
-/// `SingleQuadParticle` state at a render.
+/// `TextureSheetParticle` state at a render.
 #[derive(Clone, Debug)]
 pub struct QuadSnapshot {
     /// `getQuadSize` at partial ticks 0 and 0.5.
@@ -1285,19 +1285,24 @@ impl ParticleLevel<'_> {
     }
 }
 
-/// `ParticleEngine` plus the sprite sets of `ParticleResources`.
+/// `ParticleEngine`, which owns the sprite sets itself in 1.21.8.
 pub struct ParticleEngine {
-    particles: Vec<Particle>,
+    particles: VecDeque<Particle>,
     pending: Vec<Particle>,
     /// While the live particles tick (out of `particles`), what their emitters spawn waits
     /// here, so a spawn's `limit` and `exclusion_radius` see every live particle.
     spawned_in_tick: Option<Vec<(ParticleOptions, [f64; 3], [f64; 3])>>,
-    /// `ParticleEngine.random`, handed to every `ParticleProvider`.
+    /// `ParticleEngine.random`: the engine's own generator, for `crack` and
+    /// `destroy` positions and the firework starters. Providers do NOT draw
+    /// from it here — they draw from `level_random` (`level.random`).
     random: LegacyRandom,
-    /// `ClientLevel.random` as particle constructors use it (`level.getRandom()`).
+    /// `ClientLevel.random`, which the providers draw from (`level.random`).
     level_random: LegacyRandom,
     /// `SpellParticle.RANDOM`.
     spell_random: LegacyRandom,
+    /// `GlowParticle.RANDOM`, the glow providers' own static generator (only
+    /// the glow-squid velocity draws from it; the rest use `level_random`).
+    glow_random: LegacyRandom,
     /// The local player's eye while it looks through a spyglass in first person.
     scope_eye: Option<[f64; 3]>,
     /// Seeds for each particle's own random (`RandomSource.create()`).
@@ -1311,8 +1316,11 @@ pub struct ParticleEngine {
     pub created_requests: Option<Vec<(ParticleOptions, [f64; 3], [f64; 3])>>,
     names: Vec<String>,
     rects: Vec<Option<Rect>>,
-    /// Each named sprite, and whether `SingleQuadParticle.Layer.bySprite` puts
-    /// it on the translucent layer (a texel with 0 < alpha < 255).
+    /// Each named sprite, and whether it goes on the translucent layer (a
+    /// texel with 0 < alpha < 255). 1.21.8 draws every terrain-sheet particle
+    /// with `RenderType.translucentParticle` (`TERRAIN_SHEET`, first in
+    /// `RENDER_ORDER`); the per-sprite split is this engine's equivalent —
+    /// an opaque sprite blends identically at alpha 1.
     atlas: HashMap<String, (Rect, bool)>,
     sets: HashMap<ParticleType, u32>,
     /// A native mod's sprite sets, by namespaced particle name.
@@ -1335,8 +1343,6 @@ pub struct ParticleEngine {
     pub particle_level: u8,
     /// FireworkParticles.Starter instances.
     starters: Vec<Starter>,
-    /// `ClientExplosionTracker` tracked explosions pending debris generation.
-    tracked_explosions: Vec<TrackedExplosion>,
     /// Local sounds requested by particles (dripstone drips, firework bursts):
     /// (event, position, volume, pitch, distanceDelay).
     pub sounds: Vec<(&'static str, [f64; 3], f32, f32, bool)>,
@@ -1346,9 +1352,9 @@ pub struct ParticleEngine {
     /// and cobweb models, resolved for the ground), one per model layer.
     pub item_sprites: HashMap<ParticleType, Vec<String>>,
 }
-/// `ParticleGroup.MAX_PARTICLES` (per render group; one group here).
+/// `ParticleEngine.MAX_PARTICLES_PER_LAYER` (per render type; one group here).
 const MAX_PARTICLES: usize = 16384;
-/// `ParticleLimit.SPORE_BLOSSOM`, the only limited particle.
+/// `ParticleGroup.SPORE_BLOSSOM`, the only limited particle.
 const SPORE_BLOSSOM_LIMIT: usize = 1000;
 const PARTICLE_LIGHT_CACHE_SIZE: usize = 64;
 
@@ -1494,22 +1500,16 @@ fn below_half_pixel(radius: f64, distance_squared: f64, pixel_focal_length: f32)
         && projected_limit * projected_limit < distance_squared
 }
 
-/// `ClientExplosionTracker.ExplosionInfo`.
-#[derive(Clone, Copy, Debug)]
-struct TrackedExplosion {
-    center: [f64; 3],
-    radius: f32,
-    block_count: usize,
-}
 impl ParticleEngine {
     pub fn new(root: &Path, atlas: &HashMap<String, Rect>, translucent: &HashSet<String>) -> Self {
         let mut engine = Self {
-            particles: Vec::new(),
+            particles: VecDeque::new(),
             pending: Vec::new(),
             spawned_in_tick: None,
             random: LegacyRandom::new(0x7061_7274),
             level_random: LegacyRandom::new(0x6c65_7665),
             spell_random: LegacyRandom::new(0x7370_656c),
+            glow_random: LegacyRandom::new(0x676c_6f77),
             scope_eye: None,
             seeds: LegacyRandom::new(0x7365_6564),
             requested: None,
@@ -1527,7 +1527,6 @@ impl ParticleEngine {
             additive: std::sync::Mutex::default(),
             emitters: Vec::new(),
             starters: Vec::new(),
-            tracked_explosions: Vec::new(),
             camera: [0.0; 3],
             particle_level: 0,
             sounds: Vec::new(),
@@ -1718,7 +1717,7 @@ impl ParticleEngine {
     /// motion. Like `add`, respects camera distance and the Particles setting.
     /// Configure its public fields, then `push` it to the ordinary engine queue.
     /// Missing sprite sets return None. The constructor has the ordinary
-    /// stationary SingleQuadParticle random size/lifetime and no velocity draws.
+    /// stationary TextureSheetParticle random size/lifetime and no velocity draws.
     pub fn controlled<C: ParticleController>(
         &mut self,
         name: &str,
@@ -1798,7 +1797,8 @@ impl ParticleEngine {
         self.add_with(options, p, v, false, false);
     }
     /// `ClientLevel.addParticle(particle, overrideLimiter, alwaysShow, ...)`
-    /// (`doAddParticle`). `always_show` is `addAlwaysVisibleParticle`'s flag.
+    /// (`LevelRenderer.addParticleInternal`). `always_show` is
+    /// `addAlwaysVisibleParticle`'s flag.
     pub fn add_with(
         &mut self,
         options: &ParticleOptions,
@@ -1903,35 +1903,17 @@ impl ParticleEngine {
             }
         }
     }
-    /// `ClientExplosionTracker.track`: queue an explosion's block count and position
-    /// for debris generation during `ClientLevel.tick`.
-    pub fn track_explosion(&mut self, center: [f64; 3], radius: f32, block_count: usize) {
-        if block_count > 0 {
-            self.tracked_explosions.push(TrackedExplosion {
-                center,
-                radius,
-                block_count,
-            });
-        }
-    }
-    /// `ClientPacketListener.handleExplosion` + `ClientExplosionTracker`: the
-    /// explosion particle (the emitter unless `ServerExplosion.isSmall`) and
-    /// debris tracked for `tick`.
-    pub fn explosion(
-        &mut self,
-        center: [f64; 3],
-        small: bool,
-        block_count: usize,
-        radius: f32,
-        _is_air: &dyn Fn([i32; 3]) -> bool,
-    ) {
+    /// `ClientPacketListener.handleExplosion`: the explosion particle (the
+    /// emitter unless `ServerExplosion.isSmall`). 1.21.8 has no debris
+    /// tracker — the scattered block particles came in 1.21.9
+    /// (`ClientExplosionTracker`); the emitter's own children are the debris.
+    pub fn explosion(&mut self, center: [f64; 3], small: bool) {
         let ty = if small {
             ParticleType::Explosion
         } else {
             ParticleType::ExplosionEmitter
         };
         self.add(&ParticleOptions::simple(ty), center, [1.0, 0.0, 0.0]);
-        self.track_explosion(center, radius, block_count);
     }
     /// `LlamaSpit.recreateFromPacket`: seven spit particles thrown ahead of a
     /// new spit, each faster than the last along x and z.
@@ -2050,7 +2032,7 @@ impl ParticleEngine {
         }
     }
     /// `ParticleEngine.createParticle`: always spawned, but `ParticleEngine.add`
-    /// drops a spore blossom air particle once `ParticleLimit.SPORE_BLOSSOM` is full.
+    /// drops a spore blossom air particle once `ParticleGroup.SPORE_BLOSSOM` is full.
     pub fn create(&mut self, options: &ParticleOptions, p: [f64; 3], v: [f64; 3]) {
         if let Some(requests) = &mut self.created_requests {
             requests.push((options.clone(), p, v));
@@ -2157,15 +2139,15 @@ impl ParticleEngine {
         }
     }
     /// `SpriteSet.get(random)`.
-    fn sprite_from_set(&mut self, ty: ParticleType) -> Sprite {
+    /// `TextureSheetParticle.pickSprite`: the set's own draw from the
+    /// particle's random, after its constructor has drawn. (1.21.9 passed the
+    /// sprite into the constructor from the provider's random instead.)
+    fn sprite_from_set(&self, ty: ParticleType, r: &mut LegacyRandom) -> Sprite {
         match self.sets.get(&ty) {
             Some(&set) => {
                 let sprites = &self.set_sprites[set as usize];
                 Sprite::Index(
-                    sprites[self
-                        .random
-                        .next_int_bound(sprites.len() as i32)
-                        .unwrap_or(0) as usize],
+                    sprites[r.next_int_bound(sprites.len() as i32).unwrap_or(0) as usize],
                 )
             }
             None => Sprite::Index(u32::MAX),
@@ -2179,7 +2161,7 @@ impl ParticleEngine {
             Sprite::Index(self.set_sprites[s as usize][0])
         })
     }
-    /// `SingleQuadParticle.setSpriteFromAge`.
+    /// `TextureSheetParticle.setSpriteFromAge`.
     fn sprite_from_age(&self, p: &mut Particle) {
         if p.removed {
             return;
@@ -2268,7 +2250,7 @@ impl ParticleEngine {
                 let (sprite, tint) = o.block.clone()?;
                 let mut q = Particle::terrain(r, p, v, sprite, tint);
                 q.ty = ty;
-                let pr = &mut self.random;
+                let pr = &mut self.level_random;
                 if ty == T::BlockCrumble {
                     q.velocity = [0.0; 3];
                     q.lifetime = pr.next_int_bound(10).unwrap_or(0) + 1;
@@ -2341,8 +2323,8 @@ impl ParticleEngine {
                         )
                     }
                     _ => {
-                        // WhiteAshParticle.Provider draws the motion.
-                        let pr = &mut self.random;
+                        // WhiteAshParticle.Provider draws the motion from the level random.
+                        let pr = &mut self.level_random;
                         let xa =
                             f64::from(pr.next_float()) * -1.9 * f64::from(pr.next_float()) * 0.1;
                         let ya = f64::from(pr.next_float())
@@ -2546,10 +2528,7 @@ impl ParticleEngine {
             | T::FallingDripstoneWater
             | T::DrippingDripstoneLava
             | T::FallingDripstoneLava => {
-                // The provider picks the sprite first (`sprite.get(random)`).
-                let sprite = self.sprite_from_set(ty);
                 let mut q = Particle::at(r, ty, p);
-                q.sprite = sprite;
                 q.set_size(0.01, 0.01);
                 q.gravity = 0.06;
                 let water = [0.2, 0.3, 1.0];
@@ -2685,7 +2664,8 @@ impl ParticleEngine {
                         q.gravity *= 0.01;
                         q.lifetime = 100;
                     }
-                    // Lifetimes the providers draw from their own random.
+                    // Lifetimes vanilla draws from `Math.random` (unseedable
+                    // here; the engine random stands in for it).
                     T::LandingHoney => {
                         q.lifetime =
                             (128.0 / (f64::from(self.random.next_float()) * 0.8 + 0.2)) as i32
@@ -2720,6 +2700,9 @@ impl ParticleEngine {
                     next,
                     sound,
                 };
+                // The engine's `Sprite` wrapper calls `pickSprite` once the
+                // provider has returned: the particle's own draw, last.
+                q.sprite = self.sprite_from_set(ty, r);
                 q
             }
             T::Rain | T::Splash => {
@@ -2801,9 +2784,9 @@ impl ParticleEngine {
                 q
             }
             T::Underwater | T::CrimsonSpore | T::WarpedSpore | T::SporeBlossomAir => {
-                // SuspendedParticle; the providers draw motion, then the sprite.
+                // SuspendedParticle; the providers draw the motion from the level random.
                 let below = [p[0], p[1] - 0.125, p[2]];
-                let pr = &mut self.random;
+                let pr = &mut self.level_random;
                 let vel = match ty {
                     T::CrimsonSpore => [
                         pr.next_gaussian() * f64::from(1.0e-6f32),
@@ -2817,15 +2800,18 @@ impl ParticleEngine {
                     ],
                     _ => [0.0, f64::from(-0.8f32), 0.0],
                 };
-                let sprite = self.sprite_from_set(ty);
                 let mut q = if ty == T::Underwater {
                     let mut q = Particle::at(r, ty, below);
                     q.set_size(0.01, 0.01);
+                    // `SuspendedParticle` picks its sprite in the constructor,
+                    // between the size draw and the size multiplier.
+                    q.sprite = self.sprite_from_set(ty, r);
                     q.size *= r.next_float() * 0.6 + 0.2;
                     q
                 } else {
                     let mut q = Particle::moving(r, ty, below, vel);
                     q.set_size(0.01, 0.01);
+                    q.sprite = self.sprite_from_set(ty, r);
                     q.size *= r.next_float() * 0.6 + 0.6;
                     q
                 };
@@ -2841,12 +2827,11 @@ impl ParticleEngine {
                         q.set_size(0.001, 0.001);
                     }
                     _ => {
-                        q.lifetime = self.random.next_int_bound(501).unwrap_or(0) + 500;
+                        q.lifetime = self.level_random.next_int_bound(501).unwrap_or(0) + 500;
                         q.gravity = 0.01;
                         q.set_color(0.32, 0.5, 0.22);
                     }
                 }
-                q.sprite = sprite;
                 q
             }
             T::Portal | T::ReversePortal => {
@@ -2941,10 +2926,8 @@ impl ParticleEngine {
                 q
             }
             T::HappyVillager | T::Composter | T::Mycelium | T::Dolphin | T::EggCrack => {
-                // SuspendedTownParticle; the provider picks the sprite first.
-                let sprite = self.sprite_from_set(ty);
+                // SuspendedTownParticle.
                 let mut q = Particle::moving(r, ty, p, v);
-                q.sprite = sprite;
                 let br = r.next_float() * 0.1 + 0.2;
                 q.set_color(br, br, br);
                 q.set_size(0.02, 0.02);
@@ -2955,6 +2938,8 @@ impl ParticleEngine {
                 q.lifetime = (20.0 / (f64::from(r.next_float()) * 0.8 + 0.2)) as i32;
                 q.free_move = true;
                 q.behaviour = Behaviour::SuspendedTown;
+                // The provider calls `pickSprite` once the particle is built.
+                q.sprite = self.sprite_from_set(ty, r);
                 match ty {
                     T::HappyVillager | T::EggCrack => q.set_color(1.0, 1.0, 1.0),
                     T::Composter => {
@@ -2963,7 +2948,7 @@ impl ParticleEngine {
                     }
                     T::Dolphin => {
                         q.set_color(0.3, 0.5, 1.0);
-                        q.rgba[3] = 1.0 - self.random.next_float() * 0.7;
+                        q.rgba[3] = 1.0 - self.level_random.next_float() * 0.7;
                         q.lifetime /= 2;
                     }
                     _ => {}
@@ -3136,20 +3121,22 @@ impl ParticleEngine {
                 if ty == T::SculkCharge {
                     q.roll = o.scale;
                     q.o_roll = o.scale;
-                    q.lifetime = self.random.next_int_bound(12).unwrap_or(0) + 8;
+                    q.lifetime = self.level_random.next_int_bound(12).unwrap_or(0) + 8;
                 } else {
-                    q.lifetime = self.random.next_int_bound(4).unwrap_or(0) + 6;
+                    q.lifetime = self.level_random.next_int_bound(4).unwrap_or(0) + 6;
                 }
                 q
             }
             // VibrationSignalParticle.Provider: `VibrationParticleOption` carries
-            // the listener the signal flies to and its arrival time; the sprite
-            // is the set's own draw from the engine's random.
+            // the listener the signal flies to and its arrival time.
             T::Vibration => {
                 let (_, dest, ticks) = o.vibration.as_ref()?;
                 let mut q = Self::vibration_particle(p, *dest, *ticks);
                 q.set = set;
-                q.sprite = self.sprite_from_set(ty);
+                // The constructor draws the quad size, then overwrites it
+                // with 0.3; the provider's `pickSprite` draws next.
+                let _ = r.next_float();
+                q.sprite = self.sprite_from_set(ty, r);
                 q
             }
             // ShriekParticle.
@@ -3318,7 +3305,7 @@ impl ParticleEngine {
                 }
                 match ty {
                     T::Witch => {
-                        let b = self.random.next_float() * 0.5 + 0.35;
+                        let b = self.level_random.next_float() * 0.5 + 0.35;
                         q.set_color(b, 0.0, b);
                     }
                     T::EntityEffect => {
@@ -3333,10 +3320,11 @@ impl ParticleEngine {
                             q.rgba[3] = o.color[3];
                         }
                     }
-                    T::Effect | T::InstantEffect => {
-                        q.set_color(o.color[0], o.color[1], o.color[2]);
-                        q.set_power(o.scale);
-                    }
+                    // EFFECT and INSTANT_EFFECT are plain `SimpleParticleType`s
+                    // here (`SpellParticle.Provider` / `InstantProvider` set
+                    // no colour or power); 1.21.9's `SpellParticleOption`
+                    // (colour + power) does not exist in 1.21.8.
+                    T::Effect | T::InstantEffect => {}
                     _ => {}
                 }
                 q.behaviour = Behaviour::Spell {
@@ -3386,7 +3374,8 @@ impl ParticleEngine {
                 q.size_curve = Size::GrowIn;
                 q.behaviour = Behaviour::DragonBreath { hit_ground: false };
                 q.set = set;
-                q.set_power(o.scale);
+                // DRAGON_BREATH is a plain `SimpleParticleType` here; the
+                // provider sets no power (1.21.9's `PowerParticleOption`).
                 q
             }
             // AttackSweepParticle: `xAux` shrinks it; still, bright, animated over 4 ticks.
@@ -3403,10 +3392,13 @@ impl ParticleEngine {
             }
             // GlowParticle and its providers.
             T::Glow | T::WaxOn | T::WaxOff | T::ElectricSpark | T::Scrape => {
-                let pr = &mut self.random;
+                let pr = &mut self.level_random;
                 let start = if ty == T::Glow {
-                    let xa = 0.5 - pr.next_double();
-                    [xa, v[1], 0.5 - pr.next_double()]
+                    // GlowSquidProvider draws the velocity from
+                    // `GlowParticle.RANDOM`, not the level random.
+                    let gr = &mut self.glow_random;
+                    let xa = 0.5 - gr.next_double();
+                    [xa, v[1], 0.5 - gr.next_double()]
                 } else {
                     [0.0; 3]
                 };
@@ -3479,10 +3471,13 @@ impl ParticleEngine {
             }
             // BreakingItemParticle: a crumb of the item's sprite.
             T::Item | T::ItemSlime | T::ItemSnowball | T::ItemCobweb | T::SulfurCubeGoo => {
-                let sprite = if ty == T::SulfurCubeGoo {
+                let mut q = Particle::moving(r, ty, p, [0.0; 3]);
+                // `ItemStackRenderState.pickParticleIcon(this.random)`: the
+                // layer pick draws from the particle's own random, after the
+                // size draw (1.21.9's provider picked it from its random).
+                q.sprite = if ty == T::SulfurCubeGoo {
                     self.first(ty)
                 } else {
-                    // ItemStackRenderState.pickParticleMaterial.
                     let layers = match ty {
                         T::Item => o.item.clone().unwrap_or_default(),
                         _ => self.item_sprites.get(&ty).cloned().unwrap_or_default(),
@@ -3490,12 +3485,10 @@ impl ParticleEngine {
                     if layers.is_empty() {
                         Sprite::Index(u32::MAX)
                     } else {
-                        let i = self.random.next_int_bound(layers.len() as i32).unwrap_or(0);
+                        let i = r.next_int_bound(layers.len() as i32).unwrap_or(0);
                         Sprite::Named(layers[i as usize].clone())
                     }
                 };
-                let mut q = Particle::moving(r, ty, p, [0.0; 3]);
-                q.sprite = sprite;
                 q.gravity = 1.0;
                 q.size /= 2.0;
                 let uo = r.next_float() * 3.0;
@@ -3509,23 +3502,24 @@ impl ParticleEngine {
                 q
             }
             // FireworkParticles.OverlayParticle: the flash of an explosion.
+            // FLASH is a plain `SimpleParticleType` here, so the provider
+            // sets no colour — the firework starter colours it after
+            // creation (`Starter.setColor`), via `flash` below.
             T::Flash => {
                 let mut q = Particle::at(r, ty, p);
                 q.lifetime = 4;
-                q.set_color(o.color[0], o.color[1], o.color[2]);
-                q.rgba[3] = o.color[3];
                 q.size_curve = Size::Flash;
                 q
             }
             // FireflyParticle; the provider draws its motion, sprite and lifetime.
             T::Firefly => {
-                let pr = &mut self.random;
+                let pr = &mut self.level_random;
                 let xa = 0.5 - pr.next_double();
                 let ya = if pr.next_boolean() { v[1] } else { -v[1] };
                 let za = 0.5 - pr.next_double();
-                let sprite = self.sprite_from_set(ty);
                 let mut q = Particle::moving(r, ty, p, [xa, ya, za]);
-                q.sprite = sprite;
+                // The provider calls `pickSprite` once the particle is built.
+                q.sprite = self.sprite_from_set(ty, r);
                 q.speed_up_when_y_blocked = true;
                 q.friction = 0.96;
                 q.size *= 0.75;
@@ -3533,7 +3527,7 @@ impl ParticleEngine {
                 q.velocity[0] *= f64::from(0.8f32);
                 q.velocity[2] *= f64::from(0.8f32);
                 q.lifetime = self
-                    .random
+                    .level_random
                     .next_int_between_inclusive(200, 300)
                     .unwrap_or(200);
                 q.scale(1.5);
@@ -3566,14 +3560,14 @@ impl ParticleEngine {
             }
             // FlyStraightTowardsParticle.OminousSpawnProvider.
             T::OminousSpawning => {
-                let sprite = self.sprite_from_set(ty);
                 let mut q = Particle::at(r, ty, p);
-                q.sprite = sprite;
                 q.velocity = v;
                 let start = [p[0] + v[0], p[1] + v[1], p[2] + v[2]];
                 q.previous = start;
                 q.position = start;
                 q.size = 0.1 * (r.next_float() * 0.5 + 0.2);
+                // The provider calls `pickSprite` once the particle is built.
+                q.sprite = self.sprite_from_set(ty, r);
                 q.has_physics = false;
                 q.free_move = true;
                 q.lifetime = (r.next_float() * 5.0) as i32 + 25;
@@ -3653,7 +3647,7 @@ impl ParticleEngine {
             particle.sprite = self.first(ty);
             self.sprite_from_age(&mut particle);
         } else if matches!(particle.sprite, Sprite::Index(u32::MAX)) {
-            particle.sprite = self.sprite_from_set(ty);
+            particle.sprite = self.sprite_from_set(ty, r);
         }
         particle.random = local;
         Some(particle)
@@ -3688,6 +3682,19 @@ impl ParticleEngine {
         };
         q.set = self.set_of(ParticleType::Firework);
         self.sprite_from_age(&mut q);
+        q
+    }
+    /// FireworkParticles.Starter's flash: a plain OverlayParticle (its
+    /// provider's `pickSprite`, then the starter's `setColor`), built
+    /// directly like the sparks.
+    fn flash(&mut self, at: [f64; 3], rgb: [f32; 3]) -> Particle {
+        let mut local = LegacyRandom::new(self.seeds.next_long());
+        let mut q = Particle::at(&mut local, ParticleType::Flash, at);
+        q.sprite = self.sprite_from_set(ParticleType::Flash, &mut local);
+        q.lifetime = 4;
+        q.set_color(rgb[0], rgb[1], rgb[2]);
+        q.size_curve = Size::Flash;
+        q.random = local;
         q
     }
     /// ClientLevel.createFireworks: a Starter (or poofs without explosions).
@@ -3765,19 +3772,16 @@ impl ParticleEngine {
                         }
                     }
                 }
-                // The flash: ColorParticleOption.create(FLASH, first colour), alpha 0.
+                // The flash: the starter creates a plain FLASH, then colours
+                // it (`Starter.setColor`); alpha stays 1 (the render fades it).
                 let c = colors[0];
-                let rgba = [
+                let rgb = [
                     ((c >> 16) & 255) as f32 / 255.0,
                     ((c >> 8) & 255) as f32 / 255.0,
                     (c & 255) as f32 / 255.0,
-                    ((c >> 24) & 255) as f32 / 255.0,
                 ];
-                self.create(
-                    &ParticleOptions::colored(ParticleType::Flash, rgba),
-                    s.at,
-                    [0.0; 3],
-                );
+                let flash = self.flash(s.at, rgb);
+                self.pending.push(flash);
             }
             s.life += 1;
             if s.life > s.lifetime {
@@ -3891,7 +3895,6 @@ impl ParticleEngine {
             self.sounds.extend(registry.take_sounds());
         }
         self.tick_starters();
-        self.tick_explosions(level);
         let mut emitters = std::mem::take(&mut self.emitters);
         emitters.retain_mut(|emitter| {
             if let Some(target) = emitter.target {
@@ -3922,93 +3925,12 @@ impl ParticleEngine {
                 self.tick_particle(&mut p, level);
                 p.after_constructor_tick();
             }
-            // ParticleGroup.add: the last quarter fills with decreasing probability.
-            let size = self.particles.len();
-            if size >= MAX_PARTICLES {
-                continue;
+            // `EvictingQueue.create(16384)`: a full layer admits the new
+            // particle and evicts its oldest, never probabilistically.
+            if self.particles.len() >= MAX_PARTICLES {
+                self.particles.pop_front();
             }
-            if size >= 12288 {
-                let free = (MAX_PARTICLES - size) as f32 / 4096.0;
-                if self.random.next_float() >= free * free {
-                    continue;
-                }
-            }
-            self.particles.push(p);
-        }
-    }
-    /// `ClientExplosionTracker.tick`: throws up to 512 debris particles across all
-    /// explosions tracked in this tick, weighted by each explosion's block count.
-    fn tick_explosions(&mut self, level: &ParticleLevel) {
-        self.tick_explosions_with(&|b| level.facts.is_air(level.world.block(b[0], b[1], b[2])));
-    }
-    fn tick_explosions_with(&mut self, is_air: &dyn Fn([i32; 3]) -> bool) {
-        if self.tracked_explosions.is_empty() {
-            return;
-        }
-        let explosions = std::mem::take(&mut self.tracked_explosions);
-        if self.particle_level != 0 {
-            return;
-        }
-        let total_blocks: usize = explosions.iter().map(|e| e.block_count).sum();
-        if total_blocks == 0 {
-            return;
-        }
-        let total_particles = total_blocks.min(512);
-        for _ in 0..total_particles {
-            // `WeightedRandom.getRandomItem` draws its `nextInt(totalWeight)`
-            // even when one explosion is tracked.
-            let mut pick = self.random.next_int_bound(total_blocks as i32).unwrap_or(0) as usize;
-            let mut explosion = &explosions[0];
-            for exp in &explosions {
-                if pick < exp.block_count {
-                    explosion = exp;
-                    break;
-                }
-                pick -= exp.block_count;
-            }
-            let r = &mut self.random;
-            let d = Vec3::new(
-                f64::from(r.next_float() * 2.0 - 1.0),
-                f64::from(r.next_float() * 2.0 - 1.0),
-                f64::from(r.next_float() * 2.0 - 1.0),
-            )
-            .normalize();
-            let distance = r.next_float().cbrt() * explosion.radius;
-            let local = [
-                d.x * f64::from(distance),
-                d.y * f64::from(distance),
-                d.z * f64::from(distance),
-            ];
-            let at = [
-                explosion.center[0] + local[0],
-                explosion.center[1] + local[1],
-                explosion.center[2] + local[2],
-            ];
-            if !is_air(ParticleLevel::block_at(at)) {
-                continue;
-            }
-            let speed =
-                0.5 / (distance / explosion.radius + 0.1) * r.next_float() * r.next_float() + 0.3;
-            // Level.DEFAULT_EXPLOSION_BLOCK_PARTICLES: poof (scaling 0.5) or smoke, equally weighted.
-            let (ty, scaling) = if r.next_int_bound(2).unwrap_or(0) == 0 {
-                (ParticleType::Poof, 0.5)
-            } else {
-                (ParticleType::Smoke, 1.0)
-            };
-            let p = [
-                explosion.center[0] + local[0] * scaling,
-                explosion.center[1] + local[1] * scaling,
-                explosion.center[2] + local[2] * scaling,
-            ];
-            self.add(
-                &ParticleOptions::simple(ty),
-                p,
-                [
-                    d.x * f64::from(speed),
-                    d.y * f64::from(speed),
-                    d.z * f64::from(speed),
-                ],
-            );
+            self.particles.push_back(p);
         }
     }
     #[allow(clippy::too_many_lines)]
@@ -4826,7 +4748,7 @@ impl ParticleEngine {
             .collect()
     }
 
-    /// Camera-facing quads (`QuadParticleRenderState.renderRotatedQuad`).
+    /// Camera-facing quads (`SingleQuadParticle.renderRotatedQuad`).
     pub fn render(
         &self,
         camera: DVec3,
@@ -4905,7 +4827,7 @@ impl ParticleEngine {
             if p.no_render {
                 continue;
             }
-            // SparkParticle.extract: twinkling sparks blink after a third of their life.
+            // SparkParticle.render: twinkling sparks blink after a third of their life.
             if let Behaviour::Spark { twinkle: true, .. } = p.behaviour
                 && p.age >= p.lifetime / 3
                 && ((p.age + p.lifetime) / 3) % 2 != 0
@@ -4945,9 +4867,9 @@ impl ParticleEngine {
             } else {
                 None
             };
-            // `SubmitNodeCollection.submitQuadParticleGroup`: the translucent
-            // layer draws after translucent terrain, so a crumb of stained
-            // glass cannot hide the glass behind it (`getLayer`).
+            // `ParticleEngine.render`: the translucent layer draws after
+            // translucent terrain, so a crumb of stained glass cannot hide
+            // the glass behind it (`getRenderType`).
             let (rect, layer) = match &p.sprite {
                 Sprite::Index(i) => (
                     self.rects.get(*i as usize).copied().flatten(),
@@ -4987,7 +4909,7 @@ impl ParticleEngine {
                 base
             };
             let mut alpha = p.rgba[3];
-            // OverlayParticle.extract: the flash fades as it pulses.
+            // OverlayParticle.render: the flash fades as it pulses.
             if p.ty == ParticleType::Flash {
                 alpha = 0.6 - (p.age as f32 + partial - 1.0) * 0.25 * 0.5;
             }
@@ -5299,7 +5221,7 @@ mod tests {
         let mut particle =
             Particle::moving(&mut random, ParticleType::Smoke, [0.0, 0.0, -3.0], [0.0; 3]);
         particle.sprite = Sprite::Named(sprite);
-        engine.particles.push(particle);
+        engine.particles.push_back(particle);
 
         let light_at = |_: [i32; 3]| 0xf0;
         let mut regular = Vec::new();
@@ -5726,7 +5648,7 @@ mod tests {
             .unwrap()
             .apply(&mut particle, [0.0; 3], &mut LegacyRandom::new(1));
         particle.sprite = Sprite::Index(0);
-        engine.particles.push(particle);
+        engine.particles.push_back(particle);
         let mut vertices = Vec::new();
         engine.render(DVec3::ZERO, 0.0, 0.0, 0.0, &|_| 0, &mut vertices);
         assert_eq!(vertices.len(), 4);
@@ -5931,7 +5853,7 @@ mod tests {
                 .iter()
                 .all(|p| p.ty == ParticleType::SporeBlossomAir)
         );
-        // A type without a `ParticleLimit` is not capped.
+        // A type without a `ParticleGroup` is not capped.
         let smoke = ParticleOptions::simple(ParticleType::Smoke);
         for _ in 0..10 {
             engine.create(&smoke, [0.0; 3], [0.0; 3]);
@@ -6050,40 +5972,15 @@ mod tests {
         assert!((lifetime_alpha(a, 40, 40, 0.0) - 0.6).abs() < 1e-6);
     }
     #[test]
-    fn explosion_tracker_tracks_and_ignores_zero_blocks() {
+    fn explosion_adds_only_the_emitter_particle() {
         let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
-        assert!(engine.tracked_explosions.is_empty());
-        engine.track_explosion([1.0, 2.0, 3.0], 4.0, 100);
-        engine.track_explosion([5.0, 6.0, 7.0], 2.0, 50);
-        assert_eq!(engine.tracked_explosions.len(), 2);
-        assert_eq!(engine.tracked_explosions[0].block_count, 100);
-        assert_eq!(engine.tracked_explosions[1].block_count, 50);
-
-        // Zero block count explosions are not queued.
-        engine.track_explosion([0.0; 3], 1.0, 0);
-        assert_eq!(engine.tracked_explosions.len(), 2);
-    }
-    #[test]
-    fn explosion_tracker_caps_debris_at_512_across_multiple_explosions() {
-        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
-        // Queue two explosions near camera: 400 blocks and 300 blocks (total 700).
-        engine.track_explosion([0.0, 0.0, 0.0], 4.0, 400);
-        engine.track_explosion([2.0, 0.0, 2.0], 5.0, 300);
-        assert_eq!(engine.tracked_explosions.len(), 2);
-
-        // In pure air, total particles spawned must be capped at 512.
-        engine.tick_explosions_with(&|_| true);
-        assert_eq!(engine.pending.len(), 512);
-        assert!(engine.tracked_explosions.is_empty());
-    }
-    #[test]
-    fn explosion_tracker_emits_debris_only_in_air() {
-        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
-        engine.track_explosion([0.0, 64.0, 0.0], 4.0, 100);
-
-        // When no blocks are air, zero debris particles are emitted.
-        engine.tick_explosions_with(&|_| false);
-        assert_eq!(engine.pending.len(), 0);
-        assert!(engine.tracked_explosions.is_empty());
+        // 1.21.8 has no debris tracker: `handleExplosion` adds the packet's
+        // particle and nothing else (the emitter's own children are the debris).
+        engine.explosion([1.0, 2.0, 3.0], false);
+        assert_eq!(engine.pending.len(), 1);
+        assert_eq!(engine.pending[0].ty, ParticleType::ExplosionEmitter);
+        engine.explosion([5.0, 6.0, 7.0], true);
+        assert_eq!(engine.pending.len(), 2);
+        assert_eq!(engine.pending[1].ty, ParticleType::Explosion);
     }
 }

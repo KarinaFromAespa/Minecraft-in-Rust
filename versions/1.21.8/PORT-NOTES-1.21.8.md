@@ -334,7 +334,77 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 10/317 (items 10, 11, 12, 13, 15, 16, 17, 18 + 2 zero-diff)
+### Rank 2: 11/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18 + 2 zero-diff)
+
+- **Item 14 — `particles.rs` (81 classes, 347 methods, 22 named in Horizon):**
+  the particle engine. Two systematic 1.21.9→1.21.8 engine changes, the
+  removal of the 1.21.9-only explosion debris tracker, and the
+  colour/power option types that do not exist in 1.21.8.
+  1. **Provider random stream:** 1.21.9 passes the engine's own random to
+     every provider as a `RandomSource` parameter. 1.21.8's providers get
+     no parameter — they draw from `level.random` (`ClientLevel.random`).
+     Every provider draw in `make` switched from the engine random to
+     `level_random` (block crumbs, white ash, sculk charge, witch colour,
+     suspended, suspended-town, firefly, glow providers), except draws
+     from a static class random (SpellParticle.RANDOM, already correct;
+     GlowParticle.RANDOM, new `glow_random` field for the glow-squid
+     velocity) and draws from the particle's own random `r`. Not provider
+     draws, so kept on the engine random: `crack`/`destroy` positions
+     (1.21.8 `ParticleEngine` uses `this.random`), and the pre-existing
+     firework-starter / `send_particles` / emitter draws (same in both
+     versions).
+  2. **Sprite picking:** 1.21.9 picks the sprite in the provider
+     (`sprite.get(providerRandom)`) and passes it into the constructor.
+     1.21.8 picks via `TextureSheetParticle.pickSprite` (the particle's
+     own random), called after construction — by the provider
+     (SuspendedTown, Firefly, VibrationSignal, FlyStraightTowards,
+     Shriek), in the constructor (SuspendedParticle, between the size
+     draw and the size multiplier), or by the engine's `Sprite` wrapper
+     (DripParticle static creators). `sprite_from_set` now draws from
+     the particle random `r`, placed per arm; the BreakingItem layer
+     pick moved after construction too (size draw → pick → uo/vo).
+     `TextureSheetParticle` extends `SingleQuadParticle` in 1.21.8 (the
+     1.21.9 merge of the two classes is 1.21.9-only); citations fixed
+     accordingly, including `SingleQuadParticle.renderRotatedQuad`.
+  3. **Evict-oldest cap:** the Rust's "last quarter fills with decreasing
+     probability" soft cap was a 26.x-ism. Both versions cap at 16384
+     per layer with an `EvictingQueue` that admits the new particle and
+     evicts the oldest. `particles` is now a `VecDeque`; the drain loop
+     pops the front when full.
+  4. **Explosion debris tracker removed:** `ClientExplosionTracker` (and
+     its `ExplosionInfo`, the 512-debris weighted throw, the
+     `track_explosion` / `tick_explosions` machinery and its three
+     tests) is 1.21.9-only. 1.21.8's `ClientLevel.explode` is an empty
+     override and `handleExplosion` only plays the sound and adds the
+     packet's particle. `explosion()` now takes only `(center, small)`.
+  5. **Option types:** EFFECT, INSTANT_EFFECT, FLASH and DRAGON_BREATH
+     are all plain `SimpleParticleType`s in 1.21.8 — `SpellParticleOption`
+     (colour + power), `PowerParticleOption` and the coloured FLASH do
+     not exist. The Effect/InstantEffect colour+power arm and the
+     DragonBreath `set_power` are gone; the firework starter now builds
+     its flash directly (`flash()` helper: plain FLASH, provider's
+     `pickSprite`, then the starter's `setColor`).
+  6. **Verified identical:** `addParticle` limiter logic (1.21.9 inlines
+     it in ClientLevel, 1.21.8 delegates to `LevelRenderer`
+     `addParticleInternal` — same draws, same random), tick order,
+     `destroy`/`crack` bodies, `SpriteSet.get`, `ParticleGroup` vs
+     `ParticleLimit` (identical, rename only), SingleQuadParticle quad
+     math, and the values of every provider (Glow, Suspended,
+     SuspendedTown, Spell, Crit, Explode, Gust, SonicBoom, SweepAttack,
+     Wake, WaterDrop, Trail, TrialSpawnerDetection, Shriek, Vibration,
+     Firefly, FlyStraightTowards, LlamaSpit).
+  - **Out of scope (recorded, not fixed here):** item 315 owns a REAL
+    protocol bug found here — the wire codec in `entity_data.rs`
+    `Particle::read` reads colour/power data for effect/instant_effect
+    (ids 15/45), flash (41) and dragon_breath (7), all Simple in 1.21.8,
+    so a 1.21.8 server's packets would desync the stream; the potion
+    cloud-particle NBT parse has the same 1.21.9 form. Items 54/491 own
+    the ElderGuardian apparition (1.21.8 uses MobAppearanceParticle).
+    Item 109 owns the rest of TerrainParticle, item 29 the rest of
+    BreakingItem/Firefly/Drip. The `particle_providers` oracle fixture
+    references 1.21.9-only option types and 26.x types, but that harness
+    is not in the 17-harness CI set, so it is harness infrastructure,
+    not this item.
 
 - **Item 18 — `block_entity_render.rs` (32 classes, 195 methods, 24 named in
   Horizon):** the block-entity renderers. One real behaviour fix (the
