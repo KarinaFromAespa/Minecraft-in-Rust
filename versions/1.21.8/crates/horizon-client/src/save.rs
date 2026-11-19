@@ -4028,7 +4028,7 @@ pub struct Level {
     /// (ender chest, effects, abilities, recipe book, attributes, ...).
     pub player_extra: Option<Tag>,
     /// The player was read from the file level.dat names (`singleplayer_uuid`,
-    /// or its `.dat_old`): `PlayerList.loadPlayerData` gives the world's owner
+    /// or its `.dat_old`): `PlayerList.load` gives the world's owner
     /// that file, not their own.
     pub singleplayer_file: bool,
 }
@@ -4216,7 +4216,7 @@ impl Level {
         };
         // The player: players/data/<singleplayer_uuid>.dat, or the legacy Data.Player. With no
         // `singleplayer_uuid` (a world from a server, a Realms download) the owner loads their
-        // own file, not another player's (`PlayerList.loadPlayerData`): `load_owner` does.
+        // own file, not another player's (`PlayerList.load`): `load_owner` does.
         let uuid = uuid_from_tag(data.get("singleplayer_uuid"));
         let player_dir = dir.join("players").join("data");
         // PlayerDataStorage.load: the player's file, else its .dat_old.

@@ -145,7 +145,9 @@ pub struct TickCtx<'a> {
     /// Block collisions, for ServerGamePacketListenerImpl's moved-wrongly
     /// check (none: moves are not checked against blocks).
     pub collision: Option<&'a BlockCollisionRegistry<'a>>,
-    /// The level's world border (PlayerList.sendLevelInfo sends it).
+    /// The Overworld's world border: `PlayerList.sendLevelInfo` sends
+    /// `server.overworld().getWorldBorder()`, not the level's own (the
+    /// level's form came in 1.21.9).
     pub border: &'a crate::worldborder::WorldBorder,
     /// The level's columns still being generated: a column is sent once
     /// each neighbour is loaded or a decorated proto chunk (#4294). None:

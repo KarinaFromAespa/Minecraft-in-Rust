@@ -334,8 +334,56 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 15/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23 + 2 zero-diff)
+### Rank 2: 16/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 23, 24 + 2 zero-diff)
 
+- **Item 24 — `lan/hub.rs` (1 class, 33 methods, 13 named in Horizon):**
+  `PlayerList` — the server player list: joining, the level info, the
+  border, bans, ops, respawn.
+  1. **`sendLevelInfo` sends the Overworld's border:** 1.21.9 sends the
+     player's level border (`$$1.getWorldBorder()`); 1.21.8 sends
+     `server.overworld().getWorldBorder()` — a guest joining in the
+     Nether sees the Overworld border (unscaled, 8x out in Nether
+     coordinates: a vanilla 1.21.8 quirk, kept). Every `TickCtx`
+     construction (6 sites: `game/lan.rs` x3, `lan_actions.rs`,
+     `server_travel.rs::server_ctx`, the `hub_pass` test helper) now
+     carries the Overworld border — the same three arms as
+     `overworld_border` (live / parked / level.dat's), borrowed field
+     by field so the `&mut world` still holds — and the field's doc
+     says so. All `InitializeBorder` sends go through
+     `send_level_info`, so join, respawn and level change are all
+     covered.
+  2. **Border changes broadcast to every player:** 1.21.9's listener
+     calls `broadcastAll(packet, dimension)`; 1.21.8's calls
+     `broadcastAll(packet)`. `lan_sync_border` now uses
+     `hub.broadcast` instead of `broadcast_level`.
+  3. **Citations:** `loadPlayerData` -> `load` (7 sites: the 1.21.8
+     method loads and applies); `PrepareSpawnTask` / `Ready.spawn`
+     -> `PlayerList.placeNewPlayer` (3 sites — the config task is
+     1.21.9-only; the snap lives in `placeNewPlayer` in 1.21.8);
+     `locateStatsFile` -> `getPlayerStats` (3 sites — the name exists
+     in neither version; the rename is inline in `getPlayerStats`);
+     `BanListEntry.getReasonMessage` -> `getReason()` (the null
+     reason already rendered literal `"null"` per item 13);
+     `PlayerList.setMaxPlayers` reworded (no such method in either
+     version — the limit is fixed at startup).
+  Verified already-1.21.8: the login gate order (ban, whitelist, IP
+  ban, then full — `try_admit` + `can_login`); the duplicate-login
+  kick; op/deop (the command gates on `isOp`, the save-at-once from
+  item 16, the unconditional console `sync_ops` matching 1.21.8's
+  unconditional `deop` send); the respawn search reads only block
+  state, so the remove-before-search order change is unobservable
+  (and the respawn pitch is yaw-only, 0.0F, as in 1.21.8); the parent
+  vehicle restores after placement; the stats name->uuid rename;
+  the 2-arg `broadcastAll(packet, dimension)` overload exists in
+  1.21.8 too, so `broadcast_level` keeps its doc. `ALLOW_LOGOUTIVATOR`
+  is a dead constant (declared, never read). No notification service
+  is modelled (the 1.21.9-only `playerJoined`/`playerLeft` calls have
+  no counterpart). Pre-existing gaps vs BOTH versions, noted not
+  fixed: saved ender pearls are never respawned on login
+  (`loadAndSpawnEnderPearls` exists in both versions — 1.21.8 calls
+  it from `placeNewPlayer`, 1.21.9 from `PrepareSpawnTask`); the
+  Rust's `NameAndId` type keeps its 1.21.9 name (a Rust-internal
+  type, not renamed).
 - **Item 23 — `mobs/ai.rs` (9 classes, 26 methods, 14 named in Horizon):**
   `Mob` and its subclasses' AI step, despawn, equipment and air.
   1. **Spawn armour (`Mob.populateDefaultEquipmentSlots`):** 1.21.9

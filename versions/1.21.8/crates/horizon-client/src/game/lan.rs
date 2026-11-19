@@ -1724,7 +1724,7 @@ impl Game<'_> {
             g.advancements = progress;
             g.advancements_loaded = true;
         }
-        // PlayerList.getPlayerStats: locateStatsFile moves an old name-based file first.
+        // PlayerList.getPlayerStats: it moves an old name-based file first.
         let mut stats = super::stats::Stats::read(&super::stats::locate_player_json(
             &self.world_root,
             "stats",
@@ -2383,7 +2383,19 @@ impl Game<'_> {
                 tick_frozen: self.clock.frozen(),
                 tick_steps: self.clock.step_state(),
                 collision: Some(self.collision),
-                border: &self.border,
+                // PlayerList.sendLevelInfo sends the Overworld's border, not
+                // the level's: live when the Overworld is in place, its
+                // parked copy when another level is, level.dat's when the
+                // Overworld has not been opened yet (the same three arms as
+                // `overworld_border`, borrowed field by field so the
+                // `&mut self.world` above still holds).
+                border: if self.dim == super::Dim::Overworld {
+                    &self.border
+                } else {
+                    self.levels
+                        .parked_border(super::Dim::Overworld)
+                        .unwrap_or(&self.level.border)
+                },
                 streaming: Some(&self.streaming),
             };
             host.hub.movement_checks = (
@@ -2717,7 +2729,15 @@ impl Game<'_> {
                     tick_frozen: self.clock.frozen(),
                     tick_steps: self.clock.step_state(),
                     collision: Some(self.collision),
-                    border: &self.border,
+                    // PlayerList.sendLevelInfo sends the Overworld's border,
+                    // not the level's (see the tick's TickCtx above).
+                    border: if self.dim == super::Dim::Overworld {
+                        &self.border
+                    } else {
+                        self.levels
+                            .parked_border(super::Dim::Overworld)
+                            .unwrap_or(&self.level.border)
+                    },
                     streaming: Some(&self.streaming),
                 };
                 host.hub.movement_checks = (
@@ -2858,7 +2878,7 @@ impl Game<'_> {
         let Some(g) = host.hub.guest_mut(conn) else {
             return;
         };
-        // PlayerList.loadPlayerData: the owner gets the world's player file,
+        // PlayerList.load: the owner gets the world's player file,
         // everyone else their own.
         let known = match owner.filter(|o| o.uuid == g.uuid) {
             Some(o) => playerdata::load_owner(g, &root, o.saved.take().as_deref()),
@@ -2869,8 +2889,8 @@ impl Game<'_> {
         // PlayerEvent.LoadFromFile: the player's data is read and applied,
         // the player not yet placed.
         self.native_player_load_from_file(g.uuid, &g.name, &playerdata::directory(&root));
-        // PrepareSpawnTask: with no saved rotation the player faces the world
-        // spawn's angle (`/setworldspawn ... <angle>`).
+        // PlayerList.placeNewPlayer: with no saved rotation the player faces
+        // the world spawn's angle (`/setworldspawn ... <angle>`).
         playerdata::face_world_spawn(g, known, self.level.world_spawn_angle);
         if !known || force {
             g.game_mode = default_mode;
@@ -2887,9 +2907,10 @@ impl Game<'_> {
             };
             g.position = feet;
             g.previous_position = feet;
-            // Ready.spawn snaps the newcomer to the respawn data's yaw and
-            // pitch, which for a player without a bed or anchor is the world
-            // spawn's angle (`setworldspawn <pos> <rotation>`).
+            // PlayerList.placeNewPlayer snaps the newcomer to the shared
+            // spawn's angle, pitch 0 — the world's `SpawnAngle` (a yaw
+            // alone in 1.21.8; the stored pitch is the setworldspawn
+            // command's, item 22's).
             (g.yaw, g.pitch) = (
                 self.level.world_spawn_angle[0],
                 self.level.world_spawn_angle[1],
@@ -2971,7 +2992,15 @@ impl Game<'_> {
             tick_frozen: self.clock.frozen(),
             tick_steps: self.clock.step_state(),
             collision: Some(self.collision),
-            border: &self.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's (see the tick's TickCtx above).
+            border: if self.dim == super::Dim::Overworld {
+                &self.border
+            } else {
+                self.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&self.level.border)
+            },
             streaming: Some(&self.streaming),
         };
         host.hub.place_new_player(conn, &mut ctx);

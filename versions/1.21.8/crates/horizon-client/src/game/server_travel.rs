@@ -1081,7 +1081,17 @@ impl Game<'_> {
             tick_frozen: self.clock.frozen(),
             tick_steps: self.clock.step_state(),
             collision: Some(self.collision),
-            border: &self.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's (the same three arms as `overworld_border`,
+            // borrowed field by field so the `&mut self.world` above
+            // still holds).
+            border: if self.dim == Dim::Overworld {
+                &self.border
+            } else {
+                self.levels
+                    .parked_border(Dim::Overworld)
+                    .unwrap_or(&self.level.border)
+            },
             streaming: Some(&self.streaming),
         }
     }

@@ -8688,7 +8688,7 @@ impl Game<'_> {
         mod_api::dispatch_player_save_to_file(self, mod_api::mods(), player, name, directory);
     }
     /// A player was loaded from the world's save (NeoForge's
-    /// `PlayerEvent.LoadFromFile`, `PlayerList.loadPlayerData`): their `.dat`
+    /// `PlayerEvent.LoadFromFile`, `PlayerList.load`): their `.dat`
     /// has been read and applied, and they are not placed in a level yet.
     /// `directory` is the world's player directory (`players/data`): a mod
     /// reads its own file there, named `<uuid>.<suffix>` as

@@ -522,7 +522,9 @@ impl Shared {
     pub fn max_players(&self) -> usize {
         self.max_players.load(Ordering::Relaxed)
     }
-    /// `PlayerList.setMaxPlayers`: change the limit used by new logins and status responses.
+    /// Change the limit used by new logins and status responses. Vanilla
+    /// fixes it at startup (`PlayerList.maxPlayers`, a constructor
+    /// argument in 1.21.8); there is no `setMaxPlayers` in either version.
     pub fn set_max_players(&self, max_players: usize) {
         self.max_players.store(max_players, Ordering::Relaxed);
     }

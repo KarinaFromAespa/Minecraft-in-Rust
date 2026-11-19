@@ -73,7 +73,7 @@ pub fn load(guest: &mut Guest, world: &Path) -> bool {
     true
 }
 
-/// `PlayerList.loadPlayerData` for the world's single-player owner: the file
+/// `PlayerList.load` for the world's single-player owner: the file
 /// level.dat names (`singleplayer_uuid`), as the world opening read it into
 /// `saved`, before the owner's own file. Builds that save the owner to the
 /// named file alone (0.2.93) leave the own file behind, stale (#5351). The
@@ -195,8 +195,9 @@ pub fn migrate_owner(world: &Path, level: &mut Level, old: u128, new: u128) -> b
     true
 }
 
-/// A player new to the world faces the world spawn's angle (`PrepareSpawnTask`:
-/// the saved rotation, else the world's `SpawnAngle`, pitch 0).
+/// A player new to the world faces the world spawn's angle
+/// (`PlayerList.placeNewPlayer`: the saved rotation, else the world's
+/// `SpawnAngle`, pitch 0).
 pub fn face_world_spawn(guest: &mut Guest, known: bool, [yaw, pitch]: [f32; 2]) {
     if known {
         return;
@@ -821,7 +822,7 @@ mod tests {
     fn the_owner_loads_the_file_level_dat_names_over_an_older_own_file() {
         // #5351: a newer build saved the owner to both files, then 0.2.93 saved
         // it again to the file level.dat names alone. The owner's own file is
-        // older; vanilla's loadPlayerData reads the named one for the owner.
+        // older; vanilla's load reads the named one for the owner.
         let owner = horizon_protocol::crypto::offline_uuid("Player46606");
         let dir = world("named");
         save(&holding(owner, "minecraft:diamond", 5), &dir);
@@ -1465,7 +1466,7 @@ mod tests {
     #[test]
     fn a_world_without_singleplayer_uuid_gives_the_owner_a_new_player_not_anothers() {
         // A world from a vanilla server: no `singleplayer_uuid`, and the players' files are other
-        // people's. The owner has none: vanilla starts them new (PlayerList.loadPlayerData).
+        // people's. The owner has none: vanilla starts them new (PlayerList.load).
         let owner = horizon_protocol::crypto::offline_uuid("Owner");
         let friend = horizon_protocol::crypto::offline_uuid("Friend");
         let dir = world("server-world");

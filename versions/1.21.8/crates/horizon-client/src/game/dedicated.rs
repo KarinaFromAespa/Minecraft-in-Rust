@@ -776,7 +776,7 @@ pub(super) fn ban_message(ban: &BanEntry<NameAndId>) -> Tag {
     }
     reason
 }
-/// BanListEntry.getReasonMessage.
+/// `BanListEntry.getReason`: the raw reason string.
 fn ban_reason(reason: &Option<String>) -> Tag {
     match reason {
         Some(r) => Tag::String(JavaString::from(r.as_str())),

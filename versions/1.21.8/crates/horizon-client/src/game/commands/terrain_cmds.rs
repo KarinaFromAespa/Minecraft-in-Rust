@@ -351,8 +351,10 @@ impl Game<'_> {
         let now = horizon_client::lan::border::Sent::of(&self.border);
         if let Some(sent) = host.border_sent.replace(now) {
             for packet in sent.changes(&self.border) {
-                // PlayerList$1: only the players of the border's own level.
-                host.hub.broadcast_level(&packet);
+                // PlayerList$1: the listener broadcasts to every player,
+                // not only the border's own level (the dimension filter
+                // came in 1.21.9).
+                host.hub.broadcast(&packet);
             }
         }
     }

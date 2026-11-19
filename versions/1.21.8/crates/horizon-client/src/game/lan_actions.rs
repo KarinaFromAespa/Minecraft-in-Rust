@@ -4125,7 +4125,17 @@ impl Game<'_> {
             tick_frozen: self.clock.frozen(),
             tick_steps: self.clock.step_state(),
             collision: Some(self.collision),
-            border: &self.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's (the same three arms as `overworld_border`,
+            // borrowed field by field so the `&mut self.world` above
+            // still holds).
+            border: if self.dim == super::Dim::Overworld {
+                &self.border
+            } else {
+                self.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&self.level.border)
+            },
             streaming: Some(&self.streaming),
         };
         host.hub.respawn(i, spawn, rotation, &ctx);
@@ -6945,7 +6955,15 @@ mod connected_self_pose_tests {
             tick_frozen: true,
             tick_steps: Default::default(),
             collision: Some(game.collision),
-            border: &game.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's.
+            border: if game.dim == super::Dim::Overworld {
+                &game.border
+            } else {
+                game.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&game.level.border)
+            },
             streaming: None,
         };
         if drain {
