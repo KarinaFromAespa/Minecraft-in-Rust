@@ -334,7 +334,40 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 29/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41 + 4 zero-diff)
+### Rank 2: 30/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42 + 4 zero-diff)
+
+- **Item 42 — `crates/horizon-client/src/save.rs` (8 classes, 29 methods, 7 named in Horizon):**
+  SerializableChunkData, PlayerDataStorage, ThreadedLevelLightEngine,
+  RegionFileStorage, SectionStorage$PackedChunk, SimpleRegionStorage,
+  DataVersion, BakedSheetGlyph$EffectInstance (1.21.9-only, removed).
+  Zero-diff: no code changed.
+  Verified no-change: the three 1.21.9-only debug flags
+  (`DEBUG_DONT_SAVE_WORLD`, `DEBUG_OPEN_INCOMPATIBLE_WORLDS`,
+  `DEBUG_VERBOSE_SERVER_EVENTS`) are unmodelled anywhere in the Rust —
+  correct for 1.21.8, and `incompatible_version` already implements the
+  plain series check; the chunk tags `SerializableChunkData.write`
+  produces are identical (only the codec source differs — 1.21.9's
+  `PalettedContainerFactory` vs 1.21.8's registry + static codecs, same
+  strategies and defaults), and the Rust cites no factory; the chunk
+  decode keeps air/plains defaults for missing sections, as both versions
+  do; `upgrade_record` already uses the 1.21.8 defaults (POI 1945, others
+  −1) and the 1.21.8 `getVersion` reading; the player load reads `.dat`
+  then `.dat_old`, as both versions do; `BakedSheetGlyph$EffectInstance`
+  has no Rust citations (the `EffectInstance` hits are all
+  `MobEffectInstance`); the `isLightOn` load path matches (the 1.21.9-only
+  bit is a debug log line). The datafix's read-time `DataVersion` stamp
+  (`update_chunk`/`update_region_tag`) is the 1.21.9 form
+  (`addCurrentDataVersion` — 1.21.8's `upgradeChunkTag` does not stamp),
+  but it is unobservable in the game flow (writes stamp fresh; the
+  in-memory tag's version is never re-read) and is pinned by the D4
+  datafix harness, so it stays. Known gaps (vs both versions, not
+  1.21.8-specific): the Rust has no `PackedChunk.versionChanged` dirty
+  flag — an upgraded POI chunk is re-saved only when its POIs change,
+  while vanilla marks it dirty on load and re-saves it at the next flush;
+  the player load writes no `_corrupted_` backup when `.dat` fails to
+  parse; the player datafix runs only via the bulk upgrader (older
+  level.dat), not per load, so a player file older than its level.dat is
+  never upgraded.
 
 - **Item 35 — `crates/horizon-client/src/mobs/anim.rs` (12 classes, 40 methods, 7 named in Horizon):**
   HumanoidModel, PlayerModel, CreeperModel, QuadrupedModel, BoggedModel,
