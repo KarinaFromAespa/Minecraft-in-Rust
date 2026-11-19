@@ -968,7 +968,7 @@ mod tests {
         let session = Session::new(ServerVersion::V1_20_3);
         for (kind, pairs) in [
             (
-                148,
+                147, // pinned minecraft:player
                 vec![
                     ("2a0a0199cdcd010b0801ff", "2a0a120114263366990b0801ff"),
                     ("2a0b0800ff", "2a0a120114ff3366990b0800ff"),

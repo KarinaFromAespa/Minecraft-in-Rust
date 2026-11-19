@@ -186,7 +186,7 @@ impl Particle {
                 };
                 Some(ParticleData::Trail(at, color, duration))
             }
-            48 => Some(ParticleData::Item(Template::read(r)?)),
+            45 | 48 => Some(ParticleData::Item(Template::read(r)?)), // item and item_slime
             46 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
@@ -664,7 +664,7 @@ mod tests {
             for (pinned, expected) in [
                 (7, ParticleData::Scalar(1.0)),
                 (15, ParticleData::ColorPower(-1, 1.0)),
-                (45, ParticleData::ColorPower(-1, 1.0)),
+                (44, ParticleData::ColorPower(-1, 1.0)), // instant_effect
             ] {
                 let mut w = Writer::new();
                 w.varint(ids.particle_type.down(pinned).unwrap());
