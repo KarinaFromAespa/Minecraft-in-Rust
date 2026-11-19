@@ -2,7 +2,7 @@
 //! lead on one, taking it off, `Leashable.tickLeash` (the pull of the rope,
 //! the lead snapping past twelve blocks), saving who holds it, and dropping
 //! the lead when the boat breaks. The rope is drawn by `leads.rs`
-//! (`LeashFeatureRenderer`, four ropes from a boat to a happy ghast).
+//! (`EntityRenderer.renderLeash`, four ropes from a boat to a happy ghast).
 //! A boat is also a holder (`Holder::Boat`): `Entity.interact`'s sneak click
 //! ties the player's mobs and boats to it.
 //!
@@ -23,7 +23,7 @@ const HEIGHT: f32 = 0.5625;
 
 /// Where the other end of a boat's lead is.
 enum Held {
-    /// The holder is gone: the lead comes off (`canInteractWithLevel`).
+    /// The holder is gone (dead or left): the lead comes off.
     Gone,
     /// In another level or not loaded: nothing happens (`level() ==`).
     Elsewhere,
@@ -77,7 +77,9 @@ impl Game<'_> {
                     if !host.hub.here(g) || !g.loaded {
                         return Held::Elsewhere;
                     }
-                    if g.dead || g.spectator() {
+                    // A spectator still holds the lead in 1.21.8 (`isAlive()`
+                    // is the only check); only a dead holder lets go.
+                    if g.dead {
                         return Held::Gone;
                     }
                     let bounds = g.bounds();
@@ -106,7 +108,7 @@ impl Game<'_> {
                 let Some(v) = self.player_view() else {
                     return Held::Elsewhere;
                 };
-                if !v.alive || v.spectator {
+                if !v.alive {
                     return Held::Gone;
                 }
                 let lo = v.bounds.min_position();
@@ -203,7 +205,7 @@ impl Game<'_> {
         };
         let (state, quad) = match self.boat_holder(holder, b.leash_player) {
             Held::Elsewhere => return,
-            // !leashHolder.canInteractWithLevel(): dropLeash with entity_drops
+            // !leashHolder.isAlive(): dropLeash with entity_drops
             // on, else removeLeash.
             Held::Gone => {
                 let drops = self.ui.rules.bool("entity_drops");

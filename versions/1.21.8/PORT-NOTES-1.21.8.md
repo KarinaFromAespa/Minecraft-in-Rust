@@ -334,7 +334,44 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 53/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71 + 4 zero-diff)
+### Rank 2: 54/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72 + 4 zero-diff)
+
+- **Item 72 — `crates/horizon-client/src/game/boat_leads.rs`
+  (3 classes, 6 methods, 5 named in Horizon):** Leashable (4;
+  dropLeash, getLeashHolder, setLeashedTo, tickLeash),
+  LeashFeatureRenderer (1; removed in 1.21.8),
+  LeashFenceKnotEntity (1; interact). Real fix: in 1.21.8
+  `Leashable.tickLeash` breaks a lead only when an end is
+  dead (`!isAlive()`); 1.21.9's `Entity.canInteractWithLevel`
+  (alive, not removed, not spectating — the method does not
+  exist in 1.21.8) also breaks it when the holder goes
+  spectator. The Rust modelled the 1.21.9 form in three
+  places and all three now drop the spectator condition: the
+  mob leash tick (`mobs/leash.rs`), the boat holder lookup
+  for a LAN guest and for the local player
+  (`boat_holder`). A spectator holder now keeps the lead and
+  its position still drives the rope, as vanilla's does.
+  Citations: the link packet goes out through
+  `ChunkMap.broadcast` / `broadcastAndSend` in 1.21.8
+  (javap-verified on both jars; 1.21.9 renamed them
+  `sendToTrackingPlayers` / `sendToTrackingPlayersAndSelf`),
+  and leashes are drawn by `EntityRenderer.renderLeash` in
+  1.21.8 — the whole `client.renderer.feature` package
+  (including `LeashFeatureRenderer`) is 1.21.9-only, as item
+  18 found for the crumbling overlay. The Rust's rope
+  geometry matches `renderLeash`/`addVertexPair` term by
+  term (24 segments, the 0.05/2 offset, the slack sag, the
+  alternating 0.7 shade, the (0.5, 0.4, 0.3) colour).
+  `LeashFenceKnotEntity.interact` differs only by
+  `isClientSide()`. Deferred: the mannequin entity is
+  1.21.9-only (its Rust references in snbt/skins/entity_nbt
+  belong to rank-2 item 320, which owns the removed
+  `Mannequin` class). Known gap (vs both, not fixed here):
+  `drop_leash` drops a live mob's lead regardless of the
+  entity-drops rule, where vanilla's tickLeash gates the
+  drop on the rule whenever either end is dead; and the
+  rope's light is the average of the two ends where vanilla
+  lerps it per segment.
 
 - **Item 71 — `crates/horizon-client/src/game/block_entity_anims.rs`
   (3 classes, 6 methods, 5 named in Horizon) — citations only:**

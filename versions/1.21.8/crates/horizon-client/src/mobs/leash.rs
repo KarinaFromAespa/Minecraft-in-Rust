@@ -329,7 +329,7 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         m.extra.leash_spin = 0.0;
         return;
     };
-    // Leashable.tickLeash: a dying entity cannot interact with the level.
+    // Leashable.tickLeash: a dead leashed entity drops its lead.
     if !m.alive() {
         events.push(MobEvent::LeashBreak {
             mob: m.id,
@@ -338,12 +338,13 @@ pub fn tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) {
         });
         return;
     }
-    // Leashable.tickLeash: a holder that cannot interact with the level (dead
-    // or spectating, `Entity.canInteractWithLevel`) drops the lead.
+    // Leashable.tickLeash: a dead holder drops the lead. A spectator still
+    // holds it in 1.21.8 (`isAlive()` is the only check; 1.21.9's
+    // `Entity.canInteractWithLevel` also breaks on spectating).
     if holder == Holder::Player
         && let Some(p) = w.player.as_ref()
         && m.extra.leash_player.is_none_or(|u| p.uuid == u)
-        && (p.spectator || !p.alive)
+        && !p.alive
     {
         events.push(MobEvent::LeashBreak {
             mob: m.id,

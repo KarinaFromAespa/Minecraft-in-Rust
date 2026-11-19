@@ -649,7 +649,7 @@ impl ServerEntity {
         self.send_equipment(e, out);
     }
 
-    /// Leashable.setLeashedTo / dropLeash: sendToTrackingPlayers at once.
+    /// Leashable.setLeashedTo / dropLeash: broadcast at once.
     fn send_leash(&mut self, e: &EntityState, out: &mut Vec<play::Clientbound>) {
         if e.leash != self.leash {
             out.push(play::Clientbound::SetEntityLink(SetEntityLink {

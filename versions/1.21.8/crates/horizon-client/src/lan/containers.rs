@@ -73,7 +73,7 @@ impl Hub {
         }
     }
 
-    /// `ChunkMap.sendToTrackingPlayers`: send to every placed guest that
+    /// `ChunkMap.broadcast`: send to every placed guest that
     /// tracks the entity `id`.
     pub fn send_to_tracking(&self, id: i32, packet: &C) {
         let body = packet.encode();
@@ -227,7 +227,7 @@ impl Hub {
 
     /// `ServerPlayer.crit` (`magicCrit` when `magic`): send the victim's
     /// animation to the players tracking the attacker and the attacker
-    /// themselves (`sendToTrackingPlayersAndSelf`).
+    /// themselves (`broadcastAndSend`).
     pub fn critical_hit(&self, attacker: i32, target: i32, magic: bool) {
         let body = C::Animate(play::Animate {
             id: target,
