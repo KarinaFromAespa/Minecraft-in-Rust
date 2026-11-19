@@ -904,18 +904,9 @@ impl Game<'_> {
             return None;
         };
         let skin = skull.skin.as_ref()?;
-        // PlayerSkin.Patch: a `texture` override replaces the profile's skin.
-        if let Some(texture) = &skin.texture
-            && let Some(sprite) =
-                skins::patch_skin(texture, &mut self.skin_downloads.borrow_mut(), |location| {
-                    self.gui.atlas.sprites.contains_key(location)
-                })
-        {
-            return Some(sprite);
-        }
         // The texture a packed or resolved `textures` property fetches: the
-        // download of a static profile, or the one the services answer for a
-        // `Dynamic` (name- or id-only) profile.
+        // download of a resolved profile, or the one the services answer for
+        // an unresolved (name- or id-only) profile.
         let download = skin.download.clone().or_else(|| {
             let key = skin.dynamic.as_ref()?;
             let skins::Resolve::Done(Some(profile)) = self.skin_profiles.borrow_mut().state(key)

@@ -334,7 +334,56 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 26/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 32, 33, 38, 39, 41 + 4 zero-diff)
+### Rank 2: 27/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 32, 33, 38, 39, 41 + 4 zero-diff)
+
+- **Item 30 — `horizon-client-render/src/skins.rs` (12 classes, 65 methods, 7 named in Horizon):**
+  ResolvableProfile, SkinManager, SkinTextureDownloader, SkinManager$1,
+  SkinManager$TextureCache, PlayerSkinRenderCache (+ $1, $2, $RenderInfo),
+  ClientAsset$ResourceTexture, PlayerModelType, ResolvableProfile$Partial
+  (the last seven are 1.21.9-only and gone from the 1.21.8 jar).
+  1. **A profile without an id has the nil id, not the offline UUID:**
+     1.21.9's `createPartialProfile` derives the offline UUID from the name
+     when the id is absent; 1.21.8's `createGameProfile` defaults to
+     `Util.NIL_UUID`. `parse_profile` (bare-name and compound branches) now
+     returns id 0, and `SkullSkin::of`'s fallback is `default_skin(id or
+     nil)` — a name-only head falls back to slim alex (the nil-UUID hash),
+     not the name-dependent skin, and not slim steve (the old no-id
+     fallback). New test `a_name_only_head_falls_back_to_slim_alex`; the
+     existing `profiles_parse_like_resolvable_profiles` now pins id 0.
+  2. **No skin patch:** 1.21.9's `PlayerSkin.Patch` (a profile's `texture`
+     field overriding the skin with a resource-pack texture) does not exist
+     in 1.21.8 — the record's codec is name/id/properties only. Removed
+     `patch_skin`, `profile_texture_nbt`, `valid_texture_id`, `resample_64`,
+     the `SkullSkin.texture` field, the patch checks in `head_skin` and
+     `skull_skin_at`, and the Downloader's whole pack-texture machinery
+     (`resource_root`/`resources`, `set_resource_root`, `resource()`, the
+     `again()` `patch/` branch) plus its two call sites (game.rs, packs.rs)
+     and the `a_texture_patch_stays_inside_the_packs` test.
+  3. **Citations:** `PlayerModelType.SLIM` → `PlayerSkin.Model.SLIM`;
+     `SkinManager.createLookup` → `PlayerInfo.createSkinLookup`
+     (`getOrLoad` + the secure rule); `PlayerSkinRenderCache.getOrDefault`
+     → `SkullBlockRenderer` via `SkinManager.getInsecureSkin`;
+     `getInsecureSkinInformation` (a 26.x name, in neither version) →
+     `getInsecureSkin`; `ProfileResolver.Cached` → `SkullBlockEntity`'s
+     `profileCacheByName`/`profileCacheById`; `Dynamic`/`create`/`Partial`
+     → the record's `isResolved()` / `createGameProfile` (skins.rs,
+     block_entity.rs, block_entity_anims.rs, item_draw.rs, game.rs,
+     remote.rs, entity_nbt.rs, entity_data.rs). The `entity_data::Profile`
+     patch fields stay as unread mannequin-model fields, reworded.
+  Verified no-change: the secure rule is identical (only its location
+  differs — 1.21.8 `PlayerInfo.createSkinLookup`, 1.21.9 `createLookup`),
+  and the Rust's callers already pass the right flag (local player false,
+  others true); the resolver caches are identical (256 entries, 10-minute
+  expiry, same `getByName` then `getProfileById` endpoints); the
+  unresolved rule is identical (no properties and exactly one of name/id);
+  `processLegacySkin` is the same conversion in both versions (only the
+  static/instance call site differs); `PlayerSkin.textureUrl` is never
+  read in 1.21.8; the profile wire codec is already the 1.21.8 form (the
+  `optional_profile_fields` quirk, `read_optional_profile`); `DefaultPlayerSkin`
+  is identical (item 18). Known gap (vs both versions): the client resolver
+  never consults a local profile cache (`usercache.json`) before asking the
+  services, so name resolution always hits the network; the usercache exists
+  only on the server side.
 
 - **Item 41 — `horizon-client-input/src/mouse.rs` (2 classes, 19 methods, 8 named in Horizon):**
   MouseHandler, MacosUtil.

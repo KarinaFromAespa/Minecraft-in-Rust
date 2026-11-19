@@ -296,20 +296,16 @@ impl SkullSkin {
             let location = crate::skins::skin_location(&crate::skins::texture_hash(&url)?);
             Some((url, location))
         });
-        // A `Dynamic` profile (a name or id only) resolves through the
+        // An unresolved profile (a name or id only) resolves through the
         // services when the skull is drawn.
         let dynamic = crate::skins::dynamic_nbt(profile);
-        // DefaultPlayerSkin.get(id), or getDefaultSkin (slim steve) without an id.
-        let fallback = crate::skins::profile_uuid_nbt(profile)
-            .or_else(|| {
-                crate::skins::nbt_text(profile.get("name"))
-                    .map(|name| horizon_protocol::crypto::offline_uuid(&name))
-            })
-            .map_or("entity/player/slim/steve", crate::tab_list::default_skin);
+        // `DefaultPlayerSkin.get(gameProfile)`: the id, or nil when the
+        // profile has none — a name-only head falls back to slim alex.
+        let fallback =
+            crate::tab_list::default_skin(crate::skins::profile_uuid_nbt(profile).unwrap_or(0));
         Self {
             download,
             dynamic,
-            texture: crate::skins::profile_texture_nbt(profile),
             fallback,
         }
     }

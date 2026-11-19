@@ -502,7 +502,7 @@ fn slot_name(options: &RealmWorldOptions, slot: i32) -> String {
 }
 
 /// `RealmsTextureManager.getTexture`: the base64 PNG decoded and resampled to the 64x64
-/// `horizon/world-iconN` slot (nearest texel, like `skins::resample_64`).
+/// `horizon/world-iconN` slot (nearest texel).
 fn template_image(encoded: &str) -> Option<Vec<u8>> {
     let bytes = crate::skins::base64_decode(encoded)?;
     let (width, height, rgba) = crate::hud::decode_image_bytes(&bytes).ok()?;

@@ -165,10 +165,10 @@ impl SpecialHost for Host<'_> {
             .map(|_| self.banners.shield_texture(pattern))
     }
     fn player_skin(&self, profile: &Value) -> Option<String> {
-        // SkullBlockRenderer.getPlayerSkin: SkinManager.getInsecureSkinInformation
+        // SkullBlockRenderer.getPlayerSkin: SkinManager.getInsecureSkin
         // accepts a texture property without a signature, unlike the tab list.
-        // A `Dynamic` profile (a name or id only) resolves through the
-        // services (`PlayerSkinRenderCache.getOrDefault`).
+        // An unresolved profile (a name or id only) resolves through the
+        // services (`SkullBlockEntity.fetchGameProfile`).
         Some(horizon_client::skins::head_skin(
             profile,
             &mut self.profiles.borrow_mut(),

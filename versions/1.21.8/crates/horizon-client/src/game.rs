@@ -2717,8 +2717,8 @@ struct Game<'a> {
     /// Player skin downloads, and which skin each atlas skin slot holds
     /// (least recently shown first).
     skin_downloads: RefCell<horizon_client::skins::Downloader>,
-    /// `ProfileResolver.Cached`: `Dynamic` profiles (name- or id-only heads
-    /// and mannequins) resolve through the services in the background.
+    /// `SkullBlockEntity`'s profile caches: unresolved profiles (name- or
+    /// id-only heads) resolve through the services in the background.
     skin_profiles: RefCell<horizon_client::skins::Resolver>,
     skin_slots: horizon_client::skins::SkinSlots,
     /// Cosmetics on players (game/cosmetics.rs), off by default.
@@ -12089,15 +12089,11 @@ impl<'a> Game<'a> {
             remote_knots: Default::default(),
             knot_ids: Default::default(),
             text_display_vertices: 0,
-            skin_downloads: RefCell::new({
-                let mut downloads = horizon_client::skins::Downloader::new(
-                    std::env::current_dir()
-                        .unwrap_or_default()
-                        .join("assets/skins"),
-                );
-                downloads.set_resource_root(root.clone());
-                downloads
-            }),
+            skin_downloads: RefCell::new(horizon_client::skins::Downloader::new(
+                std::env::current_dir()
+                    .unwrap_or_default()
+                    .join("assets/skins"),
+            )),
             skin_profiles: RefCell::new(horizon_client::skins::Resolver::new()),
             skin_slots: horizon_client::skins::SkinSlots::new(horizon_client::hud::SKIN_SLOTS),
             cosmetics: Default::default(),

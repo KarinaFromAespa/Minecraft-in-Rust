@@ -6089,9 +6089,9 @@ impl Game<'_> {
             r.skins_revision = r.skins_revision.wrapping_add(1);
             r.skins = skins;
         }
-        // ClientMannequin.updateSkin (PlayerSkinRenderCache.lookup): a
-        // mannequin's DATA_PROFILE `textures` property resolves like a
-        // player's, never required to be signed.
+        // A mannequin's DATA_PROFILE `textures` property resolves like a
+        // player's, never required to be signed. (No mannequin exists in
+        // 1.21.8; this stays as unreachable dead code.)
         let mannequins: Vec<(usize, horizon_client::skins::Textures)> = self
             .mobs
             .iter()
@@ -6112,8 +6112,8 @@ impl Game<'_> {
                         horizon_client::skins::texture_uris(),
                     )
                 } else {
-                    // `ResolvableProfile.resolveProfile`: no `textures` and
-                    // only a name or an id resolves through the services.
+                    // `ResolvableProfile.isResolved`: no `textures` and only
+                    // a name or an id resolves through the services.
                     let key = profile.and_then(|p| match (&p.name, p.uuid) {
                         (Some(name), None) => {
                             Some(horizon_client::skins::NameOrId::Name(name.clone()))
