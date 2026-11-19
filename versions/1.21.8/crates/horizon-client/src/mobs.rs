@@ -2605,7 +2605,9 @@ pub struct Seen {
     pub hurt_by: Option<(Who, i32)>,
     /// A raider in an active raid.
     pub active_raid: bool,
-    /// A copper golem's `openedChestPos` (`ContainerUser.hasContainerOpen`).
+    /// A copper golem's `openedChestPos` (1.21.9's
+    /// `ContainerUser.hasContainerOpen`; neither the golem nor the
+    /// interface is in 1.21.8 — unreachable, item 229 owns the golem).
     pub opened_chest: Option<[i32; 3]>,
     /// `isPassenger`.
     pub passenger: bool,
@@ -5042,15 +5044,14 @@ impl Mob {
         e.elytra.tick(e.fall_flying, e.crouching, self.velocity);
         e.swim.tick(visually, in_water);
         // AbstractClientPlayer.tick's Player.moveCloak (from where the
-        // player was before this tick's move), RemotePlayer.aiStep's bob
-        // (Player.aiStep) and Player.rideTick's bob reset.
+        // player was before this tick's move), RemotePlayer.aiStep's own
+        // inline bob (no swimming check, unlike Player.aiStep) and
+        // Player.rideTick's bob reset.
         e.avatar.tick([p.x, p.y, p.z]);
         if e.passenger {
             e.avatar.reset_bob();
         } else {
-            let swimming = e.synced_pose == 3;
-            e.avatar
-                .update_bob(on_ground_alive && !swimming, [v.x, v.y, v.z]);
+            e.avatar.update_bob(on_ground_alive, [v.x, v.y, v.z]);
         }
     }
 }
@@ -5085,6 +5086,25 @@ mod elytra_tests {
         for (angle, resting) in wings.angles.iter().zip(ElytraAnimation::RESTING) {
             assert!((angle - resting).abs() < 0.00001);
         }
+    }
+}
+#[cfg(test)]
+mod avatar_bob_tests {
+    use super::sensor_scan_tests::kind;
+    use super::*;
+    use horizon_core::geometry::Vec3;
+
+    /// `RemotePlayer.aiStep` bobs a swimming player on the ground: its
+    /// inline bob has no swimming check (unlike `Player.aiStep`).
+    #[test]
+    fn a_swimming_remote_player_still_bobs_on_the_ground() {
+        let mut m = Mob::new(1, kind(), Vec3::ZERO, 0.0);
+        m.extra.synced_pose = 3;
+        m.on_ground = true;
+        m.velocity = Vec3::new(0.1, 0.0, 0.0);
+        m.tick_avatar_pose(false);
+        assert!((m.extra.avatar.bob - 0.04).abs() < 0.00001);
+        assert_eq!(m.extra.avatar.bob_o, 0.0);
     }
 }
 #[cfg(test)]

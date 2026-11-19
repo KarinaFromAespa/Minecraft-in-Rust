@@ -1004,9 +1004,12 @@ impl AvatarBob {
         self.walk_dist += (dx * dx + dz * dz).sqrt() * 0.6;
     }
     /// `Player.aiStep`: toward the horizontal speed (at most
-    /// 0.1) on the ground, toward 0 otherwise.
-    pub fn update_bob(&mut self, on_ground_alive_not_swimming: bool, velocity: [f64; 3]) {
-        let target = if on_ground_alive_not_swimming {
+    /// 0.1) on the ground, toward 0 otherwise. The caller decides the
+    /// condition: `Player.aiStep` (the local player) passes ground, alive
+    /// and not swimming; `RemotePlayer.aiStep` passes ground and alive
+    /// only — its inline bob has no swimming check.
+    pub fn update_bob(&mut self, on_ground_alive: bool, velocity: [f64; 3]) {
+        let target = if on_ground_alive {
             java_min(
                 0.1,
                 (velocity[0] * velocity[0] + velocity[2] * velocity[2]).sqrt() as f32,

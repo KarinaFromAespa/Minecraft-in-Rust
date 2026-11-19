@@ -334,7 +334,43 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 32/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44 + 4 zero-diff)
+### Rank 2: 33/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45 + 4 zero-diff)
+
+- **Item 45 — `crates/horizon-client/src/mobs.rs` (6 classes, 14 methods, 7 named in Horizon):**
+  Piglin, RemotePlayer, BellBlock, EntityModel, AvatarRenderState
+  (1.21.9-only, removed), ContainerUser (1.21.9-only, removed). Fixes:
+  1. **A swimming remote player still bobs on the ground.** 1.21.9's
+     `RemotePlayer.aiStep` calls `AbstractClientPlayer.updateBob`, which
+     zeroes the bob target while swimming; 1.21.8's `RemotePlayer.aiStep`
+     never calls `super.aiStep()` — it inlines its own bob update with
+     no swimming check (`onGround() && !isDeadOrDying()`), while the
+     shared `Player.aiStep` (the local player's path) keeps the check.
+     `tick_avatar_pose` no longer excludes swimming; the local player's
+     call site (fov.rs) keeps `!swimming`. `update_bob`'s parameter is
+     renamed `on_ground_alive` (the caller decides the condition) with
+     the split documented. New test
+     `a_swimming_remote_player_still_bobs_on_the_ground` (swimming pose,
+     on the ground, speed 0.1 → bob 0.04 after one tick, bob_o 0).
+     The oBob timing is the same in both versions (`bobO = bob` before
+     the ease, in 1.21.9 inside `ClientAvatarState.updateBob`).
+  2. **Citation:** the copper golem's `openedChestPos` now notes
+     `ContainerUser` is 1.21.9-only and neither the golem nor the
+     interface is in 1.21.8 (unreachable dead code; item 229 owns the
+     golem). `AvatarRenderState` has no remaining citations (item 35
+     reworded the only one).
+  Verified no-change: the piglin head drop is already the 1.21.8 form
+  (item 17: `drops.rs` gives a piglin killed by a charged creeper a
+  piglin head, with the shared skull cap); the piglin stays out of
+  `despawns_in_peaceful` (its `shouldDespawnInPeaceful` returns false,
+  while PiglinBrute despawns); the baby-piglin hoglin stack
+  (`getTopPassenger`, 3) is the same in both versions (only the
+  `startRiding` signature's third argument differs); `EntityModel`'s
+  `setupAnim` calls `resetPose()` in both versions (1.21.8's own
+  `EntityModel.setupAnim`, 1.21.9's generic `Model.setupAnim`) and the
+  Rust resets all poses before each frame's setup (`reset_all_poses`,
+  `Model.resetPose` in both jars); `BellBlock` differs only by the
+  `isClientSide` field vs method; `lerpMotion`'s Vec3-vs-triple form is
+  a signature change with the same body.
 
 - **Item 44 — `crates/horizon-client/src/entities.rs` (7 classes, 15 methods, 7 named in Horizon):**
   ExperienceOrbRenderer, LavaCauldronBlock, Direction, ExperienceOrb,
