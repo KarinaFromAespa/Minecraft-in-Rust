@@ -700,3 +700,91 @@ regen files only for the 26.3→1.21.11 and self diffs, not
 26.1→1.21.11) and regen-determinism.json — both need a fresh
 1.21.11 regen, queued. Artifacts kept at
 `~/workspace/mcir-ci/1.21.11-v6.4-multijdk/`.
+
+## T4 oracle ports — behaviour stream, 2026-11-19 (branch behaviour/1.21.11)
+
+Re-surveyed from scratch with versions/1.21.11/.local/t4-survey.py
+(driver-faithful javac invocations, JDK 25 javac --release 21): 148
+errors across 10 oracles; 6 already compiled (component_patch, hotbar,
+options, block_properties, lan, command_parse). All 10 ported, full
+re-survey 16/16 at 0 errors. Prepared data recovered from the old
+workdir's lab-prepare output (.local/minecraft/1.21.11/); no fresh
+prepare run was needed. CI proof run 44446975616 dispatched on the
+branch at fbb1c14 (in flight).
+
+- Food (1 error): the fake ServerLevel constructor takes 11 args in
+  1.21.11; appended `new RandomSequences()`. 58 oracle files share the
+  10-arg pattern — only the 17-harness compile closure was fixed.
+- EntityComponents (4): EntityPredicate lives at
+  advancements.criterion (not advancements.predicates.entity); the
+  11-arg ServerLevel super; deleted the getNextEntityId override
+  (entity ids come from Entity.ENTITY_COUNTER here).
+- PackResources (1): Pack.open() returns a single PackResources.
+- SoundEvent (2): resolve() returns WeighedSoundEvents;
+  Sound.getAttenuationDistance takes no args (base distance only).
+- Suffocation (2 + 7-file change set): 1.21.11 has no
+  causes_suffocation tag; the default predicate is
+  blocksMotion() && isCollisionShapeFullBlock, verified from the jar's
+  bytecode. Oracle exports motion.json; the suffocation definition and
+  both probe fixtures bind the single motion set; the game-side
+  suffocation code (tag lookup in mobs/suffocation::bind, cushions.rs)
+  is behaviour-port work, not T4. Registry count asserted 29671.
+- ChunkGeneration (33): 11-arg OracleCache/OracleLevel supers; deleted
+  getNextEntityId/getOverworldClockTime/uncachedBiomeResolver
+  overrides (the biome path works through getChunkSource); registry
+  bootstrap replaced with the already-ported synchronous 3-arg
+  RegistryDataLoader.load + layers.replaceFrom(WORLDGEN) pattern;
+  RandomState.create via the (settings, noise lookup, seed) overload;
+  ChunkPos.asLong static; TERRAIN replaced by NOISE/SURFACE/CARVERS
+  (fillFromNoise/buildSurface/applyCarvers, each with its own region);
+  createForNormal takes 4 args.
+- DataFix (21): no FileFixer system in 1.21.11 (pre-1.16 structure
+  files stay in place; LegacyStructureDataHandler reads them lazily).
+  level.dat is fixed in place (stamp mirrors vanilla's save, including
+  Series from DataVersion.series()); old world layout (region/entities/
+  poi/saved data per dimension, playerdata/advancements/stats/);
+  generators() reads level.dat's WorldGenSettings; ChunkMap
+  getChunkDataFixContextTag takes the generator's registry key;
+  saved-data switch trimmed to the 9 types 1.21.11 defines.
+  tools/datafix_worlds.py VERSIONS capped at 1.21.11. The Rust-side
+  datafix behaviour (skip the 26.x file fixes, trim the saved-data
+  table) is behaviour-port work.
+- CommandExec (29): 8-arg MinecraftServer ctor, 7-arg LevelSettings,
+  datapackWorldgen(), 4-arg PrimaryLevelData, WorldData cookie for
+  WorldLoader.load, public tickServer, EntityType, createInteractionPacket,
+  ClickType, level-owned random sequences/weather/data storage,
+  teleport(TeleportTransition), static ChunkPos.asLong, 2-arg map ticking.
+- FirstPerson (21): rewritten for the classic swing model — no
+  SwingState, no FirstPersonHandsAndItems. The swing lives on
+  LivingEntity (swinging/swingingArm/swingTime/attackAnim/oAttackAnim),
+  advanced by the real updateSwingTime and sized by
+  getCurrentSwingDuration; the hand heights live on the real
+  ItemInHandRenderer behind a shell GameRenderer (startUseItem calls
+  gameRenderer.itemInHandRenderer.itemUsed on a consuming use). The
+  Rust first-person fixture is still 26.x-shaped; the classic-swing
+  fixture port is behaviour work.
+- ItemModel (34): the older model system — BakedQuad/BlockModel/
+  ItemTransform/ItemModelGenerator under renderer.block.model, no
+  geometry/cuboid/sprite split, non-generic SpecialModelRenderer.Unbaked,
+  8-arg submit with the display context, Unbaked records without
+  transformation, MaterialSet + SpriteGetter instead of MaterialBaker,
+  default components set through Item's private components field,
+  bundle selection through the (items, weight, selected) constructor,
+  LayerRenderState (int[] tints, TextureAtlasSprite particle icon,
+  ItemTransform applied to a fresh pose, List<BakedQuad>).
+- ComponentPatch (runtime): 1.21.11 has no Removed class;
+  DataComponentPatch.map holds Optionals, empty for removals. The
+  oracle reflected on Removed.INSTANCE and died before running;
+  patchText unwraps the Optional. PatchedDataComponentMap.set returns
+  previous.orElse(prototype), so the Rust set over an unsanitized
+  removal marker returns Ok(base) instead of MissingPrototype.
+- EntityComponents driver: the trigger's entity is a list of loot
+  conditions in 1.21.11 (bare object in 26.3); the driver accepts both
+  shapes and uses the 1.21.11 predicate keys (components, type).
+
+T4 commits on behaviour/1.21.11: aa4ecb1 (batch 1: food,
+entity_components, pack_resources, sound_event, suffocation Java +
+drivers, chunk_generation), 3e8a93d (datafix), 8ead9be (command_exec),
+29ea9a9 (suffocation Rust, after cargo check), 4a1de47 (first_person),
+f236b5c (item_model), 19682d1 (component_patch), fbb1c14
+(entity_components driver).
