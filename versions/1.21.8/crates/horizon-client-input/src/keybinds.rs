@@ -379,15 +379,15 @@ impl KeyBinds {
         *self = Self::default();
     }
     /// Mappings sharing `name`'s key (KeyMapping.same), for conflict marks.
+    /// Any same key conflicts: 1.21.8 has no exemption for two defaults
+    /// sharing a key (1.21.9 added one).
     pub fn conflicts(&self, name: &str) -> Vec<&'static str> {
         let key = self.get(name);
         if key == "key.keyboard.unknown" {
             return Vec::new();
         }
         all_mappings()
-            .filter(|(n, _, _)| {
-                *n != name && self.get(n) == key && (!self.is_default(n) || !self.is_default(name))
-            })
+            .filter(|(n, _, _)| *n != name && self.get(n) == key)
             .map(|(n, _, _)| *n)
             .collect()
     }
@@ -621,6 +621,14 @@ mod tests {
         assert!(k.conflicts("key.forward").is_empty());
         k.set("key.jump", "key.keyboard.up");
         assert_eq!(k.conflicts("key.forward"), ["key.jump"]);
+    }
+    #[test]
+    fn two_defaults_sharing_a_key_conflict() {
+        // 1.21.8 has no exemption for two defaults: the F3 debug keys both
+        // default to F3 and each flags the other.
+        let k = KeyBinds::default();
+        assert_eq!(k.conflicts("key.debug.overlay"), ["key.debug.modifier"]);
+        assert_eq!(k.conflicts("key.debug.modifier"), ["key.debug.overlay"]);
     }
     #[test]
     fn a_moved_key_keeps_no_default_action() {

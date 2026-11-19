@@ -334,7 +334,54 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 35/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 35, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+### Rank 2: 36/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 28, 30, 31, 32, 33, 34, 35, 38, 39, 41, 42, 43, 44, 45, 48, 50 + 4 zero-diff)
+
+- **Item 34 — `crates/horizon-client-render/src/options_ui.rs` (15 classes, 51 methods, 6 named in Horizon):**
+  KeyBindsList (+CategoryEntry, +KeyEntry), AbstractContainerWidget,
+  LanguageSelectScreen (+LanguageSelectionList$Entry),
+  AccessibilityOptionsScreen, KeyBindsScreen, VideoSettingsScreen,
+  OptionsList (+Entry), ConfirmScreen, LanguageSelectScreen,
+  MouseSettingsScreen, ControlsScreen, OptionsScreen. Fixes:
+  1. **Accessibility list gains three options, loses the Controls link.**
+     1.21.8 lists auto-jump (after high contrast) and toggle-crouch /
+     toggle-sprint (after view bobbing); 1.21.9 moved those to the
+     Controls screen and put a Controls button beside the narrator
+     instead. The list now matches 1.21.8's 27 options in order, and
+     the page renders plain pairs.
+  2. **Controls list loses toggle-attack and toggle-use** (1.21.9-only
+     options, absent from 1.21.8's `Options` entirely; the sprint
+     window was already gone via item 12). Horizon's own quit shortcuts
+     and the macOS Control-click switch stay.
+  3. **Mouse list loses Invert X and the cursor-changes switch**
+     (1.21.9-only), reordered to sensitivity, Invert Y, wheel
+     sensitivity, discrete scroll — 1.21.8's order.
+  4. **Two defaults sharing a key conflict.** 1.21.9 exempts a pair
+     when both are at their defaults; 1.21.8 flags any same key.
+     `conflicts` drops the exemption. New test
+     `two_defaults_sharing_a_key_conflict`: the F3 debug keys (overlay
+     + modifier, both default F3) each flag the other.
+  5. **Duplicate-key marks are red, not yellow** — the `[ key ]`
+     message (`ChatFormatting.RED`) and the 3-wide bar (`-65536`).
+  Verified no-change: the confirm screen's Escape always answers no
+  (the Rust has no delay ticker, so 1.21.9's delay gate is unmodelled);
+  the panorama spins on every screen except during onboarding (the
+  Rust has no per-screen `panoramaShouldSpin` override, matching
+  1.21.8); keybind category headers are plain centred text, not
+  focusable (1.21.9's `FocusableTextWidget` headers are); categories
+  are plain strings, as in 1.21.8; the OptionsList layout (width/2 −
+  155, 160 spacing) and the key-entry layout are identical; the video
+  screen's GPU-warning click and Ctrl+scroll GUI scale, the keybinds
+  capture (Escape unbinds, mouse click binds), and the container
+  widget's mouse handling differ only by the event API
+  (`MouseButtonEvent`/`KeyEvent` vs raw values).
+  Known gap (vs both versions, not 1.21.8-specific): the touchscreen
+  option is unmodelled — it is in both versions' mouse lists (last in
+  1.21.8, second in 1.21.9). Ownership: the option definitions
+  (`Opt::ToggleAttack`, `Opt::ToggleUse`, `Opt::InvertX`,
+  `Opt::AllowCursorChanges`, the Invert Y lang key
+  `options.invertMouseY` → 1.21.8's `options.invertMouse`) belong to
+  item 59 (Options); their settings fields and the round-trip test stay
+  until then.
 
 - **Item 50 — `crates/horizon-client/src/game/mounts.rs` (4 classes, 9 methods, 7 named in Horizon):**
   Camel, Strider, Pig, FoodOnAStickItem. Zero-diff: no code changed.

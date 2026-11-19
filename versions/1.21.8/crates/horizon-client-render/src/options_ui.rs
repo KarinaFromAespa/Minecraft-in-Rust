@@ -94,12 +94,14 @@ const MODEL_PART_KEYS: [&str; 7] = [
     "modelPart_right_pants_leg",
     "modelPart_hat",
 ];
-/// The Accessibility Settings page:
-/// `AccessibilityOptionsScreen.options`, with the Controls link inserted separately.
+/// The Accessibility Settings page: `AccessibilityOptionsScreen.options`,
+/// with auto-jump and the crouch/sprint toggles (1.21.9 moved those to the
+/// Controls screen and put a Controls link in their place).
 pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::Narrator,
     Opt::ShowSubtitles,
     Opt::HighContrast,
+    Opt::AutoJump,
     Opt::MenuBlur,
     Opt::TextBackgroundOpacity,
     Opt::TextBackground,
@@ -108,6 +110,8 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::ChatDelay,
     Opt::NotificationDisplayTime,
     Opt::ViewBobbing,
+    Opt::ToggleCrouch,
+    Opt::ToggleSprint,
     Opt::DistortionEffects,
     Opt::FovEffects,
     Opt::DarknessPulsing,
@@ -123,16 +127,14 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::HighContrastBlockOutlines,
 ];
 
-/// `ControlsScreen.options`: the controls added by Java Edition 26.3, in
-/// their vanilla order. The macOS-only Control-click switch is omitted on
+/// `ControlsScreen.options` in 1.21.8, in vanilla order, plus Horizon's
+/// own quit shortcuts. The macOS-only Control-click switch is omitted on
 /// other platforms just as `InputQuirks.EMULATE_RIGHT_CLICK_WITH_CTRL_KEY`
 /// does in Java.
 pub(crate) fn vanilla_control_options() -> Vec<Opt> {
     let mut options = vec![
         Opt::ToggleCrouch,
         Opt::ToggleSprint,
-        Opt::ToggleAttack,
-        Opt::ToggleUse,
         Opt::AutoJump,
         Opt::QuitShortcuts,
     ];
@@ -143,14 +145,13 @@ pub(crate) fn vanilla_control_options() -> Vec<Opt> {
     options
 }
 
-/// `MouseSettingsScreen.options` in Java Edition 26.3, in vanilla order.
+/// `MouseSettingsScreen.options` in 1.21.8, in vanilla order (no Invert X
+/// or cursor-changes switch; touchscreen is not modelled yet).
 pub(crate) const MOUSE_OPTIONS: &[Opt] = &[
     Opt::Sensitivity,
+    Opt::InvertY,
     Opt::WheelSensitivity,
     Opt::DiscreteScroll,
-    Opt::InvertX,
-    Opt::InvertY,
-    Opt::AllowCursorChanges,
 ];
 
 impl Opt {
@@ -2884,20 +2885,7 @@ impl OptionsUi {
                 Opt::OnlySecureChat,
                 Opt::SaveChatDrafts,
             ]),
-            Page::Accessibility => {
-                let mut rows = vec![Row::Buttons(
-                    option_widget(s, Opt::Narrator, 0.0, 0.0, 150.0),
-                    Some(button(
-                        0.0,
-                        0.0,
-                        150.0,
-                        tr("options.controls"),
-                        Act::Push(Page::Controls),
-                    )),
-                )];
-                rows.extend(pairs(&ACCESSIBILITY_OPTIONS[1..]));
-                rows
-            }
+            Page::Accessibility => pairs(ACCESSIBILITY_OPTIONS),
             Page::Font => pairs(&[Opt::ForceUnicode, Opt::JapaneseGlyphs]),
             Page::Mods => {
                 let browse = button(
@@ -3234,7 +3222,7 @@ impl OptionsUi {
                         message = Text::literal("[ ")
                             .append(message.with_color(text::WHITE))
                             .append(" ]")
-                            .with_color(text::YELLOW);
+                            .with_color(text::RED);
                     }
                     if self.selected_key == Some(name) {
                         message = Text::literal("> ")
@@ -3258,7 +3246,7 @@ impl OptionsUi {
                             h: 18.0,
                             kind: WKind::Text {
                                 text: Text::empty(),
-                                color: rgba(255, 255, 0, 255),
+                                color: rgba(255, 0, 0, 255),
                                 centered: false,
                             },
                             list: false,
