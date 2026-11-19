@@ -421,7 +421,7 @@ mod tests {
                 .component(component::TOOLTIP_DISPLAY),
             Some(&Component::TooltipDisplay {
                 hide: true,
-                hidden: vec![4, 10, 35]
+                hidden: vec![4, 10, 34]
             })
         );
         let mut w = Writer::new();
@@ -448,11 +448,11 @@ mod tests {
                 let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                 Template::read(&mut Reader::new(&old.data)).unwrap()
             };
-            assert_eq!((stack.item, stack.count), (378, 3));
+            assert_eq!((stack.item, stack.count), (371, 3));
             let mut pinned = Writer::new();
             Template::write(&stack, &mut pinned);
-            // The pinned 1.21.8 writes a template count-first (a slot).
-            assert_eq!(pinned.data, [3, 0xfa, 0x02, 0, 0]);
+            // The pinned 1.21.4 writes a template count-first (a slot).
+            assert_eq!(pinned.data, [3, 0xf3, 0x02, 0, 0]);
             let mut down = Writer::new();
             {
                 let _down = ids::renumbering(version.ids().unwrap(), Way::Down);

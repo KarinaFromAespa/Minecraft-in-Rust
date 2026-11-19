@@ -2567,7 +2567,7 @@ mod tests {
         // 1.21.5 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
             (88, 0, None), // nautilus: no 1.21.8 counterpart
-            (153, 0, Some((146, 0))), // zombie villager
+            (153, 0, Some((145, 0))), // zombie villager
             (0, 0, Some((0, 0))),
             (51, 1381, Some((49, 1381))), // falling block, with a state that maps to itself
         ] {
@@ -2716,8 +2716,8 @@ mod tests {
         assert_eq!(old.bits, 15);
         let new = renumber_states(ids, &old, 15);
         assert_eq!(new.bits, 15);
-        // oak_slab type=top waterlogged=true is 13330 in 26.2, 12051 in 1.21.8.
-        assert_eq!(new.get(330), 12051);
+        // oak_slab type=top waterlogged=true is 13330 in 26.2, 12041 in 1.21.4.
+        assert_eq!(new.get(330), 12041);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 

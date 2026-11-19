@@ -470,7 +470,7 @@ mod tests {
             (sections[0].states.get(0), sections[0].biomes.get(0)),
             (1, 7)
         );
-        assert_eq!(sections[1].states.palette, [0, 7016]);
+        assert_eq!(sections[1].states.palette, [0, 7006]);
         assert_eq!(
             (
                 sections[1].states.get(1),
@@ -572,7 +572,7 @@ mod tests {
         };
         assert_eq!(
             (p.id, p.slots[0].0, p.slots[0].1.as_ref().unwrap().item),
-            (42, 7, 800)
+            (42, 7, 793)
         );
     }
 
@@ -580,10 +580,10 @@ mod tests {
     fn removed_fields_and_separate_minecart_updates_keep_their_meaning() {
         let session = Session::new(ServerVersion::V1_21_4);
         // Field ids independently obtained from vanilla SynchedEntityData accessors.
-        // Kinds are the pinned 1.21.5 ids: dolphin 33, turtle 131, mooshroom 82.
+        // Kinds are the pinned 1.21.4 ids: dolphin 33, turtle 130, mooshroom 82.
         for (kind, old, expected) in [
             (33, vec![17, 18, 19], vec![17, 18]),
-            (131, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
+            (130, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
             (82, vec![17], vec![17]),
         ] {
             session.kinds.lock().unwrap().insert(42, kind);
@@ -597,10 +597,10 @@ mod tests {
             entity_data(&session, &mut p);
             assert_eq!(p.values.iter().map(|v| v.0).collect::<Vec<_>>(), expected);
         }
-        session.kinds.lock().unwrap().insert(42, 81); // minecraft:minecart in 1.21.5.
+        session.kinds.lock().unwrap().insert(42, 81); // minecraft:minecart in 1.21.4.
         for (values, expected) in [
             (vec![(11, serializer::INT, Value::Int(7006))], 0),
-            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 7016),
+            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 7006),
             (vec![(13, serializer::BOOLEAN, Value::Bool(false))], 0),
         ] {
             let mut p = play::SetEntityData { id: 42, values };

@@ -596,7 +596,7 @@ mod tests {
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
         // A shulker box (581 in 1.21.11, 545 pinned) as a 1.21.11 server sends it. Its container (62 pinned,
         // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 836 pinned) with a map_color (35),
-        // then an empty slot. Its use_remainder (23 pinned, 25 sent) is a bowl (892 sent, 822 pinned).
+        // then an empty slot. Its use_remainder (23 pinned, 25 sent) is a bowl (892 sent, 830 pinned).
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
             73, 2, 2, 0x82, 0x07, 1, 0, 43, 0, 0, 0, 5, 0, // container
@@ -615,7 +615,7 @@ mod tests {
                     62,
                     Component::Raw(vec![2, 1, 0xc4, 0x06, 2, 1, 0, 35, 0, 0, 0, 5, 0]),
                 ),
-                (23, Component::Raw(vec![0xb6, 0x06, 1, 0, 0])),
+                (23, Component::Raw(vec![0xbe, 0x06, 1, 0, 0])),
             ]
         );
     }

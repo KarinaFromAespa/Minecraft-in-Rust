@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(p.particle.id, 1);
         assert_eq!(
             p.particle.data,
-            Some(crate::entity_data::ParticleData::State(7019))
+            Some(crate::entity_data::ParticleData::State(7009))
         );
     }
 
@@ -97,7 +97,7 @@ mod tests {
             let _up = ids::renumbering(ids, Way::Up);
             crate::entity_data::Particle::read(&mut r).unwrap()
         };
-        assert_eq!(particle.id, 48); // minecraft:trail is particle 48 in 1.21.8.
+        assert_eq!(particle.id, 47); // minecraft:trail is particle 47 in 1.21.4.
         assert_eq!(
             particle.data,
             Some(crate::entity_data::ParticleData::Trail(

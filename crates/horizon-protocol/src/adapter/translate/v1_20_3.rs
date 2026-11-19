@@ -789,8 +789,8 @@ mod tests {
                     };
                     let expected = match color {
                         -1 => None,
-                        0..=15 => Some(476 + color),
-                        _ => Some(476),
+                        0..=15 => Some(469 + color),
+                        _ => Some(469),
                     };
                     assert_eq!(packet.id, 42);
                     assert_eq!(
@@ -1058,7 +1058,7 @@ mod tests {
                 offer.result.item,
                 offer.result.count
             ),
-            (846, 5, 845, 1)
+            (837, 5, 836, 1)
         );
         assert!(offer.cost_b.is_none());
         assert_eq!(
