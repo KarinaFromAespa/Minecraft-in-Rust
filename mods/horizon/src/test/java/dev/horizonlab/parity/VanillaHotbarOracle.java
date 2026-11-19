@@ -29,7 +29,7 @@ public final class VanillaHotbarOracle {
                 try {
                     Files.deleteIfExists(dir.resolve("hotbar.nbt"));
                     if (!f.get("snbt").isJsonNull()) {
-                        CompoundTag tag = TagParser.parseCompoundFully(f.get("snbt").getAsString());
+                        CompoundTag tag = TagParser.parseTag(f.get("snbt").getAsString());
                         NbtIo.write(tag, dir.resolve("hotbar.nbt"));
                     }
                     HotbarManager manager = new HotbarManager(dir, DataFixers.getDataFixer());

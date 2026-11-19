@@ -33,7 +33,7 @@ public final class VanillaEnchantmentComponentsOracle {
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8))) {
             for (String line : Files.readAllLines(Path.of(args[0]), StandardCharsets.UTF_8)) {
                 String[] fields = line.split("\t", 2);
-                var tag = TagParser.parseCompoundFully(
+                var tag = TagParser.parseTag(
                     "{id:'minecraft:diamond_sword',count:1,components:" + fields[1] + "}");
                 // Item loading keeps a codec's partial value: invalid entries disappear,
                 // while the valid enchantments and the other components survive.

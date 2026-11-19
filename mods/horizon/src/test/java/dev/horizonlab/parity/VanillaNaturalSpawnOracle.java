@@ -475,7 +475,7 @@ public final class VanillaNaturalSpawnOracle {
         BlockState block = net.minecraft.commands.arguments.blocks.BlockStateParser.parseForBlock(blockLookup,
             "minecraft:vault[vault_state=" + c.getOrDefault("state", "inactive") + ",ominous=" + c.getOrDefault("ominous", "0").equals("1") + "]", false).blockState();
         level.blocks.add(Map.entry(new Box(at.getX(), at.getY(), at.getZ(), at.getX(), at.getY(), at.getZ()), block));
-        var nbt = net.minecraft.nbt.TagParser.parseCompoundFully(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
+        var nbt = net.minecraft.nbt.TagParser.parseTag(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
         var entity = new net.minecraft.world.level.block.entity.vault.VaultBlockEntity(at, block);
         entity.setLevel(level);
         level.trial = entity;
@@ -553,7 +553,7 @@ public final class VanillaNaturalSpawnOracle {
         BlockState block = net.minecraft.commands.arguments.blocks.BlockStateParser.parseForBlock(blockLookup,
             "minecraft:trial_spawner[trial_spawner_state=" + c.getOrDefault("state", "waiting_for_players") + ",ominous=" + c.getOrDefault("ominous", "0").equals("1") + "]", false).blockState();
         level.blocks.add(Map.entry(new Box(at.getX(), at.getY(), at.getZ(), at.getX(), at.getY(), at.getZ()), block));
-        var nbt = net.minecraft.nbt.TagParser.parseCompoundFully(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
+        var nbt = net.minecraft.nbt.TagParser.parseTag(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
         var entity = new net.minecraft.world.level.block.entity.TrialSpawnerBlockEntity(at, block);
         entity.setLevel(level);
         level.trial = entity;
@@ -789,7 +789,7 @@ public final class VanillaNaturalSpawnOracle {
                         level.tick = -1;
                         String[] sp = c.get("spos").split(",");
                         BlockPos at = new BlockPos(Integer.parseInt(sp[0]), Integer.parseInt(sp[1]), Integer.parseInt(sp[2]));
-                        var nbt = net.minecraft.nbt.TagParser.parseCompoundFully(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
+                        var nbt = net.minecraft.nbt.TagParser.parseTag(new String(Base64.getDecoder().decode(c.get("snbt")), StandardCharsets.UTF_8));
                         var spawner = new net.minecraft.world.level.block.entity.SpawnerBlockEntity(at, Blocks.SPAWNER.defaultBlockState());
                         spawner.getSpawner().load(level, at, net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, access, nbt));
                         int ticks = Integer.parseInt(c.getOrDefault("ticks", "1"));

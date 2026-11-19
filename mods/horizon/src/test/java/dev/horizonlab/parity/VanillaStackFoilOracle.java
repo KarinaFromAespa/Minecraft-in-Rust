@@ -25,7 +25,7 @@ public final class VanillaStackFoilOracle {
                 result.add("id", input.get("id"));
                 if (input.has("nbt")) {
                     var codec = DataComponents.ENCHANTMENT_GLINT_OVERRIDE.codec();
-                    var tag = TagParser.parseCompoundFully("{v:" + input.get("nbt").getAsString() + "}").get("v");
+                    var tag = TagParser.parseTag("{v:" + input.get("nbt").getAsString() + "}").get("v");
                     boolean flag = codec.parse(NbtOps.INSTANCE, tag).getOrThrow();
                     stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, flag);
                     result.add("component", codec.encodeStart(JsonOps.INSTANCE, flag).getOrThrow());

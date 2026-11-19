@@ -27,7 +27,7 @@ public final class VanillaChestLoadOracle {
                 var chest = new ChestBlockEntity(BlockPos.ZERO, Blocks.CHEST.defaultBlockState());
                 chest.setItem(0, new ItemStack(Items.GOLD_INGOT, 5));
                 chest.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING,
-                    ParityData.lookup, TagParser.parseCompoundFully(line)));
+                    ParityData.lookup, TagParser.parseTag(line)));
                 @SuppressWarnings("unchecked")
                 var slots = (NonNullList<ItemStack>) itemsField.get(chest);
                 var result = new StringBuilder();

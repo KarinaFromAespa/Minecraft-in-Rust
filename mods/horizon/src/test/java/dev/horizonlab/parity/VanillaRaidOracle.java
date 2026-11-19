@@ -432,7 +432,7 @@ public final class VanillaRaidOracle {
                     String mode = c.getOrDefault("mode", "raid");
                     if (mode.equals("codec")) {
                         String snbt = new String(java.util.HexFormat.of().parseHex(c.get("snbt")), StandardCharsets.UTF_8);
-                        Tag tag = TagParser.parseCompoundFully(snbt);
+                        Tag tag = TagParser.parseTag(snbt);
                         Optional<Raids> parsed = Raids.CODEC.parse(NbtOps.INSTANCE, tag).resultOrPartial();
                         Raids raids = parsed.orElseGet(Raids::new);
                         log.add(parsed.isPresent() ? "decoded" : "fresh");

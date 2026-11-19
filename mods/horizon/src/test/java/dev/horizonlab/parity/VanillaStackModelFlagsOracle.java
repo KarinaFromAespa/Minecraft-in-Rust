@@ -22,7 +22,7 @@ public final class VanillaStackModelFlagsOracle {
             for (var line : Files.readAllLines(Path.of(args[0]), StandardCharsets.UTF_8)) {
                 var input = JsonParser.parseString(line).getAsJsonObject();
                 var codec = DataComponents.CUSTOM_MODEL_DATA.codec();
-                var tag = TagParser.parseCompoundFully(input.get("nbt").getAsString());
+                var tag = TagParser.parseTag(input.get("nbt").getAsString());
                 var data = codec.parse(NbtOps.INSTANCE, tag).getOrThrow();
                 var stack = new ItemStack(Items.DIAMOND);
                 stack.set(DataComponents.CUSTOM_MODEL_DATA, data);

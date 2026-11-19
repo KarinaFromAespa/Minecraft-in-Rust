@@ -53,7 +53,7 @@ public final class VanillaTextDisplayOracle {
                     else if (value instanceof Byte) value = in.getAsByte();
                     else if (value instanceof Vector3f) value = new Vector3f(in.getAsJsonArray().get(0).getAsFloat(), in.getAsJsonArray().get(1).getAsFloat(), in.getAsJsonArray().get(2).getAsFloat());
                     else if (value instanceof Quaternionf) value = new Quaternionf(in.getAsJsonArray().get(0).getAsFloat(), in.getAsJsonArray().get(1).getAsFloat(), in.getAsJsonArray().get(2).getAsFloat(), in.getAsJsonArray().get(3).getAsFloat());
-                    else if (value instanceof Component) value = ComponentSerialization.CODEC.parse(ParityData.ops, TagParser.parseCompoundFully("{v:" + in + "}").get("v")).getOrThrow();
+                    else if (value instanceof Component) value = ComponentSerialization.CODEC.parse(ParityData.ops, TagParser.parseTag("{v:" + in + "}").get("v")).getOrThrow();
                     display.getEntityData().set(accessor, value);
                 }
                 JsonElement encoded;

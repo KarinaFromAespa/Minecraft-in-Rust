@@ -34,7 +34,7 @@ public final class VanillaPickBlockDataOracle {
     static final BlockPos POS = new BlockPos(0, 64, 0);
 
     static BlockEntity load(BlockState state, String snbt) throws Exception {
-        BlockEntity entity = BlockEntity.loadStatic(POS, state, TagParser.parseCompoundFully(snbt), ParityData.access);
+        BlockEntity entity = BlockEntity.loadStatic(POS, state, TagParser.parseTag(snbt), ParityData.access);
         if (entity == null) throw new IllegalStateException("no block entity: " + snbt);
         return entity;
     }
@@ -72,7 +72,7 @@ public final class VanillaPickBlockDataOracle {
                     ItemStack picked = pick(state, load(state, c.get("nbt").getAsString()));
                     ItemStack item = picked;
                     if (c.has("patch")) {
-                        var patch = DataComponentPatch.CODEC.parse(ParityData.ops, TagParser.parseCompoundFully(c.get("patch").getAsString())).getOrThrow();
+                        var patch = DataComponentPatch.CODEC.parse(ParityData.ops, TagParser.parseTag(c.get("patch").getAsString())).getOrThrow();
                         item = new ItemStack(state.getBlock().asItem());
                         item.applyComponents(patch);
                     }

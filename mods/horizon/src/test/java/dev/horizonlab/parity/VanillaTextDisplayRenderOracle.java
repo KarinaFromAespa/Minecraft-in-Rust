@@ -186,7 +186,7 @@ public final class VanillaTextDisplayRenderOracle {
                     JsonElement in = input.get(key[0]);
                     Object value = switch (key[0]) {
                         case "text" -> ComponentSerialization.CODEC.parse(ParityData.ops,
-                            TagParser.parseCompoundFully("{v:" + in + "}").get("v")).getOrThrow();
+                            TagParser.parseTag("{v:" + in + "}").get("v")).getOrThrow();
                         case "opacity", "flags" -> in.getAsByte();
                         default -> in.getAsInt();
                     };

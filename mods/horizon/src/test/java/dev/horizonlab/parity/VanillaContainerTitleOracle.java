@@ -38,7 +38,7 @@ public final class VanillaContainerTitleOracle {
     static final BlockPos POS = new BlockPos(0, 64, 0);
 
     static BlockEntity load(BlockState state, BlockPos pos, String snbt) throws Exception {
-        BlockEntity entity = BlockEntity.loadStatic(pos, state, TagParser.parseCompoundFully(snbt), ParityData.access);
+        BlockEntity entity = BlockEntity.loadStatic(pos, state, TagParser.parseTag(snbt), ParityData.access);
         if (entity == null) throw new IllegalStateException("no block entity: " + snbt);
         return entity;
     }
@@ -60,7 +60,7 @@ public final class VanillaContainerTitleOracle {
         }
         BlockEntity entity = load(state, POS, c.get("nbt").getAsString());
         if (c.has("patch")) {
-            var patch = DataComponentPatch.CODEC.parse(ParityData.ops, TagParser.parseCompoundFully(c.get("patch").getAsString())).getOrThrow();
+            var patch = DataComponentPatch.CODEC.parse(ParityData.ops, TagParser.parseTag(c.get("patch").getAsString())).getOrThrow();
             ItemStack item = new ItemStack(state.getBlock().asItem());
             item.applyComponents(patch);
             entity.applyComponentsFromItemStack(item);

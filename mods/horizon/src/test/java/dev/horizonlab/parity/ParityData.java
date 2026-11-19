@@ -70,7 +70,7 @@ public final class ParityData {
     /** "-" is the empty stack; otherwise ItemStack.CODEC over SNBT. */
     public static ItemStack stack(String snbt) throws Exception {
         if (snbt.equals("-")) return ItemStack.EMPTY;
-        Tag tag = TagParser.parseCompoundFully(snbt);
+        Tag tag = TagParser.parseTag(snbt);
         return ItemStack.CODEC.parse(ops, tag).getOrThrow();
     }
 

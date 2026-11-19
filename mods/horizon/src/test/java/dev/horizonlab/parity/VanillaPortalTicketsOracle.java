@@ -91,7 +91,7 @@ public final class VanillaPortalTicketsOracle {
         try (var out = new PrintWriter(Files.newBufferedWriter(Path.of(args[1]), StandardCharsets.UTF_8))) {
             for (String line : Files.readAllLines(Path.of(args[0]), StandardCharsets.UTF_8)) {
                 JsonObject input = JsonParser.parseString(line).getAsJsonObject();
-                TicketStorage storage = load(TagParser.parseCompoundFully(input.get("saved").getAsString()));
+                TicketStorage storage = load(TagParser.parseTag(input.get("saved").getAsString()));
                 storage.activateAllDeactivatedTickets();
                 JsonArray chunks = input.getAsJsonArray("chunks");
                 List<List<String>> trace = new ArrayList<>();
