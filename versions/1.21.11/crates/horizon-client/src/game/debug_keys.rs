@@ -284,14 +284,10 @@ impl Game<'_> {
                     c.fps
                 ),
             ),
-            format!(
-                "{}; {}",
-                chart(
-                    "key.debug.networkCharts",
-                    if remote { "Bandwidth + Ping" } else { "Ping" },
-                    c.network
-                ),
-                chart("key.debug.lightmapTexture", "Lightmap", c.lightmap),
+            chart(
+                "key.debug.networkCharts",
+                if remote { "Bandwidth + Ping" } else { "Ping" },
+                c.network,
             ),
             format!("To edit: press {}", key("key.debug.debugOptions")),
         ]
@@ -358,15 +354,6 @@ impl Game<'_> {
                 scale, scale,
             )]));
             draws.extend(charts);
-            if self.debug_charts.lightmap
-                && let Some(r) = &self.renderer
-            {
-                draws.extend(horizon_client::debug_chart::lightmap(
-                    &r.lightmap_pixels,
-                    width,
-                    height,
-                ));
-            }
             draws.push(hud_layout::GuiDraw::Pop);
         }
         hud_layout::paint(batch, atlas, &draws);
@@ -753,10 +740,6 @@ impl Game<'_> {
             }
             DebugAction::NetworkCharts => {
                 self.debug_charts.toggle_network(&mut self.debug);
-                true
-            }
-            DebugAction::LightmapTexture => {
-                self.debug_charts.toggle_lightmap(&mut self.debug);
                 true
             }
             // Other title submenus still need their own interruption/close policy.
