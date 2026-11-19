@@ -1775,5 +1775,26 @@ Rank 2 (492 items, in progress 2026-11-19)
     sign_edit.rs). The triage missed it — its changed-methods dict
     only compares methods present in both versions (the 396/407
     blind spot). Removal belongs with the changed items.
-- Rank-2 A-batches 1-16: 160 items closed (25 changed, 135 no-change).
-  work-items.json rank2.closed = 160 on 2026-11-19.
+- A-batch 17 (473, 474, 475, 476, 477, 478, 479, 480, 481, 482),
+  verified 2026-11-19, no code changes:
+  - 473 no-change (AttributeModifier): 26.1's `INTEGER_LIBRARY` is
+    absent in 1.21.11, but the Rust's environment-attribute system
+    has no integer kind (integer attributes are `Other`,
+    override-only; `with_modifier` rejects modifiers on them).
+  - 474 no-change (EnvironmentAttributeReader): 26.1's
+    `getValue(LootContext, ...)` overload has no Rust surface — no
+    loot code reads environment attributes.
+  - 475 no-change (AttributeSupplier, AttributeInstance$Packed):
+    record fields/ctor flags.
+  - 476 no-change (TemptGoal): ctor flag.
+  - 477 no-change (MushroomCow$Variant): `id` field + `byId` flags.
+  - 478 no-change (GlowSquid): `is(Object)` -> `is(Block)`.
+  - 479 no-change (AbstractPiglin): PathType renames, already ported
+    in item 383.
+  - 480 no-change (AbstractSkeleton$1): requireNonNull outer-this
+    pattern (26.1 only).
+  - 481 no-change (Spider): `is(Object)` -> `is(Block)`.
+  - 482 no-change (ContainerEntity$1): ctor field-init order swap +
+    requireNonNull pattern — javac codegen, same fields.
+- Rank-2 A-batches 1-17: 170 items closed (25 changed, 145 no-change).
+  work-items.json rank2.closed = 170 on 2026-11-19.
