@@ -3018,14 +3018,9 @@ impl Screen {
                     [left, content_y + 13.0, 210.0, 20.0]
                 })
             }
-            SubScreen::SlotOptions { server, .. } => {
-                // The labelled 150-wide name field at content top + 13.
-                let warning = matches!(
-                    server.world_type.as_str(),
-                    "ADVENTUREMAP" | "INSPIRATION" | "EXPERIENCE"
-                );
-                let content_top = if warning { 88.0 } else { 63.0 };
-                Some([(w / 2.0).floor() - 75.0, content_top + 13.0, 150.0, 20.0])
+            SubScreen::SlotOptions { .. } => {
+                // The 170-wide name field at `row(1)` = 53 in the first column.
+                Some([(w / 2.0).floor() - 170.0, 53.0, 170.0, 20.0])
             }
             SubScreen::Configure {
                 tab: ConfigureTab::Settings,
@@ -6086,15 +6081,9 @@ impl Screen {
                 } = &mut self.subscreen
                     && server.world_type == "NORMAL"
                 {
-                    // The 150-wide slider in the right column at content top + 69
-                    // (58-tall header with the warning, 33 without).
-                    let warning = matches!(
-                        server.world_type.as_str(),
-                        "ADVENTUREMAP" | "INSPIRATION" | "EXPERIENCE"
-                    );
-                    let top = if warning { 88.0 } else { 63.0 } + 69.0;
-                    let (sx, sw) = (((w / 2.0).floor()) + 4.0, 150.0);
-                    if (top..top + 20.0).contains(&y) && (sx..sx + sw).contains(&x) {
+                    // The 170-wide slider in the first column at `row(5)` = 105.
+                    let (sx, sw) = ((w / 2.0).floor() - 170.0, 170.0);
+                    if (105.0..125.0).contains(&y) && (sx..sx + sw).contains(&x) {
                         let value = crate::ui::slider_value(sx, sw, x);
                         *spawn_protection = (value * 16.0).round() as i32;
                         self.other_slider = Some(1);
@@ -7307,15 +7296,15 @@ impl Screen {
                 job,
                 ..
             } => {
-                // `RealmsSlotOptionsScreen`: two 150-wide columns at content top + 41 and
-                // + 69, and the footer's Continue/Cancel centred in the 33-tall footer.
+                // `RealmsSlotOptionsScreen.init`: two 170-wide columns at
+                // `width / 2 - 170` and `width / 2 + 10`, the name field and
+                // difficulty at `row(1)` = 53, game mode and force game mode at
+                // `row(3)` = 79, Done and Cancel at `row(13)` = 209
+                // (`row(i) = 40 + i * 13`); 26.1 laid it out with a
+                // `HeaderAndFooterLayout` instead.
                 let normal = server.world_type == "NORMAL";
                 let hardcore = slot.is_hardcore();
-                let warning = matches!(
-                    server.world_type.as_str(),
-                    "ADVENTUREMAP" | "INSPIRATION" | "EXPERIENCE"
-                );
-                let content_top = if warning { 88.0 } else { 63.0 } + 41.0;
+                let (col1, col2) = (cx - 170.0, cx + 10.0);
                 let on_off = |on: bool| {
                     if on {
                         t("options.on")
@@ -7324,9 +7313,9 @@ impl Screen {
                     }
                 };
                 buttons.push((
-                    cx - 154.0,
-                    content_top,
-                    150.0,
+                    col2,
+                    53.0,
+                    170.0,
                     crate::lang::tr(
                         "options.generic_value",
                         &[&t("options.difficulty"), &t(DIFFICULTIES[*difficulty])],
@@ -7336,9 +7325,9 @@ impl Screen {
                     None,
                 ));
                 buttons.push((
-                    cx + 4.0,
-                    content_top,
-                    150.0,
+                    col1,
+                    79.0,
+                    170.0,
                     crate::lang::tr(
                         "options.generic_value",
                         &[&t("selectWorld.gameMode"), &t(GAME_MODES[*game_mode])],
@@ -7348,9 +7337,9 @@ impl Screen {
                     None,
                 ));
                 buttons.push((
-                    cx - 154.0,
-                    content_top + 28.0,
-                    150.0,
+                    col2,
+                    79.0,
+                    170.0,
                     crate::lang::tr(
                         "options.generic_value",
                         &[
@@ -7363,15 +7352,15 @@ impl Screen {
                     None,
                 ));
                 buttons.push((
-                    cx - 154.0,
-                    h - 27.0,
-                    150.0,
-                    t("gui.continue"),
+                    col1,
+                    209.0,
+                    170.0,
+                    t("mco.configure.world.buttons.done"),
                     job.is_none(),
                     98,
                     None,
                 ));
-                buttons.push((cx + 4.0, h - 27.0, 150.0, t("gui.cancel"), true, 99, None));
+                buttons.push((col2, 209.0, 170.0, t("gui.cancel"), true, 99, None));
             }
             SubScreen::Backups {
                 backups,
@@ -8965,10 +8954,12 @@ impl Screen {
                                         .map(|entry| slot_name(&entry.options, slot))
                                         .unwrap_or_else(|| t("mco.configure.world.slot.empty"))
                                 };
-                                // `slotNameWidget.setMaxWidth(width - (active ? 2 : 0))`:
-                                // a long name never leaves its frame.
-                                let name =
-                                    clamp_text(atlas, &name, size - if active { 2.0 } else { 0.0 });
+                                // `RealmsWorldSlotButton.renderContents`: a name wider
+                                // than 64 is cut to
+                                // `plainSubstrByWidth(name, 64 - width("..."))` plus
+                                // the dots (`WORLD_NAME_MAX_WIDTH`, `DOTS`); 26.1
+                                // scrolled it in a `StringWidget` instead.
+                                let name = clamp_text_dots(atlas, &name, 64.0);
                                 let tw = HudBatch::text_width(atlas, &name);
                                 batch.text(
                                     atlas,
@@ -9476,45 +9467,41 @@ impl Screen {
                 error,
                 ..
             } => {
-                // `RealmsSlotOptionsScreen`: the title in the 33-tall header — 58 with the
-                // world-type warning under it — then the content at header + 30: the
-                // labelled 150-wide name field, the cycle-button row and the force/
-                // spawn-protection row 28 lower, in two 150-wide columns.
+                // `RealmsSlotOptionsScreen`: the title at 17, the world-type
+                // warning label at 26 in red (a `RealmsLabel` at `width / 2`),
+                // the name label centred over the first column at
+                // `row(0) - 5` = 35, the 170-wide name field at `row(1)` = 53,
+                // and the spawn-protection slider at `row(5)` = 105.
                 let warning = match server.world_type.as_str() {
                     "ADVENTUREMAP" => Some("mco.configure.world.edit.subscreen.adventuremap"),
                     "INSPIRATION" => Some("mco.configure.world.edit.subscreen.inspiration"),
                     "EXPERIENCE" => Some("mco.configure.world.edit.subscreen.experience"),
                     _ => None,
                 };
-                let header_h = if warning.is_some() { 58.0 } else { 33.0 };
-                let content_top = header_h + 30.0;
-                // With the warning the 26-tall header pair centres in 58: title 16,
-                // warning 33; without it the title centres in 33 at 12.
                 centered(
                     batch,
                     atlas,
                     &t("mco.configure.world.buttons.options"),
                     cx,
-                    if warning.is_some() { 16.0 } else { 12.0 },
+                    17.0,
                     u32::MAX,
                 );
                 if let Some(key) = warning {
-                    centered(batch, atlas, &t(key), cx, 33.0, RED);
+                    centered(batch, atlas, &t(key), cx, 26.0, RED);
                 }
-                // `CommonLayouts.labeledElement`: the label 4 over the field, 150 wide.
-                batch.text(
+                centered(
+                    batch,
                     atlas,
                     &t("mco.configure.world.edit.slot.name"),
-                    cx - 75.0,
-                    content_top,
+                    cx - 85.0,
+                    35.0,
                     u32::MAX,
-                    true,
                 );
                 caret.draw(
                     batch,
                     atlas,
                     (REALMS_SLOT_NAME, name, 32),
-                    [cx - 75.0, content_top + 13.0, 150.0, 20.0],
+                    [cx - 170.0, 53.0, 170.0, 20.0],
                     true,
                     focused_at,
                 );
@@ -9536,12 +9523,12 @@ impl Screen {
                 crate::ui::slider(
                     batch,
                     atlas,
-                    cx + 4.0,
-                    content_top + 69.0,
-                    150.0,
+                    cx - 170.0,
+                    105.0,
+                    170.0,
                     &Text::literal(&label),
                     value,
-                    crate::ui::hovered(cursor, cx + 4.0, content_top + 69.0, 150.0, 20.0),
+                    crate::ui::hovered(cursor, cx - 170.0, 105.0, 170.0, 20.0),
                     server.world_type == "NORMAL",
                     false,
                 );
@@ -11774,10 +11761,20 @@ fn loading_dots() -> &'static str {
 /// `Entry.extractClampedString`: the string cut to `max` pixels — vanilla cuts with
 /// `plainSubstrByWidth` into the space `width("... ")` leaves and appends the dots.
 fn clamp_text(atlas: &HudAtlas, text: &str, max: f32) -> String {
+    clamp_text_with(atlas, text, max, "... ")
+}
+
+/// `Font.plainSubstrByWidth(text, max - width("...")) + "..."`: vanilla's
+/// truncation, which reserves only the dots' own width.
+fn clamp_text_dots(atlas: &HudAtlas, text: &str, max: f32) -> String {
+    clamp_text_with(atlas, text, max, "...")
+}
+
+fn clamp_text_with(atlas: &HudAtlas, text: &str, max: f32, ellipsis: &str) -> String {
     if max <= 0.0 || HudBatch::text_width(atlas, text) <= max {
         return text.to_owned();
     }
-    let room = max - HudBatch::text_width(atlas, "... ");
+    let room = max - HudBatch::text_width(atlas, ellipsis);
     let mut cut = String::new();
     for ch in text.chars() {
         let mut candidate = cut.clone();

@@ -1975,3 +1975,48 @@ Rank 2 (492 items, in progress 2026-11-19)
     gap, both versions).
   Rank 2 now 191/492 (28 changed, 163 no-change).
   work-items.json rank2.closed = 191 on 2026-11-19.
+- Item 13 (realms.rs), changed, ported 2026-11-19: 73 vanilla classes
+  changed (287 methods, 38 named), javap diff 8,760 lines, verified
+  by whole-diff constants / method-call / branch-opcode comparisons
+  plus direct reads of every flagged hunk. Ported:
+  - RealmsWorldSlotButton: 1.21.11 truncates a slot name wider than
+    64px to `plainSubstrByWidth(name, 64 - width("...")) + "..."`
+    (`WORLD_NAME_MAX_WIDTH`, `DOTS`); 26.1 scrolled it in a
+    `StringWidget`. New `clamp_text_dots` helper (vanilla's rule,
+    reserving only the dots' width); other `clamp_text` call sites
+    keep their `"... "` room.
+  - RealmsSlotOptionsScreen: 1.21.11 is absolute-positioned
+    (`row(i) = 40 + i * 13`, 170-wide columns at w/2 - 170 and
+    w/2 + 10); 26.1 used a HeaderAndFooterLayout. Title at 17, the
+    non-NORMAL warning label at 26 (red), name label centred over
+    column 1 at 35, name field at 53, difficulty (col 2) at 53, game
+    mode (col 1) and force game mode (col 2) at 79, spawn-protection
+    slider (col 1) at 105, Done (`mco.configure.world.buttons.done`,
+    not `gui.continue`) and Cancel at 209. Enable rules unchanged.
+    Four sites updated: buttons, draw, text-field rect, slider click.
+  - No-change, verified: RealmsMainScreen + all entries, the
+    upload/download/backup/configure/players/template/reset screens
+    (render -> extract, text/drawString/centeredText, addMessage ->
+    setMessage renames; access flags; synthetic accessors; ctor
+    field-init order; `isEscape()` vs `key() == 256`; `findByIndex`
+    bounds-check vs exception — same behaviour); `scrollRate()` =
+    entry height / 2 in both (the Rust already wheels at height/2);
+    `scrollBarX` = row right + 8 in both; `forServiceError`,
+    `isSelfOwnedServer`, `getAction`, `bindEntryToSelf` exist in both
+    (access-flag false positives of the blind-spot script);
+    `confirmDangerousOption` is dead code in 1.21.11 (private, zero
+    callers); RealmsWorldOptions' `difficulty()` vs
+    `difficultySettings().difficulty()` is API shape only (the Rust
+    DTO carries the raw int); narration-only additions
+    (`getNarrationMessage`, `addLabel`/`createLabelNarration` — only
+    SlotOptions calls `addLabel`, drawn inline in the Rust).
+  - Referred to item 24 (save.rs): `createTemporaryWorldFolder`
+    writes level.dat with world gen + game rules INSIDE it in 1.21.11
+    (`PrimaryLevelData.createTag`); 26.1 splits them into separate
+    files. The Rust's `create_temporary_world` follows the 26.1
+    split; drop its separate `write_world_gen_settings_with` call
+    when item 24 reverses the split. The 26.1-only
+    `updateSlotState(RealmsServer)` has no Rust surface (the Worlds
+    tab redraws per-frame).
+  Rank 2 now 192/492 (29 changed, 163 no-change).
+  work-items.json rank2.closed = 192 on 2026-11-19.
