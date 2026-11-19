@@ -334,7 +334,28 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 66/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86 + 4 zero-diff)
+### Rank 2: 67/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87 + 4 zero-diff)
+
+- **Item 87 — `crates/horizon-client/src/game/structure_blocks.rs`
+  (3 classes, 6 methods, 4 named in Horizon), zero-diff:**
+  StructureBlockEntity (isStructureLoadable,
+  placeStructure), StructureBlock (setPlacedBy),
+  StructureTemplateManager (save). `createdBy`:
+  1.21.9's `getPlainTextName()` vs 1.21.8's
+  `getName().getString()` — identical for a player
+  (both return the profile name; verified: 1.21.9
+  `Player.getPlainTextName` returns
+  `gameProfile.name()`, 1.21.8 `Player.getName()`
+  returns `Component.literal(gameProfile.getName())`).
+  The Rust uses the player's profile name. The
+  1.21.9-only debug branches
+  (`SharedConstants.DEBUG_STRUCTURE_EDIT_MODE`
+  structure-void pre-fill in `placeStructure`;
+  `DEBUG_SAVE_STRUCTURES_AS_SNBT` in `save`) have no
+  Rust surface — no debug-flag code anywhere in the
+  tree. `place_structure` places directly with no
+  pre-fill; `structure_loadable` matches (LOAD mode +
+  named template exists).
 
 - **Item 86 — `crates/horizon-client/src/game/fishing.rs`
   (2 classes, 6 methods, 4 named in Horizon), zero-diff:**
