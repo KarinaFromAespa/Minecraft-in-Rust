@@ -334,7 +334,44 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 80/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97 + 4 zero-diff)
+### Rank 2: 81/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98 + 4 zero-diff)
+
+- **Item 98 — `crates/horizon-client/src/game/lan.rs`
+  (3 classes, 9 methods, 3 named in Horizon),
+  real fix:** DefaultGameModeCommands (setMode),
+  FetchProfileCommand (1.21.9-only), HappyGhast
+  (getSoundVolume, aiStep, addPassenger).
+  **HappyGhast volume:** 1.21.9 added a
+  `getSoundVolume` override (1.0 for ghastlings,
+  4.0 for adults); 1.21.8 has none, so the
+  Entity default 1.0 applies. `happy_ghast::volume`
+  and its `sound_volume` arm are gone — a happy
+  ghast now falls through to the default 1.0.
+  **DefaultGameModeCommands:** behaviour-identical
+  — 1.21.9's `setMode` calls
+  `enforceGameTypeForPlayers(getForcedGameType())`,
+  whose body (null → 0, else loop `setGameMode`
+  over the players and count) is exactly the
+  1.21.8 inline loop; `getForcedGameType`
+  returns null in both versions' base server.
+  The Rust `set_default_game_mode` /
+  `enforce_guest_game_mode` pair already matches
+  both. **FetchProfileCommand:** verified absent
+  from both 1.21.8 jars (present in both 1.21.9
+  jars); the Rust game has no such command (no
+  tree entry, no `cmd_fetchprofile` — the
+  port_map entry is stale upstream ledger data).
+  The `/fetchprofile` lines in the command corpora
+  are harness inputs that fail identically on both
+  sides (unknown command); corpora were not
+  touched for behaviour items. Verified no-change:
+  the `sendToTrackingPlayers` / `broadcast`
+  ChunkMap rename is server-side packet plumbing
+  with no Rust citation; `isClientSide()` vs the
+  field is mechanical; the 1.21.8-only
+  `sendDebugPackets` (entity-brain debug packet)
+  is debug-only and unmodelled, as items 50/95.
+  Check 0/0 at `-j 1`.
 
 - **Item 97 — `crates/horizon-client/src/game/frames.rs`
   (3 classes, 9 methods, 3 named in Horizon),
