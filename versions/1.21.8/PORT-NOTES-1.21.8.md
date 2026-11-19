@@ -334,8 +334,73 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 9/317 (items 10, 11, 12, 13, 15, 16, 17 + 2 zero-diff)
+### Rank 2: 10/317 (items 10, 11, 12, 13, 15, 16, 17, 18 + 2 zero-diff)
 
+- **Item 18 — `block_entity_render.rs` (32 classes, 195 methods, 24 named in
+  Horizon):** the block-entity renderers. One real behaviour fix (the
+  1.21.9-only crumbling overlay is gone); everything else verified
+  identical, with the 1.21.9-only `submit` / `extractRenderState` /
+  `*RenderState` citations reworded to the 1.21.8 `render` names.
+  1. **No breaking cracks on block entities:** 1.21.9 added the
+     crumbling overlay (`ModelFeatureRenderer.CrumblingOverlay`,
+     passed into `extractRenderState` so each renderer re-draws its
+     model under the destroy stage). 1.21.8 has no such thing — the
+     whole `net.minecraft.client.renderer.feature` package is absent,
+     the dispatcher carries no destroy state, and
+     `LevelRenderer.renderBlockDestroyAnimation` only re-renders the
+     block model (`renderBreakingTexture`), which is empty for
+     block-entity blocks. `render_breaking`,
+     `breaking::entity_geometry` and the `crumbling` parameter
+     threading (`render_one`, `render_banner`, the conduit shine
+     gate and shell/cage-only early return) are removed, with the
+     game.rs call site and the tests that pinned the overlay.
+     Block-model breaking (`breaking::geometry`, layers 11/12) is
+     untouched — that exists in both versions.
+  2. **Conduit eye billboard is the same matrix either way:**
+     1.21.9 orients the eye as `orientation · Rz(π) · Ry(π)`,
+     1.21.8 as a single `rotationYXZ(−yRot, xRot, π)`; since
+     `Camera.rotation` is `rotationYXZ(π − yRot, −xRot, 0)` the two
+     compose to the same matrix (verified numerically, max
+     difference ~3e-16). The Rust keeps the 1.21.9 form with a
+     comment recording the proof — the eye textures are
+     substantially asymmetric, so the equivalence matters.
+  3. **Verified identical, no code change:** bell swing
+     (`sin(ticks/π) / (4 + ticks/3)`, gated on `shaking` with
+     `clickDirection`), book poses and page flips, piglin ears and
+     dragon jaw, beacon beam geometry (rotation, scroll, radii,
+     last section 2048), chest lid (`1-(1-open)³`, combined
+     openness = max of halves), shulker lid (`24 − progress·8`,
+     270° turn), skull rotation (wall facing via
+     `convertToSegment(opposite)` = `toYRot`, conjugated through
+     the −1 scale), lectern book (`setupAnim(0, 0.1, 0.9, 1.2)`),
+     enchanting-table bob and rotation, end-portal cube (only the
+     Y faces, slab 0.375–0.75 — `shouldRenderFace` is Y-only),
+     end-gateway beam (spawn/cooldown percents, magenta/purple,
+     `sin(percent·π)` scale), sign text (four centred lines,
+     glowing full-bright with the 8x dark outline within 16
+     blocks or for black text), hanging-sign offsets, default
+     player skins (same 18, same UUID-hash selection), the
+     `PreparedTextBuilder` glyph/effect math, and every
+     block-entity layer in `LayerDefinitions` (the diff there is
+     renumbering plus the copper-golem layers and the armor
+     registration refactor — entity-model items' scope).
+  4. **Out of scope, recorded:** the copper-chest and
+     copper-golem-statue code is unreachable dead code in this
+     tree (no such blocks in the 1.21.8 registry) — removal
+     belongs to the copper-golem/statue items (item 229 owns the
+     golem). The shelf renderer registration is 1.21.9-only; the
+     shelf itself is another item's. The decorated-pot wobble
+     style is a real difference found here but belongs to item 58
+     (`DecoratedPotRenderer`): 1.21.9's `extractRenderState`
+     never copies `lastWobbleStyle`, so its submit always takes
+     the non-POSITIVE branch (which the Rust hardcodes), while
+     1.21.8's `render` reads the style and tilts on X/Z for
+     POSITIVE — item 58 must set the bool from
+     `PotWobble.style` (the render side already implements both
+     branches). Pre-existing gap vs both versions, noted not
+     fixed: the sign-text outline's scoping arm (first-person +
+     scoping shows the outline at any distance; the Rust checks
+     distance only).
 - **Item 15 — `realms.rs` (50 classes, 271 methods, 25 named in
   Horizon):** the Realms screens, options, invites, upload and
   list narration.

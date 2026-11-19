@@ -10,7 +10,6 @@ use crate::{
     Result,
     bidi::visual,
     block_entity_anim::{self, EnchantingBook},
-    breaking::entity_geometry,
     fast_hash::FxHashMap,
     font::{Font, Glyph},
     gfx::mark_oit,
@@ -593,7 +592,7 @@ fn classify(name: &str, prop: &dyn Fn(&str) -> Option<String>) -> Kind {
     Kind::None
 }
 
-/// `BookModel.setupAnim` for `BookModel.State(openness, pageFlip1, pageFlip2)`.
+/// `BookModel.setupAnim`'s lid and page poses for an openness and two page flips.
 fn book_pose(openness: f32, flip1: f32, flip2: f32) -> impl Fn(&str, &mut [f32; 9]) {
     move |name, p| match name {
         "left_lid" => p[4] = PI + openness,
@@ -655,7 +654,7 @@ fn sign_text_near(pos: [i32; 3], camera: DVec3) -> bool {
         < 256.0
 }
 
-/// `AbstractSignRenderer.submitSignText`: four centred lines, glowing text
+/// `AbstractSignRenderer.renderSignText`: four centred lines, glowing text
 /// full-bright with an 8x outline in the dark colour. The font colours each
 /// glyph by its style (`Font.StringRenderOutput`): a line's own colour wins,
 /// else the sign's. Keep style boundaries for glyphs and decoration effects.
@@ -769,7 +768,7 @@ const TEXT_OVER_OUTLINE: f32 = 0.05;
 /// Draws a text call with the font atlas: 8x8 glyph cells, the outline as
 /// eight one-pixel offsets under the text.
 ///
-/// `TextFeatureRenderer.renderText` draws the outline glyphs NORMAL and the
+/// `Font.drawInBatch8xOutline` draws the outline glyphs NORMAL and the
 /// text over them POLYGON_OFFSET, so the coplanar text always wins the depth
 /// test. Here both share one mesh, so the text is lifted a hair towards the
 /// reader instead (a twentieth of a font pixel, invisible) rather than
@@ -917,7 +916,7 @@ pub struct BlockAnim {
     pub skull: (bool, i32),
     /// `DecoratedPotBlockEntity` decorations as item ids: back, left, right, front.
     pub sherds: [Option<String>; 4],
-    /// `DecoratedPotRenderState` wobble style (positive) and progress.
+    /// `DecoratedPotBlockEntity` wobble style (positive) and progress.
     pub wobble: Option<(bool, f32)>,
     /// `EnchantingTableBlockEntity` book fields.
     pub book: EnchantingBook,
@@ -925,7 +924,7 @@ pub struct BlockAnim {
     pub gateway: (i64, i32),
 }
 
-/// One `submitText` call (`AbstractSignRenderer.submitSignText`).
+/// One line of sign text (`AbstractSignRenderer.renderSignText`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct TextCall {
     pub matrix: Mat4,
@@ -2117,7 +2116,6 @@ impl BlockEntityRenderer {
                             Mat4::from_translation(origin),
                             packed,
                             lights,
-                            false,
                             true,
                             out,
                         );
@@ -2153,7 +2151,6 @@ impl BlockEntityRenderer {
                             Mat4::from_translation(origin),
                             packed,
                             lights,
-                            false,
                             true,
                             out,
                         );
@@ -2208,7 +2205,7 @@ impl BlockEntityRenderer {
                             }
                             let base = Mat4::from_translation(origin);
                             self.render_one(
-                                scene, pos, kind, base, packed, lights, false, true, out,
+                                scene, pos, kind, base, packed, lights, true, out,
                             );
                             break 'draw;
                         }
@@ -2265,7 +2262,6 @@ impl BlockEntityRenderer {
                             Mat4::from_translation(origin),
                             packed,
                             lights,
-                            false,
                             true,
                             out,
                         );
@@ -2287,7 +2283,7 @@ impl BlockEntityRenderer {
                     break 'draw;
                 }
                 let base = Mat4::from_translation(origin);
-                self.render_one(scene, pos, kind, base, packed, lights, false, true, out);
+                self.render_one(scene, pos, kind, base, packed, lights, true, out);
             }
             after(pos, state, start, out);
             if out.len() > start && !cache_only {
@@ -2335,7 +2331,6 @@ impl BlockEntityRenderer {
                 Mat4::IDENTITY,
                 packed,
                 lights,
-                false,
                 true,
                 vertices,
             );
@@ -2499,7 +2494,6 @@ impl BlockEntityRenderer {
                         Mat4::IDENTITY,
                         packed,
                         diffuse_lights(scene.nether),
-                        false,
                         true,
                         &mut entry.vertices,
                     );
@@ -2523,7 +2517,6 @@ impl BlockEntityRenderer {
                     Mat4::IDENTITY,
                     packed,
                     diffuse_lights(scene.nether),
-                    false,
                     true,
                     &mut vertices,
                 );
@@ -2558,7 +2551,7 @@ impl BlockEntityRenderer {
     ) {
         let kind = self.kind(state);
         let lights = diffuse_lights(scene.nether);
-        self.render_one(scene, pos, kind, base, packed, lights, false, false, out);
+        self.render_one(scene, pos, kind, base, packed, lights, false, out);
     }
     /// `TheEndGatewayBlockEntity.shouldRenderFace` for each face of the gateway
     /// at `pos`: the faces its portal is drawn on.
@@ -2588,52 +2581,7 @@ impl BlockEntityRenderer {
     pub fn renders(&self, state: u32) -> bool {
         !matches!(self.kind(state), Kind::None)
     }
-    /// `submitCrumblingOverlay` of ChestRenderer.submit, BannerRenderer.submit,
-    /// SkullBlockRenderer.submitSkull, ShulkerBoxRenderer.submit,
-    /// BellRenderer.submit, LecternRenderer.submit (the book),
-    /// CopperGolemStatueBlockRenderer.submit, ConduitRenderer.submit (the shell
-    /// or cage) and EnchantTableRenderer.submit (the book): the model drawn
-    /// again under the destroy stage.
-    pub fn render_breaking(
-        &self,
-        scene: &Scene,
-        pos: [i32; 3],
-        state: u32,
-        stage: [f32; 2],
-        out: &mut Vec<Vertex>,
-    ) {
-        if !matches!(
-            self.kind(state),
-            Kind::Banner { .. }
-                | Kind::Chest { .. }
-                | Kind::Skull { .. }
-                | Kind::Shulker { .. }
-                | Kind::Bell
-                | Kind::Lectern { .. }
-                | Kind::CopperGolem { .. }
-                | Kind::Conduit
-                | Kind::EnchantingTable
-        ) {
-            return;
-        }
-        let origin = (DVec3::new(f64::from(pos[0]), f64::from(pos[1]), f64::from(pos[2]))
-            - scene.camera)
-            .as_vec3();
-        let start = out.len();
-        self.render_one(
-            scene,
-            pos,
-            self.kind(state),
-            Mat4::from_translation(origin),
-            0xff,
-            diffuse_lights(scene.nether),
-            true,
-            false,
-            out,
-        );
-        entity_geometry(&mut out[start..], origin, stage);
-    }
-    /// `ChestRenderer.extractRenderState`'s openness for the chest of `state`
+    /// `ChestRenderer.render`'s openness for the chest of `state`
     /// at `pos`: `ChestBlock.combine` (`DoubleBlockCombiner.combineWithNeigbour`)
     /// pairs a double half with its neighbour only when that is the same
     /// block, the other half and faces the same way; `opennessCombiner` then
@@ -2713,7 +2661,6 @@ impl BlockEntityRenderer {
                 packed,
                 lights,
                 false,
-                false,
                 out,
             );
         }
@@ -2727,33 +2674,18 @@ impl BlockEntityRenderer {
         base: Mat4,
         packed: u8,
         lights: (Vec3, Vec3),
-        crumbling: bool,
         world_chests: bool,
         out: &mut Vec<Vertex>,
     ) {
         let shapes = self.shapes();
         let sprite = |name: &str| scene.sprites.get(name).copied();
         let paint = |name: &str, tint: u32, packed: u8| {
-            let rect = if crumbling {
-                Some(Rect {
-                    u0: 0.0,
-                    v0: 0.0,
-                    u1: 1.0,
-                    v1: 1.0,
-                    w: 16,
-                    h: 16,
-                })
-            } else {
-                sprite(name)
-            };
-            rect.map(|s| Paint {
+            sprite(name).map(|s| Paint {
                 sprite: s,
                 tint,
                 light: vertex_light(packed),
                 lights,
-                glow: (!crumbling)
-                    .then(|| scene.emissive.overlay(name).and_then(sprite))
-                    .flatten(),
+                glow: scene.emissive.overlay(name).and_then(sprite),
             })
         };
         let none = |_: &str, _: &mut [f32; 9]| {};
@@ -2921,7 +2853,7 @@ impl BlockEntityRenderer {
                     * Mat4::from_quat(direction_rotation(facing))
                     * Mat4::from_scale(Vec3::new(1.0, -1.0, -1.0))
                     * Mat4::from_translation(Vec3::new(0.0, -1.0, 0.0));
-                // ShulkerBoxModel.setupAnim(getProgress(partial)): the lid rises and turns.
+                // ShulkerBoxModel.animate(getProgress(partial)): the lid rises and turns.
                 let (progress, old) = (scene.anim)(pos).shulker;
                 let progress = old + scene.partial * (progress - old);
                 let lid = move |name: &str, p: &mut [f32; 9]| {
@@ -2936,7 +2868,7 @@ impl BlockEntityRenderer {
             }
             Kind::Banner { .. } => {
                 self.render_banner(
-                    &shapes, scene, pos, kind, base, packed, lights, crumbling, false, out,
+                    &shapes, scene, pos, kind, base, packed, lights, false, out,
                 );
             }
             Kind::Skull {
@@ -3019,7 +2951,8 @@ impl BlockEntityRenderer {
                 ) else {
                     return;
                 };
-                // BellModel.setupAnim(State(ticks + partial, shakeDirection)).
+                // BellModel.setupAnim(BellBlockEntity, partialTick): ticks + partial,
+                // shaking ? clickDirection : null.
                 let a = (scene.anim)(pos);
                 let ticks = a.bell_ticks as f32 + scene.partial;
                 let (mut x_rot, mut z_rot) = (0.0, 0.0);
@@ -3127,22 +3060,21 @@ impl BlockEntityRenderer {
                         out,
                     );
                 }
-                // AbstractEndPortalRenderer.extractRenderState.
+                // TheEndPortalRenderer.renderCube: the faces
+                // TheEndGatewayBlockEntity.shouldRenderFace keeps.
                 let faces = self.gateway_faces(scene.world, BlockStateId(*state), pos);
                 portal_cube(base, &faces, END_GATEWAY_LAYER, out);
             }
             Kind::Conduit => {
-                // HDR output: the conduit shines, not its crumbling overlay.
+                // HDR output: the conduit shines.
                 let start = out.len();
                 let shine = |out: &mut Vec<Vertex>| {
-                    if !crumbling {
-                        for v in &mut out[start..] {
-                            v.layer |= u32::from(crate::mesher::BRIGHT) << 16;
-                        }
+                    for v in &mut out[start..] {
+                        v.layer |= u32::from(crate::mesher::BRIGHT) << 16;
                     }
                 };
                 let (ticks, active, hunting, raw_rotation) = (scene.anim)(pos).conduit;
-                // ConduitRenderer.extractRenderState.
+                // ConduitRenderer.render.
                 let rotation = (raw_rotation + if active { scene.partial } else { 0.0 }) * -0.0375;
                 let tex = |key: &str, name: &str| {
                     paint(shapes.texture(key, name, scene.sprites), 0xFFFFFF, packed)
@@ -3177,10 +3109,6 @@ impl BlockEntityRenderer {
                         * Mat4::from_quat(Quat::from_axis_angle(axis, degrees * (PI / 180.0)));
                     draw_part(model, "root", m, &none, paint, out);
                 }
-                // The crumbling overlay covers the shell and the cage only.
-                if crumbling {
-                    return;
-                }
                 let wind = if phase == 1 {
                     "entity/conduit/wind_vertical"
                 } else {
@@ -3209,6 +3137,10 @@ impl BlockEntityRenderer {
                 if let (Some(model), Some(paint)) =
                     (shapes.models.get("conduit_eye"), tex("conduit_eye", eye))
                 {
+                    // The eye faces the camera: `orientation * Rz(pi) * Ry(pi)`
+                    // (1.21.9's form) is the same matrix as 1.21.8's
+                    // `rotationYXZ(-yRot, xRot, pi)` — the camera rotation's
+                    // pi yaw offset and negated pitch compensate exactly.
                     let m = base
                         * Mat4::from_translation(lift)
                         * Mat4::from_scale(Vec3::splat(0.5))
@@ -3231,7 +3163,7 @@ impl BlockEntityRenderer {
                 ) else {
                     return;
                 };
-                // EnchantTableRenderer.extractRenderState and submit.
+                // EnchantTableRenderer.render.
                 let b = (scene.anim)(pos).book.render(scene.partial);
                 let m = base
                     * Mat4::from_translation(Vec3::new(0.5, 0.75, 0.5))
@@ -3264,7 +3196,7 @@ impl BlockEntityRenderer {
                     * Mat4::from_rotation_y((-y_rot).to_radians())
                     * Mat4::from_rotation_z(67.5f32.to_radians())
                     * Mat4::from_translation(Vec3::new(0.0, -0.125, 0.0));
-                // LecternRenderer.BOOK_STATE = forAnimation(0, 0.1, 0.9, 1.2).
+                // LecternRenderer.render: bookModel.setupAnim(0.0F, 0.1F, 0.9F, 1.2F).
                 draw_part(
                     model,
                     "root",
@@ -3369,7 +3301,6 @@ impl BlockEntityRenderer {
         base: Mat4,
         packed: u8,
         lights: (Vec3, Vec3),
-        crumbling: bool,
         skip_pole: bool,
         out: &mut Vec<Vertex>,
     ) {
@@ -3394,31 +3325,15 @@ impl BlockEntityRenderer {
             }
         };
         let paint = |texture: &str, tint: u32| {
-            let sprite = if crumbling {
-                Some(Rect {
-                    u0: 0.0,
-                    v0: 0.0,
-                    u1: 1.0,
-                    v1: 1.0,
-                    w: 16,
-                    h: 16,
-                })
-            } else {
-                scene.sprites.get(texture).copied()
-            };
-            sprite.map(|sprite| Paint {
+            scene.sprites.get(texture).copied().map(|sprite| Paint {
                 sprite,
                 tint,
                 light: vertex_light(packed),
                 lights,
-                glow: (!crumbling)
-                    .then(|| {
-                        scene
-                            .emissive
-                            .overlay(texture)
-                            .and_then(|name| scene.sprites.get(name).copied())
-                    })
-                    .flatten(),
+                glow: scene
+                    .emissive
+                    .overlay(texture)
+                    .and_then(|name| scene.sprites.get(name).copied()),
             })
         };
         let banner_base = "entity/banner/banner_base";
@@ -3431,9 +3346,6 @@ impl BlockEntityRenderer {
         if let Some(paint) = paint(flag_texture, 0xFFFFFF) {
             draw_part(flag, "root", transform, &wave, paint, out);
         }
-        if crumbling {
-            return;
-        }
         if let Some(paint) = paint("entity/banner/base", *color) {
             draw_part(flag, "root", transform, &wave, paint, out);
         }
@@ -3445,7 +3357,7 @@ impl BlockEntityRenderer {
     }
 }
 
-/// `BeaconRenderer.submit`: for each beam section (ARGB colour, height) the
+/// `BeaconRenderer.render`: for each beam section (ARGB colour, height) the
 /// rotating solid beam and its translucent glow, the last section 2048
 /// blocks tall. `origin` is the beacon block's corner relative to the camera,
 /// `time` the animation time (game time mod 40 plus partial tick) and `scale`
@@ -3479,7 +3391,7 @@ pub fn beacon_beam(
         start += height;
     }
 }
-/// The arguments of `BeaconRenderer.submitBeaconBeam`.
+/// The arguments of `BeaconRenderer.renderBeaconBeam`.
 pub struct BeamShape {
     /// Scales the v range (End gateways shrink and grow their beam with it).
     pub scale: f32,
@@ -3492,7 +3404,7 @@ pub struct BeamShape {
     pub solid_radius: f32,
     pub glow_radius: f32,
 }
-/// `BeaconRenderer.submitBeaconBeam` under `base` (the block's corner): the
+/// `BeaconRenderer.renderBeaconBeam` under `base` (the block's corner): the
 /// rotating solid beam and its translucent glow. The sprite's v range rides
 /// in the light bytes (the entity shader wraps v for layer 6).
 pub fn beam(base: Mat4, b: BeamShape, s: Rect, out: &mut Vec<Vertex>) {
@@ -3579,7 +3491,7 @@ impl BeamPart {
     }
 }
 
-/// `EndGatewayRenderState`'s beam fields (zero when there is no beam).
+/// `TheEndGatewayRenderer.render`'s beam fields (zero when there is no beam).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct GatewayBeam {
     pub height: i32,
@@ -3588,7 +3500,7 @@ pub struct GatewayBeam {
     pub animation_time: f32,
 }
 
-/// `TheEndGatewayRenderer.extractRenderState` from the block entity's age and
+/// `TheEndGatewayRenderer.render`'s beam from the block entity's age and
 /// teleport cooldown, at `partial`, for a level whose top is `max_y`.
 pub fn gateway_beam(
     (age, cooldown): (i64, i32),
@@ -3620,7 +3532,7 @@ pub fn gateway_beam(
 /// layers of `end_portal.png` over `end_sky.png`, End gateways 16.
 pub const END_PORTAL_LAYER: u32 = 9;
 pub const END_GATEWAY_LAYER: u32 = 10;
-/// `AbstractEndPortalRenderer.FACES`: the unit cube's corners for each face
+/// `TheEndPortalRenderer.renderCube`: the unit cube's corners for each face
 /// (`Direction` order) in `FaceInfo` vertex order.
 #[rustfmt::skip]
 const PORTAL_FACES: [[[f32; 3]; 4]; 6] = [
@@ -3631,7 +3543,7 @@ const PORTAL_FACES: [[[f32; 3]; 4]; 6] = [
     [[0.0, 1.0, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [0.0, 1.0, 1.0]],
     [[1.0, 1.0, 1.0], [1.0, 0.0, 1.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0]],
 ];
-/// `AbstractEndPortalRenderer.submitCube`: position-only quads (the portal
+/// `TheEndPortalRenderer.renderCube`: position-only quads (the portal
 /// shader projects its textures from the screen; uv, colour and light are unused).
 /// `rendertype_end_portal` culls back faces, as `entitySolid` does, so the cube's
 /// two Y faces are one-sided: only the one facing the camera draws.
@@ -3658,7 +3570,7 @@ mod tests {
     use horizon_world::nbt::Tag;
     #[test]
     #[ignore = "requires prepared models/textures in HORIZON_TEST_RESOURCES"]
-    fn entity_block_particles_and_breaking_use_exported_models() -> Result<()> {
+    fn entity_block_particles_use_exported_models() -> Result<()> {
         use crate::{models::catalog::StateModels, sprites::Sprites};
         use horizon_world::{DATA_VERSION, chunk::BlockState, nbt::Tag};
         let root = std::path::PathBuf::from(
@@ -3798,7 +3710,6 @@ mod tests {
                                 base,
                                 packed,
                                 diffuse_lights(nether),
-                                false,
                                 use_cache,
                                 out,
                             );
@@ -3818,31 +3729,6 @@ mod tests {
                     }
                 }
             }
-        }
-        scene.nether = false;
-        scene.lid = &|_| 0.0;
-        for state in 0..names.len() as u32 {
-            let mut base = Vec::new();
-            renderer.render_block(&scene, [0; 3], state, Mat4::IDENTITY, 0xff, &mut base);
-            let mut cracks = Vec::new();
-            renderer.render_breaking(&scene, [0; 3], state, [0.0; 2], &mut cracks);
-            assert!(!cracks.is_empty());
-            assert_eq!(
-                base.iter().map(|v| v.pos).collect::<Vec<_>>(),
-                cracks.iter().map(|v| v.pos).collect::<Vec<_>>()
-            );
-            assert!(cracks.iter().all(|v| v.layer == 11
-                && v.color == u32::MAX
-                && v.uv.iter().all(|u| u.is_finite())));
-            scene.game_time = 20;
-            if state >= 2 {
-                scene.lid = &|_| 1.0;
-            }
-            let mut animated = Vec::new();
-            renderer.render_breaking(&scene, [0; 3], state, [0.0; 2], &mut animated);
-            assert!(cracks.iter().zip(&animated).any(|(a, b)| a.pos != b.pos));
-            scene.game_time = 0;
-            scene.lid = &|_| 0.0;
         }
         Ok(())
     }
@@ -4119,7 +4005,7 @@ mod tests {
         }
     }
 
-    /// TextFeatureRenderer.renderText: an outlined call's text is drawn over
+    /// Font.drawInBatch8xOutline: an outlined call's text is drawn over
     /// its outline (Font.DisplayMode.POLYGON_OFFSET), never level with it,
     /// and plain text stays on the sign's plane.
     #[test]
@@ -4576,7 +4462,6 @@ mod tests {
                 Mat4::from_translation((corner - scene.camera).as_vec3()),
                 world.light(pos[0], pos[1], pos[2]),
                 diffuse_lights(false),
-                false,
                 true,
                 &mut original,
             );
@@ -4647,8 +4532,8 @@ mod tests {
             "ab"
         );
     }
-    /// `rendertype_end_portal` culls back faces, and `AbstractEndPortalRenderer`
-    /// submits the unit cube's two Y faces. Both are wound outward, so of each
+    /// `rendertype_end_portal` culls back faces, and `TheEndPortalRenderer.renderCube`
+    /// draws the unit cube's two Y faces. Both are wound outward, so of each
     /// face only the side looking at the camera draws: the portal shows one
     /// surface from above and one from below, never both at once.
     /// `RenderPipelines.BEACON_BEAM_OPAQUE` / `_TRANSLUCENT` keep the default
@@ -4678,7 +4563,7 @@ mod tests {
             &mut out,
         );
         // `TheEndPortalBlockEntity.shouldRenderFace` keeps the Y faces only.
-        assert_eq!(out.len(), 8, "the cube submits both Y faces");
+        assert_eq!(out.len(), 8, "the cube draws both Y faces");
         assert!(
             out.iter().all(|v| v.normal == CULL_BACK),
             "rendertype_end_portal culls back faces"
@@ -4856,7 +4741,6 @@ mod tests {
                 Mat4::IDENTITY,
                 0xF0,
                 diffuse_lights(false),
-                false,
                 true,
                 &mut out,
             );
