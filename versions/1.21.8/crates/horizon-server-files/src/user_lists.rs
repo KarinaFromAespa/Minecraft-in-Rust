@@ -327,8 +327,10 @@ fn json_bool(v: &Json) -> bool {
     }
 }
 
-/// What happened to a list, for the one that watches it: what vanilla's `StoredUserList` tells its
-/// `NotificationService` (`playerOped`/`playerDeoped`, `playerAddedToAllowlist`/`playerRemovedFromAllowlist`,
+/// What happened to a list, for the one that watches it. The watcher is
+/// Horizon's own event-stream feed (1.21.8 has no `NotificationService` —
+/// the 1.21.9 one names these `playerOped`/`playerDeoped`,
+/// `playerAddedToAllowlist`/`playerRemovedFromAllowlist`,
 /// `playerBanned`/`playerUnbanned`, `ipBanned`/`ipUnbanned`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Change<E> {
@@ -353,7 +355,7 @@ impl<E: Entry> UserList<E> {
         }
     }
     /// Has `watcher` told of every change from now on (`add`, `remove` and `clear`, not a `load`, and not the
-    /// expired entries `get` drops, as vanilla's don't).
+    /// expired entries `get` drops).
     pub fn watch(&mut self, watcher: impl Fn(Change<E>) + Send + 'static) {
         self.watcher = Some(Box::new(watcher));
     }

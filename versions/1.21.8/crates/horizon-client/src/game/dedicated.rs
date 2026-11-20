@@ -570,7 +570,8 @@ impl Lists {
                 Err(e) => log("ERROR", &format!("{e}; the file is ignored")),
             }
         }
-        // Each list tells the event stream what changes in it, as vanilla's tell their `NotificationService`.
+        // Each list tells the event stream what changes in it (Horizon's own
+        // feed; 1.21.8 has no NotificationService).
         l.ops.watch(|change| {
             let (kind, e) = listed("operators", change);
             events::record(
