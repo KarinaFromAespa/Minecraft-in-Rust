@@ -470,7 +470,11 @@ pub fn poi_type(state: &horizon_world::chunk::BlockState) -> Option<(&'static st
             }
             ("minecraft:home", 1)
         }
-        rod if rod.ends_with("lightning_rod") => ("minecraft:lightning_rod", 0),
+        // PoiTypes: 1.21.8 registers the lightning-rod POI for the plain rod
+        // only; 1.21.9 extended it to all eight variants (oxidized and waxed
+        // included). A non-plain rod writes no POI record here and `/locate
+        // poi minecraft:lightning_rod` does not find it.
+        "lightning_rod" => ("minecraft:lightning_rod", 0),
         _ => return None,
     })
 }
