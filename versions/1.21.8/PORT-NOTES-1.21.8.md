@@ -334,7 +334,51 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 194/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211 + 4 zero-diff)
+### Rank 2: 195/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212 + 4 zero-diff)
+
+- **Item 212 — widely named: client/gui (`Gui`, `GlyphSource`,
+  `GuiGraphics$OutlineBox`; 3 classes, 11 methods, 0 named in
+  Horizon), zero-diff with two referrals:**
+  - **Render screen gate:** 1.21.9 skips `Gui.render` when the
+    screen is a `LevelLoadingScreen` (which absorbed
+    `ReceivingLevelScreen`); 1.21.8 skips it only for a
+    `ReceivingLevelScreen`. No observable Rust surface: the Rust's
+    `remote_overlay` covers the frame and returns early for both
+    loading screens, and during a 1.21.8 `LevelLoadingScreen` the
+    loading screen covers anything `Gui.render` paints.
+  - **Subtitles:** already 1.21.8 — `subtitles.rs` renders them in
+    the HUD's own pass, under any screen that draws later, with no
+    deferral (`Subtitles::Now`); the 1.21.9 `deferredSubtitles`
+    path is absent.
+  - **Crosshair debug gate:** the Rust's default is exactly
+    1.21.8's `shouldRenderDebugCrosshair()` — F3 on, first person
+    (checked at the crosshair call site), not reduced
+    (`debug_entry("3d_crosshair")` is `InOverlay` with
+    `reduced: false`). The per-entry configurability (Never /
+    AlwaysOn) is a 1.21.9-only surface; it belongs to **item 420**
+    (the entries system).
+  - **`GlyphSource`** is 1.21.9-only (a font interface); no Rust
+    surface. **`GuiGraphics$OutlineBox`** is 1.21.9-only too:
+    1.21.9 replaced the immediate `renderOutline` (four fills)
+    with `submitOutline`, deferring outlines to
+    `renderDeferredElements` in a higher stratum. The Rust draws
+    outlines immediately into the batch — the 1.21.8 form.
+  - **REFERRED to item 336 (DebugScreenOverlay, rank 3): the
+    debug overlay's placement and F1 gate.** In 1.21.8 the overlay
+    renders inside `Gui.render` (after the demo overlay, before
+    the scoreboard sidebar, before the screen) and
+    `showDebugScreen()` is `renderDebug && !hideGui` — F1 hides
+    it even with a screen open. The Rust keeps the 1.21.9 form:
+    `draw_debug_overlay` runs last in `hud()`, over everything
+    (and stays sharp under a screen's blurred background, where
+    1.21.8 would blur it with the HUD), and F1 hides it only
+    without an open screen. Moving the call site is a
+    restructure, not a one-line move: `hud_layers` returns early
+    for the Win, Options, DebugOptions+title, and loading screens,
+    and the DebugOptions screen (kept as Horizon debug UI per
+    items 16/51) draws the overlay under itself — item 336 owns
+    the overlay's rendering and should take the placement with the
+    gate.
 
 - **Item 211 — `crates/horizon-world/src/level/weather.rs`
   (1 class, 1 method, 1 named in Horizon), 1 FIX:**
