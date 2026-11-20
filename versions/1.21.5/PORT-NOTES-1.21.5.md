@@ -674,13 +674,44 @@ is the oracle; decompiled code is a reading aid.
     lists); the Rust drives wgpu directly and has no surface.
   - Verification: `cargo check -p horizon-client-render -p
     horizon-client --all-targets` 0 errors / 0 warnings (2m46s).
+- **Item 18 — save.rs, verified, no code change:**
+  `CampfireBlockEntity` / `BannerBlockEntity` /
+  `ChiseledBookShelfBlockEntity` / `ShulkerBoxBlockEntity` /
+  `LecternBlockEntity` / `TheEndGatewayBlockEntity` /
+  `DataVersion` / `LevelVersion` / `LevelSummary` /
+  `SectionStorage` / `LevelStorageSource`:
+  - All six block entities are the ValueInput/ValueOutput →
+    CompoundTag API migration with identical NBT fields
+    (campfire `Items`/`CookingTimes`/`CookingTotalTimes`,
+    banner `patterns`/`CustomName`, bookshelf
+    `last_interacted_slot`, lectern `Book`/`Page`, gateway
+    `Age`/`exit_portal`/`ExactTeleport`). The Rust reads and
+    writes these fields directly from NBT in `save.rs`, so the
+    migration is invisible.
+  - `DataVersion` is a record in 1.21.6 and a plain class in
+    1.21.5 with the same `isSideSeries` / `isCompatible`
+    semantics; the Rust reads the data version as an int.
+    `LevelSummary` / `LevelVersion` / `SectionStorage` are
+    accessor renames only (`version()` → `getVersion()`,
+    `stable()` → `isStable()`).
+  - `LevelStorageSource` runs `DataFixTypes.LEVEL` on the
+    lightweight summary in 1.21.5 vs `LEVEL_SUMMARY` in 1.21.6:
+    no Rust surface — the Rust's world-list summary read
+    applies no fixes, and the only `LightweightLevel`-targeted
+    fix (`level_dat_difficulty`) is keyed at data version 4771,
+    inert at 4325.
+  - Correction to an earlier referral: `DimensionType.
+    parseLegacy` (1.21.5 accepts a legacy int `Dimension` in
+    playerdata, −1/0/1 → nether/overworld/end; 1.21.6 falls
+    back to overworld) belongs to **item 161**
+    (`dimension_type.rs`), not this item.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **17 of 426 are
-closed** (rank 1 complete, rank 2 at 8/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **18 of 426 are
+closed** (rank 1 complete, rank 2 at 9/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
