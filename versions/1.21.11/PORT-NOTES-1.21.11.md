@@ -8243,3 +8243,24 @@ white(alpha) there); RootSpectatorMenuCategory is in no report item
 game/spectator.rs:110 still cites `Hud.extractHotbar` / `extractAction`
 (the item-87 tree-wide sweep). Tests: `spectator_menu::` 1 passed
 (new; the module had no tests before).
+
+## Item 123 — level/survive.rs (rank 2, NO-CHANGE)
+
+3 classes, 12 methods, 4 named (`VineBlock.getUpdatedState`,
+`VineBlock.randomTick`, `ScaffoldingBlock.getDistance`,
+`ScaffoldingBlock.isBottom`).
+
+Java delta, jar-verified (javap diff 188 lines + decompile diff 782
+lines, both read in full): zero behaviour change — the javap diff is
+the `is`-overload, `getType()` and `getRandom()`-field noise, the
+decompile diff is parameter-name noise, and a literal comparison over
+all three classes returns zero string or numeric differences. All
+mirrors already match both versions: GrowingPlant canSurvive (with
+the kelp magma hardcode already 1.21.11-shaped from item 95),
+Scaffolding getDistance + canSurvive (`distance < 7`), Vine
+getUpdatedState + canSupportAtFace + canSurvive (`countFaces > 0`).
+`isBottom` is mirrored exactly by `scaffolding_is_bottom` in tick.rs
+(used by place.rs and tick.rs); `randomTick` by `vine_random_tick` in
+tick.rs (item 95's file). No citation names a 26.1-only member.
+Tests: `level::growth_tests::` 21 passed (smoke check; no code
+changed).
