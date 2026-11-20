@@ -137,8 +137,10 @@ pub enum Inside {
     Nothing,
 }
 /// `Entity.applyEffectsFromBlocks` after a falling block's move this tick
-/// (`from` to `to`; `original` the move it asked for, when the move was
-/// recorded; `velocity` already zeroed on the axes `Entity.move` collided on):
+/// (`from` to `to`; `axis_independent` whether the move was recorded by
+/// `Entity.move` — vanilla's `Movement.axisIndependant`, true for a recorded
+/// move, false for a synthesized one like a piston push; `velocity` already
+/// zeroed on the axes `Entity.move` collided on):
 /// the blocks it went through (`block` says what each is) push it and reset
 /// its fall. Returns the multiplier of the last block that made it stuck
 /// (`Entity.makeStuckInBlock`), and adds to `surfaces` the column blocks it is
@@ -146,7 +148,7 @@ pub enum Inside {
 pub fn apply_effects_from_blocks(
     from: Vec3,
     to: Vec3,
-    original: Option<Vec3>,
+    axis_independent: bool,
     velocity: &mut Vec3,
     fall_distance: &mut f64,
     surfaces: &mut Vec<BlockPos>,
@@ -156,7 +158,7 @@ pub fn apply_effects_from_blocks(
     inside_blocks(
         from,
         to,
-        original,
+        axis_independent,
         |p, intersects, step_from, step_to| match block(p) {
             Inside::Cobweb => {
                 // makeStuckInBlock forgets the fall.
@@ -205,22 +207,16 @@ pub fn apply_effects_from_blocks(
 fn inside_blocks(
     from: Vec3,
     to: Vec3,
-    original: Option<Vec3>,
+    axis_independent: bool,
     mut visit: impl FnMut(BlockPos, bool, Vec3, Vec3) -> bool,
 ) {
     let mut seen = std::collections::HashSet::new();
-    // checkInsideBlocks(from, to, ..): the iterations used plus one.
-    let mut check = |from: Vec3, to: Vec3, max: i32| {
+    let mut check = |from: Vec3, to: Vec3| {
         let d = f64::from(1.0e-5_f32);
         let target = bounds(to).deflate(Vec3::new(d, d, d));
         // The move spans a block or more: Mth.square(1.0 - 1.0E-5F).
         let long = from.distance_squared(to) > (1.0 - d) * (1.0 - d);
-        let mut iterations = 0;
-        let _ = sweep_intersected_blocks(from, to, target, 1_000_000, |p, iteration| {
-            if iteration >= max {
-                return false;
-            }
-            iterations = iteration;
+        let _ = sweep_intersected_blocks(from, to, target, 1_000_000, |p, _iteration| {
             if !seen.contains(&p) {
                 let corner = Vec3::new(f64::from(p.x), f64::from(p.y), f64::from(p.z));
                 let inside =
@@ -231,31 +227,30 @@ fn inside_blocks(
             }
             true
         });
-        iterations + 1
     };
     let delta = to.subtract(from);
-    let mut budget = 16;
-    match original {
-        Some(original) if delta.length_squared() > 0.0 => {
-            let mut at = from;
-            for axis in Axis::step_order(original) {
-                let step = delta.component(axis);
-                if step != 0.0 {
-                    let positive = match axis {
-                        Axis::X => Direction::East,
-                        Axis::Y => Direction::Up,
-                        Axis::Z => Direction::South,
-                    };
-                    let next = at.relative(positive, step);
-                    budget -= check(at, next, budget);
-                    at = next;
-                }
+    // checkInsideBlocks(List): a recorded move splits into per-axis steps in
+    // the order of the ACTUAL displacement (`axisStepOrder(delta)`); a
+    // synthesized one is checked whole. 1.21.9 orders by the original
+    // pre-collision movement and caps the visit at 16 blocks with a final
+    // point check — 1.21.8 has neither.
+    if axis_independent && delta.length_squared() > 0.0 {
+        let mut at = from;
+        for axis in Axis::step_order(delta) {
+            let step = delta.component(axis);
+            if step != 0.0 {
+                let positive = match axis {
+                    Axis::X => Direction::East,
+                    Axis::Y => Direction::Up,
+                    Axis::Z => Direction::South,
+                };
+                let next = at.relative(positive, step);
+                check(at, next);
+                at = next;
             }
         }
-        _ => budget -= check(from, to, 16),
-    }
-    if budget <= 0 {
-        check(to, to, 1);
+    } else {
+        check(from, to);
     }
 }
 pub fn hurt_mobs(mobs: &mut [Mob], position: Vec3, amount: f32) {
@@ -339,14 +334,14 @@ mod tests {
     fn passes_cobweb(
         from: Vec3,
         to: Vec3,
-        original: Option<Vec3>,
+        axis_independent: bool,
         is_web: impl Fn(BlockPos) -> bool,
     ) -> bool {
         let (mut velocity, mut fall) = (Vec3::ZERO, 3.0);
         let stuck = apply_effects_from_blocks(
             from,
             to,
-            original,
+            axis_independent,
             &mut velocity,
             &mut fall,
             &mut Vec::new(),
@@ -370,31 +365,31 @@ mod tests {
         assert!(passes_cobweb(
             at(7.2),
             at(3.1),
-            Some(Vec3::new(0.0, -4.1, 0.0)),
+            true,
             is_web
         ));
         assert!(passes_cobweb(
             at(6.5),
             at(5.5),
-            Some(Vec3::new(0.0, -1.0, 0.0)),
+            true,
             is_web
         ));
-        assert!(passes_cobweb(at(5.5), at(5.5), None, is_web));
+        assert!(passes_cobweb(at(5.5), at(5.5), false, is_web));
         // Above it, below it, or beside it.
         assert!(!passes_cobweb(
             at(8.0),
             at(6.01),
-            Some(Vec3::new(0.0, -1.99, 0.0)),
+            true,
             is_web
         ));
         assert!(!passes_cobweb(
             at(4.0),
             at(3.0),
-            Some(Vec3::new(0.0, -1.0, 0.0)),
+            true,
             is_web
         ));
         let beside = Vec3::new(1.5, 5.5, 0.5);
-        assert!(!passes_cobweb(beside, beside, None, is_web));
+        assert!(!passes_cobweb(beside, beside, false, is_web));
     }
     #[test]
     fn bubble_columns_lift_or_drag_a_falling_block() {
@@ -412,11 +407,10 @@ mod tests {
             let (from, to) = (Vec3::new(x, from, 0.5), Vec3::new(x, to, 0.5));
             let mut velocity = Vec3::new(0.0, vy, 0.0);
             let mut fall = 2.0;
-            let original = Some(to.subtract(from));
             let stuck = apply_effects_from_blocks(
                 from,
                 to,
-                original,
+                true,
                 &mut velocity,
                 &mut fall,
                 &mut tops.borrow_mut(),
