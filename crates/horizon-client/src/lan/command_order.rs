@@ -21,7 +21,7 @@ pub const ORDER: &[(&str, &str)] = &[
     ("attribute target attribute base", "set get"),
     ("attribute target attribute modifier", "add remove value"),
     (
-        "attribute target attribute modifier add id value",
+        "attribute target attribute modifier add uuid name value",
         "add_value add_multiplied_base add_multiplied_total",
     ),
     (
