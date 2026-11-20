@@ -421,8 +421,9 @@ impl GameLevel<'_> {
             delay: 10,
         });
     }
-    /// `Block.dropFromBlockInteractLootTable` with `Block.popResource` of
-    /// every stack.
+    /// The 1.21.9 `Block.dropFromBlockInteractLootTable` shape, with
+    /// `Block.popResource` of every stack — dead in 1.21.8: the harvest
+    /// loot tables are 1.21.9-only, so no block emits `InteractLoot`.
     pub(super) fn drop_interact_loot(
         &mut self,
         pos: BlockPos,
