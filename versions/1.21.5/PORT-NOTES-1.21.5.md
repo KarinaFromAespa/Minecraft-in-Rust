@@ -480,6 +480,23 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m18s, shared with
     item 11).
+- **Item 13 — hub.rs, verified, no code change:** `PlayerList` /
+  `ServerPlayer` / `ServerChunkCache` / `PlayerChunkSender`:
+  the diff is the ValueInput/ValueOutput→CompoundTag NBT API
+  migration (same fields read and written), `level()`→
+  `serverLevel()` renames, and 1.21.6-only additions with no
+  1.21.5 behaviour surface — the waypoint manager and its
+  crouch transmit modifier (the Rust already computes waypoint
+  payloads but sends none in 1.21.5), `waitForChunkAndEntities`
+  (no Rust surface), `purgeStaleTickets`' signature. The spawn
+  snap for new players moved from the `ServerPlayer` ctor
+  (1.21.5) to `placeNewPlayer` (1.21.6) with the same outcome;
+  the Rust already places newcomers via `adjustSpawnLocation`
+  (`lan.rs`). One referral: `DimensionType.parseLegacy`
+  (1.21.5 accepts a legacy int Dimension in playerdata, -1/0/1
+  → nether/overworld/end; 1.21.6 falls back to overworld for
+  any int) — the read lives in `save.rs`, so it belongs to
+  item 18.
 
 ## What remains, by cause
 
