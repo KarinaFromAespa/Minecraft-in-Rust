@@ -5642,3 +5642,35 @@ baby goat no tilt). `mobs::rabbit::`: 10 passed; `mobs::fox::`:
 7 passed; `mobs::polar_bear::`: 3 passed. Rank 2 now 248/492
 (77 changed, 171 no-change).
 work-items.json rank2.closed = 248 on 2026-11-20.
+
+## Item 70 — network (`FriendlyByteBuf` / `Connection` / `HashedStack`) (rank 2, NO-CHANGE)
+
+4 classes, 88 methods, 0 named in Horizon. Javap diff read in
+full Nov 20, 2026 (303 lines); decompile diff scanned (its bulk
+is Vineflower dropping parameter names on the 1.21.11 side).
+Triage note `rank2-item-70-TRIAGE.md` (workdir root, scratch).
+
+Java delta is renames plus two method families the Rust already
+has: `Connection` is lambda renumbering + one field visibility
+change; `Connection$2` drops a compiler-generated null check;
+`FriendlyByteBuf` renames `ChunkPos.unpack`/`pack` to the ctor /
+`toLong` (same wire format, one long, x-low/z-high) and ADDS
+`readVec3`/`writeVec3` (three doubles) and
+`readLpVec3`/`writeLpVec3`, which 26.1 lacks; `HashedStack`
+renames `typeHolder()` -> `getItemHolder()`. Rust side verified:
+`buf::Vec3d` (three doubles), `buf::ChunkPos` (x-low/z-high),
+and `buf::LpVec3` — compared line by line against a fresh
+decompile of 1.21.11's `LpVec3` (15-bit components, 2-bit scale
++ continuation VarInt, sanitize, pack/unpack, zero fast-path,
+ 3.051944088384301E-5 threshold — all match). The pin packet
+codecs already use `LpVec3` for AddEntity and SetEntityMotion
+velocities. No Rust edits.
+
+Pre-existing failures recorded (not this item's): `cargo test
+-p horizon-protocol --lib` is 438 passed / 2 failed, both
+network-environment tests untouched since the era-opening
+publish — `connection::tests::a_dead_address_does_not_hold_up_the_next`
+and `resolver::dns::tests::asks_each_server_in_turn_and_retries_truncated_replies_over_tcp`
+— failing in this VM's sandboxed network. `buf::` tests: 9
+passed. Rank 2 now 249/492 (77 changed, 172 no-change).
+work-items.json rank2.closed = 249 on 2026-11-20.
