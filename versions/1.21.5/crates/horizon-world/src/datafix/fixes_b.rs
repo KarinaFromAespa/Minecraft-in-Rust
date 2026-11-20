@@ -195,7 +195,8 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
 // ------------------------------------------------------------------ 3939, 4067, 4180, 4424
 
 pub(super) fn feature_flag_remove(cx: &mut Cx, flags: &[&str]) {
-    cx.each(Ty::LightweightLevel, |level| {
+    // 1.21.5 targets `LEVEL`; 1.21.6 targets `LIGHTWEIGHT_LEVEL` (the same root).
+    cx.each(Ty::Level, |level| {
         let mut inactive: Vec<Tag> = stream(level.get("removed_features"));
         if let Some(features) = level.get("enabled_features")
             && is_list(Some(features))
@@ -1259,13 +1260,7 @@ fn tooltip_display(cx: &mut Cx) {
             Some("modifiers"),
         );
         fix_component(c, &mut hidden, "minecraft:enchantments", Some("levels"));
-        fix_component(
-            c,
-            &mut hidden,
-            "minecraft:stored_enchantments",
-            Some("levels"),
-        );
-        fix_component(c, &mut hidden, "minecraft:jukebox_playable", Some("song"));
+        fix_component(c, &mut hidden, "minecraft:stored_enchantments", Some("levels"));
         let hide_tooltip = remove(c, "minecraft:hide_tooltip").is_some();
         let hide_additional = remove(c, "minecraft:hide_additional_tooltip").is_some();
         if hide_additional {
@@ -1296,6 +1291,8 @@ fn tooltip_display(cx: &mut Cx) {
 // ------------------------------------------------------------------ 4309, 4311, 4312, 4314
 
 fn raid_renames(cx: &mut Cx) {
+    // 1.21.5 has no `HeroesOfTheVillage` -> `heroes_of_the_village` rename;
+    // that field arrives with 1.21.6's `RaidRenamesDataFix`.
     cx.each(Ty::SavedRaids, |v| {
         if let Some(d) = v.get_mut("data") {
             rename_and_fix(d, "Raids", "raids", |raids| {
@@ -1316,7 +1313,6 @@ fn raid_renames(cx: &mut Cx) {
                                 ("TotalHealth", "total_health"),
                                 ("NumGroups", "group_count"),
                                 ("Status", "status"),
-                                ("HeroesOfTheVillage", "heroes_of_the_village"),
                             ] {
                                 rename(&mut r, a, b);
                             }

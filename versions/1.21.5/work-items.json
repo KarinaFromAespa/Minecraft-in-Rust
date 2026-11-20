@@ -1,31 +1,31 @@
 {
- "generated_from": "58e967493a22e153d009c10d93d041a2a84055ffa7e28eb3a45095a974ac807d",
- "note": "Mechanical-layer publish: the pin, tables and verification are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
- "rank1": {
-  "accepted": [],
-  "closed": 8,
-  "total": 9
- },
- "rank2": {
-  "accepted": [],
-  "closed": 0,
-  "total": 259
- },
- "rank3": {
-  "accepted": [],
-  "closed": 0,
-  "total": 133
- },
- "rank3plus": "Inherits the 1.21.6 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
- "rank4": {
-  "accepted": [],
-  "closed": 0,
-  "total": 23
- },
- "rank5": {
-  "accepted": [],
-  "closed": 0,
-  "total": 2
- },
- "release": "1.21.5"
+  "generated_from": "58e967493a22e153d009c10d93d041a2a84055ffa7e28eb3a45095a974ac807d",
+  "note": "Mechanical-layer publish: the pin, tables and verification are done, but no behaviour item has been ported yet. Every rank-1/2 item is honestly open (0 closed, 0 accepted) \u2014 D3 fails until the behaviour port closes or formally accepts them.",
+  "rank1": {
+    "accepted": [],
+    "closed": 9,
+    "total": 9
+  },
+  "rank2": {
+    "accepted": [],
+    "closed": 0,
+    "total": 259
+  },
+  "rank3": {
+    "accepted": [],
+    "closed": 0,
+    "total": 133
+  },
+  "rank3plus": "Inherits the 1.21.6 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",
+  "rank4": {
+    "accepted": [],
+    "closed": 0,
+    "total": 23
+  },
+  "rank5": {
+    "accepted": [],
+    "closed": 0,
+    "total": 2
+  },
+  "release": "1.21.5"
 }

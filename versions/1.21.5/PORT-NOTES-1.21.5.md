@@ -276,7 +276,7 @@ decompile of the report's changed classes only (1,898 + 1,711
 class files) and a diff of the two source trees. The running jar
 is the oracle; decompiled code is a reading aid.
 
-### Rank 1: closed 8/9 (item 8 open — save-format, needs the decomp diff)
+### Rank 1: closed 9/9
 
 - **Item 1 — protocol, verified:** the regenerated `ids.rs`
   matches the report exactly: configuration/clientbound 17,
@@ -298,17 +298,77 @@ is the oracle; decompiled code is a reading aid.
   `PROTOCOL_VERSION` 770 and `DATA_VERSION` 4325; `adapter.rs`
   has V1_21_5 as the pin identity static (V1_21_6 a regular old
   version). No code change.
+- **Item 8 — save-format, ported:** the 1.21.5 `DataFixers`
+  registration differs from 1.21.6 in eight places with Rust
+  surface, all ported in `crates/horizon-world/src/datafix/`:
+  - Schema 165: 1.21.5's `TextComponentStrictJsonFix` rewrites
+    EVERY text component (`fixTypeEverywhere`); 1.21.6 split it
+    into sign-only + book-only fixes. Replaced
+    `sign_text_strict_json` + `written_book_pages_strict_json`
+    with `text_component_strict_json` (walks `Ty::TextComponent`;
+    the walker visits sign lines, book pages, display names and
+    lore, boss-event names, objective names and command output
+    at k=164). The parser stays lenient: Gson's
+    `JsonParser.parseString` (1.21.5) IS lenient — verified
+    empirically against gson 2.13.2 (accepts bare words,
+    single quotes, trailing commas) — so the 1.21.6 switch to
+    `LenientJsonParser` is behaviour-preserving, and the
+    `UnflattenTextComponentFix` / `LevelDataGeneratorOptionsFix`
+    parser swaps are no-ops too.
+  - Schema 1451.5: 1.21.5's `ItemRemoveBlockEntityTagFix`
+    matches on the ITEM id (23 items) and touches item stacks
+    only; 1.21.6's `RemoveBlockEntityTagFix` matches on the
+    tag's block-entity id (2 items) and also strips
+    falling-block and structure data. Reworked
+    `remove_block_entity_tags` to the 1.21.5 form (item-id
+    match, 23-item set, falling-block arm dropped).
+  - Schema 1458: 1.21.5 converts an empty entity `CustomName`
+    to `{"text":""}`; 1.21.6 removes the field. Dropped the
+    empty-removal branch in `entity_custom_name` (the
+    block-entity and item forms are unchanged between versions
+    — verified, not in the diff).
+  - Schema 1925: `MapIdFix` wraps `SAVED_DATA_MAP_DATA` in
+    1.21.5 (the `data` wrapper moves into the base schemas in
+    1.21.6, where the fix targets the map index instead).
+    Retargeted the 1925 fix from `Ty::SavedMapIndex` to
+    `Ty::SavedMapData`.
+  - Schema 2537: `LegacyDimensionIdFix` is 1.21.6-only —
+    removed the registration and the function.
+  - `FeatureFlagRemoveFix` targets `LEVEL` in 1.21.5,
+    `LIGHTWEIGHT_LEVEL` in 1.21.6 (the same root in the
+    walker) — retargeted `feature_flag_remove`.
+  - `RaidRenamesDataFix`: no `HeroesOfTheVillage` rename in
+    1.21.5 — dropped the line.
+  - `TooltipDisplayComponentFix`: no
+    `minecraft:jukebox_playable` unwrap in 1.21.5 — dropped
+    the line.
+  - No Rust surface (verified): the V1925/V99/V1460/V3439
+    schema registrations (the walker already visits
+    hanging-sign text, matching 1.21.5),
+    `DataFixTypes.LEVEL_SUMMARY` (walker-internal), and the
+    1.21.6-only schemas V3439_1/V4420/V4421 (above 4325; fixes
+    above the target never run — `CURRENT` is `DATA_VERSION`).
+  - Verification: `cargo check -p horizon-world --all-targets`
+    0 errors / 0 warnings; datafix unit tests 30/33 — the 3
+    failures are pre-existing (same 3 fail on the pristine
+    tree, proven by re-running with the changes stashed:
+    `failed_upgrade_keeps_old_data_version`,
+    `block_states_take_their_new_field_names`,
+    `level_data_of_1_20_moves_to_the_new_fields` — all assume
+    26.x versions/fixes above 4325, e.g. the 4771
+    difficulty-settings fix).
 
 ## What remains, by cause
 
-### Behaviour work from the diff (not started)
+### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **0 of 426 are
-closed**. The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **9 of 426 are
+closed** (rank 1 complete). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
-Horizon), the save-format step (4435 → 4325: 1 schema, 2 fixes,
-14 datafix classes), and the 259 harness reruns — unattempted.
-The behaviour code in this tree is still the 26.3 base's.
+Horizon), and the 259 harness reruns — unattempted. The
+save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
+classes) is done (item 8, rank 1). The behaviour code in this
+tree is otherwise still the 26.3 base's.
 
 ### Harness-oracle era ports
 
