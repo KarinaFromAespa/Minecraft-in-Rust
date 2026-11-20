@@ -875,6 +875,14 @@ impl Game<'_> {
             self.persist.raw.insert(id, raw);
         }
         self.mobs.push(mob);
+        // ConversionType (1.21.8): the new mob re-boards the old mob's
+        // vehicle through `startRiding`, which fires `entity_mount`
+        // (`addPassenger`) and the `START_RIDING_TRIGGER`; 1.21.9 calls
+        // `startRiding(vehicle, false, false)`, suppressing both.
+        if let Some(vehicle) = from.extra.mount {
+            self.conversion_mount_event(id, vehicle);
+            self.note_started_riding(vehicle);
+        }
         self.native_mobs_joined(self.mobs.len() - 1, false);
         let transformed_kind = self
             .mobs

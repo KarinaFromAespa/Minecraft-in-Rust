@@ -649,6 +649,20 @@ impl Game<'_> {
         self.post_game_event(event, at, ctx);
     }
 
+    /// `ConversionType` (1.21.8): a converted mob re-boards its old
+    /// vehicle through `startRiding`, so `addPassenger` fires
+    /// `entity_mount` at the vehicle; 1.21.9 calls
+    /// `startRiding(vehicle, false, false)` instead, suppressing it.
+    /// The mount is recorded, so the per-tick derivation does not
+    /// re-fire it and a later dismount posts at the right spot.
+    pub(super) fn conversion_mount_event(&mut self, id: u32, vehicle: u32) {
+        if let Some(at) = self.vehicle_position(vehicle) {
+            let ctx = self.who_context(Some(Who::Mob(id)), None);
+            self.post_game_event("minecraft:entity_mount", at, ctx);
+            self.sculk.mounts.insert(Who::Mob(id), (vehicle, at));
+        }
+    }
+
     // ---- posting ----
 
     /// `Level.gameEvent`: tell the listeners within reach.
