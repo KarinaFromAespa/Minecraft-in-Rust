@@ -7907,3 +7907,62 @@ sanitizeScale min(3.0), dims 1x1x0.5 — all mirrored. Tests:
 `mobs::shulker::` 12 passed, 1 ignored. No code changes. Referral:
 the shulker-box block-entity path is item 16's scope (it shares
 ShulkerModel, so the NoCull form applies there too).
+
+## Item 117 — window (rank 2, CHANGED — citations only)
+
+2 classes, 23 methods, 3 named: Window (22,
+`changeFullscreenVideoMode`, `onFramebufferResize`,
+`updateFullscreenIfChanged`), Window$WindowInitFailed (1).
+
+Java delta, jar-verified (javap diff 1111 lines + decompile diff 773
+lines, both read in full): 26.1's Window is built on the 26.x
+`GpuBackend` abstraction; 1.21.11's is the classic GLFW/OpenGL
+window. Ctor takes the backend in 26.1 (creates its own
+ScreenManager, `createWindow` via the backend with GLFW error
+capture) vs a passed-in ScreenManager + inlined GLFW hints (OpenGL
+3.3 core) + direct `glfwCreateWindow` in 1.21.11;
+`allowedWindowMinSize` is just `Math.max(x, 1)` — identical.
+`bootCrash` uses `MessageBox.error` (26.1) vs
+`TinyFileDialogs.tinyfd_messageBox` (1.21.11). `updateVsync` goes to
+the GpuDevice (26.1) vs `glfwSwapInterval` (1.21.11). `close()`
+shuts down the ScreenManager only in 26.1. `onFramebufferResize`
+fires on the same trigger in both (framebuffer size changed, new
+non-zero — `getWidth()` returns the framebuffer width, so 1.21.11's
+post-assign comparison is the same test) but 26.1 sets `isResized`
+and calls `resizeGui()` where 1.21.11 calls `resizeDisplay()`.
+`onFocus` stores the `focused` field in 26.1 (`isFocused()`) and
+forwards to `eventHandler.setWindowActive` in 1.21.11 (focus owned
+by Minecraft — verified in both jars' Minecraft.class).
+`updateFullscreenIfChanged` (26.1) is folded into `updateDisplay`
+in 1.21.11, which flips the frame first and whose `updateFullscreen`
+re-flips after the mode change. `changeFullscreenVideoMode` calls
+`resizeGui()` (26.1) vs `resizeDisplay()` (1.21.11), same gate.
+`setMode`/`setWindowed` clamp to >= 1 and set `isResized` only in
+26.1 (the clamp is a no-op on values already >= 1).
+`calculateScale`/`setGuiScale`/cursor/icon/title/callbacks
+identical. `isFocused()`/`isResized()`/`resetIsResized()`/
+`backend()` are 26.1-only.
+
+Already 1.21.11-shaped: `calculate_scale`/`gui_scaled_size` match
+exactly; `FullscreenState` mirrors the `fullscreen` /
+`actuallyFullscreen` pair (apply once per change, mode held back in
+the video screen); focus lives on the Game (`Game.focused` from
+`WindowEvent::Focused`), the 1.21.11 shape; no `is_resized` mirror
+anywhere in the tree (resize collapses into `renderer.resize`).
+
+Fixes (citations only): `updateFullscreenIfChanged` →
+`updateDisplay` (window.rs struct doc, `apply`, `request`;
+options.rs `apply_fullscreen`); `Window.updateFullscreenState` /
+`Minecraft.fullscreenStateChanged` exist in NEITHER version
+(26.3-only names, the item-92 class) — reworded in window.rs
+(`observe`) and options.rs (`observe_fullscreen`) to say the
+adoption is the winit half of the pair; `GpuSurface.PresentMode.
+getSupportedVsyncMode` exists in NEITHER jar — `vsync_present_mode`
+reworded as the wgpu form of `Window.updateVsync`; the struct doc's
+pair name corrected to `fullscreen` / `actuallyFullscreen`. Tests:
+`window::` 14 passed. rustfmt --check clean on window.rs and
+options.rs. Unassigned classes recorded: VideoMode (no
+`refreshRateLabel` in 1.21.11, `refreshRate` is an int, `read` uses
+a regex PATTERN), FramerateLimitTracker (already at item 42),
+Monitor/ScreenManager/WindowEventHandler; FramerateLimiter/
+MouseHandler are item 262 (rank 3).

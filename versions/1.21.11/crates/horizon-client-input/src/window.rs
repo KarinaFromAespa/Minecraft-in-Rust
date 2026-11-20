@@ -111,8 +111,9 @@ pub enum PresentMode {
     Immediate,
 }
 
-/// `GpuSurface.PresentMode.getSupportedVsyncMode`: vsync means Fifo only,
-/// otherwise the first of Immediate, Mailbox, Fifo that is supported.
+/// `Window.updateVsync` in wgpu form: vsync on waits for the display
+/// (Fifo, as 1.21.11's `glfwSwapInterval(1)`), otherwise the first of
+/// Immediate, Mailbox, Fifo that is supported.
 pub fn vsync_present_mode(supported: &[PresentMode], vsync: bool) -> Option<PresentMode> {
     let preferred: &[PresentMode] = if vsync {
         &[PresentMode::Fifo]
@@ -343,12 +344,14 @@ impl FramerateLimiter {
     }
 }
 
-/// blaze3d `Window`'s `fullscreenRequested` / `fullscreen` pair. The window
+/// blaze3d `Window`'s `fullscreen` / `actuallyFullscreen` pair. The window
 /// system has the last word: a change it makes on its own (a compositor
 /// shortcut, a window rule) is adopted by the Fullscreen option
-/// (`Window.updateFullscreenState` -> `Minecraft.fullscreenStateChanged`), and
-/// the window is only asked to change when the option itself changes
-/// (`Window.updateFullscreenIfChanged`), never re-forced to the option.
+/// (`observe`), and the window is only asked to change when the option
+/// itself changes (`Window.updateDisplay`), never re-forced to the option.
+/// Vanilla 1.21.11 has no observe path of its own — under GLFW only
+/// `glfwSetWindowMonitor` changes fullscreen — so the adoption is the
+/// winit half of the pair, for compositors that can change it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FullscreenState {
     /// The state the window system last reported (`Window.fullscreen`).
@@ -372,12 +375,12 @@ impl FullscreenState {
         }
     }
 
-    /// `Window.updateFullscreenIfChanged` with the preferred mode: asks the
-    /// window to enter, leave or change its fullscreen only when one of them
-    /// changed. `in_video_screen` holds a changed mode back until the Video
-    /// Settings screen closes (`changeFullscreenVideoMode`). Fullscreen is
-    /// always the monitor's preferred video mode (`Window.setMode`): 1.21.11
-    /// has no exclusive-fullscreen option.
+    /// `Window.updateDisplay`'s fullscreen check, with the preferred mode:
+    /// asks the window to enter, leave or change its fullscreen only when
+    /// one of them changed. `in_video_screen` holds a changed mode back
+    /// until the Video Settings screen closes (`changeFullscreenVideoMode`).
+    /// Fullscreen is always the monitor's preferred video mode
+    /// (`Window.setMode`): 1.21.11 has no exclusive-fullscreen option.
     pub fn apply(
         &mut self,
         window: &winit::window::Window,
@@ -416,8 +419,9 @@ impl FullscreenState {
         apply
     }
 
-    /// `Window.updateFullscreenIfChanged`: the state to ask of the window
-    /// when the option `wanted` differs from what was last asked or adopted.
+    /// `Window.updateDisplay`'s fullscreen check: the state to ask of the
+    /// window when the option `wanted` differs from what was last asked or
+    /// adopted.
     pub fn request(&mut self, wanted: bool) -> Option<bool> {
         (wanted != self.requested).then(|| {
             self.requested = wanted;
@@ -425,8 +429,9 @@ impl FullscreenState {
         })
     }
 
-    /// `Window.updateFullscreenState`: the window now reports `now`; returns
-    /// it when it changed, for the option to adopt.
+    /// The window now reports `now` (a compositor change vanilla 1.21.11
+    /// has no path for — under GLFW only `glfwSetWindowMonitor` changes
+    /// fullscreen); returns it when it changed, for the option to adopt.
     pub fn observe(&mut self, now: bool) -> Option<bool> {
         (now != self.actual).then(|| {
             self.actual = now;

@@ -509,8 +509,8 @@ impl Game<'_> {
         self.ui.chat.rescale(&self.gui.atlas);
         self.creative_screen.forget_items();
     }
-    /// Window.updateFullscreenIfChanged: only a changed option asks the
-    /// window to change, so applying settings never undoes a fullscreen
+    /// `Window.updateDisplay`'s fullscreen check: only a changed option asks
+    /// the window to change, so applying settings never undoes a fullscreen
     /// the compositor set up.
     fn apply_fullscreen(&mut self) {
         // A splitscreen guest draws in a window it shares: its option never changes the window.
@@ -629,8 +629,10 @@ impl Game<'_> {
             self.update_remote_skins();
         }
     }
-    /// `Window.updateFullscreenState`: a fullscreen change made by the window
-    /// system is adopted by the option (`Minecraft.fullscreenStateChanged`).
+    /// A fullscreen change made by the window system is adopted by the
+    /// option (vanilla 1.21.11 has no such path — under GLFW only
+    /// `glfwSetWindowMonitor` changes fullscreen — so this is the winit
+    /// half of the `fullscreen` / `actuallyFullscreen` pair).
     pub(super) fn observe_fullscreen(&mut self) {
         // HDR calibration's own fullscreen is not the player's option: it
         // goes back to what it was when the calibration ends.
