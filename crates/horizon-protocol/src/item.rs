@@ -369,8 +369,10 @@ impl Component {
         }
         // Before 1.21 attribute modifiers carried a UUID and a name, not an
         // identifier: the 1.21.1 step that converted them is inert at this
-        // pin, so the conversion happens here.
-        if kind == component::ATTRIBUTE_MODIFIERS && v1_20_5::active() {
+        // pin, so the conversion happens here. The effective quirks decide,
+        // not the active session: this pin itself predates 1.21, so its own
+        // wire is in the UUID form too.
+        if kind == component::ATTRIBUTE_MODIFIERS && ids::quirks().components_before_1_21 {
             return Ok(Self::Raw(v1_20_5::read_attributes(r)?));
         }
         if let Some(bytes) = v1_21_5::read(kind, r)? {

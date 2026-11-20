@@ -11,16 +11,17 @@ pub(super) fn writing() -> bool {
 }
 /// The components whose pre-1.21.5 wire carries a trailing show-in-tooltip
 /// bool: unbreakable, enchantments, can_place_on, can_break,
-/// attribute_modifiers, stored_enchantments, dyed_color, trim,
-/// jukebox_playable — PINNED 1.21.1 ids.
-pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 9, 10, 11, 12, 23, 24, 35, 42];
+/// attribute_modifiers, stored_enchantments, dyed_color, trim — PINNED
+/// 1.20.6 ids. (1.21.1's list also had jukebox_playable at 42; the pin
+/// has no such component.)
+pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 9, 10, 11, 12, 23, 24, 35];
 // The old hide_additional_tooltip hid item-specific tooltip providers:
 // banner_patterns, bees, block_entity_data, block_state, bundle_contents,
 // charged_projectiles, container, container_loot, firework_explosion,
 // fireworks, instrument, map_id, pot_decorations, potion_contents,
-// written_book_content — PINNED 1.21.1 ids.
+// written_book_content — PINNED 1.20.6 ids.
 pub(super) const ADDITIONAL: &[i32] = &[
-    49, 54, 39, 53, 30, 29, 52, 56, 45, 46, 40, 26, 51, 31, 34,
+    48, 53, 39, 52, 30, 29, 51, 55, 44, 45, 40, 26, 50, 31, 34,
 ];
 
 pub(super) fn tooltip_ids() -> (i32, i32) {
