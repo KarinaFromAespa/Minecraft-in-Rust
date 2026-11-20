@@ -308,10 +308,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     if !table.bool(state, p.berries) {
                         return Pass;
                     }
+                    // CaveVines.use: 1.21.8 pops one glow berry directly;
+                    // the harvest loot table came in 1.21.9.
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/cave_vine"),
+                        PlayerEffect::DropItem("minecraft:glow_berries".into()),
                     );
                     let pitch = self.random().next_float() * 0.4 + 0.8;
                     self.emit(LevelEvent::Sound {

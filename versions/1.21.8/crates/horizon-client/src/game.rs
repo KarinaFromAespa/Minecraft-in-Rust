@@ -1758,8 +1758,8 @@ impl LevelAccess for GameLevel<'_> {
                 effect: PlayerEffect::DropItem(item),
                 ..
             } => self.pop_above(pos, item),
-            // Picking a sweet berry bush or cave vines: the harvest loot,
-            // popped before the pick sound draws its pitch.
+            // Picking a sweet berry bush: the harvest loot, popped before
+            // the pick sound draws its pitch.
             LevelEvent::Player {
                 pos,
                 state,
