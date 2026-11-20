@@ -1592,7 +1592,11 @@ impl Game<'_> {
             return false;
         }
         // AbstractBoat.interact starts with Entity.interact: the lead.
-        if self.interact_boat_leash(i) {
+        // AbstractChestBoat.interact (1.21.5) only runs that step when the
+        // player is not sneaking; a sneaking player opens the chest
+        // instead, even with a lead in hand. 1.21.6 calls super.interact
+        // first, lead and all.
+        if !(self.boats[i].chest && sneaking) && self.interact_boat_leash(i) {
             self.swing_arm();
             return true;
         }

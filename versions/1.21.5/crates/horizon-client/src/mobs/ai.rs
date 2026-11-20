@@ -774,6 +774,14 @@ pub fn tick(
     count_fall_fly_ticks(m);
     effects_from_blocks(m, w, level_random, events);
     extinguish_if_wet(m, w, was_on_fire, events);
+    // `Entity.applyEffectsFromBlocks` (1.21.5): a fire that went out in
+    // this pass (powder snow, rain, water) leaves -getFireImmuneTicks()
+    // (-1), so the next lightning strike ignites the mob again; a fire
+    // that burned out on its own stays 0. 1.21.6 resets every
+    // non-burning entity to -1 each pass instead.
+    if was_on_fire && m.fire_ticks <= 0 {
+        m.fire_ticks = -1;
+    }
     if m.species() == Species::SulfurCube && m.alive() {
         // SulfurCube.doPush applies the body's contact damage even with NoAI.
         // Player contact keeps its existing player_push route.

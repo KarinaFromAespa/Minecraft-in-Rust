@@ -497,13 +497,60 @@ is the oracle; decompiled code is a reading aid.
   → nether/overworld/end; 1.21.6 falls back to overworld for
   any int) — the read lives in `save.rs`, so it belongs to
   item 18.
+- **Item 14 — boats.rs, ported:** `Entity` / `EntityRenderer` /
+  `AbstractChestBoat` / `ModelLayers`:
+  - Movement recording: 1.21.5's `Entity.move` splits each move
+    into per-axis segments in `axisStepOrder` (YZX when |x| < |z|,
+    else YXZ) and keeps them in an unbounded per-move batch list;
+    1.21.6 records one flat movement per move in a deque that
+    merges the two oldest records at 100. The Rust keeps its flat
+    record (the net block effects are identical — both walk axis
+    steps) but now splits by the RESOLVED delta (`Axis::step_order`
+    already matches vanilla exactly; the consumer was ordering by
+    the pre-collision `original`, which matches neither version),
+    and `MovementHistory::add` no longer caps at 100.
+  - Fire ticks: 1.21.5 inits `remainingFireTicks` to
+    -getFireImmuneTicks() (-1 for mobs, -20 for the player; the
+    player init was already -20) and, in `applyEffectsFromBlocks`,
+    leaves -getFireImmuneTicks() when a fire went out in the pass
+    (1.21.6 inits 0 and resets every non-burning entity to
+    -immune each pass). Mob init is now -1, so the first
+    lightning strike ignites a fresh mob (`thunderHit`: +1,
+    ignite iff 0 — the Rust already implements the rule); the
+    player and mob block-effects passes now apply the post-check
+    (snapshot burning before the pass, set -20 / -1 when the fire
+    went out in it). `Entity.extinguishFire` is sound +
+    `clearFire` (exactly 0), so `extinguish_fire` no longer keeps
+    a negative value via `min(0)`. The 1.21.5-only `< 0 clearFire`
+    after the fire-immune -4 burn-down is moot for living
+    entities (`LivingEntity.baseTick` clears fire-immune mobs
+    every tick; the Rust's instant-0 matches the net).
+  - `AbstractChestBoat.interact`: 1.21.5 only runs
+    `super.interact` (the lead step + boarding) when the player
+    is not sneaking — a sneaking player opens the chest even with
+    a lead in hand; 1.21.6 always runs it first. The lead step in
+    `interact_boat` is now skipped for a sneaking player on a
+    chest boat.
+  - No Rust surface (verified): `requiresPrecisePosition`
+    (1.21.6-only, no Rust surface), the leash render
+    (`leashState` + 0.025 width in 1.21.5 vs `leashStates` +
+    0.05 in 1.21.6 — the Rust draws no leash ropes at all),
+    `ModelLayers`' happy-ghast layers (no Rust layer registry;
+    the happy-ghast removal is item 58's), the movement-batch
+    removal (the Rust records no vehicle movement to roll back).
+  - Known gap: `rain_extinguish_player` (the LAN guest path)
+    still clears to 0 instead of -20 — the pass-start snapshot
+    is not plumbed there, and the difference needs 20 lightning
+    strikes on one player to observe.
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (9m28s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **9 of 426 are
-closed** (rank 1 complete). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **14 of 426 are
+closed** (rank 1 complete, rank 2 at 5/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

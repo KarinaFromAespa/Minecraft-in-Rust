@@ -1641,6 +1641,11 @@ impl MotionWorld<'_, '_, '_> {
                 }
             }
         }
+        // `Entity.applyEffectsFromBlocks` snapshots burning before the
+        // block pass: a fire that goes out in the pass leaves
+        // -getFireImmuneTicks() (-20 for a player), a fire that burned
+        // out on its own stays 0.
+        let was_on_fire = self.player.fire_ticks > 0;
         let mut visited = crate::fast_hash::FxHashSet::default();
         let mut entered = Vec::new();
         for movement in &movements {
@@ -1648,8 +1653,12 @@ impl MotionWorld<'_, '_, '_> {
             let delta = movement.to.subtract(movement.from);
             let mut budget = 16;
             match movement.original {
-                Some(original) if delta.length_squared() > 0.0 => {
-                    for axis in Axis::step_order(original) {
+                // `Entity.move` splits the RESOLVED move into axis steps
+                // (`axisStepOrder` on the move's own delta, YZX when
+                // |x| < |z|, else YXZ); the pre-collision `original` only
+                // marks a recorded move, it never sets the order.
+                Some(_) if delta.length_squared() > 0.0 => {
+                    for axis in Axis::step_order(delta) {
                         let step = delta.component(axis);
                         if step != 0.0 {
                             let to = from.relative(
@@ -1725,6 +1734,13 @@ impl MotionWorld<'_, '_, '_> {
                 self.player.ticks_frozen =
                     (self.player.ticks_frozen + 1).min(PlayerMotion::TICKS_REQUIRED_TO_FREEZE);
             }
+        }
+        // `Entity.applyEffectsFromBlocks` (1.21.5): a fire that went out
+        // in this pass leaves -getFireImmuneTicks() (-20), so the next
+        // lightning strikes count toward reigniting it. 1.21.6 resets
+        // every non-burning entity to -20 each pass instead.
+        if was_on_fire && self.player.fire_ticks <= 0 {
+            self.player.fire_ticks = -20;
         }
         Ok(())
     }

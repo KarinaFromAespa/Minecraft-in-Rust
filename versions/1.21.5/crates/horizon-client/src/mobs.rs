@@ -2772,8 +2772,10 @@ impl Mob {
     }
     /// `Entity.extinguishFire`: a burning mob first plays the extinguish sound
     /// (`playEntityOnFireExtinguishedSound`: volume 0.7, pitch from two draws
-    /// of its random, at its feet), then `clearFire` keeps only the
-    /// fire-immune countdown.
+    /// of its random, at its feet), then `clearFire` sets the timer to 0
+    /// exactly (it does not keep a negative fire-immune countdown; the
+    /// -1 after a block-effects extinguish comes from
+    /// `applyEffectsFromBlocks`' own post-check, in the mob tick).
     pub fn extinguish_fire(&mut self) {
         if self.is_on_fire() {
             let pitch = 1.6 + (self.random.next_float() - self.random.next_float()) * 0.4;
@@ -2785,7 +2787,7 @@ impl Mob {
                 pitch,
             ));
         }
-        self.fire_ticks = self.fire_ticks.min(0);
+        self.fire_ticks = 0;
     }
     /// `Entity.isFullyFrozen`.
     pub fn is_fully_frozen(&self) -> bool {
@@ -3439,7 +3441,11 @@ impl Mob {
             projectile_motion: None,
             climbing: false,
             on_climbable: false,
-            fire_ticks: 0,
+            // `Entity.remainingFireTicks` starts at -getFireImmuneTicks()
+            // (-1) in 1.21.5, so the first lightning strike ignites a
+            // fresh mob (`thunderHit`: +1, ignite iff 0). 1.21.6 starts
+            // at 0 and resets it to -1 every block-effects pass instead.
+            fire_ticks: -1,
             ticks_frozen: 0,
             in_powder_snow: false,
             glowing: false,

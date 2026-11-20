@@ -32,16 +32,10 @@ impl MovementHistory {
     pub fn records(&self) -> &VecDeque<MovementRecord> {
         &self.records
     }
+    /// `Entity.move` records the move in `movementThisTick`, a list of
+    /// per-move batches with no cap in 1.21.5 (1.21.6's flat deque merges
+    /// the two oldest records once it holds 100).
     pub fn add(&mut self, record: MovementRecord) {
-        if self.records.len() >= 100 {
-            let first = self.records.pop_front().unwrap();
-            let second = self.records.pop_front().unwrap();
-            self.records.push_front(MovementRecord {
-                from: first.from,
-                to: second.to,
-                original: None,
-            });
-        }
         self.records.push_back(record);
     }
     pub fn clear(&mut self) {
