@@ -3582,7 +3582,6 @@ mod tests {
             "chest",
             "trapped_chest",
             "ender_chest",
-            "copper_chest",
         ];
         let mut facts: std::collections::BTreeMap<String, Value> =
             serde_json::from_slice(&std::fs::read(root.join("model-states.json"))?)?;
@@ -3622,7 +3621,6 @@ mod tests {
             assert!(models.iter().all(|(_, model)| model.faces.is_empty()));
             let particle = match *name {
                 "ender_chest" => "minecraft:block/obsidian",
-                "copper_chest" => "minecraft:block/copper_block",
                 _ => "minecraft:block/oak_planks",
             };
             assert_eq!(models[0].1.particle, Some(sprites.layers[particle]));
