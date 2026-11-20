@@ -334,7 +334,32 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 146/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163 + 4 zero-diff)
+### Rank 2: 147/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164 + 4 zero-diff)
+
+- **Item 164 — widely named `client/model/geom`
+  (3 classes, 16 methods, 0 named in Horizon), zero-diff:**
+  `ModelPart.Vertex`: 1.21.9 flattened it to `x/y/z` floats
+  with `worldX/Y/Z()` dividing by 16; 1.21.8 holds a
+  `Vector3f pos` and divides inline — same values, and the
+  Rust draw divides vertex positions by 16.0 the same way.
+  `Polygon`'s normal: 1.21.9 computes it via `mirrorFacing`
+  (flip the direction on the X axis, then the unit vector);
+  1.21.8 takes the direction's step and negates x when
+  mirrored — verified equivalent for all six directions
+  (the x-negation is a no-op for y/z-facing normals), and
+  the Rust cube baker implements the 1.21.8 form exactly
+  (`direction.normal()`, `normal[0] = -normal[0]` on
+  mirror, vertices reversed). `ModelPart.copyFrom` /
+  `HumanoidModel.copyPropertiesTo` exist only in 1.21.8
+  (used by the cape, ears, and armor layers); 1.21.9
+  removed them with the render-state pipeline. The Rust
+  layer code copies the whole poses map for same-model
+  layers and re-runs `setupAnim` for different-model ones,
+  which yields the same layer poses in either version.
+  `Cube`'s reported change is constant-pool churn (no diff
+  hunk). Prepared model-layer normals come from the
+  1.21.8-jar exporter, so they embody the 1.21.8 form by
+  construction.
 
 - **Item 163 — `crates/horizon-client/src/game/win.rs`
   (1 class, 6 methods, 1 named in Horizon), citation only:**
