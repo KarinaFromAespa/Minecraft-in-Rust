@@ -124,54 +124,59 @@ mod tests {
         assert_eq!(p.particle.id, 1);
         assert_eq!(
             p.particle.data,
-            // chain[axis=y,waterlogged=false] is 7006 at this pin, not 7009.
-            Some(crate::entity_data::ParticleData::State(7006))
+            // chain[axis=y,waterlogged=false] is 6776 at this pin, not 7006.
+            Some(crate::entity_data::ParticleData::State(6776))
         );
     }
 
     #[test]
-    fn trail_options_leave_the_lifetime_to_the_legacy_provider() {
-        let ids = ServerVersion::V1_21_3.ids().unwrap();
+    fn a_particle_the_pin_lacks_drops_the_packet() {
+        let session = Session::new(ServerVersion::V1_21_3);
         let mut old = Writer::new();
-        old.varint(46); // minecraft:trail in vanilla 1.21.3.
+        old.bool(true);
+        for v in [1.0, 2.0, -3.0] {
+            old.f64(v);
+        }
+        for v in [0.25, 0.5, 0.75, 1.5] {
+            old.f32(v);
+        }
+        old.i32(12);
+        // Vanilla 1.21.3 minecraft:trail (46), which 1.21.1 has no
+        // counterpart for: three doubles, then the colour. 1.21.3's trail
+        // carries no duration.
+        old.varint(46);
         for at in [1.0, 2.0, -3.0] {
             old.f64(at);
         }
         old.i32(0x7f3f1f);
-        old.u8(99); // the next field is not a duration
-        let mut r = Reader::new(&old.data);
-        let particle = {
-            let _up = ids::renumbering(ids, Way::Up);
-            crate::entity_data::Particle::read(&mut r).unwrap()
-        };
-        assert_eq!(particle.id, 46); // minecraft:trail is particle 46 in 1.21.3.
         assert_eq!(
-            particle.data,
-            Some(crate::entity_data::ParticleData::Trail(
-                [1.0, 2.0, -3.0],
-                0x7f3f1f,
-                -1
-            ))
+            super::super::clientbound(
+                &session,
+                State::Play,
+                packet_ids::play::clientbound::LEVEL_PARTICLES,
+                &old.data,
+            )
+            .unwrap(),
+            None
         );
-        assert_eq!(r.u8().unwrap(), 99);
     }
 
     #[test]
-    fn old_heart_states_and_both_creaking_types_retain_their_meaning() {
+    fn creaking_content_drops_on_the_way_up_to_the_767_pin() {
         let ids = ServerVersion::V1_21_3.ids().unwrap();
-        // 1.21.3 IS the pinned version, so its own tables are identity: the
-        // nine heart states (2917..2925, axis-major, creaking
-        // disabled/dormant/active) and both creaking entities (29, 30) map
-        // to themselves in both directions. The collapse of the two creaking
-        // types onto one is a newer version's DOWN table, not this one.
+        // 1.21.1 has no creaking at all, so the nine heart states
+        // (2917..2925 in 1.21.3, axis-major, creaking
+        // disabled/dormant/active) and both creaking entities (29, 30)
+        // have no pin counterpart and drop on the way up.
         for state in 2917..2926 {
-            assert_eq!(ids.block_state.up(state), Some(state));
-            assert_eq!(ids.block_state.down(state), Some(state));
+            assert_eq!(ids.block_state.up(state), None);
         }
-        assert_eq!(ids.entity_type.up(29), Some(29));
-        assert_eq!(ids.entity_type.up(30), Some(30));
-        assert_eq!(ids.entity_type.down(29), Some(29));
-        assert_eq!(ids.entity_type.down(30), Some(30));
+        assert_eq!(ids.entity_type.up(29), None);
+        assert_eq!(ids.entity_type.up(30), None);
+        // Content both versions have still maps: chain[axis=y,
+        // waterlogged=false] is 7006 in 1.21.3 and 6776 at the pin.
+        assert_eq!(ids.block_state.up(7006), Some(6776));
+        assert_eq!(ids.block_state.down(6776), Some(7006));
     }
 
     #[test]

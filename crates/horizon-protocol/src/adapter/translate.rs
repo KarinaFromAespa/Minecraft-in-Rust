@@ -254,7 +254,12 @@ pub fn clientbound(
         (State::Play, cb::LEVEL_CHUNK_WITH_LIGHT) => chunk(session, ids, payload)?,
         (State::Play, cb::LIGHT_UPDATE) => light_update(payload)?,
         (State::Play, cb::UPDATE_ADVANCEMENTS) => advancements(ids, payload)?,
-        (State::Play, cb::LEVEL_PARTICLES) => particles(ids, payload)?,
+        (State::Play, cb::LEVEL_PARTICLES) => match particles(ids, payload)? {
+            Some(body) => body,
+            // A particle the pin lacks drops the packet, as an unknown
+            // entity does.
+            None => return Ok(None),
+        },
         (State::Play, cb::EXPLODE) => {
             // The strip above already wrote the play-sound flag 26.2's packet
             // lacks (its sound always plays); the ids are renumbered here.
@@ -1077,10 +1082,12 @@ fn advancements(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
 
 /// 26.2: flags, position, spread, one max speed, an Int count, then the particle. 26.3 sends the particle
 /// first, a speed per axis, a VarInt count and how the spread is drawn (0, gaussian, as 26.2 did).
-pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
+/// `None`: the particle's type has no pin counterpart (a 1.21.3 server's trail, which 1.21.1 lacks),
+/// so the whole packet drops instead of misreading the unmapped id (-1) as a native mod's particle.
+pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     let mut r = Reader::new(payload);
     let override_limiter = r.bool()?;
-    // 26.2's layout carries alwaysShow; the pinned 1.21.3 has no such flag, so it goes.
+    // 26.2's layout carries alwaysShow; the pinned 1.21.1 has no such flag, so it goes.
     let _always_show = r.bool()?;
     let pos = [r.f64()?, r.f64()?, r.f64()?];
     let dist = [r.f32()?, r.f32()?, r.f32()?];
@@ -1088,6 +1095,15 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
     let count = r.i32()?;
     let particle = {
         let _up = ids::renumbering(ids, Way::Up);
+        // Peek the particle's id before reading its data: an unmapped type
+        // drops the packet. A native mod's particle (the -1 sentinel) is
+        // not a registry id and passes through.
+        let peek = Reader::new(&payload[r.position()..]).varint()?;
+        if peek != crate::entity_data::MOD_PARTICLE_ID
+            && ids.particle_type.up(peek).is_none()
+        {
+            return Ok(None);
+        }
         crate::entity_data::Particle::read(&mut r)?
     };
     let mut w = Writer::new();
@@ -1103,7 +1119,7 @@ pub(super) fn particles(ids: &'static Ids, payload: &[u8]) -> Result<Vec<u8>> {
         },
         &mut w,
     );
-    Ok(w.data)
+    Ok(Some(w.data))
 }
 
 /// 26.2 sends a move as three Short deltas (1/4096 of a block) then on-ground, and a turn as the two angles

@@ -546,7 +546,7 @@ mod tests {
                 )
                 .unwrap(),
             );
-            let back = translate::particles(ids, &old).unwrap();
+            let back = translate::particles(ids, &old).unwrap().unwrap();
             let q = play::LevelParticles::read(&mut Reader::new(&back)).unwrap();
             assert_eq!(
                 (
