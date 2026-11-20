@@ -33,7 +33,7 @@ pub struct ColumnVertex {
     pub light_coords: i32,
 }
 
-/// The random seed of a column (`extractRenderState`).
+/// The random seed of a column (`collectColumnInstances`).
 pub fn column_seed(x: i32, z: i32) -> i32 {
     (x.wrapping_mul(x)
         .wrapping_mul(3121)
