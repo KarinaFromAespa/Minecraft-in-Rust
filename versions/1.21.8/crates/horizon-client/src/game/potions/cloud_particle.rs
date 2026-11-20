@@ -38,8 +38,10 @@ fn tag_color(tag: Option<&Tag>, floats: usize) -> Option<[f32; 4]> {
             for (slot, value) in c.iter_mut().zip(l) {
                 *slot = tag_f32(value)?;
             }
-            // ARGB.as8BitChannel, then ARGB.color's byte masks.
-            let byte = |f: f32| ((f * 255.0).floor() as i32) & 255;
+            // `ARGB.as8BitChannel`, then `ARGB.color`'s raw shifts: 1.21.8
+            // has no byte masks, so an out-of-range channel bleeds into
+            // its neighbour (1.21.9 added the `& 0xFF` masks).
+            let byte = |f: f32| (f * 255.0).floor() as i32;
             byte(c[3]) << 24 | byte(c[0]) << 16 | byte(c[1]) << 8 | byte(c[2])
         }
         Tag::List(_) => return None,

@@ -305,8 +305,11 @@ fn rgb(v: &Value) -> Result<i32> {
     }
     int(v)
 }
+/// `ARGB.color(a, r, g, b)`. 1.21.8 shifts the channels raw — an
+/// out-of-range channel bleeds into its neighbour; 1.21.9 added the
+/// `& 0xFF` masks.
 fn argb(a: i32, r: i32, g: i32, b: i32) -> i32 {
-    (a & 255) << 24 | (r & 255) << 16 | (g & 255) << 8 | (b & 255)
+    a << 24 | r << 16 | g << 8 | b
 }
 fn opaque(color: i32) -> i32 {
     color | (0xFF00_0000u32 as i32)
