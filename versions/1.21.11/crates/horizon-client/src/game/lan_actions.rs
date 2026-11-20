@@ -2904,7 +2904,13 @@ impl Game<'_> {
                 self.guest_recipe_transfer(host, conn, &p.data);
             }
             S::ChatCommandSigned(p) => self.guest_signed_command(host, conn, p),
-            S::ChangeDifficulty(p) if host.hub.guests[gi].permission >= 2 => {
+            // ServerGamePacketListenerImpl.handleChangeDifficulty: the gamemaster
+            // permission, or the singleplayer owner (`isSingleplayerOwner`) —
+            // the owner changes difficulty from the options without cheats.
+            S::ChangeDifficulty(p)
+                if host.hub.guests[gi].permission >= 2
+                    || host.hub.singleplayer_owner == Some(host.hub.guests[gi].uuid) =>
+            {
                 if !self.level.difficulty_locked && (0..=3).contains(&p.difficulty) {
                     self.ui.difficulty = if self.level.hardcore {
                         3
@@ -2922,7 +2928,11 @@ impl Game<'_> {
                         }));
                 }
             }
-            S::LockDifficulty(p) if host.hub.guests[gi].permission >= 2 => {
+            // handleLockDifficulty: the same gate as the difficulty change.
+            S::LockDifficulty(p)
+                if host.hub.guests[gi].permission >= 2
+                    || host.hub.singleplayer_owner == Some(host.hub.guests[gi].uuid) =>
+            {
                 self.level.difficulty_locked = p.locked;
                 host.hub
                     .broadcast(&C::ChangeDifficulty(play::ChangeDifficulty {
@@ -6579,6 +6589,140 @@ mod swing_echo_tests {
         // BedBlock.useWithoutItem: SUCCESS_SERVER, the server's swing only.
         game.lan_guest_packet(&mut host, 2, use_on([6, 200, 4], [0.5, 0.5625, 0.5], 2));
         assert_eq!(swings_back(), 1, "a bed's use is swung back");
+    }
+}
+
+#[cfg(test)]
+mod difficulty_packet_tests {
+    use crate::game::{Audio, Game, Options, Progress, Settings, load_resources};
+    use horizon_client::lan::{Joined, NetConfig, PlayerSender, guest::Guest, hub::HubConfig};
+    use horizon_protocol::packets::{
+        configuration::ClientInformation,
+        play::{self, Serverbound},
+    };
+    use std::sync::{Arc, atomic::AtomicI32, mpsc};
+
+    /// ServerGamePacketListenerImpl.handleChangeDifficulty / handleLockDifficulty:
+    /// the gamemaster permission, or the singleplayer owner — the owner changes
+    /// and locks the difficulty from the options without cheats, a guest without
+    /// the permission cannot, and a locked difficulty refuses changes.
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn the_singleplayer_owner_changes_difficulty_without_cheats() {
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.game_dir = Some(
+            std::env::temp_dir().join(format!("horizon-difficulty-unit-{}", std::process::id())),
+        );
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let mut game = Game::new(
+            &loaded.resources,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.build_registries();
+        game.lan_host(
+            super::super::lan::LanSettings {
+                port: 0,
+                guest_commands: false,
+                force_game_mode: false,
+            },
+            NetConfig {
+                announce: false,
+                ..NetConfig::loopback(0, "difficulty-owner-test".into(), 2)
+            },
+            HubConfig {
+                default_game_mode: 0,
+                guest_commands: false,
+                force_game_mode: false,
+                hardcore: false,
+                view_distance: 2,
+                simulation_distance: 2,
+                dimension: "minecraft:overworld".into(),
+                allow_flight: false,
+                seed: 0,
+                max_players: 3,
+                integrated: true,
+                levels: Default::default(),
+            },
+        )
+        .unwrap();
+        let (tx, _rx) = mpsc::channel();
+        let guest = |conn: u32, uuid: u128, name: &str, entity_id: i32| {
+            Guest::new(
+                Joined {
+                    conn,
+                    uuid,
+                    name: name.into(),
+                    properties: Vec::new(),
+                    info: ClientInformation::new(2),
+                    brand: "test".into(),
+                    sender: PlayerSender::new(tx.clone(), Arc::default()),
+                    latency: Arc::new(AtomicI32::new(0)),
+                    address: "127.0.0.1:25565".parse().unwrap(),
+                    expected: false,
+                    configured: Default::default(),
+                },
+                entity_id,
+                [4.5, 200.0, 4.5],
+                2,
+            )
+        };
+        let mut host = game.lan.take().unwrap();
+        // The owner, through memory at permission 0 (no cheats), and two
+        // guests: one without the permission, one op.
+        host.hub.singleplayer_owner = Some(7);
+        host.hub.guests.push(guest(0, 7, "Owner", 2));
+        host.hub.guests.push(guest(2, 331, "Guest", 3));
+        let mut op = guest(3, 9, "OpGuest", 4);
+        op.permission = 2;
+        host.hub.guests.push(op);
+        game.ui.difficulty = 2;
+        let change =
+            |d: i32| Serverbound::ChangeDifficulty(play::ChangeDifficultyRequest { difficulty: d });
+        // A guest without the gamemaster permission is refused.
+        game.lan_guest_packet(&mut host, 2, change(3));
+        assert_eq!(game.ui.difficulty, 2, "an unprivileged guest changed it");
+        // The singleplayer owner is allowed at permission 0.
+        game.lan_guest_packet(&mut host, 0, change(3));
+        assert_eq!(game.ui.difficulty, 3, "the owner could not change it");
+        // The owner locks it; a further change is refused while locked.
+        game.lan_guest_packet(
+            &mut host,
+            0,
+            Serverbound::LockDifficulty(play::LockDifficulty { locked: true }),
+        );
+        assert!(game.level.difficulty_locked, "the owner could not lock it");
+        game.lan_guest_packet(&mut host, 0, change(0));
+        assert_eq!(game.ui.difficulty, 3, "a locked difficulty changed");
+        // Unlocking lets an op guest change it again.
+        game.lan_guest_packet(
+            &mut host,
+            0,
+            Serverbound::LockDifficulty(play::LockDifficulty { locked: false }),
+        );
+        assert!(!game.level.difficulty_locked);
+        game.lan_guest_packet(&mut host, 3, change(1));
+        assert_eq!(game.ui.difficulty, 1, "an op guest could not change it");
     }
 }
 

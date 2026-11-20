@@ -676,6 +676,9 @@ impl Loading {
                 | Event::ListMusicTracks
                 | Event::PlayMusicTrack(..)
                 | Event::Volume(..) => {}
+                // The difficulty control never shows on the startup menu's
+                // options: there is no world and no singleplayer server.
+                Event::Difficulty(..) | Event::LockDifficulty => {}
                 Event::OpenStudioFolder => {
                     let dir = std::path::PathBuf::from("recordings");
                     let _ = std::fs::create_dir_all(&dir);

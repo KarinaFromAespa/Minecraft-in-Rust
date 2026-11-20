@@ -7966,3 +7966,77 @@ options.rs. Unassigned classes recorded: VideoMode (no
 a regex PATTERN), FramerateLimitTracker (already at item 42),
 Monitor/ScreenManager/WindowEventHandler; FramerateLimiter/
 MouseHandler are item 262 (rank 3).
+
+## Item 118 — options UI (rank 2, CHANGED)
+
+15 classes, 43 methods, 1 named (`ConfirmScreen.keyPressed`).
+
+Java delta, jar-verified (javap diff 1421 lines + decompile diff 1985
+lines, both read in full; literal comparison across all decompiled
+classes shows only `256`, the three difficulty-lock strings,
+`options.worldOptions.button`, and one `0`): the one real behavioural
+delta is OptionsScreen. 26.1 implements
+`HasGamemasterPermissionReaction, HasDifficultyReaction`, has a 3-arg
+ctor, a `difficultyButtons` (DifficultyButtons) field, and shows a
+"options.worldOptions.button" button (WorldOptionsScreen) when
+`canShowWorldOptions()` else the DifficultyButtons row. 1.21.11 has no
+interfaces, a 2-arg ctor, and `createOnlineButton` builds the difficulty
+control when `level != null && hasSingleplayerServer()`: a CycleButton
+over `Difficulty.values()` (150x20, initial `level.getDifficulty()`,
+onValueChange sends `ServerboundChangeDifficultyPacket`), plus a
+LockIconButton (20x20) when not hardcore — 130 + 20 in an
+`EqualSpacingLayout(150, 0, HORIZONTAL)` — whose press opens a
+ConfirmScreen ("difficulty.lock.title", "difficulty.lock.question"
+with the difficulty display name) with `lockCallback` (on Yes: send
+`ServerboundLockDifficultyPacket(true)`, lock setLocked(true), both
+inactive). Hardcore: difficulty button inactive, no lock button.
+Otherwise the Online button (150x20) opening OnlineOptionsScreen.
+Everything else is API shape: the extract* → render* renames
+(item 87's tree-wide sweep), visibility/requireNonNull/access$ noise,
+`AbstractContainerWidget` dropping the 26.1-only `ScrollbarSettings`
+ctor param, the `lambda$init$` param type change. ConfirmScreen.
+keyPressed is cosmetic: 26.1 `isEscape()` vs 1.21.11 `key() == 256`,
+and `InputWithModifiers.isEscape()` is `input() == 256` in BOTH jars
+(identical bytecode). KeyBindsScreen.keyPressed uses `isEscape()` in
+both. Language/KeyBinds list geometry identical. LockIconButton
+(decompiled from the 1.21.11 jar; not in this item's list) is 20x20,
+blits its icon sprite over the whole button
+(`widget/{,un}locked_button{,_highlighted,_disabled}`), narration
+"narrator.button.difficulty_lock" + locked/unlocked suffix.
+`ServerGamePacketListenerImpl.handleChangeDifficulty` /
+`handleLockDifficulty` (1.21.11 server jar) gate on
+`hasPermission(COMMANDS_GAMEMASTER)` OR `isSingleplayerOwner()` — the
+SP owner is always allowed; the change calls
+`setDifficulty(difficulty, false)`, so the lock is respected
+server-side.
+
+The difficulty control was entirely missing from the Rust: the Main
+page always showed the Online button, even in a singleplayer world.
+Fix: `OptionsUi` gains `difficulty` (default 2), `difficulty_locked`,
+`hardcore`, `singleplayer` (set by `open_options_at`) and
+`difficulty_confirm`; the Main page shows the difficulty CycleButton
+("Difficulty: <name>") + lock icon button in a singleplayer world and
+the Online button otherwise; new `WKind::IconButton` (sprite picked by
+state at draw time) with focus/click/keyboard handling, new
+`Act::CycleDifficulty` / `Act::LockDifficulty` and
+`Event::Difficulty(u8)` / `Event::LockDifficulty`; the lock confirm
+follows the PackScreen confirm pattern (ConfirmScreen geometry, Yes/No,
+Escape answers no, Yes locks immediately in the UI). The game sends
+`Serverbound::ChangeDifficulty` / `Serverbound::LockDifficulty` — the
+packet path, not `set_difficulty_forced`: singleplayer runs on a
+server thread and the window joins it through memory as a `remote`
+client, so `send()` reaches the serving Game (`HostEvent::Packet` →
+`lan_guest_packet`); `/difficulty` executes on the serving Game, so it
+is not a model for window-side code. The guest-handler guards gained
+vanilla's `isSingleplayerOwner()` bypass (`singleplayer_owner ==
+Some(guest uuid)`) — without it the owner at permission 0 (no cheats)
+had the packets dropped and the button was dead in the common case;
+LAN-guest behaviour is unchanged. The startup menu's options handler
+no-ops the two new events (no world there). Tests: 6 new render-crate
+tests (layout, label/question naming via a scoped test language,
+lock/hardcore states, click cycle with hard→peaceful wrap, Tab+Enter
+cycle, lock-confirm Escape/No/Yes), all passing; 1 new `#[ignore]`d
+game test (`difficulty_packet_tests`, needs HORIZON_TEST_RESOURCES,
+compiles clean, runs on CI) pinning the owner bypass, the guest
+refusal, and the lock. `cargo check` clean (render lib, client lib +
+tests); rustfmt --check clean on all four edited files.
