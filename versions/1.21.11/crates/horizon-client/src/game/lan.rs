@@ -716,6 +716,17 @@ pub(super) fn mob_meta(
                     meta.push((21, serializer::LONG, Value::Long(end)));
                 }
                 defaults.push((21, serializer::LONG, Value::Long(-1)));
+                // Wolf.DATA_SOUND_VARIANT_ID: the variant's sounds, classic
+                // by default.
+                let sounds = horizon_client::mobs::finalize::sound_variants(Species::Wolf);
+                let name = e
+                    .sound_variant
+                    .and_then(|i| sounds.get(i as usize))
+                    .copied()
+                    .unwrap_or("classic");
+                if let Some(v) = id("minecraft:wolf_sound_variant", name) {
+                    meta.push((23, serializer::WOLF_SOUND_VARIANT, Value::Id(v)));
+                }
             }
         }
         "minecraft:horse"

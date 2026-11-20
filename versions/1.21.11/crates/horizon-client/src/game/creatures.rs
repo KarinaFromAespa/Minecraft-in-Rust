@@ -3927,6 +3927,17 @@ impl Game<'_> {
         } else {
             None
         };
+        // Wolf.getBreedOffspring: the pup's sound variant is a fresh random
+        // draw from the mother's random, not the default (`classic`).
+        let wolf_sound = if p.species() == Species::Wolf {
+            let n = horizon_client::mobs::finalize::sound_variants(Species::Wolf).len() as i32;
+            self.mobs
+                .iter_mut()
+                .find(|m| m.id == parent)
+                .map(|m| m.random.next_int_bound(n).unwrap_or(0) as u8)
+        } else {
+            None
+        };
         // A horse and a donkey have a mule.
         let kind = match (p.species(), q.as_ref().map(|q| q.species())) {
             (Species::Horse, Some(Species::Donkey)) | (Species::Donkey, Some(Species::Horse)) => {
@@ -3942,8 +3953,9 @@ impl Game<'_> {
             // No Mob.finalizeSpawn either: no follow range bonus, right-handed.
             spawning::bred_offspring(child);
             // getBreedOffspring creates the baby without finalizeSpawn: it keeps
-            // the default (`classic`) sound variant.
-            child.extra.sound_variant = None;
+            // the default (`classic`) sound variant — except a wolf pup, whose
+            // sound variant is a fresh random draw (see `wolf_sound` above).
+            child.extra.sound_variant = wolf_sound;
             // Fox.getBreedOffspring runs no finalizeSpawn: nothing in the
             // baby fox's mouth.
             if p.species() == Species::Fox {
@@ -6662,7 +6674,8 @@ impl Game<'_> {
                     .get(&item)
                     .and_then(|i| i.food.as_ref())
                     .map_or(2.0, |f| f.0 as f32 * 2.0);
-                // TamableAnimal.feed(.., 2.0F, 2.0F): heals twice the nutrition,
+                // Wolf.mobInteract inlines the feed (TamableAnimal.feed is gone
+                // in 1.21.11): heals twice the nutrition,
                 // then playEatingSound, which wolves leave empty.
                 m.heal(heal);
                 consume = true;
@@ -6805,7 +6818,8 @@ impl Game<'_> {
                     .get(&item)
                     .and_then(|i| i.food.as_ref())
                     .map_or(1.0, |f| f.0 as f32);
-                // TamableAnimal.feed.
+                // Cat.mobInteract inlines the feed (TamableAnimal.feed is gone
+                // in 1.21.11).
                 m.heal(heal);
                 consume = true;
                 eat = eating_sound(m, &mut self.world.random);

@@ -2383,12 +2383,14 @@ pub fn sound_variants(s: Species) -> &'static [&'static str] {
         _ => &[],
     }
 }
-/// A sound of the wolf's `WolfSoundVariant` set (`Wolf.getSoundSet`):
+/// A sound of the wolf's `WolfSoundVariant` set (`Wolf.getSoundSet` in 26.1;
+/// 1.21.11's variant is a flat record of six holders, with no baby/adult
+/// split and no step — babies use the same set at the baby voice pitch):
 /// `kind` is the sound's key (`ambient`, `hurt`, `step`, `growl`, `pant`...).
-/// Babies use the baby set; an adult's set is `entity.wolf.*` for `classic`
-/// and `entity.wolf_<variant>.*` otherwise, except the footsteps that every
-/// variant shares. None for a species without sound variants (only wolves
-/// have them in 1.21.11); the callers fall back to the plain species sound.
+/// The set is `entity.wolf.*` for `classic` and `entity.wolf_<variant>.*`
+/// otherwise, except the footsteps that every variant shares. None for a
+/// species without sound variants (only wolves have them in 1.21.11); the
+/// callers fall back to the plain species sound.
 pub fn variant_sound(m: &Mob, kind: &str) -> Option<&'static str> {
     use std::{collections::HashMap, sync::Mutex};
     let species = m.species();

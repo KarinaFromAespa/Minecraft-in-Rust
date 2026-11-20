@@ -386,6 +386,19 @@ fn apply_registry_data(
 ) {
     let species = m.species();
     for (index, _, value) in values {
+        // Wolf.DATA_SOUND_VARIANT_ID: the variant's sounds.
+        if species == Species::Wolf && *index == 23 {
+            if let Value::Id(id) = value
+                && let Some(name) = registries.name("minecraft:wolf_sound_variant", *id)
+            {
+                let name = name.strip_prefix("minecraft:").unwrap_or(name);
+                m.extra.sound_variant = finalize::sound_variants(species)
+                    .iter()
+                    .position(|v| *v == name)
+                    .map(|i| i as u8);
+            }
+            continue;
+        }
         let registry = match (species, *index, value) {
             (Species::Cat, 19, Value::Id(_)) => "minecraft:cat_variant",
             (Species::Wolf, 22, Value::Id(_)) => "minecraft:wolf_variant",

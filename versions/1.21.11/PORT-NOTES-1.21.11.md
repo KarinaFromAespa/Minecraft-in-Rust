@@ -3575,3 +3575,120 @@ hand-checked against rustfmt's layout instead. The ignored
 1.21.11 prepared lang data.
 Rank 2 now 221/492 (55 changed, 166 no-change).
 work-items.json rank2.closed = 221 on 2026-11-20.
+
+## Item 43 — mobs/tame.rs (rank 2, CHANGED)
+
+Cat, WolfModel, CatVariants, CatRenderer,
+TamableAnimal$TamableAnimalPanicGoal, AdultFelineModel (removed),
+BabyFelineModel (removed), BegGoal, CatSitOnBlockGoal,
+Wolf$WolfAvoidEntityGoal, WolfVariants, BiomeCheck: 12 classes, 48
+methods, 9 named. Harnesses entity_model, mob_ai. Three real behaviour
+fixes: the unified 1.21.11 feline/wolf models, the wolf pup's sound
+variant draw, and three cat goals that could never fire because they
+gated on block tags that do not exist.
+
+1.21.11 unifies the feline and wolf models. 26.1 has
+`AbstractFelineModel` + `AdultFelineModel` / `BabyFelineModel` (with
+Adult/Baby Cat/Ocelot subclasses) and an abstract `WolfModel` with
+`shakeOffWater` + `setSittingPose` overrides in Adult/Baby subclasses;
+1.21.11 has one `FelineModel` (+ thin `CatModel` with
+`CAT_TRANSFORMER = scaling(0.8F)` and `OcelotModel`) and one concrete
+`WolfModel` (with `real_head`, `upper_body`, `real_tail`,
+`createMeshDefinition`, `BABY_TRANSFORMER`, the sitting pose inlined,
+and the shake replaced by per-part rolls). Babies use the same poses at
+ageScale 0.5. The Rust already implemented the 1.21.11 adult shapes but
+kept the 26.1 baby branches: `feline()`'s baby sitting branch (body
+xRot −0.43633232, head/tail offsets), baby lie-down branch, and the
+`!baby` guard on the standing body xRot; `anim()`'s baby sitting body
+xRot −π/2 and baby roll on the shared head/tail. All are removed: the
+feline body xRot and the adult sitting/lie-down branches now run for
+babies too (scaled by `age`), the wolf sitting pose is the unified
+`upper_body` offset (y += 2.0 * age, xRot 2π/5), and the roll is the
+unified guarded path (realHead 0.0, upperBody −0.08, body −0.16,
+realTail −0.2). The `cat_anim` / `anim()` doc citations now name the
+1.21.11 classes.
+
+The `cats_can_lie_on` / `cats_can_sit_on` block tags do not exist in
+either jar (only `beds.json` and item `cat_food.json`), and nothing
+synthesizes them (`load_tag_lists` reads data files only), so the three
+cat goals that gated on them could never fire: `can_lie_on`
+(CatLieOnBedGoal), `can_sit_on` (CatSitOnBlockGoal), and
+`CatRelaxOnOwnerGoal.canUse`. All three now use vanilla's hardcoded
+checks, decompiled from both jars: lie-on is empty-above + a bed
+(`BlockTags.BEDS`); sit-on is empty-above + an unopened chest, a lit
+furnace, or a bed foot (the Rust's post-gate logic already implemented
+exactly this — but its fallthrough arm relied on the tag gate to filter
+to beds, so it now checks the `beds` tag explicitly, or every block
+would be sittable); relax-on-owner checks the bed under the owner
+(`ownerPosState.is(BlockTags.BEDS)`). CatLieOnBedGoal /
+CatRelaxOnOwnerGoal / CatTemptGoal are in NO report item (unchanged
+classes) — the tag gates are a 26.3-ism, fixed here because the goals
+live in this item's file and classes. New test
+`a_cat_sits_on_a_chest_and_a_bed_foot_and_lies_on_a_bed` pins the
+sit/lie targets (chest yes, unlit furnace no, bed foot yes, air no;
+lie-on bed yes, chest no); it needs the prepared data, so it
+early-returns locally and runs on CI.
+
+`Wolf.getBreedOffspring` draws a random sound variant in BOTH versions;
+the Rust's breeding set every pup's `sound_variant` to None ("keeps the
+default `classic`"). Wolf pups now draw from the mother's random, in the
+same shape as the axolotl/mooshroom draws in that block; cats correctly
+keep None (no cat sound variant in 1.21.11). The wolf sound variant is
+also now synced: index 23 is decoded in `remote_mob_data.rs`
+(`minecraft:wolf_sound_variant` → `m.extra.sound_variant`) and sent in
+`lan.rs` (classic by default), where before it was neither. The entity
+indices were javap-verified: Cat variant 19, lying 20, relax 21, collar
+22; Wolf interested 19, collar 20, anger 21, variant 22, sound 23.
+
+No-change verdicts, all jar-verified: the cat sound variant is GONE in
+1.21.11 (no `CatSoundVariant` class, no `DATA_SOUND_VARIANT_ID`, no
+`sound_variant` NBT, no `getSoundSet`; all cat sounds are fixed
+`SoundEvents.CAT_*`) and the Rust already matches (`sound_variants`
+returns `[]` for non-wolf; `entity_nbt.rs` writes no cat sound
+variant). The wolf sound variant is KEPT but flattened (26.1: adult/baby
+`WolfSoundSet` records; 1.21.11: flat 6 holders, no step, no baby/adult
+split; step is fixed `SoundEvents.WOLF_STEP`); the Rust's 7 names match
+the 1.21.11 registry and `variant_sound` builds
+`entity.wolf[_variant].kind` with step shared — only its doc was stale
+("Babies use the baby set"), now fixed, along with the `spawning.rs`
+comment (wolves only) and two `TamableAnimal.feed` citations in
+`creatures.rs` (the method is gone in 1.21.11, inlined at the call
+sites: wolf heals 2× nutrition, cat 1× — the Rust already computes
+both). Cat/wolf textures and variant registries match (bare
+`entity/cat/tabby`, one texture per variant; wolf 9 names/biomes, one
+`AssetInfo`). Dye is the DyeItem shape in the Rust already. Cat goals
+1–12 + targets, wolf goals 1–10 + targets 1–8, BegGoal, CatTemptGoal,
+Cat.handleLieDown amounts and CatRelaxOnOwnerGoal all match vanilla.
+
+Two things recorded, not changed. The cat spawn variant: vanilla's
+`SpawnPrioritySelectors` force all-black in a swamp hut
+(`CATS_SPAWN_AS_BLACK`) and weight it at moon brightness ≥ 0.9; the
+Rust's uniform 0..10 (0..11 on a full moon) matches the moon cases
+exactly, and only the swamp-hut case differs — `BiomeFacts` has no
+structure check, and the swamp biome is not a proxy for the hut, so this
+stays a documented approximation. The entity-data serializer table:
+1.21.11's `EntityDataSerializers` registration order drops the
+cat/cow/pig/chicken sound serializers and renumbers from COW_VARIANT
+down (COW 22, WOLF 23, WOLF_SOUND 24, FROG 25, PIG 26, CHICKEN 27,
+ZOMBIE_NAUTILUS 28, … HUMANOID_ARM 38); the Rust's `entity_data.rs`
+table is the 26.1 numbering by design and the adapter's `V1_21_11`
+remap was verified run-by-run against the jar-derived order — it matches
+exactly, so no re-base is needed. Item 335 owns `network/syncher`; its
+work is verification of that remap, not a rewrite. The wolf ctor path
+malus (`ON_TOP_OF_POWDER_SNOW` → `DANGER_POWDER_SNOW`) has no Rust
+mirror, the same gap as the fox's in item 33.
+
+Tests: `cargo check -p horizon-client --lib --tests`, `--bin
+horizon-client --tests` and `cargo check -p horizon-client-lib --lib
+--tests` all clean (the last validates the new tame test compiles);
+remote_mob_data tests 26 passed, 0 failed, 2 ignored; lan tests 13
+passed, 0 failed, 17 ignored; creatures tests 14 passed, 0 failed, 22
+ignored (all from the freshly built horizon-client lib test binary).
+The horizon-client-lib test binary link OOMs on this VM at JOBS=1 under
+3-stream load (the known local constraint) — the tame tests, including
+the new sit/lie test, run on CI. `rustfmt --edition 2024` clean on the
+edited leaf files (tame.rs, spawning.rs, remote_mob_data.rs); lan.rs and
+finalize.rs `--check` clean (module roots, hand-checked); creatures.rs
+has pre-existing drift at the wolf-collar-dye line, untouched.
+Rank 2 now 222/492 (56 changed, 166 no-change).
+work-items.json rank2.closed = 222 on 2026-11-20.
