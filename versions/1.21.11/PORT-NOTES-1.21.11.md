@@ -6239,3 +6239,110 @@ Verification: `cargo test -p horizon-client-render --lib
 --no-default-features border_render::` 1 passed. rustfmt --check
 clean on border_render.rs. Rank 2 now 259/492 (81 changed, 178
 no-change). work-items.json rank2.closed = 259 on 2026-11-20.
+
+## Item 81 — entities.rs (rank 2, CHANGED)
+
+6 classes, 17 methods, 6 named: ExperienceOrbRenderer,
+ItemEntity, PowderSnowBlock, ItemUtils, ServerEntity,
+LavaCauldronBlock. The literal comparison over the decompile
+finds one string-level delta in all six classes — the orb
+texture path — and no real numeric delta (small-int noise only).
+
+Java delta, jar-verified: (1) ItemEntity's 5-arg ctor draws its
+spawn motion from `level.random` in 1.21.11 (2 nextDouble, y =
+0.2, before the Entity ctor runs); 26.1 draws it from the
+item's own random after setItem. The 7-arg ctor order swaps
+too (setDeltaMovement before setItem in 1.21.11) — unobservable
+in the Rust. UUID source is the entity random in BOTH versions
+(`Mth.createInsecureUUID(this.random)`, verified from both jars'
+Entity ctor bytecode); bobOffs and yaw are identical. (2)
+ItemEntity.tick: 26.1 calls `applyEffectsFromBlocksForLastMovements()`
+on idle (resting) ticks; 1.21.11 has NO else branch — nothing
+happens on idle ticks. The method does not exist in 1.21.11's
+Entity (javap-verified); its 26.1 body is
+`applyEffectsFromBlocks(finalMovementsThisTick)`. The move gate
+is the exact De Morgan negation in both versions and the move
+arm is identical. (3) ServerEntity.sendChanges: the only real
+difference is `tickCarriedBy(player, stack, frame)` (26.1) vs
+`tickCarriedBy(player, stack)` (1.21.11); 1.21.11's form reads
+the frame state from the stack via `ItemStack.isFramed()`
+(twice — holder retention and the dimension check). (4)
+ExperienceOrbRenderer: texture path 26.1
+`textures/entity/experience/experience_orb.png` vs 1.21.11
+`textures/entity/experience_orb.png`; RenderType rename
+(entityTranslucentCullItemTarget -> itemEntityTranslucentCull).
+(5) `onSyncedDataUpdated(EntityDataAccessor)` is 1.21.11-ONLY
+(DATA_ITEM change -> `getItem().setEntityRepresentation(this)`).
+(6) PowderSnowBlock: `entity.is(tag)` -> `entity.getType().is(tag)`
+(same result), `BlockState.is(Object)` -> `is(Block)` (API
+shape). (7) LavaCauldronBlock: `CauldronInteractions.LAVA`
+(Dispatcher) -> `CauldronInteraction.LAVA` (InteractionMap),
+same interactions. (8) ItemUtils.onContainerDestroyed:
+Stream -> Iterable, same body (5-arg ctor at the exact
+position). (9) Fluid rename `updateFluidInteraction` ->
+`updateInWaterStateAndDoFluidPushing` — the Rust already cites
+the 1.21.11 name.
+
+Fixes: (a) `add_item_entity` (game/item_entities.rs) now draws
+the spawn motion from `self.world.random` (2 nextDouble, y =
+0.2) instead of the item's own random — each spawn advances the
+shared deterministic level-random stream by 2 draws, and the
+item's own random is no longer advanced by the motion draws
+(later item-random draws, e.g. the escape speed, would
+otherwise shift). All `spawn_item_own` callers go through this
+one path; `pop_resource` already drew its position offsets from
+the level random first, matching vanilla's order.
+(b) `spawn_destroyed_contents` was wrong in BOTH versions (3
+doubles, y random) — now calls `spawn_item_own(stack, position,
+0)`, the 5-arg ctor form (2 draws, y = 0.2 exactly).
+(c) Idle branch: removed the `slime_step_on` call from
+`tick_move_before_block_effects`' idle arm (it cited the
+26.1-only method), and gated the bubble-column push on
+`step.did_move` at both item call sites (the test `tick()` and
+`tick_item_with_block_contacts`) — `BubbleColumnBlock.entityInside`
+runs inside `applyEffectsFromBlocks`, which 1.21.11 calls only
+on move ticks, so a grounded item in a column lifts on the next
+wake-up instead of every tick. `ItemStep.did_move` is now `pub`
+(same pattern as `vertical_contact`/`fall_move`). The #4558 rise
+test's assertion stands under the gate (16 ticks from ticks=10,
+id=1: tick 1 wakes and lifts, tick 5's move clears the ground).
+
+Verified matching, no edits: merge pacing (`moved? 2: 40`,
+`tickCount % rate == 0`), escape speed from the item's own
+random, `tick_settle` move arm (slime stepOn, friction 0.98 x
+block friction, y x -0.5 bounce, needsSync > 0.01, age++ unless
+i16::MIN, despawn age >= 6000), fluid heights (> 0.1f32,
+0.99 water / 0.95 lava), powder-snow walk check (`PowderSnowSubject`
+tag + leather boots; the tag is checked by entity type id, the
+1.21.11 form), map-frame ticking (`lan_map_updates` drives
+`tick_framed` from the game's item-frame list — observably
+equivalent to 1.21.11's `isFramed()`-driven path).
+
+Version-neutral notes: `tick_settle`'s StepOn/swept_inside pass
+still runs every tick, but the `block_contact` events dispatch
+only to content mods' blocks (`MOD_BLOCKS` gate) — gating them
+is a mod-API timing change, out of scope.
+`bubble_column_surfaces` (surface-bubble particles) still runs
+unconditionally — cosmetic only. No Rust mirror of the orb
+renderer anywhere, nor of the entity-representation mechanism
+(`onSyncedDataUpdated` / `setEntityRepresentation` /
+`ItemStack.isFramed()` — item 35/39 carry-forward). Report gap:
+`MapItemSavedData` is in NO report item — the `isFramed()`
+holder-retention logic is unassigned. Referral: the
+`CauldronInteractions` citations in cauldron.rs,
+game/cauldrons.rs, game/remote.rs, game.rs belong to the
+cauldron item.
+
+Verification: `cargo test -p horizon-client-lib --lib
+--no-default-features entities::` 78 passed, 0 failed, 1
+ignored; `entities::destroyed_bundle_environment_tests::` 1
+passed (the bundle spill, under the new 5-arg ctor motion);
+`cargo test -p horizon-client --lib --no-default-features
+game::item_entities::` compiles clean, 0 passed, 1 ignored
+(the escape test needs prepared resources). rustfmt --check
+clean on game/item_entities.rs and game/entity.rs (leaf files;
+entities.rs is a module root, no rustfmt). The #4558 rise test
+and the bubble-column surface test early-return locally (no
+`.local/horizon-client` resources) — they run for real on CI.
+Rank 2 now 260/492 (82 changed, 178 no-change).
+work-items.json rank2.closed = 260 on 2026-11-20.

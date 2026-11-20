@@ -311,15 +311,12 @@ impl Game<'_> {
     /// `ItemUtils.onContainerDestroyed`: each stack a destroyed item held
     /// becomes an item entity where that item lay (`new ItemEntity(level, x,
     /// y, z, stack)`), nudged by 0.2 less 0.1 per axis and pickable at once.
+    /// `ItemUtils.onContainerDestroyed`: each stack spills as a fresh
+    /// `new ItemEntity(level, x, y, z, stack)`, whose 5-arg ctor draws the
+    /// motion (x and z from the level random, y exactly 0.2).
     pub(super) fn spawn_destroyed_contents(&mut self, destroyed: Vec<(ItemStack, Vec3)>) {
         for (stack, at) in destroyed {
-            let r = &mut self.world.random;
-            let motion = [
-                r.next_double() * 0.2 - 0.1,
-                r.next_double() * 0.2 - 0.1,
-                r.next_double() * 0.2 - 0.1,
-            ];
-            self.spawn_item(stack, [at.x, at.y, at.z], motion, 0);
+            self.spawn_item_own(stack, [at.x, at.y, at.z], 0);
         }
     }
     /// `ExperienceOrb.award`: orbs of the largest sizes; each draws the id
@@ -660,7 +657,7 @@ impl Game<'_> {
         self.add_item_entity(stack, position, Some(velocity), pickup_delay);
     }
 
-    /// `new ItemEntity(level, x, y, z, stack)`: the item leaves with its own
+    /// `new ItemEntity(level, x, y, z, stack)`: the item leaves with the level
     /// random's motion, which this returns.
     pub(super) fn spawn_item_own(
         &mut self,
@@ -682,15 +679,19 @@ impl Game<'_> {
         self.next_entity += 1;
         let p = Vec3::new(position[0], position[1], position[2]);
         // The item's own random, in vanilla's order: Entity's UUID, ItemEntity's
-        // bobOffs and yaw, then (without a given motion) the constructor's motion.
+        // bobOffs and yaw. The constructor's motion (without a given motion)
+        // comes from the level random in 1.21.11: the 5-arg ctor draws it from
+        // `level.random` before the Entity ctor runs (26.1 drew it from the
+        // item's own random after `setItem`).
         let mut own = random_source::entity();
         let uuid = horizon_client::save::insecure_uuid(&mut own);
         self.persist.uuids.insert(self.next_entity, uuid);
         let bob = own.next_float() * std::f32::consts::PI * 2.0;
         let yaw = own.next_float() * 360.0;
         let velocity = velocity.unwrap_or_else(|| {
-            let x = own.next_double() * 0.2 - 0.1;
-            [x, 0.2, own.next_double() * 0.2 - 0.1]
+            let r = &mut self.world.random;
+            let x = r.next_double() * 0.2 - 0.1;
+            [x, 0.2, r.next_double() * 0.2 - 0.1]
         });
         self.dropped.push(ItemEntity {
             rotation: [yaw, 0.0],
@@ -715,7 +716,7 @@ impl Game<'_> {
     pub(super) fn pop_resource(&mut self, pos: [i32; 3], mut stack: ItemStack) {
         self.pending.attach(pos, &mut stack);
         // Block.popResource: Mth.nextDouble offsets from the level random; the
-        // motion is `new ItemEntity(..)`'s own, from the item's random.
+        // motion is `new ItemEntity(..)`'s, from the level random too.
         let p = spill::pop_position(&mut self.world.random, pos);
         // Block.popResource draws its offsets before the private overload checks the gamerule.
         if !self.ui.rules.bool("block_drops") {
