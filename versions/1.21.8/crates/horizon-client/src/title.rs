@@ -3264,7 +3264,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     "Caution: Online play is offered by third-party servers that are not owned, operated, or supervised by Mojang Studios or Microsoft. During online play, you may be exposed to unmoderated chat messages or other types of user-generated content that may not be suitable for everyone.",
                 );
                 // The message sits in a text box `width - 100` wide with 4 px
-                // inside, left aligned (FittingMultiLineTextWidget).
+                // inside, left aligned (`FocusableTextWidget` with
+                // `setCentered(false)`; 1.21.9's `FittingMultiLineTextWidget`
+                // centers it).
                 let box_w = w - 100.0;
                 let lines = wrapped(atlas, &message, box_w - 8.0);
                 self.message_lines.set(lines.len());
@@ -3281,7 +3283,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 let box_x = ((w - box_w) / 2.0).floor();
                 let box_y = top + 29.0;
                 let box_h = lines.len() as f32 * 9.0 + 8.0;
-                // WarningScreen's FittingMultiLineTextWidget narrates the
+                // WarningScreen's FocusableTextWidget narrates the
                 // message; the title's StringWidget isn't active.
                 crate::widgets::narratable(|| {
                     crate::widgets::Narratable::text(message.clone(), [box_x, box_y, box_w, box_h])

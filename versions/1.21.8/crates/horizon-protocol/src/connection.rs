@@ -991,6 +991,32 @@ mod tests {
         server.join().unwrap();
     }
 
+    /// A zero-length frame is no error in 1.21.8 (the
+    /// "Frame length cannot be zero" throw came in 1.21.9):
+    /// `CompressionDecoder` ignores an empty frame and
+    /// `PacketDecoder` only reads from a readable buffer, so
+    /// the client skips it and stays connected.
+    #[test]
+    fn a_zero_length_frame_is_skipped() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = std::thread::spawn(move || {
+            let (stream, _) = listener.accept().unwrap();
+            let mut c = Connection::from_stream(stream).unwrap();
+            c.set_compression(64);
+            // The zero-length frame: its length prefix, then nothing.
+            c.writer.send_contents(&[]).unwrap();
+            let mut body = vec![3];
+            body.extend_from_slice(b"after");
+            c.writer.send(&body).unwrap();
+        });
+        let mut c = Connection::connect("127.0.0.1", port, Duration::from_secs(5)).unwrap();
+        c.set_compression(64);
+        let (id, payload) = c.recv().unwrap();
+        assert_eq!((id, payload.as_slice()), (3, &b"after"[..]));
+        server.join().unwrap();
+    }
+
     #[test]
     fn tcp_stream_enables_nodelay_and_keepalive() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();

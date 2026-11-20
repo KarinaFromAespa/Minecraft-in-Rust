@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 121/163 (327–364 + 366–369 + 371–422 + 424–450 + 99 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450)
+### Rank 3: 130/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–460 + 107 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–460)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7693,6 +7693,25 @@ includes constant-pool churn.
   form (push set inside the feed branch); the re-aim now sits
   outside it. (The code landed in 993a9c6 with the previous
   batch; the notes catch up here.)
+
+- **Item 451 — zero-length frames are skipped, not errors:**
+  1.21.9's `Varint21FrameDecoder` throws on a zero frame
+  length; 1.21.8 takes the frame and skips it (`PacketDecoder`
+  only reads from a readable buffer), and its
+  `CompressionDecoder` ignores an empty frame
+  (`readableBytes() != 0`). `frame::header` no longer rejects
+  length 0, and `frame::body` returns the plain empty body
+  for an empty frame under compression instead of reading a
+  data length from nothing. Covered by
+  `a_zero_length_frame_is_skipped`, mirroring the existing
+  empty-compressed-frame test.
+
+- **Item 456 — the SafetyScreen message is already
+  left-aligned:** 1.21.8's `FocusableTextWidget` with
+  `setCentered(false)` left-aligns the warning text; 1.21.9's
+  `FittingMultiLineTextWidget` centers it. The Rust draws the
+  lines at the box's left edge; only the two comments named
+  the 1.21.9 widget, now re-cut.
 
 ### Rank 4 content: closed 2/2 (chain)
 
