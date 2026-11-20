@@ -58,11 +58,12 @@ impl Drop for Nested {
 
 /// minecraft:data_component_type registry ids (1.21.4).
 pub mod component {
-    /// DataComponents' registry order at the pinned 1.21.1 (57 entries).
+    /// DataComponents' registry order at the pinned 1.20.6 (56 entries).
     /// These are PIN ids: they shift whenever the registry does, so a port
     /// across a registry boundary re-pins them from the pin's reports (the
-    /// 1.21.2 boundary added 11 components and removed fire_resistant, which
-    /// is why 1.21.1 is the first pin where these differ from 1.21.3's).
+    /// 1.21 boundary added jukebox_playable at 42, shifting every later id
+    /// up by one, which is why 1.20.6 is the first pin where these differ
+    /// from 1.21.1's).
     pub const CUSTOM_DATA: i32 = 0;
     pub const MAX_STACK_SIZE: i32 = 1;
     pub const MAX_DAMAGE: i32 = 2;
@@ -103,7 +104,7 @@ pub mod component {
     /// `Tool.STREAM_CODEC`: rules, defaultMiningSpeed, damagePerBlock
     /// (1.21.5 added canDestroyBlocksInCreative after the damage).
     pub const TOOL: i32 = 22;
-    /// Not pinned components: 1.21.1 has no `consumable`, `equippable`,
+    /// Not pinned components: 1.20.6 has no `consumable`, `equippable`,
     /// `glider`, `death_protection`, `use_remainder` or `damage_resistant`
     /// (all 1.21.2 additions). Negative internal markers, as for ITEM_MODEL.
     pub const CONSUMABLE: i32 = -1005;
@@ -114,9 +115,9 @@ pub mod component {
     pub const USE_REMAINDER: i32 = -1009;
     pub const DAMAGE_RESISTANT: i32 = -1010;
     pub const STORED_ENCHANTMENTS: i32 = 23;
-    pub const PROFILE: i32 = 47;
-    pub const BANNER_PATTERNS: i32 = 49;
-    pub const BASE_COLOR: i32 = 50;
+    pub const PROFILE: i32 = 46;
+    pub const BANNER_PATTERNS: i32 = 48;
+    pub const BASE_COLOR: i32 = 49;
     pub const DYED_COLOR: i32 = 24;
     pub const MAP_ID: i32 = 26;
     pub const MAP_POST_PROCESSING: i32 = 28;
@@ -128,14 +129,17 @@ pub mod component {
     pub const WRITTEN_BOOK_CONTENT: i32 = 34;
     pub const TRIM: i32 = 35;
     pub const INSTRUMENT: i32 = 40;
-    pub const LODESTONE_TRACKER: i32 = 44;
-    pub const FIREWORK_EXPLOSION: i32 = 45;
-    pub const FIREWORKS: i32 = 46;
+    pub const LODESTONE_TRACKER: i32 = 43;
+    pub const FIREWORK_EXPLOSION: i32 = 44;
+    pub const FIREWORKS: i32 = 45;
     pub const BLOCK_ENTITY_DATA: i32 = 39;
     pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 41;
-    pub const POT_DECORATIONS: i32 = 51;
-    pub const JUKEBOX_PLAYABLE: i32 = 42;
-    pub const CONTAINER: i32 = 52;
+    pub const POT_DECORATIONS: i32 = 50;
+    /// Not a pinned component: 1.20.6 has no `jukebox_playable` (a 1.21
+    /// addition). The negative value is an internal marker only, so the
+    /// arms that name it can never match a canonical id here.
+    pub const JUKEBOX_PLAYABLE: i32 = -1011;
+    pub const CONTAINER: i32 = 51;
     /// Not a pinned component: 1.21.4 has no `tooltip_display` (a 1.21.5
     /// addition). The negative value is an internal marker only, so the
     /// synthesized form the pin codec builds from the two hide booleans
@@ -1518,6 +1522,15 @@ fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
         // carried into 26.x unchanged). ItemModel: a resource location.
         "minecraft:item_model" | "minecraft:tooltip_style" => {
             r.string(32767).map(drop)
+        }
+        // JukeboxPlayable (a 1.21 addition this pin predates): an
+        // EitherHolder — a flag, then a holder id or a key.
+        "minecraft:jukebox_playable" => {
+            if r.bool()? {
+                r.varint().map(drop)
+            } else {
+                r.string(32767).map(drop)
+            }
         }
         // Consumable: consumeSeconds, animation, sound,
         // hasConsumeParticles, onConsumeEffects.

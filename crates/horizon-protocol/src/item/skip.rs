@@ -12,26 +12,27 @@ use crate::{
 
 type Read = fn(&mut Reader) -> Result<()>;
 
-/// DataComponents' registry order (1.21.1) for the ids `Component::read`
+/// DataComponents' registry order (1.20.6) for the ids `Component::read`
 /// doesn't decode itself. The pin predates 1.21.2, so the shapes here are
 /// the pre-split ones: food is the full combined form, the instrument is
 /// sound + an int use duration + range, the tool has no
 /// canDestroyBlocksInCreative bool, and block predicates have no component
 /// matchers. The 1.21.2+ components (consumable, use_remainder,
 /// use_cooldown, damage_resistant, repairable, equippable, glider,
-/// death_protection, enchantable, item_model, tooltip_style) have no arm:
-/// they never reach this function at this pin (`skip_dropped` reads past
-/// them, and `older_layout` converts the ones with a pin counterpart).
+/// death_protection, enchantable, item_model, tooltip_style) and
+/// jukebox_playable (a 1.21 addition) have no arm: they never reach this
+/// function at this pin (`skip_dropped` reads past them, and
+/// `older_layout` converts the ones with a pin counterpart).
 pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
     match kind {
         // Components without a network codec go as their NBT: intangible_projectile,
         // map_decorations, debug_stick_state, recipes, lock, container_loot.
-        19 | 27 | 36 | 43 | 55 | 56 => nbt(r),
+        19 | 27 | 36 | 42 | 54 | 55 => nbt(r),
         // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id):
         // ominous_bottle_amplifier, base_color.
-        41 | 50 => varint(r),
+        41 | 49 => varint(r),
         // Identifier.STREAM_CODEC: note_block_sound.
-        48 => ident(r),
+        47 => ident(r),
         // AdventureModePredicate: can_place_on, can_break.
         10..=11 => list(r, block_predicate),
         12 => list(r, attribute_modifier),
@@ -83,30 +84,22 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             varint(r)?;
             f32(r)
         }),
-        // JukeboxPlayable: Holder<JukeboxSong> (soundEvent, description, lengthInSeconds,
-        // comparatorOutput).
-        42 => holder(r, |r| {
-            sound(r)?;
-            nbt(r)?;
-            f32(r)?;
-            varint(r)
-        }),
         // LodestoneTracker: target (GlobalPos: dimension, BlockPos), tracked.
-        44 => {
+        43 => {
             optional(r, |r| {
                 ident(r)?;
                 r.i64().map(drop)
             })?;
             boolean(r)
         }
-        45 => firework_explosion(r),
+        44 => firework_explosion(r),
         // Fireworks: flightDuration, explosions.
-        46 => {
+        45 => {
             varint(r)?;
             list(r, firework_explosion)
         }
         // BannerPatternLayers: Holder<BannerPattern> (assetId, translationKey), colour.
-        49 => list(r, |r| {
+        48 => list(r, |r| {
             holder(r, |r| {
                 ident(r)?;
                 string(r)
@@ -116,16 +109,16 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
         // PotDecorations: back, left, right, front. The internal form is
         // four optional templates: `older_layout` rewrites the pin wire's
         // four item ids into these before `Component::read` sees them.
-        51 => (0..4).try_for_each(|_| optional(r, template)),
+        50 => (0..4).try_for_each(|_| optional(r, template)),
         // ItemContainerContents: optional templates.
-        52 => list(r, |r| optional(r, template)),
+        51 => list(r, |r| optional(r, template)),
         // BlockItemStateProperties: a string to string map.
-        53 => list(r, |r| {
+        52 => list(r, |r| {
             string(r)?;
             string(r)
         }),
         // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
-        54 => list(r, |r| {
+        53 => list(r, |r| {
             varint(r)?;
             nbt(r)?;
             varint(r)?;
