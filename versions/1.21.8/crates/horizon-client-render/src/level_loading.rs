@@ -519,7 +519,7 @@ pub fn connect_cancel(w: f32, h: f32) -> (f32, f32) {
     ((w / 2.0).trunc() - 100.0, (h / 4.0).trunc() + 132.0)
 }
 
-/// `ConnectScreen.extractRenderState` over the menu background: the status
+/// `ConnectScreen.render` over the menu background: the status
 /// centred at (width / 2, height / 2 - 50) and, while the connection can
 /// still be cancelled, Cancel.
 pub fn draw_connecting(

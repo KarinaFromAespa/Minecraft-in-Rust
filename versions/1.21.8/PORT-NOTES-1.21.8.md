@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 168/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185 + 4 zero-diff)
+### Rank 2: 169/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186 + 4 zero-diff)
+
+- **Item 186 — widely named: client/gui/screens
+  (6 classes, 13 methods, 0 named in Horizon), 1 FIX + 2 citations:**
+  `PauseScreen.disconnectFromWorld` is a static method on PauseScreen in
+  1.21.8 and moved to `Minecraft.disconnectFromWorld` in 1.21.9 with a
+  byte-identical body (local → TitleScreen, realm → RealmsMainScreen,
+  else JoinMultiplayerScreen). The Rust `leave_server` had the local
+  and server branches but dropped realm sessions onto the multiplayer
+  list — it now returns a deliberate realm leave to RealmsMainScreen
+  (`from_title`, the title-screen constructor), while a kick still shows
+  the Disconnected screen. `DeathScreen`: event-object vs raw
+  parameters (same values) and 1.21.9-only `isAllowedInPortal` (the
+  portal exemption is already 1.21.8 per item 163). `ChatScreen`: the
+  1.21.9 drafts feature (`isDraft`, `ExitReason`, `saveAsDraft`,
+  `formatChat`, `ChatConstructor`) is absent in 1.21.8, and the Rust is
+  already 1.21.8 — no saved draft, `allow_suggestions = value !=
+  initial` on edit, resize keeps the original `initial`, Escape/Enter/
+  arrows/PageUp/PageDown match. `LevelLoadingScreen`: 1.21.9 merged
+  `ReceivingLevelScreen` into it (LevelLoadTracker + Reason + portal
+  backgrounds + smoothed bar); 1.21.8 keeps both screens, and the Rust
+  already models the 1.21.8 split — `ReceivingLevelScreen.Reason`, the
+  30 s wait, `loading.progress` with the diameter offset, no 1.21.9
+  close delay. `ConnectScreen$1` differs only in the 1.21.9 tracker
+  argument to the handshake listener (no Rust surface); both versions'
+  ConnectScreen renders via `render`, so the `extractRenderState`
+  citation is now `render`. `CreateBuffetWorldScreen$BiomeList$Entry`:
+  `renderContent` (1.21.9) vs `render` (1.21.8), same draw (name at
+  contentX + 5, contentY + 2, white) — the citation now names `render`.
 
 - **Item 185 — widely named: client/gui/components/events
   (1 class, 13 methods, 0 named in Horizon), citation only:**

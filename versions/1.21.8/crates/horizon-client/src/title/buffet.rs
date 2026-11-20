@@ -321,7 +321,7 @@ pub(super) fn draw(
                 crate::hud::rgba(255, 255, 255, 25),
             );
         }
-        // `Entry.extractContent`: the name at contentX + 5, contentY + 2.
+        // `Entry.render`: the name at contentX + 5, contentY + 2.
         if let Some(biome) = state.biomes.get(*index) {
             batch.text(atlas, &biome.name, left + 5.0, y, u32::MAX, true);
         }

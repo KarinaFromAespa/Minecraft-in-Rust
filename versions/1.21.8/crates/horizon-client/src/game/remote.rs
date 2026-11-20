@@ -1610,6 +1610,17 @@ impl Game<'_> {
             self.capture(false);
             return Ok(());
         }
+        // `PauseScreen.disconnectFromWorld`: a Realm session returns to
+        // RealmsMainScreen, not the server list — but only on a deliberate
+        // leave; a kick still shows the Disconnected screen.
+        if reason.is_none() && self.realm_session {
+            title.mode = horizon_client::title::Mode::Realms(
+                horizon_client::realms::Screen::from_title(Some(saves.clone())),
+            );
+            self.title = Some(title);
+            self.capture(false);
+            return Ok(());
+        }
         title.mode = horizon_client::title::Mode::Multiplayer(match reason {
             Some(reason) => horizon_client::multiplayer::Screen::Disconnected {
                 reason,
