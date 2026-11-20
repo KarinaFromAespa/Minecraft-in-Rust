@@ -5098,3 +5098,76 @@ horizon-client --lib --no-default-features game::sign_edit::` 3 passed
 (5m13s, link survived); rustfmt --check clean on sign_edit.rs.
 Rank 2 now 240/492 (70 changed, 170 no-change).
 work-items.json rank2.closed = 240 on 2026-11-20.
+
+## Item 62 — crates/horizon-client/src/mobs/armadillo.rs (rank 2, CHANGED)
+
+12 classes, 36 methods, 6 named. Javap diff +280/-236 (673 lines),
+decompile diff 767 lines, both read in full Nov 20, 2026. Triage note
+`rank2-item-62-TRIAGE.md` (workdir root, scratch).
+
+The Java delta is the 26.x Brain-construction refactor only: 26.1 builds
+the brain from a static `BRAIN_PROVIDER` + `ArmadilloAi.getActivities()`
+(`ActivityData`), 1.21.11 from `ArmadilloAi.brainProvider()` +
+`makeBrain(Brain)` (`addActivity` / `addActivityWithConditions`). The
+activity contents are identical — same 5 sensors, same 15 memory types,
+same core/idle/scared behaviours with the same parameters. The Rust
+models the brain as goals + the `State` struct and cites no
+`getActivities` / `ActivityData` / `Brain$Packed`, so the refactor
+touches no Rust code. Item 38's carry-forward (check ArmadilloAi for
+the IS_TEMPTED conflation) is discharged: the armadillo uses the Tempt
+goal, no IS_TEMPTED memory is modelled or read here.
+
+**Fix — `sulfur_cube_hot` is not in `#panic_environmental_causes`.**
+The 1.21.11 jar's tag has seven entries (cactus, freeze, hot_floor,
+in_fire, lava, lightning_bolt, on_fire), verified from the jar and from
+the prepared 1.21.10 fixture; there is no `sulfur_cube_hot` damage type
+in 1.21.11 (83 damage types, none sulfur) nor in 26.1. But
+`armadillo::environmental()` listed it as an eighth member, and three
+tests asserted it. Removed the arm (with a comment citing the 1.21.11
+tag); the tag test now expects the seven real entries; the panda and
+polar-bear `freeze_panic_tests` now use `HotFloor` as the second cause
+(renamed `freezing_and_a_hot_floor_are_environmental`). No reachable
+behaviour changes: no `sulfur_cube_hot` damage can occur in 1.21.11
+vanilla play. The failure was latent — the tag test early-returns
+without fixtures, and CI only runs `cargo test -p horizon-protocol`.
+
+Verified against the jars, no change: `isScared` = state != IDLE;
+`shouldSwitchToScaredState` = ROLLING and `inStateTicks > 10`;
+`canStayRolledUp`; `rollUp`/`rollOut` (stop, reset love, ENTITY_ACTION,
+sounds); hurt halving; `actuallyHurt` (danger 80 + roll up on a living
+attacker, roll out on environmental damage); the scare sensor — a
+`MobSensor(5, isScaredBy, canStayRolledUp, DANGER_DETECTED_RECENTLY, 80)`
+built by a `SensorType` lambda (REPORT GAP, in no report item): scans
+every 5 ticks, erases the memory when the armadillo can't stay rolled
+up, sets it for 80 ticks on a scare, and does NOT erase on a failed
+scan; `pickNextScuteDropTime` = `nextInt(6000) + 6000`; the
+`ArmadilloBallUp` peek/unroll logic; `mobInteract` (brush, 16
+durability, FAIL when scared); `ArmadilloPanic` (roll out on start);
+save/load (`state` name + `scute_time`, `orElse(IDLE)`). `undead()` is
+exactly the 1.21.11 tag (17: `#skeletons` incl. parched + `#zombies`
+incl. camel_husk and zombie_nautilus + wither + phantom — all three
+ARE 1.21.11 mobs, verified from the jar's tags).
+
+Known version-neutral gaps, recorded not fixed: the Rust gates the
+last-attacker scare check on 100 ticks where vanilla reads
+`getLastHurtByMob()` with no time gate; `server_ai_step` adds a
+`!liquid` condition to the BallUp start (vanilla checks only
+`onGround()`); the sensor's first-scan phase is random in vanilla,
+first-tick in the Rust; `ShedScute` plays the sound even if the loot
+table yields nothing (unobservable with vanilla data). REFERRALS (same
+26.3-era sulfur assumption, other modules): `game/dragon.rs::
+is_no_knockback_type` includes `sulfur_cube_hot` and omits freeze,
+stalagmite, outside_border, generic_kill, campfire, spear (1.21.11 tag
+has 29 entries, verified from the jar); `mobs.rs::Damage::is_fire`
+includes `SulfurCubeHot` and omits unattributed_fireball;
+`mobs.rs::Damage::no_knockback` includes `SulfurCubeHot` and omits
+player_explosion / bad_respawn_point / ender_pearl / dragon_breath
+(verify against the enum + the `Named` path before fixing).
+
+Verification, Nov 20, 2026: `cargo check -p horizon-client-lib --lib
+--tests --no-default-features` clean (JOBS=1, 40s); `cargo test -p
+horizon-client-lib --lib --no-default-features mobs::armadillo::` 10
+passed; `... freezing_and_a_hot_floor_are_environmental` 2 passed;
+rustfmt --check clean on armadillo.rs, panda.rs, polar_bear.rs.
+Rank 2 now 241/492 (71 changed, 170 no-change).
+work-items.json rank2.closed = 241 on 2026-11-20.

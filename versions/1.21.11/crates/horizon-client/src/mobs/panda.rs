@@ -1092,13 +1092,13 @@ pub fn register(m: &mut Mob) {
 mod freeze_panic_tests {
     use super::*;
 
-    /// `#panic_environmental_causes` holds freeze and sulfur_cube_hot too.
+    /// `#panic_environmental_causes` holds freeze and a hot floor too.
     #[test]
-    fn freezing_and_a_hot_sulfur_cube_are_environmental() {
+    fn freezing_and_a_hot_floor_are_environmental() {
         let kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
         for cause in [
             super::super::DamageKind::Freeze,
-            super::super::DamageKind::SulfurCubeHot,
+            super::super::DamageKind::HotFloor,
         ] {
             let mut m = Mob::new(
                 1,
