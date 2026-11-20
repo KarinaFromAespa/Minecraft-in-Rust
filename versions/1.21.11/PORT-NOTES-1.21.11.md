@@ -4724,3 +4724,113 @@ special.rs, item_render special.rs; the latter also picks up 2
 pre-existing formatting spots in `submit_book` and the banner arm).
 Rank 2 now 235/492 (67 changed, 168 no-change).
 work-items.json rank2.closed = 235 on 2026-11-20.
+
+## Item 57 — crates/horizon-client-render/src/mesher.rs (rank 2, CHANGED)
+
+ModelBlockRenderer (25, named tesselateBlock/tesselateFlat), BlockColors
+(13, named createDefault), BiomeColors (10), MovingBlockRenderState (4),
+BlockTintCache (2), BlockTintCache$CacheData (1), BlockTintSource (1,
+**removed in 1.21.11**), BlockModelLighter (1, **removed in 1.21.11**) +
+$1, $AdjacencyInfo, $AmbientVertexRemap, $Cache, $Cache$1, $Cache$2,
+$SizeInfo (all **removed in 1.21.11**), FluidRenderer (1, **removed in
+1.21.11**) + $1, $Output (both **removed in 1.21.11**), CardinalLighting
+(1, **removed in 1.21.11**) + $1, $Type (both **removed in 1.21.11**),
+HalfTransparentBlock (1): 22 classes, 71 methods, 3 named.
+
+**The change — two 1.21.11 deltas in the mesher's light/colour math.**
+First, the AO light blend: 26.1's `LightCoordsUtil.smoothBlend` borrows
+the centre's sky AND block channels per sample when the centre is bright
+(sky > 2 or block > 2); 1.21.11's `ModelBlockRenderer.blend` (private
+static) has no gate and no borrowing — a sample that is exactly 0 takes
+the centre, then the same `(a+b+c+center)>>2 & 0xFF00FF` average. The
+Rust's `smooth_blend` was a hybrid of the two (gate + zero→centre +
+sky-borrow only) that matched neither version; it is rewritten to
+1.21.11's form and renamed `blend`. The weighted blend is identical in
+both versions (26.1 `smoothWeightedBlend` == 1.21.11's 8-arg `blend` ==
+the Rust's `weighted_blend`). Second, the vertex colour arithmetic: 26.1
+floors the brightness to a gray level, scales it by the cardinal shade,
+then multiplies by the tint in integers (`ARGB.gray`, `scaleRGB`,
+`multiply` — the Rust mirrored this exactly); 1.21.11 passes the tint as
+floats (`ARGB.redFloat` etc.) and `VertexConsumer.putBulkData` computes
+`ARGB.colorFromFloat(1.0, brightness*r, brightness*g, brightness*b)`
+with `as8BitChannel` = `Mth.floor(v * 255)` — one floor at the end, no
+intermediate gray level, no integer division — up to 1 off per channel
+(AO 0.55 × shade 0.8, tint 200: 88 vs 87; flat shade 0.5, tint 100: 50
+vs 49; both computed independently in f32). `Mesher::face` now carries
+the per-vertex float brightness (AO × shade, or shade alone when flat)
+and computes each channel with the new `lighting::lit_channel`, which
+reuses the tested `gray()` for the `Mth.floor` step in Java's f32 op
+order. The `separate_ao` (Iris) path is unchanged. Bundled
+version-neutral correction in the same lines: an unshaded quad
+(`shade == false`) took `directional = 1.0`, but both versions use the
+up-face shade for it (`getShade(dir, false)` / `cardinalLighting.up()` =
+0.9 in the Nether, 1.0 elsewhere); the new `lighting::face_shade`
+returns the up-face value when the quad does not shade.
+
+The rest of the item is a restructure with no behaviour change, all
+verified from the jars. 26.1's `BlockModelLighter` is inlined into
+1.21.11's `ModelBlockRenderer` (inner `AmbientOcclusionRenderStorage` /
+`CommonRenderStorage` / `Cache` / `AdjacencyInfo` /
+`AmbientVertexRemap` / `SizeInfo`); the AO is line-for-line the same —
+face bounds, `facePartial`/`faceCubic`, 4 corner + 4 diagonal samples,
+the translucent-corner rule, the centre-light rule, the non-cubic
+weighted blend, the diagonal fallback to corner[0]'s shade/light when
+both adjacent corners are closed, the AdjacencyInfo weight tables, the
+AmbientVertexRemap values, the 100-entry caches — and the Rust's
+`ambient_occlusion` mirrors all of it. 26.1's `CardinalLighting` record
+becomes 1.21.11's `DimensionType.CardinalLightType` +
+`ClientLevel.getShade` with the same values (verified from the 1.21.11
+bytecode: shade=false 0.9 Nether / 1.0 else; DOWN 0.9/0.5, UP 0.9/1.0,
+N/S 0.8, W/E 0.6). 26.1's `BlockTintSource` system becomes 1.21.11's
+`BlockColor` lambdas with an identical registration set (same blocks,
+same constants, same stem/redstone formulas, same tall-grass `below()`
+rule, same pink-petals blank layer 0); the Rust's tint table matches
+both. `BlockTintCache` / `BiomeColors` identical apart from renames;
+`HalfTransparentBlock.skipRendering` identical; `MovingBlockRenderState`
+drops `cardinalLighting` + `lightEngine` for a delegating `level`;
+`LevelRenderer.getLightCoords` (26.1) == `getLightColor` (1.21.11);
+`LightTexture.lightCoordsWithEmission` == 26.1's
+`LightCoordsUtil.lightCoordsWithEmission`; `getShadeBrightness`
+overrides (SoulSand/Mud 0.2, SnowLayer layers==8, TransparentBlock 1.0)
+verified in the 1.21.11 jar; `emissiveRendering` has exactly two setters
+in both jars (magma, always; sculk sensor, phase == ACTIVE; calibrated
+inherits via `ofLegacyCopy`); `TerrainParticle`'s grass-block untint is
+an explicit check in 1.21.11 vs `colorAsTerrainParticle` returning −1 in
+26.1, same result; `Block.getOffset`, `forceOpaque` (a boolean in 26.1,
+same decision in 1.21.11's render-type lookup), the tint-cache and
+should-render-face caching all match.
+
+Referrals: `LiquidBlockRenderer` → item 754 (rank 4; `mesher/fluid.rs`
+untouched — the mesher.rs header now cites the 1.21.11 name);
+`LightCoordsUtil`'s other functions → item 191; `BlockTintSources` →
+item 107; `VertexConsumer.putBulkData`'s other consumers → item 326;
+`BlockElement`'s 26.x-only `shade_direction_override` / `color` model
+keys (1.21.11's `BlockElement` has only `shade` + `lightEmission`; the
+Rust parses and applies them, dead for vanilla 1.21.11 models) → item
+750; moving blocks' `baked_model_vertices` (fixed DEFAULT cardinal
+shades, no Nether variant, integer tint multiply) → item 754;
+`LeavesBlock` → 272, `SectionCompiler` → 175, `LevelRenderer` /
+`BrightnessGetter` → 503 / 206. Known version-neutral gaps recorded,
+not fixed: tall-grass upper halves sample the grass tint at their own
+position instead of `pos.below()` (needs cross-layer tint state);
+the AO corner-permeability proxy (`!isSolidRender || dampening == 0`
+vs vanilla's `!isViewBlocking || light == 0`, default isViewBlocking =
+`blocksMotion && isCollisionShapeFullBlock` — can differ for the
+`isViewBlocking(never)` overrides with a full occlusion shape: soul
+sand, mud, 8-layer snow, cherry/pale-oak leaves, pending a check
+against the prepared facts); 26.3's `BlockState.isLightPermeable()` and
+`BlockColors.getTintSources` (used by the 26.3 section-mesh oracle) do
+not exist in 1.21.11 — the oracle needs its T4 port.
+
+Verification: `cargo check -p horizon-client-render --lib --tests
+--no-default-features` clean (JOBS=1, 3m19s). `cargo test -p
+horizon-client-render --lib --no-default-features mesher::lighting::` —
+11 passed, 0 failed, including the 3 new/updated tests
+(`blend_replaces_zero_samples_with_the_centre`,
+`lit_channel_floors_the_float_product_once`,
+`face_shade_uses_the_up_face_without_shading`); `mesher::` as a whole —
+67 passed, 0 failed, 24 ignored (fixture-needing, run on CI). rustfmt
+--edition 2024 applied to the edited leaf file (mesher/lighting.rs);
+mesher.rs is a module root and was hand-formatted to match.
+Rank 2 now 236/492 (68 changed, 168 no-change).
+work-items.json rank2.closed = 236 on 2026-11-20.

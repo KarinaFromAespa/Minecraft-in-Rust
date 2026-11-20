@@ -1,7 +1,9 @@
-//! Vertex light and colour of model quads, following `BlockModelLighter`
-//! (smooth light and ambient occlusion, including the partial-face weights)
-//! and `ModelBlockRenderer`'s integer colour arithmetic (`ARGB.gray`,
-//! `scaleRGB`, `multiply`).
+//! Vertex light and colour of model quads, following `ModelBlockRenderer`
+//! (smooth light and ambient occlusion, including the partial-face weights;
+//! 26.1 kept the same AO in the separate `BlockModelLighter` class) and
+//! `VertexConsumer.putBulkData`'s float colour (`ARGB.colorFromFloat`: the
+//! tint channels are floats, multiplied by the shaded brightness and floored
+//! once).
 use super::{Info, Padded, pi};
 use crate::models::catalog::QuadShape;
 use horizon_assets::model::Direction as D;
@@ -19,6 +21,12 @@ pub(super) fn cardinal(nether: bool, face: D) -> f32 {
         D::North | D::South => 0.8,
         D::West | D::East => 0.6,
     }
+}
+/// `BlockAndTintGetter.getShade` (26.1's `CardinalLighting` by face): the
+/// face shade when the quad shades, the up-face shade when it does not (0.9
+/// in the Nether, 1.0 elsewhere).
+pub(super) fn face_shade(nether: bool, face: D, shade: bool) -> f32 {
+    cardinal(nether, if shade { face } else { D::Up })
 }
 /// A face's brightness when a shader pack lights the faces (`Mesher::shader_pack_lighting`): no
 /// directional shading, every face at the dimension's up-face value (1.0, the Nether's 0.9).
@@ -77,18 +85,14 @@ pub(super) fn with_min(coords: u32, [block, sky]: [u8; 2]) -> u32 {
     }
     (coords >> 4 & 15).max(u32::from(block)) << 4 | (coords >> 20 & 15).max(u32::from(sky)) << 20
 }
-/// `LightCoordsUtil.smoothBlend`: zero samples take the centre; samples without
-/// sky light borrow the centre's sky.
-pub(super) fn smooth_blend(mut a: u32, mut b: u32, mut c: u32, center: u32) -> u32 {
-    if center >> 20 & 15 > 2 || center >> 4 & 15 > 2 {
-        for n in [&mut a, &mut b, &mut c] {
-            if *n == 0 {
-                *n = center;
-            } else if *n >> 20 & 15 == 0 {
-                *n |= center & 0x00FF_0000;
-            }
-        }
-    }
+/// `ModelBlockRenderer`'s `blend`: zero samples take the centre. 26.1's
+/// `LightCoordsUtil.smoothBlend` instead borrowed the centre's sky and block
+/// channels per sample when the centre was bright; 1.21.11 has no such
+/// borrowing and no brightness gate.
+pub(super) fn blend(a: u32, b: u32, c: u32, center: u32) -> u32 {
+    let a = if a == 0 { center } else { a };
+    let b = if b == 0 { center } else { b };
+    let c = if c == 0 { center } else { c };
     (a + b + c + center) >> 2 & 0x00FF_00FF
 }
 /// `LightCoordsUtil.smoothWeightedBlend` (Java float sums and int narrowing).
@@ -114,6 +118,16 @@ pub(super) fn gray(brightness: f32) -> i32 {
 /// One channel of `ARGB.scaleRGB(color, float)`.
 pub(super) fn scale(channel: i32, by: f32) -> i32 {
     ((channel as f32 * by) as i32).clamp(0, 255)
+}
+/// One channel of a tinted vertex's colour in 1.21.11
+/// (`VertexConsumer.putBulkData` + `ARGB.colorFromFloat`): the tint channel
+/// as a float (`ARGB.redFloat`, channel / 255), times the (already shaded)
+/// brightness, floored once (`ARGB.as8BitChannel` is `Mth.floor(v * 255)`),
+/// in Java's f32 op order. 26.1 instead floored the brightness to a gray
+/// level, scaled it, then multiplied by the tint in integers (`ARGB.gray`,
+/// `scaleRGB`, `multiply`) — up to one off per channel.
+pub(super) fn lit_channel(brightness: f32, tint_channel: u32) -> u32 {
+    gray(brightness * tint_channel as f32 / 255.0) as u32
 }
 // SizeInfo indices into the face shape.
 const DOWN: u8 = 0;
@@ -388,10 +402,10 @@ pub(super) fn ambient_occlusion(
         (shade3 + shade1 + shade13 + shade_center) * 0.25,
     ];
     let blended = [
-        smooth_blend(light3, light0, light03, light_center),
-        smooth_blend(light2, light0, light02, light_center),
-        smooth_blend(light2, light1, light12, light_center),
-        smooth_blend(light3, light1, light13, light_center),
+        blend(light3, light0, light03, light_center),
+        blend(light2, light0, light02, light_center),
+        blend(light2, light1, light12, light_center),
+        blend(light3, light1, light13, light_center),
     ];
     let mut brightness = [0f32; 4];
     let mut light = [0u32; 4];
@@ -468,17 +482,39 @@ mod tests {
         block << 4 | sky << 20
     }
     #[test]
-    fn smooth_blend_replaces_dark_samples_with_the_centre() {
+    fn blend_replaces_zero_samples_with_the_centre() {
         let center = packed(2, 15);
-        // A zero sample takes the centre; a sky-less sample borrows its sky.
-        let blended = smooth_blend(0, packed(8, 0), packed(4, 15), center);
+        // A zero sample takes the centre; a sky-less sample does NOT borrow
+        // its sky (26.1's smoothBlend did): the high byte averages 240, 0,
+        // 240, 240.
+        let blended = blend(0, packed(8, 0), packed(4, 15), center);
         assert_eq!(blended & 0xFF, (32 + 128 + 64 + 32) / 4);
-        assert_eq!(blended >> 16 & 0xFF, 240);
-        // A dark centre leaves samples untouched.
+        assert_eq!(blended >> 16 & 0xFF, 180);
+        // Zero samples take the centre even with a dark centre: no gate.
         assert_eq!(
-            smooth_blend(0, 0, packed(15, 15), packed(1, 1)) & 0xFF,
-            (240 + 16) / 4
+            blend(0, 0, packed(15, 15), packed(1, 1)) & 0xFF,
+            (16 + 16 + 240 + 16) / 4
         );
+    }
+    #[test]
+    fn face_shade_uses_the_up_face_without_shading() {
+        assert_eq!(face_shade(false, D::Down, true), 0.5);
+        assert_eq!(face_shade(true, D::Down, true), 0.9);
+        assert_eq!(face_shade(false, D::Down, false), 1.0);
+        assert_eq!(face_shade(true, D::Down, false), 0.9);
+        assert_eq!(face_shade(true, D::North, false), 0.9);
+        assert_eq!(face_shade(false, D::North, true), 0.8);
+    }
+    #[test]
+    fn lit_channel_floors_the_float_product_once() {
+        // AO 0.55 times shade 0.8, tint 200: the float path gives 88, the
+        // 26.1 integer path (gray, scale, multiply) 87.
+        assert_eq!(lit_channel(0.55f32 * 0.8, 200), 88);
+        // Flat shade 0.5, tint 100: 50, not the integer path's 49.
+        assert_eq!(lit_channel(0.5, 100), 50);
+        assert_eq!(lit_channel(0.8, 255), 204);
+        assert_eq!(lit_channel(1.0, 200), 200);
+        assert_eq!(lit_channel(0.6, 127), 76);
     }
     #[test]
     fn weighted_blend_narrows_like_java_int_casts() {

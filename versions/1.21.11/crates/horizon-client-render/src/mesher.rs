@@ -1,8 +1,8 @@
 //! Section meshing on worker threads. Faces follow the baked blockstate models
 //! with vanilla's neighbour culling; vertex light and colour follow
-//! `ModelBlockRenderer`/`BlockModelLighter` (smooth light, ambient occlusion,
-//! cardinal shading, tint sources, block offsets; see `lighting`). Fluids
-//! follow `FluidRenderer` (see `fluid`).
+//! `ModelBlockRenderer` (smooth light, ambient occlusion, cardinal shading,
+//! block tints, block offsets; see `lighting`). Fluids follow
+//! `LiquidBlockRenderer` (see `fluid`).
 mod fluid;
 mod leaf_culling;
 mod lighting;
@@ -2126,33 +2126,28 @@ impl Mesher<'_> {
             None => ao,
         };
         let shade_face = q.shade_direction_override.unwrap_or(q.facing);
-        let directional = if !q.shade {
-            1.0
-        } else if self.shader_pack_lighting {
+        let directional = if self.shader_pack_lighting {
             lighting::pack_flat(self.nether_shading)
         } else {
-            lighting::cardinal(self.nether_shading, shade_face)
+            lighting::face_shade(self.nether_shading, shade_face, q.shade)
         };
         // The quad's shape (bounds, partial, cubic), baked per face for full and
         // non-full blocks: a pure function of the quad and the block's `full`.
         let shape = &face.shapes[usize::from(state.full)];
-        // Grey level per vertex before tinting, vanilla light coords, and ambient occlusion factor.
-        let (gray, coords, ao_factor) = if ao {
+        // Per-vertex brightness (1.21.11 `calculate`: AO times the face shade,
+        // or the face shade alone when flat), vanilla light coords, and the AO
+        // factor alone for `separate_ao`.
+        let (brightness, coords, ao_factor) = if ao {
             let info = &self.tables.info;
-            let (brightness, coords) =
+            let (ao_brightness, coords) =
                 lighting::ambient_occlusion(pad, info, state, pos, shape, q.facing);
-            let gray = if self.separate_ao {
-                [lighting::gray(directional); 4]
-            } else {
-                brightness.map(|b| lighting::scale(lighting::gray(b), directional))
-            };
-            (gray, coords, brightness)
+            (ao_brightness.map(|b| b * directional), coords, ao_brightness)
         } else {
             let coords = match q.cull {
                 Some(d) => lighting::coords(pad, state, lighting::step(pos, d)),
                 None => lighting::flat_shaped(pad, state, pos, q.facing, shape),
             };
-            ([lighting::gray(directional); 4], [coords; 4], [1.0f32; 4])
+            ([directional; 4], [coords; 4], [1.0f32; 4])
         };
         let tint = Self::tint(state, q.tint_index, tints, pos);
         let tint = match q.color {
@@ -2216,10 +2211,22 @@ impl Mesher<'_> {
             )
         };
         let vertex = |tint: Option<u32>, i: usize, uv: [u16; 2]| {
-            let g = gray[i] as u32;
-            let rgb = match tint {
-                Some(t) => [16, 8, 0].map(|shift| g * (t >> shift & 255) / 255),
-                None => [g; 3],
+            // 1.21.11 `VertexConsumer.putBulkData`: the tint channels are
+            // floats, multiplied by the brightness and floored once
+            // (`lit_channel`); with `separate_ao` the RGB keeps the un-AO'd
+            // shade and the AO rides in the alpha byte.
+            let rgb = if self.separate_ao {
+                let g = lighting::gray(directional) as u32;
+                match tint {
+                    Some(t) => [16, 8, 0].map(|shift| g * (t >> shift & 255) / 255),
+                    None => [g; 3],
+                }
+            } else {
+                match tint {
+                    Some(t) => [16, 8, 0]
+                        .map(|shift| lighting::lit_channel(brightness[i], t >> shift & 255)),
+                    None => [lighting::gray(brightness[i]) as u32; 3],
+                }
             };
             let p = q.positions[i];
             let color = if self.separate_ao {
