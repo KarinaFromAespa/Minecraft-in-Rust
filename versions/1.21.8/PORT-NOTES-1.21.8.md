@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 63/163 (327–364 + 366–369 + 371–390 + 396 + 49 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 396)
+### Rank 3: 72/163 (327–364 + 366–369 + 371–400 + 55 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–400)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7585,6 +7585,33 @@ includes constant-pool churn.
   `dedicated/management.rs` is one coordinated job with items
   423, 453, 463, 483 and 484; it lands when item 484 is reached,
   and all seven close together.
+- **Item 392 — `crates/horizon-client/src/game/commands/world_cmds.rs`
+  (RideCommand, RotateCommand), `/rotate` resolves against the
+  source:** `Coordinates.getRotation` resolves relative parts
+  against the SOURCE's rotation in both versions (1.21.9's
+  subtract-the-target / add-it-back round-trip through the 4-arg
+  `forceSetRotation` nets to the same value). The Rust resolved
+  them against the target's rotation; `cmd_rotate` now uses
+  `source_rotation()`, like `/teleport`. Zero-diff: `/ride`
+  (both versions mount with force and fire the mount game event
+  plus START_RIDING_TRIGGER — 1.21.8 via `addPassenger`, 1.21.9
+  via the third `startRiding` argument; the Rust derives the
+  event per-tick from mount state).
+- **Item 393 — `crates/horizon-client/src/game/pumpkin.rs`
+  (PumpkinBlock), carving drops 4 seeds outright:** 1.21.9 carves
+  through the `CARVE_PUMPKIN` loot table; 1.21.8 drops a fixed
+  `ItemStack(PUMPKIN_SEEDS, 4)` (and 1.21.8's data has no such
+  table, so the table roll dropped nothing). The fixed stack
+  spawns at the same spot with the same velocity.
+- **Item 395 — `crates/horizon-client/src/game/wandering_trader.rs`
+  (+ creatures.rs), the trader delay counts down without mob
+  spawning:** 1.21.8 gates only the spawn-chance roll on
+  `doMobSpawning`; the tick/spawn delay counts down whenever
+  trader spawning is on. The Rust skipped the whole tick with
+  `spawn_mobs` off, freezing the delay. `tick_wandering_trader`
+  now runs outside the `spawn_mobs` gate, with the roll alone
+  gated inside. (The cat, patrol and siege spawners gate their
+  whole tick, so they stay inside.)
 
 ### Rank 4 content: closed 2/2 (chain)
 

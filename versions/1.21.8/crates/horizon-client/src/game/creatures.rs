@@ -1134,9 +1134,11 @@ impl Game<'_> {
         // Vanilla's spawning and raids run before ChunkMap.tick.
         let from = self.lan_synced_from();
         horizon_client::spans::time("spawn_natural", || self.spawn_natural());
-        // ServerChunkCache.tickChunks: the custom spawners tick only with spawn_mobs.
+        // ServerChunkCache.tickChunks: the custom spawners tick only with spawn_mobs,
+        // except the wandering trader, whose delay counts down regardless
+        // (1.21.8 gates only its spawn roll on doMobSpawning).
+        self.tick_wandering_trader();
         if self.ui.rules.bool("spawn_mobs") {
-            self.tick_wandering_trader();
             self.tick_patrol_spawner();
             self.tick_cat_spawner();
             self.tick_village_siege();

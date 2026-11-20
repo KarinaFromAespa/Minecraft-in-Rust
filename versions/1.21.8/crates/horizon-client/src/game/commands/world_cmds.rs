@@ -520,11 +520,13 @@ impl Game<'_> {
         let Some(pos) = self.target_position(t) else {
             return Ok(0);
         };
-        let current = self.target_rotation(t);
         let mut look_at_target = None;
         let rot = if let Some(Arg::Coords(c)) = ctx.get("rotation") {
-            // Relative parts are offsets from the entity's own rotation.
-            c.rotation(current)
+            // RotateCommand.getRotation: relative parts resolve against the
+            // SOURCE's rotation in both versions (1.21.9's subtract-then-add
+            // round-trip through forceSetRotation nets to the same value),
+            // not the target's.
+            c.rotation(self.source_rotation())
         } else {
             let mut faced_entity = None;
             let to = if ctx.has("entity") {
@@ -1740,7 +1742,7 @@ impl Game<'_> {
         if !(target == Target::Player || rider.is_some()) {
             return Err(generic());
         }
-        // `RideCommand.mount` forces the ride (`startRiding(vehicle, true, true)`),
+        // `RideCommand.mount` forces the ride (`startRiding(vehicle, true)`),
         // which skips `canRide` and `canAddPassenger`: a boat under water still
         // takes the rider. Horizon's boats seat at most `max_passengers`, so a
         // full boat still refuses. Minecarts carry only players here: Horizon's
