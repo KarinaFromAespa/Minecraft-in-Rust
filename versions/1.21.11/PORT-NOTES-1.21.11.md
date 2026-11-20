@@ -5280,3 +5280,67 @@ passed (incl. the new baby-dims test); `... baby_` 25 passed;
 rustfmt --check clean on species.rs and undead.rs. Rank 2 now
 243/492 (72 changed, 171 no-change).
 work-items.json rank2.closed = 243 on 2026-11-20.
+
+## Item 65 — crates/horizon-client/src/game/sculk.rs (rank 2, CHANGED)
+
+5 classes, 11 methods, 8 named. Javap diff +213/-211 (601 lines),
+decompile diff 1989 lines, both read in full Nov 20, 2026, plus
+direct `javap` on LiquidBlock / FlowingFluid / BubbleColumnBlock /
+SoulSandBlock / MagmaBlock from the 1.21.11 jar. Triage note
+`rank2-item-65-TRIAGE.md` (workdir root, scratch).
+
+**Fix — postProcessGeneration skips LiquidBlocks in 1.21.11.**
+Both versions tick the fluid state first; then 26.1 calls
+`blockState.tick` on LiquidBlocks (and skips their shape update)
+while 1.21.11 skips them entirely. The mirror is
+`Game::postprocess_chunks` in `game/postprocess.rs` (not sculk.rs);
+it had the 26.1 form. Now liquids get only the fluid tick and the
+shape update is gated on `!liquid_block`, and the module doc's
+"raises bubble columns" (a 26.1 behaviour) is reworded. Removing
+the liquid block tick does NOT lose bubble columns, verified from
+the 1.21.11 jar: `LiquidBlock.tick` only schedules a fluid tick;
+columns are created by `BubbleColumnBlock.updateColumn`, called by
+SoulSandBlock/MagmaBlock, whose `updateShape` schedules a 20-tick
+check when water is above — and magma/soul sand are not liquids,
+so they DO get the shape update during post-processing. The Rust
+already mirrors that path (`shapes.rs` Magma/Liquid arms,
+`liquid_block_changed`).
+
+Everything else identical: SpawnUtil.trySpawnMob
+(`getRandom()` -> `random` field only; tries, random offsets, world
+border, moveToPossibleSpawnPosition, collision check, create,
+spawn rules + obstruction, addFreshEntityWithPassengers, ambient
+sound, discard), RedStoneOreBlock.spawnParticles (0.5625 offset,
+one red dust per non-solid-render face, x/y/z random order),
+SculkSensorBlock (water check `is(WATER)` -> `getType() == WATER`,
+`Entity.is(WARDEN)` -> `getType() == WARDEN`; shape column(16, 0,
+8); resonance tone map [0,0,2,4,6,7,9,10,12,14,15,18,19,21,22,24];
+active 30 ticks, cooldown 10, clicking pitch `rand*0.2+0.8`;
+getAnalogOutputSignal = ACTIVE ? last frequency : 0; 5 XP),
+SculkShriekerBlock (same water-check change only; stepOn player-only
+tryShriek; tick SHRIEKING -> false + tryRespond; 5 XP), and the
+rest of LevelChunk (visibility/rename only). The sculk.rs mirrors
+were verified constant by constant: `sensor_signal`, `activate_sensor`
+(resonate 1..=15), `sculk_step_on` (warden excluded, canActivate
+gate), `try_shriek` / `try_to_warn` (24-block warden box) / `shriek`
+(90 ticks) / `shrieker_respond`, `try_summon_warden` (20 attempts,
+`nextInt(11)-5`, y+6, range 6, ON_TOP_OF_COLLIDER, yaw +
+follow-range bonus + 5% left-handedness draws, obstruction check),
+`spawn_position`, `redstone_ore_particles`, `step_on_redstone_ore`,
+`use_redstone_ore`, and the horizon-world constants (SENSOR_ACTIVE
+30, CALIBRATED_ACTIVE 10, SENSOR_COOLDOWN 10, SHRIEKING 90).
+
+Version-neutral gaps (recorded, not fixed): `use_redstone_ore`
+returns PASS for any held block item, where vanilla also requires
+`BlockPlaceContext.canPlace()`; `try_summon_warden` checks
+obstruction but not `checkSpawnRules` (below-block `isValidSpawn`);
+`redstone_ore_particles` early-returns for a LAN guest.
+
+Verification: `cargo check -p horizon-client --lib --tests
+--no-default-features` clean (JOBS=1, 52s); `cargo test -p
+horizon-client --lib --no-default-features game::sculk::` 4 passed,
+3 ignored (fixtures); rustfmt --check clean on postprocess.rs. No
+new test: no harness exercises `postprocess_chunks` (needs a live
+Game with lit chunks). Rank 2 now 244/492 (73 changed, 171
+no-change).
+work-items.json rank2.closed = 244 on 2026-11-20.
