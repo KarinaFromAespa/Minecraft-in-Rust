@@ -82,7 +82,6 @@ actions! {
     DebugCopyRecreateCommand, "key.debug.copyRecreateCommand", None;
     DebugSpectate, "key.debug.spectate", None;
     DebugSwitchGameMode, "key.debug.switchGameMode", None;
-    DebugDebugOptions, "key.debug.debugOptions", None;
     DebugFocusPause, "key.debug.focusPause", None;
     DebugDumpDynamicTextures, "key.debug.dumpDynamicTextures", None;
     DebugReloadResourcePacks, "key.debug.reloadResourcePacks", None;

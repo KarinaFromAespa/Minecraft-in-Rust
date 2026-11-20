@@ -121,8 +121,6 @@ pub(crate) mod cushions;
 mod custom_sky;
 mod debug_keys;
 mod debug_lines;
-mod debug_options;
-mod debug_renderers;
 mod debug_stick;
 mod decorated_pot;
 mod dedicated;
@@ -666,8 +664,6 @@ enum Screen {
     DialogWarning,
     /// WinScreen: the end poem and the credits (game/win.rs).
     Win,
-    /// DebugOptionsScreen, F3+F6 (game/debug_options.rs).
-    DebugOptions,
     /// A screen of a native mod's own (`native_mod_screen_open`): it draws and
     /// takes its input through the screen hooks.
     Mod,
@@ -703,7 +699,6 @@ impl Screen {
             Screen::ConfirmLink => "confirm_link",
             Screen::DialogWarning => "dialog_warning",
             Screen::Win => "win",
-            Screen::DebugOptions => "debug_options",
             Screen::Mod => "mod",
             Screen::HudEditor => "hud_editor",
             Screen::Studio => "studio",
@@ -2928,11 +2923,13 @@ struct Game<'a> {
     debug_keys: horizon_client::debug_keys::DebugKeys,
     /// The F3 overlay's charts (F3+2, F3+3).
     debug_charts: horizon_client::debug_chart::DebugCharts,
-    /// `Minecraft.debugEntries`: what the overlay and the debug renderers
-    /// show (`debug-profile.json`, F3+F6).
-    debug_entries: horizon_client::debug_entries::DebugEntries,
-    /// `DebugOptionsScreen` while it is open (game/debug_options.rs).
-    debug_options: Option<debug_options::DebugOptionsUi>,
+    /// `EntityRenderDispatcher.setRenderHitBoxes` (F3+B) and
+    /// `DebugRenderer.switchRenderChunkborder` (F3+G): 1.21.8 toggles them
+    /// with no player or reduced-info gate. The 1.21.9 debug-entry store
+    /// that used to hold them is gone (item 420); these plain flags are
+    /// the dispatcher's and the renderer's flags now.
+    show_hitboxes: bool,
+    show_chunk_borders: bool,
     /// `DebugEntryMemory`'s readings (game/debug_lines.rs).
     memory_meter: std::cell::RefCell<horizon_client::debug_overlay::MemoryMeter>,
     /// The F3 overlay's vertices between rebuilds (`draw_debug_overlay_under`).
@@ -5830,10 +5827,10 @@ impl Game<'_> {
         }
         Ok(())
     }
-    /// The title remains the no-level sentinel while debug options covers it.
-    /// Only UI dispatch ignores it; world loading and simulation still see it.
+    /// The title remains the no-level sentinel; only UI dispatch ignores
+    /// it, world loading and simulation still see it.
     fn title_input_active(&self) -> bool {
-        self.title.is_some() && self.screen != Screen::DebugOptions
+        self.title.is_some()
     }
     fn hud(&mut self, size: [u32; 2]) -> HudBatch {
         // Off a world (title, options, Win, a prompt before joining) the HUD shows nothing to
@@ -5924,16 +5921,6 @@ impl Game<'_> {
             for found in title.lan_found_narrations((w, h)) {
                 self.say_system_queued(&found);
             }
-        }
-        if self.screen == Screen::DebugOptions && self.title.is_some() {
-            // DebugOptionsScreen replaces the title; no level HUD is behind it.
-            self.draw_debug_options(&mut batch);
-            self.fire_screen_render_post(&mut batch);
-            self.draw_toasts(&mut batch, false);
-            self.draw_tutorial_toasts(&mut batch, false);
-            self.draw_pack_toasts(&mut batch, false);
-            self.draw_music_toast(&mut batch, false);
-            return batch;
         }
         if self.title.is_some() {
             // `Gui.render`: the debug overlay draws under the screen.
@@ -6282,7 +6269,6 @@ impl Game<'_> {
             Screen::DialogWarning => self.draw_dialog_warning(&mut batch),
             Screen::CommandBlock => self.draw_command_block(&mut batch),
             Screen::BlockEditor => self.draw_block_editor(&mut batch),
-            Screen::DebugOptions => self.draw_debug_options(&mut batch),
             Screen::HudEditor => self.draw_hud_editor(&mut batch),
             Screen::Studio => {}
             Screen::Inventory => {
@@ -6816,7 +6802,6 @@ impl Game<'_> {
         see_through.clear();
         self.name_tag_geometry(camera, alpha, &mut out, &mut see_through);
         self.test_instance_marker_geometry(camera, &mut out, &mut see_through);
-        self.debug_renderer_geometry(camera, &mut out);
         self.text_display_geometry(camera, alpha, &mut out, &mut see_through);
         self.see_through_vertices = see_through;
         laps.lap("eg_name_tags");
@@ -10540,9 +10525,6 @@ impl Game<'_> {
                         if self.screen == Screen::Stats {
                             self.stats_drag();
                         }
-                        if self.screen == Screen::DebugOptions {
-                            self.debug_options_drag();
-                        }
                         if self.screen == Screen::HudEditor {
                             self.hud_editor_drag();
                         }
@@ -10711,9 +10693,6 @@ impl Game<'_> {
                     }
                     if self.screen == Screen::ServerLinks && d != 0.0 {
                         self.server_links_scroll(d);
-                    }
-                    if self.screen == Screen::DebugOptions && d != 0.0 {
-                        self.debug_options_scroll(d);
                     }
                     if self.screen == Screen::HudEditor && d != 0.0 {
                         self.hud_editor_scroll(f64::from(d));
@@ -11031,12 +11010,6 @@ impl Game<'_> {
                         }
                         Screen::ServerLinks if pressed && button == MouseButton::Left => {
                             self.server_links_click()?
-                        }
-                        Screen::DebugOptions if pressed && button == MouseButton::Left => {
-                            self.debug_options_click()
-                        }
-                        Screen::DebugOptions if button == MouseButton::Left => {
-                            self.debug_options_release()
                         }
                         Screen::HudEditor
                             if pressed
@@ -12219,10 +12192,8 @@ impl<'a> Game<'a> {
             social: Default::default(),
             debug_keys: Default::default(),
             debug_charts: Default::default(),
-            debug_entries: horizon_client::debug_entries::DebugEntries::load(
-                &std::env::current_dir().unwrap_or_default(),
-            ),
-            debug_options: None,
+            show_hitboxes: false,
+            show_chunk_borders: false,
             memory_meter: Default::default(),
             debug_paint: Default::default(),
             debug_refresh: Default::default(),

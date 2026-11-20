@@ -1,7 +1,8 @@
-//! The F3 overlay's text entries: what each enabled entry of
-//! `debug-profile.json` reports, in 1.21.8's fixed order — the left column
+//! The F3 overlay's text entries, in 1.21.8's fixed order — the left column
 //! is `getGameInformation`, the right column `getSystemInformation`.
-//! (1.21.9 sorted the entries by identifier and split them by count.)
+//! (1.21.9 sorted the entries by identifier and split them by count, and
+//! let the player configure which show; 1.21.8 has no such system — the
+//! lists are fixed, with a shorter pair while debug info is reduced.)
 //! The entries that read the server's level ask the integrated server for
 //! their lines (`ServerDebug`); on another server they show what vanilla
 //! shows there, nothing or `??`.
@@ -16,20 +17,12 @@ use std::collections::{HashMap, HashSet};
 /// `DebugEntryLookingAt.RANGE`.
 const LOOKING_AT_RANGE: f64 = 20.0;
 
-/// The entries whose lines come from the server thread.
-const SERVER_ENTRIES: [&str; 4] = [
-    "chunk_source_stats",
-    "entity_spawn_counts",
-    "heightmap",
-    "local_difficulty",
-];
-
 /// 1.21.8's left column, `getGameInformation`, in order. The 1.21.9-only
 /// entries with no 1.21.8 line (`day_count`, `sound_cache`) are listed so
 /// their arms run and say so; the Horizon-only ones (`player_speed`,
 /// `gpu_utilization`) land where they fit. Entries with no arm at all
 /// (`detailed_memory`, `simple_performance_impactors`, the renderers) are
-/// omitted. The per-entry system itself goes with item 420.
+/// omitted.
 const LEFT_ENTRIES: [&str; 21] = [
     "game_version",
     "fps",
@@ -67,6 +60,27 @@ const RIGHT_ENTRIES: [&str; 8] = [
     "looking_at_entity_tags",
 ];
 
+/// 1.21.8's reduced left column (`getGameInformation` while
+/// `showOnlyReducedInfo`): the version, fps, server line, section and
+/// entity statistics, the particle line and the chunk-source stats. The
+/// blank line and the chunk-relative coordinates come from
+/// `player_section_position`'s arm, last.
+const REDUCED_LEFT: [&str; 8] = [
+    "game_version",
+    "fps",
+    "tps",
+    "chunk_render_stats",
+    "entity_render_stats",
+    "particle_render_stats",
+    "chunk_source_stats",
+    "player_section_position",
+];
+
+/// 1.21.8's reduced right column (`getSystemInformation` while
+/// `showOnlyReducedInfo`): the memory lines and the system lines; the
+/// targeted-block/fluid/entity sections are dropped.
+const REDUCED_RIGHT: [&str; 2] = ["memory", "system_specs"];
+
 /// What the server thread reports for the window's player
 /// (`DebugScreenOverlay.getServerChunk` and its `ServerLevel`).
 #[derive(Clone, Debug, Default)]
@@ -79,21 +93,27 @@ pub(super) struct ServerDebug {
 }
 
 impl Game<'_> {
-    /// Every enabled entry's lines, in 1.21.8's fixed order: the left
-    /// column is `getGameInformation`, the right column
-    /// `getSystemInformation`. The enabled subset is still
-    /// profile-governed (the per-entry system goes with item 420); the
-    /// order and the column are 1.21.8's.
+    /// Every entry's lines, in 1.21.8's fixed order: the left column is
+    /// `getGameInformation`, the right column `getSystemInformation`.
+    /// While debug info is reduced the lists are the shorter fixed pair
+    /// vanilla returns under `showOnlyReducedInfo`.
     pub(super) fn debug_entry_lines(&self, d: &mut Displayer, framebuffer: [i32; 2]) {
         let reduced = self.reduced_debug_info();
-        let enabled = |path: &str| self.debug_entries.enabled(path, self.debug, reduced);
-        let server = self.server_debug(SERVER_ENTRIES.iter().any(|p| enabled(p)));
+        // Every server entry is shown in both lists (`chunk_source_stats`
+        // is in the reduced left column), so the server data is always
+        // wanted.
+        let server = self.server_debug(true);
+        let (left, right): (&[&str], &[&str]) = if reduced {
+            (&REDUCED_LEFT, &REDUCED_RIGHT)
+        } else {
+            (&LEFT_ENTRIES, &RIGHT_ENTRIES)
+        };
         d.left();
-        for path in LEFT_ENTRIES.iter().filter(|p| enabled(p)) {
+        for path in left {
             self.debug_entry_line(d, path, server.as_ref(), reduced, framebuffer);
         }
         d.right();
-        for path in RIGHT_ENTRIES.iter().filter(|p| enabled(p)) {
+        for path in right {
             self.debug_entry_line(d, path, server.as_ref(), reduced, framebuffer);
         }
     }
@@ -305,7 +325,8 @@ impl Game<'_> {
                 }
             }
             // detailed_memory: the JVM's memory pools, which Horizon
-            // has none of. The rest are renderers (debug_renderers.rs).
+            // has none of. The rest are renderer entries, which 1.21.8
+            // never draws (item 420).
             _ => {}
         }
     }

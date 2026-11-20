@@ -60,7 +60,6 @@ pub const MAPPINGS: &[(&str, &str, &str)] = &[
     ("key.debug.copyRecreateCommand", "key.keyboard.i", "debug"),
     ("key.debug.spectate", "key.keyboard.n", "debug"),
     ("key.debug.switchGameMode", "key.keyboard.f4", "debug"),
-    ("key.debug.debugOptions", "key.keyboard.f6", "debug"),
     ("key.debug.focusPause", "key.keyboard.p", "debug"),
     ("key.debug.dumpDynamicTextures", "key.keyboard.s", "debug"),
     ("key.debug.reloadResourcePacks", "key.keyboard.t", "debug"),

@@ -2348,7 +2348,7 @@ impl Game<'_> {
             || self.mod_browser_typing()
             || matches!(
                 self.screen,
-                Screen::CommandBlock | Screen::BlockEditor | Screen::Social | Screen::DebugOptions
+                Screen::CommandBlock | Screen::BlockEditor | Screen::Social
             )
     }
 
@@ -2484,12 +2484,6 @@ impl Game<'_> {
             match text {
                 Some(t) => self.social_type(t),
                 None if backspace => self.social_backspace(),
-                None => {}
-            }
-        } else if self.screen == Screen::DebugOptions {
-            match text {
-                Some(t) => self.debug_options_type(t),
-                None if backspace => self.debug_options_backspace(),
                 None => {}
             }
         } else if self.screen == Screen::Options {

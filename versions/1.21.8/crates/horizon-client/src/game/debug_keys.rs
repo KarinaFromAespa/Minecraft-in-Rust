@@ -299,13 +299,10 @@ impl Game<'_> {
             ),
         ]
     }
-    /// `Gui.render`'s debug overlay, under the screen that follows (the
-    /// debug options screen draws it under itself). 1.21.9 drew it over
-    /// everything, after the toasts.
+    /// `Gui.render`'s debug overlay, under the screen that follows.
+    /// 1.21.9 drew it over everything, after the toasts.
     pub(super) fn draw_debug_overlay(&self, batch: &mut HudBatch, size: [u32; 2]) {
-        if self.screen != Screen::DebugOptions {
-            self.draw_debug_overlay_under(batch, size);
-        }
+        self.draw_debug_overlay_under(batch, size);
     }
     /// `DebugScreenOverlay.showDebugScreen`: the overlay shows while F3 is
     /// on and F1 is not hiding the HUD — `renderDebug && !hideGui`,
@@ -378,12 +375,12 @@ impl Game<'_> {
             .store(now, layout, &batch.vertices[first_vertex..]);
     }
     /// Whether the overlay is listing GPU pass times (its `system_specs` lines), the only reason
-    /// it has to time passes.
+    /// it has to time passes. The system lines are part of 1.21.8's fixed right column, so
+    /// the overlay lists them whenever it is up.
     pub(super) fn debug_lists_gpu_passes(&self) -> bool {
         self.debug
             && self.title.is_none()
             && !(self.ui.hide_gui && self.screen == Screen::Playing)
-            && self.debug_entry("system_specs")
     }
     /// The monitor's refresh rate in millihertz, asked of the OS at most once a second (on
     /// Windows, winit calls `EnumDisplaySettingsExW` each time).
@@ -604,14 +601,11 @@ impl Game<'_> {
             || self.ui.rules.bool("reduced_debug_info")
             || self.remote.as_ref().is_some_and(|r| r.reduced_debug_info)
     }
-    /// `DebugScreenEntryList.isCurrentlyEnabled` for an entry's path.
-    pub(super) fn debug_entry(&self, path: &str) -> bool {
-        self.debug_entries
-            .enabled(path, self.debug, self.reduced_debug_info())
-    }
-    /// The `3d_crosshair` entry.
+    /// `Gui.shouldRenderDebugCrosshair`, minus the first-person check its
+    /// callers make: F3 on, debug info not reduced. 1.21.9 gated the
+    /// crosshair on the `3d_crosshair` debug entry instead.
     pub(super) fn debug_crosshair(&self) -> bool {
-        self.debug_entry("3d_crosshair")
+        self.debug && !self.reduced_debug_info()
     }
     /// `Permissions.COMMANDS_GAMEMASTER` (`GameModeCommand.PERMISSION_CHECK`).
     pub(super) fn gamemaster(&self) -> bool {
@@ -636,12 +630,11 @@ impl Game<'_> {
             }
             // `EntityRenderDispatcher.setRenderHitBoxes`: 1.21.8 toggles it
             // with no player or reduced-info gate (1.21.9 gates on both and
-            // routes through the debug entries). The entries' flag is the
+            // routes through the debug entries). `show_hitboxes` is the
             // Rust's store for the dispatcher's flag.
             DebugAction::ShowHitboxes => {
-                let on = self
-                    .debug_entries
-                    .toggle_status("entity_hitboxes", self.debug);
+                self.show_hitboxes = !self.show_hitboxes;
+                let on = self.show_hitboxes;
                 self.debug_translated(if on {
                     "debug.show_hitboxes.on"
                 } else {
@@ -655,12 +648,12 @@ impl Game<'_> {
                 true
             }
             // `DebugRenderer.switchRenderChunkborder`: 1.21.8 toggles it with
-            // no player or reduced-info gate (1.21.9 gates on both). The
-            // entries' flag is the Rust's store for the renderer's flag.
+            // no player or reduced-info gate (1.21.9 gates on both).
+            // `show_chunk_borders` is the Rust's store for the renderer's
+            // flag.
             DebugAction::ShowChunkBorders => {
-                let on = self
-                    .debug_entries
-                    .toggle_status("chunk_borders", self.debug);
+                self.show_chunk_borders = !self.show_chunk_borders;
+                let on = self.show_chunk_borders;
                 self.debug_translated(if on {
                     "debug.chunk_boundaries.on"
                 } else {
@@ -772,18 +765,6 @@ impl Game<'_> {
             }
             DebugAction::LightmapTexture => {
                 self.debug_charts.toggle_lightmap(&mut self.debug);
-                true
-            }
-            // Other title submenus still need their own interruption/close policy.
-            DebugAction::DebugOptions
-                if self.title.as_ref().is_some_and(|title| {
-                    !matches!(title.mode, horizon_client::title::Mode::Main)
-                }) =>
-            {
-                false
-            }
-            DebugAction::DebugOptions => {
-                self.toggle_debug_options();
                 true
             }
             // Horizon's own: a repro recording for a bug report (game/repro.rs).
@@ -1009,8 +990,7 @@ impl Game<'_> {
     pub(super) fn debug_gizmos(&self, alpha: f32, camera: [f64; 3]) -> Gizmos {
         let mut g = Gizmos::default();
         self.bounding_box_gizmos(camera, &mut g);
-        self.debug_renderer_gizmos(&mut g);
-        if self.debug_entry("chunk_borders")
+        if self.show_chunk_borders
             && let Some(p) = &self.player
         {
             let block = [
@@ -1021,7 +1001,7 @@ impl Game<'_> {
             let min_y = self.world.bottom_y();
             g.chunk_borders(block, min_y, min_y + self.world.layout().height() - 1);
         }
-        if !self.debug_entry("entity_hitboxes") {
+        if !self.show_hitboxes {
             return g;
         }
         let lerp = |a: f64, b: f64| a + f64::from(alpha) * (b - a);

@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 82/163 (327–364 + 366–369 + 371–410 + 64 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409, 410)
+### Rank 3: 92/163 (327–364 + 366–369 + 371–420 + 73 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–419)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7625,6 +7625,31 @@ includes constant-pool churn.
   `StoringChunkProgressListener`. (The two separate loading
   screens and the gamerule-based status radius were already
   1.21.8-form, item 232.)
+
+- **Item 420 — the 1.21.9-only debug-entries system is removed:**
+  1.21.8 has no DebugEntry system (6 classes under
+  `gui/components/debug/` + `gui/screens/debug/` vs 49 in 1.21.9:
+  no DebugScreenEntries, DebugScreenProfile, DebugEntryCategory,
+  DebugOptionsScreen). Deleted `debug_entries.rs` (entries,
+  categories, profiles, `debug-profile.json`) and
+  `game/debug_options.rs` (the F3+F6 screen), the
+  `Screen::DebugOptions` variant and its draw/input/mouse arms,
+  the `key.debug.debugOptions` binding (F3+F6) and
+  `DebugAction::DebugOptions`. The F3 overlay is now the fixed
+  1.21.8 pair in both modes: the full lists always, and the
+  reduced pair under `showOnlyReducedInfo` (left: version, fps,
+  server line, section/entity statistics, the particle line,
+  chunk-source stats, blank, chunk-relative — the particle line
+  was missing from the reduced list, the entry system marked it
+  reduced=false; right: memory + system lines). The F3+B hitbox
+  and F3+G chunk-border toggles move to plain `show_hitboxes` /
+  `show_chunk_borders` flags on Game (1.21.8 toggles them with
+  no player or reduced-info gate). The 3D crosshair keeps its
+  gate from `Gui.shouldRenderDebugCrosshair` (F3 on, first
+  person, not reduced, GUI shown). The visualize-* debug
+  renderers (water, heightmap, collision, light, solid faces)
+  are deleted with `game/debug_renderers.rs`: vanilla 1.21.8
+  constructs them but never renders them.
 
 ### Rank 4 content: closed 2/2 (chain)
 

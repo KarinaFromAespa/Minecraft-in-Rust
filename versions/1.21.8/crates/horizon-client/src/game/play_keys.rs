@@ -121,7 +121,6 @@ impl Game<'_> {
                 Screen::BlockEditor => self.close_block_editor(),
                 Screen::Chat => self.close_chat(),
                 Screen::Win => self.close_win_screen()?,
-                Screen::DebugOptions => self.close_debug_options(),
                 Screen::Mod => self.close_mod_screen(),
                 Screen::Studio => self.close_studio_screen(),
                 Screen::HudEditor => self.close_hud_editor(),

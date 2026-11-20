@@ -59,7 +59,7 @@ pub const BOUNDING_BOX: u32 = 0xFFE5_E5E5;
 pub const STROKE_WIDTH: f32 = 2.5;
 
 impl Gizmos {
-    /// `DebugCrosshairRenderer`: the world axes one block in front of the
+    /// `DebugScreenOverlay.render3dCrosshair`: the world axes one block in front of the
     /// camera, `0.01 * gui_scale` long, X red, Y green, Z light blue, each a
     /// 2 pixel line over a 4 pixel black one. Drawn on top, in that order.
     pub fn debug_crosshair(&mut self, camera: [f64; 3], x_rot: f32, y_rot: f32, gui_scale: f32) {

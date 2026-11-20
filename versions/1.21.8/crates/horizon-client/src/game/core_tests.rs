@@ -131,7 +131,6 @@ fn screen_ids_are_distinct_and_stable() {
         Screen::ConfirmLink,
         Screen::DialogWarning,
         Screen::Win,
-        Screen::DebugOptions,
         Screen::Mod,
         Screen::HudEditor,
         Screen::Studio,

@@ -16,7 +16,6 @@ pub enum DebugAction {
     CopyRecreateCommand,
     Spectate,
     SwitchGameMode,
-    DebugOptions,
     FocusPause,
     DumpDynamicTextures,
     ReloadResourcePacks,
@@ -35,7 +34,7 @@ pub enum DebugAction {
 }
 
 /// The mappings `handleDebugKeys` tests, in its order.
-pub const ACTIONS: [(&str, DebugAction); 20] = [
+pub const ACTIONS: [(&str, DebugAction); 19] = [
     ("key.debug.reloadChunk", DebugAction::ReloadChunks),
     ("key.debug.showHitboxes", DebugAction::ShowHitboxes),
     ("key.debug.clearChat", DebugAction::ClearChat),
@@ -50,7 +49,6 @@ pub const ACTIONS: [(&str, DebugAction); 20] = [
     ),
     ("key.debug.spectate", DebugAction::Spectate),
     ("key.debug.switchGameMode", DebugAction::SwitchGameMode),
-    ("key.debug.debugOptions", DebugAction::DebugOptions),
     ("key.debug.focusPause", DebugAction::FocusPause),
     (
         "key.debug.dumpDynamicTextures",
