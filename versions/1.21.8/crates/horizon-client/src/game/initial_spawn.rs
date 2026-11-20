@@ -240,8 +240,8 @@ impl Game<'_> {
     /// chunks allow: the feet of the first free column within the respawn
     /// radius, else the suggestion's own column. The finder waits in `state`
     /// (None to begin); Err gives the chunk of the candidate being waited for,
-    /// which the caller must have loaded (the finder tries at most 1024
-    /// columns).
+    /// which the caller must have loaded (the finder tries every column of
+    /// the square — 1.21.8 has no 1024 cap).
     pub(super) fn search_spawn(
         &self,
         suggestion: [i32; 3],
