@@ -253,13 +253,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.set_block_and_update(pos, b.table.set_bool(state, p.powered, false));
                     self.lightning_rod_update_neighbors(pos, state);
                 }
-                Class::Liquid => {
-                    if self.should_bubble_column_occupy(state) {
-                        let below_state = self.below_state(pos);
-                        let column = b.named.bubble_column;
-                        self.bubble_column_update_for(column, pos, state, below_state);
-                    }
-                }
                 Class::Observer => self.observer_tick(pos, state),
                 Class::Eyeblossom => self.eyeblossom_tick(state, pos, false),
                 Class::CreakingHeart => self.heart_tick(state, pos),

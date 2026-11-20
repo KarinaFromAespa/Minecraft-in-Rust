@@ -732,17 +732,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
         true
     }
-    /// `LiquidBlock.onPlace` / `neighborChanged`.
+    /// `LiquidBlock.onPlace` / `neighborChanged` in 1.21.11: only the
+    /// fluid-tick scheduling (26.1 also scheduled the bubble-column check
+    /// here; 1.21.11 leaves that to MagmaBlock/SoulSandBlock).
     pub(crate) fn liquid_block_changed(&mut self, pos: BlockPos, state: BlockStateId) {
         if self.should_spread_liquid(pos, state) {
             let kind = self.b.fluid(state).kind();
             let delay = self.fluid_tick_delay(kind);
             self.schedule_fluid_tick(pos, kind, delay);
-        }
-        if self.should_bubble_column_occupy(state) {
-            let below_state = self.below_state(pos);
-            let block = self.b.block(state);
-            self.try_schedule_bubble_column(pos, below_state, block);
         }
     }
 

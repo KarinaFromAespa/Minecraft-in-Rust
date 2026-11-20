@@ -614,9 +614,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let delay = self.fluid_tick_delay(fluid.kind());
                     self.schedule_fluid_tick(pos, fluid.kind(), delay);
                 }
-                if dir == Direction::Down && self.should_bubble_column_occupy(state) {
-                    self.try_schedule_bubble_column(pos, nstate, block);
-                }
                 sup!()
             }
             Class::Magma => {
@@ -1150,28 +1147,6 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 && b.instance_of(state, Class::Liquid)
                 && fluid.is_source()
                 && fluid.amount() >= 8)
-    }
-    pub(crate) fn should_bubble_column_occupy(&self, state: BlockStateId) -> bool {
-        let fluid = self.b.fluid(state);
-        self.b
-            .fluid_in(fluid.kind(), self.b.fluid_tags.bubble_column_can_occupy)
-            && fluid.is_source()
-            && fluid.is_full()
-    }
-    pub(crate) fn try_schedule_bubble_column(
-        &mut self,
-        pos: BlockPos,
-        below_state: BlockStateId,
-        block: BlockId,
-    ) {
-        let t = &self.b.tags;
-        if self
-            .b
-            .in_set(below_state, &t.enables_bubble_column_drag_down)
-            || self.b.in_set(below_state, &t.enables_bubble_column_push_up)
-        {
-            self.schedule_tick(pos, block, 20);
-        }
     }
     /// `NoteBlock.setInstrument`.
     pub(crate) fn note_block_instrument(&self, pos: BlockPos, state: BlockStateId) -> BlockStateId {

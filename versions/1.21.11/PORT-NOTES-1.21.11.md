@@ -7142,3 +7142,48 @@ game::recipe_book::` runs 0 tests (no test module in
 recipe_book.rs); the run compiled the lib test target cleanly.
 Rank 2 now 275/492 (90 changed, 185 no-change).
 work-items.json rank2.closed = 275 on 2026-11-21.
+
+## Item 97 — level/fluids.rs (rank 2, CHANGED)
+
+4 classes, 15 methods, 5 named: BarrierBlock, DriedGhastBlock,
+LiquidBlock, FlowingFluid$SpreadContext.
+
+Java delta, jar-verified: `LiquidBlock.getCollisionShape` in
+26.1 gates on a colliding LivingEntity and asks it for its own
+liquid shape (`LivingEntity.getLiquidCollisionShape`); 1.21.11
+returns the fixed `SHAPE_STABLE` (bottom half,
+`Block.column(16.0, 0.0, 8.0)`) for any context above it that
+can stand on the fluid. The whole LiquidBlock bubble-column
+apparatus is 26.1-only — `shouldBubbleColumnOccupy`,
+`tryScheduleBubbleBlockColumn` (20-tick delay), the `tick`, and
+the calls from onPlace/updateShape(DOWN)/neighborChanged;
+1.21.11 leaves the column to Magma/SoulSand (item 68). Barrier/
+DriedGhast `is(WATER)` -> `getType() == WATER` is the same
+predicate; SpreadContext is visibility noise.
+
+Fixes: `liquid_collision.rs::shape` uses the fixed bottom-half
+shape with no living-entity gate (the stand check still
+restricts standing to striders on lava, so no observable result
+changes — the strider shape already was the bottom half). The
+`entity_liquid_shape` trait method stays, documented as 26.x,
+for the collision-context fixture until T4 reworks its oracle.
+The LiquidBlock bubble side is removed: `liquid_block_changed`
+(onPlace/neighborChanged), the Liquid updateShape arm, the
+`Class::Liquid` tick arm, and both helper functions
+(`should_bubble_column_occupy`, `try_schedule_bubble_column`).
+`bubble_column_can_occupy` stays (it is updateColumn's own
+check). The Magma/SoulSand arms are untouched.
+
+T4 note: the collision-context fixture + Java oracle still
+speak the 26.x per-entity shape protocol (`liquid_shape`
+queries); the Rust no longer issues them. The oracle needs a
+1.21.11 rework; the harness is not in the recorded CI profile.
+
+Verification: literal comparison — LiquidBlock only `20` (26.1)
+vs `0.0`/`16.0`/`8.0` (1.21.11); the rest zero. `cargo check -p
+horizon-world --lib --tests`, `-p horizon-client-render --lib`,
+`-p horizon-world --example world_probe` all clean. Bubble
+tests 2 passed (the SoulSand-driven column still raises).
+rustfmt --check clean on liquid_collision.rs. Rank 2 now
+276/492 (91 changed, 185 no-change). work-items.json
+rank2.closed = 276 on 2026-11-21.
