@@ -1,7 +1,6 @@
 //! `horizon-server config`: read server.toml's settings, and change them the way the server checks them
 //! (docs/server.md, section 4). A running server takes what vanilla can change live through its console
-//! (difficulty, the default game mode, the whitelist) and through its management settings (the message of the
-//! day, the player limit) at once; the rest applies at the next start.
+//! (difficulty, the default game mode, the whitelist) at once; the rest applies at the next start.
 
 use crate::{api::Client, config, engine};
 use serde_json::{Value, json};
@@ -148,26 +147,18 @@ fn range(section: &str, field: &str) -> Option<std::ops::RangeInclusive<i64>> {
     }
 }
 
-/// The control line that applies a setting to a running game, if there is a way to: a console command, or the
-/// management setting (`serversettings/motd/set`, `serversettings/max_players/set`) that the management
-/// protocol uses; `Some("")` for the settings the supervisor itself reads every time (backups, updates).
+/// The control line that applies a setting to a running game, if there is a way to: a console command;
+/// `Some("")` for the settings the supervisor itself reads every time (backups, updates). The message of the
+/// day and the player limit have no live path in 1.21.8 — vanilla only changes them through the management
+/// protocol, which 1.21.8 does not have — so they wait for the next start.
 pub fn live_line(section: &str, field: &str, value: &toml::Value) -> Option<String> {
-    let setting = |name: &str, value: Value| {
-        let request = json!({ "method": format!("serversettings/{name}/set"), "value": value });
-        // Connection 0: no RPC client made this change, the command line did.
-        Some(format!("management 0 {request}"))
-    };
-    match (section, field, value) {
-        ("server", "motd", toml::Value::String(text)) => setting("motd", json!(text)),
-        ("server", "max_players", toml::Value::Integer(n)) => setting("max_players", json!(n)),
-        _ => live_command(section, field, value).map(|line| {
-            if line.is_empty() {
-                line
-            } else {
-                format!("console {line}")
-            }
-        }),
-    }
+    live_command(section, field, value).map(|line| {
+        if line.is_empty() {
+            line
+        } else {
+            format!("console {line}")
+        }
+    })
 }
 
 /// Sends the running game one control line on its endpoint, and says whether it took it.
@@ -257,7 +248,6 @@ pub fn changeable_remotely(key: &str) -> bool {
     !matches!(section, "engine" | "panel" | "api" | "discord")
         && !(section == "properties"
             && (field.starts_with("rcon.")
-                || field.starts_with("management-server-")
                 || matches!(field, "enable-rcon" | "enable-query" | "query.port")))
 }
 
@@ -350,15 +340,13 @@ mod tests {
     }
 
     #[test]
-    fn the_message_and_the_player_limit_go_to_the_management_settings() {
+    fn the_message_and_the_player_limit_wait_for_the_next_start() {
         let s = |v: &str| toml::Value::String(v.into());
+        // 1.21.8 has no management protocol, so vanilla has no live path for them.
+        assert_eq!(live_line("server", "motd", &s("Friends only")), None);
         assert_eq!(
-            live_line("server", "motd", &s("Friends \"only\"")).as_deref(),
-            Some(r#"management 0 {"method":"serversettings/motd/set","value":"Friends \"only\""}"#)
-        );
-        assert_eq!(
-            live_line("server", "max_players", &toml::Value::Integer(8)).as_deref(),
-            Some(r#"management 0 {"method":"serversettings/max_players/set","value":8}"#)
+            live_line("server", "max_players", &toml::Value::Integer(8)),
+            None
         );
         // The console ones keep their command, the supervisor's own settings need none.
         assert_eq!(
@@ -386,6 +374,7 @@ mod tests {
         let outcome = apply(
             &dir,
             &[
+                "world.difficulty=hard",
                 "server.motd=Back at noon",
                 "server.max_players=5",
                 "server.view_distance=9",
@@ -393,20 +382,25 @@ mod tests {
             Some(&game),
         )
         .unwrap();
-        assert_eq!(outcome.applied, ["server.motd", "server.max_players"]);
-        assert_eq!(outcome.restart, ["server.view_distance"]);
+        assert_eq!(outcome.applied, ["world.difficulty"]);
         assert_eq!(
-            *sent.borrow(),
+            outcome.restart,
             [
-                r#"management 0 {"method":"serversettings/motd/set","value":"Back at noon"}"#,
-                r#"management 0 {"method":"serversettings/max_players/set","value":5}"#,
+                "server.motd",
+                "server.max_players",
+                "server.view_distance"
             ]
         );
+        assert_eq!(*sent.borrow(), ["console difficulty hard"]);
         // The same values again change nothing, so nothing is sent.
         sent.borrow_mut().clear();
         let outcome = apply(
             &dir,
-            &["server.motd=Back at noon", "server.max_players=5"],
+            &[
+                "world.difficulty=hard",
+                "server.motd=Back at noon",
+                "server.max_players=5",
+            ],
             Some(&game),
         )
         .unwrap();
@@ -414,8 +408,8 @@ mod tests {
         assert!(sent.borrow().is_empty());
         // A game that refuses leaves the setting for the next start.
         let refuses = |_: &str| false;
-        let outcome = apply(&dir, &["server.motd=Closed"], Some(&refuses)).unwrap();
-        assert_eq!(outcome.restart, ["server.motd"]);
+        let outcome = apply(&dir, &["world.difficulty=peaceful"], Some(&refuses)).unwrap();
+        assert_eq!(outcome.restart, ["world.difficulty"]);
         let _ = std::fs::remove_dir_all(&dir);
     }
 

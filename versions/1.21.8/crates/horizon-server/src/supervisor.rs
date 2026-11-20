@@ -195,13 +195,6 @@ pub fn run(dir: &Path) -> Result<(), String> {
     let _lock = lock(dir)?;
     let shared = Shared::new(dir);
     let _endpoint = api::start(shared.clone())?;
-    if let Some(address) = crate::management::start(shared.clone())? {
-        note(
-            &shared,
-            "INFO",
-            &format!("Json-RPC Management connection listening on {address}"),
-        );
-    }
     crate::rcon::start(shared.clone())?;
     crate::query::start(shared.clone())?;
     match config.panel.address() {
@@ -604,14 +597,7 @@ fn pump(shared: &Arc<Shared>, from: impl Read + Send + 'static, to_stderr: bool)
                         };
                         if up {
                             shared.emit("phase", serde_json::json!({ "phase": "running" }));
-                            crate::management::started(&shared);
                         }
-                    } else if line.contains("/INFO]: Stopping server")
-                        || line.contains("/INFO]: Stopping in ")
-                    {
-                        // The game's own `stop` (a command in the game, not the supervisor's), or the
-                        // start of the wait `[transfer]` makes before it, so a proxy hears of it then.
-                        crate::management::stopping(&shared);
                     }
                 }
                 shared.log_line(line);
@@ -767,7 +753,6 @@ fn supervise(
             if command == "stop" && stopping.is_none() {
                 stopping = Some(Instant::now());
                 shared.set_phase(Phase::Stopping);
-                crate::management::stopping(shared);
             }
             if let Some(input) = stdin.as_mut()
                 && writeln!(input, "{line}")
@@ -789,7 +774,6 @@ fn supervise(
             note(shared, "INFO", "Restarting the server");
             stopping = Some(Instant::now());
             shared.set_phase(Phase::Restarting);
-            crate::management::stopping(shared);
             send_stop(&mut stdin);
         }
         if asked {
@@ -798,7 +782,6 @@ fn supervise(
                 note(shared, "INFO", "Stopping the server");
                 stopping = Some(Instant::now());
                 shared.set_phase(Phase::Stopping);
-                crate::management::stopping(shared);
                 send_stop(&mut stdin);
             } else {
                 note(shared, "WARN", "Stopping the game at once, without saving");
@@ -1110,17 +1093,15 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn a_management_stop_ends_the_supervisor_and_a_stop_in_game_keeps_it() {
+    fn an_api_stop_ends_the_supervisor_and_a_stop_in_game_keeps_it() {
         let dir = std::env::temp_dir().join(format!("horizon-server-stop-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let (_console, console) = mpsc::channel();
-        let stop = |shared: &Shared| {
-            let answer =
-                crate::management_methods::call(shared, 1, "server/stop", &serde_json::Value::Null);
-            assert_eq!(answer.ok(), Some(json!(true)));
-        };
+        // The API's stop (`POST /api/v1/stop`, `Shared::shut_down`): the game saves and stops, then the
+        // supervisor exits.
+        let stop = |shared: &Shared| shared.shut_down();
 
-        // vanilla's `server/stop`: the game saves and stops, then the process exits.
+        // The API's stop: the game saves and stops, then the process exits.
         let shared = Shared::with_install(&dir, None);
         let mut child = game("read line && [ \"$line\" = stop ]");
         let asked = {

@@ -35,7 +35,6 @@ use std::{
 };
 
 pub(super) mod events;
-mod management;
 mod predicate_graph;
 mod report;
 mod status;
@@ -824,10 +823,6 @@ struct ServerState {
     /// View and simulation distance, and the player limit, for the report.
     view: (u32, u32),
     max_players: usize,
-    /// The mutable `gamemode` server property (`DedicatedServer.gameMode`).
-    game_mode: i32,
-    /// The mutable `force-gamemode` server property (`DedicatedServer.forceGameMode`).
-    force_game_mode: bool,
 }
 
 /// `SaveAllCommand.saveAll`'s reply to its source: `commands.save.success` when
@@ -1104,8 +1099,7 @@ impl Game<'_> {
         self.prepare_levels()?;
         let gate_lists = lists.clone();
         let gate: LoginGate = Arc::new(move |address, uuid, name| {
-            // `ServerActivityMonitor.reportLoginActivity`: a login attempt, however it ends. The management
-            // protocol's `server/activity` notification is rate limited from these.
+            // `ServerActivityMonitor.reportLoginActivity`: a login attempt, however it ends.
             events::record_server("login_activity", serde_json::json!({}));
             let user = NameAndId {
                 id: uuid,
@@ -1302,8 +1296,6 @@ impl Game<'_> {
             broadcast_console: props.broadcast_console_to_ops,
             broadcast_rcon: props.broadcast_rcon_to_ops,
             op_level: props.op_permission_level,
-            game_mode: props.game_mode,
-            force_game_mode: props.force_game_mode,
             report: None,
             view: (
                 props.view_distance.clamp(2, 32) as u32,
@@ -1339,7 +1331,7 @@ impl Game<'_> {
                 break;
             }
             let players = self.lan.as_ref().map_or(0, |h| h.hub.guests.len());
-            // Vanilla reads pauseWhenEmptySeconds on every tick, so management changes take effect
+            // Vanilla reads pauseWhenEmptySeconds on every tick, so a changed value takes effect
             // without restarting the server.
             let pause_after = state.pause_when_empty_seconds.wrapping_mul(20);
             if pause_after > 0 {
@@ -2220,39 +2212,6 @@ impl Game<'_> {
     pub(super) fn set_player_idle_timeout(&mut self, lists: &Arc<Mutex<Lists>>, minutes: i32) {
         lists.lock().unwrap().player_idle_timeout = minutes;
         self.store_property("player-idle-timeout", minutes.to_string());
-    }
-
-    /// `DedicatedServer.setMaxPlayers`: the live login limit, and `max-players` in
-    /// server.properties.
-    fn set_max_players(&mut self, state: &mut ServerState, max_players: usize) {
-        state.max_players = max_players;
-        if let Some(lan) = &self.lan {
-            lan.hub.lan.shared.set_max_players(max_players);
-        }
-        self.store_property("max-players", max_players.to_string());
-    }
-
-    /// `DedicatedServer.setAcceptsTransfers`: whether a transfer's handshake is accepted from
-    /// now on, and `accepts-transfers` in server.properties.
-    fn set_accepts_transfers(&mut self, accept: bool) {
-        if let Some(lan) = &self.lan {
-            lan.hub.lan.shared.set_accepts_transfers(accept);
-        }
-        self.store_property("accepts-transfers", accept.to_string());
-    }
-
-    /// `DedicatedServer.setEnforceWhitelist`: the flag, and `enforce-whitelist` in
-    /// server.properties.
-    pub(super) fn set_enforce_whitelist(&mut self, lists: &Arc<Mutex<Lists>>, on: bool) {
-        lists.lock().unwrap().enforce_whitelist = on;
-        self.store_property("enforce-whitelist", on.to_string());
-    }
-
-    /// `DedicatedServer.setPauseWhenEmptySeconds`: the live pause timer, and
-    /// `pause-when-empty-seconds` in server.properties.
-    fn set_pause_when_empty_seconds(&mut self, state: &mut ServerState, seconds: i32) {
-        state.pause_when_empty_seconds = seconds;
-        self.store_property("pause-when-empty-seconds", seconds.to_string());
     }
 
     /// DedicatedServerSettings.update: change one key and store the file.

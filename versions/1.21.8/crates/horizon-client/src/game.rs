@@ -9049,8 +9049,8 @@ impl Game<'_> {
         if self.remote.is_some() {
             return Ok(());
         }
-        // `DedicatedServer.saveAllChunks` tells the management protocol's clients when a save starts and when
-        // it ends without failing, for every save: the command, the autosave, the pause.
+        // `DedicatedServer.saveAllChunks`: a dedicated server records when a save starts and when it ends
+        // without failing, for every save: the command, the autosave, the pause.
         let dedicated = self.options.dedicated.is_some();
         if dedicated {
             dedicated::events::record_server("saving", serde_json::json!({}));

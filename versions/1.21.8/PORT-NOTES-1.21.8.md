@@ -1128,10 +1128,9 @@ includes constant-pool churn.
   gamerules (item 253). The 1.21.9-only
   `enable-code-of-conduct` is removed. The management-server
   keys (8 fields), `status-heartbeat-interval` and
-  `generate_secret_key` STAY, marked 1.21.9-only: the JSON-RPC
-  management server (horizon-server's management module)
-  still reads them, and its removal belongs to items
-  365/370/423/453/463/483/484. `Settings.getMutable(String,
+  `generate_secret_key` were removed with items
+  365/370/423/453/483/484 (the JSON-RPC management server is
+  gone; stored line count 74 → 65). `Settings.getMutable(String,
   String)` is 1.21.9-only; the Rust's Reader `string()` is the
   same read path. Pre-existing divergence, not a delta: the
   Rust's `white-list` default is `true` but both Java versions
@@ -7113,8 +7112,8 @@ includes constant-pool churn.
     `.notInPeaceful()` (entities item); the datafix file fixer's
     `world_border.dat` code is inert here (file fixes gate at
     `version <= CURRENT` = 4440, the border fixes are 4772+ —
-    datafix item's scope). The JSON-RPC management server is
-    Horizon-only tooling, left alone.
+    datafix item's scope). The JSON-RPC management server has
+    since been removed (items 365/370/423/453/483/484).
 
 - **Item 12 — `motion.rs` (3 classes, 61 named methods, 840 diff
   lines):** ten fixes.
@@ -7341,7 +7340,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 149/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–462 + 464–480 + 124 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–462, 464–473, 475–480)
+### Rank 3: 163/163 (327–489 + 132 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–419, 421, 422, 424, 426–439, 441–447, 449, 450, 452, 454–460, 462, 463–473, 475–482, 485–489)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7578,13 +7577,55 @@ includes constant-pool churn.
   jigsaw `doneButton.active` guard in both), and the
   name-character validation (same logic, different input-event
   API).
-- **Items 365/370 deferred — the JSON-RPC management server:**
-  jar-verified absent from 1.21.8 (0 `jsonrpc` classes in the
-  server jar vs 106 in 1.21.9). Removing the Rust's server
-  (`management.rs` + methods + schema + TLS) and the client's
-  `dedicated/management.rs` is one coordinated job with items
-  423, 453, 463, 483 and 484; it lands when item 484 is reached,
-  and all seven close together.
+- **Item 365 — the client's management endpoint is removed:**
+  1.21.8 has no `net.minecraft.server.jsonrpc` (0 classes in the
+  server jar vs 106 in 1.21.9). Deleted
+  `game/dedicated/management.rs` (867 lines: the `management
+  <connection> <json>` control-endpoint handler — list edits,
+  gamerule updates, server/activity) and the `management` arm
+  from the control endpoint in `status.rs`. The lists themselves
+  stay (vanilla's console commands edit them); the event stream
+  still carries join/leave/save events.
+- **Item 370 — the supervisor's management server is removed:**
+  deleted `management.rs` (1211 lines: the WebSocket JSON-RPC
+  server, authentication, notifications), `websocket.rs` (its
+  only user), the `Shared.management` clients field, and the
+  `management::start/started/stopping/game_event` calls in
+  supervisor.rs/events.rs. The supervisor stop test now drives
+  `Shared::shut_down()` (the API stop path — the same flags
+  `server/stop` set).
+- **Item 423 — the management methods are removed:** deleted
+  `management_methods.rs` (1452 lines: players, players/kick,
+  server/{status,save,stop,system_message}, the four lists,
+  gamerules, serversettings), plus `StoredUserList::clear` and
+  `profiles::find_by_id`, which only the methods used. The
+  serversettings setters they alone called (`Game`'s
+  set_max_players/set_accepts_transfers/set_enforce_whitelist/
+  set_pause_when_empty_seconds and the seven lan.rs live-setting
+  wrappers) and the unread `ServerState.game_mode` /
+  `force_game_mode` fields went with them. `config
+  set` motd/max-players now wait for the next start — no live
+  path in 1.21.8 (vanilla only changes them through the
+  management protocol).
+- **Item 453 — the management schema is removed:** deleted
+  `management_schema.rs` (the OpenRPC document for
+  `rpc.discover`), the `tools/test_management_protocol_parity.py`
+  parity script and `tests/test_management_protocol.py`.
+- **Item 483 — `SecurityConfig` is removed:** deleted
+  `generate_secret_key` (its `SecurityConfig.generateSecretKey`)
+  and the 8 `management-server-*` properties fields plus
+  `status-heartbeat-interval` from `ServerProperties` (stored
+  line count 74 → 65 — the old 71 assertion was already stale
+  at HEAD); the probe's expectations and the parity
+  fixtures updated.
+- **Item 484 — `JsonRpcSslContextProvider` is removed:**
+  deleted `management_tls.rs` (rustls + the PKCS12 keystore,
+  including the self-signed keystore generation) and the five
+  management-only Cargo deps (rustls, sha1, base64,
+  p12-keystore, rcgen). Docs: the management-protocol bullet in
+  docs/server.md, the hosting.md section and the api/server.md
+  entries are gone. Zero-diff: item 463 (pack_browser.rs has no
+  jsonrpc/RPC/management surface).
 - **Item 392 — `crates/horizon-client/src/game/commands/world_cmds.rs`
   (RideCommand, RotateCommand), `/rotate` resolves against the
   source:** `Coordinates.getRotation` resolves relative parts

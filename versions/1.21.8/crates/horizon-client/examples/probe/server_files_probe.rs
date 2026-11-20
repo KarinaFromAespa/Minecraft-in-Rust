@@ -48,10 +48,6 @@ fn lines(text: &str) -> Vec<String> {
 fn latin1(bytes: &[u8]) -> String {
     bytes.iter().map(|&b| char::from(b)).collect()
 }
-fn has_key(text: &str, key: &str) -> bool {
-    text.split('\n')
-        .any(|l| l.trim_matches(|c: char| c <= ' ').starts_with(key))
-}
 
 fn work(dir: &Path) -> std::io::Result<std::path::PathBuf> {
     let w = std::env::temp_dir().join(format!(
@@ -72,12 +68,9 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
     let w = work(dir)?;
     let props = w.join("server.properties");
     if dir.join("server.properties").exists() || dir.join("properties.default").exists() {
-        let before = std::fs::read(&props)
-            .map(|b| latin1(&b))
-            .unwrap_or_default();
         match ServerProperties::from_file(&props, &mut SystemEntropy::default()) {
             Ok(p) => {
-                print_properties(&p, &before, out)?;
+                print_properties(&p, out)?;
                 p.store(&props)?;
                 writeln!(out, "stored:")?;
                 for (i, line) in lines(&std::fs::read_to_string(&props)?)
@@ -86,10 +79,6 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
                 {
                     let line = if i == 1 && line.starts_with('#') {
                         "#DATE".to_owned()
-                    } else if line.starts_with("management-server-secret=")
-                        && !has_key(&before, "management-server-secret")
-                    {
-                        "management-server-secret=<random>".to_owned()
                     } else {
                         line
                     };
@@ -243,12 +232,7 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std::fmt::Result {
-    let secret = if has_key(before, "management-server-secret") {
-        p.management_server_secret.clone()
-    } else {
-        "<random>".into()
-    };
+fn print_properties(p: &ServerProperties, out: &mut String) -> std::fmt::Result {
     let pack = p.resource_pack.as_ref().map_or_else(
         || "none".to_owned(),
         |i| {
@@ -280,34 +264,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
         ("gamemode", GAME_MODES[p.game_mode as usize].to_owned()),
         ("level-name", p.level_name.clone()),
         ("server-port", p.server_port.to_string()),
-        // 1.21.9-only management-server keys (items 370/423/453/483/484 own
-        // their removal; horizon-server's management module still reads them).
-        (
-            "management-server-enabled",
-            p.management_server_enabled.to_string(),
-        ),
-        ("management-server-host", p.management_server_host.clone()),
-        (
-            "management-server-port",
-            p.management_server_port.to_string(),
-        ),
-        ("management-server-secret", secret),
-        (
-            "management-server-tls-enabled",
-            p.management_server_tls_enabled.to_string(),
-        ),
-        (
-            "management-server-tls-keystore",
-            p.management_server_tls_keystore.clone(),
-        ),
-        (
-            "management-server-tls-keystore-password",
-            p.management_server_tls_keystore_password.clone(),
-        ),
-        (
-            "management-server-allowed-origins",
-            p.management_server_allowed_origins.clone(),
-        ),
         (
             "announce-player-achievements",
             opt_bool(p.announce_player_achievements),
@@ -370,10 +326,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.text_filtering_version.to_string(),
         ),
         ("player-idle-timeout", p.player_idle_timeout.to_string()),
-        (
-            "status-heartbeat-interval",
-            p.status_heartbeat_interval.to_string(),
-        ),
         ("white-list", p.white_list.to_string()),
         (
             "enforce-secure-profile",

@@ -464,42 +464,6 @@ and a player is always named by their account's name (a nickname only next to it
 the API and the panel show the webhook as `(set)`. The letters are Pixelify Sans (SIL Open Font License,
 `crates/horizon-theme/fonts`), not Minecraft's font.
 
-### Tools written for vanilla's management protocol
-
-Vanilla 26.3 has its own management protocol, JSON-RPC over a WebSocket, and Horizon's server speaks it too, so a
-tool written for a vanilla server manages a Horizon one. It's off by default; turn it on in `server.toml`:
-
-```toml
-[properties]
-management-server-enabled = true
-management-server-port = 8132          # 0: a free port, logged at the start
-# management-server-secret: 40 letters and digits; left out, the server makes one and writes it here
-# management-server-tls-keystore = "management.p12"   # your certificate (PKCS12); left out, see below
-# management-server-tls-keystore-password = "..."     # or MINECRAFT_MANAGEMENT_TLS_KEYSTORE_PASSWORD
-```
-
-It listens on `localhost` (`management-server-host`). A client sends the secret as `Authorization: Bearer <secret>`,
-or, from a browser, in the WebSocket subprotocol (`minecraft-v1,<secret>`) from an origin listed in
-`management-server-allowed-origins`. `rpc.discover` lists the methods; Horizon answers more of them with each release
-([api/server.md](api/server.md#not-there-yet)).
-
-TLS is on, as in vanilla (`wss://`). The certificate and its key come from a PKCS12 keystore, as vanilla's do:
-
-- `keytool -genkeypair -storetype PKCS12 ...` makes one, or `openssl pkcs12 -export` turns a PEM certificate and
-  key into one.
-- Its password comes from the `MINECRAFT_MANAGEMENT_TLS_KEYSTORE_PASSWORD` variable, else from
-  `management-server-tls-keystore-password`.
-
-Where vanilla refuses to start without a keystore, Horizon makes one:
-
-- a self-signed certificate for `localhost`, `127.0.0.1` and `management-server-host`, saved in
-  `.horizon/management-keystore.p12`, which only the server's user can read;
-- its path and password are written to `[properties]`;
-- each start logs the certificate's SHA-256 fingerprint, which a client pins or adds to its trusted certificates.
-
-Keep the protocol on `localhost` or your tailnet even so. `management-server-tls-enabled = false` turns TLS off.
-As in vanilla, a wrong secret or keystore stops the server from starting.
-
 ### Tools that speak RCON
 
 Hosting panels, Discord bridges and scripts often run commands through RCON, vanilla's remote console, and Horizon's

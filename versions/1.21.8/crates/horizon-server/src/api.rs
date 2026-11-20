@@ -264,7 +264,7 @@ pub const ROUTES: [Route; 32] = [
         path: "/api/v1/config",
         takes: "`{\"changes\": {\"world.difficulty\": \"hard\", ...}}`",
         answers: "`saved`, `applied` (taken by the running game at once), `restart` (from the next start), `running`",
-        what: "Change settings as `config set` does; not `engine.*`, `panel.*`, `api.*`, nor RCON, query or management keys",
+        what: "Change settings as `config set` does; not `engine.*`, `panel.*`, `api.*`, nor RCON or query keys",
     },
     Route {
         method: "POST",
@@ -280,7 +280,7 @@ pub const ROUTES: [Route; 32] = [
 pub enum Phase {
     Starting,
     Running,
-    /// The supervisor stays alive after the game stops so local management can edit its files.
+    /// The supervisor stays alive after the game stops so the operator can edit its files while it is stopped.
     Stopped,
     Stopping,
     /// Stopping the game to start it again (`restart`), or waiting to after a crash.
@@ -376,8 +376,6 @@ pub struct Shared {
     /// The event stream's events (events.rs), and the streams' wake-up.
     pub events: Mutex<crate::events::Events>,
     pub event_added: std::sync::Condvar,
-    /// The management protocol's connections, which its notifications go to (management.rs).
-    pub management: crate::management::Clients,
 }
 
 impl Shared {
@@ -409,7 +407,6 @@ impl Shared {
             update: Mutex::new(Updates::default()),
             events: Mutex::default(),
             event_added: std::sync::Condvar::new(),
-            management: crate::management::Clients::default(),
         })
     }
 
@@ -502,9 +499,8 @@ impl Shared {
     pub(crate) fn phase(&self) -> Phase {
         self.state.lock().unwrap().phase
     }
-    /// Stops the game and then the supervisor itself (`POST /api/v1/stop`, the management `server/stop`): the
-    /// process exits, as vanilla's does. Only a `stop` that reaches the game some other way leaves the supervisor
-    /// in [`Phase::Stopped`].
+    /// Stops the game and then the supervisor itself (`POST /api/v1/stop`): the process exits, as vanilla's
+    /// does. Only a `stop` that reaches the game some other way leaves the supervisor in [`Phase::Stopped`].
     pub fn shut_down(&self) {
         self.shutdown.store(true, Ordering::SeqCst);
         self.stop.store(true, Ordering::SeqCst);

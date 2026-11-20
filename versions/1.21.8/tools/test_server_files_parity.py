@@ -8,7 +8,7 @@ ops.json, whitelist.json, banned-players.json and banned-ips.json through
 StoredUserList (Gson, Java HashMap order, ban dates, expiry, scripted adds and
 removals). VanillaServerFilesOracle runs on the pinned server JAR, the
 `server_files_probe` example on Horizon's port; the outputs must be identical.
-Random defaults (the management secret, an empty level seed) and the stored
+Random defaults (an empty level seed) and the stored
 timestamps are placeholders on both sides."""
 import os
 from pathlib import Path
@@ -34,14 +34,14 @@ def properties_cases():
     yield 'props-empty', b''
     yield 'props-vanilla-defaults', (
         b'#Minecraft server properties\n#Mon Oct 12 15:20:50 GMT 2026\n'
-        b'level-type=minecraft\\:normal\nmotd=A Minecraft Server\nmanagement-server-secret=abc\n')
+        b'level-type=minecraft\\:normal\nmotd=A Minecraft Server\n')
     yield 'props-numbers', '\n'.join([
         'difficulty=3', 'gamemode=1', 'server-port=+25570', 'max-players=-5', 'view-distance= 12',
         'simulation-distance=99999999999', 'max-tick-time=-1', 'spawn-protection=abc', 'rate-limit=',
         'max-world-size=0', 'op-permission-level=9', 'function-permission-level=-3',
         'network-compression-threshold=-1', 'entity-broadcast-range-percentage=5000',
         'player-idle-timeout=30', 'pause-when-empty-seconds=-1', 'query.port=25599', 'rcon.port=1',
-        'text-filtering-version=2', 'management-server-port=8080']).encode()
+        'text-filtering-version=2']).encode()
     yield 'props-names', '\n'.join([
         'difficulty=hard', 'gamemode=spectator', 'online-mode=FALSE', 'white-list=yes',
         'enforce-whitelist=True', 'hardcore=tRuE', 'allow-flight=1', 'level-type=FLAT',

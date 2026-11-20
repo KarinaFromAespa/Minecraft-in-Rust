@@ -424,20 +424,6 @@ impl<E: Entry> UserList<E> {
             self.told(Change::Removed(entry));
         }
     }
-    /// No 1.21.8 counterpart: StoredUserList has no clear, and neither do
-    /// the lists. A Rust-side helper for the management API's list-clear
-    /// endpoints (item 370 owns that server): no entry left; saves; the
-    /// watcher is told once per entry, as 1.21.9's subclass overrides did.
-    pub fn clear(&mut self) {
-        let entries: Vec<E> = self.map.entries().map(|(_, e)| e.clone()).collect();
-        for entry in entries {
-            self.told(Change::Removed(entry));
-        }
-        self.map.clear();
-        if let Err(e) = self.save() {
-            log::warn!("Could not save the list after removing a user. {e}");
-        }
-    }
     pub fn to_json(&self) -> String {
         let items = self
             .map
@@ -554,8 +540,8 @@ mod tests {
         ops.remove(&NameAndId::offline("Nobody"));
         assert!(ops.contains(&NameAndId::offline("Kim")));
         ops.remove(&NameAndId::offline("Kim"));
-        // A clear says it for each entry that is left, and the list is empty after.
-        ops.clear();
+        // Removing the last entry leaves the list empty.
+        ops.remove(&NameAndId::offline("Lee"));
         assert!(ops.is_empty());
         assert_eq!(
             *heard.lock().unwrap(),
@@ -593,23 +579,5 @@ mod tests {
             Some("griefing".into()),
         );
         assert_eq!(ban.reason, "griefing");
-    }
-
-    #[test]
-    fn a_cleared_list_saves_empty() {
-        let dir = std::env::temp_dir().join(format!("horizon-lists-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let mut white = WhiteList::new(dir.join("whitelist.json"));
-        white.add(WhiteEntry {
-            user: NameAndId::offline("Kim"),
-        });
-        assert!(white.contains(&NameAndId::offline("Kim")));
-        white.clear();
-        assert!(white.is_empty());
-        assert_eq!(
-            std::fs::read_to_string(dir.join("whitelist.json")).unwrap(),
-            "[]"
-        );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 }

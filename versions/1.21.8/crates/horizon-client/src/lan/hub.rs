@@ -479,7 +479,7 @@ pub fn display_name(uuid: u128, name: &str) -> Tag {
 }
 
 /// `ChunkMap.getPlayerViewDistance`: `Mth.clamp(requested, 2, server)` (Java's max then min
-/// order also handles a management value below two without panicking when the bounds cross),
+/// order also handles a server value below two without panicking when the bounds cross),
 /// under a native mod's limit for the player.
 fn guest_view(requested: i8, server: i32, limit: Option<i32>) -> i32 {
     i32::from(requested)

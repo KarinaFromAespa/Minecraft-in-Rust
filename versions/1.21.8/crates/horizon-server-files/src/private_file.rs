@@ -1,5 +1,5 @@
 //! Files only their owner may read: the control API's and the game's control endpoint (each holds a
-//! token) and the management protocol's generated key. Written whole to a temporary file this
+//! token). Written whole to a temporary file this
 //! process creates with owner-only permissions, then renamed over the path, so the result never
 //! keeps an old file's wider permissions and never writes through a link left at the path.
 use std::io::{self, Write};

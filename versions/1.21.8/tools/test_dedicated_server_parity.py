@@ -298,7 +298,7 @@ def server_files(directory):
             # The second comment line is the date Properties.store wrote.
             text = re.sub(r'^(#[^\n]*\n)#[^\n]*\n', r'\1#<date>\n', text)
             # Random per server, and each side has its own port.
-            text = re.sub(r'\n(management-server-secret|server-port)=[^\n]*', r'\n\1=<varies>', text)
+            text = re.sub(r'\n(server-port)=[^\n]*', r'\n\1=<varies>', text)
         if name == 'usercache.json':
             # A month from when the player joined.
             text = re.sub(r'"expiresOn":"[^"]*"', '"expiresOn":"<a month on>"', text)

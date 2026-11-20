@@ -1797,55 +1797,6 @@ impl Game<'_> {
         }
     }
 
-    /// Update the live view distance used for player chunk tracking.
-    pub(super) fn set_view_distance(&mut self, distance: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.set_view_distance(distance);
-        }
-    }
-
-    /// Update the live spawn-protection radius.
-    pub(super) fn set_spawn_protection(&mut self, radius: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.spawn_protection = radius;
-        }
-    }
-
-    /// Update the live simulation distance sent to player clients.
-    pub(super) fn set_simulation_distance(&mut self, distance: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.set_simulation_distance(distance);
-        }
-    }
-
-    /// Update the live entity tracking range percentage.
-    pub(super) fn set_entity_broadcast_range_percentage(&mut self, percentage: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.entity_range_percent = percentage;
-        }
-    }
-
-    /// Update the live movement check's flight policy.
-    pub(super) fn set_allow_flight(&mut self, allow: bool) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.config.allow_flight = allow;
-        }
-    }
-
-    /// Update whether status responses include online player names.
-    pub(super) fn set_hide_online_players(&mut self, hide: bool) {
-        if let Some(host) = self.lan.as_ref() {
-            host.hub.lan.shared.set_hide_online_players(hide);
-        }
-    }
-
-    /// Update whether the server answers connection status requests.
-    pub(super) fn set_status_replies(&mut self, enable: bool) {
-        if let Some(host) = self.lan.as_ref() {
-            host.hub.lan.shared.set_enable_status(enable);
-        }
-    }
-
     /// New command access and game mode forcing settings of the open world.
     pub(super) fn lan_apply_settings(&mut self, guest_commands: bool, force: bool) {
         if let Some(server) = &self.integrated {

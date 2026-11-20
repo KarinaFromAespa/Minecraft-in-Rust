@@ -3702,9 +3702,8 @@ impl Game<'_> {
         self.native_player_level_changed(old_level);
         true
     }
-    /// `GameRules.set` as the `/gamerule` command and the management protocol call it: the rule changes, the
-    /// world follows it, and a dedicated server tells the event stream (`MinecraftServer.onGameRuleChanged`
-    /// tells the management protocol's clients).
+    /// `GameRules.set` as the `/gamerule` command calls it: the rule changes, the world follows it, and a
+    /// dedicated server tells the event stream.
     pub(super) fn set_game_rule(&mut self, rule: &gamerules::Rule, value: Value) {
         self.ui.rules.set(rule.name, value);
         self.sync_rules();
