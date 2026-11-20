@@ -4128,3 +4128,71 @@ targets (documented approximation).
 No Rust changes; no build needed (no-change closure, item-45 precedent).
 Rank 2 now 229/492 (61 changed, 168 no-change).
 work-items.json rank2.closed = 229 on 2026-11-20.
+
+## Item 51 — crates/horizon-client/src/game/raids.rs (rank 2, CHANGED)
+
+VillageSiege (named findRandomSpawnPos, tick, trySpawn,
+tryToSetupSiege), PoiManager (named getInSquare, isVillageCenter),
+Raider (named aiStep, die, finalizeSpawn), Raids, ClockTimeMarkers
+(**26.1-only — absent in 1.21.11**), ResetRaidStatus, SetRaidStatus,
+PoiManager$DistanceTracker, PatrolSpawner (named tick),
+Raids$RaidWithId: 10 classes, 18 methods, 10 named. Three changes,
+all in raids.rs (+9/-6):
+
+1. **VillageSiege now ticks in every dimension.** In both versions
+`MinecraftServer` holds one `VillageSiege` in its custom-spawners
+list (constant-pool scan: the only referrer in both jars) and every
+`ServerLevel.tick` ticks all custom spawners — so the siege runs in
+the Nether and the End too. The gate is `!isBrightOutside() &&
+spawnEnemies`, and `isBrightOutside()` is `!hasFixedTime &&
+skyDarken < 4` (identical bytecode in both jars) — never bright
+where time is fixed. The only biome exclusion is
+`without_zombie_sieges` = `mushroom_fields` only (jar-verified in
+both versions). The Rust gated `tick_village_siege` to
+`Dim::Overworld` with a bare `sky_darken() < 4` gate; removed the
+gate and used the `isBrightOutside` formula (the same formula
+`PatrolLevel.bright_outside` already uses). The engine ticks every
+level per server tick and the siege state is per-level, so each
+dimension gets its own siege — vanilla shares one instance across
+levels (a quirk, not reproduced). Version-neutral fix under the
+item-47 precedent.
+2. **`raid_boss_at` lost its Overworld gate.** A raid can start in
+the End: `CAN_START_RAID` defaults true and the End dimension type
+carries no entry (jar-verified); only the Nether forbids raids,
+via `can_start_raid: false` — which `create_or_extend_raid`
+already honours through the attribute with no dimension gate of
+its own. An End raid could exist and tick but its boss bar was
+hidden. Version-neutral fix.
+3. **Citation fix:** the roll comment cited
+`ClockTimeMarkers.ROLL_VILLAGE_SIEGE`, a 26.1-only class. The
+1.21.11 roll is `getDayTime() % 24000 == 18000`; the Rust already
+used that form.
+
+Verified, no change: the siege roll (26.1 uses the clock marker,
+1.21.11 the day-time form — Rust already 1.21.11-shaped), setup /
+spawn / find-spawn-pos (exact mirrors, WORLD_SURFACE height),
+PatrolSpawner.tick identical in both versions with the day-5 gate
+in timeline data (`early_game.json`: `can_pillager_patrol_spawn`
+false at 0, true at 120000, modifier "and"; `#minecraft:
+in_overworld` includes `early_game` — the Rust's
+`GameplayAttributes` resolves it all), the patrol leader's
+`findPatrolTarget` before placement (target ±500 of the origin —
+the Rust reproduces it), Raider.aiStep's every-20-ticks join-raid
+logic and no-action reset (exact mirrors), the brain's
+SetRaidStatus/ResetRaidStatus 1-in-20 rolls and branches, PoiManager
+/ DistanceTracker (Rust: Chebyshev distance capped at 7;
+`village_centers` derives centres from villagers' remembered
+POIs — version-neutral), Raids codec `{raids, next_id, tick}`.
+1.21.11 adds `TYPE_END`/`getType` (`raids_end` file) and makes
+`RAID_FILE_ID` a String; no save-path change — the engine saves
+in its own `dimensions/<dim>/data/minecraft/raids.dat` layout and
+`migrate_legacy` never moves `data/` files, so vanilla raid data
+is unread either way and the per-dimension folders make
+`raids_end` unnecessary. (The data/-file migration gap is
+save/world-data scope, version-neutral.)
+
+`cargo check -p horizon-client --lib --tests --no-default-features`
+and `--bin horizon-client --tests` both clean (JOBS=1). No new
+tests; raids.rs declares a file mod, so no rustfmt run.
+Rank 2 now 230/492 (62 changed, 168 no-change).
+work-items.json rank2.closed = 230 on 2026-11-20.
