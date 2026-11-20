@@ -357,6 +357,41 @@ is the oracle; decompiled code is a reading aid.
     `level_data_of_1_20_moves_to_the_new_fields` — all assume
     26.x versions/fixes above 4325, e.g. the 4771
     difficulty-settings fix).
+- **Item 10 — entity_nbt.rs, ported:** the 3,473-line diff is
+  mostly the ghast/phantom flight rework and the happy-ghast
+  removals; three files carry Rust surface, all ported:
+  - `mobs/nether.rs` — `GhastMoveControl`: 1.21.5 accelerates
+    by a fixed 0.1 (1.21.6 reads `FLYING_SPEED * 5 / 3`, which
+    is 0.1 for a default ghast — same value, different source)
+    and `canReach` steps the box one block at a time,
+    `1..<ceil(length)>`, never checking the endpoint (1.21.6
+    sweeps the whole box at once, endpoint included).
+    `RandomFloatAround`: 1.21.5 picks one random position and
+    takes it (1.21.6 retries through
+    `getSuitableFlyToPosition`, up to 64 tries with a heightmap
+    mirror) — the code already took the first pick; the comment
+    now says so.
+  - `mobs/living.rs` — `FlyingMob.travel`: ghasts and phantoms
+    fly the friction form in 1.21.5 (drag is the ground
+    friction's when on the ground, 0.91 otherwise; ground speed
+    is the standard `0.1 * 0.16277137 / f^3`; a phantom flies at
+    0.02 in the air, not 1.21.6's 0.2), not `travelFlying`,
+    which 1.21.6 inlined into both classes. Added
+    `travel_flying_mob` (f32 arithmetic, matching the Java) and
+    dispatch Ghast/Phantom to it before the `flying` check.
+  - `mobs/leash.rs` — the plain ghast is not a quad-leash
+    holder in 1.21.5 (1.21.6 added one): removed the Ghast arm
+    from `quad_holder_offsets` and flipped the test case
+    `("horse", "ghast", true)` to false.
+  - Referrals (not this item's files): item 254
+    (`SheepRenderState` — 1.21.5's jeb phase includes
+    `+ entity id`; Rust `jeb_wool_rgb` takes only age), item 83
+    (leash system — 1.21.5 `LEASH_TOO_FAR_DIST` 10.0 vs Rust
+    SNAP 12.0), item 211 (`ColorLerper`, gone in 1.21.5).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (9m55s); full
+    workspace check 0/0 (12m29s, item-8 state, before these
+    edits — the client check above covers them).
 
 ## What remains, by cause
 

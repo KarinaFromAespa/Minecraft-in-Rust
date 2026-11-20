@@ -1477,6 +1477,15 @@ impl Mob {
         if super::ai::custom_travel(self, w, input, events) {
             return;
         }
+        // `FlyingMob.travel` (1.21.5): ghasts and phantoms fly the friction
+        // form, not `travelFlying` — 1.21.6 inlined `travelFlying` into
+        // both classes instead.
+        if matches!(
+            self.species(),
+            super::Species::Ghast | super::Species::Phantom
+        ) {
+            return self.travel_flying_mob(w, input, events);
+        }
         if self.kind.flags.flying {
             return self.travel_flying(w, input, events);
         }
@@ -1535,6 +1544,36 @@ impl Mob {
                 }
                 self.damage(damage, super::Damage::of(super::DamageKind::FlyIntoWall));
             }
+        }
+    }
+    /// `FlyingMob.travel`: the 1.21.5 flight of ghasts and phantoms. The
+    /// fluid branches match `travelFlying`; in air the drag is the ground
+    /// friction's when on the ground (0.91 otherwise) and the relative
+    /// speed on the ground is the standard 0.1 * 0.16277137 / f^3 — and a
+    /// phantom flies at 0.02 in the air, not 1.21.6's 0.2.
+    fn travel_flying_mob(&mut self, w: &MobWorld, input: Vec3, events: &mut Vec<MobEvent>) {
+        if self.fluids.in_water {
+            self.move_relative(0.02, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(f64::from(0.8_f32));
+        } else if self.fluids.in_lava {
+            self.move_relative(0.02, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(0.5);
+        } else {
+            let drag: f32 = if self.on_ground {
+                self.block_friction(w) * 0.91
+            } else {
+                0.91
+            };
+            let speed: f32 = if self.on_ground {
+                0.1 * 0.16277137 / (drag * drag * drag)
+            } else {
+                0.02
+            };
+            self.move_relative(speed, input);
+            self.do_move(w, events);
+            self.velocity = self.velocity.scale(f64::from(drag));
         }
     }
     /// LivingEntity.travelFlying: no gravity, `0.91F` drag in the air,

@@ -662,7 +662,8 @@ pub fn boat_quad_leash_offsets() -> [[f64; 3]; 4] {
     create_quad_leash_offsets(1.375, 0.5625, 0.0, 0.64, 0.382, 0.88)
 }
 /// `Entity.supportQuadLeashAsHolder` and `getQuadLeashHolderOffsets`: the
-/// `Ghast` family holds a quad lead, the happy ghast at its own points.
+/// happy ghast holds a quad lead at its own points. 1.21.5 has no quad-leash
+/// holder on the plain ghast; 1.21.6 added one.
 pub fn quad_holder_offsets(m: &Mob) -> Option<[[f64; 3]; 4]> {
     match m.species() {
         Species::HappyGhast => Some(create_quad_leash_offsets(
@@ -672,14 +673,6 @@ pub fn quad_holder_offsets(m: &Mob) -> Option<[[f64; 3]; 4]> {
             0.4375,
             0.46875,
             0.03125,
-        )),
-        Species::Ghast => Some(create_quad_leash_offsets(
-            m.width(),
-            m.height(),
-            0.0,
-            0.5,
-            0.5,
-            0.0,
         )),
         _ => None,
     }
@@ -797,7 +790,7 @@ mod tests {
         let ran = crate::mobs::world::with_test_world(&[], |world, types| {
             for (kind, holder_kind, quad) in [
                 ("horse", "happy_ghast", true),
-                ("horse", "ghast", true),
+                ("horse", "ghast", false),
                 ("horse", "cow", false),
                 ("llama", "happy_ghast", false),
             ] {
