@@ -1120,7 +1120,8 @@ impl StationRecipes {
         if base.is_empty() || addition.is_empty() {
             return None;
         }
-        // applyDemoTransformation: up to 256 draws, the first that isn't empty.
+        // `SmithingTrimDemoSlotDisplay.resolve`: up to 256 draws, the first
+        // that isn't empty (26.1 factored this into `applyDemoTransformation`).
         (0..256).find_map(|_| {
             let base = ItemStack::new(&base[pick(base.len())], 1);
             let material = ItemStack::new(&addition[pick(addition.len())], 1);

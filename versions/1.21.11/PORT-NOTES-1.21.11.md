@@ -7088,3 +7088,57 @@ Verification: literal comparison — all zero except KelpBlock's
 horizon-client --lib` clean. Rank 2 now 274/492 (90 changed,
 184 no-change). work-items.json rank2.closed = 274 on
 2026-11-21.
+
+## Item 96 — game/recipe_book.rs (rank 2, NO-CHANGE + citations)
+
+7 classes, 25 methods, 4 named: GhostSlots (+ GhostSlot),
+OverlayRecipeComponent$OverlayRecipeButton (+ Pos),
+RecipeBookComponent, RecipeBookTabButton,
+SlotDisplay$SmithingTrimDemoSlotDisplay.
+
+Java delta, jar-verified: the recipe-book screens differ only
+by the `extract*` -> `render*` rename (`extractRenderState` ->
+`render`, `extractTooltip` -> `renderTooltip`,
+`extractGhostRecipe` -> `renderGhostRecipe`, `extractContents`
+-> `renderContents`, `extractIcon` -> `renderIcon`,
+`GuiGraphicsExtractor` -> `GuiGraphics`; `fakeItem` ->
+`renderFakeItem`, `item` -> `renderItem`, `itemDecorations` ->
+`renderItemDecorations`) plus visibility + requireNonNull
+noise. `RecipeBookComponent.preeditUpdated` (IME pre-edit) is
+26.1-only. The trim demo `resolve` is the same algorithm
+inlined: 26.1's `applyDemoTransformation` helper and 1.21.11's
+inlined form both do ForStacks-only, empty-if-either-side-empty,
+256 random-pair draws, filter non-empty, limit 16 (1.21.11 adds
+the registries-provider requirement for `applyTrim` and seeds
+via `RandomSource.create` instead of `createThreadLocalInstance`).
+
+Verified matching: `stations.rs::trim_demo` (256 draws, first
+non-empty) matches `resolveForFirstStack` in both versions; the
+toast is its only caller. `preeditUpdated` is already 1.21.11
+(`game/ime.rs` notes `PreeditEvent` is 26.x).
+
+Citation fixes: `extractRenderState`/`extractTooltip` ->
+`render`/`renderTooltip` in recipe_book.rs (4 spots) and
+recipe_book_screen.rs (module doc + 4 spots, including
+RecipeBookPage — verified by this item's own diff);
+stations.rs `applyDemoTransformation` -> 1.21.11's inlined
+`resolve`.
+
+Referrals: the outer SlotDisplay + its other inner types are
+items 30 (DyedSlotDemo, CLOSED), 147, 350. Found here: 1.21.11
+has only 10 SlotDisplay inner classes vs 26.1's 13 —
+`DyedSlotDemo`, `OnlyWithComponent`, `WithAnyPotion` are
+26.1-only, but the Rust's enum still carries all three and the
+wire codec reads them by varint id; whether
+`adapter::ids::slot_display` is correct for 1.21.11's registry
+order is the codec-rewire carry-forward (item 350's audit).
+Version-neutral: the demo trim's identity-hash seed is not
+mirrored (the Rust draws from a fresh entity random).
+
+Verification: literal comparison — the four screen classes
+zero; SlotDisplay (outer) only the 26.1-only codec field names.
+`cargo test -p horizon-client --lib --no-default-features
+game::recipe_book::` runs 0 tests (no test module in
+recipe_book.rs); the run compiled the lib test target cleanly.
+Rank 2 now 275/492 (90 changed, 185 no-change).
+work-items.json rank2.closed = 275 on 2026-11-21.
