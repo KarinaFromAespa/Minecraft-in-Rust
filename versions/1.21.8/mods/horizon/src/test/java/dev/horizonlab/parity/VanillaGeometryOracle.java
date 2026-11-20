@@ -107,14 +107,15 @@ public final class VanillaGeometryOracle {
                 out.printf("below-calls %d%n", calls[0]);
             }
             case "block-iterate" -> {
-                BlockPos a = in.pos(), b = in.pos(); Vec3 movement = in.vector(); int limit = in.integer();
+                BlockPos a = in.pos(), b = in.pos(); in.vector(); int limit = in.integer();
                 positions("closed", BlockPos.betweenClosed(a, b), limit);
-                positions("direction", BlockPos.betweenCornersInDirection(a, b, movement), limit);
+                // 1.21.8 has no betweenCornersInDirection to compare; the
+                // movement vector is still parsed (the corpus lines carry it).
             }
             case "box-iterate" -> {
-                AABB box = in.box(); Vec3 movement = in.vector(); int limit = in.integer();
+                AABB box = in.box(); in.vector(); int limit = in.integer();
                 positions("closed", BlockPos.betweenClosed(box), limit);
-                positions("direction", BlockPos.betweenCornersInDirection(box, movement), limit);
+                // As above: parsed, not emitted.
             }
             case "sweep" -> {
                 Vec3 start = in.vector(), end = in.vector(); AABB box = in.box(); int stop = in.integer(); int[] count = {0};

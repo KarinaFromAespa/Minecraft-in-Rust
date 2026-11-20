@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 160/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177 + 4 zero-diff)
+### Rank 2: 161/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178 + 4 zero-diff)
+
+- **Item 178 — `crates/horizon-core/src/geometry/sweep.rs`
+  (1 class, 4 methods, 1 named in Horizon), rework:**
+  `BlockGetter.forEachBlockIntersectedBetween` differs wholesale between
+  versions, and the Rust sweep was the 1.21.9 form — reworked to 1.21.8
+  (closing the referral from item 124): the tiny-movement threshold is
+  `(0.99999)^2`, not `(1e-5)^2`, so moves under ~1 block visit only the
+  final box; there is no separate start-box visit; the ray walks from
+  the final box's min corner minus the movement to the min corner (the
+  direction is derived as min − origin, not the movement itself);
+  per clipped cell the far corner is `floor(clamped + boxSize)` and the
+  box is visited in plain ascending `betweenClosed` order (not the
+  furthest-corner walk with direction-ordered iteration); the step
+  counter increments on every ray step, not only on clip hits, and the
+  walk stops past `MAX_BLOCK_ITERATIONS_ALONG_TRAVEL = 16` (visits steps
+  1..17, final box step 19 at the cap, N+1 otherwise); the final box is
+  `betweenClosed`. `furthest_corner` deleted, and the 1.21.9-only
+  `between_corners_in_direction` / `between_box_corners_in_direction`
+  iterators removed from iter.rs (`BlockBoxIter` is ascending-only now;
+  `Axis::step_order` stays — falling_block/motion/movement use it).
+  The geometry parity binary and the Java oracle drop the "direction"
+  outputs from block-iterate/box-iterate (both still parse the vector;
+  the oracle could not compile against the 1.21.8 jar with the
+  `betweenCornersInDirection` calls); the test driver's scope string
+  follows. The sweep's step numbering now matches what the callers
+  already assumed (arrows.rs/block_contact.rs stop at step 16). `cargo
+  test -p horizon-core --lib` 146 passed; `cargo check --workspace
+  --all-targets` 0/0.
 
 - **Item 177 — `crates/horizon-client/src/stations.rs`
   (2 classes, 4 methods, 1 named in Horizon), zero-diff:**

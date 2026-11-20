@@ -436,7 +436,9 @@ fn main() -> io::Result<()> {
             "block-iterate" => {
                 let a = input.pos();
                 let b = input.pos();
-                let direction = input.vector();
+                // The direction is still parsed (the corpus lines carry it),
+                // but 1.21.8 has no direction-ordered iteration to emit.
+                let _direction = input.vector();
                 let limit = input.integer() as usize;
                 positions(
                     &mut out,
@@ -444,29 +446,17 @@ fn main() -> io::Result<()> {
                     BlockPos::between_closed(a, b).expect("bounded block box"),
                     limit,
                 )?;
-                positions(
-                    &mut out,
-                    "direction",
-                    BlockPos::between_corners_in_direction(a, b, direction)
-                        .expect("bounded block box"),
-                    limit,
-                )?;
             }
             "box-iterate" => {
                 let b = input.aabb();
-                let direction = input.vector();
+                // As above: parsed, not emitted — 1.21.8 has no
+                // `betweenCornersInDirection`.
+                let _direction = input.vector();
                 let limit = input.integer() as usize;
                 positions(
                     &mut out,
                     "closed",
                     BlockPos::between_closed_box(b).expect("bounded block box"),
-                    limit,
-                )?;
-                positions(
-                    &mut out,
-                    "direction",
-                    BlockPos::between_box_corners_in_direction(b, direction)
-                        .expect("bounded block box"),
                     limit,
                 )?;
             }
