@@ -1,6 +1,6 @@
 //! Baking of item models: a cuboid model's quads, or the layer extrusion of
 //! `builtin/generated` (`ItemModelGenerator`), with the display transforms
-//! and render properties a `CuboidItemModelWrapper` keeps.
+//! and render properties a `BlockModelWrapper` keeps.
 use crate::{
     bake::{ModelQuad, bake_block_model, bake_flat_face},
     item_model::DisplayContext,
@@ -73,9 +73,12 @@ impl BakedItemModel {
     pub fn transform(&self, context: DisplayContext) -> Option<&ItemTransform> {
         context_index(context).and_then(|i| self.transforms[i].as_ref())
     }
-    /// `LayerRenderState.applyTransform`: the display transform followed by
-    /// the layer's local transform (identity in 1.21.11, which has no
-    /// per-model transformation; 26.x composes the model's own here).
+    /// `ItemTransform.apply` for the layer (`LayerRenderState.submit` and
+    /// `visitExtents` call it on the layer's transform): the display
+    /// transform followed by the layer's local transform (identity in
+    /// 1.21.11, which has no per-model transformation; 26.x factored this
+    /// into `LayerRenderState.applyTransform` and composes the model's own
+    /// transform here).
     pub fn layer_matrix(&self, context: DisplayContext, local: &Mat4) -> Mat4 {
         item_transform_matrix(self.transform(context), context.left_hand()).mul(local)
     }
@@ -102,7 +105,7 @@ pub fn item_transform_matrix(transform: Option<&ItemTransform>, left_hand: bool)
         .translate([-0.5, -0.5, -0.5])
 }
 
-/// Bake the top geometry of `name` the way `CuboidItemModelWrapper` does.
+/// Bake the top geometry of `name` the way `BlockModelWrapper` does.
 pub fn bake_item_model(
     library: &ModelLibrary,
     sprites: &dyn SpriteLookup,
@@ -217,10 +220,12 @@ impl Side {
     }
 }
 
-/// `ItemModelGenerator.bakeExtrudedSprite` for one layer: the front and back
-/// faces and one thin face per opaque/transparent pixel edge. The native
-/// client collects the sides in a hash set, so their order is unspecified;
-/// they are emitted sorted by pixel here.
+/// `ItemModelGenerator.processFrames` for one layer: the front and back
+/// faces and one thin face per opaque/transparent pixel edge (26.x's
+/// `bakeExtrudedSprite` baked the quads directly; 1.21.11 builds the
+/// elements and bakes them). The native client collects the sides in a
+/// hash set, so their order is unspecified; they are emitted sorted by
+/// pixel here.
 fn extrude_layer(mask: &SpriteMask, material: &Material, layer: i32) -> Result<Vec<ModelQuad>> {
     let from = [0.0, 0.0, 7.5];
     let to = [16.0, 16.0, 8.5];
@@ -297,10 +302,12 @@ fn extrude_layer(mask: &SpriteMask, material: &Material, layer: i32) -> Result<V
             Side::Left => ([start_x, start_y, 7.5], [start_x, end_y, 8.5]),
             Side::Right => ([end_x, start_y, 7.5], [end_x, end_y, 8.5]),
         };
+        // 1.21.11 scales minV by xScale and maxU by yScale (the middle two
+        // swapped vs 26.x's per-axis scaling); identical for square sprites.
         quads.push(bake_flat_face(
             from,
             to,
-            [u0 * x_scale, v0 * y_scale, u1 * x_scale, v1 * y_scale],
+            [u0 * x_scale, v0 * x_scale, u1 * y_scale, v1 * y_scale],
             side.direction(),
             material.clone(),
             layer,
@@ -326,6 +333,12 @@ mod tests {
                     height: 2,
                     frames: vec![vec![true, false, false, false]],
                 }),
+                // Non-square: 2 wide, 1 high, only the left pixel opaque.
+                "minecraft:item/wide" => Some(SpriteMask {
+                    width: 2,
+                    height: 1,
+                    frames: vec![vec![false, true]],
+                }),
                 "horizon_cit:item/cit" => Some(SpriteMask {
                     width: 1,
                     height: 1,
@@ -340,6 +353,7 @@ mod tests {
             [
                 ("item/generated", r#"{"parent":"builtin/generated","display":{"gui":{"scale":[2,2,2]}}}"#),
                 ("item/stick", r#"{"parent":"item/generated","textures":{"layer0":"item/stick"}}"#),
+                ("item/wide", r#"{"parent":"item/generated","textures":{"layer0":"item/wide"}}"#),
                 ("horizon:loop", r#"{"parent":"horizon:loop2"}"#),
                 ("horizon:loop2", r#"{"parent":"horizon:loop"}"#),
                 ("block/slab", r##"{"textures":{"particle":"#side","side":"block/absent"},"elements":[{"from":[0,0,0],"to":[16,8,16],"faces":{"up":{"texture":"#side"},"down":{"texture":"#side","cullface":"down"}}}]}"##),
@@ -368,6 +382,32 @@ mod tests {
                 .all(|q| q.material.sprite == MISSING_SPRITE)
         );
     }
+    #[test]
+    fn non_square_sprite_extrudes_with_1_21_11_uv_scales() {
+        let library = library();
+        let baked = bake_item_model(&library, &Sprites, "item/wide").unwrap();
+        // Front, back, and 4 edges around the single opaque pixel.
+        assert_eq!(baked.quads.len(), 6);
+        let up = baked
+            .quads
+            .iter()
+            .find(|q| q.facing == Direction::Up)
+            .unwrap();
+        let (mut min_u, mut max_u, mut min_v, mut max_v) = (f32::MAX, f32::MIN, f32::MAX, f32::MIN);
+        for [u, v] in up.uv {
+            min_u = min_u.min(u);
+            max_u = max_u.max(u);
+            min_v = min_v.min(v);
+            max_v = max_v.max(v);
+        }
+        // 1.21.11 scales minV by xScale and maxU by yScale: the Up face's
+        // bounds are [0.1*8, 0.1*8, 0.9*16, 0.9*16] / 16 (26.x's per-axis
+        // scaling would give u {0.05, 0.45}, v {0.1, 0.9}).
+        for (got, want) in [(min_u, 0.05), (max_u, 0.9), (min_v, 0.05), (max_v, 0.9)] {
+            assert!((got - want).abs() < 1e-6, "{got} != {want}");
+        }
+    }
+
     #[test]
     fn replaced_layer_bakes_with_its_own_sprite() {
         let library = library();

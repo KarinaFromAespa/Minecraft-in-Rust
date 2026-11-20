@@ -3040,3 +3040,75 @@ validate test code. `cargo check -p horizon-client --lib --tests
 fits; only the full-feature one OOMs).
 Rank 2 now 215/492 (50 changed, 165 no-change).
 work-items.json rank2.closed = 215 on 2026-11-20.
+
+## Item 37 — horizon-assets/item_bake.rs (rank 2, CHANGED)
+
+ItemTransforms (+Deserializer, $1), ItemModelGenerator, ItemTransform
+(+Deserializer), ItemStackRenderState$LayerRenderState, QuadCollection
+(+$Builder), CuboidItemModelWrapper (+$Unbaked): 11 classes, 92 methods,
+6 named. Harness first_person. One real difference, jar-verified — and
+note the tooling caveat: the stock diffs mostly show "missing-side"
+because 26.1 MOVED these classes (`ItemTransform`/`ItemTransforms`/
+`ItemModelGenerator` live in `client/resources/model/cuboid/` in 26.1 vs
+`client/renderer/block/model/` in 1.21.11; `QuadCollection` in
+`resources/model/geometry/` vs `resources/model/`). The pairs were
+decompiled manually with Vineflower and diffed across the move; the
+wrapper pair is 26.1 `CuboidItemModelWrapper` vs 1.21.11
+`BlockModelWrapper`.
+
+Side-face UVs of an extruded sprite use swapped scales in 1.21.11.
+The extrusion math is otherwise identical, but the side-face UV
+construction differs, bytecode-verified on both jars (the UVs record is
+(minU, minV, maxU, maxV) in both): 26.1 `bakeSideFaces` builds
+`UVs(u0*xScale, v0*yScale, u1*xScale, v1*yScale)` (per-axis scaling);
+1.21.11 `createSideElements` builds
+`UVs(u0*xScale, v0*xScale, u1*yScale, v1*yScale)` (the middle two
+scales swapped — minV by xScale, maxU by yScale). For square sprites
+there is no difference; for non-square sprites the side-face UVs differ.
+The Rust's `extrude_layer` used the 26.1 form — now the 1.21.11 form.
+Doc citations in this file updated to the 1.21.11 names
+(`BlockModelWrapper` for the wrapper, `processFrames` for the layer
+extrusion, `transform.apply` in `submit`/`visitExtents` for the layer
+matrix; the `item_render.rs` `computeExtents` citations belong to that
+file's item or to 766, which covers the `BlockModelWrapper` rename).
+
+No-change verdicts (all jar-verified): `ItemTransform.apply` identical
+(left-hand mirrors translation.x, rotation.y/z; translate → rotate XYZ
+→ scale → translate(-0.5)), Deserializer identical (translation x0.0625,
+clamp ±5; scale clamp ±4); `ItemTransforms` identical (9-field record
+incl. ON_SHELF, `getTransform` switch, Deserializer left-hand fallback
+— mirrored in `model.rs`, where an explicit identity does NOT fall back,
+matching vanilla's `==` on the NO_TRANSFORM instance);
+`ItemDisplayContext` identical in both versions, ON_SHELF(9) included;
+`QuadCollection` getAll/getQuads/`Builder.build` order identical
+(unculled, then N/S/E/W/U/D) — the 26.1-only `materialFlags` family and
+`Builder.addAll` have no Rust mirror; `ItemModelGenerator` otherwise
+identical (LAYERS layer0..layer4, front/back faces, SOUTH_FACE_UVS
+(0,0,16,16) / NORTH_FACE_UVS (16,0,0,16) bytecode-verified,
+`getSideFaces`/`checkTransition`/`isTransparent`, `SideDirection`
+mapping) — the 26.1-only `ItemLayerKey` cache and direct-FaceBakery
+baking are plumbing (1.21.11 builds BlockElements and bakes via
+`SimpleUnbakedGeometry`); `bake_item_model`/`bake_resolved` mirror
+`bakeTopGeometry` + `ModelRenderProperties.fromResolvedModel`, the same
+in both versions (`ModelRenderProperties` is in no report item); the
+local transform is already handled — every Rust `Layer` is built with
+`transform: Mat4::IDENTITY` (`item_model.rs`, "1.21.11 has no per-model
+transformation"), so `layer_matrix` already behaves as 1.21.11;
+`ItemStackRenderState`/`LayerRenderState` differences have no mirror in
+item_bake.rs (`pickParticleMaterial` vs `pickParticleIcon`, `visitExtents`
+via `applyTransform` vs direct `transform.apply` — no Rust visitExtents
+mirror, already noted in item 28 — the empty-extents bounding-box guard,
+tint storage `IntList` vs `int[]` + `prepareTintLayers`, `setRenderType`
++ `detectRenderType`, animated detection by material flag vs sprite
+scan with the same outcome; foil handling and `computeExtents`
+identical). Method-name diff run explicitly on the cross-package pairs:
+only the expected plumbing renames (`bakeExtrudedSprite`/`bakeSideFaces`
+vs `createSideElements`/`processFrames`, the material-flags family,
+`addAll`, the layer-state setter renames).
+Tests: new `non_square_sprite_extrudes_with_1_21_11_uv_scales` (2x1
+sprite, one opaque pixel — the Up side face's vertex UVs must span
+u {0.05, 0.9}, v {0.05, 0.9}; the 26.1 form would give u {0.05, 0.45},
+v {0.1, 0.9}); all 3 item_bake tests and all 53 horizon-assets lib tests
+pass. `rustfmt --edition 2024` on the leaf file.
+Rank 2 now 216/492 (51 changed, 165 no-change).
+work-items.json rank2.closed = 216 on 2026-11-20.
