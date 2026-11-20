@@ -12,7 +12,10 @@ pub(crate) const GLUE: Glue = Glue {
     inputs: &[("Position", "vec3")],
     prelude: "layout(location = 0) in vec3 hz_position;",
     setup: "Position = hz_position;",
-    // 26.3's ProjMat already has wgpu's reversed 0 to 1 depth (Projection: zZeroToOne).
+    // The ProjMat uploaded here already has wgpu's reversed 0 to 1 depth
+    // (world_projection: perspective_rh with near/far swapped), so no z
+    // remap is needed; vanilla 1.21.11's own ProjMat is JOML's -1 to 1
+    // perspective, but the pack shader only ever sees this uniform.
     finish: "",
     vertex_id: "int(gl_VertexIndex)",
 };
@@ -186,7 +189,7 @@ impl CoreSky {
         stars: Option<&CoreProgram>,
     ) -> Option<Self> {
         let disc = disc.and_then(|program| {
-            // RenderPipelines.SKY: ColorTargetState.DEFAULT, no blending.
+            // RenderPipelines.SKY: no blend call (the builder default), no depth write.
             Part::new(device, format, program, "sky", None, &disc_triangles())
         });
         let stars = stars.and_then(|program| {

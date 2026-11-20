@@ -5945,3 +5945,76 @@ Verification: `cargo test -p horizon-client-lib --lib
 horizon-client binary runs 0 — the tests live in the
 horizon-client-lib binary). Rank 2 now 255/492 (79 changed,
 176 no-change). work-items.json rank2.closed = 255 on 2026-11-20.
+
+## Item 77 — gfx/core_sky.rs (rank 2, NO-CHANGE + citation fixes)
+
+4 classes, 20 methods, 6 named (`buildEndSky`, `buildStars`,
+`renderEndFlash`, `renderSkyDisc`, `renderStars`,
+`renderSunriseAndSunset`). Javap diff (1097 lines) read in full
+Nov 20, 2026; the substantive methods read from the 1.21.11
+decompile; a literal comparison over the decompile confirms the
+only literal difference in DefaultVertexFormat is the string
+`"Normal"` x1. Triage note `rank2-item-77-TRIAGE.md` (workdir
+root, scratch). The Java delta is three real changes plus API
+shape, all already 1.21.11-shaped in the Rust:
+`DefaultVertexFormat.BLOCK` gains Normal + padding(1) in 1.21.11
+(a `<clinit>`-only change the report's method comparison misses,
+second case after item 64's Zombie dims; `ENTITY` -> `NEW_ENTITY`
+is a same-layout rename) — but 1.21.11's `terrain.vsh` declares
+`in vec3 Normal` and never uses it (vertex colour is Colour x
+lightmap), so the BLOCK normal is write-only data for terrain and
+the Rust's normal-less `TerrainVertex` is observably equivalent
+(the entity `Vertex` has a normal); the mesher follow-up from the
+brief is discharged, no mesher change. `ColorTargetState` +
+`WriteMask` are 26.1-only classes, absent in 1.21.11; no Rust
+mirror of Mojang's classes exists (only wgpu's own
+`ColorTargetState`). `SkyRenderer.buildStars` uses
+`RandomSource.create(10842L)` -> `LegacyRandomSource` in 1.21.11
+vs `createThreadLocalInstance(10842L)` ->
+`SingleThreadedRandomSource` in 26.1 — different RNGs, different
+star fields; the Rust already uses `LegacyRandom::new(10842)`.
+The rest is package moves (AtlasManager, SkyRenderState) and
+GpuDevice/CommandEncoder/RenderPass interface-vs-class.
+`RenderPipelines.SKY` in 1.21.11 (verified from both jars'
+`<clinit>` bytecode) has no blend call (no blending is the
+builder default) and `withDepthWrite(false)` — 26.1's chain
+lacks the depth-write call; the Rust's `Part::new` already sets
+depth write off and no blend. `RenderPipelines.STARS` uses
+`BlendFunction.OVERLAY` = (SRC_ALPHA, ONE, ONE, ZERO), exactly
+the Rust's wgpu overlay. Verified matching: `disc_triangles`
+(centre (0,16,0), rim 512, -180..=180 step 45, top disc only, as
+`renderSkyDisc` draws it); `star_triangles` (1500 draws,
+rejection bounds, normalize x 100, the rotateTowards basis
+checked against JOML 1.10.8's bytecode: s = up x f, u = f x s,
+and the rotateZ post-multiply); the dark disc
+(`frame.dark_disc`, `fs_dark_disc`, `dark_disc()` — flat ->
+minY, else 63, Overworld-only, not underwater;
+`getHorizonHeight` verified from the jar: `isFlat ? minY :
+63.0`); the sunrise fan (apex (0,100,0), rim (sin*120, cos*120,
+-cos*40), 16 triangles, Rx(90) then Rz(flip+90), scale(1,1,alpha)
+folded into the rim's z in local space, alpha gate > 0.001);
+the celestial bodies (sun 30, moon 20, quad at y=100, frame
+RotY(-90)*RotX(angle), moon phase order and dayTime/24000%8).
+Citation fixes (comment-only): "26.3's ProjMat already has
+wgpu's reversed 0 to 1 depth" -> the ProjMat uploaded here (the
+production caller passes `world_projection`, glam
+`perspective_rh` with near/far swapped) — vanilla 1.21.11's own
+ProjMat is JOML's 4-arg `perspective` (-1..1), verified from
+`GameRenderer.getProjectionMatrix`, so the comment names the
+uploaded uniform, not vanilla's; "RenderPipelines.SKY:
+ColorTargetState.DEFAULT, no blending." -> "no blend call (the
+builder default), no depth write."
+
+Version-neutral gap recorded: `stars.rs` computes `z_rot` with
+f64 `TAU` where vanilla uses `(double)(float)Math.PI * 2.0`
+(~1.75e-7 relative on a star's spin angle — sub-pixel,
+unobservable in both versions). Referrals: the same stale
+"26.3's ProjMat" comment in `gfx/core_lines.rs:25`, and
+"ColorTargetState.DEFAULT" citations in `post_chain.rs:426,
+808` (their files' items).
+
+Verification: `cargo test -p horizon-client-render --lib
+--no-default-features gfx::core_sky::` 2 passed;
+`gfx::sunrise_fan::` 4 passed; rustfmt --check clean on
+core_sky.rs. Rank 2 now 256/492 (79 changed, 177 no-change).
+work-items.json rank2.closed = 256 on 2026-11-20.
