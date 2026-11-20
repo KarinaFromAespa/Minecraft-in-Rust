@@ -280,8 +280,22 @@ impl Path {
         let half = f64::from((width + 1.0) as i32) * 0.5;
         Vec3::new(f64::from(n.x) + half, f64::from(n.y), f64::from(n.z) + half)
     }
+    /// `Path.sameAs`: the same nodes in the same order, compared by
+    /// coordinates only — 1.21.8's form, and 1.21.9's `nodes.equals`
+    /// is the same, since `Node.equals` compares hash + x + y + z
+    /// only, never the node's type. A path recomputed over the same
+    /// route after the world changed a node's type is still the
+    /// same path.
     pub fn same_as(&self, other: Option<&Path>) -> bool {
-        other.is_some_and(|o| o.nodes == self.nodes)
+        let Some(o) = other else {
+            return false;
+        };
+        self.nodes.len() == o.nodes.len()
+            && self
+                .nodes
+                .iter()
+                .zip(o.nodes.iter())
+                .all(|(a, b)| a.x == b.x && a.y == b.y && a.z == b.z)
     }
     /// `PathNavigation.trimPath`: a node standing on a cauldron
     /// (`BlockTags.CAULDRONS`) is raised onto its rim, and the node after it is
