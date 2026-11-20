@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 108/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125 + 4 zero-diff)
+### Rank 2: 109/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 + 4 zero-diff)
+
+- **Item 126 — `crates/horizon-client/src/mobs/aquatic.rs`
+  (4 classes, 7 methods, 2 named in Horizon),
+  zero-diff:** TadpoleModel, Tadpole,
+  AgeableWaterCreature, Pufferfish. TadpoleModel
+  has no diff hunks. `aiStep`/`tick` differ only by
+  `isClientSide()` vs the field, and the Rust
+  matches both versions (tadpole ages +1 and
+  converts to a frog at 24000 ticks; the pufferfish
+  puff machine matches vanilla's tick body exactly).
+  The drowning check differs for real —
+  `shouldTakeDrowningDamage()` (`air <= -20`) in
+  1.21.9 vs `air == -20` in 1.21.8, which matters
+  only for out-of-range air — but the Rust already
+  implements 1.21.8's `==` in both places (the
+  `needs_water` branch in `mobs/ai.rs` and
+  `breathing.rs::apply`, whose doc and test pin the
+  distinction; the doc note landed in item 11).
+  `Tadpole.sendDebugPackets` is 1.21.8-only,
+  debug-only, unmodelled.
 
 - **Item 125 — `crates/horizon-client/src/game/native_block_entity_draw.rs`
   (3 classes, 7 methods, 2 named in Horizon),
