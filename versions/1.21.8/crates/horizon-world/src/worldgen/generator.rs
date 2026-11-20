@@ -2854,6 +2854,13 @@ where
         search: &BiomeSearch<'_>,
     ) -> Option<(String, [i32; 3])> {
         // BiomeSource.findClosestBiome3d.
+        // FixedBiomeSource.findClosestBiome3d (1.21.8): the origin itself when
+        // the fixed biome passes, with no search and no Y clamp (1.21.9 clamps
+        // Y into [minY+1, maxY+1]).
+        if let ResolvedBiomeSource::Fixed(source) = &self.source {
+            return (search.allowed)(&source.biome)
+                .then(|| (source.biome.clone(), search.origin));
+        }
         let candidates: BTreeSet<&str> = self
             .source
             .possible_biomes()
