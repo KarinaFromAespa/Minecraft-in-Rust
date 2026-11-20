@@ -2121,7 +2121,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             S::Zombie | S::ZombifiedPiglin => self.zombie(m, g, reason),
             S::ZombieVillager => {
                 self.villager_type(m);
-                m.extra.variant2 = super::zombie_villager::constructor_profession(m);
+                m.extra.variant2 = super::zombie_villager::spawn_profession(m);
                 self.zombie(m, g, reason)
             }
             S::Husk => self.husk(m, g, reason),

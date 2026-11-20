@@ -143,11 +143,12 @@ fn parse_cure(tag: &Tag) -> Option<Cure> {
         starter: crate::save::uuid_from_tag(tag.get("ConversionPlayer")),
     })
 }
-/// `ZombieVillager.initializeZombieVillagerData`: the constructor picks a
-/// profession (`VILLAGER_PROFESSION.getRandom`, 15 of them) from the fresh
-/// entity's random, before anything seeds it: an independent draw that
-/// leaves the mob's own random alone.
-pub fn constructor_profession(m: &Mob) -> u8 {
+/// `ZombieVillager.finalizeSpawn`: the spawn picks a profession
+/// (`VILLAGER_PROFESSION.getRandom`, 15 of them) from the fresh entity's
+/// random, before anything seeds it: an independent draw that leaves the
+/// mob's own random alone. (1.21.9 moved this draw into the constructor;
+/// 1.21.8's constructor keeps the default data.)
+pub fn spawn_profession(m: &Mob) -> u8 {
     let mut fresh = horizon_core::random::LegacyRandom::new(
         (m.random.state() as i64).wrapping_mul(0x5851_F42D_4C95_7F2D) ^ i64::from(m.id),
     );
@@ -168,14 +169,12 @@ pub fn write_nbt(m: &Mob, map: &mut Compound) {
     }
 }
 /// `ZombieVillager.readAdditionalSaveData`: a save with neither
-/// `VillagerDataFinalized` nor `VillagerData` keeps the constructor's random
-/// profession and stays unfinalized.
+/// `VillagerDataFinalized` nor `VillagerData` keeps the default data
+/// (plains type, no profession) — the random profession is drawn at spawn
+/// (`finalizeSpawn`), not at load.
 pub fn read_nbt(m: &mut Mob, tag: &Tag) {
     let saved = tag.get("VillagerData").is_some();
     let finalized = saved || crate::entity_nbt::flag(tag, "VillagerDataFinalized");
-    if !saved {
-        m.extra.variant2 = constructor_profession(m);
-    }
     let cure = parse_cure(tag);
     let e = villager::ext_mut(m);
     e.data_finalized = finalized;
