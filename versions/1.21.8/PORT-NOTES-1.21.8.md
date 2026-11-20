@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 84/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101 + 4 zero-diff)
+### Rank 2: 85/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102 + 4 zero-diff)
+
+- **Item 102 — `crates/horizon-world/src/worldgen/generator.rs`
+  (3 classes, JigsawPlacement, Mth, JigsawStructure$MaxDistance),
+  real fix:** `Mth.outFromOrigin` returns an empty stream when the
+  origin is outside `[lower, upper]` in 1.21.8 — the clamp into the
+  bounds came in 1.21.9 — so `out_from_origin` now returns empty
+  there (its caller is `findClosestBiome3d`, `/locate biome`, whose
+  origin Y can be out of range). `JigsawStructure.MaxDistance` does
+  not exist in 1.21.8: `max_distance_from_center` is a plain
+  `Codec.intRange(1, 128)` and `JigsawPlacement` takes one int for
+  both axes, so `JigsawConfig.max_distance` and
+  `JigsawDef.max_distance` are a single `i32` now; the parser takes
+  a plain int (default 80, an object form is out of range and the
+  structure places nothing, as vanilla's codec error would), the
+  range check is depth 0..=20 and reach 1..=128, and the
+  `jigsaw_bounds` test expectations match. Verified no-change:
+  `Mth.absMax` is behaviour-identical modulo the unmodelled
+  -0.0/-0.0 sign edge, `Mth.ceilLong` is 1.21.9-only with no Rust
+  references, and `verifyRange` is unmodelled. Check 0/0 at -j 1
+  (first run cut short by a service restart, re-run clean).
 
 - **Item 101 — `crates/horizon-client/src/locator_bar.rs`
   (4 classes, 18 methods, 2 named in Horizon),
