@@ -596,13 +596,57 @@ is the oracle; decompiled code is a reading aid.
     `sayNow`).
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (2m45s).
+- **Item 16 — remote.rs, verified, no code change:**
+  `ClientPacketListener` / `Player` / `AbstractContainerScreen` /
+  `BeaconBlockEntity` / `ClientCommonPacketListenerImpl` /
+  `MerchantScreen` / `MultiPlayerGameMode` / `ConnectScreen` /
+  `ReceivingLevelScreen` / `InterpolationHandler`:
+  - The `handleEntityPositionSync` rider flip (1.21.5 repositions
+    the rider only when the vehicle IS interpolating; 1.21.6 only
+    when it is NOT) has no Rust surface: `move_entity` never
+    repositions riders per packet — `position_riders` runs every
+    tick for every vehicle.
+  - `InterpolationHandler.interpolate`'s collision guard (1.21.5
+    tests `makeBoundingBox().move(target + delta)`, a box offset
+    by the entity's own position; 1.21.6 tests
+    `makeBoundingBox(target + delta)`) has no Rust surface: the
+    stepped interpolation keeps no per-tick delta and runs no
+    collision guard.
+  - The demo help messages (1.21.6 narrates them; 1.21.5 only
+    chats them), the `DisconnectedRealmsScreen` (1.21.5) vs
+    `DisconnectedScreen` + Back (1.21.6), and the container
+    snapback animation are all unmodelled in the Rust.
+  - `createPlayer`'s kept state (1.21.5: `isShiftKeyDown()`;
+    1.21.6: `getLastSentInput()`) has no Rust surface: respawns
+    reuse the live player and its input state is read fresh each
+    tick, never snapshotted into a new player object.
+  - The command tree's restricted suggestions provider and
+    `NodeBuilder` (1.21.6-only) have no Rust surface: the tree
+    from the packet carries no permission gating.
+  - The `signedMessageEncoder = UNSIGNED` reset on login
+    (1.21.6-only) has no Rust surface (no signed-message
+    encoder); the waypoint attributes are inert reads against
+    the 1.21.5 registry, which lacks them.
+  - The label colour (-12566464 in 1.21.6 vs 4210752 in 1.21.5)
+    renders identically: `Font` forces any colour with alpha
+    below 64 opaque. The Rust draws opaque dark grey.
+  - The rest is API migration with identical data: the
+    ValueInput/ValueOutput → CompoundTag moves in `Player` save
+    data, `BeaconBlockEntity` (same `primary_effect` /
+    `secondary_effect` / `Levels` / `CustomName` / `lock`
+    fields) and block-entity loading; the `Player` ctor's spawn
+    snap (item 13); the tooltip deferral (`setTooltipForNextFrame`
+    vs `renderTooltip` — same frame in the Rust's batched HUD);
+    the dialog handlers (removed by the publish); accessor
+    renames (`sayNow`, `getDifficulty`/`isLocked`,
+    `serverLinks`).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **15 of 426 are
-closed** (rank 1 complete, rank 2 at 6/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **16 of 426 are
+closed** (rank 1 complete, rank 2 at 7/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
