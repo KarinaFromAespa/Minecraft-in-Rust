@@ -334,7 +334,24 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 162/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179 + 4 zero-diff)
+### Rank 2: 163/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180 + 4 zero-diff)
+
+- **Item 180 — `crates/horizon-world/src/level/redstone.rs`
+  (3 classes, 4 methods, 1 named in Horizon), zero-diff:**
+  `CopperBulbBlock`: `getAnalogOutputSignal` gained an unused `Direction`
+  parameter in 1.21.9 (same as item 166's shulker box); the body is lit ?
+  15 : 0 in both. `BasePressurePlateBlock`: the `isClientSide()` method →
+  field rename. `ComparatorBlock.getInputSignal`: the call sites pass
+  `direction.getOpposite()` in 1.21.9 and nothing in 1.21.8 — same
+  values, since no implementation uses the direction. The Rust
+  `analog_output` still threads a direction through to the mod hook and
+  `block_entity_analog_signal`, but every vanilla 1.21.8 path ignores it
+  (copper bulb: lit ? 15 : 0; chiseled shelf: last_slot + 1); the only
+  direction use is the 26.x `_shelf` back-only read, dead in 1.21.8
+  (no block ends in `_shelf` here). The comparator logic (analog output
+  first, else conductor + max of item-frame and further analog) matches
+  1.21.8's body exactly. No replumb: the parameter is 1.21.9-shaped
+  plumbing with zero vanilla behaviour behind it.
 
 - **Item 179 — `crates/horizon-world/src/level/bonemeal.rs`
   (3 classes, 4 methods, 1 named in Horizon), zero-diff:**
