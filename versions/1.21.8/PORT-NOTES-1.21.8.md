@@ -334,8 +334,95 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 310/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 56, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 74, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326 + 2 zero-diff: 25, 37)
+### Rank 2: 314/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 56, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 74, 75, 76, 77, 78, 79, 83, 84, 85, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 81, 82, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326 + 2 zero-diff: 25, 37)
 
+- **Item 85 — `crates/horizon-client-render/src/packs.rs`
+  (11 classes, 26 methods, 2 named in Horizon), REWRITE, closing
+  the deferral from items 80/165/311: `validate_pack_range` is
+  rewritten from 1.21.9's `IntermediaryFormat.validate` to 1.21.8's
+  `Pack.getDeclaredPackVersions` — `pack_format` is a required plain
+  int (`Codec.INT` decimal truncation), `supported_formats` is
+  lenient-optional (the range when it contains the main format,
+  else the main format alone), and `min_format`/`max_format` are
+  ignored entirely (the whole `PackFormat`/`IntermediaryFormat`
+  split came in 1.21.9). Deleted: `validate_new_format`,
+  `validate_old_format`, `validate_pack_format_for_range`,
+  `format_text`, `last_pre_minor`, `format_codec`, `format_of`,
+  `optional`. `compatibility_for` now applies 1.21.8's three-variant
+  `PackCompatibility.forVersion` to the int range, so a
+  newer-than-current main format is TOO_NEW (was Unknown), a main
+  format outside the supported range is TOO_OLD/TOO_NEW by the main
+  format alone (was Unknown), and min/max-only packs are Unknown (no
+  `pack_format`). `overlay_applies` drops the 1.21.9-only
+  `min_format`/`max_format` branch; `int_range_codec` gains the
+  single-int arm (`intervalCodec` accepts a bare int as a range of
+  one). Both tests rewritten for the 1.21.8 form and passing (27/27
+  packs tests). The `overlays_and_filters` test was also already
+  failing before this change — its format numbers were still the
+  upstream tree's 97, never updated to this tree's 64 by the
+  mechanical port — so its entries are rewritten for 64 and the
+  1.21.8 overlay forms. The metadata-null → pack-skipped rule stays
+  a documented pre-existing divergence (the Rust lists unparseable
+  packs as Unknown rather than skipping them — item 165). Cargo
+  check 0/0.
+- **Item 82 — widely named: world/level/block/entity (17 classes,
+  50 methods, 0 named in Horizon), zero-diff:** the skull profile
+  caches are already the 1.21.8 form (`setup`'s
+  `profileCacheByName`/`profileCacheById`, 256 entries, 10-minute
+  expiry, `fetchGameProfile`'s future — 1.21.9 moved resolution to
+  the `ProfileResolver` system) and the bookshelf `canPlaceItem`
+  count==1 rule was already fixed in item 162 with the
+  `ListBackedContainer` note. The rest is trivial: `DEFAULT_NAME`
+  hoisting (banner, furnace, brewing, crafter) with identical
+  values, the inlined `isLocked` check, 1.21.9-only
+  `WOODEN_SHELVES` fuel, the lectern getter rename (same value),
+  `BlockEntityType` registrations only for 1.21.9-only blocks
+  (copper chests, shelf, copper golem statue — dead by data), and
+  the four `$1` anonymous classes structurally identical in both
+  jars. `CopperGolemStatueBlockEntity` is 1.21.9-only; the Rust's
+  variant is dead by data.
+- **Item 81 — widely named: client/gui/components (15 classes,
+  50 methods, 0 named in Horizon), citations only (2 fixes):** the
+  selection list is the 1.21.9 layout refactor (`LayoutElement`,
+  `renderContent`, `repositionEntries`) vs 1.21.8's classic form
+  (`itemHeight`, `headerHeight`, `ensureVisible`); the Rust cites
+  the classic form throughout, except `reveal`'s doc which cited
+  `setSelected` for scroll-into-view — 1.21.8's `setSelected` is a
+  plain assignment, the scroll lives in `setFocused` ->
+  `ensureVisible` (keyboard input only), so reworded.
+  `StringWidget`'s `maxWidth`/`TextOverflow` is 1.21.9-only (1.21.8
+  aligns by `alignX`); the Rust's `string_widget` is a Horizon-only
+  pack-screen helper whose callers pre-compute alignment and
+  clipping, so only its `(CLAMPED)` doc was reworded to the 1.21.8
+  `clipText` form (the Realms slot button already implements the
+  1.21.8 cut-to-64 form). Chat drafts are 1.21.9-only and the Rust
+  already documents "no saved draft"; `EditBox` cites the 1.21.8-only
+  `CURSOR_INSERT_COLOR`; `BackgroundFill`, `minimizeHeight`, the
+  `WidgetSprites` single-arg ctor, the `Button.onPress` event-object
+  form and the `ScrollableLayout` scrollbar signature have no Rust
+  surface. `DebugScreenOverlay$1` is the 1.21.9 `DebugScreenDisplayer`
+  system (1.21.8 has only a switch-map) — the whole overlay stays
+  with item 420. Cargo check 0/0.
+- **Item 75 — widely named: world/level/border (5 classes,
+  54 methods, 0 named in Horizon), zero-diff:** the Rust border is
+  already fully 1.21.8-form: level.dat `Border*` storage (the
+  per-level `world_border` SavedData + codec came in 1.21.9 — the
+  save.rs comment already says so), the 1.21.8-only `closestBorder`
+  implemented (`border_render.rs`, stable north/south/west/east
+  sort), the `getLerpRemainingTime` citation (1.21.9 renamed it
+  `getLerpTime`), no 1.21.9-only citations (`getSafeZone`, `onSet*`,
+  SavedData codec); the lerp math is identical in both versions and
+  the listener renames have no Rust surface. Pre-existing,
+  version-neutral gap recorded, not fixed: the Rust stores
+  `warning_time` in ticks (default 300) while vanilla's field,
+  level.dat key, packets and command are seconds (default 15) —
+  `Gui.java:1016` proves seconds (`lerpSpeed` in blocks/ms x
+  warningTime x 1000), so the Rust is 20x off at the level.dat read
+  (a vanilla 15 loads as 15 ticks), the save write (writes 300
+  where vanilla writes 15), `/worldborder warning time` (takes
+  ticks, vanilla takes seconds) and both `SetBorderWarningDelay`
+  directions; the vignette math itself is internally consistent in
+  ticks. Same in 1.21.8 and 1.21.9, so not a delta.
 - **Item 74 — widely named: server/players (11 classes,
   54 methods, 0 named in Horizon), citations only:
   `NameAndId`/`ProfileResolver`/`UserNameToIdResolver` are
