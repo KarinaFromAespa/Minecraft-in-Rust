@@ -334,7 +334,49 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 82/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99 + 4 zero-diff)
+### Rank 2: 83/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100 + 4 zero-diff)
+
+- **Item 100 — `crates/horizon-client-render/src/collisions.rs`
+  (2 classes, 8 methods, 3 named in Horizon),
+  real fix:** LiquidBlock (getCollisionShape),
+  CollisionContext (empty, of, alwaysCollideWithFluid).
+  1.21.9 replaced the context's `canStandOnFluid`
+  predicate with a boolean `alwaysCollideWithFluid`
+  and made liquids full blocks under it; 1.21.8
+  has neither. `LiquidCollision::shape` lost its
+  full-block arm — only the stable-surface
+  (half-height column) path remains. The stored
+  boolean is now the 1.21.8 deprecated-constructor
+  flag (`stand_on_any_fluid`: the always-true
+  predicate `of(entity, true)` builds), and
+  `can_stand_on_fluid` short-circuits on it
+  without consulting the callback; `empty()` takes
+  no argument (no `emptyWithFluidCollisions`).
+  `no_collision_or_liquid` is gone: its only
+  caller, the spawn check's `player_fits`, now
+  uses `no_collision_empty` — in 1.21.8
+  `noCollisionNoLiquid` is `noCollision(player,
+  box, true)`, whose always-stand predicate only
+  yields the stable surface above the player's
+  feet, which the player's own box never
+  intersects, so for this box it is exactly the
+  empty-context check. Verified: `getBlockAndLiquid-
+  Collisions` has no direct callers in 1.21.8;
+  the only `noCollision(..., true)` caller is
+  `ServerPlayer.noCollisionNoLiquid`; `isAbove` /
+  placement / descending are identical in both
+  versions. Harness debt (not fixed here): the
+  Java oracles `VanillaCollisionContextOracle`,
+  `VanillaRegistryCollisionScanOracle`,
+  `VanillaBlockCollisionScanOracle` and
+  `VanillaContextualCollisionAudit` still call the
+  1.21.9-only `alwaysCollideWithFluid()` /
+  `emptyWithFluidCollisions()` and do not compile
+  against the 1.21.8 jars; collision harnesses are
+  not among the 17 port-verify harnesses. Check
+  0/0 at `-j 1` (first run cut short by a service
+  restart near the end, 0 errors so far; re-run
+  finished clean).
 
 - **Item 99 — `crates/horizon-client/src/game/tnt.rs`
   (3 classes, 9 methods, 3 named in Horizon),
