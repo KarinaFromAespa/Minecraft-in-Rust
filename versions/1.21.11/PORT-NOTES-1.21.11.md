@@ -6952,3 +6952,44 @@ labels + usage flags 40/72. `cargo test -p
 horizon-client-render --lib --no-default-features streaming::`
 29 passed, 2 ignored. Rank 2 now 271/492 (87 changed, 184
 no-change). work-items.json rank2.closed = 271 on 2026-11-21.
+
+## Item 93 — mob_ai_probe.rs (rank 2, CHANGED)
+
+4 classes, 16 methods, 5 named: TradeWithVillager, Horse,
+DoorBlock, BeehiveBlockEntity.
+
+Java delta, jar-verified — all of it in Horse: (1) the 1.21.11
+ctor sets DANGER_OTHER and DAMAGE_OTHER malus to -1.0 (26.1
+does not; AbstractHorse sets none in either version; among the
+equines only Horse and ZombieHorse set them in 1.21.11). (2)
+The six `HORSE_*_BABY` sounds are 26.1-only — 1.21.11 plays the
+adult sounds at every age (gallop breathe keeps its 1-in-10
+roll and volume x0.6). (3) 26.1's mobInteract shortcuts to
+super when a baby is offered a GOLDEN_DANDELION (a 26.x-new
+item); 1.21.11 has no such branch. (4) BABY_DIMENSIONS is a
+`<clinit>`-only change: 26.1 scales 0.7 with the PASSENGER
+attachment at height - 0.125; 1.21.11 scales 0.5 with the
+attachment at height + 0.125 — the same 0.7 -> 0.5 for
+SkeletonHorse and ZombieHorse (Llama 0.5 in both; Donkey/Mule
+define none). TradeWithVillager is byte-identical; DoorBlock
+is `is(Object)` -> `is(Block)` x3; BeehiveBlockEntity is
+visibility + `getRandom()` -> the field (the release logic is
+the same body with shifted locals).
+
+Verified matching: no baby-sound or golden-dandelion mirror in
+the Rust (already 1.21.11); the baby PASSENGER attachment has
+no Rust mirror and is unobservable (a foal cannot be ridden).
+
+Fixes: `mobs/ai.rs` gains a Horse/ZombieHorse malus arm
+(DangerOther -1.0, DamageOther -1.0); `mobs/species.rs` moves
+Horse, SkeletonHorse and ZombieHorse to `Baby::Scale(0.5,
+None)`. New equine tests pin the baby scales (with Donkey/Mule
+0.5 controls) and the malus (donkey keeps DangerOther 8.0).
+
+Verification: literal comparison — the other three classes
+zero; Horse only 0.7F vs -1.0F/0.5F. `cargo test -p
+horizon-client-lib --lib --no-default-features mobs::equine::`
+12 passed, 1 ignored. rustfmt clean on species.rs/ai.rs;
+equine.rs only the pre-existing drift at 630. Rank 2 now
+272/492 (88 changed, 184 no-change). work-items.json
+rank2.closed = 272 on 2026-11-21.

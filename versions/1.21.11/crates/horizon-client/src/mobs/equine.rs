@@ -1427,6 +1427,37 @@ mod tests {
         m.on_ground = true;
         m
     }
+    /// `Horse`, `SkeletonHorse` and `ZombieHorse` BABY_DIMENSIONS: the adult
+    /// box scaled 0.5 in 1.21.11 (26.x: 0.7).
+    #[test]
+    fn baby_horses_are_half_their_adult_box() {
+        use crate::mobs::species::{Baby, def};
+        for s in [Species::Horse, Species::SkeletonHorse, Species::ZombieHorse] {
+            assert_eq!(def(s).baby_scale(), 0.5);
+            assert!(matches!(def(s).baby, Baby::Scale(0.5, None)));
+        }
+        // Donkey and Mule define no BABY_DIMENSIONS of their own; the
+        // generic 0.5 age scale applies, as it already did.
+        assert_eq!(def(Species::Donkey).baby_scale(), 0.5);
+        assert_eq!(def(Species::Mule).baby_scale(), 0.5);
+    }
+
+    /// `Horse` and `ZombieHorse` (1.21.11 ctors): DANGER_OTHER and
+    /// DAMAGE_OTHER at -1.0; no other equine sets them (a donkey keeps
+    /// the 8.0 DangerOther default).
+    #[test]
+    fn horses_and_zombie_horses_avoid_other_dangers() {
+        use crate::mobs::path::PathType;
+        for s in [Species::Horse, Species::ZombieHorse] {
+            let mut m = horse(s);
+            crate::mobs::ai::register(&mut m);
+            assert_eq!(m.malus(PathType::DangerOther), -1.0);
+            assert_eq!(m.malus(PathType::DamageOther), -1.0);
+        }
+        let mut donkey = horse(Species::Donkey);
+        crate::mobs::ai::register(&mut donkey);
+        assert_eq!(donkey.malus(PathType::DangerOther), 8.0);
+    }
 }
 
 #[cfg(test)]

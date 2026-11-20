@@ -336,6 +336,12 @@ fn constructor_maluses(m: &mut Mob) {
             m.set_malus(P::DangerOther, 0.0);
             m.set_malus(P::DamageOther, 0.0);
         }
+        // `Horse` and `ZombieHorse` (1.21.11 ctors): DANGER_OTHER and
+        // DAMAGE_OTHER at -1.0 — no other equine sets them.
+        S::Horse | S::ZombieHorse => {
+            m.set_malus(P::DangerOther, -1.0);
+            m.set_malus(P::DamageOther, -1.0);
+        }
         S::Parrot => {
             m.set_malus(P::DangerFire, -1.0);
             m.set_malus(P::DamageFire, -1.0);
