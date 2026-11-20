@@ -7413,3 +7413,42 @@ BUBBLE particle at `fleeTicks % 10 == 5` in both versions, and the
 Rust's goal tick has no events channel to emit one. Tests:
 `cargo test -p horizon-client-lib --lib --no-default-features
 mobs::aquatic::` 9 passed, 1 ignored (fixture).
+
+## Item 104 — stations.rs (rank 2, CHANGED)
+
+5 classes, 31 methods, 3 named: SmithingTrimRecipe, SmithingTransformRecipe,
+EnchantmentMenu, GrindstoneMenu, PatchedDataComponentMap.
+
+Java delta, jar-verified: applyTrim's material resolution differs by the
+EitherHolder unwrap — 26.1 reads the `PROVIDES_TRIM_MATERIAL` component as
+a `Holder<TrimMaterial>` directly, while 1.21.11 routes it through
+`TrimMaterials.getFromIngredient`, which unwraps the component's
+`EitherHolder` against the trim-material registry (a named holder fails
+when the key is not registered; verified from the 1.21.11 jar:
+`ProvidesTrimMaterial` wraps `EitherHolder<TrimMaterial>`,
+`EitherHolder.unwrap` maps a key through `provider.get(key)`).
+Fix: `trim_material` now takes the loaded trim-material registry and
+returns None for a named material it does not hold; direct holders pass
+through. The test populates the registry with copper and gains an
+unknown-named-material case (no trim); the inline-pattern test's temp
+data root gained a gold trim-material JSON (its fixture had no
+`trim_material/` dir, so the material unwrapped to nothing).
+The smithing transform is behaviourally identical — 26.1's
+`TransmuteRecipe.createWithOriginalComponents` (ItemStackTemplate) vs
+1.21.11's `TransmuteResult.apply` (verified: record `(item, count 1..99,
+components)`, codec with the bare-string alternative; the Rust's
+SmithingResult already matches) — only the citations were 26.x:
+`ItemStackTemplate` does not exist in 1.21.11 (0 jar entries vs 1 in
+26.1), reworded to `TransmuteResult`. NOT differences:
+EnchantmentMenu.getEnchantmentList (identical), GrindstoneMenu
+mergeItems/computeResult (identical), PatchedDataComponentMap.get
+(inlined helper, same semantics), the SimpleSmithingRecipe/CommonInfo
+rework and the cached placementInfo (API shape). Referrals: item 597
+(rank 3, ProvidesTrimMaterial) owns the inline trim-material codec
+shape — the Rust's `material_from_nbt` reads `palette_id`, a 26.3
+field name; 1.21.11 (and 26.1) inline materials use `asset_name` +
+`override_armor_assets` + `description`; item 752 (rank 4) owns the
+trim-recipe serializer, incl. the unvalidated named pattern;
+crafting.rs `Template` still cites `ItemStackTemplate` (item 30's
+file). Tests: `cargo test -p horizon-client-lib --lib
+--no-default-features stations::` 26 passed. rustfmt --check clean.

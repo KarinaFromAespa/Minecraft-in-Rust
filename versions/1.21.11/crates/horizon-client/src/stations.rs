@@ -687,7 +687,7 @@ pub enum Smithing {
         pattern: crate::item_data::trim::Holder<crate::item_data::trim::Pattern>,
     },
 }
-/// A smithing transform's `ItemStackTemplate`, retaining the patch as well as
+/// A smithing transform's `TransmuteResult`, retaining the patch as well as
 /// its display stack so explicit zeroes and removals override the input.
 #[derive(Clone, Debug)]
 pub struct SmithingResult {
@@ -719,11 +719,11 @@ impl SmithingResult {
             defaults: defaults.get(item)?.clone(),
         })
     }
-    /// `ItemStackTemplate.create`, used by the native recipe display export.
+    /// `TransmuteResult.display`'s stack, used by the native recipe display export.
     pub fn create(&self) -> Option<ItemStack> {
         self.assemble(&ItemStack::new("minecraft:air", 0))
     }
-    /// `TransmuteRecipe.createWithOriginalComponents` and `ItemStackTemplate.apply`.
+    /// `TransmuteResult.apply`: the base's components under the result's patch.
     fn assemble(&self, base: &ItemStack) -> Option<ItemStack> {
         use horizon_world::nbt::Tag;
         let mut patch = match item_data::encode_components(base) {
@@ -1092,7 +1092,8 @@ impl StationRecipes {
                         && b.test(base)
                         && a.test(addition)
                     {
-                        return apply_trim(e, base, addition, pattern).map(|r| (id.as_str(), r));
+                        return apply_trim(e, &self.trim_materials, base, addition, pattern)
+                            .map(|r| (id.as_str(), r));
                     }
                 }
             }
@@ -1125,36 +1126,49 @@ impl StationRecipes {
         (0..256).find_map(|_| {
             let base = ItemStack::new(&base[pick(base.len())], 1);
             let material = ItemStack::new(&addition[pick(addition.len())], 1);
-            apply_trim(e, &base, &material, pattern)
+            apply_trim(e, &self.trim_materials, &base, &material, pattern)
         })
     }
 }
-/// `ItemStack.get(DataComponents.PROVIDES_TRIM_MATERIAL)`: the stack's
-/// component (a name or an inline definition), else the item's default.
+/// `TrimMaterials.getFromIngredient`: the stack's `PROVIDES_TRIM_MATERIAL`
+/// component (a name or an inline definition), else the item's default —
+/// and a named material must be in the trim-material registry, or the
+/// `EitherHolder.unwrap` fails and there is no trim.
 fn trim_material(
     e: &Enchantments,
+    materials: &[(String, String)],
     stack: &ItemStack,
 ) -> Option<crate::item_data::trim::Holder<crate::item_data::trim::Material>> {
     let data = stack.data();
     if data.is_some_and(|d| d.other("!minecraft:provides_trim_material").is_some()) {
         return None;
     }
-    if let Some(tag) = data.and_then(|d| d.other("minecraft:provides_trim_material")) {
-        return crate::item_data::trim::material_from_nbt(tag);
+    let holder = if let Some(tag) = data.and_then(|d| d.other("minecraft:provides_trim_material")) {
+        crate::item_data::trim::material_from_nbt(tag)
+    } else {
+        e.props(&stack.item)
+            .and_then(|p| p.trim_material.clone())
+            .map(|id| crate::item_data::trim::Holder::Named(id.into()))
+    }?;
+    match &holder {
+        crate::item_data::trim::Holder::Named(id)
+            if !materials.iter().any(|(m, _)| m == id.as_ref()) =>
+        {
+            None
+        }
+        _ => Some(holder),
     }
-    e.props(&stack.item)
-        .and_then(|p| p.trim_material.clone())
-        .map(|id| crate::item_data::trim::Holder::Named(id.into()))
 }
 /// `SmithingTrimRecipe.applyTrim`: none when the material provides no trim
 /// or the base already has this one.
 fn apply_trim(
     e: &Enchantments,
+    materials: &[(String, String)],
     base: &ItemStack,
     material: &ItemStack,
     pattern: &crate::item_data::trim::Holder<crate::item_data::trim::Pattern>,
 ) -> Option<ItemStack> {
-    let material = trim_material(e, material)?;
+    let material = trim_material(e, materials, material)?;
     let trim: crate::item_data::Trim = (material, pattern.clone());
     if base.data().and_then(|d| d.trim.as_ref()) == Some(&trim) {
         return None;
@@ -1265,7 +1279,8 @@ mod tests {
     }
 
     /// Smithing: `SmithingTrimRecipe.applyTrim` reads the addition's
-    /// `PROVIDES_TRIM_MATERIAL`, a named material or an inline definition.
+    /// `PROVIDES_TRIM_MATERIAL`, a named material or an inline definition —
+    /// and a named material the registry does not hold unwraps to nothing.
     #[test]
     fn smithing_trim_reads_the_additions_trim_material() {
         let e = sample();
@@ -1279,6 +1294,7 @@ mod tests {
                 addition: Ingredient::of(vec!["minecraft:gold_ingot".into()]),
                 pattern: "minecraft:coast".into(),
             }],
+            trim_materials: vec![("minecraft:copper".into(), "Copper".into())],
             ..Default::default()
         };
         let template = ItemStack::new("minecraft:coast_armor_trim_smithing_template", 1);
@@ -1313,6 +1329,17 @@ mod tests {
             out.data().and_then(|d| d.trim.as_ref()).map(|t| &t.0),
             Some(crate::item_data::trim::Holder::Direct(_))
         ));
+        // A named material the registry does not hold unwraps to nothing:
+        // no trim, even though the component is present.
+        let mut unknown = ItemStack::new("minecraft:gold_ingot", 1);
+        unknown.data_mut().set_other(
+            "minecraft:provides_trim_material",
+            Some(Tag::String("minecraft:not_a_material".into())),
+        );
+        assert_eq!(
+            recipes.smithing_result(&e, Some(&template), Some(&base), Some(&unknown)),
+            None
+        );
     }
 
     /// Enchanting: `ItemStack.isEnchantable` and `selectEnchantment` read the
@@ -2156,6 +2183,13 @@ mod tests {
     fn smithing_trim_reads_an_inline_pattern() {
         let root = std::env::temp_dir().join(format!("horizon-trim-{}", std::process::id()));
         fs::create_dir_all(root.join("data/minecraft/recipe")).unwrap();
+        // The registry the named material unwraps against.
+        fs::create_dir_all(root.join("data/minecraft/trim_material")).unwrap();
+        fs::write(
+            root.join("data/minecraft/trim_material/gold.json"),
+            r#"{"asset_name":"gold","description":{"translate":"trim_material.minecraft.gold"}}"#,
+        )
+        .unwrap();
         fs::write(
             root.join("items.json"),
             r#"{"minecraft:gold_ingot":{"minecraft:max_stack_size":64,"minecraft:provides_trim_material":"minecraft:gold"}}"#,
