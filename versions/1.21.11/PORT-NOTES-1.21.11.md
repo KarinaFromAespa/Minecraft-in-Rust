@@ -7251,3 +7251,37 @@ diff is the authority). `cargo test -p horizon-client-lib
 evaluators run through the mob_ai probe on CI). rustfmt
 --check clean. Rank 2 now 278/492 (93 changed, 185
 no-change). work-items.json rank2.closed = 278 on 2026-11-21.
+
+## Item 100 — bake.rs (rank 2, NO-CHANGE + citation)
+
+5 classes, 32 methods, 3 named: FaceBakery,
+ItemModelGenerator$SideDirection, ItemModelGenerator$SideFace,
+UnbakedCuboidGeometry (+$1). The report mixes keys: the model
+classes live under `client/resources/model/cuboid/` in 26.1 and
+`client/renderer/block/model/` in 1.21.11, so the comparison was
+done manually cross-package.
+
+Java delta, jar-verified: the baking math is identical in both
+versions — defaultFaceUV, bakeVertex, calculateFacing,
+findClosestDirection, recalculateWinding. The difference is
+material plumbing: 26.1's bakeQuad takes a Material$Baked and
+computes a Transparency via the 26.1-only
+computeMaterialTransparency (forceTranslucent or the sprite
+contents' transparency over the UV rect); 1.21.11's takes a
+TextureAtlasSprite directly. 26.1's UnbakedCuboidGeometry is
+1.21.11's SimpleUnbakedGeometry (item 750, rank 4) — their bake
+methods are structurally identical, including the flat-element
+face skip. The SideDirection/SideFace inner classes differ only
+in visibility.
+
+No Rust fix: bake_face already mirrors 1.21.11's bakeQuad
+(facing, the rotation-gated winding reorder, default_uv).
+computeMaterialTransparency has no Rust mirror. force_translucent
+stays per item 52's decision (T4 oracle entanglement; vanilla
+1.21.11 JSON never contains the field). Citation fix:
+`UnbakedCuboidGeometry.bake` -> `SimpleUnbakedGeometry.bake`.
+
+Verification: literal comparison zero for FaceBakery and for
+the geometry pair. `cargo test -p horizon-assets --lib bake::`
+13 passed. Rank 2 now 279/492 (93 changed, 186 no-change).
+work-items.json rank2.closed = 279 on 2026-11-21.
