@@ -183,20 +183,21 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
-    /// The pinned 1.21.8's own wire layouts: what `quirks()` and
-    /// `quirks_written()` return when no other version is active. 1.21.8 is
+    /// The pinned 1.21.5's own wire layouts: what `quirks()` and
+    /// `quirks_written()` return when no other version is active. 1.21.5 is
     /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
     /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
-    /// stacks, optional profile fields) and the last release whose spell
+    /// stacks, optional profile fields), pre-1.21.6 (attribute modifiers and
+    /// equippable in the old layout) and the last release whose spell
     /// particles carried no options. (The shoulder parrots are compound tags
-    /// in 1.21.8 too, but EntityData::read converts them unconditionally —
+    /// in 1.21.5 too, but EntityData::read converts them unconditionally —
     /// no quirk gates that.)
     pub const PINNED: Self = Self {
         tag_slot_display_is_id: true,
         pot_decorations_are_items: true,
         either_holders_and_tag_resistance: true,
         stacks_in_components: true,
-        components_before_1_21_6: false,
+        components_before_1_21_6: true,
         components_before_1_21_5: false,
         count_first_templates: true,
         optional_profile_fields: true,

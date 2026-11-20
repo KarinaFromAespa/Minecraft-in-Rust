@@ -12,7 +12,11 @@ pub(super) fn read(kind: i32, r: &mut Reader) -> Result<Option<Vec<u8>>> {
 }
 
 pub(super) fn write(kind: i32, bytes: &[u8]) -> Option<Vec<u8>> {
-    if matches!(ids::active(), Some((ids, ids::Way::Down)) if ids.quirks.components_before_1_21_6) {
+    // The effective quirks decide, not the active session: when no session is
+    // active the target is the pin itself, and a pre-1.21.6 pin's own wire is
+    // the old form too. (The old gate only fired on a Down write, so a
+    // pre-1.21.6 pin wrote the display field its own reads then choked on.)
+    if ids::quirks_written().components_before_1_21_6 {
         rewrite(kind, &mut Reader::new(bytes), false).ok().flatten()
     } else {
         None
@@ -146,27 +150,27 @@ mod tests {
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01f80601000d02020b6d696e6563726166743a783ff8000000000000000100150b6d696e6563726166743a793fd0000000000000020000",
+                "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
             ),
             (
                 "equip_bare",
                 "01f80601001c034700000001010100",
-                "01f80601001c03470000000101010000b10a",
+                "01f80601001c034700000001010100",
             ),
             (
                 "equip_list",
                 "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
-                "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e90010000000100b10a",
+                "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
             ),
             (
                 "equip_direct",
                 "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
-                "01f80601001c04000e6d696e6563726166743a7465737401408000000000000101010000b10a",
+                "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
             ),
             (
                 "combined",
                 "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
-                "01f80603000d01000b6d696e6563726166743a7a400800000000000000000003111c03470000000101010000b10a",
+                "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
             ),
             (
                 "profile",
