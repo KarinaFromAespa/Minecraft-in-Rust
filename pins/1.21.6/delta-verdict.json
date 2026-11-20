@@ -1,23 +1,23 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.6",
-  "commit": "3a3a59020a335b06373d7685346b53781fced6ad",
+  "commit": "b9d9448c4100e9ca80a773509fd90f53fd4c0bac",
   "tree": ".horizon-ports/1.21.6",
-  "pin": "versions/1.21.6",
+  "pin": "pins/1.21.6",
   "mode": "recorded",
   "verified": false,
   "state": "failed",
-  "checked_at": "2026-11-19T10:54:39Z",
+  "checked_at": "2026-11-20T21:53:51Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": null,
-    "items_total": null,
+    "items_closed": 20,
+    "items_total": 20,
     "items_accepted": 0
   },
-  "index_line": "| 1.21.6 | D | \u2014 | \u2014 | 0 | failed 2026-11-19 |",
+  "index_line": "| 1.21.6 | D | \u2014 | 20/20 | 0 | failed 2026-11-20 |",
   "checks": {
     "D1": {
       "status": "fail",
@@ -28,7 +28,7 @@
         ".horizon-ports/1.21.6/research-lock.json",
         ".horizon-ports/1.21.6/crates/horizon-core/src/version.rs",
         ".horizon-ports/1.21.6/diff-1.21.7-1.21.6/regen.json",
-        "versions/1.21.6/regen-determinism.json",
+        "pins/1.21.6/regen-determinism.json",
         ".horizon-ports/1.21.6/.local/horizon-client/1.21.6",
         "tools/tag_audit.py"
       ]
@@ -40,36 +40,44 @@
         "protocol tests: 432, none failing"
       ],
       "evidence": [
-        "versions/1.21.6/ci-out/cargo-check.log",
-        "versions/1.21.6/ci-out/cargo-test-protocol.log"
+        "pins/1.21.6/ci-out/cargo-check.log",
+        "pins/1.21.6/ci-out/cargo-test-protocol.log"
       ]
     },
     "D3": {
-      "status": "fail",
+      "status": "pass",
       "notes": [
-        "rank-1: 3 of 3 item(s) neither closed nor accepted"
+        "rank-1: 3 closed, 0 accepted, 3 total",
+        "rank-2: 17 closed, 0 accepted, 17 total",
+        "totals read from summary.ranks",
+        "rank-3+: Inherits the 1.21.7 delta answers for everything this release did not change; the rank-3 items are closed by the behaviour port (10/10) and rank 5 by verification (1/1)."
       ],
       "evidence": [
         ".horizon-ports/1.21.6/diff-1.21.7-1.21.6/report.json",
-        "versions/1.21.6/work-items.json"
-      ]
+        "pins/1.21.6/work-items.json"
+      ],
+      "metrics": {
+        "items_closed": 20,
+        "items_total": 20,
+        "items_accepted": 0
+      }
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 6c5d03f33db0, HEAD is 3a3a59020a33 \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit 2077e1105510, HEAD is b9d9448c4100 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "versions/1.21.6/profile.json"
+        "pins/1.21.6/profile.json"
       ]
     },
     "D5": {
       "status": "blocked",
       "notes": [
-        "no harness-subset.txt: the era's regression subset is undefined"
+        "profile.json is stamped for commit 2077e1105510, HEAD is b9d9448c4100 \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "versions/1.21.6/harness-subset.txt"
+        "pins/1.21.6/profile.json"
       ]
     },
     "D6": {
@@ -78,7 +86,7 @@
         "no playtest.md: the play gate has not been recorded"
       ],
       "evidence": [
-        "versions/1.21.6/playtest.md"
+        "pins/1.21.6/playtest.md"
       ]
     }
   }
