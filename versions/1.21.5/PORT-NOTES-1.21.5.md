@@ -266,6 +266,39 @@ multi-GB build trees. The profile is to be measured by the CI
 `status.json` records the harness section as 0/0/0 of 17 with
 this note, and the CI run will fill it in.
 
+## Behaviour port (2026-11-21)
+
+Direction 1.21.6 -> 1.21.5, 426 items (ranks 9/259/133/23/2).
+Verification method: the named 1.21.6/1.21.5 client jars
+(9,483 vs 9,148 classes) via the mappings front-end (1.21.5:
+9,148/9,148 mapped, 0 placeholders), then a Vineflower
+decompile of the report's changed classes only (1,898 + 1,711
+class files) and a diff of the two source trees. The running jar
+is the oracle; decompiled code is a reading aid.
+
+### Rank 1: closed 8/9 (item 8 open — save-format, needs the decomp diff)
+
+- **Item 1 — protocol, verified:** the regenerated `ids.rs`
+  matches the report exactly: configuration/clientbound 17,
+  configuration/serverbound 8, play/clientbound 131,
+  play/serverbound 64; renumbered spot checks chat 7, use_item
+  63, use_item_on 62, swing 59 (all −1 from 1.21.6);
+  `CHANGE_GAME_MODE` and `CUSTOM_CLICK_ACTION` absent. The
+  `Clientbound::TrackedWaypoint` enum variant is gone (see the
+  rewire section above); the payload types stay as plain types
+  for `locator_bar.rs` / `lan/waypoints.rs`. No code change.
+- **Items 2–7 — regenerate, verified:** all six generated files
+  match `regen-determinism.json` byte-for-byte (sha256 checked
+  against the committed hashes; fresh == committed):
+  `command_order.rs`, `command_suggestions.rs`, `tracking.rs`,
+  `vanilla_order.rs`, `version.rs`, `ids.rs`. The mechanical
+  publish already regenerated them against the 1.21.5 pin. No
+  code change.
+- **Item 9 — version facts, verified:** `version.rs` carries
+  `PROTOCOL_VERSION` 770 and `DATA_VERSION` 4325; `adapter.rs`
+  has V1_21_5 as the pin identity static (V1_21_6 a regular old
+  version). No code change.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (not started)
