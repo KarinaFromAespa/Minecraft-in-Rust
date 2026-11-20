@@ -3378,3 +3378,85 @@ Tests: all 6 hash_ops tests pass
 vanilla-printed hash values and the CRC-32C check value.
 Rank 2 now 219/492 (53 changed, 166 no-change).
 work-items.json rank2.closed = 219 on 2026-11-20.
+
+## Item 41 — mobs/frog.rs (rank 2, CHANGED)
+
+FrogAi, GoatAi, Frog, LongJumpToRandomPos, FrogAttackablesSensor, Croak,
+LongJumpMidJump, LongJumpToPreferredBlock, TryLaySpawnOnFluidNearLand
+(removed), Frog$FrogLookControl: 10 classes, 56 methods, 9 named.
+Harnesses conversion_tags, finalize_spawn, mob_ai. No 26.1 → 1.21.11
+behaviour change reaches the Rust — the one real version difference was
+already implemented — but one pre-existing Rust-vs-vanilla gap in the
+item's lay-spawn activity was fixed in passing, so the item counts as
+changed.
+
+`TryLaySpawnOnFluidNearLand` is gone in 1.21.11; FrogAi uses
+`TryLaySpawnOnWaterNearLand`. Manual decompile diff of the two classes:
+the support check changes from "fluid in `#supports_frogspawn` OR block
+in `#supports_frogspawn`" to "fluid is exactly `Fluids.WATER`";
+everything else identical (gates, collision face, above-air, place +
+game event + sound, erase IS_PREGNANT). The Rust's `LaySpawn::lay`
+already checks `fluid == Water` — no logic change, only the class-name
+citations (2 spots). `TryFindLandNearWater` is identical in both
+versions (verified by manual decompile diff); the Rust cited a
+nonexistent `TryFindLandNearLiquid` in 3 spots — fixed (that class
+exists in neither jar).
+
+`FrogAttackablesSensor.isMatchingEntity` gains a
+`!hasMemoryValue(HAS_HUNTING_COOLDOWN)` gate in 1.21.11, but a jar-wide
+constant-pool scan shows nothing sets the memory on a frog: the only
+1.21.11 references are the declaration, AxolotlAttackablesSensor,
+FrogAttackablesSensor, AxolotlAi and Axolotl — the memory is an axolotl
+thing, never present on a frog's brain, so the gate never blocks. No
+Rust change. (`getMemoryToSet()` → `getMemory()` and the `requires()`
+removal are sensor API changes with no Rust mirror.)
+
+The brain-provider refactor (FrogAi/GoatAi `getActivities()` →
+`makeBrain` + `addActivity*`; Frog `BRAIN_PROVIDER` → `SENSOR_TYPES` +
+`MEMORY_TYPES` + `brainProvider()`) is API shape only: activity
+contents, priorities, speeds and conditions verified field by field
+against the Rust's goal encoding (CORE panic 2.0 + cooldown countdowns;
+IDLE look/Breed/Tempt 1.25/ShootTongue/stroll/RunOne croak 3:1; SWIM;
+LAY_SPAWN with Tempt blocked while pregnant; LONG_JUMP with the
+TEMPTING_PLAYER/BREED_TARGET gates via goal priority; TONGUE erasing
+the target on stop; GoatAi LONG_JUMP conditions via
+`goat::long_jump_activity`). `Frog.canEat` and the goat ram conditions
+are `TypedInstance`-removal rewrites with the same outcome
+(`getType().is/equals`); `UniformInt.minInclusive()` → `getMinValue()`;
+`canAttack(Mob)` → `canAttack(Frog)`. Croak, the three long-jump
+behaviours, Frog's poses/walk/fall/travel/spawn/navigation are
+identical modulo `level.getRandom()` → `level.random`. Method-name
+diff run explicitly: only the expected refactor/rename differences.
+
+`ShootTongue` (frog package, in no report item) is identical in both
+versions; the Rust's goal matches it throughout (path-ends < 1.75
+gate, 100-tick duration, tongue pull * 0.75, eat on the 7th CATCH tick
+— the Rust's pre-increment + >6 equals vanilla's post-increment +
+>=6, EAT ends at timer >= 10, unreachable list max 5 / 100 ticks; frog
+attack damage is 10.0, so the unconditional RemoveKilled matches
+vanilla's conditional one). The IS_TEMPTED carry-forward from item 38
+is discharged for Frog/Goat: the jar-wide scan shows they reference
+IS_TEMPTED only in their MEMORY_TYPES registration lists — no
+frog/goat-side read exists, and neither Rust file reads a tempted
+memory.
+
+Fix: `land_near_water` checked `fluid == Water` for the block below the
+neighbour, which is true for waterlogged blocks (`BlockFacts.fluid` is
+Water when `waterlogged=true`); vanilla's
+`getBlockState(below).is(Blocks.WATER)` is true only for actual water
+blocks. Changed to a block-name check (`== "minecraft:water"` — source
+and flowing are both that block). Also moved the `Frog.canEat` doc line
+from above `walk_target` (wrong item) to above `can_eat`.
+
+Pre-existing observations, not fixed: the Rust's unreachable-target
+TTLs are per-entry while vanilla's `setMemoryWithExpiry` refreshes the
+whole list's expiry on every add; `LaySpawn::lay` does not fire the
+`GameEvent.BLOCK_PLACE` vanilla fires; the idle RunOne's full weight
+distribution is approximated by the 3/4 croak roll (documented in the
+header). All version-neutral.
+
+Tests: all 9 frog tests pass
+(`cargo test -p horizon-client-lib --lib --no-default-features
+mobs::frog::`). `rustfmt --edition 2024 --check` clean on frog.rs.
+Rank 2 now 220/492 (54 changed, 166 no-change).
+work-items.json rank2.closed = 220 on 2026-11-20.
