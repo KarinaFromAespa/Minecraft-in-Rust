@@ -8040,3 +8040,69 @@ game test (`difficulty_packet_tests`, needs HORIZON_TEST_RESOURCES,
 compiles clean, runs on CI) pinning the owner bypass, the guest
 refusal, and the lock. `cargo check` clean (render lib, client lib +
 tests); rustfmt --check clean on all four edited files.
+
+## Item 119 — block_items (rank 2, NO-CHANGE + citation)
+
+9 classes, 23 methods, 3 named (`ShulkerBoxBlock.playerWillDestroy`,
+`DecoratedPotBlock.getCloneItemStack`, `BannerBlockEntity.getItem`).
+
+Java delta, jar-verified (javap diff 592 lines + decompile diff 1394
+lines, both read in full): AttachedStemBlock.mayPlaceOn drops the
+`supportBlocks` tag field and checks `Blocks.FARMLAND` directly;
+BambooSaplingBlock.canSurvive renames `SUPPORTS_BAMBOO` to
+`BAMBOO_PLANTABLE_ON` and its isValidBonemealTarget drops the
+build-height guard; BigDripleafStemBlock.canSurvive renames
+`SUPPORTS_BIG_DRIPLEAF` to `BIG_DRIPLEAF_PLACEABLE` and its
+isValidBonemealTarget reshapes from the 2-arg to the 3-arg
+`BigDripleafBlock.canPlaceAt`; GrowingPlantBodyBlock.
+isValidBonemealTarget drops the build-height guard. All four were
+already fixed by items 27/59/95 (survive.rs farmland arm, the renamed
+tags, the bonemeal-valid arms). The canPlaceAt reshape is equivalent,
+verified by decompiling BigDripleafBlock from both jars: 26.1's 2-arg
+form delegates to `canGrowInto` (`isInsideBuildHeight &&
+canReplace(fetched state)`), 1.21.11's 3-arg form is
+`!isOutsideBuildHeight && canReplace(passed state)`, and every 1.21.11
+call site passes the freshly fetched state. ShulkerBoxBlock.
+playerWillDestroy builds the drop via the NEW 1.21.11-only statics
+`getBlockByColor` / `getColoredItemStack` instead of `new
+ItemStack(state.getBlock())` — the same result, since the block IS the
+coloured box (another case of the triage blind spot: 1.21.11-only
+methods never appear in the changed-methods dict). BannerBlockEntity.
+getItem switches to `BannerBlock.byColor(baseColor)` — the same item.
+DecoratedPotBlock.getCloneItemStack calls `createDecoratedPotItem`
+instead of `createDecoratedPotInstance` — a rename, verified
+equivalent by decompiling DecoratedPotBlockEntity from both jars (26.1
+goes through the 26.x `ItemStackTemplate`, 1.21.11 sets
+`POT_DECORATIONS` directly; the same stack). The
+`fluidState.is(Fluids.WATER)` → `getType() == Fluids.WATER` change and
+the PistonHeadBlock `is` overloads are noise.
+
+Item 27's open referral for this item — the Rust's BigDripleafStem
+PERFORM arm placing without the canPlaceAt gate, "at the ceiling it
+overwrites the leaf with a stem" — is a false alarm: every entry point
+into `Sim::perform_bonemeal` for the stem goes through `grow_crop`,
+which checks `bonemeal_valid` (with the `dripleaf_can_place_at`
+gate, height included) first; vanilla's own stem performBonemeal is
+likewise ungated in BOTH versions, the gate living in
+isValidBonemealTarget. The Rust mirrors vanilla exactly (the leaf
+perform arm IS gated, because vanilla's leaf performBonemeal gates).
+A new level test pins the resolution:
+`bone_meal_refuses_a_dripleaf_stem_whose_leaf_is_at_the_ceiling`
+(meal refused at the ceiling, leaf stays a leaf; the same column lower
+down grows). The only code change is the comment citation in
+block_items.rs (`createDecoratedPotInstance` →
+`createDecoratedPotItem`). The updateShape mirrors in shapes.rs
+(attached stem → stem at AGE 7, bamboo sapling, big dripleaf stem),
+the pick-block table (stems → seeds, bamboo sapling → bamboo, big
+dripleaf stem → big dripleaf, plant bodies → head, piston head →
+piston/sticky, pot → sherds only, banner → own item) and the creative
+shulker drop (`drop_creative_shulker`, creative gate at the game.rs
+call site) were all verified already 1.21.11-shaped. Referrals: the
+`support_tag` arm still serves NetherFungus/NetherRoots (item 757);
+item 30's DecoratedPot all-brick gap is untouched; the shulker-box
+block-entity path is item 16's scope. Tests: `cargo test -p
+horizon-world --lib --no-default-features bone_meal` 8 passed (new
+test early-returns locally without fixtures, runs on CI);
+`game::block_items::tests::` 3 passed. `cargo check` clean (world lib
++ tests, client lib); rustfmt --check clean on block_items.rs, tests.rs
+only its two pre-existing drift spots.

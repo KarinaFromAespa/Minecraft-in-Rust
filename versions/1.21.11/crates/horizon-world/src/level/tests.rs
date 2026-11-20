@@ -3290,6 +3290,59 @@ fn a_pitcher_crop_still_grows_at_the_build_ceiling() {
 }
 
 #[test]
+fn bone_meal_refuses_a_dripleaf_stem_whose_leaf_is_at_the_ceiling() {
+    // `BigDripleafStemBlock.isValidBonemealTarget` in 1.21.11 asks the
+    // leaf's `canPlaceAt` above the head, build height included — so a stem
+    // whose leaf sits at y 319 takes no meal, and the ungated
+    // `performBonemeal` (which trusts the valid check, in both versions)
+    // never runs to overwrite the leaf with a stem. Lower down, the same
+    // meal grows the column: the leaf becomes a stem and a new leaf opens
+    // above it.
+    let mut w = world!();
+    let dirt = w.id("dirt", &[]);
+    let stem = w.id("big_dripleaf_stem", &[("facing", "north")]);
+    let leaf = w.id("big_dripleaf", &[("facing", "north")]);
+    w.put(BlockPos::new(0, 317, 0), dirt);
+    w.put(BlockPos::new(0, 318, 0), stem);
+    w.put(BlockPos::new(0, 319, 0), leaf);
+    assert!(
+        !w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .grow_crop(BlockPos::new(0, 318, 0)),
+        "bonemeal is refused at the ceiling"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(0, 319, 0)),
+        leaf,
+        "the leaf stays a leaf"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(0, 318, 0)),
+        stem,
+        "the stem stays a stem"
+    );
+    w.put(BlockPos::new(4, 98, 0), dirt);
+    w.put(BlockPos::new(4, 99, 0), stem);
+    w.put(BlockPos::new(4, 100, 0), leaf);
+    assert!(
+        w.b()
+            .sim(&mut w.level, &mut w.ticks)
+            .grow_crop(BlockPos::new(4, 99, 0)),
+        "bonemeal grows the lower column"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(4, 100, 0)),
+        stem,
+        "the leaf becomes a stem"
+    );
+    assert_eq!(
+        w.get(BlockPos::new(4, 101, 0)),
+        leaf,
+        "a new leaf opens above"
+    );
+}
+
+#[test]
 fn small_dripleaf_stands_on_clay_or_watered_dirt() {
     // `SmallDripleafBlock.mayPlaceOn`: the placeable tag (clay, moss) or,
     // with water above the ground, `VegetationBlock.mayPlaceOn` (dirt or
