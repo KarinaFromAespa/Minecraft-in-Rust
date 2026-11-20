@@ -74,7 +74,8 @@ fn edit_locked(
         ("deop", [name]) => {
             let mut ops = load(OpList::new(ops_path))?;
             let user = listed(ops.entries().iter().map(|e| &e.user), name);
-            if user.is_some_and(|user| ops.remove(&user)) {
+            if let Some(user) = user {
+                ops.remove(&user);
                 (true, format!("Made {name} no longer a server operator"))
             } else {
                 (
@@ -96,7 +97,8 @@ fn edit_locked(
         ("whitelist", ["remove", name]) => {
             let mut white = load(WhiteList::new(white_path))?;
             let user = listed(white.entries().iter().map(|e| &e.user), name);
-            if user.is_some_and(|user| white.remove(&user)) {
+            if let Some(user) = user {
+                white.remove(&user);
                 (true, format!("Removed {name} from the whitelist"))
             } else {
                 (false, "Player is not whitelisted".to_owned())
@@ -141,12 +143,18 @@ fn edit_locked(
             let user = account(name, config.server.online_mode)?;
             let reason = reason(rest);
             let mut bans = load(BanList::new(dir.join("banned-players.json")))?;
-            if bans.add(BanEntry::new(
-                user,
-                Some("Server".into()),
-                None,
-                reason.clone(),
-            )) {
+            if bans.contains(&user) {
+                (
+                    false,
+                    "Nothing changed. The player is already banned".to_owned(),
+                )
+            } else {
+                bans.add(BanEntry::new(
+                    user,
+                    Some("Server".into()),
+                    None,
+                    reason.clone(),
+                ));
                 (
                     true,
                     format!(
@@ -154,17 +162,13 @@ fn edit_locked(
                         reason.as_deref().unwrap_or("Banned by an operator.")
                     ),
                 )
-            } else {
-                (
-                    false,
-                    "Nothing changed. The player is already banned".to_owned(),
-                )
             }
         }
         ("pardon", [name]) => {
             let mut bans = load(BanList::new(dir.join("banned-players.json")))?;
             let user = listed(bans.entries().iter().map(|e| &e.user), name);
-            if user.as_ref().is_some_and(|user| bans.remove(user)) {
+            if let Some(user) = user {
+                bans.remove(&user);
                 (true, format!("Unbanned {name}"))
             } else {
                 (false, "Nothing changed. The player isn't banned".to_owned())
@@ -176,23 +180,24 @@ fn edit_locked(
             }
             let reason = reason(rest);
             let mut bans = load(IpBanList::new(dir.join("banned-ips.json")))?;
-            if bans.add(BanEntry::new(
-                (*ip).to_owned(),
-                Some("Server".into()),
-                None,
-                reason.clone(),
-            )) {
+            if bans.contains(&(*ip).to_owned()) {
+                (
+                    false,
+                    "Nothing changed. That IP is already banned".to_owned(),
+                )
+            } else {
+                bans.add(BanEntry::new(
+                    (*ip).to_owned(),
+                    Some("Server".into()),
+                    None,
+                    reason.clone(),
+                ));
                 (
                     true,
                     format!(
                         "Banned IP {ip}: {}",
                         reason.as_deref().unwrap_or("Banned by an operator.")
                     ),
-                )
-            } else {
-                (
-                    false,
-                    "Nothing changed. That IP is already banned".to_owned(),
                 )
             }
         }
@@ -201,7 +206,8 @@ fn edit_locked(
                 return Err("Invalid IP address".into());
             }
             let mut bans = load(IpBanList::new(dir.join("banned-ips.json")))?;
-            if bans.remove(&(*ip).to_owned()) {
+            if bans.contains(&(*ip).to_owned()) {
+                bans.remove(&(*ip).to_owned());
                 (true, format!("Unbanned IP {ip}"))
             } else {
                 (false, "Nothing changed. That IP isn't banned".to_owned())
