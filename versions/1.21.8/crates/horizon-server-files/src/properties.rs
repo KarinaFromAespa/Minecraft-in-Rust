@@ -29,9 +29,9 @@ pub struct ServerProperties {
     pub online_mode: bool,
     pub prevent_proxy_connections: bool,
     pub server_ip: String,
+    pub pvp: bool,
     pub allow_flight: bool,
     pub motd: String,
-    pub code_of_conduct: bool,
     pub bug_report_link: String,
     pub force_game_mode: bool,
     pub enforce_whitelist: bool,
@@ -41,6 +41,8 @@ pub struct ServerProperties {
     pub game_mode: i32,
     pub level_name: String,
     pub server_port: i32,
+    // 1.21.9-only: the JSON-RPC management server (items 370/423/453/483/484
+    // own its removal; horizon-server's management module still reads these).
     pub management_server_enabled: bool,
     pub management_server_host: String,
     pub management_server_port: i32,
@@ -56,7 +58,10 @@ pub struct ServerProperties {
     pub rcon_port: i32,
     pub rcon_password: String,
     pub hardcore: bool,
+    pub allow_nether: bool,
+    pub spawn_monsters: bool,
     pub use_native_transport: bool,
+    pub enable_command_block: bool,
     pub spawn_protection: i32,
     pub op_permission_level: i32,
     pub function_permission_level: i32,
@@ -81,6 +86,7 @@ pub struct ServerProperties {
     pub text_filtering_config: String,
     pub text_filtering_version: i32,
     pub player_idle_timeout: i32,
+    // 1.21.9-only: read by the management server (items 370/423 own its removal).
     pub status_heartbeat_interval: i32,
     pub white_list: bool,
     pub enforce_secure_profile: bool,
@@ -147,7 +153,8 @@ impl Entropy for SystemEntropy {
     }
 }
 
-/// SecurityConfig.generateSecretKey.
+/// SecurityConfig.generateSecretKey (1.21.9-only; the management server in
+/// horizon-server still uses it until items 370/483 remove it).
 pub fn generate_secret_key(entropy: &mut dyn Entropy) -> String {
     const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     (0..40)
@@ -252,9 +259,9 @@ impl ServerProperties {
         let online_mode = r.boolean("online-mode", true);
         let prevent_proxy_connections = r.boolean("prevent-proxy-connections", false);
         let server_ip = r.string("server-ip", "");
+        let pvp = r.boolean("pvp", true);
         let allow_flight = r.boolean("allow-flight", false);
         let motd = r.string("motd", "A Minecraft Server");
-        let code_of_conduct = r.boolean("enable-code-of-conduct", false);
         let bug_report_link = r.string("bug-report-link", "");
         let force_game_mode = r.boolean("force-gamemode", false);
         let enforce_whitelist = r.boolean("enforce-whitelist", false);
@@ -278,6 +285,8 @@ impl ServerProperties {
         );
         let level_name = r.string("level-name", "world");
         let server_port = r.int("server-port", 25565);
+        // 1.21.9-only management-server keys (items 370/423/453/483/484 own
+        // their removal; horizon-server's management module still reads them).
         let management_server_enabled = r.boolean("management-server-enabled", false);
         let management_server_host = r.string("management-server-host", "localhost");
         let management_server_port = r.int("management-server-port", 0);
@@ -297,7 +306,10 @@ impl ServerProperties {
         let rcon_port = r.int("rcon.port", 25575);
         let rcon_password = r.string("rcon.password", "");
         let hardcore = r.boolean("hardcore", false);
+        let allow_nether = r.boolean("allow-nether", true);
+        let spawn_monsters = r.boolean("spawn-monsters", true);
         let use_native_transport = r.boolean("use-native-transport", true);
+        let enable_command_block = r.boolean("enable-command-block", false);
         let spawn_protection = r.int("spawn-protection", 16);
         let op_permission_level = r.permission("op-permission-level", 4);
         let function_permission_level = r.permission("function-permission-level", 2);
@@ -396,9 +408,9 @@ impl ServerProperties {
             online_mode,
             prevent_proxy_connections,
             server_ip,
+            pvp,
             allow_flight,
             motd,
-            code_of_conduct,
             bug_report_link,
             force_game_mode,
             enforce_whitelist,
@@ -421,7 +433,10 @@ impl ServerProperties {
             rcon_port,
             rcon_password,
             hardcore,
+            allow_nether,
+            spawn_monsters,
             use_native_transport,
+            enable_command_block,
             spawn_protection,
             op_permission_level,
             function_permission_level,

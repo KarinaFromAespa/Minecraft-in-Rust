@@ -263,9 +263,9 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.prevent_proxy_connections.to_string(),
         ),
         ("server-ip", p.server_ip.clone()),
+        ("pvp", p.pvp.to_string()),
         ("allow-flight", p.allow_flight.to_string()),
         ("motd", p.motd.clone()),
-        ("enable-code-of-conduct", p.code_of_conduct.to_string()),
         ("bug-report-link", p.bug_report_link.clone()),
         ("force-gamemode", p.force_game_mode.to_string()),
         ("enforce-whitelist", p.enforce_whitelist.to_string()),
@@ -273,6 +273,8 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
         ("gamemode", GAME_MODES[p.game_mode as usize].to_owned()),
         ("level-name", p.level_name.clone()),
         ("server-port", p.server_port.to_string()),
+        // 1.21.9-only management-server keys (items 370/423/453/483/484 own
+        // their removal; horizon-server's management module still reads them).
         (
             "management-server-enabled",
             p.management_server_enabled.to_string(),
@@ -309,7 +311,10 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
         ("rcon.port", p.rcon_port.to_string()),
         ("rcon.password", p.rcon_password.clone()),
         ("hardcore", p.hardcore.to_string()),
+        ("allow-nether", p.allow_nether.to_string()),
+        ("spawn-monsters", p.spawn_monsters.to_string()),
         ("use-native-transport", p.use_native_transport.to_string()),
+        ("enable-command-block", p.enable_command_block.to_string()),
         ("spawn-protection", p.spawn_protection.to_string()),
         ("op-permission-level", p.op_permission_level.to_string()),
         (
