@@ -334,7 +334,28 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 95/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112 + 4 zero-diff)
+### Rank 2: 96/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113 + 4 zero-diff)
+
+- **Item 113 — `crates/horizon-command/src/lib.rs`
+  (2 classes, 20 methods, 1 named in Horizon),
+  zero-diff:** UserBanList, IpBanList. `getUserList`
+  returns the banned names in both versions
+  (`GameProfile::getName` in 1.21.8, `NameAndId::name`
+  in 1.21.9); the Rust's suggestion providers and
+  `cmd_banlist` match. Keys are UUID strings, the entry
+  format is unchanged, expiry handling matches, and the
+  login order (bans, whitelist, IP bans) matches. The
+  `NameAndId` vs `GameProfile` type difference is
+  behaviourally empty for the ban lists (properties never
+  appear in `banned-players.json`). Referral: item 282 —
+  the `NotificationService` constructor arg and the
+  add/remove/clear notifications are 1.21.9-only
+  (jar-verified: no `server/notifications/` package and
+  no ManagementServer in 1.21.8); the Rust's watcher
+  mechanism feeds Horizon's own event stream, and its
+  fate is the notifications item's call. No check run
+  (no code changed; tree unchanged since item 112's
+  0/0 check).
 
 - **Item 112 — `crates/horizon-client/src/game/beacon.rs`
   (6 classes, 10 methods, 2 named in Horizon),
