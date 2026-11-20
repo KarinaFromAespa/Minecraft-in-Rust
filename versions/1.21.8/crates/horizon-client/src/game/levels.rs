@@ -340,10 +340,12 @@ impl Game<'_> {
 
     /// `MinecraftServer.prepareLevels`: before the first tick, the chunks the
     /// open levels' restored tickets hold (forced chunks, a native mod's) are
-    /// loaded (`ChunkLoadCounter`). The first tick then finds them ticking
-    /// and unpacks their saved block and fluid ticks at the game time they
-    /// were saved at (`startTickingChunk`), not at whichever tick they finish
-    /// streaming in.
+    /// loaded — 1.21.8 waits on the spawn region and activates the saved
+    /// tickets (`activateAllDeactivatedTickets`); this tree models no spawn
+    /// ticket, so it waits on the restored tickets instead. The first tick
+    /// then finds them ticking and unpacks their saved block and fluid ticks
+    /// at the game time they were saved at (`startTickingChunk`), not at
+    /// whichever tick they finish streaming in.
     pub(super) fn prepare_levels(&mut self) -> Result<()> {
         if self.options.execution_role.is_client() {
             return Ok(());

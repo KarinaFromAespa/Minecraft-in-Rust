@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 85/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102 + 4 zero-diff)
+### Rank 2: 86/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103 + 4 zero-diff)
+
+- **Item 103 — `crates/horizon-client/src/game/levels.rs`
+  (3 classes, 17 methods, 2 named in Horizon),
+  citations only:** TicketType, ServerTickRateManager,
+  ChunkLoadCounter. The `prepare_levels` doc cited
+  `ChunkLoadCounter`, which is 1.21.9-only — reworded to 1.21.8's
+  form (spawn-region wait, then `activateAllDeactivatedTickets`).
+  Verified no-change: the TicketType redesign (1.21.9 flags record
+  vs 1.21.8 persist + `TicketUse` enum) leaves every modelled
+  ticket kind's load/simulate semantics identical — the differing
+  concepts (`shouldKeepDimensionActive`, `canExpireIfUnloaded`,
+  the spawn tickets) are unmodelled; `finishTickSprint`'s math is
+  identical and only its `%.2f` locale differs (1.21.9
+  `Locale.ROOT` vs 1.21.8 default locale — Rust formatting is
+  locale-free by design, unportable). Known gap, documented not
+  fixed: 1.21.8's `TicketType.START` holds the spawn area loaded
+  and simulated permanently, and this tree models no spawn ticket
+  or `spawnChunkRadius` gamerule — restoring it is a
+  ticket-system feature, not a delta fix. Comment-only change; no
+  check run (tree unchanged since item 102's 0/0 check).
 
 - **Item 102 — `crates/horizon-world/src/worldgen/generator.rs`
   (3 classes, JigsawPlacement, Mth, JigsawStructure$MaxDistance),
