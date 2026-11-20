@@ -7506,3 +7506,68 @@ FileFixerProgressScreen citations in this file (item 346's scope);
 `determineLevelLoadingReason` is items 15/241's scope. Tests: `cargo
 test -p horizon-client-render --lib --no-default-features
 level_loading::` 12 passed. rustfmt --check clean.
+
+## Item 107 — biome.rs + mesher.rs tint audit (rank 2, CHANGED)
+
+20 classes, 37 methods, 2 named (`Identifier.compareTo`,
+`Identifier.isValidNamespace`): ConstantInt, Identifier,
+EnvironmentAttributeProbe (+ValueProbe), BlockTintSources + $1-$11,
+Biome$1, Biome$TemperatureModifier (+$1, $2).
+
+Java delta, jar-verified: `isValidNamespace` — 26.1 explicitly rejects
+`".."`; 1.21.11 does not. `assertValidNamespace` error wording differs
+("namespace of identifier" vs "namespace of location" — a string
+difference the javap normalizer hides). ConstantInt is a Record in
+26.1, a plain class in 1.21.11 (wire form identical). The probe /
+Biome$1 / TemperatureModifier diffs are visibility-only plus the 26.1
+`Objects.requireNonNull` javac artifact and a lambda rename.
+BlockTintSources is 26.1-only; 1.21.11's `BlockColors.createDefault()`
+is hardcoded per-block lambdas. The Biome outer class is item 221's
+scope (only visibility/parameter-name noise plus
+`fluidState.is(Fluids.WATER)` -> `getType() == Fluids.WATER` in
+`shouldFreeze`).
+
+Two real Rust bugs. (1) `BiomeInfo::from_json` read spawns from
+`attributes["minecraft:gameplay/natural_mob_spawns"]` — an attribute
+that exists in NEITHER 26.1 nor 1.21.11 data (verified against the
+1.21.11 jar's `EnvironmentAttributes` and biome JSONs), so every
+biome's spawn table was empty and natural spawning was silently
+disabled. `parse_entries` now reads the `SpawnerData` form
+(`type`/`weight`/`minCount`/`maxCount`, `constant: false` always —
+`NaturalSpawner` draws `minCount + nextInt(1 + maxCount - minCount)`
+unconditionally); spawns, `spawn_costs` and
+`creature_spawn_probability` (default 0.1) come from the biome file's
+top level. The `count` IntProvider arms are dropped — no 1.21.11 data
+uses them. `MobSpawnSettings` is identical in both versions
+(decompiled both). New test
+`spawners_come_from_the_biome_file_not_an_attribute` asserts the
+1.21.11 form parses and the 26.3 attribute form is ignored. (2)
+`Mesher::tint` sampled `TallGrassUpper` at its own position; vanilla
+samples `pos.below()` in both versions — now `(y - 1).max(0)` (the
+`.max(0)` guard is required: `Tints.layers` is 16 entries, and
+`saturating_sub` on a signed int saturates at `i32::MIN`, not 0 —
+`0i32.saturating_sub(1)` is `-1`, caught by the test). New test
+`a_tall_grass_upper_half_tints_from_the_block_below` stacks two
+biomes by Y and asserts the upper half tints from the layer below,
+falling back to its own layer at y=0. The rest of the tint audit
+passed: 1.21.11's `createDefault` table matches the Rust's mesher
+tint table registration-for-registration. Referrals:
+`environment_attributes.rs` carries the 26.3-only
+`gameplay/natural_mob_spawns` +
+`gameplay/creature_world_gen_spawn_probability` attributes (the
+environment-attributes item's scope);
+`spawn_selection.rs::fortress_enemies()` sets `constant: true` for
+zombified_piglin (4,4) — wrong for 1.21.11 (spawning item's scope);
+`sample_count`'s doc cites `SpawnerData.count()`, which does not
+exist in 1.21.11; the MISC->PIG SpawnerData quirk (unobservable in
+vanilla data); the `".."` namespace mirrors in `skins.rs:653` (item
+227) and `horizon-mods/src/content.rs:40`; `mod_content_biomes.rs`
+still uses the attribute form (mod-content scope); `UniformInt` codec
+field names are item 202's scope. Lesson: a Rust read of a 26.3-only
+data form can be wrong for BOTH versions — verify the data form
+against the actual 1.21.11 JSONs in the jar, not just the class diff.
+Tests: `biome::` 8 passed; `mesher::tint_tests::` 5 passed, 2 ignored;
+`mobs::spawn_selection::` (horizon-client-lib) 2 passed; `cargo check
+-p horizon-client-lib --lib --tests` clean. rustfmt --check clean on
+biome.rs and tint_tests.rs; mesher.rs flags only the pre-existing
+drift at line 2145.

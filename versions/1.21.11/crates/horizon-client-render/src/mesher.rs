@@ -2091,7 +2091,11 @@ impl Mesher<'_> {
         Some(match state.tints[(index as usize).min(1)] {
             Tint::None => return None,
             Tint::Grass | Tint::GrassBlock | Tint::SugarCane => tints.get(Resolver::Grass, x, y, z),
-            Tint::TallGrassUpper => tints.get(Resolver::Grass, x, y, z),
+            // `BlockColors`: the upper half's grass colour is sampled at
+            // `pos.below()` (the lower half's position). At the section's
+            // bottom layer there is no layer below in this section, so the
+            // half itself stands in.
+            Tint::TallGrassUpper => tints.get(Resolver::Grass, x, (y - 1).max(0), z),
             Tint::Foliage => tints.get(Resolver::Foliage, x, y, z),
             Tint::DryFoliage => tints.get(Resolver::Dry, x, y, z),
             Tint::Water => tints.water(x, y, z),
