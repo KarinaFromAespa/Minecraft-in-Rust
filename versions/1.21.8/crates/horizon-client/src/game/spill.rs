@@ -412,10 +412,10 @@ impl GameLevel<'_> {
     }
     /// An item `atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandomXZ(random,
     /// 0.7)` with the default pickup delay (`ComposterBlock.extractProduce`).
-    pub(super) fn pop_above(&mut self, pos: BlockPos, item: std::sync::Arc<str>) {
+    pub(super) fn pop_above(&mut self, pos: BlockPos, item: std::sync::Arc<str>, count: u32) {
         let at = removal::jukebox_pop_position(&mut self.world.random, pos);
         self.spill.spawns.push(Spawn {
-            stack: ItemStack::new(&item, 1),
+            stack: ItemStack::new(&item, count),
             pos: at,
             motion: None,
             delay: 10,

@@ -1755,11 +1755,11 @@ impl LevelAccess for GameLevel<'_> {
             // ComposterBlock.extractProduce: bone meal above the composter.
             LevelEvent::Player {
                 pos,
-                effect: PlayerEffect::DropItem(item),
+                effect: PlayerEffect::DropItem(item, count),
                 ..
-            } => self.pop_above(pos, item),
-            // Picking a sweet berry bush: the harvest loot, popped before
-            // the pick sound draws its pitch.
+            } => self.pop_above(pos, item, count),
+            // The harvest loot tables are 1.21.9-only; no 1.21.8 block
+            // emits InteractLoot.
             LevelEvent::Player {
                 pos,
                 state,
@@ -4650,7 +4650,7 @@ impl Game<'_> {
                         }
                     }
                     // Popped as the behaviour emits it (GameLevel::emit).
-                    PlayerEffect::DropItem(_) => {}
+                    PlayerEffect::DropItem(_, _) => {}
                     PlayerEffect::EatCake => {
                         // CakeBlock.eat
                         self.award_custom_stat("eat_cake_slice", 1);

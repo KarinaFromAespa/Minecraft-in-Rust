@@ -187,7 +187,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         && b.table.bool(state, b.props.powered)
                         && !self.ticks.has_block_tick(pos, block)
                     {
-                        self.schedule_tick(pos, block, 8);
+                        // 1.21.8 unpowers a placed powered rod at once
+                        // (flags 18); the 8-tick reschedule came in 1.21.9.
+                        self.set_block(
+                            pos,
+                            b.table.set_bool(state, b.props.powered, false),
+                            18,
+                        );
                     }
                 }
                 Class::Liquid => self.liquid_block_changed(pos, state),

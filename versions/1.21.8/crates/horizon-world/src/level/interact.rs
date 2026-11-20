@@ -100,8 +100,9 @@ pub enum PlayerEffect {
     EatCake,
     /// Give the item to the player (dropping it when the inventory is full).
     GiveItem(Arc<str>),
-    /// Pop the item at the block (composter bone meal).
-    DropItem(Arc<str>),
+    /// Pop the item at the block (composter bone meal, cave-vine berries,
+    /// sweet berries), `count` in one stack.
+    DropItem(Arc<str>, u32),
     /// Evaluate the block-interaction loot table and pop the results.
     InteractLoot(&'static str),
     /// Try to sleep in the bed whose head is at the event position.
@@ -313,7 +314,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::DropItem("minecraft:glow_berries".into()),
+                        PlayerEffect::DropItem("minecraft:glow_berries".into(), 1),
                     );
                     let pitch = self.random().next_float() * 0.4 + 0.8;
                     self.emit(LevelEvent::Sound {
@@ -328,13 +329,20 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     Success
                 }
                 Class::SweetBerryBush => {
-                    if table.int(state, p.age) <= 1 {
+                    let age = table.int(state, p.age);
+                    if age <= 1 {
                         return Pass;
                     }
+                    // SweetBerryBushBlock.useWithoutItem: 1.21.8 drops
+                    // 1 + nextInt(2) berries directly, +1 at age 3; the
+                    // harvest loot table came in 1.21.9.
+                    let count =
+                        (1 + self.random().next_int_bound(2).unwrap_or(0) + i32::from(age == 3))
+                            as u32;
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/sweet_berry_bush"),
+                        PlayerEffect::DropItem("minecraft:sweet_berries".into(), count),
                     );
                     let pitch = 0.8 + self.random().next_float() * 0.4;
                     self.emit(LevelEvent::Sound {
@@ -546,7 +554,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         self.player_effect(
             pos,
             state,
-            PlayerEffect::DropItem("minecraft:bone_meal".into()),
+            PlayerEffect::DropItem("minecraft:bone_meal".into(), 1),
         );
         self.set_block_and_update(pos, b.table.set_int(state, b.props.level, 0));
         self.game_event(pos, "minecraft:block_change");
