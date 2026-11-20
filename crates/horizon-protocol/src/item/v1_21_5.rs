@@ -110,8 +110,10 @@ fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Option<Vec<u8>>> {
             if up {
                 w.bool(false); // Equippable's default canBeSheared.
                 // No item.shears.snip at this pin (a 1.21.5 addition): the
-                // sheep-shear sound (1255) stands in as the shearing sound.
-                w.varint(1256);
+                // sheep-shear sound (1226 pinned) stands in as the shearing
+                // sound. (The old value 1256 was stale: 1255 was the
+                // skeleton ambient at the 1.21.1 pin, not the shear sound.)
+                w.varint(1227);
             } else {
                 r.bool()?;
                 sound(r, &mut Writer::new())?;
@@ -153,30 +155,30 @@ mod tests {
     #[test]
     fn vanilla_1_21_5_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.5 and 26.3.
-        // Covers multiple modifiers and a following damage value. The pinned side is the 1.21.1
-        // wire form: the item 888 in 1.21.5 is 848 pinned, and the kinds move with the registry
-        // (attributes 13 to 12, profile 61 to 47, container 66 to 52). The equippable cases are
-        // gone: 1.21.1 predates equippable, so a 1.21.5 server's is dropped on read.
+        // Covers multiple modifiers and a following damage value. The pinned side is the 1.20.6
+        // wire form: the item 888 in 1.21.5 is 847 pinned, and the kinds move with the registry
+        // (attributes 13 to 12, profile 61 to 46, container 66 to 51). The equippable cases are
+        // gone: 1.20.6 predates equippable, so a 1.21.5 server's is dropped on read.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
+                "01cf0601000c02027dd3a41b61e131b09f48d20fb816df220b6d696e6563726166743a783ff8000000000000000111afe7f7d1094f3f22842df4dbe1e6f91c0b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
                 "01f80602000d01000b6d696e6563726166743a7a400800000000000000000311",
-                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
+                "01cf0602000c01003b19bf5a8b6333b9b87df22cc006e3460b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "profile",
                 "01f80601003d010b486f72697a6f6e576972650000",
-                "01d00601002f010b486f72697a6f6e576972650000",
+                "01cf0601002e010b486f72697a6f6e576972650000",
             ),
             (
                 "container",
                 "01f80601004206030100000000000002fa020000",
-                "01d00601003406030100000000000002e4020000",
+                "01cf0601003306030100000000000002e4020000",
             )
         ] {
             let old = bytes(old);
@@ -199,18 +201,29 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            assert_eq!(actual, expected, "{label}");
+            // The UUID form cannot carry arbitrary modifier ids: the pinned
+            // read of the attribute fixtures yields minecraft:<uuid> where
+            // the newer read yields minecraft:x/minecraft:y/minecraft:z. The
+            // pinned bytes are still parsed above, and the round-trip below
+            // is byte-exact.
+            if label != "attributes" && label != "combined" {
+                assert_eq!(actual, expected, "{label}");
+            }
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_5.ids().unwrap(), Way::Down);
                 Slot::write(&stack, &mut w);
             }
             assert_eq!(w.data, old, "{label}");
-            // The cached delimited patch must also contain normalized values.
-            let mut w = Writer::new();
-            DelimitedSlot::write(&stack, &mut w);
-            let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
-            assert_eq!(read_back, stack, "{label}");
+            // The cached delimited patch must also contain normalized values
+            // (except the attribute fixtures: their arbitrary ids are lossy
+            // through the pin's UUID-form delimited wire, as above).
+            if label != "attributes" && label != "combined" {
+                let mut w = Writer::new();
+                DelimitedSlot::write(&stack, &mut w);
+                let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
+                assert_eq!(read_back, stack, "{label}");
+            }
         }
     }
 }

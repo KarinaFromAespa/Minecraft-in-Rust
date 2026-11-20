@@ -461,10 +461,10 @@ mod tests {
     #[test]
     fn vanilla_1_21_4_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.4 and 26.3.
-        // Covers multiple modifiers and a following damage value. The pinned side is the 1.21.1
-        // wire form: the item 879 in 1.21.4 is 848 pinned, and the kinds move with the registry
-        // (attributes 13 to 12, tool 26 to 22, dyed_color 34 to 24, profile 57 to 47, container 62
-        // to 52, can_break 12 to 11). The equippable cases are gone: 1.21.1 predates equippable, so
+        // Covers multiple modifiers and a following damage value. The pinned side is the 1.20.6
+        // wire form: the item 879 in 1.21.4 is 847 pinned, and the kinds move with the registry
+        // (attributes 13 to 12, tool 26 to 22, dyed_color 34 to 24, profile 57 to 46, container 62
+        // to 51, can_break 12 to 11). The equippable cases are gone: 1.20.6 predates equippable, so
         // a 1.21.4 server's is dropped on read. The tool's pinned form has no trailing bool and the
         // can_break's no matcher counts: the old tree's reader wrongly expected both.
         for (label, old, pinned) in [
