@@ -1,0 +1,85 @@
+{
+  "schema": "delta-verdict/1",
+  "release": "1.20.5",
+  "commit": "5b592ba52cb88e5a8cd51522bb50165c7717fa86",
+  "tree": ".horizon-ports/1.20.5",
+  "pin": "versions/1.20.5",
+  "mode": "recorded",
+  "verified": false,
+  "state": "failed",
+  "checked_at": "2026-11-20T14:43:15Z",
+  "scalars": {
+    "tier": "D",
+    "suite_pass": null,
+    "suite_total": null,
+    "suite_exempt": 0,
+    "items_closed": null,
+    "items_total": null,
+    "items_accepted": 0
+  },
+  "index_line": "| 1.20.5 | D | \u2014 | \u2014 | 0 | failed 2026-11-20 |",
+  "checks": {
+    "D1": {
+      "status": "blocked",
+      "notes": [
+        "tag audit: blocked \u2014 prepared tag data lacks registry(ies): block, item, fluid, entity_type"
+      ],
+      "evidence": [
+        ".horizon-ports/1.20.5/research-lock.json",
+        ".horizon-ports/1.20.5/crates/horizon-core/src/version.rs",
+        ".horizon-ports/1.20.5/diff-1.20.6-1.20.5/regen.json",
+        "versions/1.20.5/regen-determinism.json",
+        ".horizon-ports/1.20.5/.local/horizon-client/1.20.5",
+        "tools/tag_audit.py"
+      ]
+    },
+    "D2": {
+      "status": "pass",
+      "notes": [
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 422, none failing"
+      ],
+      "evidence": [
+        "versions/1.20.5/ci-out/cargo-check.log",
+        "versions/1.20.5/ci-out/cargo-test-protocol.log"
+      ]
+    },
+    "D3": {
+      "status": "fail",
+      "notes": [
+        "rank-1: 3 of 3 item(s) neither closed nor accepted"
+      ],
+      "evidence": [
+        ".horizon-ports/1.20.5/diff-1.20.6-1.20.5/report.json",
+        "versions/1.20.5/work-items.json"
+      ]
+    },
+    "D4": {
+      "status": "blocked",
+      "notes": [
+        "profile.json is stamped for commit 8fb63acb8c39, HEAD is 5b592ba52cb8 \u2014 re-record the sweep for this tree"
+      ],
+      "evidence": [
+        "versions/1.20.5/profile.json"
+      ]
+    },
+    "D5": {
+      "status": "blocked",
+      "notes": [
+        "no harness-subset.txt: the era's regression subset is undefined"
+      ],
+      "evidence": [
+        "versions/1.20.5/harness-subset.txt"
+      ]
+    },
+    "D6": {
+      "status": "blocked",
+      "notes": [
+        "no playtest.md: the play gate has not been recorded"
+      ],
+      "evidence": [
+        "versions/1.20.5/playtest.md"
+      ]
+    }
+  }
+}
