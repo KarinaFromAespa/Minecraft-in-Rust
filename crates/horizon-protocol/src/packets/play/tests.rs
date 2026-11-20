@@ -502,7 +502,7 @@ fn clientbound_round_trips() {
         Clientbound::LevelParticles(LevelParticles {
             particle: Particle {
                 id: 13,
-                data: Some(crate::entity_data::ParticleData::ColorScale(0xFF0000, 1.5)),
+                data: Some(crate::entity_data::ParticleData::ColorScale(0xFFFF0000u32 as i32, 1.5)),
             },
             override_limiter: true,
             pos: [0.5, 101.0, 3.0],
@@ -1080,16 +1080,16 @@ fn update_attributes_encode_like_vanilla() {
         }],
     });
     let body = p.encode();
-    // The packet id (124) is a one-byte VarInt.
-    let mut expected = vec![124, 5, 1, 1];
+    // The packet id (117) is a one-byte VarInt.
+    let mut expected = vec![117, 5, 1, 1];
     expected.extend(0.0f64.to_be_bytes());
     expected.extend([1, 22]);
     expected.extend(b"minecraft:armor.helmet");
     expected.extend(3.0f64.to_be_bytes());
     expected.push(0);
     assert_eq!(body, expected);
-    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 124);
-    assert_eq!(Clientbound::decode(124, &body[1..]).unwrap(), p);
+    assert_eq!(crate::ids::play::clientbound::UPDATE_ATTRIBUTES, 117);
+    assert_eq!(Clientbound::decode(117, &body[1..]).unwrap(), p);
 }
 
 #[test]

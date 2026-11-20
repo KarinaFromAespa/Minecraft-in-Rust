@@ -132,11 +132,13 @@ impl Particle {
                 data: Some(ParticleData::Mod(r.string(32767)?)),
             });
         }
-        // `minecraft:particle_type` registry order as of 1.21.4: block,
-        // block_marker, falling_dust, dust_pillar and block_crumble carry a
-        // block state; entity_effect and flash a colour.
+        // `minecraft:particle_type` registry order as of 1.21.1: block,
+        // block_marker, falling_dust and dust_pillar carry a block state;
+        // entity_effect a colour. There is no trail particle yet (it
+        // arrived in 1.21.4), and item_slime/item_cobweb are simple types
+        // — only `item` carries a stack.
         let data = match id {
-            1 | 2 | 28 | 107 | 111 => Some(ParticleData::State(ids::block_state(r.varint()?))),
+            1 | 2 | 28 | 105 => Some(ParticleData::State(ids::block_state(r.varint()?))),
             20 | 40 => Some(ParticleData::Color(r.i32()?)),
             13 => {
                 let color = if ids::quirks().components_before_1_21_2 {
@@ -175,18 +177,11 @@ impl Particle {
             }
             7 if ids::quirks().simple_spell_particles => Some(ParticleData::Scalar(1.0)),
             7 | 36 => Some(ParticleData::Scalar(r.f32()?)),
-            100 => Some(ParticleData::Delay(r.varint()?)),
-            46 => {
-                let at = [r.f64()?, r.f64()?, r.f64()?];
-                let color = r.i32()?;
-                let duration = if ids::quirks().trail_without_duration {
-                    -1
-                } else {
-                    r.varint()?
-                };
-                Some(ParticleData::Trail(at, color, duration))
-            }
-            44 | 47 => Some(ParticleData::Item(Template::read(r)?)), // item and item_slime
+            99 => Some(ParticleData::Delay(r.varint()?)),
+            // No trail arm: 1.21.1 has no trail particle (46 is item_slime,
+            // a simple type); a trail from a newer server is dropped by the
+            // adapter before it reaches this codec.
+            44 => Some(ParticleData::Item(Template::read(r)?)), // item
             45 => {
                 let kind = if ids::quirks().vibration_source_identifier {
                     match r.string(32767)?.as_str() {
@@ -241,15 +236,28 @@ impl Particle {
         match data {
             ParticleData::State(s) | ParticleData::Delay(s) => w.varint(*s),
             ParticleData::Color(c) | ParticleData::Geyser(c) => w.i32(*c),
-            ParticleData::ColorScale(c, f)
-            | ParticleData::ColorPower(c, f)
-            | ParticleData::GeyserBase(c, f) => {
+            ParticleData::ColorScale(c, f) => {
+                // Before 1.21.2 dust carried its colour as three floats, not
+                // an int (the mirror of `legacy_rgb` in `read`).
+                if ids::quirks_written().components_before_1_21_2 {
+                    legacy_rgb_write(*c, w);
+                } else {
+                    w.i32(*c);
+                }
+                w.f32(*f);
+            }
+            ParticleData::ColorPower(c, f) | ParticleData::GeyserBase(c, f) => {
                 w.i32(*c);
                 w.f32(*f);
             }
             ParticleData::ColorScale2(a, b, f) => {
-                w.i32(*a);
-                w.i32(*b);
+                if ids::quirks_written().components_before_1_21_2 {
+                    legacy_rgb_write(*a, w);
+                    legacy_rgb_write(*b, w);
+                } else {
+                    w.i32(*a);
+                    w.i32(*b);
+                }
                 w.f32(*f);
             }
             ParticleData::Scalar(f) => w.f32(*f),
@@ -286,6 +294,14 @@ fn legacy_rgb(r: &mut Reader) -> Result<i32> {
     let green = (r.f32()? * 255.0).floor() as i32;
     let blue = (r.f32()? * 255.0).floor() as i32;
     Ok((255_i32 << 24) | (red << 16) | (green << 8) | blue)
+}
+
+/// The inverse of `legacy_rgb`: a packed colour as the three floats a
+/// pre-1.21.2 client reads (the alpha is dropped; the reader forces it).
+fn legacy_rgb_write(color: i32, w: &mut Writer) {
+    w.f32(((color >> 16) & 255) as f32 / 255.0);
+    w.f32(((color >> 8) & 255) as f32 / 255.0);
+    w.f32((color & 255) as f32 / 255.0);
 }
 
 /// Serializer ids in EntityDataSerializers registration order, as of the
@@ -781,23 +797,28 @@ mod tests {
         assert_eq!(EntityData::read(&mut Reader::new(&bytes)).unwrap(), entries);
     }
 
-    /// Every particle data shape (1.21.3 codecs) round-trips, and a PARTICLES
+    /// Every particle data shape (1.21.1 codecs) round-trips, and a PARTICLES
     /// list is a VarInt count then each particle, so the entry after it
-    /// still decodes. (The geyser shapes have no 1.21.3 particle type; they
-    /// are covered by the 26.3 tree's copy of this test.)
+    /// still decodes. (The trail and geyser shapes have no 1.21.1 particle
+    /// type — trail arrived in 1.21.4 — so they are covered by the 26.3
+    /// tree's copy of this test.)
     #[test]
     fn particles_round_trip() {
         let all = [
             (1, Some(ParticleData::State(2))),
             (7, Some(ParticleData::Scalar(1.0))),
-            (13, Some(ParticleData::ColorScale(0xff0000, 1.5))),
-            (14, Some(ParticleData::ColorScale2(1, 2, 0.75))),
-            // 1.21.3 carries no spell-particle options: the effect's colour
+            // Dust's legacy form (three floats) forces the alpha to 255 on
+            // read, so the fixture carries an opaque red.
+            (13, Some(ParticleData::ColorScale(0xFFFF0000u32 as i32, 1.5))),
+            // Same for the transition's two colours: black and white survive
+            // the float round-trip exactly.
+            (14, Some(ParticleData::ColorScale2(0xFF000000u32 as i32, -1, 0.75))),
+            // 1.21.1 carries no spell-particle options: the effect's colour
             // and power are the read defaults (-1, 1.0), not wire data.
             (15, Some(ParticleData::ColorPower(-1, 1.0))),
             (20, Some(ParticleData::Color(0x7f00ff00))),
             (
-                47,
+                44,
                 Some(ParticleData::Item(Stack {
                     item: 42,
                     count: 3,
@@ -828,9 +849,8 @@ mod tests {
                     ticks: 8,
                 }),
             ),
-            // The pin's trail carries no duration: it reads back as -1.
-            (46, Some(ParticleData::Trail([1.5, -2.0, 3.25], 9, -1))),
-            (100, Some(ParticleData::Delay(6))),
+            // Shriek is the pin's only Delay carrier.
+            (99, Some(ParticleData::Delay(6))),
             (0, None),
         ]
         .map(|(id, data)| Particle { id, data });
