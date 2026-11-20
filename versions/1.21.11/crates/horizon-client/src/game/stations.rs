@@ -401,10 +401,12 @@ impl Station {
     pub(super) fn new_kind(kind: Kind, pos: [i32; 3]) -> Self {
         Self::new(kind, pos)
     }
-    /// `StonecutterScreen.containerChanged`: without recipes to show, the
-    /// list scrolls back to the top.
+    /// `StonecutterScreen.containerChanged`: only when the input leaves does
+    /// the list scroll back to the top — 1.21.11 resets `scrollOffs` and
+    /// `startIndex` only when `displayRecipes` goes false, so swapping the
+    /// input (even to one with no recipes) keeps the scroll.
     pub(super) fn stonecutter_changed(&mut self) {
-        if self.inputs[0].is_none() || self.stone.recipes.is_empty() {
+        if self.inputs[0].is_none() {
             self.start = 0;
             self.scroll = 0.0;
         }
@@ -3122,6 +3124,25 @@ mod tests {
         assert_eq!((s.scroll, s.start), (1.0, 16));
         s.stone.recipes.truncate(12);
         assert!(!s.stonecutter_scrolls());
+    }
+    #[test]
+    fn stonecutter_keeps_its_scroll_when_the_input_changes_and_resets_when_it_leaves() {
+        // 1.21.11 `containerChanged` resets only when `displayRecipes` goes
+        // false (no input); 26.x reset on every change.
+        let mut s = Station::new(Kind::Stonecutter, [0, 0, 0]);
+        s.inputs[0] = Some(ItemStack::new("minecraft:stone", 1));
+        s.stone.recipes = (0..26).collect();
+        s.stonecutter_scroll_to(0.5);
+        assert_eq!((s.scroll, s.start), (0.5, 8));
+        // Swapping to an input with no recipes keeps the scroll.
+        s.inputs[0] = Some(ItemStack::new("minecraft:dirt", 1));
+        s.stone.recipes.clear();
+        s.stonecutter_changed();
+        assert_eq!((s.scroll, s.start), (0.5, 8));
+        // Taking the input out resets it.
+        s.inputs[0] = None;
+        s.stonecutter_changed();
+        assert_eq!((s.scroll, s.start), (0.0, 0));
     }
 }
 

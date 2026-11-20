@@ -2521,3 +2521,35 @@ Rank 2 (492 items, in progress 2026-11-19)
   the Glow `translucent_layer()` fix lands here).
   Rank 2 now 207/492 (43 changed, 164 no-change).
   work-items.json rank2.closed = 207 on 2026-11-20.
+
+Item 29 (game/stations.rs, rank 2) — CHANGED. `StonecutterScreen.containerChanged`:
+26.1 resets scrollOffs/startIndex on every container change; 1.21.11 resets only
+when displayRecipes goes false (no input). The Rust reset when the input was gone
+OR the recipes were empty — a hybrid neither version has — so swapping stone for
+dirt reset the scroll where 1.21.11 keeps it. Fixed: `stonecutter_changed` now
+resets only when `inputs[0]` is none. New test: scroll kept across an input swap
+to a no-recipe item, reset when the input leaves. No-change verdicts, all
+jar-verified: the enchanting-book texture path moved in 1.21.11
+(`textures/entity/enchanting_table_book.png`, was `.../enchantment/...`) but the
+Rust already uses the 1.21.11 path; the stonecutter scroller hover region shrank
+to the 15-px thumb and lost the NOT_ALLOWED cursor, but stations.rs has no
+cursor-shape code for it (the grab region is identical in both versions);
+MapId.key() is `map_<id>` in 1.21.11 vs `maps/<id>` in 26.1 — no Rust mirror in
+stations.rs, and the tree already uses the 1.21.11 form (note: the javap
+normalizer hides this — the two MapId dumps are byte-identical; the decompile
+is the reliable source for string-constant changes); ClientBundleTooltip's
+weight-error gate and weight==0 empty text are 26.x-only — the Rust already
+matches 1.21.11 (no gate; empty label only when the contents are empty);
+ChargedProjectiles/ItemContainerContents are ItemStackTemplate→ItemStack API
+reshapes with identical tooltip logic. Gap recorded: InstrumentComponent is an
+EitherHolder in 1.21.11 and adds its tooltip line only when it unwraps, but the
+Rust always renders the line — the client carries no instrument registry, and
+the protocol adapter drops key-named instruments at parse, so an unresolvable
+instrument never reaches the tooltip through the wire (except that a goat horn
+then falls back to the ponder default where 1.21.11 shows no line — adapter
+layer, out of scope). Everything else is render-plumbing renames
+(extractBackground→renderBg, GuiGraphicsExtractor→GuiGraphics, ...) with
+identical bodies. Method-name diff run explicitly: no missing method with
+behavioural content.
+Rank 2 now 208/492 (44 changed, 164 no-change).
+work-items.json rank2.closed = 208 on 2026-11-20.
