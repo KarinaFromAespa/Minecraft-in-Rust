@@ -2553,3 +2553,58 @@ identical bodies. Method-name diff run explicitly: no missing method with
 behavioural content.
 Rank 2 now 208/492 (44 changed, 164 no-change).
 work-items.json rank2.closed = 208 on 2026-11-20.
+
+## Item 30 — crafting.rs (rank 2, CHANGED)
+
+26.x made the special recipes data-driven (ingredients + result template
+from JSON); 1.21.11 hardcodes them (category-only JSONs). The Rust mirrored
+the 26.x forms, so on 1.21.11's data most specials did not load at all:
+every loader arm requiring JSON fields returned None on a category-only
+file, and `crafting_special_armordye` / `crafting_special_tippedarrow` /
+`crafting_special_mapcloning` were unknown types. Verified against the
+1.21.11 server jar's data (1470 recipe files): all 1.21.11 special JSONs
+are category-only; the 32 transmute recipes (bundle + shulker dyeing) do
+load. The port is mostly a loader rework: the loader now hardcodes the
+1.21.11 ingredients/results per type (vanilla's `CustomRecipe.Serializer`
+codec reads only `category` and ignores other fields, so ignoring the JSON
+fields is exactly vanilla's behaviour). `crafting_dye` / `crafting_imbue`
+arms removed; `crafting_special_armordye` / `crafting_special_tippedarrow`
+/ `crafting_special_mapcloning` added. Transmute bounds hardcoded (1, 1)
+and add_count false — `material_count` / `add_material_count_to_result`
+are 26.x-only fields. Real behaviour fixes: the Transmute match loop now
+follows the 1.21.11 form (a stack matching both input and material serves
+as the material once the input is taken; 26.x fails it); BookCloning's
+source test is the written-book component only, not an item (the `source`
+field is gone; `tryCraftCopy`'s generation >= 2 gate is mirrored in
+assemble); BannerDuplicate's result is `Option<String>` (None keeps the
+source banner's item — 1.21.11 ships one recipe, 26.x one per colour);
+new `MapCloning` variant (one MAP_ID stack + blank maps → copies, original
+consumed — 26.x does this as a transmute). Dye/Imbue lost their
+book_displays and placement arms: `ArmorDyeRecipe` / `TippedArrowRecipe`
+are CustomRecipes with no display (`Recipe.display` defaults to empty)
+and NOT_PLACEABLE in 1.21.11; the DyedSlotDemo / WithAnyPotion displays
+are 26.x-only. Loader details jar-verified: 1.21.11 has NO
+`#minecraft:dyes` tag (the dye ingredient is the explicit 16-item list);
+`#book_cloning_target` is writable_book only; the firework star's creeper
+shape is `#minecraft:skulls` — SHAPE_BY_ITEM has seven heads INCLUDING
+dragon head (an earlier note said six; the jar says seven). No-change
+verdicts, all jar-verified: RepairItem (curse-merge differs in form only,
+same outcome); ShapedRecipe / ShapedRecipePattern / Ingredient /
+StackedContents (logic identical); CustomRecipe showNotification (26.1
+overrides it false, 1.21.11 takes the default true — the Rust already
+reads it from the JSON with default true); registration order (the Rust's
+path-then-namespace sort matches 1.21.11's `RecipeManager.prepare`
+TreeMap<Identifier> exactly; only the test comment cited the 26.x-only
+class, re-pointed). Pre-existing gaps in BOTH versions, recorded not
+fixed: MapExtending's exploration-map rejection (no exploration flag is
+plumbed through `find_with`'s callers); DecoratedPot's all-brick case
+(both versions always set POT_DECORATIONS, the Rust omits it).
+Referrals: item 752 owns ArmorDyeRecipe / TippedArrowRecipe /
+TransmuteResult / MapCloningRecipe — their behaviour is implemented here,
+its triage should find them done; the SlotDisplay wire codec
+(`horizon-protocol/src/packets/recipes.rs`) still carries the 26.x-only
+WithAnyPotion / OnlyWithComponent variants — that file is another item's,
+and the codec rewire is the known adapter-tables follow-up. Method-name
+diff run explicitly: no missing method with behavioural content.
+Rank 2 now 209/492 (45 changed, 164 no-change).
+work-items.json rank2.closed = 209 on 2026-11-20.
