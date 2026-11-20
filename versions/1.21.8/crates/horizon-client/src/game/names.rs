@@ -916,7 +916,7 @@ pub(super) fn name_tag_at(m: &Mob, alpha: f64) -> glam::DVec3 {
 /// Horizon: how far a player's name tag goes up so that it clears the tallest cosmetic drawn on
 /// them, `top` pixels above the model's neck (`Item::top`) on a player of `scale`
 /// (`LivingEntity.getScale`); 0 when the item stays under vanilla's tag. Measured standing: the
-/// model's neck is 1.501 blocks up, times `AvatarRenderer.scale`'s 0.9375 and `scale`; the tag's
+/// model's neck is 1.501 blocks up, times `PlayerRenderer.scale`'s 0.9375 and `scale`; the tag's
 /// lowest pixel (the style's line under the background, 10 text pixels under the anchor) is at
 /// 1.8 + 0.5 - 10 × 0.025 = 2.05 blocks, and the lift leaves one text pixel between them. Other
 /// poses keep the same lift: crouching lowers the model more (0.39 blocks) than the tag (0.3).

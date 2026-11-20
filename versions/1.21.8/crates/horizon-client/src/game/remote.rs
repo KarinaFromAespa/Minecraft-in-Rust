@@ -4428,7 +4428,7 @@ impl Game<'_> {
                     })
                     .collect();
                 // CrossbowItem.isCharged: the main hand's `charged_projectiles`
-                // (AvatarRenderer.getArmPose holds a loaded crossbow up).
+                // (PlayerRenderer.getArmPose holds a loaded crossbow up).
                 let charged = p.slots.iter().find(|(slot, _)| *slot == 0).map(|(_, s)| {
                     s.as_ref().is_some_and(|s| {
                         matches!(
@@ -7320,7 +7320,7 @@ impl Game<'_> {
             let rain = rain[i];
             let player = players.contains_key(&(m.id as i32));
             if player {
-                // AvatarRenderer.extractRenderState: isSpectator, from the player list.
+                // PlayerRenderer.extractRenderState: isSpectator, from the player list.
                 m.extra.spectator = players
                     .get(&(m.id as i32))
                     .and_then(|uuid| tab_players.get(uuid))
@@ -7437,7 +7437,7 @@ impl Game<'_> {
             // used before this one. Another player's use particles; a mob's
             // drawn bow only needs the count (its pull follows it).
             if player {
-                // AvatarRenderer.getArmPose: the used item's BLOCK animation
+                // PlayerRenderer.getArmPose: the used item's BLOCK animation
                 // (an item with `blocks_attacks`) raises the arm.
                 let used = if m.extra.using_off_hand {
                     &m.extra.off_hand

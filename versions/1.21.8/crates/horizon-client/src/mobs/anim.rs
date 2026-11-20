@@ -957,7 +957,7 @@ fn vanilla_setup(
             };
             let using_main = m.extra.using_item > 0 && !m.extra.using_off_hand;
             let using_off = m.extra.using_item > 0 && m.extra.using_off_hand;
-            // AvatarRenderer.getArmPose: an arm holding a spear (at rest too).
+            // PlayerRenderer.getArmPose: an arm holding a spear (at rest too).
             let spear_in = |hand: &Option<std::sync::Arc<str>>| {
                 hand.as_deref()
                     .filter(|_| player)
@@ -1550,7 +1550,7 @@ mod flight_pose_tests {
 
     #[test]
     fn a_raised_shield_holds_the_arm_across_the_body() {
-        // AvatarRenderer.getArmPose: the used item's use animation decides
+        // PlayerRenderer.getArmPose: the used item's use animation decides
         // the arm's pose, and a shield (an item with `blocks_attacks`) uses
         // the BLOCK animation, so the arm is held up across the body
         // (#2289).
@@ -1602,7 +1602,7 @@ mod flight_pose_tests {
 
     #[test]
     fn a_brush_being_used_sweeps_the_arm_lower_than_a_plain_item() {
-        // AvatarRenderer.getArmPose: a brush being used is the BRUSH pose, and
+        // PlayerRenderer.getArmPose: a brush being used is the BRUSH pose, and
         // HumanoidModel.poseRightArm drops that arm twice as far as ITEM
         // (#4273: brushing had no third-person arm pose at all).
         let state = State {
@@ -1641,7 +1641,7 @@ mod flight_pose_tests {
         setup(&m, &state, &mut p, &HashMap::new());
         assert!((p.get("right_arm")[3] + PI / 10.0).abs() < 1e-6);
         assert_eq!(p.get("right_arm")[4], 0.0);
-        // AvatarRenderer.getArmPose builds the pose per hand: brushing with the
+        // PlayerRenderer.getArmPose builds the pose per hand: brushing with the
         // brush in the off hand is BRUSH on the left arm, and the main hand
         // keeps its ITEM pose (the two must not swap).
         let mut m = player();
