@@ -559,10 +559,15 @@ impl<'r> BlockSurvivalRegistry<'r> {
             cactus_flower: tag_states("minecraft:support_override_cactus_flower")?,
             no_seagrass: tag_states("minecraft:cannot_support_seagrass")?,
             vegetation,
-            dripleaf: tag_states("minecraft:supports_big_dripleaf")?,
+            // `BigDripleafBlock.canSurvive` in 1.21.11: the tag was renamed
+            // `big_dripleaf_placeable` (same members).
+            dripleaf: tag_states("minecraft:big_dripleaf_placeable")?,
             maintains_farmland: tag_states("minecraft:maintains_farmland")?,
             cocoa: tag_states("minecraft:supports_cocoa")?,
-            crops: tag_states("minecraft:supports_crops")?,
+            // `CropBlock`/`PitcherCropBlock.mayPlaceOn` in 1.21.11: farmland,
+            // hardcoded (the `supports_crops` tag is gone; it held only
+            // farmland, so the set is identical).
+            crops: block_states("minecraft:farmland")?,
             no_snow: tag_states("minecraft:cannot_support_snow_layer")?,
             snow_override: tag_states("minecraft:support_override_snow_layer")?,
             mangrove: tag_states("minecraft:supports_mangrove_propagule")?,

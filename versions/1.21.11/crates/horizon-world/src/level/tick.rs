@@ -829,7 +829,8 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
 
     // ---- crops and plants ----
 
-    /// `CropBlock.getGrowthSpeed`.
+    /// `CropBlock.getGrowthSpeed` in 1.21.11: farmland under the crop counts
+    /// (the `grows_crops` tag is gone; it held only farmland).
     pub(crate) fn crop_growth_speed(&self, block: super::states::BlockId, pos: BlockPos) -> f32 {
         let b = self.b;
         let mut speed = 1.0f32;
@@ -838,7 +839,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             for zz in -1..=1 {
                 let mut block_speed = 0.0f32;
                 let state = self.state(under.offset(xx, 0, zz));
-                if b.in_set(state, &b.tags.grows_crops) {
+                if b.is_block(state, b.named.farmland) {
                     block_speed = 1.0;
                     if b.table.int(state, b.props.moisture) > 0 {
                         block_speed = 3.0;
@@ -952,9 +953,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             (pos, state)
         };
         let new_age = b.table.int(lower, p.age) + increase;
+        // `PitcherCropBlock.canGrow` in 1.21.11: no build-height check (26.x
+        // added one); the same check `bonemeal_valid` runs for the pitcher.
         let can_grow = b.table.int(lower, p.age) < 4
             && self.raw_brightness(lower_pos, 0) >= 8
-            && self.is_inside_build_height(lower_pos.y + 1)
             && (new_age < 3 || {
                 let upper = self.state(above(lower_pos));
                 b.is_air(upper) || b.is_block(upper, b.named.pitcher_crop)

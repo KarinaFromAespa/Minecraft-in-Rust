@@ -3061,6 +3061,169 @@ fn a_stem_stands_on_farmland_only() {
 }
 
 #[test]
+fn a_crop_stands_on_farmland_only() {
+    // `CropBlock.mayPlaceOn` in 1.21.11: farmland, hardcoded (the
+    // `supports_crops` tag is gone; it held only farmland).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let wheat = w.id("wheat", &[("age", "0")]);
+    w.put(crop_pos, wheat);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(wheat, crop_pos),
+            stands,
+            "wheat on {ground}"
+        );
+    }
+}
+
+#[test]
+fn a_pitcher_crop_stands_on_farmland_only() {
+    // `PitcherCropBlock.mayPlaceOn` in 1.21.11: farmland, hardcoded (the
+    // `supports_crops` tag is gone).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let pitcher = w.id("pitcher_crop", &[("half", "lower"), ("age", "0")]);
+    w.put(crop_pos, pitcher);
+    for (ground, stands) in [
+        ("farmland", true),
+        ("dirt", false),
+        ("grass_block", false),
+        ("stone", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(pitcher, crop_pos),
+            stands,
+            "a pitcher crop on {ground}"
+        );
+    }
+}
+
+#[test]
+fn big_dripleaf_stands_on_dirt_but_not_on_stone() {
+    // `BigDripleafBlock.canSurvive` in 1.21.11: the placeable tag (renamed
+    // `big_dripleaf_placeable`, same members: dirt, grass, mud, farmland,
+    // clay, moss and the rest).
+    let mut w = world!();
+    let ground_pos = BlockPos::new(0, 1, 0);
+    let leaf_pos = BlockPos::new(0, 2, 0);
+    let leaf = w.id(
+        "big_dripleaf",
+        &[("facing", "north"), ("tilt", "none"), ("waterlogged", "false")],
+    );
+    w.put(leaf_pos, leaf);
+    for (ground, stands) in [
+        ("dirt", true),
+        ("grass_block", true),
+        ("mud", true),
+        ("farmland", true),
+        ("clay", true),
+        ("stone", false),
+        ("sand", false),
+    ] {
+        w.put(ground_pos, w.id(ground, &[]));
+        assert_eq!(
+            w.b()
+                .sim(&mut w.level, &mut w.ticks)
+                .can_survive(leaf, leaf_pos),
+            stands,
+            "a big dripleaf on {ground}"
+        );
+    }
+}
+
+#[test]
+fn crop_growth_speed_counts_moist_farmland() {
+    // `CropBlock.getGrowthSpeed` in 1.21.11: farmland under the crop counts
+    // (the `grows_crops` tag is gone); moist farmland counts 3, dry 1.
+    let mut w = world!();
+    let crop_pos = BlockPos::new(0, 2, 0);
+    let under = BlockPos::new(0, 1, 0);
+    let wheat = w.b().table.block_by_name("minecraft:wheat").unwrap();
+    w.put(crop_pos, w.id("wheat", &[("age", "0")]));
+    w.put(under, w.id("farmland", &[("moisture", "7")]));
+    let moist = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((moist - 4.0).abs() < 0.001, "moist farmland: {moist}");
+    w.put(under, w.id("farmland", &[("moisture", "0")]));
+    let dry = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((dry - 2.0).abs() < 0.001, "dry farmland: {dry}");
+    w.put(under, w.id("dirt", &[]));
+    let dirt = w
+        .b()
+        .sim(&mut w.level, &mut w.ticks)
+        .crop_growth_speed(wheat, crop_pos);
+    assert!((dirt - 1.0).abs() < 0.001, "dirt: {dirt}");
+}
+
+#[test]
+fn bone_meal_still_feeds_grass_at_the_build_ceiling() {
+    // `GrassBlock.isValidBonemealTarget` in 1.21.11 has no build-height
+    // check (26.x added one), so bonemeal on grass at y 319 is consumed
+    // even though nothing can grow above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(pos, w.id("grass_block", &[("snowy", "false")]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+}
+
+#[test]
+fn bone_meal_still_feeds_tall_grass_at_the_build_ceiling() {
+    // `TallGrassBlock.isValidBonemealTarget` in 1.21.11 has no build-height
+    // check (26.x added one): the short grass still grows into a tall one,
+    // and only the upper half fails to place above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(BlockPos::new(0, 318, 0), w.id("dirt", &[]));
+    w.put(pos, w.id("short_grass", &[]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+    assert_eq!(
+        w.get(pos),
+        w.id("tall_grass", &[("half", "lower"), ("waterlogged", "false")]),
+        "the lower half still grows"
+    );
+}
+
+#[test]
+fn a_pitcher_crop_still_grows_at_the_build_ceiling() {
+    // `PitcherCropBlock.canGrow` in 1.21.11 has no build-height check (26.x
+    // added one): a pitcher crop at y 319 still ages, and only the upper
+    // half fails to place above the ceiling.
+    let mut w = world!();
+    let pos = BlockPos::new(0, 319, 0);
+    w.put(pos, w.id("pitcher_crop", &[("half", "lower"), ("age", "2")]));
+    assert!(
+        w.b().sim(&mut w.level, &mut w.ticks).grow_crop(pos),
+        "bonemeal is consumed at the ceiling"
+    );
+    assert_eq!(w.prop(pos, "age"), "3", "the crop still ages");
+}
+
+#[test]
 fn small_dripleaf_stands_on_clay_or_watered_dirt() {
     // `SmallDripleafBlock.mayPlaceOn`: the placeable tag (clay, moss) or,
     // with water above the ground, `VegetationBlock.mayPlaceOn` (dirt or

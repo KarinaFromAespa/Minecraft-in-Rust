@@ -68,12 +68,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 let below = self.below_state(pos);
                 b.is_block(below, block)
                     || b.is_block(below, n.big_dripleaf_stem)
-                    || b.in_set(below, &t.supports_big_dripleaf)
+                    || b.in_set(below, &t.big_dripleaf_placeable)
             }
             Class::BigDripleafStem => {
                 let below = self.below_state(pos);
                 let above = self.above_state(pos);
-                (b.is_block(below, block) || b.in_set(below, &t.supports_big_dripleaf))
+                (b.is_block(below, block) || b.in_set(below, &t.big_dripleaf_placeable))
                     && (b.is_block(above, block) || b.is_block(above, n.big_dripleaf))
             }
             Class::BubbleColumn => {
@@ -387,7 +387,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     b.in_set(below, &t.support_override_cactus_flower)
                         || b.is_face_sturdy_center(below, Direction::Up)
                 }
-                Class::Crop | Class::PitcherCrop => b.in_set(ground, &t.supports_crops),
+                // `CropBlock`/`PitcherCropBlock.mayPlaceOn` in 1.21.11:
+                // farmland, hardcoded (the `supports_crops` tag is gone; it
+                // held only farmland).
+                Class::Crop | Class::PitcherCrop => b.is_block(ground, b.named.farmland),
                 Class::DryVegetation => b.in_set(ground, &t.supports_dry_vegetation),
                 Class::LilyPad => {
                     let fluid = self.fluid_at(ground_pos);

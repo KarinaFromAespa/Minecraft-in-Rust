@@ -53,10 +53,11 @@ pub fn register(m: &mut Mob) {
     m.extra.ints[IDLE_TIMEOUT] = m.random.next_int_bound(40).unwrap_or(0) + 180;
 }
 
-/// `Rabbit.RaidGardenGoal.isValidTarget`: farmland-like ground (`#supports_crops`) under a
-/// carrot crop at its maximum age, while the rabbit wants more food and has not found one.
+/// `Rabbit.RaidGardenGoal.isValidTarget`: farmland ground under a carrot crop
+/// at its maximum age, while the rabbit wants more food and has not found one.
+/// (1.21.11 checks farmland directly; the `supports_crops` tag is gone.)
 fn raid_target(w: &MobWorld, p: [i32; 3], wants_to_raid: bool, can_raid: bool) -> bool {
-    w.has_tag("minecraft:supports_crops", w.block_name(p[0], p[1], p[2]))
+    w.block_name(p[0], p[1], p[2]) == "minecraft:farmland"
         && wants_to_raid
         && !can_raid
         && w.block_name(p[0], p[1] + 1, p[2]) == "minecraft:carrots"
