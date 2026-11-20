@@ -38,7 +38,6 @@ use horizon_protocol::{
     entity_data::{ITEM_ENTITY_ITEM, Value},
     item::{Hashed, Stack},
     packets::{
-        Empty,
         play::{self, Clientbound as C, Serverbound as S},
     },
     registry::{Builtin, DimensionType, Dynamic, SyncedNames, ceil_log2},
@@ -9745,7 +9744,7 @@ impl Game<'_> {
             && r.carried.get() != Some(self.selected)
         {
             r.carried.set(Some(self.selected));
-            r.session.send(S::SetCarriedItem(play::SetCarriedItem {
+            r.session.send(S::SetCarriedItem(play::SetCarriedItemRequest {
                 slot: self.selected as i16,
             }));
         }

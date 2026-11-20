@@ -607,6 +607,8 @@ impl ServerAdvancements {
 }
 
 /// ClientboundRecipeBookAddPacket.Entry flags: notification, highlight.
+/// Only the book-entries tests still build entries with them.
+#[cfg(test)]
 const NOTIFY_AND_HIGHLIGHT: i8 = 1 | 2;
 
 /// `SmeltingRecipe.recipeBookCategory` and the other cooking recipes': the

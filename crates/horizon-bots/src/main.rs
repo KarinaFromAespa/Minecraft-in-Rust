@@ -1123,7 +1123,6 @@ fn run_bot(
             .flatten();
         thread::spawn(move || read(reader, writer, bot, track, capture));
     }
-    use ids::play::serverbound as sb;
     // Wait for the spawn position.
     let spawn = loop {
         if let Some(at) = *lock(&bot.teleport) {

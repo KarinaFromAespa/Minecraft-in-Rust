@@ -19,7 +19,6 @@ use horizon_client::{
 };
 use horizon_core::geometry::Vec3;
 use horizon_core::random::RandomSource;
-use horizon_protocol::packets::play::Clientbound as C;
 use serde_json::Value;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
