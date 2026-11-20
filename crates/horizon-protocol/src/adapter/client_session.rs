@@ -1116,11 +1116,11 @@ mod tests {
             payload.i16().unwrap();
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 805 in 1.21.1, 926 in 26.2.
-        assert_eq!(slot(805), 926);
-        // birch_planks: 38 in 1.21.1, 65 in 26.2.
+        // diamond: 804 in 1.20.6, 926 in 26.2.
+        assert_eq!(slot(804), 926);
+        // birch_planks: 38 in 1.20.6, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 982 in 1.21.1, 1133 in 26.2.
+        // filled_map: 982 in 1.20.6, 1133 in 26.2.
         assert_eq!(slot(982), 1133);
     }
 
@@ -1236,7 +1236,7 @@ mod tests {
     #[test]
     fn a_creative_slot_from_the_client_takes_the_pinned_item() {
         let s = in_play();
-        // set_creative_mode_slot: 26.2's 56 is 1.21.1's 50. Slot 36, three diamonds (926 in 26.2), no components.
+        // set_creative_mode_slot: 26.2's 56 is 1.20.6's 50. Slot 36, three diamonds (926 in 26.2), no components.
         let mut w = Writer::new();
         w.i16(36);
         crate::item::DelimitedSlot::write(&Some(crate::item::Stack::new(926, 3)), &mut w);
@@ -1244,7 +1244,7 @@ mod tests {
         assert_eq!(id, packet_ids::play::serverbound::SET_CREATIVE_MODE_SLOT);
         match play::Serverbound::decode(id, &payload).unwrap() {
             play::Serverbound::SetCreativeModeSlot(p) => {
-                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((805, 3)));
+                assert_eq!(p.item.map(|i| (i.item, i.count)), Some((804, 3)));
             }
             other => panic!("{other:?}"),
         }
