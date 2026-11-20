@@ -989,7 +989,8 @@ impl ItemRenderer {
         self.grass.get(index).copied().unwrap_or(-65281)
     }
     /// Submit a special model renderer directly (worn skulls of
-    /// `CustomHeadLayer`, which draw the skull model, not the item).
+    /// `CustomHeadLayer`, which draw the skull model, not the item): the
+    /// caller supplies the head pose, so no item transform applies.
     #[allow(clippy::too_many_arguments)]
     pub fn submit_special(
         &self,
@@ -1001,7 +1002,7 @@ impl ItemRenderer {
         host: &dyn SpecialHost,
         sink: &mut dyn ItemSink,
     ) {
-        special::submit(self, model, argument, has_foil, pose, sprites, host, sink);
+        special::submit_worn(self, model, argument, has_foil, pose, sprites, host, sink);
     }
     /// `Item.getId` (0 when the registry report is missing).
     pub fn item_id(&self, item: &str) -> i32 {

@@ -4600,3 +4600,127 @@ No rustfmt run (advancements.rs declares test modules; game/advancements.rs
 is a file mod).
 Rank 2 now 234/492 (66 changed, 168 no-change).
 work-items.json rank2.closed = 234 on 2026-11-20.
+
+## Item 56 — crates/horizon-client/src/item_render/special.rs (rank 2, CHANGED)
+
+BannerRenderer (25, named getExtents/submit/submitPatterns),
+ShieldSpecialRenderer (9, named submit), PlayerHeadSpecialRenderer (7),
+PlayerHeadSpecialRenderer$Unbaked (2), ShieldSpecialRenderer$Unbaked (2),
+SpecialModelRenderer (2, named submit),
+SpecialModelRenderer$BakingContext (2), EndCubeSpecialRenderer (1,
+**removed in 1.21.11**), EndCubeSpecialRenderer$Type (1, **removed in
+1.21.11**), EndCubeSpecialRenderer$Unbaked (1, **removed in 1.21.11**): 10
+classes, 52 methods, 5 named.
+
+**The change — the per-model transform moved from the item model into
+`submit`/`getExtents`.** In 26.1 every special item model carries a
+`transformation` in its JSON (shield scale (1,−1,−1); banner translate
+(0.5,0,0.5) + scale (2/3,−2/3,−2/3); skulls rotX-180° + translate
+(0.5,0,0.5); shulker rotX-180° + scale 0.9995 + translate (0.5,1.4995,0.5);
+conduit translate (0.5,0.5,0.5); statue translate (0.5,1.5,0.5) + scale
+(1,−1,−1); trident/shield also had a `DEFAULT_TRANSFORMATION`), and the
+renderers submitted untransformed. In 1.21.11 the item models have NO
+`transformation` field (verified from the 1.21.11 jar's shield/banner/
+player_head/skeleton_skull/shulker_box/conduit/statue JSONs); each
+renderer applies its transform inline in `submit` AND `getExtents`. The
+Rust was written against the 26.x shape (`layer.transform` is identity
+for 1.21.11 data), so `special::submit` drew every special item
+untransformed — banners full-size at the origin, shields/tridents
+upside-down, heads unflipped and uncentred, shulkers/conduits/statues
+unplaced. Fixed with a new `item_transform(&SpecialKind)` helper applied
+in `submit` (item path only) and `extents`: banner T(0.5,0,0.5) ·
+S(2/3,−2/3,−2/3) at angle 0; shield/trident S(1,−1,−1); head/player-head
+T(0.5,0,0.5) · R_y(180°) · S(−1,−1,1) (the pose-level form of
+`submitSkull(null, 180, 0)`'s translate + scale + state yRot — the same
+algebra the item-16 block-entity skull path uses); conduit
+T(0.5,0.5,0.5); shulker `prepareModel` (T(0.5,0.5,0.5) · S(0.9995) ·
+R(orientation) · S(1,−1,−1) · T(0,−1,0), verified equal to the 26.1 JSON
+transform for UP); statue `positionModel` (T(0.5,1.5,0.5) · S(−1,−1,1)).
+Chest and decorated pot have no transform in either version.
+`statue_pose` also gains the 1.21.11 `setupAnim(SOUTH)` root yRot (π;
+26.x's `setupAnim(Unit)` set only y = 0, zRot = π).
+
+**The worn-skull path must not take the item transform.**
+`ItemRenderer::submit_special` (armor stands, mob heads) passes `head ·
+scale(1.1875)`. Vanilla 1.21.11 `CustomHeadLayer` composes
+scale(1.1875,−1.1875,−1.1875) · translate(−0.5,0,−0.5) ·
+submitSkull(null, 180, 0): the translates cancel and the flips plus the
+180° yaw compose to a uniform 1.1875 scale, so the Rust's worn pose is
+already exactly right. `submit()` (item path) applies the transforms;
+new `submit_worn()` does not; `submit_special` calls the latter.
+(CustomHeadLayer itself is item 391.)
+
+**Codec changes (Unbaked codecs, decompile-verified):** 1.21.11 drops the
+banner `attachment` field (26.1: optional, default GROUND) and the chest
+`chest_type` field (26.1: optional, default SINGLE; bake always uses
+`ModelLayers.CHEST`) — `wall` removed from `SpecialKind::Banner`
+(banner items are always standing) and `chest_type` from
+`SpecialKind::Chest` (always the single chest model; `chest_model`
+deleted). 1.21.11 ADDS the shulker `orientation` field (optional,
+default UP) — added to `SpecialKind::ShulkerBox`, applied via
+`Direction.getRotation` (mirrors `block_entity_render::direction_rotation`,
+item 16). Skull codecs are identical.
+
+**Report gaps (changed classes in NO report item — fixed here, recorded
+loudly):** `BannerSpecialRenderer`, `SkullSpecialRenderer`,
+`ShulkerBoxSpecialRenderer`, `TridentSpecialRenderer`,
+`ConduitSpecialRenderer`, `ChestSpecialRenderer`,
+`DecoratedPotSpecialRenderer`, `CopperGolemStatueSpecialRenderer` all
+differ between the jars (javap md5s) but appear in no item; the
+transform/codec work above fixes the first six plus the statue, and
+`DecoratedPotSpecialRenderer` delegates to `DecoratedPotRenderer` (item
+185) with no transform of its own. `BedSpecialRenderer`,
+`StandingSignSpecialRenderer`, `HangingSignSpecialRenderer` are also
+changed, also in no item, and the Rust has NO `SpecialKind` for them:
+bed/sign items fail `SpecialModel::decode` and fall back to the missing
+model. NOT fixed here (new kinds + renderers); recorded as a gap for the
+sweep.
+
+**Verified, no change:** the block-entity banner path (`banner_parts` +
+`render_banner` — translate + rotY(−angle) + scale matches 1.21.11's
+`submitBanner` exactly, phase formula identical, layer order pole/flag/
+base colour/≤16 matches, textures `entity/banner_base` +
+`entity/banner/base` verified against `ModelBakery.BANNER_BASE` /
+`Sheets.BANNER_BASE`); the shield handle/plate split (1.21.11 draws the
+handle separately, then the whole model in `submitPatterns` — same
+pixels as the Rust's whole-model-per-layer draws); the shield glint
+layering (1.21.11 submits the glint between the untinted base and the
+colour layers, but `entityGlint` is a translucent pass drawn after the
+cutout pattern layers, so the visible result is still glint-on-top —
+the Rust's per-layer foil and the existing test stand); the pattern-layer
+render type (26.1 `RenderTypes.bannerPattern`, TRANSLUCENT blend, no
+depth write → 1.21.11 `entityNoOutline`, cutout — identical pixels for
+0/255-alpha pattern textures; the Rust's plain quads match the 1.21.11
+cutout form); the banner phase formula, 16-layer cap, shield
+base-colour fallback (WHITE), and pattern texture ids (already 1.21.11
+from item 46); the player-head render type (info's, else
+`DEFAULT_PLAYER_SKIN_RENDER_TYPE`, the Rust's `OitEntity` sink) and bake
+(same `PLAYER_HEAD` model, nullable in 1.21.11); the
+`SpecialModelRenderer.submit` `ItemDisplayContext` parameter (ignored by
+all three renderers) and `BakingContext.sprites()` → `materials()`
+(Java plumbing); `submit_banner_result` (loom preview — its pose comes
+from `banner_result_pose`; `GuiBannerResultRenderer` is item 506, rank
+3); the decorated-pot item submit (no transform in either version;
+extents cover neck/top/bottom only); EndCube (26.1-only, renders the
+end-portal/gateway cube; the Rust has no end_cube kind and decode
+rejects it, as 1.21.11 vanilla does); culling (the Rust's
+`cull_back = false` matches 1.21.11's NoCull types where they matter —
+skull `entityCutoutNoCullZOffset`, statue `entityCutoutNoCull` — and is
+unobservable for closed geometry elsewhere; the pot already culls
+explicitly).
+
+Verification: `cargo check -p horizon-assets -p horizon-client --lib
+--tests --no-default-features` clean (JOBS=1, 2m11s; re-run clean after
+rustfmt, 4m19s). `cargo test -p
+horizon-assets --lib item_model::special::` — 2 passed (new codec
+tests, re-run after rustfmt). `cargo test -p horizon-client-lib --lib
+item_render::special::` — 7 passed, 0 failed, including the 2 new tests
+(`item_transforms_match_the_1_21_11_inline_forms`,
+`submit_applies_the_item_transform_and_submit_worn_does_not`) and the
+existing shield-glint and pot tests (8m25s at JOBS=1; the
+horizon-client lib test link was OOM-killed, the known fallback path).
+rustfmt --edition 2024 applied to the two edited leaf files (assets
+special.rs, item_render special.rs; the latter also picks up 2
+pre-existing formatting spots in `submit_book` and the banner arm).
+Rank 2 now 235/492 (67 changed, 168 no-change).
+work-items.json rank2.closed = 235 on 2026-11-20.
