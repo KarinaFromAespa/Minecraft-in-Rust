@@ -6744,3 +6744,46 @@ In progress at dispatch; the previous run on this branch
 (44538822133, Nov 19) took 1h31m. Record the profile into
 pins/1.21.11/ when it lands; do not merge on it (rank 2 is
 not done).
+
+## Item 88 — game/end.rs (rank 2, NO-CHANGE)
+
+5 classes, 9 methods, 6 named: ThrownEnderpearl, EnderEyeItem,
+TheEndGatewayBlockEntity, EndPlatformFeature, EndPodiumFeature.
+
+Java delta, jar-verified: the pearl's `onHit` has two teleport
+branches. The player branch (teleport, resetFallDistance,
+resetCurrentImpulseContext, 5 damage, sound) is identical in
+both versions. The non-player-owner branch gains, in 26.1 only,
+`if (newOwner instanceof LivingEntity)
+livingEntity.resetCurrentImpulseContext()` — 1.21.11 has no such
+call, because the impulse context lives on `Player` there (it
+moved up to `LivingEntity` in 26.x, with a Vec3-taking setter).
+Everything else is API shape: `BlockState.is(Object)` ->
+`is(Block)` in all five classes (END_GATEWAY, END_PORTAL_FRAME
+x2, BEDROCK, END_STONE, the feature material checks), and
+`Level.getRandom()` -> the `Level.random` field in EnderEyeItem.
+
+Verified matching: the Rust's player-pearl path (creatures.rs)
+is the 1.21.11 player branch exactly (5% endermite, stop_riding,
+velocity ZERO, fall distance 0, impulse reset, 5 damage, sound);
+the `ender_pearl_clears_impulse_before_next_fall` test pins the
+player branch, which is the same in both versions. The
+non-player branch has no Rust mirror (only player-owned pearls
+teleport; mobs have no impulse context), so the 26.1-only reset
+is unobservable — and unreachable in vanilla play (only players
+throw pearls; dispenser pearls have no owner). Gateway
+(end.rs + end_gateway.rs), platform (`createEndPlatform`),
+podium (`worldgen/end_podium`) and eye mirrors all audited;
+no stale citations.
+
+Note: `javap_diff.py` renumbers bytecode offsets to sequential
+instruction indices — do not compare its offsets to raw javap
+offsets (the pearl's LivingEntity reset is diff-offset 178,
+raw offset 384).
+
+Verification: literal comparison — all five classes zero string
+and zero numeric differences. `cargo test -p horizon-client
+--lib --no-default-features game::end::` 6 passed, 2 ignored
+(fixtures). No files edited. Rank 2 now 267/492 (86 changed,
+181 no-change). work-items.json rank2.closed = 267 on
+2026-11-20.
