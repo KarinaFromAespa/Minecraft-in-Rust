@@ -25,7 +25,7 @@ pub(super) enum Nav {
     Tab { forward: bool },
     /// An arrow (`ArrowNavigation`), as the D-pad direction it steps.
     Arrow(Button),
-    /// Enter, Space or keypad Enter (`InputWithModifiers.isSelection`).
+    /// Enter, Space or keypad Enter (`CommonInputs.selected`).
     Select,
 }
 

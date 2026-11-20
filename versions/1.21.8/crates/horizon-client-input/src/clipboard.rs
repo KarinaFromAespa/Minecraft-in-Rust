@@ -39,8 +39,8 @@ pub fn shortcut_letter(logical: &Key, physical: PhysicalKey) -> Option<char> {
     })
 }
 
-/// `InputWithModifiers.isSelectAll`/`isCopy`/`isPaste`/`isCut`: A, C, V or X
-/// with the edit modifier (`InputQuirks.EDIT_SHORTCUT_KEY_MODIFIER`: Cmd on
+/// `Screen.isSelectAll`/`isCopy`/`isPaste`/`isCut`: A, C, V or X
+/// with the edit modifier (`Screen.hasControlDown`: Cmd on
 /// macOS, Ctrl elsewhere) and neither Shift nor Alt.
 pub fn edit_shortcut(
     letter: Option<char>,

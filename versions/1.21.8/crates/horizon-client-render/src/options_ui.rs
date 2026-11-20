@@ -418,7 +418,7 @@ impl Opt {
                 "options.textureFiltering.rgss",
                 "options.textureFiltering.anisotropic",
             ][s.file.int("textureFiltering").clamp(0, 2) as usize],
-            // InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY: Cmd+B on macOS.
+            // `Screen.hasControlDown`: Cmd on macOS.
             Opt::NarratorHotkey if cfg!(target_os = "macos") => {
                 "options.accessibility.narrator_hotkey.mac"
             }

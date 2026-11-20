@@ -5,7 +5,7 @@ use horizon_client::clipboard::{self, EditShortcut};
 use winit::event::KeyEvent;
 
 impl Game<'_> {
-    /// `InputWithModifiers.isSelectAll`/`isCopy`/`isPaste`/`isCut` of a key
+    /// `Screen.isSelectAll`/`isCopy`/`isPaste`/`isCut` of a key
     /// press (or repeat): the keyboard's modifier state, or a modifier key an
     /// agent holds.
     pub(super) fn edit_shortcut(&self, event: &KeyEvent) -> Option<EditShortcut> {
@@ -21,9 +21,9 @@ impl Game<'_> {
             m.alt_key() || held([KeyCode::AltLeft, KeyCode::AltRight]),
         )
     }
-    /// `InputWithModifiers.hasControlDownWithQuirk`: the edit shortcuts'
-    /// modifier (`InputQuirks.EDIT_SHORTCUT_KEY_MODIFIER`: Cmd on macOS, Ctrl
-    /// elsewhere), held on the keyboard or by an agent. It reads the physical
+    /// `Screen.hasControlDown`: the edit shortcuts' modifier
+    /// (Cmd on macOS, Ctrl elsewhere), held on the keyboard or by an
+    /// agent. It reads the physical
     /// keys, never `keys`: a latched sprint or sneak toggle puts Control or
     /// Shift in `keys` without the key being down.
     pub(super) fn has_control_down_with_quirk(&self) -> bool {

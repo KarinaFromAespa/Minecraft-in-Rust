@@ -52,7 +52,7 @@ pub struct Held {
 }
 
 /// Holds `key` in both the physical keys and the modifier word, which is
-/// what screens read (`InputWithModifiers.hasShiftDown`).
+/// what screens read (`Screen.hasShiftDown`).
 pub fn hold(modifiers: &mut ModifiersState, physical: &mut HashSet<KeyCode>, key: KeyCode) -> Held {
     let bit = MODIFIERS
         .iter()
