@@ -334,7 +334,33 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 105/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122 + 4 zero-diff)
+### Rank 2: 106/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123 + 4 zero-diff)
+
+- **Item 123 — `crates/horizon-client/src/game/loom.rs`
+  (1 class, 8 methods, 2 named in Horizon),
+  real fix:** LoomScreen. 1.21.8 shows NO tooltip
+  for a hovered loom pattern — the pattern-name
+  tooltip (`setTooltipForNextFrame` with the pattern
+  key + dye colour) came in 1.21.9. The Rust
+  implemented the 1.21.9 tooltip, so
+  `screen_layout::loom` no longer pushes the
+  `Tooltip` draw for a highlighted pattern button,
+  and the `LoomView.dye` field (which existed only
+  to feed the tooltip key) is removed, along with the
+  dye computation in `draw_loom` and the `dyeStack`
+  parsing in the screen-layout fixture. The parity
+  oracle runs the real 1.21.8 screen and emits no
+  pattern tooltip, so this was a harness-visible
+  divergence. Verified no-change: the input-event
+  rework is mechanical (identical bodies modulo
+  `MouseButtonEvent` vs raw doubles — grid math,
+  scrollbar hit test and scroll formula all match
+  the Rust); the `BannerFlagModel` vs `ModelPart`
+  flag differs only in type (the render call is
+  identical text); the banner-material sprite
+  accessor differs with the same sprite. Check 0/0
+  at -j 1 (5m53s, log
+  cargo-check-1.21.8-item123.log).
 
 - **Item 122 — `crates/horizon-client-render/src/gfx/translucency.rs`
   (3 classes, 18 methods, 1 named in Horizon),
