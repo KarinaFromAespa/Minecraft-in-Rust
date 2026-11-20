@@ -7822,3 +7822,36 @@ rare, coin flip, mother's random), `usePlayerItem`,
 entity_nbt.rs. Tests: `mobs::axolotl::` 3 passed,
 `mobs::animal_brain::` 6 passed. rustfmt --check clean on axolotl.rs,
 species.rs, animal_brain.rs.
+
+## Item 115 — panda (rank 2, CHANGED)
+
+6 classes, 14 methods, 4 named: PandaRenderer (5,
+`getTextureLocation`), PandaModel (3, `setupAnim`), Panda (3,
+`mobInteract`, `tryToSit`), Panda$Gene (1), Panda$PandaBreedGoal (1),
+Panda$PandaSitGoal (1).
+
+Java delta, jar-verified: 1.21.11 has no `BabyPandaModel` and no
+`BABY_TEXTURES` — babies use `PandaModel` on the
+`BABY_TRANSFORMER`-baked layer (`BabyModelTransform(true, 23.0, 4.8,
+2.7, 3.0, 49.0, Set.of("head"))`) and wear the adult coat; the gene
+textures rename `panda_lazy.png` → `lazy_panda.png` (and worried /
+playful / brown / weak / aggressive). `setupAnim` poses are
+identical (sitting inlined, same numbers). `addEatingParticles`
+drops the empty-hand guard and swaps the draw order (height offset
+before x in 1.21.11). `mobInteract` uses `isBaby()` instead of
+`canAgeUp()` (equivalent without the 26.1 age-lock) and drops the
+26.1-only GOLDEN_DANDELION branch. `BABY_DIMENSIONS` (type dims ×
+0.5), genes, goals, roll, sneeze, breed and sounds identical.
+
+Fixes: (1) `body_anim.rs` baby sit branch removed — babies now sit
+like adults (body 1.7407963, head PI/2); the orphaned `lerp` helper
+went with it. (2) `crumbs()` draw order fixed to the 1.21.11 form
+(height offset before x). New tests pin both (`a_baby_panda_sits_
+like_an_adult`, `crumbs_follow_the_1_21_11_draw_order`). Already
+1.21.11-shaped: `texture()` (`{gene}_panda`, no baby textures),
+`interact_panda` (`isBaby()` gate, no golden dandelion anywhere),
+gene tables, goals, rotations, pose. Left as-is: the empty-hand
+crumb guards (unreachable — vanilla stops eating when the hand
+empties) and the `BABY_TRANSFORMER` geometry (prepared layer data).
+Tests: `mobs::panda::` 2 passed, `mobs::body_anim::` 7 passed.
+rustfmt --check clean on panda.rs, body_anim.rs.

@@ -18,9 +18,6 @@ const FPI: f32 = PI as f32;
 fn rad(v: f64) -> f32 {
     v as f32
 }
-fn lerp(a: f32, p: f32, q: f32) -> f32 {
-    p + a * (q - p)
-}
 /// `Mth.rotLerpRad`.
 fn rot_lerp_rad(a: f32, from: f32, to: f32) -> f32 {
     let mut diff = to - from;
@@ -118,7 +115,8 @@ pub struct Panda {
     pub lie_on_back_amount: f32,
     pub roll_amount: f32,
 }
-/// `PandaModel` / `BabyPandaModel.setupAnim`.
+/// `PandaModel.setupAnim` (1.21.11 has no `BabyPandaModel`: a baby panda
+/// sits like an adult; only its baked layer differs).
 pub fn panda(p: &mut Poses, s: &State, st: &Panda) {
     quadruped(p, s);
     let age = s.age;
@@ -140,30 +138,10 @@ pub fn panda(p: &mut Poses, s: &State, st: &Panda) {
     }
     if st.sit_amount > 0.0 {
         let a = st.sit_amount;
-        if s.baby {
-            let x = rot_lerp_rad(a, p.get("body")[3], rad(PI / 18.0));
-            p.xrot("body", x);
-            let v = lerp(a, p.get("body")[2], -1.5);
-            p.get("body")[2] = v;
-            let v = lerp(a, p.get("head")[2], -11.5);
-            p.get("head")[2] = v;
-            let v = lerp(a, p.get("head")[1], 17.5);
-            p.get("head")[1] = v;
-            for (part, z) in [
-                ("right_front_leg", -5.0),
-                ("left_front_leg", -5.0),
-                ("right_hind_leg", 3.0),
-                ("left_hind_leg", 3.0),
-            ] {
-                let v = lerp(a, p.get(part)[2], z);
-                p.get(part)[2] = v;
-            }
-        } else {
-            let x = rot_lerp_rad(a, p.get("body")[3], 1.740_796_3);
-            p.xrot("body", x);
-            let x = rot_lerp_rad(a, p.get("head")[3], rad(PI / 2.0));
-            p.xrot("head", x);
-        }
+        let x = rot_lerp_rad(a, p.get("body")[3], 1.740_796_3);
+        p.xrot("body", x);
+        let x = rot_lerp_rad(a, p.get("head")[3], rad(PI / 2.0));
+        p.xrot("head", x);
         p.zrot("right_front_leg", -0.270_796_42);
         p.zrot("left_front_leg", 0.270_796_42);
         p.zrot("right_hind_leg", 0.570_796_4);
@@ -1081,6 +1059,35 @@ mod tests {
         near(p.get("right_leg")[1], 8.0);
         near(p.get("right_bottom_bristle")[5], -1.221_730_5);
         near(p.get("left_top_bristle")[5], 0.872_664_63);
+    }
+
+    #[test]
+    fn a_baby_panda_sits_like_an_adult() {
+        let m = model(&[
+            "head",
+            "body",
+            "right_front_leg",
+            "left_front_leg",
+            "right_hind_leg",
+            "left_hind_leg",
+        ]);
+        let st = Panda {
+            sit_amount: 1.0,
+            ..Panda::default()
+        };
+        let mut p = Poses::new(&m);
+        panda(&mut p, &state(true), &st);
+        // 1.21.11 has no `BabyPandaModel`: the sit lerps the body to
+        // 1.7407963 and the head to PI/2, as for an adult (26.1's baby
+        // model used PI/18 and shifted the parts instead).
+        near(p.get("body")[3], 1.740_796_3);
+        near(p.get("head")[3], std::f32::consts::FRAC_PI_2);
+        near(p.get("right_front_leg")[5], -0.270_796_42);
+        near(p.get("left_hind_leg")[5], -0.570_796_4);
+        let mut p = Poses::new(&m);
+        panda(&mut p, &state(false), &st);
+        near(p.get("body")[3], 1.740_796_3);
+        near(p.get("head")[3], std::f32::consts::FRAC_PI_2);
     }
 
     #[test]

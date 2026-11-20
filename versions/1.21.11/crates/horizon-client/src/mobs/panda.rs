@@ -415,8 +415,10 @@ fn crumbs(m: &mut Mob) -> Crumbs {
             let v = Vec3::new((f() - 0.5) * 0.1, f() * 0.1 + 0.1, (f() - 0.5) * 0.1)
                 .rotate_x(x_rot)
                 .rotate_y(y_rot);
-            let p = Vec3::new((f() - 0.5) * 0.8, -f() * 0.6 - 0.3, 1.0 + (f() - 0.5) * 0.4)
-                .rotate_y(body);
+            // 1.21.11 draws the height offset before the x offset (26.1
+            // built the position first, so x drew before the height).
+            let y_off = -f() * 0.6 - 0.3;
+            let p = Vec3::new((f() - 0.5) * 0.8, y_off, 1.0 + (f() - 0.5) * 0.4).rotate_y(body);
             ([p.x + x, p.y + y, p.z + z], [v.x, v.y + 0.05, v.z])
         })
         .collect()
@@ -1086,6 +1088,54 @@ pub fn register(m: &mut Mob) {
                 .alert_if(|s| s.species == Species::Panda && s.variant == AGGRESSIVE),
         ),
     );
+}
+
+#[cfg(test)]
+mod crumbs_tests {
+    use super::*;
+    use horizon_core::geometry::Vec3;
+
+    /// `addEatingParticles` in 1.21.11 draws the height offset before the
+    /// x offset (26.1 drew x first). With no rotation the six crumbs of
+    /// one bite read straight off the draw sequence.
+    #[test]
+    fn crumbs_follow_the_1_21_11_draw_order() {
+        let kind = crate::mobs::sensor_scan_tests::kind();
+        let mut m = Mob::with_random(
+            1,
+            kind,
+            Vec3::new(10.0, 64.0, -5.0),
+            0.0,
+            LegacyRandom::new(1234),
+        );
+        // Whatever the constructor drew, the bite starts at the seed.
+        m.random = LegacyRandom::new(1234);
+        m.head_pitch = 0.0;
+        m.body_yaw = 0.0;
+        let got = crumbs(&mut m);
+        assert_eq!(got.len(), 6);
+        let mut expected = LegacyRandom::new(1234);
+        let eye = m.eye_y() + 1.0;
+        for (at, velocity) in &got {
+            let mut f = || f64::from(expected.next_float());
+            let vx = (f() - 0.5) * 0.1;
+            let vy = f() * 0.1 + 0.1;
+            let vz = (f() - 0.5) * 0.1;
+            let y_off = -f() * 0.6 - 0.3;
+            let px = (f() - 0.5) * 0.8;
+            let pz = 1.0 + (f() - 0.5) * 0.4;
+            for (a, b) in [
+                (at[0], 10.0 + px),
+                (at[1], eye + y_off),
+                (at[2], -5.0 + pz),
+                (velocity[0], vx),
+                (velocity[1], vy + 0.05),
+                (velocity[2], vz),
+            ] {
+                assert!((a - b).abs() < 1e-9, "{a} != {b}");
+            }
+        }
+    }
 }
 
 #[cfg(test)]
