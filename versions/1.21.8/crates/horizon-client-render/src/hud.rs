@@ -2114,10 +2114,10 @@ impl HudBatch {
     ) -> f32 {
         self.styled_text(atlas, text, x, y, color, shadow, false, None)
     }
-    /// `text_styled` for text drawn in the world (`TextRenderable.render`
-    /// with `flat` false): each quad's `depth` is its z in text units, the
+    /// `text_styled` for text drawn in the world (`BakedGlyph.renderChar` /
+    /// `renderEffect` with `flat` false): each quad's `depth` is its z in text units, the
     /// glyphs `Font.SHADOW_DEPTH` in front of their shadow, a bold copy 0.001
-    /// in front of its glyph and the lines 0.01 (`BakedSheetGlyph`), so they
+    /// in front of its glyph and the lines 0.01 (`BakedGlyph.Effect`), so they
     /// do not fight over the same pixels.
     pub fn text_styled_world(
         &mut self,

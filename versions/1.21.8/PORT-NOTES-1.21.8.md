@@ -334,7 +334,28 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 114/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131 + 4 zero-diff)
+### Rank 2: 115/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132 + 4 zero-diff)
+
+- **Item 132 — `crates/horizon-client-render/src/hud.rs`
+  (7 classes, 15 methods, 1 named in Horizon),
+  citations only:** Font, SpecialGlyphs,
+  TextureAtlas, PlainTextRenderable, TextRenderable,
+  MissingTextureAtlasSprite. The Font rework is
+  plumbing (1.21.9's Provider/GlyphSource/
+  TextRenderable vs 1.21.8's FontSet/BakedGlyph):
+  the observable geometry is identical
+  (`drawInBatch8xOutline`'s 8-offset loop,
+  advance/shadow/bold math, strike/underline
+  geometry), and font.rs already models the
+  1.21.8 `FontSet` form (item 27). The one stale
+  citation — `text_styled_world`'s doc naming
+  `TextRenderable.render` and `BakedSheetGlyph`
+  (both 1.21.9-only) — is reworded to
+  `BakedGlyph.renderChar`/`renderEffect`/`Effect`;
+  the depth numbers check out against 1.21.8's
+  `BakedGlyph`. Referral: the three
+  `BakedSheetGlyph` citations in
+  block_entity_render.rs belong to item 154.
 
 - **Item 131 — `crates/horizon-client-render/src/block_entities.rs`
   (1 class, 5 methods, 2 named in Horizon),
