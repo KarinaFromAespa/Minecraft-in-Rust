@@ -332,10 +332,10 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{version:?}");
             let mut expected = Writer::new();
-            // The pinned 1.21.1 pot decorations are four item ids (a brick
+            // The pinned 1.20.6 pot decorations are four item ids (a brick
             // side is undecorated), not templates: templates arrived in 1.21.9.
-            expected.bytes(&[1, 1, 3, 1, 25, 0x12, 0x34, 0x56, 0x78, 51, 4]);
-            expected.varint(1288); // Pinned angler_pottery_sherd.
+            expected.bytes(&[1, 1, 3, 1, 25, 0x12, 0x34, 0x56, 0x78, 50, 4]);
+            expected.varint(1285); // Pinned angler_pottery_sherd.
             expected.varint(921); // Pinned brick.
             expected.varint(921);
             expected.varint(921);
@@ -471,42 +471,42 @@ mod tests {
             (
                 "attributes",
                 "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
+                "01cf0601000c02027dd3a41b61e131b09f48d20fb816df220b6d696e6563726166743a783ff8000000000000000111afe7f7d1094f3f22842df4dbe1e6f91c0b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
                 "01ef0602000d01000b6d696e6563726166743a7a40080000000000000000010311",
-                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
+                "01cf0602000c01003b19bf5a8b6333b9b87df22cc006e3460b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "tool",
                 "01ef0601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
+                "01cf06010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01ef06010039010b486f72697a6f6e576972650000",
-                "01d00601002f010b486f72697a6f6e576972650000",
+                "01cf0601002e010b486f72697a6f6e576972650000",
             ),
             (
                 "color_hidden",
                 "01ef0601002200ff000000",
-                "01d00601001800ff000000",
+                "01cf0601001800ff000000",
             ),
             (
                 "unbreakable_hidden",
                 "01ef0601000400",
-                "01d00601000400",
+                "01cf0601000400",
             ),
             (
                 "container",
                 "01ef0601003e06030100000000000002f3020000",
-                "01d00601003406030100000000000002e4020000",
+                "01cf0601003306030100000000000002e4020000",
             ),
             (
                 "can_break_hidden",
                 "01ef0601000c01010201000000",
-                "01d00601000b01010201000000",
+                "01cf0601000b01010201000000",
             )
         ] {
             let old = bytes(old);
@@ -529,84 +529,95 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            assert_eq!(actual, expected, "{label}");
+            // The UUID form cannot carry arbitrary modifier ids: the pinned
+            // read of the attribute fixtures yields minecraft:<uuid> where
+            // the newer read yields minecraft:x/minecraft:y/minecraft:z. The
+            // pinned bytes are still parsed above, and the round-trip below
+            // is byte-exact.
+            if label != "attributes" && label != "combined" {
+                assert_eq!(actual, expected, "{label}");
+            }
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_4.ids().unwrap(), Way::Down);
                 Slot::write(&stack, &mut w);
             }
             assert_eq!(w.data, old, "{label}");
-            // The cached delimited patch must also contain normalized values.
-            let mut w = Writer::new();
-            DelimitedSlot::write(&stack, &mut w);
-            let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
-            assert_eq!(read_back, stack, "{label}");
+            // The cached delimited patch must also contain normalized values
+            // (except the attribute fixtures: their arbitrary ids are lossy
+            // through the pin's UUID-form delimited wire, as above).
+            if label != "attributes" && label != "combined" {
+                let mut w = Writer::new();
+                DelimitedSlot::write(&stack, &mut w);
+                let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
+                assert_eq!(read_back, stack, "{label}");
+            }
         }
     }
     #[test]
     fn vanilla_1_21_3_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent vanilla ItemStack.OPTIONAL_STREAM_CODEC outputs, including integer model data.
-        // The pinned side is the 1.21.1 wire form: the item 870 in 1.21.3 is 848 pinned, and the
+        // The pinned side is the 1.20.6 wire form: the item 870 in 1.21.3 is 847 pinned, and the
         // kinds move with the registry (attributes 13 to 12, custom_model_data 14 to 13, tool 26 to
-        // 22, dyed_color 34 to 24, profile 57 to 47, container 62 to 52, can_break 12 to 11). The
-        // equippable cases are gone: 1.21.1 predates equippable, so a 1.21.3 server's is dropped on
+        // 22, dyed_color 34 to 24, profile 57 to 46, container 62 to 51, can_break 12 to 11). The
+        // equippable cases are gone: 1.20.6 predates equippable, so a 1.21.3 server's is dropped on
         // read (see the adapter's modifiers test). The tool's pinned form has no trailing bool and
         // no matcher counts: the old tree's reader wrongly expected both.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
+                "01cf0601000c02027dd3a41b61e131b09f48d20fb816df220b6d696e6563726166743a783ff8000000000000000111afe7f7d1094f3f22842df4dbe1e6f91c0b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
                 "01e60602000d01000b6d696e6563726166743a7a40080000000000000000010311",
-                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
+                "01cf0602000c01003b19bf5a8b6333b9b87df22cc006e3460b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "model",
                 "01e60602000eb9600311",
-                "01d00602000db9600311",
+                "01cf0602000db9600311",
             ),
             (
                 "model_negative",
                 "01e60601000eefffffff0f",
-                "01d00601000defffffff0f",
+                "01cf0601000defffffff0f",
             ),
             (
                 "model_large",
                 "01e60601000e80808008",
-                "01d00601000d80808008",
+                "01cf0601000d80808008",
             ),
             (
                 "tool",
                 "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
+                "01cf06010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01e606010039010b486f72697a6f6e576972650000",
-                "01d00601002f010b486f72697a6f6e576972650000",
+                "01cf0601002e010b486f72697a6f6e576972650000",
             ),
             (
                 "color_hidden",
                 "01e60601002200ff000000",
-                "01d00601001800ff000000",
+                "01cf0601001800ff000000",
             ),
             (
                 "unbreakable_hidden",
                 "01e60601000400",
-                "01d00601000400",
+                "01cf0601000400",
             ),
             (
                 "container",
                 "01e60601003e06030100000000000002f1020000",
-                "01d00601003406030100000000000002e4020000",
+                "01cf0601003306030100000000000002e4020000",
             ),
             (
                 "can_break_hidden",
                 "01e60601000c01010201000000",
-                "01d00601000b01010201000000",
+                "01cf0601000b01010201000000",
             )
         ] {
             let old = bytes(old);
@@ -629,20 +640,29 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            assert_eq!(actual, expected, "{label}");
+            // The UUID form cannot carry arbitrary modifier ids: the pinned
+            // read of the attribute fixtures yields minecraft:<uuid> where
+            // the newer read yields minecraft:x/minecraft:y/minecraft:z. The
+            // pinned bytes are still parsed above, and the round-trip below
+            // is byte-exact.
+            if label != "attributes" && label != "combined" {
+                assert_eq!(actual, expected, "{label}");
+            }
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_3.ids().unwrap(), Way::Down);
                 Slot::write(&stack, &mut w);
             }
             assert_eq!(w.data, old, "{label}");
-            let mut w = Writer::new();
-            DelimitedSlot::write(&stack, &mut w);
-            assert_eq!(
-                DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap(),
-                stack,
-                "{label}"
-            );
+            // The cached delimited patch must also contain normalized values
+            // (except the attribute fixtures: their arbitrary ids are lossy
+            // through the pin's UUID-form delimited wire, as above).
+            if label != "attributes" && label != "combined" {
+                let mut w = Writer::new();
+                DelimitedSlot::write(&stack, &mut w);
+                let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
+                assert_eq!(read_back, stack, "{label}");
+            }
         }
     }
 }
