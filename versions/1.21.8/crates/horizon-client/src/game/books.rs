@@ -713,15 +713,11 @@ impl Game<'_> {
         let pos = self.gui.atlas.font.fit(title, rel);
         title_edit.set_cursor(pos, shift);
     }
-    /// A click on the open page (`MultiLineEditBox.onClick`): a double click
-    /// selects the word before the cursor and leaves the cursor where it is.
-    fn book_page_click(&mut self, origin_x: f32, origin_y: f32, mx: f32, my: f32, double: bool) {
-        if double {
-            if let Some(BookScreen::Edit { page_edit, .. }) = self.book.as_mut() {
-                page_edit.select_word_at_cursor();
-            }
-            return;
-        }
+    /// A click on the open page (`MultiLineEditBox.onClick`): the cursor
+    /// seeks the clicked position (`setCursor` at the click, Shift
+    /// extends the selection). 1.21.8 has no double-click word selection
+    /// — `selectWordAtCursor` on double-click came in 1.21.9.
+    fn book_page_click(&mut self, origin_x: f32, origin_y: f32, mx: f32, my: f32) {
         let shift = self.has_shift_down();
         let text = match self.book.as_ref() {
             Some(BookScreen::Edit { pages, page, .. }) => pages[*page].clone(),
@@ -1149,12 +1145,6 @@ impl Game<'_> {
         let b = HudBatch::new(size);
         let (w, left) = (b.width, ((b.width - 192.0) / 2.0).floor());
         let (mx, my) = self.cursor;
-        // MouseHandler: a click within 250 ms of the last one on this screen is a double click.
-        let now = std::time::Instant::now();
-        let double = self
-            .book_last_click
-            .is_some_and(|at| now.duration_since(at).as_millis() < 250);
-        self.book_last_click = Some(now);
         let inside =
             |x: f32, y: f32, bw: f32, bh: f32| mx >= x && my >= y && mx < x + bw && my < y + bh;
         let click = |game: &mut Self| {
@@ -1195,7 +1185,7 @@ impl Game<'_> {
                     click(self);
                     self.save_book(false);
                 } else if inside(left + 36.0, 32.0, 114.0, 14.0 * 9.0) {
-                    self.book_page_click(left + 36.0, 32.0, mx, my, double);
+                    self.book_page_click(left + 36.0, 32.0, mx, my);
                 }
             }
             Some(BookScreen::View {

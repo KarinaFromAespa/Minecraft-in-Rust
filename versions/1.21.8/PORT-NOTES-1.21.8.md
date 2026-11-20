@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 11/163 (327–330 + 7 zero-diff: 356, 372, 382–385, 396)
+### Rank 3: 12/163 (327–331 + 7 zero-diff: 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7379,6 +7379,27 @@ includes constant-pool churn.
   flag is the per-level loop, since nothing sets noSave per level),
   and `NameAndId` (a Rust-internal name for the same name + UUID).
   New test: a ban without a reason carries the default. Cargo check
+  0/0.
+- **Item 331 — `crates/horizon-client/src/game/books.rs`
+  (MultiLineEditBox, BookViewScreen, BookEditScreen, BookSignScreen,
+  5 named methods), the book editor to the 1.21.8 form:** the
+  double-click word selection is gone — 1.21.8's `onClick` has no
+  double-click branch; `selectWordAtCursor` on double-click came in
+  1.21.9 (and the method does not exist on 1.21.8's
+  MultilineTextField at all). `book_page_click` drops the `double`
+  parameter, the 250 ms double-click tracking (`book_last_click`) and
+  `select_word_at_cursor` are removed; a click seeks the cursor, Shift
+  extends the selection. Zero-diff: `onDrag` (no Rust surface — the
+  book screen has no drag handling), BookViewScreen's mouseClicked
+  (link first, then buttons), BookEditScreen's PageUp/PageDown, and
+  BookSignScreen's Enter/NumpadEnter (1.21.9's `isConfirmation` is
+  the same two keys, 257/335). The book screens already use the
+  transparent background (1.21.8's form, not 1.21.9's
+  `super.renderBackground`). Noted, not changed: the drawn caret
+  follows the inclusive rule (1.21.9's) at wrapped line boundaries —
+  the newline/space boundary conventions need the StringSplitter
+  source to settle, and the end-of-text `_` is absent against both
+  versions; `renderContents` is not a named method here. Cargo check
   0/0.
 
 ### Rank 4 content: closed 2/2 (chain)
