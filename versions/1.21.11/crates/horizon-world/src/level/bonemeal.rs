@@ -396,13 +396,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             Kind::Bamboo => {
                 let height_above = self.bamboo_height_above(pos);
                 let height_below = self.bamboo_height_below(pos);
-                let growth = pos.offset(0, height_above + 1, 0);
+                // `BambooStalkBlock.isValidBonemealTarget` in 1.21.11: only
+                // the height and the stage (26.x added build-height and
+                // empty checks).
                 height_above + height_below + 1 < 16
                     && b.table
                         .int(self.state(pos.offset(0, height_above, 0)), p.stage)
                         != 1
-                    && self.is_inside_build_height(growth.y)
-                    && self.is_empty_block(growth)
             }
             Kind::Cocoa => b.table.int(state, p.age) < 2,
             Kind::SweetBerry => b.table.int(state, p.age) < 3,
@@ -590,10 +590,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     let top = pos.offset(0, height_above + i, 0);
                     let top_state = self.state(top);
                     let growth = above(top);
+                    // `BambooStalkBlock.performBonemeal` in 1.21.11: no
+                    // build-height check (26.x added one); the empty check
+                    // stays.
                     if total + i >= 16
                         || b.table.int(top_state, p.stage) == 1
                         || !self.is_empty_block(growth)
-                        || !self.is_inside_build_height(growth.y)
                     {
                         return;
                     }

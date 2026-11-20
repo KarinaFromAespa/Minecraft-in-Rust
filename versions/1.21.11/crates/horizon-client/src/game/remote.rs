@@ -8538,7 +8538,7 @@ impl Game<'_> {
             } else {
                 (result, changes)
             };
-            // AbstractCauldronBlock.useItemOn, either hand: CauldronInteractions
+            // AbstractCauldronBlock.useItemOn, either hand: CauldronInteraction
             // answers on the client as on the server and only the server acts,
             // so a bucket the cauldron takes is not used again (UseItem).
             let result = if result.consumes_action() || spectator {
@@ -8929,7 +8929,7 @@ impl Game<'_> {
         if self.remote_shift_down() && hands_full {
             return (InteractionResult::Pass, DryUse::default());
         }
-        // AbstractCauldronBlock.useItemOn (CauldronInteractions): a bucket,
+        // AbstractCauldronBlock.useItemOn (CauldronInteraction): a bucket,
         // bottle or dye the cauldron takes fills or lowers it, and the click
         // ends there instead of falling through to Item.use (which would
         // empty a water bucket into the face of the cauldron).
@@ -8986,7 +8986,7 @@ impl Game<'_> {
         })
     }
 
-    /// `AbstractCauldronBlock.useItemOn` (`CauldronInteractions`) on this
+    /// `AbstractCauldronBlock.useItemOn` (`CauldronInteraction`) on this
     /// client's level: the cauldron's new state and the sound it made, or
     /// None when the item passes and `Item.use` still has its turn. The
     /// interaction player is a copy: the hand and the inventory change only

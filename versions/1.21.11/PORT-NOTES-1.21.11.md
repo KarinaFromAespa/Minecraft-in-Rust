@@ -7039,3 +7039,52 @@ Verification: literal comparison — only MapIndex differs
 (fixtures). rustfmt --check clean on maps.rs (module root, not
 reformatted). Rank 2 now 273/492 (89 changed, 184 no-change).
 work-items.json rank2.closed = 273 on 2026-11-21.
+
+## Item 95 — level/tick.rs (rank 2, CHANGED)
+
+5 classes, 16 methods, 5 named: BambooStalkBlock, CauldronBlock,
+ChorusFlowerBlock, KelpBlock, BarrelBlockEntity.
+
+Java delta, jar-verified: bamboo's support is the 1.21.11
+`bamboo_plantable_on` tag (#sand + #dirt + bamboo/sapling +
+gravel/suspicious_gravel) vs 26.1's `supports_bamboo` (#sand +
+#substrate_overworld + the same rest) — a real set difference,
+verified from both jars' tag JSONs. Bamboo bonemeal loses its
+26.x guards in 1.21.11: `isValidBonemealTarget` checks only
+height < 16 and stage != 1 (no build-height, no empty check);
+`performBonemeal` drops the build-height check (the empty check
+stays). Chorus flower support is hardcoded END_STONE in 1.21.11
+(26.1's tag held only end stone). Kelp `canAttachTo` is
+hardcoded not-MAGMA in 1.21.11 (26.1's tag held only magma);
+`getStateForPlacement`'s `isFull()` vs `getAmount() == 8` is the
+same result for water. CauldronBlock's ctor takes the
+`CauldronInteraction.EMPTY` map in 1.21.11 (the table moved
+classes in 26.x). BarrelBlockEntity is visibility + the random
+field.
+
+Fixes: the `bamboo_plantable_on` tag in the live Tags struct,
+the survival registry and the placement check; the bamboo
+bonemeal guards dropped in bonemeal.rs (valid + perform);
+chorus flower checks end stone in survive.rs, tick.rs (both
+randomTick sites) and the registry rule (the dead
+`chorus_flower` set + the tags! entry removed); kelp refuses
+magma in survive.rs and the registry resolves `no_kelp` from
+`block_states("minecraft:magma_block")` (the `cannot_support_kelp`
+tags! entry removed). Cauldron citations renamed
+`CauldronInteractions` -> `CauldronInteraction` (7 spots,
+comment-only; verified 1.21.11 has only the singular class).
+
+Referrals: the cauldron interaction table contents -> item 558
+(rank 3; Dispatcher/Interactions/InteractionMap are 683/735/791).
+The remaining `supports_*` tags (cactus, sugar cane, cocoa,
+azalea, nether sprouts/wart, wither rose, lily pad, frogspawn,
+mangrove propagule x2, chorus plant) still resolve to empty sets
+— each belongs to its own block's item (item 59's referral,
+partly discharged here).
+
+Verification: literal comparison — all zero except KelpBlock's
+`8`. `cargo check -p horizon-world --lib --tests` clean;
+`level::growth_tests::` 21 passed; `cargo check -p
+horizon-client --lib` clean. Rank 2 now 274/492 (90 changed,
+184 no-change). work-items.json rank2.closed = 274 on
+2026-11-21.

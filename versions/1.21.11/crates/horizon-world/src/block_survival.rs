@@ -199,7 +199,7 @@ pub struct BlockSurvivalRegistry<'r> {
     mushroom_light_override: BTreeSet<BlockStateId>,
     rules: Vec<Option<Rule>>,
     unstable_bottom_center: BTreeSet<BlockStateId>,
-    supports_bamboo: BTreeSet<BlockStateId>,
+    bamboo_plantable_on: BTreeSet<BlockStateId>,
     bound_tags: Vec<BTreeSet<BlockStateId>>,
     bound_blocks: Vec<BTreeSet<BlockStateId>>,
     cactus_flower: BTreeSet<BlockStateId>,
@@ -215,7 +215,6 @@ pub struct BlockSurvivalRegistry<'r> {
     hanging_mangrove: BTreeSet<BlockStateId>,
     no_kelp: BTreeSet<BlockStateId>,
     chorus_plant: BTreeSet<BlockStateId>,
-    chorus_flower: BTreeSet<BlockStateId>,
     lily_pad: BTreeSet<BlockStateId>,
     frogspawn: BTreeSet<BlockStateId>,
     small_dripleaf: BTreeSet<BlockStateId>,
@@ -547,7 +546,10 @@ impl<'r> BlockSurvivalRegistry<'r> {
             mushroom_light_override: tag_states("minecraft:overrides_mushroom_light_requirement")?,
             rules,
             unstable_bottom_center: tag_states("minecraft:unstable_bottom_center")?,
-            supports_bamboo: tag_states("minecraft:supports_bamboo")?,
+            // `BambooStalkBlock` in 1.21.11: the `bamboo_plantable_on` tag
+            // (26.1 renamed it `supports_bamboo`, swapping `#dirt` for
+            // `#substrate_overworld`).
+            bamboo_plantable_on: tag_states("minecraft:bamboo_plantable_on")?,
             bound_tags: tag_names
                 .iter()
                 .map(|name| tag_states(name))
@@ -572,9 +574,10 @@ impl<'r> BlockSurvivalRegistry<'r> {
             snow_override: tag_states("minecraft:support_override_snow_layer")?,
             mangrove: tag_states("minecraft:supports_mangrove_propagule")?,
             hanging_mangrove: tag_states("minecraft:supports_hanging_mangrove_propagule")?,
-            no_kelp: tag_states("minecraft:cannot_support_kelp")?,
+            // `KelpBlock.canAttachTo` in 1.21.11: magma, hardcoded (the
+            // `cannot_support_kelp` tag is gone; it held only magma).
+            no_kelp: block_states("minecraft:magma_block")?,
             chorus_plant: tag_states("minecraft:supports_chorus_plant")?,
-            chorus_flower: tag_states("minecraft:supports_chorus_flower")?,
             lily_pad: tag_states("minecraft:supports_lily_pad")?,
             frogspawn: tag_states("minecraft:supports_frogspawn")?,
             small_dripleaf: tag_states("minecraft:small_dripleaf_placeable")?,
@@ -1010,8 +1013,11 @@ impl<'r> BlockSurvivalRegistry<'r> {
             }
             Rule::ChorusFlower => {
                 let below = self.read(world, relative(position, Direction::Down))?;
+                // `ChorusFlowerBlock.canSurvive` in 1.21.11: chorus plant or
+                // end stone, hardcoded (26.1 moved end stone into the
+                // `supports_chorus_flower` tag).
                 if self.is_named(below, "minecraft:chorus_plant")
-                    || self.chorus_flower.contains(&below)
+                    || self.is_named(below, "minecraft:end_stone")
                 {
                     return Ok(true);
                 }
@@ -1270,7 +1276,7 @@ impl<'r> BlockSurvivalRegistry<'r> {
                 )
             }
             Rule::SupportsBamboo => Ok(self
-                .supports_bamboo
+                .bamboo_plantable_on
                 .contains(&self.read(world, relative(position, Direction::Down))?)),
         }
     }

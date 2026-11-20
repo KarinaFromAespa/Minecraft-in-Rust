@@ -44,7 +44,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 self.sturdy(rel(pos, facing.opposite()), facing)
             }
             Class::BambooSapling | Class::BambooStalk => {
-                b.in_set(self.below_state(pos), &t.supports_bamboo)
+                b.in_set(self.below_state(pos), &t.bamboo_plantable_on)
             }
             Class::Banner | Class::Cake | Class::CandleCake | Class::StandingSign => {
                 b.is_solid(self.below_state(pos))
@@ -99,7 +99,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
             Class::ChorusFlower => {
                 let below = self.below_state(pos);
-                if b.is_block(below, n.chorus_plant) || b.in_set(below, &t.supports_chorus_flower) {
+                // `ChorusFlowerBlock.canSurvive` in 1.21.11: chorus plant or
+                // end stone, hardcoded (26.1 moved end stone into the
+                // `supports_chorus_flower` tag, which held only it).
+                if b.is_block(below, n.chorus_plant) || b.is_block(below, n.end_stone) {
                     return Some(true);
                 }
                 if !b.is_air(below) {
@@ -488,11 +491,13 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             .unwrap_or(block);
         (head, body)
     }
-    /// `GrowingPlantBlock.canAttachTo` (kelp refuses `cannot_support_kelp`).
+    /// `GrowingPlantBlock.canAttachTo` in 1.21.11: kelp refuses magma blocks,
+    /// hardcoded (26.1 moved magma into the `cannot_support_kelp` tag, which
+    /// held only it).
     fn growing_plant_can_attach_to(&self, state: BlockStateId, attached: BlockStateId) -> bool {
         let b = self.b;
         if b.instance_of(state, Class::Kelp) || b.instance_of(state, Class::KelpPlant) {
-            !b.in_set(attached, &b.tags.cannot_support_kelp)
+            !b.is_block(attached, b.named.magma_block)
         } else {
             true
         }

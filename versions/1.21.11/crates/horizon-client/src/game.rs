@@ -7892,7 +7892,7 @@ impl Game<'_> {
         None
     }
     /// The cauldron at `pos`, and whether water is above it
-    /// (`CauldronInteractions.isUnderWater`).
+    /// (`CauldronInteraction.isUnderWater`).
     pub(super) fn cauldron_at(
         &self,
         pos: [i32; 3],

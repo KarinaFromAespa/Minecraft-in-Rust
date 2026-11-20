@@ -1,4 +1,4 @@
-//! `CauldronInteractions`: what an item does to an empty, water, lava or
+//! `CauldronInteraction`: what an item does to an empty, water, lava or
 //! powder snow cauldron. `tools/test_cauldron_parity.py` compares every item
 //! with vanilla's `useItemOn`.
 use crate::items::{ItemStack, Items};

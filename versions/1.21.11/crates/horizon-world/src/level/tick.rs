@@ -1464,14 +1464,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let mut grow_up = false;
         let mut pillar_on_support = false;
         let below_state = self.below_state(pos);
-        if b.in_set(below_state, &b.tags.supports_chorus_flower) {
+        // `ChorusFlowerBlock.randomTick` in 1.21.11: end stone, hardcoded
+        // (26.1 moved it into the `supports_chorus_flower` tag).
+        if b.is_block(below_state, b.named.end_stone) {
             grow_up = true;
         } else if b.is_block(below_state, plant) {
             let mut height = 1;
             for _ in 0..4 {
                 let test = self.state(pos.offset(0, -(height + 1), 0));
                 if !b.is_block(test, plant) {
-                    if b.in_set(test, &b.tags.supports_chorus_flower) {
+                    if b.is_block(test, b.named.end_stone) {
                         pillar_on_support = true;
                     }
                     break;

@@ -412,7 +412,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     return Some(None);
                 }
                 let below_state = self.below_state(pos);
-                if !b.in_set(below_state, &t.supports_bamboo) {
+                if !b.in_set(below_state, &t.bamboo_plantable_on) {
                     None
                 } else if b.is_block(below_state, n.bamboo_sapling) {
                     Some(table.set_int(default, p.age, 0))
