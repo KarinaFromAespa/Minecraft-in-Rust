@@ -530,7 +530,7 @@ pub fn scrolling_with_default_center(
     scrolling_text(out, m, message, center, left, right, top, bottom, now_ms);
 }
 
-/// `AbstractWidget.extractScrollingStringOverContents`: `message` over the
+/// `AbstractWidget.renderScrollingStringOverContents`: `message` over the
 /// widget's box less `margin` on each side (centred, or scrolling when too
 /// wide).
 pub fn scrolling_string_over_contents(
@@ -549,7 +549,7 @@ pub fn scrolling_string_over_contents(
 }
 
 /// `Button` (`extractDefaultSprite`, then `AbstractButton.extractDefaultLabel`:
-/// `extractScrollingStringOverContents` with a margin of 2, which scrolls a
+/// `renderScrollingStringOverContents` with a margin of 2, which scrolls a
 /// label wider than the button with the clock, `now_ms`).
 pub fn button(
     out: &mut Vec<Draw>,
@@ -686,7 +686,8 @@ impl TextField {
         self.set_highlight(m, self.cursor);
     }
     /// `insertText`: replaces the selection within the maximum length. True
-    /// when the value changed (its responder runs).
+    /// when the responder runs: `insertText` fires `onValueChange` whenever
+    /// there is room, even when the inserted text is empty.
     pub fn insert_text(&mut self, m: &Measure, input: &str) -> bool {
         let (start, end) = (
             self.cursor.min(self.highlight),
@@ -713,6 +714,8 @@ impl TextField {
         true
     }
     /// `deleteChars(dir)`: the selection, or `dir` characters from the cursor.
+    /// True when it deleted: `deleteCharsToPos` runs the responder only when
+    /// `start != end`, so a Backspace at the start is silent.
     pub fn delete_chars(&mut self, m: &Measure, dir: isize) -> bool {
         if self.value.is_empty() {
             return false;
@@ -770,7 +773,11 @@ impl TextField {
     pub fn word_position(&self, dir: isize, from: usize) -> usize {
         crate::ui::word_position(&self.value, dir, from)
     }
-    /// `keyPressed` of a focused, editable box: `Some(changed)` when handled.
+    /// `keyPressed` of a focused, editable box: `Some(true)` when handled and
+    /// the key runs the responder (`ChatScreen.onEdited`). 1.21.11's
+    /// `moveCursorTo` ends in `onValueChange`, so a cursor move fires it just
+    /// as an edit does (26.1's ends in `updateTextPosition` only); a deletion
+    /// fires only when it deletes (`deleteCharsToPos`'s `start != end` guard).
     pub fn key(
         &mut self,
         m: &Measure,
@@ -813,7 +820,9 @@ impl TextField {
             }
             _ => return None,
         }
-        Some(false)
+        // A cursor move: 1.21.11's `moveCursorTo` ends in `onValueChange`,
+        // so the responder runs even though the value did not change.
+        Some(true)
     }
     /// Ctrl+A/C/V/X (`EditBox.keyPressed`). True when the value changed.
     pub fn shortcut(
@@ -857,7 +866,7 @@ impl TextField {
             && x < (self.x + self.width) as f64
             && y < (self.y + self.height) as f64
     }
-    /// `extractWidgetRenderState`; `blink_ms` is the time since the field
+    /// `renderWidget`; `blink_ms` is the time since the field
     /// was focused, `format` styles a substring starting at a character index.
     pub fn draw(
         &self,

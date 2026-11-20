@@ -4427,3 +4427,99 @@ both clean (JOBS=1). New tests pass (1 + 1). Single-token edits;
 no rustfmt run.
 Rank 2 now 232/492 (64 changed, 168 no-change).
 work-items.json rank2.closed = 232 on 2026-11-20.
+
+## Item 54 — crates/horizon-client-render/src/ui.rs (rank 2, CHANGED)
+
+EditBox (11, named extractWidgetRenderState, insertText, setEditable,
+setFocused, setValue), AbstractWidget (8, named
+extractScrollingStringOverContents, handleCursor), AbstractSliderButton (3,
+named extractWidgetRenderState), LockIconButton (2),
+SpriteIconButton$TextAndIcon (2), TooltipRenderUtil (2), TextCursorUtils (1,
+**removed in 1.21.11** — 26.1-only), LockIconButton$Icon (0): 8 classes,
+29 methods, 8 named.
+
+**The change — cursor moves fire the responder in 1.21.11.** 26.1's
+`EditBox.moveCursorTo` ends with `updateTextPosition()`; 1.21.11's ends
+with `onValueChange(value)` (javap-verified in both jars), so every
+arrow-key / click / drag / Home / End / select-word cursor move calls the
+responder in 1.21.11 and does not in 26.1. The Rust's chat screen mirrors
+the responder as `ChatScreen::edited()` (`ChatScreen.onEdited`:
+`allow_suggestions = true` + `update_command_info` + `isDraft = false`),
+but `TextField::key` returned `Some(false)` for cursor keys,
+`ChatScreen::click` never ran `edited()` after a click, and
+`ChatScreen::shortcut` ran it only when the value changed — so command
+suggestions did not refresh when the cursor moved in the chat box, and a
+restored draft stayed a draft (grey italic, first Backspace clears all)
+through arrow keys and clicks. Fixed: cursor keys now return `Some(true)`
+(the bool means "the responder runs"); `click` calls `edited()` after
+`input.click`; `shortcut` runs `edited()` for SelectAll (always fires via
+`moveCursorTo`) and for Paste/Cut whenever `insertText` has room (fires
+even when the value does not change) — Copy never fires, and a paste/cut
+into a full box does not fire (`insertText`'s room check). The room is
+computed before the shortcut spends it. Backspace/Delete still report the
+deletion result: `deleteCharsToPos` fires only when `start != end`
+(decompile-verified), so the existing `false` at the boundary and on an
+empty value is already 1.21.11-exact. `insert_text` already returned
+room>0 semantics. `edit_input` (the native/mod-API path) already fired
+`edited()` on value/cursor/highlight change. New test
+`chat_tests.rs::a_cursor_move_in_the_chat_box_runs_on_edited`: a restored
+draft ends on an arrow key (Backspace then eats one character),
+on a click, and on Select All; and the pending suggestions follow the
+cursor ("hi St" offers only Steve, two arrow keys back to the empty word
+offers Alex too).
+
+**`EditBox.filter` is 1.21.11-only but dead API in vanilla:** no vanilla
+class calls `EditBox.setFilter` (constant-pool scan of the 1.21.11 client
+jar; the two byte-search hits were false positives —
+`RecipeBookComponent.setFiltering` and
+`SocialInteractionsPlayerList.setFilter`, confirmed by decompiling both),
+and the default `nonNull` filter always passes. Unobservable; no Rust
+change. The 1.21.11 `setValue` double-fire (via `moveCursorTo` plus
+explicitly) is idempotent for every vanilla responder. IME preedit
+(`preeditOverlay`, `preeditUpdated`, `onTextInputFocusChange`) is 26.1-only;
+the Rust has no IME handling anywhere, so there is nothing to remove.
+`TextCursorUtils` is a pure extraction: the blink formula, the insert
+fill, and the "_" append cursor are identical in 1.21.11's inline form
+(constants `CURSOR_INSERT_WIDTH` = 1, `CURSOR_APPEND_CHARACTER` = "_",
+`CURSOR_BLINK_INTERVAL_MS` = 300, javap-verified in 1.21.11's `EditBox`).
+
+**Citation fixes (26.1 name → 1.21.11 name, jar-verified):**
+`GuiGraphicsExtractor.blitNineSlicedSprite/blitSprite/blit/requestCursor`
+→ `GuiGraphics.…` (ui.rs, widgets.rs);
+`AbstractWidget.extractScrollingStringOverContents` →
+`renderScrollingStringOverContents` (ui.rs, graphics_style.rs,
+screen_draw.rs, title.rs);
+`AbstractSliderButton.extractWidgetRenderState` / `EditBox.extractWidgetRenderState`
+→ `renderWidget` (ui.rs, screen_draw.rs, recipe_book_screen.rs);
+`TextCursorUtils.isCursorVisible` → the inline 1.21.11 blink (ui.rs,
+recipe_book_screen.rs). NOT fixed here (other items' scope):
+`AbstractButton.extractDefaultLabel` / `extractDefaultSprite` (item 203);
+`MultiLineEditBox.extractContents` / `extractWidgetRenderState` (item 529);
+`AbstractSelectionList.extractWidgetRenderState` (items 13/87).
+
+**Verified, no change:** `ui.rs` slider (track + 8px handle at
+`value * (w-8)`, sprite rules, `slider_value` = `setValueFromMouse` +
+clamp); `ui.rs` EditBox (insert/delete/word/click/drag/key/shortcut/draw,
+blink formula — the 1.21.11 inline form); `TextField.scroll_to` (exact,
+including the `pos == display` full-screen scroll-back);
+`widgets.rs::widget_cursor` (base `handleCursor`, identical both
+versions); `tooltip_box` ((x−12, y−12, w+24, h+24) = vanilla's
+(x−3−9, y−3−9, w+3+3+18, h+3+3+18), first line 12, rest 10);
+`title.rs` TextAndIcon and `screens.rs` CenteredIcon (exact geometry);
+`append_field` blink + cursors. The 1.21.11 slider cursor difference
+(inactive hovered slider → POINTING_HAND, not NOT_ALLOWED) is
+unobservable: the Rust implements no slider cursor at all (no ResizeEw /
+IBeam variants, no call sites) — a pre-existing, version-neutral gap, as
+are the missing LockIconButton mirror, the missing `ui::EditBox` hint,
+`ui::EditBox::scroll_to` lacking the `pos == display` branch,
+`ui::EditBox::set_cursor` resetting the blink, `TextField::click` lacking
+double-click word selection, the chat input having no drag handler, and
+max length counting chars (Rust) vs UTF-16 units (vanilla).
+
+Verification: `cargo check -p horizon-client-render -p horizon-client
+--lib --tests --no-default-features` clean (JOBS=1, 2m25s). `cargo test -p
+horizon-client-render --lib chat::tests::` — 27 passed, 0 failed, including
+the new test. No rustfmt run (comment-only edits plus small hand-formatted
+code edits).
+Rank 2 now 233/492 (65 changed, 168 no-change).
+work-items.json rank2.closed = 233 on 2026-11-20.

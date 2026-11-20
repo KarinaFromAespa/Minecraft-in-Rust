@@ -186,7 +186,7 @@ fn tile(batch: &mut HudBatch, r: Rect, size: [f32; 2], src: [f32; 4], dst: [f32;
         y += sh;
     }
 }
-/// `GuiGraphicsExtractor.blitNineSlicedSprite`: the corners at their size,
+/// `GuiGraphics.blitNineSlicedSprite`: the corners at their size,
 /// the edges and centre tiled (or stretched with `stretch_inner`), all in
 /// the sprite's `gui.scaling` units, so a high-resolution pack's sprite draws
 /// as the default one does.
@@ -211,7 +211,7 @@ pub fn nine_slice(
         }
     }
 }
-/// `GuiGraphicsExtractor.blitSprite`: a sprite over `w` × `h` as its
+/// `GuiGraphics.blitSprite`: a sprite over `w` × `h` as its
 /// `gui.scaling` says, nine-sliced, or stretched when it has no metadata.
 /// (`tile`, which no vanilla sprite uses, isn't read yet: it stretches.)
 pub fn blit_sprite(
@@ -235,7 +235,7 @@ pub fn blit_sprite(
         }
     }
 }
-/// `GuiGraphicsExtractor.blit(location, x, y, u, v, width, height, textureWidth,
+/// `GuiGraphics.blit(location, x, y, u, v, width, height, textureWidth,
 /// textureHeight)`: a `src` region of a sprite — in its own texture's units, as the
 /// u/v/width/height arguments are — stretched over `w` × `h`.
 pub fn blit_sprite_region(
@@ -442,7 +442,7 @@ fn scrolled_left(left: f32, overflow: f32, now_ms: i64) -> f32 {
     left - scroll_offset(overflow, now_ms) as i32 as f32
 }
 
-/// A widget's label as `AbstractWidget.extractScrollingStringOverContents`
+/// A widget's label as `AbstractWidget.renderScrollingStringOverContents`
 /// draws it, at `now_ms`: centred between `left` and `right` when it fits,
 /// else drawn from the left and slid (`defaultScrollingHelper`) inside the
 /// widget's box. `y` is the label's top line.
@@ -747,7 +747,7 @@ pub fn slider(
     );
 }
 
-/// `AbstractSliderButton.extractWidgetRenderState`: track, 8px handle at `value` (0..1),
+/// `AbstractSliderButton.renderWidget`: track, 8px handle at `value` (0..1),
 /// with support for keyboard focus and `canChangeValue`.
 pub fn slider_ext(
     batch: &mut HudBatch,
@@ -1392,12 +1392,13 @@ impl Caret {
     }
 }
 
-/// `EditBox.extractWidgetRenderState` for Horizon's append-only fields,
+/// `EditBox.renderWidget` for Horizon's append-only fields,
 /// unbordered and with the cursor at the end: the text from (x, y), the
 /// highlight when Select All covers the value (`invert_text` as
 /// `setInvertHighlightedTextColor`), and the cursor, blinking from when the
-/// field took the focus (`TextCursorUtils.isCursorVisible`): an underscore,
-/// or a bar once the value is `max_chars` long. `shadow` is `setTextShadow`.
+/// field took the focus (on for `CURSOR_BLINK_INTERVAL_MS` = 300 ms of every
+/// 600): an underscore, or a bar once the value is `max_chars` long.
+/// `shadow` is `setTextShadow`.
 #[allow(clippy::too_many_arguments)]
 pub fn append_field(
     batch: &mut HudBatch,

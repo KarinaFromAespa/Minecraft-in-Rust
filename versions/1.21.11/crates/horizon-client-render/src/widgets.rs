@@ -17,11 +17,11 @@ pub enum Cursor {
 }
 
 thread_local! {
-    /// `GuiGraphicsExtractor.requestCursor`: the last request since [`take_cursor`].
+    /// `GuiGraphics.requestCursor`: the last request since [`take_cursor`].
     static CURSOR: Cell<Cursor> = const { Cell::new(Cursor::Arrow) };
 }
 
-/// `GuiGraphicsExtractor.requestCursor`: the last request of a frame wins.
+/// `GuiGraphics.requestCursor`: the last request of a frame wins.
 pub fn request_cursor(cursor: Cursor) {
     CURSOR.set(cursor);
 }

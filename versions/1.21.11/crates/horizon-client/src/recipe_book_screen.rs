@@ -123,7 +123,8 @@ pub struct Search {
     pub highlight: usize,
     pub display: usize,
     pub focused: bool,
-    /// Milliseconds since the box was focused (`TextCursorUtils.isCursorVisible`).
+    /// Milliseconds since the box was focused (the cursor's blink: on for
+    /// `CURSOR_BLINK_INTERVAL_MS` = 300 ms of every 600).
     pub blink_ms: u64,
 }
 
@@ -501,7 +502,7 @@ fn same_result_display(entries: &[Vec<ItemStack>]) -> bool {
     items.all(|s| first.same_item_same_components(s))
 }
 
-/// `EditBox.extractWidgetRenderState` for the recipe book's search box.
+/// `EditBox.renderWidget` for the recipe book's search box.
 fn search_box(s: &Screen, x: i32, y: i32, put: &mut impl FnMut(Call, [f32; 6])) {
     let b = s.search;
     let (w, h) = (81, 9 + 5);

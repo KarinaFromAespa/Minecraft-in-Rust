@@ -424,6 +424,99 @@ fn a_restored_draft_is_grey_italic_and_one_backspace_clears_it() {
     assert!(draft_style(&input_text(&mut screen)));
 }
 
+/// 1.21.11's `EditBox.moveCursorTo` ends in `onValueChange`, so every cursor
+/// move in the chat box runs `ChatScreen.onEdited`: the suggestions refresh
+/// for the new cursor position, and a restored draft stops being a draft
+/// (26.1's `moveCursorTo` ends in `updateTextPosition` only).
+#[test]
+fn a_cursor_move_in_the_chat_box_runs_on_edited() {
+    use crate::clipboard::{EditShortcut, MemoryClipboard};
+    use winit::keyboard::KeyCode::{ArrowLeft, Backspace};
+
+    let font = font();
+    let m = Measure(&font);
+    let registries = Registries {
+        players: vec!["Steve".into(), "Alex".into()],
+        ..Registries::default()
+    };
+    let c = Commands {
+        dispatcher: crate::command::vanilla::game_dispatcher(),
+        registries: &registries,
+    };
+    // The input's own text as the game draws it: x 4, y height - 12.
+    let input_text = |screen: &mut ChatScreen| -> Text {
+        screen
+            .draw(&m, (0, 0), 0, i32::MIN)
+            .into_iter()
+            .find_map(|draw| match draw {
+                Draw::Text {
+                    text, x: 4, y: 348, ..
+                } => Some(text),
+                _ => None,
+            })
+            .expect("the input draws its text")
+    };
+    let draft_style = |t: &Text| {
+        t.spans
+            .iter()
+            .all(|s| s.style.color == Some(text::GRAY) && s.style.is_italic())
+    };
+    // An arrow key ends the draft: Backspace then eats one character
+    // instead of clearing the whole draft.
+    let mut screen = ChatScreen::new(&m, &c, "half-written", true, 0, 640, 360);
+    assert_eq!(
+        screen.key(&m, &c, &[], ArrowLeft, false, false),
+        ChatAction::None
+    );
+    assert!(
+        !draft_style(&input_text(&mut screen)),
+        "an arrow key ends the draft"
+    );
+    assert_eq!(
+        screen.key(&m, &c, &[], Backspace, false, false),
+        ChatAction::None
+    );
+    assert_eq!(screen.value(), "half-writtn");
+    // A click in the box ends it the same way (`onClick` moves the cursor).
+    let mut screen = ChatScreen::new(&m, &c, "half-written", true, 0, 640, 360);
+    assert!(screen.click(&m, &c, 100.0, 350.0));
+    assert!(
+        !draft_style(&input_text(&mut screen)),
+        "a click ends the draft"
+    );
+    // Select All ends it too (`selectAll` moves the cursor to the end).
+    let mut screen = ChatScreen::new(&m, &c, "half-written", true, 0, 640, 360);
+    screen.shortcut(
+        &m,
+        &c,
+        EditShortcut::SelectAll,
+        &mut MemoryClipboard(String::new()),
+    );
+    assert!(
+        !draft_style(&input_text(&mut screen)),
+        "Select All ends the draft"
+    );
+    // The suggestions follow the cursor, not the last edit: "hi St" offers
+    // only Steve, but two arrow keys back to the empty word offer Alex too.
+    let mut screen = ChatScreen::new(&m, &c, "", false, 0, 640, 360);
+    screen.type_text(&m, &c, "hi St");
+    let pending = |screen: &ChatScreen| -> Vec<String> {
+        screen
+            .pending
+            .as_ref()
+            .expect("suggestions are pending")
+            .1
+            .iter()
+            .map(|s| s.text.clone())
+            .collect()
+    };
+    assert_eq!(pending(&screen), vec!["Steve".to_owned()]);
+    screen.key(&m, &c, &[], ArrowLeft, false, false);
+    screen.key(&m, &c, &[], ArrowLeft, false, false);
+    assert_eq!(screen.input.cursor, 3);
+    assert_eq!(pending(&screen), vec!["Alex".to_owned(), "Steve".to_owned()]);
+}
+
 #[test]
 fn mod_commands_are_coloured_and_complete_like_vanilla_ones() {
     let font = font();

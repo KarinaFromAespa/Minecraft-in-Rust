@@ -1392,7 +1392,28 @@ impl ChatScreen {
         shortcut: crate::clipboard::EditShortcut,
         clipboard: &mut dyn crate::clipboard::Clipboard,
     ) {
-        if self.input.shortcut(m, shortcut, clipboard) {
+        use crate::clipboard::EditShortcut;
+        // `insertText`'s room before the shortcut spends it: a paste or cut
+        // runs the responder whenever there is room, even when the value
+        // does not change.
+        let (start, end) = (
+            self.input.cursor.min(self.input.highlight),
+            self.input.cursor.max(self.input.highlight),
+        );
+        let room = self.input.max_length as isize
+            - self.input.value.chars().count() as isize
+            + (end - start) as isize;
+        let _ = self.input.shortcut(m, shortcut, clipboard);
+        // 1.21.11's `EditBox` runs the responder from `insertText` and
+        // `selectAll` even when the value does not change — an empty paste,
+        // a cut with nothing selected, or Select All still runs `onEdited`
+        // (`moveCursorTo` ends in `onValueChange`); only Copy, and a paste
+        // or cut into a full box (`insertText`'s room check), leave it
+        // silent. The clipboard helper reports value changes only, so the
+        // responder cannot be read off its return.
+        let fires = !matches!(shortcut, EditShortcut::Copy)
+            && (room > 0 || matches!(shortcut, EditShortcut::SelectAll));
+        if fires {
             self.edited(m, c);
         }
     }
@@ -1845,6 +1866,10 @@ impl ChatScreen {
         }
         if self.input.contains(x, y) {
             self.input.click(m, x, false);
+            // 1.21.11's `onClick` moves the cursor, and `moveCursorTo` ends
+            // in `onValueChange`: a click in the box runs `onEdited` (26.1's
+            // `moveCursorTo` ends in `updateTextPosition`).
+            self.edited(m, c);
             return true;
         }
         false
