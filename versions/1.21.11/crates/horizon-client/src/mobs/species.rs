@@ -362,7 +362,7 @@ pub const ALL: &[Def] = &[
         A::Fox,
         ["entity.fox.ambient", "entity.fox.hurt", "entity.fox.death"],
         None,
-        Baby::Scale(0.6, Some(0.34375))
+        Baby::Scale(0.5, Some(0.2975))
     ),
     def!(
         Wolf,

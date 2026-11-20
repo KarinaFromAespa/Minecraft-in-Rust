@@ -42,8 +42,9 @@ const TICKS_SINCE_EATEN: usize = 1;
 /// values in `anim.vo`.
 const INTERESTED_ANGLE: usize = 0;
 const CROUCH_AMOUNT: usize = 1;
-/// `Fox.MAX_CROUCH_AMOUNT`.
-const MAX_CROUCH_AMOUNT: f32 = 5.0;
+/// The crouch cap in `Fox.tick` (3.0 in 1.21.11; 26.x named it
+/// `Fox.MAX_CROUCH_AMOUNT` and set it to 5.0).
+const MAX_CROUCH_AMOUNT: f32 = 3.0;
 
 pub fn flag(m: &Mob, f: i32) -> bool {
     m.extra.ints[0] & f != 0
@@ -226,7 +227,7 @@ fn schooling_fish(s: &Seen) -> bool {
 }
 
 /// The part of `Fox.tick` a client runs too: the head tilt eases toward the
-/// interested flag and the crouch builds up to 5 while crouching.
+/// interested flag and the crouch builds up to 3 while crouching.
 pub fn client_tick(m: &mut Mob) {
     let (interested, crouching) = (flag(m, INTERESTED), flag(m, CROUCHING));
     let v = &mut m.anim.v;
@@ -730,6 +731,15 @@ fn signum(x: f64) -> f64 {
     }
 }
 
+/// The pitch `Fox.FoxPounceGoal.tick` tilts the fox to mid-leap: the plain
+/// velocity pitch, `signum(-y) * acos(horizontal / length)` in degrees.
+/// (26.x biased the rise 6.5x while jumping and skipped a near-zero length.)
+fn pounce_pitch(v: Vec3) -> f32 {
+    let horizontal = v.horizontal_distance();
+    (signum(-v.y) * jmath::acos(horizontal / v.length()) * 180.0 / f64::from(std::f32::consts::PI))
+        as f32
+}
+
 /// `Fox.FaceplantGoal`: stay put for 40 ticks with the nose in the snow.
 #[derive(Clone, Debug)]
 struct Faceplant {
@@ -878,15 +888,7 @@ impl Goal for Pounce {
             if v.y * v.y < f64::from(0.03f32) && m.head_pitch != 0.0 {
                 m.head_pitch += 0.2 * wrap(-m.head_pitch);
             } else {
-                let horizontal = v.horizontal_distance();
-                let bias = if m.ai.jumping && v.y > 0.0 { 6.5 } else { 1.0 };
-                let y = v.y * bias;
-                let len = (horizontal * horizontal + y * y).sqrt();
-                if len > f64::from(1.0e-5f32) {
-                    let pitch = signum(-y) * jmath::acos(horizontal / len) * 180.0
-                        / f64::from(std::f32::consts::PI);
-                    m.head_pitch = (pitch as f32 % 360.0).clamp(-90.0, 90.0);
-                }
+                m.head_pitch = (pounce_pitch(v) % 360.0).clamp(-90.0, 90.0);
             }
         }
         if let (Some(t), Some(who)) = (&target, m.ai.target)
@@ -1418,5 +1420,72 @@ mod consume_tests {
         // Without the vanilla data under .local/horizon-client (CI's unit
         // tests) there is no fox to feed: the test has nothing to check.
         let _ = ran;
+    }
+}
+
+#[cfg(test)]
+mod crouch_tests {
+    use super::*;
+    use crate::mobs::sensor_scan_tests::kind;
+
+    fn fox() -> Mob {
+        let mut kind = kind();
+        let k = std::sync::Arc::make_mut(&mut kind);
+        k.id = "minecraft:fox".into();
+        k.species = Species::Fox;
+        Mob::new(1, kind, Vec3::ZERO, 0.0)
+    }
+
+    /// `Fox.tick` caps the crouch at 3.0 in 1.21.11 (26.x: 5.0), so a fox is
+    /// fully crouched — and may pounce — after 15 ticks, not 25.
+    #[test]
+    fn a_crouching_fox_is_fully_crouched_at_three() {
+        let mut f = fox();
+        set_flag(&mut f, CROUCHING, true);
+        for _ in 0..10 {
+            client_tick(&mut f);
+        }
+        assert!(
+            f.anim.v[CROUCH_AMOUNT] < MAX_CROUCH_AMOUNT,
+            "ten ticks in the crouch is still building"
+        );
+        for _ in 0..10 {
+            client_tick(&mut f);
+        }
+        assert_eq!(f.anim.v[CROUCH_AMOUNT], 3.0);
+        assert!(fully_crouched(&f), "twenty ticks caps the crouch at 3.0");
+    }
+}
+
+#[cfg(test)]
+mod pounce_pitch_tests {
+    use super::*;
+
+    /// `Fox.FoxPounceGoal.tick`: the pitch is the plain velocity pitch in
+    /// 1.21.11 — a fox rising at 45 degrees tilts to -45, where 26.x's 6.5x
+    /// upwards bias would have tilted it past -80.
+    #[test]
+    fn a_pouncing_fox_tilts_with_its_velocity() {
+        assert!((pounce_pitch(Vec3::new(1.0, 1.0, 0.0)) - -45.0).abs() < 0.01);
+        assert!((pounce_pitch(Vec3::new(0.0, 1.0, 0.0)) - -90.0).abs() < 0.01);
+        assert!(pounce_pitch(Vec3::new(1.0, 0.0, 0.0)).abs() < 0.01);
+        assert!((pounce_pitch(Vec3::new(1.0, -1.0, 0.0)) - 45.0).abs() < 0.01);
+    }
+}
+
+#[cfg(test)]
+mod baby_dims_tests {
+    use super::*;
+    use crate::mobs::species::{Baby, def};
+
+    /// `Fox.BABY_DIMENSIONS`: the adult box scaled 0.5 in 1.21.11 (26.x:
+    /// 0.6), eyes at 0.2975.
+    #[test]
+    fn a_baby_fox_is_half_its_adult_box() {
+        assert_eq!(def(Species::Fox).baby_scale(), 0.5);
+        assert!(matches!(
+            def(Species::Fox).baby,
+            Baby::Scale(0.5, Some(0.2975))
+        ));
     }
 }

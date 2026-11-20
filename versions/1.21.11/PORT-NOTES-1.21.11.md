@@ -2717,3 +2717,73 @@ two inlined helpers, renderBackground/renderBg, and the 26.x-only
 CraftingBookInfo record. Javap string-constant scan: no string changes.
 Rank 2 now 211/492 (46 changed, 165 no-change).
 work-items.json rank2.closed = 211 on 2026-11-20.
+
+## Item 33 — mobs/fox.rs (rank 2, CHANGED)
+
+Fox + 20 nested goal/selector classes + CaveVines, 22 classes, 45
+methods, 13 named. Harnesses entity_model, mob_ai, mob_attributes,
+natural_spawn, spawner, trading, trial_spawner, vault. Three real
+differences, all jar-verified:
+
+1. Baby foxes are smaller: `Fox.BABY_DIMENSIONS` scales 0.5 in 1.21.11
+   (0.6 in 26.1; the 26.1 `BABY_SCALE` constant is gone), eyes at
+   0.2975 in both (adult eye height 0.4F, verified from both jars'
+   `EntityType.FOX` builders). The Fox def in `mobs/species.rs` was
+   `Baby::Scale(0.6, Some(0.34375))` — the eye height was a pre-existing
+   error in both versions' mirror (0.34375 is the wolf's baby eye
+   height), corrected in the same literal to
+   `Baby::Scale(0.5, Some(0.2975))`.
+2. The crouch caps at 3.0, not 5.0: 1.21.11 has no `MAX_CROUCH_AMOUNT`
+   constant — `Fox.tick` and `isFullyCrouched` use a literal 3.0F, so a
+   fox is fully crouched after 15 ticks (26.1: 25) and
+   `FoxPounceGoal` can start 10 ticks sooner. `MAX_CROUCH_AMOUNT`
+   5.0 → 3.0 (the named constant stays so both call sites stay in
+   step) + doc fixes.
+3. The pounce pitch drops the 6.5x upwards bias: 26.1's
+   `FoxPounceGoal.tick` multiplies a rising fox's y-velocity by 6.5
+   and skips a near-zero length; 1.21.11 tilts to the plain velocity
+   pitch `signum(-y) * acos(horizontal / length)`. Ported as a pure
+   `pounce_pitch` helper (the goal tick needs a full `Cx`); the call
+   site's % 360 + clamp(-90, 90) normalisation is version-neutral and
+   stays. The zero-velocity case would set xRot to NaN in vanilla
+   1.21.11 (no guard) — unreachable in practice (the goal exits a
+   still fox on the ground with pitch 0), and the Rust's clamp passes
+   NaN through unchanged.
+
+No-change verdicts (all jar-verified): the flags byte, aiStep eating
+(>600 ticks, FOOD + CONSUMABLE), equipment odds, handleEntityEvent 45
+(8 item particles; ItemStackTemplate → ItemStack is API-only), breed /
+spawn / finalizeSpawn / attributes / save-load / trust slots,
+canHoldItem / pickUpItem / spitOutItem (delay 40), tick wake/unsit /
+faceplant particles, isFood, head roll (0.11π), clearStates, canMove,
+the ambient screech, dropAllDeathLoot, isPathClear, FoxLookControl
+(matches `resets_x_rot` exactly), Variant (RED 0 / SNOW 1,
+`#spawns_snow_foxes`), and every goal — only the pounce pitch branch
+differs. `CaveVines.use` / `hasGlowBerries` / `emission` are identical;
+the harvest loot table read from both server jars is byte-identical
+(1 roll, exactly 1 glow berry), so the Rust's fixed 1-berry drop is
+exact. The `PathType` renames (DAMAGING_IN_NEIGHBOR → DANGER_OTHER,
+DAMAGING → DAMAGE_OTHER) are pure renames; the Rust's `PathType`
+already uses the 1.21.11 names. Method-name diff run explicitly: only
+synthetic `access$400` (private → package-private visibility). Javap
+string-constant scan: no string changes; the float constants confirm
+exactly the three differences above.
+Pre-existing gaps (both versions, recorded not fixed): `random_teleport`
+uses `full_collision` where `LivingEntity.randomTeleport` uses
+`blocksMotion()` (verified identical in both jars; fixing needs a new
+blocks-motion fact in the prepared-data pipeline — no such fact exists
+in `StateFacts`); the fox's ctor path malus (DANGER_OTHER / DAMAGE_OTHER
+0.0) has no Rust mirror, so foxes treat damage-other blocks as blocked
+(default -1.0) instead of free — two `set_malus` lines in `register()`
+for a pathing item; `clear_states` clears the whole flags byte
+including POUNCING / DEFENDING where vanilla clears five flags only;
+DefendTrustedTargetGoal and SeekShelter's village check remain
+unported (already noted in-code).
+Tests: `a_crouching_fox_is_fully_crouched_at_three`,
+`a_pouncing_fox_tilts_with_its_velocity` (45° rise → -45°, where 26.x
+gave ≈ -81°), `a_baby_fox_is_half_its_adult_box`. All 7 fox tests pass
+locally (`cargo test -p horizon-client-lib --lib --no-default-features
+mobs::fox::`); `cargo check -p horizon-client-lib --lib --tests
+--no-default-features` 0 warnings.
+Rank 2 now 212/492 (47 changed, 165 no-change).
+work-items.json rank2.closed = 212 on 2026-11-20.
