@@ -7295,7 +7295,26 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 7/163 (zero-diff items, see above)
+### Rank 3: 8/163 (327 + 7 zero-diff: 356, 372, 382–385, 396)
+
+- **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
+  (2 classes, 61 methods, 7 named in Horizon), citations only (1
+  fix):** the named list methods all match the 1.21.8 uniform-height
+  forms — `centerScrollOn` (`i * 18 + 9 - height / 2`),
+  `contentHeight` (`n * ITEM + 4`, no header), `getEntryAtPosition`
+  (the pack screen's iterate form returns the entry under the
+  point, the same result as 1.21.8's arithmetic for uniform rows),
+  `setFocused` (select + `ensureVisible` on keyboard input) — and
+  the `mouseClicked` focus concept matches 1.21.8 (focus what the
+  click landed on; the 1.21.9 `shouldTakeFocusAfterInteraction`
+  gate has no Rust surface). One citation fixed, the same wrong
+  one as item 81: `pad_reveal`'s doc cited `setSelected` for
+  scroll-into-view, but 1.21.8's `setSelected` is a plain
+  assignment — reworded to `ensureVisible`. No
+  `repositionEntries`/`SEPARATOR_HEIGHT`/sort/swap surface. The
+  options lists' first-row +2 offset is Horizon's own layout (list
+  top 33, tested), not a vanilla port — not changed. Cargo check
+  0/0.
 
 ### Rank 4 content: closed 2/2 (chain)
 

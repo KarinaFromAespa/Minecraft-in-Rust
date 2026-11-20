@@ -1256,8 +1256,11 @@ impl Game<'_> {
         }
     }
 
-    /// `AbstractSelectionList.setSelected`: a settings row the focus lands on, or presses, while
-    /// its list hides part of it scrolls all into view first. Where it is now.
+    /// `AbstractSelectionList.ensureVisible` (via `setFocused`, on keyboard
+    /// input — 1.21.8's `setSelected` is a plain assignment; the
+    /// scroll-in-`setSelected` form came in 1.21.9): a settings row the focus
+    /// lands on, or presses, while its list hides part of it scrolls all
+    /// into view first. Where it is now.
     fn pad_reveal(&mut self, target: Target) -> Target {
         if self.screen != Screen::Options {
             return target;
