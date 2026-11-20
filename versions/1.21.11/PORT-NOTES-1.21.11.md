@@ -6484,3 +6484,62 @@ passed (list + tag forms). rustfmt --check clean on loot.rs
 (module root — declares `mod odds` — check only). Rank 2 now
 262/492 (83 changed, 179 no-change). work-items.json
 rank2.closed = 262 on 2026-11-20.
+
+## Item 84 — arrows.rs (rank 2, NO-CHANGE)
+
+4 classes, 12 methods, 6 named: EnderMan, AbstractArrow,
+ThrownTrident, CrossbowItem. The entire delta is API shape +
+visibility: the literal comparison finds ZERO string or
+numeric differences in all four classes.
+
+Java delta, jar-verified: AbstractArrow.onHitEntity and
+ThrownTrident.onHitEntity swap `entity.is(ENDERMAN)` (26.1)
+for `entity.getType() == ENDERMAN` (1.21.11) — same result;
+the rest of the 199-line AbstractArrow hunk is bytecode-offset
+renumbering (the body is identical: ignite 5s except endermen,
+hurtOrSimulate, enderman early-return, arrow count +1,
+doKnockback, post-attack/post-hurt effects, PLAY_ARROW_HIT_SOUND,
+piercedAndKilledEntities + KILLED_BY_ARROW, pitch
+`1.2 / (0.9 + random * 0.2)`, pierce > 0 flies on else discard;
+on a failed hurt: restore fire ticks, deflect(REVERSE),
+velocity x 0.2, lengthSqr < 1e-7 + pickup ALLOWED -> drop at
+0.1f + discard). `isAttackable` swaps `is(tag)` for
+`getType().is(tag)` — same result. CrossbowItem is pure
+renames, verified bytecode-identical from both jars:
+`ChargedProjectiles.ofNonEmpty` -> `of`,
+`ChargedProjectiles.itemCopies` -> `getItems`, `ItemStack.is(Object)`
+-> `is(Item)` (x3). EnderMan: two methods private ->
+package-private, `Potions.WATER` `Holder$Reference` -> `Holder`.
+ProjectileDeflection.REVERSE (verified from the 1.21.11 jar):
+rotation 170 + random x 20, velocity x -0.5, yaw/yRotO +=
+rotation — folded with onHitEntity's 0.2 (arrow: x -0.1) and
+the trident's (0.02, 0.2, 0.02) (x (-0.01, -0.1, -0.01)).
+
+Verified matching, no edits: `finish_entity_hit` (Hurt ->
+sound + pierce == 0 discards; Refused -> turn back; trident
+Hurt/Refused -> bounce; Deflected -> pierced.pop()),
+`deflect_reverse` (x -0.1, yaw += 170 + random x 20, lengthSqr
+< 1e-7 + ALLOWED -> drop + removed), `trident_bounce`
+(dealt_damage, TRIDENT_HIT (1.0, 1.0), x (-0.01, -0.1, -0.01)),
+`projectile_hit_inner` (fire-tick save/restore, ignite 5s,
+enderman dodge -> Dodged, Punch knockback `* 0.6 *
+(1 - resistance)` with y 0.1, post-attack/post-hurt effects,
+stuck arrow for a hurt player, KILLED_BY_ARROW for a
+player-shot kill). No stale citations: the crossbow's charged
+projectiles are a plain vec (no `ofNonEmpty`/`itemCopies`
+anywhere).
+
+Version-neutral gaps: no enderman early-return on a LANDED
+hurt (teleport failed) — vanilla skips the ignite, knockback,
+post-attack/post-hurt effects, arrow count, hit sound and
+KILLED_BY_ARROW, and the arrow flies through / the trident
+doesn't bounce; the Rust applies them and spends/bounces the
+projectile. Only reachable when the teleport fails (the common
+dodge path matches). Mob arrow count is never incremented on a
+hit (the decay rule is unverified, so no fix). `deflect_reverse`
+/ `trident_bounce` don't update yRotO (render only).
+
+Verification: `cargo test -p horizon-client-lib --lib
+--no-default-features arrows::` 7 passed, 1 ignored. No files
+edited. Rank 2 now 263/492 (83 changed, 180 no-change).
+work-items.json rank2.closed = 263 on 2026-11-20.
