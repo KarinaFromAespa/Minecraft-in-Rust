@@ -186,7 +186,10 @@ impl Game<'_> {
             let at = p.position;
             if p.is_spectral_arrow() {
                 if !p.stuck {
-                    let options = ParticleOptions::simple(ParticleType::Effect);
+                    // `SpectralArrow.tick`: `INSTANT_EFFECT` in 1.21.8 (the
+                    // spell sprites); 1.21.9 switched it to an `EFFECT`
+                    // `SpellParticleOption` (the effect sprites, white).
+                    let options = ParticleOptions::simple(ParticleType::InstantEffect);
                     self.particles.add(&options, [at.x, at.y, at.z], [0.0; 3]);
                 }
                 continue;
