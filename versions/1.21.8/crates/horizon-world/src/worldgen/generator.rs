@@ -1342,7 +1342,10 @@ where
                 .get_or_init(|| Arc::new(super::blending::Blender::empty()))
                 .clone()
         }
-        // `SharedConstants.DEBUG_DISABLE_BLENDING`.
+        // A Horizon-only hook for the old-world e2e comparison (off by
+        // default): 1.21.8 vanilla has no way to disable blending — the
+        // `SharedConstants.DEBUG_DISABLE_BLENDING` flag it mirrors arrived
+        // in 1.21.9.
         static DISABLED: OnceLock<bool> = OnceLock::new();
         if *DISABLED.get_or_init(|| std::env::var_os("HORIZON_DISABLE_BLENDING").is_some()) {
             return empty_blender();
