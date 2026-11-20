@@ -3692,3 +3692,96 @@ finalize.rs `--check` clean (module roots, hand-checked); creatures.rs
 has pre-existing drift at the wolf-collar-dye line, untouched.
 Rank 2 now 222/492 (56 changed, 166 no-change).
 work-items.json rank2.closed = 222 on 2026-11-20.
+
+## Item 44 — game/commands.rs (rank 2, CHANGED)
+
+TimeCommand, Item, ItemPredicateArgument$Context/$ComponentWrapper/
+$PredicateWrapper/ItemPredicateArgument, LevelData, MessageArgument/
+$Message, BlockPredicateArgument/$BlockPredicate/$TagPredicate,
+BlockStateArgument, BlockPosArgument, Commands, Commands$2$1,
+AdvancementCommands$Action/$1/$2/$Mode, ExperienceCommand$Type,
+FillCommand/$1UpdatedPosition, TimeCommand$ClockGetter (removed): 24
+classes, 77 methods, 6 named. Harnesses arrow_mob_permission,
+command_parse, container_component_names, mob_ai,
+mob_rider_navigation, redstone_catalog, sculk, trading. The real
+change is /time: 26.1's multi-clock command is replaced by the classic
+1.21.11 command, and /swing (a 26.x command) is removed.
+
+26.1's TimeCommand is the WorldClock system: `addClockNodes` (set
+<time> / set <timemarker> / add / pause / resume / rate / query time /
+query <timeline> [/ repetition]), `time of <clock>`, `getDefaultClock`,
+`ServerClockManager`, error keys `commands.time.no_default_clock` /
+`no_time_marker_found` / `wrong_timeline_for_clock`. 1.21.11 has the
+classic command, and the Rust's `cmd_time` and the tree (`clock_nodes`
+in horizon-command/src/vanilla.rs) now implement exactly that: `set
+day|noon|night|midnight` (1000/6000/13000/18000) or `set <time>`, `add
+<time>` (min 0 — `TimeArgument.time()` is `new TimeArgument(0)`,
+javap-verified; 26.1's add allowed negatives), `query
+daytime|gametime|day`. Set/add apply to every level and force a time
+sync; the message is `commands.time.set` ("Set the time to %s") with
+the set value (set) or the new day time (add), and the return is the
+source level's day time % 24000. Queries use the single key
+`commands.time.query` ("The time is %s"): daytime % 24000, gametime %
+2147483647, day count (`getDayTime() / 24000`, javap-verified) %
+2147483647. No already-at-time check, no add clamp, no pause/rate/
+marker/timeline. The old keys (`commands.time.set.absolute`,
+`query.absolute`, `query.gametime`, `pause`, `rate`, `no_default_clock`,
+`no_time_marker_found`, `wrong_timeline_for_clock`) do not exist in
+1.21.11's lang at all (verified against the jar's en_us.json) — the old
+command's feedback would have rendered as raw keys. The all-levels
+semantics come free: the Rust keeps one canonical day time shared
+across levels (`enter_level` copies it into a parked level on swap),
+and the hub's `sync_world` broadcasts the jump on the next tick. The
+native `time_skip` hook is kept for set/add (set via `jump_clock`,
+which also restarts the clock partial). The shared WorldClock
+infrastructure (`ui.clock`, `ui.command_clocks`, `ui.timelines`,
+`command_clock_*` helpers, `jump_clock`) stays — other items own it,
+and the native-mod `set_day_time` API still uses the helpers. The
+QUIET list drops the four clock query keys for the single
+`commands.time.query`.
+
+/swing is gone in 1.21.11 (`Commands` drops
+`SwingCommand.register`): the tree (tree_world.rs), the dispatch, and
+`cmd_swing` are removed, with the two horizon-command tree tests. The
+/swing ANIMATION packet/echo is separate and stays — only the command
+goes. Removing `time.set.marker` orphaned `TimeMarker` (dead-code
+warnings, which CI's clippy -D warnings would fail on), so the struct,
+`UiState.markers`, `ResourceIds.markers`, the marker loop in
+`overworld_timelines`, and both load sites go too; the timelines half
+stays (still loaded into `reg.timelines`), and the marker test becomes
+timelines-only. `reg.time_markers`, `Suggests::TimeMarkers`, and the
+`ArgType::Id("time_markers")` arm stay: pub API, no warnings, inert.
+
+No-change verdicts, all jar-verified. FillCommand is identical except
+the area computation: 26.1 uses `long`, 1.21.11 uses `int`, which wraps
+for regions over 2^31 blocks and bypasses the too-big check; the Rust
+keeps the i64 (26.1) form deliberately — strictly safer, differing only
+on regions no loaded area can span in practice. MessageArgument,
+BlockPredicateArgument, BlockStateArgument, BlockPosArgument,
+ItemPredicateArgument, AdvancementCommands, ExperienceCommand$Type
+(POINTS + LEVELS in both) are parameter-name/visibility noise only.
+`Item.getDefaultMaxStackSize()` reads the same component with the same
+default 1 and `getName(ItemStack)` is identical (the component-storage
+rewrite is horizon-items' scope; 1.21.11's added no-arg `getName()` is
+noted for that item). LevelData GAINS abstract `getDayTime()` /
+`isThundering()` / `isRaining()` / `setRaining(boolean)` in 1.21.11 plus
+a "Level time" crash detail — save/world-data scope, not commands.rs.
+The item-31 referral is DISCHARGED: 26.1's `onGameRuleChanged` has an
+ADVANCE_TIME branch (broadcast the full clock sync) that 1.21.11 lacks,
+and the Rust has no such hook to remove (`set_game_rule` just sets +
+syncs). `advance_time` / `advance_weather` are the rule names in BOTH
+jars — no rename needed.
+
+Tests: horizon-command lib tests 52 passed, 0 failed (incl. the updated
+/time parse, suggestion and min-0 tests and the world-command trees
+without /swing); `cargo check -p horizon-client --lib --tests` clean
+with ZERO warnings (validates the cmd_time rewrite, the cmd_swing
+removal, the TimeMarker removal and the rewritten timelines test
+compile). The horizon-client lib test binary link OOMs on this VM at
+JOBS=1 under 3-stream load (the known local constraint) — the chat and
+commands tests run on CI. `rustfmt --edition 2024` clean on the edited
+leaf files (vanilla.rs, tree_world.rs, tests.rs, world_cmds.rs,
+admin.rs); commands.rs `--check` clean; chat.rs has pre-existing drift
+at lines 6, 947, 2397, untouched.
+Rank 2 now 223/492 (57 changed, 166 no-change).
+work-items.json rank2.closed = 223 on 2026-11-20.

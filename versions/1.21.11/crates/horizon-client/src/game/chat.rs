@@ -179,30 +179,6 @@ impl Default for WorldClock {
         }
     }
 }
-/// A clock time marker from the timelines (ClockTimeMarker).
-#[derive(Clone, Copy, Debug)]
-pub struct TimeMarker {
-    pub ticks: i64,
-    pub period: Option<i64>,
-    pub show: bool,
-}
-impl TimeMarker {
-    pub fn occurs_at(&self, total: i64) -> bool {
-        match self.period {
-            Some(p) => self.ticks == total.rem_euclid(p),
-            None => self.ticks == total,
-        }
-    }
-    pub fn resolve(&self, total: i64) -> i64 {
-        match self.period {
-            Some(p) => {
-                let d = self.ticks - total.rem_euclid(p);
-                total + if d > 0 { d } else { p + d }
-            }
-            None => self.ticks,
-        }
-    }
-}
 /// `ChatComponent.Draft`: the text the chat box kept, and whether it was a command.
 pub struct ChatDraft {
     pub text: String,
@@ -241,8 +217,7 @@ pub struct UiState {
     /// Command state for registered clocks other than Overworld. Overworld's
     /// canonical ticks stay in World.day_time and its state stays in clock.
     pub command_clocks: BTreeMap<String, (i64, WorldClock)>,
-    /// Time markers and timelines of the overworld clock.
-    pub markers: BTreeMap<String, TimeMarker>,
+    /// Timelines of the overworld clock.
     pub timelines: BTreeMap<String, Option<i64>>,
     /// 0 peaceful .. 3 hard.
     pub difficulty: u8,
@@ -467,9 +442,8 @@ struct ResourceIds {
     structures: Vec<String>,
     biomes: Vec<String>,
     clocks: Vec<String>,
-    /// The overworld clock's timelines, their periods and time markers.
+    /// The overworld clock's timelines and their periods.
     timelines: Vec<(String, Option<i64>)>,
-    markers: Vec<(String, TimeMarker)>,
 }
 static RESOURCE_IDS: Mutex<Vec<(PathBuf, Arc<ResourceIds>)>> = Mutex::new(Vec::new());
 
@@ -490,11 +464,11 @@ fn json_ids_in(dir: &Path) -> Vec<String> {
     out
 }
 
-/// The overworld clock's timelines (with their periods) and their time
-/// markers, read from `data/minecraft/timeline`.
-fn overworld_timelines(root: &Path) -> (Vec<(String, Option<i64>)>, Vec<(String, TimeMarker)>) {
+/// The overworld clock's timelines (with their periods), read from
+/// `data/minecraft/timeline`.
+fn overworld_timelines(root: &Path) -> Vec<(String, Option<i64>)> {
     let dir = root.join("data/minecraft/timeline");
-    let (mut timelines, mut markers) = (Vec::new(), Vec::new());
+    let mut timelines = Vec::new();
     for name in json_ids_in(&dir) {
         let path = dir.join(format!("{}.json", name.trim_start_matches("minecraft:")));
         let Ok(v) =
@@ -505,27 +479,9 @@ fn overworld_timelines(root: &Path) -> (Vec<(String, Option<i64>)>, Vec<(String,
         if v["clock"].as_str() != Some("minecraft:overworld") {
             continue;
         }
-        let period = v["period_ticks"].as_i64();
-        timelines.push((name.clone(), period));
-        for (marker, def) in v["time_markers"].as_object().into_iter().flatten() {
-            let (ticks, show) = match def {
-                serde_json::Value::Number(n) => (n.as_i64().unwrap_or(0), false),
-                other => (
-                    other["ticks"].as_i64().unwrap_or(0),
-                    other["show_in_commands"].as_bool().unwrap_or(false),
-                ),
-            };
-            markers.push((
-                marker.clone(),
-                TimeMarker {
-                    ticks,
-                    period,
-                    show,
-                },
-            ));
-        }
+        timelines.push((name.clone(), v["period_ticks"].as_i64()));
     }
-    (timelines, markers)
+    timelines
 }
 
 fn resource_ids(root: &Path) -> Arc<ResourceIds> {
@@ -547,7 +503,7 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
     })
     .unwrap_or_default();
     entity_types.sort();
-    let (timelines, markers) = overworld_timelines(root);
+    let timelines = overworld_timelines(root);
     let ids = Arc::new(ResourceIds {
         // `/recipe <id>` must suggest a content mod's recipes too.
         recipes: json_ids_of_every_namespace(root, "recipe"),
@@ -558,7 +514,6 @@ fn resource_ids(root: &Path) -> Arc<ResourceIds> {
         biomes: json_ids_in(&data.join("worldgen/biome")),
         clocks: json_ids_in(&data.join("world_clock")),
         timelines,
-        markers,
     });
     cache.push((root.to_owned(), ids.clone()));
     ids
@@ -946,9 +901,8 @@ impl Game<'_> {
             "minecraft:the_end".into(),
         ];
         reg.players = vec![PLAYER_NAME.into()];
-        // Timelines of the overworld clock and their time markers.
+        // Timelines of the overworld clock.
         self.ui.timelines = ids.timelines.iter().cloned().collect();
-        self.ui.markers = ids.markers.iter().cloned().collect();
         // Vanilla's built-in registries (mob effects, components, dialogs...).
         for dir in [&self.options.resources, &self.ui.vanilla_root] {
             if let Some(export) = command_export(dir, self.options.dedicated.is_none()) {
@@ -958,13 +912,6 @@ impl Game<'_> {
         }
         let reg = &mut self.ui.registries;
         reg.timelines = self.ui.timelines.keys().cloned().collect();
-        reg.time_markers = self
-            .ui
-            .markers
-            .iter()
-            .filter(|(_, m)| m.show)
-            .map(|(k, _)| k.clone())
-            .collect();
         self.sync_enchantment_registries();
         // After the export, which keys the registry with vanilla's tags.
         self.ui.registries.sync_damage_type_ids();
@@ -2150,39 +2097,26 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
-    /// Only the overworld clock's timelines count; a marker is a bare tick
-    /// count (hidden from commands) or an object that may show itself.
+    /// Only the overworld clock's timelines count.
     #[test]
-    fn overworld_timelines_and_markers() {
+    fn overworld_timelines_skip_other_clocks() {
         let root = std::env::temp_dir().join(format!("horizon-timelines-{}", std::process::id()));
         let dir = root.join("data/minecraft/timeline");
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("day.json"),
-            r#"{"clock":"minecraft:overworld","period_ticks":24000,
-                "time_markers":{"minecraft:noon":6000,
-                "minecraft:night":{"ticks":13000,"show_in_commands":true}}}"#,
+            r#"{"clock":"minecraft:overworld","period_ticks":24000}"#,
         )
         .unwrap();
         std::fs::write(
             dir.join("other.json"),
-            r#"{"clock":"minecraft:the_end","time_markers":{"minecraft:x":1}}"#,
+            r#"{"clock":"minecraft:the_end","period_ticks":1}"#,
         )
         .unwrap();
         std::fs::write(dir.join("broken.json"), "{").unwrap();
-        let (timelines, markers) = overworld_timelines(&root);
-        assert_eq!(timelines, [("minecraft:day".to_owned(), Some(24000))]);
-        let mut markers: Vec<_> = markers
-            .iter()
-            .map(|(name, m)| (name.as_str(), m.ticks, m.period, m.show))
-            .collect();
-        markers.sort();
         assert_eq!(
-            markers,
-            [
-                ("minecraft:night", 13000, Some(24000), true),
-                ("minecraft:noon", 6000, Some(24000), false),
-            ]
+            overworld_timelines(&root),
+            [("minecraft:day".to_owned(), Some(24000))]
         );
         let _ = std::fs::remove_dir_all(&root);
     }
