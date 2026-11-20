@@ -3785,3 +3785,52 @@ admin.rs); commands.rs `--check` clean; chat.rs has pre-existing drift
 at lines 6, 947, 2397, untouched.
 Rank 2 now 223/492 (57 changed, 166 no-change).
 work-items.json rank2.closed = 223 on 2026-11-20.
+
+## Item 45 — lan/hub.rs (rank 2, NO-CHANGE)
+
+ChunkMap, PlayerChunkSender: 2 classes, 31 methods, 10 named. Harnesses
+chest_load, container_title, datafix, falling_block, natural_spawn,
+player_sync, portal_tickets, spawner. Every named method is
+behaviour-identical between the jars; no Rust change.
+
+The javap diff is, method by method: the ctor's field-initialization
+order + visibility (private → package) + the param rename
+`Supplier<SavedDataStorage>` → `Supplier<DimensionDataStorage>`;
+ChunkPos API renames (`pack()` → `toLong()`, `pack(x,z)` →
+`asLong(x,z)`, `unpack(long)` → `new ChunkPos(long)`, record accessors
+`x()`/`z()` → public fields — 26.1 made ChunkPos a record, 1.21.11 has
+it as a plain class); and `printFuture`, identical. `tick`,
+`processUnloads`, `saveChunksEagerly`, `resendBiomesForChunks`,
+`getPlayers`, `getPlayerViewDistance`,
+`anyPlayerCloseEnoughForSpawning`, `collectSpawningChunks`,
+`updatePlayerStatus`, `move`, `updateChunkTracking`,
+`applyChunkTrackingView`, `isChunkTracked`,
+`isChunkOnTrackedBorder`, `waitForLightBeforeSending`, and the whole of
+PlayerChunkSender are byte-identical.
+
+The one real difference is chunk-IO scope, not hub.rs:
+`SimpleRegionStorage.upgradeChunkTag` (the multi-arg overload lives in
+the parent class) — 26.1 upgrades with `version >= targetVersion` as
+the early-out, while 1.21.11 uses `version == currentVersion` and
+applies the legacy structure-data fixer
+(`LegacyStructureDataHandler`) before datafixing. Referred to the
+chunk_io items (197/214/241/262/651). `getChunkDataFixContextTag`'s
+generator param type changes with identical output.
+
+The hub.rs mirrors were all verified matching: `guest_view` is
+`Mth.clamp(requested, 2, server)`; `update_view` sends
+SetChunkCacheCenter on a centre change, forgets chunks that left the
+view, and `requeue` drops pending out-of-view chunks without a forget
+packet (PlayerChunkSender.dropChunk sends ForgetLevelChunk only for
+sent chunks); `next_batch`/`update_chunks` reproduce the sendNextChunks
+quota math, batch framing and closest-first order; `resend_biomes` is
+per-player, sent-only, one packet; the light-broadcast border check is
+`isChunkOnTrackedBorder`; `tracked` is ChunkTrackingView.contains; and
+`close_enough_for_spawning` is the chunk-centre `< 16384.0` check.
+(The carry-forward listed item 45 among the hub.rs items for per-level
+time-sync content, but ChunkMap/PlayerChunkSender contain no time
+content — that belongs to the other hub items.)
+
+Tests: no code changed, no build needed.
+Rank 2 now 224/492 (57 changed, 167 no-change).
+work-items.json rank2.closed = 224 on 2026-11-20.
