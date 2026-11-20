@@ -183,15 +183,17 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
-    /// The pinned 1.21.3's own wire layouts: what `quirks()` and
-    /// `quirks_written()` return when no other version is active. 1.21.4 is
+    /// The pinned 1.21.1's own wire layouts: what `quirks()` and
+    /// `quirks_written()` return when no other version is active. 1.21.1 is
     /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
     /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
     /// stacks, optional profile fields), pre-1.21.6 (no attribute display or
-    /// shearing in equippable) and pre-1.21.5 (tooltip booleans instead of
-    /// tooltip_display), and the last release whose spell particles carried
-    /// no options and whose wolf variants were holders. (The shoulder parrots
-    /// are compound tags in 1.21.4 too, but EntityData::read converts them
+    /// shearing in equippable), pre-1.21.5 (tooltip booleans instead of
+    /// tooltip_display) and pre-1.21.2 (prefixed attributes, the generic
+    /// boat, fire_resistant), and the last release whose spell particles
+    /// carried no options and whose wolf variants were holders. (The
+    /// shoulder parrots are compound tags in 1.21.1 too, but
+    /// EntityData::read converts them
     /// unconditionally — no quirk gates that.)
     pub const PINNED: Self = Self {
         tag_slot_display_is_id: true,
@@ -204,7 +206,7 @@ impl Quirks {
         optional_profile_fields: true,
         integer_custom_model_data: true,
         trail_without_duration: true,
-        components_before_1_21_2: false,
+        components_before_1_21_2: true,
         components_before_1_21: false,
         wolf_variant_holder: true,
         legacy_item_nbt: false,

@@ -287,7 +287,21 @@ def pinned_constants(report, names):
         for name in selected:
             key = f"minecraft:{name}"
             if key not in ids:
-                raise ValueError(f"pinned registry entry is absent: minecraft:{registry} / {key}")
+                # A pin before 1.21.2 has one generic boat and chest boat,
+                # not a type per wood: every per-wood boat/raft constant is
+                # the generic one (the boats translator's TYPES table then
+                # maps every wood to the same pin entity, as it should).
+                # Chest forms first: they also end in _boat/_raft.
+                if registry == "entity_type" and name.endswith("_chest_raft"):
+                    key = "minecraft:chest_boat"
+                elif registry == "entity_type" and name.endswith("_chest_boat"):
+                    key = "minecraft:chest_boat"
+                elif registry == "entity_type" and name.endswith("_raft"):
+                    key = "minecraft:boat"
+                elif registry == "entity_type" and name.endswith("_boat"):
+                    key = "minecraft:boat"
+                if key not in ids:
+                    raise ValueError(f"pinned registry entry is absent: minecraft:{registry} / minecraft:{name}")
             lines.append(f"    pub const {name.upper()}: i32 = {ids[key]};")
         lines.append("}")
     return lines
