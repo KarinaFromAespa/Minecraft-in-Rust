@@ -323,10 +323,10 @@ mod tests {
     fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_8() {
         use crate::item::{Slot, Stack};
         let ids = ServerVersion::V1_21_8.ids().unwrap();
-        // Vanilla reports: cat is 1250 in 1.21.8, 1169 pinned; pigstep is 1267 -> 1185. The
+        // Vanilla reports: cat is 1250 in 1.21.8, 1169 pinned; pigstep is 1267 -> 1183. The
         // newer lava chicken disc occupies 1.21.8 id 1256, with no pinned counterpart; pinned
-        // 1175 is mall.
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1169), ([3, 0xf3, 0x09, 0, 0], 1185)] {
+        // 1173 is mall.
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1169), ([3, 0xf3, 0x09, 0, 0], 1183)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -340,9 +340,9 @@ mod tests {
             assert_eq!(w.data, sent);
         }
         assert_eq!(ids.item.up(1256), None);
-        assert_eq!(ids.item.down(1175), Some(1257)); // mall
+        assert_eq!(ids.item.down(1173), Some(1257)); // mall
         assert_eq!(
-            ServerVersion::V1_21_6.ids().unwrap().item.down(1175),
+            ServerVersion::V1_21_6.ids().unwrap().item.down(1173),
             Some(1256)
         ); // mall
         assert_eq!(ids.block_state.up(7016), Some(6773)); // inherited chain axis=x, waterlogged=true
@@ -351,7 +351,7 @@ mod tests {
     #[test]
     fn a_1_21_8_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1181); // Level-up holder: 1.21.8 registry id 1180 + 1, pinned id 1114.
+        w.varint(1181); // Level-up holder: 1.21.8 registry id 1180 + 1, pinned id 1111.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -366,13 +366,13 @@ mod tests {
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1114, None));
+        assert_eq!(p.sound, (1111, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1114),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1111),
             Some(1180)
         );
     }
