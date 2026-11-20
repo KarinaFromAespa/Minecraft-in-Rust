@@ -3947,3 +3947,76 @@ bee 6 passed, tame 17 passed, golem 10 passed, polar_bear 3 passed, 0
 failed. rustfmt clean on bee.rs, tame.rs, polar_bear.rs.
 Rank 2 now 226/492 (59 changed, 167 no-change).
 work-items.json rank2.closed = 226 on 2026-11-20.
+
+## Item 48 — game/dragon.rs (rank 2, CHANGED)
+
+EnderDragon, EnderDragonRenderer, DragonFireballRenderer, EndCrystal,
+TargetingConditions, DragonHoldingPatternPhase, DragonStrafePlayerPhase,
+EndCrystalItem, Explosion, DragonRespawnStage (+5 inner),
+EndSpikeFeature (+2 inner), DragonFlightHistory$Sample: 19 classes, 37
+methods, 9 named. Harnesses dragon_contacts, dragon_render, entity_model,
+mob_ai. 26.1's `DragonRespawnStage`/`EndSpikeFeature` are 1.21.11's
+`DragonRespawnAnimation`/`SpikeFeature` (items 763/761 list the 1.21.11-side
+classes; the fight class itself is item 483's scope).
+
+The dying render is rewritten. 26.1 draws the dying dragon in one pass,
+`entityCutoutDissolve` with colour `ARGB.white(1 - deathTime/200)` and no
+overlay — the dragon dissolves starting from the explosion texture's opaque
+regions. 1.21.11 draws two passes: order(0) `dragonExplosionAlpha`, the
+explosion texture unlit and fog-free, alpha-tested by
+`ARGB.white(deathTime/200)` (keeps texels at or above the threshold, so the
+dragon dissolves starting from the explosion texture's transparent regions —
+the opposite pattern); order(1) `entityDecal`, the skin lit with the hurt
+overlay, drawn only where the first pass wrote depth (EQUAL depth test).
+A skin-only pass cannot reproduce it: 8622 of the dragon model's 34272 mapped
+texels are transparent (the wing membranes are shaped by the cutout, verified
+against the decompiled EnderDragonModel UVs and the jar's dragon.png), and
+where the skin is transparent the explosion texture shows through. The Rust
+now emits both passes in material 0 (emission order preserved, GreaterEqual
+depth test): new overlay 46 `DRAGON_EXPLOSION_OVERLAY` (unlit, fog-exempt,
+`texel.a < tint.a` discard, no 0.1 cutout, normals zeroed — the alpha shader
+has no lighting at all), overlay 38 `DISSOLVE_OVERLAY` reworked to the
+1.21.11 test direction (`mask.a < tint.a` discard — the mask test stands in
+for the EQUAL depth test, which this engine has no pipeline for), and new
+overlay 47 `DISSOLVE_HURT_OVERLAY` for the hurt-red flash during the first 10
+ticks of death. `dissolve_color` flips to `ARGB.white(death/200)`;
+`dissolve_mask` is unchanged.
+
+`EnderDragon.knockback` (the sitting guard) is removed in 1.21.11
+(javap-verified: no override remains) — the dragon takes full
+`LivingEntity.knockback` in every phase, perched included. The Rust drops the
+guard; the test is rewritten (`a_melee_hit_knocks_a_perched_dragon_too`).
+`tickDeath`'s final block runs at `dragonDeathTime == 200` in 1.21.11, not
+`>= 200` (26.1); the Rust now uses `== 200` (death_time increments by exactly
+1 per tick, so it cannot skip 200).
+
+No change: the respawn stages (identical bodies; 1.21.11's `tick` takes an
+extra unused BlockPos), the spike feature (identical `place`; only
+`getSpikesForLevel`'s RNG differs — Xoroshiro in 26.1, LegacyRandom in
+1.21.11 — and `end_spike.rs` already uses LegacyRandom), the fireball
+(camera-facing quad, never culled), the crystal beam (both cutout 0.1, no
+blend, lightmapped), the death rays (Rust already uses LegacyRandom 432, the
+1.21.11 factory; its single draw equals vanilla's colour-only + depth-only
+pair), TargetingConditions (the Rust already refuses Ghasts and checks
+Peaceful, matching 1.21.11's added `canAttackType` arm), and all of
+EnderDragon gameplay, EndCrystal, EndCrystalItem, Explosion and the two
+phases. Citations fixed: `DragonRespawnStage` -> `DragonRespawnAnimation`
+(3 sites), `EndSpikeFeature` -> `SpikeFeature` (2 sites).
+`EnderDragonFight` -> `EndDragonFight` citations and the `alive_crystals`
+field name are left to item 483 (the fight class's scope).
+
+Correction to item 47's note: on Peaceful, neutral mobs stay angry in 1.21.11
+(no immediate stop in `updatePersistentAnger`) but do NOT keep attacking —
+`LivingEntity.canAttack` returns false for a player target on Peaceful in
+both versions (javap-verified), so the target goal drops the player and the
+anger then runs out with the timer.
+
+Tests: `cargo check -p horizon-client-render --lib --tests
+--no-default-features` and `-p horizon-client --lib --tests
+--no-default-features` clean; WGSL validated by the
+`shaders_translate_to_hlsl_for_directx_12_and_glsl_for_opengl` test (naga
+parse + validate + HLSL/GLSL translation of entity.wgsl). rustfmt clean on
+all touched files. The horizon-client lib test binary link OOMs on this VM
+under 3-stream load (established) — the dragon tests run on CI.
+Rank 2 now 227/492 (60 changed, 167 no-change).
+work-items.json rank2.closed = 227 on 2026-11-20.

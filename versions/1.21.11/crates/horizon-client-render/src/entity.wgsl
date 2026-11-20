@@ -69,7 +69,7 @@ struct Out {
     @location(10) @interpolate(flat) weather_rect: vec4<f32>,
     // The `GLINT_TEXTURING` sample for overlay 7 (item foil), or the model UV
     // `ARMOR_ENTITY_GLINT_TEXTURING` scrolls for overlay 36 (armour), or the
-    // dissolve mask's atlas UV for overlay 38.
+    // dissolve mask's atlas UV for overlays 38 and 47.
     @location(11) glint_uv: vec2<f32>,
     // 1 drops the quad's back-facing pixels (Vertex::normal w = 1), like a culling render type.
     @location(12) @interpolate(flat) cull: u32,
@@ -90,7 +90,7 @@ fn entity_light(normal: vec3<f32>, nether: bool) -> f32 {
 // primed TNT flash (5) and at column overlay - 16 for 16..=31 (a creeper's
 // swelling). Alpha 1 changes nothing.
 fn overlay_texel(overlay: u32) -> vec4<f32> {
-    if overlay == 1u || overlay == 8u {
+    if overlay == 1u || overlay == 8u || overlay == 47u {
         // PvP & HUD's hit colour (pvp.rs `Hit::texel`) rides in colored_count.y; 0 is vanilla's.
         let hit = globals.colored_count.y;
         return select(HURT_OVERLAY, unpack4x8unorm(hit), hit != 0u);
@@ -139,9 +139,10 @@ fn entity_vertex(position: vec3<f32>, uv: vec2<f32>,
     let l = vec2(max(f32(light.y), dynamic_block_light(position)), f32(light.x));
     let lm = textureSampleLevel(lightmap, lightmap_sampler,
         clamp(l / 256.0 + 0.5 / 16.0, vec2(0.5 / 16.0), vec2(15.5 / 16.0)), 0.0);
-    // Celestial bodies, clouds, beacon beams, End portals and breaking cracks are unlit.
+    // Celestial bodies, clouds, beacon beams, End portals and breaking cracks are unlit, as is
+    // the dying dragon's explosion pass (46: rendertype_entity_alpha has no lighting at all).
     let unlit = overlay == 2u || overlay == 4u || overlay == 6u || overlay == 9u || overlay == 10u
-        || overlay == 11u || overlay == 12u;
+        || overlay == 11u || overlay == 12u || overlay == 46u;
     out.light_color = select(lm, vec4(1.0), unlit);
     out.scene = select(hdr_scene(l.x / 16.0, l.y / 16.0), 0.0, unlit);
     if globals.colored_count.x > 0u && !unlit {
@@ -164,9 +165,11 @@ fn entity_vertex(position: vec3<f32>, uv: vec2<f32>,
     out.color = c;
     out.back_color = back;
     out.overlay_color = overlay_texel(overlay);
-    // Sky geometry (clouds, celestial bodies) is exempt from render-distance fog.
-    out.fog_distance.x = select(length(position), 0.0, overlay >= 2u && overlay <= 4u);
-    out.fog_distance.y = select(max(length(position.xz), abs(position.y)), 0.0, overlay >= 2u && overlay <= 4u);
+    // Sky geometry (clouds, celestial bodies) is exempt from render-distance fog, as is the
+    // dying dragon's explosion pass (46: the alpha pipeline has no fog snippet).
+    let no_fog = overlay >= 2u && overlay <= 4u || overlay == 46u;
+    out.fog_distance.x = select(length(position), 0.0, no_fog);
+    out.fog_distance.y = select(max(length(position.xz), abs(position.y)), 0.0, no_fog);
     out.overlay = overlay;
     out.glint_uv = vec2(0.0);
     if overlay == 4u { out.fog_distance.x = length(position); }
@@ -307,10 +310,17 @@ fn entity_color(in: Out, front: bool) -> vec4<f32> {
     }
     let texel = textureSample(atlas, atlas_sampler, uv);
     var tint = select(in.back_color, in.color, front);
-    if in.overlay == 38u {
-        // RenderPipelines.ENTITY_CUTOUT_DISSOLVE (entity.fsh's DISSOLVE): gone where the vertex
-        // alpha is below the mask's (its atlas UV in glint_uv), the rest drawn opaque.
-        if tint.a < textureSampleLevel(atlas, atlas_sampler, in.glint_uv, 0.0).a { discard; }
+    if in.overlay == 46u {
+        // RenderPipelines.DRAGON_EXPLOSION_ALPHA (rendertype_entity_alpha): gone where the
+        // texture's alpha is below the vertex alpha, the rest drawn opaque, unlit.
+        if texel.a < tint.a { discard; }
+        tint.a = 1.0;
+    }
+    if in.overlay == 38u || in.overlay == 47u {
+        // RenderPipelines.ENTITY_DECAL (the dying dragon's skin): gone where the mask's alpha
+        // is below the vertex alpha (its atlas UV in glint_uv), the rest drawn opaque. The
+        // mask test stands in for the decal pipeline's EQUAL depth test.
+        if textureSampleLevel(atlas, atlas_sampler, in.glint_uv, 0.0).a < tint.a { discard; }
         tint.a = 1.0;
     }
     var color = texel * tint;
@@ -327,7 +337,9 @@ fn entity_color(in: Out, front: bool) -> vec4<f32> {
         // clouds.fsh: alpha fades out towards the cloud fog end.
         return vec4(color.rgb, color.a * (1.0 - linear_fog(in.fog_distance.x, 0.0, globals.fog_ends.y)));
     }
-    if color.a < 0.1 || (in.cull != 0u && !front) { discard; }
+    // The explosion pass (46) has no cutout: rendertype_entity_alpha tests only the vertex
+    // alpha, so a faint texel above the death threshold still draws.
+    if (color.a < 0.1 && in.overlay != 46u) || (in.cull != 0u && !front) { discard; }
     // entity.fsh calculateFinalColor: the overlay (hurt red, TNT white) over the
     // lit texture, then the lightmap, then the glint and fog.
     color = vec4(mix(in.overlay_color.rgb, color.rgb, in.overlay_color.a), color.a);

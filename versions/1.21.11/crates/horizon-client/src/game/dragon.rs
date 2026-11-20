@@ -130,7 +130,7 @@ pub(super) struct Fight {
     players: bool,
     /// The spikes' crystals have been placed (worldgen does not place entities here).
     crystals_placed: bool,
-    /// The respawn sequence (`DragonRespawnStage`) and its tick count.
+    /// The respawn sequence (`DragonRespawnAnimation`) and its tick count.
     respawn: Option<(Respawn, i32)>,
     /// The four crystals on the exit portal driving the respawn.
     respawn_crystals: Vec<Vec3>,
@@ -795,15 +795,12 @@ impl Dragon {
         self.health -= damage;
         damage_post(Hurting::Dragon(self.id as i32, source), damage);
     }
-    /// `EnderDragon.knockback`: `LivingEntity.knockback` only when the phase
-    /// is not sitting. `(xd, zd)` points at the hit (`dealDefaultKnockback`:
-    /// the source position minus this position). Knockback resistance is the
-    /// mob default, 0. `noPhysics` never sets `onGround`, so the vertical
-    /// component stays.
+    /// `LivingEntity.knockback` (1.21.11 has no `EnderDragon.knockback`
+    /// override: a perched dragon is knocked like a flying one). `(xd, zd)`
+    /// points at the hit (`dealDefaultKnockback`: the source position minus
+    /// this position). Knockback resistance is the mob default, 0. `noPhysics`
+    /// never sets `onGround`, so the vertical component stays.
     fn knockback(&mut self, power: f64, xd: f64, zd: f64, source: HurtSource<'_>) {
-        if self.phase.sitting() {
-            return;
-        }
         let mut knock = horizon_client::health::Knock {
             strength: power,
             x: xd,
@@ -1272,7 +1269,7 @@ impl Game<'_> {
         }
         self.tick_dragon();
     }
-    /// EndSpikeFeature's crystals (with fire under them on the bedrock).
+    /// SpikeFeature's crystals (with fire under them on the bedrock).
     fn place_spike_crystals(&mut self) {
         for spike in horizon_world::worldgen::end_spike::spikes_for_seed(self.level.seed) {
             let at = Vec3::new(
@@ -2847,7 +2844,7 @@ impl Game<'_> {
                 part.0.y += rise;
             }
         }
-        if t >= 200 {
+        if t == 200 {
             if drops {
                 self.spawn_orbs([p.x, p.y, p.z], (xp as f32 * 0.2) as u32);
             }
@@ -3445,18 +3442,56 @@ impl Game<'_> {
         } else {
             0.0
         };
-        // Dying: DYING_RENDER_TYPE, `entityCutoutDissolve` of the skin with dragon_exploding as
-        // the mask, white at `ARGB.white(1 - deathTime / 200)` and no overlay.
+        // Dying, in 1.21.11's two passes: order(0) `dragonExplosionAlpha` — the explosion
+        // texture, unlit, alpha-tested by `ARGB.white(deathTime / 200)` — then order(1)
+        // `entityDecal` — the skin, lit, masked by the same threshold (the mask test stands
+        // in for the decal pipeline's EQUAL depth test), with the hurt overlay while hurt.
         let mask = sprite("entity/enderdragon/dragon_exploding").filter(|_| death > 0.0);
-        let (color, overlay) = if mask.is_some() {
-            (dissolve_color(death), horizon_client::gfx::DISSOLVE_OVERLAY)
-        } else {
-            (0xFFFF_FFFF, u32::from(d.hurt_time > 0))
-        };
-        let first = out.len();
-        horizon_client::mobs::render::draw(model, base, &poses, skin, color, light, overlay, out);
         if let Some(mask) = mask {
+            let first = out.len();
+            horizon_client::mobs::render::draw(
+                model,
+                base,
+                &poses,
+                mask,
+                dissolve_color(death),
+                horizon_client::mobs::render::FULL_BRIGHT,
+                horizon_client::gfx::DRAGON_EXPLOSION_OVERLAY,
+                out,
+            );
+            // rendertype_entity_alpha has no lighting at all: no cardinal shading either.
+            for v in &mut out[first..] {
+                v.normal = [0; 4];
+            }
+            let overlay = if d.hurt_time > 0 {
+                horizon_client::gfx::DISSOLVE_HURT_OVERLAY
+            } else {
+                horizon_client::gfx::DISSOLVE_OVERLAY
+            };
+            let first = out.len();
+            horizon_client::mobs::render::draw(
+                model,
+                base,
+                &poses,
+                skin,
+                dissolve_color(death),
+                light,
+                overlay,
+                out,
+            );
             dissolve_mask(&mut out[first..], skin, mask);
+        } else {
+            let overlay = u32::from(d.hurt_time > 0);
+            horizon_client::mobs::render::draw(
+                model,
+                base,
+                &poses,
+                skin,
+                0xFFFF_FFFF,
+                light,
+                overlay,
+                out,
+            );
         }
         // The skin's OptiFine emissive overlay, full bright.
         let glow = self
@@ -3469,7 +3504,16 @@ impl Game<'_> {
             .and_then(sprite);
         if let Some(glow) = glow.filter(|_| mask.is_none()) {
             let full = horizon_client::mobs::render::FULL_BRIGHT;
-            horizon_client::mobs::render::draw(model, base, &poses, glow, color, full, 0, out);
+            horizon_client::mobs::render::draw(
+                model,
+                base,
+                &poses,
+                glow,
+                0xFFFF_FFFF,
+                full,
+                0,
+                out,
+            );
         }
         // RenderTypes.eyes: the glowing eyes, added on top.
         let mut eye_quads = Vec::new();
@@ -3908,7 +3952,7 @@ impl Game<'_> {
     }
 }
 /// Respawning the dragon with end crystals on the exit portal
-/// (`EndCrystalItem.useOn`, `EnderDragonFight.tryRespawn`, `DragonRespawnStage`).
+/// (`EndCrystalItem.useOn`, `EnderDragonFight.tryRespawn`, `DragonRespawnAnimation`).
 impl Game<'_> {
     /// `EndCrystalItem.useOn`: on obsidian or bedrock with room above.
     pub(super) fn place_end_crystal(
@@ -4202,7 +4246,7 @@ impl Game<'_> {
                 }
             }
         }
-        // DragonRespawnStage.SUMMONING_PILLARS: ExplosionInteraction.BLOCK.
+        // DragonRespawnAnimation.SUMMONING_PILLARS: ExplosionInteraction.BLOCK.
         let interaction = self.destroy_type("block_explosion_drop_decay");
         let _ = self.server_explode(
             [f64::from(cx) + 0.5, f64::from(h), f64::from(cz) + 0.5],
@@ -4210,7 +4254,7 @@ impl Game<'_> {
             interaction,
             false,
         );
-        // EndSpikeFeature.placeSpike with crystal_invulnerable and the beam.
+        // SpikeFeature.placeSpike with crystal_invulnerable and the beam.
         let r = spike.radius;
         for z in cz - r..=cz + r {
             for y in 0..=h + 10 {
@@ -5043,7 +5087,9 @@ mod tests {
         }];
         dissolve_mask(&mut quad, [0.0, 0.0, 0.5, 0.5], [0.5, 0.5, 1.0, 1.0]);
         assert_eq!(quad[0].glint_uv, [0.75, 0.625]);
-        // ARGB.white(1 - deathTime / 200): floor(127.5), and past 200 the int shift wraps.
+        // ARGB.white(deathTime / 200): floor(63.75) at 50, floor(127.5) at 100, and past 200
+        // the int shift wraps.
+        assert_eq!(dissolve_color(50.0), 0x3FFF_FFFF);
         assert_eq!(dissolve_color(100.0), 0x7FFF_FFFF);
         assert_eq!(dissolve_color(200.5), 0xFFFF_FFFF);
     }
@@ -5214,16 +5260,16 @@ mod tests {
         assert_eq!(d.health, MAX_HEALTH - 9.0);
     }
 
-    /// `EnderDragon.knockback` calls `LivingEntity.knockback` only when the
-    /// phase is not sitting. `dealDefaultKnockback` uses `0.4F` away from the
-    /// attacker's feet. Resistance is 0 and `onGround` stays false
-    /// (`noPhysics`), so from velocity `(1, -0.3, 0.5)` and a source 3 by 4
-    /// blocks away the push is `(0.5 - 0.6p, -0.3, 0.25 - 0.8p)` with
-    /// `p = (double) 0.4F`. A perched hit, including one that makes it take
-    /// off, leaves the velocity alone. A hit inside the damage cooldown is
-    /// not a full hit, so it does not push either.
+    /// 1.21.11 has no `EnderDragon.knockback` override, so a perched hit knocks
+    /// like a flying one — including one that makes it take off.
+    /// `dealDefaultKnockback` uses `0.4F` away from the attacker's feet.
+    /// Resistance is 0 and `onGround` stays false (`noPhysics`), so from
+    /// velocity `(1, -0.3, 0.5)` and a source 3 by 4 blocks away the push is
+    /// `(0.5 - 0.6p, -0.3, 0.25 - 0.8p)` with `p = (double) 0.4F`. A hit
+    /// inside the damage cooldown is not a full hit, so it does not push
+    /// either.
     #[test]
-    fn a_melee_hit_knocks_a_flying_dragon_and_not_a_perched_one() {
+    fn a_melee_hit_knocks_a_perched_dragon_too() {
         let from = Vec3::new(3.0, 70.0, 4.0);
         let velocity = Vec3::new(1.0, -0.3, 0.5);
         let power = f64::from(0.4_f32);
@@ -5235,13 +5281,14 @@ mod tests {
             perched.hurt_from(0, 9.0, HIT, false, Some(from)),
             Hurt::Landed { full: true }
         );
-        assert_eq!(perched.velocity, velocity);
+        assert_eq!(perched.velocity, pushed);
+        assert!(matches!(perched.phase, Phase::Scanning { .. }));
 
         let mut taking_off = dragon(Phase::Flaming { ticks: 0 });
         taking_off.velocity = velocity;
         taking_off.hurt_from(0, 60.0, HIT, false, Some(from));
         assert!(matches!(taking_off.phase, Phase::Takeoff { .. }));
-        assert_eq!(taking_off.velocity, velocity);
+        assert_eq!(taking_off.velocity, pushed);
 
         let mut flying = dragon(flying());
         flying.velocity = velocity;
