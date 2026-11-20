@@ -723,15 +723,15 @@ mod tests {
             ("minecraft:generic.attack_damage", 2),
             ("minecraft:generic.attack_knockback", 3),
             ("minecraft:generic.attack_speed", 4),
-            ("minecraft:generic.flying_speed", 11),
-            ("minecraft:generic.follow_range", 12),
-            ("minecraft:generic.knockback_resistance", 15),
-            ("minecraft:generic.luck", 16),
-            ("minecraft:generic.max_absorption", 17),
-            ("minecraft:generic.max_health", 18),
-            ("minecraft:generic.movement_speed", 21),
-            ("minecraft:horse.jump_strength", 14),
-            ("minecraft:zombie.spawn_reinforcements", 26),
+            ("minecraft:generic.flying_speed", 9),
+            ("minecraft:generic.follow_range", 10),
+            ("minecraft:generic.knockback_resistance", 13),
+            ("minecraft:generic.luck", 14),
+            ("minecraft:generic.max_absorption", 15),
+            ("minecraft:generic.max_health", 16),
+            ("minecraft:generic.movement_speed", 17),
+            ("minecraft:horse.jump_strength", 12),
+            ("minecraft:zombie.spawn_reinforcements", 20),
         ];
         for version in [ServerVersion::V1_20_2, ServerVersion::V1_20_3] {
             let session = Session::new(version);
@@ -1060,7 +1060,7 @@ mod tests {
                 offer.result.item,
                 offer.result.count
             ),
-            (806, 5, 805, 1)
+            (805, 5, 804, 1)
         );
         assert!(offer.cost_b.is_none());
         assert_eq!(
