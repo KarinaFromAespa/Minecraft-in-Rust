@@ -640,13 +640,47 @@ is the oracle; decompiled code is a reading aid.
     the dialog handlers (removed by the publish); accessor
     renames (`sayNow`, `getDifficulty`/`isLocked`,
     `serverLinks`).
+- **Item 17 — hud.rs, ported:** `GuiGraphics` / `Font` /
+  `TextureAtlas` / `TextureUtil` / `ReloadableTexture` /
+  `SpecialGlyphs`:
+  - Item decorations (`GuiGraphics.renderItemDecorations`):
+    1.21.5 draws bar → count → cooldown, so the cooldown veil
+    covers the count text; 1.21.6 draws bar → cooldown → count.
+    `hud_overlays::item_decorations` now emits the count before
+    the cooldown fill. Bar, cooldown and count geometry are
+    identical in both versions (bar 13×2 at +2/+13, veil
+    `floor(16(1-p))`/`ceil(16p)` at 0x7FFFFFFF, count at
+    x+19-2-w / y+9, white with shadow).
+  - The rest is the 1.21.6 GUI render refactor with no behaviour
+    change: `GuiRenderState` / strata / `BlitRenderState` /
+    `GuiTextRenderState` / `GuiItemRenderState` vs 1.21.5's
+    immediate `PoseStack` + `BufferSource` vertex writes, and
+    `RenderPipeline` vs `RenderType` signatures. Fill, gradient,
+    hLine/vLine, blit, nine-slice, tiled-sprite and tooltip
+    layout math are identical; the Rust's `HudBatch` already
+    implements them.
+  - Text: the Rust's world-text depths (shadow 0.03, lines
+    +0.01) already match 1.21.5's `SHADOW_DEPTH` 0.03 /
+    `EFFECT_DEPTH` 0.01, not 1.21.6's 0.003 / 0.001.
+    Strikethrough [y+3.5, y+4.5] and underline [y+8, y+9]
+    rects match both versions. `drawString`'s 1.21.5 `int`
+    return (advance + 1 for a shadow) has no Rust caller.
+    Tooltips are drawn at the end of the screen draw in the
+    Rust, matching both versions in practice (the 1.21.6
+    deferral only matters for mid-render tooltip calls).
+  - `TextureAtlas` / `TextureUtil` / `ReloadableTexture` /
+    `SpecialGlyphs` are GPU API signature changes only
+    (`createTexture` / `writeToTexture` / buffer-mapping arg
+    lists); the Rust drives wgpu directly and has no surface.
+  - Verification: `cargo check -p horizon-client-render -p
+    horizon-client --all-targets` 0 errors / 0 warnings (2m46s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **16 of 426 are
-closed** (rank 1 complete, rank 2 at 7/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **17 of 426 are
+closed** (rank 1 complete, rank 2 at 8/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

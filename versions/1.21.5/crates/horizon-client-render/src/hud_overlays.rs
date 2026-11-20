@@ -772,18 +772,15 @@ pub fn damage_bar(damage: i32, max_damage: i32) -> Option<(i32, u32)> {
 }
 
 /// `GuiGraphicsExtractor.itemDecorations` for a non-empty stack at (x, y):
-/// the durability bar, the cooldown shade and the count.
+/// the durability bar, the count and the cooldown shade (1.21.5's
+/// `renderItemDecorations` draws the cooldown veil over the count;
+/// 1.21.6 draws it under).
 pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec<GuiDraw> {
     let mut out = vec![GuiDraw::Push(Vec::new())];
     if let Some((width, color)) = d.bar {
         let (left, top) = (x + 2, y + 13);
         out.push(fill(left, top, left + 13, top + 2, 0xFF00_0000));
         out.push(fill(left, top, left + width, top + 1, color | 0xFF00_0000));
-    }
-    if d.cooldown > 0.0 {
-        let top = y + crate::hud_layout::floor(16.0 * (1.0 - d.cooldown));
-        let bottom = top + crate::hud_layout::ceil(16.0 * d.cooldown);
-        out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
     }
     if d.count != 1 || d.count_text.is_some() {
         let amount = d.count_text.clone().unwrap_or_else(|| d.count.to_string());
@@ -796,6 +793,11 @@ pub fn item_decorations(x: i32, y: i32, d: &ItemDecorations, font: &Font) -> Vec
             crate::hud_layout::WHITE,
             true,
         );
+    }
+    if d.cooldown > 0.0 {
+        let top = y + crate::hud_layout::floor(16.0 * (1.0 - d.cooldown));
+        let bottom = top + crate::hud_layout::ceil(16.0 * d.cooldown);
+        out.push(fill(x, top, x + 16, bottom, 0x7FFF_FFFF));
     }
     out.push(GuiDraw::Pop);
     out

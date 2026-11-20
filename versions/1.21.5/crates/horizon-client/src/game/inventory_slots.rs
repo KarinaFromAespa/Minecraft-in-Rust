@@ -102,7 +102,7 @@ impl Game<'_> {
         count_text: Option<String>,
     ) {
         // GuiGraphicsExtractor.itemDecorations, laid out at the origin and
-        // moved to (x, y): the damage bar, the cooldown shade and the count.
+        // moved to (x, y): the damage bar, the count and the cooldown shade.
         let info = self.items().get(&stack.item);
         // ItemStack.isBarVisible: isDamaged, which an unbreakable stack never is.
         let max_damage = if horizon_client::stations::is_damageable(self.items(), stack) {
