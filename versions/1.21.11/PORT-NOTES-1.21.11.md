@@ -6735,3 +6735,12 @@ files; chat.rs not reformatted (module root, pre-existing
 drift at 1401 + chat_tests.rs 514). Rank 2 now 266/492
 (86 changed, 180 no-change). work-items.json rank2.closed =
 266 on 2026-11-20.
+
+## CI proof — 266/492 milestone (dispatched 2026-11-20 23:48 NPT)
+
+Run 44789092726 (`gh workflow run port-verify.yml -f version=1.21.11
+--ref behaviour/1.21.11`) on 0f75c53 (item 87, rank 2 266/492).
+In progress at dispatch; the previous run on this branch
+(44538822133, Nov 19) took 1h31m. Record the profile into
+pins/1.21.11/ when it lands; do not merge on it (rank 2 is
+not done).
