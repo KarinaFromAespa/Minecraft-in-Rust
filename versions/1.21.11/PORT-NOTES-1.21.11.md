@@ -5037,3 +5037,64 @@ Verification, Nov 20, 2026: `cargo check -p horizon-client --lib
 --tests --no-default-features` clean (JOBS=1).
 Rank 2 now 239/492 (69 changed, 170 no-change).
 work-items.json rank2.closed = 239 on 2026-11-20.
+
+## Item 61 — crates/horizon-client/src/game/sign_edit.rs (rank 2, CHANGED)
+
+5 classes, 26 methods, 7 named. Javap diff +448/-534 (1149 lines),
+decompile diff 617 lines, both read in full Nov 20, 2026. Triage note
+`rank2-item-61-TRIAGE.md` (workdir root, scratch).
+
+**Fix 1 — the cursor blink is frame-based in 1.21.11.** 26.1 blinks on
+wall time (`TextCursorUtils.isCursorVisible`, `(elapsed / 300) % 2`,
+verified from the 26.1 jar); 1.21.11 blinks on a `frame` counter
+(`frame / 6 % 2 == 0`, incremented in `tick()`), never reset by typing.
+The Rust used the shared `EditBox::cursor_visible()` (time-based 300 ms
+like 26.1's form) — but every keystroke resets it via
+`insert_text` -> `set_cursor` -> `reset_blink()`. `SignEditor` now
+carries `frame: u32`, incremented first in `tick_sign_editor`
+(vanilla's order), and the render uses `cursor_shows()`
+(`frame / 6 % 2 == 0`). `tick_sign_editor` runs once per client tick
+in both the local and remote paths, and `tick_world` runs even when
+the world is paused, so the blink runs at 20 Hz while the editor is
+open. New test `sign_cursor_blinks_on_the_frame_counter` pins 0–5 on,
+6–11 off, 12 on.
+
+**Fix 2 — cursor rendering (bundled version-neutral corrections).**
+Both versions draw the cursor identically (verified from the 26.1 jar's
+`TextCursorUtils`): an underscore at the end of the line, a 1-wide bar
+from `y - 1` to `y + lineHeight` mid-line. The Rust drew a bar from `y`
+to `y + lineHeight` in both cases. Now: `"_"` at end-of-line, fill from
+`ly - 1.0` with height `line_height + 1.0` mid-line.
+
+Already 1.21.11-shaped, no change: no IME preedit support anywhere in
+the editor (26.1-only `preeditOverlay` / `preeditUpdated` /
+`textInputManager`); the layout math (title at 40, hanging background
+16x16 scaled 4.5 at (0, -13), y offsets 90/125, line heights 10/9, max
+line widths 90/60, selection highlight geometry); the applicator path
+(`use_sign_applicator` matches `SignBlock.useItemOn` — honeycomb waxes
+any sign + event 3003, dyes/ink need text, colour/glow gates, then
+click commands, stat, game event, consume); `use_sign_empty_hand`
+matches `useWithoutItem`; `TextFieldHelper` starts the cursor at the
+end (verified from the 1.21.11 jar); line moves `& 3` with cursor to
+end; the width gate `font.width(s) <= maxTextLineWidth` with
+revert-on-overflow. The `SignApplicator` signature change (26.1 passes
+the held `ItemStack`, 1.21.11 doesn't) is behaviour-free.
+
+Known version-neutral gaps, recorded not fixed: standing-sign editor
+text is drawn unscaled where vanilla scales it 0.9765628 (hanging is
+1.0 — exact); `SignEditScreen` itself + the standing-sign background
+are item 246's scope. Level event 3003 plays `HONEYCOMB_WAX_ON` in
+vanilla's `LevelEventHandler` (verified from the 1.21.11 jar) but the
+Rust's `block_particle_event` spawns particles only, so a LAN guest
+hears no wax sound (the local player hears it via the direct play).
+`use_sign_applicator` / `use_sign_empty_hand` don't check
+`otherPlayerIsEditingSign`. The Rust triggers `item_used_on_block`
+after a sign applicator use; vanilla's `SignBlock.useItemOn` doesn't
+— not verified against the jar's trigger callers.
+
+Verification, Nov 20, 2026: `cargo check -p horizon-client --lib
+--tests --no-default-features` clean (JOBS=1, 2m26s); `cargo test -p
+horizon-client --lib --no-default-features game::sign_edit::` 3 passed
+(5m13s, link survived); rustfmt --check clean on sign_edit.rs.
+Rank 2 now 240/492 (70 changed, 170 no-change).
+work-items.json rank2.closed = 240 on 2026-11-20.

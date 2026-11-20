@@ -23,11 +23,23 @@ pub(super) struct SignEditor {
     pub pos: (i32, i32, i32),
     pub front: bool,
     pub line: usize,
+    /// `AbstractSignEditScreen.frame`: the cursor blinks on it
+    /// (`frame / 6 % 2 == 0`), one tick at a time, never reset by typing.
+    frame: u32,
     /// The line being edited (`AbstractSignEditScreen`'s text field).
     edit: EditBox,
     /// `AbstractSignEditScreen.messages`: the side's lines as edited, sent
     /// when the editor closes, even if the sign is gone by then.
     lines: [String; 4],
+}
+
+impl SignEditor {
+    /// `AbstractSignEditScreen.renderSignText`: the cursor shows while
+    /// `frame / 6 % 2 == 0` — six ticks on, six off, from the frame the
+    /// editor opened on.
+    fn cursor_shows(&self) -> bool {
+        self.frame / 6 % 2 == 0
+    }
 }
 
 fn sign_box() -> EditBox {
@@ -331,6 +343,7 @@ impl Game<'_> {
             pos,
             front,
             line: 0,
+            frame: 0,
             edit: sign_box(),
             lines,
         });
@@ -347,6 +360,11 @@ impl Game<'_> {
     /// than 4 blocks beyond the block interaction range
     /// (`SignBlockEntity.playerIsTooFarAwayToEdit`).
     pub(super) fn tick_sign_editor(&mut self) {
+        // `AbstractSignEditScreen.tick` counts the frame first — the cursor
+        // blinks on it — even on the tick the editor closes.
+        if let Some(edit) = self.sign_edit.as_mut() {
+            edit.frame = edit.frame.wrapping_add(1);
+        }
         let Some(edit) = &self.sign_edit else {
             return;
         };
@@ -838,8 +856,16 @@ impl Game<'_> {
             }
             let pre: String = value.chars().take(edit.edit.cursor).collect();
             let caret_x = x + HudBatch::text_width(atlas, &pre);
-            if edit.edit.cursor_visible() {
-                batch.fill(atlas, caret_x, ly, 1.0, line_height, color);
+            // `AbstractSignEditScreen.renderSignText`: at the end of the line
+            // the cursor is an underscore, mid-line a bar from one pixel
+            // above the line to its bottom — both only while the frame blink
+            // is on, and typing never resets it.
+            if edit.cursor_shows() {
+                if edit.edit.cursor >= value.chars().count() {
+                    batch.text(atlas, "_", caret_x, ly, color, false);
+                } else {
+                    batch.fill(atlas, caret_x, ly - 1.0, 1.0, line_height + 1.0, color);
+                }
             }
         }
         let (bx, by) = done_button(w, h);
@@ -875,6 +901,32 @@ impl Game<'_> {
 
 #[cfg(test)]
 mod tests {
+    use super::{SignEditor, sign_box};
+
+    /// `AbstractSignEditScreen.renderSignText`: six ticks on, six off, from
+    /// the frame the editor opened on — and typing never resets it.
+    #[test]
+    fn sign_cursor_blinks_on_the_frame_counter() {
+        let mut edit = SignEditor {
+            pos: (0, 0, 0),
+            front: true,
+            line: 0,
+            frame: 0,
+            edit: sign_box(),
+            lines: Default::default(),
+        };
+        for frame in 0..6 {
+            edit.frame = frame;
+            assert!(edit.cursor_shows(), "frame {frame} shows the cursor");
+        }
+        for frame in 6..12 {
+            edit.frame = frame;
+            assert!(!edit.cursor_shows(), "frame {frame} hides the cursor");
+        }
+        edit.frame = 12;
+        assert!(edit.cursor_shows());
+    }
+
     #[test]
     fn done_button_sits_on_whole_gui_pixels() {
         // `width / 2 - 100, height / 4 + 144` in ints: 334 high is 83 + 144.
