@@ -334,7 +334,24 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 96/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113 + 4 zero-diff)
+### Rank 2: 97/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114 + 4 zero-diff)
+
+- **Item 114 — widely named: client/resources/model
+  (5 classes, 30 methods, 0 named in Horizon),
+  zero-diff:** ModelManager, Material, ResolvedModel.
+  1.21.9 adds `ON_SHELF` to the top transforms; 1.21.8
+  has 8 — and the Rust's `ItemTransforms` is already
+  `[DisplayTransform; 8]` with a 9-variant
+  `DisplayContext` (None + 8), no OnShelf anywhere.
+  The 1.21.9 atlas rework (`AtlasManager`,
+  `PlayerSkinRenderCache`, `MaterialSet`) has zero
+  Rust references; the reload pipeline is
+  vanilla-internal plumbing with the same observable
+  result; the Rust's `Material` is a baked record, not
+  vanilla's atlas-bound type. (shelf.rs already notes
+  the missing shelf/ON_SHELF, deferred to item 425.)
+  No check run (no code changed; tree unchanged since
+  item 112's 0/0 check).
 
 - **Item 113 — `crates/horizon-command/src/lib.rs`
   (2 classes, 20 methods, 1 named in Horizon),
