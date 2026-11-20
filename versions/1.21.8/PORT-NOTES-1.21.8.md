@@ -334,7 +334,25 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 100/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117 + 4 zero-diff)
+### Rank 2: 101/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118 + 4 zero-diff)
+
+- **Item 118 — `crates/horizon-client/src/mobs/villager.rs`
+  (1 class, 9 methods, 2 named in Horizon),
+  citations only:** VillagerModel. 1.21.9 renders the
+  profession layer's type overlay with a separate
+  no-hat model (`createNoHatModel`); 1.21.8 toggles
+  `hatVisible` (head, hat and hat_rim together) while
+  it renders. The Rust already implements the 1.21.8
+  mechanism — `VillagerHats::apply` computes exactly
+  1.21.8's condition and toggles `poses.visible("head")`
+  — so only the comment citing `createNoHatModel` was
+  reworded to `hatVisible`. The `*_no_hat` entries in
+  `layer_prefixes` are dead metadata (a 1.21.8 export
+  has no no-hat models to match). `translateToArms`
+  takes an unused render-state parameter in 1.21.9;
+  `setupAnim` is identical. No check run
+  (comment-only; tree unchanged since item 112's
+  0/0 check).
 
 - **Item 117 — `crates/horizon-client/src/mobs/illager.rs`
   (2 classes, 9 methods, 2 named in Horizon),
