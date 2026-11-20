@@ -67,7 +67,7 @@ fn timed_bans(bans: &[&BanEntry<NameAndId>], now: i64) -> Vec<Reply> {
                     Text::literal(format_date(expires)),
                 ],
             )
-            .with_reason(ban.reason.as_deref()),
+            .with_reason(Some(ban.reason.as_str())),
         );
     }
     lines
@@ -132,10 +132,8 @@ fn add_ban(
 }
 
 fn success_reply(ban: &BanEntry<NameAndId>, millis: i64, expires: i64) -> Reply {
-    let reason = ban.reason.as_ref().map_or_else(
-        || Text::translate("multiplayer.disconnect.banned.reason.default", &[]),
-        Text::literal,
-    );
+    // `BanListEntry.getReason`: the entry's reason, never null in 1.21.8.
+    let reason = Text::literal(&ban.reason);
     Reply::translated(
         "horizon.tempban.success",
         &[
@@ -270,6 +268,7 @@ impl Game<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use horizon_server_files::user_lists::DEFAULT_BAN_REASON;
 
     fn user(id: u128, name: &str) -> NameAndId {
         NameAndId {
@@ -351,9 +350,8 @@ mod tests {
             );
             let expected_reason = match &reason {
                 Some(reason) => serde_json::json!({"text": reason}),
-                None => {
-                    serde_json::json!({"translate": "multiplayer.disconnect.banned.reason.default"})
-                }
+                // 1.21.8's `BanListEntry` defaults a missing reason at construction.
+                None => serde_json::json!({"text": DEFAULT_BAN_REASON}),
             };
             assert_eq!(component["with"][0]["with"][1], expected_reason);
             assert!(
@@ -369,7 +367,10 @@ mod tests {
                 horizon_client::scoreboard::tag_to_json(&reply.tag()),
                 component
             );
-            assert_eq!(ban.reason, reason);
+            assert_eq!(
+                ban.reason,
+                reason.unwrap_or_else(|| DEFAULT_BAN_REASON.to_owned())
+            );
             assert_eq!(ban.expires, Some(now + millis));
         }
     }
@@ -381,8 +382,7 @@ mod tests {
             fn read(&self, path: &str) -> Option<Vec<u8>> {
                 (path == "assets/minecraft/lang/en_us.json").then(|| {
                     br#"{
-                    "commands.ban.success": "ban-local %1$s / %2$s",
-                    "multiplayer.disconnect.banned.reason.default": "default-local"
+                    "commands.ban.success": "ban-local %1$s / %2$s"
                 }"#
                     .to_vec()
                 })
@@ -393,7 +393,7 @@ mod tests {
             let reply = success_reply(&ban, 12 * 3_600_000, 0);
             assert_eq!(
                 reply.text().plain(),
-                "ban-local Steve / default-local for 12 hours, until 1970-01-01 00:00:00 +0000"
+                "ban-local Steve / Banned by an operator. for 12 hours, until 1970-01-01 00:00:00 +0000"
             );
         });
     }
@@ -413,7 +413,7 @@ mod tests {
         .unwrap();
         assert_eq!(ban.expires, Some(now + 12 * 3_600_000));
         assert_eq!((ban.created, ban.source.as_str()), (now, "Alex"));
-        assert_eq!(ban.reason.as_deref(), Some("griefing"));
+        assert_eq!(ban.reason, "griefing");
         assert!(bans.contains(&user(7, "Steve")));
         // Banned while the ban lasts, whatever the name says.
         assert!(bans.get(&user(7, "Renamed")).is_some());

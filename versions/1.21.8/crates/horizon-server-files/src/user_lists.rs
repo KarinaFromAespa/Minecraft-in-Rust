@@ -204,6 +204,12 @@ impl Entry for WhiteEntry {
     }
 }
 
+/// `BanListEntry`'s reason when none is given (its constructor and its
+/// JSON load both default a missing reason to this, so the reason is
+/// never null in 1.21.8; the nullable reason and `getReasonMessage`'s
+/// translatable default came in 1.21.9).
+pub const DEFAULT_BAN_REASON: &str = "Banned by an operator.";
+
 /// BanListEntry for players (NameAndId) or addresses (String).
 #[derive(Clone, Debug)]
 pub struct BanEntry<T> {
@@ -211,7 +217,7 @@ pub struct BanEntry<T> {
     pub created: i64,
     pub source: String,
     pub expires: Option<i64>,
-    pub reason: Option<String>,
+    pub reason: String,
 }
 impl<T: PartialEq> PartialEq for BanEntry<T> {
     fn eq(&self, o: &Self) -> bool {
@@ -233,7 +239,7 @@ impl<T> BanEntry<T> {
             created: now_millis(),
             source: source.unwrap_or_else(|| "(Unknown)".into()),
             expires,
-            reason,
+            reason: reason.unwrap_or_else(|| DEFAULT_BAN_REASON.into()),
         }
     }
     fn fields(user: T, o: &Json) -> Self {
@@ -250,7 +256,10 @@ impl<T> BanEntry<T> {
                 .and_then(Json::as_string)
                 .unwrap_or_else(|| "(Unknown)".into()),
             expires: date("expires"),
-            reason: o.get("reason").and_then(Json::as_string),
+            reason: o
+                .get("reason")
+                .and_then(Json::as_string)
+                .unwrap_or_else(|| DEFAULT_BAN_REASON.into()),
         }
     }
     fn serialize_ban(&self, o: &mut Json) {
@@ -260,10 +269,7 @@ impl<T> BanEntry<T> {
             "expires",
             Json::String(self.expires.map_or_else(|| "forever".into(), format_date)),
         );
-        o.add(
-            "reason",
-            self.reason.clone().map_or(Json::Null, Json::String),
-        );
+        o.add("reason", Json::String(self.reason.clone()));
     }
 }
 impl Entry for BanEntry<NameAndId> {
@@ -572,6 +578,21 @@ mod tests {
         assert!(bans.contains(&NameAndId::offline("Kim")));
         assert_eq!(*said.lock().unwrap(), 1);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `BanListEntry`: a ban with no reason carries "Banned by an
+    /// operator." — the reason is never null in 1.21.8.
+    #[test]
+    fn a_ban_without_a_reason_carries_the_default() {
+        let ban = BanEntry::new(NameAndId::offline("Kim"), None, None, None);
+        assert_eq!(ban.reason, "Banned by an operator.");
+        let ban = BanEntry::new(
+            NameAndId::offline("Kim"),
+            None,
+            None,
+            Some("griefing".into()),
+        );
+        assert_eq!(ban.reason, "griefing");
     }
 
     #[test]

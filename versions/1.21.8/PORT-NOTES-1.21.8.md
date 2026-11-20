@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 10/163 (327–329 + 7 zero-diff: 356, 372, 382–385, 396)
+### Rank 3: 11/163 (327–330 + 7 zero-diff: 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7359,6 +7359,27 @@ includes constant-pool churn.
   markers), and showPos's highlight (the transient debug marker, ten
   seconds; 1.21.8 has no highlight packet — the doc citation is fixed
   to `DebugPackets.sendGameTestAddMarker`). Cargo check 0/0.
+- **Item 330 — `crates/horizon-server-files/src/user_lists.rs`
+  (BanListEntry, OpCommand, BanPlayerCommands, DeOpCommands,
+  PardonCommand, 5 named methods), the ban reason to the 1.21.8
+  form:** a ban's reason is never null — 1.21.8's `BanListEntry`
+  defaults a null reason to "Banned by an operator." in the
+  constructor and at JSON load, so `getReason()` is the plain string
+  and `getReasonMessage()` (1.21.9, the translatable default) does not
+  exist. `BanEntry.reason` is now a `String`, defaulted by
+  `DEFAULT_BAN_REASON` at construction and load, and always written by
+  `serialize_ban`. The ban/ban-ip success messages, the banlist, the
+  disconnect reason and the tempban reply all show that string; the
+  old code rendered a null reason as the literal `"null"` in one place
+  and as the translatable default in others — both wrong for 1.21.8.
+  The admin JSON (`horizon-server`'s `ban` helpers) and the
+  management notifications carry the reason as a plain string too.
+  Already equivalent and untouched: `kickUnlistedPlayers` (kicks on
+  enforce-whitelist alone), save-on/off (the single `Lists.autosave`
+  flag is the per-level loop, since nothing sets noSave per level),
+  and `NameAndId` (a Rust-internal name for the same name + UUID).
+  New test: a ban without a reason carries the default. Cargo check
+  0/0.
 
 ### Rank 4 content: closed 2/2 (chain)
 

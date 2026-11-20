@@ -6,7 +6,10 @@ use horizon_client::server::{
     eula,
     java_properties::now_millis,
     properties::{DIFFICULTIES, GAME_MODES, ServerProperties, SystemEntropy},
-    user_lists::{BanEntry, BanList, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry, WhiteList},
+    user_lists::{
+        BanEntry, BanList, DEFAULT_BAN_REASON, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry,
+        WhiteList,
+    },
 };
 use horizon_protocol::crypto::uuid_string;
 use std::{fmt::Write as _, path::Path};
@@ -161,7 +164,11 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
                         "(Unknown)".into()
                     },
                     expires: date(expires),
-                    reason: (reason != "-").then(|| reason.to_owned()),
+                    reason: if reason != "-" {
+                        reason.to_owned()
+                    } else {
+                        DEFAULT_BAN_REASON.into()
+                    },
                 }
             }
             // 1.21.8's add/remove are void, so the probe reports the state

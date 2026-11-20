@@ -452,7 +452,7 @@ mod tests {
         assert_eq!(players.entries().len(), 1);
         assert_eq!(players.entries()[0].user.name, "Alex");
         assert_eq!(players.entries()[0].source, "Server");
-        assert_eq!(players.entries()[0].reason.as_deref(), Some("griefing"));
+        assert_eq!(players.entries()[0].reason, "griefing");
         check("ban_again", "ban", &["Alex", "griefing"]);
         check("pardon", "pardon", &["Alex"]);
         check("pardon_again", "pardon", &["Alex"]);
@@ -463,7 +463,7 @@ mod tests {
         addresses.load().unwrap();
         assert_eq!(addresses.entries().len(), 1);
         assert_eq!(addresses.entries()[0].user, "203.0.113.7");
-        assert_eq!(addresses.entries()[0].reason.as_deref(), Some("abuse"));
+        assert_eq!(addresses.entries()[0].reason, "abuse");
         check("ban_ip_again", "ban-ip", &["203.0.113.7", "abuse"]);
         check("pardon_ip", "pardon-ip", &["203.0.113.7"]);
         check("pardon_ip_again", "pardon-ip", &["203.0.113.7"]);

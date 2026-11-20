@@ -12,7 +12,6 @@ use horizon_client::{
         profiles,
         user_lists::{BanEntry, NameAndId, OpEntry, WhiteEntry},
     },
-    text::Text,
 };
 use horizon_protocol::text::translatable;
 use serde_json::{Value, json};
@@ -728,9 +727,7 @@ impl Game<'_> {
 
     /// `addUserBan`, then the banned player, if online, is sent away.
     fn management_add_ban(&mut self, rpc: &impl Fn(String), state: &ServerState, ban: Ban) {
-        let reason = ban.reason.clone().unwrap_or_else(|| {
-            Text::translate("multiplayer.disconnect.banned.reason.default", &[]).plain()
-        });
+        let reason = ban.reason.clone();
         rpc(format!(
             "Add player '{}' to banlist. Reason: '{reason}'",
             ban.user.name

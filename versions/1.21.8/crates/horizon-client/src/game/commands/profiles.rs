@@ -9,7 +9,7 @@
 //! share.
 use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::{
-    server::user_lists::{BanEntry, NameAndId, OpEntry, WhiteEntry},
+    server::user_lists::{BanEntry, DEFAULT_BAN_REASON, NameAndId, OpEntry, WhiteEntry},
     text::Text,
 };
 use horizon_protocol::text::translatable;
@@ -215,11 +215,9 @@ impl Game<'_> {
                         reason.clone(),
                     ));
                     count += 1;
-                    // BanListEntry.getReasonMessage.
-                    let shown = reason.as_deref().map_or_else(
-                        || Text::translate("multiplayer.disconnect.banned.reason.default", &[]),
-                        lit,
-                    );
+                    // `BanListEntry.getReason`: the entry's reason, which
+                    // defaults when none was given.
+                    let shown = lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON));
                     self.feedback(Text::translate(
                         "commands.ban.success",
                         &[lit(&player.name), shown],
@@ -339,7 +337,7 @@ impl Game<'_> {
         ));
         self.feedback(Text::translate(
             "commands.banip.success",
-            &[lit(&ip), Self::reason_message(reason.as_deref())],
+            &[lit(&ip), lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON))],
         ));
         if !players.is_empty() {
             let names: Vec<&str> = players.iter().map(|(_, n)| n.as_str()).collect();
@@ -432,7 +430,7 @@ impl Game<'_> {
     pub(super) fn cmd_banlist(&mut self, id: &str) -> R<i32> {
         let lists = self.dedicated_lists()?;
         let lit = |s: &str| Text::literal(s.to_owned());
-        let entries: Vec<(String, String, Option<String>)> = {
+        let entries: Vec<(String, String, String)> = {
             let l = lists.lock().unwrap();
             let players = l
                 .bans
@@ -461,22 +459,10 @@ impl Game<'_> {
         for (name, source, reason) in &entries {
             self.feedback_unbroadcast(Text::translate(
                 "commands.banlist.entry",
-                &[
-                    lit(name),
-                    lit(source),
-                    Self::reason_message(reason.as_deref()),
-                ],
+                &[lit(name), lit(source), lit(reason)],
             ));
         }
         Ok(entries.len() as i32)
-    }
-
-    /// `BanListEntry.getReasonMessage`.
-    fn reason_message(reason: Option<&str>) -> Text {
-        reason.map_or_else(
-            || Text::translate("multiplayer.disconnect.banned.reason.default", &[]),
-            |r| Text::literal(r.to_owned()),
-        )
     }
 
     /// `WhitelistCommand`: `on`, `off`, `list`, `reload`, `add` and `remove`.

@@ -10,6 +10,7 @@ use crate::{
     management::{self, Failure, INTERNAL_ERROR, invalid_params},
 };
 use horizon_platform::server_files::properties::{ServerProperties, SystemEntropy};
+use horizon_platform::server_files::user_lists::DEFAULT_BAN_REASON;
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -1171,7 +1172,12 @@ pub fn list_notification(kind: &str, event: &Value) -> Option<(&'static str, Val
         "allowlist_removed" => ("notification/allowlist/removed", player()),
         "bans_added" => (
             "notification/bans/added",
-            ban(("player", player()), &reason, source, expires),
+            ban(
+                ("player", player()),
+                reason.as_deref().unwrap_or(DEFAULT_BAN_REASON),
+                source,
+                expires,
+            ),
         ),
         // `MinecraftServer.onGameRuleChanged`: the rule as a typed rule (the event's own `type` is its kind).
         "gamerule" => (
@@ -1181,20 +1187,22 @@ pub fn list_notification(kind: &str, event: &Value) -> Option<(&'static str, Val
         "bans_removed" => ("notification/bans/removed", player()),
         "ip_bans_added" => (
             "notification/ip_bans/added",
-            ban(("ip", event["ip"].clone()), &reason, source, expires),
+            ban(
+                ("ip", event["ip"].clone()),
+                reason.as_deref().unwrap_or(DEFAULT_BAN_REASON),
+                source,
+                expires,
+            ),
         ),
         "ip_bans_removed" => ("notification/ip_bans/removed", event["ip"].clone()),
         _ => return None,
     })
 }
 
-/// A `UserBanDto` or `IpBanDto`: the reason when there is one, the end as an ISO-8601 instant.
-fn ban(who: (&str, Value), reason: &Option<String>, source: &str, expires: Option<i64>) -> Value {
-    let mut b = json!({ "source": source });
+/// A `UserBanDto` or `IpBanDto`: the reason (never null in 1.21.8), the end as an ISO-8601 instant.
+fn ban(who: (&str, Value), reason: &str, source: &str, expires: Option<i64>) -> Value {
+    let mut b = json!({ "source": source, "reason": reason });
     b[who.0] = who.1;
-    if let Some(reason) = reason {
-        b["reason"] = json!(reason);
-    }
     if let Some(at) = expires.and_then(chrono::DateTime::from_timestamp_millis) {
         b["expires"] = json!(at.to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true));
     }

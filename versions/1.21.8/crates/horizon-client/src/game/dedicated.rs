@@ -15,8 +15,8 @@ use horizon_client::{
         properties::{GAME_MODES, ServerProperties, SystemEntropy},
         user_cache::UserCache,
         user_lists::{
-            BanEntry, BanList, Change, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry,
-            WhiteList, format_date,
+            BanEntry, BanList, Change, DEFAULT_BAN_REASON, IpBanList, NameAndId, OpEntry, OpList,
+            WhiteEntry, WhiteList, format_date,
         },
     },
     text::Text,
@@ -778,15 +778,12 @@ pub(super) fn ban_message(ban: &BanEntry<NameAndId>) -> Tag {
     reason
 }
 /// `BanListEntry.getReason`: the raw reason string.
-fn ban_reason(reason: &Option<String>) -> Tag {
-    match reason {
-        Some(r) => Tag::String(JavaString::from(r.as_str())),
-        // `BanListEntry.getReason()`: 1.21.8 passes the raw reason, and a
-        // null one renders as the literal "null" (`TranslatableContents`
-        // TEXT_NULL). The default-text form came in 1.21.9's
-        // `getReasonMessage()`.
-        None => Tag::String(JavaString::from("null")),
-    }
+/// `BanListEntry.getReason` as the disconnect message's argument: the
+/// reason string, which is never null in 1.21.8 (a ban with no reason
+/// carries "Banned by an operator."). The translatable default came in
+/// 1.21.9's `getReasonMessage()`.
+fn ban_reason(reason: &str) -> Tag {
+    Tag::String(JavaString::from(reason))
 }
 fn translatable_tag(key: &str, args: Vec<Tag>) -> Tag {
     Tag::compound([
@@ -1918,7 +1915,7 @@ impl Game<'_> {
                         "commands.ban.success",
                         &[
                             lit(&user.name),
-                            reason.as_deref().map_or_else(|| lit("null"), lit),
+                            lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON)),
                         ],
                     ));
                     self.kick_uuid(user.id, translatable("multiplayer.disconnect.banned", &[]));
@@ -1967,7 +1964,7 @@ impl Game<'_> {
                     "commands.banip.success",
                     &[
                         lit(&ip),
-                        reason.as_deref().map_or_else(|| lit("null"), lit),
+                        lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON)),
                     ],
                 ));
                 let banned: Vec<(u128, String)> = self
@@ -2057,19 +2054,7 @@ impl Game<'_> {
                     for (name, source, reason) in lines {
                         self.console_reply(Text::translate(
                             "commands.banlist.entry",
-                            &[
-                                lit(&name),
-                                lit(&source),
-                                reason.as_deref().map_or_else(
-                                    || {
-                                        Text::translate(
-                                            "multiplayer.disconnect.banned.reason.default",
-                                            &[],
-                                        )
-                                    },
-                                    lit,
-                                ),
-                            ],
+                            &[lit(&name), lit(&source), lit(&reason)],
                         ));
                     }
                 }

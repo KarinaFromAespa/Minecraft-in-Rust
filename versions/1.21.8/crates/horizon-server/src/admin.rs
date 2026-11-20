@@ -263,7 +263,7 @@ pub fn players(shared: &Shared) -> Response {
     let white: WhiteList = load(dir, "whitelist.json");
     let bans: BanList = load(dir, "banned-players.json");
     let ip_bans: IpBanList = load(dir, "banned-ips.json");
-    let ban = |created: i64, source: &str, expires: Option<i64>, reason: &Option<String>| {
+    let ban = |created: i64, source: &str, expires: Option<i64>, reason: &str| {
         json!({
             "created": format_date(created),
             "source": source,
