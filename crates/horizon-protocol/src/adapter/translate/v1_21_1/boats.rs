@@ -370,7 +370,7 @@ mod tests {
         };
         assert_eq!(
             (p.id, p.uuid, p.kind, p.position, p.yaw, p.pitch),
-            (42, 123, 9, [1.0, 64.0, -1.0], 64, -32)
+            (42, 123, 10, [1.0, 64.0, -1.0], 64, -32)
         );
         // LpVec3 quantizes the velocity each time it crosses the pinned wire format.
         assert!(p.velocity.iter().all(|v| (*v - 0.125).abs() < 0.0001));
