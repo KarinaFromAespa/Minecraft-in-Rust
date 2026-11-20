@@ -951,14 +951,13 @@ impl Environment {
     pub fn value(&self, id: &str, at: &Sample) -> Option<Value> {
         let attribute = attribute(id)?;
         let biome = |_full_resolution: bool| at.biome;
-        let clock = |_clock: &str| at.day_time;
         let post_biome = |_full_resolution: bool| at.post_biome;
         let conditions = Conditions {
             rain: at.rain,
             thunder: at.thunder,
             blend: at.blend,
             biome: &biome,
-            clock: &clock,
+            day_time: at.day_time,
             post_blend: at.post_blend,
             post_biome: Some(&post_biome),
         };

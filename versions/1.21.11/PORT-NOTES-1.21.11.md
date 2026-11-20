@@ -5818,3 +5818,51 @@ passed; `cargo test -p horizon-core --lib geometry::` 29 passed;
 `cargo test -p horizon-client-core --lib uuid::` 2 passed. Rank 2
 now 252/492 (78 changed, 174 no-change). work-items.json
 rank2.closed = 252 on 2026-11-20.
+
+## Item 74 — environment_timeline.rs (rank 2, CHANGED)
+
+5 classes, 24 methods, 6 named. Javap diff (550 lines) and decompile
+diff (573 lines) read in full Nov 20, 2026. Triage note
+`rank2-item-74-TRIAGE.md` (workdir root, scratch); oracle probe in
+`scratch-vf/m74/`.
+
+The 26.x WorldClock system is 26.1-only: 1.21.11's `Timeline` has no
+`clock` and no `time_markers` (codec: `period_ticks` + `tracks` only),
+samples at `Level.getDayTime()`, and has no `getPeriodCount`. Fixes in
+`crates/horizon-world/src/environment_timeline.rs`:
+`Timeline::parse` no longer requires `"clock"` (it failed on 3 of the
+4 shipped 1.21.11 timelines — moon, early_game, villager_schedule have
+no clock; only day.json carries the vestigial one, which the 1.21.11
+codec ignores) and no longer validates `time_markers`; the `clock`
+field and the 26.1-only `period_count` are gone. The environment
+system (`environment_system.rs`, `environment.rs`,
+`environment_system_fixture.rs`) now samples tracks at
+`Conditions.day_time: i64` instead of through a clock-name lookup —
+both call sites already ignored the name and returned the day time,
+so live sampling is unchanged, only the dead 26.x plumbing is gone.
+`solve_t` rewritten to vanilla's `CubicBezier.apply`: a plain 4-step
+Newton loop (gradient checked first, no step clamp, no bisection) —
+the Rust had the 26.3 clamp+bisect shape (`solveT`/`solveTBisect`,
+deleted); fixed here because the item's harness compares bit-exact
+easing output against the 1.21.11 oracle and `EasingType$CubicBezier`
+is in no other item. Verified already correct: the 32-entry EASINGS
+table, Curve sample/gradient, cubic_bezier validation, the
+validateKeyframes mirror (including the last-ticks-seeded repeat
+count), validatePeriod bounds, validateInternal's no-period skip,
+`getCurrentTicks` remainder, and the sampler's floor-modulo loop.
+
+Verification: a Java probe ran the real 1.21.11 `CubicBezier.apply`
+over the driver's five BEZIERS x 13 xs (65 ground-truth bits,
+`scratch-vf/m74/oracle-bits.txt`), pinned in
+`cubic_bezier_matches_the_1_21_11_oracle`; a new
+`timeline_parse_takes_the_1_21_11_codec_shape` test pins the codec
+shape. `cargo test -p horizon-world --lib --no-default-features
+environment_timeline::` 3 passed; `cargo check` clean for
+horizon-client-render and the client_probe example; rustfmt clean on
+all four edited files. Note: the environment_system/timeline harness
+drivers still read `.local/horizon-client/26.3/data/minecraft`
+(T4/harness-repointing scope). `WorldClock`/`ClockManager` mirrors
+remain elsewhere (chat.rs, commands.rs, remote.rs, hub.rs, play.rs,
+datafix/schema.rs, world.rs) — their own items' scope. Rank 2 now
+253/492 (79 changed, 174 no-change). work-items.json rank2.closed =
+253 on 2026-11-20.
