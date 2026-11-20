@@ -480,7 +480,9 @@ pub const ALL: &[Def] = &[
             "entity.axolotl.death"
         ],
         None,
-        Baby::Abs(0.375, 0.21, 0.09375)
+        // 1.21.11 dropped Axolotl.getDefaultDimensions and BABY_DIMENSIONS:
+        // a baby axolotl is the type dims scaled by getAgeScale (0.5).
+        Baby::Scale(0.5, None)
     ),
     def!(
         Squid,

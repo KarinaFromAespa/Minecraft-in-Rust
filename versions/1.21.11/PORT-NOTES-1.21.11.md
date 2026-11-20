@@ -7778,3 +7778,47 @@ mirror exists to remove. Version-neutral gap: vanilla requests a
 scrollbar cursor (POINTING_HAND / RESIZE_NS); the Rust requests
 none there, and `widgets::Cursor` has no ResizeNs variant. Tests:
 `creative::` 24 passed. rustfmt --check clean on creative.rs.
+
+## Item 114 — axolotl (rank 2, CHANGED)
+
+4 classes, 24 methods, 3 named: Axolotl (17, `hurtServer`,
+`onStopAttacking`, `usePlayerItem`), AxolotlAttackablesSensor (5),
+Axolotl$AxolotlAnimationState (1, removed in 1.21.11),
+Axolotl$AxolotlLookControl (1).
+
+Java delta, jar-verified: the brain migrates (`BRAIN_PROVIDER` +
+`makeBrain(Brain$Packed)` via `AxolotlAi.getActivities()` →
+`SENSOR_TYPES` + `MEMORY_TYPES` + `makeBrain(Dynamic)` via
+`AxolotlAi.makeBrain`; sensors identical, 20 memory types); the
+26.1-only baby animation system (7 `AnimationState` fields +
+`tickBabyAnimations`/`soloAnimation`) is gone — 1.21.11 has one
+`tickAnimations()` driving the four `BinaryAnimator`s (10 ticks,
+IN_OUT_SINE) for every age; `BABY_DIMENSIONS` (0.5 × 0.25, eye 0.2)
+is 26.1-only — 1.21.11 babies are the type dims scaled by
+`getAgeScale` (0.5); `hurtServer` draws from `level().random` in
+1.21.11 vs `this.random` in 26.1 (same gate, PLAY_DEAD_TICKS 200);
+`AgeLocked` in bucket tags is 26.1-only; the sensor logic, tags,
+`onStopAttacking`, `finalizeSpawn`, `handleAirSupply`,
+`getBreedOffspring`, `usePlayerItem`, spawn rules and move control
+are identical. Adult type dims jar-verified: `sized(0.75, 0.42)`,
+`eyeHeight(0.2751)`.
+
+Fixes: (1) `Animation::tick` no longer selects a baby keyframe state
+— the four animators run for every age; the `states` field stays
+(all stopped) for item 779 to remove with the model poses. (2) Baby
+dims `Baby::Abs(0.375, 0.21, 0.09375)` → `Baby::Scale(0.5, None)`
+(squid precedent, item 103): w/h were already right, but the eye
+assumed an adult eye of 0.1875 where the jar says 0.2751, so the baby
+eye is 0.13755. (3) `sensors()` citation `BRAIN_PROVIDER` →
+`SENSOR_TYPES`. Recorded, not fixed: the `hurtServer` level-random
+draw — threading the level random through the damage pipeline
+(`damage`/`damage_with`/`hurt_server` + ~15 call sites) is a
+cross-cutting refactor; the draw order and gates are preserved and
+test-pinned. Already mirrored and verified: sensor + tags,
+`on_stop_attacking` + support effects, `finalizeSpawn`,
+air supply (MAX_AIR 6000, dry-out 2.0), `getBreedOffspring` (1/1200
+rare, coin flip, mother's random), `usePlayerItem`,
+`axolotls_spawnable_on`, move control, `AgeLocked` already dropped in
+entity_nbt.rs. Tests: `mobs::axolotl::` 3 passed,
+`mobs::animal_brain::` 6 passed. rustfmt --check clean on axolotl.rs,
+species.rs, animal_brain.rs.

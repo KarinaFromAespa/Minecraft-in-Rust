@@ -303,7 +303,7 @@ enum Sensor {
     AdultAnyType,
 }
 impl Kind {
-    /// `BRAIN_PROVIDER`'s sensors, in order (all scan every 20 ticks).
+    /// `SENSOR_TYPES`, in order (all scan every 20 ticks).
     fn sensors(self) -> &'static [Sensor] {
         match self {
             Kind::Axolotl => &[
