@@ -5866,3 +5866,41 @@ remain elsewhere (chat.rs, commands.rs, remote.rs, hub.rs, play.rs,
 datafix/schema.rs, world.rs) — their own items' scope. Rank 2 now
 253/492 (79 changed, 174 no-change). work-items.json rank2.closed =
 253 on 2026-11-20.
+
+## Item 75 — font.rs (rank 2, NO-CHANGE)
+
+37 classes, 53 methods, 3 named. Javap diff (1032 lines) read in
+full Nov 20, 2026; decompile diff (3645 lines) scanned via a literal
+comparison — every string and numeric literal in all 37 classes is
+identical between versions. Triage note `rank2-item-75-TRIAGE.md`
+(workdir root, scratch). The Java delta is zero: visibility
+(private -> package-private), dropped `Objects.requireNonNull` on
+inner-class outer refs, `GpuDevice`/`CommandEncoder` class (26.1) vs
+interface (1.21.11), `memFree` overload resolution, `Matrix4fc` vs
+`Matrix4f`, the `AtlasManager` package move
+(`model/sprite` -> `model`), lambda naming, and a typeSwitch
+descriptor — no method body, constant or codec field differs. The
+three named methods (`getFontSetRaw`, `getGlyph`,
+`TrueTypeGlyphProviderDefinition.load`) are unchanged. Rust mirrors
+spot-checked against the 1.21.11 decompile and matching:
+unihex parse/`calculateWidth`/advance (left-aligned rows at all
+widths, empty-glyph (0, bitWidth), integer-division advance),
+`getActualGlyphWidth` (rightmost non-transparent column),
+`load_bitmap` (cell math, scale, advance formula, `'\0'` skip,
+height 8 / ascent 7 defaults), size_overrides' string-only
+`CODEPOINT` form (verified by javap on ExtraCodecs), reference
+expansion with filter merging. Data note: `include/unifont.json`
+has an EMPTY providers list in both versions and no `unifont.hex`
+ships in either jar — unihex only matters for packs.
+
+Version-neutral gaps recorded (identical in both versions):
+`fishy_advance` checks one advance where vanilla checks unbolded
+AND bolded; duplicate codepoints in one bitmap provider are
+last-wins in vanilla, first-wins in the Rust; vanilla rejects
+unequal bitmap row lengths and ascent > height, the Rust loads
+them. No Rust edits.
+
+Verification: `cargo test -p horizon-client-render --lib
+--no-default-features font::` 14 passed. Rank 2 now 254/492
+(79 changed, 175 no-change). work-items.json rank2.closed = 254
+on 2026-11-20.
