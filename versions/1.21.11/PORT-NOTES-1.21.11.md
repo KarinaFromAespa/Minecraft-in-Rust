@@ -5221,3 +5221,62 @@ Verification, Nov 20, 2026: `cargo check -p horizon-client-render
 rustfmt --check clean on hud.rs. Rank 2 now 242/492 (71 changed,
 171 no-change).
 work-items.json rank2.closed = 242 on 2026-11-20.
+
+## Item 64 — crates/horizon-client/src/mobs/undead.rs (rank 2, CHANGED)
+
+7 classes, 15 methods, 8 named. Javap diff +166/-197 (517 lines),
+decompile diff 1940 lines (includes Zombie.java, Drowned's
+superclass), both read in full Nov 20, 2026, plus direct `javap` on
+Zombie / ZombieVillager / EntityType / EntityDimensions /
+ProjectileUtil from both jars. Triage note `rank2-item-64-TRIAGE.md`
+(workdir root, scratch).
+
+**Fix — baby zombie-family dimensions.** 26.1 gives Zombie, Drowned
+and ZombieVillager each their own `BABY_DIMENSIONS =
+scalable(0.49, 0.99)` (eyes 0.775 / 0.775 / 0.67) plus a
+`getDefaultDimensions` override. 1.21.11 drops all three:
+`Zombie.BABY_DIMENSIONS = ZOMBIE.getDimensions().scale(0.5)
+.withEyeHeight(0.93)` — the adult 0.6 x 1.95 box (verified from
+`EntityType`'s static init) halved to 0.3 x 0.975, eyes 0.93 — and
+Drowned / ZombieVillager have no `BABY_DIMENSIONS` and no
+`getDefaultDimensions` at all in 1.21.11 (verified by `javap -p`),
+so they inherit Zombie's. The species table had the 26.x shape
+(`Baby::Abs(0.49, 0.98, 0.775/0.67)`) for all three; now
+`Baby::Abs(0.3, 0.975, 0.93)` with Husk-style comments (Husk was
+already fixed in item 34). New test
+`undead::baby_dims_tests::baby_zombies_are_half_the_adult_box` pins
+all four zombie-family entries. REPORT GAP: the report's method
+comparison misses this — Zombie's change is `<clinit>`-only, and
+Zombie is in item 130 only for finalizeSpawn / handleAttributes /
+hurtServer / wantsToPickUp; ZombieVillager is in item 186. Both items
+will find the dims already fixed here.
+
+Everything else identical: RemoveBlockGoal.tick (vy 0.3 + 3 egg crumbs
+at y+0.7, vy -0.3 on even ticks, progress sound every 6, break after
+60 with 20 poofs; only the `ItemParticleOption` ctor and the server
+gate differ), `getPosWithBlock` / `isValidTarget`, the turtle-egg
+sounds (progress 0.5 / 0.9+mob.random*0.2, break 0.7 /
+0.9+level.random*0.2), Drowned finalizeSpawn (3% nautilus shell, 50%
+zombie-nautilus jockey — the jockey exists in BOTH versions),
+spawn rules, equipment, wantsToSwim, travelInWater, performRangedAttack
+(aim lower third, arc dist*0.2, 1.6, 14 - 4*difficulty), getWaterPos,
+DrownedMoveControl, SwimUp/TridentAttack/GoToBeach goals,
+AbstractSkeleton.reassessWeaponGoal (bow in either hand via
+`getWeaponHoldingHand`, hard 20 / normal 40) and performRangedAttack.
+The Rust mirrors all of it (verified constant by constant).
+
+Known version-neutral gaps, recorded not fixed: the turtle-egg break
+sound's pitch is a flat 1.0 in the Rust (vanilla: 0.9 +
+level.random*0.2); the egg-crumb `Particles` event carries no spread
+or speed (vanilla: (rand-0.5)*0.08 per axis, 0.15); the baby-dims
+change also affects the VEHICLE attachment, which the Rust's `Baby`
+model doesn't carry. Zombie's method-level differences belong to item
+130; ZombieVillager's behaviour to item 186.
+
+Verification, Nov 20, 2026: `cargo check -p horizon-client-lib --lib
+--tests --no-default-features` clean (JOBS=1, 33s); `cargo test -p
+horizon-client-lib --lib --no-default-features mobs::undead::` 10
+passed (incl. the new baby-dims test); `... baby_` 25 passed;
+rustfmt --check clean on species.rs and undead.rs. Rank 2 now
+243/492 (72 changed, 171 no-change).
+work-items.json rank2.closed = 243 on 2026-11-20.

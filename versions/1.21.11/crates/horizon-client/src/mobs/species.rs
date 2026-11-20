@@ -672,7 +672,9 @@ pub const ALL: &[Def] = &[
             "entity.zombie.death"
         ],
         Some("entity.zombie.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        // 1.21.11: Zombie.BABY_DIMENSIONS is ZOMBIE 0.6 x 1.95 scaled
+        // 0.5, eye 0.93. 26.1's own 0.49 x 0.99 / eye 0.775 is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         Husk,
@@ -703,7 +705,10 @@ pub const ALL: &[Def] = &[
             "entity.drowned.death"
         ],
         Some("entity.drowned.step"),
-        Baby::Abs(0.49, 0.98, 0.775)
+        // 1.21.11 has no Drowned BABY_DIMENSIONS: a baby drowned inherits
+        // Zombie's (ZOMBIE 0.6 x 1.95 scaled 0.5, eye 0.93). 26.1's
+        // own 0.49 x 0.99 / eye 0.775 override is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         ZombieVillager,
@@ -717,7 +722,10 @@ pub const ALL: &[Def] = &[
             "entity.zombie_villager.death"
         ],
         Some("entity.zombie_villager.step"),
-        Baby::Abs(0.49, 0.98, 0.67)
+        // 1.21.11 has no ZombieVillager BABY_DIMENSIONS: a baby zombie
+        // villager inherits Zombie's (ZOMBIE 0.6 x 1.95 scaled 0.5,
+        // eye 0.93). 26.1's own 0.49 x 0.99 / eye 0.67 override is gone.
+        Baby::Abs(0.3, 0.975, 0.93)
     ),
     def!(
         Skeleton,
