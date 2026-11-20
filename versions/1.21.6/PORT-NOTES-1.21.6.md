@@ -553,3 +553,24 @@ profile stamp quirk (profile stamped 13e76f9, judge's staged
 candidate HEAD 090a9fc7; patch 0006 is dead code in the CI judge,
 as on 26.2, 1.21.7, 1.21.8 and 1.21.9). D6 blocked — no
 playtest.md; the playtest is deferred by the owner, never claimed.
+
+## Final CI proof (run 44814971968, 2026-11-21)
+
+port-verify on behaviour/1.21.6@2077e11 (all 31 items closed, pin
+work-items.json in place, stamp tests updated), success in
+1h03m25s. Profile **2 pass / 2 oracle / 13 fail** of 17 — the same
+as run 44800043813 and the mechanical proof. Passing:
+block_properties, lan. Classified oracle: chunk_generation,
+command_exec; true oracle 9 as above.
+
+Verdict: **failed**. D1 fail — the tag audit finds 37 dead
+production tags, inherited (triage belongs at 1.21.11). D2 pass —
+cargo check 0 errors / 0 warnings, protocol tests 432 / 0. D3 pass
+— rank-1 3/3, rank-2 17/17, rank-3+ inheritance statement read.
+D4/D5 blocked — the profile stamp quirk (profile stamped 2077e11,
+judge's staged candidate HEAD b9d9448c; patch 0006 is dead code in
+the CI judge). On substance D4 fails (datafix and save_roundtrip
+both fail in the profile — datafix on oracle-compile failures,
+save_roundtrip on a server-closed connection) and D5 fails 7/8
+(only block_properties passes of the E6 subset). D6 blocked — no
+playtest.md; the playtest is deferred by the owner, never claimed.
