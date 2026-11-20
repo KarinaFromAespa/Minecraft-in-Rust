@@ -54,6 +54,12 @@ pub struct Navigation {
     pub can_pass_doors: bool,
     pub can_walk_over_fences: bool,
     pub avoid_sun: bool,
+    /// 1.21.9's `GroundPathNavigation.canPathToTargetsBelowSurface`
+    /// (`setCanPathToTargetsBelowSurface`, set only by the copper golem's
+    /// `TransportItemsBetweenContainers`): when true the surface search is
+    /// skipped. 1.21.8 has no such flag — its `createPath` always adjusts
+    /// to the surface — and no 1.21.8 mob sets this (the copper golem has
+    /// no entity type in the 1.21.8 registries), so it stays false here.
     pub below_surface: bool,
     /// WallClimberNavigation.pathToPosition
     climb_to: Option<[i32; 3]>,
@@ -273,7 +279,9 @@ impl Mob {
             (self.navigation_position().y + 0.5).floor() as i32
         }
     }
-    /// GroundPathNavigation.findSurfacePosition.
+    /// `GroundPathNavigation.createPath`'s surface search: the target is
+    /// moved to the surface before pathing (1.21.9 extracted this into
+    /// `findSurfacePosition`).
     fn surface_position(&self, w: &MobWorld, mut p: [i32; 3]) -> [i32; 3] {
         let air = |p: [i32; 3]| w.facts.is_air(w.world.block(p[0], p[1], p[2]));
         let solid = |p: [i32; 3]| w.solid(p[0], p[1], p[2]);
