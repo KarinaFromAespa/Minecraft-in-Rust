@@ -1291,9 +1291,13 @@ fn time_between_hunts(m: &mut Mob) -> i32 {
         .unwrap_or(600)
 }
 /// `StartHuntingHoglin`: an adult piglin that is not angry, has not hunted
-/// recently and sees no adult piglin that has, goes for the nearest adult
+/// recently and sees no adult piglin at all, goes for the nearest adult
 /// hoglin it sees; then it and the adult piglins near it wait before the next
-/// hunt, and the others join in (`broadcastAngerTarget`).
+/// hunt, and the others join in (`broadcastAngerTarget`). 1.21.11 gates on
+/// the bare presence of the `NEAREST_VISIBLE_ADULT_PIGLINS` memory
+/// (`.map(...).isPresent()` — the `hasHuntedRecently` check is dead), where
+/// 26.1 filtered the list for a piglin that hunted recently; a piglin in a
+/// group never initiates a hunt in 1.21.11.
 #[derive(Clone, Debug)]
 struct HuntHoglin {
     found: Option<u32>,
@@ -1323,10 +1327,14 @@ impl Goal for HuntHoglin {
         let range = m.attrs.follow_range;
         let pos = Vec3::new(m.position.x, m.eye_y(), m.position.z);
         let id = m.id;
+        // 1.21.11's `StartHuntingHoglin` gates on the bare presence of the
+        // `NEAREST_VISIBLE_ADULT_PIGLINS` memory (`.map(...).isPresent()`),
+        // so ANY visible adult piglin blocks the hunt — not just one that
+        // hunted recently, as 26.1's `.filter(...)` form did.
         if cx
             .w
             .nearby(pos, range, |s| {
-                s.id != id && s.species == Species::Piglin && !s.baby && s.hunted_recently
+                s.id != id && s.species == Species::Piglin && !s.baby
             })
             .next()
             .is_some()
@@ -2716,5 +2724,88 @@ mod ear_tests {
             assert_eq!(p.get("left_ear")[5], -0.603_598_77, "baby={baby}");
             assert_eq!(p.get("right_ear")[5], 0.603_598_77, "baby={baby}");
         }
+    }
+}
+
+#[cfg(test)]
+mod baby_dims_tests {
+    use super::Species;
+    use crate::mobs::species::{Baby, def};
+
+    /// `Piglin.BABY_DIMENSIONS`: the adult box scaled 0.5 in 1.21.11 (26.x:
+    /// an absolute 0.49 x 0.99), eyes at 0.97.
+    #[test]
+    fn a_baby_piglin_is_half_its_adult_box() {
+        assert_eq!(def(Species::Piglin).baby_scale(), 0.5);
+        assert!(matches!(
+            def(Species::Piglin).baby,
+            Baby::Scale(0.5, Some(0.97))
+        ));
+    }
+}
+
+#[cfg(test)]
+mod hunt_tests {
+    use super::*;
+    use crate::mobs::world::with_test_world;
+    use std::sync::Arc;
+
+    /// Real mobs from the vanilla data, with their goals, at these spots;
+    /// `None` without the data.
+    fn real<const N: usize>(kinds: [&str; N], at: [[f64; 3]; N]) -> Option<[Mob; N]> {
+        let mut out = None;
+        with_test_world(&[], |_, types| {
+            let mut id = 0;
+            out = Some(std::array::from_fn(|i| {
+                id += 1;
+                let kind = Arc::new(types.types[kinds[i]].clone());
+                let mut m = Mob::new(id, kind, Vec3::new(at[i][0], at[i][1], at[i][2]), 0.0);
+                m.on_ground = true;
+                m
+            }));
+        });
+        out
+    }
+
+    fn can_hunt(m: &mut Mob, w: &MobWorld) -> bool {
+        let mut lr = LegacyRandom::new(0);
+        let mut events = Vec::new();
+        let mut cx = Cx {
+            w,
+            lr: &mut lr,
+            events: &mut events,
+        };
+        HuntHoglin::default().can_use(m, &mut cx)
+    }
+
+    /// `StartHuntingHoglin` in 1.21.11: any visible adult piglin blocks the
+    /// hunt — the other piglin here has never hunted, and the huntable hoglin
+    /// is in sight, so under 26.1's filter the hunt would start. A lone
+    /// piglin with the same hoglin in sight does start one.
+    #[test]
+    fn a_piglin_does_not_hunt_while_another_adult_piglin_is_near() {
+        let Some([mut subject, other, hoglin]) = real(
+            ["minecraft:piglin", "minecraft:piglin", "minecraft:hoglin"],
+            [[0.5, 65.0, 0.5], [0.5, 65.0, 5.5], [0.5, 65.0, 10.5]],
+        ) else {
+            return;
+        };
+        assert!(
+            !other.seen(None).hunted_recently,
+            "the other piglin never hunted"
+        );
+        assert!(hoglin.seen(None).huntable, "the hoglin is huntable");
+        with_test_world(&[other.seen(None), hoglin.seen(None)], |w, _| {
+            assert!(
+                !can_hunt(&mut subject, w),
+                "a nearby adult piglin blocks the hunt"
+            );
+        });
+        with_test_world(&[hoglin.seen(None)], |w, _| {
+            assert!(
+                can_hunt(&mut subject, w),
+                "a lone piglin hunts a hoglin in sight"
+            );
+        });
     }
 }

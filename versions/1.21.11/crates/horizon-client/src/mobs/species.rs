@@ -1149,7 +1149,9 @@ pub const ALL: &[Def] = &[
             "entity.piglin.death"
         ],
         Some("entity.piglin.step"),
-        Baby::Abs(0.49, 0.98, 0.78)
+        // 1.21.11: PIGLIN 0.6 x 1.95 scaled 0.5, eye 0.97.
+        // 26.1's own 0.49 x 0.99 / eye 0.78 BABY_DIMENSIONS is gone.
+        Baby::Scale(0.5, Some(0.97))
     ),
     def!(
         PiglinBrute,

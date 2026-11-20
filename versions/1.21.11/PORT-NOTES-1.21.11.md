@@ -2787,3 +2787,82 @@ mobs::fox::`); `cargo check -p horizon-client-lib --lib --tests
 --no-default-features` 0 warnings.
 Rank 2 now 212/492 (47 changed, 165 no-change).
 work-items.json rank2.closed = 212 on 2026-11-20.
+
+## Item 34 — mobs.rs (rank 2, CHANGED)
+
+RenderTypes, EntityModel, AvatarRenderState, Cow, Wolf, Piglin, RingBell,
+ShootTongue, Evoker$EvokerWololoSpellGoal, StartHuntingHoglin,
+FollowPlayerRiddenEntityGoal (+ nested FollowEntityGoal): 12 classes, 72
+methods, 10 named. Harnesses entity_model, mob_ai, mob_attributes,
+natural_spawn, spawner, trading, trial_spawner, vault. Two real
+differences, both jar-verified:
+
+1. Baby piglins are half their adult box: 26.1's `BABY_DIMENSIONS` is an
+   absolute 0.49 x 0.99, eyes 0.78 (with a vehicle attachment); 1.21.11
+   scales the type's dimensions 0.5 with eyes at 0.97 (adult piglin 0.6 x
+   1.95, eye 1.79, verified identical in both jars' `EntityType.PIGLIN`
+   builders), so the baby box is 0.3 x 0.975. The Piglin def in
+   `mobs/species.rs` was `Baby::Abs(0.49, 0.98, 0.78)` (the 0.98 a
+   pre-existing 0.01 slip against vanilla 26.1's 0.99) — now
+   `Baby::Scale(0.5, Some(0.97))`, matching the fox (item 33) and villager
+   (item 20) precedents for the same vanilla `scale(0.5F)` shape.
+2. `StartHuntingHoglin` gates on the bare presence of the
+   `NEAREST_VISIBLE_ADULT_PIGLINS` memory: 26.1 filters the list for a
+   piglin that hunted recently (`Optional.filter`, bytecode-verified);
+   1.21.11 uses `.map(...).isPresent()` (bytecode-verified), which is true
+   whenever the memory is present whatever the mapped boolean is — the
+   `hasHuntedRecently` check is dead. `Brain.setMemoryInternal` erases a
+   memory whose value is an empty collection (verified in the 1.21.11 jar)
+   and the sensor sets the memory to its collected list every tick, so the
+   memory is present iff >=1 adult piglin is visible: a piglin starts a
+   hoglin hunt only when NO adult piglin is visible. A genuine Mojang
+   filter→map regression; the jar is the oracle, so it is ported as-is:
+   `HuntHoglin.can_use` in `mobs/piglin.rs` drops `&& s.hunted_recently`
+   from the nearby-adult-piglin predicate, with the doc comment rewritten.
+
+No-change verdicts (all jar-verified): the wolf texture, sounds and step
+sound, cow sound variants, wolf collar dye, wolf feeding, the
+FollowPlayerRiddenEntityGoal removal, the EntityModel default render type,
+AvatarRenderState.scoreText, Piglin.getSlot and the piglin brain memory
+inventory were all already 1.21.11 in the Rust (see the triage note for the
+per-mirror evidence). Wolf feeding is a NO-DIFF after all: 26.1's
+`TamableAnimal.feed(.., 2.0F, 2.0F)` heals 2.0 x nutrition (or 2.0) and
+calls `playEatingSound()`, which is an EMPTY method in `Animal` (verified
+in the 26.1 jar); 1.21.11 inlines the same heal with no sound. The
+#wolf_collar_dyes tag exists in 26.1 (`#minecraft:dyes`) and is absent in
+1.21.11; on vanilla data both accept exactly the 16 dyes. RingBell (0.95F,
+within 3.0); ShootTongue (1.75F, eat at >=6 ticks, unreachable list max 5,
+100L expiry); Evoker wololo (fangs 5+8 close / 16 line far, 3 vexes,
+blue→red, MOB_GRIEFING gate); Wolf attributes/save/finalizeSpawn/breed/
+canMate/wantsToAttack/tail angle/anger/spawn rules; Wolf `actuallyHurt`
+armor-crack particles (Item vs ItemStack API only); Piglin save/inventory/
+attributes/spawn/finalizeSpawn/mobInteract/`holdInOffHand`/`startRiding`
+(baby hoglin top-passenger, 3 max); `Entity.is(Type)` vs `getType() ==
+Type` equivalent (Wolf PREY_SELECTOR, Piglin startRiding). The `PathType`
+renames are pure renames. Method-name diff run explicitly: the 26.1-only /
+1.21.11-only methods are exactly the RenderTypes reshuffle, the cow/wolf
+sound-variant accessors, `Piglin.getSlot`/`makeBrain` vs `brainProvider`,
+and the removed goal class. Javap string-constant scan: only RenderType
+name strings; no gameplay string changes.
+Pre-existing gaps (both versions, recorded not fixed): the Rust's
+`HuntHoglin.start()` gives nearby adult piglins the `HUNTED_RECENTLY` wait
+as well as the target, where vanilla's `broadcastAngerTarget` sets only the
+anger target (item 19's scope); the Rust's `nearby` gate does not check
+line of sight, where the vanilla memory holds only VISIBLE piglins
+(version-neutral approximation).
+Referrals: item 48 (EnderDragonRenderer — 26.1's `entityCutoutDissolve`
+is gone; `dragon.rs:3448` still cites it), item 56 (BannerRenderer —
+`BANNER_PATTERN` gone), item 343 (EndCrystalRenderer — `END_CRYSTAL_BEAM`
+gone); the item-render sheets and the 1.21.11-only weather render types
+belong to their own items (the Rust has no `RenderTypes` table to rewire).
+Tests: `a_baby_piglin_is_half_its_adult_box` (real assertion, passes
+locally), `a_piglin_does_not_hunt_while_another_adult_piglin_is_near`
+(needs the world fixture — early-returns locally, runs on CI; `sees` was
+verified to resolve through `others` without `who_lookup`, and missing
+chunks read as air for line of sight). All 15 piglin tests pass locally
+(`cargo test -p horizon-client-lib --lib --no-default-features
+mobs::piglin::`); `cargo check -p horizon-client-lib --lib --tests
+--no-default-features` 0 warnings; both touched files `rustfmt --check`
+clean.
+Rank 2 now 213/492 (48 changed, 165 no-change).
+work-items.json rank2.closed = 213 on 2026-11-20.
