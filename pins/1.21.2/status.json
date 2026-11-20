@@ -1,0 +1,24 @@
+{
+ "behaviour": {
+  "closed": 0,
+  "note": "Pin/table infrastructure complete (same-protocol 768 delta from 1.21.3, world 4082 -> 4080, data pack 57.0 and resource pack 42.0 unchanged; no packet rewire or adapter re-base needed; 6/6 tables, two regenerated against 1.21.2's own jar, four confirmed unchanged); behaviour port unstarted. Behaviour code is still the 26.3 base's. The delta is 7 items: 3 rank-1 (pin, version facts), 2 rank-2 (harness reruns), 1 rank-3 (unproved), 1 rank-5.",
+  "total": 7
+ },
+ "harness": {
+  "fail": 13,
+  "note": "CI port-verify run 44635411101 (main@ead0c430, success, 1h29m25s): 2 pass (block_properties, lan) / 2 oracle (chunk_generation, command_exec) / 13 fail. TRUE oracle count is 9: 7 more oracle-compile failures hide in the fail column (component_patch, datafix x6 worlds, first_person, food, item_model, options, resource_pack \u2014 javac CalledProcessError in the harness logs; component_patch's oracle itself fails to compile against the 1.21.2 jars, as at 1.21.3). Real fails: command_parse (10,378 mismatches), entity_components (harness Python TypeError bug), hotbar (329/905 cases match), light (light mismatch against vanilla), save_roundtrip, sound_event (missing sounds.json). Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.",
+  "oracle_fail": 2,
+  "pass": 2,
+  "total": 17
+ },
+ "notes": "CI PROOF run 44635411101 (2026-11-20): verdict failed \u2014 D1 fail (46 dead production tags, inherited from the unported 1.21.11 behaviour), D2 pass (0 errors/0 warnings, 426 protocol tests), D3 fail (0/3 rank-1 items closed), D4 blocked on the stamp quirk in the CI judge (patch 0006 dead code), D5 blocked (no harness-subset.txt at run time), D6 blocked (no playtest; deferred by the owner).",
+ "profile_recorded": "2026-11-20",
+ "protocol": 768,
+ "protocol_tests": {
+  "fail": 0,
+  "note": "CI run 44635411101: 426 pass, none failing (the 2 sandbox-network tests pass on CI, which has network).",
+  "pass": 426
+ },
+ "role": "E6 delta (from 1.21.3)",
+ "version": "1.21.2"
+}
