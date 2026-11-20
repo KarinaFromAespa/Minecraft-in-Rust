@@ -6901,3 +6901,54 @@ Verification: `cargo test -p horizon-protocol --lib buf::`
 9 passed. No files edited. Rank 2 now 270/492 (87 changed,
 183 no-change). work-items.json rank2.closed = 270 on
 2026-11-21.
+
+## Item 92 — streaming.rs (rank 2, NO-CHANGE + citations)
+
+9 classes, 36 methods, 3 named: CompiledSectionMesh,
+SectionRenderDispatcher$RenderSection$CompileTask,
+ChunkGenerationTask, ChunkTaskDispatcher,
+ChunkTaskPriorityQueue, ChunkTracker, ChunkTrackingView (+
+$Positioned), IOWorker$PendingStore.
+
+Java delta, jar-verified: CompiledSectionMesh is the 26.x
+render-state rework reversed — 26.1's `draws: Map<Layer,
+SectionDraw>` + uploaded-flag AtomicBoolean maps vs 1.21.11's
+`buffers: Map<Layer, SectionBuffers>` with `uploadMeshLayer`
+(create/reuse vertex + index GPU buffers, set index count +
+type) and `uploadLayerIndexBuffer` (the translucency re-sort).
+`CompileTask.doTask` returns `SectionTaskResult` directly in
+26.1 vs `CompletableFuture<SectionTaskResult>` in 1.21.11.
+The server classes are API shape only: `ChunkPos.x()`/`z()` ->
+`.x`/`.z` fields, `pack` -> `asLong`/`toLong`, `unpack(long)`
+-> `new ChunkPos(long)`, visibility private -> package-private;
+the ChunkTracker 3x3 loops and ChunkGenerationTask radii are
+identical logic.
+
+Verified matching: no Rust mirror of the SectionDraw/
+SectionBuffers divide (the section pipeline is the Rust's own
+wgpu design); the streaming worker's citations (IOWorker,
+`doTask`, `ChunkTaskPriorityQueue.release`, ChunkGenerationTask
+x-outer/z-inner order, `ChunkTrackingView.isInViewDistance`,
+`ChunkTracker.computeLevelFromNeighbor`) all name members that
+exist identically in both versions.
+
+Citation fixes: `streaming.rs` cited
+`CompiledSectionMesh.compileTaskStartTimeNs` /
+`getCompileTaskStartTime`, which exist in NEITHER 26.1 nor
+1.21.11 (verified by javap on both jars + a package-wide grep)
+— 26.3-only members inherited from the Rust's 26.3 base. Both
+dropped; the docs now describe the Rust's own `sequence` clock.
+
+Referrals: SectionRenderDispatcher (outer) -> item 509 (rank
+3: the 26.1-only buffer-pool sizes, the `pC/aB` vs `pC/pU/aB`
+debug stats, the 1.21.11 upload-task profiler names);
+`LevelRenderer.extractSectionDrawGroups` (gfx.rs:8686, 8933)
+exists in neither version — 26.3-only; LevelRenderer is item
+503 (rank 3).
+
+Verification: literal comparison — the six server classes +
+IOWorker zero; CompiledSectionMesh only the 1.21.11 buffer
+labels + usage flags 40/72. `cargo test -p
+horizon-client-render --lib --no-default-features streaming::`
+29 passed, 2 ignored. Rank 2 now 271/492 (87 changed, 184
+no-change). work-items.json rank2.closed = 271 on 2026-11-21.
