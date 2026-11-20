@@ -1,7 +1,7 @@
 {
   "release": "1.21.11",
   "generated_from": "2015d5e9a53605e626d6dfb97bd8e8a128345e859f29e4709bf28cbbdd06f09a",
-  "note": "E6 template publish: the pin, tables, packet rewire and adapter re-base are done. Rank 1 closed 10/10 on 2026-11-19 (behaviour/1.21.11); rank 2 A-batches 1-19 + items 11, 462, 12, 13, 14, 15, 16 closed 195/492 on 2026-11-19 (32 changed, 163 no-change).",
+  "note": "E6 template publish: the pin, tables, packet rewire and adapter re-base are done. Rank 1 closed 10/10 on 2026-11-19 (behaviour/1.21.11); rank 2 A-batches 1-6 closed 60/492 on 2026-11-19 (13 changed, 47 no-change).",
   "rank1": {
     "total": 10,
     "closed": 10,
@@ -9,7 +9,7 @@
   },
   "rank2": {
     "total": 492,
-    "closed": 195,
+    "closed": 280,
     "accepted": []
   },
   "rank3": {

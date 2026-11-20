@@ -7313,3 +7313,23 @@ Verification: `cargo test -p horizon-client --lib
 --no-default-features game::structure_blocks::` 4 passed. Rank
 2 now 280/492 (93 changed, 187 no-change). work-items.json
 rank2.closed = 280 on 2026-11-21.
+
+## CI proof — run 44789092726 (recorded 2026-11-21)
+
+Branch behaviour/1.21.11 @ 0f75c53 (item 87), SUCCESS in ~2h.
+Profile 5/18/0 of 23 — passing: block_properties,
+component_patch, food, lan, resource_pack (same five as the
+previous record). Delta verdict FAILED: D1 fail (24 dead
+production tags — down from the 31 counted at publish, the
+bamboo/chorus/kelp tag fixes in item 95 account for some),
+D2 pass (cargo check 0 errors/0 warnings, protocol tests
+440/440 on CI), D3 fail (the pin's work-items.json lagged at
+195/492 at dispatch — updated to 280/492 with this record),
+D4/D5 blocked (the profile-stamp quirk: profile stamped for
+0f75c53, the judge's staged tree is e389abf6 — patch 0006 dead
+code, Freebuff's call), D6 blocked (no playtest.md — deferred
+by the owner). Recorded: pins/1.21.11/profile.json (the
+published 1.16 MB profile from the delta-bar artifact, not the
+1.7 KB top-level summary), delta-verdict.json, work-items.json
+(280/492). VERSIONS.md row updated (harness 5/23, behaviour
+290/815).
