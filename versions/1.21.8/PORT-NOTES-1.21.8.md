@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 153/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170 + 4 zero-diff)
+### Rank 2: 154/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171 + 4 zero-diff)
+
+- **Item 171 — `launcher/src/server_list.rs`
+  (1 class, 5 methods, 1 named in Horizon), 1 fix + 1 comment:**
+  `ServerData`: 1.21.9 added the `acceptedCodeOfConduct` field
+  (`hasAcceptedCodeOfConduct`/`acceptCodeOfConduct`/`clearCodeOfConduct`,
+  saved/loaded as the `acceptedCodeOfConduct` NBT key) and moved the
+  `ServerPackStatus` names from `addServer.resourcePack.*` to
+  `manageServer.resourcePack.*`. The code-of-conduct side was already
+  1.21.8 (item 13: `code_of_conduct.rs` documents the prompt as inert and
+  that 1.21.8's ServerData keeps no accepted text; the launcher keeps
+  entries as opaque compounds and never reads the key). The pack-key side
+  was half-fixed: `pack_setting_label` already uses the 1.21.8 keys, but
+  the Edit-server CycleButton narration (`button_narration`, id 60) still
+  used `manageServer.resourcePack.*` — fixed to `addServer.resourcePack.*`
+  (the next-value rotation is shared behaviour, unchanged). The launcher
+  doc comment's field list dropped `acceptedCodeOfConduct` to the 1.21.8
+  form. The `manageServer.edit.title`/`manageServer.add.title` keys
+  (multiplayer.rs:949/951/1344/1346) belong to item 334
+  (`ManageServerScreen`, rank 3), not this item. `cargo check
+  --workspace --all-targets` 0/0.
 
 - **Item 170 — `crates/horizon-protocol/src/item/hash/raw.rs`
   (1 class, 15 methods, 0 named in Horizon), 5 fixes + 3 citations:**

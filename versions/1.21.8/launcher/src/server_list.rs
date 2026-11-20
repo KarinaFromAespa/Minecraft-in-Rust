@@ -1,7 +1,8 @@
 //! The player's server list, `servers.dat` in an instance's game folder: the game's Multiplayer
 //! screen reads and writes the same file. Its format is vanilla's (`ServerList.load`/`save`,
 //! `ServerData.read`/`write`): uncompressed NBT, `servers` a list of compounds with `name`, `ip`,
-//! an optional `icon` (a PNG in base64), `acceptTextures`, `acceptedCodeOfConduct` and `hidden`.
+//! an optional `icon` (a PNG in base64), `acceptTextures` and `hidden` (1.21.9 added
+//! `acceptedCodeOfConduct`; 1.21.8's `ServerData` keeps no accepted text).
 //! The launcher only adds and removes entries: every other field of every entry is written back
 //! as it was read.
 use base64::Engine;

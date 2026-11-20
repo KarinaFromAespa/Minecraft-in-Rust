@@ -998,10 +998,12 @@ impl Screen {
         use crate::widgets::Narratable;
         match self {
             Self::Edit { packs, .. } if id == 60 => {
+                // 1.21.8's keys are addServer.resourcePack.* (manageServer.*
+                // came in 1.21.9), as in `pack_setting_label`.
                 let (key, fallback) = match packs {
-                    Some(true) => ("manageServer.resourcePack.disabled", "Disabled"),
-                    Some(false) => ("manageServer.resourcePack.prompt", "Prompt"),
-                    None => ("manageServer.resourcePack.enabled", "Enabled"),
+                    Some(true) => ("addServer.resourcePack.disabled", "Disabled"),
+                    Some(false) => ("addServer.resourcePack.prompt", "Prompt"),
+                    None => ("addServer.resourcePack.enabled", "Enabled"),
                 };
                 Narratable::cycle(label, crate::lang::get_or(key, fallback), rect, enabled)
             }
