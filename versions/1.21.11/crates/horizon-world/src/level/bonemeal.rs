@@ -515,7 +515,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 }
             }
             Kind::Grass => self.grass_bonemeal(pos, state),
-            Kind::Nylium => self.place_configured_feature("minecraft:nylium_bonemeal", up),
+            Kind::Nylium => {
+                // No build-height gate: neither version's
+                // `NyliumBlock.performBonemeal` checks one.
+                self.place_configured_feature("minecraft:nylium_bonemeal", up);
+            }
             Kind::Netherrack => {
                 let (warped, crimson) = self.netherrack_nylium_near(pos);
                 let warped_state = self.block_named("minecraft:warped_nylium");
