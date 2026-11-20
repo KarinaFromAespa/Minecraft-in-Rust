@@ -5592,7 +5592,7 @@ impl Game<'_> {
             C::BlockEntityData(p) => self.remote_block_entity_data(p.pos, p.kind, &p.tag),
             C::OpenSignEditor(p) => self.remote_open_sign_editor(p),
             C::OpenBook(p) => self.remote_open_book(p.hand),
-            // handleSetSpawn: ClientLevel.setRespawnData, which spawn compasses point at.
+            // handleSetSpawn: ClientLevel.setDefaultSpawnPos, which spawn compasses point at.
             C::SetDefaultSpawnPosition(p) => {
                 let [x, y, z] = p.pos;
                 // 1.21.8 sends no dimension: the packet only ever means the world

@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 92/163 (327–364 + 366–369 + 371–420 + 73 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–419)
+### Rank 3: 101/163 (327–364 + 366–369 + 371–422 + 424–430 + 81 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–430)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7650,6 +7650,30 @@ includes constant-pool churn.
   renderers (water, heightmap, collision, light, solid faces)
   are deleted with `game/debug_renderers.rs`: vanilla 1.21.8
   constructs them but never renders them.
+
+- **Item 425 — the shelf renderer is removed:** 1.21.8 has no
+  `ShelfRenderer` and no `SideChainPartBlock` (both 1.21.9-only),
+  and no `ON_SHELF` display context. `shelf_geometry` is deleted
+  with its call in the block-entity geometry pass; the slot
+  interaction (`use_shelf`/`shelf_hit`) and the world-level shelf
+  power/side-chain code stay, dead by data — no shelf block can
+  exist in 1.21.8, the same standing as the copper-golem files
+  (item 350).
+
+- **Item 430 — `ClientLevel`: already 1.21.8-form except the End
+  flash (item 461):** the explosion debris tracker was never
+  ported (the emitter's children are the debris); the border is
+  the one `WorldBorder` on Game, not a client-level field; the
+  spawn is the shared world spawn (`setDefaultSpawnPos`, item
+  363); block entities tick after the entity passes; particle
+  adding carries the 1024-distance and `ParticleStatus` logic
+  1.21.8's `LevelRenderer.addParticle` has; destroy/breaking
+  particles carry the 0.25-grid and `ParticleEngine.crack`
+  numbers. The `EndFlashState` removal (field, tick, the
+  `WEATHER_END_FLASH` sound) is item 461's — the flash spans
+  `end.rs`, the sky and the shader packs. Folded in: the
+  `setRespawnData` citation at `remote.rs` is now
+  `setDefaultSpawnPos`.
 
 ### Rank 4 content: closed 2/2 (chain)
 

@@ -6767,7 +6767,6 @@ impl Game<'_> {
         self.mark_entity(out.len(), "");
         self.campfire_geometry(camera, &mut out);
         self.brushable_geometry(camera, &mut out);
-        self.shelf_geometry(camera, &mut out);
         self.mark_entity(out.len(), "minecraft:ominous_item_spawner");
         self.ominous_item_spawner_geometry(camera, alpha, &mut out);
         laps.lap("eg_items_misc");
