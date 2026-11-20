@@ -5847,7 +5847,11 @@ impl Game<'_> {
             || self.dialog_open())
             && self.player.is_none()
         {
-            HudBatch::new(size)
+            // No level HUD behind a prompt: the debug overlay still draws
+            // under it, as `Gui.render` draws it under every screen.
+            let mut batch = HudBatch::new(size);
+            self.draw_debug_overlay(&mut batch, size);
+            batch
         } else {
             self.hud_layers(size)
         };
@@ -5862,9 +5866,6 @@ impl Game<'_> {
         // The ToastManager draws over every screen, the title and the
         // options included: the narrator's toast follows the player there.
         self.draw_narrator_toast(&mut batch);
-        // Gui.extractRenderState: the debug overlay comes after the screen
-        // and the toasts, so it is over everything, menus included.
-        self.draw_debug_overlay(&mut batch, size);
         self.frame_graph
             .draw(self.settings.horizon.overlay, &mut batch, &self.gui.atlas);
         self.draw_pad_cursor(&mut batch);
@@ -5885,6 +5886,8 @@ impl Game<'_> {
             self.show_calibration((w, h));
         }
         if self.screen == Screen::Win {
+            // `Gui.render`: the debug overlay draws under the screen.
+            self.draw_debug_overlay(&mut batch, size);
             self.draw_win_screen(&mut batch);
             // The early return skips the match below: the hook still sees the
             // screen, after its own drawing.
@@ -5896,6 +5899,8 @@ impl Game<'_> {
                 self.flush_skin_slots();
                 self.update_remote_skins();
             }
+            // `Gui.render`: the debug overlay draws under the screen.
+            self.draw_debug_overlay(&mut batch, size);
             self.draw_options(&mut batch);
             self.fire_screen_render_post(&mut batch);
             self.draw_split_hud(&mut batch, true);
@@ -5931,6 +5936,8 @@ impl Game<'_> {
             return batch;
         }
         if self.title.is_some() {
+            // `Gui.render`: the debug overlay draws under the screen.
+            self.draw_debug_overlay(&mut batch, size);
             // TitleScreen.extractRenderState, then ToastManager over it: vanilla
             // draws the toast manager on every screen, so a pack download or a
             // resource-reload failure still shows on the title (#4428).
@@ -5958,6 +5965,10 @@ impl Game<'_> {
         let _ = atlas_ptr;
         // The ToastManager draws over every screen: a server's packs
         // download while the connection screen shows.
+        // `Gui.render`: the debug overlay draws under the screen.
+        if self.remote_screen_up() {
+            self.draw_debug_overlay(&mut batch, size);
+        }
         if self.remote_overlay(&mut batch) {
             self.draw_pack_toasts(&mut batch, false);
             self.draw_music_toast(&mut batch, false);
@@ -6190,6 +6201,10 @@ impl Game<'_> {
         self.gui_layer("minecraft:sleep_overlay", &mut batch, |g, batch| {
             hud_layout::paint(batch, &g.gui.atlas, &draws);
         });
+        // `Gui.render`: the debug overlay comes after the boss bars and
+        // the sleep overlay, before the scoreboard, titles and chat —
+        // under the screen that follows.
+        self.draw_debug_overlay(&mut batch, size);
         if show_hud {
             self.gui_layer("minecraft:overlay_message", &mut batch, |g, batch| {
                 g.draw_overlay_message(batch);
@@ -6223,8 +6238,10 @@ impl Game<'_> {
                 g.draw_tab_list(batch);
             });
         }
-        // Screen.extractBlurredBackground blurs the world and HUD, while the
-        // screen's background, widgets, toasts and debug overlay stay sharp.
+        // Screen.extractBlurredBackground blurs the world and HUD, the
+        // debug overlay included (it is part of the GUI pass, drawn
+        // before the screen), while the screen's background, widgets
+        // and toasts stay sharp.
         batch.blur_at = batch.vertices.len() as u32;
         // PackConfirmScreen takes the open screen's place (it comes back once
         // the prompt is answered): the screen under the prompt isn't drawn.

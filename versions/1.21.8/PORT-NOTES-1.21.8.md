@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 16/163 (327–335 + 10 zero-diff: 332, 333, 335, 356, 372, 382–385, 396)
+### Rank 3: 17/163 (327–336 + 10 zero-diff: 332, 333, 335, 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7422,6 +7422,32 @@ includes constant-pool churn.
   and the disconnect-screen fallback have no Rust surface; the
   CustomClickAction packet exists in 1.21.8) are zero-diff. Cargo
   check 0/0.
+- **Item 336 — `crates/horizon-client/src/debug_overlay.rs`,
+  `crates/horizon-client/src/game/debug_lines.rs`,
+  `crates/horizon-client/src/game/debug_keys.rs`,
+  `crates/horizon-client/src/game.rs` (DebugScreenOverlay, 2 named
+  methods), the F3 overlay to the 1.21.8 forms:** the gate is
+  `renderDebug && !hideGui` — F1 hides it even over the title, and it
+  no longer depends on any entry being enabled; the columns are
+  1.21.8's fixed `getGameInformation` / `getSystemInformation` (the
+  1.21.9 count-split and its auto-blanks are gone), with the Block
+  line carrying the chunk-relative coordinates in brackets, the
+  dimension line first with a blank after it, the day on the Local
+  Difficulty line, `Local Difficulty: ??` with no server chunk, the
+  reduced list ending in `Chunk-relative: x y z`, and the one sound
+  line (channels + mood); the 1.21.9-only `day_count` and
+  `sound_cache` lines are dropped. It now draws in the GUI pass,
+  under the screens (after the boss bars and sleep overlay, before
+  the scoreboard) — 1.21.9 drew it over everything, after the
+  toasts — and is blurred with the HUD by a screen's background
+  blur. Zero-diff: getServerChunk's null guards (the Rust's
+  server_debug already returns None without a server or feet) and
+  the chart toggles. The per-entry profile system and the F3+F6
+  edit screen are item 420's; the enabled subset is still
+  profile-governed here. Cargo check 0/0; `cargo check --tests -p
+  horizon-client-lib` clean (the rewritten overlay tests compile;
+  the lib test binary itself OOMs linking locally under 3-stream
+  load at -j 1 and -j 2, so the tests run on CI).
 
 ### Rank 4 content: closed 2/2 (chain)
 

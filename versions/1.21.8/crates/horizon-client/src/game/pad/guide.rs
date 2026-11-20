@@ -39,9 +39,9 @@ impl Game<'_> {
             && !self.screen_over_playing()
             && self.sleeping.is_none()
             && self.player.is_some()
-            && !self
-                .debug_entries
-                .any_enabled(self.debug, self.reduced_debug_info())
+            // `showDebugScreen`: the overlay is up while F3 is on (F1's
+            // hidden HUD never gets here).
+            && !self.debug
     }
 
     /// Draw the guide (F1's hidden HUD never gets here). `from` is the batch's first vertex of

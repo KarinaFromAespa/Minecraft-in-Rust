@@ -1,6 +1,8 @@
-//! `DebugScreenOverlay`: the F3 text. The enabled entries
-//! (`debug-profile.json`) report priority lines, regular lines and groups; the overlay splits them into a left and a right column and draws
-//! them last, over any screen, at the debug GUI scale.
+//! `DebugScreenOverlay`: the F3 text. 1.21.8 draws two fixed columns —
+//! `getGameInformation` on the left, `getSystemInformation` on the right —
+//! as part of the GUI pass, under any open screen. (1.21.9 replaced them
+//! with per-entry priority lines, regular lines and groups split between
+//! the columns by count, drawn over everything.)
 use crate::{
     font::Font,
     hud::HudVertex,
@@ -50,67 +52,65 @@ impl PaintCache {
     }
 }
 
-/// What the enabled entries reported (`DebugScreenDisplayer`).
-#[derive(Default, Debug)]
+/// What the enabled entries reported, in 1.21.8's two fixed columns:
+/// `getGameInformation` on the left, `getSystemInformation` on the right.
+/// Lines go to the selected column, in the order added; blank lines are
+/// explicit content, as in vanilla's lists (1.21.9's count-split and its
+/// blank after every group are gone).
+#[derive(Debug)]
 pub struct Displayer {
     left: Vec<String>,
     right: Vec<String>,
-    lines: Vec<String>,
-    groups: Vec<(&'static str, Vec<String>)>,
+    on_left: bool,
+}
+
+impl Default for Displayer {
+    fn default() -> Self {
+        Self {
+            left: Vec::new(),
+            right: Vec::new(),
+            on_left: true,
+        }
+    }
 }
 
 impl Displayer {
-    /// `addPriorityLine`: to the shorter column, the left one first.
+    /// The next lines go to the left column (`getGameInformation`).
+    pub fn left(&mut self) {
+        self.on_left = true;
+    }
+    /// The next lines go to the right column (`getSystemInformation`).
+    pub fn right(&mut self) {
+        self.on_left = false;
+    }
+    /// A line in the selected column. (1.21.9's `addPriorityLine` put it
+    /// in the shorter column; 1.21.8 has no priority lines.)
     pub fn priority(&mut self, line: impl Into<String>) {
-        if self.left.len() > self.right.len() {
-            self.right.push(line.into());
-        } else {
-            self.left.push(line.into());
-        }
+        self.line(line);
     }
-    /// `addLine`: split between the columns after the priority lines.
+    /// `addLine`: a line in the selected column.
     pub fn line(&mut self, line: impl Into<String>) {
-        self.lines.push(line.into());
+        if self.on_left {
+            self.left.push(line.into());
+        } else {
+            self.right.push(line.into());
+        }
     }
-    /// `addToGroup`: lines kept together, groups in the order first added.
+    /// `addToGroup`: lines kept together, in the selected column. Groups
+    /// in the order first added.
     pub fn group(&mut self, group: &'static str, lines: impl IntoIterator<Item = String>) {
-        let index = match self.groups.iter().position(|(g, _)| *g == group) {
-            Some(i) => i,
-            None => {
-                self.groups.push((group, Vec::new()));
-                self.groups.len() - 1
-            }
-        };
-        self.groups[index].1.extend(lines);
+        let _ = group;
+        if self.on_left {
+            self.left.extend(lines);
+        } else {
+            self.right.extend(lines);
+        }
     }
-    /// `extractRenderState`: the left and right columns, then `footer` (the
-    /// chart keys, shown while the overlay is open) under the left one.
+    /// The left and right columns, then `footer` (the chart keys, shown
+    /// while the overlay is open) under the left one, after a blank line —
+    /// `drawGameInformation`'s tail.
     pub fn columns(self, footer: &[String]) -> (Vec<String>, Vec<String>) {
-        let (mut left, mut right) = (self.left, self.right);
-        if !left.is_empty() {
-            left.push(String::new());
-        }
-        if !right.is_empty() {
-            right.push(String::new());
-        }
-        if !self.lines.is_empty() {
-            let mid = self.lines.len().div_ceil(2);
-            left.extend_from_slice(&self.lines[..mid]);
-            right.extend_from_slice(&self.lines[mid..]);
-            left.push(String::new());
-            if mid < self.lines.len() {
-                right.push(String::new());
-            }
-        }
-        let mid = self.groups.len().div_ceil(2);
-        for (i, (_, lines)) in self.groups.into_iter().enumerate() {
-            if lines.is_empty() {
-                continue;
-            }
-            let column = if i < mid { &mut left } else { &mut right };
-            column.extend(lines);
-            column.push(String::new());
-        }
+        let (mut left, right) = (self.left, self.right);
         if !footer.is_empty() {
             left.push(String::new());
             left.extend_from_slice(footer);
@@ -185,7 +185,18 @@ pub fn position(
             java_text::format_fixed(pos[1], 5),
             java_text::format_fixed(pos[2], 3),
         ),
-        format!("Block: {} {} {}", block[0], block[1], block[2]),
+        // `getGameInformation`: the Block line carries the chunk-relative
+        // coordinates in brackets; there is no separate section line in
+        // the full list (the reduced list ends with "Chunk-relative").
+        format!(
+            "Block: {} {} {} [{} {} {}]",
+            block[0],
+            block[1],
+            block[2],
+            block[0] & 15,
+            block[1] & 15,
+            block[2] & 15
+        ),
         format!(
             "Chunk: {cx} {sy} {cz} [{} {} in r.{}.{}.mca]",
             cx & 31,
@@ -199,12 +210,6 @@ pub fn position(
             java_text::format_fixed(wrap_degrees(pitch) as f64, 1),
         ),
         format!("{dimension} FC: {forced}"),
-        format!(
-            "Section-relative: {:02} {:02} {:02}",
-            block[0] & 15,
-            block[1] & 15,
-            block[2] & 15
-        ),
     ]
 }
 
@@ -403,7 +408,7 @@ pub fn spawn_counts_line(chunks: i32, counts: &[i32; 8]) -> String {
 }
 
 /// `DebugEntryLocalDifficulty` with `DifficultyInstance.getSpecialMultiplier`.
-pub fn local_difficulty_line(effective: f32) -> String {
+pub fn local_difficulty_line(effective: f32, day: i64) -> String {
     let special = if effective < 2.0 {
         0.0
     } else if effective > 4.0 {
@@ -411,10 +416,14 @@ pub fn local_difficulty_line(effective: f32) -> String {
     } else {
         (effective - 2.0) / 2.0
     };
+    // `getGameInformation`: the day rides on the difficulty line
+    // ("Local Difficulty: %.2f // %.2f (Day %d)"); 1.21.9 split it into
+    // its own `day_count` entry.
     format!(
-        "Local Difficulty: {} // {}",
+        "Local Difficulty: {} // {} (Day {})",
         java_text::format_fixed(effective as f64, 2),
         java_text::format_fixed(special as f64, 2),
+        day
     )
 }
 
@@ -639,12 +648,18 @@ mod tests {
             spawn_counts_line(289, &[3, 10, 1, 0, 0, 2, 4, 0]),
             "SC: 289, MO: 3, C: 10, AM: 1, AX: 0, UWC: 0, WC: 2, WA: 4, MI: 0"
         );
-        assert_eq!(local_difficulty_line(1.5), "Local Difficulty: 1.50 // 0.00");
         assert_eq!(
-            local_difficulty_line(2.25),
-            "Local Difficulty: 2.25 // 0.13"
+            local_difficulty_line(1.5, 3),
+            "Local Difficulty: 1.50 // 0.00 (Day 3)"
         );
-        assert_eq!(local_difficulty_line(3.0), "Local Difficulty: 3.00 // 0.50");
+        assert_eq!(
+            local_difficulty_line(2.25, 3),
+            "Local Difficulty: 2.25 // 0.13 (Day 3)"
+        );
+        assert_eq!(
+            local_difficulty_line(3.0, 3),
+            "Local Difficulty: 3.00 // 0.50 (Day 3)"
+        );
         assert_eq!(light_line(12, 14), "Client Light: 14 (12 sky, 14 block)");
     }
 
@@ -701,73 +716,60 @@ mod tests {
 
     #[test]
     fn columns_follow_the_vanilla_split() {
-        // The default profile's entries, sorted by identifier as
-        // DebugScreenEntryList.rebuildCurrentList does: fps, game_version,
-        // memory, player_position, player_section_position,
-        // simple_performance_impactors, system_specs, tps.
+        // 1.21.8's two fixed columns: `getGameInformation` on the left,
+        // `getSystemInformation` on the right, the footer under the left.
         let mut d = Displayer::default();
+        d.left();
+        d.priority("Minecraft 1.21.8 (1.21.8/horizon)");
         d.priority("112 fps T: 120 (fifo) @165Hz");
-        d.priority("Minecraft 26.3 (26.3/vanilla)");
+        d.line("Integrated server @ 6.6/50.0 ms, 28 tx, 492 rx");
+        d.group("position", lines(&["XYZ: 1 / 2 / 3", "Block: 1 2 3 [1 2 3]"]));
+        d.right();
         d.group("memory", lines(&["Mem: 25% 1046/4096MiB"]));
-        d.group("position", lines(&["XYZ: 1 / 2 / 3", "Block: 1 2 3"]));
-        d.group("position", lines(&["Section-relative: 01 02 03"]));
-        d.line("fancy-clouds B: 2");
-        d.line("Filtering: RGSS");
-        d.line("Terrain Rendering: multidrawindirect");
+        d.line(String::new());
         d.group(
             "system",
             lines(&["CPU: 12x Ryzen", "Display: 854x709 (NVIDIA)"]),
         );
-        d.line("Integrated server @ 6.6/50.0 ms, 28 tx, 492 rx");
-        let footer = lines(&["Debug charts: ...", "To edit: press [F3+F6]"]);
+        let footer = lines(&["Debug charts: ...", "For help: press [F3+Q]"]);
         let (left, right) = d.columns(&footer);
-        // As the issue's vanilla screenshot (#376) shows them.
         assert_eq!(
             left,
             lines(&[
+                "Minecraft 1.21.8 (1.21.8/horizon)",
                 "112 fps T: 120 (fifo) @165Hz",
-                "",
-                "fancy-clouds B: 2",
-                "Filtering: RGSS",
-                "",
-                "Mem: 25% 1046/4096MiB",
-                "",
+                "Integrated server @ 6.6/50.0 ms, 28 tx, 492 rx",
                 "XYZ: 1 / 2 / 3",
-                "Block: 1 2 3",
-                "Section-relative: 01 02 03",
-                "",
+                "Block: 1 2 3 [1 2 3]",
                 "",
                 "Debug charts: ...",
-                "To edit: press [F3+F6]",
+                "For help: press [F3+Q]",
             ])
         );
         assert_eq!(
             right,
             lines(&[
-                "Minecraft 26.3 (26.3/vanilla)",
-                "",
-                "Terrain Rendering: multidrawindirect",
-                "Integrated server @ 6.6/50.0 ms, 28 tx, 492 rx",
+                "Mem: 25% 1046/4096MiB",
                 "",
                 "CPU: 12x Ryzen",
                 "Display: 854x709 (NVIDIA)",
-                "",
             ])
         );
     }
 
     #[test]
     fn position_lines_match_vanilla() {
-        // The issue's vanilla screenshot (#376).
+        // `getGameInformation`: the Block line carries the chunk-relative
+        // coordinates in brackets; the dimension line comes last here and
+        // the caller moves it (with the blank after it) ahead of XYZ.
         assert_eq!(
             position([108.5, 104.0, -51.5], -1.0, 7.1, "minecraft:overworld", 0),
             lines(&[
                 "XYZ: 108.500 / 104.00000 / -51.500",
-                "Block: 108 104 -52",
+                "Block: 108 104 -52 [12 8 12]",
                 "Chunk: 6 6 -4 [6 28 in r.0.-1.mca]",
                 "Facing: south (Towards positive Z) (-1.0 / 7.1)",
                 "minecraft:overworld FC: 0",
-                "Section-relative: 12 08 12",
             ])
         );
         assert_eq!(

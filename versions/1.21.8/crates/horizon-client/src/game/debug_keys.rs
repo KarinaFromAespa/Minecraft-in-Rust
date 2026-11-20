@@ -299,23 +299,23 @@ impl Game<'_> {
             ),
         ]
     }
-    /// `Gui.extractRenderState`'s debug overlay, over everything the frame
-    /// drew (menus too); the debug options screen draws it under itself.
+    /// `Gui.render`'s debug overlay, under the screen that follows (the
+    /// debug options screen draws it under itself). 1.21.9 drew it over
+    /// everything, after the toasts.
     pub(super) fn draw_debug_overlay(&self, batch: &mut HudBatch, size: [u32; 2]) {
         if self.screen != Screen::DebugOptions {
             self.draw_debug_overlay_under(batch, size);
         }
     }
-    /// `DebugScreenOverlay.extractRenderState`: the enabled entries' lines
-    /// (`debug-profile.json`), at the debug GUI scale, and the charts while
-    /// the overlay is open. F1 hides it unless a screen is open. Horizon paints
-    /// it 20 times a second and copies those vertices in between.
+    /// `DebugScreenOverlay.showDebugScreen`: the overlay shows while F3 is
+    /// on and F1 is not hiding the HUD — `renderDebug && !hideGui`,
+    /// whatever screen is open. (1.21.9 showed it whenever any entry was
+    /// enabled, and let an open screen override F1.) The enabled entries'
+    /// lines, at the debug GUI scale, and the charts while the overlay is
+    /// open. Horizon paints it 20 times a second and copies those
+    /// vertices in between.
     pub(super) fn draw_debug_overlay_under(&self, batch: &mut HudBatch, size: [u32; 2]) {
-        let screen_open = self.title.is_some() || self.screen != Screen::Playing;
-        let reduced = self.reduced_debug_info();
-        if !self.debug_entries.any_enabled(self.debug, reduced)
-            || (self.ui.hide_gui && !screen_open)
-        {
+        if !self.debug || self.ui.hide_gui {
             // Nothing reads the server's lines now: it stops computing them each tick.
             if let Some(server) = &self.integrated {
                 server.request_debug(None);
@@ -455,7 +455,9 @@ impl Game<'_> {
         ));
     }
     /// `DebugScreenOverlay.getSystemInformation` (no Java line: Horizon has
-    /// no JVM). 1.21.9 renders the same lines from `DebugEntrySystemSpecs`.
+    /// no JVM): the CPU line, a blank, then the display, renderer and
+    /// backend lines. (The memory lines come from the memory entry, with
+    /// their own blank after them.)
     pub(super) fn debug_system_lines(
         &self,
         d: &mut debug_overlay::Displayer,
@@ -469,6 +471,8 @@ impl Game<'_> {
                     DEBUG_CPU.get_or_init(horizon_client::crash::cpu)
                 )],
             );
+            // `getSystemInformation`: a blank line after the CPU line.
+            d.line(String::new());
             let info = &r.info;
             d.group(
                 "system",

@@ -669,11 +669,13 @@ mod tests {
             "F3 must paint even without a level"
         );
         assert!(game.title.is_some());
-        // Gui treats the title as an open screen even when F1 hides the HUD.
+        // 1.21.8's `showDebugScreen` is `renderDebug && !hideGui`: F1
+        // hides the overlay even over the title (1.21.9 let an open
+        // screen override F1).
         game.ui.hide_gui = true;
         let mut hidden_hud = HudBatch::new([1280, 720]);
         game.draw_debug_overlay_under(&mut hidden_hud, [1280, 720]);
-        assert!(!hidden_hud.vertices.is_empty());
+        assert!(hidden_hud.vertices.is_empty());
         game.debug_key(KeyCode::F3, KeyAction::Press);
         game.debug_key(KeyCode::F3, KeyAction::Release);
         assert!(!game.debug);
