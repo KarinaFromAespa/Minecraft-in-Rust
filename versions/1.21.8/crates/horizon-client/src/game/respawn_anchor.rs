@@ -37,7 +37,9 @@ pub(super) struct RespawnConfig {
 pub(super) type SavedRespawn = (String, [i32; 3], f32, bool);
 
 impl RespawnConfig {
-    /// `RespawnData.of`: the yaw wrapped to [-180, 180).
+    /// The yaw wrapped to [-180, 180), as entity yaw always is
+    /// (`Mth.wrapDegrees`). 1.21.9's `RespawnData` carries a yaw and a
+    /// pitch; 1.21.8's `RespawnConfig` has a yaw only.
     pub(super) fn wrapped(dim: Dim, pos: [i32; 3], yaw: f32, forced: bool) -> Self {
         Self {
             dim,
