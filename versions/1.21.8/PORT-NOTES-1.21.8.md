@@ -334,7 +334,23 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 143/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160 + 4 zero-diff)
+### Rank 2: 144/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161 + 4 zero-diff)
+
+- **Item 161 — `crates/horizon-client/src/game/advancements.rs`
+  (3 classes, 6 methods, 1 named in Horizon), zero-diff:**
+  `DisplayInfo`: 1.21.9 types the background as
+  `ClientAsset.ResourceTexture`, 1.21.8 as plain
+  `ClientAsset` — a Java-only type refinement; the codec
+  shape and the wire format (flag bit 1 + ResourceLocation)
+  are identical, and the Rust `Display.background` is an
+  `Option<String>` in either case. `Advancement$Builder`
+  (javap — in neither decomp tree): bytecode identical
+  after constant-pool normalization. `KnowledgeBookItem.use`
+  differs only in the client-side test — the
+  `isClientSide()` method vs the `isClientSide` field, same
+  value; the Rust `use_knowledge_book` mirrors the shared
+  behaviour (named recipes become known, the book is used
+  up, an unknown recipe knows nothing).
 
 - **Item 160 — `crates/horizon-client/src/spectator_menu.rs`
   (3 classes, 7 methods, 1 named in Horizon), citation only:**
