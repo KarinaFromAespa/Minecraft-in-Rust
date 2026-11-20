@@ -5731,3 +5731,47 @@ horizon-client-render --lib --no-default-features sound_preview::`
 `debug_entries::` 5 passed; rustfmt --check clean on the five
 edited leaf files. Rank 2 now 250/492 (78 changed, 172 no-change).
 work-items.json rank2.closed = 250 on 2026-11-20.
+
+## Item 72 — game/potions.rs (Breeze / potions / XP bottle) (rank 2, NO-CHANGE)
+
+7 classes, 17 methods, 7 named in Horizon. Javap diff read in
+full Nov 20, 2026 (310 lines); decompile diff read in full (1120
+lines); extra manual decompiles in `scratch-vf/m72/` (Breeze both
+versions, ProjectileDeflection 1.21.11, Monster both versions,
+BreezeAi both versions). Triage note `rank2-item-72-TRIAGE.md`
+(workdir root, scratch).
+
+Java delta is API shape plus one random-stream move, all already
+1.21.11-shaped in the Rust. Breeze: the 26.1 brain-provider
+refactor undone (1.21.11's `BreezeAi.makeBrain` still sets default
+FIGHT with the same four sensors, verified from the jar);
+`canAttack` -> `canAttackType` (PLAYER or IRON_GOLEM, super checks
+via the pipeline); `deflection` `is()` -> `getType() ==` (wind
+charges NONE, else REVERSE); `getSoundSource` HOSTILE is redundant
+(Monster returns HOSTILE in both versions, verified by javap);
+`JUMP_DUST_PARTICLES_AMOUNT = 20` is declared but never used in
+1.21.11 (the tick uses the literal 20 in both versions);
+path-malus renames (`DANGER_TRAPDOOR`, `DAMAGE_FIRE`). The XP
+bottle draws its 3 + d5 + d5 from the LEVEL random in 1.21.11 (the
+entity's own in 26.1) — the Rust already uses `world.random`.
+Oozing, AreaEffectCloud, BottleItem, PotionItem.useOn and
+ThrowablePotionItem differ only by visibility, generics,
+`getRandom()` -> `random`, or the `PROJECTILE_SHOOT_POWER`
+final-ness (0.5 in both). Rust verified throughout: breeze
+malus/targeting/tick particles/deflection (wind charges exempt,
+REVERSE with the 170 + jitter*20 yaw turn, BREEZE_DEFLECT sound),
+oozing slime count/spawn, cloud tick (wait, radius, five-tick
+doses, 0.5 instant factor), mud conversion, bottle fills. No Rust
+edits.
+
+Version-neutral gaps recorded (identical in both versions): a
+thrown potion deflected by a breeze does not rotate its yaw (the
+random is drawn but discarded; unobservable for potions);
+`BottleItem.use`'s `mayInteract` check has no Rust mirror.
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::potions::` 11 passed, 7 ignored
+(fixtures); `cargo test -p horizon-client-lib --lib
+--no-default-features mobs::breeze::` 7 passed. Rank 2 now
+251/492 (78 changed, 173 no-change). work-items.json
+rank2.closed = 251 on 2026-11-20.
