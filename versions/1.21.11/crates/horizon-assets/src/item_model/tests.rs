@@ -114,6 +114,33 @@ fn custom_condition_validates_its_name_and_both_branches() {
 }
 
 #[test]
+fn data_component_types_match_the_1_21_11_registry() {
+    // `BuiltInRegistries.DATA_COMPONENT_TYPE` in 1.21.11 registers 104
+    // types; the item model harness compares this list, in order, against
+    // the oracle's sorted registry dump.
+    assert_eq!(DATA_COMPONENT_TYPES.len(), 104);
+    assert!(DATA_COMPONENT_TYPES.is_sorted());
+    for present in ["minecraft:map_color", "minecraft:swing_animation"] {
+        assert!(
+            DATA_COMPONENT_TYPES.contains(&present),
+            "{present} is a 1.21.11 type"
+        );
+    }
+    for absent in [
+        "minecraft:attack_animation",
+        "minecraft:compostable",
+        "minecraft:sign_text_front",
+        "minecraft:sulfur_cube_content",
+        "minecraft:waxed",
+    ] {
+        assert!(
+            !DATA_COMPONENT_TYPES.contains(&absent),
+            "{absent} is not a 1.21.11 type"
+        );
+    }
+}
+
+#[test]
 fn a_patched_stack_reads_its_patch_over_its_items_defaults() {
     let mut models = ItemModels::default();
     models.prototypes.insert(

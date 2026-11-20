@@ -541,7 +541,15 @@ impl Game<'_> {
         // Each with its frame's type: a pack tells a glow frame and what it holds apart by its
         // `entityId` (`glow_item_frame` in entity.properties), the item drawn within its frame.
         let mut maps: Vec<(i32, glam::Mat4, u32, bool, &'static str)> = Vec::new();
-        let mut items: Vec<(ItemStack, u32, glam::Mat4, u8, bool, &'static str)> = Vec::new();
+        let mut items: Vec<(
+            ItemStack,
+            u32,
+            glam::Mat4,
+            u8,
+            bool,
+            &'static str,
+            horizon_assets::item_model::OwnerState,
+        )> = Vec::new();
         // ItemFrame.shouldRenderAtSqrDistance: 1024 blocks at a view scale
         // of 1.
         let range = 16.0 * 64.0 * self.view_scale();
@@ -573,25 +581,31 @@ impl Game<'_> {
             self.mark_motion(entity_start, Self::MOTION_OBJECT | u64::from(f.id));
             let s = f.step();
             // Pose: to the block centre, then X/Y rotation by facing.
-            let (x_rot, y_rot) = if s[1] == 0 {
+            let (x_rot, y_rot, owner_yaw) = if s[1] == 0 {
                 let to_y = match f.facing {
                     3 => 0.0,
                     4 => 90.0,
                     2 => 180.0,
                     _ => 270.0,
                 };
-                (0.0f64, 180.0f64 - to_y)
+                (0.0f64, 180.0f64 - to_y, to_y as f32)
             } else {
-                (-90.0 * f64::from(s[1]), 180.0)
+                (-90.0 * f64::from(s[1]), 180.0, 0.0)
             };
-            let pose = glam::DMat4::from_translation(
-                glam::DVec3::new(
-                    f64::from(f.pos[0]) + 0.5,
-                    f64::from(f.pos[1]) + 0.5,
-                    f64::from(f.pos[2]) + 0.5,
-                ) - camera,
-            ) * glam::DMat4::from_rotation_x(x_rot.to_radians())
+            let centre = glam::DVec3::new(
+                f64::from(f.pos[0]) + 0.5,
+                f64::from(f.pos[1]) + 0.5,
+                f64::from(f.pos[2]) + 0.5,
+            );
+            let pose = glam::DMat4::from_translation(centre - camera)
+                * glam::DMat4::from_rotation_x(x_rot.to_radians())
                 * glam::DMat4::from_rotation_y(y_rot.to_radians());
+            // `NeedleDirectionHelper.get`: a framed stack's entity
+            // representation is the frame, so the needle reads the frame's
+            // position and yaw (`ItemFrame.setDirection` sets YRot to
+            // `get2DDataValue * 90` for a horizontal facing, and leaves it
+            // at 0 for a vertical one).
+            let owner = super::item_draw::owner_at(centre.to_array(), owner_yaw, f.kind());
             let light = self.world.light(f.pos[0], f.pos[1], f.pos[2]);
             let packed = (u32::from(light >> 4) * 16) | ((u32::from(light & 15) * 16) << 8);
             // ItemFrameRenderer.getBlockLightLevel: a glow frame's model is at least 5 bright.
@@ -700,17 +714,17 @@ impl Game<'_> {
                 item_light,
                 cull_contents,
                 f.kind(),
+                owner,
             ));
         }
         // `extractRenderState`: FIXED, seeded by the frame entity.
         let skinning = self.skinning();
         let lights =
             horizon_client::block_entity_render::diffuse_lights(self.dim == super::Dim::Nether);
-        for (stack, id, m, light, cull, kind) in items {
+        for (stack, id, m, light, cull, kind, owner) in items {
             let entity_start = out.len();
             self.mark_entity(entity_start, kind);
             self.mark_motion(entity_start, Self::MOTION_FRAME_ITEM | u64::from(id));
-            let owner = super::item_draw::owner_at([0.0; 3], 0.0, "minecraft:item_frame");
             let state = self.resolve_item(
                 &stack,
                 horizon_assets::item_model::DisplayContext::Fixed,

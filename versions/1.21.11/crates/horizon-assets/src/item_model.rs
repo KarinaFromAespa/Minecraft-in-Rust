@@ -28,8 +28,7 @@ type Result<T> = std::result::Result<T, DecodeError>;
 
 /// `BuiltInRegistries.DATA_COMPONENT_TYPE`, which `has_component` and the
 /// `component` select validate against (checked by the harness).
-pub const DATA_COMPONENT_TYPES: [&str; 116] = [
-    "minecraft:attack_animation",
+pub const DATA_COMPONENT_TYPES: [&str; 104] = [
     "minecraft:attack_range",
     "minecraft:attribute_modifiers",
     "minecraft:axolotl/variant",
@@ -38,10 +37,8 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:bees",
     "minecraft:block_entity_data",
     "minecraft:block_state",
-    "minecraft:block_transformer",
     "minecraft:blocks_attacks",
     "minecraft:break_sound",
-    "minecraft:brewing_fuel",
     "minecraft:bucket_entity_data",
     "minecraft:bundle_contents",
     "minecraft:can_break",
@@ -50,14 +47,11 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:cat/variant",
     "minecraft:charged_projectiles",
     "minecraft:chicken/variant",
-    "minecraft:compostable",
     "minecraft:consumable",
     "minecraft:container",
     "minecraft:container_loot",
-    "minecraft:cooking_fuel",
     "minecraft:cow/variant",
     "minecraft:creative_slot_lock",
-    "minecraft:cushion/color",
     "minecraft:custom_data",
     "minecraft:custom_model_data",
     "minecraft:custom_name",
@@ -81,7 +75,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:horse/variant",
     "minecraft:instrument",
     "minecraft:intangible_projectile",
-    "minecraft:interact_animation",
     "minecraft:item_model",
     "minecraft:item_name",
     "minecraft:jukebox_playable",
@@ -90,13 +83,13 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:lock",
     "minecraft:lodestone_tracker",
     "minecraft:lore",
+    "minecraft:map_color",
     "minecraft:map_decorations",
     "minecraft:map_id",
     "minecraft:map_post_processing",
     "minecraft:max_damage",
     "minecraft:max_stack_size",
     "minecraft:minimum_attack_charge",
-    "minecraft:mob_visibility",
     "minecraft:mooshroom/variant",
     "minecraft:note_block_sound",
     "minecraft:ominous_bottle_amplifier",
@@ -109,7 +102,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:potion_duration_scale",
     "minecraft:profile",
     "minecraft:provides_banner_patterns",
-    "minecraft:provides_pottery_pattern",
     "minecraft:provides_trim_material",
     "minecraft:rabbit/variant",
     "minecraft:rarity",
@@ -119,11 +111,9 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:salmon/size",
     "minecraft:sheep/color",
     "minecraft:shulker/color",
-    "minecraft:sign_text_back",
-    "minecraft:sign_text_front",
     "minecraft:stored_enchantments",
-    "minecraft:sulfur_cube_content",
     "minecraft:suspicious_stew_effects",
+    "minecraft:swing_animation",
     "minecraft:tool",
     "minecraft:tooltip_display",
     "minecraft:tooltip_style",
@@ -136,8 +126,6 @@ pub const DATA_COMPONENT_TYPES: [&str; 116] = [
     "minecraft:use_effects",
     "minecraft:use_remainder",
     "minecraft:villager/variant",
-    "minecraft:villager_food",
-    "minecraft:waxed",
     "minecraft:weapon",
     "minecraft:wolf/collar",
     "minecraft:wolf/sound_variant",
@@ -1312,7 +1300,7 @@ impl Resolve<'_> {
             "minecraft:compass" | "minecraft:recovery_compass"
         )
     }
-    /// `BundleItem.getSelectedItem`: the template at the selected index.
+    /// `BundleItem.getSelectedItemStack`: the template at the selected index.
     fn bundle_selected(&self) -> Option<StackView> {
         let items = self.component("minecraft:bundle_contents")?.as_array()?;
         let template = items.get(usize::try_from(self.stack.bundle_selected).ok()?)?;

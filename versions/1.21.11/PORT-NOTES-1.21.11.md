@@ -3221,3 +3221,109 @@ clean; `rustfmt --edition 2024 --check` clean (one long assert line
 fixed by hand).
 Rank 2 now 217/492 (52 changed, 165 no-change).
 work-items.json rank2.closed = 217 on 2026-11-20.
+
+## Item 39 — horizon-assets/item_model.rs (rank 2, CHANGED)
+
+Transformation, BundleItem, RangeSelectItemModel$Unbaked,
+ItemModelResolver, MissingItemModel, BuiltInRegistries, ItemModels,
+RangeSelectItemModel, CompassAngleState$CompassTarget (+4 anon),
+NeedleDirectionHelper, Time$TimeSource (+3 anon), LocalTime (+$Data),
+RangeSelectItemModel$Entry: 21 classes, 67 methods, 8 named. Harness
+item_model. Two real 26.1 → 1.21.11 behaviour differences, both fixed,
+plus one stale citation.
+
+`DATA_COMPONENT_TYPES` was the 26.3 list (116 entries), not 1.21.11's:
+the 1.21.11 `DataComponents` registers exactly 104 types (verified
+twice — the 1.21.11 class decompile and the datagen registries dump
+agree exactly), and the oracle emits the sorted registry keys, so the
+harness `components` row mismatched. Removed the 14 entries in neither
+jar (attack_animation, block_transformer, brewing_fuel, compostable,
+cooking_fuel, cushion/color, interact_animation, mob_visibility,
+provides_pottery_pattern, sign_text_back, sign_text_front,
+sulfur_cube_content, villager_food, waxed) and added the 2 missing
+1.21.11 types (map_color, swing_animation — 26.x renamed
+`swing_animation` to `attack_animation`, hence the swap). The list
+stays sorted. (26.1 registers 110: the same 14 extras, missing 8 —
+the 6 extra missing-vs-26.1 types, additional_trade_cost and the
+cat/chicken/cow/pig sound variants plus dye, are gone by 1.21.11 too.)
+
+`NeedleDirectionHelper.get` gains the entity-representation fallback in
+1.21.11: when the owner is null, `owner =
+itemStack.getEntityRepresentation()` (bytecode-verified; no cast needed
+because `Entity` implements `ItemOwner` in 1.21.11), set only by
+ItemEntity, ItemFrame and Display$ItemDisplay (jar-wide constant-pool
+scan). Framed compasses/clocks therefore use the frame's position and
+yaw. The Rust passed a dummy owner at [0,0,0] yaw 0 for framed items
+(`game/frames.rs`), so framed needles pointed from the origin; it now
+passes the frame's real position (block centre) and yaw
+(`ItemFrame.setDirection`: horizontal → `get2DDataValue * 90` =
+south 0 / west 90 / north 180 / east 270, bytecode-verified; vertical
+→ yRot untouched, 0), reusing the pose block's `to_y` mapping, and the
+entity type is now `f.kind()` (glow vs normal) instead of the hardcoded
+"minecraft:item_frame". This changes only the needle (time is global;
+the other owner-read properties keep their defaults), so no regression.
+Dropped/thrown items already pass a real owner at the entity position
+(creatures.rs) — needle already matched. Brush/campfire/shelf/spawner/
+item-particle paths have no entity representation in vanilla either —
+0.0 both sides.
+
+`bundle_selected`'s doc citation updated: 1.21.11's
+`BundleItem.getSelectedItem()` returns the int index (26.1's
+`getSelectedItemIndex`); the stack getter is the new
+`getSelectedItemStack()`, plus new `hasSelectedItem()`. The Rust
+returns the stack and gates `BundleHasSelectedItem` on its
+`.is_some()` — correct in all reachable states, since vanilla
+`toggleSelectedItem` clamps out-of-bounds indices to -1 (verified from
+the 1.21.11 `BundleContents$Mutable` decompile).
+
+No-change verdicts (all jar-verified): Transformation's accessor renames
+(getX, private IDENTITY behind `identity()`), null-tolerant matrix ctor
+and the static `compose` removal — the Rust has no Transformation struct
+(only `svd_decompose` in math.rs, mirroring `MatrixUtil`) and no
+per-model transformation; RangeSelectItemModel's dropped `transformation`
+field and param — the Rust decoder never parsed it (unknown fields
+ignored, as DFU does) and every layer is identity, `update` /
+`lastIndexLessOrEqual` identical; MissingItemModel's dropped transform
+and `withTransform` — the Rust's `missing()` is already identity;
+ItemModelResolver's `ModelManager` → two `Function` fields — all method
+logic identical; ItemModels' `CuboidItemModelWrapper` →
+`BlockModelWrapper` (the wrapper itself is item 766's scope);
+CompassAngleState / Time / LocalTime logic identical (LocalTime.Data
+visibility only); BundleItem's `weight()` DataResult → plain Fraction is
+`BundleContents`' change (its own item) — the Rust's `bundle_fullness`
+host impls sum count/max-stack-size, matching 1.21.11's no-error path;
+`onDestroyed` `itemCopyStream()` → `itemsCopy()` rename;
+`getAllBundleItemColors` / `getByColor` have no Rust caller;
+BuiltInRegistries' loot/recipe type renames belong to the loot/recipe
+items. Method-name diff run explicitly: only the expected differences
+(the static `Transformation.compose` removal shares its name with the
+instance method, so it does not show in the name diff — confirmed from
+the decompile).
+
+Referrals: item displays pass `None` as the owner (text_displays.rs) so
+their needles are frozen at 0.0 — not fixed here, because passing the
+display as the owner would regress MainHand/ContextEntityType/
+CrossbowPull (currently correct with None); it needs the
+entity-representation mechanism (a needle-only fallback in `Context`,
+used by `time()`/`compass()` when owner is None). The same mechanism
+would close the PRE-EXISTING owner-vs-null divergences for non-living
+items (dropped items and frames pass `Some(owner)` where vanilla passes
+null: MainHand returns "right" instead of falling back,
+ContextEntityType returns the entity type instead of falling back,
+CrossbowPull can be NaN for an uncharged crossbow instead of 0.0) —
+pre-existing in both versions, not this item's version difference. The
+item-35 entity-representation referral (frames/map-item) now has a
+second consumer (NeedleDirectionHelper.get); the frames half is fixed
+here via the owner path. `BundleContents` (weight API, `removeOne`,
+`toggleSelectedItem`) is its own item (bundle.rs).
+
+Tests: new `data_component_types_match_the_1_21_11_registry` (104
+entries, sorted, contains map_color + swing_animation, excludes five
+26.x-only names). All 19 item_model tests pass
+(`cargo test -p horizon-assets --lib item_model::`).
+`cargo check -p horizon-client --lib --tests --no-default-features`
+clean; `rustfmt --edition 2024 --check` clean on the three changed
+files (one diff reported only in item_model/foreign.rs — pre-existing
+drift, rustfmt recursing through the module root, not touched).
+Rank 2 now 218/492 (53 changed, 165 no-change).
+work-items.json rank2.closed = 218 on 2026-11-20.
