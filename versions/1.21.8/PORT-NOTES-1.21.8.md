@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 111/163 (327–364 + 366–369 + 371–422 + 424–440 + 90 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439)
+### Rank 3: 121/163 (327–364 + 366–369 + 371–422 + 424–450 + 99 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7684,6 +7684,15 @@ includes constant-pool churn.
   model); only the citations named the 1.21.9 class. (The
   item's decomp diff is empty — removed classes leave no
   diff — so it was verified from the report's class list.)
+
+- **Item 448 — the furnace minecart re-aims its push whenever
+  it has fuel:** 1.21.8's `interact` sets `push` from the
+  player's position whenever `fuel > 0`, even when the
+  interaction added no fuel; 1.21.9 only re-aims inside
+  `addFuel`, on a successful feed. The Rust had the 1.21.9
+  form (push set inside the feed branch); the re-aim now sits
+  outside it. (The code landed in 993a9c6 with the previous
+  batch; the notes catch up here.)
 
 ### Rank 4 content: closed 2/2 (chain)
 

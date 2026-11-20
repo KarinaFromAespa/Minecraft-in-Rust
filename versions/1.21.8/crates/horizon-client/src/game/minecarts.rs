@@ -2358,17 +2358,23 @@ impl Game<'_> {
                 let fuel = held
                     .as_ref()
                     .is_some_and(|s| matches!(&*s.item, "minecraft:coal" | "minecraft:charcoal"));
-                let c = &mut self.carts[i];
-                if fuel && c.fuel + 3600 <= 32000 {
-                    c.fuel += 3600;
-                    if !self.creative {
-                        self.consume_held();
+                let fed = {
+                    let c = &mut self.carts[i];
+                    if fuel && c.fuel + 3600 <= 32000 {
+                        c.fuel += 3600;
+                        true
+                    } else {
+                        false
                     }
+                };
+                if fed && !self.creative {
+                    self.consume_held();
                 }
                 // `MinecartFurnace.interact` (1.21.8): the push re-aims
                 // whenever the cart has fuel, even when this interaction
                 // added none (1.21.9 only re-aims inside `addFuel`, on a
                 // successful feed).
+                let c = &mut self.carts[i];
                 if c.fuel > 0 {
                     let p = self.player.as_ref().map_or(c.position, |p| p.position);
                     c.push = Vec3::new(c.position.x - p.x, 0.0, c.position.z - p.z);
