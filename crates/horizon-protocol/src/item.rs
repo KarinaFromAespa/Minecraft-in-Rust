@@ -2222,11 +2222,9 @@ mod tests {
         potion.extend([0, 1, 0, 0, 0, 1].repeat(200_000));
         potion.extend([0, 1, 0, 0, 0, 0, 0]);
         assert!(read_on_network_stack(potion).is_err());
-        // A can_break predicate whose exact component matcher holds another can_break, 200,000 deep.
-        let mut predicate = vec![1, 1, 1, 0, component::CAN_BREAK as u8];
-        predicate.extend([1, 0, 0, 0, 1, component::CAN_BREAK as u8].repeat(200_000));
-        predicate.extend([0]);
-        assert!(read_on_network_stack(predicate).is_err());
+        // (A third case nested can_break predicates through their exact
+        // component matchers; the pin predates matchers, so it has no form
+        // here. The bundle and potion cases still bound the nesting.)
     }
 
     #[test]
@@ -2275,7 +2273,9 @@ mod tests {
         ));
         round::<Option<Stack>, Slot>(Some(arrow));
         // A custom colour, one custom effect (speed II for 600 ticks, shown,
-        // no hidden effect) and a custom name survive as they came.
+        // no hidden effect) survive as they came. The pin's potion has no
+        // custom name (a 1.21.2 addition); a newer server's name is covered
+        // below, read under its own numbering and stripped on the way back.
         let mut w = Writer::new();
         w.bool(false);
         w.bool(true);
@@ -2287,8 +2287,6 @@ mod tests {
         for b in [false, true, true, false] {
             w.bool(b);
         }
-        w.bool(true);
-        w.string("Tea");
         let mut r = Reader::new(&w.data);
         let read = Component::read(component::POTION_CONTENTS, &mut r).unwrap();
         assert_eq!(r.remaining(), 0);
@@ -2305,6 +2303,31 @@ mod tests {
         let mut again = Writer::new();
         read.write(component::POTION_CONTENTS, &mut again);
         assert_eq!(again.data, w.data);
+        // The same potion as a 1.21.11 server sends it, with a custom name:
+        // the name survives in the tail, and writing it for the pin drops it.
+        let mut named = w.data.clone();
+        named.push(1);
+        named.extend_from_slice(&[3, b'T', b'e', b'a']);
+        let read = {
+            let _up = ids::renumbering(
+                crate::adapter::ServerVersion::V1_21_11.ids().unwrap(),
+                ids::Way::Up,
+            );
+            let mut r = Reader::new(&named);
+            Component::read(component::POTION_CONTENTS, &mut r).unwrap()
+        };
+        let mut pin = Writer::new();
+        read.write(component::POTION_CONTENTS, &mut pin);
+        assert_eq!(pin.data, w.data);
+        let mut back = Writer::new();
+        {
+            let _down = ids::renumbering(
+                crate::adapter::ServerVersion::V1_21_11.ids().unwrap(),
+                ids::Way::Down,
+            );
+            read.write(component::POTION_CONTENTS, &mut back);
+        }
+        assert_eq!(back.data, named);
     }
 
     #[test]
@@ -2352,7 +2375,7 @@ mod tests {
             .push((component::OMINOUS_BOTTLE_AMPLIFIER, Component::Int(3)));
         let mut w = Writer::new();
         Slot::write(&Some(bottle.clone()), &mut w);
-        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 51, 3]);
+        assert_eq!(w.data, [1, 0xb0, 0x09, 1, 0, 41, 3]);
         round::<Option<Stack>, Slot>(Some(bottle));
         let mut quill = Stack::new(1099, 1);
         quill.added.push((
@@ -2410,9 +2433,9 @@ mod tests {
     #[test]
     fn charged_projectiles_are_item_stack_templates() {
         // A crossbow (id 7) loaded with one arrow (id 9): ChargedProjectiles
-        // is a list of ItemStackTemplate, count-first in 1.21.4 (the item
+        // is a list of ItemStackTemplate, count-first in 1.21.1 (the item
         // before the count arrived in 1.21.9).
-        let bytes = [1, 7, 1, 0, 39, 1, 1, 9, 0, 0];
+        let bytes = [1, 7, 1, 0, 29, 1, 1, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::CHARGED_PROJECTILES),
@@ -2426,8 +2449,8 @@ mod tests {
     #[test]
     fn bundle_contents_are_item_stack_templates() {
         // A bundle (id 7) holding 32 of item 9: BundleContents is a list of
-        // ItemStackTemplate, count-first in 1.21.4, as ChargedProjectiles is.
-        let bytes = [1, 7, 1, 0, 40, 1, 32, 9, 0, 0];
+        // ItemStackTemplate, count-first in 1.21.1, as ChargedProjectiles is.
+        let bytes = [1, 7, 1, 0, 30, 1, 32, 9, 0, 0];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::BUNDLE_CONTENTS),
@@ -2441,7 +2464,7 @@ mod tests {
     #[test]
     fn filtered_book_pages_are_read_and_kept() {
         // A writable book with one page "hi" and its filtered "**".
-        let bytes = [1, 7, 1, 0, 43, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
+        let bytes = [1, 7, 1, 0, 33, 1, 2, b'h', b'i', 1, 2, b'*', b'*'];
         let stack = Slot::read(&mut Reader::new(&bytes)).unwrap().unwrap();
         assert_eq!(
             stack.component(component::WRITABLE_BOOK_CONTENT),
@@ -2496,7 +2519,7 @@ mod tests {
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 57, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 47, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
@@ -2518,10 +2541,10 @@ mod tests {
     #[test]
     fn direct_trim_decodes_complete_official_inventory_stack_payload() {
         // Slot portion of our actual Java26.3 ClientboundContainerSetSlotPacket,
-        // re-based to the pinned 1.21.4 component numbering (the trim kind byte)
-        // with the trim's trailing show flag, which 1.21.4's codec carries;
+        // re-based to the pinned 1.21.1 component numbering (the trim kind byte)
+        // with the trim's trailing show flag, which the codec carries;
         // complete packet and official client decode retained with H284 proof.
-        let hex = "01bd080200000a0300046b6565700000011c002d000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e0001";
+        let hex = "01bd080200000a0300046b6565700000011c0023000e6d696e6563726166743a676f6c6408000f496e6c696e65206d6174657269616c000f6d696e6563726166743a636f61737408000e496e6c696e65207061747465726e0001";
         let bytes: Vec<u8> = (0..hex.len())
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
@@ -2568,14 +2591,14 @@ mod tests {
         // in 1.21.4's own form (four item ids: brick, angler, brick, skull).
         // The trim carries its show flag (a tooltip-flagged component).
         for (hex, kind) in [
-            ("01bd0801002d050201", 45),
-            ("01890b01003b02200e000b6d696e6563726166743a7801790b", 59),
-            ("01880301003d04ba07bd0aba07d20a", 61),
-            ("01a40801002a020f6412a001", 42),
+            ("01bd08010023050201", 35),
+            ("01890b01003102200e000b6d696e6563726166743a7801790b", 49),
+            ("01880301003304ba07bd0aba07d20a", 51),
+            ("01a408010020020f6412a001", 32),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            // 1.21.4's instrument sends its holder bare (the EitherHolder
+            // 1.21.1's instrument sends its holder bare (the EitherHolder
             // wrapper started in 1.21.5).
-            ("01bd0801003202", 50),
+            ("01bd0801002802", 40),
         ] {
             let bytes: Vec<u8> = (0..hex.len())
                 .step_by(2)
@@ -2585,15 +2608,15 @@ mod tests {
             let stack = Slot::read(&mut r).unwrap();
             assert_eq!(r.remaining(), 0, "component {kind}");
             let expected = |c: &Component| match kind {
-                45 => {
+                35 => {
                     *c == Component::Trim {
                         material: 4,
                         pattern: 1,
                     }
                 }
                 // night_vision for 100 ticks, poison for the default 160.
-                42 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
-                50 => *c == Component::Instrument(1),
+                32 => *c == Component::StewEffects(vec![(15, 100), (18, 160)]),
+                40 => *c == Component::Instrument(1),
                 _ => matches!(c, Component::Raw(_)),
             };
             assert!(
@@ -2626,13 +2649,14 @@ mod tests {
         for (value, valid) in [(1, true), (-1, false), (i32::MIN, false)] {
             let mut v = Writer::new();
             v.varint(value);
-            // instrument (50): a bare holder (`value`).
+            // instrument (40): a bare holder (`value`).
             // can_break: one predicate whose blocks are a holder set (`value`, an empty
-            // list when 1), with no properties, NBT or component matchers,
-            // and its trailing show flag (a tooltip-flagged component).
+            // list when 1), with no properties or NBT, and its trailing show
+            // flag (a tooltip-flagged component). The pin's predicates carry
+            // no component matchers (a 1.21.5 addition).
             let mut can_break = vec![1, 1];
             can_break.extend_from_slice(&v.data);
-            can_break.extend([0, 0, 0, 0, 1]);
+            can_break.extend([0, 0, 1]);
             for (kind, bytes) in [(component::INSTRUMENT, v.data.clone()), (component::CAN_BREAK, can_break)] {
                 let read = slot(kind, &bytes);
                 if valid {
