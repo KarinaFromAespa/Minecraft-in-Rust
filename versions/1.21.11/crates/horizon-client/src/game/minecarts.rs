@@ -2788,7 +2788,7 @@ impl Game<'_> {
             .gui
             .atlas
             .sprites
-            .get("entity/minecart/minecart")
+            .get("entity/minecart")
             .map(|r| [r.u0, r.v0, r.u1, r.v1])
         else {
             return;
@@ -2917,14 +2917,15 @@ impl Game<'_> {
                     self.special_block_model(state, display, l, out);
                 } else {
                     // TNT minecarts flash white as the fuse runs out (TntMinecartRenderer).
-                    let swell = if c.kind == CartKind::Tnt && c.fuse > -1 {
-                        let fuse = c.fuse as f32 - a + 1.0;
-                        if fuse < 10.0 {
-                            let g = (1.0 - fuse / 10.0).clamp(0.0, 1.0);
-                            1.0 + g * g * g * g * 0.3
-                        } else {
-                            1.0
-                        }
+                    // fuseRemainingInTicks: the fuse interpolated by the partial tick.
+                    let fuse = if c.kind == CartKind::Tnt && c.fuse > -1 {
+                        c.fuse as f32 - a + 1.0
+                    } else {
+                        -1.0
+                    };
+                    let swell = if fuse > -1.0 && fuse < 10.0 {
+                        let g = (1.0 - fuse / 10.0).clamp(0.0, 1.0);
+                        1.0 + g * g * g * g * 0.3
                     } else {
                         1.0
                     };
@@ -2932,7 +2933,7 @@ impl Game<'_> {
                         * glam::Mat4::from_translation(glam::Vec3::splat(0.5))
                         * glam::Mat4::from_scale(glam::Vec3::splat(swell))
                         * glam::Mat4::from_translation(glam::Vec3::splat(-0.5));
-                    let flash = c.kind == CartKind::Tnt && c.fuse > -1 && (c.fuse / 5) % 2 == 0;
+                    let flash = fuse > -1.0 && (fuse as i32 / 5) % 2 == 0;
                     let start = out.len();
                     self.block_model_vertices(state, 0, m, packed, false, out);
                     if flash {

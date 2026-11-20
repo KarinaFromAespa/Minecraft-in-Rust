@@ -4020,3 +4020,44 @@ all touched files. The horizon-client lib test binary link OOMs on this VM
 under 3-stream load (established) — the dragon tests run on CI.
 Rank 2 now 227/492 (60 changed, 167 no-change).
 work-items.json rank2.closed = 227 on 2026-11-20.
+
+## Item 49 — game/minecarts.rs (rank 2, CHANGED)
+
+AbstractMinecartRenderer, TntMinecartRenderer, AbstractMinecart,
+NewMinecartBehavior, AbstractMinecartContainer, Minecart, MinecartChest,
+MinecartCommandBlock, OldMinecartBehavior, MinecartSpawner$1,
+NewMinecartBehavior$TrackIteration, NewMinecartBehavior$MinecartStep: 12
+classes, 35 methods, 9 named. Two changes:
+
+- The minecart texture moved in 26.x: 26.1
+  `textures/entity/minecart/minecart.png` -> 1.21.11
+  `textures/entity/minecart.png` (bytes identical, sha256
+  eeb180e95bc10562 in both jars). The Rust's single sprite lookup in
+  `cart_geometry` is fixed to `"entity/minecart"` — with the 26.1 path
+  the lookup fails and no cart renders at all.
+- The TNT flash phase used the raw int fuse; vanilla uses
+  `(int)fuseRemainingInTicks` where `fuseRemainingInTicks = fuse -
+  partialTicks + 1`, which differs at an exact tick boundary (alpha = 0,
+  vanilla reads `fuse + 1`). One interpolated `fuse` now feeds both the
+  swell and the flash. Same code in both jars — a version-neutral fix in
+  this item's scope, under the item-47 precedent.
+
+No change: the display-block gate (26.1 `!displayBlockModel.isEmpty()` vs
+1.21.11 `getRenderShape() != INVISIBLE`) is unobservable — an empty model
+bakes to nothing either way, and the culling box is `!isAir()` in both
+versions; the model submit resolves to `entityCutoutNoCull` in both
+(`EntityModel` injects it as the render-type function, javap-verified);
+`interact` drops its Vec3 parameter in 1.21.11 but the bodies are identical
+and the Rust never used a hit position; `tick`/`moveAlongTrack` (old and
+new)/`getRedstoneDirection` differ only in the `BlockState.is` overload and
+the `updateFluidInteraction` rename; the TNT swell, the container slowdown
+(`container_keep` matches exactly) and all renderer pose math are identical.
+MinecartFurnace is item 268; MinecartTNT/MinecartHopper are unchanged (no
+report item); `MinecartCommandBase` is item 686.
+
+Tests: `cargo check -p horizon-client --lib --tests --no-default-features`
+clean; rustfmt clean. No geometry test covers the TNT flash path; the
+horizon-client lib test binary link OOMs on this VM under 3-stream load
+(established) — tests run on CI.
+Rank 2 now 228/492 (61 changed, 167 no-change).
+work-items.json rank2.closed = 228 on 2026-11-20.
