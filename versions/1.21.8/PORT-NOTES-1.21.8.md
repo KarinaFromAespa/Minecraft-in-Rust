@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 9/163 (327, 328 + 7 zero-diff: 356, 372, 382–385, 396)
+### Rank 3: 10/163 (327–329 + 7 zero-diff: 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7340,6 +7340,25 @@ includes constant-pool churn.
   comparator is byte-identical in both jars (javap), so the sort
   tests stand; the three tab-key tests are replaced by header-window
   and sort-cycle tests. Cargo check 0/0; 4/4 stats tests pass.
+
+- **Item 329 — `crates/horizon-client/src/game/commands/test_runs.rs`
+  (TestCommand, TestInstanceBlockEntity, StructureUtils, TestFinder,
+  8 named methods), the gametest radii and clears to the 1.21.8
+  forms:** the full-search radius is 200, not 250 — lookedAt's ray
+  and search, allNearby, clearall's default, locate's cross-dimension
+  search and showPos's fallback all move to 200. `/test clear` no
+  longer removes the test instance blocks or their barriers (1.21.9
+  added that); it clears the markers and each structure's space.
+  `clearSpaceForStructure` clears the inflated box (2 west/north,
+  3 down/south, 3 east, +20 up), the ground height staying the given
+  box's minY−1, so the rows below it come back stone. `placeStructure`
+  clears no space first (1.21.9 added that call). Already 1.21.8-form
+  and untouched: resetTest/runTest/setSuccess (clearMarkers, barriers
+  off on success), the verify builder (no clearBetweenBatches), the
+  block entity's load/save (no `errors` key — the 1.21.9-only error
+  markers), and showPos's highlight (the transient debug marker, ten
+  seconds; 1.21.8 has no highlight packet — the doc citation is fixed
+  to `DebugPackets.sendGameTestAddMarker`). Cargo check 0/0.
 
 ### Rank 4 content: closed 2/2 (chain)
 

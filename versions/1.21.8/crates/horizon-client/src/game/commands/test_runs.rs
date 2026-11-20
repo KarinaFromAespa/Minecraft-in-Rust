@@ -83,7 +83,7 @@ impl Game<'_> {
     }
 
     /// `StructureUtils.lookedAtTestPos`: the test whose box the player's
-    /// view ray (250 blocks) meets, the nearest to the source.
+    /// view ray (200 blocks) meets, the nearest to the source.
     fn looked_at_test(&self, center: Pos) -> Option<Pos> {
         let player = self.player.as_ref()?;
         let eye = [
@@ -100,8 +100,8 @@ impl Game<'_> {
             -pitch.sin(),
             yaw.cos() * pitch.cos(),
         ];
-        let end = [0, 1, 2].map(|i| eye[i] + look[i] * 250.0);
-        self.find_test_instance_blocks(center, 250)
+        let end = [0, 1, 2].map(|i| eye[i] + look[i] * 200.0);
+        self.find_test_instance_blocks(center, 200)
             .into_iter()
             .filter(|&p| {
                 self.test_structure_box(p).is_some_and(|b| {
@@ -129,7 +129,7 @@ impl Game<'_> {
                 })
                 .into_iter()
                 .collect(),
-            Finder::AllNearby => self.find_test_instance_blocks(center, 250),
+            Finder::AllNearby => self.find_test_instance_blocks(center, 200),
             Finder::LookedAt => self.looked_at_test(center).into_iter().collect(),
             Finder::Failed(_) | Finder::Selection { .. } => Vec::new(),
         }
@@ -331,7 +331,9 @@ impl Game<'_> {
         Ok(count)
     }
 
-    /// `TestCommand.clear`.
+    /// `TestCommand.clear`: the markers go, then each test's structure
+    /// space is cleared. 1.21.8's clear leaves the test instance blocks
+    /// (and their barriers) in place — removing them came in 1.21.9.
     fn clear_tests(&mut self, finder: &Finder) -> R<i32> {
         self.clear_game_tests();
         // `GameTestRunner.clearMarkers`.
@@ -341,13 +343,6 @@ impl Game<'_> {
             if let Some(area) = self.test_bounding_box(pos) {
                 self.clear_test_space(&area);
             }
-            self.remove_test_barriers(pos);
-            // level.destroyBlock(pos, false)
-            self.set_test_block_state(
-                pos,
-                "minecraft:air",
-                horizon_world::level::flags::UPDATE_ALL,
-            );
         }
         if tests.is_empty() {
             return Err(err("commands.test.clear.error.no_tests", &[]));
@@ -435,8 +430,8 @@ impl Game<'_> {
                 } else if looks {
                     Finder::LookedAt
                 } else {
-                    // clearall [radius]: clamped to 0..=1024, 250 by default.
-                    Finder::Radius(int("radius").map_or(250, |r| r.clamp(0, 1024)))
+                    // clearall [radius]: clamped to 0..=1024, 200 by default.
+                    Finder::Radius(int("radius").map_or(200, |r| r.clamp(0, 1024)))
                 };
                 if id == "test.clear"
                     && (has("resetclosest") || has("resetthese") || has("resetthat"))

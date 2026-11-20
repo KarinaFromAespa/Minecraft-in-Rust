@@ -522,7 +522,10 @@ impl Game<'_> {
         }
     }
 
-    /// `placeStructure()`: the test's structure, cleared space first.
+    /// `placeStructure()`: the test's structure, placed in the space as it
+    /// stands. 1.21.8's `placeStructure` clears no space first (the
+    /// `clearSpaceForStructure` call came in 1.21.9); it force-loads the
+    /// chunks and removes the entities.
     pub(super) fn place_test_structure(&mut self, pos: Pos) -> bool {
         let Some(def) = self.test_holder(pos) else {
             return false;
@@ -536,16 +539,10 @@ impl Game<'_> {
             return false;
         };
         let origin = [pos.0, pos.1, pos.2];
-        // `forceLoadChunks`, then `StructureUtils.clearSpaceForStructure(
-        // getTestBoundingBox())`.
+        // `forceLoadChunks`, then `removeEntities`: `getTestBounds()`,
+        // the structure's box inflated.
         if let Some(inner) = self.test_structure_box(pos) {
             self.force_load_test_chunks(&inner);
-            let area = BoundingBox::new(
-                inner.min.map(|v| v - padding),
-                inner.max.map(|v| v + padding),
-            );
-            self.clear_test_space(&area);
-            // removeEntities: `getTestBounds()`, the structure's box inflated.
             self.discard_entities_in(inflate(aabb_of(&inner), f64::from(padding)));
         }
         let corner = block.start_corner(origin, padding, rotation);
@@ -568,10 +565,25 @@ impl Game<'_> {
         true
     }
 
-    /// `StructureUtils.clearSpaceForStructure`'s blocks: air in the box (stone
-    /// below the ground height, which no row of the box is).
+    /// `StructureUtils.clearSpaceForStructure`: 1.21.8 clears an inflated
+    /// box (2 west/north, 3 down/south, 3 east/up to +20) — the ground
+    /// height is still the given box's `minY - 1`, so the rows below it
+    /// come back as stone and the rest as air — and its ticks, block
+    /// events and non-player entities go with it.
     pub(super) fn clear_test_space(&mut self, area: &BoundingBox) {
         let ground = area.min[1] - 1;
+        let area = BoundingBox::new(
+            [
+                area.min[0] - 2,
+                area.min[1] - 3,
+                area.min[2] - 3,
+            ],
+            [
+                area.max[0] + 3,
+                area.max[1] + 20,
+                area.max[2] + 3,
+            ],
+        );
         for y in area.min[1]..=area.max[1] {
             for z in area.min[2]..=area.max[2] {
                 for x in area.min[0]..=area.max[0] {
@@ -585,9 +597,9 @@ impl Game<'_> {
             }
         }
         // `getBlockTicks().clearArea`, `clearBlockEvents`.
-        self.clear_test_ticks(area);
+        self.clear_test_ticks(&area);
         // The entities but the players.
-        self.discard_entities_in(aabb_of(area));
+        self.discard_entities_in(aabb_of(&area));
     }
 
     /// `getBlockTicks().clearArea(bounds)` and `clearBlockEvents(bounds)`.
