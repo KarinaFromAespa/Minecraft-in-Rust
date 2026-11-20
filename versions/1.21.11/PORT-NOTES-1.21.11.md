@@ -5904,3 +5904,44 @@ Verification: `cargo test -p horizon-client-render --lib
 --no-default-features font::` 14 passed. Rank 2 now 254/492
 (79 changed, 175 no-change). work-items.json rank2.closed = 254
 on 2026-11-20.
+
+## Item 76 — mobs/spawn_rules.rs (rank 2, NO-CHANGE + citation fixes)
+
+5 classes, 13 methods, 7 named. Javap diff (247 lines) read in
+full Nov 20, 2026; the substantive methods read from the 1.21.11
+decompile. Triage note `rank2-item-76-TRIAGE.md` (workdir root,
+scratch). The Java delta is renames plus one real branch change,
+all already 1.21.11-shaped in the Rust: `BlockAndLightGetter` is
+26.1's name for 1.21.11's `BlockAndTintGetter`;
+`getLightDampening` is 26.1's name for `getLightBlock`;
+`FIRE_IN_NEIGHBOR`/`FIRE` are 26.1's names for
+`DANGER_FIRE`/`DAMAGE_FIRE`; `Animal.mobInteract` checks `isBaby()`
+in 1.21.11 where 26.1 checks `canAgeUp()` (which also refuses an
+age-locked baby — age locking is 26.x-only). Verified matching:
+`constructor_maluses` sets DangerFire 16.0 / DamageFire -1.0 for
+animals; `feed_animal`/`takes_food` gate on `(age == 0 &&
+breedable) || age < 0` (the age>0 case is refused, so the age-up
+arm only runs for babies); `animal_rules`, `surface_water`,
+`can_see_sky_from_below_water`, `is_dark_enough`, `bright`,
+`slime_rules` all match the 1.21.11 methods exactly, including the
+slime surface branch (`getMaxLocalRawBrightness` =
+`raw_brightness(sky_darken)`) and the double nextInt(10) slime
+chunk. No Rust mirror of the 26.1-only
+`getEffectiveSkyBrightness` to remove; `getBlockTint` (1.21.11-only
+on LevelReader) has no Rust mirror either. Citation fixes
+(comment-only): `BlockAndLightGetter.canSeeSky` ->
+`BlockAndTintGetter.canSeeSky` (trident.rs), `getLightDampening` ->
+`getLightBlock` (light.rs, mod_content.rs). Not touched:
+`LightEngine.getLightDampeningInto` (tick.rs — a LightEngine
+method, its 1.21.11 name unverified) and the `dampening` field
+name in BlockFacts (a prepared-data key).
+
+Version-neutral gap recorded: `slime_rules` has no `instanceof
+WorldGenLevel` guard before the slime-chunk branch (unobservable —
+`SpawnLevel` always carries a world seed). No behaviour edits.
+
+Verification: `cargo test -p horizon-client-lib --lib
+--no-default-features mobs::spawn_rules::` 2 passed (the
+horizon-client binary runs 0 — the tests live in the
+horizon-client-lib binary). Rank 2 now 255/492 (79 changed,
+176 no-change). work-items.json rank2.closed = 255 on 2026-11-20.

@@ -420,7 +420,7 @@ impl Game<'_> {
         if !self.can_have_weather() || self.weather_levels(1.0).1 <= 0.9 {
             return;
         }
-        // BlockAndLightGetter.canSeeSky: full sky light.
+        // BlockAndTintGetter.canSeeSky: full sky light.
         let (x, y, z) = (
             at[0].floor() as i32,
             at[1].floor() as i32,
