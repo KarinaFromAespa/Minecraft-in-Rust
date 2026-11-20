@@ -483,140 +483,122 @@ mod tests {
         stack
     }
     #[test]
-    fn only_the_fire_tag_downgrades_to_fire_resistance() {
-        // 1.21.4's damage resistance is a bare tag on the wire; the read
-        // rewrites it to the internal HolderSet form (a `0` and the tag).
-        for (label, pinned, old) in [
-            (
-                "fire tag",
-                "01e6060200031119116d696e6563726166743a69735f66697265",
-                "01d0060200031115",
-            ),
-            (
-                "projectile tag",
-                "01e6060200031119176d696e6563726166743a69735f70726f6a656374696c65",
-                "01d00601000311",
-            ),
-            ("removed resistance", "01e6060101031119", "01d0060101031115"),
-        ] {
-            let pinned = bytes(pinned);
-            let mut r = Reader::new(&pinned);
-            let stack = Slot::read(&mut r).unwrap_or_else(|e| panic!("{label}: {e}"));
-            assert_eq!(r.remaining(), 0, "{label}");
-            let mut w = Writer::new();
-            {
-                let _down = ids::renumbering(ServerVersion::V1_21_1.ids().unwrap(), Way::Down);
-                Slot::write(&stack, &mut w);
-            }
-            // The unit component cannot express another tag. Damage stays
-            // present, and removing resistance still removes the old fire-resistance unit.
-            assert_eq!(w.data, bytes(old), "{label}");
+    fn the_pins_fire_flag_is_a_unit_and_a_newer_servers_tag_is_dropped() {
+        // At this pin the v1_21_1 step is inert (the pin IS 1.21.1): its fire flag is already a
+        // unit, so a 1.21.1 stack with it round-trips through a 1.21.1 session unchanged, and a
+        // newer server's damage_resistant tag has nowhere to go, so it is dropped on read rather
+        // than converted (the 1.21.2+ damage tag does not become the pin's fire unit).
+        let old = bytes("01d0060200031115");
+        let stack = {
+            let _up = ids::renumbering(ServerVersion::V1_21_1.ids().unwrap(), Way::Up);
+            Slot::read(&mut Reader::new(&old)).unwrap().unwrap()
+        };
+        assert_eq!(
+            stack.component(component::FIRE_RESISTANT),
+            Some(&Component::Unit)
+        );
+        assert_eq!(stack.damage(), 17);
+        let mut w = Writer::new();
+        {
+            let _down = ids::renumbering(ServerVersion::V1_21_1.ids().unwrap(), Way::Down);
+            Slot::write(&Some(stack), &mut w);
         }
-        // An explicit damage set has no bare-tag wire form in 1.21.3, so
-        // these stacks are built directly in the internal HolderSet form:
-        // the down-write still drops them, as it cannot express them.
-        for (label, resistant) in [
-            ("explicit damage type", vec![1, 1, 1]),
-            ("empty damage set", vec![1, 0]),
-        ] {
-            let mut stack = Stack::new(870, 1);
-            stack
-                .added
-                .push((component::DAMAGE, Component::Int(17)));
-            stack.added.push((
-                component::DAMAGE_RESISTANT,
-                Component::Raw(resistant),
-            ));
-            let mut w = Writer::new();
-            {
-                let _down = ids::renumbering(ServerVersion::V1_21_1.ids().unwrap(), Way::Down);
-                Slot::write(&Some(stack), &mut w);
-            }
-            assert_eq!(w.data, bytes("01d00601000311"), "{label}");
-        }
+        assert_eq!(w.data, old);
+        // A 1.21.4 server's damage_resistant (a bare tag) is dropped; the damage survives.
+        let sent = bytes("01ef060200031119116d696e6563726166743a69735f66697265");
+        let stack = {
+            let _up = ids::renumbering(ServerVersion::V1_21_4.ids().unwrap(), Way::Up);
+            Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
+        };
+        assert_eq!(stack.component(component::FIRE_RESISTANT), None);
+        assert_eq!(stack.damage(), 17);
+        assert_eq!(stack.added.len(), 1); // only the damage
     }
     #[test]
     fn vanilla_component_fixtures_preserve_food_effects_remainders_and_following_fields() {
-        // The actual vanilla DataComponentPatch.STREAM_CODEC plus count/item fields from each
-        // version's registry. Encoding the parsed patch directly retains explicit removals.
+        // The actual vanilla DataComponentPatch.STREAM_CODEC plus count/item fields from the 1.21.1
+        // registry. At this pin the 1.21.1 wire IS the pin wire (the v1_21_1 step is inert: its food
+        // is already combined, its fire flag already a unit), so the pinned side repeats the old
+        // side, and the test pins the 1.21.1 forms and their round-trip. Encoding the parsed patch
+        // directly retains explicit removals.
         for (label, old, pinned) in [
             (
                 "damage_model",
                 "01d00602000db9600311",
-                "01e60602000eb9600311",
+                "01d00602000db9600311",
             ),
             (
                 "potion",
                 "01d006020003111f0119010001e2400112022801000000",
-                "01e60602000311290119010001e240011202280100000000",
+                "01d006020003111f0119010001e2400112022801000000",
             ),
-            ("potion_empty", "01d00601001f000000", "01e60601002900000000"),
+            ("potion_empty", "01d00601001f000000", "01d00601001f000000"),
             (
                 "instrument",
                 "01d006020003112800c3055042800000",
-                "01e606020003113200d505408000004280000000080000",
+                "01d006020003112800c3055042800000",
             ),
             (
                 "instrument_direct_sound",
                 "01d00601002800000e6d696e6563726166743a7465737401408000005a42000000",
-                "01e60601003200000e6d696e6563726166743a746573740140800000409000004200000000080000",
+                "01d00601002800000e6d696e6563726166743a7465737401408000005a42000000",
             ),
             (
                 "attributes",
                 "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020000",
-                "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020000",
+                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "food_simple",
                 "01d0060200031114033fa00000003fcccccd0000",
-                "01e6060301031115033fa0000000163fcccccd01bf05010017",
+                "01d0060200031114033fa00000003fcccccd0000",
             ),
             (
                 "food_full",
                 "01d0060200031114033fa00000013f4ccccd01019f06000002120228010000003e80000009000a000101003f400000",
-                "01e6060400031115033fa0000001163f4ccccd01bf0501020001120228010000003e800000000109000a000101003f4000001701b5060000",
+                "01d0060200031114033fa00000013f4ccccd01019f06000002120228010000003e80000009000a000101003f400000",
             ),
             (
                 "food_nested",
                 "01d006010014013f000000003fcccccd0101d00602000d071500",
-                "01e606030015013f00000000163fcccccd01bf0501001701e60602000e0719116d696e6563726166743a69735f66697265",
+                "01d006010014013f000000003fcccccd0101d00602000d071500",
             ),
             (
                 "fire",
                 "01d0060200031115",
-                "01e6060200031119116d696e6563726166743a69735f66697265",
+                "01d0060200031115",
             ),
-            ("removed_food", "01d006000114", "01e6060003151617"),
-            ("removed_fire", "01d006000115", "01e606000119"),
+            ("removed_food", "01d006000114", "01d006000114"),
+            ("removed_fire", "01d006000115", "01d006000115"),
             (
                 "hidden",
                 "01d00604000f04001800ff0000000e",
-                "01e606030004002200ff00000010",
+                "01d00604000f04001800ff0000000e",
             ),
             (
                 "tool",
                 "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01d00601002f010b486f72697a6f6e576972650000",
-                "01e606010039010b486f72697a6f6e576972650000",
+                "01d00601002f010b486f72697a6f6e576972650000",
             ),
             (
                 "container",
                 "01d00601003406030100000000000002e4020000",
-                "01e60601003e06030100000000000002f1020000",
+                "01d00601003406030100000000000002e4020000",
             ),
             (
                 "bundle",
                 "01d00601001e0202e402000003d00601000d09",
-                "01e6060100280202f102000003e60601000e09",
+                "01d00601001e0202e402000003d00601000d09",
             ),
             (
                 "can_break",
                 "01d00601000b01010201000000",
-                "01e60601000c010102010000000000",
+                "01d00601000b01010201000000",
             ),
         ] {
             let old = bytes(old);
