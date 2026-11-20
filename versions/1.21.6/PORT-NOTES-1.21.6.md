@@ -525,3 +525,31 @@ entity/POI stamp tests that the item-5 change did break
 `poi_chunks_without_a_version_start_at_1945`,
 `the_worker_thread_finishes_and_a_cancel_joins_it`) were updated
 to the 1.21.6 form (no stamp) and pass.
+
+## CI proof (run 44800043813, 2026-11-21)
+
+port-verify on behaviour/1.21.6@13e76f9 (all 31 items closed),
+success in 1h33m23s. Profile **2 pass / 2 oracle / 13 fail** of 17
+— identical to the mechanical proof (run 44496248958): no
+regression from the behaviour port. Passing: block_properties,
+lan. Classified oracle: chunk_generation, command_exec. The
+classifier undercounts as before: 6 more oracle-compile failures
+hide in the fail column (datafix ×6 worlds, first_person, food,
+item_model, options, resource_pack — javac CalledProcessError in
+the harness logs), and component_patch's oracle compiles but its
+run exits 1, so the true oracle count is **9** and the honest
+reading is 2 pass / 9 oracle / 6 real fail (command_parse,
+entity_components, hotbar, light, save_roundtrip, sound_event).
+Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21
+fail.
+
+Verdict: **failed**. D1 fail — the tag audit finds 37 dead
+production tags, inherited (triage belongs at 1.21.11). D2 pass —
+cargo check 0 errors / 0 warnings, protocol tests 432 / 0. D3
+blocked — the pin had no work-items.json at dispatch (it was
+committed to the branch after this run started, e30e9f3); the
+final proof re-checks with the pin complete. D4/D5 blocked — the
+profile stamp quirk (profile stamped 13e76f9, judge's staged
+candidate HEAD 090a9fc7; patch 0006 is dead code in the CI judge,
+as on 26.2, 1.21.7, 1.21.8 and 1.21.9). D6 blocked — no
+playtest.md; the playtest is deferred by the owner, never claimed.
