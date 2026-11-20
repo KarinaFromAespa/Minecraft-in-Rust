@@ -334,7 +334,22 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 119/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136 + 4 zero-diff)
+### Rank 2: 120/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137 + 4 zero-diff)
+
+- **Item 137 — `crates/horizon-world/src/level/interact.rs`
+  (4 classes, 4 methods, 2 named in Horizon), real fix:**
+  DragonEggBlock, SelectableSlotContainer, MovingPistonBlock.
+  The egg teleport is now the 1.21.8 form — air plus the
+  world border only: the below-is-not-air check (in
+  neither version) and the build-height gate (1.21.9-only)
+  are gone, and the missing world-border check is added,
+  so the rare out-of-height teleport deletes the egg as
+  vanilla 1.21.8 does. Chiseled bookshelf slots now use
+  1.21.8's uneven split (row `y >= 0.5`, columns at
+  0.375/0.6875) via a new `bookshelf_hit_slot`; the
+  even-section `hit_slot` stays for the 1.21.9-only shelf.
+  Moving piston `useWithoutItem` is mechanical only.
+  Check 0/0.
 
 - **Item 136 — `crates/horizon-core/examples/paletted_fixture.rs`
   (1 class, 14 methods, 1 named in Horizon),
