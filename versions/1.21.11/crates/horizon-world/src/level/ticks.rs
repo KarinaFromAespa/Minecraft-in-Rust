@@ -58,8 +58,8 @@ impl Default for Ticks {
     }
 }
 impl Ticks {
-    /// `random_tick_seed` seeds `Level.randValue` (vanilla draws it from a
-    /// thread-local random at level construction).
+    /// `random_tick_seed` seeds `Level.randValue` (vanilla draws it from an
+    /// unseeded random, `RandomSource.create()`, at level construction).
     pub fn new(random_tick_seed: i32) -> Self {
         Self {
             blocks: LevelTicks::default(),

@@ -161,7 +161,7 @@ impl Game<'_> {
             _ => return false,
         };
         let pos: [i32; 3] = std::array::from_fn(|i| hit.pos[i] + hit.face[i]);
-        // `ItemFrameItem.mayPlace`: `Level.isInsideBuildHeight(blockPos)`, so a frame is not
+        // `ItemFrameItem.mayPlace`: `Level.isOutsideBuildHeight(blockPos)`, so a frame is not
         // placed on the top face of the highest block or under the lowest one.
         if !(horizon_client::chunk::MIN_Y
             ..horizon_client::chunk::MIN_Y + horizon_client::chunk::HEIGHT)

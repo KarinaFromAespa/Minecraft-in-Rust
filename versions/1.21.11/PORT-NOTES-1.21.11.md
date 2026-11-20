@@ -6787,3 +6787,49 @@ and zero numeric differences. `cargo test -p horizon-client
 (fixtures). No files edited. Rank 2 now 267/492 (86 changed,
 181 no-change). work-items.json rank2.closed = 267 on
 2026-11-20.
+
+## Item 89 — level/mod.rs (rank 2, NO-CHANGE + citations)
+
+1 class, 19 methods, 5 named: `net.minecraft.world.level.Level`.
+
+Java delta, jar-verified: the 26.x WorldClock is gone —
+`getOverworldClockTime`, `getDefaultClockTime`,
+`getClockTimeTicks`, the abstract `clockManager`, and the
+crash-report "Level time" detail (`"%d game time, %d day time"`)
+are all 26.1-only; 1.21.11 has plain `getDayTime()` reading
+`levelData.getDayTime()` (the same removal items 44/74/83
+ported). `prepareWeather()` is 1.21.11-only: a saved rain or
+thunderstorm opens at full strength (rainLevel/thunderLevel
+1.0). Renames only: `random` protected -> public;
+`soundSeedGenerator` -> `threadSafeRandom` (both
+`createThreadSafe()`, both feed `playSeededSound` with
+`nextLong()`); ctor `randValue` from
+`createThreadLocalInstance()` (26.1) vs `create()` (1.21.11)
+— both unseeded draws; `isInsideBuildHeight` ->
+`isOutsideBuildHeight` (inverted at both call sites);
+`ChunkPos.pack` -> `asLong`; `is(Object)` -> `is(Block)` x2
+(COMPARATOR).
+
+Verified matching: no WorldClock mirrors in level/mod.rs;
+`getDayTime` already the plain read (item 44); `prepareWeather`
+already mirrored in save.rs (raining -> (1.0, 1.0),
+thundering -> (1.0, 1.0)) and world_loading.rs (the --weather
+override); `hub.next_sound_seed()` mirrors the seeded-sound
+random; `level_loading.rs` already cites
+`isOutsideBuildHeight`; the Rust's `ChunkPos::pack()` is a
+Rust-side API, not a Java citation.
+
+Citation fixes: level/mod.rs "overworld clock" -> "day time"
+in the `getDayTime` comment; frames.rs `isInsideBuildHeight`
+-> `isOutsideBuildHeight` (verified from the 1.21.11 jar:
+`ItemFrameItem.mayPlace` fails when outside); ticks.rs
+"thread-local random" -> "unseeded random,
+`RandomSource.create()`"; save.rs gains the `prepareWeather`
+citation above the weather init.
+
+Verification: literal comparison — only 26.1-only strings are
+`"%d game time, %d day time"` + `"Level time"`, only 26.1-only
+number `0L`. `cargo check -p horizon-world --lib` and `-p
+horizon-client --lib` clean; ticks tests 0 (no test module).
+All edits comment-only. Rank 2 now 268/492 (86 changed, 182
+no-change). work-items.json rank2.closed = 268 on 2026-11-20.

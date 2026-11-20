@@ -4197,6 +4197,7 @@ impl Level {
         let w = |key: &str| number(data.get(key)).unwrap_or(0);
         let raining = w("raining") != 0;
         let thundering = w("thundering") != 0;
+        // `Level.prepareWeather`: a saved rain or thunderstorm starts at full strength.
         level.weather = crate::world::Weather {
             clear_time: w("clearWeatherTime") as i32,
             rain_time: w("rainTime") as i32,
