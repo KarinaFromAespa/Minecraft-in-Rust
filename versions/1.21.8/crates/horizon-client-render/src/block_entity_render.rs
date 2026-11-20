@@ -2934,7 +2934,7 @@ impl BlockEntityRenderer {
                 };
                 let start = out.len();
                 draw_part(model, "root", m, &anim, paint, out);
-                // `SkullBlockRenderer.resolveSkullRenderType`: a head with a profile takes
+                // `SkullBlockRenderer.getRenderType`: a head with a profile takes
                 // the player skin's `entityTranslucent` render type.
                 if has_profile {
                     mark_oit(&mut out[start..]);
