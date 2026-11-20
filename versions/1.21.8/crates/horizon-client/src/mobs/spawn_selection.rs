@@ -371,7 +371,12 @@ pub trait NaturalLevel: SpawnLevel {
         let _ = (x, z, extent);
         out.extend_from_slice(self.nearest_player_positions());
     }
-    /// The world spawn point, when it is in this dimension.
+    /// The world spawn point, in every dimension: 1.21.8's
+    /// `getSharedSpawnPos` carries no dimension, so the 24-block spawn
+    /// protection in `isRightDistanceToPlayerAndSpawnPoint` applies in
+    /// the Nether and the End too, against the overworld spawn's
+    /// coordinates. (1.21.9 moved the check onto `RespawnData`, which
+    /// carries the dimension and gates it to that dimension.)
     fn respawn(&self) -> Option<[i32; 3]>;
     /// `ServerLevel.canSpawnEntitiesInChunk`.
     fn can_spawn_in_chunk(&self, cx: i32, cz: i32) -> bool;

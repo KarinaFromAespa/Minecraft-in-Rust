@@ -542,10 +542,10 @@ impl NaturalLevel for GameLevel<'_, '_> {
         squares.near(x, z, extent, out);
     }
     fn respawn(&self) -> Option<[i32; 3]> {
-        // The world spawn point lives in the overworld.
-        if self.game.dim != Dim::Overworld {
-            return None;
-        }
+        // The world spawn point lives in the overworld, but 1.21.8's
+        // `getSharedSpawnPos` carries no dimension: the 24-block spawn
+        // protection applies in every dimension, against the overworld
+        // spawn's coordinates.
         self.game.level.spawn.map(|s| {
             [
                 s[0].floor() as i32,

@@ -334,7 +334,45 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 204/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221 + 4 zero-diff)
+### Rank 2: 205/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222 + 4 zero-diff)
+
+- **Item 222 — widely named: world/level (`GameRules`,
+  `ChunkPos`, `ClipContext$Block`, `CollisionGetter`,
+  `GameRules$BooleanValue`, `GameRules$IntegerValue`,
+  `NaturalSpawner`; 7 classes, 9 methods, 0 named in Horizon),
+  2 FIXES:**
+  - **Spawn protection (NaturalSpawner):** 1.21.9 moved the
+    24-block spawn check in `isRightDistanceToPlayerAndSpawnPoint`
+    onto `RespawnData`, which carries the dimension, so the
+    protection applies only in the respawn dimension; 1.21.8 uses
+    `getSharedSpawnPos()`, which carries no dimension, so the
+    protection applies in every dimension against the overworld
+    spawn's coordinates. The Rust's `GameLevel::respawn` gated on
+    `dim == Overworld` — the 1.21.9 form — and the gate is removed
+    (trait doc reworded).
+  - **Spawn-chunk radius (GameRules):** `RULE_SPAWN_CHUNK_RADIUS`
+    (int, default 2, range 0–32) exists only in 1.21.8 (1.21.9
+    removed it) and was missing from the Rust's gamerule table, so
+    `/gamerule spawn_chunk_radius` failed. Added; its callback
+    (re-set the default spawn pos to re-ticket the spawn chunks)
+    has no Rust surface — this tree has no spawn-chunk ticketing.
+  - No change for the rest: the 1.21.9-only rules (`pvp`,
+    `allowEnteringNetherUsingPortals`, `spawnMonsters`) stay in the
+    table as dead surface per the established precedent — the game
+    logic already implements 1.21.8 (natural spawning does not
+    consult `spawn_monsters`, item 201; `may_enter` returns true,
+    the Nether rule being 1.21.9-only; the `pvp` reads default to
+    true, 1.21.8's always-on integrated PvP) — and removing `pvp`
+    would panic the dedicated management protocol's unwrap.
+    `doDaylightCycle`/`doWeatherCycle` default true in both
+    versions in normal play (`DEBUG_WORLD_RECREATE` is false).
+    `ChunkPos.contains` is 1.21.9-only with no Rust surface. The
+    fall-reset clip already implements the 1.21.8 form (tagged
+    blocks + water only; the 1.21.9 player-portal special cases are
+    absent from both `fall_reset_clip` implementations).
+    `CollisionGetter`'s null-entity empty context is the 1.21.8
+    form per item 220. `DEBUG_IGNORE_LOCAL_MOB_CAP` is false in
+    normal play. Cargo check 0 errors / 0 warnings.
 
 - **Item 221 — widely named: net/minecraft (`Util`,
   `SystemReport`, `Util$3`, `Util$4`; 4 classes, 9 methods, 0
