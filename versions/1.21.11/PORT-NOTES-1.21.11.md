@@ -7333,3 +7333,47 @@ published 1.16 MB profile from the delta-bar artifact, not the
 1.7 KB top-level summary), delta-verdict.json, work-items.json
 (280/492). VERSIONS.md row updated (harness 5/23, behaviour
 290/815).
+
+## Item 102 — containers.rs (rank 2, CHANGED)
+
+2 classes, 11 methods, 5 named: AbstractFurnaceBlockEntity,
+BaseContainerBlockEntity.
+
+Java delta, jar-verified: the furnace serverTick genuinely differs.
+(1) 26.1 nests the recipe lookup inside `if (hasIngredient)` and does
+nothing when it returns null, so the cooking timer keeps its stale
+value; 1.21.11 resets `cookingTimer = 0` in the else branch whenever
+the furnace is in the outer `isLit() || hasFuel && hasIngredient`
+arm. (2) 26.1's canBurn requires room for the full result count and
+burn grows the output by the full count (`grow(result.getCount())`);
+1.21.11's canBurn only requires room for 1 and burn grows by exactly
+1 (`grow(1)`, javap-verified) — identical for count-1 recipes (all
+vanilla cooking recipes), different only for datapack recipes
+yielding 2+. NOT differences: cookingTotalTime after a burn (the
+1.21.11 `getTotalCookTime` call happens before `burn()` shrinks the
+input, so it sees the same recipe); the cooldown branch (`!isLit()`
+is redundant in the else arm); the wet-sponge check (`Items.WET_SPONGE`
+vs `Blocks.WET_SPONGE.asItem()`, same item); fuel consumption
+(26.1's `consumeFuel` helper vs 1.21.11's inlined shrink + remainder,
+same effect); `setRecipeUsed` gating (burn returns true whenever
+reached from the tick); `isLit()` vs inlined `litTimeRemaining > 0`.
+BaseContainerBlockEntity: `sendOverlayMessage` vs
+`displayClientMessage(..., true)` is API shape — both show the
+action bar. Literal comparison zero in both classes (the differences
+are structural, so the javap diff is the authority).
+
+Fix in `furnace.rs::tick` (the furnace tick lives there, not in
+containers.rs): added `else { self.cooking_timer = 0; }` on the
+recipe lookup; `can_burn` is now `out.count < max`; the burn grows a
+non-empty output by 1. Two `consumeFuel` citations reworded to the
+1.21.11 inline form. Two new tests
+(`an_ingredient_without_a_recipe_resets_the_cooking_timer`,
+`a_multi_count_recipe_only_adds_one_to_a_nonempty_output`; the
+`data()` fixture gained a `data_count` variant). Version-neutral Rust
+extensions left alone: the fuel-speed rescale on lighting (no vanilla
+counterpart in either version) and dropping the fuel remainder when
+the stack isn't used up (documented deliberate — vanilla loses it in
+both versions). Tests: `cargo test -p horizon-client-lib --lib
+--no-default-features furnace::` 9 passed (the furnace tests live in
+the horizon-client-lib binary, not horizon-client's). rustfmt
+--check clean on furnace.rs.
