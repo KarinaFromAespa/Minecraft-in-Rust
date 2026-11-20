@@ -196,6 +196,10 @@ pub struct Memories {
     pub cant_reach_walk_target_since: Slot<i64>,
     pub tempting_player: Slot<Who>,
     pub temptation_cooldown_ticks: Slot<i32>,
+    /// `IS_TEMPTED`: set by `FollowTemptation` start, erased by its stop —
+    /// not the sensor's `TEMPTING_PLAYER`, which stays present while the
+    /// tempting player is near even after the behaviour stops.
+    pub is_tempted: Slot<bool>,
     pub is_panicking: Slot<bool>,
     pub sniffer_digging: Slot<bool>,
     pub sniffer_sniffing_target: Slot<[i32; 3]>,
@@ -236,6 +240,7 @@ impl Memories {
         self.cant_reach_walk_target_since.tick();
         self.tempting_player.tick();
         self.temptation_cooldown_ticks.tick();
+        self.is_tempted.tick();
         self.is_panicking.tick();
         self.sniffer_digging.tick();
         self.sniffer_sniffing_target.tick();
@@ -581,9 +586,11 @@ fn update_activity(m: &mut Mob) {
 pub fn is_panicking(m: &Mob) -> bool {
     mem_ref(m).is_some_and(|mm| mm.is_panicking.present())
 }
-/// `Sniffer.isTempted`.
+/// `Sniffer.isTempted`: `brain.getMemory(IS_TEMPTED).orElse(false)` — the
+/// behaviour memory `FollowTemptation` sets on start and erases on stop,
+/// not the sensor's `TEMPTING_PLAYER`.
 pub fn is_tempted(m: &Mob) -> bool {
-    mem_ref(m).is_some_and(|mm| mm.tempting_player.present())
+    mem_ref(m).is_some_and(|mm| mm.is_tempted.present())
 }
 /// The explored positions are the sniffer's `SNIFFER_EXPLORED_POSITIONS`.
 const EXPLORED_MAX: usize = 20;
@@ -775,7 +782,9 @@ fn sense_adult(m: &mut Mob, w: &MobWorld) {
 fn followable_friendly(s: Species) -> bool {
     matches!(
         s,
-        Species::Camel
+        Species::Armadillo
+            | Species::Bee
+            | Species::Camel
             | Species::Cat
             | Species::Chicken
             | Species::Cow
@@ -1189,6 +1198,8 @@ impl B {
                     return false;
                 }
                 t.begin(cx.lr, cx.now);
+                // `FollowTemptation.start`: `setMemory(IS_TEMPTED, true)`.
+                mem(m).is_tempted.set(true);
                 if brain_mut(m).kind == Kind::Sniffer {
                     reset_sniffing(m, cx);
                 }
@@ -1783,6 +1794,7 @@ impl B {
                 t.running = false;
                 let mm = mem(m);
                 mm.temptation_cooldown_ticks.set(100);
+                mm.is_tempted.clear();
                 mm.walk_target.clear();
                 mm.look_target.clear();
             }
@@ -2065,9 +2077,9 @@ fn dig_position(m: &mut Mob, w: &MobWorld) -> Option<[i32; 3]> {
     None
 }
 
-/// `SnifferAi.getActivities`, in `availableBehaviorsByPriority` order: by
-/// priority (`ActivityData.create(CORE, 0, ...)` numbers the core
-/// behaviours 0, 1, 2...), then by the activity's bucket in the 16-bucket
+/// `SnifferAi.makeBrain`, in `availableBehaviorsByPriority` order: by
+/// priority (`addActivity(CORE, 0, ...)` numbers the core behaviours 0, 1,
+/// 2...), then by the activity's bucket in the 16-bucket
 /// `HashMap<Activity, ...>` (core 1, dig 3, idle 5, sniff 6, panic 15),
 /// then in insertion order.
 fn sniffer_package(seed: i64) -> Vec<Entry> {
@@ -2140,10 +2152,10 @@ fn sniffer_package(seed: i64) -> Vec<Entry> {
     ));
     l
 }
-/// `HappyGhastAi.getActivities`, in `availableBehaviorsByPriority` order.
-/// `CopperGolemAi.getActivities`, in tick order: the core behaviours take
-/// priorities 0 to 5 in turn (`ActivityData.create(CORE, 0, ..)`), the idle
-/// ones 0, 1 and 2.
+/// `HappyGhastAi.makeBrain`, in `availableBehaviorsByPriority` order.
+/// `CopperGolemAi.makeBrain`, in tick order: the core behaviours take
+/// priorities 0 to 5 in turn (`addActivity(CORE, 0, ..)`), the idle ones
+/// 0, 1 and 2.
 fn copper_golem_package(seed: i64) -> Vec<Entry> {
     let e = |act: Act, b: B| Entry { act, b };
     vec![
@@ -2880,6 +2892,7 @@ pub fn describe(m: &Mob) -> Option<(String, String)> {
         mm.temptation_cooldown_ticks,
         |t: &i32| t.to_string()
     );
+    slot!("is_tempted", mm.is_tempted, |b: &bool| b.to_string());
     slot!("is_panicking", mm.is_panicking, |b: &bool| b.to_string());
     slot!("sniffer_digging", mm.sniffer_digging, |b: &bool| b
         .to_string());
@@ -2993,6 +3006,131 @@ mod breeding_duration_tests {
             })
             .unwrap();
         assert_eq!((timed.min, timed.max), (110, 110));
+    }
+}
+
+#[cfg(test)]
+mod followable_friendly_tests {
+    use super::*;
+    /// `#followable_friendly_mobs` as the tag JSON lists it in both jars:
+    /// 25 entries. Armadillo and Bee were missing, so a baby ghastling never
+    /// followed an adult armadillo or bee.
+    #[test]
+    fn followable_friendly_matches_the_tag() {
+        for s in [
+            Species::Armadillo,
+            Species::Bee,
+            Species::Camel,
+            Species::Cat,
+            Species::Chicken,
+            Species::Cow,
+            Species::Donkey,
+            Species::Fox,
+            Species::Goat,
+            Species::HappyGhast,
+            Species::Horse,
+            Species::SkeletonHorse,
+            Species::Llama,
+            Species::Mule,
+            Species::Ocelot,
+            Species::Panda,
+            Species::Parrot,
+            Species::Pig,
+            Species::PolarBear,
+            Species::Rabbit,
+            Species::Sheep,
+            Species::Sniffer,
+            Species::Strider,
+            Species::Villager,
+            Species::Wolf,
+        ] {
+            assert!(
+                followable_friendly(s),
+                "{s:?} is in #followable_friendly_mobs"
+            );
+        }
+        for s in [
+            Species::Allay,
+            Species::Axolotl,
+            Species::Frog,
+            Species::Mooshroom,
+            Species::Turtle,
+            Species::Zombie,
+            Species::Creeper,
+        ] {
+            assert!(
+                !followable_friendly(s),
+                "{s:?} is not in #followable_friendly_mobs"
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tempted_memory_tests {
+    use super::*;
+    use crate::mobs::world::with_test_world;
+    use std::sync::Arc;
+
+    /// `Sniffer.isTempted` reads `IS_TEMPTED`, which `FollowTemptation` sets
+    /// on start and erases on stop — not `TEMPTING_PLAYER`, which the sensor
+    /// keeps set while the tempting player is near. After the behaviour stops
+    /// (cooldown 100), the sniffer is no longer tempted even though the
+    /// player is still tempting, so Scenting can start again. With the old
+    /// `tempting_player` read, the sniffer stayed "tempted" through the whole
+    /// cooldown and could neither scent nor sniff nor dig.
+    #[test]
+    fn tempted_memory_follows_follow_temptation_not_the_sensor() {
+        let mut outcome: Option<(bool, bool, bool, bool, Option<i32>, bool, bool)> = None;
+        let ran = with_test_world(&[], |w, types| {
+            let mut m = Mob::new(
+                1,
+                Arc::new(types.types["minecraft:sniffer"].clone()),
+                Vec3::new(0.5, 64.0, 0.5),
+                0.0,
+            );
+            init(&mut m, 1);
+            // A tempting player in range, but no behaviour running yet.
+            mem(&mut m).tempting_player.set(Who::Player);
+            let tempted_before = is_tempted(&m);
+            let (mut lr, mut events) = (horizon_core::random::LegacyRandom::new(0), Vec::new());
+            let mut cx = Bx {
+                w,
+                lr: &mut lr,
+                events: &mut events,
+                now: 0,
+            };
+            let mut ft = B::FollowTemptation {
+                t: Timed::new(60, 60),
+                look_in_the_eyes: false,
+            };
+            let started = ft.try_start(&mut m, &mut cx);
+            let tempted_while_running = is_tempted(&m);
+            let mut scenting = B::Scenting(Timed::new(40, 80));
+            let scenting_while_tempted = scenting.try_start(&mut m, &mut cx);
+            ft.do_stop(&mut m, &mut cx);
+            let tempted_after_stop = is_tempted(&m);
+            let cooldown = mem(&mut m).temptation_cooldown_ticks.value();
+            let player_still_tempting = mem(&mut m).tempting_player.present();
+            let mut scenting_again = B::Scenting(Timed::new(40, 80));
+            let scenting_after_stop = scenting_again.try_start(&mut m, &mut cx);
+            outcome = Some((
+                tempted_before,
+                started && tempted_while_running,
+                scenting_while_tempted,
+                tempted_after_stop,
+                cooldown,
+                player_still_tempting,
+                scenting_after_stop,
+            ));
+        });
+        if !ran {
+            return;
+        }
+        assert_eq!(
+            outcome,
+            Some((false, true, false, false, Some(100), true, true))
+        );
     }
 }
 

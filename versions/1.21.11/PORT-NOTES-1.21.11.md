@@ -3112,3 +3112,112 @@ v {0.1, 0.9}); all 3 item_bake tests and all 53 horizon-assets lib tests
 pass. `rustfmt --edition 2024` on the leaf file.
 Rank 2 now 216/492 (51 changed, 165 no-change).
 work-items.json rank2.closed = 216 on 2026-11-20.
+
+## Item 38 — mobs/animal_brain.rs (rank 2, CHANGED)
+
+SnifferAi (+$Digging, $FeelingHappy, $FinishedDigging, $Scenting,
+$Searching, $Sniffing, $1, $2, $3), AxolotlAi, HappyGhastAi,
+CopperGolemAi, TadpoleAi, AnimalMakeLove, AnimalPanic,
+FollowTemptation, PathfinderMob, ActivityData (removed), BabyFollowAdult,
+BehaviorControl, SetEntityLookTarget, SetEntityLookTargetSometimes
+(+$Ticker), AdultSensorAnyType: 25 classes, 88 methods, 6 named.
+Harness mob_ai. No 26.1 → 1.21.11 behaviour change — the version delta
+is API shape only — but two pre-existing Rust-vs-vanilla gaps in this
+item's classes were fixed in passing, so the item counts as changed.
+
+The brain-provider refactor is the main shape change: 26.1 Ai classes
+return `List<ActivityData<T>>` via `getActivities()`; 1.21.11 uses
+`Brain.makeBrain(Brain<T>)` + `addActivity` / `addActivityWithConditions`
+/ `addActivityAndRemoveMemoriesWhenStopped` + `setCoreActivities` /
+`setDefaultActivity` / `useDefaultActivity`, with explicit
+`SENSOR_TYPES` / `MEMORY_TYPES` lists (in the Ai class for
+CopperGolem/HappyGhast/Sniffer; in the entity class for Axolotl/Tadpole),
+and `ActivityData` is removed entirely. `Brain.createPriorityPairs` is
+the same sequential-numbering helper `ActivityData.create` used, so the
+list form still numbers behaviours from the given priority. Activity
+contents, priorities, speeds, conditions and erase-on-stop sets are
+identical for all five Ai classes, verified field by field against the
+Rust's five packages (sniffer core/dig/sniff/idle, copper golem core/idle
+incl. the transport-gated RunOne, ghastling core/idle incl. the
+fly-panic, tadpole core/idle, axolotl core/idle/fight/play-dead incl.
+PLAY_DEAD stickiness and the 2400-tick hunting cooldown on FIGHT exit).
+
+`TypedInstance` was removed in 1.21.11, so `entity.is(type)` /
+`entity.is(tag)` became `getType() == type` / `getType().is(tag)` in
+AnimalMakeLove, SetEntityLookTarget, SetEntityLookTargetSometimes and
+AdultSensorAnyType — the same outcome in every case (26.1's
+`TypedInstance.is(T)` is `typeHolder().value() == obj`, bytecode-verified;
+the Rust's exact-type `species` comparison already matches 1.21.11).
+`PathfinderMob.isPanicking` drops the `!brain.isBrainDead()` conjunct in
+1.21.11; the Rust checks memory presence only, already 1.21.11.
+`BehaviorControl.getRequiredMemories` is 26.1-only, no Rust mirror.
+BabyFollowAdult differs only in UniformInt accessor names. AnimalPanic,
+FollowTemptation and SnifferAi$1/$2/$3 have identical normalized javap
+(the decompile diffs are parameter-name noise). The SnifferAi inner
+classes differ only in visibility. Method-name diff run explicitly on
+the javap dumps: the only differences are ActivityData's removal,
+`getRequiredMemories`, and `getActivities` → `makeBrain` in the five Ai
+classes.
+
+Rust mirrors verified exact against 1.21.11 (decompile + bytecode): all
+five activity packages; sensor orders for all five kinds (Tadpole:
+[NEAREST_LIVING_ENTITIES, NEAREST_PLAYERS, HURT_BY, FROG_TEMPTATIONS]);
+all MEMORY_TYPES slots; activity gating; FollowTemptation close
+distances (sniffer baby 2.5 / adult 3.5, ghastling 3.0, default 2.5);
+BabyFollowAdult (range [min, max+1), close = min-1, eye flags);
+LookAtPlayerSometimes ticker (exact sample-1 semantics, 30-60
+axolotl/tadpole, 40-80 copper golem); AnimalPanic fly vs land position
+picks; RandomStroll variants (`stroll(0.15, false)` = `!isInWater`,
+honoured for the axolotl; fly uses AirAndWaterRandomPos(10, 7, -2));
+all six sniffer inner behaviours (start/tick/stop incl. the 9600 sniff
+cooldown, the explored-position cap — vanilla limits to 20 THEN adds,
+so 21 max, exactly like the Rust — and the sniffing-timeout walk target
+1.25/0); MakeLove speeds (axolotl 0.2, else 1.0); axolotl speeds
+(0.5/0.6 water, 0.15 land). The `#followable_friendly_mobs` tag JSON is
+byte-identical in both jars (25 entries).
+
+Fix 1 — `followable_friendly` omitted Armadillo and Bee (23 of the
+tag's 25 entries), so a baby ghastling never followed an adult armadillo
+or bee. Both added.
+
+Fix 2 — `is_tempted` read the wrong memory: the Rust used
+`tempting_player.present()` (the sensor memory: a player holding food is
+near), but vanilla `Sniffer.isTempted()` is
+`brain.getMemory(IS_TEMPTED).orElse(false)` (1.21.11 bytecode), and
+IS_TEMPTED is set only by `FollowTemptation.start` and erased by its
+stop (1.21.11 decompile; a jar-wide constant-pool scan shows
+FollowTemptation is the only writer). The divergence window is the
+100-tick temptation cooldown after FollowTemptation stops and while a
+BREED_TARGET is present — vanilla's sniffer can scent/sniff/dig then,
+the Rust's could not. Added `is_tempted: Slot<bool>` to `Memories`
+(ticked, and reported in `describe` — the mob_ai oracle prints every
+present memory via `brain.forEach`, so `is_tempted=true` now matches),
+set in FollowTemptation start, cleared in its stop, read by
+`is_tempted()`. Contained to animal_brain.rs (no callers outside the
+file). Doc citations updated to the 1.21.11 names (`makeBrain` /
+`addActivity`; `monster_brain.rs` and `warden_brain.rs` still cite
+`getActivities` — their items' scope).
+
+Referrals: the IS_TEMPTED conflation may exist in other brain files
+(ArmadilloAi, CamelAi, Goat, Frog, NautilusAi reference IS_TEMPTED in
+the jar) — check when those items come up; `TransportItemsBetweenContainers`
+internals belong to that behaviour's own item (only its idle-priority-0
+wiring was verified here); `PlayDead` / `ValidatePlayDead` are not in
+this item's class list (only their activity wiring via AxolotlAi was
+verified). The item-23 referral (HappyGhast/Hoglin brain-provider
+refactor) is discharged for the HappyGhast half: contents identical,
+Rust already matches 1.21.11.
+
+Tests: new `followable_friendly_matches_the_tag` (all 25 tag species
+true; Allay/Axolotl/Frog/Mooshroom/Turtle/Zombie/Creeper false) and
+`tempted_memory_follows_follow_temptation_not_the_sensor`
+(fixture-gated: FollowTemptation start sets IS_TEMPTED, stop clears it
+while TEMPTING_PLAYER stays present with cooldown 100, Scenting blocked
+while tempted and allowed after the stop). All 6 animal_brain tests pass
+in the horizon-client-lib binary (the tempted-memory test early-returns
+locally — no fixture — and runs for real on CI).
+`cargo check -p horizon-client --lib --tests --no-default-features`
+clean; `rustfmt --edition 2024 --check` clean (one long assert line
+fixed by hand).
+Rank 2 now 217/492 (52 changed, 165 no-change).
+work-items.json rank2.closed = 217 on 2026-11-20.
