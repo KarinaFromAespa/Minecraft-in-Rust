@@ -497,3 +497,31 @@ three test asserts updated; the `component_shadow_color` test's
 lines share a plane at `base + 0.001` — vanilla does the same.)
 The text background (`UNDER_EFFECT_DEPTH`) has no Rust surface:
 the Rust draws backgrounds by draw order, not z.
+
+### Pre-existing datafix unit-test failures (not this delta)
+
+Three `horizon-world` datafix tests fail in this tree, before and
+after the behaviour port (verified by re-running with the item-5
+change temporarily reverted: 30 passed / 3 failed either way).
+All three were written for the 26.x tree and assume versions or
+fixes above 4435:
+
+- `failed_upgrade_keeps_old_data_version`: hardcodes old = 4899,
+  newer than 1.21.6's CURRENT (4435), so the upgrade
+  short-circuits and level.dat is never stamped.
+- `block_states_take_their_new_field_names`: the test chunk is at
+  DataVersion 4903, newer than CURRENT, so `update_chunk` returns
+  early and the palette keeps `Name` instead of `id`.
+- `level_data_of_1_20_moves_to_the_new_fields`: expects a
+  `difficulty_settings` field, but the `level_dat_difficulty` fix
+  is registered at schema 4771, above CURRENT, so it never runs
+  for a 1.21.6 upgrade (vanilla 1.21.6 level.dat has no
+  `difficulty_settings` field).
+
+They do not gate the delta-bar (D2 is cargo check + protocol
+tests; D4 is the datafix harness, not unit tests). The three
+entity/POI stamp tests that the item-5 change did break
+(`old_chunks_are_converted_and_current_ones_skipped`,
+`poi_chunks_without_a_version_start_at_1945`,
+`the_worker_thread_finishes_and_a_cancel_joins_it`) were updated
+to the 1.21.6 form (no stamp) and pass.
