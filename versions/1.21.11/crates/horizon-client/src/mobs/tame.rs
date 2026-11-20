@@ -661,14 +661,6 @@ impl Goal for Beg {
         self.ticks -= 1;
     }
 }
-/// `NeutralMob.isValidPlayerTarget`: a player in survival or adventure, off
-/// peaceful.
-fn valid_player_target(w: &MobWorld) -> bool {
-    w.player
-        .as_ref()
-        .is_some_and(|p| !p.creative && !p.spectator)
-        && w.difficulty.id != 0
-}
 /// `NeutralMob.stopBeingAngry`.
 fn stop_being_angry(m: &mut Mob) {
     // setLastHurtByMob(null) also stamps the time.
@@ -690,7 +682,11 @@ pub fn forgive_dead_player(m: &mut Mob) {
 /// monster) is the anger's target, and the 20 to 39 seconds of
 /// `PERSISTENT_ANGER_TIME` (the same for both) start over every tick it is held.
 /// Without a target the anger runs out (`extra.anger` counts down to the end
-/// time), and anger at a mob ends when that mob dies.
+/// time), and anger at a mob ends when that mob dies. 1.21.11's
+/// `Mob.getTarget` is the raw target — no creative/spectator filter (26.1's
+/// `asValidTarget`) — and there is no forgiveness for a creative, spectator
+/// or Peaceful player: the goal layer drops such a player from the target
+/// (`can_target_player`), and only then does the timer run out.
 pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
     let angry_at = m.extra.angry_at;
     if let Some(target @ Who::Mob(id)) = m.ai.target
@@ -700,13 +696,7 @@ pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
         stop_being_angry(m);
         return;
     }
-    // Mob.getTarget: a player in creative or spectator mode is no target.
-    let target = m.ai.target.filter(|t| {
-        *t != Who::Player
-            || w.player
-                .as_ref()
-                .is_some_and(|p| !p.creative && !p.spectator)
-    });
+    let target = m.ai.target;
     if let Some(target) = target {
         m.extra.angry_at = Some(target);
         // Wolf.startPersistentAngerTimer: TimeUtil.rangeOfSeconds(20, 39).
@@ -714,20 +704,7 @@ pub(super) fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
     } else if m.extra.anger > 0 {
         m.extra.anger -= 1;
     }
-    if angry_at.is_some()
-        && m.extra.anger == 0
-        && !(target == Some(Who::Player) && valid_player_target(w))
-    {
-        stop_being_angry(m);
-    }
-    // The anger's target as it was when the tick began, once it is found: a
-    // player who is not here yet (a reloaded wolf ticks before the player
-    // joins) keeps the anger.
-    if angry_at == Some(Who::Player)
-        && w.player
-            .as_ref()
-            .is_some_and(|p| p.creative || p.spectator || w.difficulty.id == 0)
-    {
+    if angry_at.is_some() && m.extra.anger == 0 {
         stop_being_angry(m);
     }
 }

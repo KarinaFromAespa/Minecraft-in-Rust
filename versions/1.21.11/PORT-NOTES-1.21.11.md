@@ -3890,3 +3890,60 @@ files except pre-existing drift at special.rs:449 (book renderer,
 untouched).
 Rank 2 now 225/492 (58 changed, 167 no-change).
 work-items.json rank2.closed = 225 on 2026-11-20.
+
+## Item 47 — mobs/bee.rs (rank 2, CHANGED)
+
+Bee, NeutralMob, ResetUniversalAngerTargetGoal: 16 classes, 38 methods,
+9 named. Harness mob_ai. The Bee class itself is identical between the
+jars (goals, save data, sting poison 10 s normal / 18 s hard, nectar
+drip, `wantsToEnterHive`, `attractsBees`) except the `PathType`
+rename `FIRE_IN_NEIGHBOR` → `DANGER_FIRE`; `ResetUniversalAngerTargetGoal`
+differs only in `is(EntityType.PLAYER)` → `getType() == EntityType.PLAYER`.
+The real changes are all in `NeutralMob.updatePersistentAnger`, shared
+by every neutral mob (all call it with `stayAngryIfTargetPresent = true`
+except the bee, `false` — javap-verified in both jars):
+
+- Timer restart: 1.21.11 restarts the timer unconditionally whenever a
+  target is held; 26.1 restarts only on a new target or when
+  `stayAngryIfTargetPresent`. Only the bee differs (its anger expired
+  after 20–39 s even with the target held in 26.1; in 1.21.11 it never
+  expires while the target is held).
+- No immediate forgiveness: 26.1 stops anger at once when the persistent
+  target is a creative/spectator player or the difficulty is Peaceful;
+  1.21.11 has no such branch — the goal layer drops a creative/spectator
+  player from the target and only then does the timer run out, and on
+  Peaceful neutral mobs stay angry (and keep attacking).
+- `isValidPlayerTarget`: 26.1 adds a Peaceful check; 1.21.11 checks only
+  creative/spectator (it gates only the universal-anger arm of
+  `isAngryAt`, and both Rust mirrors already omit the difficulty check).
+- `Mob.getTarget()`: 26.1 filters through `asValidTarget` (null for a
+  creative/spectator or unattackable target) with a raw
+  `getTargetUnchecked()`; 1.21.11's `getTarget()` is the raw field.
+
+Changes: bee.rs restarts the timer every tick a target is held and drops
+the immediate stop; tame.rs (wolf + iron golem) drops the 26.1 `getTarget`
+filter and the immediate stop, simplifying the stop condition to
+`angry_at.is_some() && anger == 0`; polar_bear.rs drops the immediate
+creative/spectator forgiveness. Both now-unused `valid_player_target`
+helpers (which carried the Peaceful check) removed. Also fixed the bee's
+fire malus, which was on the wrong path type in both versions' terms:
+`DamageFire` (in fire) instead of vanilla's `DANGER_FIRE` (near fire) —
+the Rust's evaluator distinguishes them, so a bee pathed next to fire
+at cost 8 instead of refusing it. Tests: the Peaceful test pinned the
+26.1 behaviour — replaced by `peaceful_does_not_end_a_bees_anger_at_the_player`,
+`a_held_target_restarts_a_bees_anger_timer` and
+`a_creative_or_spectator_player_is_not_forgiven_at_once`.
+
+Recorded, not changed (version-neutral, other files' scope): the
+zombified piglin starts its anger only on a new target and counts down
+even with a target held, though vanilla calls `updatePersistentAnger`
+with `true` in both versions; the enderman has no `updatePersistentAnger`
+mirror at all; the polar bear's update has no dead-mob-target branch.
+
+Tests: `cargo check -p horizon-client --lib --tests
+--no-default-features` and `-p horizon-client-lib --lib --tests
+--no-default-features` clean, zero warnings; horizon-client-lib tests:
+bee 6 passed, tame 17 passed, golem 10 passed, polar_bear 3 passed, 0
+failed. rustfmt clean on bee.rs, tame.rs, polar_bear.rs.
+Rank 2 now 226/492 (59 changed, 167 no-change).
+work-items.json rank2.closed = 226 on 2026-11-20.

@@ -151,7 +151,7 @@ pub fn register(m: &mut Mob) {
     m.ai.nav.kind = NavKind::Flying;
     m.ai.nav.can_open_doors = false;
     m.set_required_path_length(48.0);
-    m.set_malus(PathType::DamageFire, -1.0);
+    m.set_malus(PathType::DangerFire, -1.0);
     m.set_malus(PathType::Water, -1.0);
     m.set_malus(PathType::WaterBorder, 16.0);
     m.set_malus(PathType::Cocoa, -1.0);
@@ -220,39 +220,34 @@ fn start_anger_timer(m: &mut Mob, w: &MobWorld) {
     let ticks = next_int(m, 400, 780);
     st(m).anger_end = w.game_time + i64::from(ticks);
 }
-/// `NeutralMob.isValidPlayerTarget`: not creative or spectator, and not on
-/// Peaceful.
-fn valid_player_target(w: &MobWorld) -> bool {
-    w.difficulty.id != 0
-        && w.player
-            .as_ref()
-            .is_some_and(|p| !p.creative && !p.spectator)
-}
-/// `NeutralMob.updatePersistentAnger(level, false)`.
+/// `NeutralMob.updatePersistentAnger(level, false)`: the timer starts over
+/// every tick a target is held, so a bee's anger only runs out once the
+/// target is gone (26.1 restarted it on a new target alone when
+/// `stayAngryIfTargetPresent` is false). There is no forgiveness for a
+/// creative, spectator or Peaceful player: 26.1's immediate stop and its
+/// Peaceful check in `isValidPlayerTarget` are gone, and `Mob.getTarget`
+/// is the raw target (26.1 filtered it through `asValidTarget`).
 fn update_persistent_anger(m: &mut Mob, w: &MobWorld) {
-    let previous = m.ai.target;
+    let target = m.ai.target;
     let angry_at = get(m).and_then(|b| b.angry_at);
     let dead_mob = |who: Who| match who {
         Who::Mob(id) => w.seen(id).is_none_or(|s| !s.alive),
         Who::Player => false,
     };
-    if let Some(p) = previous
+    if let Some(p) = target
         && dead_mob(p)
         && angry_at == Some(p)
     {
         stop_being_angry(m);
         return;
     }
-    if let Some(target) = m.ai.target
-        && angry_at != Some(target)
-    {
-        st(m).angry_at = Some(target);
+    if let Some(target) = target {
+        if angry_at != Some(target) {
+            st(m).angry_at = Some(target);
+        }
         start_anger_timer(m, w);
     }
     if angry_at.is_some() && !angry(m, w) {
-        stop_being_angry(m);
-    }
-    if angry_at == Some(Who::Player) && !valid_player_target(w) {
         stop_being_angry(m);
     }
 }
@@ -1287,12 +1282,14 @@ mod tests {
         Mob::new(3, kind, Vec3::ZERO, 0.0)
     }
 
-    /// `NeutralMob.updatePersistentAnger`: anger at the player ends on
-    /// Peaceful, as for a creative or spectator player (#11377).
+    /// `NeutralMob.updatePersistentAnger`: Peaceful does not end a bee's
+    /// anger at the player — 1.21.11 has neither 26.1's immediate stop nor
+    /// its Peaceful check in `isValidPlayerTarget`; the anger runs out
+    /// only when its timer does.
     #[test]
-    fn peaceful_ends_a_bees_anger_at_the_player() {
+    fn peaceful_does_not_end_a_bees_anger_at_the_player() {
         with_test_world(&[], |w, _| {
-            for (difficulty, still_angry) in [(2, true), (0, false)] {
+            for difficulty in [2, 0] {
                 let mut w = w.clone();
                 w.player = Some(crate::mobs::world::test_player(Vec3::new(1.0, 0.0, 0.0)));
                 w.difficulty =
@@ -1302,8 +1299,65 @@ mod tests {
                 b.angry_at = Some(Who::Player);
                 b.anger_end = w.game_time + 400;
                 super::update_persistent_anger(&mut m, &w);
-                let angry = super::get(&m).is_some_and(|b| b.angry_at.is_some());
-                assert_eq!(angry, still_angry, "difficulty {difficulty}");
+                assert!(
+                    super::get(&m).is_some_and(|b| b.angry_at.is_some()),
+                    "difficulty {difficulty}"
+                );
+            }
+        });
+    }
+
+    /// `NeutralMob.updatePersistentAnger`: a held target restarts the anger
+    /// timer every tick, so the anger outlives its first end time; once the
+    /// target is gone the timer runs out and the anger ends.
+    #[test]
+    fn a_held_target_restarts_a_bees_anger_timer() {
+        with_test_world(&[], |w, _| {
+            let mut w = w.clone();
+            w.player = Some(crate::mobs::world::test_player(Vec3::new(1.0, 0.0, 0.0)));
+            let mut m = bee();
+            m.ai.target = Some(Who::Player);
+            let b = super::st(&mut m);
+            b.angry_at = Some(Who::Player);
+            b.anger_end = w.game_time + 1;
+            super::update_persistent_anger(&mut m, &w);
+            let end = super::get(&m).map(|b| b.anger_end).unwrap_or(-1);
+            assert!(
+                (w.game_time + 400..=w.game_time + 780).contains(&end),
+                "timer restarted to {end}"
+            );
+            // The target gone: the timer runs out and the anger ends.
+            m.ai.target = None;
+            let b = super::st(&mut m);
+            b.anger_end = w.game_time;
+            super::update_persistent_anger(&mut m, &w);
+            assert!(super::get(&m).is_some_and(|b| b.angry_at.is_none()));
+        });
+    }
+
+    /// `NeutralMob.updatePersistentAnger`: a creative or spectator player
+    /// is not forgiven at once — 1.21.11 has no 26.1 immediate stop, and
+    /// `Mob.getTarget` is the raw target; the goal layer drops such a
+    /// player from the target, and only then does the timer run out.
+    #[test]
+    fn a_creative_or_spectator_player_is_not_forgiven_at_once() {
+        with_test_world(&[], |w, _| {
+            for (creative, spectator) in [(true, false), (false, true)] {
+                let mut w = w.clone();
+                let mut player = crate::mobs::world::test_player(Vec3::new(1.0, 0.0, 0.0));
+                player.creative = creative;
+                player.spectator = spectator;
+                w.player = Some(player);
+                let mut m = bee();
+                m.ai.target = Some(Who::Player);
+                let b = super::st(&mut m);
+                b.angry_at = Some(Who::Player);
+                b.anger_end = w.game_time + 1;
+                super::update_persistent_anger(&mut m, &w);
+                assert!(
+                    super::get(&m).is_some_and(|b| b.angry_at.is_some()),
+                    "creative {creative} spectator {spectator}"
+                );
             }
         });
     }
