@@ -334,7 +334,29 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 135/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152 + 4 zero-diff)
+### Rank 2: 136/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153 + 4 zero-diff)
+
+- **Item 153 — `crates/horizon-client/src/game/copper_golems.rs`
+  (4 classes, 8 methods, 1 named in Horizon), zero-diff:**
+  `OfferFlowerGoal`: 1.21.9 generalized the offer target from
+  villagers only to `#candidate_for_iron_golem_gift`
+  (villagers + copper golems) and made `stop()` gift a poppy
+  into a copper golem's antenna slot when the offer runs out
+  beside one; 1.21.8 targets `Villager.class` and `stop()`
+  just clears the villager. Everything else is identical
+  (bright-outside + 1-in-8000 gate, same inflated search box
+  and range 6.0, `canContinueToUse` tick > 0, `start`
+  `adjustedTickDelay(400)`). The copper-golem arms are dead by
+  data in 1.21.8 — the entity type is absent from the registry,
+  so no copper golem can ever exist to be targeted or gifted
+  (see "1.21.9-only features" below) — and the villager path
+  the Rust goal runs is the same in both versions. (Rust's
+  `tick` null-checks the target where 1.21.8 does not; the
+  target cannot be null while the goal runs, so this is
+  behaviourally identical.) `TransportItemsBetweenContainers`
+  (+ inner class) and `WeatheringCopperGolemStatueBlock` are
+  1.21.9-only classes, removed in 1.21.8; the Rust transport /
+  statue code is likewise dead by data.
 
 - **Item 152 — `crates/horizon-client-render/src/gfx/animate.rs`
   (1 class, 8 methods, 1 named in Horizon), zero-diff:**
