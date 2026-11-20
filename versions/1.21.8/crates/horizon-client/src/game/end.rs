@@ -130,60 +130,6 @@ pub(super) struct EndState {
     locator: std::sync::Mutex<Option<Arc<VanillaTerrain>>>,
     /// Thrown eyes of ender in flight.
     eyes: Vec<EyeOfEnder>,
-    flash: EndFlash,
-}
-
-/// EndFlashState: a purple flash in the End sky every 600 ticks that also
-/// lights the world (the lightmap's sky factor).
-#[derive(Default)]
-struct EndFlash {
-    seed: Option<i64>,
-    offset: i32,
-    duration: i32,
-    intensity: f32,
-    old_intensity: f32,
-    x_angle: f32,
-    y_angle: f32,
-}
-impl EndFlash {
-    fn tick(&mut self, clock: i64) {
-        let seed = clock.div_euclid(600);
-        if self.seed != Some(seed) {
-            let mut random = LegacyRandom::new(seed);
-            random.next_float();
-            let between = |r: &mut LegacyRandom, lo: i32, hi: i32| {
-                r.next_int_bound(hi - lo + 1).unwrap_or(0) + lo
-            };
-            self.offset = between(&mut random, 0, 200);
-            self.duration = between(&mut random, 100, 380.min(600 - self.offset));
-            self.x_angle = random.next_float() * 70.0 - 60.0;
-            self.y_angle = random.next_float() * 360.0 - 180.0;
-            self.seed = Some(seed);
-        }
-        self.old_intensity = self.intensity;
-        let t = clock.rem_euclid(600) as i32;
-        self.intensity = if t >= self.offset && t <= self.offset + self.duration {
-            ((t - self.offset) as f32 * std::f32::consts::PI / self.duration as f32).sin()
-        } else {
-            0.0
-        };
-    }
-    /// `EndFlashState.flashStartedThisTick`.
-    fn started_this_tick(&self) -> bool {
-        self.intensity > 0.0 && self.old_intensity <= 0.0
-    }
-    fn intensity(&self, partial: f32) -> f32 {
-        self.old_intensity + (self.intensity - self.old_intensity) * partial
-    }
-    /// SkyRenderer.renderEndFlash's pose: the sprite at height 100 turned to the flash.
-    fn pose(&self) -> glam::Mat4 {
-        flash_pose(self.x_angle, self.y_angle)
-    }
-}
-
-fn flash_pose(x_angle: f32, y_angle: f32) -> glam::Mat4 {
-    glam::Mat4::from_rotation_y((180.0 - y_angle).to_radians())
-        * glam::Mat4::from_rotation_x((-90.0 - x_angle).to_radians())
 }
 impl EndState {
     pub(super) fn locator(&self) -> Option<Arc<VanillaTerrain>> {
@@ -387,80 +333,6 @@ impl Game<'_> {
         }
     }
 
-    /// SkyRenderer.renderEndFlash, drawn after the renderer's resident sky mesh.
-    pub(super) fn end_flash_geometry(&self) -> Vec<Vertex> {
-        let mut out = Vec::new();
-        // The old combined sky/flash draw also skipped the flash without a sky sprite.
-        if !self.gui.atlas.sprites.contains_key("environment/end_sky") {
-            return out;
-        }
-        // SkyRenderer.renderEndFlash: the end_flash sprite at height 100, scale 60.
-        let intensity = self.end.flash.intensity(self.clock.fraction() as f32);
-        if intensity > 1e-5
-            && let Some(r) = self
-                .gui
-                .atlas
-                .sprites
-                .get("environment/celestial/end_flash")
-                .copied()
-        {
-            let pose = self.end.flash.pose();
-            let level = (intensity.clamp(0.0, 1.0) * 255.0) as u32;
-            let color = level << 24 | level << 16 | level << 8 | level;
-            let corners = [
-                (-1.0, -1.0, [r.u0, r.v0]),
-                (1.0, -1.0, [r.u1, r.v0]),
-                (1.0, 1.0, [r.u1, r.v1]),
-                (-1.0, 1.0, [r.u0, r.v1]),
-            ];
-            for (x, z, uv) in corners {
-                let p = pose.transform_point3(glam::Vec3::new(x * 60.0, 100.0, z * 60.0));
-                out.push(Vertex {
-                    normal: [0; 4],
-                    pos: p.to_array(),
-                    uv,
-                    layer: 2,
-                    color,
-                    light: 0,
-
-                    glint_uv: [0.0, 0.0],
-                });
-            }
-        }
-        out
-    }
-
-    /// Iris's `endFlashIntensity` and the flash's direction (camera-relative, length 100: the
-    /// sprite's centre), for shader packs; no flash outside the End.
-    pub(super) fn end_flash_for_pack(&self, partial: f32) -> (f32, glam::Vec3) {
-        if self.dimension_type().skybox != horizon_world::dimension_type::Skybox::End {
-            return (0.0, glam::Vec3::ZERO);
-        }
-        let flash = &self.end.flash;
-        (
-            flash.intensity(partial).clamp(0.0, 1.0),
-            flash
-                .pose()
-                .transform_point3(glam::Vec3::new(0.0, 100.0, 0.0)),
-        )
-    }
-
-    /// LightmapRenderStateExtractor: End flashes add to the sky light factor
-    /// unless Hide Lightning Flashes is on (the sky sprite is not gated), a
-    /// third of it under a boss bar's world fog.
-    pub(super) fn end_flash_sky(&self, sky: &mut horizon_client::environment::Sky, partial: f64) {
-        if self.dimension_type().skybox == horizon_world::dimension_type::Skybox::End
-            && !self.settings.file.bool("hideLightningFlashes")
-        {
-            let intensity = self.end.flash.intensity(partial as f32);
-            sky.sky_light_factor += if self.boss_overlay.should_create_world_fog() {
-                intensity / 3.0
-            } else {
-                intensity
-            };
-        }
-    }
-
     pub(super) fn block_name(&self, p: [i32; 3]) -> std::sync::Arc<str> {
         self.res
             .facts()
@@ -587,31 +459,6 @@ impl Game<'_> {
             }
         }
         None
-    }
-
-    /// `ClientLevel.tick`'s End flash, on every client in the End:
-    /// `EndFlashState.tick`, and when a flash starts (not under the credits)
-    /// its `DirectionalSoundInstance`, played 30 ticks later from the camera
-    /// toward the flash.
-    pub(super) fn tick_end_flash(&mut self) {
-        if self.dimension_type().skybox != horizon_world::dimension_type::Skybox::End {
-            return;
-        }
-        // getDefaultClockTime: the End's own clock (the client keeps the
-        // dimension's default clock in day_time), not the game time.
-        self.end.flash.tick(self.world.day_time);
-        if self.end.flash.started_this_tick() && self.win.is_none() {
-            let flash = &self.end.flash;
-            let instance = horizon_client::sound_engine::SoundInstance::directional(
-                "minecraft:weather.end_flash",
-                horizon_client::sound_engine::WEATHER,
-                horizon_client::random_source::create(),
-                self.audio.listener,
-                flash.x_angle,
-                flash.y_angle,
-            );
-            self.audio.play_instance_after(instance, 30);
-        }
     }
 
     /// End portals, End gateways and the exit portal, once per tick.
@@ -1926,18 +1773,5 @@ mod tests {
         let corners = quad.map(|v| glam::Vec3::from_array(v.pos));
         let centre = corners.iter().copied().sum::<glam::Vec3>() / 4.0;
         assert!((centre - at).abs_diff_eq(up_dir * 0.125, 1e-5), "{centre}");
-    }
-
-    /// `endFlashPosition`'s direction: the flash sprite's centre, 100 blocks away.
-    #[test]
-    fn the_end_flash_is_where_its_sprite_is() {
-        let at =
-            |x: f32, y: f32| flash_pose(x, y).transform_point3(glam::Vec3::new(0.0, 100.0, 0.0));
-        // Straight up whatever the turn, and level toward the north at y_angle 180.
-        assert!(at(-90.0, 37.0).abs_diff_eq(glam::Vec3::new(0.0, 100.0, 0.0), 1e-3));
-        assert!(at(0.0, 180.0).abs_diff_eq(glam::Vec3::new(0.0, 0.0, -100.0), 1e-3));
-        for (x, y) in [(-60.0, -180.0), (10.0, 95.0), (-25.0, 3.0)] {
-            assert!((at(x, y).length() - 100.0).abs() < 1e-3);
-        }
     }
 }

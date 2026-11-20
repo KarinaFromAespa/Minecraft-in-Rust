@@ -122,7 +122,8 @@ impl Game<'_> {
         }
         Some((piston.moved_state, None))
     }
-    /// One `MovingBlockRenderState`: the baked model at `at` (camera-relative),
+    /// One moved block (`PistonHeadRenderer`'s, 1.21.9's
+    /// `MovingBlockRenderState`): the baked model at `at` (camera-relative),
     /// seeded by its block position `seed`, tinted per face with the block
     /// colours there and lit as `ModelBlockRenderer.tesselateFlat` lights a
     /// lone block at `seed`: each face from the cell it looks at. Not from

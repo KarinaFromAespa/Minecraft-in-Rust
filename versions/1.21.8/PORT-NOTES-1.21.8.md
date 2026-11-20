@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 130/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–460 + 107 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–460)
+### Rank 3: 139/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–462 + 464–470 + 115 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–462, 464–470)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7712,6 +7712,24 @@ includes constant-pool churn.
   `FittingMultiLineTextWidget` centers it. The Rust draws the
   lines at the box's left edge; only the two comments named
   the 1.21.9 widget, now re-cut.
+
+- **Item 461 — the End flash is removed:** 1.21.8 has no
+  `EndFlashState` (and no `WEATHER_END_FLASH` sound, no
+  `end_flash` sprite). Deleted the `EndFlash` state, its
+  600-tick cycle, the sky sprite geometry, the sky-light
+  factor, the tick and its delayed directional sound, and
+  the End branch of the celestial draw (the End has no
+  celestial bodies in 1.21.8). The Iris `endFlashIntensity` /
+  `endFlashPosition` uniforms stay, fed their no-flash values
+  (0, zero vector) — a pack reads 0 either way. The end-sky
+  renderer's flash-draw test keeps its synthetic vertices;
+  only its `EndFlashState` comment is re-cut.
+
+- **Item 462 — `MovingBlockRenderState` citations re-cut:**
+  the 1.21.9 render-state class for the moved block is gone
+  from the docs; both versions render it in
+  `PistonHeadRenderer` with `tesselateFlat` lighting, which
+  the Rust already implements. No code change.
 
 ### Rank 4 content: closed 2/2 (chain)
 

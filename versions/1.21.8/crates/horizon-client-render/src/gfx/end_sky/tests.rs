@@ -293,7 +293,7 @@ fn separate_draws_match_combined_celestial_pixels() {
                 let flash: Vec<_> = if level == 0 {
                     Vec::new()
                 } else {
-                    // Same flash size/height, with an arbitrary EndFlashState pose.
+                    // Same flash size/height, with an arbitrary pose.
                     let pose = Mat4::from_rotation_y(1.3) * Mat4::from_rotation_x(-1.6);
                     [(-60.0, -60.0), (60.0, -60.0), (60.0, 60.0), (-60.0, 60.0)]
                         .map(|(x, z)| Vertex {

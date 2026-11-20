@@ -9420,7 +9420,6 @@ impl Game<'_> {
             post_blend: Some(&post_blend),
             post_biome: Some(post_of(biome)),
         });
-        self.end_flash_sky(&mut sky, alpha);
         if self.flash > 0 && !self.settings.file.bool("hideLightningFlashes") {
             // ClientLevel's flash layer while skyFlashTime > 0: the sky colour
             // moves 22% of the way to (0.8, 0.8, 1.0).
@@ -9742,8 +9741,6 @@ impl Game<'_> {
         {
             // Camera.doesMobEffectBlockSky: no sun, moon or stars.
             self.celestial_geometry(&sky, rain)
-        } else if self.dim == Dim::End && self.settings.horizon.sky {
-            (self.end_flash_geometry(), None)
         } else {
             (Vec::new(), None)
         };

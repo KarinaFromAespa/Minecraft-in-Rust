@@ -6582,8 +6582,6 @@ impl Game<'_> {
         if running {
             self.border.tick();
         }
-        // ClientLevel.tick: the End's sky flash, frozen or not.
-        self.tick_end_flash();
         self.player_border();
         // The entities added after the player tick after it: their pushes
         // (from where they ended last tick, onto where the player ended)
