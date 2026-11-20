@@ -14,7 +14,7 @@ use super::{
     lan::{LanSettings, Owner, SyncPreload, preload_sync_data},
     world_loading::{WorldLoader, WorldRequest},
 };
-use horizon_client::level_loading::{STATUS_RADIUS, Stage};
+use horizon_client::level_loading::Stage;
 use horizon_client::spans::startup;
 use horizon_client::{
     Result,
@@ -582,7 +582,8 @@ impl Game<'_> {
     /// `PrepareSpawnTask`'s `LOAD_PLAYER_CHUNKS`, reported to the window's
     /// loading screen: the focus moves to the spawn chunk when the stage
     /// starts, the 7x7 chunks around it count as they are ready, and the
-    /// status map around the focus follows (`ChunkLoadStatusView.get`).
+    /// status map around the focus follows
+    /// (`StoringChunkProgressListener.getStatus`).
     pub(super) fn publish_load_view(&mut self) {
         let Some(serving) = self.serving.as_mut() else {
             return;
@@ -606,15 +607,26 @@ impl Game<'_> {
             .filter(|&(x, z)| self.streaming.is_lit(x, z))
             .count();
         view.update(Stage::LoadPlayerChunks, ready, PLAYER_CHUNKS);
-        let diameter = STATUS_RADIUS * 2 + 1;
+        // `StoringChunkProgressListener.createFromGameruleRadius`: the
+        // status map's radius is the world's `spawnChunkRadius` gamerule
+        // + 1 + `RADIUS_AROUND_FULL_CHUNK` (2); a gamerule of 0 completes
+        // the listener with no grid at all.
+        let spawn_radius = self.ui.rules.int("spawn_chunk_radius");
+        let radius = if spawn_radius <= 0 {
+            0
+        } else {
+            spawn_radius + 3
+        };
+        view.set_radius(radius);
+        let diameter = radius * 2 + 1;
         view.set_status(
             (0..diameter)
                 .flat_map(|x| (0..diameter).map(move |z| (x, z)))
                 .map(|(x, z)| {
                     self.streaming.latest_status(
                         &self.world,
-                        focus.0 + x - STATUS_RADIUS,
-                        focus.1 + z - STATUS_RADIUS,
+                        focus.0 + x - radius,
+                        focus.1 + z - radius,
                     )
                 })
                 .collect(),

@@ -9,8 +9,12 @@ use crate::{
     text::Text,
 };
 
-/// `Minecraft.doWorldLoad`: `max(5, 3) + ChunkLevel.RADIUS_AROUND_FULL_CHUNK + 1`.
-pub const STATUS_RADIUS: i32 = 8;
+/// `StoringChunkProgressListener.createFromGameruleRadius`: the status
+/// map's radius is the world's `spawnChunkRadius` gamerule + 1 +
+/// `ChunkLevel.RADIUS_AROUND_FULL_CHUNK` (2); 5 at the default gamerule
+/// value of 2 (a gamerule of 0 completes the listener with no grid at
+/// all). 1.21.9's `createChunkLoadStatusView` uses 8 instead.
+pub const STATUS_RADIUS: i32 = 5;
 /// `LevelLoadProgressTracker.EXPECTED_PLAYER_CHUNKS`: the 7x7 chunks
 /// `PrepareSpawnTask` waits for around the player.
 const PLAYER_CHUNKS: usize = 49;
@@ -265,13 +269,27 @@ impl ProgressTracker {
 /// `StoringChunkProgressListener` reported (the load progress and the chunk
 /// status map around the load focus), which the server thread writes and the
 /// window's loading screen reads.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct ServerLoadView {
     tracker: std::sync::Mutex<ProgressTracker>,
     /// `serverStage != null`.
     has_progress: std::sync::atomic::AtomicBool,
-    /// `statusView.get(x, z)` for x and z in `0..=2 * STATUS_RADIUS`.
+    /// The status map's radius, from the world's `spawnChunkRadius`
+    /// gamerule (`STATUS_RADIUS` until the server thread publishes one).
+    radius: std::sync::atomic::AtomicI32,
+    /// `StoringChunkProgressListener.getStatus(x, z)` for x and z in
+    /// `0..2 * radius`.
     cells: std::sync::Mutex<Vec<Option<Status>>>,
+}
+impl Default for ServerLoadView {
+    fn default() -> Self {
+        Self {
+            tracker: std::sync::Mutex::default(),
+            has_progress: std::sync::atomic::AtomicBool::default(),
+            radius: std::sync::atomic::AtomicI32::new(STATUS_RADIUS),
+            cells: std::sync::Mutex::default(),
+        }
+    }
 }
 impl ServerLoadView {
     /// `LevelLoadListener.start`.
@@ -289,21 +307,33 @@ impl ServerLoadView {
     pub fn finish(&self, stage: Stage) {
         Self::lock(&self.tracker).finish(stage);
     }
-    /// `LevelLoadTracker.hasProgress`.
+    /// Whether the listener started (`StoringChunkProgressListener`'s
+    /// `started`, set by `LevelLoadListener.start`).
     pub fn has_progress(&self) -> bool {
         self.has_progress.load(std::sync::atomic::Ordering::Relaxed)
     }
-    /// `LevelLoadTracker.serverProgress`.
+    /// `LoggerChunkProgressListener.getProgress`, as a fraction.
     pub fn server_progress(&self) -> f32 {
         Self::lock(&self.tracker).progress
     }
-    /// The map `ChunkLoadStatusView.get` reads, replaced as a whole.
+    /// The status map's radius, from the world's `spawnChunkRadius`
+    /// gamerule: 0 when the gamerule is 0 (the listener completes with
+    /// no grid), else the gamerule + 3.
+    pub fn set_radius(&self, radius: i32) {
+        self.radius
+            .store(radius, std::sync::atomic::Ordering::Relaxed);
+    }
+    pub fn radius(&self) -> i32 {
+        self.radius.load(std::sync::atomic::Ordering::Relaxed)
+    }
+    /// The map `StoringChunkProgressListener.getStatus` reads, replaced
+    /// as a whole.
     pub fn set_status(&self, cells: Vec<Option<Status>>) {
         *Self::lock(&self.cells) = cells;
     }
-    /// `ChunkLoadStatusView.get`.
+    /// `StoringChunkProgressListener.getStatus`.
     pub fn status(&self, x: i32, z: i32) -> Option<Status> {
-        let diameter = (STATUS_RADIUS * 2 + 1) as usize;
+        let diameter = (self.radius() * 2 + 1) as usize;
         let (x, z) = (usize::try_from(x).ok()?, usize::try_from(z).ok()?);
         if x >= diameter || z >= diameter {
             return None;
@@ -365,15 +395,17 @@ pub fn draw(batch: &mut HudBatch, atlas: &HudAtlas) {
 /// `LevelLoadingScreen.render`: the chunk status map (`renderChunks`, size 2,
 /// margin 0) with the load's percentage above it (`loading.progress`, the
 /// listener's progress clamped to 0..100). No progress bar: 1.21.8's screen
-/// has none.
+/// has none. `radius` is the map's radius from the world's `spawnChunkRadius`
+/// gamerule (0 draws no grid).
 pub fn draw_single_player(
     batch: &mut HudBatch,
     atlas: &HudAtlas,
     status: &dyn Fn(i32, i32) -> Option<Status>,
     progress: f32,
+    radius: i32,
 ) {
     let (x_center, y_center) = ((batch.width as i32) / 2, (batch.height as i32) / 2);
-    let diameter = STATUS_RADIUS * 2 + 1;
+    let diameter = radius * 2 + 1;
     let start = (x_center - diameter, y_center - diameter);
     for x in 0..diameter {
         for z in 0..diameter {

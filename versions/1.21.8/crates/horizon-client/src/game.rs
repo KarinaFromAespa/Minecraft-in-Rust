@@ -9193,11 +9193,13 @@ impl Game<'_> {
                     .as_ref()
                     .map(|s| s.handle.load_view().clone());
                 let status = |x: i32, z: i32| view.as_ref().and_then(|v| v.status(x, z));
+                let radius = view.as_ref().map_or(0, |v| v.radius());
                 horizon_client::level_loading::draw_single_player(
                     &mut hud,
                     &self.gui.atlas,
                     &status,
                     self.loading_progress,
+                    radius,
                 );
                 pr.lap("pr_loading");
                 drop(prepare);

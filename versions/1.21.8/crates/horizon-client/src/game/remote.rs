@@ -10820,6 +10820,7 @@ impl Game<'_> {
                         atlas,
                         &status,
                         self.loading_progress,
+                        view.radius(),
                     );
                 }
                 None => {
