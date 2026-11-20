@@ -1,4 +1,4 @@
-//! The warden's `Brain` (`Warden.BRAIN_PROVIDER` and `WardenAi`), ported
+//! The warden's `Brain` (`WardenAi.makeBrain` and its `SENSOR_TYPES`/`MEMORY_TYPES`), ported
 //! behaviour for behaviour on the villager brain's machinery (`Slot`
 //! memories with their time to live, `Tracker`s, `WalkTarget`s and the
 //! nearest-visible list): the two sensors and their scan phases, the core,
@@ -7,7 +7,7 @@
 //! activity's slot in `Brain.availableBehaviorsByPriority`'s hash map, then
 //! the order the activity lists them in).
 //!
-//! The level random (`ServerLevel.getRandom`) draws every `Behavior`'s
+//! The level random (`Level.random`) draws every `Behavior`'s
 //! duration and the idle `DoNothing`, the sniff cooldown and the spot near a
 //! disturbance; the warden's own random drives strolls, sounds and swimming.
 //! `RunOne` shuffles with a random of its own, seeded with the brain's
@@ -77,7 +77,7 @@ impl Act {
             Act::Fight => 14,
         }
     }
-    /// Its place in `getActivities` (insertion order inside a bucket).
+    /// Its place in `makeBrain` (insertion order inside a bucket).
     fn order(self) -> u8 {
         self as u8
     }
@@ -274,7 +274,7 @@ impl Brain {
     }
 }
 
-/// `WardenAi.getActivities`, in the order `Brain.startEachNonRunningBehavior`
+/// `WardenAi.makeBrain`, in the order `Brain.startEachNonRunningBehavior`
 /// meets the behaviours.
 fn activities(seed: i64) -> Vec<Entry> {
     let gate = Gate {
@@ -549,8 +549,15 @@ pub(super) fn set_dig_cooldown(m: &mut Mob) {
     }
 }
 /// `WardenAi.setDisturbanceLocation`.
+/// `WardenAi.setDisturbanceLocation`: a disturbance only lands inside the
+/// world border (`WorldBorder.isWithinBounds(BlockPos)`: the block's corner,
+/// no margin) and while the warden has no anger or attack target.
 pub(super) fn set_disturbance(m: &mut Mob, w: &MobWorld, position: [i32; 3]) {
-    if warden::entity_angry_at(m, w).is_some() || mem(m).attack_target.present() {
+    if w.border
+        .is_some_and(|b| !b.is_within_bounds(f64::from(position[0]), f64::from(position[2]), 0.0))
+        || warden::entity_angry_at(m, w).is_some()
+        || mem(m).attack_target.present()
+    {
         return;
     }
     set_dig_cooldown(m);
@@ -753,7 +760,7 @@ impl B {
                     return false;
                 }
                 mm.is_sniffing.set(());
-                // UniformInt.of(100, 200).sample(level.getRandom())
+                // UniformInt.of(100, 200).sample(level.random)
                 let cooldown = 100 + cx.lr.next_int_bound(101).unwrap_or(0);
                 let mm = mem(m);
                 mm.sniff_cooldown.set_ttl((), i64::from(cooldown));
@@ -1321,7 +1328,11 @@ mod warden_owned_memory_tests {
     fn string(s: &str) -> Tag {
         Tag::String(s.into())
     }
-    use crate::mobs::{Species, world::with_built_test_world};
+    use crate::mobs::{
+        Species,
+        world::{with_built_test_world, with_test_world},
+    };
+    use horizon_core::geometry::border::BorderGeometry;
     use horizon_core::random::LegacyRandom;
 
     fn types() -> HashMap<String, Arc<MobType>> {
@@ -1539,5 +1550,36 @@ mod warden_owned_memory_tests {
             }
         });
         assert!(ran, "prepared actual MobWorld prerequisite must run");
+    }
+    #[test]
+    #[ignore = "needs prepared resources; a MobWorld with a world border"]
+    fn a_disturbance_from_beyond_the_world_border_is_ignored() {
+        let ran = with_test_world(&[], |w, kinds| {
+            let types = HashMap::from([(
+                "minecraft:warden".into(),
+                Arc::new(kinds.types["minecraft:warden"].clone()),
+            )]);
+            let mut m = mob_from_nbt(&input(false, 0), &types, 92, None).unwrap();
+            // A border four blocks wide, centred on the origin: [10, 64, 10]
+            // is beyond it, [0, 64, 0] inside it.
+            let border = BorderGeometry::new([0.0, 0.0], 4.0, 29_999_984).unwrap();
+            let bordered = MobWorld {
+                border: Some(&border),
+                teams: w.teams.clone(),
+                player: w.player.clone(),
+                ..*w
+            };
+            set_disturbance(&mut m, &bordered, [10, 64, 10]);
+            assert!(
+                !mem_ref(&m).unwrap().disturbance_location.present(),
+                "a disturbance from beyond the border must not land"
+            );
+            set_disturbance(&mut m, &bordered, [0, 64, 0]);
+            assert!(
+                mem_ref(&m).unwrap().disturbance_location.present(),
+                "a disturbance inside the border must land"
+            );
+        });
+        assert!(ran, "prepared MobWorld prerequisite must run");
     }
 }

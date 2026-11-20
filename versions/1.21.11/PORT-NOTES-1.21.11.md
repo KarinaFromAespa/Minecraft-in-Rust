@@ -8152,3 +8152,55 @@ report item. Tests: `lan::data::` 7 passed, 1 ignored (needs prepared
 resources; the tests live in the horizon-client-lib binary, 0 in the
 horizon-client lib binary); `step_1_21_11` adapter tests 5 passed,
 including the two clock tests.
+
+## Item 121 — mobs/warden_brain.rs (rank 2, CHANGED)
+
+3 classes, 23 methods, 3 named (`WardenAi.getActivities`,
+`WardenAi.updateActivity`, `GoToTargetLocation.getNearbyPos`).
+
+Java delta, jar-verified (javap diff 596 lines + decompile diff 340
+lines, both read in full): the brain migration, API shape only — the
+same pattern as items 82, 103 and 114. 26.1's `getActivities` returns
+`List<ActivityData<Warden>>`; 1.21.11 has `makeBrain(Warden, Dynamic)`
+via `Brain.provider(MEMORY_TYPES, SENSOR_TYPES)` with void
+`init*Activity(Brain)` methods. `Warden` itself: 26.1 has a static
+`BRAIN_PROVIDER` + `makeBrain(Brain$Packed)`; 1.21.11 has no
+`BRAIN_PROVIDER`, only `makeBrain(Dynamic<?>)` (javap of `Warden.class`
+from both jars). `updateActivity` takes the `Warden` in 1.21.11 instead
+of the `Brain`, with the identical priority order (EMERGE, DIG, ROAR,
+FIGHT, INVESTIGATE, SNIFF, IDLE). All activity content is identical in
+both versions (core/emerge/dig/idle/roar/fight/investigate/sniff,
+priorities, behaviours, conditions); `GoToTargetLocation.getNearbyPos`
+changes only `level.getRandom()` → the `level.random` field;
+`WardenEntitySensor.doTick` is identical (the `is(EntityType.PLAYER)` →
+`getType() == EntityType.PLAYER` change is the same test). Constants
+verified from the 1.21.11 decompile: EMERGE_DURATION 134,
+SNIFFING_DURATION 84, DIGGING_DURATION 100, DIGGING_COOLDOWN 1200,
+DISTURBANCE_EXPIRY 100 — all already match the Rust.
+
+Changes: the `getActivities` / `BRAIN_PROVIDER` / `getRandom`
+citations are reworded to the 1.21.11 form (`WardenAi.makeBrain`,
+`SENSOR_TYPES`/`MEMORY_TYPES`, `Level.random`) — the item-82 referral,
+now discharged. And `set_disturbance` now gates on the world border:
+vanilla's `WardenAi.setDisturbanceLocation` checks
+`WorldBorder.isWithinBounds(position)` first in both versions, and the
+Rust checked only the anger/attack-target gates. Verified from the
+1.21.11 jar that `isWithinBounds(BlockPos)` is the block's corner with
+no margin — exactly `BorderGeometry::is_within_bounds(x, z, 0.0)`, the
+shulker idiom. All three Rust call sites mirror vanilla
+`setDisturbanceLocation` callers (javap over the 1.21.11 warden
+classes): `do_push` ↔ `Warden.doPush`, `receive_vibration` ↔
+`Warden$VibrationUser.onSignalReceive`, Sniffing do_stop ↔
+`Sniffing.doStop` (the behaviours are top-level classes in
+`behavior/warden/` in 1.21.11, not `WardenAi$` inners). The game passes
+the real border into MobWorld, so the gate is live in-game. New
+`#[ignore]`d test pins it (a 4-block border centred on the origin: a
+disturbance at [10, 64, 10] must not land, one at [0, 64, 0] must).
+The Rust has no NEAREST_VISIBLE_NEMESIS slot — no warden sensor or
+behaviour writes it in either version, so it is vestigial, no action.
+Referrals: monster_brain.rs:1-2,99 still cite `BRAIN_PROVIDER` (item 82
+fixed the `getActivities` citations but missed the module doc and
+sensor-order comment); villager_brain.rs:1,312 cite
+`Villager.BRAIN_PROVIDER` (the villager-brain item's scope). Tests:
+`mobs::warden_brain::` 2 passed, 2 ignored (needs prepared resources);
+`mobs::warden::` 8 passed.
