@@ -243,7 +243,6 @@ fn recordable<'a>(
         | P::PlayerInfoUpdate(_)
         | P::ResetScore(_)
         | P::ResourcePackPush(_)
-        | P::ServerLinks(_)
         | P::SetPlayerTeam(_)
         | P::SetScore(_)
         | P::StoreCookie(_)
@@ -308,7 +307,7 @@ mod tests {
     #[test]
     fn studio_recording_drops_packets_with_direct_player_identity_or_private_text() {
         use horizon_protocol::packets::configuration::{
-            ResourcePackPush, ServerLink, ServerLinkKind, ServerLinks, StoreCookie, Transfer,
+            ResourcePackPush, StoreCookie, Transfer,
         };
         use play::{
             ChatTypeBound, Clientbound as P, CustomChatCompletions, PlayerInfo, PlayerInfoRemove,
@@ -385,12 +384,6 @@ mod tests {
                 hash: "hash".into(),
                 required: false,
                 prompt: None,
-            }),
-            P::ServerLinks(ServerLinks {
-                links: vec![ServerLink {
-                    kind: ServerLinkKind::Known(0),
-                    link: "https://private.example".into(),
-                }],
             }),
             P::SetPlayerTeam(SetPlayerTeam {
                 name: "red".into(),

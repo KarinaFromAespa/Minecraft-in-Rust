@@ -15,7 +15,7 @@ use crate::{
         configuration::{
             ClientInformation, CookieRequest, CookieResponse, CustomPayload,
             Disconnect, KeepAlive, Ping, ResourcePackPop, ResourcePackPush, ResourcePackResponse,
-            ServerLinks, StoreCookie, Transfer, UpdateTags,
+            StoreCookie, Transfer, UpdateTags,
         },
         login::Property,
     },
@@ -1713,9 +1713,7 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     StopSound(StopSound) = STOP_SOUND,
     StartConfiguration(Empty) = START_CONFIGURATION,
     StoreCookie(StoreCookie) = STORE_COOKIE,
-    // A common packet: the same `configuration::ServerLinks` the
-    // configuration phase sends.
-    ServerLinks(ServerLinks) = SERVER_LINKS,
+    // No ServerLinks: 1.21 added server links; 1.20.6 has no such packet.
     SelectAdvancementsTab(SelectAdvancementsTab) = SELECT_ADVANCEMENTS_TAB,
     SystemChat(SystemChat) = SYSTEM_CHAT,
     TabList(TabList) = TAB_LIST,

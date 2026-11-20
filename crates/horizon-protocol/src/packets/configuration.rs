@@ -89,6 +89,8 @@ impl Codec<ServerLink> for ServerLink {
 packet!(
     /// ClientboundServerLinksPacket (a common packet: configuration and play).
     /// Links the pause menu's "Server Links..." screen lists.
+    /// 1.21 added server links; 1.20.6 has no such packet, so the struct is
+    /// unused at this pin — the link types below still serve the game code.
     ServerLinks { links: Vec<ServerLink> => List<ServerLink> }
 );
 // No ShowDialog / CustomClickAction: 1.21.5 has no dialog packets
@@ -110,7 +112,7 @@ packet_enum!(Clientbound, crate::ids::configuration::clientbound {
     UpdateEnabledFeatures(UpdateEnabledFeatures) = UPDATE_ENABLED_FEATURES,
     UpdateTags(UpdateTags) = UPDATE_TAGS,
     SelectKnownPacks(SelectKnownPacks) = SELECT_KNOWN_PACKS,
-    ServerLinks(ServerLinks) = SERVER_LINKS,
+    // No ServerLinks: 1.21 added server links; 1.20.6 has no such packet.
     // No ClearDialog / ShowDialog: 1.21.5 has no dialog packets (arrived in 1.21.6).
     // No CodeOfConduct: 1.21.8 has no code-of-conduct packets (added in 1.21.9).
 });
@@ -254,18 +256,6 @@ mod tests {
                     id: "core".into(),
                     version: "26.3".into(),
                 }],
-            }),
-            Clientbound::ServerLinks(ServerLinks {
-                links: vec![
-                    ServerLink {
-                        kind: ServerLinkKind::Known(0),
-                        link: "https://bugs.example.net".into(),
-                    },
-                    ServerLink {
-                        kind: ServerLinkKind::Custom(crate::text::literal("Custom link")),
-                        link: "https://example.net".into(),
-                    },
-                ],
             }),
         ] {
             round_trip(p, Clientbound::encode, Clientbound::decode);

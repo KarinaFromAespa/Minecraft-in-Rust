@@ -1023,9 +1023,6 @@ fn receive_play(
             play::Clientbound::StoreCookie(p) => {
                 cookies.lock().unwrap().insert(p.key, p.payload);
             }
-            play::Clientbound::ServerLinks(p) => {
-                let _ = send.send(Event::ServerLinks(p.links));
-            }
             // ClientCommonPacketListenerImpl.handleTransfer: the connection
             // ends and the game connects to the other address.
             play::Clientbound::Transfer(p) => {
@@ -1150,9 +1147,6 @@ fn configure(
             }
             cfg::Clientbound::StoreCookie(p) => {
                 cookies.lock().unwrap().insert(p.key, p.payload);
-            }
-            cfg::Clientbound::ServerLinks(p) => {
-                let _ = send.send(Event::ServerLinks(p.links));
             }
             cfg::Clientbound::Transfer(p) => {
                 let _ = send.send(Event::Transfer {
