@@ -194,7 +194,7 @@ pub struct LayerRender {
     pub foil: FoilType,
     /// `applyTransform`: the display transform, then the local transform.
     pub matrix: Mat4,
-    /// `particleMaterial` (atlas sprite name).
+    /// `particleIcon` (atlas sprite name).
     pub particle: String,
     pub uses_block_light: bool,
     /// Untransformed extents (quad corners or the special model's parts).

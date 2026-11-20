@@ -4196,3 +4196,108 @@ and `--bin horizon-client --tests` both clean (JOBS=1). No new
 tests; raids.rs declares a file mod, so no rustfmt run.
 Rank 2 now 230/492 (62 changed, 168 no-change).
 work-items.json rank2.closed = 230 on 2026-11-20.
+
+## Item 52 — client/resources/model (rank 2, CHANGED)
+
+ModelManager (20), ResolvedModel (20), Material (16),
+ModelDiscovery$ModelWrapper (14), ModelManager$ReloadState (10),
+ModelManager$1 (8), ModelBaker (6), UnbakedModel (6), ModelState
+(4), SpriteGetter (4), UnbakedGeometry (4), BlockStateDefinitions
+(1), ModelBaker$Interner (1, **removed in 1.21.11**), ModelDiscovery
+(1), ModelDiscovery$Slot (1), ModelManager$ResolvedModels (1): 16
+classes, 117 methods, 0 named. The 26.x model-system refactor vs
+1.21.11's older layout: 26.1 has `BlockStateModelSet` /
+`BlockModelSet` / `FluidStateModelSet` + `LoadedBlockModels` +
+`BuiltInBlockModels`, `ModelBaker.materials()` (MaterialBaker) +
+`interner()`, `MissingCuboidModel`, and the `geometry/` / `cuboid/` /
+`sprite/` packages; 1.21.11 has `BlockModelShaper` +
+`SpecialBlockModelRenderer`, `ModelBaker.sprites()` (SpriteGetter) +
+`parts()` (PartCache), `MissingBlockModel`, `BlockStateModel`, and
+`TextureAtlasSprite` particle sprites. Material / ModelState /
+SpriteGetter / UnbakedGeometry are "missing-side" (absent in 26.1 at
+those paths — moved in 26.1).
+
+**The real divergence — unbound states rendered nothing instead of
+the missing cube (fixed, catalog.rs +96/-5).** Vanilla's
+`ModelManager.createBlockStateToModelDispatch` fills EVERY state
+with the missing model. The Rust's `StateModels` left `states[id]`
+as None when a block's definition failed to load or didn't cover a
+state; `each_seeded` errored ("unbound gallery block state") and
+the mesher skipped the block, and `particle()` returned None. Only
+observable with broken/incomplete resource packs (vanilla data
+covers every state), but the missing-cube fallback is deliberate
+vanilla behaviour. `StateModels` now bakes the missing cube once in
+`from_facts_with_models` (kept out of `baked`, so face overrides
+never touch it — vanilla's missing model isn't pack-overridable
+either) and `each_seeded` / `particle()` fall back to it for
+unbound states; a bake failure leaves the fallback out and unbound
+states stay unbound, as before. `StateModels::default()`
+(dedicated server) keeps missing: None — no behaviour change there.
+New test `a_state_no_definition_covers_draws_the_missing_cube`: a
+two-state block whose definition covers only one state — the
+covered state draws its 1-face model, the uncovered state draws the
+6-face missing cube (variant `minecraft:builtin/missing`) and its
+particle is the cube's particle.
+
+**Citation fixes (26.1 name → 1.21.11 name, jar-verified):**
+1.21.11's `BlockStateModel` has `particleIcon()`
+(TextureAtlasSprite); 26.1's has `particleMaterial()` (Baked) +
+`materialFlags()`. `particleIcon` appears in 12 classes in the
+1.21.11 client jar vs 1 in 26.1 (Minecraft only). Fixed three
+comments: `blockstate/choice.rs:121`,
+`models/catalog.rs:523`, `item_render.rs:197` — all →
+`particleIcon`. No other 26.x citations found in the model files.
+
+Verified, no change: `SpriteGetter.get` vs `MaterialBaker.get` —
+1.21.11 is atlas-directed (ITEMS → item atlas, BLOCKS → block
+atlas, `BLOCK_OR_ITEM` → item then block) while 26.1 always tries
+item then block, but 1.21.11's `TextureSlots.parseTextureMap`
+builds EVERY model texture slot as `BLOCK_OR_ITEM`, so all model
+textures use item-then-block in both versions — and the Rust's
+`Sprites` is a single texture-array namespace with the same
+magenta/black missing fallback, so lookup order and the missing
+fallback are both moot. `TextureSlots.Resolver.resolve` matches
+the Rust's resolve.rs exactly (child-first entries, root-first
+walk with child winning, fixpoint reference resolution, cyclic /
+dangling aliases dropped). Parent-chain inheritance exact (AO
+first-Some default true, gui light first-Some default Side,
+geometry first-with-elements, transforms per-context first
+non-Inherit, cycle → error). The missing model is the same 16³
+cube in both versions (6 faces, UVs (0,0,16,16), tint −1, cull =
+own direction, slot "missingno", particle → #missingno); only the
+atlas differs, moot in the single-namespace sprite system.
+`createBlockStateToModelDispatch` / `buildModelGroups` /
+`requiresRender` logic identical; fluids already render through
+the Rust's dedicated fluid renderer — the 1.21.11 shape
+(LiquidBlockRenderer with sprites), not 26.1's
+FluidStateModelSet. `ModelBaker.interner()` → `parts()` is internal
+caching. `ParsedModels::load`, `block_library_or_missing` (failed
+parse → skipped, resolve falls back to missing with a "Missing
+block model" warn), built-ins winning over same-named resources,
+and `item_generator_model()` all match vanilla. ResolvedModel
+findTop* methods: identical logic, renames only.
+
+Recorded, not changed: **`force_translucent` is a 26.x-ism**
+(26.1's `Material` is `(sprite, forceTranslucent)` with an
+object-form codec; 1.21.11's is `(atlasLocation, texture)` and
+`parseTextureMap` calls `getAsString()` on every value, so an
+object throws). Data-verified: 0 uses in 1.21.11 vanilla model
+JSONs, 163 in 26.1's. Removing it would require rewriting the
+model_resolution / model_baking oracles (still 26.x-shaped —
+`VanillaModelResolutionOracle.java` imports
+`net.minecraft.client.resources.model.sprite.Material` and cannot
+compile against 1.21.11), the harness corpus, and 8+ Rust consumer
+sites — T4 oracle-repair scope, explicitly deferred; unobservable
+in vanilla 1.21.11 data. The Rust has no `requiresRender` /
+model-groups mirror (remesh decision is performance-only, not a
+rendered-result difference). The item-51 data-file migration gap
+(save/world-data scope, version-neutral) is recorded there.
+
+`cargo check -p horizon-assets -p horizon-client-render -p
+horizon-client --lib --tests --no-default-features` clean (JOBS=1).
+`cargo test -p horizon-client-render --lib models::catalog::` — 5
+passed, 0 failed, including the new test. catalog.rs declares a
+`#[path]` file mod (bounds_tests), so no rustfmt run — edits
+hand-formatted.
+Rank 2 now 231/492 (63 changed, 168 no-change).
+work-items.json rank2.closed = 231 on 2026-11-20.
