@@ -9,6 +9,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.*;
 import net.minecraft.server.Bootstrap;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.EmptyBlockGetter;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
@@ -65,11 +66,13 @@ public final class VanillaCollisionOracle {
         return tag;
     }
     public static CompoundTag occlusionDefinitions() throws Exception {
-        var method=BlockBehaviour.class.getDeclaredMethod("getOcclusionShape",BlockState.class);method.setAccessible(true);
+        // 1.21.1 getOcclusionShape takes (state, level, pos); the one-arg form
+        // arrived in 1.21.2. The empty getter gives the same shape.
+        var method=BlockBehaviour.class.getDeclaredMethod("getOcclusionShape",BlockState.class,BlockGetter.class,BlockPos.class);method.setAccessible(true);
         var states=new ListTag();var shapes=new ListTag();var ids=new IdentityHashMap<VoxelShape,Integer>();int[] mapping=new int[Block.BLOCK_STATE_REGISTRY.size()];int index=0;
         for(var state:Block.BLOCK_STATE_REGISTRY) {
             states.add(encode(state));
-            var shape=(VoxelShape)method.invoke(state.getBlock(),state);Integer id=ids.get(shape);
+            var shape=(VoxelShape)method.invoke(state.getBlock(),state,EmptyBlockGetter.INSTANCE,BlockPos.ZERO);Integer id=ids.get(shape);
             if(id==null){id=shapes.size();ids.put(shape,id);shapes.add(grid(shape));}
             mapping[index++]=id;
         }
