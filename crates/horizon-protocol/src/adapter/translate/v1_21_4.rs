@@ -470,14 +470,14 @@ mod tests {
             (sections[0].states.get(0), sections[0].biomes.get(0)),
             (1, 7)
         );
-        assert_eq!(sections[1].states.palette, [0, 7003]);
+        assert_eq!(sections[1].states.palette, [0, 6773]);
         assert_eq!(
             (
                 sections[1].states.get(1),
                 sections[1].biomes.get(63),
                 sections[1].fluids
             ),
-            (7003, 0, 0)
+            (6773, 0, 0)
         );
     }
 
@@ -535,7 +535,7 @@ mod tests {
         let play::Clientbound::AddEntity(p) = play::Clientbound::decode(id, &body).unwrap() else {
             panic!("orb")
         };
-        assert_eq!((p.id, p.kind, p.position), (41, 48, [1.0, 2.0, -3.0]));
+        assert_eq!((p.id, p.kind, p.position), (41, 38, [1.0, 2.0, -3.0]));
         let (id, body) = session.next_incoming().unwrap();
         let play::Clientbound::SetEntityData(p) = play::Clientbound::decode(id, &body).unwrap()
         else {
@@ -547,7 +547,7 @@ mod tests {
     #[test]
     fn a_saddle_moves_to_equipment_and_boost_stays_in_the_pig_field() {
         let session = Session::new(ServerVersion::V1_21_4);
-        session.kinds.lock().unwrap().insert(42, 95); // minecraft:pig pinned (1.21.3).
+        session.kinds.lock().unwrap().insert(42, 77); // minecraft:pig pinned (1.21.1).
         let (id, body) = super::super::clientbound(
             &session,
             State::Play,
@@ -572,7 +572,7 @@ mod tests {
         };
         assert_eq!(
             (p.id, p.slots[0].0, p.slots[0].1.as_ref().unwrap().item),
-            (42, 7, 784)
+            (42, 7, 765)
         );
     }
 
@@ -580,11 +580,11 @@ mod tests {
     fn removed_fields_and_separate_minecart_updates_keep_their_meaning() {
         let session = Session::new(ServerVersion::V1_21_4);
         // Field ids independently obtained from vanilla SynchedEntityData accessors.
-        // Kinds are the pinned 1.21.3 ids: dolphin 34, turtle 131, mooshroom 83.
+        // Kinds are the pinned 1.21.1 ids: dolphin 24, turtle 111, mooshroom 70.
         for (kind, old, expected) in [
-            (34, vec![17, 18, 19], vec![17, 18]),
-            (131, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
-            (83, vec![17], vec![17]),
+            (24, vec![17, 18, 19], vec![17, 18]),
+            (111, vec![17, 18, 19, 20, 21, 22], vec![17, 18]),
+            (70, vec![17], vec![17]),
         ] {
             session.kinds.lock().unwrap().insert(42, kind);
             let mut p = play::SetEntityData {
@@ -597,10 +597,10 @@ mod tests {
             entity_data(&session, &mut p);
             assert_eq!(p.values.iter().map(|v| v.0).collect::<Vec<_>>(), expected);
         }
-        session.kinds.lock().unwrap().insert(42, 82); // minecraft:minecart pinned (1.21.3).
+        session.kinds.lock().unwrap().insert(42, 69); // minecraft:minecart pinned (1.21.1).
         for (values, expected) in [
             (vec![(11, serializer::INT, Value::Int(7006))], 0),
-            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 7003),
+            (vec![(13, serializer::BOOLEAN, Value::Bool(true))], 6773),
             (vec![(13, serializer::BOOLEAN, Value::Bool(false))], 0),
         ] {
             let mut p = play::SetEntityData { id: 42, values };
