@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 17/163 (327–336 + 10 zero-diff: 332, 333, 335, 356, 372, 382–385, 396)
+### Rank 3: 40/163 (327–360 + 28 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7448,6 +7448,63 @@ includes constant-pool churn.
   horizon-client-lib` clean (the rewritten overlay tests compile;
   the lib test binary itself OOMs linking locally under 3-stream
   load at -j 1 and -j 2, so the tests run on CI).
+- **Item 337 — `crates/horizon-client/src/game/command_blocks.rs`,
+  `crates/horizon-client/src/game/command_minecarts.rs`
+  (BaseCommandBlock, AbstractCommandBlockEditScreen, 3 named
+  methods), command-block success to the 1.21.8 forms:** 1.21.8's
+  `BaseCommandBlock` implements `CommandSource` itself — no
+  `CloseableCommandBlockSource`, no NULL substitution when output
+  tracking is off — with `acceptsSuccess` = `send_command_feedback`
+  and track output, `shouldInformAdmins` = `command_block_output`
+  alone. `sendSuccess` (jar-verified in both versions) gates the
+  output and the admin broadcast independently, so
+  `command_block_success` (and `cart_command_success`) now write
+  the last output only on feedback + track output, and broadcast
+  on `broadcast` + `command_block_output` with neither conjunct —
+  a non-tracking block still broadcasts in 1.21.8, where 1.21.9's
+  NULL source silenced it; the dropped `feedback` conjunct on the
+  broadcast was wrong in both versions. Doc citations fixed:
+  `command_block_output` cites `BaseCommandBlock.sendSystemMessage`,
+  the edit-screen background cites 1.21.8's `renderBackground` →
+  `renderTransparentBackground` (the gradient already matches).
+  Zero-diff: performCommand guard/flow, the `[%H:%M:%S]` stamp,
+  Enter 257/335, init order (no tab surface), addExtraControls /
+  isInGameUi (no Rust surface).
+- **Item 339 — `crates/horizon-client/src/game/beehives.rs`,
+  `crates/horizon-client/src/game/dispenser.rs` (BeehiveBlock,
+  1 named method), shearing a full hive drops a fixed 3 honeycomb:**
+  1.21.8's `dropHoneycomb` pops `SHEARED_HONEYCOMB_COUNT` (3)
+  honeycomb; the `minecraft:harvest/beehive` loot table is
+  1.21.9's form. Both the hand-shear path and the dispenser path
+  (same method; item 400 owns dispenser.rs otherwise) now pop
+  `ItemStack::new("minecraft:honeycomb", 3)`.
+- **Item 344 — `crates/horizon-client/src/game/paintings.rs`
+  (Painting, 1 named method), a painting's survival check to the
+  1.21.8 form:** 1.21.8's `survives()` requires no overlapping
+  hanging entity at all; `painting_coexists` still used 1.21.9's
+  `canCoexist(false)`, which let same-direction frames through.
+  It now matches `frame_coexists` (already 1.21.8-form); the
+  existing test `hanging_entities_block_overlapping_other_types`
+  asserts the 1.21.8 behaviour.
+- **Item 350 — `crates/horizon-client/src/game/golems.rs`
+  (CarvedPumpkinBlock, 2 named methods), the copper-golem spawn
+  path removed:** 1.21.8 has no copper golem — `can_spawn_golem`
+  and `completes_golem` drop the copper-base arm,
+  `check_golem_spawn` returns Ok when no snow/iron pattern
+  matches, and `copper_golem_base` / `try_spawn_copper_golem`
+  are deleted. The copper-golem mob files stay (unreachable
+  without the spawn path; out of scope).
+- **Item 359 — `crates/horizon-client/src/game/functions.rs`
+  (ServerFunctionLibrary, DataPackCommand, 2 named methods),
+  `/datapack create` writes the 1.21.8 pack metadata:** 1.21.8's
+  `PackMetadataSection` codec (jar-verified) writes `pack_format`
+  plus an optional `supported_formats` range, and createPack
+  passes an empty range — so the written pack.mcmeta holds only
+  `pack_format`. The Rust wrote 1.21.9-style `min_format` /
+  `max_format` and no `pack_format`, which vanilla 1.21.8 would
+  refuse to load (`pack_format` is required). Zero-diff:
+  `ServerFunctionLibrary.reload` (signature-only; the load logic
+  is identical).
 
 ### Rank 4 content: closed 2/2 (chain)
 

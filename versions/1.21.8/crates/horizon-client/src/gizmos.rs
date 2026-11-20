@@ -119,7 +119,7 @@ impl Gizmos {
             width,
         }));
     }
-    /// `BlockEntityWithBoundingBoxRenderer.submit`: the box at `block` +
+    /// `BlockEntityWithBoundingBoxRenderer.render`: the box at `block` +
     /// `local` of `size` blocks (nothing when a side is empty), then the
     /// markers of the invisible blocks in it, indexed `z * sx * sy + y * sx + x`.
     pub fn bounding_box(

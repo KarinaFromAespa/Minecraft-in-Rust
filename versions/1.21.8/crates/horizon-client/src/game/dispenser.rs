@@ -1798,16 +1798,11 @@ impl Game<'_> {
             1.0,
             1.0,
         );
-        // BeehiveBlock.dropHoneycomb (harvest/beehive), then
-        // releaseBeesAndResetHoneyLevel and the shear event.
+        // BeehiveBlock.dropHoneycomb: a fixed 3 honeycomb
+        // (`SHEARED_HONEYCOMB_COUNT`), then releaseBeesAndResetHoneyLevel
+        // and the shear event.
         let p = [target.0, target.1, target.2];
-        for stack in self.sequence_loot(
-            "minecraft:harvest/beehive",
-            "minecraft:harvest/beehive",
-            None,
-        ) {
-            self.pop_resource(p, stack);
-        }
+        self.pop_resource(p, ItemStack::new("minecraft:honeycomb", 3));
         if let Some(reset) = self.with_props(state, &[("honey_level", "0")]) {
             self.level_set(p, reset)?;
         }

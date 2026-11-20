@@ -553,9 +553,8 @@ impl Game<'_> {
         let results = std::mem::replace(&mut self.cmds.results, outer).unwrap_or_default();
         results.iter().filter(|(success, _)| *success).count() as i32
     }
-    /// `CloseableCommandBlockSource.sendSystemMessage`: the block's last
-    /// output, stamped with the time. Nothing when it doesn't track output
-    /// (`CommandSource.NULL`).
+    /// `BaseCommandBlock.sendSystemMessage`: the block's last
+    /// output, stamped with the time. Nothing when it doesn't track output.
     pub(super) fn command_block_output(&mut self, pos: Pos, message: Text) {
         if let Some(c) = command_block_mut(&mut self.world, pos)
             && c.track_output
@@ -565,22 +564,18 @@ impl Game<'_> {
         }
     }
     /// `CommandSourceStack.sendSuccess` from a command block: its output when
-    /// `send_command_feedback`, and `broadcastToAdmins` when `broadcast` and
-    /// `command_block_output`.
+    /// `acceptsSuccess` (`send_command_feedback` and track output), and
+    /// `broadcastToAdmins` when `broadcast` and `shouldInformAdmins`
+    /// (`command_block_output` alone — the broadcast needs neither feedback
+    /// nor track output).
     pub(super) fn command_block_success(&mut self, pos: Pos, message: Text, broadcast: bool) {
-        let Some(name) = self
-            .command_block(pos)
-            .filter(|c| c.track_output)
-            .map(CommandBlock::name)
-        else {
-            return;
-        };
-        let feedback = self.ui.rules.bool("send_command_feedback");
-        if feedback {
+        if self.ui.rules.bool("send_command_feedback") {
             self.command_block_output(pos, message.clone());
         }
-        if broadcast && feedback && self.ui.rules.bool("command_block_output") {
-            self.broadcast_source_to_admins(name, message);
+        if broadcast && self.ui.rules.bool("command_block_output") {
+            if let Some(name) = self.command_block(pos).map(CommandBlock::name) {
+                self.broadcast_source_to_admins(name, message);
+            }
         }
     }
 
@@ -661,8 +656,9 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         let (w, h) = (batch.width, batch.height);
         let mid = (w / 2.0).floor();
-        // Screen.extractBackground of an isInGameUi screen: the dimmed world,
-        // with no blur and no menu background.
+        // `AbstractCommandBlockEditScreen.renderBackground` (1.21.8):
+        // `renderTransparentBackground` — the dimmed world, with no blur
+        // and no menu background.
         batch.fill_gradient(
             atlas,
             (0.0, 0.0, w, h),

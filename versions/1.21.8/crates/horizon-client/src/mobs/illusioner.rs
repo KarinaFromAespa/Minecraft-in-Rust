@@ -262,7 +262,7 @@ pub fn offsets(m: &Mob, partial: f32) -> [[f64; 3]; COPIES] {
     out
 }
 
-/// The wobble `IllusionerRenderer.submit` adds to each image.
+/// The wobble `IllusionerRenderer.render` adds to each image.
 pub fn wobble(i: usize, age: f32) -> [f64; 3] {
     let i = i as f32;
     [

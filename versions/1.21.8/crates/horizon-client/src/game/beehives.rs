@@ -265,14 +265,9 @@ impl Game<'_> {
             .as_ref()
             .map(|p| [p.position.x, p.position.y, p.position.z]);
         if shears {
-            // dropHoneycomb (harvest/beehive), the shear sound, hurtAndBreak.
-            for stack in self.sequence_loot(
-                "minecraft:harvest/beehive",
-                "minecraft:harvest/beehive",
-                Some(held),
-            ) {
-                self.pop_resource(pos, stack);
-            }
+            // dropHoneycomb: a fixed 3 honeycomb
+            // (`SHEARED_HONEYCOMB_COUNT`), the shear sound, hurtAndBreak.
+            self.pop_resource(pos, ItemStack::new("minecraft:honeycomb", 3));
             self.audio
                 .play("minecraft:block.beehive.shear", at, 1.0, 1.0);
             self.damage_held(1);

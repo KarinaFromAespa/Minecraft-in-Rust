@@ -93,14 +93,14 @@ pub(super) fn frame_coexists(f: &ItemFrame, frames: &[ItemFrame], paintings: &[P
             .iter()
             .any(|o| overlaps(o.bounds(), f.bounds()))
 }
-/// `HangingEntity.canCoexist(false)` for a painting.
+/// `Painting.survives` (1.21.8): no overlapping hanging entity at all —
+/// 1.21.9's `HangingEntity.canCoexist(false)` let same-direction frames
+/// through.
 fn painting_coexists(p: &Painting, paintings: &[Painting], frames: &[ItemFrame]) -> bool {
     !paintings
         .iter()
         .any(|o| o.id != p.id && overlaps(o.bounds(), p.bounds()))
-        && !frames
-            .iter()
-            .any(|o| o.step() == p.step() && overlaps(o.bounds(), p.bounds()))
+        && !frames.iter().any(|o| overlaps(o.bounds(), p.bounds()))
 }
 
 /// `HangingEntityItem.mayPlace` for a painting: not a floor or ceiling.

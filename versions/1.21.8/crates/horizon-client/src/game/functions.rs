@@ -990,14 +990,16 @@ impl Game<'_> {
         if pack.exists() {
             return Err(err("commands.datapack.create.already_exists", &[&id]));
         }
-        // The data pack version (SharedConstants), written as a bare major
-        // number for both bounds, as vanilla does.
+        // The data pack version (SharedConstants), written as the bare
+        // `pack_format`: 1.21.8's `PackMetadataSection` codec writes
+        // `pack_format` plus an optional `supported_formats` range, and
+        // createPack passes an empty range, so only `pack_format` appears
+        // (1.21.9's `min_format`/`max_format` do not exist here).
         let pack_format = horizon_core::version::DATA_PACK_FORMAT.0;
         let mcmeta = serde_json::json!({
             "pack": {
                 "description": description.component(),
-                "min_format": pack_format,
-                "max_format": pack_format,
+                "pack_format": pack_format,
             }
         });
         let written = std::fs::create_dir_all(&datapacks)

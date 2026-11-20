@@ -88,22 +88,17 @@ impl Game<'_> {
         }
     }
     /// `CommandSourceStack.sendSuccess` from a command minecart: its output
-    /// when `send_command_feedback`, and `broadcastToAdmins` when
-    /// `command_block_output`.
+    /// when `acceptsSuccess` (`send_command_feedback` and track output),
+    /// and `broadcastToAdmins` when `broadcast` and `shouldInformAdmins`
+    /// (`command_block_output` alone).
     pub(super) fn cart_command_success(&mut self, id: u32, message: Text, broadcast: bool) {
-        let Some(name) = self
-            .command_cart_mut(id)
-            .filter(|c| c.command.track_output)
-            .map(|c| c.command.name())
-        else {
-            return;
-        };
-        let feedback = self.ui.rules.bool("send_command_feedback");
-        if feedback {
+        if self.ui.rules.bool("send_command_feedback") {
             self.cart_command_output(id, message.clone());
         }
-        if broadcast && feedback && self.ui.rules.bool("command_block_output") {
-            self.broadcast_source_to_admins(name, message);
+        if broadcast && self.ui.rules.bool("command_block_output") {
+            if let Some(name) = self.command_cart_mut(id).map(|c| c.command.name()) {
+                self.broadcast_source_to_admins(name, message);
+            }
         }
     }
 
