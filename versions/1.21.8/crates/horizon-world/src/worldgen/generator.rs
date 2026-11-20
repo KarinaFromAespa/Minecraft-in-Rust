@@ -3329,7 +3329,7 @@ where
         query: &JigsawQuery<'_>,
     ) -> Option<JigsawPieces> {
         // JigsawPlacement.generateJigsaw: addPieces with no heightmap
-        // projection, MaxDistance(128), no aliases, no padding and
+        // projection, max distance 128, no aliases, no padding and
         // waterlogging applied. The pieces draw from the GenerationContext's
         // random, seeded from the level seed and the position's chunk, not
         // from the level random.
@@ -3343,7 +3343,7 @@ where
             max_depth: query.max_depth,
             use_expansion_hack: false,
             project_to: None,
-            max_distance: [128, 128],
+            max_distance: 128,
             aliases: &aliases,
             padding: [0, 0],
             waterlogging: true,
@@ -3395,7 +3395,12 @@ pub struct BiomeSearch<'a> {
 
 /// `Mth.outFromOrigin(origin, lower, upper, step)`.
 pub fn out_from_origin(origin: i32, lower: i32, upper: i32, step: i32) -> Vec<i32> {
-    let center = origin.clamp(lower, upper);
+    // 1.21.8 returns an empty stream when the origin is outside the bounds;
+    // the clamp into the bounds came in 1.21.9.
+    if origin < lower || origin > upper {
+        return Vec::new();
+    }
+    let center = origin;
     let mut out = Vec::new();
     let mut cursor = center;
     loop {

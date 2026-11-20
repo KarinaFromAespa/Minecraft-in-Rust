@@ -1013,7 +1013,7 @@ pub struct JigsawConfig<'a> {
     pub max_depth: i32,
     pub use_expansion_hack: bool,
     pub project_to: Option<HeightmapType>,
-    pub max_distance: [i32; 2],
+    pub max_distance: i32,
     pub aliases: &'a BTreeMap<String, String>,
     pub padding: [i32; 2],
     pub waterlogging: bool,
@@ -1198,10 +1198,10 @@ pub fn lay_out_children(
     } = start;
     let mut pieces = vec![center];
     if config.max_depth > 0 {
-        let [h, v] = config.max_distance;
-        let low_y = (cy - v).max(context.min_y() + config.padding[0]);
-        let high_y = (cy + v + 1).min(context.max_y() + 1 - config.padding[1]);
-        let container = BoundingBox::new([cx - h, low_y, cz - h], [cx + h, high_y - 1, cz + h]);
+        let d = config.max_distance;
+        let low_y = (cy - d).max(context.min_y() + config.padding[0]);
+        let high_y = (cy + d + 1).min(context.max_y() + 1 - config.padding[1]);
+        let container = BoundingBox::new([cx - d, low_y, cz - d], [cx + d, high_y - 1, cz + d]);
         // The start does not count toward `max_count` (spec-yungsapi §3).
         add_children_drawing(
             draws,

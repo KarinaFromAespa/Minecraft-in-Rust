@@ -282,7 +282,7 @@ pub fn assemble(
             pieces.truncate(1);
         }
         if config.max_depth > 0 {
-            let r = config.max_distance[0];
+            let r = config.max_distance;
             let free = Rc::new(RefCell::new(Free {
                 container: BoundingBox::new([cx - r, cy - 120, cz - r], [cx + r, cy + 180, cz + r]),
                 removed: vec![start_box],

@@ -54,7 +54,7 @@ pub struct JigsawDef {
     start_height: HeightProvider,
     use_expansion_hack: bool,
     project_to: Option<HeightmapType>,
-    max_distance: [i32; 2],
+    max_distance: i32,
     aliases: Vec<Value>,
     padding: [i32; 2],
     waterlogging: bool,
@@ -285,8 +285,8 @@ fn terrain(name: Option<&str>) -> TerrainAdjustment {
     }
 }
 /// A jigsaw field given as one number or as an object of two. In the object a
-/// missing `a` is 0 and a missing `b` is `missing_b` (`JigsawStructure.MaxDistance`
-/// and `DimensionPadding` default their second value, not copy the first).
+/// missing `a` is 0 and a missing `b` is `missing_b` (`DimensionPadding`
+/// defaults its second value, not copy the first).
 fn pair(value: Option<&Value>, a: &str, b: &str, default: i32, missing_b: i32) -> [i32; 2] {
     match value {
         Some(Value::Number(n)) => [n.as_i64().unwrap_or(0) as i32; 2],
@@ -298,25 +298,25 @@ fn pair(value: Option<&Value>, a: &str, b: &str, default: i32, missing_b: i32) -
     }
 }
 /// `JigsawStructure`'s `size` (its depth) and `max_distance_from_center`.
-fn jigsaw_depth_and_reach(v: &Value) -> (i32, [i32; 2]) {
+/// 1.21.8's codec is a plain `intRange(1, 128)`; the
+/// `{horizontal, vertical}` object form came in 1.21.9, so one here is
+/// out of range (0) and the structure places nothing, as vanilla's
+/// codec error would. A missing field keeps the 80 default.
+fn jigsaw_depth_and_reach(v: &Value) -> (i32, i32) {
     (
         v["size"].as_i64().unwrap_or(0) as i32,
-        pair(
-            v.get("max_distance_from_center"),
-            "horizontal",
-            "vertical",
-            80,
-            // DimensionType.Y_SIZE.
-            4064,
-        ),
+        match v.get("max_distance_from_center") {
+            Some(Value::Number(n)) => n.as_i64().unwrap_or(0) as i32,
+            Some(_) => 0,
+            None => 80,
+        },
     )
 }
 /// The bounds `JigsawStructure`'s codec puts on those two: `size` is
-/// `Codec.intRange(0, 20)` and `MaxDistance` is `horizontal`
-/// `Codec.intRange(1, 128)` beside `vertical`
-/// `ExtraCodecs.intRange(1, DimensionType.Y_SIZE)`.
-fn jigsaw_reach_in_range(depth: i32, [horizontal, vertical]: [i32; 2]) -> bool {
-    (0..=20).contains(&depth) && (1..=128).contains(&horizontal) && (1..=4064).contains(&vertical)
+/// `Codec.intRange(0, 20)` and `max_distance_from_center` is
+/// `Codec.intRange(1, 128)`.
+fn jigsaw_reach_in_range(depth: i32, max_distance: i32) -> bool {
+    (0..=20).contains(&depth) && (1..=128).contains(&max_distance)
 }
 
 /// All structures and structure sets of a resource bundle, in registry
