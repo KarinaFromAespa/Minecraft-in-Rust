@@ -6904,6 +6904,10 @@ impl Game<'_> {
     }
     /// A server player selected a bundle item in `slot` at `index`. The guest's
     /// state is not swapped in during packet handling. 341.
+    ///
+    /// Never fires at this pin: 1.21.1 has no bundle item and no
+    /// select-bundle packet. The hook stays so the mod API keeps its shape.
+    #[allow(dead_code)]
     pub(super) fn native_player_bundle_item_select(
         &mut self,
         player: u128,

@@ -139,9 +139,9 @@ macro_rules! checks {
 }
 
 checks! {
-    /// Timer: more client ticks than the server's clock allows (a sped-up game). Vanilla's client ends
-    /// every tick with ServerboundClientTickEndPacket, at the server's tick rate; each one spends a tick's
-    /// time from a balance that wall-clock time fills, capped so a pause can't be saved up for a burst.
+    /// Timer: more client ticks than the server's clock allows (a sped-up game). Each server tick
+    /// spends a tick's time from a balance that wall-clock time fills (1.21.1 has no client_tick_end
+    /// to count client ticks with), capped so a pause can't be saved up for a burst.
     /// It logs only by default; once trusted: `setback = 2`, `alert = 5`, `kick = 20`.
     timer: Timer => TimerConfig [0.0, 0.0, 0.0, 0.02, 0] {
         /// How far ahead of the clock, in milliseconds, a client may get before it is flagged.

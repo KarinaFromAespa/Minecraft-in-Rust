@@ -1,10 +1,10 @@
 //! The movement prediction's record: each of a player's client ticks as the server heard them, so
 //! the server can play the tick again with vanilla's movement code and compare (docs/anticheat.md).
 //!
-//! A vanilla client ends every tick with ServerboundClientTickEndPacket, after the tick's input
-//! (ServerboundPlayerInputPacket, sent when the keys change) and its move (ServerboundMovePlayerPacket,
-//! when it moved or turned). Those packets arrive in order, so the packets between two tick ends are one
-//! client tick.
+//! A 1.21.1 client sends no tick-end packet, so the server's own tick ends each recorded tick:
+//! the input (ServerboundPlayerInputPacket, sent when the keys change) and the move
+//! (ServerboundMovePlayerPacket, when it moved or turned) that arrived since the last server tick
+//! are one client tick.
 //!
 //! What the server changes about the player (a push, a teleport, an effect) takes effect on the client
 //! when it handles the packet, which is some client ticks after the server sent it. At the end of each of
@@ -133,8 +133,9 @@ impl Record {
         true
     }
 
-    /// ServerboundClientTickEndPacket: the tick ends with these keys held and this sprinting. The
-    /// next tick starts with the same keys and rotation, until the client says otherwise.
+    /// The tick's end (once per server tick: 1.21.1 has no client_tick_end): the tick ends with
+    /// these keys held and this sprinting. The next tick starts with the same keys and rotation,
+    /// until the client says otherwise.
     pub fn tick_end(&mut self, input: u8, sprinting: bool) -> &ClientTick {
         self.current.input = input;
         self.current.sprinting = sprinting;

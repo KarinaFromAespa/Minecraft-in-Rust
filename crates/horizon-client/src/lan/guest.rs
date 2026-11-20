@@ -217,7 +217,7 @@ pub struct Guest {
     /// `ServerGamePacketListenerImpl.lastSupportedBlocksSend`: the connection
     /// tick the blocks under the player were last force-sent.
     pub support_blocks_sent: u64,
-    /// A position move arrived since the client's last ClientTickEnd
+    /// A position move arrived since the server's last tick-end reset
     /// (receivedPositionThisTick): a second one is a protocol error.
     pub position_this_tick: bool,
     /// Violation levels and the checks' state (the anticheat, when on).

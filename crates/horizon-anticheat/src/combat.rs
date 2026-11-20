@@ -40,8 +40,8 @@ impl Attacks {
         self.swings = self.swings.saturating_add(1);
     }
 
-    /// ServerboundClientTickEndPacket: the tick's attacks are counted, and the next tick picks its
-    /// target again.
+    /// The tick's end (once per server tick: 1.21.1 has no client_tick_end): the tick's attacks
+    /// are counted, and the next tick picks its target again.
     pub fn tick_end(&mut self) -> Option<Foul> {
         let unswung = self.attacks.saturating_sub(self.swings);
         *self = Self::default();

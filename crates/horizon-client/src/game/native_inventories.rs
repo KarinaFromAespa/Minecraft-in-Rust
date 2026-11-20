@@ -510,7 +510,7 @@ impl Game<'_> {
             Ok(())
         })?;
         if let (Some(i), NativeInventoryKind::Player) = (live, kind) {
-            use horizon_protocol::packets::play::{Clientbound, SetHeldSlot};
+            use horizon_protocol::packets::play::{Clientbound, SetCarriedItem};
             let hub = &mut self.lan.as_mut().expect("live").hub;
             let g = &mut hub.guests[i];
             g.carried = None;
@@ -518,7 +518,7 @@ impl Game<'_> {
             g.craft_result = None;
             hub.send_inventory(i);
             let g = &hub.guests[i];
-            g.send(&Clientbound::SetHeldSlot(SetHeldSlot {
+            g.send(&Clientbound::SetCarriedItem(SetCarriedItem {
                 slot: g.selected as i8,
             }));
         }

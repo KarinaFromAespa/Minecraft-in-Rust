@@ -955,21 +955,18 @@ impl Game<'_> {
                 }
             }
             if !refused.is_empty() {
-                let removed = self
-                    .level
+                self.level
                     .recipe_book
                     .remove_recipes(&world_stations!(self).recipe_index, &refused);
-                if self.lan_acting.is_some() && !removed.is_empty() {
-                    self.guest_packets.push(C::RecipeBookRemove(
-                        horizon_protocol::packets::recipes::RecipeBookRemove { ids: removed },
-                    ));
-                }
+                // (The pin's combined `recipe` packet is not sent yet, so a
+                // network player's client is not told of the removal.)
             }
         } else {
             allowed.extend_from_slice(unlocked);
         }
         if self.lan_acting.is_some() {
-            // A network player's client gets them in ClientboundRecipeBookAddPacket.
+            // A network player's client is not told (the pin's combined
+            // `recipe` packet is not sent yet); the unlock is tracked here.
             self.adv.unlocked.extend_from_slice(&allowed);
         } else {
             self.recipe_toast(&allowed);

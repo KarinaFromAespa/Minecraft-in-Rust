@@ -113,12 +113,8 @@ impl Game<'_> {
         }
         let removed = self.level.recipe_book.remove_recipes(index, recipes);
         let count = removed.len() as i32;
-        // A network player's client drops them from its book.
-        if self.lan_acting.is_some() && !removed.is_empty() {
-            self.guest_packets.push(C::RecipeBookRemove(
-                horizon_protocol::packets::recipes::RecipeBookRemove { ids: removed },
-            ));
-        }
+        // (A network player's client is not told of the removal: the pin's
+        // combined `recipe` packet is not sent yet.)
         count
     }
 

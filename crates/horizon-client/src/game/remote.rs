@@ -276,9 +276,9 @@ struct Tracked {
     kind: String,
     position: [f64; 3],
     /// `Entity.getPositionCodec`'s base: the position the server last
-    /// reported (AddEntity, MoveEntity, EntityPositionSync), which a move
-    /// packet's delta counts from. A TeleportEntity moves the entity but not
-    /// this base, so the server's next delta still lands where it means.
+    /// reported (AddEntity, MoveEntity), which a move packet's delta counts
+    /// from. A TeleportEntity moves the entity but not this base, so the
+    /// server's next delta still lands where it means.
     codec_base: [f64; 3],
     silent: bool,
     /// `Entity.vehicle`: the entity it rides (`SetPassengers`), whatever
@@ -439,21 +439,17 @@ fn place_interpolated(m: &mut Mob, at: PosRot) {
 enum MovePacket {
     /// `handleMoveEntity`: always interpolated.
     Move,
-    /// `handleEntityPositionSync`.
-    PositionSync,
     /// `handleTeleportEntity` (`setValuesFromPositionPacket`).
     Teleport,
 }
 
 impl MovePacket {
     /// `tooBigToInterpolate`: a move to `to` of more than 64 blocks snaps.
-    /// A position sync measures it from where the entity is, a teleport from
-    /// where it is headed (`PositionMoveRotation.of`'s
-    /// `getClientPositionAndRotation`).
+    /// A teleport measures it from where the entity is headed
+    /// (`PositionMoveRotation.of`'s `getClientPositionAndRotation`).
     fn snaps(self, handler: &SteppedInterpolation, entity: PosRot, to: [f64; 3]) -> bool {
         let from = match self {
             MovePacket::Move => return false,
-            MovePacket::PositionSync => entity.position,
             MovePacket::Teleport => handler.heading(entity).position,
         };
         let d = [0, 1, 2].map(|i| to[i] - from[i]);
@@ -3178,7 +3174,7 @@ impl Game<'_> {
                 t.position = position;
             }
             if driven {
-                // handleMoveEntity, handleEntityPositionSync: the mount this
+                // handleMoveEntity: the mount this
                 // client moves (isLocalInstanceAuthoritative) keeps its own
                 // position, and no steps pile up for after the ride.
                 r.stepped.remove(&id);
@@ -3787,12 +3783,6 @@ impl Game<'_> {
                 self.capture(true);
             }
             C::PlayerPosition(p) => self.remote_teleport(&p)?,
-            C::PlayerRotation(p) => {
-                // 1.21.8's rotation is always absolute; the relative flags came in 1.21.9.
-                self.yaw = p.yaw;
-                self.pitch = p.pitch.clamp(-90.0, 90.0);
-                self.snap_player_model_pitch();
-            }
             C::PlayerLookAt(p) => self.remote_look_at(&p),
             C::SetCamera(p) => self.remote_set_camera(p.camera_id),
             C::LevelChunkWithLight(p) => self.remote_chunk(&p, None),
@@ -4047,23 +4037,6 @@ impl Game<'_> {
                 }
                 self.move_entity(m.id, path, rotation, m.on_ground, MovePacket::Move);
             }
-            C::EntityPositionSync(p) => {
-                let path = match p.path {
-                    play::PositionPath::Linear(at) => Path::Linear(at),
-                    play::PositionPath::Stepped(steps) => Path::Stepped(steps),
-                };
-                // handleEntityPositionSync: the position codec's base is set.
-                if let Some(t) = self.remote.as_mut().and_then(|r| r.entities.get_mut(&p.id)) {
-                    t.codec_base = path.end();
-                }
-                self.move_entity(
-                    p.id,
-                    Some(path),
-                    Some((p.yaw, p.pitch)),
-                    p.on_ground,
-                    MovePacket::PositionSync,
-                )
-            }
             C::TeleportEntity(p) => {
                 let base = self
                     .remote
@@ -4124,7 +4097,6 @@ impl Game<'_> {
                 }
             }
             C::MoveVehicle(p) => self.remote_move_vehicle(p.position, p.yaw),
-            C::MoveMinecartAlongTrack(p) => self.remote_move_minecart(p),
             // ClientPacketListener.handleRotateMob: lerpHeadTo(yHeadRot, 3).
             C::RotateHead(p) => {
                 if let Some(r) = self.remote.as_mut() {
@@ -5088,9 +5060,9 @@ impl Game<'_> {
                 }
                 self.apply_remote_abilities();
             }
-            // ClientPacketListener.handleSetHeldSlot: a hotbar slot only, and the
+            // ClientPacketListener.handleSetCarriedItem: a hotbar slot only, and the
             // carried index stays, so the next tick answers with SetCarriedItem.
-            C::SetHeldSlot(p) => {
+            C::SetCarriedItem(p) => {
                 if (0..9).contains(&p.slot) {
                     self.selected = p.slot as usize;
                 }
@@ -5108,6 +5080,37 @@ impl Game<'_> {
                 self.remote_menu_state(p.container, p.state);
                 let stack = self.to_stack(&p.item);
                 self.tutorial_get_item(stack.as_ref());
+                // 1.21.1 has no set_cursor_item / set_player_inventory: the
+                // negative windows carry them (ClientPacketListener.
+                // handleContainerSetSlot: -1 is the carried item, -2 a
+                // direct inventory slot).
+                if p.container == -1 {
+                    self.carried = stack;
+                    self.remote_synced();
+                    return Ok(());
+                }
+                if p.container == -2 {
+                    let before = self.creative_stacks();
+                    let held = match p.slot {
+                        0..=35 => self.inventory[p.slot as usize].as_ref(),
+                        40 => self.offhand.as_ref(),
+                        _ => None,
+                    };
+                    let changed =
+                        !super::hand::matches_for_swap(held, stack.as_ref());
+                    if let Ok(slot) = usize::try_from(p.slot) {
+                        self.remote_hand_slot_set(slot, changed);
+                    }
+                    match p.slot {
+                        0..=35 => self.inventory[p.slot as usize] = stack,
+                        36..=39 => self.armor[3 - (p.slot - 36) as usize] = stack,
+                        // Inventory.SLOT_OFFHAND.
+                        40 => self.offhand = stack,
+                        _ => {}
+                    }
+                    self.remote_synced_since(&before);
+                    return Ok(());
+                }
                 // ClientPacketListener.handleContainerSetSlot: a hotbar slot that
                 // gains items squeezes for 5 ticks.
                 if p.container == 0
@@ -5124,33 +5127,6 @@ impl Game<'_> {
                 }
                 let before = self.creative_stacks();
                 self.set_menu_slot(p.container, i32::from(p.slot), stack);
-                self.remote_synced_since(&before);
-            }
-            C::SetCursorItem(p) => {
-                let stack = self.to_stack(&p.item);
-                self.tutorial_get_item(stack.as_ref());
-                self.carried = stack;
-            }
-            C::SetPlayerInventory(p) => {
-                let stack = self.to_stack(&p.item);
-                self.tutorial_get_item(stack.as_ref());
-                let before = self.creative_stacks();
-                let held = match p.slot {
-                    0..=35 => self.inventory[p.slot as usize].as_ref(),
-                    40 => self.offhand.as_ref(),
-                    _ => None,
-                };
-                let changed = !super::hand::matches_for_swap(held, stack.as_ref());
-                if let Ok(slot) = usize::try_from(p.slot) {
-                    self.remote_hand_slot_set(slot, changed);
-                }
-                match p.slot {
-                    0..=35 => self.inventory[p.slot as usize] = stack,
-                    36..=39 => self.armor[3 - (p.slot - 36) as usize] = stack,
-                    // Inventory.SLOT_OFFHAND.
-                    40 => self.offhand = stack,
-                    _ => {}
-                }
                 self.remote_synced_since(&before);
             }
             C::ContainerSetData(p) if self.open_menu_name(p.container) == "minecraft:lectern" => {
@@ -5192,9 +5168,10 @@ impl Game<'_> {
             }
             C::OpenScreen(p) => self.remote_open_screen(p),
             C::HorseScreenOpen(p) => self.remote_open_mount(p),
-            C::RecipeBookAdd(p) => self.remote_recipe_book_add(p),
-            C::RecipeBookRemove(p) => self.remote_recipe_book_remove(p),
-            C::RecipeBookSettings(p) => self.remote_recipe_book_settings(p),
+            // The pin's combined `recipe` packet: the recipe-book sync is a
+            // behaviour-port gap at this pin, so it is read (the decode
+            // above validates it) and dropped.
+            C::Recipe(_) => {}
             C::PlaceGhostRecipe(p) => self.remote_ghost_recipe(p),
             C::MerchantOffers(p) => self.remote_merchant_offers(p),
             C::ContainerClose(_) => {
@@ -6557,11 +6534,6 @@ impl Game<'_> {
             r.session.send_far_terrain();
         }
         self.tick_chat_session();
-        // Minecraft.tick sends this even when the player cannot tick yet,
-        // including while waiting for chunks. Keep it outside early returns.
-        if self.remote.as_ref().is_some_and(Remote::has_level) {
-            self.send(S::ClientTickEnd(Empty));
-        }
         Ok(())
     }
 
@@ -7778,28 +7750,6 @@ impl Game<'_> {
         Some(([p.x, p.y, p.z], yaw, pitch))
     }
 
-    /// `ClientPacketListener.handleMinecartAlongTrack`: the steps join the ones
-    /// the minecart has queued, if it runs `NewMinecartBehavior`.
-    fn remote_move_minecart(&mut self, p: play::MoveMinecartAlongTrack) {
-        if !self.minecart_improvements() || !self.carts.iter().any(|c| c.id == p.id as u32) {
-            return;
-        }
-        let Some(r) = self.remote.as_mut() else {
-            return;
-        };
-        let at = |v: [f64; 3]| Vec3::new(v[0], v[1], v[2]);
-        r.cart_lerps
-            .entry(p.id)
-            .or_insert_with(CartLerp::new)
-            .pending
-            .extend(p.steps.iter().map(|s| CartStep {
-                position: at(s.position),
-                movement: at(s.movement),
-                yaw: horizon_protocol::buf::unpack_degrees(s.yaw),
-                pitch: horizon_protocol::buf::unpack_degrees(s.pitch),
-                weight: s.weight,
-            }));
-    }
     /// `Consumable.onConsumeTick` for another player using a consumable: the
     /// crumbs at their mouth every 4 ticks once 21.875% of its use has passed
     /// (`shouldEmitParticlesAndSounds`; the sounds come from the server).
@@ -9770,7 +9720,7 @@ impl Game<'_> {
             && !self.screen_over_playing();
         // MultiPlayerGameMode.tick, first in Minecraft.tick, screen or not: the slot
         // chosen since the last tick (the wheel, the last tick's number keys, the
-        // server's SetHeldSlot) goes out before anything else of this tick.
+        // server's SetCarriedItem) goes out before anything else of this tick.
         self.remote_send_carried();
         if stop || !ready {
             self.stop_remote_mining();
@@ -12137,11 +12087,13 @@ mod tests {
             values: vec![(6, serializer::POSE, Value::Id(Pose::Crouching.id()))],
         }))
         .unwrap();
-        game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
+        game.handle_packet(C::TeleportEntity(play::TeleportEntity {
             id: target,
-            path: play::PositionPath::Linear(moved),
+            position: moved,
+            delta: [0.0; 3],
             yaw: 0.0,
             pitch: 0.0,
+            relatives: 0,
             on_ground: true,
         }))
         .unwrap();
@@ -12632,11 +12584,13 @@ mod tests {
             65.7,
             3.0,
         );
-        game.handle_packet(C::EntityPositionSync(play::EntityPositionSync {
+        game.handle_packet(C::TeleportEntity(play::TeleportEntity {
             id: 40,
-            path: play::PositionPath::Linear([12.0, 67.0, -4.0]),
+            position: [12.0, 67.0, -4.0],
+            delta: [0.0; 3],
             yaw: 45.0,
             pitch: 0.0,
+            relatives: 0,
             on_ground: true,
         }))
         .unwrap();
@@ -12977,8 +12931,8 @@ mod tests {
         assert_eq!(synced_local_use(None, 1, 4, |_| false), None);
     }
 
-    /// tooBigToInterpolate: a position sync measures from where the entity
-    /// is, a teleport from where its interpolation is headed.
+    /// tooBigToInterpolate: a teleport measures from where the entity's
+    /// interpolation is headed.
     #[test]
     fn a_far_move_snaps_by_the_packets_own_measure() {
         use super::{MovePacket, Path, PosRot, SteppedInterpolation};
@@ -12991,16 +12945,15 @@ mod tests {
         // At x 0, headed for x 50.
         handler.interpolate_to(at(0.0), Some(Path::Linear([50.0, 0.0, 0.0])), None);
         let to = [100.0, 0.0, 0.0];
-        assert!(MovePacket::PositionSync.snaps(&handler, at(0.0), to));
         assert!(!MovePacket::Teleport.snaps(&handler, at(0.0), to));
         assert!(!MovePacket::Move.snaps(&handler, at(0.0), to));
-        // With nothing in flight, both measure from the entity.
+        // With nothing in flight, the teleport measures from the entity.
         let idle = SteppedInterpolation::new(3);
         assert!(MovePacket::Teleport.snaps(&idle, at(0.0), to));
         assert!(!MovePacket::Teleport.snaps(&idle, at(0.0), [60.0, 0.0, 0.0]));
     }
 
-    /// A far sync puts the entity there and drops the steps it was walking;
+    /// A far teleport puts the entity there and drops the steps it was walking;
     /// a rotation alone keeps the position it is headed for and turns there
     /// over the update interval.
     #[test]
@@ -13012,13 +12965,13 @@ mod tests {
             pitch: 0.0,
         };
         let mut handler = SteppedInterpolation::new(3);
-        // Walking to x 5 when the far sync comes.
+        // Walking to x 5 when the far teleport comes.
         handler.interpolate_to(at(0.0, 0.0), Some(Path::Linear([5.0, 0.0, 0.0])), None);
         assert!(handler.active());
         let far = [100.0, 0.0, 0.0];
         let snap = stepped_move(
             &mut handler,
-            MovePacket::PositionSync,
+            MovePacket::Teleport,
             at(0.0, 0.0),
             far,
             Some(Path::Linear(far)),

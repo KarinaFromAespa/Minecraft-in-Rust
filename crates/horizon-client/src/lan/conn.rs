@@ -964,7 +964,7 @@ fn pre_login_refusal(
 }
 
 /// A joining player's profile, on the connection's own thread, once the server has let them in (the name,
-/// whitelist, ban and server-full checks have passed) and before it sends `LoginFinished`: `properties` are
+/// whitelist, ban and server-full checks have passed) and before it sends `GameProfile`: `properties` are
 /// what the session service (online mode) or the proxy (forwarding) gave, none in offline mode. A mod may
 /// change, add or remove them (a skin's `textures`), within `GameProfile`'s limits (a name of up to 64
 /// characters, a signature of up to 1024): the player's own client and every player list then get the new

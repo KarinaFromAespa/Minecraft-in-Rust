@@ -1139,16 +1139,12 @@ impl Game<'_> {
         std::mem::swap(&mut self.offhand, &mut g.offhand);
         std::mem::swap(&mut self.carried, &mut g.carried);
         // A teleport with a rotation (commands) turns the guest. `/rotate`
-        // (ServerPlayer.forceSetRotation) sends the rotation alone, rider or not.
-        let forced = std::mem::take(&mut self.rotation_forced);
-        let turned = !forced && [self.yaw, self.pitch] != [g.yaw, g.pitch];
+        // (ServerPlayer.forceSetRotation) has no rotation-only packet at
+        // this pin, so a forced turn rides the teleport below like any
+        // other turn.
+        std::mem::take(&mut self.rotation_forced);
+        let turned = [self.yaw, self.pitch] != [g.yaw, g.pitch];
         [g.yaw, g.pitch] = [self.yaw, self.pitch];
-        if forced {
-            g.send(&C::PlayerRotation(play::PlayerRotation {
-                yaw: g.yaw,
-                pitch: g.pitch,
-            }));
-        }
         self.yaw = yaw;
         self.pitch = pitch;
         self.eye = eye.1;
@@ -2204,7 +2200,6 @@ impl Game<'_> {
                 | S::RenameItem(_)
                 | S::SetBeacon(_)
                 | S::SelectTrade(_)
-                | S::SelectBundleItem(_)
                 | S::PlaceRecipe(_)
         ) {
             self.guest_validate_menu(host, conn);
@@ -2449,7 +2444,7 @@ impl Game<'_> {
                     if cancel {
                         host.hub.send_to(
                             conn,
-                            &C::SetHeldSlot(play::SetHeldSlot {
+                            &C::SetCarriedItem(play::SetCarriedItem {
                                 slot: old_slot as i8,
                             }),
                         );
@@ -2852,21 +2847,6 @@ impl Game<'_> {
             {
                 self.guest_carried_back(host, gi);
             }
-            S::SelectBundleItem(p) => {
-                // ServerGamePacketListenerImpl.handleBundleItemSelectedPacket: the slot
-                // is the open menu's (#4436).
-                let own = Self::lan_crafting_table_own_slots(host, conn)
-                    .or_else(|| Self::lan_station_own_slots(host, conn));
-                let slot = usize::try_from(p.slot)
-                    .ok()
-                    .and_then(|slot| bundle_inventory_slot(slot, own));
-                if !spectator && let Some(slot) = slot {
-                    host.hub
-                        .select_bundle_item(conn, slot, p.index, &mut self.world);
-                    let guest = &host.hub.guests[gi];
-                    self.native_player_bundle_item_select(guest.uuid, &guest.name, p.slot, p.index);
-                }
-            }
             S::ContainerClick(p) => {
                 // A mod's menu on an away player's file: read before the click.
                 let away = self.away_menu_click_start(host, gi, p.container);
@@ -3041,7 +3021,7 @@ impl Game<'_> {
                 {
                     host.hub.send_to(
                         conn,
-                        &C::SetHeldSlot(play::SetHeldSlot {
+                        &C::SetCarriedItem(play::SetCarriedItem {
                             slot: g.selected as i8,
                         }),
                     );
@@ -6258,21 +6238,6 @@ mod tests {
         );
     }
 }
-
-/// A `ServerboundSelectBundleItemPacket` slot as the hub's `select_bundle_item` reads it.
-/// With a crafting table or a station open (`own` slots of its own first), its
-/// inventory part is the inventory menu's main inventory and hotbar from slot 9, in
-/// the same order; its own slots hold no bundle the hub can reach.
-fn bundle_inventory_slot(slot: usize, own: Option<usize>) -> Option<usize> {
-    match own {
-        Some(own) => slot.checked_sub(own).filter(|s| *s < 36).map(|s| s + 9),
-        None => Some(slot),
-    }
-}
-
-#[cfg(test)]
-#[path = "bundle_slot_tests.rs"]
-mod bundle_slot_tests;
 
 /// Where the server aims a guest's attack or interact on a mob. The packet names only the
 /// entity, so the server picked the mob's centre; a slab, trapdoor, stair or fence between the

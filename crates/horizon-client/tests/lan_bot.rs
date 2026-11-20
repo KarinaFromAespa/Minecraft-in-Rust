@@ -111,7 +111,7 @@ fn connect(port: u16, name: &str, known_pack: bool) -> Result<Bot, String> {
         let (id, payload) = c.recv().map_err(e)?;
         match login::Clientbound::decode(id, &payload).map_err(e)? {
             login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-            login::Clientbound::LoginFinished(p) => {
+            login::Clientbound::GameProfile(p) => {
                 assert_eq!(p.profile.name, name);
                 assert_eq!(p.profile.uuid, offline_uuid(name));
                 c.send(&login::Serverbound::LoginAcknowledged(Empty).encode())
@@ -508,13 +508,13 @@ fn neoforge_shapes_items_reach_two_guests() {
     });
 }
 
-/// Reads a fresh guest's packets until the recipe update and the book add
-/// arrived, checking the compound's items in each: the furnace's input
-/// set, a stonecutting entry's input, and the book entry's requirements.
+/// Reads a fresh guest's packets until the recipe update arrived, checking
+/// the compound's items in it: the furnace's input set and a stonecutting
+/// entry's input. (The book half is gone with the pin's recipe-book sync:
+/// the hub no longer sends the combined `recipe` packet yet.)
 fn read_join_recipes(bot: &mut Bot, expected: (i32, i32), who: &str) -> Result<(), String> {
     let (raw_copper, redstone) = expected;
     let mut sets_ok = false;
-    let mut book_ok = false;
     for _ in 0..400 {
         let packet = bot.recv_play().map_err(|e| format!("{who}: {e}"))?;
         match packet {
@@ -560,39 +560,13 @@ fn read_join_recipes(bot: &mut Bot, expected: (i32, i32), who: &str) -> Result<(
                 );
                 sets_ok = true;
             }
-            C::RecipeBookAdd(add) => {
-                // sendInitialRecipeBook's own add arrives first, empty
-                // until the first tick rewards its recipes.
-                if add.entries.is_empty() {
-                    continue;
-                }
-                let compound = add.entries.iter().any(|e| {
-                    e.requirements.as_deref().unwrap_or(&[]).iter().any(|set| {
-                        matches!(set,
-                            horizon_protocol::packets::recipes::HolderSet::Items(ids)
-                            if ids.contains(&raw_copper) && ids.contains(&redstone))
-                    })
-                });
-                assert!(
-                    compound,
-                    "{who}: the book lists the compound recipe ({} entries: {:?})",
-                    add.entries.len(),
-                    add.entries
-                        .iter()
-                        .map(|e| e.requirements.clone())
-                        .collect::<Vec<_>>()
-                );
-                book_ok = true;
-            }
             _ => {}
         }
-        if sets_ok && book_ok {
+        if sets_ok {
             return Ok(());
         }
     }
-    Err(format!(
-        "{who}: recipes {sets_ok} book {book_ok} never both arrived"
-    ))
+    Err(format!("{who}: recipes {sets_ok} never arrived"))
 }
 
 #[test]
@@ -758,7 +732,7 @@ fn a_signed_in_hosts_lan_authenticates_guests_but_not_its_own_player() {
     }
     let owner = Connection::local(lan.connect_local().unwrap());
     match first_login_packet(owner, 0, "Host") {
-        login::Clientbound::LoginFinished(p) => assert_eq!(p.profile.uuid, offline_uuid("Host")),
+        login::Clientbound::GameProfile(p) => assert_eq!(p.profile.uuid, offline_uuid("Host")),
         other => panic!("expected the owner's login, got {other:?}"),
     }
 }
@@ -1082,7 +1056,6 @@ fn guests_see_each_other_and_the_world_entities() {
                 && reminder.elapsed() >= Duration::from_secs(1)
             {
                 bot.send(S::MovePlayerPos(play::MovePlayerPos { x, y, z, flags: 1 }));
-                bot.send(S::ClientTickEnd(Empty));
                 reminder = Instant::now();
             }
             let Ok((id, payload)) = bot.c.recv() else {
@@ -1145,8 +1118,6 @@ fn guests_see_each_other_and_the_world_entities() {
                 z: 8.5,
                 flags: 1,
             }));
-            // A client ends each tick: a second move before it is kicked.
-            bot.send(S::ClientTickEnd(Empty));
         }
         Ok::<(), String>(())
     });
@@ -1524,9 +1495,9 @@ fn the_prediction_records_each_client_tick_and_the_server_ticks_it_had_seen() {
         }),
         0,
     ));
-    inbox.push_back((S::ClientTickEnd(Empty), 0));
-    // A tick without a move.
-    inbox.push_back((S::ClientTickEnd(Empty), 0));
+    // 1.21.1 has no client_tick_end: the prediction records one tick per
+    // server tick, so a second server tick is the tick without a move.
+    s.tick(&[]);
     s.tick(&[]);
     let record = s.hub.guests[0]
         .anticheat
@@ -1881,7 +1852,7 @@ fn join_with(
         let (id, payload) = bot.recv()?;
         match login::Clientbound::decode(id, &payload).map_err(e)? {
             login::Clientbound::Compression(p) => bot.c.set_compression(p.threshold),
-            login::Clientbound::LoginFinished(_) => break,
+            login::Clientbound::GameProfile(_) => break,
             login::Clientbound::Disconnect(d) => return Ok(Err(d.reason_json)),
             other => return Err(format!("unexpected login packet {other:?}")),
         }

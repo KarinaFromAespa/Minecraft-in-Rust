@@ -2735,7 +2735,7 @@ struct Game<'a> {
     /// not fired yet (`game/boarding.rs`), for a guest's turn.
     started_riding: Vec<u32>,
     /// A rotation-only write (`/rotate`, `Entity.forceSetRotation`) to the player of this
-    /// turn: `leave_guest` sends it as `ClientboundPlayerRotationPacket`, not a teleport.
+    /// turn: `leave_guest` folds it into the teleport below (1.21.1 has no rotation-only packet).
     rotation_forced: bool,
     /// The mount the last `position_rider` put the player on, to tell the tick
     /// a seat is taken (`Entity.moveTo`, no camera sweep) from the ones that

@@ -564,7 +564,15 @@ impl Game<'_> {
                     let net = host.hub.stack(&carried);
                     if let Some(g) = host.hub.guest_mut(conn) {
                         g.carried = carried;
-                        g.send(&C::SetCursorItem(play::SetCursorItem { item: net }));
+                        // 1.21.1 has no set_cursor_item: the cursor is
+                        // container -1 of container_set_slot.
+                        let state = g.menu.as_ref().map_or(g.menu_state, |m| m.state);
+                        g.send(&C::ContainerSetSlot(play::ContainerSetSlot {
+                            container: -1,
+                            state,
+                            slot: -1,
+                            item: net,
+                        }));
                     }
                 }
             }

@@ -906,7 +906,7 @@ fn run(
         }
     };
     status(send, &tr(lang, "connect.joining"));
-    // ClientHandshakePacketListenerImpl.handleLoginFinished: the brand, then
+    // ClientHandshakePacketListenerImpl.handleGameProfile: the brand, then
     // the client information.
     c.send(
         &cfg::Serverbound::CustomPayload(cfg::CustomPayload {
@@ -1589,7 +1589,7 @@ mod tests {
                 login::Serverbound::decode(id, &body).unwrap(),
                 login::Serverbound::LoginAcknowledged(_)
             ));
-            // handleLoginFinished: the brand first, then the information.
+            // handleGameProfile: the brand first, then the information.
             let (id, body) = server.recv().unwrap();
             assert_eq!(
                 cfg::Serverbound::decode(id, &body).unwrap(),

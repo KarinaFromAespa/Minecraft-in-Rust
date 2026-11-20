@@ -118,6 +118,10 @@ fn group(g: &mut Game<'_>, packets: Vec<S>, token: i32) {
     // Real Hub queue/collision/event dispatch, before the receipt marker.
     g.tick_lan_packets();
     assert!(g.lan.as_ref().unwrap().hub.guests[0].inbox.is_empty());
+    // 1.21.1 has no client_tick_end: the per-tick reset the packet used to
+    // trigger runs here, as the hub's server tick does it.
+    let mut events = Vec::new();
+    g.lan.as_mut().unwrap().hub.tick_end(&mut events);
     let before = snapshot(g);
     assert!(before.hand.is_none(), "original lead was consumed");
     assert!(before.using.is_none());
@@ -177,7 +181,6 @@ fn walk_stop(assert_trajectory: bool) {
                     z: 0.5,
                     flags: 1,
                 }),
-                S::ClientTickEnd(horizon_protocol::packets::Empty),
             ],
             tick + 1,
         );
@@ -190,7 +193,7 @@ fn walk_stop(assert_trajectory: bool) {
     for tick in 1..=10 {
         group(
             &mut g,
-            vec![S::ClientTickEnd(horizon_protocol::packets::Empty)],
+            vec![],
             31 + tick,
         );
         assert_eq!(
@@ -247,7 +250,6 @@ fn walking_then_still_tick_end_preserves_the_accepted_displacement() {
                 z: 0.5,
                 flags: 1,
             }),
-            S::ClientTickEnd(horizon_protocol::packets::Empty),
         ],
         2,
     );
@@ -255,11 +257,7 @@ fn walking_then_still_tick_end_preserves_the_accepted_displacement() {
     assert_eq!(walking.known, [0.4, 0.0, 0.0]);
     assert_eq!(walking.previous, [0.5, 100.0, 0.5]);
     assert_eq!(walking.position, [0.9, 100.0, 0.5]);
-    group(
-        &mut g,
-        vec![S::ClientTickEnd(horizon_protocol::packets::Empty)],
-        3,
-    );
+    group(&mut g, vec![], 3);
     let still = snapshot(&g);
     assert_eq!(still.known, [0.0; 3]);
     assert_eq!(still.previous, walking.previous);

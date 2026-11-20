@@ -2309,8 +2309,14 @@ impl Hub {
         let mut events = self.poll(ctx);
         events.extend(self.drain_packets(ctx));
         events.extend(self.tick_level(ctx));
-        // 1.21.1 has no client_tick_end: the per-client-tick reset and the
-        // anticheat's tick-end checks run once per server tick instead.
+        self.tick_end(&mut events);
+        self.end_tick();
+        events
+    }
+
+    /// 1.21.1 has no client_tick_end: the per-client-tick reset and the
+    /// anticheat's tick-end checks run once per server tick instead.
+    pub(crate) fn tick_end(&mut self, events: &mut Vec<HostEvent>) {
         for i in 0..self.guests.len() {
             let g = &mut self.guests[i];
             if !g.position_this_tick {
@@ -2319,10 +2325,8 @@ impl Hub {
             g.position_this_tick = false;
         }
         for i in 0..self.guests.len() {
-            self.anticheat_tick_end(i, &mut events);
+            self.anticheat_tick_end(i, events);
         }
-        self.end_tick();
-        events
     }
 
     /// The network since the last tick, once per server tick before any
@@ -4126,7 +4130,7 @@ impl Hub {
                 }
                 // ServerGamePacketListenerImpl.handleRecipeBookSeenRecipePacket:
                 // the display the player looked at stops being a new one, so
-                // the next `RecipeBookAdd` it is sent does not animate.
+                // the next book sync does not animate it.
                 S::RecipeBookSeenRecipe(p) => {
                     let seen = self
                         .sync

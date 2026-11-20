@@ -1,9 +1,10 @@
 //! The timer check's balance: how far a client's ticks are behind (positive) or ahead (negative) of the
 //! server's clock, in milliseconds.
 //!
-//! The server adds the wall-clock time of each of its ticks, and every ServerboundClientTickEndPacket
-//! takes away the length of one tick at the server's tick rate (vanilla's client ticks at that rate,
-//! `TickRateManager.millisecondsPerTick`). The balance is capped at `max_lag_ms` *after* the tick's
+//! The server adds the wall-clock time of each of its ticks, and every server tick takes away the
+//! length of one tick at the server's tick rate (1.21.1 has no client_tick_end to count client ticks
+//! with; vanilla's client ticks at that rate, `TickRateManager.millisecondsPerTick`). The balance is
+//! capped at `max_lag_ms` *after* the tick's
 //! packets are counted: a slow server tick that handles a second of packets at once also added that
 //! second, and a quiet connection banks at most `max_lag_ms` for the burst that ends a lag spike.
 

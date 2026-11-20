@@ -1337,66 +1337,6 @@ impl Game<'_> {
 
     // ---- a server's recipe book ----
 
-    /// ClientboundRecipeBookAddPacket (`ClientRecipeBook.add`): the
-    /// displays join the book, highlighted when new, and the recipes whose
-    /// entries ask for it show the toast.
-    pub(super) fn remote_recipe_book_add(
-        &mut self,
-        p: horizon_protocol::packets::recipes::RecipeBookAdd,
-    ) {
-        let ui = &mut self.recipe_ui;
-        if p.replace {
-            ui.client.clear();
-            ui.server_entries.clear();
-        }
-        let mut toast = Vec::new();
-        for e in &p.entries {
-            ui.client.add(e.id);
-            ui.server_entries.insert(e.id, e.clone());
-            if e.flags & 2 != 0 {
-                ui.client.highlight.insert(e.id);
-            }
-            if e.flags & 1 != 0
-                && let Some(id) = world_stations!(self).recipe_index.recipe_of_display(e.id)
-                && !toast.iter().any(|t| t == id)
-            {
-                toast.push(id.to_owned());
-            }
-        }
-        // A local world opened later syncs its book from scratch.
-        ui.client_known = None;
-        ui.client_version += 1;
-        // A replacing packet starts the book again from its own recipes; a
-        // later one puts its entries over the book as it is.
-        if p.replace {
-            ui.book = None;
-        } else if let Some(mut book) = ui.book.take() {
-            self.server_entries_over(&mut book, p.entries.iter());
-            self.recipe_ui.book = Some(book);
-        }
-        self.recipe_toast(&toast);
-    }
-    /// ClientboundRecipeBookRemovePacket.
-    pub(super) fn remote_recipe_book_remove(
-        &mut self,
-        p: horizon_protocol::packets::recipes::RecipeBookRemove,
-    ) {
-        for id in p.ids {
-            self.recipe_ui.client.remove(id);
-            self.recipe_ui.server_entries.remove(&id);
-        }
-        self.recipe_ui.client_version += 1;
-    }
-    /// ClientboundRecipeBookSettingsPacket: each book's open and filter flags.
-    pub(super) fn remote_recipe_book_settings(
-        &mut self,
-        p: horizon_protocol::packets::recipes::RecipeBookSettings,
-    ) {
-        for (i, (open, filtering)) in p.books.into_iter().enumerate() {
-            self.level.recipe_book.open[i] = open;
-            self.level.recipe_book.filtering[i] = filtering;
-        }
-    }
     /// ClientboundPlaceGhostRecipePacket: the recipe last placed, faded into
     /// the open menu's grid.
     pub(super) fn remote_ghost_recipe(

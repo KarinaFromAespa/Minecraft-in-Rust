@@ -700,8 +700,8 @@ impl ServerEntity {
                 id: e.id,
                 position: last.position,
                 delta: last.movement,
-                yaw: last.yaw,
-                pitch: last.pitch,
+                yaw: horizon_protocol::buf::unpack_degrees(last.yaw),
+                pitch: horizon_protocol::buf::unpack_degrees(last.pitch),
                 relatives: 0,
                 on_ground: e.on_ground,
             }));
@@ -1621,7 +1621,7 @@ mod tests {
             changes(&mut s, &state(40.0));
         }
         let jump = changes(&mut s, &state(40.0));
-        assert!(matches!(jump[0], play::Clientbound::EntityPositionSync(_)));
+        assert!(matches!(jump[0], play::Clientbound::TeleportEntity(_)));
     }
 
     #[test]
@@ -1748,8 +1748,8 @@ mod tests {
         };
         let out = stop(true);
         assert!(
-            matches!(&out[..], [play::Clientbound::EntityPositionSync(p)]
-                if p.path.end() == [0.3, 64.0, 0.3]),
+            matches!(&out[..], [play::Clientbound::TeleportEntity(p)]
+                if p.position == [0.3, 64.0, 0.3]),
             "{out:?}"
         );
         let out = stop(false);
@@ -1757,19 +1757,19 @@ mod tests {
     }
 
     #[test]
-    fn precise_entities_sync_their_position() {
+    fn precise_entities_teleport_their_position() {
         let mut e = state(0.0);
         e.kind = "minecraft:tnt".into();
         e.precise = true;
         let mut s = added(&e);
         assert!(matches!(
             changes(&mut s, &e)[..],
-            [play::Clientbound::EntityPositionSync(_)]
+            [play::Clientbound::TeleportEntity(_)]
         ));
     }
 
     #[test]
-    fn landing_sends_a_position_sync() {
+    fn landing_sends_a_teleport() {
         let mut e = state(0.0);
         let mut s = added(&e);
         changes(&mut s, &e);
@@ -1778,7 +1778,7 @@ mod tests {
         changes(&mut s, &e);
         assert!(matches!(
             changes(&mut s, &e)[..],
-            [play::Clientbound::EntityPositionSync(_)]
+            [play::Clientbound::TeleportEntity(_)]
         ));
     }
 
