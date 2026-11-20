@@ -142,7 +142,8 @@ impl Hub {
         }
     }
 
-    /// ServerboundClientTickEndPacket: one client tick spent.
+    /// One client tick spent (run once per server tick: 1.21.1 has no
+    /// client_tick_end packet to hook it on).
     pub(super) fn anticheat_tick_end(&mut self, i: usize, events: &mut Vec<HostEvent>) {
         let Some(ac) = self.anticheat.as_deref() else {
             return;

@@ -489,11 +489,6 @@ impl Entities {
                     e.pos = delta.end(e.pos);
                 }
             }
-            play::Clientbound::EntityPositionSync(p) => {
-                if let Some(e) = self.0.get_mut(&p.id) {
-                    e.pos = p.path.end();
-                }
-            }
             play::Clientbound::SetEntityData(p) => {
                 if let Some(e) = self.0.get_mut(&p.id) {
                     for (index, _, value) in &p.values {
@@ -770,7 +765,7 @@ fn join(o: &Options, name: &str) -> Result<Connection, String> {
         let (id, body) = c.recv().map_err(err)?;
         match login::Clientbound::decode(id, &body).map_err(err)? {
             login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-            login::Clientbound::LoginFinished(_) => {
+            login::Clientbound::GameProfile(_) => {
                 c.send(&login::Serverbound::LoginAcknowledged(Empty).encode())
                     .map_err(err)?;
                 break;
@@ -1061,7 +1056,6 @@ fn read(
             },
             cb::MOVE_ENTITY_POS
             | cb::MOVE_ENTITY_POS_ROT
-            | cb::ENTITY_POSITION_SYNC
             | cb::SET_ENTITY_DATA
             | cb::REMOVE_ENTITIES
                 if track =>
@@ -1175,7 +1169,7 @@ fn run_bot(
             })
             .encode(),
         );
-        send(play::Serverbound::SetCarriedItem(play::SetCarriedItem { slot: 0 }).encode());
+        send(play::Serverbound::SetCarriedItem(play::SetCarriedItemRequest { slot: 0 }).encode());
     }
     let mut sequence = 0;
     let mut rounds = 0;
@@ -1379,6 +1373,7 @@ fn run_bot(
             }
         }
         tick += 1;
+        // 1.21.1 has no client_tick_end: the move packet is the whole tick.
         let ok = send(
             play::Serverbound::MovePlayerPos(play::MovePlayerPos {
                 x: pos[0],
@@ -1391,7 +1386,7 @@ fn run_bot(
                 ),
             })
             .encode(),
-        ) && send(raw(sb::CLIENT_TICK_END, |_| {}));
+        );
         if !ok {
             bot.online.store(false, Ordering::SeqCst);
             break;

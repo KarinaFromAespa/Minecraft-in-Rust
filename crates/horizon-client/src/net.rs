@@ -379,8 +379,7 @@ impl Session {
         if self.debug
             && !matches!(
                 packet,
-                play::Serverbound::ClientTickEnd(_)
-                    | play::Serverbound::MovePlayerPos(_)
+                play::Serverbound::MovePlayerPos(_)
                     | play::Serverbound::MovePlayerPosRot(_)
             )
         {
@@ -825,7 +824,7 @@ fn run(
         let (id, payload) = c.recv().map_err(e)?;
         match login::Clientbound::decode(id, &payload).map_err(e)? {
             login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-            login::Clientbound::LoginFinished(p) => {
+            login::Clientbound::GameProfile(p) => {
                 c.send(&login::Serverbound::LoginAcknowledged(Empty).encode())
                     .map_err(e)?;
                 break p.profile;
@@ -1574,13 +1573,13 @@ mod tests {
             server.recv().unwrap(); // login profile
             server
                 .send(
-                    &login::Clientbound::LoginFinished(login::LoginFinished {
+                    &login::Clientbound::GameProfile(login::GameProfilePacket {
                         profile: login::GameProfile {
                             uuid: 1,
                             name: "Probe".into(),
                             properties: vec![],
                         },
-                        session: 1,
+                        strict_error_handling: false,
                     })
                     .encode(),
                 )
@@ -1956,7 +1955,9 @@ mod tests {
             )
         });
         let mut server = Connection::local(server);
-        let tick_end = play::Serverbound::ClientTickEnd(Empty);
+        // 1.21.1 has no client_tick_end; a swing stands in as the play packet
+        // the gate must hold back during configuration.
+        let tick_end = play::Serverbound::Swing(play::Swing { hand: 0 });
         server
             .send(&play::Clientbound::StartConfiguration(Empty).encode())
             .unwrap();

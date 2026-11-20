@@ -1476,7 +1476,7 @@ impl Hub {
             locked: ctx.difficulty_locked,
         }));
         g.send(&g.abilities());
-        g.send(&C::SetHeldSlot(play::SetHeldSlot {
+        g.send(&C::SetCarriedItem(play::SetCarriedItem {
             slot: g.selected as i8,
         }));
         // PlayerList.placeNewPlayer: ClientboundUpdateRecipesPacket.
@@ -1492,9 +1492,8 @@ impl Hub {
                 },
             ));
         }
-        // PlayerList.sendPlayerPermissionLevel, then the recipe book.
+        // PlayerList.sendPlayerPermissionLevel.
         self.send_permission_level(i);
-        self.send_initial_recipe_book(i);
         // PlayerList.placeNewPlayer broadcasts the join line before
         // players.add: the others read it, the newcomer doesn't (nor those
         // a native mod hides it from). A held player is not announced, and
@@ -1675,15 +1674,14 @@ impl Hub {
             param: mode as f32,
         }));
         g.send(&g.abilities());
-        g.send(&C::SetHeldSlot(play::SetHeldSlot {
+        g.send(&C::SetCarriedItem(play::SetCarriedItem {
             slot: g.selected as i8,
         }));
         self.resend_teleport(i, None);
         self.send_active_effects(i);
         self.send_inventory(i);
-        // The login sent the book of this server's file; the import may have brought another
-        // (`ServerRecipeBook.sendInitialRecipeBook` replaces what the client has).
-        self.send_initial_recipe_book(i);
+        // The login sent the book of this server's file; the import may have brought another.
+        // (The book itself is not re-sent: the pin's combined `recipe` packet is not sent yet.)
         let permission = self.guests[i].permission;
         let entries: Vec<_> = self
             .guests
@@ -2311,6 +2309,18 @@ impl Hub {
         let mut events = self.poll(ctx);
         events.extend(self.drain_packets(ctx));
         events.extend(self.tick_level(ctx));
+        // 1.21.1 has no client_tick_end: the per-client-tick reset and the
+        // anticheat's tick-end checks run once per server tick instead.
+        for i in 0..self.guests.len() {
+            let g = &mut self.guests[i];
+            if !g.position_this_tick {
+                g.known_movement = [0.0; 3];
+            }
+            g.position_this_tick = false;
+        }
+        for i in 0..self.guests.len() {
+            self.anticheat_tick_end(i, &mut events);
+        }
         self.end_tick();
         events
     }
@@ -2421,7 +2431,6 @@ impl Hub {
                 S::AcceptTeleportation(_)
                 | S::ChunkBatchReceived(_)
                 | S::ClientInformation(_)
-                | S::ClientTickEnd(_)
                 | S::KeepAlive(_)
                 | S::Pong(_) => {
                     bytes += size;
@@ -3699,9 +3708,6 @@ impl Hub {
                     &mut g.advancements,
                     &mut g.recipe_book,
                 );
-                if let Some(add) = first.recipe_book_add {
-                    g.send(&raw(ids::RECIPE_BOOK_ADD, add));
-                }
                 g.send(&raw(ids::UPDATE_ADVANCEMENTS, first.update_advancements));
                 self.native_advancement_grants.push(TickGrants {
                     player: g.uuid,
@@ -3848,21 +3854,6 @@ impl Hub {
         }
     }
 
-    /// `ServerRecipeBook.sendInitialRecipeBook`: each book's open and
-    /// filtering flags, then every known recipe.
-    fn send_initial_recipe_book(&self, i: usize) {
-        let g = &self.guests[i];
-        let book = &g.recipe_book;
-        let settings = (0..4)
-            .flat_map(|b| [u8::from(book.open[b]), u8::from(book.filtering[b])])
-            .collect();
-        g.send(&raw(ids::RECIPE_BOOK_SETTINGS, settings));
-        g.send(&raw(
-            ids::RECIPE_BOOK_ADD,
-            self.sync.advancements.initial_recipe_book(book, &self.sync),
-        ));
-    }
-
     /// `PlayerList.reloadResources` (`/reload`): every player's advancements
     /// reload against the new data, then everyone gets the tags, and each
     /// player the recipes and their recipe book again.
@@ -3882,15 +3873,12 @@ impl Hub {
             }
             g.advancements_visible.clear();
             g.advancements_changed.clear();
-            if let Some(add) = sync.advancements.reload(
-                &sync,
+            sync.advancements.reload(
                 now,
                 &mut g.advancements,
                 &mut g.recipe_book,
                 &mut granted,
-            ) {
-                g.send(&raw(ids::RECIPE_BOOK_ADD, add));
-            }
+            );
             self.native_advancement_grants.push(TickGrants {
                 player: g.uuid,
                 name: g.name.clone(),
@@ -3909,7 +3897,6 @@ impl Hub {
             if self.guests[i].brand == "horizon" {
                 send_recipe_content(&self.guests[i]);
             }
-            self.send_initial_recipe_book(i);
         }
     }
 
@@ -3926,12 +3913,10 @@ impl Hub {
     fn flush_advancements(&mut self, i: usize, show: bool) {
         let sync = self.sync.clone();
         let g = &mut self.guests[i];
-        let mut unlocked = std::mem::take(&mut g.recipes_unlocked);
-        // A recipe given and taken before this flush must not reappear.
-        unlocked.retain(|id| g.recipe_book.knows(id));
-        if let Some(add) = sync.advancements.recipes_added(&unlocked, &sync) {
-            g.send(&raw(ids::RECIPE_BOOK_ADD, add));
-        }
+        // Drain the unlock queue (the unlocks themselves are tracked
+        // server-side only: the pin's combined `recipe` packet is not sent
+        // yet).
+        std::mem::take(&mut g.recipes_unlocked);
         let changed = std::mem::take(&mut g.advancements_changed);
         if let Some(update) = sync.advancements.update(
             &sync,
@@ -4046,7 +4031,6 @@ impl Hub {
                 | S::ClientInformation(_)
                 | S::RecipeBookChangeSettings(_)
                 | S::RecipeBookSeenRecipe(_)
-                | S::ClientTickEnd(_)
                 | S::KeepAlive(_)
                 | S::Pong(_) => false,
                 S::MovePlayerPos(p) => self.moved_far(i, [p.x, p.y, p.z]),
@@ -4139,15 +4123,6 @@ impl Hub {
                 S::Swing(p) => {
                     self.anticheat_swing(i);
                     events.push(HostEvent::Packet(conn, Box::new(S::Swing(p))));
-                }
-                S::ClientTickEnd(_) => {
-                    // handleClientTickEnd: no move this tick, no known movement.
-                    let g = &mut self.guests[i];
-                    if !g.position_this_tick {
-                        g.known_movement = [0.0; 3];
-                    }
-                    g.position_this_tick = false;
-                    self.anticheat_tick_end(i, events);
                 }
                 // ServerGamePacketListenerImpl.handleRecipeBookSeenRecipePacket:
                 // the display the player looked at stops being a new one, so
@@ -4327,11 +4302,6 @@ impl Hub {
                         p.input = 0;
                     }
                     events.push(HostEvent::Packet(conn, Box::new(S::ContainerClick(p))));
-                }
-                // ServerboundSelectBundleItemPacket's constructor: no index below -1.
-                S::SelectBundleItem(p) if p.index < -1 => {
-                    let reason = format!("Invalid selectedItemIndex: {}", p.index);
-                    self.kick(conn, literal(&reason));
                 }
                 other => events.push(HostEvent::Packet(conn, Box::new(other))),
             }
@@ -5183,7 +5153,7 @@ impl Hub {
         // PlayerList.sendAllPlayerInfo: the inventory and the held slot.
         self.send_inventory(i);
         let g = &mut self.guests[i];
-        g.send(&C::SetHeldSlot(play::SetHeldSlot {
+        g.send(&C::SetCarriedItem(play::SetCarriedItem {
             slot: g.selected as i8,
         }));
         self.send_active_effects(i);

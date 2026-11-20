@@ -957,7 +957,19 @@ impl Hub {
         let carried = self.guests[i].carried.clone();
         if !self.hashed_matches(&p.carried, &carried) {
             let net = self.stack(&carried);
-            self.guests[i].send(&C::SetCursorItem(play::SetCursorItem { item: net }));
+            // 1.21.1 has no set_cursor_item: the cursor is container -1 of
+            // container_set_slot (slot -1, the menu's current state).
+            let state = if in_menu {
+                self.guests[i].menu.as_ref().map_or(0, |m| m.state)
+            } else {
+                self.guests[i].menu_state
+            };
+            self.guests[i].send(&C::ContainerSetSlot(play::ContainerSetSlot {
+                container: -1,
+                state,
+                slot: -1,
+                item: net,
+            }));
         }
         // What the client now believes equals the server's state.
         let items: Vec<_> = (0..total).map(|s| self.view_slot(i, world, s)).collect();

@@ -11,9 +11,9 @@ use horizon_protocol::{
     entity_data::{Value, serializer},
     item::Stack,
     packets::play::{
-        self, AddEntity, AttributeSnapshot, EntityPositionSync, MoveEntity, MoveEntityPos,
-        MoveEntityPosRot, MoveEntityRot, PositionPath, RotateHead, SetEntityData, SetEntityLink,
-        SetEntityMotion, SetEquipment, SetPassengers, UpdateAttributes, VecDelta,
+        self, AddEntity, AttributeSnapshot, MoveEntity, MoveEntityPos, MoveEntityPosRot,
+        MoveEntityRot, PositionPath, RotateHead, SetEntityData, SetEntityLink, SetEntityMotion,
+        SetEquipment, SetPassengers, TeleportEntity, UpdateAttributes, VecDelta,
     },
 };
 use std::sync::Arc;
@@ -554,11 +554,15 @@ impl ServerEntity {
                 PositionPath::Stepped(std::mem::take(&mut self.tracked_steps))
             };
             self.ticks_since_step = 0;
-            let sync = EntityPositionSync {
+            // 1.21.1 has no entity_position_sync: a precise move is a
+            // teleport, as vanilla 1.21.1's ServerEntity sends it.
+            let teleport = TeleportEntity {
                 id: e.id,
-                path: path.clone(),
+                position: e.position,
+                delta: e.velocity,
                 yaw: e.yaw,
                 pitch: e.pitch,
+                relatives: 0,
                 on_ground: e.on_ground,
             };
             // ServerEntity.createMovePacket.
@@ -570,7 +574,7 @@ impl ServerEntity {
                 self.was_on_ground = e.on_ground;
                 self.teleport_delay = 0;
                 self.was_riding = false;
-                Some(play::Clientbound::EntityPositionSync(sync))
+                Some(play::Clientbound::TeleportEntity(teleport))
             } else if send_position {
                 let delta = try_encode(self.base, &path)
                     .filter(|d| !full_precision_required(e, delta_axes(d)));
@@ -587,7 +591,7 @@ impl ServerEntity {
                         play::Clientbound::MoveEntityPos(MoveEntityPos(m))
                     })
                 } else {
-                    Some(play::Clientbound::EntityPositionSync(sync))
+                    Some(play::Clientbound::TeleportEntity(teleport))
                 }
             } else if rotate {
                 Some(play::Clientbound::MoveEntityRot(MoveEntityRot(
@@ -629,7 +633,7 @@ impl ServerEntity {
             }
             if let Some(packet) = packet {
                 let (position, rotated) = match &packet {
-                    play::Clientbound::EntityPositionSync(_)
+                    play::Clientbound::TeleportEntity(_)
                     | play::Clientbound::MoveEntityPosRot(_) => (true, true),
                     play::Clientbound::MoveEntityPos(_) => (true, false),
                     _ => (false, true),
@@ -660,9 +664,10 @@ impl ServerEntity {
         }
     }
 
-    /// ServerEntity.handleMinecartPosRot: send every recorded substep in order.
-    /// Only an empty queue uses the fallback endpoint (e.g. a stationary cart
-    /// teleported by a command); this never replaces a curved track's steps.
+    /// ServerEntity.handleMinecartPosRot: 1.21.1 has no
+    /// move_minecart_along_track, so the recorded substeps collapse into one
+    /// teleport to the last step's endpoint (a stepped path loses its steps,
+    /// as it does for a stepped entity move).
     fn send_minecart(
         &mut self,
         e: &EntityState,
@@ -690,12 +695,17 @@ impl ServerEntity {
             }
         }
         if !self.minecart_steps.is_empty() {
-            out.push(play::Clientbound::MoveMinecartAlongTrack(
-                play::MoveMinecartAlongTrack {
-                    id: e.id,
-                    steps: std::mem::take(&mut self.minecart_steps),
-                },
-            ));
+            let last = self.minecart_steps.last().unwrap();
+            out.push(play::Clientbound::TeleportEntity(TeleportEntity {
+                id: e.id,
+                position: last.position,
+                delta: last.movement,
+                yaw: last.yaw,
+                pitch: last.pitch,
+                relatives: 0,
+                on_ground: e.on_ground,
+            }));
+            self.minecart_steps.clear();
         }
         // Vanilla updates these even when no packet was needed; its
         // lastSentMovement is deliberately unchanged in this branch.

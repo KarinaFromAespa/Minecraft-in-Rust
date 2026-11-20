@@ -1225,13 +1225,13 @@ fn login_and_configure(
         c.set_compression(threshold);
     }
     c.send(
-        &login::Clientbound::LoginFinished(login::LoginFinished {
+        &login::Clientbound::GameProfile(login::GameProfilePacket {
             profile: login::GameProfile {
                 uuid,
                 name: name.to_owned(),
                 properties: properties.clone(),
             },
-            session: uuid,
+            strict_error_handling: false,
         })
         .encode(),
     )
@@ -2091,7 +2091,7 @@ mod tests {
         }
     }
 
-    /// Logs in through `c` and answers the `LoginFinished` profile.
+    /// Logs in through `c` and answers the `GameProfile` profile.
     fn login_profile(mut c: Connection, name: &str) -> login::GameProfile {
         c.send(
             &handshake::Serverbound::Intention(handshake::Intention {
@@ -2115,7 +2115,7 @@ mod tests {
             let (id, payload) = c.recv().unwrap();
             match login::Clientbound::decode(id, &payload).unwrap() {
                 login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-                login::Clientbound::LoginFinished(p) => return p.profile,
+                login::Clientbound::GameProfile(p) => return p.profile,
                 other => panic!("unexpected login packet {other:?}"),
             }
         }
@@ -2147,7 +2147,7 @@ mod tests {
             let (id, payload) = c.recv().unwrap();
             match login::Clientbound::decode(id, &payload).unwrap() {
                 login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-                login::Clientbound::LoginFinished(_) => return Ok(()),
+                login::Clientbound::GameProfile(_) => return Ok(()),
                 login::Clientbound::Disconnect(d) => return Err(d.reason_json),
                 other => panic!("unexpected login packet {other:?}"),
             }

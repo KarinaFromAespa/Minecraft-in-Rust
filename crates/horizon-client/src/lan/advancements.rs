@@ -1,8 +1,9 @@
 //! A player's advancements on a server (PlayerAdvancements): on the
 //! player's first tick the `minecraft:tick` criteria are met, the
-//! advancements they complete grant their recipes (ServerRecipeBook.addRecipes:
-//! ClientboundRecipeBookAddPacket) and the advancements the player may see go
-//! out in ClientboundUpdateAdvancementsPacket (PlayerAdvancements.flushDirty).
+//! advancements they complete grant their recipes (tracked server-side; the
+//! pin's combined `recipe` packet is not sent yet — the recipe-book sync is
+//! a behaviour-port gap at this pin) and the advancements the player may see
+//! go out in ClientboundUpdateAdvancementsPacket (PlayerAdvancements.flushDirty).
 use super::data::{SyncData, json_to_nbt};
 use crate::{
     advancements::{Progress, Tree},
@@ -31,10 +32,10 @@ pub struct ServerAdvancements {
     groups: HashMap<String, i32>,
 }
 
-/// What the first tick sends: ClientboundRecipeBookAddPacket's payload (when
-/// recipes were unlocked) and ClientboundUpdateAdvancementsPacket's.
+/// What the first tick sends: ClientboundUpdateAdvancementsPacket's payload.
+/// (The recipes the tick grants are tracked server-side only: the pin's
+/// combined `recipe` packet is not sent yet.)
 pub struct FirstTick {
-    pub recipe_book_add: Option<Vec<u8>>,
     pub update_advancements: Vec<u8>,
     pub granted: Vec<CriterionGrant>,
 }
@@ -109,17 +110,14 @@ impl ServerAdvancements {
             }
         }
         // AdvancementRewards.grant: the recipes, in the advancements' order.
-        let mut entries = Vec::new();
+        // (Tracked server-side only: the pin's combined `recipe` packet is
+        // not sent yet.)
         for (i, a) in self.tree.list.iter().enumerate() {
             if !done[i] {
                 continue;
             }
             book.add_recipes(&self.displays, &a.rewards.recipes);
-            for id in &a.rewards.recipes {
-                entries.extend(self.book_entries(id, sync, NOTIFY_AND_HIGHLIGHT));
-            }
         }
-        let recipe_book_add = (!entries.is_empty()).then(|| book_add(entries, false));
         // flushDirty: every advancement the player may see, and its progress.
         let visible = self.tree.visible(&self.kids, |i| done[i]);
         let shown: Vec<usize> = (0..self.tree.list.len()).filter(|i| visible[*i]).collect();
@@ -138,7 +136,6 @@ impl ServerAdvancements {
         }
         w.bool(true); // show the advancements
         FirstTick {
-            recipe_book_add,
             update_advancements: w.data,
             granted,
         }
@@ -156,16 +153,16 @@ impl ServerAdvancements {
     /// drops a criterion it lost), the next `flushDirty` is a first packet
     /// again, and the next `CriteriaTriggers.TICK` meets the new tree's
     /// `minecraft:tick` criteria, rewarding the recipes of the advancements
-    /// that complete. The criteria it grants are added to `granted`. Returns
-    /// the recipe book packet those recipes need.
+    /// that complete. The criteria it grants are added to `granted`. (The
+    /// recipes are tracked server-side only: the pin's combined `recipe`
+    /// packet is not sent yet.)
     pub fn reload(
         &self,
-        sync: &SyncData,
         now_millis: i64,
         progress: &mut Progress,
         book: &mut Settings,
         granted: &mut Vec<CriterionGrant>,
-    ) -> Option<Vec<u8>> {
+    ) {
         let by_id: HashMap<&str, &crate::advancements::Advancement> =
             self.tree.list.iter().map(|a| (a.id.as_str(), a)).collect();
         progress
@@ -178,7 +175,6 @@ impl ServerAdvancements {
                 None => false,
             });
         let date = crate::advancements::date_text(now_millis.div_euclid(1000));
-        let mut entries = Vec::new();
         for a in &self.tree.list {
             let was_done = progress.done(a);
             for c in &a.criteria {
@@ -194,12 +190,8 @@ impl ServerAdvancements {
             }
             if !was_done && progress.done(a) {
                 book.add_recipes(&self.displays, &a.rewards.recipes);
-                for id in &a.rewards.recipes {
-                    entries.extend(self.book_entries(id, sync, NOTIFY_AND_HIGHLIGHT));
-                }
             }
         }
-        (!entries.is_empty()).then(|| book_add(entries, false))
     }
 
     /// `PlayerAdvancements.flushDirty`: the advancements that became visible
@@ -340,36 +332,6 @@ impl ServerAdvancements {
                 w.i64(at);
             }
         }
-    }
-
-    /// `ServerRecipeBook.addRecipes`' packet for recipes just unlocked:
-    /// each display, with its notification and highlighted. None when no
-    /// recipe has a display.
-    pub fn recipes_added(&self, ids: &[String], sync: &SyncData) -> Option<Vec<u8>> {
-        let entries: Vec<Vec<u8>> = ids
-            .iter()
-            .flat_map(|id| self.book_entries(id, sync, NOTIFY_AND_HIGHLIGHT))
-            .collect();
-        (!entries.is_empty()).then(|| book_add(entries, false))
-    }
-
-    /// `ServerRecipeBook.sendInitialRecipeBook`: every known recipe, without
-    /// notifications, highlighted while not yet displayed, replacing the
-    /// client's book.
-    pub fn initial_recipe_book(&self, book: &Settings, sync: &SyncData) -> Vec<u8> {
-        let entries: Vec<Vec<u8>> = book
-            .recipes
-            .iter()
-            .flat_map(|id| {
-                let highlight = if book.to_be_displayed.contains(id) {
-                    2
-                } else {
-                    0
-                };
-                self.book_entries(id, sync, highlight)
-            })
-            .collect();
-        book_add(entries, true)
     }
 
     /// The recipe's display for ClientboundPlaceGhostRecipePacket (the
@@ -646,17 +608,6 @@ impl ServerAdvancements {
 
 /// ClientboundRecipeBookAddPacket.Entry flags: notification, highlight.
 const NOTIFY_AND_HIGHLIGHT: i8 = 1 | 2;
-
-/// ClientboundRecipeBookAddPacket: the entries, then whether they replace the book.
-fn book_add(entries: Vec<Vec<u8>>, replace: bool) -> Vec<u8> {
-    let mut w = Writer::new();
-    w.varint(entries.len() as i32);
-    for e in entries {
-        w.data.extend(e);
-    }
-    w.bool(replace);
-    w.data
-}
 
 /// `SmeltingRecipe.recipeBookCategory` and the other cooking recipes': the
 /// category of the station's book, from the recipe's `CookingBookCategory`.
