@@ -682,10 +682,11 @@ impl GameLevel<'_> {
                 | PreRemove::Nothing => {}
             }
         }
-        // BlockEntity.setRemoved: a jukebox always reports its song stopping,
-        // a beacon plays its deactivation.
+        // `BlockEntity.setRemoved`: a beacon plays its deactivation. A
+        // jukebox has no such override in 1.21.8 — its song stops only
+        // through `preRemoveSideEffects` (above), gated on a song playing;
+        // the `setRemoved` stop came in 1.21.9.
         match kind {
-            PreRemove::Jukebox => self.jukebox_stopped(pos, old),
             PreRemove::Beacon => self.events.push(LevelEvent::Sound {
                 pos,
                 sound: "minecraft:block.beacon.deactivate".into(),
