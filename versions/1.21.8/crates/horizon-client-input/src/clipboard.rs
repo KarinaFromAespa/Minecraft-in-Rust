@@ -1,11 +1,11 @@
-//! The system clipboard and the text-editing shortcuts of 26.3:
-//! `KeyboardHandler.getClipboard`/`setClipboard`, `InputWithModifiers.isSelectAll`,
+//! The system clipboard and the text-editing shortcuts:
+//! `KeyboardHandler.getClipboard`/`setClipboard`, `Screen.isSelectAll`,
 //! `isCopy`, `isPaste` and `isCut`, `StringUtil.filterText` and
 //! `ChatFormatting.stripFormatting`.
 
 use winit::keyboard::{Key, KeyCode, PhysicalKey};
 
-/// A text-editing shortcut (`InputWithModifiers.isSelectAll`, `isCopy`,
+/// A text-editing shortcut (`Screen.isSelectAll`, `isCopy`,
 /// `isPaste`, `isCut`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditShortcut {
