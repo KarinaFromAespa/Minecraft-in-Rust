@@ -6833,3 +6833,50 @@ number `0L`. `cargo check -p horizon-world --lib` and `-p
 horizon-client --lib` clean; ticks tests 0 (no test module).
 All edits comment-only. Rank 2 now 268/492 (86 changed, 182
 no-change). work-items.json rank2.closed = 268 on 2026-11-20.
+
+## Item 90 — game/jukebox.rs (rank 2, CHANGED)
+
+2 classes, 18 methods, 5 named: JukeboxPlayable,
+JukeboxBlockEntity.
+
+Java delta, jar-verified: the EitherHolder migration (same
+pattern as items 29/35) — 26.1's `JukeboxPlayable.song` is a
+resolved `Holder<JukeboxSong>`; 1.21.11's is an
+`EitherHolder<JukeboxSong>` (key or inline value), unwrapped
+against a `HolderLookup.Provider`; `JukeboxSong.fromStack`
+takes the provider in 1.21.11 (all four call sites:
+getComparatorOutput, setTheItem, tryForcePlaySong,
+loadAdditional). `addToTooltip` shows the gray description
+only when the unwrap succeeds — an unknown song id shows NO
+line. The rest is API shape: `getRandom()` -> the `random`
+field (note offset 0.7f), `is(Object)` -> `is(Block)`.
+
+Verified matching: `jukebox_playable` already implements the
+EitherHolder (String key / inline / removed / item default);
+`start_song` and `tick_jukebox` do nothing for an unknown id;
+`jukebox_signals` gives the song's comparator output, 0 when
+unresolved; insertion/eject/level-event paths match.
+
+Fix: `item_tooltip.rs::jukebox_line` fell back to the raw
+`jukebox_song.<id>` key when the description key was
+untranslated, so a disc naming an unknown song showed the raw
+key. The fallback is dropped — an untranslated key hides the
+line (1.21.11's unwrap-failure behaviour; every vanilla song's
+description IS its `jukebox_song.*` key, so the lang table
+doubles as the resolution check at this layer). New test
+`a_disc_naming_an_unknown_song_shows_no_jukebox_line`.
+
+Version-neutral gaps: an inline `jukebox_playable` definition
+does not play (the disc goes in, `playing` is set, but
+`start_song` is never called — `song_of_record` returns None
+for inline songs); a datapack song whose description is a
+literal shows no tooltip line. Both wrong in 26.1 too; the
+inline-song plumbing is out of scope here.
+
+Verification: literal comparison — both classes zero.
+`cargo test -p horizon-client-lib --lib --no-default-features
+item_tooltip::` 23 passed, 1 ignored (item_tooltip is declared
+in client_lib.rs, so its tests live in the horizon-client-lib
+binary). rustfmt clean on item_tooltip.rs (leaf). Rank 2 now
+269/492 (87 changed, 182 no-change). work-items.json
+rank2.closed = 269 on 2026-11-21.
