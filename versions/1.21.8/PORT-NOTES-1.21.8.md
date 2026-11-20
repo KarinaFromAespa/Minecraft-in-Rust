@@ -334,7 +334,27 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 140/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157 + 4 zero-diff)
+### Rank 2: 141/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158 + 4 zero-diff)
+
+- **Item 158 — `crates/horizon-client/src/game/dialogs.rs`
+  (3 classes, 7 methods, 1 named in Horizon), zero-diff:**
+  `CycleButton`: 1.21.9 passes the modifiers in
+  (`onPress(InputWithModifiers)`, alt selector from
+  `Minecraft.hasAltDown`); 1.21.8 reads them statically
+  (`Screen.hasShiftDown` / `Screen::hasAltDown`). Same
+  behaviour — shift cycles back, alt picks the alternate
+  list — and the Rust dialog cycle reads shift from its own
+  modifier state. `ItemDisplayWidget`: 1.21.9 extracted
+  `renderTooltip` as a method and uses `submitOutline`;
+  1.21.8 inlines the tooltip call and uses `renderOutline`.
+  Same behaviour; the Rust dialog item display draws the
+  item, decorations, and hover tooltip identically.
+  `AbstractStringWidget`: 1.21.9 added a `setMessage`
+  override that resizes the widget to the message width;
+  1.21.8 lacks it. No Rust surface — dialog string widgets
+  are laid out from the dialog definition with fixed rects,
+  and the Rust code never recomputes a widget width on
+  message change.
 
 - **Item 157 — `crates/horizon-client/src/end_crystal.rs`
   (2 classes, 7 methods, 1 named in Horizon), zero-diff:**
