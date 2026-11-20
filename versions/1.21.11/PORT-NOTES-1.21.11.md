@@ -7718,3 +7718,34 @@ Rust's own field name. The one fix: tick.rs:1113 cited
 pre-existing and version-neutral. Tests: `cargo check -p
 horizon-world --lib` clean; `level::growth_tests::` 21 passed.
 rustfmt --check clean on tick.rs.
+
+## Item 112 — item frames (rank 2, CHANGED)
+
+3 classes, 15 methods, 4 named: ItemFrameRenderer (10,
+`getBlockLightLevel`), ItemFrame (4, `interact`,
+`removeFramedMap`), ItemFrameItem (1, `mayPlace`).
+
+Java delta, jar-verified: the renderer is plumbing only (26.1
+resolves the frame model in `extractRenderState` via
+BlockModelResolver; 1.21.11 resolves it in `submit` via
+`getItemFrameFakeState` + BlockRenderDispatcher — same model, same
+transform; all numbers identical: 0.46875 offset, z 0.5/0.4375,
+map rotation + 180, scale 0.0078125, glow lights 15728850/15728880,
+glow block light max(5)). The one real delta is the entity
+representation: 1.21.11's `onItemChanged` sets the framed item's
+representation to the frame and `removeFramedMap` clears it; 26.1
+has neither. `interact` drops the 26.x-only Vec3 parameter;
+`mayPlace` is `isInsideBuildHeight` vs `!isOutsideBuildHeight`.
+Literal comparison zero in all three classes. The Rust needs no
+representation mirror: `maps.rs::tick_framed` already passes the
+frame explicitly (documented there) and the needle reads the frame
+via the `owner` passed to `resolve_item`. The fix is version-neutral
+and in this item's own method: `ItemFrame::bounds()` always used
+the 0.75 face, but `createBoundingBox` widens it to 1.0 with a
+framed map — a framed map was targetable only over its middle 3/4
+and the `survives` collision check used the narrow box. Now the
+face is 1.0 when the item carries `map_id`, and the manual
+widening in `frame_geometry` is removed. New unit test
+`entities::item_frame_bounds_tests::` 1 passed. Tests: `cargo check
+-p horizon-client --lib --tests` clean. rustfmt --check clean on
+entities.rs and frames.rs.

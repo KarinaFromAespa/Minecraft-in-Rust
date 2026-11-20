@@ -2033,7 +2033,18 @@ impl ItemFrame {
     pub fn bounds(&self) -> ([f64; 3], [f64; 3]) {
         let s = self.step().map(f64::from);
         let c: [f64; 3] = std::array::from_fn(|i| f64::from(self.pos[i]) + 0.5 - s[i] * 0.46875);
-        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { 0.75 });
+        // `ItemFrame.createBoundingBox`: a framed map widens the face to a
+        // full block (`hasFramedMap`: the item carries `minecraft:map_id`).
+        let face = if self
+            .item
+            .as_ref()
+            .is_some_and(|s| s.data().is_some_and(|d| d.map_id.is_some()))
+        {
+            1.0
+        } else {
+            0.75
+        };
+        let size: [f64; 3] = std::array::from_fn(|i| if s[i] != 0.0 { 0.0625 } else { face });
         (
             std::array::from_fn(|i| c[i] - size[i] / 2.0),
             std::array::from_fn(|i| c[i] + size[i] / 2.0),
@@ -2050,6 +2061,53 @@ impl ItemFrame {
         item_stack
     }
 }
+
+#[cfg(test)]
+mod item_frame_bounds_tests {
+    use super::*;
+
+    fn frame(item: Option<ItemStack>) -> ItemFrame {
+        ItemFrame {
+            id: 1,
+            pos: [10, 64, 10],
+            facing: 3,
+            glow: false,
+            item,
+            rotation: 0,
+            drop_chance: 1.0,
+            fixed: false,
+            invisible: false,
+            check_interval: 0,
+            custom_name: None,
+            random: LegacyRandom::new(0),
+        }
+    }
+
+    /// `ItemFrame.createBoundingBox`: 0.75 on the face, 0.0625 thick, centred
+    /// 0.46875 out from the block centre; a framed map widens the face to a
+    /// full block.
+    #[test]
+    fn a_framed_map_widens_the_face_to_a_full_block() {
+        let (lo, hi) = frame(None).bounds();
+        assert_eq!(
+            (hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]),
+            (0.75, 0.75, 0.0625)
+        );
+        assert_eq!((lo[0] + hi[0]) / 2.0, 10.5);
+        assert_eq!((lo[2] + hi[2]) / 2.0, 10.5 - 0.46875);
+        let mut map = ItemStack::new("minecraft:filled_map", 1);
+        map.data_mut().map_id = Some(7);
+        let (lo, hi) = frame(Some(map)).bounds();
+        assert_eq!(
+            (hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]),
+            (1.0, 1.0, 0.0625)
+        );
+        let stone = ItemStack::new("minecraft:stone", 1);
+        let (lo, hi) = frame(Some(stone)).bounds();
+        assert_eq!((hi[0] - lo[0], hi[1] - lo[1]), (0.75, 0.75));
+    }
+}
+
 /// An armor stand (`ArmorStand`).
 #[derive(Clone, Debug)]
 pub struct ArmorStand {
