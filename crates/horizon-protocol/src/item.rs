@@ -363,6 +363,12 @@ impl Component {
         if kind == component::PROFILE && ids::quirks().optional_profile_fields {
             return read_optional_profile(r).map(Self::Profile);
         }
+        // Before 1.21 attribute modifiers carried a UUID and a name, not an
+        // identifier: the 1.21.1 step that converted them is inert at this
+        // pin, so the conversion happens here.
+        if kind == component::ATTRIBUTE_MODIFIERS && v1_20_5::active() {
+            return Ok(Self::Raw(v1_20_5::read_attributes(r)?));
+        }
         if let Some(bytes) = v1_21_5::read(kind, r)? {
             return Ok(Self::Raw(bytes));
         }
@@ -648,6 +654,14 @@ impl Component {
                     && !ids::quirks_written().components_before_1_21_2
                 {
                     truncate_food(bytes)
+                } else if kind == component::FOOD
+                    && ids::quirks_written().components_before_1_21
+                {
+                    strip_food_remainder(bytes)
+                } else if kind == component::ATTRIBUTE_MODIFIERS
+                    && ids::quirks_written().components_before_1_21
+                {
+                    v1_20_5::write_attributes(bytes).ok()
                 } else if kind == component::INSTRUMENT
                     && !ids::quirks_written().components_before_1_21_2
                 {
@@ -996,6 +1010,29 @@ fn truncate_food(bytes: &[u8]) -> Option<Vec<u8>> {
     Some(w.data)
 }
 
+/// A pin-form food (nutrition, saturation, canAlwaysEat, eatSeconds, an
+/// optional remainder, effects) as a pre-1.21 server reads it: no remainder
+/// field — a present remainder is dropped, the target cannot hold it.
+fn strip_food_remainder(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    w.varint(r.varint().ok()?);
+    w.f32(r.f32().ok()?);
+    w.bool(r.bool().ok()?);
+    w.f32(r.f32().ok()?);
+    if r.bool().ok()? {
+        let _pinned = ids::unrenumbered();
+        Template::read(&mut r).ok()?;
+    }
+    let n = r.count(65536).ok()?;
+    w.varint(n as i32);
+    for _ in 0..n {
+        v1_21_1::effect(&mut r, &mut w, false).ok()?;
+        w.f32(r.f32().ok()?);
+    }
+    (r.remaining() == 0).then_some(w.data)
+}
+
 /// A pin-form direct instrument (sound, useDuration in ticks, range) as a
 /// 1.21.2+ server reads it: the duration in float seconds, then
 /// durabilityDamage 0 and an empty description. A reference passes through.
@@ -1274,6 +1311,24 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
                 r.nbt()?; // description: likewise.
             } else {
                 w.varint(holder);
+            }
+            Older::Rewritten(w.data)
+        }
+        // Before 1.21 FoodProperties had no usingConvertsTo remainder: the
+        // pin's combined form gains an absent remainder between eatSeconds
+        // and the effects (the effects' ids are renumbered as usual).
+        FOOD if quirks.components_before_1_21 => {
+            let mut w = Writer::new();
+            w.varint(r.varint()?);
+            w.f32(r.f32()?);
+            w.bool(r.bool()?);
+            w.f32(r.f32()?);
+            w.bool(false);
+            let n = r.count(65536)?;
+            w.varint(n as i32);
+            for _ in 0..n {
+                v1_21_1::effect(r, &mut w, true)?;
+                w.f32(r.f32()?);
             }
             Older::Rewritten(w.data)
         }

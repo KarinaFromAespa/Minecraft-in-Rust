@@ -63,10 +63,11 @@ fn vec_delta_quantizes_the_base_like_math_round() {
 #[test]
 fn merchant_cost_predicate_is_a_typed_list_without_patch_counts() {
     // ItemCost.STREAM_CODEC: item=7, count=1, one typed component,
-    // potion_contents=41, potion present (water=0), no color/effects/name.
-    // Result: count=1, item=8, empty component patch. Secondary cost:
-    // item=9, count=2, empty predicate, followed by the offer fields.
-    let mut bytes = vec![1, 7, 1, 1, 41, 1, 0, 0, 0, 0, 1, 8, 0, 0, 1, 9, 2, 0, 0];
+    // potion_contents=31, potion present (water=0), no color/effects (the
+    // pin predates the 1.21.2 name field). Result: count=1, item=8, empty
+    // component patch. Secondary cost: item=9, count=2, empty predicate,
+    // followed by the offer fields.
+    let mut bytes = vec![1, 7, 1, 1, 31, 1, 0, 0, 0, 1, 8, 0, 0, 1, 9, 2, 0, 0];
     bytes.extend_from_slice(&[0; 4]); // uses
     bytes.extend_from_slice(&2i32.to_be_bytes()); // max uses
     bytes.extend_from_slice(&[0; 16]); // xp, special price, multiplier, demand
@@ -76,7 +77,7 @@ fn merchant_cost_predicate_is_a_typed_list_without_patch_counts() {
     assert_eq!(
         offers[0].cost_a.components,
         vec![(
-            41,
+            31,
             Component::Potion {
                 potion: Some(0),
                 color: None,

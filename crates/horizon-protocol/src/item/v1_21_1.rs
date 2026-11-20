@@ -257,7 +257,7 @@ fn read_food(r: &mut Reader, stack: &mut Stack) -> Result<()> {
     Ok(())
 }
 
-fn effect(r: &mut Reader, w: &mut Writer, up: bool) -> Result<()> {
+pub(super) fn effect(r: &mut Reader, w: &mut Writer, up: bool) -> Result<()> {
     let old = r.varint()?;
     let mapped = match ids::active() {
         Some((ids, _)) if up => ids.mob_effect.up(old),
