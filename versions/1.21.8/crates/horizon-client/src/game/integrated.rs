@@ -299,13 +299,15 @@ pub(super) struct Serving {
     /// Where the load focus is and how far the player's chunks are.
     load: LoadPhase,
 }
-/// The part of the load after `prepareLevels`: `PrepareSpawnTask`'s
-/// spawn grid.
+/// The part of the load after `prepareLevels`: the spawn grid, whose
+/// FULL chunks `LoggerChunkProgressListener` counts. (1.21.9 moved
+/// this wait into the config-phase `PrepareSpawnTask`.)
 #[derive(Default)]
 struct LoadPhase {
     /// `updateFocus`: the spawn chunk, once the stage started.
     focus: Option<(i32, i32)>,
-    /// `finish(LOAD_PLAYER_CHUNKS)`.
+    /// `ChunkProgressListener.stop`: the listener completes once the
+    /// grid is FULL.
     done: bool,
 }
 impl Serving {
@@ -581,10 +583,10 @@ impl Game<'_> {
         Ok(())
     }
 
-    /// `PrepareSpawnTask`'s `LOAD_PLAYER_CHUNKS`, reported to the window's
-    /// loading screen: the focus moves to the spawn chunk when the stage
-    /// starts, the 7x7 chunks around it count as they are ready, and the
-    /// status map around the focus follows
+    /// The spawn-grid load, reported to the window's loading screen:
+    /// the focus moves to the spawn chunk when the stage starts, the
+    /// 7x7 chunks around it count as they are ready, and the status
+    /// map around the focus follows
     /// (`StoringChunkProgressListener.getStatus`).
     pub(super) fn publish_load_view(&mut self) {
         let Some(serving) = self.serving.as_mut() else {

@@ -17,8 +17,9 @@ use crate::{
 pub const STATUS_RADIUS: i32 = 5;
 /// `LoggerChunkProgressListener`'s max count at the default
 /// `spawnChunkRadius` of 2: the FULL grid's diameter (7) squared —
-/// the 7x7 chunks `PrepareSpawnTask` waits for around the spawn.
-/// (1.21.9 renamed the same 49 `EXPECTED_PLAYER_CHUNKS`.)
+/// the 7x7 chunks of the spawn grid. (1.21.9 moved the same wait
+/// into the config-phase `PrepareSpawnTask` and renamed the 49
+/// `EXPECTED_PLAYER_CHUNKS`.)
 const PLAYER_CHUNKS: usize = 49;
 
 /// `ChunkStatus`, as far as the chunk status map tells them apart.
@@ -746,7 +747,7 @@ mod tracker_tests {
         view.start(Stage::LoadInitialChunks, 0);
         view.finish(Stage::LoadInitialChunks);
         assert_eq!(view.server_progress(), 0.0);
-        // PrepareSpawnTask: the 49 chunks of the spawn grid.
+        // The 49 chunks of the spawn grid.
         view.start(Stage::LoadPlayerChunks, 49);
         view.update(Stage::LoadPlayerChunks, 20, 49);
         assert_eq!(view.server_progress(), 20.0 / 49.0);

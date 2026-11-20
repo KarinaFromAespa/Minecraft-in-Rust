@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 101/163 (327–364 + 366–369 + 371–422 + 424–430 + 81 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–430)
+### Rank 3: 111/163 (327–364 + 366–369 + 371–422 + 424–440 + 90 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7674,6 +7674,16 @@ includes constant-pool churn.
   `end.rs`, the sky and the shader packs. Folded in: the
   `setRespawnData` citation at `remote.rs` is now
   `setDefaultSpawnPos`.
+
+- **Item 440 — `PrepareSpawnTask` citations re-cut:** the
+  1.21.9-only config-phase task (`server/network/config/` does
+  not exist in 1.21.8 at all) is gone from the loading docs: the
+  49-chunk spawn grid is `LoggerChunkProgressListener`'s max
+  count, and the load's end is `ChunkProgressListener.stop`.
+  The behaviour was already 1.21.8-form (item 408's count
+  model); only the citations named the 1.21.9 class. (The
+  item's decomp diff is empty — removed classes leave no
+  diff — so it was verified from the report's class list.)
 
 ### Rank 4 content: closed 2/2 (chain)
 
