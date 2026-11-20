@@ -8330,3 +8330,36 @@ Version-neutral nit recorded: Take Book resets the menu's page to
 0 in the Rust while vanilla leaves it — unobservable, out of this
 item's file scope. Tests: `game::books::save_book_tests::` 1 passed
 (new; the module's other 3 tests are `#[ignore]`d, fixture-bound).
+
+## Item 126 — game/hand.rs (rank 2, CHANGED)
+
+3 classes, 19 methods, 3 named (`AttackRange.defaultFor`,
+`AttackRange.effectiveMinRange`, `PiercingWeapon.attack`).
+
+Java delta, jar-verified (javap diff 328 lines + decompile diff
+343 lines, both read in full): one behaviour change —
+`AttackRange.effectiveMinRange` returns 0.0 for a spectator in
+1.21.11, where 26.1 gave it the creative or survival minimum
+(`effectiveMaxRange` has no spectator branch in either version).
+The rest is shape: the record accessors rename reach → range
+while the JSON codec names stay `min_reach`/`max_reach`/etc. in
+both versions; `PiercingWeapon.attack` switches its range source
+to `entityAttackRange()` (the active item — use item, else main
+hand) and its post-attack hook to `lungeForwardMaybe()` — both
+behaviourally identical to the 26.1 forms (the STAB path always
+uses MAINHAND while not using, and both hooks apply the same
+`POST_PIERCING_ATTACK` effect list); `defaultFor` keeps its
+values; SimpleType goes private → package-private.
+
+Changes: `attack_reach` / `attack_range_contains` take a
+spectator flag forcing the minimum to 0, threaded through
+`within_attack_range`, `held_range_allows`, `attack_range_pick`
+and `crosshair_living` — reachable via a spectator's
+`spectate_hit_entity` click with a spear held. The bounds test
+gains the spectator assertions. Checked, no action: the JSON
+keys, the `entityAttackRange` citation in `within_attack_range`
+and the `lungeForwardMaybe` citation in `jab()` were already the
+1.21.11 form. Naming nit recorded: spear.rs's
+`post_piercing_attack()` is the 26.1 hook name for 1.21.11's
+`lungeForwardMaybe` — a cosmetic rename for the spear item's
+scope. Tests: `game::hand::tests::` 4 passed.
