@@ -331,14 +331,14 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{version:?}");
             let mut expected = Writer::new();
-            // The pinned 1.21.3 pot decorations are four item ids (a brick
+            // The pinned 1.21.1 pot decorations are four item ids (a brick
             // side is undecorated), not templates: templates arrived in 1.21.9.
-            expected.bytes(&[1, 1, 3, 1, 35, 0x12, 0x34, 0x56, 0x78, 61, 4]);
-            expected.varint(1331); // Pinned angler_pottery_sherd.
-            expected.varint(945); // Pinned brick.
-            expected.varint(945);
-            expected.varint(945);
-            expected.bytes(&[3, 17, 35]);
+            expected.bytes(&[1, 1, 3, 1, 25, 0x12, 0x34, 0x56, 0x78, 51, 4]);
+            expected.varint(1288); // Pinned angler_pottery_sherd.
+            expected.varint(921); // Pinned brick.
+            expected.varint(921);
+            expected.varint(921);
+            expected.bytes(&[3, 17, 25]);
             let expected = Slot::read(&mut Reader::new(&expected.data)).unwrap();
             assert_eq!(stack, expected, "{version:?}");
 
@@ -416,7 +416,7 @@ mod tests {
                 .component(component::TOOLTIP_DISPLAY),
             Some(&Component::TooltipDisplay {
                 hide: true,
-                hidden: vec![4, 10, 34]
+                hidden: vec![4, 9, 24]
             })
         );
         let mut w = Writer::new();
@@ -443,11 +443,11 @@ mod tests {
                 let _up = ids::renumbering(version.ids().unwrap(), Way::Up);
                 Template::read(&mut Reader::new(&old.data)).unwrap()
             };
-            assert_eq!((stack.item, stack.count), (369, 3));
+            assert_eq!((stack.item, stack.count), (356, 3));
             let mut pinned = Writer::new();
             Template::write(&stack, &mut pinned);
-            // The pinned 1.21.3 writes a template count-first (a slot).
-            assert_eq!(pinned.data, [3, 0xf1, 0x02, 0, 0]);
+            // The pinned 1.21.1 writes a template count-first (a slot).
+            assert_eq!(pinned.data, [3, 0xe4, 0x02, 0, 0]);
             let mut down = Writer::new();
             {
                 let _down = ids::renumbering(version.ids().unwrap(), Way::Down);
@@ -460,62 +460,52 @@ mod tests {
     #[test]
     fn vanilla_1_21_4_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.4 and 26.3.
-        // Covers multiple modifiers, bare/list/direct-sound equippables and a following damage value.
+        // Covers multiple modifiers and a following damage value. The pinned side is the 1.21.1
+        // wire form: the item 879 in 1.21.4 is 848 pinned, and the kinds move with the registry
+        // (attributes 13 to 12, tool 26 to 22, dyed_color 34 to 24, profile 57 to 47, container 62
+        // to 52, can_break 12 to 11). The equippable cases are gone: 1.21.1 predates equippable, so
+        // a 1.21.4 server's is dropped on read. The tool's pinned form has no trailing bool and the
+        // can_break's no matcher counts: the old tree's reader wrongly expected both.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01ef0601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-            ),
-            (
-                "equip_bare",
-                "01ef0601001c0347000000010101",
-                "01e60601001c0347000000010101",
-            ),
-            (
-                "equip_list",
-                "01ef0601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e8f01000000",
-                "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-            ),
-            (
-                "equip_direct",
-                "01ef0601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
+                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
-                "01ef0603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
+                "01ef0602000d01000b6d696e6563726166743a7a40080000000000000000010311",
+                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "tool",
                 "01ef0601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01ef06010039010b486f72697a6f6e576972650000",
-                "01e606010039010b486f72697a6f6e576972650000",
+                "01d00601002f010b486f72697a6f6e576972650000",
             ),
             (
                 "color_hidden",
                 "01ef0601002200ff000000",
-                "01e60601002200ff000000",
+                "01d00601001800ff000000",
             ),
             (
                 "unbreakable_hidden",
                 "01ef0601000400",
-                "01e60601000400",
+                "01d00601000400",
             ),
             (
                 "container",
                 "01ef0601003e06030100000000000002f3020000",
-                "01e60601003e06030100000000000002f1020000",
+                "01d00601003406030100000000000002e4020000",
             ),
             (
                 "can_break_hidden",
                 "01ef0601000c01010201000000",
-                "01e60601000c010102010000000000",
+                "01d00601000b01010201000000",
             )
         ] {
             let old = bytes(old);
@@ -555,76 +545,67 @@ mod tests {
     #[test]
     fn vanilla_1_21_3_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent vanilla ItemStack.OPTIONAL_STREAM_CODEC outputs, including integer model data.
+        // The pinned side is the 1.21.1 wire form: the item 870 in 1.21.3 is 848 pinned, and the
+        // kinds move with the registry (attributes 13 to 12, custom_model_data 14 to 13, tool 26 to
+        // 22, dyed_color 34 to 24, profile 57 to 47, container 62 to 52, can_break 12 to 11). The
+        // equippable cases are gone: 1.21.1 predates equippable, so a 1.21.3 server's is dropped on
+        // read (see the adapter's modifiers test). The tool's pinned form has no trailing bool and
+        // no matcher counts: the old tree's reader wrongly expected both.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-                "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-            ),
-            (
-                "equip_bare",
-                "01e60601001c0347000000010101",
-                "01e60601001c0347000000010101",
-            ),
-            (
-                "equip_list",
-                "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-                "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-            ),
-            (
-                "equip_direct",
-                "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
-                "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
+                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
-                "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
-                "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
+                "01e60602000d01000b6d696e6563726166743a7a40080000000000000000010311",
+                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "model",
                 "01e60602000eb9600311",
-                "01e60602000eb9600311",
+                "01d00602000db9600311",
             ),
             (
                 "model_negative",
                 "01e60601000eefffffff0f",
-                "01e60601000eefffffff0f",
+                "01d00601000defffffff0f",
             ),
             (
                 "model_large",
                 "01e60601000e80808008",
-                "01e60601000e80808008",
+                "01d00601000d80808008",
             ),
             (
                 "tool",
                 "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01e60601001a020301c30201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b6178650000400000000201",
+                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01e606010039010b486f72697a6f6e576972650000",
-                "01e606010039010b486f72697a6f6e576972650000",
+                "01d00601002f010b486f72697a6f6e576972650000",
             ),
             (
                 "color_hidden",
                 "01e60601002200ff000000",
-                "01e60601002200ff000000",
+                "01d00601001800ff000000",
             ),
             (
                 "unbreakable_hidden",
                 "01e60601000400",
-                "01e60601000400",
+                "01d00601000400",
             ),
             (
                 "container",
                 "01e60601003e06030100000000000002f1020000",
-                "01e60601003e06030100000000000002f1020000",
+                "01d00601003406030100000000000002e4020000",
             ),
             (
                 "can_break_hidden",
                 "01e60601000c01010201000000",
-                "01e60601000c010102010000000000",
+                "01d00601000b01010201000000",
             )
         ] {
             let old = bytes(old);

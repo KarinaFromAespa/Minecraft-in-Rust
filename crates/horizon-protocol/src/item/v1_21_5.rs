@@ -153,42 +153,30 @@ mod tests {
     #[test]
     fn vanilla_1_21_5_component_stacks_match_the_pinned_oracle_and_go_back() {
         // Independent ItemStack.OPTIONAL_STREAM_CODEC output from vanilla 1.21.5 and 26.3.
-        // Covers multiple modifiers, bare/list/direct-sound equippables and a following damage value.
+        // Covers multiple modifiers and a following damage value. The pinned side is the 1.21.1
+        // wire form: the item 888 in 1.21.5 is 848 pinned, and the kinds move with the registry
+        // (attributes 13 to 12, profile 61 to 47, container 66 to 52). The equippable cases are
+        // gone: 1.21.1 predates equippable, so a 1.21.5 server's is dropped on read.
         for (label, old, pinned) in [
             (
                 "attributes",
                 "01f80601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd00000000000000200",
-                "01e60601000d02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
-            ),
-            (
-                "equip_bare",
-                "01f80601001c034700000001010100",
-                "01e60601001c0347000000010101",
-            ),
-            (
-                "equip_list",
-                "01f80601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035e900100000001",
-                "01e60601001c0448010e6d696e6563726166743a676f6c64011a6d696e6563726166743a6d6973632f70756d706b696e626c757201035f9001000000",
-            ),
-            (
-                "equip_direct",
-                "01f80601001c04000e6d696e6563726166743a74657374014080000000000001010100",
-                "01e60601001c04000e6d696e6563726166743a746573740140800000000000010101",
+                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020001",
             ),
             (
                 "combined",
-                "01f80603000d01000b6d696e6563726166743a7a4008000000000000000003111c034700000001010100",
-                "01e60603000d01000b6d696e6563726166743a7a400800000000000000000103111c0347000000010101",
+                "01f80602000d01000b6d696e6563726166743a7a400800000000000000000311",
+                "01d00602000c01000b6d696e6563726166743a7a40080000000000000000010311",
             ),
             (
                 "profile",
                 "01f80601003d010b486f72697a6f6e576972650000",
-                "01e606010039010b486f72697a6f6e576972650000",
+                "01d00601002f010b486f72697a6f6e576972650000",
             ),
             (
                 "container",
                 "01f80601004206030100000000000002fa020000",
-                "01e60601003e06030100000000000002f1020000",
+                "01d00601003406030100000000000002e4020000",
             )
         ] {
             let old = bytes(old);
@@ -211,13 +199,7 @@ mod tests {
                 .unwrap()
                 .added
                 .sort_by_key(|(kind, _)| *kind);
-            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.3 wire
-            // cannot express, so the pinned oracle drops it and cannot equal
-            // the 1.21.5 stack (the down-write below still proves the full
-            // round-trip).
-            if label != "equip_list" {
-                assert_eq!(actual, expected, "{label}");
-            }
+            assert_eq!(actual, expected, "{label}");
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_5.ids().unwrap(), Way::Down);
@@ -225,15 +207,10 @@ mod tests {
             }
             assert_eq!(w.data, old, "{label}");
             // The cached delimited patch must also contain normalized values.
-            // equip_list's equip-on-interact is a 1.21.5 field the 1.21.3 wire
-            // cannot express, so the pin round-trip drops it (the down-write
-            // above still proves it survives the 1.21.5 round-trip).
-            if label != "equip_list" {
-                let mut w = Writer::new();
-                DelimitedSlot::write(&stack, &mut w);
-                let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
-                assert_eq!(read_back, stack, "{label}");
-            }
+            let mut w = Writer::new();
+            DelimitedSlot::write(&stack, &mut w);
+            let read_back = DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap();
+            assert_eq!(read_back, stack, "{label}");
         }
     }
 }
