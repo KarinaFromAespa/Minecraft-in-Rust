@@ -605,7 +605,6 @@ impl MultiLineEdit {
                     batch.text_highlight(
                         atlas,
                         (draw_x + draw_begin, draw_top, draw_end - draw_begin, LINE),
-                        true,
                     );
                 }
                 draw_top += LINE;

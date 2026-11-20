@@ -871,7 +871,7 @@ pub fn text_vertices(
                                 (x0, y + top),
                             ],
                             white,
-                            z + 0.01,
+                            z + 0.001,
                             argb,
                         );
                     }
@@ -4317,9 +4317,9 @@ mod tests {
         }
         assert!((out[4].pos[0] - out[0].pos[0] - 0.5).abs() < 1e-6);
         assert_eq!(out[4].pos[2], 0.001);
-        assert_eq!(out[8].pos, [-1.0, 4.5, 0.01]);
-        assert_eq!(out[12].pos, [-1.0, 9.0, 0.01]);
-        assert_eq!(out[21].pos, [11.0, 9.0, 0.01]); // underline crosses the space
+        assert_eq!(out[8].pos, [-1.0, 4.5, 0.001]);
+        assert_eq!(out[12].pos, [-1.0, 9.0, 0.001]);
+        assert_eq!(out[21].pos, [11.0, 9.0, 0.001]); // underline crosses the space
         assert!(out.iter().all(|v| v.color == 0xff563412 && v.light == 240));
         call.outline = 0xff010203;
         out.clear();

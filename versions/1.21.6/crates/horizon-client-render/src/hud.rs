@@ -1692,9 +1692,12 @@ pub enum Blend {
     Picture(u64),
     /// `BlendFunction.TRANSLUCENT`.
     Alpha,
-    /// `BlendFunction.INVERT` (`RenderPipelines.CROSSHAIR`, `GUI_INVERT`).
+    /// `RenderPipelines.CROSSHAIR`'s blend: 1.21.6 inlines
+    /// `BlendFunction.INVERT`'s factors there, and the named constant and
+    /// `GUI_INVERT` are gone.
     Invert,
-    /// `BlendFunction.ADDITIVE` (`RenderPipelines.GUI_TEXT_HIGHLIGHT`).
+    /// `BlendFunction.ADDITIVE`: the text highlight's blue pass, and
+    /// `RenderPipelines.GLINT`.
     Additive,
     /// Alpha blending with an isolated depth buffer and a pixel scissor.
     Depth([u32; 4]),
@@ -1765,20 +1768,21 @@ impl HudBatch {
             _ => self.blends.push((range, blend)),
         }
     }
-    /// `GuiGraphicsExtractor.textHighlight`: with `invert_text` the area's
-    /// colours are inverted first (white text on a dark field turns blue on
-    /// white), then blue is added.
+    /// A text selection, as `EditBox.renderHighlight`,
+    /// `MultiLineEditBox` and `AbstractSignEditScreen` draw it: 1.21.6 has
+    /// no `GuiGraphics.textHighlight`, each widget fills
+    /// `RenderPipelines.GUI_TEXT_HIGHLIGHT` itself, `withColorLogic`
+    /// (`LogicOp.OR_REVERSE`) over a blue fill, which is `(1-r, 1-g, 1)`.
+    /// wgpu has no logic ops, so the same result comes from two fills:
+    /// white inverted, then blue added.
     pub fn text_highlight(
         &mut self,
         atlas: &HudAtlas,
         (x, y, w, h): (f32, f32, f32, f32),
-        invert_text: bool,
     ) {
-        if invert_text {
-            let start = self.vertices.len();
-            self.fill(atlas, x, y, w, h, rgba(255, 255, 255, 255));
-            self.invert_since(start);
-        }
+        let start = self.vertices.len();
+        self.fill(atlas, x, y, w, h, rgba(255, 255, 255, 255));
+        self.invert_since(start);
         let start = self.vertices.len();
         self.fill(atlas, x, y, w, h, rgba(0, 0, 255, 255));
         self.blend_since(start, Blend::Additive);
@@ -2155,7 +2159,7 @@ impl HudBatch {
     /// `text_styled` for text drawn in the world (`TextRenderable.render`
     /// with `flat` false): each quad's `depth` is its z in text units, the
     /// glyphs `Font.SHADOW_DEPTH` in front of their shadow, a bold copy 0.001
-    /// in front of its glyph and the lines 0.01 (`BakedSheetGlyph`), so they
+    /// in front of its glyph and the lines 0.001 (`BakedSheetGlyph`), so they
     /// do not fight over the same pixels.
     pub fn text_styled_world(
         &mut self,
@@ -2344,7 +2348,7 @@ impl HudBatch {
                     self.draw_inline_object(atlas, object, px, py - 1.0, col);
                     if world && has_shadow && !is_shadow {
                         for v in &mut self.vertices[start..] {
-                            v.depth = 0.03;
+                            v.depth = 0.003;
                         }
                     }
                     continue;
@@ -2384,7 +2388,7 @@ impl HudBatch {
                     }
                     None => {}
                 };
-                let base = if has_shadow && !is_shadow { 0.03 } else { 0.0 };
+                let base = if has_shadow && !is_shadow { 0.003 } else { 0.0 };
                 let lift = |batch: &mut Self, start: usize, z: f32| {
                     if world {
                         for v in &mut batch.vertices[start..] {
@@ -2409,7 +2413,7 @@ impl HudBatch {
                 if *underline {
                     self.rect_uv(x0, py + 8.0, px + *advance - x0, 1.0, white, col);
                 }
-                lift(self, start, base + 0.01);
+                lift(self, start, base + 0.001);
                 if !world {
                     for v in &mut self.vertices[glyph..] {
                         v.text = 1;
@@ -4363,7 +4367,7 @@ texture=wide",
         batch.text_styled_world(&atlas, &text, 10.0, 10.0, u32::MAX, false);
         assert_eq!(batch.vertices.len(), 12);
         assert_eq!(batch.vertices[0].depth, 0.0);
-        assert_eq!(batch.vertices[6].depth, 0.03);
+        assert_eq!(batch.vertices[6].depth, 0.003);
         batch.vertices.clear();
         let no_shadow = crate::text::Text::styled(
             "a",

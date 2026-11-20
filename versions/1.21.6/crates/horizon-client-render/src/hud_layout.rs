@@ -44,7 +44,9 @@ pub enum Blend {
     Vignette,
     /// `GUI_NAUSEA_OVERLAY`: additive.
     Nausea,
-    /// `CROSSHAIR`: `BlendFunction.INVERT`, the colour under it inverted.
+    /// `CROSSHAIR`: the colour under it inverted (1.21.6 inlines
+    /// `BlendFunction.INVERT`'s factors into the pipeline; the named
+    /// constant is gone).
     Crosshair,
 }
 impl Blend {

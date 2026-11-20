@@ -1084,7 +1084,6 @@ pub fn paint(batch: &mut HudBatch, atlas: &HudAtlas, draws: &[Draw]) {
                 batch.text_highlight(
                     atlas,
                     (a as f32, *y0 as f32, (b - a) as f32, (y1 - y0) as f32),
-                    true,
                 );
             }
             Draw::Text {

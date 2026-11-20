@@ -327,6 +327,10 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
         sky_end: rd.min(512.0),
         cloud_end: 2048.0,
     };
+    // `FogRenderer.setupFog` takes the first applicable environment in
+    // FOG_ENVIRONMENTS order: Lava, PowderSnow, Water, Blindness, Darkness,
+    // DimensionOrBoss, Atmospheric. Water therefore wins over blindness and
+    // darkness when the eye is in water (1.21.7 moved it after them).
     match input.fog_type {
         FogType::Lava => {
             // LavaFogEnvironment.setupFog.
@@ -347,6 +351,17 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
             } else {
                 (0.0, 2.0)
             };
+            fog.sky_end = fog.environmental_end;
+            fog.cloud_end = fog.environmental_end;
+        }
+        FogType::Water => {
+            fog.environmental_start = -8.0;
+            let factor = tables
+                .water_fog_end
+                .get(input.biome as usize)
+                .copied()
+                .unwrap_or(1.0);
+            fog.environmental_end = 96.0 * factor * water_vision.max(0.25);
             fog.sky_end = fog.environmental_end;
             fog.cloud_end = fog.environmental_end;
         }
@@ -371,17 +386,6 @@ pub fn setup_fog(tables: &FogTables, state: &FogState, input: &FogInputs) -> Fog
             fog.environmental_end = distance;
             fog.sky_end = distance;
             fog.cloud_end = distance;
-        }
-        FogType::Water => {
-            fog.environmental_start = -8.0;
-            let factor = tables
-                .water_fog_end
-                .get(input.biome as usize)
-                .copied()
-                .unwrap_or(1.0);
-            fog.environmental_end = 96.0 * factor * water_vision.max(0.25);
-            fog.sky_end = fog.environmental_end;
-            fog.cloud_end = fog.environmental_end;
         }
         FogType::Atmospheric => {
             fog.environmental_start = sky.fog_start + -160.0 * state.rain_fog_multiplier;
@@ -551,6 +555,29 @@ mod tests {
         input.fog_type = FogType::Water;
         let water = setup_fog(&tables, &FogState::default(), &input);
         assert_eq!(water.environmental_start, -8.0);
+    }
+    #[test]
+    fn water_fog_wins_over_blindness_and_darkness() {
+        // FOG_ENVIRONMENTS in 1.21.6 lists Water before Blindness and
+        // Darkness, so the water distances apply even with either effect on
+        // (blindness would close to 5 blocks, darkness to 15).
+        let sky = Sky {
+            fog_end: 1024.0,
+            cloud_fog_end: 2048.0,
+            ..Sky::default()
+        };
+        let tables = FogTables {
+            water_fog_end: vec![1.0],
+        };
+        let mut input = inputs(&sky);
+        input.fog_type = FogType::Water;
+        input.blindness = Some((-1, true));
+        input.darkness = Some(1.0);
+        let fog = setup_fog(&tables, &FogState::default(), &input);
+        assert_eq!(
+            (fog.environmental_start, fog.environmental_end),
+            (-8.0, 24.0)
+        );
     }
     #[test]
     fn fog_off_clears_the_nether_fog_too() {
