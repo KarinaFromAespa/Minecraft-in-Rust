@@ -5171,3 +5171,53 @@ passed; `... freezing_and_a_hot_floor_are_environmental` 2 passed;
 rustfmt --check clean on armadillo.rs, panda.rs, polar_bear.rs.
 Rank 2 now 241/492 (71 changed, 170 no-change).
 work-items.json rank2.closed = 241 on 2026-11-20.
+
+## Item 63 — crates/horizon-client-render/src/hud.rs (rank 2, NO-CHANGE + citation fix)
+
+13 classes, 45 methods, 5 named. Javap diff +346/-409 (1280 lines),
+decompile diff 2164 lines, both read in full Nov 20, 2026. Triage note
+`rank2-item-63-TRIAGE.md` (workdir root, scratch).
+
+The Java delta: `TextureUtil.writeAsPNG` gains a per-format texel
+decoder in 26.1 (RED8/RED8I luminance, RGBA8 `getInt`, DEPTH32 gray)
+where 1.21.11 just `getInt`s — but the only caller in scope,
+`TextureAtlas.dumpContents`, dumps RGBA8 atlases, where both versions
+behave identically; `Font` / `PlainTextRenderable` / `TextRenderable`
+take `Matrix4fc` in 26.1, `Matrix4f` in 1.21.11, with visibility-only
+changes otherwise (`drawInBatch`, `drawInBatch8xOutline`, `getGlyph`,
+`prepareText`, `markBackground`, the 0.03 front depth all identical);
+`SpecialGlyphs` visibility only (MISSING is a 5x8 outline in both);
+`SubmitNodeCollection` reshapes its submit API (26.1:
+`submitBreakingBlockModel` + `List<BlockStateModelPart>`-based
+`submitBlockModel`; 1.21.11: `submitBlock` with special-block-model
+rendering + `BlockStateModel` + RGB-float `submitBlockModel` +
+`RenderType`-bearing `submitItem`, `CameraRenderState` moved from
+`state.level` to `state`); `GpuDevice` / `CommandEncoder` /
+`RenderPass` are interfaces in 1.21.11, classes in 26.1
+(invokeinterface vs invokevirtual, no behaviour change);
+`MapTextureManager.updateTextureIfNeeded` null-checks `getPixels()` in
+1.21.11 (26.1 would NPE).
+
+Every Rust mirror in hud.rs is already 1.21.11-shaped: `dump_atlas` /
+`dump_contents` match `dumpContents` + `dumpSpriteNames` exactly
+(RGBA8-only by construction, so the format switch is unobservable);
+`text_styled_world` (0.03 front depth), `text_styled_outline_world`
+(eight offsets, POLYGON_OFFSET front), the MISSING-glyph 5x8 outline,
+`name_tag` (`markBackground`'s rect: x-1, y-1, advance+1, 10) all match
+both versions; the submit-API reshaping has no mirror in hud.rs (only
+`submitNameTag` is cited, for text layout); the map null-check has no
+mirror (atlas slots, not per-map textures). The only edit: the
+`MAP_SLOTS` comment's stale "26.3's `MapTextureManager`" -> "Vanilla's"
+(both versions keep a texture per map).
+
+Version-neutral notes: `dump_atlas` writes `\n` where vanilla's
+`dumpSpriteNames` uses `%n` (`\r\n` on Windows); `name_tag` computes
+its background from the total advance where vanilla tracks min/max
+over glyphs (equal for a single line).
+
+Verification, Nov 20, 2026: `cargo check -p horizon-client-render
+--lib --tests --no-default-features` clean (JOBS=1, 54s); `cargo test
+-p horizon-client-render --lib --no-default-features hud::` 89 passed;
+rustfmt --check clean on hud.rs. Rank 2 now 242/492 (71 changed,
+171 no-change).
+work-items.json rank2.closed = 242 on 2026-11-20.

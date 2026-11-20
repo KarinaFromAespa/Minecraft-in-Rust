@@ -129,7 +129,7 @@ pub const GLYPH_ROWS: u32 = 512;
 pub const MAX_ATLAS_SIZE: u32 = 16384;
 /// 128x128 atlas slots for map textures. A lobby paints its signs as walls of
 /// framed maps, so the pool holds a wall; too few slots re-upload every map
-/// every frame. 26.3's `MapTextureManager` keeps a texture per map instead.
+/// every frame. Vanilla's `MapTextureManager` keeps a texture per map instead.
 pub const MAP_SLOTS: usize = 256;
 /// The atlas sprite of map slot `slot` (`horizon/map{slot}`), named once:
 /// every map shown asks for its slot's each frame.
