@@ -1400,7 +1400,7 @@ fn move_sink(min: i32, max: i32, slide: bool) -> B {
         slide,
     }
 }
-/// `BreezeAi.getActivities`.
+/// `BreezeAi.makeBrain`'s activities (core, idle, fight).
 fn breeze_packages(seed: i64) -> Vec<Entry> {
     use Act::*;
     sorted(vec![
@@ -1442,7 +1442,7 @@ fn breeze_packages(seed: i64) -> Vec<Entry> {
         (4, Fight, B::Slide(timed(60, 60))),
     ])
 }
-/// `CreakingAi.getActivities`.
+/// `CreakingAi.makeBrain`'s activities (core, idle, fight).
 fn creaking_packages(seed: i64) -> Vec<Entry> {
     use Act::*;
     sorted(vec![

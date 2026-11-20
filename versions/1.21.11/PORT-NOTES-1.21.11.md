@@ -6346,3 +6346,70 @@ and the bubble-column surface test early-return locally (no
 `.local/horizon-client` resources) — they run for real on CI.
 Rank 2 now 260/492 (82 changed, 178 no-change).
 work-items.json rank2.closed = 260 on 2026-11-20.
+
+## Item 82 — mobs/monster_brain.rs (rank 2, NO-CHANGE + citations)
+
+6 classes, 27 methods, 5 named: DoNothing, BreezeAi,
+BreezeAi$SlideToTargetSink, Shoot, Slide, CreakingAi. The delta
+is the 26.x `ActivityData`/`getActivities` API vs the 1.21.11
+`makeBrain`/`brainProvider` API, with identical behaviour
+content: the literal comparison over the decompile finds ZERO
+string or numeric differences in all five decompiled classes,
+and Shoot/Slide/SlideToTargetSink have ZERO javap hunks
+(bytecode-identical, report noise cf. item 73).
+
+Java delta, jar-verified: 26.1's `getActivities` returns
+`List<ActivityData>` built with `ActivityData.create`; 1.21.11's
+`makeBrain` takes the Brain and calls `brain.addActivity` /
+`addActivityWithConditions`, then `setCoreActivities(Set.of(CORE))`,
+`setDefaultActivity(FIGHT)` (breeze) / `setDefaultActivity(IDLE)`
+(creaking), `useDefaultActivity()`, plus static SENSOR_TYPES +
+MEMORY_TYPES lists and (CreakingAi) `brainProvider()`. The
+behaviour tables are identical: breeze core Swim(0.8) +
+LookAtTargetSink(45, 90); idle StartAttacking(NEAREST_ATTACKABLE)
+0, StartAttacking(HURT_BY) 1, SlideToTargetSink(20, 40) 2,
+RunOne(DoNothing(20,100) w1, RandomStroll.stroll(0.6) w2) 3;
+fight StopAttackingIfTargetInvalid(negated
+wasEntityAttackableLastNTicks(100)) 0, Shoot 1, LongJump 2,
+ShootWhenStuck 3, Slide 4, conditions ATTACK_TARGET present +
+WALK_TARGET absent. Creaking core Swim-subclass(0.8) +
+LookAtTargetSink(45, 90) + MoveToTargetSink; idle
+StartAttacking 10, SetEntityLookTargetSometimes(8.0, 30-60) 11,
+RunOne(stroll 0.3 w2, walk-from-look 0.3/3 w2, DoNothing(30,60)
+w1) 12; fight walk-from-attack-target(1.0) 10, MeleeAttack(40)
+11, StopAttackingIfTargetInvalid 12, condition ATTACK_TARGET
+present. Small behaviour-neutral differences: the breeze
+hurt-by finder calls `getHurtBy()` in 1.21.11 vs inlining its
+body in 26.1 (`getHurtBy` exists in both jars with that body);
+the creaking idle condition drops a dead `instanceof Creaking`
+check; 26.1's DoNothing overrides `getRequiredMemories()`
+returning the empty set, 1.21.11 inherits the empty default.
+`isAttackTargetStillReachable` and both `updateActivity`
+methods are identical. Breeze sensors (4) and memories (17)
+and creaking sensors (2) and memories (11) are listed in the
+triage note. CreakingAi$1 (the anonymous Swim subclass) adds a
+`canMove()` gate to the swim start condition, in both versions.
+
+Verified matching, no edits: the Rust's sensor lists (breeze
+4, creaking 2, in 1.21.11 order, first scans delayed by
+`next_int_bound(20)` mob-random draws), the shared `Memories`
+struct (all 17 breeze + all 11 creaking memories), both
+activity tables (every behaviour, priority and parameter),
+the default activities (breeze Fight, creaking Idle),
+`update_activity` (frozen creaking -> default; else FIGHT iff
+the species' fight conditions — exactly
+`setActiveActivityToFirstValid([FIGHT, IDLE])`), and the Swim
+gate (`*creaking && !can_move`).
+
+Fixes (comment-only): `breeze_packages` / `creaking_packages`
+docs cite `makeBrain` instead of `getActivities`. Referrals:
+`warden_brain.rs:80,277` still cites `getActivities` (the
+warden's item); the shared behaviour implementations are their
+own items' scope.
+
+Verification: `cargo test -p horizon-client-lib --lib
+--no-default-features mobs::monster_brain::` 0 tests (none live
+in the module); adjacent `mobs::breeze::` 7 passed,
+`mobs::creaking::` 5 passed. rustfmt --check clean on
+monster_brain.rs. Rank 2 now 261/492 (82 changed, 179
+no-change). work-items.json rank2.closed = 261 on 2026-11-20.
