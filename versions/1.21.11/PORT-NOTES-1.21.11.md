@@ -7187,3 +7187,37 @@ tests 2 passed (the SoulSand-driven column still raises).
 rustfmt --check clean on liquid_collision.rs. Rank 2 now
 276/492 (91 changed, 185 no-change). work-items.json
 rank2.closed = 276 on 2026-11-21.
+
+## Item 98 — component.rs (rank 2, CHANGED)
+
+5 classes, 23 methods, 4 named: ClickEvent$Action,
+ComponentUtils, ObjectContents, AtlasSprite, PlayerSprite.
+
+Java delta, jar-verified: the `fallback` field on object
+components is 26.1-only. 26.1's ObjectContents is a 2-field
+record (contents + optional fallback component) whose codec
+reads `"fallback"` and whose visit prefers it; 1.21.11's is a
+1-field record with no resolve at all — visit always accepts
+`contents.description()` (the ObjectInfo method is renamed from
+`defaultFallback()`). ComponentUtils.resolve(ResolutionContext)
+is updateForEntity(CommandSourceStack, Entity) in 1.21.11 with
+a hardcoded depth limit of 100 (vs the context's limit +
+LimitBehavior); the walk is otherwise the same, and the limit
+is unobservable through to_text_with (structural recursion,
+bounded by the JSON parser). ClickEvent$Action is lambda-order
+noise.
+
+Fix: `inline_object` no longer reads a `"fallback"` field from
+the object JSON — the plain-text fallback is always the computed
+description (`[<name> head]` / `[unknown player head]`,
+`[<sprite>]` / `[<sprite>@<atlas>]`); the resolve/contents
+parameters are gone. The test that pinned the 26.1 behaviour
+now expects `<[elyapluggin head] >` for a JSON fallback of
+`[head]`. The translate fallback is untouched (1.21.11 has it).
+
+Verification: literal comparison — ObjectContents only
+`"fallback"` (26.1), ComponentUtils only `0` vs `100`; the
+rest zero. `cargo test -p horizon-client-core --lib
+component::` 12 passed. rustfmt --check clean. Rank 2 now
+277/492 (92 changed, 185 no-change). work-items.json
+rank2.closed = 277 on 2026-11-21.
