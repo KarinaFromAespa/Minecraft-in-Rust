@@ -1702,7 +1702,9 @@ impl ParticleEngine {
         q.size = 0.3;
         q.lifetime = ticks;
         q.has_physics = false;
-        q.light = Light::Block15;
+        // `VibrationSignalParticle.getLightColor`: the constant 240 in
+        // 1.21.11; 26.x replaced it with `withBlock(light, 15)`.
+        q.light = Light::Bright240;
         let d = [from[0] - to[0], from[1] - to[1], from[2] - to[2]];
         let rot = d[0].atan2(d[2]) as f32;
         let pitch = d[1].atan2((d[0] * d[0] + d[2] * d[2]).sqrt()) as f32;
@@ -3172,7 +3174,9 @@ impl ParticleEngine {
                 q.lifetime = 30;
                 q.gravity = 0.0;
                 q.velocity = [0.0, 0.1, 0.0];
-                q.light = Light::Block15;
+                // `ShriekParticle.getLightColor`: the constant 240 in
+                // 1.21.11; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.size_curve = Size::Shriek;
                 q.behaviour = Behaviour::Shriek {
                     delay: o.scale as i32,
@@ -3495,7 +3499,8 @@ impl ParticleEngine {
                 let sprite = if ty == T::SulfurCubeGoo {
                     self.first(ty)
                 } else {
-                    // ItemStackRenderState.pickParticleMaterial.
+                    // `ItemStackRenderState.pickParticleIcon` (26.x called it
+                    // `pickParticleMaterial`): a random layer's sprite.
                     let layers = match ty {
                         T::Item => o.item.clone().unwrap_or_default(),
                         _ => self.item_sprites.get(&ty).cloned().unwrap_or_default(),
@@ -3571,7 +3576,9 @@ impl ParticleEngine {
                 q.size *= 0.75 * scale;
                 // Mth.randomBetween(random, 0.5, 1.0).
                 q.lifetime = ((8.0 / (r.next_float() * (1.0 - 0.5) + 0.5) * scale) as i32).max(1);
-                q.light = Light::Block15;
+                // `TrialSpawnerDetectionParticle.getLightColor`: the constant
+                // 240 in 1.21.11; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.size_curve = Size::GrowIn;
                 q.behaviour = Behaviour::Animated;
                 q.set = set;
@@ -3590,7 +3597,9 @@ impl ParticleEngine {
                 q.has_physics = false;
                 q.free_move = true;
                 q.lifetime = (r.next_float() * 5.0) as i32 + 25;
-                q.light = Light::Block15;
+                // `FlyStraightTowardsParticle.getLightColor`: the constant 240
+                // in 1.21.11; 26.x replaced it with `withBlock(light, 15)`.
+                q.light = Light::Bright240;
                 q.behaviour = Behaviour::FlyStraight {
                     start: p,
                     colors: [0xFF45_AEFE, 0xFFFF_FFFF],
@@ -5976,6 +5985,55 @@ mod tests {
             engine.make(&bare, [0.0; 3], [0.0; 3], 1).is_none(),
             "no destination, no signal"
         );
+    }
+    /// `getLightColor` for the four constant-240 particles (item 28):
+    /// `FlyStraightTowardsParticle` (ominous spawning), `ShriekParticle`,
+    /// `TrialSpawnerDetectionParticle` and `VibrationSignalParticle` return
+    /// 240 (sky 0, block 15) in 1.21.11; 26.x replaced it with
+    /// `withBlock(light, 15)`, which keeps the sky light. The snapshot
+    /// probes against full sky light, so the 26.x form would read 15728880.
+    #[test]
+    fn constant_240_particles_snapshot_to_240_not_full_bright() {
+        let mut engine = ParticleEngine::new(Path::new(""), &HashMap::new(), &HashSet::new());
+        for ty in [
+            ParticleType::Shriek,
+            ParticleType::TrialSpawnerDetection,
+            ParticleType::TrialSpawnerDetectionOminous,
+            ParticleType::OminousSpawning,
+        ] {
+            let options = ParticleOptions::simple(ty);
+            let q = engine
+                .make(&options, [0.0; 3], [0.0; 3], 1)
+                .expect("the particle is made");
+            let quad = engine.snapshot(&q).quad.expect("the particle renders");
+            assert_eq!(quad.light, 240, "{} light", ty.name());
+        }
+        // Vibration needs its option (destination + arrival time).
+        let options = ParticleOptions::vibration(
+            PositionSource::Block([10, 70, -4]),
+            [10.5, 70.5, -3.5],
+            20,
+        );
+        let q = engine
+            .make(&options, [0.5, 1.5, 0.5], [0.0; 3], 1)
+            .expect("the signal is made");
+        let quad = engine.snapshot(&q).quad.expect("the signal renders");
+        assert_eq!(quad.light, 240, "vibration light");
+    }
+    /// `GlowParticle.getLayer` (item 28): TRANSLUCENT in 1.21.11, OPAQUE in
+    /// 26.x — for the particle and every provider sharing the class.
+    #[test]
+    fn glow_family_renders_on_the_translucent_layer() {
+        for ty in [
+            ParticleType::Glow,
+            ParticleType::WaxOn,
+            ParticleType::WaxOff,
+            ParticleType::ElectricSpark,
+            ParticleType::Scrape,
+        ] {
+            assert!(ty.translucent_layer(), "{} is translucent", ty.name());
+        }
+        assert!(!ParticleType::Crit.translucent_layer());
     }
     #[test]
     fn particle_names_round_trip() {

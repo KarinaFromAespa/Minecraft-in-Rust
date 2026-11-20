@@ -2476,3 +2476,48 @@ Rank 2 (492 items, in progress 2026-11-19)
   (soul sand), items 97/178 (water side), item 24 (save.rs).
   Rank 2 now 202/492 (38 changed, 164 no-change).
   work-items.json rank2.closed = 202 on 2026-11-20.
+- Items 24–27 CLOSED 2026-11-20 (no PORT-NOTES entries were written for
+  them; their notes are the untracked workdir files rank2-item-24.md …
+  rank2-item-27.md + TRIAGE files): item 24 (save.rs — the level.dat split
+  reversal), item 25 (mobs/render.rs — drop the 26.x baby textures, restore
+  the 1.21.11 variant names, render equipment on babies), item 26
+  (motion/fluids.rs — the 1.21.11 fluid update shape), item 27
+  (level/bonemeal.rs — drop the 26.x build-height guards, farmland soil
+  checks, flower features). All four CHANGED. Rank 2 was 206/492
+  (42 changed, 164 no-change) before item 28.
+- Item 28 (particles.rs, 36 classes) CLOSED
+  2026-11-20: CHANGED — four particles' light is the constant 240 in
+  1.21.11, and GlowParticle renders translucent. `FlyStraightTowardsParticle`
+  (ominous spawning), `ShriekParticle`, `TrialSpawnerDetectionParticle` and
+  `VibrationSignalParticle` return 240 (sky 0, block 15) from
+  `getLightColor`; 26.x replaced it with `withBlock(super, 15)`, which keeps
+  the sky light — the four Rust arms move from `Light::Block15` to the
+  existing `Light::Bright240` (VaultConnection and SculkCharge already used
+  it). `GlowParticle.getLayer()` is TRANSLUCENT in 1.21.11 (OPAQUE in 26.1),
+  so Glow, WaxOn, WaxOff, ElectricSpark and Scrape join
+  `translucent_layer()` (item 192's file; item 28's mechanism). Glow's
+  light math is unchanged — 1.21.11 inlines `addSmoothBlockEmission`
+  (verified identical: smoothBlock/smoothSky are raw byte extracts and
+  15*16 = 240) — so the Glow arm keeps `Light::AgeEmission`.
+  `SimpleVerticalParticle` + the pause/reset-mob-growth providers are gone
+  in 1.21.11 (the age-lock particles; item 23 removed the mechanic) and
+  nothing in the Rust references them. `SingleQuadParticle$Layer` drops
+  from 6 layers to 4 and loses `bySprite()`; the observable effect is
+  TerrainParticle's constructor (always-translucent TERRAIN/ITEMS) — that
+  is item 354, referred. No-change verdicts, all jar-verified:
+  LevelEventHandler (same 79 cases; ItemParticleOption takes an ItemStack
+  in 1.21.11 vs an Item in 26.1, same bursts), ParticleUtils (random-field
+  noise only), QuadParticleRenderState (package move + buffer-plumbing
+  signature shuffle; `add` identical), ItemStackRenderState
+  (`pickParticleMaterial` → `pickParticleIcon`, same random pick; comment
+  updated — its visitExtents localTransform step and the empty-model
+  bounding-box difference have no Rust mirror, recorded in the triage),
+  ParticleResources (only the two mob-growth registrations removed).
+  New tests: the four lights snapshot to 240 under a full-sky probe; the
+  Glow family reports the translucent layer.
+  Referrals: item 354 (TerrainParticle ctor layer — the `Sprite::Named`
+  submit arm still uses the sprite's own translucency, the 26.1 bySprite
+  behaviour), item 192 (BreakingItemParticle shares the item-sprite side;
+  the Glow `translucent_layer()` fix lands here).
+  Rank 2 now 207/492 (43 changed, 164 no-change).
+  work-items.json rank2.closed = 207 on 2026-11-20.
