@@ -214,13 +214,12 @@ compile).
 
 ## What remains, by cause
 
-### Behaviour work from the diff (not started)
+### Behaviour work from the diff (complete)
 
-The 526 ranked items are the port's work list; **0 of 526 are closed**.
-The work is the protocol-shape behaviour (the removed packets' game
-effects, the debug-payload system) plus the 317 reruns' differentials
-and the 163 unproved items. The behaviour code in this tree is still
-the 26.3 base's.
+The 526 ranked items are the port's work list; **526 of 526 are closed**
+(rank 1: 9/9, rank 2: 317/317, rank 3: 163/163, rank 4: 35/35, rank 5:
+2/2 — see the per-rank sections below). The remaining work is the
+final CI proof on main and the pins record, not behaviour.
 
 ### Harness-oracle era ports
 
@@ -7786,7 +7785,12 @@ includes constant-pool churn.
   (via `entity.ItemRenderer.renderStatic`), which the Rust
   already implements. No code change.
 
-### Rank 4 content: closed 2/2 (chain)
+### Rank 4: 35/35 (490–524)
+
+Rank 4 is the 1.21.8-only classes, grouped by package (the
+report's "New in ..."). 523/524 (chain) were closed earlier;
+the other 33 needed no code: 19 are covered by an earlier
+item's work, 14 have no Rust surface.
 
 1.21.9 renamed `minecraft:chain` to `minecraft:iron_chain` at
 DataVersion 4541; 1.21.8 uses `minecraft:chain`. Fixed four places
@@ -7796,6 +7800,46 @@ state, bastion blackstone replacement (`iron_bars` -> chain),
 Verified fine: datafix_scene.py (version-gated >= 4541), the
 adapter id tables (old-version tables correctly use `chain`),
 the 4541 rename fix (inert), datafix/tests.rs (already `chain`).
+
+Covered by an earlier item (19): 490 (debug renderers —
+`DebugRenderer.render` calls only chunk-border, octree and
+game-test; the game-test markers are implemented, item 420),
+491 (ParticleEngine/MobAppearanceParticle/TextureSheetParticle,
+items 14/447), 492 (ChunkProgressListener family, items
+408/440), 494 (Realms pending-invites/upload screens, item 15),
+495 (WrappedMinMaxBounds, item 473), 496 (EditServerScreen in
+multiplayer.rs, ReceivingLevelScreen in level_loading.rs),
+497 (LevelLoadStatusManager, items 408/440), 500/501
+(BakedGlyph/SheetGlyphInfo cited in hud.rs/font.rs, 1.21.8
+forms), 502 (RealmsMainScreen ENTRY_WIDTH 216 / ITEM_HEIGHT
+36 / invite-link clipboard, item 15), 503 (TicketType timeouts
+cited; PlayerRespawnLogic is item 363's shared spawn), 504
+(GameProfileCache.get cited in dedicated.rs), 505
+(BorderChangeListener renames, item 375), 507
+(DebugScreenOverlay, item 336), 508 (FontSet lookup forms
+cited in font.rs), 509 (CommonInputs.selected, item 369), 513
+(PlayerRenderer: extractCapeState, shouldRenderLayers), 514
+(PlayerRenderState: isSpectator, fallFlyingScale), 517
+(RowButton, item 15).
+
+Zero-diff, no Rust surface (14): 493 (MapDecoration /
+PaintingTextureManager, TextureAtlasHolder), 498 (AtlasSet),
+499 (DebugSampleSubscriptionTracker — the 1.21.8-only
+util/debugchart package), 506 (PalettedContainer codec /
+constructor plumbing only; the palette wire format is
+identical), 510 (GuiSpriteManager), 511 (HumanoidArmorModel —
+the Rust renders armor via texture layers, item 437), 512
+(LivingEntityEmissiveLayer constructor reshaping; the layer's
+render verified in item 19), 515 (PlayerHeadSpecialRenderer
+constructor reshaping), 516 (User.Type — `user_type` only in
+launcher test fixtures), 518 (DataSource$Type), 519
+(ComponentContents$Type), 520 (ResourceMetadata$Builder), 521
+(FletchingTableBlock — jar-verified absent from 1.21.9; 1.21.8's
+`useWithoutItem` returns PASS and the Rust has no
+fletching-table interaction surface), 522
+(CopyNameFunction$NameSource — CopyNameFunction itself is
+unimplemented in the Rust in both versions, a pre-existing gap,
+not a delta).
 
 ### Rank 5: closed 2/2 (sample-verified)
 
