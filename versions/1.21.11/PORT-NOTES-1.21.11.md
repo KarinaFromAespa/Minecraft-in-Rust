@@ -2608,3 +2608,63 @@ and the codec rewire is the known adapter-tables follow-up. Method-name
 diff run explicitly: no missing method with behavioural content.
 Rank 2 now 209/492 (45 changed, 164 no-change).
 work-items.json rank2.closed = 209 on 2026-11-20.
+
+## Item 31 — dedicated.rs (rank 2, CHANGED)
+
+MinecraftServer / DedicatedServer / WorldLoader, 5 classes, 69 methods,
+13 named. Same theme as item 24's save.rs: the 26.x split reversal (game
+rules, world-gen settings, random sequences, weather, boss events and
+scheduled events live in server-wide split storage in 26.1, in level.dat /
+the overworld level in 1.21.11) — most of that fallout is in the load/save
+path, other items' files. The one change in this file: 26.1's
+DedicatedServer.initServer ends with `saveEverything(false, true, true)`;
+1.21.11 does not (verified in the decompile diff and javap — the
+saveEverything call is a 26.1-only line). The Rust mirrored the 26.1 call
+at the end of run_dedicated_inner; deleted it (save + its three "Saving
+chunks for level" log lines). A 1.21.11 server's first write is now the
+first autosave or the stop, exactly as vanilla 1.21.11 — loadLevel writes
+nothing in either version. `log_saved_levels` stays: both stop paths still
+use it, where vanilla saves in both versions. Not unit-testable
+(run_dedicated_inner needs a full server); verified by cargo check, runs
+on CI.
+No-change verdicts, all jar-verified: setInitialSpawn (settle_spawn),
+stopServer, tickServer, tickConnection, prepareLevels, the runServer loop,
+kickUnlistedPlayers, createCommandSourceStack, buildServerStatus /
+buildPlayerStatus, convertOldUsers, isUnderSpawnProtection, all property
+setters — identical logic in both versions (renames + protected → public
+only). WorldLoader's async → sync registry load is an implementation
+detail, same steps in the same order. The dedicated.rs tick-loop low-disk
+warning is already the 1.21.11 adaptation (its comment says 1.21.11 has no
+packet to warn the operators with); the dedicated/*.rs submodules hold no
+26.x-only mirrors. The saveAllChunks log lines already use the raw
+dimension names (1.21.11's form, not 26.1's DIM-1 mapping).
+Referrals (real vanilla differences, other files' scope): the per-level
+time sync — 26.1 does one global sync every 20 ticks with an empty clocks
+map (`forceGameTimeSynchronization`), 1.21.11 syncs per level with game
+time + day time + ADVANCE_TIME (`synchronizeTime`); the Rust mirrors 26.1
+in lan/hub.rs `sync_world` / `time_packet`, and through the adapter a
+vanilla 1.21.11 client would see its day time reset to 0 and frozen every
+20 ticks (the wire shape itself is already translated both ways by the
+adapter — the remaining work is behavioural, hub.rs items 45/213/214/226/
+241/273/336/337/374/395/424/485/498/794); the 1.21.11-only legacy world
+border migration in createLevels (no Rust mirror anywhere — world_session
+items 262/374); chunk_io.rs still calls warn_on_low_disk_space from the
+26.1-only reportChunkLoad/SaveFailure callers (chunk_io items 197/214/241/
+262/651); onGameRuleChanged's ADVANCE_TIME branch is 26.x-only and has no
+Rust mirror (commands.rs set_game_rule sends no time packet — correct for
+1.21.11). Gaps recorded with no owning item yet: setupDebugLevel (no
+debug-world path in the Rust), saveDebugReport's path form,
+fillServerSystemReport's "Dedicated Server (map_server.txt)" string,
+OldUsersConverter's extra player-file check in 1.21.11's initServer
+(`serverReadyAfterUserconversion` = lists removed AND old players
+converted, verified from the 1.21.11 server jar), the 1.21.11-only
+fatalException machinery (the Rust uses catch_unwind +
+stop_after_crash). Method-name diff run explicitly: 26.1-only
+clockManager, forceGameTimeSynchronization, getDataStorage, getGameRules,
+getGlobalGameRules, getRandomSequence(s), getScheduledEvents,
+getWeatherData, getWorldGenSettings, sendLowDiskSpaceWarning,
+setWeatherParameters, warnOnLowDiskSpace; 1.21.11-only
+forceTimeSynchronization, managedBlock, setFatalException,
+synchronizeTime, throwIfFatalException — all accounted for.
+Rank 2 now 210/492 (46 changed, 164 no-change).
+work-items.json rank2.closed = 210 on 2026-11-20.
