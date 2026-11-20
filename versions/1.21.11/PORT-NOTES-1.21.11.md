@@ -2866,3 +2866,69 @@ mobs::piglin::`); `cargo check -p horizon-client-lib --lib --tests
 clean.
 Rank 2 now 213/492 (48 changed, 165 no-change).
 work-items.json rank2.closed = 213 on 2026-11-20.
+
+## Item 35 — game/commands/items.rs (rank 2, CHANGED)
+
+ItemStack, ItemInput, SlotCollection$Filtered, ItemCommands,
+CompositeSlotSource, TransformedSlotSource, ListOperation$Type: 7 classes,
+61 methods, 11 named. Harnesses brewing, creative_mining,
+enchant_durability, enchanting, furnace, recipe, stack_mining,
+trade_components. One real difference, jar-verified:
+
+`ItemInput.createItemStack` drops strict validation in 1.21.11: 26.1
+builds the stack, throws `arguments.item.overstacked` when the count
+exceeds the max stack size, then calls `ItemStack.validateStrict` and
+throws `arguments.item.malformed` on failure; 1.21.11 takes a
+`checkOverstacked` boolean and never validates. The /item command passes
+false for the no-count form and true for the count form, so the overstack
+behaviour is unchanged (count 1 can never exceed a max_stack_size that
+parses in [1;99]). The observable difference is the malformed rejection:
+`/item replace ... with iron_helmet[max_stack_size=2]` (damageable +
+stackable) is rejected in 26.1 and accepted in 1.21.11. The Rust's
+`item_from_input` mirrored the 26.1 form — the malformed check and its
+`item_validation_components` helper (a prototype+patch view used only by
+that check) are removed; the overstack check stays. `/give` never had the
+check — already 1.21.11.
+
+No-change verdicts (all jar-verified): every `ItemCommands` body
+(modify/set/transfer/applyModifier/getItemInSlot/getContainer);
+`SlotCollection`/`CompositeSlotSource`/`TransformedSlotSource` (the
+`validate` refactor only changes validation error paths, which the Rust
+does not mirror; `Filtered.filter`'s `Predicate.and` is behaviourally
+identical to 26.1's manual `&&`); `ListOperation` fully identical
+(Append/Insert/ReplaceAll/ReplaceSection/StandAlone, overflow + bounds
+errors); `ItemStack` behaviour throughout — use/finishUsingItem, durability,
+copy/transmute/matches/hash, tooltips (component order and all branches
+identical), foil/rarity/enchantments, getDisplayName (26.1's
+`ItemStackTemplate` vs 1.21.11's plain `ShowItem` — same visible hover),
+count/limitSize/consume, `applyComponentsAndValidate` (validates +
+restores on failure in both). `ItemInput.serialize` (1.21.11-only) has no
+callers in either 1.21.11 jar (constant-pool scan) — dead API surface.
+The `validateComponents` narrowing (26.1 validates bundle + charged-
+projectile contents; 1.21.11 only the container) has no gameplay mirror in
+the Rust. Method-name diff run explicitly: the 26.1-only / 1.21.11-only
+methods are the ItemInput record→class change, the ItemInstance interface
+(26.1-only; `count()`, the `is` overloads, `getMaxStackSize`, `getTags`
+live there in 26.1, directly on ItemStack in 1.21.11), the
+`typeHolder`→`getItemHolder` rename, the entity-representation API (below),
+and `validateComponents`' visibility. Javap string-constant scan: only
+`arguments.item.malformed` (26.1-only) is a real string change.
+Pre-existing gaps (both versions, recorded not fixed): the Rust never reads
+a stack's `minecraft:damage_type` component (no `getDamageSource` mirror),
+so the 1.21.11 EitherHolder-unwrap form vs 26.1's plain Holder has nothing
+to rewire (same EitherHolder-unwrap-gate shape as the InstrumentComponent
+gap from item 29); the 1.21.11-only entity-representation API (`isFramed`/
+`getFrame`/`setEntityRepresentation`) has no Rust mirror — its only
+consumer is `MapItemSavedData` (map rendering), a frames/map-item referral.
+`MAP_CODEC` (`CODEC_WITH_BOUND_COMPONENTS` vs plain `CODEC`) and the
+1.21.11-only `SINGLE_ITEM_CODEC`/`STRICT_CODEC` constants are codec-layer
+surface for the item-codec items.
+Tests: `damageable_and_stackable_compositions_are_accepted_but_
+overstacking_rejects_before_mutation` (rewritten from the old reject test;
+`#[ignore]`, needs prepared resources — runs on CI) now accepts the three
+damageable+stackable compositions and still rejects an overstacked count
+before the slot is touched; the `item_validation_components` test went
+away with the helper. `cargo check -p horizon-client --bin horizon-client
+--tests --no-default-features` 0 warnings; items.rs `rustfmt --check` clean.
+Rank 2 now 214/492 (49 changed, 165 no-change).
+work-items.json rank2.closed = 214 on 2026-11-20.
