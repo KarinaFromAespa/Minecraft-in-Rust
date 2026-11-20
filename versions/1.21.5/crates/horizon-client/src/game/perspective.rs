@@ -372,6 +372,9 @@ impl Game<'_> {
             let p = self.player.as_mut()?;
             (
                 p.attribute("minecraft:scale").unwrap_or(1.0) as f32,
+                // The 1.21.6-only `camera_distance` attribute, kept on the
+                // entity for the probe's shape; the 1.21.5 camera distance
+                // is a flat 4 times the scale and ignores it.
                 p.attribute("minecraft:camera_distance").unwrap_or(4.0),
             )
         };
@@ -394,7 +397,9 @@ impl Game<'_> {
             })
         });
         // Camera.setup: the living mount's scale and camera distance
-        // attributes (the happy ghast's is 8, the default 4).
+        // attributes (the happy ghast's is 8, the default 4) — 1.21.6-only
+        // inputs, kept on the entity for the probe's shape; the 1.21.5
+        // camera distance ignores the mount.
         let mount = self
             .riding
             .and_then(|id| self.mobs.iter().find(|m| m.id == id))

@@ -1297,7 +1297,7 @@ impl Settings {
     pub fn read(tag: Option<&Tag>) -> Self {
         Self::read_valid(tag, &|_| true)
     }
-    /// `ServerRecipeBook.loadUntrusted`: unknown recipes are dropped. Without
+    /// `ServerRecipeBook.fromNbt`: unknown recipes are dropped. Without
     /// both lists the compound does not decode and nothing is read.
     pub fn read_valid(tag: Option<&Tag>, valid: &dyn Fn(&str) -> bool) -> Self {
         let mut s = Self::default();
@@ -1334,19 +1334,16 @@ impl Settings {
         s.to_be_displayed = to_be_displayed;
         s
     }
-    /// The compound written to the player file (vanilla's lists follow an
-    /// identity hash order; these are sorted).
+    /// The compound written to the player file (`ServerRecipeBook.toNbt`):
+    /// `RecipeBookSettings.write` puts all eight open/filter flags,
+    /// true or false (1.21.6's codec omits the false ones). Vanilla's
+    /// lists follow an identity hash order; these are sorted.
     pub fn write(&self) -> Tag {
         let mut entries: Vec<(&str, Tag)> = Vec::new();
         for b in BookType::ALL {
             let (open, filter) = b.keys();
-            // The codec omits settings at their default (false).
-            if self.open[b.index()] {
-                entries.push((open, Tag::Byte(1)));
-            }
-            if self.filtering[b.index()] {
-                entries.push((filter, Tag::Byte(1)));
-            }
+            entries.push((open, Tag::Byte(i8::from(self.open[b.index()]))));
+            entries.push((filter, Tag::Byte(i8::from(self.filtering[b.index()]))));
         }
         let list = |ids: &BTreeSet<String>| {
             Tag::List(ids.iter().map(|i| Tag::String(i.as_str().into())).collect())

@@ -318,7 +318,10 @@ impl SpectatorGui {
             let x = center - 90 + slot * 20 + 2;
             let brightness = if item.enabled() { 1.0 } else { 0.25 };
             icon(&mut out, &item, x, y + 3, brightness, alpha);
-            if item.enabled() {
+            // `SpectatorGui.renderSlot` (1.21.5): the key label only shows
+            // while the hotbar's alpha is above 3/255 (1.21.6 shows it
+            // while the alpha is above 0).
+            if item.enabled() && (alpha * 255.0) as i32 > 3 {
                 let label = key_label(slot as usize);
                 let lw = width(font, &label);
                 out.push(GuiDraw::Text {
@@ -340,7 +343,10 @@ impl SpectatorGui {
         let Some(menu) = &self.menu else {
             return out;
         };
-        if alpha <= 0.0 {
+        // `SpectatorGui.renderTooltip` (1.21.5): the tooltip only shows
+        // while the hotbar's alpha is above 3/255 (1.21.6 shows it while
+        // the alpha is above 0).
+        if (alpha * 255.0) as i32 <= 3 {
             return out;
         }
         let item = menu.item(menu.selected_slot());

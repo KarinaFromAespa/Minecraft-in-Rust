@@ -30,7 +30,8 @@ pub(super) fn camera_after_packet(
 
 /// `Camera.alignWithEntity`'s view of a mob or another player: its
 /// interpolated position, `getViewYRot`/`getViewXRot` and eye height, with
-/// its scale and camera distance for a detached view. A living entity's
+/// its scale and camera distance for a detached view (the distance is a
+/// 1.21.6-only input the 1.21.5 camera ignores). A living entity's
 /// `getViewYRot` is its head's yaw (`yHeadRot`), not its body's `yRot`.
 pub(super) fn mob_camera_entity(m: &Mob) -> CameraEntity {
     let attribute =

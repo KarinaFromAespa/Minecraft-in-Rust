@@ -299,10 +299,7 @@ impl Game<'_> {
                 size[1] as f32,
                 self.yaw,
                 self.pitch,
-                horizon_client::camera::depth_far(
-                    self.terrain_distance(),
-                    self.settings.cloud_range,
-                ),
+                horizon_client::camera::depth_far(self.terrain_distance()),
             );
             let near_plane = horizon_core::geometry::Aabb::new(
                 horizon_core::geometry::Vec3::new(

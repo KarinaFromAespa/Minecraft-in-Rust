@@ -1792,12 +1792,11 @@ impl Audio {
             0
         };
     }
-    /// `SoundManager.pauseAllExcept(MUSIC, UI)`.
+    /// `SoundManager.pause()` (1.21.5): every channel pauses, music and UI
+    /// included — `pause_all_except` with nothing excepted. 1.21.6's
+    /// `pauseAllExcept(MUSIC, UI)` leaves the music and UI playing.
     pub fn pause(&mut self) {
-        self.engine.pause_all_except(
-            &[crate::sound_engine::MUSIC, crate::sound_engine::UI],
-            &mut self.backend,
-        );
+        self.engine.pause_all_except(&[], &mut self.backend);
     }
     /// `SoundManager.resume`.
     pub fn resume(&mut self) {

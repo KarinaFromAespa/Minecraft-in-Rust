@@ -45,8 +45,14 @@ impl Game<'_> {
                 .remote
                 .as_ref()
                 .is_some_and(|r| r.reconfiguring.is_some());
-        self.music
-            .tick(music.as_ref(), volume, loading, &mut self.audio);
+        // `Minecraft.tick` (1.21.5): the music manager only ticks while
+        // the game runs — a paused game freezes the track timer (1.21.6
+        // ticks it always). The option listeners and toast bookkeeping
+        // below are the client's own and still run.
+        if !self.pause {
+            self.music
+                .tick(music.as_ref(), volume, loading, &mut self.audio);
+        }
         // Options.musicToast's listener: ToastManager.setMusicToastDisplayState.
         let state = self.settings.file.int("musicToast").clamp(0, 2) as u8;
         if state != self.music_toast_state {
@@ -161,8 +167,8 @@ impl Game<'_> {
         }
     }
     /// `Minecraft.tick` -> `SoundManager.tick(pause)`, after the music, with
-    /// `pauseAllExcept(MUSIC, UI)` when the game pauses and `resume` when it
-    /// carries on.
+    /// `pause` (every channel) when the game pauses and `resume` when it
+    /// carries on. 1.21.6 pauses all but MUSIC and UI instead.
     pub(super) fn tick_sound_engine(&mut self) {
         update_bound_entities(self.audio.engine.bound_entities(), |id| {
             self.sound_entity_state(id)

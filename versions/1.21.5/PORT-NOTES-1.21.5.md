@@ -544,13 +544,65 @@ is the oracle; decompiled code is a reading aid.
     strikes on one player to observe.
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (9m28s).
+- **Item 15 — game.rs, ported:** `Minecraft` / `GameRenderer` /
+  `TitleScreen` / `SpectatorGui` / `Camera` / `ServerRecipeBook` /
+  `DetectorRailBlock` / `ItemEntityRenderer` / `GameTestTicker` /
+  `BlockEntityRenderer` / `AbstractFurnaceScreen` /
+  `PrimaryLevelData` / `DedicatedServer`:
+  - Camera: 1.21.5's third-person distance is a flat 4 blocks
+    times the living entity's scale; 1.21.6 reads the
+    `camera_distance` attribute (default 4, happy ghast 8) and
+    takes the max with a living mount's. The distance computation
+    now uses 4 × scale; the attribute and mount inputs stay on
+    `CameraEntity` for the probe's fixture shape and are ignored.
+    The detached-distance test now expects 8.0 for scale 2.0.
+  - Far plane: 1.21.5's `getDepthFar` is the render distance in
+    blocks times 4; 1.21.6 takes the max with the cloud range ×
+    16. `depth_far` drops the cloud-range argument (three callers
+    + test updated).
+  - Pause audio: 1.21.5's `SoundManager.pause()` pauses every
+    channel, and `MusicManager.tick` only runs while unpaused;
+    1.21.6 pauses all but MUSIC and UI and ticks the music always.
+    `Audio::pause` now pauses all channels; `tick_music` gates the
+    manager tick on `!pause` (the option listeners and toast
+    bookkeeping still run).
+  - Spectator menu: 1.21.5 shows the slot key labels and the
+    action tooltip only while the hotbar alpha is above 3/255
+    (1.21.6: above 0).
+  - Recipe book: 1.21.5's `toNbt`/`fromNbt` write all eight
+    open/filter flags (1.21.6's codec omits the false ones);
+    `Settings::write` now writes all eight, and `read_valid` is
+    re-cited to `fromNbt`.
+  - No Rust surface (verified): the title-screen fade
+    (`panoramaFade`, `fadeWidgets`, the alpha gate — the Rust
+    draws the logo and splash with no fade at all), the render
+    pipeline (GuiRenderer/FogRenderer/PanoramaRenderer/
+    ScreenEffectRenderer vs 1.21.5's inline forms; the item
+    activation animation's math is already exact in
+    `item_activation.rs`), `renderZoomed`/`renderHand` (no Rust
+    surface), the rail rotate/mirror tables (the prepare
+    exporter's `VanillaStructureBlockExporter` calls vanilla's
+    `state.rotate`/`mirror` on the 1.21.5 jar, so the 1.21.5
+    tables are already encoded — including the CLOCKWISE_180
+    fallthrough the decompile shows for flat detector rails),
+    `GameTestTicker.startTicking` (the Rust's `ticking` is a
+    re-entrancy guard; its tick runs whenever a runner exists,
+    the 1.21.5 form), the menu blur gate (already ≥ 1.0),
+    `ServerRecipeBook.copyOverData`/`sendInitialRecipeBook`
+    (same outcomes), `ItemEntityRenderer`'s bounding-box helper
+    (same math, refactored), the dialog/quick-actions and
+    waypoint removals (handled by the publish), accessor renames
+    (`name()`→`getName()`, `stable()`→`isStable()`, narrator
+    `sayNow`).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (2m45s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **14 of 426 are
-closed** (rank 1 complete, rank 2 at 5/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **15 of 426 are
+closed** (rank 1 complete, rank 2 at 6/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
