@@ -6773,7 +6773,9 @@ impl Screen {
         };
         if let Some((row, template)) = picked {
             let now = SystemTime::now();
-            // `MouseHandler.DOUBLE_CLICK_THRESHOLD_MS`.
+            // `GuiEventListener.DOUBLE_CLICK_THRESHOLD_MS` (1.21.8: the
+            // constant lives on the listener interface; 1.21.9 moved it
+            // to `MouseHandler`).
             let double = matches!(self.last_click, Some((last, at)) if last == row
                 && now.duration_since(at).is_ok_and(|d| d.as_millis() < 250));
             self.last_click = Some((row, now));
