@@ -424,17 +424,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn every_attribute_of_1_21_1_and_1_20_6_has_its_pinned_counterpart() {
+    fn attributes_map_or_drop_at_the_pin() {
         // 1.21.2 dropped the generic./player./zombie. prefixes; matched by name alone, none mapped and every
         // update_attributes value was left out for these clients. 31 attributes in 1.21.1's report, 22 in 1.20.6's.
-        for (ids, count) in [
-            (&super::super::v1_21_1_ids::IDS, 31),
-            (&super::super::v1_20_6_ids::IDS, 22),
-        ] {
-            for old in 0..count {
+        // 1.21 added 9 attributes the 1.20.6 pin has no counterpart for; they drop, the other 22 round-trip.
+        // The dropped ones, by their 1.21.1 ids: burning_time 7, explosion_knockback_resistance 8,
+        // mining_efficiency 19, movement_efficiency 20, oxygen_bonus 22, sneaking_speed 25,
+        // submerged_mining_speed 28, sweeping_damage_ratio 29, water_movement_efficiency 30.
+        let dropped = [7, 8, 19, 20, 22, 25, 28, 29, 30];
+        let ids = &super::super::v1_21_1_ids::IDS;
+        for old in 0..31 {
+            if dropped.contains(&old) {
+                assert_eq!(ids.attribute.up(old), None);
+            } else {
                 let pinned = ids.attribute.up(old).unwrap();
                 assert_eq!(ids.attribute.down(pinned), Some(old));
             }
+        }
+        // The pin's own 22 attributes are identity.
+        let ids = &super::super::v1_20_6_ids::IDS;
+        for old in 0..22 {
+            let pinned = ids.attribute.up(old).unwrap();
+            assert_eq!(ids.attribute.down(pinned), Some(old));
         }
     }
 
@@ -458,14 +469,14 @@ mod tests {
         static IDS: Ids = super::super::v26_2_ids::IDS;
         assert_eq!(item(926), 926);
         {
-            // diamond: 926 in 26.2, 805 in 1.21.1.
+            // diamond: 926 in 26.2, 804 in 1.20.6.
             let _up = renumbering(&IDS, Way::Up);
-            assert_eq!(item(926), 805);
+            assert_eq!(item(926), 804);
             {
                 let _down = renumbering(&IDS, Way::Down);
-                assert_eq!(item(805), 926);
+                assert_eq!(item(804), 926);
             }
-            assert_eq!(item(926), 805);
+            assert_eq!(item(926), 804);
         }
         assert_eq!(item(926), 926);
     }
@@ -474,7 +485,7 @@ mod tests {
     fn the_26_2_tables_match_the_reports() {
         // Read off both versions' registries and blocks reports by hand.
         let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
-        assert_eq!(ids.item.up(926), Some(805)); // diamond
+        assert_eq!(ids.item.up(926), Some(804)); // diamond
         assert_eq!(ids.item.up(1), Some(1)); // stone
         assert_eq!(ids.block_state.up(13330), Some(11162)); // oak_slab type=top waterlogged=true
         assert_eq!(ids.block_state.up(3987), Some(2954)); // chest, first state
@@ -524,9 +535,10 @@ mod tests {
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
         // A decorated pot (319 in 1.21.11, 288 pinned) as a 1.21.11 server sends it: pot_decorations (72)
-        // lists a brick (1025) and an angler sherd (1288 pinned); damage_resistant (27) a tag id, dropped
-        // at the pin (1.21.1 has fire_resistant instead, and the tag does not convert);
-        // jukebox_playable (62) a song by holder: the flag set, then the song's id plus one.
+        // lists a brick (1025) and an angler sherd (1285 pinned); damage_resistant (27) a tag id, dropped
+        // at the pin (1.20.6 has fire_resistant instead, and the tag does not convert);
+        // jukebox_playable (62) a song by holder: the flag set, then the song's id plus one — dropped
+        // at the pin too, which has no jukebox_playable component at all (1.21 added it).
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
         sent.extend([27, 17]);
@@ -538,8 +550,7 @@ mod tests {
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (51, Component::Raw(vec![0, 1, 0x88, 0x0a, 1, 0, 0, 0, 0])),
-                (42, Component::Raw(vec![3])),
+                (50, Component::Raw(vec![0, 1, 0x85, 0x0a, 1, 0, 0, 0, 0])),
             ]
         );
         // A song named by its key has no pinned holder: the component goes.
@@ -568,26 +579,26 @@ mod tests {
         // Stone (1 in both) as a 1.21.11 server sends a stack whose instrument, jukebox_playable,
         // provides_trim_material, damage_type, chicken/variant and zombie_nautilus/variant are held:
         // the flag set, then the holder as 26.3 reads it (an id plus one, or a registry id).
-        // damage_type (8 in 1.21.11), zombie_nautilus/variant (94), chicken/variant (93) and
-        // provides_trim_material (60) are 1.21.11 components the pin lacks, so the adapter drops
-        // them; the other two survive with their pinned ids.
+        // damage_type (8 in 1.21.11), zombie_nautilus/variant (94), chicken/variant (93),
+        // provides_trim_material (60) and jukebox_playable (62, a 1.21 addition) are components
+        // the pin lacks, so the adapter drops them; only the instrument survives, with its pinned id.
         let mut sent = vec![1, 1, 6, 0];
         sent.extend([older(k::INSTRUMENT), 1, 2]);
-        sent.extend([older(k::JUKEBOX_PLAYABLE), 1, 2]);
+        sent.extend([62, 1, 2]); // jukebox_playable, 1.21.11 id
         sent.extend([8, 1, 3]); // damage_type, 1.21.11 id
         sent.extend([93, 1, 2]); // chicken/variant, 1.21.11 id
         sent.extend([94, 1, 0]); // zombie_nautilus/variant, 1.21.11 id
         sent.extend([60, 1, 5]); // provides_trim_material, 1.21.11 id
         let stack = read(&sent);
         let kinds: Vec<i32> = stack.added.iter().map(|(kind, _)| *kind).collect();
-        assert_eq!(kinds, [k::INSTRUMENT, k::JUKEBOX_PLAYABLE]);
+        assert_eq!(kinds, [k::INSTRUMENT]);
         assert_eq!(stack.added[0].1, Component::Instrument(1));
         // An instrument named by its key has no pinned holder: the component goes, the rest reads on.
         let mut sent = vec![1, 1, 2, 0, older(k::INSTRUMENT), 0, 26];
         sent.extend(b"minecraft:ponder_goat_horn");
-        sent.extend([older(k::JUKEBOX_PLAYABLE), 1, 2]);
+        sent.extend([3, 5]); // damage 5, id 3 in both
         let kinds: Vec<i32> = read(&sent).added.iter().map(|(kind, _)| *kind).collect();
-        assert_eq!(kinds, [k::JUKEBOX_PLAYABLE]);
+        assert_eq!(kinds, [k::DAMAGE]);
     }
 
     #[test]
@@ -595,8 +606,8 @@ mod tests {
         use crate::buf::{Codec, Reader};
         use crate::item::{Component, Slot};
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A shulker box (581 in 1.21.11, 522 pinned) as a 1.21.11 server sends it. Its container (52 pinned,
-        // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 805 pinned) with a map_color (25),
+        // A shulker box (581 in 1.21.11, 522 pinned) as a 1.21.11 server sends it. Its container (51 pinned,
+        // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 804 pinned) with a map_color (25),
         // then an empty slot. Its use_remainder (25 sent) is a bowl (892 sent), dropped at the pin.
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
@@ -609,12 +620,12 @@ mod tests {
         };
         assert_eq!(stack.item, 522);
         // Templates, the item first: the diamonds with their colour in the pinned numbering, then no item.
-        // The use_remainder is gone: 1.21.1 has no such component.
+        // The use_remainder is gone: 1.20.6 has no such component.
         assert_eq!(
             stack.added,
             [(
-                52,
-                Component::Raw(vec![2, 1, 0xa5, 0x06, 2, 1, 0, 25, 0, 0, 0, 5, 0]),
+                51,
+                Component::Raw(vec![2, 1, 0xa4, 0x06, 2, 1, 0, 25, 0, 0, 0, 5, 0]),
             ),]
         );
     }
@@ -630,11 +641,11 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (805, 3));
+        assert_eq!((stack.item, stack.count), (804, 3));
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(805, 3)), &mut w);
+            Slot::write(&Some(Stack::new(804, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
