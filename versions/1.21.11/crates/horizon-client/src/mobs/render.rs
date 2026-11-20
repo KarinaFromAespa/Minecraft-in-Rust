@@ -1019,13 +1019,12 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
     humanoid_armor(m, &mut v);
     v
 }
-/// `HumanoidArmorLayer.renderArmorPiece`: a baby wears the `humanoid_baby`
-/// layer type for every slot (leggings included), an adult the leggings layer
-/// for its legs and the `humanoid` one otherwise.
-fn humanoid_layer_folder(baby: bool, layer: &str) -> &'static str {
-    if baby {
-        "humanoid_baby"
-    } else if layer == "leggings" {
+/// `HumanoidArmorLayer.renderArmorPiece`: the leggings layer for the legs,
+/// the `humanoid` one otherwise. 1.21.11 has no `humanoid_baby` layer type
+/// (26.1 added it); a baby's armour reads the adult textures, only its
+/// model is the baby one.
+fn humanoid_layer_folder(layer: &str) -> &'static str {
+    if layer == "leggings" {
         "humanoid_leggings"
     } else {
         "humanoid"
@@ -1064,7 +1063,7 @@ fn humanoid_armor(m: &Mob, v: &mut Vec<Layer>) {
             "turtle" => "turtle_scute",
             other => other,
         };
-        let folder = humanoid_layer_folder(m.is_baby(), layer);
+        let folder = humanoid_layer_folder(layer);
         let model = interned(format_args!("{base}#{layer}"));
         // EquipmentLayerRenderer.getColorForLayer: the leather layer takes
         // the stack's dye colour, the colour it has when undyed otherwise.
@@ -2717,10 +2716,10 @@ pub fn held_item_stack(extra: &super::Extra, off_hand: bool) -> Option<crate::it
 mod tests {
     use super::*;
 
-    /// A baby zombie's armour reads the `humanoid_baby` textures for every
-    /// slot, not the adult `humanoid`/`humanoid_leggings` ones (#7302).
+    /// A baby zombie's armour reads the adult `humanoid`/`humanoid_leggings`
+    /// textures, like an adult's: 1.21.11 has no `humanoid_baby` layer type.
     #[test]
-    fn a_baby_zombies_armour_uses_the_humanoid_baby_textures() {
+    fn a_baby_zombies_armour_uses_the_adult_textures() {
         let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
         kind.species = Species::Zombie;
         let model = kind.model.clone();
@@ -2741,10 +2740,10 @@ mod tests {
         assert_eq!(
             textures,
             [
-                "entity/equipment/humanoid_baby/iron",
-                "entity/equipment/humanoid_baby/iron",
-                "entity/equipment/humanoid_baby/leather",
-                "entity/equipment/humanoid_baby/leather_overlay",
+                "entity/equipment/humanoid/iron",
+                "entity/equipment/humanoid_leggings/iron",
+                "entity/equipment/humanoid/leather",
+                "entity/equipment/humanoid/leather_overlay",
             ]
         );
         mob.extra.age = 0;

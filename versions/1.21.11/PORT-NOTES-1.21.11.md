@@ -5401,3 +5401,66 @@ Verification: `cargo test -p horizon-client --lib
 the new CUSTOM test); rustfmt --check clean on stats_screen.rs.
 Rank 2 now 245/492 (74 changed, 171 no-change).
 work-items.json rank2.closed = 245 on 2026-11-20.
+
+## Item 67 — crates/horizon-client/src/game/armor_stands.rs (rank 2, CHANGED)
+
+7 classes, 20 methods, 7 named. Javap diff +174/-198 (539 lines),
+decompile diff +556/-620 (1658 lines), both read in full Nov 20,
+2026, plus direct `javap` on EnchantmentEffectComponents /
+EquipmentClientInfo$LayerType / ModelLayers / ArmorStand
+(`<clinit>` defaults) and asset listings from both client.jars.
+Triage note `rank2-item-67-TRIAGE.md` (workdir root, scratch).
+
+**Fixes (all verified against the 1.21.11 jar).** (1) The stand
+texture: 26.1 `textures/entity/armorstand/armorstand.png` vs
+1.21.11 `wood.png` (same 809-byte image, renamed; each jar has
+only its own file). The Rust's `uv_of("entity/armorstand/armorstand")`
+returned None in 1.21.11, so the stand's body never rendered.
+Now `entity/armorstand/wood` (body + emissive overlay). (2)
+`brokenByAnything` drops ALL equipment in 1.21.11 — the
+`PREVENT_EQUIPMENT_DROP` (vanishing) check is 26.1-only (the
+component exists in both versions; only the stand's use is new).
+Removed the filter from `broken_armor_stand_equipment` (the
+player-hit path already dropped everything); test rewritten to
+assert vanishing items drop. (3) `HumanoidArmorLayer` has no
+`HUMANOID_BABY` layer type in 1.21.11 (absent from the enum and
+the assets; 26.1 added it, and skips trims for it). The mirror is
+in `mobs/render.rs`: `humanoid_layer_folder` dropped its baby
+branch — babies use `humanoid`/`humanoid_leggings` like adults
+(only the model is the baby one); test rewritten. The
+player/stand armor layers in armor_stands.rs were already
+1.21.11-shaped (no baby kind, trims unconditional).
+
+Java delta otherwise: `ArmorStandRenderer.getRenderType` for a
+marker is `entityCutoutNoCull` in 1.21.11 vs `entityCutout` in
+26.1 (no Rust mirror — `put` has no per-entity cull mode);
+`ArmorStand.interact` is `interactAt` in 1.21.11 with a PASS
+fallthrough instead of `super.interact` (same outcome);
+`Equippable.canBeEquippedBy` takes an `EntityType` in 1.21.11
+vs a `Holder` in 26.1 (same result); `CameraRenderState` moved
+package. ArmorStandArmorModel, AbstractSkullBlock identical.
+Verified unchanged: `interactAt` (name-tag, marker-by-targeting,
+disabled/hand-without-arms FAIL, `getClickedSlot` ranges, swap
+bits 0/8/16), `hurtServer` (griefing/invulnerability/explosion/
+ignite/burn gates, creative one-hit, 5-tick wobble, second-hit
+break), default poses (verified from `<clinit>`: head/body 0,
+left arm -10/0/-10, right arm -15/0/10, left leg -1/0/-1, right
+leg 1/0/1), the wiggle (`sin(wiggle/1.5*PI)*3.0` under 5 ticks),
+`swapWithEquipmentSlot` (binding gate, same-item gate, stat,
+split arms), skull animation (dragon jaw + piglin ears only),
+`ELYTRA_BABY` (exists in both jars).
+
+Version-neutral gaps (recorded, not fixed): the marker
+cutout-vs-no-cull distinction has no Rust mirror; mob armor
+trims are not rendered at all (`humanoid_armor` has no trim
+handling, though vanilla renders them on mobs); the name-tag
+branch names the stand inline where vanilla returns PASS.
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::armor_stands::` 10 passed, 3 ignored
+(fixtures); `cargo test -p horizon-client-lib --lib
+--no-default-features mobs::render::tests::a_baby_zombies_armour_uses_the_adult_textures`
+passed; rustfmt --check clean on armor_stands.rs (render.rs flags
+one pre-existing drift at line 914, left alone). Rank 2 now
+246/492 (75 changed, 171 no-change).
+work-items.json rank2.closed = 246 on 2026-11-20.
