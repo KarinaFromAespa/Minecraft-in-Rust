@@ -7612,3 +7612,43 @@ empty composite resolves to 0 layers). Referrals: RangeDispatchItemModel
 is in its own item; `ModelRenderProperties` is in no report item (item
 37's note stands). Tests: `cargo test -p horizon-assets --lib
 item_model::` 22 passed. rustfmt --check clean on item_model/tests.rs.
+
+## Item 109 — copper golems (rank 2, CHANGED)
+
+5 classes, 16 methods, 4 named: CopperGolem (8, `mobInteract`),
+TransportItemsBetweenContainers (4), WeatheringCopperGolemStatueBlock
+(2, `useItemOn`), OfferFlowerGoal (1, `stop`), ChestBlockEntity (1,
+`playSound`).
+
+Java delta, jar-verified: almost all API shape — ChunkPos ctor vs
+`containing` + x/z fields vs methods; `mob.is(tag)` vs
+`mob.getType().is(tag)` (same result); PathType renames with identical
+values (DANGER_FIRE 16.0, DANGER_OTHER 16.0, DAMAGE_FIRE -1.0);
+brain-provider rework (`BRAIN_PROVIDER` static ->
+`CopperGolemAi.brainProvider()`/`makeBrain`); `is(Object)` -> `is(Item)`;
+`getRandom()` -> `random` field. `mobInteract`, `updateWeathering`
+(504000-552000 ticks), `useItemOn` and `playSound` are identical in
+both versions; literal comparison zero in all five classes. Verified
+from the jar: OFFER_ITEM is POPPY, OFFER_TICKS 400, the gift box is
+inflate(6,2,6), `accepts_iron_golem_gift` is {copper_golem} only;
+`updatePose` (parent class, decompiled manually) plays
+COPPER_GOLEM_BECOME_STATUE, cycles POSE standing -> sitting -> running
+-> star -> standing, and fires BLOCK_CHANGE.
+
+Already correct: the path malus (`constructor_maluses`), the
+`mobInteract` branches, the OfferFlower goal + gift, and the
+transport open/close chest sound (LEFT silent, RIGHT offset). Four
+version-neutral gaps fixed, all in this item's own methods and all
+verified against the 1.21.11 jar: (1) the statue pose cycle was
+missing — `use_golem_statue` returned false for any non-axe hand; now
+a non-axe, non-honeycomb hand cycles the pose with the sound and a
+BLOCK_CHANGE event; (2) an axe now frees a waxed unaffected statue
+too (`getAge() == UNAFFECTED`); (3) the shear branch now fires the
+SHEAR game event with the player as source; (4) the recheck-close
+chest sound now skips LEFT halves and offsets RIGHT halves toward the
+pair. Two new `#[ignore]`d fixture tests (pose cycle + waxed/weathered
+axe). Referrals: `CopperGolemAi` is its own class (not in this item);
+`CopperGolemStatueBlock` + `Pose` are in no report item. Tests: `cargo
+check -p horizon-client --lib --tests` clean; `mobs::copper_golem::` 1
+passed, `mobs::golem::` 10 passed. rustfmt --check clean on
+copper_golems.rs and golem_gift_tests.rs.
