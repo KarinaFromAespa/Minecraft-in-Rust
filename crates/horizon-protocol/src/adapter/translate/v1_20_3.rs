@@ -16,7 +16,7 @@ pub(super) fn clientbound(
     if state == State::Login {
         let mut r = Reader::new(payload);
         match id {
-            packet_ids::login::clientbound::LOGIN_FINISHED => {
+            packet_ids::login::clientbound::GAME_PROFILE => {
                 crate::packets::login::GameProfile::read(&mut r)?;
             }
             packet_ids::login::clientbound::HELLO => {
@@ -817,7 +817,7 @@ mod tests {
         for (state, id, old, new) in [
             (
                 State::Login,
-                login::LOGIN_FINISHED,
+                login::GAME_PROFILE,
                 "000000000000000000000000000000010b486f72697a6f6e5769726500",
                 "000000000000000000000000000000010b486f72697a6f6e576972650000",
             ),

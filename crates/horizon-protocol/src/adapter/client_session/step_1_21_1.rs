@@ -43,9 +43,9 @@ const EXPLODE_STRENGTH: f32 = 3.0;
 /// The pinned clientbound packet `id` (`payload` in 1.21.2's layout) in 1.21.1's layout; `None` when laid out alike.
 pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     use packet_ids::play::clientbound as cb;
-    // 1.21.1's login_finished (game_profile) ends with strict error handling: off, so that the client ignores a
+    // 1.21.1's game_profile ends with strict error handling: off, so that the client ignores a
     // packet it can't process rather than disconnecting.
-    if (state, id) == (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) {
+    if (state, id) == (State::Login, packet_ids::login::clientbound::GAME_PROFILE) {
         let mut out = payload.to_vec();
         out.push(0);
         return Ok(Some(out));
@@ -59,7 +59,7 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Optio
         | cb::CONTAINER_SET_DATA
         | cb::HORSE_SCREEN_OPEN => window_down(payload, false)?,
         cb::CONTAINER_SET_SLOT => window_down(payload, true)?,
-        cb::SET_HELD_SLOT => held_slot(payload)?,
+        cb::SET_CARRIED_ITEM => held_slot(payload)?,
         cb::SET_TIME => set_time(payload)?,
         cb::LOGIN => spawn_info_down(payload, true)?,
         cb::RESPAWN => spawn_info_down(payload, false)?,
@@ -372,30 +372,6 @@ fn player_input(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// 1.21.2's entity_position_sync (pinned 35), which a 1.21.1 client has no packet for, as the teleport it stands
-/// in for: its 1.21.2 form (absolute, with zero velocity and no relative flags), which the writer above then
-/// brings to 1.21.1's teleport_entity. The path's end is taken (a stepped path loses its steps).
-// TODO(step1_21_1): a stepped path is sent as its end position only.
-pub(super) fn entity_position_sync(
-    state: State,
-    id: i32,
-    payload: &[u8],
-) -> Result<Option<Vec<u8>>> {
-    if state != State::Play || id != packet_ids::play::clientbound::ENTITY_POSITION_SYNC {
-        return Ok(None);
-    }
-    let sync = play::EntityPositionSync::read(&mut Reader::new(payload))?;
-    let mut w = Writer::new();
-    w.varint(sync.id);
-    sync.path.end().iter().for_each(|v| w.f64(*v));
-    (0..3).for_each(|_| w.f64(0.0));
-    w.f32(sync.yaw);
-    w.f32(sync.pitch);
-    w.i32(0);
-    w.bool(sync.on_ground);
-    Ok(Some(w.data))
-}
-
 #[cfg(test)]
 mod tests {
     //! Each change written here is read back with `translate`'s 1.21.1 reader: 1.21.1's layout, 1.21.2's and back.
@@ -446,9 +422,9 @@ mod tests {
     }
 
     #[test]
-    fn login_finished_gets_strict_error_handling_off_and_back() {
+    fn game_profile_gets_strict_error_handling_off_and_back() {
         let profile = [7u8; 20];
-        let id = packet_ids::login::clientbound::LOGIN_FINISHED;
+        let id = packet_ids::login::clientbound::GAME_PROFILE;
         let down = clientbound(State::Login, id, &profile).unwrap().unwrap();
         assert_eq!(down.len(), 21);
         assert_eq!(down[20], 0);
@@ -554,7 +530,7 @@ mod tests {
     fn a_held_slot_is_a_byte() {
         let mut w = Writer::new();
         w.i8(3);
-        round_trip(packet_ids::play::clientbound::SET_HELD_SLOT, &w.data);
+        round_trip(packet_ids::play::clientbound::SET_CARRIED_ITEM, &w.data);
     }
 
     #[test]
@@ -619,43 +595,6 @@ mod tests {
         .unwrap()
         .unwrap();
         assert_eq!(up, vec![0x02 | 0x04 | 0x10 | 0x20]);
-    }
-
-    #[test]
-    fn a_position_sync_is_the_teleport_it_stands_in_for() {
-        let body = play::Clientbound::EntityPositionSync(play::EntityPositionSync {
-            id: 4,
-            path: play::PositionPath::Linear([1.5, 70.0, -3.0]),
-            yaw: 45.0,
-            pitch: 10.0,
-            on_ground: true,
-        })
-        .encode();
-        let mut r = Reader::new(&body);
-        r.varint().unwrap();
-        let teleport = entity_position_sync(
-            State::Play,
-            packet_ids::play::clientbound::ENTITY_POSITION_SYNC,
-            r.rest(),
-        )
-        .unwrap()
-        .unwrap();
-        // Back to 1.21.1's teleport_entity: the angles are bytes of a turn again.
-        let down = clientbound(
-            State::Play,
-            packet_ids::play::clientbound::TELEPORT_ENTITY,
-            &teleport,
-        )
-        .unwrap()
-        .unwrap();
-        let mut r = Reader::new(&down);
-        assert_eq!(r.varint().unwrap(), 4);
-        assert_eq!(
-            [r.f64().unwrap(), r.f64().unwrap(), r.f64().unwrap()],
-            [1.5, 70.0, -3.0]
-        );
-        assert_eq!((r.u8().unwrap(), r.u8().unwrap()), (32, 7));
-        assert!(r.bool().unwrap());
     }
 
     #[test]

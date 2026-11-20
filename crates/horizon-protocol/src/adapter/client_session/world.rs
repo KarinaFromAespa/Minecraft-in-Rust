@@ -26,14 +26,12 @@ pub(super) fn down(ids: &'static Ids, id: i32, payload: &[u8]) -> Result<Option<
         cb::EXPLODE => explode(ids, payload)?,
         cb::ADD_ENTITY => add_entity(ids, payload)?,
         cb::SET_ENTITY_MOTION => Sent::Rewritten(set_entity_motion(payload)?),
-        cb::PLAYER_ROTATION => Sent::Rewritten(player_rotation(payload)?),
         cb::SET_DEFAULT_SPAWN_POSITION => Sent::Rewritten(spawn_position(payload)?),
         cb::MOVE_ENTITY_POS | cb::MOVE_ENTITY_POS_ROT | cb::MOVE_ENTITY_ROT => {
             Sent::Rewritten(move_entity(id, payload)?)
         }
-        cb::ENTITY_POSITION_SYNC => Sent::Rewritten(position_sync(payload)?),
         cb::ANIMATE => animate(payload)?,
-        cb::SET_HELD_SLOT => Sent::Rewritten(held_slot(payload)?),
+        cb::SET_CARRIED_ITEM => Sent::Rewritten(held_slot(payload)?),
         cb::PLAYER_INFO_UPDATE => Sent::Rewritten(player_info_update(payload)?),
         _ => return Ok(None),
     }))
@@ -135,18 +133,6 @@ fn set_entity_motion(payload: &[u8]) -> Result<Vec<u8>> {
     let mut w = Writer::new();
     w.varint(m.id);
     LpVec3::write(&m.velocity, &mut w);
-    Ok(w.data)
-}
-
-/// 26.2's player rotation carries the relative flags; 1.21.8's is always
-/// absolute.
-fn player_rotation(payload: &[u8]) -> Result<Vec<u8>> {
-    let p = play::PlayerRotation::read(&mut Reader::new(payload))?;
-    let mut w = Writer::new();
-    w.f32(p.yaw);
-    w.bool(false);
-    w.f32(p.pitch);
-    w.bool(false);
     Ok(w.data)
 }
 
@@ -368,20 +354,6 @@ fn delta_sum(delta: Option<&play::VecDelta>) -> [i16; 3] {
             sum.map(|v| v.clamp(i32::from(i16::MIN), i32::from(i16::MAX)) as i16)
         }
     }
-}
-
-/// 26.2: the entity, PositionMoveRotation (position, motion, the two angles), on-ground. 26.3 sends where it
-/// goes as a path, which 26.2 is told the end of, and no motion (zero).
-fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
-    let p = play::EntityPositionSync::read(&mut Reader::new(payload))?;
-    let mut w = Writer::new();
-    w.varint(p.id);
-    p.path.end().iter().for_each(|v| w.f64(*v));
-    (0..3).for_each(|_| w.f64(0.0));
-    w.f32(p.yaw);
-    w.f32(p.pitch);
-    w.bool(p.on_ground);
-    Ok(w.data)
 }
 
 /// 26.3's animate actions as 26.2 numbers them (wake up 0 -> 2, critical hits 1, 2 -> 4, 5); 26.2's own 0
@@ -760,48 +732,6 @@ mod tests {
             ([0, 30000, 0], 3),
         ]);
         assert_eq!(delta_sum(Some(&stepped)), [300, i16::MAX, -10]);
-    }
-
-    #[test]
-    fn a_position_sync_goes_down_and_back_up() {
-        let ids = ids();
-        let p = play::EntityPositionSync {
-            id: 42,
-            path: play::PositionPath::Linear([100.5, 64.0, -20.25]),
-            yaw: 90.0,
-            pitch: -10.0,
-            on_ground: false,
-        };
-        let old = rewritten(
-            down(
-                ids,
-                packet_ids::play::clientbound::ENTITY_POSITION_SYNC,
-                &encode(&p),
-            )
-            .unwrap(),
-        );
-        assert_eq!(old.len(), 1 + 48 + 8 + 1);
-        let back = translate::position_sync(&old).unwrap();
-        assert_eq!(
-            play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap(),
-            p
-        );
-        // A stepped path goes as where it ends.
-        let stepped = play::EntityPositionSync {
-            path: play::PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 1), ([4.0, 5.0, 6.0], 2)]),
-            ..p
-        };
-        let old = rewritten(
-            down(
-                ids,
-                packet_ids::play::clientbound::ENTITY_POSITION_SYNC,
-                &encode(&stepped),
-            )
-            .unwrap(),
-        );
-        let back = translate::position_sync(&old).unwrap();
-        let q = play::EntityPositionSync::read(&mut Reader::new(&back)).unwrap();
-        assert_eq!(q.path, play::PositionPath::Linear([4.0, 5.0, 6.0]));
     }
 
     #[test]

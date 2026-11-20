@@ -38,12 +38,6 @@ pub(super) fn clientbound(
             w.varint(r.varint()?);
             crate::buf::LpVec3::write(&velocity(&mut r)?, &mut w);
         }
-        cb::PLAYER_ROTATION => {
-            w.f32(r.f32()?);
-            w.bool(false);
-            w.f32(r.f32()?);
-            w.bool(false);
-        }
         cb::SET_DEFAULT_SPAWN_POSITION => {
             let pos = crate::buf::Pos::read(&mut r)?;
             w.string(&session.dimension.lock().unwrap());
@@ -145,25 +139,10 @@ mod tests {
     }
 
     #[test]
-    fn player_rotation_is_absolute_and_spawn_uses_the_current_dimension() {
+    fn spawn_uses_the_current_dimension() {
         // The step's output is 1.21.10's layout, read by hand: the pinned codec is 1.21.8's now.
+        // (The player-rotation half of this test is gone with the packet: the 1.21.1 pin has none.)
         let session = Session::new(ServerVersion::V1_21_8);
-        let mut w = Writer::new();
-        w.f32(90.0);
-        w.f32(-30.0);
-        let body = clientbound(
-            &session,
-            State::Play,
-            packet_ids::play::clientbound::PLAYER_ROTATION,
-            &w.data,
-        )
-        .unwrap()
-        .unwrap();
-        let mut r = Reader::new(&body);
-        assert_eq!(
-            (r.f32().unwrap(), r.bool().unwrap(), r.f32().unwrap(), r.bool().unwrap()),
-            (90.0, false, -30.0, false)
-        );
         *session.dimension.lock().unwrap() = "minecraft:the_nether".into();
         let mut w = Writer::new();
         crate::buf::Pos::write(&[-5, 70, 8], &mut w);

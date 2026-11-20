@@ -1,6 +1,6 @@
 //! RecipeHolder/Ingredient packets before 1.21.2 introduced recipe displays.
 //! The server's recipe keys remain authoritative; display ids are connection-local aliases.
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::{
     Error, Result,
@@ -14,8 +14,8 @@ use crate::{
     ids::play::{clientbound as cb, serverbound as sb},
     item::{Slot, Stack},
     packets::recipes::{
-        HolderSet, PlaceGhostRecipe, PlaceRecipe, RecipeBookAdd, RecipeBookEntry, RecipeBookRemove,
-        RecipeBookSeenRecipe, RecipeBookSettings, RecipeDisplay, SlotDisplay, TrimPattern,
+        HolderSet, PlaceGhostRecipe, PlaceRecipe, RecipeBookSeenRecipe, RecipeDisplay, SlotDisplay,
+        TrimPattern,
     },
 };
 
@@ -23,7 +23,6 @@ const MAX_RECIPES: usize = 65_536;
 
 #[derive(Clone)]
 struct Recipe {
-    id: i32,
     display: Option<RecipeDisplay>,
     group: i32,
     category: i32,
@@ -39,9 +38,6 @@ pub(crate) struct Recipes {
     keys: Vec<String>,
     display_ids: HashMap<String, i32>,
     groups: HashMap<(i32, String), i32>,
-    unlocked: HashSet<String>,
-    highlighted: HashSet<String>,
-    received_book: bool,
 }
 
 #[derive(Clone)]
@@ -109,13 +105,11 @@ impl Recipes {
         &mut self,
         r: &mut Reader,
         serializer: i32,
-        id: i32,
         trims: &HashMap<i32, i32>,
         width_first: bool,
     ) -> Result<Recipe> {
         // RecipeSerializer's 1.21/1.21.1 registration order from the vanilla report.
         let mut recipe = Recipe {
-            id,
             display: None,
             group: 0,
             category: 3,
@@ -281,36 +275,6 @@ impl Recipes {
         recipe.group = self.group(recipe.category, group)?;
         Ok(recipe)
     }
-    fn entry(&self, key: &str, flags: i8) -> Option<RecipeBookEntry> {
-        let r = self.recipes.get(key)?;
-        Some(RecipeBookEntry {
-            id: r.id,
-            display: r.display.clone()?,
-            group: r.group,
-            category: r.category,
-            requirements: Some(r.requirements.clone()),
-            flags,
-        })
-    }
-    fn book(&self, keys: &[String], replace: bool, added: bool) -> RecipeBookAdd {
-        RecipeBookAdd {
-            entries: keys
-                .iter()
-                .filter_map(|key| {
-                    let recipe = self.recipes.get(key)?;
-                    let flags = i8::from(added && recipe.notify)
-                        | if self.highlighted.contains(key) { 2 } else { 0 };
-                    self.entry(key, flags)
-                })
-                .collect(),
-            replace,
-        }
-    }
-    fn current_book(&self) -> RecipeBookAdd {
-        let mut keys: Vec<_> = self.unlocked.iter().cloned().collect();
-        keys.sort_unstable();
-        self.book(&keys, true, false)
-    }
     fn key(&self, id: i32) -> Option<&str> {
         let key = self.keys.get(usize::try_from(id).ok()?)?;
         self.recipes.get(key)?.display.as_ref()?;
@@ -405,11 +369,10 @@ pub(crate) fn clientbound(session: &Session, id: i32, payload: &[u8]) -> Result<
                     Some(id) => id,
                     None => r.varint()?,
                 };
-                let display = state.id(&key)?;
+                state.id(&key)?; // register the display id; the recipe keeps no copy.
                 let recipe = state.parse(
                     &mut r,
                     serializer,
-                    display,
                     &trims,
                     session.version.at_most(ServerVersion::V1_20_2),
                 )?;
@@ -420,13 +383,6 @@ pub(crate) fn clientbound(session: &Session, id: i32, payload: &[u8]) -> Result<
             finish(&r)?;
         }
         let result = state.properties();
-        if state.received_book {
-            session
-                .incoming
-                .lock()
-                .unwrap()
-                .push_back((cb::RECIPE_BOOK_ADD, encode(&state.current_book())));
-        }
         *session.legacy_recipes.lock().unwrap() = state;
         return Ok(Some(result));
     }
@@ -443,70 +399,6 @@ pub(crate) fn clientbound(session: &Session, id: i32, payload: &[u8]) -> Result<
         return Ok(Some(encode(&PlaceGhostRecipe { container, display })));
     }
     Ok(None)
-}
-
-/// The old combined recipe packet becomes settings followed by a canonical add/remove packet.
-pub(crate) fn recipe_book(session: &Session, payload: &[u8]) -> Result<(i32, Vec<u8>)> {
-    let mut r = Reader::new(payload);
-    let action = r.varint()?;
-    if !(0..=2).contains(&action) {
-        return Err(Error::new("invalid legacy recipe-book action"));
-    }
-    let settings = RecipeBookSettings::read(&mut r)?;
-    let n = r.count(MAX_RECIPES)?;
-    let mut keys = Vec::with_capacity(n.min(4096));
-    for _ in 0..n {
-        keys.push(r.string(32767)?);
-    }
-    let mut highlights = HashSet::new();
-    if action == 0 {
-        let n = r.count(MAX_RECIPES)?;
-        for _ in 0..n {
-            highlights.insert(r.string(32767)?);
-        }
-    }
-    finish(&r)?;
-    let mut state = session.legacy_recipes.lock().unwrap();
-    if action == 1
-        && state
-            .unlocked
-            .iter()
-            .cloned()
-            .chain(keys.iter().cloned())
-            .collect::<HashSet<_>>()
-            .len()
-            > MAX_RECIPES
-    {
-        return Err(Error::new("too many unlocked legacy recipes"));
-    }
-    state.received_book = true;
-    let packet = if action == 2 {
-        let ids = keys
-            .iter()
-            .filter_map(|key| state.recipes.get(key))
-            .filter(|r| r.display.is_some())
-            .map(|r| r.id)
-            .collect();
-        for key in &keys {
-            state.unlocked.remove(key);
-            state.highlighted.remove(key);
-        }
-        (cb::RECIPE_BOOK_REMOVE, encode(&RecipeBookRemove { ids }))
-    } else {
-        if action == 0 {
-            state.unlocked.clear();
-            state.highlighted = highlights;
-        } else {
-            state.highlighted.extend(keys.iter().cloned());
-        }
-        state.unlocked.extend(keys.iter().cloned());
-        (
-            cb::RECIPE_BOOK_ADD,
-            encode(&state.book(&keys, action == 0, action == 1)),
-        )
-    };
-    session.incoming.lock().unwrap().push_back(packet);
-    Ok((cb::RECIPE_BOOK_SETTINGS, encode(&settings)))
 }
 
 /// Call only for PLACE_RECIPE / RECIPE_BOOK_SEEN_RECIPE. `None` drops a stale display id.
@@ -559,33 +451,6 @@ mod tests {
         clientbound(&session, cb::UPDATE_RECIPES, &bytes(VANILLA_RECIPES)).unwrap();
         session
     }
-    fn old_book(action: i32, names: &[&str], highlights: &[&str]) -> Vec<u8> {
-        let mut w = Writer::new();
-        w.varint(action);
-        RecipeBookSettings::write(
-            &RecipeBookSettings {
-                books: [(true, false), (false, true), (false, false), (true, true)],
-            },
-            &mut w,
-        );
-        w.varint(names.len() as i32);
-        for name in names {
-            w.string(&format!("horizon_wire:{name}"));
-        }
-        if action == 0 {
-            w.varint(highlights.len() as i32);
-            for name in highlights {
-                w.string(&format!("horizon_wire:{name}"));
-            }
-        }
-        w.data
-    }
-    fn next_book(session: &Session) -> RecipeBookAdd {
-        let (id, payload) = session.next_incoming().unwrap();
-        assert_eq!(id, cb::RECIPE_BOOK_ADD);
-        RecipeBookAdd::read(&mut Reader::new(&payload)).unwrap()
-    }
-
     #[test]
     fn vanilla_recipe_serializers_become_pinned_displays_with_canonical_item_ids() {
         let session = setup();
@@ -668,61 +533,8 @@ mod tests {
     }
 
     #[test]
-    fn init_add_remove_and_reload_preserve_keys_highlights_and_settings() {
+    fn an_unknown_recipe_serializer_fails_without_touching_the_declarations() {
         let session = setup();
-        let names = [
-            "shaped",
-            "shapeless",
-            "stonecutting",
-            "smithing_transform",
-            "smithing_trim",
-            "smelting",
-            "blasting",
-            "smoking",
-            "campfire_cooking",
-            "crafting_special_armordye",
-        ];
-        let (id, payload) = recipe_book(
-            &session,
-            &old_book(0, &names, &["shaped", "crafting_special_armordye"]),
-        )
-        .unwrap();
-        assert_eq!(id, cb::RECIPE_BOOK_SETTINGS);
-        assert_eq!(
-            RecipeBookSettings::read(&mut Reader::new(&payload))
-                .unwrap()
-                .books[0],
-            (true, false)
-        );
-        let initial = next_book(&session);
-        assert!(initial.replace);
-        assert_eq!(initial.entries.len(), 9);
-        assert_eq!(initial.entries[0].flags, 2);
-        assert!(initial.entries[1..].iter().all(|r| r.flags == 0));
-        let shaped_id = initial.entries[0].id;
-        recipe_book(&session, &old_book(1, &["shaped", "shapeless"], &[])).unwrap();
-        let added = next_book(&session);
-        assert!(!added.replace);
-        assert_eq!(added.entries[0].id, shaped_id);
-        assert_eq!(added.entries[0].flags, 2);
-        assert_eq!(added.entries[1].flags, 3);
-        recipe_book(&session, &old_book(2, &["shaped"], &[])).unwrap();
-        let (id, payload) = session.next_incoming().unwrap();
-        assert_eq!(id, cb::RECIPE_BOOK_REMOVE);
-        assert_eq!(
-            RecipeBookRemove::read(&mut Reader::new(&payload))
-                .unwrap()
-                .ids,
-            [shaped_id]
-        );
-        clientbound(&session, cb::UPDATE_RECIPES, &bytes(VANILLA_RECIPES)).unwrap();
-        let reloaded = next_book(&session);
-        assert!(reloaded.replace);
-        assert_eq!(reloaded.entries.len(), 8);
-        assert_eq!(
-            session.legacy_recipes.lock().unwrap().recipes["horizon_wire:shaped"].id,
-            shaped_id
-        );
         let mut bad = Writer::new();
         bad.varint(1);
         bad.string("horizon_wire:bad");
@@ -734,7 +546,7 @@ mod tests {
     #[test]
     fn outbound_selection_and_ghosts_follow_the_servers_recipe_key() {
         let session = setup();
-        let id = session.legacy_recipes.lock().unwrap().recipes["horizon_wire:shaped"].id;
+        let id = session.legacy_recipes.lock().unwrap().display_ids["horizon_wire:shaped"];
         let payload = encode(&PlaceRecipe {
             container: 11,
             recipe: id,
@@ -799,18 +611,6 @@ mod tests {
     }
 
     #[test]
-    fn a_book_before_declarations_is_filled_when_its_recipe_arrives() {
-        let session = Session::new(ServerVersion::V1_21_1);
-        recipe_book(&session, &old_book(0, &["shaped"], &["shaped"])).unwrap();
-        assert!(next_book(&session).entries.is_empty());
-        clientbound(&session, cb::UPDATE_RECIPES, &bytes(VANILLA_RECIPES)).unwrap();
-        let book = next_book(&session);
-        assert!(book.replace);
-        assert_eq!(book.entries.len(), 1);
-        assert_eq!(book.entries[0].flags, 2);
-    }
-
-    #[test]
     fn vanilla_1_20_5_and_1_20_6_recipe_codecs_reuse_displays_and_request_keys() {
         // Official 1.20.6 UpdateRecipes codec output, independently byte-identical on 1.20.5.
         // Includes all 23 serializers; registry ids differ from the 1.21.1 fixture above.
@@ -860,20 +660,10 @@ mod tests {
             };
             assert_eq!(*pattern, TrimPattern::Id(7));
         }
-        recipe_book(
-            &session,
-            &old_book(
-                0,
-                &["shaped", "smelting", "crafting_special_armordye"],
-                &["shaped"],
-            ),
-        )
-        .unwrap();
-        let book = next_book(&session);
-        assert!(book.replace);
-        assert_eq!(book.entries.len(), 2);
-        assert_eq!(book.entries[0].flags, 2);
-        let id = book.entries[0].id;
+        // The book machinery is gone with the 1.21.1 pin (its combined
+        // `recipe` packet passes through untranslated); the display id
+        // comes straight from the parsed declarations.
+        let id = session.legacy_recipes.lock().unwrap().display_ids["horizon_wire:shaped"];
         let selected = serverbound(
             &session,
             sb::PLACE_RECIPE,
@@ -954,20 +744,10 @@ mod tests {
             };
             assert_eq!(*pattern, TrimPattern::Id(7));
         }
-        recipe_book(
-            &session,
-            &old_book(
-                0,
-                &["shaped", "smelting", "crafting_special_armordye"],
-                &["shaped"],
-            ),
-        )
-        .unwrap();
-        let book = next_book(&session);
-        assert!(book.replace);
-        assert_eq!(book.entries.len(), 2);
-        assert_eq!(book.entries[0].flags, 2);
-        let id = book.entries[0].id;
+        // The book machinery is gone with the 1.21.1 pin (its combined
+        // `recipe` packet passes through untranslated); the display id
+        // comes straight from the parsed declarations.
+        let id = session.legacy_recipes.lock().unwrap().display_ids["horizon_wire:shaped"];
         let selected = serverbound(
             &session,
             sb::PLACE_RECIPE,
@@ -1054,20 +834,10 @@ mod tests {
             };
             assert_eq!(*pattern, TrimPattern::Id(7));
         }
-        recipe_book(
-            &session,
-            &old_book(
-                0,
-                &["shaped", "smelting", "crafting_special_armordye"],
-                &["shaped"],
-            ),
-        )
-        .unwrap();
-        let book = next_book(&session);
-        assert!(book.replace);
-        assert_eq!(book.entries.len(), 2);
-        assert_eq!(book.entries[0].flags, 2);
-        let id = book.entries[0].id;
+        // The book machinery is gone with the 1.21.1 pin (its combined
+        // `recipe` packet passes through untranslated); the display id
+        // comes straight from the parsed declarations.
+        let id = session.legacy_recipes.lock().unwrap().display_ids["horizon_wire:shaped"];
         let selected = serverbound(
             &session,
             sb::PLACE_RECIPE,

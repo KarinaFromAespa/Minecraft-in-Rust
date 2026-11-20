@@ -10,7 +10,7 @@ pub(super) fn clientbound(
     id: i32,
     payload: &[u8],
 ) -> Result<Option<Vec<u8>>> {
-    if (state, id) == (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) {
+    if (state, id) == (State::Login, packet_ids::login::clientbound::GAME_PROFILE) {
         let mut r = Reader::new(payload);
         crate::packets::login::GameProfile::read(&mut r)?;
         let end = r.position();
@@ -169,33 +169,6 @@ pub(super) fn use_item_on(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// The old negative window ids are different packet types in the pinned representation.
-pub(super) fn container_slot(session: &Session, payload: &[u8]) -> Result<Option<(i32, Vec<u8>)>> {
-    let mut r = Reader::new(payload);
-    let container = r.i8()?;
-    if container >= 0 {
-        return Ok(None);
-    }
-    r.varint()?; // state id: cursor/direct inventory updates carry no menu state in the pinned packet.
-    let slot = r.i16()?;
-    let item = {
-        let _up = ids::renumbering(session.version.ids().unwrap(), Way::Up);
-        crate::item::Slot::read(&mut r)?
-    };
-    ensure_end(&r)?;
-    let packet = match container {
-        -1 => play::Clientbound::SetCursorItem(play::SetCursorItem { item }),
-        -2 => play::Clientbound::SetPlayerInventory(play::SetPlayerInventory {
-            slot: i32::from(slot),
-            item,
-        }),
-        _ => return Err(crate::Error::new("unknown legacy inventory window")),
-    };
-    let bytes = packet.encode();
-    let mut r = Reader::new(&bytes);
-    Ok(Some((r.varint()?, r.rest().to_vec())))
-}
-
 /// The old vehicle input used analog axes and separate jump/shift bits.
 pub(super) fn serverbound_input(payload: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(payload);
@@ -318,30 +291,11 @@ mod tests {
     }
 
     #[test]
-    fn negative_slot_windows_become_cursor_and_direct_inventory_updates() {
+    fn container_close_window_id_becomes_a_varint() {
+        // The negative-window half of this test is gone with container_slot:
+        // the pin IS 1.21.1, so its negative container_set_slot windows (-1
+        // cursor, -2 inventory) need no conversion to the 1.21.2 packets.
         let session = Session::new(ServerVersion::V1_21_1);
-        // Independent vanilla 1.21.1 packet codec outputs, with state=300 and an empty stack.
-        for (old, expected) in [
-            (
-                "ffac02ffff00",
-                packet_ids::play::clientbound::SET_CURSOR_ITEM,
-            ),
-            (
-                "feac02002400",
-                packet_ids::play::clientbound::SET_PLAYER_INVENTORY,
-            ),
-        ] {
-            let (id, body) = container_slot(&session, &bytes(old)).unwrap().unwrap();
-            assert_eq!(id, expected);
-            let packet = play::Clientbound::decode(id, &body).unwrap();
-            match packet {
-                play::Clientbound::SetCursorItem(p) => assert!(p.item.is_none()),
-                play::Clientbound::SetPlayerInventory(p) => {
-                    assert_eq!((p.slot, p.item), (36, None))
-                }
-                _ => panic!("slot"),
-            }
-        }
         let body = clientbound(
             &session,
             State::Play,
@@ -391,7 +345,7 @@ mod tests {
         let body = clientbound(
             &session,
             State::Login,
-            packet_ids::login::clientbound::LOGIN_FINISHED,
+            packet_ids::login::clientbound::GAME_PROFILE,
             &old,
         )
         .unwrap()
@@ -404,7 +358,7 @@ mod tests {
             clientbound(
                 &session,
                 State::Login,
-                packet_ids::login::clientbound::LOGIN_FINISHED,
+                packet_ids::login::clientbound::GAME_PROFILE,
                 &old[..old.len() - 1]
             )
             .is_err()
@@ -472,7 +426,7 @@ mod tests {
             let p = play::Explode::read(&mut Reader::new(&body)).unwrap();
             assert_eq!(p.center, [1.25, 64.0, -2.75]);
             // The old packet's radius and block count do not survive: the
-            // pinned 1.21.3 packet carries neither (the radius only chooses
+            // pinned 1.21.1 packet carries neither (the radius only chooses
             // the particle above).
             assert_eq!(p.knockback, Some([0.25, 0.5, -0.75]));
             assert_eq!(

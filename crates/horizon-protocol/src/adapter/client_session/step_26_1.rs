@@ -21,7 +21,7 @@ const RESET: i32 = 21;
 pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     use packet_ids::play::clientbound as cb;
     Ok(match (state, id) {
-        (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) => {
+        (State::Login, packet_ids::login::clientbound::GAME_PROFILE) => {
             Some(login_finished(payload)?)
         }
         (State::Play, cb::LOGIN) => Some(login(payload)?),
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn the_session_id_goes_and_the_profile_stays() {
         let session = Session::new(ServerVersion::V26_1);
-        let id = packet_ids::login::clientbound::LOGIN_FINISHED;
+        let id = packet_ids::login::clientbound::GAME_PROFILE;
         let mut w = Writer::new();
         w.uuid(0x1234);
         w.string("Steve");

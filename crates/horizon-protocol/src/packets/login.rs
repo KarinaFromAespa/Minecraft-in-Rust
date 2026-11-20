@@ -29,7 +29,13 @@ packet!(Hello {
     challenge: Vec<u8> => Bytes,
     should_authenticate: bool => Bool,
 });
-packet!(LoginFinished { profile: GameProfile => GameProfile, session: u128 => Uuid });
+packet!(
+    /// ClientboundGameProfilePacket: 1.21.2 renamed it login_finished and
+    /// dropped the strict-error flag; 1.21.1 still sends it (false: the client
+    /// ignores a packet it cannot process rather than disconnecting). The
+    /// session id the 26.2 form carries does not exist at this pin.
+    GameProfilePacket { profile: GameProfile => GameProfile, strict_error_handling: bool => Bool }
+);
 packet!(Compression { threshold: i32 => VarInt });
 packet!(CustomQuery { transaction: i32 => VarInt, channel: String => Ident, data: Vec<u8> => Rest });
 packet!(CookieRequest { key: String => Ident });
@@ -37,7 +43,7 @@ packet!(CookieRequest { key: String => Ident });
 packet_enum!(Clientbound, crate::ids::login::clientbound {
     Disconnect(Disconnect) = LOGIN_DISCONNECT,
     Hello(Hello) = HELLO,
-    LoginFinished(LoginFinished) = LOGIN_FINISHED,
+    GameProfile(GameProfilePacket) = GAME_PROFILE,
     Compression(Compression) = LOGIN_COMPRESSION,
     CustomQuery(CustomQuery) = CUSTOM_QUERY,
     CookieRequest(CookieRequest) = COOKIE_REQUEST,
@@ -82,9 +88,9 @@ mod tests {
                 challenge: vec![3; 4],
                 should_authenticate: true,
             }),
-            Clientbound::LoginFinished(LoginFinished {
+            Clientbound::GameProfile(GameProfilePacket {
                 profile,
-                session: 7,
+                strict_error_handling: false,
             }),
             Clientbound::Compression(Compression { threshold: 256 }),
             Clientbound::CustomQuery(CustomQuery {

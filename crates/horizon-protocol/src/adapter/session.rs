@@ -137,15 +137,10 @@ impl Session {
             .version
             .at_most(ServerVersion::V1_20_3)
             .then(|| super::ids::legacy_items(self.legacy_items.clone()));
-        let recipe_book = if self.version.at_most(ServerVersion::V1_20_3) {
-            63
-        } else {
-            65
-        };
-        if self.version.at_most(ServerVersion::V1_21_1) && state == State::Play && id == recipe_book
-        {
-            return translate::v1_21_1::recipes::recipe_book(self, &payload).map(Some);
-        }
+        // The pin IS 1.21.1, so its combined `recipe` packet passes through
+        // the normal renumbering below (a 1.20.3 server's id 63, a 1.21.1
+        // server's id 65, both map to the pin's 65); no split into the
+        // 1.21.2 recipe-book packets is needed or possible.
         // Vanilla 1.21.4's separate add_experience_orb (id 2) became AddEntity plus metadata.
         if self.version.at_most(ServerVersion::V1_21_4) && state == State::Play && id == 2 {
             return translate::old_experience_orb(self, &payload).map(Some);
@@ -154,7 +149,7 @@ impl Session {
             return Ok(None);
         };
         match (state, pinned) {
-            (State::Login, ids::login::clientbound::LOGIN_FINISHED) => {
+            (State::Login, ids::login::clientbound::GAME_PROFILE) => {
                 self.set_reading(State::Configuration)
             }
             (State::Configuration, ids::configuration::clientbound::FINISH_CONFIGURATION) => {
@@ -456,8 +451,8 @@ mod tests {
         let s = Session::new(ServerVersion::V26_2);
         s.set_reading(State::Login);
         s.set_writing(State::Login);
-        // login_finished arrives: the server already speaks configuration, Horizon still login.
-        s.clientbound(ids::login::clientbound::LOGIN_FINISHED, Vec::new())
+        // game_profile arrives: the server already speaks configuration, Horizon still login.
+        s.clientbound(ids::login::clientbound::GAME_PROFILE, Vec::new())
             .unwrap();
         assert_eq!(
             (s.reading(), s.writing()),

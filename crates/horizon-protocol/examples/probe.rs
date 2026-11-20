@@ -75,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (id, payload) = c.recv()?;
         match login::Clientbound::decode(id, &payload)? {
             login::Clientbound::Compression(p) => c.set_compression(p.threshold),
-            login::Clientbound::LoginFinished(p) => {
+            login::Clientbound::GameProfile(p) => {
                 println!(
                     "logged in as {} {}",
                     p.profile.name,
@@ -216,8 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         })
                         .encode(),
                     )?;
-                    // One position per client tick: end the tick like the client.
-                    c.send(&play::Serverbound::ClientTickEnd(Empty).encode())?;
+                    // 1.21.1 has no client_tick_end: one position per tick is the whole tick.
                 }
                 play::Clientbound::ChunkBatchFinished(_) => {
                     c.send(

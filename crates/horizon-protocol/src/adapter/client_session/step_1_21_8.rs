@@ -26,7 +26,6 @@ pub(super) fn clientbound(state: State, id: i32, payload: &[u8]) -> Result<Optio
         cb::ADD_ENTITY => Some(add_entity(payload)?),
         cb::SET_ENTITY_MOTION => Some(set_entity_motion(payload)?),
         cb::SET_DEFAULT_SPAWN_POSITION => Some(spawn_position(payload)?),
-        cb::PLAYER_ROTATION => Some(player_rotation(payload)?),
         cb::EXPLODE => Some(explode(payload)?),
         _ => None,
     })
@@ -84,20 +83,6 @@ fn spawn_position(payload: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// player_rotation: the relative flags go. 1.21.8 has no relative rotation, so a relative one is sent as the
-/// absolute angle it names, which is wrong.
-// TODO(step1.21.8): a relative rotation (flag set) is read as absolute; 1.21.8 has no way to send one.
-fn player_rotation(payload: &[u8]) -> Result<Vec<u8>> {
-    let mut r = Reader::new(payload);
-    let yaw = r.f32()?;
-    r.bool()?;
-    let pitch = r.f32()?;
-    r.bool()?;
-    let mut w = Writer::new();
-    w.f32(yaw);
-    w.f32(pitch);
-    Ok(w.data)
-}
 
 /// explode: the centre, the knockback, the particle and the sound stay; the radius, the block count and the block
 /// particles go. The 1.21.10 layout is read by hand: the pinned codec is 1.21.8's now.
@@ -195,13 +180,6 @@ mod tests {
         let spawn = w.data;
         let id = packet_ids::play::clientbound::SET_DEFAULT_SPAWN_POSITION;
         assert_eq!(round_trip(&session, id, &spawn), spawn);
-
-        let mut w = Writer::new();
-        w.f32(-45.5);
-        w.f32(12.25);
-        let rotation = w.data;
-        let id = packet_ids::play::clientbound::PLAYER_ROTATION;
-        assert_eq!(round_trip(&session, id, &rotation), rotation);
     }
 
     #[test]

@@ -135,11 +135,6 @@ pub fn clientbound(
             return v1_21_1::recipes::clientbound(session, id, payload)
                 .map(|body| body.map(|body| (id, Some(body))));
         }
-        if id == cb::CONTAINER_SET_SLOT
-            && let Some((id, body)) = v1_21_1::container_slot(session, payload)?
-        {
-            return Ok(Some((id, Some(body))));
-        }
         if id == cb::EXPLODE {
             return v1_21_1::explosion(session, payload).map(|body| Some((id, Some(body))));
         }
@@ -152,7 +147,7 @@ pub fn clientbound(
     }
     let _trims = (session.version.at_most(ServerVersion::V1_21_4)
         && state == State::Play
-        && matches!(id, cb::RECIPE_BOOK_ADD | cb::PLACE_GHOST_RECIPE))
+        && matches!(id, cb::RECIPE | cb::PLACE_GHOST_RECIPE))
     .then(|| ids::trim_patterns(session.trim_patterns.lock().unwrap().clone()));
     // 1.21.11's configuration ends with the world clocks 26.1 syncs as a registry.
     if session.version.at_most(ServerVersion::V1_21_11)
@@ -268,7 +263,6 @@ pub fn clientbound(
         (State::Play, cb::MOVE_ENTITY_POS) => move_entity(payload, true, false)?,
         (State::Play, cb::MOVE_ENTITY_POS_ROT) => move_entity(payload, true, true)?,
         (State::Play, cb::MOVE_ENTITY_ROT) => move_entity(payload, false, true)?,
-        (State::Play, cb::ENTITY_POSITION_SYNC) => position_sync(payload)?,
         (State::Play, cb::ADD_ENTITY) => {
             let mut p = decode_play(ids, id, payload)?;
             if let play::Clientbound::AddEntity(e) = &mut p {
@@ -366,13 +360,10 @@ pub fn clientbound(
             cb::SET_ENTITY_DATA
             | cb::CONTAINER_SET_CONTENT
             | cb::CONTAINER_SET_SLOT
-            | cb::SET_CURSOR_ITEM
-            | cb::SET_PLAYER_INVENTORY
             | cb::SET_EQUIPMENT
             | cb::MERCHANT_OFFERS
             | cb::SOUND
             | cb::SOUND_ENTITY
-            | cb::RECIPE_BOOK_ADD
             | cb::PLACE_GHOST_RECIPE
             | cb::COMMANDS,
         ) => redecode(ids, id, payload)?,
@@ -382,19 +373,32 @@ pub fn clientbound(
 }
 
 /// The packets a newer release reshaped, brought from 26.2's layout (what the
-/// steps above produce) to the pinned 1.21.3 wire. `None` when the packet
+/// steps above produce) to the pinned 1.21.1 wire. `None` when the packet
 /// is laid out alike. Velocities quantize twice (shorts → LpVec3 → shorts)
 /// on the round trip, by at most one short unit (1/8000 of a block per
-/// tick); the steps' tests assert within 0.001. The five 1.21.9 packets are
-/// joined by the two 1.21.4 ones: the held slot (a VarInt since 1.21.4, a
+/// tick); the steps' tests assert within 0.001. The four 1.21.9 packets are
+/// joined by the two 1.21.4 ones: the carried slot (a VarInt since 1.21.4, a
 /// byte at this pin) and the player-info hat (an action since 1.21.4, absent
-/// at this pin).
+/// at this pin). Login's game_profile is 26.2's profile-plus-session on the
+/// way down and the pin's profile-plus-strict-error-flag here.
 fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> {
     use crate::{
         buf::{LpVec3, Opt, Vec3d},
         entity_data::Particle,
     };
     use packet_ids::play::clientbound as cb;
+    if state == State::Login && id == packet_ids::login::clientbound::GAME_PROFILE {
+        // 26.2's layout carries the session id after the profile; the pin
+        // carries the strict-error flag instead (false: the client ignores
+        // a packet it cannot process rather than disconnecting).
+        let mut r = Reader::new(payload);
+        let profile = crate::packets::login::GameProfile::read(&mut r)?;
+        let _session = r.uuid()?;
+        let mut w = Writer::new();
+        crate::packets::login::GameProfile::write(&profile, &mut w);
+        w.bool(false);
+        return Ok(Some(w.data));
+    }
     if state != State::Play {
         return Ok(None);
     }
@@ -422,13 +426,6 @@ fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> 
             };
             play::SetEntityMotion::write(&m, &mut w);
         }
-        cb::PLAYER_ROTATION => {
-            let yaw = r.f32()?;
-            let _relative_yaw = r.bool()?;
-            let pitch = r.f32()?;
-            let _relative_pitch = r.bool()?;
-            play::PlayerRotation::write(&play::PlayerRotation { yaw, pitch }, &mut w);
-        }
         cb::SET_DEFAULT_SPAWN_POSITION => {
             let _dimension = r.string(32767)?;
             let p = play::SetDefaultSpawnPosition {
@@ -438,7 +435,7 @@ fn pin_layout(state: State, id: i32, payload: &[u8]) -> Result<Option<Vec<u8>>> 
             let _pitch = r.f32()?;
             play::SetDefaultSpawnPosition::write(&p, &mut w);
         }
-        cb::SET_HELD_SLOT => {
+        cb::SET_CARRIED_ITEM => {
             // 26.2's layout sends the slot as a VarInt; the pin reads a byte.
             w.i8(r.varint()? as i8);
         }
@@ -1136,30 +1133,6 @@ pub(super) fn move_entity(payload: &[u8], pos: bool, rot: bool) -> Result<Vec<u8
     Ok(w.data)
 }
 
-/// 26.2: the entity, PositionMoveRotation (position, motion, the two angles), on-ground. 26.3 sends where it
-/// goes as a path, then the angles; the motion is no longer sent.
-pub(super) fn position_sync(payload: &[u8]) -> Result<Vec<u8>> {
-    let mut r = Reader::new(payload);
-    let id = r.varint()?;
-    let position = [r.f64()?, r.f64()?, r.f64()?];
-    let _motion = [r.f64()?, r.f64()?, r.f64()?];
-    let yaw = r.f32()?;
-    let pitch = r.f32()?;
-    let on_ground = r.bool()?;
-    let mut w = Writer::new();
-    play::EntityPositionSync::write(
-        &play::EntityPositionSync {
-            id,
-            path: play::PositionPath::Linear(position),
-            yaw,
-            pitch,
-            on_ground,
-        },
-        &mut w,
-    );
-    Ok(w.data)
-}
-
 /// 1.21.10 (and 1.21.9) to 1.21.11.
 pub(crate) mod v1_21_10 {
     use super::*;
@@ -1400,7 +1373,7 @@ pub(crate) mod v26_1 {
         use packet_ids::play::clientbound as cb;
         Ok(match (state, id) {
             // 26.2 adds the session's id after the profile; 26.1 has none to give.
-            (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) => {
+            (State::Login, packet_ids::login::clientbound::GAME_PROFILE) => {
                 let mut body = payload.to_vec();
                 body.extend_from_slice(&[0; 16]);
                 Some(body)
@@ -2039,7 +2012,6 @@ pub(crate) mod client_layout_v1_21_8 {
             cb::ADD_ENTITY => Some(add_entity(payload)?),
             cb::SET_ENTITY_MOTION => Some(set_entity_motion(payload)?),
             cb::SET_DEFAULT_SPAWN_POSITION => Some(spawn_position(payload)?),
-            cb::PLAYER_ROTATION => Some(player_rotation(payload)?),
             cb::EXPLODE => Some(explode(payload)?),
             _ => None,
         })
@@ -2089,18 +2061,6 @@ pub(crate) mod client_layout_v1_21_8 {
         Ok(w.data)
     }
 
-    /// player_rotation: 1.21.10 adds a relative flag after each angle; 1.21.8 only has absolute angles.
-    fn player_rotation(payload: &[u8]) -> Result<Vec<u8>> {
-        let mut r = Reader::new(payload);
-        let yaw = r.f32()?;
-        let pitch = r.f32()?;
-        let mut w = Writer::new();
-        w.f32(yaw);
-        w.bool(false);
-        w.f32(pitch);
-        w.bool(false);
-        Ok(w.data)
-    }
 
     /// explode: the centre stays; 1.21.10 puts the radius and the block count after it, and the block particles
     /// (a prefixed array, empty here) after the sound.
@@ -2436,9 +2396,9 @@ pub(crate) mod client_layout_v1_21_1 {
         payload: &[u8],
     ) -> Result<Option<Vec<u8>>> {
         use packet_ids::play::clientbound as cb;
-        // 1.20.5 to 1.21.1 end login_finished (then game_profile) with strict error handling, which 1.21.2
+        // 1.20.5 to 1.21.1 end game_profile with strict error handling, which 1.21.2
         // dropped.
-        if (state, id) == (State::Login, packet_ids::login::clientbound::LOGIN_FINISHED) {
+        if (state, id) == (State::Login, packet_ids::login::clientbound::GAME_PROFILE) {
             return Ok(payload.split_last().map(|(_, rest)| rest.to_vec()));
         }
         if state != State::Play {
@@ -2450,7 +2410,7 @@ pub(crate) mod client_layout_v1_21_1 {
             | cb::CONTAINER_SET_DATA
             | cb::HORSE_SCREEN_OPEN => window_up(payload, false)?,
             cb::CONTAINER_SET_SLOT => window_up(payload, true)?,
-            cb::SET_HELD_SLOT => held_slot(payload)?,
+            cb::SET_CARRIED_ITEM => held_slot(payload)?,
             cb::SET_TIME => set_time(payload)?,
             cb::LOGIN => spawn_info_up(payload, true)?,
             cb::RESPAWN => spawn_info_up(payload, false)?,

@@ -573,6 +573,59 @@ impl Codec<RecipeBookSettings> for RecipeBookSettings {
     }
 }
 
+/// ClientboundRecipePacket: the combined recipe-book sync 1.21.2 split
+/// into RecipeBookAdd/Remove/Settings. `action` is 0 (init: replace the
+/// book, with highlights), 1 (add) or 2 (remove); `highlights` is only
+/// present for init.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Recipe {
+    pub action: i32,
+    pub settings: RecipeBookSettings,
+    pub keys: Vec<String>,
+    pub highlights: Vec<String>,
+}
+impl Codec<Recipe> for Recipe {
+    fn read(r: &mut Reader) -> Result<Self> {
+        let action = r.varint()?;
+        if !(0..=2).contains(&action) {
+            return Err(crate::Error::new("invalid recipe-book action"));
+        }
+        let settings = RecipeBookSettings::read(r)?;
+        let n = r.count(65_536)?;
+        let mut keys = Vec::with_capacity(n.min(4096));
+        for _ in 0..n {
+            keys.push(r.string(32767)?);
+        }
+        let mut highlights = Vec::new();
+        if action == 0 {
+            let n = r.count(65_536)?;
+            for _ in 0..n {
+                highlights.push(r.string(32767)?);
+            }
+        }
+        Ok(Self {
+            action,
+            settings,
+            keys,
+            highlights,
+        })
+    }
+    fn write(v: &Self, w: &mut Writer) {
+        w.varint(v.action);
+        RecipeBookSettings::write(&v.settings, w);
+        w.varint(v.keys.len() as i32);
+        for key in &v.keys {
+            w.string(key);
+        }
+        if v.action == 0 {
+            w.varint(v.highlights.len() as i32);
+            for key in &v.highlights {
+                w.string(key);
+            }
+        }
+    }
+}
+
 /// ServerboundRecipeBookSeenRecipePacket: the `RecipeDisplayId` the player
 /// has looked at, so the server stops treating it as a new one.
 #[derive(Clone, Debug, PartialEq)]

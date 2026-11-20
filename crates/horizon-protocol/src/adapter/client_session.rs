@@ -9,7 +9,7 @@
 //! still pass in the pinned layout.
 //!
 //! The states change where vanilla's server-side `Connection` switches its codecs, after the handshake the
-//! server read itself: `login_acknowledged` and `login_finished` move each direction to configuration,
+//! server read itself: `login_acknowledged` and `game_profile` move each direction to configuration,
 //! `finish_configuration` to play, and `configuration_acknowledged` / `start_configuration` back.
 use std::{
     cell::Cell,
@@ -39,10 +39,10 @@ use super::{
 };
 use crate::{
     Result, State,
-    buf::{Reader, Writer},
+    buf::{Codec, Reader, Writer},
     entity_data::{ParticleData, Value, serializer},
     ids as packet_ids,
-    packets::{configuration, play},
+    packets::{configuration, login, play},
 };
 
 fn to_u8(state: State) -> u8 {
@@ -239,7 +239,7 @@ impl ClientSession {
         let payload = r.rest();
         use packet_ids::{configuration::clientbound as cfg, login::clientbound as login};
         let next = match (state, id) {
-            (State::Login, login::LOGIN_FINISHED) => State::Configuration,
+            (State::Login, login::GAME_PROFILE) => State::Configuration,
             (State::Configuration, cfg::FINISH_CONFIGURATION) => State::Play,
             (State::Play, packet_ids::play::clientbound::START_CONFIGURATION) => {
                 State::Configuration
@@ -247,16 +247,6 @@ impl ClientSession {
             _ => state,
         };
         self.writing.store(to_u8(next), Ordering::Release);
-        // 1.21.1 has no entity_position_sync: the teleport it stands in for is sent under teleport_entity's id.
-        let synced = if self.version.at_most(ServerVersion::V1_21_1) {
-            step_1_21_1::entity_position_sync(state, id, payload)?
-        } else {
-            None
-        };
-        let (id, payload) = match &synced {
-            Some(p) => (packet_ids::play::clientbound::TELEPORT_ENTITY, &p[..]),
-            None => (id, payload),
-        };
         if (state, id) == (State::Play, packet_ids::play::clientbound::PLAYER_POSITION) {
             self.teleporting(payload)?;
         }
@@ -685,6 +675,17 @@ fn down(ids: &'static Ids, state: State, id: i32, payload: &[u8]) -> Result<Sent
         }
         return Ok(Sent::Rewritten(strip_id(p.encode())));
     }
+    if (state, id) == (State::Login, packet_ids::login::clientbound::GAME_PROFILE) {
+        // The pin's game_profile ends with the strict-error flag; 26.2's
+        // ends with the session id (all-zero: the pin has none to give).
+        let mut r = Reader::new(payload);
+        let profile = login::GameProfile::read(&mut r)?;
+        let _strict = r.bool()?;
+        let mut w = Writer::new();
+        login::GameProfile::write(&profile, &mut w);
+        w.uuid(0);
+        return Ok(Sent::Rewritten(w.data));
+    }
     if state != State::Play {
         return Ok(Sent::AsIs);
     }
@@ -708,11 +709,8 @@ fn down(ids: &'static Ids, state: State, id: i32, payload: &[u8]) -> Result<Sent
         | cb::SET_ENTITY_DATA
         | cb::CONTAINER_SET_CONTENT
         | cb::CONTAINER_SET_SLOT
-        | cb::SET_CURSOR_ITEM
-        | cb::SET_PLAYER_INVENTORY
         | cb::SET_EQUIPMENT
         | cb::MERCHANT_OFFERS
-        | cb::RECIPE_BOOK_ADD
         | cb::PLACE_GHOST_RECIPE => {}
         _ => return Ok(Sent::AsIs),
     }
@@ -936,7 +934,7 @@ mod tests {
         let s = ClientSession::new(ServerVersion::V26_2);
         assert_eq!((s.reading(), s.writing()), (State::Login, State::Login));
         // The server finishes the login: it speaks configuration, the client still login.
-        s.clientbound(&body(packet_ids::login::clientbound::LOGIN_FINISHED, &[]))
+        s.clientbound(&body(packet_ids::login::clientbound::GAME_PROFILE, &[]))
             .unwrap();
         assert_eq!(
             (s.reading(), s.writing()),
@@ -1092,8 +1090,8 @@ mod tests {
         // chest's first state: 3006 in 1.21.3, 3987 in 26.2; grass_block 8 in both.
         assert_eq!(update(3006), 3987);
         assert_eq!(update(8), 8);
-        // calcite's state is renumbered: 22785 in 1.21.3, 27160 in 26.2.
-        assert_eq!(update(22785), 27160);
+        // calcite's state is renumbered: 22316 in 1.21.1, 27160 in 26.2.
+        assert_eq!(update(22316), 27160);
         // 26.2 has every block 1.21.8 has (it only adds), so no state needs a
         // stand-in for this client; stand-ins apply to older ones.
     }
@@ -1103,21 +1101,27 @@ mod tests {
         use crate::item::Stack;
         let s = in_play();
         let slot = |item: i32| {
-            let p = play::Clientbound::SetCursorItem(play::SetCursorItem {
+            let p = play::Clientbound::ContainerSetSlot(play::ContainerSetSlot {
+                container: 0,
+                state: 0,
+                slot: 0,
                 item: Some(Stack::new(item, 3)),
             });
             let sent = s.clientbound(&p.encode()).unwrap().unwrap();
             let mut r = Reader::new(&sent);
             r.varint().unwrap();
             let mut payload = Reader::new(r.rest());
+            payload.varint().unwrap();
+            payload.varint().unwrap();
+            payload.i16().unwrap();
             crate::item::Slot::read(&mut payload).unwrap().unwrap().item
         };
-        // diamond: 827 in 1.21.3, 926 in 26.2.
-        assert_eq!(slot(827), 926);
-        // birch_planks: 38 in 1.21.3, 65 in 26.2.
+        // diamond: 805 in 1.21.1, 926 in 26.2.
+        assert_eq!(slot(805), 926);
+        // birch_planks: 38 in 1.21.1, 65 in 26.2.
         assert_eq!(slot(38), 65);
-        // filled_map: 1022 in 1.21.3, 1133 in 26.2.
-        assert_eq!(slot(1022), 1133);
+        // filled_map: 982 in 1.21.1, 1133 in 26.2.
+        assert_eq!(slot(982), 1133);
     }
 
     #[test]

@@ -20,7 +20,7 @@ pub(super) fn clientbound(
             w.bool(false);
             w.bytes(r.rest());
         }
-        cb::SET_HELD_SLOT => w.varint(i32::from(r.i8()?)),
+        cb::SET_CARRIED_ITEM => w.varint(i32::from(r.i8()?)),
         cb::PLAYER_INFO_UPDATE => {
             let p = play::PlayerInfoUpdate::read(&mut r)?;
             if p.actions & 1 == 0 {

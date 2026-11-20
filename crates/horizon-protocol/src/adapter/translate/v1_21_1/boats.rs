@@ -129,7 +129,6 @@ pub(crate) fn finish(session: &Session, id: i32, payload: Vec<u8>) -> Result<(i3
                 | cb::MOVE_ENTITY_POS
                 | cb::MOVE_ENTITY_POS_ROT
                 | cb::MOVE_ENTITY_ROT
-                | cb::ENTITY_POSITION_SYNC
                 | cb::TELEPORT_ENTITY
                 | cb::SET_ENTITY_MOTION
                 | cb::SET_PASSENGERS
@@ -198,13 +197,6 @@ pub(crate) fn finish(session: &Session, id: i32, payload: Vec<u8>) -> Result<(i3
             play::Clientbound::MoveEntityRot(p) => {
                 if let Some(boat) = boats.get_mut(&p.0.id) {
                     movement(boat, &p.0);
-                }
-            }
-            play::Clientbound::EntityPositionSync(p) => {
-                if let Some(boat) = boats.get_mut(&p.id) {
-                    boat.spawn.position = p.path.end();
-                    boat.spawn.yaw = angle(p.yaw);
-                    boat.spawn.pitch = angle(p.pitch);
                 }
             }
             play::Clientbound::TeleportEntity(p) => {

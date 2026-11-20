@@ -334,7 +334,6 @@ impl Codec<PositionPath> for PositionPath {
         }
     }
 }
-packet!(EntityPositionSync { id: i32 => VarInt, path: PositionPath => PositionPath, yaw: f32 => Float, pitch: f32 => Float, on_ground: bool => Bool });
 packet!(ForgetLevelChunk { pos: [i32; 2] => ChunkPos });
 packet!(
     /// ClientboundChunksBiomesPacket.ChunkBiomeData: a column and its
@@ -800,11 +799,6 @@ packet!(
         entity: Option<LookAtEntity> => Opt<LookAtEntity>,
     }
 );
-packet!(
-    /// `ClientboundPlayerRotationPacket` as 1.21.8 sends it: yaw and pitch only,
-    /// always absolute; the relative flags came in 1.21.9.
-    PlayerRotation { yaw: f32 => Float, pitch: f32 => Float }
-);
 packet!(RemoveEntities { ids: Vec<i32> => List<VarInt> });
 packet!(Respawn { spawn: SpawnInfo => SpawnInfo, keep: i8 => Byte });
 packet!(RotateHead { id: i32 => VarInt, head_yaw: i8 => Byte });
@@ -823,7 +817,6 @@ packet!(
     TickingStep { steps: i32 => VarInt }
 );
 packet!(Distance { distance: i32 => VarInt });
-packet!(SetCursorItem { item: Option<Stack> => Slot });
 packet!(
     /// `ClientboundSetDefaultSpawnPositionPacket` as 1.21.8 sends it: the block
     /// position and the yaw only; the dimension and pitch came with RespawnData
@@ -862,12 +855,6 @@ packet!(
         weight: f32 => Float,
     }
 );
-packet!(
-    /// ClientboundMoveMinecartPacket: the steps a minecart took along the
-    /// track since the last one (the `minecart_improvements` experiment sends
-    /// these in place of move packets).
-    MoveMinecartAlongTrack { id: i32 => VarInt, steps: Vec<MinecartStep> => List<MinecartStep> }
-);
 /// ClientboundSetEquipmentPacket: (EquipmentSlot ordinal, stack) pairs.
 pub struct Equipment;
 impl Codec<Vec<(u8, Option<Stack>)>> for Equipment {
@@ -891,14 +878,13 @@ impl Codec<Vec<(u8, Option<Stack>)>> for Equipment {
 packet!(SetEquipment { id: i32 => VarInt, slots: Vec<(u8, Option<Stack>)> => Equipment });
 packet!(SetExperience { progress: f32 => Float, level: i32 => VarInt, total: i32 => VarInt });
 packet!(SetHealth { health: f32 => Float, food: i32 => VarInt, saturation: f32 => Float });
-// 1.21.3 sends the held slot as a byte; the VarInt form arrived in 1.21.4.
-packet!(SetHeldSlot { slot: i8 => Byte });
+// 1.21.1 sends the carried slot as a byte; the VarInt form arrived in 1.21.4 (as set_held_slot).
+packet!(SetCarriedItem { slot: i8 => Byte });
 packet!(
     /// ClientboundSetCameraPacket: the entity the view is attached to (the
     /// player's own id puts it back on the player).
     SetCamera { camera_id: i32 => VarInt }
 );
-packet!(SetPlayerInventory { slot: i32 => VarInt, item: Option<Stack> => Slot });
 packet!(
     /// ClockNetworkState for one world clock (registry id).
     ///
@@ -1629,9 +1615,9 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     ChunkBatchStart(Empty) = CHUNK_BATCH_START,
     ClearTitles(Bool1) = CLEAR_TITLES,
     Commands(Commands) = COMMANDS,
-    RecipeBookAdd(super::recipes::RecipeBookAdd) = RECIPE_BOOK_ADD,
-    RecipeBookRemove(super::recipes::RecipeBookRemove) = RECIPE_BOOK_REMOVE,
-    RecipeBookSettings(super::recipes::RecipeBookSettings) = RECIPE_BOOK_SETTINGS,
+    // No RecipeBookAdd/Remove/Settings: 1.21.2 split the single `recipe`
+    // packet into three; 1.21.1 still sends the combined form.
+    Recipe(super::recipes::Recipe) = RECIPE,
     PlaceGhostRecipe(super::recipes::PlaceGhostRecipe) = PLACE_GHOST_RECIPE,
     ContainerClose(ContainerClose) = CONTAINER_CLOSE,
     ContainerSetContent(ContainerSetContent) = CONTAINER_SET_CONTENT,
@@ -1645,7 +1631,8 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     DeleteChat(DeleteChat) = DELETE_CHAT,
     DisguisedChat(DisguisedChat) = DISGUISED_CHAT,
     EntityEvent(EntityEvent) = ENTITY_EVENT,
-    EntityPositionSync(EntityPositionSync) = ENTITY_POSITION_SYNC,
+    // No EntityPositionSync: 1.21.2 added the path-following sync; 1.21.1
+    // moves entities with move_entity/teleport_entity only.
     ChunksBiomes(ChunksBiomes) = CHUNKS_BIOMES,
     ForgetLevelChunk(ForgetLevelChunk) = FORGET_LEVEL_CHUNK,
     GameEvent(GameEvent) = GAME_EVENT,
@@ -1676,7 +1663,8 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     PlayerInfoUpdate(PlayerInfoUpdate) = PLAYER_INFO_UPDATE,
     PlayerLookAt(PlayerLookAt) = PLAYER_LOOK_AT,
     PlayerPosition(PlayerPosition) = PLAYER_POSITION,
-    PlayerRotation(PlayerRotation) = PLAYER_ROTATION,
+    // No PlayerRotation: 1.21.2 added the rotation-only update; 1.21.1
+    // rotates the player with player_position only.
     RemoveEntities(RemoveEntities) = REMOVE_ENTITIES,
     RemoveMobEffect(RemoveMobEffect) = REMOVE_MOB_EFFECT,
     ResetScore(ResetScore) = RESET_SCORE,
@@ -1695,7 +1683,9 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     SetChunkCacheCenter(SetChunkCacheCenter) = SET_CHUNK_CACHE_CENTER,
     SetCamera(SetCamera) = SET_CAMERA,
     SetChunkCacheRadius(Distance) = SET_CHUNK_CACHE_RADIUS,
-    SetCursorItem(SetCursorItem) = SET_CURSOR_ITEM,
+    // No SetCursorItem/SetPlayerInventory: 1.21.2 split the negative
+    // container_set_slot windows (-1 cursor, -2 inventory) into their own
+    // packets; 1.21.1 still uses the negative windows.
     SetDefaultSpawnPosition(SetDefaultSpawnPosition) = SET_DEFAULT_SPAWN_POSITION,
     SetDisplayObjective(SetDisplayObjective) = SET_DISPLAY_OBJECTIVE,
     SetEntityData(SetEntityData) = SET_ENTITY_DATA,
@@ -1704,13 +1694,13 @@ packet_enum!(Clientbound, crate::ids::play::clientbound {
     SetEquipment(SetEquipment) = SET_EQUIPMENT,
     SetExperience(SetExperience) = SET_EXPERIENCE,
     SetHealth(SetHealth) = SET_HEALTH,
-    SetHeldSlot(SetHeldSlot) = SET_HELD_SLOT,
+    SetCarriedItem(SetCarriedItem) = SET_CARRIED_ITEM,
     SetObjective(SetObjective) = SET_OBJECTIVE,
     SetPassengers(SetPassengers) = SET_PASSENGERS,
     MoveVehicle(MoveVehicle) = MOVE_VEHICLE,
-    MoveMinecartAlongTrack(MoveMinecartAlongTrack) = MOVE_MINECART_ALONG_TRACK,
+    // No MoveMinecartAlongTrack: 1.21.2 added the stepped minecart path;
+    // 1.21.1 moves minecarts with move_entity/teleport_entity only.
     ProjectilePower(ProjectilePower) = PROJECTILE_POWER,
-    SetPlayerInventory(SetPlayerInventory) = SET_PLAYER_INVENTORY,
     SetPlayerTeam(SetPlayerTeam) = SET_PLAYER_TEAM,
     SetScore(SetScore) = SET_SCORE,
     SetSimulationDistance(Distance) = SET_SIMULATION_DISTANCE,
@@ -2277,12 +2267,10 @@ packet!(
     /// Input flags: forward 1, backward 2, left 4, right 8, jump 16, shift 32, sprint 64.
     PlayerInput { flags: u8 => UByte }
 );
-packet!(
-    /// ServerboundSelectBundleItemPacket: the menu slot of a bundle and the
-    /// index of its selected item (-1: none).
-    SelectBundleItem { slot: i32 => VarInt, index: i32 => VarInt }
-);
-packet!(SetCarriedItem { slot: i16 => Short });
+// ServerboundSetCarriedItemPacket: the slot as a short. Named Request
+// because the clientbound packet of the same name takes the SetCarriedItem
+// struct (a byte).
+packet!(SetCarriedItemRequest { slot: i16 => Short });
 packet!(SetCreativeModeSlot { slot: i16 => Short, item: Option<Stack> => DelimitedSlot });
 packet!(UseItem { hand: i32 => VarInt, sequence: i32 => VarInt, yaw: f32 => Float, pitch: f32 => Float });
 packet!(UseItemOn {
@@ -2324,7 +2312,8 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     ChunkBatchReceived(ChunkBatchReceived) = CHUNK_BATCH_RECEIVED,
     ClientCommand(ClientCommand) = CLIENT_COMMAND,
     ClientInformation(ClientInformation) = CLIENT_INFORMATION,
-    ClientTickEnd(Empty) = CLIENT_TICK_END,
+    // No ClientTickEnd: 1.21.2 added the end-of-tick marker; 1.21.1 has no
+    // such packet.
     ConfigurationAcknowledged(Empty) = CONFIGURATION_ACKNOWLEDGED,
     ContainerButtonClick(ContainerButtonClick) = CONTAINER_BUTTON_CLICK,
     ContainerClick(ContainerClick) = CONTAINER_CLICK,
@@ -2353,10 +2342,11 @@ packet_enum!(Serverbound, crate::ids::play::serverbound {
     ContainerSlotStateChanged(ContainerSlotStateChanged) = CONTAINER_SLOT_STATE_CHANGED,
     JigsawGenerate(JigsawGenerate) = JIGSAW_GENERATE,
     ResourcePack(ResourcePackResponse) = RESOURCE_PACK,
-    SelectBundleItem(SelectBundleItem) = BUNDLE_ITEM_SELECTED,
+    // No SelectBundleItem: 1.21.2 added bundles and their selection packet;
+    // 1.21.1 has neither.
     SelectTrade(SelectTrade) = SELECT_TRADE,
     SetBeacon(SetBeacon) = SET_BEACON,
-    SetCarriedItem(SetCarriedItem) = SET_CARRIED_ITEM,
+    SetCarriedItem(SetCarriedItemRequest) = SET_CARRIED_ITEM,
     SetCommandBlock(SetCommandBlock) = SET_COMMAND_BLOCK,
     SetCommandMinecart(SetCommandMinecart) = SET_COMMAND_MINECART,
     SetCreativeModeSlot(SetCreativeModeSlot) = SET_CREATIVE_MODE_SLOT,

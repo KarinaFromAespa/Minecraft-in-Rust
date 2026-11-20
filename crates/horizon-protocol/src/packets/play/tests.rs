@@ -336,13 +336,6 @@ fn clientbound_round_trips() {
         Clientbound::Disconnect(Disconnect {
             reason: literal("kicked"),
         }),
-        Clientbound::EntityPositionSync(EntityPositionSync {
-            id: 1,
-            path: PositionPath::Stepped(vec![([1.0, 2.0, 3.0], 0), ([1.5, 2.0, 3.0], 2)]),
-            yaw: 1.0,
-            pitch: 2.0,
-            on_ground: true,
-        }),
         Clientbound::ChunksBiomes(ChunksBiomes {
             chunks: vec![
                 ChunkBiomeData {
@@ -705,7 +698,6 @@ fn serverbound_round_trips() {
             chunks_per_tick: 9.5,
         }),
         Serverbound::ClientCommand(ClientCommand { action: 0 }),
-        Serverbound::ClientTickEnd(Empty),
         Serverbound::ContainerClick(ContainerClick {
             container: 0,
             state: 5,
@@ -733,7 +725,7 @@ fn serverbound_round_trips() {
         Serverbound::PlayerInput(PlayerInput { flags: 0b0101_0001 }),
         Serverbound::PickItem(PickItem { slot: 12 }),
         Serverbound::Swing(Swing { hand: 0 }),
-        Serverbound::SetCarriedItem(SetCarriedItem { slot: 4 }),
+        Serverbound::SetCarriedItem(SetCarriedItemRequest { slot: 4 }),
         Serverbound::UseItemOn(UseItemOn {
             hand: 0,
             pos: [1, 64, 1],
