@@ -1110,7 +1110,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let z = self.rand_int(3) - 1;
         pos.offset(x, y, z)
     }
-    /// `LightEngine.getLightDampeningInto(state, above, UP, above.dampening) < 15`.
+    /// `LightEngine.getLightBlockInto(state, above, UP, above.getLightBlock()) < 15`.
     fn top_face_lets_light(&self, state: BlockStateId, above_state: BlockStateId) -> bool {
         let b = self.b;
         let occluding = |s: BlockStateId| {

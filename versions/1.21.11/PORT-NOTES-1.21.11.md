@@ -7685,3 +7685,36 @@ the advancement trigger checks only the local player (pre-existing,
 version-neutral). Tests: `game::machines::crafter::` 3 passed; the
 `crafter` parity harness also covers it. rustfmt --check clean on
 crafter.rs.
+
+## Item 111 — block state system (rank 2, CHANGED — citation only)
+
+10 classes, 56 methods, 0 named: StateHolder (25), StateDefinition
+(14), BlockBehaviour$Properties (5), BlockBehaviour (3), BlockState
+(3), StateDefinition$Factory (2), BlockStateBase$Cache (1), and the
+26.1-only PostProcess, StateCollection, StateCollection$Wildcard.
+
+Java delta, jar-verified: an internal representation rework plus
+renames, no observable behaviour change. 26.1 stores states as
+parallel arrays built by create*States + StateCollection;
+1.21.11 stores a Reference2ObjectArrayMap + neighbours map, built
+inline; enumeration order (and hence state ids) is the same, and
+`cycle`/`getValue`/`setValue`/`toString` behave identically
+(`getValues()` changes return type, `isSingletonState` is removed).
+`getLightDampening` -> `getLightBlock` (body identical: solidRender
+? 15 : propagatesSkylightDown ? 0 : 1). `PostProcess` (returns a
+BlockPos, default null) -> `hasPostProcess` (boolean predicate,
+default false). Properties defaults otherwise identical
+(redstone-conductor / suffocating / view-blocking /
+valid-spawn). 26.1's `is(Block)`/`is(TagKey)` overloads come from
+the 26.x `TypedInstance` interface; 1.21.11 declares them on the
+base. The Rust needs no mirror: it reads prepared data, and the
+exporter writes `dampening` from `state.getLightBlock()`
+(VanillaGameplayFactsExporter.java:37) — the 1.21.11 value under the
+Rust's own field name. The one fix: tick.rs:1113 cited
+`LightEngine.getLightDampeningInto`, which exists in NEITHER jar
+(26.3-only name, item 92's failure mode) — now
+`getLightBlockInto`, verified bytecode-identical in both jars.
+`top_face_lets_light`'s flag-based approximation of it is
+pre-existing and version-neutral. Tests: `cargo check -p
+horizon-world --lib` clean; `level::growth_tests::` 21 passed.
+rustfmt --check clean on tick.rs.
