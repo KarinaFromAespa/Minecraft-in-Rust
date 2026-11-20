@@ -334,7 +334,42 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 199/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216 + 4 zero-diff)
+### Rank 2: 200/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217 + 4 zero-diff)
+
+- **Item 217 — `crates/horizon-client-render/src/sound_engine.rs`
+  (2 classes, 9 methods, 0 named in Horizon), 1 FIX + 1 referral:**
+  - **Master volume (FIX):** in 1.21.8 the master volume is the
+    listener gain (`listener.setGain(master)` at load and on
+    MASTER updates) and per-channel volumes carry the category
+    volume only; 1.21.9 folds the master into every channel volume
+    (`getFinalSoundSourceVolume`). The audible result is the same
+    in every case but one: at master volume 0, 1.21.8 skips a
+    non-music sound outright (`listener.getGain() <= 0` → NOT_STARTED)
+    even when it can start silent, while 1.21.9 starts it silently.
+    The Rust kept the 1.21.9 form; `play_inner` now returns
+    NotStarted when the master volume is 0 and the source is not
+    MUSIC, after the volume-zero check as in vanilla. This bites
+    the `can_start_silent` ticking sounds (minecart, riding
+    minecart, riding nautilus, bee) — music layers are MUSIC and
+    exempt either way. The Rust's master-folded `calculate_volume`
+    stays: it is audibly identical to listener gain everywhere
+    else, and `refresh_category_volume`'s recompute on a MASTER
+    change is observably equivalent to setting the gain.
+  - **`stopAll`** differs only in mechanism (1.21.9 restarts the
+    executor, 1.21.8 flushes it and stops each channel); the Rust
+    stops every handle — same outcome. **DEBUG_SUBTITLES** is a
+    1.21.9-only debug constant, false in normal play; the Rust
+    returns NotStarted for unknown events, as 1.21.8 does.
+  - **REFERRED to item 461 (EndFlashState, rank 3): the End flash
+    sound.** `DirectionalSoundInstance` is 1.21.9-only, used for
+    exactly one thing — the `WEATHER_END_FLASH` sound, played 30
+    ticks after an End flash starts — and both `EndFlashState` and
+    the `weather.end_flash` event are absent from 1.21.8. The
+    Rust's `tick_end_flash` (game/end.rs) and
+    `SoundInstance::directional` implement the 1.21.9-only feature;
+    item 461 owns the flash and should remove the feature (state,
+    tick call, and the directional constructor if it becomes
+    unreferenced — end.rs is its only caller).
 
 - **Item 216 — `crates/horizon-client-render/src/mesher/fluid.rs`
   (1 class, 9 methods, 0 named in Horizon), zero-diff:**
