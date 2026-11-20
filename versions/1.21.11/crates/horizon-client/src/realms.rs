@@ -6870,8 +6870,8 @@ impl Screen {
             scroll, content, ..
         } = &mut self.subscreen
         {
-            // The PdpList fills 44..h-33; `AbstractScrollArea.defaultSettings` scrolls
-            // it by `entryHeight / 2` = 22.
+            // The PdpList fills 44..h-33; `AbstractSelectionList.scrollRate`
+            // scrolls it by `entryHeight / 2` = 22.
             let (top, bottom) = (44.0, h - 33.0);
             if cursor.1 < top || cursor.1 >= bottom {
                 return;

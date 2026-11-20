@@ -852,8 +852,9 @@ impl Chat {
             .min(self.lines_per_page(true));
         let top = chat_bottom - (shown as i32 + row) * entry_height;
         let mut prompt = prompt;
-        // Clip to the chat width (1.21.11 dropped
-        // `ComponentRenderUtils.clipText`; the clip itself stays).
+        // Clip to the chat width (1.21.11 moved
+        // `ComponentRenderUtils.clipText` to `StringWidget.clipText`;
+        // the clip itself stays).
         let mut width = 0.0;
         let fits = prompt
             .chars()

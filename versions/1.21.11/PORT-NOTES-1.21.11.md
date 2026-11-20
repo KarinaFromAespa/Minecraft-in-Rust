@@ -6662,3 +6662,76 @@ game::mob_blocks::` 3 passed. rustfmt clean on
 game/mob_blocks.rs (leaf file). Rank 2 now 265/492
 (85 changed, 180 no-change). work-items.json rank2.closed =
 265 on 2026-11-20.
+
+## Item 87 — client/gui/components (rank 2, CHANGED)
+
+28 classes, 72 methods, 0 named in Horizon (widely named,
+~57 files): the selection-list/chat/button/cycle-button/
+text-widget/scrollable-layout/string-widget inner classes,
+plus 2 missing-side in 1.21.11 (`AbstractScrollArea$
+ScrollbarSettings`, `ChatComponent$DisplayMode`).
+
+Java delta, jar-verified: the 26.x render-state extraction
+API is gone (`extractContent`/`extractContents`/
+`extractWidgetRenderState`/`extractRenderState`/
+`extractBackground` -> `render*`, `GuiGraphicsExtractor` ->
+`GuiGraphics`, `GuiMessage`/`GuiMessageTag` move from
+`multiplayer.chat` to `client`); visibility + requireNonNull
+noise. The ScrollbarSettings migration is the substance:
+26.1's settings record (width 6, min height 32, scrollRate
+int) is gone; 1.21.11's `AbstractScrollArea.scrollRate()` is
+abstract, overridden per class as a double —
+FittingMultiLineTextWidget 9.0, ScrollableLayout$Container
+10.0, `MultiLineEditBox` 9.0/2.0 = 4.5 (26.1 truncated it to
+an int, 4 — a real change), `AbstractSelectionList`
+defaultEntryHeight/2.0. ScrollableLayout: 26.1's
+ReserveStrategy (BOTH, hardcoded) + scrollbarSpacing 4 +
+minHeight vs 1.21.11's fixed `SCROLLBAR_SPACING = 4` /
+`SCROLLBAR_RESERVE = 10`; widths identical (max(content+20,
+min), content at +10), height min(content, max) vs
+clamp(container, min, max); `ensureVisible` 14.0 (1.21.11)
+vs scrollRate 10.0 (26.1); `getBorderForArrowNavigation`
+returns the full rect (1.21.11) vs delegating to the focused
+child (26.1). `ChatComponent$DisplayMode` + the restricted
+prompt ("chat_screen.restricted") are 26.1-only — the Rust
+has no mirror, matching 1.21.11 by omission.
+`ComponentRenderUtils.clipText` moved to `StringWidget.
+clipText` (same body); `ComponentRenderUtils` keeps only
+`wrapComponents` in 1.21.11.
+
+Verified matching: dialog_screen (10 each side, min(content,
+max)), server_links (reserve 10, wheel x10), realms PdpList
+wheel 22 = 44/2, `screen_draw::clip` (= `StringWidget.
+clipText`). No `ensureVisible`, FittingMultiLineTextWidget or
+DisplayMode mirrors exist.
+
+Fix: `multiline_edit.rs` SCROLL_RATE 4.0 -> 4.5
+(`MultiLineEditBox.scrollRate`, 9.0/2.0 — MultiLineEditBox
+is item 529's class; the fix is this item's migration,
+jar-verified both sides). Citations: `screen_draw.rs`
+clipText -> `StringWidget.clipText`; `chat.rs` "dropped" ->
+"moved to `StringWidget.clipText`"; `dialog_screen.rs` /
+`server_links.rs` ReserveStrategy.BOTH -> `SCROLLBAR_RESERVE`;
+`realms.rs` defaultSettings -> `AbstractSelectionList.
+scrollRate`.
+
+Referrals: AbstractSelectionList -> item 13 (scrollbarWidth
+inlined as 6); ChatComponent/ComponentRenderUtils -> item 17;
+DebugScreenOverlay -> item 519 (the "Debug charts:" line
+joins the network chart onto one line in 1.21.11);
+AbstractScrollArea -> item 528; AbstractTextAreaWidget/
+MultiLineEditBox -> item 529 (verify the 4.5 fix). The
+`GuiGraphicsExtractor` name is cited tree-wide — each
+screen/widget item fixes its own citations.
+
+Verification: literal comparison — 9 classes zero;
+AbstractSelectionList only the inlined 6; ChatComponent
+only the restricted strings; DebugScreenOverlay only the
+chart-line splits; FittingMultiLineTextWidget 9 vs 9.0;
+ScrollableLayout 10.0/14.0/2/20. `cargo test -p
+horizon-client-render --lib --no-default-features
+multiline_edit::` 8 passed. rustfmt clean on the five leaf
+files; chat.rs not reformatted (module root, pre-existing
+drift at 1401 + chat_tests.rs 514). Rank 2 now 266/492
+(86 changed, 180 no-change). work-items.json rank2.closed =
+266 on 2026-11-20.

@@ -384,7 +384,7 @@ pub fn center_left(anchor: i32, width: i32) -> i32 {
     anchor - width / 2
 }
 
-/// `ComponentRenderUtils.clipText`: as much as fits before an unstyled "...".
+/// `StringWidget.clipText`: as much as fits before an unstyled "...".
 pub fn clip(m: &Measure, t: &Text, width: i32) -> Text {
     m.head(t, width - m.width_str("..."))
         .append(Text::literal("..."))

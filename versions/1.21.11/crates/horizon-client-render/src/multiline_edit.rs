@@ -16,8 +16,8 @@ use winit::keyboard::KeyCode;
 const PADDING: f32 = 4.0;
 /// `Font.lineHeight`.
 const LINE: f32 = 9.0;
-/// `AbstractScrollArea.defaultSettings((int) (9.0 / 2.0))`'s scroll rate.
-const SCROLL_RATE: f32 = 4.0;
+/// `MultiLineEditBox.scrollRate`: half a line height.
+const SCROLL_RATE: f32 = 4.5;
 
 /// `StringSplitter.splitLines(value, width, Style.EMPTY, false, ..)`: each
 /// line's `[begin, end)`. A line ends at a `\n`, or once a character overflows
