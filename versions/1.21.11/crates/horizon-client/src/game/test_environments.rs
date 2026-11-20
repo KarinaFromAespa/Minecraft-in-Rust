@@ -34,42 +34,30 @@ impl WeatherType {
     }
 }
 
-/// A `TestEnvironmentDefinition`.
+/// The default difficulty (`Difficulty.NORMAL`): what a `difficulty`
+/// environment resets to on teardown. The type is a Horizon extra — vanilla
+/// has no difficulty environment in either version — so it follows the
+/// 1.21.11 game-rules pattern of resetting to the default.
+const DEFAULT_DIFFICULTY: u8 = 2; // "normal"
+
+/// A `TestEnvironmentDefinition` (1.21.11: no saved data; `setup` and
+/// `teardown` take the level only. 26.x's generic `SavedDataType` and
+/// `Activation` are gone, with `clock_time` and `timeline_attributes`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum Environment {
     AllOf(Vec<Environment>),
-    ClockTime {
-        clock: String,
-        time: i64,
-    },
     Difficulty(u8),
     Functions {
         setup: Option<String>,
         teardown: Option<String>,
     },
     GameRules(Vec<(String, Value)>),
-    /// `timeline_attributes`: Horizon has no environment attribute system to
-    /// layer timelines on, so it changes nothing.
-    Timelines,
+    /// `time_of_day`: `ServerLevel.setDayTime`, with no teardown — the time
+    /// stays changed after the batch.
+    TimeOfDay {
+        time: i64,
+    },
     Weather(WeatherType),
-}
-
-/// The `SavedDataType` of an activated definition.
-#[derive(Clone, Debug, PartialEq)]
-pub(super) enum Saved {
-    AllOf(Vec<(Environment, Saved)>),
-    Clock(i64),
-    Difficulty(u8),
-    Unit,
-    GameRules(Vec<(String, Value)>),
-    Weather(WeatherType),
-}
-
-/// `TestEnvironmentDefinition.Activation`.
-#[derive(Clone, Debug)]
-pub(super) struct Activation {
-    environment: Environment,
-    saved: Saved,
 }
 
 /// Reads a definition from its JSON (`DIRECT_CODEC`); a string is the id of
@@ -95,9 +83,12 @@ pub(super) fn parse(
                 .map(|d| parse(d, load, depth + 1))
                 .collect::<Option<_>>()?,
         ),
-        "clock_time" => Environment::ClockTime {
-            clock: json.get("clock")?.as_str()?.to_owned(),
-            time: json.get("time")?.as_i64().filter(|t| *t >= 0)?,
+        "time_of_day" => Environment::TimeOfDay {
+            // `ExtraCodecs.NON_NEGATIVE_INT`.
+            time: json
+                .get("time")?
+                .as_i64()
+                .filter(|t| (0..=i64::from(i32::MAX)).contains(t))?,
         },
         "difficulty" => Environment::Difficulty(
             ["peaceful", "easy", "normal", "hard"]
@@ -127,7 +118,6 @@ pub(super) fn parse(
                 })
                 .collect::<Option<_>>()?,
         ),
-        "timeline_attributes" => Environment::Timelines,
         "weather" => Environment::Weather(WeatherType::from_name(json.get("weather")?.as_str()?)?),
         _ => return None,
     })
@@ -156,105 +146,80 @@ impl Game<'_> {
         )
     }
 
-    /// `TestEnvironmentDefinition.activate`.
-    pub(super) fn activate_test_environment(&mut self, environment: Environment) -> Activation {
-        let saved = self.set_up_environment(&environment);
-        Activation { environment, saved }
+    /// `TestEnvironmentDefinition.setup`: the runner keeps the definition
+    /// itself (`GameTestRunner.currentEnvironment`) and calls this, then
+    /// `tear_down_test_environment`, directly.
+    pub(super) fn set_up_test_environment(&mut self, environment: &Environment) {
+        self.set_up_environment(environment);
     }
 
-    /// `Activation.teardown`.
-    pub(super) fn tear_down_test_environment(&mut self, activation: Activation) {
-        self.tear_down_environment(&activation.environment, activation.saved);
+    /// `TestEnvironmentDefinition.teardown`.
+    pub(super) fn tear_down_test_environment(&mut self, environment: &Environment) {
+        self.tear_down_environment(environment);
     }
 
-    fn set_up_environment(&mut self, environment: &Environment) -> Saved {
+    fn set_up_environment(&mut self, environment: &Environment) {
         match environment {
-            Environment::AllOf(all) => Saved::AllOf(
-                all.iter()
-                    .map(|e| (e.clone(), self.set_up_environment(e)))
-                    .collect(),
-            ),
-            Environment::ClockTime { clock, time } => {
-                // Only the overworld clock runs in Horizon.
-                let previous = self.world.day_time;
-                if clock == "minecraft:overworld" {
-                    self.world.day_time = *time;
-                    self.ui.clock.partial = 0.0;
+            Environment::AllOf(all) => {
+                for e in all {
+                    self.set_up_environment(e);
                 }
-                Saved::Clock(previous)
+            }
+            Environment::TimeOfDay { time } => {
+                // `ServerLevel.setDayTime`.
+                self.world.day_time = *time;
+                self.ui.clock.partial = 0.0;
             }
             Environment::Difficulty(d) => {
-                let previous = self.ui.difficulty;
                 self.set_difficulty_forced(*d);
-                Saved::Difficulty(previous)
             }
             Environment::Functions { setup, .. } => {
                 if let Some(id) = setup {
                     self.run_environment_function(id);
                 }
-                Saved::Unit
             }
-            Environment::GameRules(rules) => {
-                let original = rules
-                    .iter()
-                    .filter_map(|(name, _)| {
-                        let rule = gamerules::rule(name)?;
-                        Some((
-                            rule.name.to_owned(),
-                            self.ui.rules.get(rule.name).unwrap_or(rule.default),
-                        ))
-                    })
-                    .collect();
-                self.set_environment_rules(rules);
-                Saved::GameRules(original)
-            }
-            Environment::Timelines => Saved::Unit,
-            Environment::Weather(kind) => {
-                let w = &self.world.weather;
-                let previous = if w.thundering {
-                    WeatherType::Thunder
-                } else if w.raining {
-                    WeatherType::Rain
-                } else {
-                    WeatherType::Clear
-                };
-                self.set_weather_type(*kind);
-                Saved::Weather(previous)
-            }
+            Environment::GameRules(rules) => self.set_environment_rules(rules),
+            Environment::Weather(kind) => self.set_weather_type(*kind),
         }
     }
 
-    fn tear_down_environment(&mut self, environment: &Environment, saved: Saved) {
-        match (environment, saved) {
-            (Environment::AllOf(_), Saved::AllOf(all)) => {
-                for (e, s) in all.into_iter().rev() {
-                    self.tear_down_environment(&e, s);
+    fn tear_down_environment(&mut self, environment: &Environment) {
+        match environment {
+            // `AllOf.teardown`: in order (1.21.11; 26.x tore down reversed).
+            Environment::AllOf(all) => {
+                for e in all {
+                    self.tear_down_environment(e);
                 }
             }
-            (Environment::ClockTime { clock, .. }, Saved::Clock(previous)) => {
-                if clock == "minecraft:overworld" {
-                    self.world.day_time = previous;
-                    self.ui.clock.partial = 0.0;
+            // `TimeOfDay` has no teardown: the time stays changed.
+            Environment::TimeOfDay { .. } => {}
+            Environment::Difficulty(_) => self.set_difficulty_forced(DEFAULT_DIFFICULTY),
+            Environment::Functions { teardown, .. } => {
+                if let Some(id) = teardown {
+                    self.run_environment_function(id);
                 }
             }
-            (_, Saved::Difficulty(d)) => self.set_difficulty_forced(d),
-            (
-                Environment::Functions {
-                    teardown: Some(id), ..
-                },
-                Saved::Unit,
-            ) => self.run_environment_function(id),
-            (_, Saved::GameRules(original)) => self.set_environment_rules(&original),
-            (_, Saved::Weather(previous)) => {
-                // resetWeatherCycle, then the saved type.
+            Environment::GameRules(rules) => {
+                // `SetGameRules.teardown`: each touched rule goes back to its
+                // default (1.21.11; 26.x restored the pre-test values).
+                let defaults: Vec<(String, Value)> = rules
+                    .iter()
+                    .filter_map(|(name, _)| {
+                        let rule = gamerules::rule(name)?;
+                        Some((rule.name.to_owned(), rule.default))
+                    })
+                    .collect();
+                self.set_environment_rules(&defaults);
+            }
+            Environment::Weather(_) => {
+                // `Weather.teardown`: `resetWeatherCycle` only (1.21.11; 26.x
+                // re-applied the previous weather afterwards).
                 let w = &mut self.world.weather;
                 w.rain_time = 0;
                 w.raining = false;
                 w.thunder_time = 0;
                 w.thundering = false;
-                self.set_weather_type(previous);
             }
-            _ => {}
         }
     }
 
@@ -312,9 +277,7 @@ mod tests {
 
     fn load(id: &str) -> Option<Json> {
         match id {
-            "minecraft:night" => Some(
-                json!({"type": "minecraft:clock_time", "clock": "minecraft:overworld", "time": 18000}),
-            ),
+            "minecraft:night" => Some(json!({"type": "minecraft:time_of_day", "time": 18000})),
             _ => None,
         }
     }
@@ -334,13 +297,7 @@ mod tests {
         let Some(Environment::AllOf(all)) = parse(&json, &load, 0) else {
             panic!("not all_of");
         };
-        assert_eq!(
-            all[0],
-            Environment::ClockTime {
-                clock: "minecraft:overworld".into(),
-                time: 18000
-            }
-        );
+        assert_eq!(all[0], Environment::TimeOfDay { time: 18000 });
         assert_eq!(all[1], Environment::Weather(WeatherType::Thunder));
         assert!(matches!(&all[2], Environment::GameRules(r) if r.len() == 1));
         assert_eq!(all[3], Environment::Difficulty(3));
@@ -359,7 +316,32 @@ mod tests {
         assert_eq!(parse(&json!({"type": "minecraft:nothing"}), &load, 0), None);
         assert_eq!(
             parse(
-                &json!({"type": "minecraft:clock_time", "clock": "c", "time": -1}),
+                &json!({"type": "minecraft:time_of_day", "time": -1}),
+                &load,
+                0
+            ),
+            None
+        );
+        assert_eq!(
+            parse(
+                &json!({"type": "minecraft:time_of_day", "time": 2_147_483_648_i64}),
+                &load,
+                0
+            ),
+            None
+        );
+        // 26.x-only types: no `clock_time`, no `timeline_attributes`.
+        assert_eq!(
+            parse(
+                &json!({"type": "minecraft:clock_time", "clock": "minecraft:overworld", "time": 18000}),
+                &load,
+                0
+            ),
+            None
+        );
+        assert_eq!(
+            parse(
+                &json!({"type": "minecraft:timeline_attributes", "timelines": []}),
                 &load,
                 0
             ),
@@ -371,5 +353,49 @@ mod tests {
     fn weather_types_set_vanillas_timers() {
         assert_eq!(WeatherType::Clear.parameters(), (100_000, 0, false, false));
         assert_eq!(WeatherType::Thunder.parameters(), (0, 100_000, true, true));
+    }
+
+    #[test]
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and scratch homes/cwd"]
+    fn teardown_resets_rules_and_weather_and_leaves_the_time() {
+        let mut game = crate::game::native_machines::tests::server_game();
+        // GameRules: the pre-test value differs from the default, the
+        // environment sets the default; teardown must leave the default
+        // (1.21.11 resets to default — 26.x restored the pre-test value).
+        let rule = gamerules::rule("minecraft:advance_time").unwrap();
+        let Value::Bool(default) = rule.default else {
+            panic!("advance_time is a bool rule");
+        };
+        let before = Value::Bool(!default);
+        game.set_environment_rules(&[(rule.name.to_owned(), before)]);
+        assert_eq!(game.ui.rules.get(rule.name), Some(before));
+        let rules = Environment::GameRules(vec![(rule.name.to_owned(), rule.default)]);
+        game.set_up_test_environment(&rules);
+        assert_eq!(game.ui.rules.get(rule.name), Some(rule.default));
+        game.tear_down_test_environment(&rules);
+        assert_eq!(game.ui.rules.get(rule.name), Some(rule.default));
+        // Weather: raining before, clear during; teardown only resets the
+        // cycle (1.21.11) — it must not bring the rain back.
+        game.set_weather_type(WeatherType::Rain);
+        assert!(game.world.weather.raining);
+        let weather = Environment::Weather(WeatherType::Clear);
+        game.set_up_test_environment(&weather);
+        assert!(!game.world.weather.raining);
+        game.tear_down_test_environment(&weather);
+        let w = &game.world.weather;
+        assert!(!w.raining && !w.thundering && w.rain_time == 0 && w.thunder_time == 0);
+        // TimeOfDay: teardown is a no-op; the time stays changed.
+        game.world.day_time = 6000;
+        let time = Environment::TimeOfDay { time: 18000 };
+        game.set_up_test_environment(&time);
+        assert_eq!(game.world.day_time, 18000);
+        game.tear_down_test_environment(&time);
+        assert_eq!(game.world.day_time, 18000);
+        // Difficulty (Horizon extra): teardown resets to normal.
+        let difficulty = Environment::Difficulty(3);
+        game.set_up_test_environment(&difficulty);
+        assert_eq!(game.ui.difficulty, 3);
+        game.tear_down_test_environment(&difficulty);
+        assert_eq!(game.ui.difficulty, DEFAULT_DIFFICULTY);
     }
 }

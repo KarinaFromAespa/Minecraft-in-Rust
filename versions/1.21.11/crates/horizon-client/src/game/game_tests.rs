@@ -8,14 +8,15 @@
 //! `ReportGameListener`'s counters and `GameTestRunner.rerunTest`.
 //!
 //! Not ported: test sequences (`GameTestSequence`: the built-in tests, only
-//! `always_pass`, do not use them), test environments other than the empty
-//! `all_of`, and removing the entities of a finished test.
+//! `always_pass`, do not use them). Test environments live in
+//! `test_environments.rs`; a finished test's entities are removed by
+//! `GameTestInfo.succeed`'s discard in `tick_test`.
 use super::{
     Dim, Game,
     commands::{Target, execute::Source},
     structure_blocks::template_size,
     test_entities::{aabb_of, inflate},
-    test_environments::Activation,
+    test_environments::Environment,
     test_instances::TestDef,
 };
 use horizon_client::{
@@ -560,8 +561,9 @@ pub(super) struct GameTests {
     /// The command that starts the runner is still running: its source takes
     /// `TestBatchSummaryDisplayer`'s lines then and there.
     command_start: bool,
-    /// `GameTestRunner.currentEnvironment`.
-    environment: Option<Activation>,
+    /// `GameTestRunner.currentEnvironment`: the batch's environment
+    /// definition itself (1.21.11 keeps the holder, not a 26.x `Activation`).
+    environment: Option<Environment>,
 }
 
 impl GameTests {
@@ -740,12 +742,12 @@ impl Game<'_> {
             "Running test environment '{environment}' batch {batch_number} ({} tests)...",
             spawned.len()
         );
-        // endCurrentEnvironment, then TestEnvironmentDefinition.activate.
+        // endCurrentEnvironment, then the batch's environment's setup.
         self.end_test_environment();
         match self.test_environment(&environment) {
             Some(definition) => {
-                let activation = self.activate_test_environment(definition);
-                self.game_tests.environment = Some(activation);
+                self.set_up_test_environment(&definition);
+                self.game_tests.environment = Some(definition);
             }
             None => log::error!("Missing test environment {environment}"),
         }
@@ -772,8 +774,8 @@ impl Game<'_> {
 
     /// `GameTestRunner.endCurrentEnvironment`.
     fn end_test_environment(&mut self) {
-        if let Some(activation) = self.game_tests.environment.take() {
-            self.tear_down_test_environment(activation);
+        if let Some(environment) = self.game_tests.environment.take() {
+            self.tear_down_test_environment(&environment);
         }
     }
 
@@ -897,7 +899,7 @@ impl Game<'_> {
             info.start_execution(1);
             self.test_structure_loaded(info);
             if let Some(b) = self.test_bounding_box(info.pos) {
-                // `getTestBounds()`: the structure's box.
+                // `getStructureBounds()`: the structure's box.
                 let width = b.max[0] - b.min[0] + 1;
                 state.row_z = (state.row_z.0.min(b.min[2]), state.row_z.1.max(b.max[2] + 1));
                 state.next.0 += width + 5;
@@ -1007,8 +1009,9 @@ impl Game<'_> {
         true
     }
 
-    /// `getTestBoundingBox`: the structure's box (1.21.11 has no
-    /// test-instance padding; 26.x inflates it by the padding).
+    /// `getStructureBoundingBox`: the structure's box (26.x's
+    /// `getTestBoundingBox` inflated it by the test-instance padding, which
+    /// 1.21.11 has no field for).
     pub(super) fn test_bounding_box(&self, pos: Pos) -> Option<BoundingBox> {
         self.test_structure_box(pos)
     }
@@ -1027,7 +1030,11 @@ impl Game<'_> {
         }
     }
 
-    /// `GameTestInfo.tick`.
+    /// `GameTestInfo.tick`: the chunks check gates `tickInternal` and the
+    /// listeners alike (1.21.11; 26.x ran both whenever the test was done,
+    /// even with an error set before the chunks loaded). A test that fails
+    /// before its chunks load is done but unreported — and stays that way,
+    /// since a done test is not ticked again.
     fn tick_test(&mut self, info: &mut Info) {
         if info.done {
             return;
@@ -1041,7 +1048,8 @@ impl Game<'_> {
         }
         if info.error.is_some() {
             info.finish();
-        } else if !self.test_chunks_loaded(info.pos) {
+        }
+        if !self.test_chunks_loaded(info.pos) {
             return;
         }
         self.tick_internal(info);
@@ -1417,10 +1425,10 @@ impl Game<'_> {
         if !passed && counted {
             self.game_tests.failed.push(info.key.clone());
         }
-        // The runner's batch listener.
-        if passed {
-            self.remove_test_barriers(info.pos);
-        } else if halt {
+        // The runner's batch listener: `testCompleted` removes the barriers
+        // on a pass and on a failure alike (1.21.11; 26.x only on a pass).
+        self.remove_test_barriers(info.pos);
+        if !passed && halt {
             self.release_forced_chunks();
             self.clear_game_tests();
             return;

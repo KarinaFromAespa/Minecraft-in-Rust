@@ -2932,3 +2932,111 @@ away with the helper. `cargo check -p horizon-client --bin horizon-client
 --tests --no-default-features` 0 warnings; items.rs `rustfmt --check` clean.
 Rank 2 now 214/492 (49 changed, 165 no-change).
 work-items.json rank2.closed = 214 on 2026-11-20.
+
+## Item 36 — game/game_tests.rs (rank 2, CHANGED)
+
+GameTestHelper, GameTestServer, GameTestRunner (+$1), GameTestInfo,
+GameTestSequence (+$Condition), StructureGridSpawner, TestCommand,
+TestEnvironmentDefinition (+AllOf/SetGameRules/Weather/ClockTime/Timelines/
+TestBlockPlaceContext), BlockBasedTestInstance, GameTestInstance: 25
+classes, 106 methods, 6 named. Harnesses mob_ai, redstone_catalog, sculk,
+trading. Three real differences, all jar-verified:
+
+Test environments are the 1.21.11 model, not the 26.1 one. 26.1's
+`TestEnvironmentDefinition<SavedDataType>` is generic — `setup` returns
+saved data, `teardown(level, saved)` restores it, the runner keeps an
+`Activation<T>` handle. 1.21.11's is plain `void setup` / `void teardown`,
+no `Activation`, and the runner keeps the definition itself. The type
+registry differs: 26.1 has `clock_time` (WorldClock, saved/restored) and
+`timeline_attributes`; 1.21.11 has `time_of_day` (int `time`, `setDayTime`,
+NO teardown — the time stays changed). Teardown semantics differ per
+type: `AllOf` tears down reversed in 26.1, in order in 1.21.11;
+`SetGameRules` restores the originals in 26.1 but resets each touched
+rule to its DEFAULT in 1.21.11 (`resetRule`); `Weather` re-applies the
+previous type after `resetWeatherCycle` in 26.1 but only resets the
+cycle in 1.21.11 (`resetWeatherCycle` verified from the 1.21.11 jar
+bytecode: rainTime 0, raining false, thunderTime 0, thundering false;
+clear_time untouched). The Rust's `Saved` + `Activation` are deleted;
+`Environment` drops `ClockTime`/`Timelines` and gains `TimeOfDay`;
+`GameTests.environment` holds the definition; `set_up_test_environment` /
+`tear_down_test_environment` take no saved data. `difficulty` is a
+Horizon extra — no vanilla type in either version's bootstrap — kept,
+with teardown resetting to normal (2) on the 1.21.11 reset-to-default
+pattern. The default environment is the empty `all_of` in both jars.
+
+`GameTestInfo.tick`: the chunks check gates everything in 1.21.11.
+26.1 runs `tickInternal()` + listeners whenever the test is done, even
+with an error set before the chunks loaded (the chunks check is inside
+the `else`); 1.21.11 wraps both `tickInternal()` and the listener
+notification in the chunks-loaded check, so a test failing before its
+chunks load is done but never notifies (and `isDone()` returns early on
+later ticks, so it never notifies at all — the batch stalls). The Rust's
+`tick_test` drops the `else`: the chunks check now applies with an
+error set too, and the stall consequence is mirrored (`test_finished`
+never runs, `batch_pending` never reaches 0).
+
+Barriers are removed on failure too in 1.21.11. 26.1 removes them only
+in `testPassed`; 1.21.11 removes them in `testCompleted`, which runs
+from `testPassed` AND `testFailed` (non-halt), and the halt branch
+removes them too — always on completion. The Rust's `test_finished`
+now removes barriers unconditionally (halt-path order differs from
+vanilla's — barriers first here, last there — but the operations touch
+independent state, so it is unobservable).
+
+Also fixed: the `getTest*` accessors are gone in 1.21.11
+(`TestInstanceBlockEntity` has only `getStructureBoundingBox()` /
+`getStructureBounds()` there; 26.1 has those AND the padded
+`getTestBoundingBox()` / `getTestBounds()`; `GameTestInfo` has only
+`getStructureBounds()` in both) — comments in game_tests.rs and
+test_instances.rs updated; the Rust already used the unpadded box
+everywhere (`TestDef` has no `padding` field — `GameTestInstance.padding()`
+is 26.1-only). The game_tests.rs header's "Not ported" claims were stale
+on two of three counts (environments ARE ported, succeed DOES discard
+the finished test's entities); only the sequences claim stands.
+
+No-change verdicts (all jar-verified): `GameTestHelper` has NO Rust
+mirror (the Rust runs block-based tests and data-defined function tests,
+not Java test functions), so its 26.1-only helpers (`despawnItem`,
+`discard`, `placeBlock` x2 + `TestBlockPlaceContext`, the `moveTo`
+overload, `assertBlockPresent(Block)`, `setTime`, `runBeforeTestEnd`,
+`getBoundsWithPadding`, `getItemName`), the `setBiome` bounds difference
+(padded in 26.1, plain in 1.21.11) and the item-name error-string
+difference (ITEM_NAME component vs `item.getName()`) need no change;
+`GameTestSequence` is not ported (`thenWaitAtLeast` 26.1-only);
+`GameTestServer` has no Rust mirror (no gametest-server binary;
+`repeatCount`/`multiplyTest` 26.1-only); `StructureGridSpawner`,
+`MultipleTestTracker`, `TestCommand` identical except the accessor
+rename; the runner's builder/batcher/spawners identical; `GameTestInfo`
+otherwise identical (startExecution tick math, placeStructure,
+tickInternal, succeed's entity discard); `BlockBasedTestInstance` /
+`GameTestInstance` identical except generics. `Weather.Type` parameters
+identical. Method-name diff run explicitly from the javap output: the
+only 1.21.11-only method in the 25 classes is `SetGameRules.resetRule`;
+no 1.21.11-only classes (the report's classes are 26.1-keyed;
+`TimeOfDay` came from the decompile).
+Pre-existing, out of scope: the Rust recomputes `test_chunks_loaded`
+every tick where vanilla latches `chunksLoaded` (both versions);
+with no structure box the Rust treats chunks as loaded where vanilla
+1.21.11 would NPE (graceful handling stands — mirroring a crash is
+wrong); the 26.x WorldClock system (clock commands, chat markers) is
+other items' scope — only the test-environment `clock_time` TYPE goes
+away here.
+Tests: `definitions_parse_with_references_and_nesting` and
+`unknown_or_invalid_definitions_do_not_parse` updated (`time_of_day`
+replaces `clock_time`; `clock_time`/`timeline_attributes` rejected,
+`time > i32::MAX` rejected); new `#[ignore]`d
+`teardown_resets_rules_and_weather_and_leaves_the_time` pins the 1.21.11
+teardown semantics (rules reset to default, weather only resets the
+cycle, time stays changed, difficulty resets to normal — needs prepared
+resources in `HORIZON_TEST_RESOURCES`, runs with `-- --ignored` where
+they exist). All 3 runnable environment tests pass, all 10 game_tests
+unit tests pass. Verification note for later items: the game tests live
+in the LIB test target (`cargo test -p horizon-client --lib
+--no-default-features`), NOT the bin target — `cargo test -p
+horizon-client --bin horizon-client` runs 0 tests, and `cargo check
+--bin --tests` never compiles the `#[cfg(test)]` modules, so it cannot
+validate test code. `cargo check -p horizon-client --lib --tests
+--no-default-features` 0 warnings (the --no-default-features lib check
+fits; only the full-feature one OOMs).
+Rank 2 now 215/492 (50 changed, 165 no-change).
+work-items.json rank2.closed = 215 on 2026-11-20.

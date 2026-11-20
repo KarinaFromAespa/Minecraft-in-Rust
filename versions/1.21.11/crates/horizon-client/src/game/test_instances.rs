@@ -547,11 +547,11 @@ impl Game<'_> {
         };
         let origin = [pos.0, pos.1, pos.2];
         // `forceLoadChunks`, then `StructureUtils.clearSpaceForStructure(
-        // getTestBoundingBox())`.
+        // getStructureBoundingBox())`.
         if let Some(inner) = self.test_structure_box(pos) {
             self.force_load_test_chunks(&inner);
             self.clear_test_space(&inner);
-            // removeEntities: `getTestBounds()`, the structure's box.
+            // removeEntities: `getStructureBounds()`, the structure's box.
             self.discard_entities_in(aabb_of(&inner));
         }
         let corner = block.start_corner(origin, rotation);
