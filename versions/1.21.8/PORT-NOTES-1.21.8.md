@@ -334,7 +334,39 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 102/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119 + 4 zero-diff)
+### Rank 2: 103/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120 + 4 zero-diff)
+
+- **Item 120 — `crates/horizon-world/src/worldgen/structure/start.rs`
+  (2 classes, 9 methods, 2 named in Horizon),
+  citations only:** Beardifier, BiomeSource. 1.21.9
+  added the Beardifier affected-box cull (union of
+  piece/junction boxes inflated by 24, EMPTY when
+  there is none); 1.21.8 iterates the pieces and
+  junctions outright. The cull is exact for vanilla
+  worldgen, so the Rust keeps the 1.21.9 form: the
+  kernels reach 12 blocks past a piece or junction
+  (`getBeardContribution` is 0 unless each offset +
+  12 is in [0, 24); `getBuryContribution`'s radius is
+  6 in scaled space, so |d| <= 12) and the box is
+  inflated by 24. The only escape is the
+  ground-level-delta-shifted y-support, needing
+  |delta| > 12 — and no vanilla template pool in
+  either jar sets `ground_level_delta` at all (all
+  188 pools take the codec default 1). The empty case
+  is identical (1.21.8 sums to 0.0 over empty
+  iterators; the Rust returns `None`, which
+  generator.rs treats as no Beardifier field). The
+  kernel math is unchanged between the versions and
+  the Rust matches it. `findBiomeHorizontal` differs
+  only in 1.21.9's extra check of the debug-only
+  `DEBUG_ONLY_GENERATE_HALF_THE_WORLD` flag (false in
+  every released build); the Rust models neither
+  debug constant, and both call sites match vanilla's
+  normal scan order (the stronghold search's
+  non-closest single pass, the avoid-biomes closest
+  ring expansion). Docs reworded in
+  `density/beardifier.rs` and `start.rs` to record
+  the cull as exact for 1.21.8.
 
 - **Item 119 — `crates/horizon-server-files/src/user_lists.rs`
   (1 class, 9 methods, 2 named in Horizon),

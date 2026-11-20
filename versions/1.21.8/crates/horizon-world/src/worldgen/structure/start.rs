@@ -1585,6 +1585,10 @@ pub fn beardifier(
             }
         }
     }
+    // 1.21.8 has no affected box (its Beardifier iterates the pieces and
+    // junctions outright); the box is 1.21.9's cull, kept because it is
+    // exact — the kernels reach 12 blocks past a piece or junction, and
+    // the box is inflated by 24.
     // The libraries' kernels reach as far as their radius, beyond vanilla's.
     let mut affected = any.map(|a| a.inflated(24, 24));
     if let Some(k) = kernels {
