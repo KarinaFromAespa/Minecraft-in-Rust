@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 12/163 (327–331 + 7 zero-diff: 356, 372, 382–385, 396)
+### Rank 3: 16/163 (327–335 + 10 zero-diff: 332, 333, 335, 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7401,6 +7401,27 @@ includes constant-pool churn.
   source to settle, and the end-of-text `_` is absent against both
   versions; `renderContents` is not a named method here. Cargo check
   0/0.
+- **Item 334 — `crates/horizon-client/src/multiplayer.rs`
+  (ServerSelectionList$OnlineServerEntry, DirectJoinServerScreen,
+  3 named methods), the server screens to the 1.21.8 forms:** the
+  ManageServerScreen keys are gone — 1.21.8's EditServerScreen uses
+  `addServer.title` (one title, "Edit Server Info", for add and edit),
+  `addServer.enterName` and `addServer.enterIp` (also on the
+  direct-join screen); the manageServer.* keys do not exist in
+  1.21.8's lang (jar-verified). The LAN entry's address line is dark
+  grey (-13619152) in 1.21.8, not grey (-8355712). Zero-diff: Enter
+  joins the selected server in both versions (at the screen level in
+  1.21.8's JoinMultiplayerScreen.keyPressed — javap-verified — versus
+  the entry in 1.21.9), the icon/arrow clicks, the double-click join,
+  Shift+arrows swap, DirectJoin's Enter (257/335 is `isConfirmation`),
+  and the saved-server row rendering. Items 332 (addSkyPass's skip
+  conditions are identical; the End flash is item 461's), 333 (the
+  sunrise fan follows the 1.21.8 vertex form; the dark-disc condition
+  is identical, moved class in the refactor) and 335 (the five common
+  handlers' bodies are identical; `seenPlayers`/`seenInsecureChatWarning`
+  and the disconnect-screen fallback have no Rust surface; the
+  CustomClickAction packet exists in 1.21.8) are zero-diff. Cargo
+  check 0/0.
 
 ### Rank 4 content: closed 2/2 (chain)
 

@@ -13,7 +13,7 @@
   },
   "rank3": {
     "accepted": [],
-    "closed": 12,
+    "closed": 16,
     "total": 163
   },
   "rank3plus": "Inherits the 1.21.9 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them.",

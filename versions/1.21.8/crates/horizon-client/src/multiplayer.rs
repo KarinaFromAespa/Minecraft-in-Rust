@@ -943,13 +943,11 @@ impl Screen {
             Self::List { .. } => {
                 ScreenInfo::new("multiplayer", get("multiplayer.title", "Play Multiplayer"))
             }
-            Self::Edit { index, .. } => ScreenInfo::new(
+            Self::Edit { .. } => ScreenInfo::new(
                 "multiplayer/edit",
-                if index.is_some() {
-                    get("manageServer.edit.title", "Edit Server Info")
-                } else {
-                    get("manageServer.add.title", "Add Server")
-                },
+                // 1.21.8's EditServerScreen has one title for add and edit
+                // (`addServer.title`); the manageServer.* split came in 1.21.9.
+                get("addServer.title", "Edit Server Info"),
             ),
             Self::Direct { .. } => ScreenInfo::new(
                 "multiplayer/direct",
@@ -1317,7 +1315,16 @@ impl Screen {
                             } else {
                                 &game.address
                             };
-                            batch.text(atlas, address, cx + 35.0, cy + 23.0, gray, false);
+                            // NetworkServerEntry: the address line is dark grey
+                            // (-13619152) in 1.21.8, grey (-8355712) in 1.21.9.
+                            batch.text(
+                                atlas,
+                                address,
+                                cx + 35.0,
+                                cy + 23.0,
+                                rgba(48, 48, 48, 255),
+                                false,
+                            );
                         }
                     }
                 }
@@ -1334,7 +1341,6 @@ impl Screen {
                 );
             }
             Self::Edit {
-                index,
                 name,
                 address,
                 focus,
@@ -1342,21 +1348,18 @@ impl Screen {
             } => {
                 centered(
                     batch,
-                    &if index.is_some() {
-                        crate::lang::get_or("manageServer.edit.title", "Edit Server Info")
-                    } else {
-                        crate::lang::get_or("manageServer.add.title", "Add Server")
-                    },
+                    // 1.21.8's EditServerScreen has one title for add and edit.
+                    &crate::lang::get_or("addServer.title", "Edit Server Info"),
                     17.0,
                     u32::MAX,
                 );
-                // ManageServerScreen: labels at 53 and 94, boxes at 66 and 106.
+                // EditServerScreen: labels at 53 and 94, boxes at 66 and 106.
                 Self::field(
                     atlas,
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterName", "Server Name"),
+                    &crate::lang::get_or("addServer.enterName", "Server Name"),
                     name,
                     SERVER_NAME,
                     max,
@@ -1368,7 +1371,7 @@ impl Screen {
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterIp", "Server Address"),
+                    &crate::lang::get_or("addServer.enterIp", "Server Address"),
                     address,
                     SERVER_ADDRESS,
                     max,
@@ -1390,7 +1393,9 @@ impl Screen {
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterIp", "Server Address"),
+                    // DirectJoinServerScreen: `addServer.enterIp` in 1.21.8
+                    // (`manageServer.enterIp` came in 1.21.9).
+                    &crate::lang::get_or("addServer.enterIp", "Server Address"),
                     address,
                     SERVER_DIRECT,
                     max,
