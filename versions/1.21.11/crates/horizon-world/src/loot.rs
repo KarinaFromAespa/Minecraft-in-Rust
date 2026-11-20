@@ -1628,8 +1628,9 @@ impl<R: RandomSource> Context<'_, R> {
             "minecraft:set_ominous_bottle_amplifier" => {
                 stack.ominous_amplifier = Some(self.int(&f["amplifier"]));
             }
-            // SetInstrumentFunction: `options.getRandomElement(random)` becomes the item's
-            // `instrument` component (a goat horn's tune).
+            // SetInstrumentFunction: the registry's random member of the
+            // `options` tag (`Registry.getRandomElementOf`) becomes the
+            // item's `instrument` component (a goat horn's tune).
             "minecraft:set_instrument" => {
                 let options = data.holder_set("instrument", &f["options"]);
                 if !options.is_empty() {
@@ -2593,6 +2594,55 @@ mod namespace_tests {
         assert_eq!(
             seen.into_iter().collect::<Vec<_>>(),
             ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn"]
+        );
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    /// `SetInstrumentFunction` in its 1.21.11 form: `options` is a tag, not
+    /// a list (`TagKey`, resolved at run time) — the pillager outpost's
+    /// `"#minecraft:regular_goat_horns"`.
+    #[test]
+    fn set_instrument_picks_from_its_tag() {
+        let root =
+            std::env::temp_dir().join(format!("horizon-loot-horn-tag-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let table = r##"{"pools": [{"rolls": 1, "entries": [{"type": "minecraft:item", "name": "minecraft:goat_horn",
+            "modifier": [{"type": "minecraft:set_instrument", "options": "#minecraft:regular_goat_horns"}]}]}]}"##;
+        let tag = r#"{"values": ["minecraft:ponder_goat_horn", "minecraft:sing_goat_horn", "minecraft:seek_goat_horn", "minecraft:feel_goat_horn"]}"#;
+        let files = [
+            ("items.json", r#"{"minecraft:goat_horn": {}}"#),
+            ("data/minecraft/loot_table/chests/horn.json", table),
+            (
+                "data/minecraft/tags/instrument/regular_goat_horns.json",
+                tag,
+            ),
+        ];
+        for (name, text) in files {
+            let path = root.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, text).unwrap();
+        }
+        let data = LootData::load(&root, &PackOverlay::NONE).unwrap();
+        let mut seen = std::collections::BTreeSet::new();
+        for seed in (0..80).map(|n| n * 7_919) {
+            let filled = data.fill("minecraft:chests/horn", seed, 27, None);
+            let horn = filled.iter().flatten().next().expect("a horn");
+            let instrument: Vec<_> = horn
+                .components
+                .iter()
+                .filter(|(k, _)| k == "minecraft:instrument")
+                .collect();
+            assert_eq!(instrument.len(), 1, "{:?}", horn.components);
+            seen.insert(instrument[0].1.as_str().unwrap().to_owned());
+        }
+        assert_eq!(
+            seen.into_iter().collect::<Vec<_>>(),
+            [
+                "minecraft:feel_goat_horn",
+                "minecraft:ponder_goat_horn",
+                "minecraft:seek_goat_horn",
+                "minecraft:sing_goat_horn",
+            ]
         );
         let _ = fs::remove_dir_all(&root);
     }

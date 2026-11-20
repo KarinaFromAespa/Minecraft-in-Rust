@@ -6413,3 +6413,74 @@ in the module); adjacent `mobs::breeze::` 7 passed,
 `mobs::creaking::` 5 passed. rustfmt --check clean on
 monster_brain.rs. Rank 2 now 261/492 (82 changed, 179
 no-change). work-items.json rank2.closed = 261 on 2026-11-20.
+
+## Item 83 — loot.rs (rank 2, CHANGED)
+
+15 classes, 67 methods, 1 named: EntityPredicate,
+LootPoolEntryContainer (+$Builder), SetBannerPatternFunction
+(+$Builder), SetBookCoverFunction, SetCustomDataFunction,
+SetCustomModelDataFunction, SetInstrumentFunction,
+SetLoreFunction (+$Builder), SetWrittenBookPagesFunction,
+ToggleTooltips, TimeCheck (+$Builder). The literal comparison
+finds one string delta — TimeCheck's `"clock"` (the removed
+codec field) — and no real numeric delta.
+
+Java delta, jar-verified: (1) TimeCheck loses the 26.x
+WorldClock: 26.1's record is `(Holder<WorldClock> clock,
+period, value)` and `test` reads
+`level.clockManager().getTotalTicks(clock)`; 1.21.11's is
+`(period, value)` and `test` reads `level.getDayTime()`, then
+`% period` and `value.test(ctx, (int) t)`. (2)
+SetInstrumentFunction: 26.1's `options` is a
+`HolderSet<Instrument>` (`RegistryCodecs.homogeneousList` —
+tag or explicit list) picked with
+`options.getRandomElement(random)`; 1.21.11's is a
+`TagKey<Instrument>` (`TagKey.hashedCodec`) picked with
+`registry.getRandomElementOf(options, random)`. The only
+vanilla 1.21.11 table using it is chests/pillager_outpost.json:
+`"options": "#minecraft:regular_goat_horns"`. (3) API shape
+only: `MAP_CODEC` -> `CODEC` + `codec()` -> `getType()` on all
+ten function/condition/entry classes (all `run()` bodies
+identical); LootPoolEntryContainer drops `Validatable` (its
+`validate` inlines the per-condition loop);
+SetCustomModelDataFunction and TimeCheck swap `validate` for
+`getReferencedContextParams`; SetLoreFunction swaps
+`DataFixUtils.orElse` for `orElseGet`; EntityPredicate swaps
+`Entity.typeHolder()` for `Entity.getType()`. The two $Builder
+classes have zero javap hunks (report noise).
+
+Verified matching, no edits: the Rust's `set_instrument`
+already handles the 1.21.11 tag form — `holder_set` resolves
+`"#tag"` via `tag()` (nested tags expanded in place, tag order,
+duplicates dropped), and `LootData::load` loads `instrument`
+tags; the pick is `next_int_bound(len)`, matching
+`getRandomElementOf`. All eight function arms exist in `run()`.
+`entity_matches` matches the type by id string (or `#tag`/list).
+loot.rs has no codec/validate mirrors, so the rename delta
+needs no change. No vanilla 1.21.11 table uses `time_check`
+or `weather_check` (grep over the client.jar data pack).
+
+Fixes: the `set_instrument` comment now cites
+`Registry.getRandomElementOf` (the 1.21.11 form), and a new
+test `set_instrument_picks_from_its_tag` pins the 1.21.11 JSON
+form (tag file with the vanilla four; 80 seeds see all four).
+The existing list-form test is kept (the Rust's `holder_set`
+stays lenient). This discharges item 29's gap note for the
+loot path: in 1.21.11 there is no EitherHolder here — the
+options are always a tag.
+
+Version-neutral gap: `minecraft:time_check` (and
+`weather_check`) has NO arm in either loot engine — unknown
+conditions fail, so a data pack using `time_check` would
+silently get no drops. Unobservable in vanilla data; adding it
+needs day-time plumbing into `Context`/`roll`/`fill` (the
+`NativeLootLevel` already carries `day_time` for mods' kinds).
+Item 50's carry-forward stands (five missing block-only kinds,
+`bonus_rolls`, `choose` zero-weight).
+
+Verification: `cargo test -p horizon-world --lib
+--no-default-features loot::` 34 passed; `set_instrument` 2
+passed (list + tag forms). rustfmt --check clean on loot.rs
+(module root — declares `mod odds` — check only). Rank 2 now
+262/492 (83 changed, 179 no-change). work-items.json
+rank2.closed = 262 on 2026-11-20.
