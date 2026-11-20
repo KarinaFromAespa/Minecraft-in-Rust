@@ -813,7 +813,15 @@ impl Game<'_> {
             id: uuid,
             name: name.to_owned(),
         };
-        let removed = lists.lock().unwrap().white.remove(&user);
+        let removed = {
+            let mut l = lists.lock().unwrap();
+            if l.white.contains(&user) {
+                l.white.remove(&user);
+                true
+            } else {
+                false
+            }
+        };
         if removed {
             self.kick_unlisted_players(&lists);
         }

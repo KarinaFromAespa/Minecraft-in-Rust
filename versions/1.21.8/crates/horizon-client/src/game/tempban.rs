@@ -425,15 +425,17 @@ mod tests {
         assert!(add_ban(&mut bans, user(1, "A"), "Op", now, 3_600_000, None).is_some());
         assert!(add_ban(&mut bans, user(1, "A"), "Op", now, 60_000, None).is_none());
         // Permanent ban: not replaced by a shorter one.
-        assert!(bans.add(BanEntry::new(user(2, "B"), Some("Op".into()), None, None)));
+        bans.add(BanEntry::new(user(2, "B"), Some("Op".into()), None, None));
+        assert!(bans.contains(&user(2, "B")));
         assert!(add_ban(&mut bans, user(2, "B"), "Op", now, 60_000, None).is_none());
         // An ended ban is dropped when asked about, so a new one can be made.
-        assert!(bans.add(BanEntry::new(
+        bans.add(BanEntry::new(
             user(3, "C"),
             Some("Op".into()),
             Some(now - 1),
-            None
-        )));
+            None,
+        ));
+        assert!(bans.contains(&user(3, "C")));
         assert!(add_ban(&mut bans, user(3, "C"), "Op", now, 60_000, None).is_some());
     }
     #[test]
@@ -453,7 +455,8 @@ mod tests {
         let read = after.get(&user(9, "Dee")).unwrap();
         assert_eq!(read.expires, Some(end / 1000 * 1000));
         // `/pardon` is `remove`, as for any ban.
-        assert!(after.remove(&user(9, "Dee")));
+        assert!(after.contains(&user(9, "Dee")));
+        after.remove(&user(9, "Dee"));
         assert!(after.get(&user(9, "Dee")).is_none());
         let _ = std::fs::remove_file(&bans.file);
     }

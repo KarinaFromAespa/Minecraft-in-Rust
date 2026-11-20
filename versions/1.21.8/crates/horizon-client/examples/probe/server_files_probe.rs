@@ -164,21 +164,47 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
                     reason: (reason != "-").then(|| reason.to_owned()),
                 }
             }
+            // 1.21.8's add/remove are void, so the probe reports the state
+            // after the action: on the list for an add, off it for a remove.
             let r = match a[0] {
-                "op" => ops.add(OpEntry {
-                    user: user(a[1], a[2]),
-                    level: a[3].parse::<i32>()?.clamp(0, 4),
-                    bypasses_player_limit: a[4].eq_ignore_ascii_case("true"),
-                }),
-                "deop" => ops.remove(&user(a[1], a[2])),
-                "white" => white.add(WhiteEntry {
-                    user: user(a[1], a[2]),
-                }),
-                "unwhite" => white.remove(&user(a[1], a[2])),
-                "ban" => bans.add(ban(user(a[1], a[2]), a[3], a[4], a[5], a[6])),
-                "pardon" => bans.remove(&user(a[1], a[2])),
-                "banip" => ips.add(ban(a[1].to_owned(), a[2], a[3], a[4], a[5])),
-                "pardonip" => ips.remove(&a[1].to_owned()),
+                "op" => {
+                    ops.add(OpEntry {
+                        user: user(a[1], a[2]),
+                        level: a[3].parse::<i32>()?.clamp(0, 4),
+                        bypasses_player_limit: a[4].eq_ignore_ascii_case("true"),
+                    });
+                    ops.contains(&user(a[1], a[2]))
+                }
+                "deop" => {
+                    ops.remove(&user(a[1], a[2]));
+                    !ops.contains(&user(a[1], a[2]))
+                }
+                "white" => {
+                    white.add(WhiteEntry {
+                        user: user(a[1], a[2]),
+                    });
+                    white.contains(&user(a[1], a[2]))
+                }
+                "unwhite" => {
+                    white.remove(&user(a[1], a[2]));
+                    !white.contains(&user(a[1], a[2]))
+                }
+                "ban" => {
+                    bans.add(ban(user(a[1], a[2]), a[3], a[4], a[5], a[6]));
+                    bans.contains(&user(a[1], a[2]))
+                }
+                "pardon" => {
+                    bans.remove(&user(a[1], a[2]));
+                    !bans.contains(&user(a[1], a[2]))
+                }
+                "banip" => {
+                    ips.add(ban(a[1].to_owned(), a[2], a[3], a[4], a[5]));
+                    ips.contains(&a[1].to_owned())
+                }
+                "pardonip" => {
+                    ips.remove(&a[1].to_owned());
+                    !ips.contains(&a[1].to_owned())
+                }
                 "isbanned" => bans.contains(&user(a[1], a[2])),
                 "isop" => ops.get(&user(a[1], a[2])).is_some(),
                 other => return Err(format!("unknown action {other}").into()),

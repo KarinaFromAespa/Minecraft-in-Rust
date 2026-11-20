@@ -146,12 +146,16 @@ impl Game<'_> {
                     let added = {
                         let mut l = lists.lock().unwrap();
                         let level = l.op_level;
-                        !l.ops.contains(player)
-                            && l.ops.add(OpEntry {
+                        if l.ops.contains(player) {
+                            false
+                        } else {
+                            l.ops.add(OpEntry {
                                 user: player.clone(),
                                 level,
                                 bypasses_player_limit: false,
-                            })
+                            });
+                            true
+                        }
                     };
                     if added {
                         self.sync_ops(&lists);
@@ -168,7 +172,12 @@ impl Game<'_> {
                 for player in &players {
                     let removed = {
                         let mut l = lists.lock().unwrap();
-                        l.ops.contains(player) && l.ops.remove(player)
+                        if l.ops.contains(player) {
+                            l.ops.remove(player);
+                            true
+                        } else {
+                            false
+                        }
                     };
                     if removed {
                         self.sync_ops(&lists);
@@ -228,7 +237,12 @@ impl Game<'_> {
                 for player in &players {
                     let removed = {
                         let mut l = lists.lock().unwrap();
-                        l.bans.contains(player) && l.bans.remove(player)
+                        if l.bans.contains(player) {
+                            l.bans.remove(player);
+                            true
+                        } else {
+                            false
+                        }
                     };
                     if removed {
                         count += 1;
@@ -262,7 +276,12 @@ impl Game<'_> {
             }
             let removed = {
                 let mut l = lists.lock().unwrap();
-                l.ip_bans.get(&target).is_some() && l.ip_bans.remove(&target)
+                if l.ip_bans.get(&target).is_some() {
+                    l.ip_bans.remove(&target);
+                    true
+                } else {
+                    false
+                }
             };
             if !removed {
                 return Err(err("commands.pardonip.failed", &[]));
@@ -516,12 +535,19 @@ impl Game<'_> {
                     let done = {
                         let mut l = lists.lock().unwrap();
                         if add {
-                            !l.white.contains(target)
-                                && l.white.add(WhiteEntry {
+                            if l.white.contains(target) {
+                                false
+                            } else {
+                                l.white.add(WhiteEntry {
                                     user: target.clone(),
-                                })
+                                });
+                                true
+                            }
+                        } else if l.white.contains(target) {
+                            l.white.remove(target);
+                            true
                         } else {
-                            l.white.contains(target) && l.white.remove(target)
+                            false
                         }
                     };
                     if done {

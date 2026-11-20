@@ -131,9 +131,11 @@ pub trait Entry: Clone {
     fn expired(&self, _now: i64) -> bool {
         false
     }
-    /// `infos.equals(previous)` in StoredUserList.add: only ban entries
-    /// override equals; the others compare by identity, so a new entry is
-    /// never equal to the stored one.
+    /// Whether this entry equals the stored one: the watcher is told of
+    /// an `add` only when the entry is new or different (1.21.9's `add`
+    /// itself returned false for an equal entry; 1.21.8's always saves).
+    /// Only ban entries override equals; the others compare by identity,
+    /// so a new entry is never equal to the stored one.
     fn same(&self, _other: &Self) -> bool {
         false
     }
@@ -384,30 +386,36 @@ impl<E: Entry> UserList<E> {
         }
         self.map.get(&JKey(E::key(user)))
     }
-    /// Returns false when an equal entry is already there; saves otherwise.
-    pub fn add(&mut self, entry: E) -> bool {
+    /// StoredUserList.add: the entry goes in and the list saves, always
+    /// (1.21.9 returned false for an equal entry and skipped the save).
+    /// The watcher is told only when the entry is new or different.
+    pub fn add(&mut self, entry: E) {
         let key = JKey(E::key(entry.user()));
-        if self.map.get(&key).is_some_and(|old| entry.same(old)) {
-            return false;
-        }
+        let changed = !self.map.get(&key).is_some_and(|old| entry.same(old));
         self.map.put(key, entry.clone());
         if let Err(e) = self.save() {
             log::warn!("Could not save the list after adding a user. {e}");
         }
-        self.told(Change::Added(entry));
-        true
+        if changed {
+            self.told(Change::Added(entry));
+        }
     }
-    pub fn remove(&mut self, user: &E::User) -> bool {
-        let Some(entry) = self.map.remove(&JKey(E::key(user))) else {
-            return false;
-        };
+    /// StoredUserList.remove: the entry goes out and the list saves, always
+    /// (1.21.9 returned false when absent and skipped the save). The
+    /// watcher is told only when an entry was there.
+    pub fn remove(&mut self, user: &E::User) {
+        let removed = self.map.remove(&JKey(E::key(user)));
         if let Err(e) = self.save() {
             log::warn!("Could not save the list after removing a user. {e}");
         }
-        self.told(Change::Removed(entry));
-        true
+        if let Some(entry) = removed {
+            self.told(Change::Removed(entry));
+        }
     }
-    /// StoredUserList.clear: no entry left; saves.
+    /// No 1.21.8 counterpart: StoredUserList has no clear, and neither do
+    /// the lists. A Rust-side helper for the management API's list-clear
+    /// endpoints (item 370 owns that server): no entry left; saves; the
+    /// watcher is told once per entry, as 1.21.9's subclass overrides did.
     pub fn clear(&mut self) {
         let entries: Vec<E> = self.map.entries().map(|(_, e)| e.clone()).collect();
         for entry in entries {
@@ -527,11 +535,13 @@ mod tests {
             level,
             bypasses_player_limit: false,
         };
-        assert!(ops.add(op("Kim", 4)));
-        assert!(ops.add(op("Lee", 2)));
+        ops.add(op("Kim", 4));
+        ops.add(op("Lee", 2));
         // A removal that finds nothing says nothing; one that finds an entry says which.
-        assert!(!ops.remove(&NameAndId::offline("Nobody")));
-        assert!(ops.remove(&NameAndId::offline("Kim")));
+        assert!(!ops.contains(&NameAndId::offline("Nobody")));
+        ops.remove(&NameAndId::offline("Nobody"));
+        assert!(ops.contains(&NameAndId::offline("Kim")));
+        ops.remove(&NameAndId::offline("Kim"));
         // A clear says it for each entry that is left, and the list is empty after.
         ops.clear();
         assert!(ops.is_empty());
@@ -544,14 +554,16 @@ mod tests {
                 Change::Removed(op("Lee", 2)),
             ]
         );
-        // A ban equal to the stored one is not added again, so nothing is said.
+        // A ban equal to the stored one saves again (1.21.8's add is
+        // unconditional) but nothing is said.
         let mut bans = BanList::new(dir.join("banned-players.json"));
         let said = Arc::new(Mutex::new(0));
         let counter = said.clone();
         bans.watch(move |_| *counter.lock().unwrap() += 1);
         let ban = BanEntry::new(NameAndId::offline("Kim"), None, None, None);
-        assert!(bans.add(ban.clone()));
-        assert!(!bans.add(ban));
+        bans.add(ban.clone());
+        bans.add(ban);
+        assert!(bans.contains(&NameAndId::offline("Kim")));
         assert_eq!(*said.lock().unwrap(), 1);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -561,9 +573,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("horizon-lists-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut white = WhiteList::new(dir.join("whitelist.json"));
-        assert!(white.add(WhiteEntry {
-            user: NameAndId::offline("Kim")
-        }));
+        white.add(WhiteEntry {
+            user: NameAndId::offline("Kim"),
+        });
+        assert!(white.contains(&NameAndId::offline("Kim")));
         white.clear();
         assert!(white.is_empty());
         assert_eq!(

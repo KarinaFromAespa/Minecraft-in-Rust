@@ -1838,10 +1838,14 @@ impl Game<'_> {
                                 user: user.clone(),
                                 level,
                                 bypasses_player_limit: false,
-                            })
+                            });
+                            true
                         }
+                    } else if l.ops.contains(&user) {
+                        l.ops.remove(&user);
+                        true
                     } else {
-                        l.ops.remove(&user)
+                        false
                     }
                 };
                 let key = match (command, changed) {
@@ -1892,12 +1896,22 @@ impl Game<'_> {
                     return;
                 };
                 let reason = (rest.len() > 1).then(|| rest[1..].join(" "));
-                let added = state.lists.lock().unwrap().bans.add(BanEntry::new(
-                    user.clone(),
-                    Some("Server".into()),
-                    None,
-                    reason.clone(),
-                ));
+                // BanPlayerCommands: an already-banned player fails, whatever
+                // the reason (1.21.9's add returned true for a new reason).
+                let added = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.bans.contains(&user) {
+                        false
+                    } else {
+                        lists.bans.add(BanEntry::new(
+                            user.clone(),
+                            Some("Server".into()),
+                            None,
+                            reason.clone(),
+                        ));
+                        true
+                    }
+                };
                 if added {
                     self.console_reply(Text::translate(
                         "commands.ban.success",
@@ -1929,12 +1943,21 @@ impl Game<'_> {
                     return;
                 };
                 let reason = (rest.len() > 1).then(|| rest[1..].join(" "));
-                let added = state.lists.lock().unwrap().ip_bans.add(BanEntry::new(
-                    ip.clone(),
-                    Some("Server".into()),
-                    None,
-                    reason.clone(),
-                ));
+                // BanIpCommands: an already-banned address fails.
+                let added = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.ip_bans.contains(&ip) {
+                        false
+                    } else {
+                        lists.ip_bans.add(BanEntry::new(
+                            ip.clone(),
+                            Some("Server".into()),
+                            None,
+                            reason.clone(),
+                        ));
+                        true
+                    }
+                };
                 if !added {
                     self.console_reply(Text::translate("commands.banip.failed", &[]));
                     return;
@@ -1970,7 +1993,15 @@ impl Game<'_> {
                 let Some(user) = self.resolve(rest[0]) else {
                     return;
                 };
-                let removed = state.lists.lock().unwrap().bans.remove(&user);
+                let removed = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.bans.contains(&user) {
+                        lists.bans.remove(&user);
+                        true
+                    } else {
+                        false
+                    }
+                };
                 let key = if removed {
                     "commands.pardon.success"
                 } else {
@@ -1984,7 +2015,15 @@ impl Game<'_> {
                     self.console_reply(Text::translate("commands.pardonip.invalid", &[]));
                     return;
                 }
-                let removed = state.lists.lock().unwrap().ip_bans.remove(&ip);
+                let removed = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.ip_bans.contains(&ip) {
+                        lists.ip_bans.remove(&ip);
+                        true
+                    } else {
+                        false
+                    }
+                };
                 let key = if removed {
                     "commands.pardonip.success"
                 } else {
@@ -2154,7 +2193,8 @@ impl Game<'_> {
                         l.white.add(WhiteEntry { user: user.clone() });
                         (true, "commands.whitelist.add.success")
                     }
-                } else if l.white.remove(&user) {
+                } else if l.white.contains(&user) {
+                    l.white.remove(&user);
                     (true, "commands.whitelist.remove.success")
                 } else {
                     (false, "commands.whitelist.remove.failed")
@@ -2749,7 +2789,8 @@ mod tests {
         assert!(lists.can_login(address, &dee).is_none());
         assert!(!lists.bans.contains(&dee));
         // `/pardon` lifts the hour's ban.
-        assert!(lists.bans.remove(&steve));
+        assert!(lists.bans.contains(&steve));
+        lists.bans.remove(&steve);
         assert!(lists.can_login(address, &steve).is_none());
         fs::remove_dir_all(dir).unwrap();
     }
