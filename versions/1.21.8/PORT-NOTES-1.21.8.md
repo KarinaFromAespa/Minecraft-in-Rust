@@ -334,7 +334,44 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 101/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118 + 4 zero-diff)
+### Rank 2: 102/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119 + 4 zero-diff)
+
+- **Item 119 — `crates/horizon-server-files/src/user_lists.rs`
+  (1 class, 9 methods, 2 named in Horizon),
+  real fix:** StoredUserList. 1.21.8's `add`/`remove`
+  are void and unconditional (put + save, always);
+  1.21.9 returned false for an equal entry / an absent
+  user and skipped the save. `UserList::add`/`remove`
+  are now void, unconditional put/remove + save; the
+  watcher is told only when the entry is new or
+  different (add) or was present (remove). Every
+  caller that branched on the bool now pre-checks with
+  `contains`, as vanilla 1.21.8's commands do
+  (BanPlayerCommands, PardonCommand, OpCommand,
+  DeOpCommands, BanIpCommands, PardonIpCommand all
+  check `isBanned`/`isOp` first): the in-game
+  op/deop/pardon/pardon-ip/whitelist paths in
+  `game/commands/profiles.rs`, the console paths in
+  `game/dedicated.rs`, horizon-server's list CLI in
+  `horizon-server/src/lists.rs` (six sites), and
+  `native_whitelist_remove`. A re-ban with a different
+  reason now FAILS (it succeeded under the 1.21.9
+  bool, replacing the entry) — matching 1.21.8.
+  `clear()` has no 1.21.8 counterpart (the only
+  `map.clear()` in 1.21.8 is inside `load()`); it
+  stays as a Rust-side helper for the management API's
+  list-clear endpoints. The server-files probe now
+  reports the post-action state for add/remove.
+  Harness debt: `VanillaServerFilesOracle` still calls
+  the 1.21.9 boolean add/remove and the 26.3-only
+  `PermissionLevel`/`LevelBasedPermissionSet` APIs
+  (neither class exists in the 1.21.8 or 1.21.9 named
+  jars) — it does not compile against the 1.21.8 jars;
+  server_files is not among the 17 port-verify
+  harnesses, so the oracle port is a separate harness
+  job. Check 0/0 at -j 1 (log
+  cargo-check-1.21.8-item119b.log; the first run
+  found the six lists.rs sites the grep had missed).
 
 - **Item 118 — `crates/horizon-client/src/mobs/villager.rs`
   (1 class, 9 methods, 2 named in Horizon),
