@@ -1,4 +1,4 @@
-//! usercache.json (CachedUserNameToIdResolver): the players the server has
+//! usercache.json (GameProfileCache): the players the server has
 //! seen join or has looked up by name, so commands find a player by name
 //! without asking the profile service again. Each entry expires a month after
 //! it was added; the file keeps the 1000 most recently used.

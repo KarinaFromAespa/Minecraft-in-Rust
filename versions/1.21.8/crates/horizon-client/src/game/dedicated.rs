@@ -156,7 +156,7 @@ struct Setup {
     started: Instant,
 }
 static SETUP: OnceLock<Mutex<Option<Setup>>> = OnceLock::new();
-/// usercache.json (Services.nameToIdCache): used by the server thread only.
+/// usercache.json (`GameProfileCache`, `server.getProfileCache()`): used by the server thread only.
 static USER_CACHE: Mutex<Option<UserCache>> = Mutex::new(None);
 
 /// PlayerList.placeNewPlayer: a player who joined is cached (and the file saved).
@@ -1601,7 +1601,7 @@ impl Game<'_> {
         found
     }
 
-    /// `Services.nameToIdCache().get(name)`: the user cache, else the profile
+    /// `GameProfileCache.get(name)`: the user cache, else the profile
     /// service, else (offline) the offline player.
     pub(super) fn resolve_name(&self, name: &str) -> Option<NameAndId> {
         USER_CACHE.lock().unwrap().as_mut().and_then(|cache| {

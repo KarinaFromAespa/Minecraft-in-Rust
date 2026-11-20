@@ -1,5 +1,5 @@
 //! Finding a player's account by name, as an online-mode server does for the
-//! names given to `op`, `whitelist` and `ban` (CachedUserNameToIdResolver,
+//! names given to `op`, `whitelist` and `ban` (GameProfileCache,
 //! MinecraftServicesProfileRepository.findProfileByName): the services'
 //! `profiles` / `getByName` endpoint, found through the discovery document.
 use crate::{
@@ -27,7 +27,7 @@ pub fn valid_player_name(name: &str) -> bool {
     name.encode_utf16().count() <= 16 && name.encode_utf16().all(|c| c > 32 && c < 127)
 }
 
-/// How a server resolves a name it was given (CachedUserNameToIdResolver.get,
+/// How a server resolves a name it was given (GameProfileCache.get,
 /// without the usercache.json cache): an offline server makes the offline
 /// profile; an online one asks the services (for the name in lower case) and
 /// knows nobody they don't.

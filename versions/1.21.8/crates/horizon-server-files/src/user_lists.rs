@@ -26,7 +26,11 @@ impl JavaKey for JKey {
     }
 }
 
-/// NameAndId.
+/// The (id, name) pair a list entry carries: 1.21.8's entries hold a
+/// `GameProfile` (`createGameProfile`/`appendTo` in each entry class);
+/// 1.21.9 split the pair out as the `NameAndId` record. The JSON form
+/// (uuid + name, both required, null on an unparseable uuid) and the
+/// file format are identical in both versions.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameAndId {
     pub id: u128,
