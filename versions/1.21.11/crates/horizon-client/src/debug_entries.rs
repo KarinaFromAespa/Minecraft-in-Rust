@@ -123,7 +123,7 @@ const fn renderer(path: &'static str) -> Entry {
 }
 
 /// `DebugScreenEntries`' registrations, in their order.
-pub const ENTRIES: [Entry; 46] = [
+pub const ENTRIES: [Entry; 45] = [
     text("game_version", true),
     text("fps", true),
     text("tps", true),
@@ -151,7 +151,6 @@ pub const ENTRIES: [Entry; 46] = [
     text("day_count", false),
     text("entity_spawn_counts", false),
     text("sound_mood", false),
-    text("sound_cache", true),
     text("post_effects", false),
     renderer("entity_hitboxes"),
     renderer("chunk_borders"),
@@ -492,7 +491,7 @@ mod tests {
     #[test]
     fn the_list_sorts_text_before_renderers() {
         let all = search("");
-        assert_eq!(all.len(), 46);
+        assert_eq!(all.len(), 45);
         assert_eq!(all[0].path, "biome");
         let first_renderer = all
             .iter()

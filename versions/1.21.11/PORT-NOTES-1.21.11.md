@@ -5674,3 +5674,60 @@ and `resolver::dns::tests::asks_each_server_in_turn_and_retries_truncated_replie
 — failing in this VM's sandboxed network. `buf::` tests: 9
 passed. Rank 2 now 249/492 (77 changed, 172 no-change).
 work-items.json rank2.closed = 249 on 2026-11-20.
+
+## Item 71 — crates/horizon-client-render/src/audio.rs (rank 2, CHANGED)
+
+6 classes, 27 methods, 6 named in Horizon. Javap diff read in
+full Nov 20, 2026; decompile diff read in full (1394 lines).
+Triage note `rank2-item-71-TRIAGE.md` (workdir root, scratch).
+
+Java delta is the 26.1 device-tracking refactor undone:
+`DeviceTracker` / `DeviceList` / `SoundBufferLibrary$DebugOutput`
+are 26.1-only; `Library` goes back to `init(String, boolean)` with
+a stored `defaultDeviceName`, a live `getCurrentDeviceName()`
+("Unknown" fallback), `hasDefaultDeviceChanged()`, and
+`openDeviceOrFallback(String)` (preferred -> default -> null);
+`getChannelDebugString` is `getDebugString` in 1.21.11 (same
+"Sounds: %d/%d + %d/%d" format). `SoundEngine.shouldChangeDevice`
+is 1.21.11's async 1000 ms CAS state machine
+(`DEFAULT_DEVICE_CHECK_INTERVAL_MS`, `devicePoolState`), with NO
+"current device has disappeared" branch (26.1 has one).
+`SoundBufferLibrary.enumerate` and
+`SoundEngine.getSoundCacheDebugStats` are 26.1-only. The preview
+switch differs only in the neutral category: 26.1 plays the
+CLASSIC cow variant's ambient via `COW_SOUNDS`; 1.21.11 plays
+`SoundEvents.COW_AMBIENT` directly.
+
+Rust side was already 1.21.11-shaped in the device logic:
+`should_change_device` probes async once per 20 ticks, has no
+disappeared branch, and its default/preferred branches match
+1.21.11; `open_named` follows the preferred -> default -> null
+chain; channel counts are the shared 247 static / 8 streaming;
+the preview table already plays `minecraft:entity.cow.ambient`
+for neutral. The real change: 1.21.11 has no `DebugEntrySoundCache`
+(verified absent from its client.jar), so the F3 sound-cache line
+— default-on, backed by `cache_stats()` citing the 26.1-only
+`enumerate` — is removed: the `sound_cache` entry from
+`debug_entries.rs` (ENTRIES 46 -> 45, test count updated), the
+match arm from `game/debug_lines.rs`, `sound_cache_line` from
+`debug_overlay.rs` (and its test assertion), and `cache_stats()`
+from `audio.rs`. The `census()` control-socket diagnostic stays
+(Horizon tooling, not a vanilla mirror). Stale 26.1 citations
+fixed: `Library.currentDeviceName` ->
+`Library.getCurrentDeviceName`, `lastSeenDevices` ->
+`Library.defaultDeviceName` / `hasDefaultDeviceChanged`,
+`DeviceTracker.tick` -> `DEFAULT_DEVICE_CHECK_INTERVAL_MS`,
+`COW_SOUNDS.get(CLASSIC)` -> `SoundEvents.COW_AMBIENT`,
+`getChannelDebugString` -> `getDebugString`. An old
+`debug-profile.json` naming `sound_cache` stays inert (unknown
+names are kept but never looked up).
+
+Verification: `cargo check -p horizon-client-render --lib
+--no-default-features` clean; `cargo check -p horizon-client
+--lib --tests --no-default-features` clean; `cargo test -p
+horizon-client-render --lib --no-default-features sound_preview::`
+2 passed; `cargo test -p horizon-client-lib --lib
+--no-default-features debug_overlay::` 8 passed and
+`debug_entries::` 5 passed; rustfmt --check clean on the five
+edited leaf files. Rank 2 now 250/492 (78 changed, 172 no-change).
+work-items.json rank2.closed = 250 on 2026-11-20.

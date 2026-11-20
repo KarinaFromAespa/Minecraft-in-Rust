@@ -427,7 +427,7 @@ pub fn gpu_line(utilization: f64) -> String {
     }
 }
 
-/// `DebugEntrySoundMood`: `Library.getChannelDebugString` and the mood.
+/// `DebugEntrySoundMood`: `Library.getDebugString` and the mood.
 pub fn sound_mood_line(used: [usize; 2], max: [usize; 2], mood: f32) -> String {
     format!(
         "Sounds: {}/{} + {}/{} (Mood {}%)",
@@ -437,13 +437,6 @@ pub fn sound_mood_line(used: [usize; 2], max: [usize; 2], mood: f32) -> String {
         max[1],
         (mood * 100.0).round() as i32
     )
-}
-
-/// `DebugEntrySoundCache`: the decoded buffers and their size, in MiB
-/// rounded up.
-pub fn sound_cache_line(buffers: usize, bytes: usize) -> String {
-    let mib = (bytes as f64 / 1024.0 / 1024.0).ceil() as i64;
-    format!("Sound cache: {buffers} buffers, {mib} MiB")
 }
 
 /// `DebugEntryLight` without the server's values
@@ -655,10 +648,6 @@ mod tests {
         assert_eq!(
             sound_mood_line([3, 1], [247, 8], 0.256),
             "Sounds: 3/247 + 1/8 (Mood 26%)"
-        );
-        assert_eq!(
-            sound_cache_line(12, 3 * 1024 * 1024 + 1),
-            "Sound cache: 12 buffers, 4 MiB"
         );
         let mib = 1024 * 1024;
         let memory = ProcessMemory {
