@@ -7749,3 +7749,32 @@ widening in `frame_geometry` is removed. New unit test
 `entities::item_frame_bounds_tests::` 1 passed. Tests: `cargo check
 -p horizon-client --lib --tests` clean. rustfmt --check clean on
 entities.rs and frames.rs.
+
+## Item 113 — creative inventory (rank 2, NO-CHANGE)
+
+7 classes, 24 methods, 3 named: CreativeModeInventoryScreen (15,
+`extractRenderState`, `extractTabButton`, `slotClicked`),
+CreativeModeTab (3), SessionSearchTrees (2), ItemStackLinkedSet$1
+(2), SessionSearchTrees$Key (1), CreativeModeTabs (1),
+CreativeModeTab$ItemDisplayParameters (0).
+
+Java delta, jar-verified: renames (`extract*` -> `render*`,
+`ContainerInput` -> `ClickType`, `typeHolder()` -> `getItemHolder()`,
+`tags()` -> `getTags()`), `renderTooltip` in 1.21.11's `render`,
+`preeditUpdated` 26.1-only, `buildContents` gains an unregistered-tab
+guard, and two cursor-only differences (`insideScrollbar` drops the
+`canScroll()` check in 1.21.11; 26.1 shows NOT_ALLOWED over a
+too-short scrollbar, 1.21.11 shows nothing). The tab contents differ
+by exactly ONE item across all 32 generators (1701 vs 1700
+accepted): `GOLDEN_DANDELION` in 26.1's food-and-drink tab, absent
+in 1.21.11 — verified by diffing the ordered accept sequences from
+both jars. Tab contents are data: `creative-inventory.json`,
+exported against the 1.21.11 jar — verified on disk (26.1's export
+has golden_dandelion twice, 1.21.11's has none). The Rust's
+`inside_scrollbar` (bounds + `!inventory`) matches 1.21.11's
+observable behaviour: its only caller is the click path, where
+vanilla also excludes the inventory tab. No NOT_ALLOWED or preedit
+mirror exists to remove. Version-neutral gap: vanilla requests a
+scrollbar cursor (POINTING_HAND / RESIZE_NS); the Rust requests
+none there, and `widgets::Cursor` has no ResizeNs variant. Tests:
+`creative::` 24 passed. rustfmt --check clean on creative.rs.
