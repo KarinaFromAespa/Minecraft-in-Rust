@@ -334,7 +334,22 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 86/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103 + 4 zero-diff)
+### Rank 2: 87/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104 + 4 zero-diff)
+
+- **Item 104 — `crates/horizon-client/src/mobs/zombie_villager.rs`
+  (1 class, 7 methods, 3 named in Horizon),
+  real fix:** ZombieVillager. 1.21.8 draws the random profession +
+  biome type in `finalizeSpawn`, not in the constructor — so
+  `read_nbt` no longer assigns a random profession when
+  `VillagerData` is missing (the fallback is
+  `createDefaultVillagerData()`: plains type, no profession,
+  which is the fresh-mob default), and `constructor_profession`
+  is renamed `spawn_profession` at its finalize call site, where
+  the draw already lived. Verified no-change: the charged-creeper
+  head drop already models 1.21.8 (`getSkull` returns empty for a
+  zombie villager — drops.rs names it among the empty-skull
+  species); tick/mobInteract differ only by `isClientSide()` vs
+  the field; cure timing identical. Check 0/0 at -j 1.
 
 - **Item 103 — `crates/horizon-client/src/game/levels.rs`
   (3 classes, 17 methods, 2 named in Horizon),
