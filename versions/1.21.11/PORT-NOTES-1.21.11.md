@@ -6598,3 +6598,67 @@ Verification: `cargo test -p horizon-client --lib
 rustfmt clean on game/item_draw.rs (leaf file). Rank 2 now
 264/492 (84 changed, 180 no-change). work-items.json
 rank2.closed = 264 on 2026-11-20.
+
+## Item 86 — game/mob_blocks.rs (rank 2, CHANGED)
+
+16 classes, 32 methods, 4 named: CopperGolemModel,
+ElderGuardianParticle(Group), CopperGolemRenderer,
+BlockDecorationLayer, CarriedBlockLayer, IronGolemFlowerLayer,
+MushroomCowMushroomLayer, SnowGolemHeadLayer, plus 5
+missing-side in 1.21.11 (`BlockModelRenderState`,
+`BuiltInBlockModels` + inners — the 26.x block-model
+render-state system, absent in 1.21.11).
+
+Java delta, jar-verified: `CopperGolemModel.
+applyBlockOnAntennaTransform` translates (0, -1.75, 0) in 26.1
+vs (0, -2.25, 0) in 1.21.11. BlockDecorationLayer drops the
+fixed `UNIT_CUBE_BOTTOM_CENTER_TO_ANTENNA_CENTER` matrix and
+branches by block kind: not a statue -> rot Z 180; a statue,
+skull, banner or chest -> rot Y 180; flower bed -> translate
+(-0.25, -1.5, -0.25); else not a statue -> (-0.5, -1.5, -0.5);
+a statue -> (-0.5, 0, -0.5). The ordinary-block and flower-bed
+nets are IDENTICAL in both versions (hand-verified: both send
+(x,y,z) to (0.5-x, -y-0.75, z-0.5) / (0.25-x, -y-0.75,
+z-0.25) — the -0.5 moved from the layer into the model). The
+real differences are statues ((0.5-x, y-2.25, 0.5-z): half a
+block lower, Y-flipped instead of Z-flipped) and skulls/
+banners/chests (extra Y-180, net R_x180: (x-0.5, -y-0.75,
+0.5-z)). CopperGolemRenderer stores `Optional<BlockState>`
+instead of resolving into a BlockModelRenderState. The other
+layers keep identical transforms and gates (carried block,
+poppy on `offerFlowerTick != 0`, mooshroom variant mushrooms,
+carved pumpkin on `hasPumpkin`); only the submit mechanism
+changes (`submitBlock`/`submitBlockModel` vs the pre-resolved
+render state). ElderGuardianParticle(Group): visibility +
+package moves only.
+
+Verified matching: `carried_block_matrix`,
+`golem_flower_geometry` (counter gate, poppy),
+`worn_block_geometry` (sheared/baby gates, all placements),
+`antenna_block_geometry`'s property-by-property
+`BlockItemStateProperties.apply`.
+
+Fix: `antenna_block_matrix(head, flowerbed_shift)` ->
+`antenna_block_matrix(head, block: &str)` with the 1.21.11
+form (model -2.25; Z-180 unless a statue; Y-180 for statues
+(`copper_golem_statue` suffix), skulls (`skull_kind`),
+banners (`_banner` suffix), chests (chest/trapped/ender);
+the three translates). Stale 26.x citations fixed
+(`BlockModelRenderState`/`UNIT_CUBE`/`BuiltInBlockModels` —
+none remain in the tree). The antenna test is rewritten per
+block kind (stone, wildflowers, copper_golem_statue,
+skeleton_skull) with hand-computed points.
+
+Version-neutral note: skulls/banners/chests on the antenna
+draw through the baked-model path, not their block-entity
+renderers (vanilla's `submitBlock` routes them to the BERs) —
+pre-existing, out of scope.
+
+Verification: literal comparison — CopperGolemModel only
+1.75/2.25, BlockDecorationLayer only the new 1.21.11
+constants, IronGolemFlowerLayer only the `0` gate, the rest
+zero. `cargo test -p horizon-client --lib --no-default-features
+game::mob_blocks::` 3 passed. rustfmt clean on
+game/mob_blocks.rs (leaf file). Rank 2 now 265/492
+(85 changed, 180 no-change). work-items.json rank2.closed =
+265 on 2026-11-20.
