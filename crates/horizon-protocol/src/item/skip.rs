@@ -352,6 +352,21 @@ pub(super) fn equippable(r: &mut Reader) -> Result<()> {
     (0..5).try_for_each(|_| boolean(r))?;
     sound(r)
 }
+/// Equippable before 1.21.6: slot, equipSound, assetId, cameraOverlay,
+/// allowedEntities, dispensable, swappable, damageOnHurt — and
+/// equipOnInteract from 1.21.5. No canBeSheared, no shearingSound.
+pub(super) fn equippable_before_1_21_6(r: &mut Reader, before_1_21_5: bool) -> Result<()> {
+    varint(r)?;
+    sound(r)?;
+    optional(r, ident)?;
+    optional(r, ident)?;
+    optional(r, holder_set)?;
+    (0..3).try_for_each(|_| boolean(r))?;
+    if !before_1_21_5 {
+        boolean(r)?;
+    }
+    Ok(())
+}
 /// BlocksAttacks: blockDelaySeconds, disableCooldownScale, damageReductions (angle, type,
 /// base, factor), itemDamage (threshold, base, factor), bypassedBy, blockSound, disableSound.
 pub(super) fn blocks_attacks(r: &mut Reader) -> Result<()> {

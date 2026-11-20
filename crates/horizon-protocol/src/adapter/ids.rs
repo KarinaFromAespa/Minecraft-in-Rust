@@ -457,14 +457,14 @@ mod tests {
         static IDS: Ids = super::super::v26_2_ids::IDS;
         assert_eq!(item(926), 926);
         {
-            // diamond: 926 in 26.2, 827 in 1.21.3.
+            // diamond: 926 in 26.2, 805 in 1.21.1.
             let _up = renumbering(&IDS, Way::Up);
-            assert_eq!(item(926), 827);
+            assert_eq!(item(926), 805);
             {
                 let _down = renumbering(&IDS, Way::Down);
-                assert_eq!(item(827), 926);
+                assert_eq!(item(805), 926);
             }
-            assert_eq!(item(926), 827);
+            assert_eq!(item(926), 805);
         }
         assert_eq!(item(926), 926);
     }
@@ -473,10 +473,10 @@ mod tests {
     fn the_26_2_tables_match_the_reports() {
         // Read off both versions' registries and blocks reports by hand.
         let ids = crate::adapter::ServerVersion::V26_2.ids().unwrap();
-        assert_eq!(ids.item.up(926), Some(827)); // diamond
+        assert_eq!(ids.item.up(926), Some(805)); // diamond
         assert_eq!(ids.item.up(1), Some(1)); // stone
-        assert_eq!(ids.block_state.up(13330), Some(11497)); // oak_slab type=top waterlogged=true
-        assert_eq!(ids.block_state.up(3987), Some(3006)); // chest, first state
+        assert_eq!(ids.block_state.up(13330), Some(11162)); // oak_slab type=top waterlogged=true
+        assert_eq!(ids.block_state.up(3987), Some(2954)); // chest, first state
         assert_eq!(ids.block_state.up(8), Some(8)); // grass_block
         assert_eq!(ids.state_bits(), (15, 15));
     }
@@ -522,25 +522,23 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(sent)).unwrap().unwrap()
         };
-        // A decorated pot (319 in 1.21.11, 299 pinned) as a 1.21.11 server sends it: pot_decorations (61)
-        // lists a brick (1025) and an angler sherd (1331 pinned); damage_resistant (25) a tag id;
-        // jukebox_playable (52) a song by holder: the flag set, then the song's id plus one.
+        // A decorated pot (319 in 1.21.11, 288 pinned) as a 1.21.11 server sends it: pot_decorations (72)
+        // lists a brick (1025) and an angler sherd (1288 pinned); damage_resistant (27) a tag id, dropped
+        // at the pin (1.21.1 has fire_resistant instead, and the tag does not convert);
+        // jukebox_playable (62) a song by holder: the flag set, then the song's id plus one.
         let mut sent = vec![1, 0xbf, 0x02, 3, 0];
         sent.extend([72, 2, 0x81, 0x08, 0xa5, 0x0b]);
         sent.extend([27, 17]);
         sent.extend(b"minecraft:is_fire");
         sent.extend([62, 1, 3]);
         let stack = read(&sent);
-        assert_eq!(stack.item, 299);
-        let mut resistant = vec![0, 17];
-        resistant.extend(b"minecraft:is_fire");
+        assert_eq!(stack.item, 288);
         assert_eq!(
             stack.added,
             [
                 // Only the left side holds an item: one sherd by its pinned id, no components.
-                (61, Component::Raw(vec![0, 1, 0xb3, 0x0a, 1, 0, 0, 0, 0])),
-                (25, Component::Raw(resistant)),
-                (52, Component::Raw(vec![3])),
+                (51, Component::Raw(vec![0, 1, 0x88, 0x0a, 1, 0, 0, 0, 0])),
+                (42, Component::Raw(vec![3])),
             ]
         );
         // A song named by its key has no pinned holder: the component goes.
@@ -596,9 +594,9 @@ mod tests {
         use crate::buf::{Codec, Reader};
         use crate::item::{Component, Slot};
         let ids = crate::adapter::ServerVersion::V1_21_11.ids().unwrap();
-        // A shulker box (581 in 1.21.11, 536 pinned) as a 1.21.11 server sends it. Its container (62 pinned,
-        // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 827 pinned) with a map_color (35),
-        // then an empty slot. Its use_remainder (23 pinned, 25 sent) is a bowl (892 sent, 821 pinned).
+        // A shulker box (581 in 1.21.11, 522 pinned) as a 1.21.11 server sends it. Its container (52 pinned,
+        // 73 sent) lists ItemStacks, a count first: two diamonds (898 sent, 805 pinned) with a map_color (25),
+        // then an empty slot. Its use_remainder (25 sent) is a bowl (892 sent), dropped at the pin.
         let sent = [
             1, 0xc5, 0x04, 2, 0, // the box, two added components
             73, 2, 2, 0x82, 0x07, 1, 0, 43, 0, 0, 0, 5, 0, // container
@@ -608,17 +606,15 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!(stack.item, 536);
+        assert_eq!(stack.item, 522);
         // Templates, the item first: the diamonds with their colour in the pinned numbering, then no item.
+        // The use_remainder is gone: 1.21.1 has no such component.
         assert_eq!(
             stack.added,
-            [
-                (
-                    62,
-                    Component::Raw(vec![2, 1, 0xbb, 0x06, 2, 1, 0, 35, 0, 0, 0, 5, 0]),
-                ),
-                (23, Component::Raw(vec![0xb5, 0x06, 1, 0, 0])),
-            ]
+            [(
+                52,
+                Component::Raw(vec![2, 1, 0xa5, 0x06, 2, 1, 0, 25, 0, 0, 0, 5, 0]),
+            ),]
         );
     }
 
@@ -633,24 +629,25 @@ mod tests {
             let _up = renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (827, 3));
+        assert_eq!((stack.item, stack.count), (805, 3));
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(827, 3)), &mut w);
+            Slot::write(&Some(Stack::new(805, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
 
     #[test]
-    fn modifiers_and_equippables_before_1_21_6_are_read_in_the_pinned_layout() {
+    fn modifiers_before_1_21_6_are_read_in_the_pinned_layout() {
         use crate::buf::{Codec, Reader, Writer};
         use crate::item::{Component, Slot, Stack, component as k};
         let ids = crate::adapter::ServerVersion::V1_21_5.ids().unwrap();
         let raw = |kind: i32| ids.data_component_type.down(kind).unwrap();
         // A stone as 1.21.5 sends it, with two attribute modifiers (holders: armor is 0 and attack
         // damage 2 in both 1.21.5 and 1.21.10, so the holders are their ids plus one, 1 and 3)
-        // and an equippable for the chest: no display, no shearing fields.
+        // and an equippable for the chest (28 in 1.21.5): no display, no shearing fields.
+        // The pin predates equippable, so it is dropped; the modifiers gain their default display.
         let mut sent = Writer::new();
         sent.varint(1);
         sent.varint(1);
@@ -668,7 +665,7 @@ mod tests {
             sent.varint(operation);
             sent.varint(slot);
         }
-        sent.varint(raw(k::EQUIPPABLE));
+        sent.varint(28); // equippable in 1.21.5
         sent.varint(3);
         sent.varint(71);
         for b in [false, false, false, true, true, true, false] {
@@ -680,8 +677,7 @@ mod tests {
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
         assert_eq!(stack.item, 1);
-        // The pinned layout: each entry with a default display, then the sheep-shear sound by
-        // default (no item.shears.snip at this pin).
+        // The pinned layout: each entry with a default display. The equippable is gone.
         let mut modifiers = Writer::new();
         modifiers.varint(2);
         for (holder, id, amount, operation, slot) in [
@@ -695,43 +691,50 @@ mod tests {
             modifiers.varint(slot);
             modifiers.varint(0);
         }
-        let mut equippable = Writer::new();
-        equippable.varint(3);
-        equippable.varint(71);
-        for b in [false, false, false, true, true, true, false, false] {
-            equippable.bool(b);
-        }
-        equippable.varint(1256);
         assert_eq!(
             stack.added,
-            [
-                (k::ATTRIBUTE_MODIFIERS, Component::Raw(modifiers.data)),
-                (k::EQUIPPABLE, Component::Raw(equippable.data)),
-            ]
+            [(k::ATTRIBUTE_MODIFIERS, Component::Raw(modifiers.data)),]
         );
-        // Written for the 1.21.5 client again: the same bytes as it sent.
+        // Written for the 1.21.5 client again: the same bytes as it sent, minus the dropped equippable.
+        let mut expected = Writer::new();
+        expected.varint(1);
+        expected.varint(1);
+        expected.varint(1);
+        expected.varint(0);
+        expected.varint(raw(k::ATTRIBUTE_MODIFIERS));
+        expected.varint(2);
+        for (holder, id, amount, operation, slot) in [
+            (1, "minecraft:test", 2.5, 0, 6),
+            (3, "minecraft:other", -1.0, 1, 1),
+        ] {
+            expected.varint(holder);
+            expected.string(id);
+            expected.f64(amount);
+            expected.varint(operation);
+            expected.varint(slot);
+        }
         let mut w = Writer::new();
         {
             let _down = renumbering(ids, Way::Down);
             Slot::write(&Some(stack), &mut w);
         }
-        assert_eq!(w.data, sent);
+        assert_eq!(w.data, expected.data);
     }
 
     #[test]
-    fn modifiers_and_equippables_from_1_21_6_are_kept_as_they_are() {
+    fn modifiers_from_1_21_6_are_kept_as_they_are() {
         use crate::buf::{Codec, Reader, Writer};
         use crate::item::{Slot, component as k};
         use crate::text::literal;
-        // The pinned layout (1.21.6 and later): a display after each entry's slot, and the shearing fields.
-        // No quirk applies to this version, so the bytes pass through unchanged, and the ids are the
-        // version's own.
+        // The pinned layout (1.21.6 and later): a display after each entry's slot. No quirk applies
+        // to this version, so the bytes pass through unchanged, and the ids are the version's own.
+        // (An equippable sent alongside would be dropped at the pin; see the test above.)
         let ids = crate::adapter::ServerVersion::V1_21_6.ids().unwrap();
         let raw = |kind: i32| ids.data_component_type.down(kind).unwrap();
         let mut sent = Writer::new();
         sent.varint(1);
         sent.varint(1);
-        sent.varint(2);
+        sent.varint(1);
         sent.varint(0);
         sent.varint(raw(k::ATTRIBUTE_MODIFIERS));
         sent.varint(1);
@@ -742,13 +745,6 @@ mod tests {
         sent.varint(6);
         sent.varint(2);
         sent.nbt(&literal("Hi"));
-        sent.varint(raw(k::EQUIPPABLE));
-        sent.varint(3);
-        sent.varint(71);
-        for b in [false, false, false, true, true, true, false, false] {
-            sent.bool(b);
-        }
-        sent.varint(1448);
         let sent = sent.data;
         let stack = {
             let _up = renumbering(ids, Way::Up);
@@ -760,7 +756,7 @@ mod tests {
                 .iter()
                 .map(|(kind, _)| *kind)
                 .collect::<Vec<_>>(),
-            [k::ATTRIBUTE_MODIFIERS, k::EQUIPPABLE]
+            [k::ATTRIBUTE_MODIFIERS]
         );
         let mut w = Writer::new();
         {

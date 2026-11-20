@@ -1231,8 +1231,8 @@ enum Older {
     Rewritten(Vec<u8>),
 }
 
-/// `minecraft:brick` (1.21.3): an older pot's undecorated side.
-const BRICK: i32 = 945;
+/// `minecraft:brick` (1.21.1): an older pot's undecorated side.
+const BRICK: i32 = 921;
 
 /// Reads the start of a component `kind` (a pinned id) whose layout changed since the version of the
 /// server whose packet is read on this thread ([`ids::quirks`]).
@@ -1471,14 +1471,24 @@ fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
         "minecraft:use_remainder" => Template::read(r).map(drop),
         // UseCooldown: seconds, cooldownGroup.
         "minecraft:use_cooldown" => skip::use_cooldown(r),
-        // DamageResistant, Repairable, Enchantable: a holder set, a holder
-        // set, a varint (the enchantment value).
-        "minecraft:damage_resistant" | "minecraft:repairable" => skip::holder_set(r),
+        // DamageResistant is a TagKey, a bare string — not a holder set
+        // (reading it as one eats the following components). Repairable
+        // is a holder set; Enchantable a varint (the enchantment value).
+        "minecraft:damage_resistant" => r.string(32767).map(drop),
+        "minecraft:repairable" => skip::holder_set(r),
         "minecraft:enchantable" => r.varint().map(drop),
         // Equippable: slot, equipSound, assetId, cameraOverlay,
         // allowedEntities, dispensable, swappable, damageOnHurt,
-        // equipOnInteract, canBeSheared, shearingSound.
-        "minecraft:equippable" => skip::equippable(r),
+        // equipOnInteract, canBeSheared, shearingSound. Before 1.21.6
+        // there is no canBeSheared and no shearingSound, and before
+        // 1.21.5 no equipOnInteract either.
+        "minecraft:equippable" => {
+            if ids::quirks().components_before_1_21_6 {
+                skip::equippable_before_1_21_6(r, ids::quirks().components_before_1_21_5)
+            } else {
+                skip::equippable(r)
+            }
+        }
         // Glider: Unit.
         "minecraft:glider" => Ok(()),
         // DeathProtection: deathEffects.
