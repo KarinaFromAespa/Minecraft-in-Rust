@@ -49,7 +49,6 @@ pub const ORDER: &[(&str, &[&str])] = &[
             "recipe",
             "return",
             "ride",
-            "rotate",
             "say",
             "schedule",
             "scoreboard",
