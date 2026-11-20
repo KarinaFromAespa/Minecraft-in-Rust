@@ -10,7 +10,7 @@ use horizon_core::{
     geometry::{Direction, Vec3},
     position::BlockPos,
 };
-use horizon_world::level::{flags, hit_slot};
+use horizon_world::level::{bookshelf_hit_slot, flags};
 
 const BLOCK: &str = "minecraft:chiseled_bookshelf";
 
@@ -40,13 +40,11 @@ impl Game<'_> {
             .into_iter()
             .find(|d| d.normal() == hit.face)?;
         let at = Vec3::new(hit.point[0], hit.point[1], hit.point[2]);
-        let slot = hit_slot(
+        let slot = bookshelf_hit_slot(
             facing,
             face,
             BlockPos::new(pos[0], pos[1], pos[2]),
             at,
-            2,
-            3,
         )?;
         let occupied = info
             .properties

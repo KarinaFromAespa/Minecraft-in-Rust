@@ -141,7 +141,7 @@ pub use bonemeal::TemplateSettings;
 pub use buckets::{BucketContent, is_lava_bucket, mod_bucket_contents};
 pub use data::{BlockData, ItemBinding, ItemKind, Named, Props, PushReaction, StateFacts, Tags};
 pub use falling::Landing;
-pub use interact::{InteractionResult, PlayerContext, PlayerEffect, UseBranch, hit_slot};
+pub use interact::{InteractionResult, PlayerContext, PlayerEffect, UseBranch, bookshelf_hit_slot, hit_slot};
 pub use pistons::{BlockEventData, MovingPiston};
 pub use place::{PlaceContext, PlaceOutcome, PlacementContext};
 pub use states::{BlockId, PropKey, StateTable};
