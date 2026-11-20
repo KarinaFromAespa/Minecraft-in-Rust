@@ -38,7 +38,7 @@ final class VanillaStateCodec {
 
     static BlockState decodeFull(JsonElement json) {
         var object = json.getAsJsonObject();
-        var block = BuiltInRegistries.BLOCK.getValue(
+        var block = BuiltInRegistries.BLOCK.get(
             ResourceLocation.parse(object.get("id").getAsString()));
         var state = block.defaultBlockState();
         if (object.has("properties")) {

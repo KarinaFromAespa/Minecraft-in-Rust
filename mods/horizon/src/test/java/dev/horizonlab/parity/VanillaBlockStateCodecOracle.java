@@ -28,7 +28,7 @@ public final class VanillaBlockStateCodecOracle {
                 states.add(VanillaStateCodec.encodeFullJson(state));
             }
             for(var id:new TreeSet<>(BuiltInRegistries.BLOCK.keySet())) {
-                var block=BuiltInRegistries.BLOCK.getValue(id);defaults.addProperty(id.toString(),Block.getId(block.defaultBlockState()));
+                var block=BuiltInRegistries.BLOCK.get(id);defaults.addProperty(id.toString(),Block.getId(block.defaultBlockState()));
                 for(var p:block.getStateDefinition().getProperties())if(p instanceof IntegerProperty){var entry=new JsonArray();entry.add(id.toString());entry.add(p.getName());integers.add(entry);}
             }
             result.add("states",states);result.add("defaults",defaults);result.add("integers",integers);

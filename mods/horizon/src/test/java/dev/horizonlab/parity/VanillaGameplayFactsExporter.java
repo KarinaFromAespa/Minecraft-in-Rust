@@ -22,7 +22,7 @@ import net.minecraft.world.phys.shapes.Shapes;
 public final class VanillaGameplayFactsExporter {
     private static JsonObject sound(SoundEvent event) {
         var result = new JsonObject();
-        result.addProperty("id", event.location().toString());
+        result.addProperty("id", event.getLocation().toString());
         return result;
     }
 
@@ -34,11 +34,11 @@ public final class VanillaGameplayFactsExporter {
             var block = state.getBlock();
             o.addProperty("id", Block.getId(state));
             o.addProperty("emission", state.getLightEmission());
-            o.addProperty("dampening", state.getLightBlock());
-            o.addProperty("skylight_down", state.propagatesSkylightDown());
+            o.addProperty("dampening", state.getLightBlock(level, BlockPos.ZERO));
+            o.addProperty("skylight_down", state.propagatesSkylightDown(level, BlockPos.ZERO));
             o.addProperty("shape_occlusion", state.useShapeForLightOcclusion());
             o.addProperty("can_occlude", state.canOcclude());
-            o.addProperty("solid_render", state.isSolidRender());
+            o.addProperty("solid_render", state.isSolidRender(level, BlockPos.ZERO));
             o.addProperty("hardness", state.getDestroySpeed(level, BlockPos.ZERO));
             o.addProperty("requires_tool", state.requiresCorrectToolForDrops());
             o.addProperty("replaceable", state.canBeReplaced());
@@ -53,7 +53,7 @@ public final class VanillaGameplayFactsExporter {
             o.addProperty("map_color", state.getMapColor(level, BlockPos.ZERO).col);
             // The outline (selection) shape without the random offset, as boxes
             // for picking and as the edges LevelRenderer draws.
-            var offset = state.getOffset(BlockPos.ZERO);
+            var offset = state.getOffset(level, BlockPos.ZERO);
             var shape = state.getShape(level, BlockPos.ZERO);
             // Some offset models (e.g. tall flowers) have an unshifted outline.
             boolean outlineOffset = state.hasOffsetFunction() && Shapes.joinIsNotEmpty(

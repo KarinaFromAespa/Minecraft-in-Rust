@@ -133,19 +133,23 @@ public final class VanillaSimpleBlockOracle {
   if(args[0].equals("export")) {
    VanillaBlockSurvivalOracle.main(args);
    var data=new JsonObject();var doubles=new JsonArray();var moss=new JsonArray();
-   for(var block:BuiltInRegistries.BLOCK){String name=BuiltInRegistries.BLOCK.getKey(block).toString();if(block instanceof DoublePlantBlock)doubles.add(name);if(block instanceof MossyCarpetBlock)moss.add(name);}
+   for(var block:BuiltInRegistries.BLOCK){String name=BuiltInRegistries.BLOCK.getKey(block).toString();if(block instanceof DoublePlantBlock)doubles.add(name);if(name.equals("minecraft:moss_carpet"))moss.add(name);}
    data.add("double_plants",doubles);data.add("mossy_carpets",moss);Files.writeString(dir.resolve("placement-definitions.json"),data.toString());return;
   }
   VanillaHeightmapOracle.bindTags(JsonParser.parseString(Files.readString(dir.resolve("tags.json"))).getAsJsonObject());
   var bind=VanillaBlockSurvivalOracle.class.getDeclaredMethod("bindFluidTags",JsonObject.class);bind.setAccessible(true);bind.invoke(null,JsonParser.parseString(Files.readString(dir.resolve("fluid-tags.json"))).getAsJsonObject());
   var features=new MappedRegistry<Feature<?>>((ResourceKey<? extends Registry<Feature<?>>>)(ResourceKey<?>)Registries.FEATURE,com.mojang.serialization.Lifecycle.stable());
   var placed=new MappedRegistry<PlacedFeature>(Registries.PLACED_FEATURE,com.mojang.serialization.Lifecycle.stable());
-  var ops=RegistryOps.create(JsonOps.INSTANCE,new RegistryOps.RegistryInfoLookup(){public <T> Optional<RegistryOps.RegistryInfo<T>> lookup(ResourceKey<? extends Registry<? extends T>> key){
-   if(key.equals(Registries.FEATURE))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(features));
-   if(key.equals(Registries.PLACED_FEATURE))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(placed));
-   if(key.equals(Registries.FLUID))return (Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(BuiltInRegistries.FLUID));
-   return key.equals(Registries.BLOCK)?(Optional<RegistryOps.RegistryInfo<T>>)(Optional<?>)Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(BuiltInRegistries.BLOCK)):Optional.empty();
-  }});
+  // 1.21.1 Registry is not a RegistryLookup, so fromRegistryLookup cannot
+  // take a bare registry: assemble a RegistryAccess from the four registries
+  // and hand the provider to RegistryOps.create instead.
+  @SuppressWarnings("unchecked")
+  var root=new MappedRegistry<Registry<?>>(ResourceKey.<Registry<?>>createRegistryKey(Registries.ROOT_REGISTRY_NAME),com.mojang.serialization.Lifecycle.stable());
+  root.register((ResourceKey<Registry<?>>)(ResourceKey<?>)Registries.FEATURE,features,RegistrationInfo.BUILT_IN);
+  root.register((ResourceKey<Registry<?>>)(ResourceKey<?>)Registries.PLACED_FEATURE,placed,RegistrationInfo.BUILT_IN);
+  root.register((ResourceKey<Registry<?>>)(ResourceKey<?>)Registries.FLUID,BuiltInRegistries.FLUID,RegistrationInfo.BUILT_IN);
+  root.register((ResourceKey<Registry<?>>)(ResourceKey<?>)Registries.BLOCK,BuiltInRegistries.BLOCK,RegistrationInfo.BUILT_IN);
+  var ops=RegistryOps.create(JsonOps.INSTANCE,RegistryAccess.fromRegistryOfRegistries(root));
   // In 1.21.11 block state providers are not a registry; the catalog entries are parsed (validated) inline only.
   for(var entry:JsonParser.parseString(Files.readString(dir.resolve("catalog.json"))).getAsJsonObject().entrySet()) {
    BlockStateProvider.CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();

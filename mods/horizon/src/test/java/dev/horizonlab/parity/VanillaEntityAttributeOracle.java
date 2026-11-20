@@ -34,8 +34,8 @@ public final class VanillaEntityAttributeOracle {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();
         for(var a:BuiltInRegistries.ATTRIBUTE)attributes.add(BuiltInRegistries.ATTRIBUTE.wrapAsHolder(a));
         Path dir=Path.of(args[1]);if(args[0].equals("export")){Files.writeString(dir.resolve("catalog.json"),export().toString());return;}
-        var storage=field(AttributeMap.class,"attributes");var dirty=field(AttributeInstance.class,"dirty");var cached=field(AttributeInstance.class,"cachedValue");
-        try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){for(var line:(Iterable<String>)lines::iterator){var f=JsonParser.parseString(line).getAsJsonObject();var entity=BuiltInRegistries.ENTITY_TYPE.getValue(ResourceLocation.parse(f.get("entity").getAsString()));var map=new AttributeMap(supplier(entity));var instances=(Map<Holder<Attribute>,AttributeInstance>)storage.get(map);
+        var storage=field(AttributeMap.class,"attributes");var dirty=field(AttributeInstance.class,"dirty");var cached=field(AttributeInstance.class,"cachedValue");var permanent=field(AttributeInstance.class,"permanentModifiers");
+        try(var out=new PrintWriter(Files.newBufferedWriter(dir.resolve(args[0]+".txt")));var lines=Files.lines(dir.resolve("inputs.txt"))){for(var line:(Iterable<String>)lines::iterator){var f=JsonParser.parseString(line).getAsJsonObject();var entity=BuiltInRegistries.ENTITY_TYPE.get(ResourceLocation.parse(f.get("entity").getAsString()));var map=new AttributeMap(supplier(entity));var instances=(Map<Holder<Attribute>,AttributeInstance>)storage.get(map);
             for(var ov:f.getAsJsonArray("ops")){var op=ov.getAsJsonObject();var a=attributes.get(op.get("attribute").getAsInt());String mode=op.get("mode").getAsString();var id=ResourceLocation.parse(op.get("id").getAsString());
                 try{switch(mode){
                     case "value":out.println("value "+bits(map.getValue(a)));break;
@@ -57,7 +57,7 @@ public final class VanillaEntityAttributeOracle {
                         default:throw new AssertionError(mode);
                     }}
                 }out.println("ok");}catch(NullPointerException e){out.println("error instance_modifier");}catch(IllegalArgumentException e){out.println("error "+(mode.equals("modifier")?(map.hasAttribute(a)?"modifier":"attribute"):(mode.equals("value")||mode.equals("base")?"attribute":"duplicate")));}
-                for(int i=0;i<attributes.size();i++){var key=attributes.get(i);var instance=instances.get(key);if(instance!=null)out.println("state "+i+" "+bits(instance.getBaseValue())+" "+dirty.getBoolean(instance)+" "+bits(cached.getDouble(instance))+" "+map.getAttributesToUpdate().contains(instance)+" "+map.getAttributesToSync().contains(instance)+" "+instance.getModifiers().size()+" "+instance.getPermanentModifiers().size());}out.println("end");
+                for(int i=0;i<attributes.size();i++){var key=attributes.get(i);var instance=instances.get(key);if(instance!=null)out.println("state "+i+" "+bits(instance.getBaseValue())+" "+dirty.getBoolean(instance)+" "+bits(cached.getDouble(instance))+" "+map.getAttributesToUpdate().contains(instance)+" "+map.getAttributesToSync().contains(instance)+" "+instance.getModifiers().size()+" "+((Map<?,?>)permanent.get(instance)).size());}out.println("end");
             }
         }}
     }

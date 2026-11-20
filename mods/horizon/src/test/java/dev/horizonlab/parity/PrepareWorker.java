@@ -13,8 +13,10 @@ import net.minecraft.tags.*;
 public final class PrepareWorker {
     private static <T> Runnable restoreTags(Registry<T> registry) {
         var tags = new HashMap<TagKey<T>, List<Holder<T>>>();
-        registry.getTags().forEach(tag -> tags.put(tag.key(), tag.stream().toList()));
-        return () -> registry.prepareTagReload(new TagLoader.LoadResult<>(registry.key(), tags)).apply();
+        // 1.21.1 getTags() yields (TagKey, HolderSet.Named) pairs, and tags
+        // bind through MappedRegistry.bindTags — no LoadResult/prepareTagReload.
+        registry.getTags().forEach(tag -> tags.put(tag.getFirst(), tag.getSecond().stream().toList()));
+        return () -> ((MappedRegistry<T>) registry).bindTags(tags);
     }
 
     public static void main(String[] args) throws Exception {

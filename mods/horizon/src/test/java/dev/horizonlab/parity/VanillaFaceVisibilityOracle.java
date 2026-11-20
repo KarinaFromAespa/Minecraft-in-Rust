@@ -4,19 +4,36 @@ import com.google.gson.*;
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.*;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.FluidState;
 
 /** Imports definition kinds and raw geometry; compares actual skipRendering and
  * Block.shouldRenderFace on the unmodified native state registry. */
 public final class VanillaFaceVisibilityOracle {
     private static final Gson JSON=new GsonBuilder().serializeNulls().create();
+    /** A level holding one state at the origin, its neighbour beside it, air elsewhere. */
+    private record TwoBlock(BlockState state, BlockState neighbor, BlockPos neighborPos) implements BlockGetter {
+        public BlockEntity getBlockEntity(BlockPos pos) { return null; }
+        public BlockState getBlockState(BlockPos pos) {
+            if (pos.equals(BlockPos.ZERO)) return state;
+            if (pos.equals(neighborPos)) return neighbor;
+            return Blocks.AIR.defaultBlockState();
+        }
+        public FluidState getFluidState(BlockPos pos) { return getBlockState(pos).getFluidState(); }
+        public int getHeight() { return 384; }
+        public int getMinBuildHeight() { return -64; }
+    }
+
     private static String rule(Block block) throws Exception {
         for(Class<?> type=block.getClass();type!=null;type=type.getSuperclass()) {
             try {
@@ -66,7 +83,11 @@ public final class VanillaFaceVisibilityOracle {
                     int skip=0,visible=0;
                     for(var direction:Direction.values()) {
                         if(state.skipRendering(neighbor,direction))skip|=1<<direction.ordinal();
-                        if(Block.shouldRenderFace(state,neighbor,direction))visible|=1<<direction.ordinal();
+                        // 1.21.1 shouldRenderFace reads the neighbour (and the
+                        // occlusion shapes) from a BlockGetter: the two-block
+                        // level above. The 3-arg pure form arrived in 1.21.2.
+                        var level=new TwoBlock(state,neighbor,BlockPos.ZERO.relative(direction));
+                        if(Block.shouldRenderFace(state,level,BlockPos.ZERO,direction,BlockPos.ZERO.relative(direction)))visible|=1<<direction.ordinal();
                     }
                     output.write(a+" "+b+" "+cutout+" "+skip+" "+visible);output.newLine();
                 }

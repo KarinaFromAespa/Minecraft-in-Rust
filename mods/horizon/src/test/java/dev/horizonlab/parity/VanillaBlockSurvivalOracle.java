@@ -24,7 +24,9 @@ public final class VanillaBlockSurvivalOracle {
  }
     private static void bindFluidTags(JsonObject resources) {
         var registry=BuiltInRegistries.FLUID;
-        var loader=new TagLoader<Holder<Fluid>>((id,required)->registry.get(id).map(value->(Holder<Fluid>)value),"tags/fluid");
+        // 1.21.1 TagLoader takes a single-arg lookup (no required flag) and
+        // tags bind through MappedRegistry.bindTags — no LoadResult.
+        var loader=new TagLoader<Holder<Fluid>>(id->registry.getHolder(id),"tags/fluid");
         var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
@@ -35,7 +37,7 @@ public final class VanillaBlockSurvivalOracle {
         var tags=new HashMap<TagKey<Fluid>,List<Holder<Fluid>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.FLUID,id),List.copyOf(values)));
         if(tags.size()!=resources.size())throw new AssertionError("incomplete fluid tags");
-        registry.prepareTagReload(new TagLoader.LoadResult<>(Registries.FLUID,tags)).apply();
+        ((MappedRegistry<Fluid>)registry).bindTags(tags);
     }
  public static void main(String[] args)throws Exception {
   net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);

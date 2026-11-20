@@ -34,12 +34,14 @@ public final class VanillaHeightmapOracle {
             entry.add(state.toString());entry.add(VanillaStateCodec.encodeFullJson(state));states.add(entry);
         }
         for(var id:new TreeSet<>(BuiltInRegistries.BLOCK.keySet()))
-            defaults.addProperty(id.toString(),Block.getId(BuiltInRegistries.BLOCK.getValue(id).defaultBlockState()));
+            defaults.addProperty(id.toString(),Block.getId(BuiltInRegistries.BLOCK.get(id).defaultBlockState()));
         result.add("states",states);result.add("defaults",defaults);return result;
     }
     static void bindTags(JsonObject resources) {
         var registry=BuiltInRegistries.BLOCK;
-        var loader=new TagLoader<Holder<Block>>((id,required)->registry.get(id).map(value->(Holder<Block>)value),"tags/block");
+        // 1.21.1 TagLoader takes a single-arg lookup (no required flag) and
+        // tags bind through MappedRegistry.bindTags — no LoadResult.
+        var loader=new TagLoader<Holder<Block>>(id->registry.getHolder(id),"tags/block");
         var definitions=new HashMap<ResourceLocation,List<TagLoader.EntryWithSource>>();
         for(var item:resources.entrySet()) {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
@@ -50,7 +52,7 @@ public final class VanillaHeightmapOracle {
         var tags=new HashMap<TagKey<Block>,List<Holder<Block>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.BLOCK,id),List.copyOf(values)));
         if(tags.size()!=resources.size())throw new AssertionError("incomplete block tags");
-        registry.prepareTagReload(new TagLoader.LoadResult<>(Registries.BLOCK,tags)).apply();
+        ((MappedRegistry<Block>)registry).bindTags(tags);
     }
     private static final class Chunk extends ProtoChunk {
         final List<String> reads=new ArrayList<>();

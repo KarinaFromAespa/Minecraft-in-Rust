@@ -10,6 +10,7 @@ import java.util.zip.ZipFile;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.Holder;
+import net.minecraft.core.MappedRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceLocation;
@@ -52,7 +53,7 @@ public final class VanillaMobDataExporter {
         public BlockState getBlockState(BlockPos pos) { return pos.equals(BlockPos.ZERO) ? state : Blocks.AIR.defaultBlockState(); }
         public FluidState getFluidState(BlockPos pos) { return getBlockState(pos).getFluidState(); }
         public int getHeight() { return 384; }
-        public int getMinY() { return -64; }
+        public int getMinBuildHeight() { return -64; }
     }
 
     private static JsonArray states() throws Exception {
@@ -77,7 +78,7 @@ public final class VanillaMobDataExporter {
             if (net.minecraft.world.level.NaturalSpawner.isValidEmptySpawnBlock(level, BlockPos.ZERO, state, state.getFluidState(), EntityType.ZOMBIE)) flags |= 128;
             if (state.isFaceSturdy(empty, BlockPos.ZERO, Direction.UP)) flags |= 256;
             if (state.isSolid()) flags |= 512;
-            if (state.isSolidRender()) flags |= 1024;
+            if (state.isSolidRender(empty, BlockPos.ZERO)) flags |= 1024;
             o.add(flags);
             o.add(shape.isEmpty() ? 0.0 : shape.max(Direction.Axis.Y));
             out.add(o);
@@ -163,7 +164,9 @@ public final class VanillaMobDataExporter {
 
     /** Binds one registry's vanilla tags from the jar's data pack, as a server reload would. */
     private static <T> void bindTags(ZipFile jar, Registry<T> registry, ResourceKey<? extends Registry<T>> key, String folder) throws Exception {
-        var loader = new TagLoader<Holder<T>>((id, required) -> registry.get(id).map(value -> (Holder<T>) value), "tags/" + folder);
+        // 1.21.1 TagLoader takes a single-arg lookup (no required flag) and
+        // tags bind through MappedRegistry.bindTags — no LoadResult.
+        var loader = new TagLoader<Holder<T>>(id -> registry.getHolder(id), "tags/" + folder);
         var definitions = new HashMap<ResourceLocation, List<TagLoader.EntryWithSource>>();
         var prefix = "data/minecraft/tags/" + folder + "/";
         var entries = jar.entries();
@@ -179,7 +182,7 @@ public final class VanillaMobDataExporter {
         }
         var tags = new HashMap<TagKey<T>, List<Holder<T>>>();
         loader.build(definitions).forEach((id, values) -> tags.put(TagKey.create(key, id), List.copyOf(values)));
-        registry.prepareTagReload(new TagLoader.LoadResult<>(key, tags)).apply();
+        ((MappedRegistry<T>) registry).bindTags(tags);
     }
 
     public static void main(String[] args) throws Exception {

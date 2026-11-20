@@ -58,7 +58,7 @@ public final class VanillaBlockBehaviourExporter {
         } else if (v instanceof Fluid f) {
             return new JsonPrimitive(BuiltInRegistries.FLUID.getKey(f).toString());
         } else if (v instanceof SoundEvent s) {
-            return new JsonPrimitive(s.location().toString());
+            return new JsonPrimitive(s.getLocation().toString());
         } else if (v instanceof ResourceLocation id) {
             return new JsonPrimitive(id.toString());
         } else if (v instanceof ResourceKey<?> key) {
@@ -94,8 +94,8 @@ public final class VanillaBlockBehaviourExporter {
             var o = new JsonObject();
             o.addProperty("volume", sound.getVolume());
             o.addProperty("pitch", sound.getPitch());
-            o.addProperty("break", sound.getBreakSound().location().toString());
-            o.addProperty("place", sound.getPlaceSound().location().toString());
+            o.addProperty("break", sound.getBreakSound().getLocation().toString());
+            o.addProperty("place", sound.getPlaceSound().getLocation().toString());
             return o;
         } else if (v instanceof net.minecraft.core.particles.ParticleType<?> particle) {
             return new JsonPrimitive(BuiltInRegistries.PARTICLE_TYPE.getKey(particle).toString());

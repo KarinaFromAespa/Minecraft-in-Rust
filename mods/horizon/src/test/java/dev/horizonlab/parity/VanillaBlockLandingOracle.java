@@ -45,7 +45,7 @@ public final class VanillaBlockLandingOracle {
         @Override public DamageSource stalagmite(){d.query("stalagmite-source");return stalagmite;}
     }
     static final class Rules extends GameRules {
-        Data d;Rules(){super(net.minecraft.world.flag.FeatureFlagSet.of());}
+        Data d;Rules(){super();} // 1.21.1 GameRules has a no-arg constructor; the FeatureFlagSet form does not exist yet.
         // 1.21.10 GameRules: typed keys, getBoolean(Key<BooleanValue>); the
         // 1.21.11 GameRule<T>/get(GameRule) API does not exist yet.
         @Override public boolean getBoolean(GameRules.Key<GameRules.BooleanValue> key){if(key!=GameRules.RULE_MOBGRIEFING)throw new AssertionError();d.query("mob-griefing");return d.flag("griefing");}
@@ -90,7 +90,7 @@ public final class VanillaBlockLandingOracle {
         @Override public List<Entity> getEntities(Entity excluded,AABB bounds){return d.entities(excluded,bounds);}
     }
     static final class ClientWorld extends Level {
-        Data d;ClientWorld(){super(null,null,null,null,false,false,0L,0);}
+        Data d;ClientWorld(){super(null,null,null,null,null,false,false,0L,0);} // 1.21.1 Level ctor takes a Supplier<ProfilerFiller> fifth argument.
 
         @Override public boolean isClientSide(){d.query("client");return d.flag("client");}
         @Override public RandomSource getRandom(){d.query("random");return d.random;}
@@ -105,9 +105,8 @@ public final class VanillaBlockLandingOracle {
         @Override public List<Entity> getEntities(Entity excluded,AABB bounds){return d.entities(excluded,bounds);}
 @Override public void destroyBlockProgress(int p0,net.minecraft.core.BlockPos p1,int p2){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.flag.FeatureFlagSet enabledFeatures(){throw new UnsupportedOperationException();}
-@Override public void explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.core.Holder p11){throw new UnsupportedOperationException();}
+@Override public net.minecraft.world.level.Explosion explode(net.minecraft.world.entity.Entity p0,net.minecraft.world.damagesource.DamageSource p1,net.minecraft.world.level.ExplosionDamageCalculator p2,double p3,double p4,double p5,float p6,boolean p7,net.minecraft.world.level.Level.ExplosionInteraction p8,net.minecraft.core.particles.ParticleOptions p9,net.minecraft.core.particles.ParticleOptions p10,net.minecraft.core.Holder<net.minecraft.sounds.SoundEvent> p11){throw new UnsupportedOperationException();}
 @Override public void gameEvent(net.minecraft.core.Holder p0,net.minecraft.world.phys.Vec3 p1,net.minecraft.world.level.gameevent.GameEvent.Context p2){throw new UnsupportedOperationException();}
-@Override public net.minecraft.world.level.block.entity.FuelValues fuelValues(){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.item.alchemy.PotionBrewing potionBrewing(){throw new UnsupportedOperationException();}
 @Override public float getShade(net.minecraft.core.Direction d,boolean shade){throw new UnsupportedOperationException();}
 @Override public java.lang.String gatherChunkSourceStats(){throw new UnsupportedOperationException();}
@@ -127,7 +126,7 @@ public final class VanillaBlockLandingOracle {
 @Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,net.minecraft.world.entity.Entity p1,net.minecraft.core.Holder p2,net.minecraft.sounds.SoundSource p3,float p4,float p5,long p6){throw new UnsupportedOperationException();}
 @Override public void playSeededSound(net.minecraft.world.entity.player.Player p0,double p1,double p2,double p3,net.minecraft.core.Holder p4,net.minecraft.sounds.SoundSource p5,float p6,float p7,long p8){throw new UnsupportedOperationException();}
 @Override public java.util.List players(){throw new UnsupportedOperationException();}
-@Override public net.minecraft.world.item.crafting.RecipeAccess recipeAccess(){throw new UnsupportedOperationException();}
+@Override public net.minecraft.world.item.crafting.RecipeManager getRecipeManager(){throw new UnsupportedOperationException();}
 @Override public void sendBlockUpdated(net.minecraft.core.BlockPos p0,net.minecraft.world.level.block.state.BlockState p1,net.minecraft.world.level.block.state.BlockState p2,int p3){throw new UnsupportedOperationException();}
 @Override public net.minecraft.world.TickRateManager tickRateManager(){throw new UnsupportedOperationException();}
     }
@@ -202,7 +201,7 @@ public final class VanillaBlockLandingOracle {
         VanillaCollisionOracle.main(new String[]{"generate",dir.toString()});VanillaMovementRegistryOracle.export(dir);
         var definitions=new JsonObject();var metadata=new JsonArray();java.lang.reflect.Field base=null;try{base=FarmBlock.class.getDeclaredField("baseBlock");base.setAccessible(true);}catch(NoSuchFieldException missing){} var sound=BlockBehaviour.class.getDeclaredField("soundType");sound.setAccessible(true); // no baseBlock field in 1.21.11: turnToDirt hardcodes dirt; the soundType field declaration follows on this line in the original layoutvar sound=BlockBehaviour.class.getDeclaredField("soundType");sound.setAccessible(true);
         var owners=Set.of(Block.class,HayBlock.class,HoneyBlock.class,SlimeBlock.class,PowderSnowBlock.class,PointedDripstoneBlock.class,FarmBlock.class,TurtleEggBlock.class,BedBlock.class); // BedBlock declares fallOn in 1.21.11
-        for(var block:BuiltInRegistries.BLOCK){var owner=block.getClass().getMethod("fallOn",Level.class,BlockState.class,BlockPos.class,Entity.class,float.class).getDeclaringClass();if(!owners.contains(owner))throw new AssertionError(owner);var bounce=block.getClass().getMethod("updateEntityMovementAfterFallOn",BlockGetter.class,Entity.class).getDeclaringClass();if(bounce!=Block.class&&bounce!=BedBlock.class&&bounce!=SlimeBlock.class)throw new AssertionError(bounce);var entry=new JsonObject();entry.addProperty("fall",owner.getSimpleName());entry.addProperty("bounce",bounce!=Block.class);if(owner==FarmBlock.class)entry.addProperty("base",BuiltInRegistries.BLOCK.getKey(base==null?Blocks.DIRT:(Block)base.get(block)).toString());if(owner==HoneyBlock.class){var type=(SoundType)sound.get(block);entry.addProperty("volume",String.format("%08x",Float.floatToIntBits(type.getVolume())));entry.addProperty("pitch",String.format("%08x",Float.floatToIntBits(type.getPitch())));if(type.getFallSound()!=SoundEvents.HONEY_BLOCK_FALL)throw new AssertionError();}definitions.add(BuiltInRegistries.BLOCK.getKey(block).toString(),entry);}
+        for(var block:BuiltInRegistries.BLOCK){var owner=block.getClass().getMethod("fallOn",Level.class,BlockState.class,BlockPos.class,Entity.class,float.class).getDeclaringClass();if(!owners.contains(owner))throw new AssertionError(owner);var bounce=block.getClass().getMethod("updateEntityAfterFallOn",BlockGetter.class,Entity.class).getDeclaringClass();if(bounce!=Block.class&&bounce!=BedBlock.class&&bounce!=SlimeBlock.class)throw new AssertionError(bounce);var entry=new JsonObject();entry.addProperty("fall",owner.getSimpleName());entry.addProperty("bounce",bounce!=Block.class);if(owner==FarmBlock.class)entry.addProperty("base",BuiltInRegistries.BLOCK.getKey(base==null?Blocks.DIRT:(Block)base.get(block)).toString());if(owner==HoneyBlock.class){var type=(SoundType)sound.get(block);entry.addProperty("volume",String.format("%08x",Float.floatToIntBits(type.getVolume())));entry.addProperty("pitch",String.format("%08x",Float.floatToIntBits(type.getPitch())));if(type.getFallSound()!=SoundEvents.HONEY_BLOCK_FALL)throw new AssertionError();}definitions.add(BuiltInRegistries.BLOCK.getKey(block).toString(),entry);}
         for(var state:Block.BLOCK_STATE_REGISTRY){var row=new JsonObject();row.addProperty("id",Block.getId(state));row.addProperty("name",BuiltInRegistries.BLOCK.getKey(state.getBlock()).toString());metadata.add(row);}
         Files.writeString(dir.resolve("landing-definitions.json"),definitions.toString());Files.writeString(dir.resolve("landing-states.json"),metadata.toString());
     }
@@ -216,7 +215,7 @@ public final class VanillaBlockLandingOracle {
             Level world;if(d.flag("server")){var w=make(ServerWorld.class);w.d=d;world=w;}else{var w=make(ClientWorld.class);w.d=d;world=w;}
             var kind=kinds[f.get("kind").getAsInt()];var entity=(Entity)make(kind);var dataField=kind.getDeclaredField("d");dataField.set(entity,d);dimensions.set(entity,EntityDimensions.scalable(single(f.get("width")),single(f.get("height"))));d.occupants=new ArrayList<>();for(var box:f.getAsJsonArray("entities")){var e=make(Occupant.class);e.d=d;e.id=d.occupants.size();e.setBoundingBox(box(box));d.occupants.add(e);}
             var p=f.getAsJsonArray("position");var position=new BlockPos(p.get(0).getAsInt(),p.get(1).getAsInt(),p.get(2).getAsInt());var state=d.state;
-            try{if(d.flag("bounce"))state.getBlock().updateEntityMovementAfterFallOn(world,entity);else state.getBlock().fallOn(world,state,position,entity,(float)number(f.get("distance")));out.println("ok");}catch(Stop e){out.println("error");}
+            try{if(d.flag("bounce"))state.getBlock().updateEntityAfterFallOn(world,entity);else state.getBlock().fallOn(world,state,position,entity,(float)number(f.get("distance")));out.println("ok");}catch(Stop e){out.println("error");}
             out.println("state "+Block.getId(d.state));for(var e:d.occupants)out.println(bounds("final "+e.id,e.getBoundingBox()));out.println("queries "+d.calls);
         }}
     }

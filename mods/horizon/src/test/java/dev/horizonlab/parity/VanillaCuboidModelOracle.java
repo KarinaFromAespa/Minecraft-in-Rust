@@ -53,8 +53,10 @@ public final class VanillaCuboidModelOracle {
         value.faces.forEach((key, f) -> faces.put(key.getName(), face(f)));
         // 1.21.11 elements carry a boolean shade flag; the per-face shade direction override
         // the later cuboid format reports does not exist yet.
+        // 1.21.1 BlockElement has no lightEmission (element light arrived in
+        // 1.21.2): every element emits no light.
         return map("from", vector(value.from), "to", vector(value.to), "faces", faces,
-            "rotation", rotation(value.rotation), "shade", value.shade, "light", value.lightEmission);
+            "rotation", rotation(value.rotation), "shade", value.shade, "light", 0);
     }
     @SuppressWarnings("unchecked")
     private static List<BlockElement> elements(BlockModel value) throws Exception {
