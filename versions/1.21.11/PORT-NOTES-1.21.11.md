@@ -7652,3 +7652,36 @@ axe). Referrals: `CopperGolemAi` is its own class (not in this item);
 check -p horizon-client --lib --tests` clean; `mobs::copper_golem::` 1
 passed, `mobs::golem::` 10 passed. rustfmt --check clean on
 copper_golems.rs and golem_gift_tests.rs.
+
+## Item 110 — crafter (rank 2, NO-CHANGE)
+
+4 classes, 16 methods, 4 named: CrafterScreen (12,
+`extractBackground`, `slotClicked`), CrafterMenu (2,
+`refreshRecipeResult`), CrafterScreen$1 (1), CrafterBlock (1,
+`dispenseFrom`).
+
+Java delta, jar-verified: API shape only — `extract*` -> `render*`
+renames, `ContainerInput` -> `ClickType`, and the two-argument
+`assemble(input, registryAccess)` in both `refreshRecipeResult` and
+`dispenseFrom`. Literal comparison zero in all three decompiled
+classes. 1.21.11's `render` calls `renderTooltip` where 26.1's
+`extractRenderState` does not (the 26.x extractor framework renders
+tooltips elsewhere); the disabled-slot tooltip condition is identical.
+Everything else identical: slot-toggle logic (PICKUP enable/disable,
+SWAP enable, UI_BUTTON_CLICK 0.4 at pitch 1.0/0.75), slot layout
+(grid 26,17; result 134,35), quick-move ranges (grid -> 9..45
+reversed, else -> 0..9), `dispenseFrom`/`dispenseItem` (1050 on
+no/empty result, 6 crafting ticks, one-by-one vs bulk into the
+container in front, spawn speed 6, 17-box advancement trigger, 1049 +
+2010). `CrafterSlot` is in no report item and is bytecode-identical.
+The Rust already mirrors all of it: `crafter_dispense`,
+`crafter_eject`, `crafter_slot_clicked`, `crafter_tooltip`,
+`screen_layout::crafter` (exact sprite numbers), and the
+`Kind::Crafter` quick-move arm in menu.rs. The packet-handler citation
+was verified against the 1.21.11 jar (spectator + containerId checks,
+then `CrafterBlockEntity.setSlotState`). Referrals:
+`CrafterBlockEntity` (serverTick, redstone signal) is item 154's;
+the advancement trigger checks only the local player (pre-existing,
+version-neutral). Tests: `game::machines::crafter::` 3 passed; the
+`crafter` parity harness also covers it. rustfmt --check clean on
+crafter.rs.
