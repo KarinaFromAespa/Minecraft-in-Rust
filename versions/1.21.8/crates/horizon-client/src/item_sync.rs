@@ -296,10 +296,10 @@ fn components_tag(s: &Stack, builtin: &Builtin, synced: &Dynamic) -> Option<Tag>
                 };
                 slots
             }
-            // `TypedEntityData`: a block item's block entity, which the op
+            // `CustomData`: a block item's block entity, which the op
             // warning and a spawner's tooltip read.
             Component::Raw(bytes) if *kind == component::BLOCK_ENTITY_DATA => {
-                let Some(data) = block_entity_data_tag(bytes, builtin) else {
+                let Some(data) = block_entity_data_tag(bytes) else {
                     continue;
                 };
                 data
@@ -599,17 +599,13 @@ fn template_tag(t: &Stack, builtin: &Builtin, synced: &Dynamic) -> Tag {
     Tag::compound(entries)
 }
 
-/// `TypedEntityData.streamCodec` of a block entity: its type's registry id,
-/// then its data without the id, which the saved component keeps.
-fn block_entity_data_tag(bytes: &[u8], builtin: &Builtin) -> Option<Tag> {
+/// A block item's `block_entity_data` (`CustomData.STREAM_CODEC`): the
+/// compound tag with its own `id`, as-is; 1.21.9's `TypedEntityData`
+/// put a type id varint first and the tag without its id.
+fn block_entity_data_tag(bytes: &[u8]) -> Option<Tag> {
     let mut r = Reader::new(bytes);
-    let id = r.varint().ok()?;
-    let kind = builtin.get("minecraft:block_entity_type")?.name(id)?;
-    let Tag::Compound(mut data) = r.nbt().ok()? else {
-        return None;
-    };
-    data.insert("id".into(), Tag::String(kind.into()));
-    Some(Tag::Compound(data))
+    let tag = r.nbt().ok()?;
+    (r.remaining() == 0).then_some(tag)
 }
 
 /// `DataComponents.CAN_PLACE_ON`'s registry id (26.3); `CAN_BREAK` follows it.

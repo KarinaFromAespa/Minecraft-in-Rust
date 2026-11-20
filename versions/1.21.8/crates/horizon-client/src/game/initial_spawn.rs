@@ -1,12 +1,12 @@
 //! A new world's spawn and its first player's position: MinecraftServer.
 //! setInitialSpawn walks a chunk spiral around NoiseBasedChunkGenerator.
-//! getOrigin, then PlayerSpawnFinder.findSpawn picks a free column around
-//! the world spawn within the respawn radius.
+//! getOrigin, then ServerPlayer.adjustSpawnLocation picks a free column
+//! around the world spawn within the respawn radius.
 use super::Game;
 use horizon_client::{
     Result,
     assets::Properties,
-    collisions::{SceneCollisions, no_collision_or_liquid},
+    collisions::{SceneCollisions, no_collision_empty},
     random_source,
     world::World,
     world_spawn::{
@@ -60,7 +60,7 @@ impl SpawnLevel for Columns<'_, '_> {
             &mut scene,
             state,
             BlockPos::new(x, y, z),
-            &CollisionContext::empty(false),
+            &CollisionContext::empty(),
         ) else {
             return false;
         };
@@ -232,7 +232,7 @@ impl Game<'_> {
                 &mut scene,
                 self.world.block(pos[0], pos[1], pos[2]),
                 BlockPos::new(pos[0], pos[1], pos[2]),
-                &CollisionContext::empty(false),
+                &CollisionContext::empty(),
             )
             .is_ok_and(|shape| shape.is_empty())
     }
@@ -240,8 +240,8 @@ impl Game<'_> {
     /// chunks allow: the feet of the first free column within the respawn
     /// radius, else the suggestion's own column. The finder waits in `state`
     /// (None to begin); Err gives the chunk of the candidate being waited for,
-    /// which the caller must have loaded (the finder tries at most 1024
-    /// columns).
+    /// which the caller must have loaded (the finder tries every column of
+    /// the square — 1.21.8 has no 1024 cap).
     pub(super) fn search_spawn(
         &self,
         suggestion: [i32; 3],
@@ -313,7 +313,7 @@ impl Game<'_> {
         })
     }
     /// ServerPlayer.adjustSpawnLocation for a server's new player: where
-    /// PlayerSpawnFinder.findSpawn puts their feet around the world spawn
+    /// the coprime-stride search puts their feet around the world spawn
     /// (`spawn`, the feet there), so that players new to a world don't all
     /// stand in one spot. Vanilla waits for each candidate's chunk; a server
     /// tick can't, so a candidate in a chunk not loaded yet is passed over,
@@ -341,8 +341,13 @@ impl Game<'_> {
         }
         spawn
     }
-    /// PlayerSpawnFinder.noCollisionNoLiquid: a player's box standing at the
-    /// block's bottom centre touches no block or liquid.
+    /// adjustSpawnLocation's `noCollisionNoLiquid`: a player's box standing at the
+    /// block's bottom centre touches no block or liquid. In 1.21.8 that check
+    /// is `noCollision(player, box, true)`, whose always-stand predicate only
+    /// yields the half-height stable liquid surface above the player's feet —
+    /// which the player's own box never intersects — so for this box it is
+    /// exactly the empty-context check. (1.21.9 made liquids full blocks
+    /// under it instead.)
     fn player_fits(&self, pos: [i32; 3]) -> bool {
         let feet = bottom_center(pos);
         let bounds = Aabb::new(
@@ -354,9 +359,9 @@ impl Game<'_> {
             binding: self.collision,
             subject: None,
         };
-        no_collision_or_liquid(&mut scene, bounds)
+        no_collision_empty(&mut scene, bounds)
     }
-    /// PlayerSpawnFinder.fixupSpawnHeight: up out of anything solid, then
+    /// adjustSpawnLocation's height fixup: up out of anything solid, then
     /// down onto the ground.
     fn fixup_spawn_height(&self, pos: [i32; 3]) -> Vec3 {
         let [x, mut y, z] = pos;

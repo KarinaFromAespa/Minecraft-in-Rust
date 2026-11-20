@@ -1,4 +1,4 @@
-//! The debug keys (26.3 `KeyboardHandler`): `key.debug.modifier` (F3) held
+//! The debug keys (1.21.8 `KeyboardHandler`): `key.debug.modifier` (F3) held
 //! with another key runs a debug action (`handleDebugKeys`), released alone
 //! it toggles the debug overlay (`key.debug.overlay`, F3 too by default);
 //! with Escape it pauses without the menu; held with `key.debug.crash` (C)
@@ -16,7 +16,6 @@ pub enum DebugAction {
     CopyRecreateCommand,
     Spectate,
     SwitchGameMode,
-    DebugOptions,
     FocusPause,
     DumpDynamicTextures,
     ReloadResourcePacks,
@@ -35,7 +34,7 @@ pub enum DebugAction {
 }
 
 /// The mappings `handleDebugKeys` tests, in its order.
-pub const ACTIONS: [(&str, DebugAction); 20] = [
+pub const ACTIONS: [(&str, DebugAction); 19] = [
     ("key.debug.reloadChunk", DebugAction::ReloadChunks),
     ("key.debug.showHitboxes", DebugAction::ShowHitboxes),
     ("key.debug.clearChat", DebugAction::ClearChat),
@@ -50,7 +49,6 @@ pub const ACTIONS: [(&str, DebugAction); 20] = [
     ),
     ("key.debug.spectate", DebugAction::Spectate),
     ("key.debug.switchGameMode", DebugAction::SwitchGameMode),
-    ("key.debug.debugOptions", DebugAction::DebugOptions),
     ("key.debug.focusPause", DebugAction::FocusPause),
     (
         "key.debug.dumpDynamicTextures",
@@ -103,7 +101,7 @@ pub enum OpenScreen {
 /// What the game does for `KeyboardHandler.keyPress`.
 pub trait DebugHost {
     fn screen(&self) -> OpenScreen;
-    /// `DebugScreenEntries.toggleDebugOverlay`.
+    /// `DebugScreenOverlay.toggleOverlay`.
     fn toggle_overlay(&mut self);
     /// `Minecraft.pauseGame(suppressPauseMenu)`.
     fn pause_game(&mut self, without_menu: bool);
@@ -171,12 +169,13 @@ impl DebugKeys {
         }
         let screen = host.screen();
         let handles_game = screen == OpenScreen::None;
-        let handles_global = handles_game
-            || matches!(
-                screen,
-                OpenScreen::PauseWithoutMenu | OpenScreen::GameModeSwitcher
-            );
-        if same && key == modifier && action == KeyAction::Release {
+        // `keyPress`'s `$$17`: no screen, or a PauseScreen without its menu.
+        // 1.21.9 adds the game-mode switcher to it; 1.21.8 does not.
+        let handles_global = handles_game || screen == OpenScreen::PauseWithoutMenu;
+        // 1.21.8 gates the release toggle on `$$17` too: F3 released over
+        // another screen (the switcher included) neither toggles the overlay
+        // nor spends the modifier. 1.21.9 toggles regardless of the screen.
+        if same && key == modifier && action == KeyAction::Release && handles_global {
             if self.used_debug_key_as_modifier {
                 self.used_debug_key_as_modifier = false;
             } else {
@@ -196,7 +195,10 @@ impl DebugKeys {
         if handles_global && key == "key.keyboard.escape" {
             host.pause_game(modifier_down);
             did = modifier_down;
-        } else if modifier_down {
+        } else if modifier_down && handles_global {
+            // 1.21.8 runs `handleDebugKeys` only under `$$17`: over another
+            // screen, F3 combinations do nothing. 1.21.9 runs them whenever
+            // F3 is held, whatever the screen.
             did = self.handle_debug_keys(host, binds, key, shift, now);
         }
         if same {
@@ -414,11 +416,11 @@ mod tests {
     #[test]
     fn refused_actions_do_not_count() {
         let (mut k, mut h, b) = (DebugKeys::default(), Host::default(), KeyBinds::default());
-        h.refused.push(DebugAction::ShowHitboxes);
+        h.refused.push(DebugAction::CopyLocation);
         press(&mut k, &mut h, &b, F3, 0);
-        // F3+B without a player (or with reduced debug info): B reaches the
-        // game and F3's release still toggles the overlay.
-        assert!(press(&mut k, &mut h, &b, "key.keyboard.b", 1));
+        // F3+C with reduced debug info: C reaches the game and F3's release
+        // still toggles the overlay.
+        assert!(press(&mut k, &mut h, &b, "key.keyboard.c", 1));
         release(&mut k, &mut h, &b, F3);
         assert_eq!(h.overlay, 1);
     }
@@ -439,15 +441,37 @@ mod tests {
     }
 
     #[test]
-    fn behind_a_screen_combinations_work_but_keys_stay_with_the_screen() {
+    fn behind_a_screen_combinations_do_not_run_and_f3_does_not_toggle() {
         let (mut k, mut h, b) = (DebugKeys::default(), Host::default(), KeyBinds::default());
         h.screen = Some(OpenScreen::Other);
         assert!(!press(&mut k, &mut h, &b, F3, 0));
         assert!(k.modifier_down);
+        // 1.21.8 runs handleDebugKeys only in game or over a pauseless
+        // pause screen: F3+H over another screen runs nothing.
         assert!(!press(&mut k, &mut h, &b, "key.keyboard.h", 1));
-        assert_eq!(h.actions, [(DebugAction::AdvancedTooltips, false)]);
+        assert!(h.actions.is_empty());
+        // And F3's release over that screen does not toggle the overlay.
         release(&mut k, &mut h, &b, F3);
         assert_eq!(h.overlay, 0);
+        // The modifier was not spent either: the next F3 alone, in game,
+        // still toggles.
+        h.screen = Some(OpenScreen::None);
+        press(&mut k, &mut h, &b, F3, 2);
+        release(&mut k, &mut h, &b, F3);
+        assert_eq!(h.overlay, 1);
+    }
+
+    #[test]
+    fn f3_released_over_the_switcher_does_not_toggle_the_overlay() {
+        let (mut k, mut h, b) = (DebugKeys::default(), Host::default(), KeyBinds::default());
+        // F3 held in game, the switcher opened, no debug action run: the
+        // release over the switcher must not toggle (1.21.9's `$$17`
+        // includes the switcher; 1.21.8's does not).
+        press(&mut k, &mut h, &b, F3, 0);
+        h.screen = Some(OpenScreen::GameModeSwitcher);
+        release(&mut k, &mut h, &b, F3);
+        assert_eq!(h.overlay, 0);
+        assert!(!k.modifier_down);
     }
 
     #[test]

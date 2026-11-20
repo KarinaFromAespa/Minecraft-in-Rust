@@ -37,12 +37,9 @@ address), op and deop, the whitelist, and metrics as Prometheus text.
    log line (`log`), the supervisor's `phase`, and the game's typed `join`, `leave`, `kick`, `chat` and `death`
    events with the player's name and UUID (`?types=chat,death` picks some). `Last-Event-ID` (or `?since=N`)
    resumes after a reconnection; without `Accept: text/event-stream` it answers the events after `since` as JSON.
-7. A tool written for vanilla: turn on vanilla's management protocol (`management-server-enabled = true` in
-   `[properties]`, [hosting.md](../hosting.md#tools-written-for-vanillas-management-protocol)); it answers as vanilla
-   26.3's does, and `rpc.discover` describes it.
-8. A tool that speaks RCON (a hosting panel, a Discord bridge): turn on `enable-rcon` with a password in
+7. A tool that speaks RCON (a hosting panel, a Discord bridge): turn on `enable-rcon` with a password in
    `[properties]` ([hosting.md](../hosting.md#tools-that-speak-rcon)); a command runs as one typed in the console.
-9. A tool that reads the GS4 query (a server list, a status page): turn on `enable-query` in `[properties]`
+8. A tool that reads the GS4 query (a server list, a status page): turn on `enable-query` in `[properties]`
    ([hosting.md](../hosting.md#tools-that-read-the-query)); it answers the MOTD, the version and the players over UDP.
 
 ## Reference
@@ -79,9 +76,6 @@ addition; a change to one starts `/api/v2`, served beside `/api/v1`.
 - **Mods on a dedicated server**: turn on and off, and their settings, once native mods can be built for the
   server ([mods.md](../mods.md), [native-mods.md](../native-mods.md#multiplayer)). `GET /api/v1/mods` lists the native
   mods the game program was built with.
-- **Vanilla's management protocol**: `serversettings/*` (the live settings not yet done) and the world
-  upgrade's notifications (the others are sent). The methods answer
-  an internal error saying so; a kick's translatable message is sent as its key.
 - **Compatibility tests**: golden replies for the remaining endpoint groups (the lifecycle replies are pinned),
   and a `server.toml` from each release line.
 
@@ -99,9 +93,3 @@ addition; a change to one starts `/api/v2`, served beside `/api/v1`.
 - RCON (`enable-rcon`, `rcon.port`, `rcon.password`): vanilla's remote console, served by the supervisor.
 - GS4 query (`enable-query`, `query.port`): vanilla's UDP query (handshake, basic and full stat), served by the
   supervisor.
-- Vanilla's management protocol (`management-server-*`): the WebSocket, its authentication, `rpc.discover`,
-  `players`, `players/kick`, `server/{status,save,stop,system_message}`, and the four lists' getters.
-- The management protocol's TLS (on by default, as in vanilla): a PKCS12 keystore, or a self-signed one generated
-  in `.horizon/` when none is set.
-- The management protocol's `allowlist/{add,remove,set,clear}` and `bans/{add,remove,set,clear}`.
-- The management protocol's `ip_bans/{add,remove,set,clear}` and `operators/{add,remove,set,clear}`.

@@ -151,18 +151,21 @@ fn blast_distance(center: [f64; 3], p: [f64; 3]) -> f64 {
     ((p[0] - center[0]).powi(2) + (p[1] - center[1]).powi(2) + (p[2] - center[2]).powi(2)).sqrt()
 }
 
-/// The unit vector from `center` to `origin`, 0 when they coincide.
-fn blast_direction(center: [f64; 3], origin: [f64; 3]) -> [f64; 3] {
+/// The unit vector from `center` to `origin`, `None` when they coincide
+/// exactly: 1.21.8's `ServerExplosion.hurtEntities` skips an entity whose
+/// eye is at the centre outright (no damage, no push), where 1.21.9's
+/// `Vec3.normalize` gives a zero direction and still hurts it.
+fn blast_direction(center: [f64; 3], origin: [f64; 3]) -> Option<[f64; 3]> {
     let d = [
         origin[0] - center[0],
         origin[1] - center[1],
         origin[2] - center[2],
     ];
     let l = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-    if l < 1.0e-4 {
-        [0.0; 3]
+    if l == 0.0 {
+        None
     } else {
-        [d[0] / l, d[1] / l, d[2] / l]
+        Some([d[0] / l, d[1] / l, d[2] / l])
     }
 }
 
@@ -457,15 +460,23 @@ impl Game<'_> {
         if dist > 1.0 || p.health.dead_or_dying() {
             return None;
         }
-        // ServerPlayer.onExplosionHit: the blast that hit the player is theirs.
-        self.adv.marks.blast = Some((feet, cause.cloned()));
-        let w = f64::from(p.dimensions.width) / 2.0;
-        let h = f64::from(p.dimensions.height);
         let eye = [
             feet[0],
             feet[1] + f64::from(p.dimensions.eye_height),
             feet[2],
         ];
+        // 1.21.8's `hurtEntities` skips an entity whose eye is exactly at
+        // the centre (no damage, no push, no `onExplosionHit`); 1.21.9's
+        // `Vec3.normalize` gives a zero direction and still hurts it.
+        let d = [eye[0] - center[0], eye[1] - center[1], eye[2] - center[2]];
+        let l = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
+        if l == 0.0 {
+            return None;
+        }
+        // ServerPlayer.onExplosionHit: the blast that hit the player is theirs.
+        self.adv.marks.blast = Some((feet, cause.cloned()));
+        let w = f64::from(p.dimensions.width) / 2.0;
+        let h = f64::from(p.dimensions.height);
         let exposure = self.seen_percent(
             center,
             [feet[0] - w, feet[1], feet[2] - w],
@@ -473,13 +484,7 @@ impl Game<'_> {
         );
         let pow = (1.0 - dist) * f64::from(exposure);
         let amount = ((pow * pow + pow) / 2.0 * 7.0 * diameter + 1.0) as f32;
-        let d = [eye[0] - center[0], eye[1] - center[1], eye[2] - center[2]];
-        let l = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt();
-        let dir = if l < 1.0e-4 {
-            [0.0; 3]
-        } else {
-            [d[0] / l, d[1] / l, d[2] / l]
-        };
+        let dir = [d[0] / l, d[1] / l, d[2] / l];
         let power = pow * (1.0 - resistance);
         // `source.doTeamsAllowDamage(entity)`.
         let hurtable = exploding.is_none_or(|id| {
@@ -569,13 +574,13 @@ impl Game<'_> {
         if dist > 1.0 {
             return None;
         }
-        let b = entity.explosion_box();
-        let (lo, hi) = (b.min_position(), b.max_position());
-        let exposure = self.seen_percent(center, [lo.x, lo.y, lo.z], [hi.x, hi.y, hi.z]);
         let dir = blast_direction(
             center,
             [feet.x, feet.y + entity.explosion_eye_height(), feet.z],
-        );
+        )?;
+        let b = entity.explosion_box();
+        let (lo, hi) = (b.min_position(), b.max_position());
+        let exposure = self.seen_percent(center, [lo.x, lo.y, lo.z], [hi.x, hi.y, hi.z]);
         let power = (1.0 - dist) * f64::from(exposure);
         Some(Hit {
             dist,
@@ -1059,15 +1064,9 @@ impl Game<'_> {
             self.audio
                 .play("minecraft:entity.generic.explode", Some(center), 4.0, pitch);
         }
-        // ServerLevel.explode sends toBlow.size() whatever the interaction, and
         // `ServerExplosion.isSmall` also covers an explosion that keeps blocks.
-        let block_count = targets.len();
         let small = radius < 2.0 || interaction == BlockInteraction::Keep;
-        let (world, facts) = (&self.world, self.res.facts());
-        self.particles
-            .explosion(center, small, block_count, radius, &|b| {
-                facts.is_air(world.block(b[0], b[1], b[2]))
-            });
+        self.particles.explosion(center, small);
         self.lan_explode(center, small, pushed);
         Ok(())
     }

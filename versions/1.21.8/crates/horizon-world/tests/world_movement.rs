@@ -66,7 +66,7 @@ fn resolve(movement: Vec3, candidate_budget: usize) -> (Vec3, OpenAir) {
         &mut world,
         MovementRequest {
             entity: EntityIdentity(0),
-            context: CollisionContext::empty(false),
+            context: CollisionContext::empty(),
             bounds: player(),
             movement,
             max_step: 0.6,

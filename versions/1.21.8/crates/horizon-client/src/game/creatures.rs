@@ -190,7 +190,7 @@ fn pickable_projectile_hitboxes(
     out
 }
 
-/// `FlameFeatureRenderer`: fire quads stacked up a burning entity's box,
+/// `EntityRenderDispatcher.renderFlame`: fire quads stacked up a burning entity's box,
 /// turned to the camera around Y, at full block light. `at` is the entity's
 /// feet relative to the camera.
 fn flame_geometry(
@@ -875,6 +875,14 @@ impl Game<'_> {
             self.persist.raw.insert(id, raw);
         }
         self.mobs.push(mob);
+        // ConversionType (1.21.8): the new mob re-boards the old mob's
+        // vehicle through `startRiding`, which fires `entity_mount`
+        // (`addPassenger`) and the `START_RIDING_TRIGGER`; 1.21.9 calls
+        // `startRiding(vehicle, false, false)`, suppressing both.
+        if let Some(vehicle) = from.extra.mount {
+            self.conversion_mount_event(id, vehicle);
+            self.note_started_riding(vehicle);
+        }
         self.native_mobs_joined(self.mobs.len() - 1, false);
         let transformed_kind = self
             .mobs
@@ -1126,9 +1134,11 @@ impl Game<'_> {
         // Vanilla's spawning and raids run before ChunkMap.tick.
         let from = self.lan_synced_from();
         horizon_client::spans::time("spawn_natural", || self.spawn_natural());
-        // ServerChunkCache.tickChunks: the custom spawners tick only with spawn_mobs.
+        // ServerChunkCache.tickChunks: the custom spawners tick only with spawn_mobs,
+        // except the wandering trader, whose delay counts down regardless
+        // (1.21.8 gates only its spawn roll on doMobSpawning).
+        self.tick_wandering_trader();
         if self.ui.rules.bool("spawn_mobs") {
-            self.tick_wandering_trader();
             self.tick_patrol_spawner();
             self.tick_cat_spawner();
             self.tick_village_siege();
@@ -2220,9 +2230,9 @@ impl Game<'_> {
             None => self.last_hurt_by_player.remove(&victim),
         };
     }
-    /// The player in the world with `uuid` (`EntityReference.getPlayer`), as
-    /// `last_hurt_by_player` keeps them: None for the player in place, else the
-    /// guest's connection.
+    /// The player in the world with `uuid` (`EntityReference.get`, this
+    /// level only), as `last_hurt_by_player` keeps them: None for the player
+    /// in place, else the guest's connection.
     fn player_with_uuid(&self, uuid: [i32; 4]) -> Option<Option<u32>> {
         if self.player.is_some()
             && horizon_client::mobs::tame::owned_by(Some(uuid), self.acting_uuid())
@@ -3529,7 +3539,7 @@ impl Game<'_> {
                 }
                 MobEvent::StartRiding { rider, vehicle } => {
                     if horizon_client::mobs::riders::start_riding(&mut self.mobs, rider, vehicle) {
-                        // sendEventAndTriggers: the server players already on it.
+                        // Entity.startRiding: the server players already on it.
                         self.note_started_riding(vehicle);
                     }
                 }
@@ -3635,12 +3645,9 @@ impl Game<'_> {
                     }
                 }
                 MobEvent::GiftLoot { mob, table, at } => {
-                    // Turtle.ageBoundaryReached and Panda.afterSneeze: only
-                    // with mob loot on.
-                    if matches!(
-                        table,
-                        "minecraft:gameplay/turtle_grow" | "minecraft:gameplay/panda_sneeze"
-                    ) && !self.ui.rules.bool("mob_drops")
+                    // Panda.afterSneeze: only with mob loot on.
+                    if matches!(table, "minecraft:gameplay/panda_sneeze")
+                        && !self.ui.rules.bool("mob_drops")
                     {
                         continue;
                     }
@@ -4758,6 +4765,10 @@ impl Game<'_> {
                     && breezes.contains(&id)
                 {
                     super::wind::reverse(p, jitter);
+                    // `Projectile.deflect` in 1.21.8 takes the resolved owner
+                    // (`getOwner()`): one that no longer resolves in this
+                    // level is dropped with the turn.
+                    self.drop_unresolved_owner(p);
                     if p.arrow.is_some() {
                         horizon_client::arrows::finish_entity_hit(p, &scene, EntityHit::Deflected);
                         let a = p.arrow.as_mut().expect("an arrow");
@@ -4805,7 +4816,12 @@ impl Game<'_> {
                 } = hit
                     && let Some(j) = pickable_projectile_hit(id)
                 {
-                    let (owner, owner_uuid, guest) = (p.owner, p.owner_uuid, p.guest);
+                    // 1.21.8's `onHit` passes `getOwner()` (resolved in this
+                    // level) for both the deflector and the owner: an owner
+                    // that no longer resolves is dropped, and the aim is
+                    // left alone. (1.21.9 passes the bare `owner`
+                    // reference, which survives.)
+                    let (owner, owner_uuid, guest) = self.resolved_owner(p);
                     let look = self.owner_look(owner, guest);
                     let wind = &mut projectiles[j];
                     super::deflect::aim_deflect(wind, look, owner, owner_uuid, guest);
@@ -5267,6 +5283,17 @@ impl Game<'_> {
             } else {
                 self.arrow_event(arrow.position, event);
             }
+        }
+        // A deflect (`AbstractArrow.onHitEntity` on a refusal, or a
+        // trident's bounce after a hurt) takes the resolved owner in
+        // 1.21.8: one that no longer resolves in this level is dropped
+        // before the arrow flies on. The events above still see the
+        // pre-deflect owner (the shot happened before the turn).
+        let deflected = matches!(outcome, EntityHit::Refused)
+            || matches!(outcome, EntityHit::Hurt)
+                && matches!(arrow.kind, ProjectileKind::Trident);
+        if deflected {
+            self.drop_unresolved_owner(&mut arrow);
         }
         if keep {
             self.add_projectile(arrow);
@@ -5899,10 +5926,11 @@ impl Game<'_> {
                 });
                 if p.owner == Some(Who::Player) && taken && !cancel {
                     // ThrownEnderpearl: 5% endermite where the player was
-                    // (when monsters spawn), teleport, 5 damage.
+                    // (mob spawning on only — no difficulty check in 1.21.8;
+                    // the mite then despawns via `Mob.checkDespawn` in
+                    // peaceful), teleport, 5 damage.
                     if self.world.random.next_float() < 0.05
-                        && self.ui.rules.bool("spawn_monsters")
-                        && self.ui.difficulty != 0
+                        && self.ui.rules.bool("spawn_mobs")
                         && let Some(pl) = self.player.as_ref()
                     {
                         let from = pl.position;
@@ -7124,8 +7152,8 @@ impl Game<'_> {
             self.mob_event_particles(self.mobs[index].id, if trusts { 41 } else { 40 });
         }
         if let Some(fresh) = stew_particles {
-            // `SpellParticleOption.create(EFFECT, -1, 1)` is the plain white
-            // effect particle; the smoke is the already-fed answer.
+            // `ParticleTypes.EFFECT` is the plain white effect particle; the
+            // smoke is the already-fed answer.
             let ty = if fresh {
                 ParticleType::Effect
             } else {
@@ -7156,9 +7184,10 @@ impl Game<'_> {
         }
         // Turtle.ageBoundaryReached: food that finishes a baby's growth.
         if baby_turtle && !self.mobs[index].is_baby() {
-            self.handle_mob_events(vec![MobEvent::GiftLoot {
+            self.handle_mob_events(vec![MobEvent::DropItem {
                 mob: self.mobs[index].id,
-                table: "minecraft:gameplay/turtle_grow",
+                item: "minecraft:turtle_scute".into(),
+                count: 1,
                 at: feet,
             }])?;
         }
@@ -7329,11 +7358,13 @@ impl Game<'_> {
         let (id, at) = (m.id, m.position);
         let feet = [at.x, at.y, at.z];
         let tool = self.held().cloned();
-        let table = "minecraft:brush/armadillo";
-        let mut stacks = self.sequence_loot(table, table, tool.as_ref());
+        // 1.21.8's brushOffScute spawns one scute outright; the
+        // brush/armadillo loot table (and dropFromEntityInteractLootTable)
+        // came in 1.21.9, so there is no table to roll here.
+        let mut stacks = vec![ItemStack::new("minecraft:armadillo_scute", 1)];
         let kind = super::native_hooks::mob_kind(&self.mobs[index]);
         self.native_use_drops(
-            table,
+            "minecraft:brush/armadillo",
             feet,
             None,
             Some((id, &kind)),
@@ -7508,16 +7539,6 @@ impl Game<'_> {
         )
         .then_some(hit)
     }
-    /// Shared peaceful-mode eligibility for spawn eggs.
-    pub(super) fn spawn_egg_allowed(&self, item: &str) -> bool {
-        let kind = item.trim_end_matches("_spawn_egg");
-        self.ui.difficulty != 0
-            || self
-                .res
-                .mob_types()
-                .get(kind)
-                .is_none_or(|t| horizon_client::mobs::spawn_rules::allowed_in_peaceful(t.species))
-    }
     /// `SpawnEggItem.useOn` for a block, or `use` for a fluid source.
     fn use_spawn_egg(&mut self, stack: &ItemStack) -> Result<bool> {
         let fluid = matches!(self.guest_use, Some(super::GuestUse::Item(_)));
@@ -7529,10 +7550,8 @@ impl Game<'_> {
             return Ok(false);
         };
         let kind = stack.item.trim_end_matches("_spawn_egg").to_owned();
-        if !self.spawn_egg_allowed(&stack.item) {
-            self.use_failed = true;
-            return Ok(true);
-        }
+        // No peaceful failure in 1.21.8: the egg always spawns, and a
+        // monster then despawns via `Mob.checkDespawn` on its first tick.
         if fluid
             && !self.may_build()
             && !self.can_place_on_in_adventure([
@@ -7583,7 +7602,10 @@ impl Game<'_> {
             horizon_client::entity_nbt::apply_item_components(m, stack);
         }
         self.apply_spawn_egg_entity_data(id, stack);
-        self.post_block_game_event("minecraft:entity_place", p, Some(Who::Player), None);
+        // `SpawnEggItem.useOn`: the ENTITY_PLACE event is at the CLICKED
+        // pos in 1.21.8 (the spawn pos is the 1.21.9 change); the fluid
+        // path's entity is in the same block as the hit.
+        self.post_block_game_event("minecraft:entity_place", hit.pos, Some(Who::Player), None);
         self.award_stat("used", &stack.item, 1);
         self.swing_arm();
         if !self.creative
@@ -7598,7 +7620,7 @@ impl Game<'_> {
     }
     /// `EntityType.updateCustomEntityTag`: the egg's `minecraft:entity_data` on
     /// the mob it spawned, once the guards let it through, as
-    /// `TypedEntityData.loadInto`: the mob's own compound, the data merged over
+    /// `CustomData.loadInto`: the mob's own compound, the data merged over
     /// it, loaded back into the same mob (`/data merge entity`'s loader).
     pub(super) fn apply_spawn_egg_entity_data(&mut self, id: u32, stack: &ItemStack) {
         let Some(i) = self.mobs.iter().position(|m| m.id == id) else {
@@ -7871,7 +7893,7 @@ impl Game<'_> {
             // Entity.DATA_SHARED_FLAGS_ID invisible: only the name tag draws (and
             // the outline of a glowing mob, LivingEntityRenderer.getRenderType).
             // A player keeps its armour, elytra and held items
-            // (`LivingEntityRenderer.submit` skips only the body).
+            // (`LivingEntityRenderer.render` skips only the body).
             let layers_only = mob.invisible && outline.is_none() && is_player;
             if mob.invisible && outline.is_none() && !layers_only {
                 continue;
@@ -8037,7 +8059,7 @@ impl Game<'_> {
                     v.layer |= u32::from(tier) << 16;
                 }
             }
-            // AvatarRenderer.shouldRenderLayers: a spectator draws no layers.
+            // PlayerRenderer.shouldRenderLayers: a spectator draws no layers.
             let layers = horizon_client::mobs::render::layers_shown(mob);
             if is_player && layers {
                 // PlayerRenderer's CapeLayer, WingsLayer, ParrotOnShoulderLayer
@@ -8404,8 +8426,9 @@ impl Game<'_> {
         }
     }
 }
-/// `ThrownItemRenderer.submit` turns the item by `CameraRenderState.orientation`
-/// (`Camera.setRotation`): the billboard's right and up axes are the camera's.
+/// `ThrownItemRenderer.render` turns the item by the dispatcher's
+/// `cameraOrientation` (`Camera.setRotation`): the billboard's right and up
+/// axes are the camera's.
 /// They stay continuous at pitch ±90, and in third-person front view they are
 /// the turned-round camera's, not the player's.
 fn thrown_item_axes(

@@ -15,8 +15,8 @@ use horizon_client::{
         properties::{GAME_MODES, ServerProperties, SystemEntropy},
         user_cache::UserCache,
         user_lists::{
-            BanEntry, BanList, Change, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry,
-            WhiteList, format_date,
+            BanEntry, BanList, Change, DEFAULT_BAN_REASON, IpBanList, NameAndId, OpEntry, OpList,
+            WhiteEntry, WhiteList, format_date,
         },
     },
     text::Text,
@@ -35,7 +35,6 @@ use std::{
 };
 
 pub(super) mod events;
-mod management;
 mod predicate_graph;
 mod report;
 mod status;
@@ -156,7 +155,7 @@ struct Setup {
     started: Instant,
 }
 static SETUP: OnceLock<Mutex<Option<Setup>>> = OnceLock::new();
-/// usercache.json (Services.nameToIdCache): used by the server thread only.
+/// usercache.json (`GameProfileCache`, `server.getProfileCache()`): used by the server thread only.
 static USER_CACHE: Mutex<Option<UserCache>> = Mutex::new(None);
 
 /// PlayerList.placeNewPlayer: a player who joined is cached (and the file saved).
@@ -570,7 +569,8 @@ impl Lists {
                 Err(e) => log("ERROR", &format!("{e}; the file is ignored")),
             }
         }
-        // Each list tells the event stream what changes in it, as vanilla's tell their `NotificationService`.
+        // Each list tells the event stream what changes in it (Horizon's own
+        // feed; 1.21.8 has no NotificationService).
         l.ops.watch(|change| {
             let (kind, e) = listed("operators", change);
             events::record(
@@ -776,12 +776,13 @@ pub(super) fn ban_message(ban: &BanEntry<NameAndId>) -> Tag {
     }
     reason
 }
-/// BanListEntry.getReasonMessage.
-fn ban_reason(reason: &Option<String>) -> Tag {
-    match reason {
-        Some(r) => Tag::String(JavaString::from(r.as_str())),
-        None => translatable("multiplayer.disconnect.banned.reason.default", &[]),
-    }
+/// `BanListEntry.getReason`: the raw reason string.
+/// `BanListEntry.getReason` as the disconnect message's argument: the
+/// reason string, which is never null in 1.21.8 (a ban with no reason
+/// carries "Banned by an operator."). The translatable default came in
+/// 1.21.9's `getReasonMessage()`.
+fn ban_reason(reason: &str) -> Tag {
+    Tag::String(JavaString::from(reason))
 }
 fn translatable_tag(key: &str, args: Vec<Tag>) -> Tag {
     Tag::compound([
@@ -822,10 +823,6 @@ struct ServerState {
     /// View and simulation distance, and the player limit, for the report.
     view: (u32, u32),
     max_players: usize,
-    /// The mutable `gamemode` server property (`DedicatedServer.gameMode`).
-    game_mode: i32,
-    /// The mutable `force-gamemode` server property (`DedicatedServer.forceGameMode`).
-    force_game_mode: bool,
 }
 
 /// `SaveAllCommand.saveAll`'s reply to its source: `commands.save.success` when
@@ -863,12 +860,15 @@ fn ban_ip_info(names: &[&str]) -> Option<Text> {
     ))
 }
 
-/// `MinecraftServer.isAutoSave`: all of Horizon's server levels share this save flag.
+/// `MinecraftServer.isAutoSave` (1.21.9's name for it; 1.21.8's
+/// save-on/save-off commands flip each level's `noSave` directly):
+/// all of Horizon's server levels share this save flag.
 fn auto_save(state: &ServerState) -> bool {
     state.lists.lock().unwrap().autosave
 }
 
-/// `MinecraftServer.setAutoSave`: enable or disable periodic saves and report whether it changed.
+/// `MinecraftServer.setAutoSave` (same note as `auto_save`): enable or
+/// disable periodic saves and report whether it changed.
 pub(super) fn set_auto_save(lists: &Mutex<Lists>, enabled: bool) -> bool {
     let mut l = lists.lock().unwrap();
     let changed = l.autosave != enabled;
@@ -1099,8 +1099,7 @@ impl Game<'_> {
         self.prepare_levels()?;
         let gate_lists = lists.clone();
         let gate: LoginGate = Arc::new(move |address, uuid, name| {
-            // `ServerActivityMonitor.reportLoginActivity`: a login attempt, however it ends. The management
-            // protocol's `server/activity` notification is rate limited from these.
+            // `ServerActivityMonitor.reportLoginActivity`: a login attempt, however it ends.
             events::record_server("login_activity", serde_json::json!({}));
             let user = NameAndId {
                 id: uuid,
@@ -1109,13 +1108,9 @@ impl Game<'_> {
             gate_lists.lock().unwrap().can_login(address, &user)
         });
         let bypass_lists = lists.clone();
-        // DedicatedServer's constructor: `enable-code-of-conduct` reads the
-        // `codeofconduct` folder, and a folder it can't read stops the start.
-        let code_of_conducts = if props.code_of_conduct {
-            horizon_client::lan::code_of_conduct::read(std::path::Path::new("codeofconduct"))?
-        } else {
-            Vec::new()
-        };
+        // No code of conduct: 1.21.8 has none (`readCodeOfConducts` and
+        // the `codeofconduct` folder came in 1.21.9), so the property is
+        // ignored and an unreadable folder never stops the start.
         let favicon = std::fs::read("server-icon.png")
             .ok()
             .filter(|b| png_size(b) == Some((64, 64)));
@@ -1168,7 +1163,6 @@ impl Game<'_> {
                 log_ips: props.log_ips,
             }),
             resource_pack: props.resource_pack.clone(),
-            code_of_conducts,
             // DedicatedServer.serverLinks: `bug-report-link` as the only link
             // (ServerLinks.KnownLinkType.BUG_REPORT is id 0).
             levels: self.level_shapes,
@@ -1302,8 +1296,6 @@ impl Game<'_> {
             broadcast_console: props.broadcast_console_to_ops,
             broadcast_rcon: props.broadcast_rcon_to_ops,
             op_level: props.op_permission_level,
-            game_mode: props.game_mode,
-            force_game_mode: props.force_game_mode,
             report: None,
             view: (
                 props.view_distance.clamp(2, 32) as u32,
@@ -1339,7 +1331,7 @@ impl Game<'_> {
                 break;
             }
             let players = self.lan.as_ref().map_or(0, |h| h.hub.guests.len());
-            // Vanilla reads pauseWhenEmptySeconds on every tick, so management changes take effect
+            // Vanilla reads pauseWhenEmptySeconds on every tick, so a changed value takes effect
             // without restarting the server.
             let pause_after = state.pause_when_empty_seconds.wrapping_mul(20);
             if pause_after > 0 {
@@ -1564,6 +1556,15 @@ impl Game<'_> {
         self.resend_commands_filtered();
     }
 
+    /// `DedicatedPlayerList.saveOps`: the operators list is written at once
+    /// after an op or deop (1.21.9 dropped the immediate save); a failure
+    /// warns and the change still stands in memory.
+    pub(super) fn save_ops(&mut self, lists: &Arc<Mutex<Lists>>) {
+        if let Err(e) = lists.lock().unwrap().ops.save() {
+            log("WARN", &format!("Failed to save operators list: {e}"));
+        }
+    }
+
     /// A player on the server, by name.
     pub(super) fn online_player(&self, name: &str) -> Option<NameAndId> {
         let hub = &self.lan.as_ref()?.hub;
@@ -1589,7 +1590,7 @@ impl Game<'_> {
         found
     }
 
-    /// `Services.nameToIdCache().get(name)`: the user cache, else the profile
+    /// `GameProfileCache.get(name)`: the user cache, else the profile
     /// service, else (offline) the offline player.
     pub(super) fn resolve_name(&self, name: &str) -> Option<NameAndId> {
         USER_CACHE.lock().unwrap().as_mut().and_then(|cache| {
@@ -1827,10 +1828,14 @@ impl Game<'_> {
                                 user: user.clone(),
                                 level,
                                 bypasses_player_limit: false,
-                            })
+                            });
+                            true
                         }
+                    } else if l.ops.contains(&user) {
+                        l.ops.remove(&user);
+                        true
                     } else {
-                        l.ops.remove(&user)
+                        false
                     }
                 };
                 let key = match (command, changed) {
@@ -1842,6 +1847,9 @@ impl Game<'_> {
                 self.console_reply(Text::translate(key, &[lit(&user.name)]));
                 let lists = state.lists.clone();
                 self.sync_ops(&lists);
+                if changed {
+                    self.save_ops(&lists);
+                }
                 // DeOpCommands.deopPlayers.
                 if command == "deop" && changed {
                     self.kick_unlisted_players(&lists);
@@ -1878,26 +1886,28 @@ impl Game<'_> {
                     return;
                 };
                 let reason = (rest.len() > 1).then(|| rest[1..].join(" "));
-                let added = state.lists.lock().unwrap().bans.add(BanEntry::new(
-                    user.clone(),
-                    Some("Server".into()),
-                    None,
-                    reason.clone(),
-                ));
+                // BanPlayerCommands: an already-banned player fails, whatever
+                // the reason (1.21.9's add returned true for a new reason).
+                let added = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.bans.contains(&user) {
+                        false
+                    } else {
+                        lists.bans.add(BanEntry::new(
+                            user.clone(),
+                            Some("Server".into()),
+                            None,
+                            reason.clone(),
+                        ));
+                        true
+                    }
+                };
                 if added {
                     self.console_reply(Text::translate(
                         "commands.ban.success",
                         &[
                             lit(&user.name),
-                            reason.as_deref().map_or_else(
-                                || {
-                                    Text::translate(
-                                        "multiplayer.disconnect.banned.reason.default",
-                                        &[],
-                                    )
-                                },
-                                lit,
-                            ),
+                            lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON)),
                         ],
                     ));
                     self.kick_uuid(user.id, translatable("multiplayer.disconnect.banned", &[]));
@@ -1923,12 +1933,21 @@ impl Game<'_> {
                     return;
                 };
                 let reason = (rest.len() > 1).then(|| rest[1..].join(" "));
-                let added = state.lists.lock().unwrap().ip_bans.add(BanEntry::new(
-                    ip.clone(),
-                    Some("Server".into()),
-                    None,
-                    reason.clone(),
-                ));
+                // BanIpCommands: an already-banned address fails.
+                let added = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.ip_bans.contains(&ip) {
+                        false
+                    } else {
+                        lists.ip_bans.add(BanEntry::new(
+                            ip.clone(),
+                            Some("Server".into()),
+                            None,
+                            reason.clone(),
+                        ));
+                        true
+                    }
+                };
                 if !added {
                     self.console_reply(Text::translate("commands.banip.failed", &[]));
                     return;
@@ -1937,10 +1956,7 @@ impl Game<'_> {
                     "commands.banip.success",
                     &[
                         lit(&ip),
-                        reason.as_deref().map_or_else(
-                            || Text::translate("multiplayer.disconnect.banned.reason.default", &[]),
-                            lit,
-                        ),
+                        lit(reason.as_deref().unwrap_or(DEFAULT_BAN_REASON)),
                     ],
                 ));
                 let banned: Vec<(u128, String)> = self
@@ -1967,7 +1983,15 @@ impl Game<'_> {
                 let Some(user) = self.resolve(rest[0]) else {
                     return;
                 };
-                let removed = state.lists.lock().unwrap().bans.remove(&user);
+                let removed = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.bans.contains(&user) {
+                        lists.bans.remove(&user);
+                        true
+                    } else {
+                        false
+                    }
+                };
                 let key = if removed {
                     "commands.pardon.success"
                 } else {
@@ -1981,7 +2005,15 @@ impl Game<'_> {
                     self.console_reply(Text::translate("commands.pardonip.invalid", &[]));
                     return;
                 }
-                let removed = state.lists.lock().unwrap().ip_bans.remove(&ip);
+                let removed = {
+                    let mut lists = state.lists.lock().unwrap();
+                    if lists.ip_bans.contains(&ip) {
+                        lists.ip_bans.remove(&ip);
+                        true
+                    } else {
+                        false
+                    }
+                };
                 let key = if removed {
                     "commands.pardonip.success"
                 } else {
@@ -2014,19 +2046,7 @@ impl Game<'_> {
                     for (name, source, reason) in lines {
                         self.console_reply(Text::translate(
                             "commands.banlist.entry",
-                            &[
-                                lit(&name),
-                                lit(&source),
-                                reason.as_deref().map_or_else(
-                                    || {
-                                        Text::translate(
-                                            "multiplayer.disconnect.banned.reason.default",
-                                            &[],
-                                        )
-                                    },
-                                    lit,
-                                ),
-                            ],
+                            &[lit(&name), lit(&source), lit(&reason)],
                         ));
                     }
                 }
@@ -2151,7 +2171,8 @@ impl Game<'_> {
                         l.white.add(WhiteEntry { user: user.clone() });
                         (true, "commands.whitelist.add.success")
                     }
-                } else if l.white.remove(&user) {
+                } else if l.white.contains(&user) {
+                    l.white.remove(&user);
                     (true, "commands.whitelist.remove.success")
                 } else {
                     (false, "commands.whitelist.remove.failed")
@@ -2193,39 +2214,6 @@ impl Game<'_> {
         self.store_property("player-idle-timeout", minutes.to_string());
     }
 
-    /// `DedicatedServer.setMaxPlayers`: the live login limit, and `max-players` in
-    /// server.properties.
-    fn set_max_players(&mut self, state: &mut ServerState, max_players: usize) {
-        state.max_players = max_players;
-        if let Some(lan) = &self.lan {
-            lan.hub.lan.shared.set_max_players(max_players);
-        }
-        self.store_property("max-players", max_players.to_string());
-    }
-
-    /// `DedicatedServer.setAcceptsTransfers`: whether a transfer's handshake is accepted from
-    /// now on, and `accepts-transfers` in server.properties.
-    fn set_accepts_transfers(&mut self, accept: bool) {
-        if let Some(lan) = &self.lan {
-            lan.hub.lan.shared.set_accepts_transfers(accept);
-        }
-        self.store_property("accepts-transfers", accept.to_string());
-    }
-
-    /// `DedicatedServer.setEnforceWhitelist`: the flag, and `enforce-whitelist` in
-    /// server.properties.
-    pub(super) fn set_enforce_whitelist(&mut self, lists: &Arc<Mutex<Lists>>, on: bool) {
-        lists.lock().unwrap().enforce_whitelist = on;
-        self.store_property("enforce-whitelist", on.to_string());
-    }
-
-    /// `DedicatedServer.setPauseWhenEmptySeconds`: the live pause timer, and
-    /// `pause-when-empty-seconds` in server.properties.
-    fn set_pause_when_empty_seconds(&mut self, state: &mut ServerState, seconds: i32) {
-        state.pause_when_empty_seconds = seconds;
-        self.store_property("pause-when-empty-seconds", seconds.to_string());
-    }
-
     /// DedicatedServerSettings.update: change one key and store the file.
     pub(super) fn store_property(&mut self, key: &str, value: String) {
         let path = PathBuf::from("server.properties");
@@ -2240,12 +2228,15 @@ impl Game<'_> {
     /// whitelist on, whoever is online and not on the whitelist file is
     /// disconnected (operators are not spared here).
     pub(super) fn kick_unlisted_players(&mut self, lists: &Arc<Mutex<Lists>>) {
+        // `MinecraftServer.kickUnlistedPlayers`: 1.21.8 kicks on enforce
+        // alone; the `&& isUsingWhitelist()` came in 1.21.9. A reload or a
+        // removal with enforce on but the list off still kicks here.
         let unlisted: Vec<u128> = {
             let l = lists.lock().unwrap();
             let Some(host) = self.lan.as_ref() else {
                 return;
             };
-            if !(l.enforce_whitelist && l.use_whitelist) {
+            if !l.enforce_whitelist {
                 return;
             }
             host.hub
@@ -2743,7 +2734,8 @@ mod tests {
         assert!(lists.can_login(address, &dee).is_none());
         assert!(!lists.bans.contains(&dee));
         // `/pardon` lifts the hour's ban.
-        assert!(lists.bans.remove(&steve));
+        assert!(lists.bans.contains(&steve));
+        lists.bans.remove(&steve);
         assert!(lists.can_login(address, &steve).is_none());
         fs::remove_dir_all(dir).unwrap();
     }

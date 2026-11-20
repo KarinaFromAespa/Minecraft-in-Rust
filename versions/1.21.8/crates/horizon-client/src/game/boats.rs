@@ -655,7 +655,7 @@ impl Game<'_> {
                         &mut scene,
                         state,
                         BlockPos::new(x, y, z),
-                        &CollisionContext::empty(false),
+                        &CollisionContext::empty(),
                     ) else {
                         continue;
                     };
@@ -1840,7 +1840,7 @@ impl Game<'_> {
             }
             // AbstractBoatRenderer.extractRenderState: bubbleAngle.
             let wobble = b.bubble_angle(a);
-            // AbstractBoatRenderer.submit: a boat above water wobbles in a
+            // AbstractBoatRenderer.render: a boat above water wobbles in a
             // bubble column, about the axis (1, 0, 1).
             if !b.under_water() && wobble.abs() >= 1.0e-5 {
                 base *= glam::Mat4::from_axis_angle(
@@ -1881,7 +1881,7 @@ impl Game<'_> {
                 0,
                 out,
             );
-            // BoatRenderer.submitTypeAdditions: the water patch hides the water
+            // BoatRenderer.renderTypeAdditions: the water patch hides the water
             // inside the hull unless the boat is under water (RaftRenderer has none).
             if let Some(patch) = self.boat_models.water_patch.as_ref()
                 && &*b.wood != "bamboo"

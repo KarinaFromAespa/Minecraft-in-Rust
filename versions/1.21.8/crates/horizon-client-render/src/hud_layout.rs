@@ -219,9 +219,11 @@ pub fn white(alpha: f32) -> u32 {
 pub fn color_from_float(a: f32, r: f32, g: f32, b: f32) -> u32 {
     argb(as8(a), as8(r), as8(g), as8(b))
 }
-/// `ARGB.color(a, r, g, b)`.
+/// `ARGB.color(a, r, g, b)`. 1.21.8 shifts the channels raw — an
+/// out-of-range channel bleeds into its neighbour; 1.21.9 added the
+/// `& 0xFF` masks.
 pub fn argb(a: u32, r: u32, g: u32, b: u32) -> u32 {
-    (a & 255) << 24 | (r & 255) << 16 | (g & 255) << 8 | (b & 255)
+    a << 24 | r << 16 | g << 8 | b
 }
 /// `ARGB.multiply`.
 pub fn multiply(l: u32, r: u32) -> u32 {

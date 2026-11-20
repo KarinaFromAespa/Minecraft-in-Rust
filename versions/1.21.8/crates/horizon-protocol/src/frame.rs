@@ -100,11 +100,11 @@ pub fn header(bytes: &[u8]) -> Result<Option<(usize, usize)>> {
         };
         len |= usize::from(b & 0x7F) << (7 * i);
         if b & 0x80 == 0 {
-            if len == 0 {
-                // Varint21FrameDecoder: a frame with no bytes is a
-                // corrupted frame, not an empty packet.
-                return Err(Error::new("Frame length cannot be zero"));
-            }
+            // 1.21.8's `Varint21FrameDecoder` has no zero check (the
+            // "Frame length cannot be zero" throw came in 1.21.9): a
+            // zero-length frame is taken and skipped downstream —
+            // `PacketDecoder` only reads a packet from a readable
+            // buffer — so the connection stays up.
             return Ok(Some((i + 1, len)));
         }
     }
@@ -150,6 +150,12 @@ pub fn body(frame: &[u8], threshold: Option<usize>, inflater: &mut Inflater) -> 
     let Some(threshold) = threshold else {
         return Ok(Body::Plain(0));
     };
+    // `CompressionDecoder` (1.21.8) only decodes when the frame holds
+    // bytes (`readableBytes() != 0`); an empty frame yields no packet
+    // and no error.
+    if frame.is_empty() {
+        return Ok(Body::Plain(0));
+    }
     let mut r = Reader::new(frame);
     let size = r.varint()?;
     if size == 0 {

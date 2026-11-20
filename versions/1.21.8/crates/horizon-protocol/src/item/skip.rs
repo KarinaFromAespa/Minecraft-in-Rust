@@ -83,13 +83,10 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
                 boolean(r)
             })
         }
-        // TypedEntityData (entity_data, block_entity_data): the type id, then a compound.
-        49 | 51 => {
-            varint(r)?;
-            nbt(r)
-        }
-        // CustomData: bucket_entity_data.
-        50 => nbt(r),
+        // `CustomData` (entity_data, bucket_entity_data, block_entity_data):
+        // a compound tag with its own `id`; 1.21.9's `TypedEntityData` put a
+        // type id varint first.
+        49 | 50 | 51 => nbt(r),
         // InstrumentComponent: Holder<Instrument> (soundEvent, useDuration, range,
         // durabilityDamage, description).
         52 => holder(r, |r| {
@@ -139,9 +136,10 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             string(r)?;
             string(r)
         }),
-        // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
+        // Bees: Occupant (entity data as a plain compound with its `id`,
+        // ticksInHive, minTicksInHive) — 1.21.8's `CustomData` form; 1.21.9's
+        // `TypedEntityData` put a type id varint first.
         68 => list(r, |r| {
-            varint(r)?;
             nbt(r)?;
             varint(r)?;
             varint(r)

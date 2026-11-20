@@ -17,7 +17,7 @@ pub enum Signature {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Textures {
     pub skin: Option<String>,
-    /// The skin's `metadata.model` is `slim` (`PlayerModelType.SLIM`).
+    /// The skin's `metadata.model` is `slim` (`PlayerSkin.Model.SLIM`).
     pub slim: bool,
     pub cape: Option<String>,
     pub elytra: Option<String>,
@@ -123,7 +123,7 @@ pub fn unpack(value: &str, signature: Signature, valid_uris: &[impl AsRef<str>])
 
 /// The skin URL of a `minecraft:profile` component's property list. Player
 /// heads and mannequins read their profile this way, and `SkinManager` lets
-/// those textures be unsigned (`getInsecureSkinInformation`).
+/// those textures be unsigned (`getInsecureSkin`).
 pub fn profile_skin_url(profile: &serde_json::Value) -> Option<String> {
     let (value, signature) = parse_profile(profile).textures?;
     unpack(&value, signature, texture_uris()).skin
@@ -189,12 +189,6 @@ pub fn profile_skin_url_nbt(profile: &horizon_world::nbt::Tag) -> Option<String>
     unpack(&value, Signature::Unsigned, texture_uris()).skin
 }
 
-/// `ResolvableProfile.skinPatch().body()` of a skull's `profile` NBT: the
-/// `texture` id that replaces its skin.
-pub fn profile_texture_nbt(profile: &horizon_world::nbt::Tag) -> Option<String> {
-    nbt_text(profile.get("texture"))
-}
-
 /// The profile's uuid as u128: `id` as an int array (block entity NBT) or a
 /// uuid string (older and component forms). Used for `DefaultPlayerSkin.get`
 /// when a head's skin is not downloaded yet.
@@ -249,7 +243,8 @@ impl ResolvedProfile {
     }
 }
 
-/// Where a `Dynamic` profile's resolution stands (`resolveProfile`'s future).
+/// Where an unresolved profile's resolution stands
+/// (`SkullBlockEntity.fetchGameProfile`'s future).
 #[derive(Clone, Debug)]
 pub enum Resolve {
     Pending,
@@ -258,8 +253,8 @@ pub enum Resolve {
     Done(Option<ResolvedProfile>),
 }
 
-/// `ProfileResolver.Cached`: resolves a `Dynamic` profile through the
-/// services — `profileCacheByName` asks `profiles`/`getByName` for the id,
+/// `SkullBlockEntity.setup`'s caches: resolves an unresolved profile through
+/// the services — `profileCacheByName` asks `profiles`/`getByName` for the id,
 /// `profileCacheById` asks `session`/`getProfileById` for the profile —
 /// at most 256 entries kept 10 minutes after their last use, fetched on
 /// background threads.
@@ -275,7 +270,7 @@ struct Entry {
     /// `None` while the fetch is in flight.
     resolved: Option<Option<ResolvedProfile>>,
 }
-/// `ProfileResolver.Cached`'s cache bounds.
+/// `SkullBlockEntity`'s profile cache bounds.
 const MAX_PROFILES: usize = 256;
 const PROFILE_TTL: std::time::Duration = std::time::Duration::from_secs(10 * 60);
 
@@ -401,15 +396,16 @@ impl Resolver {
 }
 
 /// `ResolvableProfile` (an item's `minecraft:profile` component, a skull's
-/// `profile` tag): the `textures` property it carries, the key a `Dynamic`
-/// profile resolves by, and `partialProfile.id` — the fallback skin's key.
+/// `profile` tag): the `textures` property it carries, the key an
+/// unresolved profile resolves by, and `gameProfile.id` — the fallback
+/// skin's key.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ProfileInfo {
     /// `GameProfile.id` (`DefaultPlayerSkin.get`).
     pub id: u128,
     /// The `textures` property's value and signature state, when present.
     pub textures: Option<(String, Signature)>,
-    /// `Dynamic` profiles resolve by name or id.
+    /// An unresolved profile resolves by name or id.
     pub dynamic: Option<NameOrId>,
 }
 
@@ -432,13 +428,15 @@ fn profile_id(v: &serde_json::Value) -> Option<u128> {
     }
 }
 
-/// `ResolvableProfile`'s read of a `profile` value: a bare name is
-/// `createUnresolved` (the `PLAYER_NAME` codec's alternative), a compound
-/// `name` + `id` + `properties` (`Partial.MAP_CODEC` or a `GameProfile`).
+/// `ResolvableProfile`'s read of a `profile` value: a bare name is the
+/// `PLAYER_NAME` codec's alternative, a compound `name` + `id` +
+/// `properties` (the record's `FULL_CODEC`).
 pub fn parse_profile(v: &serde_json::Value) -> ProfileInfo {
     if let serde_json::Value::String(name) = v {
         return ProfileInfo {
-            id: horizon_protocol::crypto::offline_uuid(name),
+            // `createGameProfile`: no id, so nil — 1.21.8 derives no offline
+            // UUID from the name.
+            id: 0,
             textures: None,
             dynamic: valid_player_name(name).then(|| NameOrId::Name(name.clone())),
         };
@@ -460,8 +458,8 @@ pub fn parse_profile(v: &serde_json::Value) -> ProfileInfo {
                 },
             ))
         });
-    // `ResolvableProfile.create`: a Partial is Dynamic with no properties
-    // and exactly one of a name or an id.
+    // `ResolvableProfile.isResolved`: unresolved with no properties and
+    // exactly one of a name or an id.
     let dynamic =
         (properties.is_none_or(|p| p.is_empty()) && name.is_some() != id.is_some()).then(|| {
             name.as_deref().map_or_else(
@@ -470,18 +468,16 @@ pub fn parse_profile(v: &serde_json::Value) -> ProfileInfo {
             )
         });
     ProfileInfo {
-        // `createPartialProfile`: the id, else the name's offline UUID, else nil.
-        id: id
-            .or_else(|| name.as_deref().map(horizon_protocol::crypto::offline_uuid))
-            .unwrap_or(0),
+        // `createGameProfile`: the id, else nil.
+        id: id.unwrap_or(0),
         textures,
         dynamic,
     }
 }
 
-/// `ResolvableProfile.create`'s `Dynamic` key from a skull's `profile` tag:
-/// a bare name string is `createUnresolved`, and a compound without
-/// properties and with exactly one of a name or an id is `Dynamic`.
+/// `ResolvableProfile.isResolved`'s key from a skull's `profile` tag: a
+/// bare name string is unresolved, and a compound without properties and
+/// with exactly one of a name or an id is unresolved.
 pub fn dynamic_nbt(profile: &horizon_world::nbt::Tag) -> Option<NameOrId> {
     if let horizon_world::nbt::Tag::String(s) = profile {
         let name = s.to_string_lossy();
@@ -556,21 +552,19 @@ impl Resolver {
     }
 }
 
-/// `PlayerSkinRenderCache.getOrDefault` for a head: the resolved skin once
-/// its texture is in the atlas (`atlas`), else `partialProfile`'s default.
+/// A head's skin (`SkullBlockRenderer.getRenderType`, through
+/// `SkinManager.getInsecureSkin` of the fetched profile): the resolved skin
+/// once its texture is in the atlas (`atlas`), else `None` — the caller
+/// picks the default (the tab list takes the profile's UUID-hash default,
+/// a head item takes slim steve, `DefaultPlayerSkin.getDefaultSkin`).
 pub fn head_skin(
     profile: &serde_json::Value,
     resolver: &mut Resolver,
     downloads: &mut Downloader,
     atlas: impl Fn(&str) -> bool,
-) -> String {
-    if let Some(texture) = profile.get("texture").and_then(|t| t.as_str())
-        && let Some(sprite) = patch_skin(texture, downloads, &atlas)
-    {
-        return sprite;
-    }
+) -> Option<String> {
     let p = resolver.heads.get(profile);
-    // Dynamic resolution is deliberately not cached: pending answers and the
+    // Unresolved-profile resolution is deliberately not cached: pending answers and the
     // resolver's expiring service results must still advance on every draw.
     let resolved = p.info.dynamic.as_ref().and_then(|key| {
         if p.info.textures.is_some() {
@@ -607,7 +601,7 @@ pub fn head_skin(
         match downloads.state(Kind::Skin, url) {
             Download::Ready if atlas(location) => {
                 downloads.drawn(location);
-                return location.clone();
+                return Some(location.clone());
             }
             // Its slot was evicted: offer the image again.
             Download::Ready => {
@@ -616,69 +610,7 @@ pub fn head_skin(
             _ => {}
         }
     }
-    crate::tab_list::default_skin(p.info.id).to_owned()
-}
-
-/// `PlayerSkin.Patch.apply` for a head: the sprite of a profile's `texture`
-/// override (`ClientAsset.ResourceTexture`, a resource pack's
-/// `<namespace>:textures/<path>.png`), which replaces the downloaded or
-/// default skin. Vanilla textures are in the atlas already; another
-/// namespace's loads into a skin slot, and `None` answers until it is there
-/// (or when the packs lack it).
-pub fn patch_skin(
-    texture: &str,
-    downloads: &mut Downloader,
-    atlas: impl Fn(&str) -> bool,
-) -> Option<String> {
-    let (namespace, path) = texture.split_once(':').unwrap_or(("minecraft", texture));
-    if !valid_texture_id(namespace, path) {
-        return None;
-    }
-    if namespace == "minecraft" && atlas(path) {
-        return Some(path.to_owned());
-    }
-    let location = format!("patch/{namespace}/{path}");
-    if atlas(&location) {
-        downloads.drawn(&location);
-        return Some(location);
-    }
-    downloads.resource(&location, namespace, path);
     None
-}
-
-/// `Identifier`'s characters (`isValidNamespace`, `isValidPath`), and no
-/// `.`, `..` or empty segment (`FileUtil.decomposePath`, as the packs read
-/// it): a server's `texture` never names a file outside the packs.
-fn valid_texture_id(namespace: &str, path: &str) -> bool {
-    let segment = |s: &str| !s.is_empty() && s != "." && s != "..";
-    !namespace.is_empty()
-        && namespace
-            .chars()
-            .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '-' | '.'))
-        && path
-            .chars()
-            .all(|c| matches!(c, 'a'..='z' | '0'..='9' | '_' | '-' | '.' | '/'))
-        && segment(namespace)
-        && path.split('/').all(segment)
-}
-
-/// A `width`x`height` RGBA image as the 64x64 skin it maps onto: each texel
-/// the nearest of the image's at the same normalised UV.
-fn resample_64(width: u32, height: u32, rgba: &[u8]) -> Option<Vec<u8>> {
-    let (w, h) = (width as usize, height as usize);
-    if w == 0 || h == 0 || rgba.len() < w * h * 4 {
-        return None;
-    }
-    let mut out = vec![0u8; 64 * 64 * 4];
-    for y in 0..64 {
-        for x in 0..64 {
-            let (sx, sy) = (x * w / 64, y * h / 64);
-            let s = (sy * w + sx) * 4;
-            let d = (y * 64 + x) * 4;
-            out[d..d + 4].copy_from_slice(&rgba[s..s + 4]);
-        }
-    }
-    Some(out)
 }
 
 /// `MinecraftProfileTexture.getHash`: the base name of the URL's path.
@@ -805,9 +737,9 @@ pub enum Kind {
     Elytra,
 }
 
-/// `SkinManager.createLookup(profile, requireSecure).get()`: the skin
-/// texture a player shows, or `None` for their default skin. `download`
-/// tells how the skin, cape and elytra texture downloads stand.
+/// `PlayerInfo.createSkinLookup` (`SkinManager.getOrLoad` plus the secure
+/// rule): the skin texture a player shows, or `None` for their default skin.
+/// `download` tells how the skin, cape and elytra texture downloads stand.
 pub fn lookup(
     textures: &Textures,
     require_secure: bool,
@@ -831,7 +763,7 @@ pub fn lookup(
         match download(kind, url) {
             // `SkinManager.registerTextures` joins the skin, cape and elytra
             // futures with `allOf`: any one failing fails the profile's
-            // `PlayerSkin`, and `createLookup` then shows the default skin.
+            // `PlayerSkin`, and `createSkinLookup` then shows the default skin.
             Download::Failed => return None,
             Download::Pending => state = Download::Pending,
             Download::Ready => {}
@@ -922,10 +854,6 @@ pub struct Downloader {
     image_order: std::collections::VecDeque<String>,
     /// Skins and capes drawn from the atlas since `take_drawn`.
     drawn: std::collections::HashSet<String>,
-    /// The resource packs' root, where a profile's `texture` patch is read.
-    resource_root: std::path::PathBuf,
-    /// How each `patch/` texture of the resource packs loaded, by location.
-    resources: std::collections::HashMap<String, Download>,
     /// When each failed texture download was last tried, so it can be retried:
     /// a transient network error must not pin a player to the default skin for
     /// the rest of the session.
@@ -960,49 +888,9 @@ impl Downloader {
             images: Default::default(),
             image_order: Default::default(),
             drawn: Default::default(),
-            resource_root: Default::default(),
-            resources: Default::default(),
             failed: Default::default(),
             retry_after: std::time::Duration::from_secs(60),
         }
-    }
-    /// The resource packs changed (or were first loaded) at `root`: patch
-    /// textures load again from there.
-    pub fn set_resource_root(&mut self, root: std::path::PathBuf) {
-        for location in std::mem::take(&mut self.resources).into_keys() {
-            self.images.remove(&location);
-            self.image_order.retain(|l| *l != location);
-        }
-        self.resource_root = root;
-    }
-    /// `ClientAsset.ResourceTexture`: loads `<namespace>:textures/<path>.png`
-    /// from the resource packs into a skin slot as `location`, once. A
-    /// texture of another size is sampled as the model's normalised UVs would
-    /// sample it (nearest texel) into the 64x64 slot.
-    fn resource(&mut self, location: &str, namespace: &str, path: &str) {
-        match self.resources.get(location) {
-            Some(Download::Failed) => return,
-            Some(_) => {
-                self.again(location);
-                return;
-            }
-            None => {}
-        }
-        let file = self
-            .resource_root
-            .join(format!("assets/{namespace}/textures/{path}.png"));
-        let image = std::fs::read(file)
-            .ok()
-            .and_then(|b| crate::hud::decode_bytes(&b).ok())
-            .and_then(|(w, h, rgba)| resample_64(w, h, &rgba));
-        let state = match image {
-            Some(rgba) => {
-                self.queue(location.to_owned(), rgba);
-                Download::Ready
-            }
-            None => Download::Failed,
-        };
-        self.resources.insert(location.to_owned(), state);
     }
     /// How the download of `url` stands, starting it the first time. A
     /// failure is permanent for `retry_after`, then tried again.
@@ -1103,15 +991,6 @@ impl Downloader {
     /// its image for upload again, from memory or the disk cache.
     pub fn again(&mut self, location: &str) -> bool {
         if self.queued.contains(location) {
-            return true;
-        }
-        if location.starts_with("patch/") {
-            let Some(image) = self.images.get(location).cloned() else {
-                // Dropped from memory: read from the packs again.
-                self.resources.remove(location);
-                return false;
-            };
-            self.queue(location.to_owned(), image);
             return true;
         }
         let (digest, process): (_, fn(u32, u32, &[u8]) -> Option<Vec<u8>>) =
@@ -1324,19 +1203,28 @@ mod tests {
         assert!(resolver.heads.nbt.len() < super::MAX_HEAD_PROFILES);
     }
 
-    /// A profile's `texture` names a pack texture, never a file outside the
-    /// packs: bad characters and `..` segments draw nothing.
+    /// A name-only head falls back to the nil-UUID default skin (slim alex),
+    /// not to the skin the name's offline UUID would pick; a profile with an
+    /// id keeps its own default (slim ari for id 1).
     #[test]
-    fn a_texture_patch_stays_inside_the_packs() {
-        use super::valid_texture_id;
-        assert!(valid_texture_id("ethereal", "entity/plush_blank"));
-        assert!(valid_texture_id("minecraft", "entity/player/wide/steve"));
-        assert!(!valid_texture_id("ethereal", "../../../secret"));
-        assert!(!valid_texture_id("..", "entity/x"));
-        assert!(!valid_texture_id("ethereal", "entity//x"));
-        assert!(!valid_texture_id("Ethereal", "entity/x"));
-        assert!(!valid_texture_id("ethereal", "entity\\x"));
-        assert!(!valid_texture_id("", "entity/x"));
+    fn a_name_only_head_falls_back_to_slim_alex() {
+        let bare = super::parse_profile(&serde_json::json!("Notch"));
+        assert_eq!(
+            crate::tab_list::default_skin(bare.id),
+            "entity/player/slim/alex"
+        );
+        let compound = super::parse_profile(&serde_json::json!({"name": "Notch"}));
+        assert_eq!(
+            crate::tab_list::default_skin(compound.id),
+            "entity/player/slim/alex"
+        );
+        let with_id =
+            super::parse_profile(&serde_json::json!({"name": "Notch", "id": [0, 0, 0, 1]}));
+        assert_eq!(with_id.id, 1);
+        assert_eq!(
+            crate::tab_list::default_skin(with_id.id),
+            "entity/player/slim/ari"
+        );
     }
 
     /// A pack reload swaps the atlas: its skin slots are blank, so a forgotten
@@ -1438,11 +1326,11 @@ mod tests {
     #[test]
     fn profiles_parse_like_resolvable_profiles() {
         use super::{NameOrId, Signature, parse_profile};
-        // A bare name is `createUnresolved`: dynamic by name, and its partial
-        // id is the name's offline UUID.
+        // A bare name is unresolved, dynamic by name, and its game profile
+        // id is nil (`createGameProfile`).
         let p = parse_profile(&serde_json::json!("Notch"));
         assert_eq!(p.dynamic, Some(NameOrId::Name("Notch".into())));
-        assert_eq!(p.id, horizon_protocol::crypto::offline_uuid("Notch"));
+        assert_eq!(p.id, 0);
         assert!(p.textures.is_none());
         // A name-only compound resolves the same way.
         let p = parse_profile(&serde_json::json!({"name": "Notch"}));

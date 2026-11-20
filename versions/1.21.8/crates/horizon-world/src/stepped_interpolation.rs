@@ -16,14 +16,6 @@ pub struct PosRot {
     pub pitch: f32,
 }
 
-impl PosRot {
-    /// `PositionAndRotation.is`: the same rotation and `Vec3.equals`
-    /// position (`Double.compare`, so -0.0 is not 0.0).
-    fn is(&self, position: [f64; 3], yaw: f32, pitch: f32) -> bool {
-        self.yaw == yaw && self.pitch == pitch && same_position(self.position, position)
-    }
-}
-
 /// `Vec3.equals`.
 fn same_position(a: [f64; 3], b: [f64; 3]) -> bool {
     (0..3).all(|i| a[i].to_bits() == b[i].to_bits())
@@ -52,8 +44,6 @@ impl Path {
 pub enum Start {
     /// Moves on to it over the coming ticks.
     Interpolating,
-    /// Already headed there: nothing changes.
-    Unchanged,
     /// Is put there at once (`snapTo`): types with no update interval.
     Snap(PosRot),
 }
@@ -141,9 +131,9 @@ impl SteppedInterpolation {
                 pitch,
             });
         }
-        if self.active() && self.target.is(end, yaw, pitch) {
-            return Start::Unchanged;
-        }
+        // 1.21.8's interpolateTo always overwrites the interpolation data,
+        // even when the target is unchanged (the steps reset to full). The
+        // skip-if-unchanged guard came in 1.21.9.
         // SteppedInterpolationHandler.startInterpolating.
         if !self.active() {
             self.last = entity;

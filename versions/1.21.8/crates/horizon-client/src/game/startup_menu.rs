@@ -778,6 +778,11 @@ impl Loading {
                 use horizon_client::clipboard::Clipboard;
                 self.menu.clipboard.set(&text);
             }
+            Action::CopyAndOpenUri(uri) => {
+                use horizon_client::clipboard::Clipboard;
+                self.menu.clipboard.set(&uri);
+                super::packs::open_uri(&uri);
+            }
             Action::DataPacks { dir, selected } => {
                 let resources = self.vanilla_root.clone();
                 self.menu.options.open_data_packs(dir, selected, resources);
@@ -1065,7 +1070,6 @@ impl Loading {
                 self.menu.dragging = false;
                 if let Some(title) = &mut self.menu.title {
                     title.release();
-                    title.release_field();
                 }
                 let events = self.menu.options.release();
                 self.menu_option_events(events);
@@ -1105,7 +1109,6 @@ impl Loading {
                         .map_or([1280, 720], |r| [r.config.width, r.config.height]);
                     let b = HudBatch::new(size);
                     title.drag(self.menu.cursor, (b.width, b.height));
-                    title.drag_field(&self.gui.as_ref().unwrap().atlas, self.menu.cursor.0);
                 }
             }
             WindowEvent::MouseInput { state, button, .. } if self.menu.options_open => {
@@ -1132,7 +1135,6 @@ impl Loading {
                 if let (Some(title), Some(gui)) = (&mut self.menu.title, &self.gui) {
                     if state == ElementState::Released {
                         title.release();
-                        title.release_field();
                     } else {
                         let (action, _) = title.click(
                             self.menu.cursor.0,

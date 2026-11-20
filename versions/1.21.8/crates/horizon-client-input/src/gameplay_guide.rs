@@ -267,7 +267,7 @@ fn use_caption(f: &Facts) -> Option<&'static str> {
 
 fn pick_caption(f: &Facts) -> Option<&'static str> {
     if f.spectator {
-        // key.spectatorHotbar is this button: it opens the teleport menu.
+        // The middle button opens the teleport menu (`MouseHandler.onMouseMiddleClick`).
         return Some("horizon.controller.guide.spectator_menu");
     }
     (f.can_pick && f.using.is_none()).then_some("key.pickItem")

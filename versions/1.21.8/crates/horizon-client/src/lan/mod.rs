@@ -12,7 +12,6 @@ pub mod attributes;
 pub mod border;
 pub mod chunk_sync;
 pub mod chunks;
-pub mod code_of_conduct;
 mod command_order;
 pub mod command_suggestions;
 pub mod commands;
@@ -57,7 +56,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// IntegratedServer.MAX_PLAYERS.
+/// The integrated server's eight players: 1.21.8 passes the literal 8 to
+/// the `IntegratedPlayerList` super-constructor (1.21.9's
+/// `IntegratedServer.MAX_PLAYERS` constant does not exist here).
 pub const MAX_PLAYERS: usize = 8;
 
 /// Messages from the connection threads to the game thread.
@@ -259,10 +260,6 @@ pub struct NetConfig {
     /// server.properties `resource-pack`: offered to every player during
     /// configuration (a dedicated server's; MinecraftServer.getServerResourcePack).
     pub resource_pack: Option<crate::server::properties::ResourcePackInfo>,
-    /// `enable-code-of-conduct`: the `codeofconduct/<language>.txt` texts
-    /// (`MinecraftServer.getCodeOfConducts`), offered before the resource
-    /// pack. Empty: no code of conduct.
-    pub code_of_conducts: Vec<(String, String)>,
     /// MinecraftServer.serverLinks (a dedicated server's `bug-report-link`):
     /// sent in configuration when non-empty
     /// (ServerConfigurationPacketListenerImpl.startConfiguration).
@@ -332,7 +329,6 @@ impl NetConfig {
             arrivals: None,
             log: None,
             resource_pack: None,
-            code_of_conducts: Vec::new(),
             server_links: Vec::new(),
             horizon_clients_only: false,
             accept_older_clients: false,
@@ -527,7 +523,9 @@ impl Shared {
     pub fn max_players(&self) -> usize {
         self.max_players.load(Ordering::Relaxed)
     }
-    /// `PlayerList.setMaxPlayers`: change the limit used by new logins and status responses.
+    /// Change the limit used by new logins and status responses. Vanilla
+    /// fixes it at startup (`PlayerList.maxPlayers`, a constructor
+    /// argument in 1.21.8); there is no `setMaxPlayers` in either version.
     pub fn set_max_players(&self, max_players: usize) {
         self.max_players.store(max_players, Ordering::Relaxed);
     }

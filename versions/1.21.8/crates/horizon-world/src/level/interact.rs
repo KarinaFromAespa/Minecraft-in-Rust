@@ -38,9 +38,36 @@ pub enum UseBranch {
     WithoutItem,
 }
 
+/// The hit's coordinates on the front face of the block at `pos`, as
+/// `getRelativeHitCoordinatesForBlockFace` computes them: the location
+/// relative to the block in front of the face, which only moves the axis
+/// the face points along, so the others are the block's own. `None` unless
+/// the click is on the face the block faces.
+fn face_coords(facing: Direction, face: Direction, pos: BlockPos, hit: Vec3) -> Option<(f32, f32)> {
+    if facing != face {
+        return None;
+    }
+    let (dx, dy, dz) = (
+        hit.x - f64::from(pos.x),
+        hit.y - f64::from(pos.y),
+        hit.z - f64::from(pos.z),
+    );
+    match face {
+        Direction::North => Some(((1.0 - dx) as f32, dy as f32)),
+        Direction::South => Some((dx as f32, dy as f32)),
+        Direction::West => Some((dz as f32, dy as f32)),
+        Direction::East => Some(((1.0 - dz) as f32, dy as f32)),
+        Direction::Down | Direction::Up => None,
+    }
+}
+
 /// `SelectableSlotContainer.getHitSlot`: the slot of a block with `rows` by
 /// `columns` slots on its front face (the way it `facing`) that the click at
 /// `hit` on `face` of the block at `pos` lands in, if it is the front face.
+/// The interface is 1.21.9-only (it divides the face into even sections);
+/// the only caller in this tree is the shelf, which does not exist in
+/// 1.21.8. The chiseled bookshelf keeps its own uneven split — see
+/// `bookshelf_hit_slot`.
 pub fn hit_slot(
     facing: Direction,
     face: Direction,
@@ -49,23 +76,7 @@ pub fn hit_slot(
     rows: i32,
     columns: i32,
 ) -> Option<usize> {
-    if facing != face {
-        return None;
-    }
-    // The location relative to the block in front of the face, which only
-    // moves the axis the face points along: the others are the block's own.
-    let (dx, dy, dz) = (
-        hit.x - f64::from(pos.x),
-        hit.y - f64::from(pos.y),
-        hit.z - f64::from(pos.z),
-    );
-    let (x, y) = match face {
-        Direction::North => ((1.0 - dx) as f32, dy as f32),
-        Direction::South => (dx as f32, dy as f32),
-        Direction::West => (dz as f32, dy as f32),
-        Direction::East => ((1.0 - dz) as f32, dy as f32),
-        Direction::Down | Direction::Up => return None,
-    };
+    let (x, y) = face_coords(facing, face, pos, hit)?;
     // getSection
     let section = |relative: f32, sections: i32| {
         let size = 16.0f32 / sections as f32;
@@ -74,6 +85,31 @@ pub fn hit_slot(
     let row = section(1.0 - y, rows);
     let column = section(x, columns);
     Some((column + row * columns) as usize)
+}
+
+/// `ChiseledBookShelfBlock.getHitSlot`: the slot of a chiseled bookshelf
+/// (2 rows by 3 columns) that the click at `hit` on `face` of the block at
+/// `pos` lands in, if it is the front face. 1.21.8's bookshelf does NOT
+/// divide the face evenly: the row is the top one when `y >= 0.5`, and the
+/// columns split at 0.375 and 0.6875, so the middle column is narrower
+/// than the outer two. 1.21.9 extracted this into `SelectableSlotContainer`
+/// with even sections (see `hit_slot`) — that form is wrong here.
+pub fn bookshelf_hit_slot(
+    facing: Direction,
+    face: Direction,
+    pos: BlockPos,
+    hit: Vec3,
+) -> Option<usize> {
+    let (x, y) = face_coords(facing, face, pos, hit)?;
+    let row = if y >= 0.5 { 0 } else { 1 };
+    let column = if x < 0.375 {
+        0
+    } else if x < 0.6875 {
+        1
+    } else {
+        2
+    };
+    Some(column + row * 3)
 }
 
 /// The interacting player, as far as block behaviour needs it.
@@ -100,8 +136,9 @@ pub enum PlayerEffect {
     EatCake,
     /// Give the item to the player (dropping it when the inventory is full).
     GiveItem(Arc<str>),
-    /// Pop the item at the block (composter bone meal).
-    DropItem(Arc<str>),
+    /// Pop the item at the block (composter bone meal, cave-vine berries,
+    /// sweet berries), `count` in one stack.
+    DropItem(Arc<str>, u32),
     /// Evaluate the block-interaction loot table and pop the results.
     InteractLoot(&'static str),
     /// Try to sleep in the bed whose head is at the event position.
@@ -308,10 +345,12 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     if !table.bool(state, p.berries) {
                         return Pass;
                     }
+                    // CaveVines.use: 1.21.8 pops one glow berry directly;
+                    // the harvest loot table came in 1.21.9.
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/cave_vine"),
+                        PlayerEffect::DropItem("minecraft:glow_berries".into(), 1),
                     );
                     let pitch = self.random().next_float() * 0.4 + 0.8;
                     self.emit(LevelEvent::Sound {
@@ -326,13 +365,20 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     Success
                 }
                 Class::SweetBerryBush => {
-                    if table.int(state, p.age) <= 1 {
+                    let age = table.int(state, p.age);
+                    if age <= 1 {
                         return Pass;
                     }
+                    // SweetBerryBushBlock.useWithoutItem: 1.21.8 drops
+                    // 1 + nextInt(2) berries directly, +1 at age 3; the
+                    // harvest loot table came in 1.21.9.
+                    let count =
+                        (1 + self.random().next_int_bound(2).unwrap_or(0) + i32::from(age == 3))
+                            as u32;
                     self.player_effect(
                         pos,
                         state,
-                        PlayerEffect::InteractLoot("minecraft:harvest/sweet_berry_bush"),
+                        PlayerEffect::DropItem("minecraft:sweet_berries".into(), count),
                     );
                     let pitch = 0.8 + self.random().next_float() * 0.4;
                     self.emit(LevelEvent::Sound {
@@ -403,7 +449,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     // useItemOn and useWithoutItem agree on what a click takes: no
                     // slot under it passes, an empty slot consumes it, a book in
                     // it comes out (the block entity is the game's).
-                    let Some(slot) = hit_slot(b.facing(state), face, pos, hit, 2, 3) else {
+                    let Some(slot) = bookshelf_hit_slot(b.facing(state), face, pos, hit) else {
                         return Pass;
                     };
                     let occupied = [
@@ -544,7 +590,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         self.player_effect(
             pos,
             state,
-            PlayerEffect::DropItem("minecraft:bone_meal".into()),
+            PlayerEffect::DropItem("minecraft:bone_meal".into(), 1),
         );
         self.set_block_and_update(pos, b.table.set_int(state, b.props.level, 0));
         self.game_event(pos, "minecraft:block_change");
@@ -575,7 +621,17 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         next
     }
 
-    /// `DragonEggBlock.teleport`.
+    /// `DragonEggBlock.teleport`: up to 1000 random offsets (dx, dz in
+    /// -15..=15, dy in -7..=7, six `nextInt` draws each, in vanilla order)
+    /// until one lands on air inside the world border, then the egg moves
+    /// there (level event 2015 carries the packed offset to the clients,
+    /// which draw the portal particles). 1.21.8 has NO build-height check
+    /// on the destination — the `!isOutsideBuildHeight` gate came in
+    /// 1.21.9 — so an egg near the top or bottom of the world can pick a
+    /// target outside the build height: `setBlock` there fails silently
+    /// (as vanilla's does) and `removeBlock` still runs, deleting the egg.
+    /// There is no support check either: the egg is a falling block and
+    /// falls on its next tick when it lands on air.
     fn dragon_egg_teleport(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
         for _ in 0..1000 {
@@ -586,10 +642,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             let dz = self.random().next_int_bound(16).unwrap_or(0)
                 - self.random().next_int_bound(16).unwrap_or(0);
             let test = pos.offset(dx, dy, dz);
-            if b.is_air(self.state(test))
-                && !b.is_air(self.below_state(test))
-                && self.is_inside_build_height(test.y)
-            {
+            if b.is_air(self.state(test)) && self.level.within_world_border(test) {
                 // BlockUtil.packDifferenceInPosition(pos, test, 16, 8, 16)
                 let packed = ((dx + 16) << 16) | ((dy + 8) << 8) | (dz + 16);
                 self.level_event(2015, pos, packed);

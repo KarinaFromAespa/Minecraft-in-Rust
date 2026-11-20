@@ -1,4 +1,4 @@
-//! Resident `PalettedContainer` of Java Edition 26.3: single-value, linear and
+//! Resident `PalettedContainer` of 1.21.8: single-value, linear and
 //! hash-map palettes with vanilla's bit-width thresholds, and the global
 //! palette beyond them, over `SimpleBitStorage` words (values never span
 //! longs). One container type serves blocks (16^3 entries) and biomes (4^3).
@@ -12,10 +12,10 @@ use crate::storage::{locate, mask};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// `Strategy.createForBlockStates`: 4096 entries, linear palettes up to 4
+    /// `PalettedContainer.Strategy.SECTION_STATES`: 4096 entries, linear palettes up to 4
     /// bits and hash-map palettes from 5 to 8.
     Blocks,
-    /// `Strategy.createForBiomes`: 64 entries, linear palettes up to 3 bits.
+    /// `PalettedContainer.Strategy.SECTION_BIOMES`: 64 entries, linear palettes up to 3 bits.
     Biomes,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -24,7 +24,7 @@ pub struct Strategy {
     /// `ceillog2` of the registry size: the width of the global palette.
     pub global_bits: u8,
 }
-/// `getConfigurationForBitCount`.
+/// `Strategy.getConfiguration`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Config {
     Single,
@@ -91,8 +91,6 @@ pub enum PaletteError {
     BadStorage { expected: usize, actual: usize },
     /// A stored index past the palette.
     BadIndex { index: u32, palette: usize },
-    /// The declared bit count does not match the palette.
-    BadBits { declared: u8, expected: u8 },
 }
 impl std::fmt::Display for PaletteError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -390,6 +390,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     }
     /// `BlockState.shouldChangedStateKeepBlockEntity(oldState)`: copper chests
     /// and copper golem statues keep theirs across their weathering states.
+    /// 1.21.9's `BlockBehaviour.shouldChangedStateKeepBlockEntity`
+    /// (`LevelChunk.setBlockState` keeps the block entity when the new
+    /// state's block says so): only the copper chest and the copper golem
+    /// statue override it, keeping the entity when the old state is in
+    /// their tag. 1.21.8 has no such hook — its `setBlockState` always
+    /// removes the block entity — and both tags are empty in the 1.21.8
+    /// registries (neither block exists there), so this always returns
+    /// false here and the entity is always removed, as 1.21.8 requires.
     fn keeps_block_entity(&self, new: BlockStateId, old: BlockStateId) -> bool {
         let (new, old) = (self.block_of(new), self.block_of(old));
         let tags = &self.b.tags;

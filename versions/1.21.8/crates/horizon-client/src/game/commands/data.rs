@@ -365,7 +365,7 @@ impl Game<'_> {
     }
     /// `Entity.load` of new data (`EntityDataAccessor.setData`): the entity is
     /// rebuilt from its compound, keeping its id and UUID. Also what
-    /// `TypedEntityData.loadInto` is: a spawn egg's data on the mob it spawned.
+    /// `CustomData.loadInto` is: a spawn egg's data on the mob it spawned.
     pub(in crate::game) fn apply_entity_nbt(&mut self, t: Target, mut tag: Tag) -> R<()> {
         let stale = || err("commands.data.merge.failed", &[]);
         // Entity.load does not read Passengers: the riders stay, and so do the

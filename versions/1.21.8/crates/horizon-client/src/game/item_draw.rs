@@ -165,20 +165,23 @@ impl SpecialHost for Host<'_> {
             .map(|_| self.banners.shield_texture(pattern))
     }
     fn player_skin(&self, profile: &Value) -> Option<String> {
-        // SkullBlockRenderer.getPlayerSkin: SkinManager.getInsecureSkinInformation
+        // SkullBlockRenderer.getPlayerSkin: SkinManager.getInsecureSkin
         // accepts a texture property without a signature, unlike the tab list.
-        // A `Dynamic` profile (a name or id only) resolves through the
-        // services (`PlayerSkinRenderCache.getOrDefault`).
-        Some(horizon_client::skins::head_skin(
+        // An unresolved profile (a name or id only) resolves through the
+        // services (`SkullBlockEntity.fetchGameProfile`). `None` until the
+        // skin is ready: the head item then shows slim steve
+        // (`PlayerHeadSpecialRenderer`'s default render info).
+        horizon_client::skins::head_skin(
             profile,
             &mut self.profiles.borrow_mut(),
             &mut self.skins.borrow_mut(),
             |location| self.sprites.contains_key(location),
-        ))
+        )
     }
 }
 
-/// `ItemOwner` of an entity holding or showing an item.
+/// The `LivingEntity` owning an item, as `OwnerState` (1.21.9's `ItemOwner`
+/// abstraction does not exist in 1.21.8).
 pub(super) fn owner_at(position: [f64; 3], yaw: f32, entity_type: &str) -> OwnerState {
     OwnerState {
         position,
@@ -187,6 +190,21 @@ pub(super) fn owner_at(position: [f64; 3], yaw: f32, entity_type: &str) -> Owner
         ..Default::default()
     }
 }
+/// `DimensionType.timeOfDay(day_time)`: the daylight-cycle fraction a clock
+/// reads (`Time` source `daytime`, via `Level.getTimeOfDay`), from the
+/// dimension's fixed time where it has one (Nether 18000, End 6000, from the
+/// 1.21.8 dimension-type data; the Overworld has none).
+fn time_of_day(dimension: &str, day_time: i64) -> f32 {
+    let fixed = match dimension {
+        "minecraft:the_nether" => 18_000,
+        "minecraft:the_end" => 6_000,
+        _ => day_time,
+    };
+    let f = (fixed as f64 / 24_000.0 - 0.25).rem_euclid(1.0);
+    let g = 0.5 - (f * std::f64::consts::PI).cos() / 2.0;
+    ((f * 2.0 + g) as f32) / 3.0
+}
+
 /// `UseDuration` of a stack (`Item.getUseDuration`): 72000 for drawn items
 /// and for `blocks_attacks` items (shields), the consume time for food.
 fn use_duration(components: ComponentsView<'_>) -> i32 {
@@ -228,7 +246,7 @@ impl Game<'_> {
         }
     }
     /// The client level as item models read it: worked out once a frame (a
-    /// screen of items read the same level, its sky sampled once).
+    /// screen of items reads the same level).
     pub(super) fn item_level(&self) -> LevelState {
         let dimension = match self.dim {
             Dim::Overworld => "minecraft:overworld",
@@ -252,17 +270,23 @@ impl Game<'_> {
         level
     }
     fn level_state_now(&self, dimension: &'static str) -> LevelState {
-        let sky = self
-            .dim_environment()
-            .sample(&horizon_client::environment::Sample {
-                day_time: self.world.day_time,
-                ..Default::default()
-            });
         LevelState {
             dimension: dimension.to_owned(),
             game_time: self.world.game_time,
-            sun_angle: sky.sun_angle,
+            // `Level.getSunAngle` in degrees. 1.21.8 has no environment
+            // attributes or timelines, so the sun angle comes straight from
+            // the day time instead of the `SUN_ANGLE` sampler (which has no
+            // 1.21.8 data and would read its 0.0 default, freezing clocks).
+            sun_angle: time_of_day(dimension, self.world.day_time) * 360.0,
             moon_phase: (self.world.day_time.div_euclid(24_000)).rem_euclid(8) as i32,
+            // The world spawn, in the Overworld: 1.21.8's `/setworldspawn`
+            // fails outside it, and compasses spin in the Nether and the End
+            // because their target is in another dimension. (1.21.8's
+            // `CompassTarget.SPAWN` pairs `getSharedSpawnPos()` with the
+            // level's dimension as decompiled, which would point in the
+            // Nether — against observed behaviour, so the Overworld
+            // dimension stands; 1.21.9's `RespawnData.globalPos()` carries
+            // the position with its dimension.)
             respawn: self.spawn.map(|s| GlobalPos {
                 dimension: "minecraft:overworld".to_owned(),
                 pos: [s.x.floor() as i32, s.y.floor() as i32, s.z.floor() as i32],
@@ -270,8 +294,8 @@ impl Game<'_> {
             runs_normally: true,
         }
     }
-    /// The local player as `ItemOwner`; `stack` is the stack drawn, to tell
-    /// whether it is the one in use.
+    /// The local player as the item's owner (a `LivingEntity`); `stack` is
+    /// the stack drawn, to tell whether it is the one in use.
     pub(super) fn player_owner(&self, stack: Option<&ItemStack>) -> OwnerState {
         let position = self
             .player

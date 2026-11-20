@@ -807,7 +807,7 @@ impl ItemEntity {
             .check_support(self.on_ground, self.bounds(), Some(movement), |bounds| {
                 horizon_world::ground_support::find_supporting_block(
                     &mut scene,
-                    horizon_world::collision_context::CollisionContext::empty(false),
+                    horizon_world::collision_context::CollisionContext::empty(),
                     self.position,
                     bounds,
                     1_000_000,
@@ -1340,7 +1340,7 @@ pub fn merge_with_neighbours(
         }
     }
 }
-/// `ExperienceOrbRenderer.submit`'s billboard before its 0.3 scale, in the
+/// `ExperienceOrbRenderer.render`'s billboard before its 0.3 scale, in the
 /// order of its four `vertex` calls (bottom left, bottom right, top right, top
 /// left). The quad is a whole block tall about the orb's centre and hangs a
 /// quarter of it below.
@@ -4925,7 +4925,7 @@ mod render_light_tests {
         assert!((orb(64.0).light_probe_y() - 64.425).abs() < 1e-9);
     }
 
-    /// `ExperienceOrbRenderer.submit`'s quad: a block tall about the orb's
+    /// `ExperienceOrbRenderer.render`'s quad: a block tall about the orb's
     /// centre, scaled by 0.3, so it spans -0.075 to +0.225 above the 0.1 the
     /// pose is translated by. Horizon drew a symmetric 0.3 square, a quarter
     /// of the sprite too low.
@@ -5427,7 +5427,7 @@ fn orb_lava_contacts(
         iterations + 1
     };
     if delta.length_squared() > 0.0 {
-        // Direction.axisStepOrder uses the original, uncollided movement.
+        // Entity.axisStepOrder uses the original, uncollided movement.
         let order = if wanted.x.abs() < wanted.z.abs() {
             [1, 2, 0]
         } else {

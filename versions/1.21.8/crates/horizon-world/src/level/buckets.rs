@@ -91,16 +91,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// contents went, None when nothing was emptied. `beside` is
     /// `hitResult.getBlockPos().relative(hitResult.getDirection())` (None for
     /// a dispenser, which has no hit result). `sound` is the bucket's empty
-    /// sound (mob buckets have their own); `sneaking` is
-    /// `user.isShiftKeyDown()`, which only counts with a hit result;
-    /// `creative` is whether that user is a creative player.
+    /// sound (mob buckets have their own); `creative` is whether that user
+    /// is a creative player.
     pub(crate) fn bucket_empty(
         &mut self,
         pos: BlockPos,
         beside: Option<BlockPos>,
         content: BucketContent,
         sound: &str,
-        sneaking: bool,
         creative: bool,
     ) -> Option<BlockPos> {
         let b = self.b;
@@ -134,16 +132,15 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         let liquid_container = self.is_liquid_container(state);
         let container = liquid_container && self.can_place_liquid(state, fluid, creative);
         let place_liquid = may_replace || container;
-        // `canPlaceFluidInsideBlock`: air always takes the fluid; a block that
-        // merely holds it (a waterloggable block, a replaceable plant) only
-        // when the player is not sneaking or there is no hit result (a
-        // dispenser, or the retry below).
-        if !(b.is_air(state) || place_liquid && (!sneaking || beside.is_none())) {
-            // A refused click (a double slab, or Shift on a waterloggable
-            // block) pours into the block beside the clicked face instead,
-            // without a hit result.
+        // `emptyContents`: air always takes the fluid, as does a block that
+        // merely holds it (a waterloggable block, a replaceable plant) —
+        // sneaking changes nothing here (the 1.21.9 shift check,
+        // `isShiftKeyDown`, is gone).
+        if !(b.is_air(state) || place_liquid) {
+            // A refused click (a double slab) pours into the block beside
+            // the clicked face instead, without a hit result.
             return beside.and_then(|beside| {
-                self.bucket_empty(beside, None, content, sound, sneaking, creative)
+                self.bucket_empty(beside, None, content, sound, creative)
             });
         }
         let water = matches!(fluid, FluidKind::Water | FluidKind::FlowingWater);
@@ -217,10 +214,9 @@ impl Behaviours {
         beside: Option<BlockPos>,
         content: BucketContent,
         sound: &str,
-        sneaking: bool,
         creative: bool,
     ) -> Option<BlockPos> {
         self.sim(level, ticks)
-            .bucket_empty(pos, beside, content, sound, sneaking, creative)
+            .bucket_empty(pos, beside, content, sound, creative)
     }
 }

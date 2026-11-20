@@ -174,14 +174,9 @@ impl Default for ScreenNarration {
 
 impl ScreenNarration {
     /// The end of `init` (after its `triggerImmediateNarration(false)`):
-    /// screens opened from the keyboard wait for the next key before
-    /// narrating again; the others stay quiet for two seconds.
-    pub fn after_init(&mut self, now: i64, keyboard: bool) {
-        self.suppress_time = if keyboard {
-            i64::MAX
-        } else {
-            now.saturating_add(SUPPRESS_AFTER_INIT_MS)
-        };
+    /// the screen stays quiet for two seconds, whatever opened it.
+    pub fn after_init(&mut self, now: i64) {
+        self.suppress_time = now.saturating_add(SUPPRESS_AFTER_INIT_MS);
     }
 
     /// `scheduleNarration(delay, ignoreSuppression, trigger)`.
@@ -346,27 +341,28 @@ mod tests {
     fn narration_waits_for_its_delay_and_the_suppression() {
         let mut n = ScreenNarration::default();
         assert_eq!(n.due(0), None);
-        n.after_init(1000, false);
+        n.after_init(1000);
         n.after_mouse_move(1000);
         // Due at 1750 but suppressed until 3000.
         assert_eq!(n.due(2000), None);
         assert_eq!(n.due(3001), Some(Trigger::Mouse));
         assert_eq!(n.due(4000), None);
         // A click lifts the suppression.
-        n.after_init(5000, false);
+        n.after_init(5000);
         n.after_mouse_action(5000);
         assert_eq!(n.due(5200), None);
         assert_eq!(n.due(5201), Some(Trigger::Mouse));
     }
 
     #[test]
-    fn a_screen_opened_by_keyboard_waits_for_the_next_key() {
+    fn a_screen_opened_by_keyboard_is_quiet_for_two_seconds_like_any_other() {
+        // 1.21.9 suppressed narration forever for keyboard users (until the
+        // next key); 1.21.8's `init` always suppresses for two seconds.
         let mut n = ScreenNarration::default();
-        n.after_init(0, true);
+        n.after_init(0);
         n.after_mouse_move(0);
-        assert_eq!(n.due(1_000_000), None);
-        n.after_keyboard_action(10);
-        assert_eq!(n.due(211), Some(Trigger::Keyboard));
+        assert_eq!(n.due(2000), None);
+        assert_eq!(n.due(2001), Some(Trigger::Mouse));
     }
 
     #[test]

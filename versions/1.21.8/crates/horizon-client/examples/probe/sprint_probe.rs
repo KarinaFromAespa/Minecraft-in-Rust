@@ -43,9 +43,12 @@ pub fn main() -> Result<()> {
                 vehicle_local: flag(3),
                 enough_food: step["food"].as_i64().unwrap() as i32 as f32 > 6.0,
                 may_fly: flag(4),
-                flying: flag(5),
                 shallow_water: flag(6),
-                slow_item: flag(7) && !flag(8),
+                // 1.21.8 has no per-item sprint carve-out: any item in use
+                // blocks a sprint start (`LocalPlayer.canStartSprinting`
+                // checks `isUsingItem()`). The flag(8) `use_effects`
+                // carve-out came with 26.x's `use_effects` component.
+                slow_item: flag(7),
                 fall_flying: flag(9),
                 under_water: flag(10),
                 moving_slowly: flag(11),
@@ -60,7 +63,6 @@ pub fn main() -> Result<()> {
             state.tick(
                 input,
                 conditions,
-                step["window"].as_i64().unwrap() as i32,
                 |value| {
                     sprinting = value;
                     calls.push(value.to_string());

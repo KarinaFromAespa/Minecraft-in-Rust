@@ -789,7 +789,7 @@ impl Game<'_> {
         // Level.getCollisions(null, aabb): CollisionContext.empty().
         if let Ok(scan) = BlockCollisionScan::new(
             &mut scene,
-            CollisionContext::empty(false),
+            CollisionContext::empty(),
             cell,
             false,
             1_000_000,
@@ -1320,7 +1320,7 @@ impl Game<'_> {
             horizon_client::items::bucket_contents(&item).expect("filled bucket dispatcher");
         let target_pos = Self::pos_of(target);
         let emptied = self.with_level(|b, level, ticks| {
-            b.bucket_empty(level, ticks, target_pos, None, content, sound, false, false)
+            b.bucket_empty(level, ticks, target_pos, None, content, sound, false)
         });
         self.process_level_events()?;
         if emptied.is_none() {
@@ -1798,16 +1798,11 @@ impl Game<'_> {
             1.0,
             1.0,
         );
-        // BeehiveBlock.dropHoneycomb (harvest/beehive), then
-        // releaseBeesAndResetHoneyLevel and the shear event.
+        // BeehiveBlock.dropHoneycomb: a fixed 3 honeycomb
+        // (`SHEARED_HONEYCOMB_COUNT`), then releaseBeesAndResetHoneyLevel
+        // and the shear event.
         let p = [target.0, target.1, target.2];
-        for stack in self.sequence_loot(
-            "minecraft:harvest/beehive",
-            "minecraft:harvest/beehive",
-            None,
-        ) {
-            self.pop_resource(p, stack);
-        }
+        self.pop_resource(p, ItemStack::new("minecraft:honeycomb", 3));
         if let Some(reset) = self.with_props(state, &[("honey_level", "0")]) {
             self.level_set(p, reset)?;
         }
@@ -2128,11 +2123,9 @@ impl Game<'_> {
                 continue;
             }
             let at = self.mobs[i].position;
-            let drops = self.sequence_loot(
-                "minecraft:brush/armadillo",
-                "minecraft:brush/armadillo",
-                Some(&stack),
-            );
+            // 1.21.8's brushOffScute spawns one scute outright; the
+            // brush/armadillo loot table came in 1.21.9.
+            let drops = vec![ItemStack::new("minecraft:armadillo_scute", 1)];
             for d in drops {
                 self.spawn_at_location(at, 0.0, d);
             }

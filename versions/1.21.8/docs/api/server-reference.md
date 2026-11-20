@@ -205,5 +205,5 @@ HTTP and JSON on 127.0.0.1. A running server writes its address and a random tok
 | `POST` | `/api/v1/whitelist/add` | `{"name"}` | `{"changed": bool, "output": [...]}`: whether the list (or who is online) changed, and the console's lines | Whitelist a player |
 | `POST` | `/api/v1/whitelist/remove` | `{"name"}` | `{"changed": bool, "output": [...]}`: whether the list (or who is online) changed, and the console's lines | Take a player off the whitelist (kicked if enforce-whitelist) |
 | `GET` | `/api/v1/config` | nothing | `{"config": {...}}`: server.toml's settings by section (`api.token` hidden) | The settings |
-| `PATCH` | `/api/v1/config` | `{"changes": {"world.difficulty": "hard", ...}}` | `saved`, `applied` (taken by the running game at once), `restart` (from the next start), `running` | Change settings as `config set` does; not `engine.*`, `panel.*`, `api.*`, nor RCON, query or management keys |
+| `PATCH` | `/api/v1/config` | `{"changes": {"world.difficulty": "hard", ...}}` | `saved`, `applied` (taken by the running game at once), `restart` (from the next start), `running` | Change settings as `config set` does; not `engine.*`, `panel.*`, `api.*`, nor RCON or query keys |
 | `POST` | `/api/v1/panel/login` | nothing | `{"url": "..."}` | A one-time login link for the web panel (with the token only, not from the panel) |

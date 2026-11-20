@@ -45,6 +45,13 @@ fn block_contact_damage(
             &mut m.random,
             multiplier,
         );
+        // 1.21.8 has no CLEAR_FREEZE: the freeze clears only when fireIgnite
+        // ignites (igniteForTicks), i.e. once the timer reaches 0 after its
+        // climb from -20 — not during the delay, and never for a fire-immune
+        // mob (fireIgnite gates its whole body on !fireImmune).
+        if m.fire_ticks >= 0 {
+            m.ticks_frozen = 0;
+        }
         hurt(m, w, events, fire, Damage::of(DamageKind::InFire));
     }
     if lava && !m.kind.flags.fire_immune {
@@ -1126,8 +1133,9 @@ pub(super) fn in_rain(m: &Mob, w: &MobWorld) -> bool {
 }
 /// `LivingEntity.baseTick` refills a breather's air by 4, then
 /// `Axolotl.handleAirSupply` (unless the mob has no AI): water or rain fills
-/// it, anywhere else it runs down from the pre-tick value, and at -20 the
-/// axolotl dries out.
+/// it, anywhere else it runs down from the pre-tick value, and at exactly
+/// -20 the axolotl dries out (past -20 does not: 1.21.8 tests `== -20`,
+/// the `<=` `shouldTakeDrowningDamage` came in 1.21.9).
 fn axolotl_air_supply(m: &mut Mob, w: &MobWorld) {
     let before = m.air;
     m.air = (m.air + 4).min(super::axolotl::MAX_AIR);
@@ -1138,7 +1146,7 @@ fn axolotl_air_supply(m: &mut Mob, w: &MobWorld) {
         m.air = super::axolotl::MAX_AIR;
     } else {
         m.air = before - 1;
-        if m.air <= -20 {
+        if m.air == -20 {
             m.air = 0;
             m.damage(2.0, Damage::of(DamageKind::DryOut));
         }
@@ -1235,9 +1243,6 @@ fn base_tick(m: &mut Mob, w: &MobWorld, events: &mut Vec<MobEvent>) -> bool {
     }
     let fire = crate::motion::environment::fire_contact(w.world, w.registry, m.bounds());
     let contact_at = m.position;
-    if fire > 0.0 {
-        m.ticks_frozen = 0;
-    }
     // Entity.baseTick counts burning damage and the fire timer before
     // Entity.applyEffectsFromBlocks extinguishes a wet mob later in the tick.
     if m.fire_ticks > 0 {
@@ -1659,11 +1664,14 @@ fn ageable_step(
                 if m.species() == Species::Villager {
                     super::villager_brain::age_boundary_reached(m, w, level_random, events);
                 }
-                // Turtle.ageBoundaryReached: a grown turtle drops a scute.
+                // Turtle.ageBoundaryReached: a grown turtle drops a scute,
+                // straight from `spawnAtLocation` — there is no turtle_grow
+                // loot table in 1.21.8, and no mob-drops gate on it.
                 if m.species() == Species::Turtle {
-                    events.push(MobEvent::GiftLoot {
+                    events.push(MobEvent::DropItem {
                         mob: m.id,
-                        table: "minecraft:gameplay/turtle_grow",
+                        item: "minecraft:turtle_scute".into(),
+                        count: 1,
                         at: [m.position.x, m.position.y, m.position.z],
                     });
                 }
@@ -2298,7 +2306,7 @@ fn check_despawn(m: &mut Mob, w: &MobWorld) -> bool {
         return true;
     }
     // Mob.checkDespawn discards disallowed types even when persistent or NoAI.
-    if w.difficulty.effective == 0.0 && !super::spawn_rules::allowed_in_peaceful(m.species()) {
+    if w.difficulty.effective == 0.0 && super::spawn_rules::despawns_in_peaceful(m.species()) {
         return false;
     }
     let Some(p) = w.nearest_player else {
@@ -2648,7 +2656,6 @@ pub fn eating_sound(
 pub fn sound_volume(m: &Mob) -> f32 {
     match m.species() {
         Species::Ghast => 5.0,
-        Species::HappyGhast => super::happy_ghast::volume(m),
         Species::Warden => 4.0,
         Species::Slime | Species::MagmaCube | Species::SulfurCube => {
             0.4 * m.extra.size.max(1) as f32
@@ -4890,10 +4897,11 @@ mod age_up_tests {
                                         .iter()
                                         .filter(|event| matches!(
                                             event,
-                                            MobEvent::GiftLoot {
-                                                table: "minecraft:gameplay/turtle_grow",
+                                            MobEvent::DropItem {
+                                                item,
+                                                count: 1,
                                                 ..
-                                            }
+                                            } if &**item == "minecraft:turtle_scute"
                                         ))
                                         .count(),
                                     1,

@@ -54,8 +54,7 @@ def main():
         'server-port': port, 'online-mode': 'false', 'level-seed': args.seed,
         'level-name': args.world, 'spawn-protection': '0', 'view-distance': '4',
         'simulation-distance': '4', 'sync-chunk-writes': 'true', 'enable-query': 'false',
-        'enable-rcon': 'false', 'management-server-enabled': 'false',
-        'pause-when-empty-seconds': '-1', 'white-list': 'false', 'enforce-whitelist': 'false',
+        'enable-rcon': 'false', 'pause-when-empty-seconds': '-1', 'white-list': 'false', 'enforce-whitelist': 'false',
     }
     with open(os.path.join(args.dir, 'server.properties'), 'w') as f:
         f.writelines(f'{k}={v}\n' for k, v in props.items())

@@ -29,9 +29,9 @@ pub struct ServerProperties {
     pub online_mode: bool,
     pub prevent_proxy_connections: bool,
     pub server_ip: String,
+    pub pvp: bool,
     pub allow_flight: bool,
     pub motd: String,
-    pub code_of_conduct: bool,
     pub bug_report_link: String,
     pub force_game_mode: bool,
     pub enforce_whitelist: bool,
@@ -41,14 +41,6 @@ pub struct ServerProperties {
     pub game_mode: i32,
     pub level_name: String,
     pub server_port: i32,
-    pub management_server_enabled: bool,
-    pub management_server_host: String,
-    pub management_server_port: i32,
-    pub management_server_secret: String,
-    pub management_server_tls_enabled: bool,
-    pub management_server_tls_keystore: String,
-    pub management_server_tls_keystore_password: String,
-    pub management_server_allowed_origins: String,
     pub announce_player_achievements: Option<bool>,
     pub enable_query: bool,
     pub query_port: i32,
@@ -56,7 +48,10 @@ pub struct ServerProperties {
     pub rcon_port: i32,
     pub rcon_password: String,
     pub hardcore: bool,
+    pub allow_nether: bool,
+    pub spawn_monsters: bool,
     pub use_native_transport: bool,
+    pub enable_command_block: bool,
     pub spawn_protection: i32,
     pub op_permission_level: i32,
     pub function_permission_level: i32,
@@ -81,7 +76,6 @@ pub struct ServerProperties {
     pub text_filtering_config: String,
     pub text_filtering_version: i32,
     pub player_idle_timeout: i32,
-    pub status_heartbeat_interval: i32,
     pub white_list: bool,
     pub enforce_secure_profile: bool,
     pub log_ips: bool,
@@ -145,14 +139,6 @@ impl Entropy for SystemEntropy {
     fn next_int(&mut self, bound: u32) -> u32 {
         (self.next() % u64::from(bound)) as u32
     }
-}
-
-/// SecurityConfig.generateSecretKey.
-pub fn generate_secret_key(entropy: &mut dyn Entropy) -> String {
-    const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-    (0..40)
-        .map(|_| char::from(ALPHABET[entropy.next_int(ALPHABET.len() as u32) as usize]))
-        .collect()
 }
 
 /// UUID.nameUUIDFromBytes.
@@ -252,9 +238,9 @@ impl ServerProperties {
         let online_mode = r.boolean("online-mode", true);
         let prevent_proxy_connections = r.boolean("prevent-proxy-connections", false);
         let server_ip = r.string("server-ip", "");
+        let pvp = r.boolean("pvp", true);
         let allow_flight = r.boolean("allow-flight", false);
         let motd = r.string("motd", "A Minecraft Server");
-        let code_of_conduct = r.boolean("enable-code-of-conduct", false);
         let bug_report_link = r.string("bug-report-link", "");
         let force_game_mode = r.boolean("force-gamemode", false);
         let enforce_whitelist = r.boolean("enforce-whitelist", false);
@@ -278,16 +264,6 @@ impl ServerProperties {
         );
         let level_name = r.string("level-name", "world");
         let server_port = r.int("server-port", 25565);
-        let management_server_enabled = r.boolean("management-server-enabled", false);
-        let management_server_host = r.string("management-server-host", "localhost");
-        let management_server_port = r.int("management-server-port", 0);
-        let secret = generate_secret_key(entropy);
-        let management_server_secret = r.string("management-server-secret", &secret);
-        let management_server_tls_enabled = r.boolean("management-server-tls-enabled", true);
-        let management_server_tls_keystore = r.string("management-server-tls-keystore", "");
-        let management_server_tls_keystore_password =
-            r.string("management-server-tls-keystore-password", "");
-        let management_server_allowed_origins = r.string("management-server-allowed-origins", "");
         let announce_player_achievements = r
             .legacy("announce-player-achievements")
             .map(|s| java_bool(&s));
@@ -297,7 +273,10 @@ impl ServerProperties {
         let rcon_port = r.int("rcon.port", 25575);
         let rcon_password = r.string("rcon.password", "");
         let hardcore = r.boolean("hardcore", false);
+        let allow_nether = r.boolean("allow-nether", true);
+        let spawn_monsters = r.boolean("spawn-monsters", true);
         let use_native_transport = r.boolean("use-native-transport", true);
+        let enable_command_block = r.boolean("enable-command-block", false);
         let spawn_protection = r.int("spawn-protection", 16);
         let op_permission_level = r.permission("op-permission-level", 4);
         let function_permission_level = r.permission("function-permission-level", 2);
@@ -339,7 +318,6 @@ impl ServerProperties {
         let text_filtering_config = r.string("text-filtering-config", "");
         let text_filtering_version = r.int("text-filtering-version", 0);
         let player_idle_timeout = r.int("player-idle-timeout", 0);
-        let status_heartbeat_interval = r.int("status-heartbeat-interval", 0);
         let white_list = r.boolean("white-list", true);
         let enforce_secure_profile = r.boolean("enforce-secure-profile", true);
         let log_ips = r.boolean("log-ips", true);
@@ -396,9 +374,9 @@ impl ServerProperties {
             online_mode,
             prevent_proxy_connections,
             server_ip,
+            pvp,
             allow_flight,
             motd,
-            code_of_conduct,
             bug_report_link,
             force_game_mode,
             enforce_whitelist,
@@ -406,14 +384,6 @@ impl ServerProperties {
             game_mode,
             level_name,
             server_port,
-            management_server_enabled,
-            management_server_host,
-            management_server_port,
-            management_server_secret,
-            management_server_tls_enabled,
-            management_server_tls_keystore,
-            management_server_tls_keystore_password,
-            management_server_allowed_origins,
             announce_player_achievements,
             enable_query,
             query_port,
@@ -421,7 +391,10 @@ impl ServerProperties {
             rcon_port,
             rcon_password,
             hardcore,
+            allow_nether,
+            spawn_monsters,
             use_native_transport,
+            enable_command_block,
             spawn_protection,
             op_permission_level,
             function_permission_level,
@@ -446,7 +419,6 @@ impl ServerProperties {
             text_filtering_config,
             text_filtering_version,
             player_idle_timeout,
-            status_heartbeat_interval,
             white_list,
             enforce_secure_profile,
             log_ips,
@@ -651,12 +623,8 @@ mod tests {
             "#Minecraft server properties\n#Thu Jan 01 00:00:00 UTC 1970\naccepts-transfers=false\n"
         ));
         assert!(stored.contains("\nlevel-type=minecraft\\:normal\n"));
-        assert!(
-            stored
-                .contains("\nmanagement-server-secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n")
-        );
         assert!(stored.ends_with("\nview-distance=10\nwhite-list=true\n"));
-        assert_eq!(stored.lines().count(), 71);
+        assert_eq!(stored.lines().count(), 65);
         assert!(p.random_seed);
         assert_eq!(p.seed, 7);
     }

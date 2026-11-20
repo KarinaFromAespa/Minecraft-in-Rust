@@ -1,4 +1,4 @@
-//! The debug keys in the game (26.3 `KeyboardHandler.keyPress`,
+//! The debug keys in the game (1.21.8 `KeyboardHandler.keyPress`,
 //! `handleDebugKeys` and `tick`): F3 combinations, F3+Escape, the held
 //! debug-crash keys, and the debug renderers they switch on.
 use super::{Game, Screen};
@@ -94,14 +94,12 @@ impl Game<'_> {
                 }
             } else if key == KeyCode::Escape {
                 self.close_gamemode_switcher(false);
-            } else if name == self.settings.keys.get("key.debug.debugOptions") {
-                // The debug options screen interrupts the switcher too
-                // (`canInterruptScreen`): it closes, then F6 opens over the game.
-                self.close_gamemode_switcher(false);
-                self.toggle_debug_options();
             } else if matches!(key, KeyCode::F2 | KeyCode::F11) {
                 return false;
             }
+            // Any other key is the switcher's: 1.21.8 has no screen
+            // interrupt (`canInterruptScreen` is 1.21.9-only), so F6 over the
+            // switcher does nothing.
             return true;
         }
         // Vanilla types into a focused EditBox through charTyped, which no
@@ -253,12 +251,12 @@ impl Game<'_> {
     pub(super) fn debug_chart_lines(&self) -> [String; 3] {
         let keys = &self.settings.keys;
         let modifier = keys.get("key.debug.modifier");
+        let prefix = if modifier == "key.keyboard.unknown" {
+            String::new()
+        } else {
+            format!("{}+", keybinds::display_name(modifier).plain())
+        };
         let key = |mapping: &str| {
-            let prefix = if modifier == "key.keyboard.unknown" {
-                String::new()
-            } else {
-                format!("{}+", keybinds::display_name(modifier).plain())
-            };
             format!(
                 "[{prefix}{}]",
                 keybinds::display_name(keys.get(mapping)).plain()
@@ -293,26 +291,28 @@ impl Game<'_> {
                 ),
                 chart("key.debug.lightmapTexture", "Lightmap", c.lightmap),
             ),
-            format!("To edit: press {}", key("key.debug.debugOptions")),
+            // 1.21.8's footer; 1.21.9 says "To edit: press F3 + F6" here
+            // instead (its debug options screen, gone in 1.21.8).
+            format!(
+                "For help: press [{prefix}{}]",
+                keybinds::display_name("key.keyboard.q").plain()
+            ),
         ]
     }
-    /// `Gui.extractRenderState`'s debug overlay, over everything the frame
-    /// drew (menus too); the debug options screen draws it under itself.
+    /// `Gui.render`'s debug overlay, under the screen that follows.
+    /// 1.21.9 drew it over everything, after the toasts.
     pub(super) fn draw_debug_overlay(&self, batch: &mut HudBatch, size: [u32; 2]) {
-        if self.screen != Screen::DebugOptions {
-            self.draw_debug_overlay_under(batch, size);
-        }
+        self.draw_debug_overlay_under(batch, size);
     }
-    /// `DebugScreenOverlay.extractRenderState`: the enabled entries' lines
-    /// (`debug-profile.json`), at the debug GUI scale, and the charts while
-    /// the overlay is open. F1 hides it unless a screen is open. Horizon paints
-    /// it 20 times a second and copies those vertices in between.
+    /// `DebugScreenOverlay.showDebugScreen`: the overlay shows while F3 is
+    /// on and F1 is not hiding the HUD — `renderDebug && !hideGui`,
+    /// whatever screen is open. (1.21.9 showed it whenever any entry was
+    /// enabled, and let an open screen override F1.) The enabled entries'
+    /// lines, at the debug GUI scale, and the charts while the overlay is
+    /// open. Horizon paints it 20 times a second and copies those
+    /// vertices in between.
     pub(super) fn draw_debug_overlay_under(&self, batch: &mut HudBatch, size: [u32; 2]) {
-        let screen_open = self.title.is_some() || self.screen != Screen::Playing;
-        let reduced = self.reduced_debug_info();
-        if !self.debug_entries.any_enabled(self.debug, reduced)
-            || (self.ui.hide_gui && !screen_open)
-        {
+        if !self.debug || self.ui.hide_gui {
             // Nothing reads the server's lines now: it stops computing them each tick.
             if let Some(server) = &self.integrated {
                 server.request_debug(None);
@@ -375,12 +375,12 @@ impl Game<'_> {
             .store(now, layout, &batch.vertices[first_vertex..]);
     }
     /// Whether the overlay is listing GPU pass times (its `system_specs` lines), the only reason
-    /// it has to time passes.
+    /// it has to time passes. The system lines are part of 1.21.8's fixed right column, so
+    /// the overlay lists them whenever it is up.
     pub(super) fn debug_lists_gpu_passes(&self) -> bool {
         self.debug
             && self.title.is_none()
             && !(self.ui.hide_gui && self.screen == Screen::Playing)
-            && self.debug_entry("system_specs")
     }
     /// The monitor's refresh rate in millihertz, asked of the OS at most once a second (on
     /// Windows, winit calls `EnumDisplaySettingsExW` each time).
@@ -398,7 +398,12 @@ impl Game<'_> {
         self.debug_refresh.set(Some((Instant::now(), rate)));
         rate
     }
-    /// `DebugEntryFps`.
+    /// `Minecraft.fpsString`: `"%d fps T: %s%s%s%s B: %d%s"` — the limit,
+    /// vsync, the graphics mode, the clouds and the biome blend radius, all
+    /// on the one line. (1.21.9 splits the last three into the separate
+    /// `DebugEntrySimplePerformanceImpactors` line.) The present mode and
+    /// the refresh rate are Horizon's own additions, kept after the limit;
+    /// the GPU part stays empty, as in vanilla without a frame profiler.
     pub(super) fn debug_fps_line(&self, d: &mut debug_overlay::Displayer) {
         let limit = self.framerate_limit();
         let present = self
@@ -425,44 +430,31 @@ impl Game<'_> {
                     (self.fps * (1.0 + share)).round() as i32
                 )
             });
+        // `GraphicsStatus.toString`: fast, fancy or fabulous; Horizon's
+        // `custom` preset has no vanilla word and is printed as it stands.
+        let clouds = match self.settings.clouds.as_str() {
+            "false" => "",
+            "fast" => " fast-clouds",
+            _ => " fancy-clouds",
+        };
         d.priority(format!(
-            "{} fps{generated} T: {}{present} @{refresh}Hz",
+            "{} fps{generated} T: {}{present} @{refresh}Hz{}{}{} B: {}",
             self.fps.round() as i32,
             if limit == 260 {
                 "inf".into()
             } else {
                 limit.to_string()
             },
+            if self.settings.vsync { " vsync " } else { " " },
+            self.settings.graphics_preset,
+            clouds,
+            self.settings.biome_blend,
         ));
     }
-    /// `DebugEntrySimplePerformanceImpactors`.
-    pub(super) fn debug_performance_lines(&self, d: &mut debug_overlay::Displayer) {
-        let s = &self.settings;
-        d.line(format!(
-            "{}{}B: {}",
-            if s.improved_transparency {
-                "improved-transparency "
-            } else {
-                ""
-            },
-            match s.clouds.as_str() {
-                "false" => "",
-                "fast" => "fast-clouds ",
-                _ => "fancy-clouds ",
-            },
-            s.biome_blend
-        ));
-        d.line("Filtering: None");
-        d.line(format!(
-            "Terrain Rendering: {}",
-            if self.renderer.as_ref().is_some_and(|r| r.multi_draw) {
-                "multidrawindirect"
-            } else {
-                "naive"
-            }
-        ));
-    }
-    /// `DebugEntrySystemSpecs` (no Java line: Horizon has no JVM).
+    /// `DebugScreenOverlay.getSystemInformation` (no Java line: Horizon has
+    /// no JVM): the CPU line, a blank, then the display, renderer and
+    /// backend lines. (The memory lines come from the memory entry, with
+    /// their own blank after them.)
     pub(super) fn debug_system_lines(
         &self,
         d: &mut debug_overlay::Displayer,
@@ -476,6 +468,8 @@ impl Game<'_> {
                     DEBUG_CPU.get_or_init(horizon_client::crash::cpu)
                 )],
             );
+            // `getSystemInformation`: a blank line after the CPU line.
+            d.line(String::new());
             let info = &r.info;
             d.group(
                 "system",
@@ -534,7 +528,9 @@ impl Game<'_> {
             d.group("system", [r.hdr_line()]);
         }
     }
-    /// `DebugEntryTps` for local and remote connections.
+    /// `DebugScreenOverlay.getGameInformation`'s server line, for local and
+    /// remote connections (1.21.9 renders the identical line from
+    /// `DebugEntryTps`).
     pub(super) fn debug_tps_line(&self, d: &mut debug_overlay::Displayer) {
         if self.player.is_some() {
             let [tx, rx] = self.debug_charts.packet_rates.map(|n| n.round() as i64);
@@ -605,14 +601,11 @@ impl Game<'_> {
             || self.ui.rules.bool("reduced_debug_info")
             || self.remote.as_ref().is_some_and(|r| r.reduced_debug_info)
     }
-    /// `DebugScreenEntryList.isCurrentlyEnabled` for an entry's path.
-    pub(super) fn debug_entry(&self, path: &str) -> bool {
-        self.debug_entries
-            .enabled(path, self.debug, self.reduced_debug_info())
-    }
-    /// The `3d_crosshair` entry.
+    /// `Gui.shouldRenderDebugCrosshair`, minus the first-person check its
+    /// callers make: F3 on, debug info not reduced. 1.21.9 gated the
+    /// crosshair on the `3d_crosshair` debug entry instead.
     pub(super) fn debug_crosshair(&self) -> bool {
-        self.debug_entry("3d_crosshair")
+        self.debug && !self.reduced_debug_info()
     }
     /// `Permissions.COMMANDS_GAMEMASTER` (`GameModeCommand.PERMISSION_CHECK`).
     pub(super) fn gamemaster(&self) -> bool {
@@ -635,10 +628,13 @@ impl Game<'_> {
                 self.debug_translated("debug.reload_chunks.message");
                 true
             }
-            DebugAction::ShowHitboxes if player => {
-                let on = self
-                    .debug_entries
-                    .toggle_status("entity_hitboxes", self.debug);
+            // `EntityRenderDispatcher.setRenderHitBoxes`: 1.21.8 toggles it
+            // with no player or reduced-info gate (1.21.9 gates on both and
+            // routes through the debug entries). `show_hitboxes` is the
+            // Rust's store for the dispatcher's flag.
+            DebugAction::ShowHitboxes => {
+                self.show_hitboxes = !self.show_hitboxes;
+                let on = self.show_hitboxes;
                 self.debug_translated(if on {
                     "debug.show_hitboxes.on"
                 } else {
@@ -651,10 +647,13 @@ impl Game<'_> {
                 self.ui.chat.clear();
                 true
             }
-            DebugAction::ShowChunkBorders if player => {
-                let on = self
-                    .debug_entries
-                    .toggle_status("chunk_borders", self.debug);
+            // `DebugRenderer.switchRenderChunkborder`: 1.21.8 toggles it with
+            // no player or reduced-info gate (1.21.9 gates on both).
+            // `show_chunk_borders` is the Rust's store for the renderer's
+            // flag.
+            DebugAction::ShowChunkBorders => {
+                self.show_chunk_borders = !self.show_chunk_borders;
+                let on = self.show_chunk_borders;
                 self.debug_translated(if on {
                     "debug.chunk_boundaries.on"
                 } else {
@@ -690,7 +689,16 @@ impl Game<'_> {
                 }
                 true
             }
-            DebugAction::SwitchGameMode if self.open_screen() == OpenScreen::None => {
+            DebugAction::SwitchGameMode
+                if matches!(
+                    self.open_screen(),
+                    OpenScreen::None | OpenScreen::PauseWithoutMenu
+                ) =>
+            {
+                // KeyboardHandler's gate: no screen, or a PauseScreen without
+                // its menu. 1.21.8 errors only without permission level 2 and
+                // otherwise always opens the switcher (1.21.9 also excludes
+                // the win screen and checks `canSwitchGameMode`).
                 if self.player.is_none() || !self.gamemaster() {
                     self.debug_translated("debug.gamemodes.error");
                 } else {
@@ -759,18 +767,6 @@ impl Game<'_> {
                 self.debug_charts.toggle_lightmap(&mut self.debug);
                 true
             }
-            // Other title submenus still need their own interruption/close policy.
-            DebugAction::DebugOptions
-                if self.title.as_ref().is_some_and(|title| {
-                    !matches!(title.mode, horizon_client::title::Mode::Main)
-                }) =>
-            {
-                false
-            }
-            DebugAction::DebugOptions => {
-                self.toggle_debug_options();
-                true
-            }
             // Horizon's own: a repro recording for a bug report (game/repro.rs).
             // Off unless the AI Agent page enables the shortcuts.
             DebugAction::RecordSession if !self.settings.extras.repro_keys => false,
@@ -819,10 +815,7 @@ impl Game<'_> {
             // Screens and overlays Horizon does not draw yet (the profiler and
             // its chart): the keys are used up as in vanilla.
             DebugAction::Profiling | DebugAction::ProfilingChart => true,
-            DebugAction::ShowHitboxes
-            | DebugAction::ShowChunkBorders
-            | DebugAction::SwitchGameMode
-            | DebugAction::CopyLocation => false,
+            DebugAction::SwitchGameMode | DebugAction::CopyLocation => false,
         }
     }
     /// `ServerboundChangeGameModePacket` handled by the integrated server:
@@ -997,8 +990,7 @@ impl Game<'_> {
     pub(super) fn debug_gizmos(&self, alpha: f32, camera: [f64; 3]) -> Gizmos {
         let mut g = Gizmos::default();
         self.bounding_box_gizmos(camera, &mut g);
-        self.debug_renderer_gizmos(&mut g);
-        if self.debug_entry("chunk_borders")
+        if self.show_chunk_borders
             && let Some(p) = &self.player
         {
             let block = [
@@ -1009,7 +1001,7 @@ impl Game<'_> {
             let min_y = self.world.bottom_y();
             g.chunk_borders(block, min_y, min_y + self.world.layout().height() - 1);
         }
-        if !self.debug_entry("entity_hitboxes") {
+        if !self.show_hitboxes {
             return g;
         }
         let lerp = |a: f64, b: f64| a + f64::from(alpha) * (b - a);

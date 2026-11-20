@@ -102,38 +102,82 @@ impl Game<'_> {
     fn scoreboard_path(&self) -> std::path::PathBuf {
         self.world_root.join("data/minecraft/scoreboard.dat")
     }
-    /// `ServerLevel.getWorldBorder`'s file: each dimension's own
-    /// `data/minecraft/world_border.dat`.
-    fn border_path(&self, dim: super::Dim) -> std::path::PathBuf {
-        save::dimension_dir(&self.world_root, dim.id()).join("data/minecraft/world_border.dat")
-    }
-    /// The border `dim`'s level saved. The Overworld also reads the root file older Horizon
-    /// builds wrote for their one shared border; the other levels start from the default.
-    pub(super) fn load_border(&self, dim: super::Dim) -> horizon_client::worldborder::WorldBorder {
-        let mut root = save::read_dat(&self.border_path(dim));
-        if root.is_none() && dim == super::Dim::Overworld {
-            root = save::read_dat(&self.world_root.join("data/minecraft/world_border.dat"));
+    /// The Overworld's border as it is now: live when the Overworld is in
+    /// place, its parked copy when another level is, level.dat's when the
+    /// Overworld has not been opened yet (a player who spawns in another
+    /// dimension).
+    pub(super) fn overworld_border(&self) -> &horizon_client::worldborder::WorldBorder {
+        if self.dim == super::Dim::Overworld {
+            &self.border
+        } else if let Some(b) = self.levels.parked_border(super::Dim::Overworld) {
+            b
+        } else {
+            &self.level.border
         }
-        root.as_ref()
-            .and_then(|root| root.get("data"))
-            .map(horizon_client::worldborder::WorldBorder::unpack)
-            .unwrap_or_default()
     }
-    /// Save the border of the level in place (`SavedData`, one per level).
-    pub(super) fn save_border(&self) {
-        if !self.score.loaded || self.remote.is_some() {
+    /// The border `dim`'s level starts with (`ServerLevel.getWorldBorder`,
+    /// 1.21.8): the Overworld's border, its centre scaled by the
+    /// dimension's coordinate scale (`Level$1`). There is no per-level
+    /// `world_border` SavedData file in 1.21.8.
+    pub(super) fn load_border(
+        &self,
+        dim: super::Dim,
+        overworld: &horizon_client::worldborder::WorldBorder,
+    ) -> horizon_client::worldborder::WorldBorder {
+        overworld.for_coordinate_scale(self.dimension_type_of(dim).coordinate_scale)
+    }
+    /// The Overworld's border is the one border level.dat keeps
+    /// (`PrimaryLevelData`): refresh the level's copy from it, so the
+    /// level.dat write that follows saves it. A Nether/End edit never
+    /// reaches level.dat (the delegates don't propagate back), and a
+    /// client holds no levels to save.
+    pub(super) fn save_border(&mut self) {
+        if self.remote.is_some() {
             return;
         }
-        if self.border != horizon_client::worldborder::WorldBorder::default()
-            && let Err(e) = save::write_dat(
-                &self.border_path(self.dim),
-                Tag::compound([
-                    ("data", self.border.pack()),
-                    ("DataVersion", Tag::Int(horizon_world::DATA_VERSION)),
-                ]),
-            )
-        {
-            log::warn!("the world border of {} was not written: {e}", self.dim.id());
+        self.level.border = self.overworld_border().clone();
+    }
+    /// Run `f` on the Overworld's border, wherever it lives: `WorldBorderCommand`
+    /// edits `server.overworld().getWorldBorder()` from any dimension in
+    /// 1.21.8 (1.21.9 edits the source level's border). The edit then
+    /// re-derives the active level's view and mirrors into the parked
+    /// Nether/End borders — vanilla's `Level$1` delegates are live, so a
+    /// Nether/End border tracks the Overworld's at once.
+    pub(super) fn edit_overworld_border(
+        &mut self,
+        f: impl FnOnce(&mut horizon_client::worldborder::WorldBorder),
+    ) {
+        if self.dim == super::Dim::Overworld {
+            f(&mut self.border);
+            let overworld = self.border.clone();
+            self.mirror_overworld_border(&overworld);
+            return;
+        }
+        let mut overworld = self.overworld_border().clone();
+        f(&mut overworld);
+        // The active level's view re-derives from the edited border, and
+        // the edited border goes back where the Overworld border lives.
+        self.border = self.load_border(self.dim, &overworld);
+        if self.levels.parked_border(super::Dim::Overworld).is_some() {
+            self.levels
+                .set_parked_border(super::Dim::Overworld, overworld.clone());
+        } else {
+            self.level.border = overworld.clone();
+        }
+        self.mirror_overworld_border(&overworld);
+    }
+    /// The Overworld border's listener (`Level$1`): mirror an Overworld edit
+    /// into the parked Nether/End borders (their centres scaled). A parked
+    /// level takes the mirrored border; the level in place re-derives its
+    /// view from the Overworld border instead.
+    fn mirror_overworld_border(
+        &mut self,
+        overworld: &horizon_client::worldborder::WorldBorder,
+    ) {
+        for dim in [super::Dim::Nether, super::Dim::End] {
+            let derived =
+                overworld.for_coordinate_scale(self.dimension_type_of(dim).coordinate_scale);
+            self.levels.set_parked_border(dim, derived);
         }
     }
     /// `ScoreboardSaveData` read from `data/minecraft/scoreboard.dat`.
@@ -856,7 +900,6 @@ impl Game<'_> {
         if !tab_players_needed(shown, changed) {
             // World skins still need download polling and atlas residency checks.
             self.update_remote_skins();
-            self.publish_tab_object_skins();
             return;
         }
         let (mut players, online_mode, upside_down) = match self.remote_tab_players() {

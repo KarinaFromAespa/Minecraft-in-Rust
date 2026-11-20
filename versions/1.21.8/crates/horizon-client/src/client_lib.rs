@@ -52,7 +52,6 @@ pub mod creative;
 pub mod cushion;
 pub mod data_cmd;
 pub mod debug_chart;
-pub mod debug_entries;
 pub mod debug_keys;
 pub mod debug_overlay;
 pub mod debugworld;

@@ -79,32 +79,20 @@ fn verify_command(tree: &Dispatcher, registries: &Registries, command: &str) -> 
     CommandCheck::NoIssues
 }
 
-/// What the confirmation's first button does.
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum CommandAccept {
-    /// openCommandSendConfirmationWindow: the command goes as it is.
-    Run,
-    /// openSignedCommandSendConfirmationWindow: into the chat box, for the
-    /// player to read and send.
-    Suggest,
-    /// The same with a screen to come back to: on the clipboard.
-    Copy,
-}
-
 /// The screen a clicked command left, which answering no returns to
-/// (openSendConfirmationWindow's `currentScreen`).
+/// (openCommandSendConfirmationWindow's `currentScreen`).
 pub(super) enum Behind {
     Book(Box<BookScreen>),
     Dialog(ClosedDialog),
 }
 
-/// The `ConfirmScreen` of ClientPacketListener.openSendConfirmationWindow.
+/// The `ConfirmScreen` of
+/// ClientPacketListener.openCommandSendConfirmationWindow (1.21.8's
+/// three-argument form: plain Yes/No buttons; the Run/Suggest/Copy
+/// buttons and the signed-command window came in 1.21.9).
 pub(super) struct CommandPrompt {
     command: String,
     message: &'static str,
-    accept: CommandAccept,
-    /// A screen is open behind it: the second button says Back, not Cancel.
-    over_screen: bool,
     behind: Option<Behind>,
     /// The button Tab or an arrow key moved to.
     focus: Option<usize>,
@@ -330,9 +318,11 @@ impl Game<'_> {
     /// ClientPacketListener.sendUnattendedCommand: a command the player
     /// didn't type (a clicked chat line, a dialog's button, a mod's command)
     /// goes unsigned when `verify_command` has no issue with it. Any other
-    /// asks first, and one with a message argument is never sent from here:
-    /// the player can only send it themselves, from the chat box. So neither
-    /// a server nor a mod can have the player sign a message they never saw.
+    /// asks first — except one with a message argument, which 1.21.8
+    /// refuses outright (a log line, no prompt, nothing sent; the
+    /// signed-command window that suggests or copies it came in 1.21.9).
+    /// So neither a server nor a mod can have the player sign a message
+    /// they never saw.
     pub(super) fn send_unattended_command(&mut self, command: &str) {
         let command = command.trim();
         let command = command.strip_prefix('/').unwrap_or(command);
@@ -348,37 +338,25 @@ impl Game<'_> {
         } else {
             CommandCheck::ParseErrors
         };
-        // screenAfterCommand: what stays once it has run, a dialog included.
-        let over_screen = self.screen != Screen::Playing || self.dialog_open();
-        let (message, accept) = match check {
+        let message = match check {
             CommandCheck::NoIssues => {
                 // Verification above excludes message arguments. Use the ordinary sender so
                 // releases without an unsigned command packet still acknowledge seen chat.
                 self.send_command(command);
                 return;
             }
-            CommandCheck::ParseErrors => (
-                "multiplayer.confirm_command.parse_errors",
-                CommandAccept::Run,
-            ),
-            CommandCheck::PermissionsRequired => (
-                "multiplayer.confirm_command.permissions_required",
-                CommandAccept::Run,
-            ),
-            CommandCheck::SignatureRequired => (
-                "multiplayer.confirm_command.signature_required",
-                if over_screen {
-                    CommandAccept::Copy
-                } else {
-                    CommandAccept::Suggest
-                },
-            ),
+            CommandCheck::ParseErrors => "multiplayer.confirm_command.parse_errors",
+            CommandCheck::PermissionsRequired => "multiplayer.confirm_command.permissions_required",
+            CommandCheck::SignatureRequired => {
+                log::error!(
+                    "Not allowed to run command with signed argument from click event: '{command}'"
+                );
+                return;
+            }
         };
         self.command_prompt = Some(CommandPrompt {
             command: command.to_owned(),
             message,
-            accept,
-            over_screen,
             behind: None,
             focus: None,
         });
@@ -389,7 +367,6 @@ impl Game<'_> {
     pub(super) fn command_prompt_returns_to(&mut self, behind: Behind) {
         if let Some(prompt) = self.command_prompt.as_mut() {
             prompt.behind = Some(behind);
-            prompt.over_screen = true;
         }
     }
 
@@ -429,23 +406,10 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         let (w, h) = (batch.width, batch.height);
         horizon_client::ui::menu_background(batch, atlas, 0.0, 0.0, w, h, true);
+        // 1.21.8's three-argument ConfirmScreen: plain Yes/No.
         let labels = [
-            Text::translate(
-                match prompt.accept {
-                    CommandAccept::Run => "multiplayer.confirm_command.run_command",
-                    CommandAccept::Suggest => "multiplayer.confirm_command.suggest_command",
-                    CommandAccept::Copy => "chat.copy",
-                },
-                &[],
-            ),
-            Text::translate(
-                if prompt.over_screen {
-                    "gui.back"
-                } else {
-                    "gui.cancel"
-                },
-                &[],
-            ),
+            Text::translate("gui.yes", &[]),
+            Text::translate("gui.no", &[]),
         ];
         let mut layout = self.command_prompt_layout(prompt, (w, h));
         layout.declare_no(1);
@@ -457,25 +421,17 @@ impl Game<'_> {
         let Some(prompt) = self.command_prompt.take() else {
             return;
         };
-        match (yes, prompt.accept, prompt.behind) {
-            (true, CommandAccept::Run, _) => {
+        match (yes, prompt.behind) {
+            (true, _) => {
                 if self.remote.is_some() {
                     self.send(S::ChatCommand(play::ChatCommand {
                         command: prompt.command,
                     }));
                 }
             }
-            // Gui.openChatAndAddText.
-            (true, CommandAccept::Suggest, _) => {
-                self.open_chat(&format!("/{}", prompt.command), false)
-            }
-            (true, CommandAccept::Copy, _) => {
-                use horizon_client::clipboard::Clipboard;
-                self.clipboard.set(&format!("/{}", prompt.command));
-            }
-            (false, _, Some(Behind::Book(book))) => self.book = Some(*book),
-            (false, _, Some(Behind::Dialog(dialog))) => self.reopen_dialog(dialog),
-            (false, _, None) => {}
+            (false, Some(Behind::Book(book))) => self.book = Some(*book),
+            (false, Some(Behind::Dialog(dialog))) => self.reopen_dialog(dialog),
+            (false, None) => {}
         }
         if self.screen == Screen::Playing && !self.screen_over_playing() {
             self.capture(true);

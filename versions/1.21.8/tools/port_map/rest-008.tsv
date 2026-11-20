@@ -79,7 +79,7 @@ DataComponentInitializers.SingleComponentInitializer.asInitializer	skip:data		it
 DataComponentLookup.getOrCreateStorage	skip:java		cache
 DataComponentLookup.scanForComponents	skip:java		index build behind the lookup
 DataComponentLookup.findAll	inline	crates/horizon-client/src/game/creatures.rs::dye_color_mix_in_recipes	DyeColor.findColorMixInRecipes looks the two dyes up through the recipe components; this builds the two-dye grid and asks the recipe manager for it
-DataComponentLookup.ComponentStorage.findMatching	skip:other		how a spawn egg finds its entity type: the egg's id is the type's with _spawn_egg on the end (creatures.rs::Game::spawn_egg_allowed trims it), so no component is looked up
+DataComponentLookup.ComponentStorage.findMatching	skip:other		how a spawn egg finds its entity type: the egg's id is the type's with _spawn_egg on the end (creatures.rs::Game::use_spawn_egg trims it), so no component is looked up
 DataComponentMap.makeCodecFromMap	skip:java		codec
 DataComponentMap.iterator	skip:java		iterator
 DataComponentMap.Builder.setUnchecked	skip:java		builder

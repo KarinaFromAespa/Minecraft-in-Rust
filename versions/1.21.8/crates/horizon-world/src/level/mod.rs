@@ -141,7 +141,7 @@ pub use bonemeal::TemplateSettings;
 pub use buckets::{BucketContent, is_lava_bucket, mod_bucket_contents};
 pub use data::{BlockData, ItemBinding, ItemKind, Named, Props, PushReaction, StateFacts, Tags};
 pub use falling::Landing;
-pub use interact::{InteractionResult, PlayerContext, PlayerEffect, UseBranch, hit_slot};
+pub use interact::{InteractionResult, PlayerContext, PlayerEffect, UseBranch, bookshelf_hit_slot, hit_slot};
 pub use pistons::{BlockEventData, MovingPiston};
 pub use place::{PlaceContext, PlaceOutcome, PlacementContext};
 pub use states::{BlockId, PropKey, StateTable};
@@ -691,7 +691,7 @@ pub trait LevelAccess {
     fn item_frame_analog_output(&self, _pos: BlockPos, _facing: Direction) -> Option<i32> {
         None
     }
-    /// `ContainerOpenersCounter.getEntitiesWithContainerOpen` is not empty for
+    /// `ContainerOpenersCounter.getPlayersWithContainerOpen` is not empty for
     /// the container at `pos`: someone has it open (a double chest's menu
     /// counts for both halves; a copper golem's open chest too).
     fn container_open(&self, _pos: BlockPos) -> bool {
@@ -727,9 +727,11 @@ pub trait LevelAccess {
     fn adjust_has_analog_output(&self, _state: BlockStateId, vanilla: bool) -> bool {
         vanilla
     }
-    /// `BlockState.getAnalogOutputSignal(level, pos, direction)` once the
-    /// library answered `vanilla`, `direction` pointing from the block to the
-    /// comparator reading it: the output to use. The default keeps it.
+    /// `BlockState.getAnalogOutputSignal(level, pos)` once the library
+    /// answered `vanilla`: the output to use. The default keeps it. The
+    /// `direction` (pointing from the block to the comparator reading it)
+    /// is Horizon's own mod-hook parameter — 1.21.8's vanilla method takes
+    /// no direction, and no 1.21.9 override reads the one 1.21.9 added.
     fn adjust_analog_output(
         &self,
         _pos: BlockPos,

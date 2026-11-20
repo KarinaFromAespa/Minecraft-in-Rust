@@ -310,22 +310,19 @@ impl Game<'_> {
         use horizon_client::container_screen::Button;
         if right { Button::Right } else { Button::Left }
     }
-    /// `Screen.hasShiftDown` / `InputWithModifiers.hasShiftDown`: 26.3 keeps
-    /// no key cache — every event answers with its own modifiers bit
-    /// (`InputWithModifiers.java:54-56`, `keys = 3`), and the pointer and
-    /// keyboard events carry the OS's live word, refreshed at the focus. The
-    /// window's `ModifiersChanged` is that word here; key releases can die
-    /// on the way from the OS (a stuck Shift then kept every screen's Shift
-    /// and a sneak the key no longer held: #4166's in-game report), so a
-    /// cached key set is not vanilla's answer.
+    /// `Screen.hasShiftDown`: 1.21.8 reads the live GLFW state — no key
+    /// cache — and the window's `ModifiersChanged` is that word here; key
+    /// releases can die on the way from the OS (a stuck Shift then kept
+    /// every screen's Shift and a sneak the key no longer held: #4166's
+    /// in-game report), so a cached key set is not vanilla's answer.
     pub(super) fn has_shift_down(&self) -> bool {
         self.modifiers.shift_key()
     }
-    /// The same live word for Control (`InputWithModifiers.hasControlDown`).
+    /// The same live word for Control (`Screen.hasControlDown`).
     pub(super) fn has_control_down(&self) -> bool {
         self.modifiers.control_key()
     }
-    /// The same live word for Alt (`InputWithModifiers.hasAltDown`).
+    /// The same live word for Alt (`Screen.hasAltDown`).
     pub(super) fn has_alt_down(&self) -> bool {
         self.modifiers.alt_key()
     }
@@ -436,6 +433,7 @@ impl Game<'_> {
             self.has_shift_down(),
             false,
         );
+        let reached_end = !matches!(release, Release::Nothing);
         match (release, Target::of(slot, outside)) {
             (Release::QuickCraft, _) => self.inventory_release(),
             (Release::Click(input), Target::Outside) => {
@@ -453,6 +451,13 @@ impl Game<'_> {
                 }
             }
             _ => self.inv_drag = None,
+        }
+        // `mouseReleased` ends with `lastClickTime = 0` when the hand is
+        // empty: a release that places the carried stack ends the
+        // double-click chain, so a quick shift-click on the same slot
+        // quick-moves only that slot. The early returns (`Nothing`) skip it.
+        if reached_end && self.carried.is_none() {
+            self.last_inv_click = None;
         }
     }
     /// A press of the pick block button (`keyPickItem`, the middle button by
@@ -502,6 +507,7 @@ impl Game<'_> {
             self.has_shift_down(),
             true,
         );
+        let reached_end = !matches!(release, Release::Nothing);
         match (release, slot) {
             (Release::QuickCraft, _) => self.inventory_release(),
             (Release::Click(input), Some(slot)) if !outside => {
@@ -509,6 +515,11 @@ impl Game<'_> {
                 self.menu_click(Some(slot), 2, input);
             }
             _ => self.inv_drag = None,
+        }
+        // `mouseReleased` ends with `lastClickTime = 0` when the hand is
+        // empty (see `inventory_mouse_release`).
+        if reached_end && self.carried.is_none() {
+            self.last_inv_click = None;
         }
     }
     /// Mouse release: finishes a quick craft drag (one slot is a plain click).

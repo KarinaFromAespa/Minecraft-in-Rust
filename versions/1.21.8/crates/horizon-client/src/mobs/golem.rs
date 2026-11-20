@@ -337,7 +337,9 @@ impl Goal for OfferFlower {
         if !cx.w.daylight || m.random.next_int_bound(8000).unwrap_or(1) != 0 {
             return false;
         }
-        // The nearest of #candidate_for_iron_golem_gift: villagers and copper golems.
+        // OfferFlowerGoal targets the nearest villager in 1.21.8 (1.21.9
+        // widened it to #candidate_for_iron_golem_gift, villagers and copper
+        // golems); the copper-golem arm is dead by data here.
         self.villager =
             cx.w.nearby(m.position, 6.0, |s| {
                 matches!(s.species, Species::Villager | Species::CopperGolem) && s.alive
@@ -360,8 +362,9 @@ impl Goal for OfferFlower {
         m.extra.counter = 0;
         // IronGolem.offerFlower(false): entity event 34.
         entity_event(m, 34, cx);
-        // A copper golem the offer ran out beside takes the poppy on its
-        // antenna (#accepts_iron_golem_gift) when it has none.
+        // 1.21.9 gives the poppy to a copper golem's antenna
+        // (#accepts_iron_golem_gift) when the offer runs out beside one;
+        // 1.21.8 has no copper golems, so this arm is dead by data.
         if self.ticks == 0
             && let Some(v) = self.villager.and_then(|v| cx.w.seen(v))
             && v.species == Species::CopperGolem

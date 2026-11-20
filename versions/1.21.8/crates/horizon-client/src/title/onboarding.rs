@@ -76,11 +76,9 @@ impl Onboarding {
         alpha
     }
 
-    /// `onClose`: starts the fade out once.
+    /// `onClose`: starts the fade out, again if it already started.
     fn close(&self, now: Instant) {
-        if self.fade_out_start.get().is_none() {
-            self.fade_out_start.set(Some(now));
-        }
+        self.fade_out_start.set(Some(now));
     }
 
     /// Whether the fade out has run out: `close(true, onClose)`.
@@ -343,6 +341,11 @@ mod tests {
         assert!((screen.fade(at(3.25)) - 0.5).abs() < 1e-3);
         assert_eq!(screen.fade(at(4.0)), 0.0);
         assert!(screen.closed(at(4.0)));
+        // Closing again restarts the fade out from the new moment.
+        screen.close(at(3.5));
+        assert!(!screen.closed(at(4.0)));
+        assert!((screen.fade(at(3.75)) - 0.5).abs() < 1e-3);
+        assert!(screen.closed(at(4.5)));
     }
 
     #[test]

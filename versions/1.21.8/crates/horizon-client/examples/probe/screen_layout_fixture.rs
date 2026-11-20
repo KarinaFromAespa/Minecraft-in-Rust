@@ -86,10 +86,6 @@ pub fn main() -> horizon_client::Result<()> {
                 .as_str()
                 .and_then(banner_color)
                 .unwrap_or("white");
-            let dye = c["dyeStack"]
-                .as_str()
-                .and_then(|d| d.strip_prefix("minecraft:")?.strip_suffix("_dye"))
-                .unwrap_or("white");
             let view = LoomView {
                 width: int("width"),
                 height: int("height"),
@@ -105,7 +101,6 @@ pub fn main() -> horizon_client::Result<()> {
                 scroll: c["scroll"].as_f64().unwrap_or(0.0) as f32,
                 start_row: int("startRow") as usize,
                 result: c.get("resultLayers").map(|_| (base, layers.as_slice())),
-                dye,
                 mouse: (int("mouseX") as f32, int("mouseY") as f32),
             };
             screen_layout::loom(&view, &banners)

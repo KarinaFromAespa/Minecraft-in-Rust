@@ -115,7 +115,7 @@ impl Game<'_> {
             f.pos[2] - s[2],
         ));
         let supported = behind.legacy_solid || (s[1] == 0 && behind.has_class("DiodeBlock"));
-        // canCoexist(true): only hanging entities facing the same way block it.
+        // 1.21.8's `survives`: no overlapping hanging entity at all.
         supported && super::paintings::frame_coexists(f, &self.item_frames, &self.paintings)
     }
     /// Asks the mods whether the acting guest may place a hanging entity
@@ -187,7 +187,7 @@ impl Game<'_> {
             random: horizon_client::random_source::entity(),
         };
         // `EntityType.createDefaultStackConfig`: the item's `custom_data`, then its
-        // `entity_data` merged over the frame (`TypedEntityData.loadInto`), before
+        // `entity_data` merged over the frame (`CustomData.loadInto`), before
         // `survives` runs on the configured frame.
         let kind = frame.kind();
         let own = horizon_client::entity_nbt::item_frame_to_nbt(&frame, [0; 4], None);
@@ -549,19 +549,11 @@ impl Game<'_> {
             let entity_start = out.len();
             self.mark_entity(entity_start, f.kind());
             let map = f.item.as_ref().and_then(super::maps::map_id);
-            // EntityRenderer.shouldRender: its box (a block wide with a map),
-            // measured from the box's centre.
+            // EntityRenderer.shouldRender: its box, measured from the box's
+            // centre. (1.21.9 widened a framed map's box to a block; 1.21.8's
+            // box stays 0.75, map or not.)
             let (lo, hi) = f.bounds();
-            let (mut lo, mut hi) = (glam::DVec3::from(lo), glam::DVec3::from(hi));
-            if map.is_some() {
-                let s = f.step();
-                for i in 0..3 {
-                    if s[i] == 0 {
-                        let c = (lo[i] + hi[i]) / 2.0;
-                        (lo[i], hi[i]) = (c - 0.5, c + 0.5);
-                    }
-                }
-            }
+            let (lo, hi) = (glam::DVec3::from(lo), glam::DVec3::from(hi));
             if !self.entity_in_view(camera, (lo + hi) / 2.0, range, lo, hi) {
                 continue;
             }

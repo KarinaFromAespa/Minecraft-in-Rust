@@ -57,7 +57,9 @@ impl VillagerHats {
             Hat::Partial => hat("type", variant) != Hat::Full,
             Hat::Full => false,
         };
-        // VillagerModel.createNoHatModel clears the head and every child.
+        // VillagerModel.hatVisible sets head, hat and hat_rim visible
+        // together; the profession layer hides them while the type layer
+        // renders (1.21.9 replaced the toggle with a separate no-hat model).
         poses.visible("head", visible);
     }
 }

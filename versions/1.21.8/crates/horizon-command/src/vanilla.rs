@@ -330,7 +330,7 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     let version = d.literal(root, "version");
     d.executes(version, "version");
 
-    // spawnpoint [<targets>] [<pos>] [<rotation>]
+    // spawnpoint [<targets>] [<pos>] [<angle>]
     let sp = d.literal(root, "spawnpoint");
     d.requires(sp, GAMEMASTERS);
     d.executes(sp, "spawnpoint");
@@ -338,17 +338,17 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
     d.executes(t, "spawnpoint");
     let pos = d.argument(t, "pos", ArgType::BlockPos);
     d.executes(pos, "spawnpoint");
-    let rot = d.argument(pos, "rotation", ArgType::Rotation);
-    d.executes(rot, "spawnpoint");
+    let ang = d.argument(pos, "angle", ArgType::Angle);
+    d.executes(ang, "spawnpoint");
 
-    // setworldspawn [<pos>] [<rotation>]
+    // setworldspawn [<pos>] [<angle>]
     let ws = d.literal(root, "setworldspawn");
     d.requires(ws, GAMEMASTERS);
     d.executes(ws, "setworldspawn");
     let pos = d.argument(ws, "pos", ArgType::BlockPos);
     d.executes(pos, "setworldspawn");
-    let rot = d.argument(pos, "rotation", ArgType::Rotation);
-    d.executes(rot, "setworldspawn");
+    let ang = d.argument(pos, "angle", ArgType::Angle);
+    d.executes(ang, "setworldspawn");
 
     // clear [<targets>] [<item>] [<maxCount>]
     let clear = d.literal(root, "clear");

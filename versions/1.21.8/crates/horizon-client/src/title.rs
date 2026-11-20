@@ -31,8 +31,10 @@ pub use flat::{FlatLayer, FlatSettings, State as FlatEditor};
 pub use onboarding::Onboarding;
 
 /// SelectWorldScreen's `HeaderAndFooterLayout(8 + 9 + 8 + 20 + 4, 60)`.
-const LIST_TOP: f32 = 49.0;
-const LIST_BOTTOM: f32 = 60.0;
+/// `SelectWorldScreen`: the list from y 48 to `height - 64`
+/// (`WorldSelectionList`'s y0 48 and height `height - 112`).
+const LIST_TOP: f32 = 48.0;
+const LIST_BOTTOM: f32 = 64.0;
 const ROW_HEIGHT: f32 = 36.0;
 const ROW_WIDTH: f32 = 270.0;
 
@@ -382,6 +384,9 @@ pub enum Action {
     OpenUri(String),
     /// `ConfirmLinkScreen.copyToClipboard`.
     CopyText(String),
+    /// `RealmsMainScreen.onRenew`: the renew link to the clipboard and the
+    /// browser at once, with no confirm screen.
+    CopyAndOpenUri(String),
     Play {
         folder: String,
     },
@@ -416,6 +421,9 @@ pub struct Title {
     pub started: std::time::Instant,
     search: String,
     search_focused: bool,
+    /// `WorldListEntry.lastClickTime`: the last world-row click's world and
+    /// when, for the 250 ms double-click window.
+    last_world_click: Option<(usize, std::time::Instant)>,
     /// The focused text field's cursor, selection and scroll.
     caret: RefCell<crate::ui::Caret>,
     scroll: Cell<crate::ui::Scroll>,
@@ -628,7 +636,8 @@ fn experimental_features(data: &horizon_world::nbt::Tag) -> bool {
 }
 /// LevelSummary.createInfo: a hardcore world's mode in red (CommonColors.RED),
 /// else `gameMode.` + its GameType name, then commands and the version.
-fn world_info(world: &WorldEntry) -> crate::text::Text {
+/// Shared with the Realms upload list, whose entries show the same info line.
+pub(crate) fn world_info(world: &WorldEntry) -> crate::text::Text {
     // LevelSummary.createInfo: a locked world says so in red (ChatFormatting.RED).
     if world.locked {
         return crate::text::Text::colored(
@@ -822,6 +831,7 @@ impl Title {
             started: now,
             search: String::new(),
             search_focused: false,
+            last_world_click: None,
             caret: RefCell::default(),
             scroll: Cell::default(),
             create_return_to_main: false,
@@ -1174,7 +1184,7 @@ impl Title {
             return None;
         }
         let content_y = top + 4.0 + row * ROW_HEIGHT - offset;
-        Some((row as usize, (x - left - 2.0, y - content_y)))
+        Some((row as usize, (x - left, y - content_y)))
     }
     /// The pointer moved with the button held (`mouseDragged`).
     pub fn drag(&mut self, cursor: (f32, f32), size: (f32, f32)) {
@@ -2000,15 +2010,15 @@ impl Title {
                     b(
                         (w / 2.0).floor() - 154.0,
                         h - 28.0,
-                        71.0,
+                        72.0,
                         &lang::get_or("selectWorld.edit", "Edit"),
                         editable,
                         13,
                     ),
                     b(
-                        (w / 2.0).floor() - 75.0,
+                        (w / 2.0).floor() - 76.0,
                         h - 28.0,
-                        71.0,
+                        72.0,
                         &lang::get_or("selectWorld.delete", "Delete"),
                         selected.is_some(),
                         14,
@@ -2016,15 +2026,15 @@ impl Title {
                     b(
                         (w / 2.0).floor() + 4.0,
                         h - 28.0,
-                        71.0,
+                        72.0,
                         &lang::get_or("selectWorld.recreate", "Re-Create"),
                         editable,
                         15,
                     ),
                     b(
-                        (w / 2.0).floor() + 83.0,
+                        (w / 2.0).floor() + 82.0,
                         h - 28.0,
-                        71.0,
+                        72.0,
                         &lang::get_or("gui.back", "Back"),
                         true,
                         12,
@@ -2620,19 +2630,16 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         })
     }
 
-    /// The `Tooltip` vanilla sets on a button of the open screen, as its key:
-    /// `CommonButtons.language` and `accessibility` on the title's icon row and
-    /// the onboarding screen, and `FriendsButton` while friends are available
-    /// (always, for Horizon's Join a Friend).
+    /// The `Tooltip` on a button of the open screen, as its key: only the
+    /// FriendsButton has one (Horizon's Join a Friend). Vanilla sets no
+    /// tooltip on `CommonButtons.language` / `accessibility` in either
+    /// version (jar-verified: neither builder calls `withTootip`, and
+    /// the `options.language.tooltip` /
+    /// `options.accessibility.tooltip` keys do not exist in either lang
+    /// file), so the icon row shows none.
     fn button_tooltip(&self, id: u8) -> Option<&'static str> {
         match (&self.mode, id) {
             (Mode::Main, 5) => Some("gui.friends.open.tooltip"),
-            (Mode::Main, 6) | (Mode::Onboarding(_), onboarding::LANGUAGE) => {
-                Some("options.language.tooltip")
-            }
-            (Mode::Main, 7) | (Mode::Onboarding(_), onboarding::ACCESSIBILITY) => {
-                Some("options.accessibility.tooltip")
-            }
             _ => None,
         }
     }
@@ -2743,7 +2750,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     && cursor.0 < rect[0] + rect[2]
                     && cursor.1 >= rect[1]
                     && cursor.1 < rect[1] + rect[3];
-                crate::widgets::widget_cursor(inside, true);
                 let mut text = Text::literal(notice);
                 if inside {
                     text = text.underlined();
@@ -2789,8 +2795,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 // list, separators, scrollbar.
                 crate::ui::list_background(batch, atlas, top, bottom, false);
                 let first = batch.vertices.len();
-                // Entry content sits 2 pixels inside its row.
-                let x = left + 2.0;
+                // WorldListEntry.render draws the icon and text at the row's
+                // own left edge, not two pixels in.
+                let x = left;
                 let mut slot = 0;
                 let hovered = self.world_row_at(worlds, cursor, (w, h));
                 // WorldSelectionList: the row under the mouse, else the
@@ -2819,7 +2826,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     }
                     let mid = y - 2.0 + ROW_HEIGHT / 2.0;
                     if mid > top && mid < bottom {
-                        let rect = [x - 2.0, y - 2.0, ROW_WIDTH, ROW_HEIGHT];
+                        let rect = [left, y - 2.0, ROW_WIDTH, ROW_HEIGHT];
                         // The control socket's widget tree names the row.
                         crate::widgets::record_as(
                             &world.name,
@@ -2829,12 +2836,12 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                         );
                         crate::widgets::target_as(rect, crate::widgets::Kind::Row);
                     }
-                    // extractSelection: white once the list has focus.
+                    // renderSelection: white once the list has focus.
                     if *selected == Some(i) {
-                        batch.fill(atlas, x - 2.0, y - 2.0, ROW_WIDTH, ROW_HEIGHT, u32::MAX);
+                        batch.fill(atlas, left, y - 2.0, ROW_WIDTH, ROW_HEIGHT, u32::MAX);
                         batch.fill(
                             atlas,
-                            x - 1.0,
+                            left + 1.0,
                             y - 1.0,
                             ROW_WIDTH - 2.0,
                             ROW_HEIGHT - 2.0,
@@ -2863,11 +2870,11 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     );
                     self.icon(atlas, batch, world, slot, x, y);
                     slot = (slot + 1) % crate::hud::WORLD_ICON_SLOTS;
-                    // WorldListEntry.extractContent: a hovered row dims its
-                    // icon under the join arrow, lit under the pointer.
-                    if let Some((_, (rx, ry))) = hovered.filter(|(r, _)| *r == row) {
+                    // WorldListEntry.render: a hovered row dims its icon
+                    // under the join arrow, lit under the pointer.
+                    if let Some((_, (rx, _))) = hovered.filter(|(r, _)| *r == row) {
                         batch.fill(atlas, x, y, 32.0, 32.0, 0xA0909090);
-                        let on_icon = (0.0..32.0).contains(&rx) && (0.0..32.0).contains(&ry);
+                        let on_icon = rx < 32.0;
                         // The icon says what a click does.
                         let names: &[&str] = if world.corrupted {
                             &["error", "marked_join"]
@@ -3257,7 +3264,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     "Caution: Online play is offered by third-party servers that are not owned, operated, or supervised by Mojang Studios or Microsoft. During online play, you may be exposed to unmoderated chat messages or other types of user-generated content that may not be suitable for everyone.",
                 );
                 // The message sits in a text box `width - 100` wide with 4 px
-                // inside, left aligned (FittingMultiLineTextWidget).
+                // inside, left aligned (`FocusableTextWidget` with
+                // `setCentered(false)`; 1.21.9's `FittingMultiLineTextWidget`
+                // centers it).
                 let box_w = w - 100.0;
                 let lines = wrapped(atlas, &message, box_w - 8.0);
                 self.message_lines.set(lines.len());
@@ -3274,7 +3283,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 let box_x = ((w - box_w) / 2.0).floor();
                 let box_y = top + 29.0;
                 let box_h = lines.len() as f32 * 9.0 + 8.0;
-                // WarningScreen's FittingMultiLineTextWidget narrates the
+                // WarningScreen's FocusableTextWidget narrates the
                 // message; the title's StringWidget isn't active.
                 crate::widgets::narratable(|| {
                     crate::widgets::Narratable::text(message.clone(), [box_x, box_y, box_w, box_h])
@@ -3384,7 +3393,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             let inside =
                 cursor.0 >= b.x && cursor.0 < b.x + b.w && cursor.1 >= b.y && cursor.1 < b.y + 20.0;
             crate::widgets::narratable(|| self.button_narration(&b).hovered(inside));
-            crate::widgets::widget_cursor(inside, b.enabled);
             if inside && let Some(key) = self.button_tooltip(b.id) {
                 button_tooltip = Some((key, [b.x, b.y, b.w, 20.0]));
             }
@@ -3679,8 +3687,11 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         }
         let action = self.click_action(x, y, (w, h), hit);
         self.drop_button_focus_for_field(hit);
-        // World list selection is silent; launching its selected entry sounds.
-        let sound = hit.is_some() || matches!(action, Action::Play { .. });
+        // World list selection is silent, and so is launching its entry
+        // from a row click (`WorldListEntry.mouseClicked` plays nothing);
+        // only a button sounds. Enter joins through `confirm_key_size`,
+        // which sounds its own click.
+        let sound = hit.is_some();
         (action, sound)
     }
     /// A click that misses every button and leaves an edit box focused moves the focus
@@ -3754,6 +3765,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                     },
                     crate::realms::Outcome::OpenUri(uri) => Action::OpenUri(uri),
                     crate::realms::Outcome::Copy(text) => Action::CopyText(text),
+                    crate::realms::Outcome::CopyAndOpenUri(uri) => {
+                        Action::CopyAndOpenUri(uri)
+                    }
                     crate::realms::Outcome::CreateWorld(request) => {
                         // `RealmsCreateWorldFlow.createWorld`: Create New World's settings
                         // upload into the Realm's slot instead of a local world.
@@ -3929,7 +3943,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 {
                     return Action::None;
                 }
-                let Mode::Select { worlds, selected } = &self.mode else {
+                let Mode::Select { worlds, .. } = &self.mode else {
                     unreachable!()
                 };
                 let chosen = self
@@ -3938,16 +3952,27 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                         let (index, world) = self.visible_worlds(worlds).nth(row)?;
                         Some((index, world.clone(), rel))
                     });
-                if let Some((index, world, (rx, ry))) = chosen {
-                    // WorldListEntry.mouseClicked: the icon joins at once.
-                    let on_icon = (0.0..32.0).contains(&rx) && (0.0..32.0).contains(&ry);
-                    // WorldListEntry.canInteract: only a world that can be played joins.
-                    if (on_icon || *selected == Some(index)) && world.can_play() {
-                        return self.play(world);
+                if let Some((index, world, (rx, _))) = chosen {
+                    // WorldListEntry.mouseClicked: a world that cannot be
+                    // played swallows the click entirely — it is not even
+                    // selected.
+                    if !world.can_play() {
+                        return Action::None;
                     }
                     if let Mode::Select { selected, .. } = &mut self.mode {
                         *selected = Some(index);
                     }
+                    // The icon joins at once (`x - rowLeft <= 32`); anywhere
+                    // else joins only on a second click within 250 ms
+                    // (`lastClickTime`).
+                    let now = std::time::Instant::now();
+                    let double = self.last_world_click.is_some_and(|(i, at)| {
+                        i == index && now.duration_since(at).as_millis() < 250
+                    });
+                    if rx <= 32.0 || double {
+                        return self.play(world);
+                    }
+                    self.last_world_click = Some((index, now));
                 }
                 Action::None
             }
@@ -4232,19 +4257,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
             self.caret.get_mut().press(atlas, field, rect, x, shift);
         }
     }
-    /// The pointer moved with the button held (`EditBox.onDrag`).
-    pub fn drag_field(&mut self, atlas: &HudAtlas, x: f32) {
-        if self.rules.get_mut().is_some() {
-            return;
-        }
-        if let Some(field) = caret_field(&mut self.mode, self.search_focused, &mut self.search) {
-            self.caret.get_mut().drag(atlas, field, x);
-        }
-    }
-    /// The button was released: drags stop selecting.
-    pub fn release_field(&mut self) {
-        self.caret.get_mut().release();
-    }
     /// Clipboard replacements also invalidate a selection in the filtered list.
     pub fn search_changed(&mut self) {
         if self.search_focused
@@ -4276,9 +4288,10 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         }
     }
     /// `CreateWorldScreen.keyPressed`, `DirectJoinServerScreen.keyPressed` and
-    /// `WorldListEntry.keyPressed` on Enter (Space too on the list): Create New
-    /// World creates, a rename saves, Direct Connection joins, the selected
-    /// world joins.
+    /// `WorldSelectionList.keyPressed` on Enter (Space too on the list): Create New
+    /// World creates, Direct Connection joins, the selected
+    /// world joins. (1.21.9's `EditWorldScreen` also confirmed a rename on
+    /// Enter; 1.21.8 has no such override — the rename saves from its button.)
     pub fn confirm_key(&mut self) -> Action {
         self.confirm_key_size((854.0, 480.0)).0
     }
@@ -4288,10 +4301,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         self.remember_direct_address();
         if self.rules.get_mut().is_some() {
             return (Action::None, false);
-        }
-        if matches!(self.mode, Mode::Edit { .. }) && self.focused_button.is_none() {
-            self.confirm_edit();
-            return (Action::None, true);
         }
         if self.list_focused() && self.focused_button.is_none() {
             let action = self.join_selected();
@@ -4315,6 +4324,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
                 ),
                 crate::realms::Outcome::OpenUri(uri) => (Action::OpenUri(uri), true),
                 crate::realms::Outcome::Copy(text) => (Action::CopyText(text), true),
+                crate::realms::Outcome::CopyAndOpenUri(uri) => {
+                    (Action::CopyAndOpenUri(uri), true)
+                }
                 _ => (Action::None, false),
             };
         }
@@ -4358,7 +4370,7 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
     pub fn list_focused(&self) -> bool {
         matches!(self.mode, Mode::Select { .. }) && !self.search_focused
     }
-    /// `WorldListEntry.keyPressed`: the selected world joins, as its click does.
+    /// `WorldSelectionList.keyPressed`: the selected world joins, as its click does.
     fn join_selected(&mut self) -> Action {
         let Mode::Select { worlds, selected } = &self.mode else {
             return Action::None;
@@ -5093,6 +5105,128 @@ mod classic_tests {
             title.focused_button.is_some(),
             "the next Tab reaches the buttons"
         );
+    }
+
+    /// `SelectWorldScreen`: the footer is Play and Create on top, 150 wide,
+    /// and Edit, Delete, Re-Create and Back below, 72 wide.
+    #[test]
+    fn the_world_list_footer_buttons_are_72_wide_below() {
+        let mut title = Title::new(
+            PathBuf::new(),
+            Path::new("/nonexistent/horizon-test-resources"),
+        );
+        title.mode = Mode::Select {
+            worlds: Vec::new(),
+            selected: None,
+        };
+        let at = |id: u8| {
+            title
+                .buttons(854.0, 480.0)
+                .into_iter()
+                .find(|b| b.id == id)
+                .map(|b| (b.x, b.y, b.w))
+                .unwrap()
+        };
+        assert_eq!(at(10), (273.0, 428.0, 150.0));
+        assert_eq!(at(11), (431.0, 428.0, 150.0));
+        assert_eq!(at(13), (273.0, 452.0, 72.0));
+        assert_eq!(at(14), (351.0, 452.0, 72.0));
+        assert_eq!(at(15), (431.0, 452.0, 72.0));
+        assert_eq!(at(12), (509.0, 452.0, 72.0));
+    }
+
+    /// `WorldListEntry.mouseClicked`: the icon joins at once, a text click
+    /// only selects, and a second text click within 250 ms joins; a world
+    /// that cannot be played swallows the click without selecting.
+    #[test]
+    fn a_world_row_joins_on_its_icon_or_a_fast_second_click() {
+        fn world(folder: &str, locked: bool) -> WorldEntry {
+            WorldEntry {
+                folder: folder.to_owned(),
+                name: folder.to_owned(),
+                game_mode: 0,
+                hardcore: false,
+                modified: std::time::SystemTime::now(),
+                commands: false,
+                version: String::new(),
+                locked,
+                corrupted: false,
+                incompatible: None,
+                file_fixing: false,
+                downgrade: false,
+                experimental: false,
+            }
+        }
+        fn select(tag: &str, locked: bool) -> (Title, std::path::PathBuf) {
+            let dir = std::env::temp_dir().join(format!(
+                "horizon-title-dblclick-{tag}-{}",
+                std::process::id()
+            ));
+            let saves = dir.join("saves");
+            std::fs::create_dir_all(saves.join("a")).unwrap();
+            std::fs::create_dir_all(saves.join("b")).unwrap();
+            let mut title = Title::new(
+                saves.clone(),
+                Path::new("/nonexistent/horizon-test-resources"),
+            );
+            title.mode = Mode::Select {
+                worlds: vec![world("a", locked), world("b", false)],
+                selected: None,
+            };
+            (title, dir)
+        }
+        // 854x480: rows start at x 292, the first at y 52; the text right
+        // of the icon, the icon itself at the row's left.
+        let size = (854.0, 480.0);
+        // A text click only selects; a second one at once joins — the
+        // worlds have no level.dat, so the join opens recovery.
+        let (mut title, dir) = select("fast", false);
+        assert_eq!(title.click(392.0, 60.0, size), (Action::None, false));
+        assert!(matches!(
+            title.mode,
+            Mode::Select {
+                selected: Some(0),
+                ..
+            }
+        ));
+        title.click(392.0, 60.0, size);
+        assert!(
+            matches!(title.mode, Mode::Recover { .. }),
+            "the fast second click joins"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+        // After 250 ms the second click only selects again.
+        let (mut title, dir) = select("slow", false);
+        title.click(392.0, 60.0, size);
+        std::thread::sleep(std::time::Duration::from_millis(260));
+        assert_eq!(title.click(392.0, 60.0, size), (Action::None, false));
+        assert!(matches!(
+            title.mode,
+            Mode::Select {
+                selected: Some(0),
+                ..
+            }
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        // The icon joins on the first click.
+        let (mut title, dir) = select("icon", false);
+        title.click(302.0, 60.0, size);
+        assert!(
+            matches!(title.mode, Mode::Recover { .. }),
+            "the icon joins at once"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+        // A locked world swallows the click without selecting.
+        let (mut title, dir) = select("locked", true);
+        assert_eq!(title.click(392.0, 60.0, size), (Action::None, false));
+        assert!(matches!(
+            title.mode,
+            Mode::Select {
+                selected: None,
+                ..
+            }
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Tab reaches the Realms screen's buttons too: the focus is the same

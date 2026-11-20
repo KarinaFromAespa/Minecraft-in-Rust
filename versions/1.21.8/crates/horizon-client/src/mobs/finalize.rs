@@ -108,7 +108,9 @@ pub trait FinalizeLevel {
     fn structures_with_piece_at(&self, pos: [i32; 3]) -> Vec<String>;
     /// `EnvironmentAttributes.MOON_PHASE` at a block (0 full moon to 7).
     fn moon_phase(&self, pos: [i32; 3]) -> usize;
-    /// `ServerLevel.isSpawningMonsters`.
+    /// Whether monsters may spawn: difficulty not peaceful and the
+    /// mob-spawning rule on (1.21.8 checks both inline at each site;
+    /// 1.21.9 folded them into `ServerLevel.isSpawningMonsters`).
     fn spawning_monsters(&self) -> bool;
     /// `Level.noCollision(AABB)`.
     fn no_collision(&self, bounds: Aabb) -> bool;
@@ -893,50 +895,6 @@ fn skeleton(s: Species) -> bool {
 fn raider(s: Species) -> bool {
     super::raider::is_raider(s)
 }
-/// `EntityType.isAllowedInPeaceful`: the types built with `notInPeaceful`.
-pub fn allowed_in_peaceful(kind: &str) -> bool {
-    !matches!(
-        kind.strip_prefix("minecraft:").unwrap_or(kind),
-        "blaze"
-            | "bogged"
-            | "breeze"
-            | "cave_spider"
-            | "creaking"
-            | "creeper"
-            | "drowned"
-            | "elder_guardian"
-            | "enderman"
-            | "endermite"
-            | "evoker"
-            | "ghast"
-            | "giant"
-            | "guardian"
-            | "hoglin"
-            | "husk"
-            | "illusioner"
-            | "magma_cube"
-            | "parched"
-            | "phantom"
-            | "piglin_brute"
-            | "pillager"
-            | "ravager"
-            | "silverfish"
-            | "skeleton"
-            | "slime"
-            | "spider"
-            | "stray"
-            | "vex"
-            | "vindicator"
-            | "warden"
-            | "witch"
-            | "wither"
-            | "wither_skeleton"
-            | "zoglin"
-            | "zombie"
-            | "zombie_villager"
-            | "zombified_piglin"
-    )
-}
 /// `AgeableMob.getBabyStartAge` (a sniffer's is -48000).
 pub fn baby_start_age(s: Species) -> i32 {
     if s == Species::Sniffer {
@@ -1295,26 +1253,20 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
         self.mob(m, Some(g))
     }
     /// `Mob.populateDefaultEquipmentSlots`: a set of armour from the head
-    /// down, of one material.
+    /// down, of one material: `nextInt(2)` plus three 0.095 upgrades over
+    /// leather, gold, chainmail, iron, diamond.
     fn armor(&mut self, m: &mut Mob) {
         if self.float() >= 0.15 * self.special() {
             return;
         }
-        let mut kind = self.int(3);
+        let mut kind = self.int(2);
         for _ in 1..=3 {
-            if self.float() < 0.1087 {
+            if self.float() < 0.095 {
                 kind += 1;
             }
         }
         let partial = if self.difficulty.hard { 0.1 } else { 0.25 };
-        const MATERIAL: [&str; 6] = [
-            "leather",
-            "copper",
-            "golden",
-            "chainmail",
-            "iron",
-            "diamond",
-        ];
+        const MATERIAL: [&str; 5] = ["leather", "golden", "chainmail", "iron", "diamond"];
         let mut first = true;
         // EQUIPMENT_POPULATION_ORDER: head, chest, legs, feet.
         for (slot, piece) in [
@@ -2169,7 +2121,7 @@ impl<L: FinalizeLevel + ?Sized, R: RandomSource> Ctx<'_, L, R> {
             S::Zombie | S::ZombifiedPiglin => self.zombie(m, g, reason),
             S::ZombieVillager => {
                 self.villager_type(m);
-                m.extra.variant2 = super::zombie_villager::constructor_profession(m);
+                m.extra.variant2 = super::zombie_villager::spawn_profession(m);
                 self.zombie(m, g, reason)
             }
             S::Husk => self.husk(m, g, reason),

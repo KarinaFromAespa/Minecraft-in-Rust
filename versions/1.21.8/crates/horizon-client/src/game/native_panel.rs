@@ -597,7 +597,7 @@ impl Game<'_> {
         [search.x, search.y, search.width, search.height] = layout.search;
         if inside(cursor, layout.search) {
             search.focused = true;
-            search.click(atlas, cursor.0, shift, false);
+            search.click(atlas, cursor.0, shift);
             search.reset_blink();
             return true;
         }

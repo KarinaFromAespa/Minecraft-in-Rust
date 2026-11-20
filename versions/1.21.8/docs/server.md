@@ -385,8 +385,7 @@ open: they are the way out.
 With players placed, the stop then waits `stop_wait_seconds` (10 by default; 0 stops at once, as vanilla does) so a
 proxy can move them out first. A proxy that moves them one at a time, as Meridian's `evacuate` does, takes about
 2 s a player over a real network (1.4 to 2.3 s measured): 10 s is room for about four, and a fuller server needs
-more (60 at most, about 25 players). The log says `Stopping in 10 s: a proxy may move the players out first`, and
-horizon-server sends `server/stopping` on the management protocol then, for a stop from the game as for its own.
+more (60 at most, about 25 players). The log says `Stopping in 10 s: a proxy may move the players out first`, for a stop from the game as for its own.
 During the wait every login is refused as `multiplayer.disconnect.server_shutdown`, and the server ticks on and
 answers the proxy. The wait ends as soon as no player is placed, at `stop_wait_seconds` when no hand-over is frozen,
 and at the latest a freeze's length later, so a hand-over started in time finishes (the `N s` of the log line is
@@ -586,9 +585,8 @@ refuse. There is no `backups.before_update` setting: an update always backs up t
 - **Changes without opening the file.** `horizon-server config set KEY=VALUE...` (the launcher's Servers
   page uses it) writes through `toml_edit`, checks the result as `server.toml` is checked, and writes nothing
   if a value is wrong. On a running server it sends what vanilla changes live through its console:
-  `difficulty`, `defaultgamemode` and `whitelist on|off`; `server.motd` and `server.max_players` go to the
-  game as the management protocol's `serversettings/motd/set` and `serversettings/max_players/set` do, so
-  the server list and the next logins use them at once; the backup settings apply at once because the
+  `difficulty`, `defaultgamemode` and `whitelist on|off`; `server.motd` and `server.max_players` have no live
+  path in 1.21.8, so they wait for the next start like everything else; the backup settings apply at once because the
   supervisor reads them each time. Everything else waits for the next start, and the command says which. A
   hot reload of the view distance needs engine support and comes later.
 - `server.properties`, `ops.json`, `whitelist.json`, `banned-*.json` and `world/` keep vanilla's names and
@@ -623,7 +621,7 @@ horizon-server prepare --server-jar PATH
 ```
 
 - Every command takes `--dir` (the server folder; default: the current folder).
-- While the server runs, management commands go through the control API, so the engine applies them as
+- While the server runs, the list commands go through the control API, so the engine applies them as
   vanilla's console would and its lists stay right. While it's stopped, `op`, `deop`, `whitelist`, `ban`,
   `pardon`, `ban-ip` and `pardon-ip` edit the vanilla files directly with the same code the engine uses
   (`horizon_server_files::user_lists`).
@@ -689,8 +687,8 @@ runtime or new dependency. Server-sent events can replace the polling later if a
 - **Stopped game.** A `stop` that reaches the game in game, over RCON or through `horizon-server cmd` leaves the
   supervisor, control API and panel alive with no engine process; `stop` on the supervisor's own stdin (`run`, a
   hosting panel's console) still ends both, and while the game is stopped that stdin takes `start` and `stop`.
-  `horizon-server start` or `POST /api/v1/start` starts the game again; `horizon-server stop` and the management
-  protocol's `server/stop` (as vanilla's, the process exits) still shut down both the game and the supervisor. File-backed player-list edits are safe during this stopped state.
+  `horizon-server start` or `POST /api/v1/start` starts the game again; `horizon-server stop` (as vanilla's, the
+  process exits) still shuts down both the game and the supervisor. File-backed player-list edits are safe during this stopped state.
 - **Crash restart.** If the engine exits without being asked to stop, the supervisor keeps the last 200 log
   lines and the engine's crash report (`crash-reports/`), restarts it after 5 s, and doubles the wait up to
   5 minutes. It gives up after 5 crashes in 10 minutes, so it doesn't loop on a broken world, and shows the
@@ -742,7 +740,7 @@ runtime or new dependency. Server-sent events can replace the polling later if a
     vanilla's console command and answer `changed` and its lines),
     `GET metrics/prometheus` (Prometheus text);
   - built (server-admin): `GET config` (the token hidden), `PATCH config {changes}` (as `config set`;
-    not `engine.*`, `panel.*`, `api.*`, nor the RCON, query and management keys, so the API can't widen who
+    not `engine.*`, `panel.*`, `api.*`, nor the RCON and query keys, so the API can't widen who
     reaches the server or change what program runs), `DELETE backups?name=`, `GET backups/download?name=`
     (the zip, streamed);
   - built (server-admin): `GET events` (server-sent events: log lines, the phase, and the engine's typed join,
@@ -781,44 +779,6 @@ runtime or new dependency. Server-sent events can replace the polling later if a
   game's `server-status`, read at most once a second, and a full stat is kept 5 seconds, as in vanilla. Differences,
   each one named in `query.rs`: nothing answers while the game isn't running, and a session id outside ASCII is
   echoed as lossy UTF-8.
-- **Vanilla's own management protocol.** Vanilla 26.3 has a server management protocol: JSON-RPC over a
-  WebSocket, set up by the `management-server-*` keys in server.properties, so tools written for vanilla can
-  manage a Horizon server too. The supervisor serves it (`management.rs`, the WebSocket in `websocket.rs`, std
-  only like `http.rs`; TLS, on by default as in vanilla, through rustls in `management_tls.rs`, from a PKCS12
-  keystore, or a self-signed one Horizon makes when none is set), so it answers while the game restarts
-  (`server/status` says `started: false` then); calls that change the game go through its console.
-  Authentication, errors and replies follow vanilla's `net.minecraft.server.jsonrpc` (`AuthenticationHandler`,
-  `Connection`, `methods/*Service`), and `rpc.discover` gives vanilla's OpenRPC document (`management_schema.rs`).
-  `tools/test_management_protocol_parity.py` sends vanilla's server and Horizon's the same messages over TLS
-  (one keystore for both) and compares the answers, and the document with the data generator's
-  `json-rpc-api-schema.json`.
-  - built: the WebSocket and its authentication, TLS, `rpc.discover`, `players`, `players/kick`,
-    `server/{status,save,stop,system_message}`, and the four lists (`allowlist/*`, `bans/*`, `ip_bans/*`,
-    `operators/*`), whose changes the game applies itself (its control endpoint's `management` request, in
-    `game/dedicated/management.rs`), so the source, expiry, log lines and kicks are vanilla's;
-  - notifications: the supervisor pushes them to every connected client as vanilla's `JsonRpcNotificationService`
-    does (a JSON-RPC request without an `id`, its one parameter in an array), through a queue and a thread so a slow
-    client never holds the game's output. Built: `server/started` (the game's `Done`) and `server/stopping`
-    (when the supervisor or the game's own `stop` begins the shutdown, once per run; with `[transfer]` on and
-    players placed, at the start of the wait, `Stopping in N s`, so a proxy has that long to move them),
-    `server/saving` and `server/saved` (around every world save of the running game: `save-all`, the autosave, the
-    pause when empty; a save the game makes while it stops is after the last one the supervisor hears of), and
-    `players/joined` and `players/left` (from the game's typed events, within a quarter of a second), and
-    `operators/*`, `allowlist/*`, `bans/*` and `ip_bans/*` `added`/`removed`: each of the game's lists tells a
-    watcher what `add`, `remove` and `clear` do, as vanilla's `StoredUserList` tells its `NotificationService`,
-    so a change by the console, a command in the game or the protocol itself is told alike (`clear` once per
-    entry); the event stream carries them as `operators_added`, `bans_removed`... too;
-  - game rules: `gamerules` lists every rule the game has as a typed rule (`{key, type, value}`), `gamerules/update`
-    sets one (checked against its type and bounds with vanilla's error texts, and set, logged and told on every
-    update, as vanilla's does) and `notification/gamerules/updated` follows every change, by that method or by
-    `/gamerule` (`Game::set_game_rule`); the parity script compares both servers on all of it;
-  - `server/activity`: a login attempt (the game records `login_activity` in its login gate, as
-    `ServerActivityMonitor.reportLoginActivity` is called when a login starts), told at most once in thirty
-    seconds and lost otherwise, as the monitor clears its flag whatever it did; and `server/status`, the
-    heartbeat: every `status-heartbeat-interval` seconds (none at 0, the first after as many) the status
-    `server/status` answers, up or not, to whoever is connected;
-  - planned: the rest of `serversettings/*` and the world-upgrade notifications (after `WorldUpgrader`'s server
-    side).
 
 ## 9. Benchmark plan (bots against vanilla and Paper)
 

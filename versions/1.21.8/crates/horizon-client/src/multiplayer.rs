@@ -328,14 +328,13 @@ fn ping_all(servers: &[ServerEntry], pings: &Pings, icons: &Icons, file: &Path) 
     }
 }
 /// Save the list after a move or delete, keeping the icons pings stored in
-/// servers.dat since it was loaded, and the Code of Conduct accepted on a server.
+/// servers.dat since it was loaded.
 fn save_servers(file: &Path, servers: &mut [ServerEntry]) {
     let _guard = SAVING.lock();
     let saved = servers::load(file);
     for entry in servers.iter_mut() {
         if let Some(s) = saved.iter().find(|s| s.ip == entry.ip) {
             entry.icon = s.icon.clone();
-            entry.accepted_code_of_conduct = s.accepted_code_of_conduct;
         }
     }
     let _ = servers::save(file, servers);
@@ -485,20 +484,23 @@ fn entry_address(servers: &[ServerEntry], lan: &Scanner, index: usize) -> Option
 
 /// The Server Resource Packs button's label: `CommonComponents.optionNameValue`.
 fn pack_setting_label(packs: Option<bool>) -> String {
+    // 1.21.8's keys are addServer.resourcePack.* (manageServer.* came in 1.21.9).
     let (key, fallback) = match packs {
-        Some(true) => ("manageServer.resourcePack.enabled", "Enabled"),
-        Some(false) => ("manageServer.resourcePack.disabled", "Disabled"),
-        None => ("manageServer.resourcePack.prompt", "Prompt"),
+        Some(true) => ("addServer.resourcePack.enabled", "Enabled"),
+        Some(false) => ("addServer.resourcePack.disabled", "Disabled"),
+        None => ("addServer.resourcePack.prompt", "Prompt"),
     };
-    let name = crate::lang::get_or("manageServer.resourcePack", "Server Resource Packs");
+    let name = crate::lang::get_or("addServer.resourcePack", "Server Resource Packs");
     crate::lang::get_or("options.generic_value", "%s: %s")
         .replacen("%s", &name, 1)
         .replacen("%s", &crate::lang::get_or(key, fallback), 1)
 }
 
-/// JoinMultiplayerScreen's `HeaderAndFooterLayout(33, 60)`.
-const HEADER: f32 = 33.0;
-const FOOTER: f32 = 60.0;
+/// `JoinMultiplayerScreen`: the list from y 32 to `height - 64`
+/// (a `ServerSelectionList` of height `height - 64 - 32`), the buttons
+/// centred in the 64-pixel footer.
+const HEADER: f32 = 32.0;
+const FOOTER: f32 = 64.0;
 /// ServerSelectionList: rows 305 wide and 36 high.
 const ROW_WIDTH: f32 = 305.0;
 const ROW_HEIGHT: f32 = 36.0;
@@ -717,7 +719,7 @@ impl Screen {
         };
         match self {
             // JoinMultiplayerScreen's footer: two rows of buttons, 4 apart,
-            // centred in the 60-pixel footer. Join needs a server or LAN game
+            // centred in the 64-pixel footer. Join needs a server or LAN game
             // selected (onSelectedChange), Edit and Delete a saved server.
             Self::List {
                 servers, selected, ..
@@ -729,7 +731,7 @@ impl Screen {
                 vec![
                     b(
                         x,
-                        h - 52.0,
+                        h - 54.0,
                         100.0,
                         &label("selectServer.select", "Join Server"),
                         selected.is_some(),
@@ -737,7 +739,7 @@ impl Screen {
                     ),
                     b(
                         x + 104.0,
-                        h - 52.0,
+                        h - 54.0,
                         100.0,
                         &label("selectServer.direct", "Direct Connection"),
                         true,
@@ -745,7 +747,7 @@ impl Screen {
                     ),
                     b(
                         x + 208.0,
-                        h - 52.0,
+                        h - 54.0,
                         100.0,
                         &label("selectServer.add", "Add Server"),
                         true,
@@ -753,7 +755,7 @@ impl Screen {
                     ),
                     b(
                         x,
-                        h - 28.0,
+                        h - 30.0,
                         74.0,
                         &label("selectServer.edit", "Edit"),
                         saved,
@@ -761,7 +763,7 @@ impl Screen {
                     ),
                     b(
                         x + 78.0,
-                        h - 28.0,
+                        h - 30.0,
                         74.0,
                         &label("selectServer.delete", "Delete"),
                         saved,
@@ -769,7 +771,7 @@ impl Screen {
                     ),
                     b(
                         x + 156.0,
-                        h - 28.0,
+                        h - 30.0,
                         74.0,
                         &label("selectServer.refresh", "Refresh"),
                         true,
@@ -777,7 +779,7 @@ impl Screen {
                     ),
                     b(
                         x + 234.0,
-                        h - 28.0,
+                        h - 30.0,
                         74.0,
                         &label("gui.back", "Back"),
                         true,
@@ -941,13 +943,11 @@ impl Screen {
             Self::List { .. } => {
                 ScreenInfo::new("multiplayer", get("multiplayer.title", "Play Multiplayer"))
             }
-            Self::Edit { index, .. } => ScreenInfo::new(
+            Self::Edit { .. } => ScreenInfo::new(
                 "multiplayer/edit",
-                if index.is_some() {
-                    get("manageServer.edit.title", "Edit Server Info")
-                } else {
-                    get("manageServer.add.title", "Add Server")
-                },
+                // 1.21.8's EditServerScreen has one title for add and edit
+                // (`addServer.title`); the manageServer.* split came in 1.21.9.
+                get("addServer.title", "Edit Server Info"),
             ),
             Self::Direct { .. } => ScreenInfo::new(
                 "multiplayer/direct",
@@ -996,10 +996,12 @@ impl Screen {
         use crate::widgets::Narratable;
         match self {
             Self::Edit { packs, .. } if id == 60 => {
+                // 1.21.8's keys are addServer.resourcePack.* (manageServer.*
+                // came in 1.21.9), as in `pack_setting_label`.
                 let (key, fallback) = match packs {
-                    Some(true) => ("manageServer.resourcePack.disabled", "Disabled"),
-                    Some(false) => ("manageServer.resourcePack.prompt", "Prompt"),
-                    None => ("manageServer.resourcePack.enabled", "Enabled"),
+                    Some(true) => ("addServer.resourcePack.disabled", "Disabled"),
+                    Some(false) => ("addServer.resourcePack.prompt", "Prompt"),
+                    None => ("addServer.resourcePack.enabled", "Enabled"),
                 };
                 Narratable::cycle(label, crate::lang::get_or(key, fallback), rect, enabled)
             }
@@ -1074,24 +1076,17 @@ impl Screen {
             } => {
                 let (w, h) = (w.ceil(), h.ceil());
                 let title = crate::lang::get_or("multiplayer.title", "Play Multiplayer");
-                // The header's StringWidget, centred in its 33 pixels.
+                // JoinMultiplayerScreen.render draws the title centred at y 20.
                 let tw = HudBatch::text_width(atlas, &title);
                 let tx = ((w - tw.ceil()) / 2.0).floor();
-                batch.text(
-                    atlas,
-                    &title,
-                    tx,
-                    ((HEADER - 9.0) / 2.0).floor(),
-                    u32::MAX,
-                    true,
-                );
+                batch.text(atlas, &title, tx, 20.0, u32::MAX, true);
                 let games = lan.games();
                 let (top, bottom, left) = list_area(w, h);
                 let content = content_height(servers.len(), games.len());
                 let mut scroll = *scroll;
                 scroll.clamp(top, bottom, content);
-                // AbstractSelectionList.extractWidgetRenderState: background,
-                // the rows clipped to the list, separators, scrollbar.
+                // AbstractSelectionList.renderWidget: background, the rows
+                // clipped to the list, separators, scrollbar.
                 crate::ui::list_background(batch, atlas, top, bottom, false);
                 let first = batch.vertices.len();
                 let pings = pings.lock().unwrap();
@@ -1166,7 +1161,7 @@ impl Screen {
                         crate::widgets::record_as(name, rect, true, crate::widgets::Kind::Row);
                         crate::widgets::target_as(rect, crate::widgets::Kind::Row);
                     }
-                    // extractSelection: a white outline round black (the list
+                    // renderSelection: a white outline round black (the list
                     // has focus once a row is clicked).
                     if index.is_some() && *selected == index {
                         batch.fill(atlas, left, y, ROW_WIDTH, ROW_HEIGHT, u32::MAX);
@@ -1320,7 +1315,16 @@ impl Screen {
                             } else {
                                 &game.address
                             };
-                            batch.text(atlas, address, cx + 35.0, cy + 23.0, gray, false);
+                            // NetworkServerEntry: the address line is dark grey
+                            // (-13619152) in 1.21.8, grey (-8355712) in 1.21.9.
+                            batch.text(
+                                atlas,
+                                address,
+                                cx + 35.0,
+                                cy + 23.0,
+                                rgba(48, 48, 48, 255),
+                                false,
+                            );
                         }
                     }
                 }
@@ -1337,7 +1341,6 @@ impl Screen {
                 );
             }
             Self::Edit {
-                index,
                 name,
                 address,
                 focus,
@@ -1345,21 +1348,18 @@ impl Screen {
             } => {
                 centered(
                     batch,
-                    &if index.is_some() {
-                        crate::lang::get_or("manageServer.edit.title", "Edit Server Info")
-                    } else {
-                        crate::lang::get_or("manageServer.add.title", "Add Server")
-                    },
+                    // 1.21.8's EditServerScreen has one title for add and edit.
+                    &crate::lang::get_or("addServer.title", "Edit Server Info"),
                     17.0,
                     u32::MAX,
                 );
-                // ManageServerScreen: labels at 53 and 94, boxes at 66 and 106.
+                // EditServerScreen: labels at 53 and 94, boxes at 66 and 106.
                 Self::field(
                     atlas,
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterName", "Server Name"),
+                    &crate::lang::get_or("addServer.enterName", "Server Name"),
                     name,
                     SERVER_NAME,
                     max,
@@ -1371,7 +1371,7 @@ impl Screen {
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterIp", "Server Address"),
+                    &crate::lang::get_or("addServer.enterIp", "Server Address"),
                     address,
                     SERVER_ADDRESS,
                     max,
@@ -1393,7 +1393,9 @@ impl Screen {
                     batch,
                     caret,
                     focused_at,
-                    &crate::lang::get_or("manageServer.enterIp", "Server Address"),
+                    // DirectJoinServerScreen: `addServer.enterIp` in 1.21.8
+                    // (`manageServer.enterIp` came in 1.21.9).
+                    &crate::lang::get_or("addServer.enterIp", "Server Address"),
                     address,
                     SERVER_DIRECT,
                     max,
@@ -2477,12 +2479,12 @@ mod tests {
 
     #[test]
     fn rows_sit_two_pixels_under_the_header_and_scroll_with_the_list() {
-        // 427x240 GUI: the list spans 33..180, rows 305 wide from x 61.
+        // 427x240 GUI: the list spans 32..176, rows 305 wide from x 61.
         let size = (427.0, 240.0);
-        assert_eq!(list_area(size.0, size.1), (33.0, 180.0, 61.0));
+        assert_eq!(list_area(size.0, size.1), (32.0, 176.0, 61.0));
         assert_eq!(row_at(3, 0, (100.0, 35.0), size, 0.0), Some(Row::Server(0)));
-        assert_eq!(row_at(3, 0, (100.0, 70.9), size, 0.0), Some(Row::Server(0)));
-        assert_eq!(row_at(3, 0, (100.0, 71.0), size, 0.0), Some(Row::Server(1)));
+        assert_eq!(row_at(3, 0, (100.0, 69.9), size, 0.0), Some(Row::Server(0)));
+        assert_eq!(row_at(3, 0, (100.0, 70.0), size, 0.0), Some(Row::Server(1)));
         assert_eq!(
             row_at(3, 0, (100.0, 35.0), size, 36.0),
             Some(Row::Server(1))
@@ -2492,7 +2494,34 @@ mod tests {
             Some(Row::LanHeader)
         );
         assert_eq!(row_at(3, 0, (60.0, 40.0), size, 0.0), None);
-        assert_eq!(row_at(3, 0, (100.0, 32.0), size, 0.0), None);
+        assert_eq!(row_at(3, 0, (100.0, 31.0), size, 0.0), None);
+    }
+
+    /// `JoinMultiplayerScreen`: the footer is 64 tall, so its two button
+    /// rows sit at `height - 54` and `height - 30`, three 100-wide on top
+    /// and four 74-wide below, 4 apart in a 308-wide block.
+    #[test]
+    fn the_footer_buttons_fill_the_64_pixel_footer() {
+        let dir = std::env::temp_dir().join(format!("horizon-mp-footer-{}", std::process::id()));
+        let saves = dir.join("saves");
+        std::fs::create_dir_all(&saves).unwrap();
+        let screen = Screen::list(&saves);
+        let buttons = screen.buttons(427.0, 240.0);
+        let rows: Vec<(f32, f32, f32)> =
+            buttons.iter().map(|b| (b.0, b.1, b.2)).collect();
+        assert_eq!(
+            rows,
+            [
+                (59.0, 186.0, 100.0),
+                (163.0, 186.0, 100.0),
+                (267.0, 186.0, 100.0),
+                (59.0, 210.0, 74.0),
+                (137.0, 210.0, 74.0),
+                (215.0, 210.0, 74.0),
+                (293.0, 210.0, 74.0),
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
@@ -2790,8 +2819,8 @@ mod tests {
                 .map(|s| s.name)
                 .collect::<String>()
         };
-        // 427x240: rows start at x 61, the first at y 35; the name, right of the icon.
-        let (x, row) = (130.0, |i: f32| 37.0 + 10.0 + i * ROW_HEIGHT);
+        // 427x240: rows start at x 61, the first at y 34; the name, right of the icon.
+        let (x, row) = (130.0, |i: f32| 36.0 + 10.0 + i * ROW_HEIGHT);
         // A press on "a"'s name selects it and holds it; dragging over "c"'s
         // row puts it there, "b" and "c" close up, and nothing is saved yet.
         assert!(matches!(
@@ -2849,8 +2878,8 @@ mod tests {
             ),
             _ => unreachable!(),
         };
-        // 427x240: rows start at x 61, the first icon at (63, 37).
-        let (ix, iy) = (63.0, 37.0);
+        // 427x240: rows start at x 61, the first icon at (63, 36).
+        let (ix, iy) = (63.0, 36.0);
         // The first server has no up arrow: its top-left quarter selects it.
         assert!(matches!(
             screen.click(None, ix + 4.0, iy + 4.0, size, &saves),

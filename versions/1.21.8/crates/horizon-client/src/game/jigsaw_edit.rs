@@ -2,7 +2,7 @@
 //! state, priorities and joint, with the Generate button and its levels.
 use super::{
     Game,
-    block_editor::{Editor, Item, Outcome, Pos, cycle, footer_action, on_off},
+    block_editor::{Editor, Item, Outcome, Pos, cycle, footer_action, on_off, LABEL},
 };
 use horizon_client::{
     containers::BlockEntity,
@@ -130,6 +130,7 @@ impl Editor for JigsawEditor {
             x,
             y,
             right: false,
+            color: LABEL,
         };
         let edit = |index: usize, x: f32, y: f32, ew: f32| Item::Edit { index, x, y, w: ew };
         let mut items = Vec::new();

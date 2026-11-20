@@ -14,7 +14,12 @@ except ImportError:
     import lab, test_rust_parity as base, test_model_baking_parity as baking
 
 def corpus():
-    def step(keys,flags=0,food=20,window=7):return dict(keys=keys,flags=flags,food=food,window=window)
+    # 1.21.8 has no isInShallowWater: the sprint checks inline
+    # isInWater() && !isUnderWater(), so flag 6 (shallow) is derived from
+    # flags 13 (in water) and 10 (under water), never independent.
+    def step(keys,flags=0,food=20,window=7):
+        flags=(flags & ~(1<<6)) | ((1<<6) if (flags>>13 & 1) and not (flags>>10 & 1) else 0)
+        return dict(keys=keys,flags=flags,food=food,window=window)
     def row(steps,initial_keys=0,sprint=False,trigger=0):return dict(steps=steps,initial_keys=initial_keys,sprint=sprint,trigger=trigger)
     # Complete combinations of the 17 environmental/ability/equipment queries.
     for flags in range(1<<17):
@@ -24,7 +29,9 @@ def corpus():
             for sprint in [False,True]:
                 for trigger in [-2147483648,-1,0,1,2,7,8,2147483647]:
                     yield row([step(keys),step(keys),step(0)],initial,sprint,trigger)
-    for window in range(11):
+    # 1.21.8 hardcodes the sprint window to 7 (LocalPlayer.aiStep); the
+    # sprintWindow option came in 1.21.9, so only 7 is generated.
+    for window in [7]:
         for gap in range(13):
             for food in [-2147483648,-1,0,5,6,7,20,2147483647]:
                 for sprint_key in [False,True]:
@@ -32,7 +39,7 @@ def corpus():
                     yield row([step(k,food=food,window=window) for k in seq])
     rng=random.Random(0x535052494e54)
     for _ in range(1000):
-        yield row([step(rng.randrange(128),rng.randrange(1<<17),rng.choice([0,6,7,20]),rng.randrange(11)) for _ in range(40)],
+        yield row([step(rng.randrange(128),rng.randrange(1<<17),rng.choice([0,6,7,20]),7) for _ in range(40)],
             rng.randrange(128),bool(rng.randrange(2)),rng.randrange(-1,12))
 
 def main():
@@ -58,7 +65,7 @@ def main():
     if matched!=operations+len(fixtures):raise AssertionError('Incomplete input output')
     base.ensure_sources_unchanged(sources,tested)
     if input_hash!=lab.digest(inputs,'sha256'):raise AssertionError('Input fixtures changed')
-    lab.write_json(report,dict(schema=1,minecraft=lock['minecraft']['version'],manifest_sha1=lock['minecraft']['manifest_sha1'],platform=platform.platform(),rustc=subprocess.check_output(['rustc','--version'],text=True).strip(),java=subprocess.check_output(['java','--version'],text=True).splitlines()[0],fixtures=len(fixtures),operations=operations,sources_sha256=tested,input_sha256=input_hash,client_jar_sha256=lab.digest(jars['client'],'sha256'),matched_output_lines=matched,output_sha256=lab.digest(build/'rust.txt','sha256'),scope='Actual KeyboardInput.tick and LocalPlayer.aiStep prefix through sprint start/stop requests and sprintTriggerTime. A sentinel in jumpableVehicle stops before riding and parent/world movement. Native private canStartSprinting, isSprintingPossible and shouldStopRun/SwimSprinting execute, with controlled environmental/effect/vehicle/UI queries, actual FoodData/Abilities and actual ItemStack USE_EFFECTS. Compares evolving sprint state, timer, keyboard vector/shift and every ordered setSprinting request, including duplicate requests. All 17 query-flag combinations, all keyboard combinations with previous states, signed timer boundaries, food thresholds, configurable windows0..10, double taps and random sequences. Setter records requests; the separate scene gate covers actual attribute changes and movement. Parent movement, complete LocalPlayer ticks, GUI options persistence, networking and full gameplay parity remain unfinished.'))
+    lab.write_json(report,dict(schema=1,minecraft=lock['minecraft']['version'],manifest_sha1=lock['minecraft']['manifest_sha1'],platform=platform.platform(),rustc=subprocess.check_output(['rustc','--version'],text=True).strip(),java=subprocess.check_output(['java','--version'],text=True).splitlines()[0],fixtures=len(fixtures),operations=operations,sources_sha256=tested,input_sha256=input_hash,client_jar_sha256=lab.digest(jars['client'],'sha256'),matched_output_lines=matched,output_sha256=lab.digest(build/'rust.txt','sha256'),scope='Actual KeyboardInput.tick and LocalPlayer.aiStep prefix through sprint start/stop requests and sprintTriggerTime. A sentinel in jumpableVehicle stops before riding and parent/world movement. Native private canStartSprinting and shouldStopRun/SwimSprinting execute, with controlled environmental/effect/vehicle/UI queries, actual FoodData/Abilities and a plain stone use item. Compares evolving sprint state, timer, keyboard vector/shift and every ordered setSprinting request, including duplicate requests. All 17 query-flag combinations (shallow water derived from in/under water, as 1.21.8 inlines it), all keyboard combinations with previous states, signed timer boundaries, food thresholds, the hardcoded window 7, double taps and random sequences. Setter records requests; the separate scene gate covers actual attribute changes and movement. Parent movement, complete LocalPlayer ticks, GUI options persistence, networking and full gameplay parity remain unfinished.'))
     print(f'{matched:,} sprint phase output lines match the pinned client: {report}',flush=True)
 
 if __name__=='__main__':main()

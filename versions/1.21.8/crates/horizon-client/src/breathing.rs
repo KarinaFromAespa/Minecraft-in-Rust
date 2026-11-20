@@ -112,14 +112,14 @@ pub fn drown(
 
 /// The air supply after `breath`: raised up to `max` when it can breathe,
 /// lowered otherwise. The second is whether the entity now drowns
-/// (`LivingEntity.shouldTakeDrowningDamage`: -20 or less), and its air is
-/// then 0.
+/// (`LivingEntity.baseTick`: exactly -20, not -20 or less — the `<=`
+/// `shouldTakeDrowningDamage` came in 1.21.9), and its air is then 0.
 pub fn apply(air: i32, max: i32, breath: Breath) -> (i32, bool) {
     if breath.can_breathe {
         return (air.max((air + breath.refill).min(max)), false);
     }
     let air = air - breath.consume;
-    if air <= -20 { (0, true) } else { (air, false) }
+    if air == -20 { (0, true) } else { (air, false) }
 }
 
 #[cfg(test)]
@@ -167,6 +167,9 @@ mod tests {
         };
         assert_eq!(apply(20, 300, gas), (-10, false));
         assert_eq!(apply(10, 300, gas), (0, true));
+        // Exactly -20 drowns; past it does not (1.21.8's `== -20`).
+        assert_eq!(apply(5, 300, gas), (-25, false));
+        assert_eq!(apply(-21, 300, drowning), (-22, false));
     }
 
     #[test]

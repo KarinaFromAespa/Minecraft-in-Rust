@@ -1,4 +1,5 @@
-//! Entity shadows (`EntityRenderer.extractShadow` + `ShadowFeatureRenderer`):
+//! Entity shadows (`EntityRenderDispatcher.renderShadow` +
+//! `renderBlockShadow`):
 //! `misc/shadow.png` projected onto block collision bounds under
 //! an entity, faded by camera distance, depth below the entity and the light
 //! at each block.
@@ -54,7 +55,7 @@ pub fn shadow_params(entity: &str) -> (f32, f32) {
 
 /// A living entity's shadow radius: `LivingEntityRenderer.getShadowRadius`,
 /// the type's radius times `minecraft:scale` (`LivingEntity.getScale`), and
-/// for a mob (all but players and mannequins, whose `AvatarRenderer` is no
+/// for a mob (all but players and mannequins, whose `PlayerRenderer` is no
 /// `MobRenderer`) times `LivingEntity.getAgeScale` too. Villagers' and
 /// striders' renderers halve a baby's again and the turtle's takes 0.83 of
 /// it; slimes, magma cubes, sulfur cubes and pufferfish size theirs alone.
@@ -90,7 +91,7 @@ pub fn mob_shadow_radius(m: &Mob) -> f32 {
 
 /// The mobs that cast a shadow, at their feet position interpolated by
 /// `alpha`, with their type's shadow radius and strength.
-/// `EntityRenderer.extractShadow` skips an entity whose
+/// `EntityRenderDispatcher.render` skips an entity whose
 /// `EntityRenderState.isInvisible` is set (`Entity.isInvisible`).
 pub fn mob_casters(mobs: &[Mob], alpha: f64) -> impl Iterator<Item = (DVec3, f32, f32)> {
     mobs.iter().filter(|m| !m.is_invisible()).map(move |m| {
@@ -106,7 +107,7 @@ pub fn mob_casters(mobs: &[Mob], alpha: f64) -> impl Iterator<Item = (DVec3, f32
 
 /// `DisplayRenderer.getShadowRadius` and `DisplayRenderer.getShadowStrength`:
 /// the display's radius and strength interpolated by `t`, the two fields of
-/// its render state. `EntityRenderer.extractShadow` draws nothing at a radius
+/// its render state. `EntityRenderDispatcher.render` draws nothing at a radius
 /// of 0 or less, and text, block and item displays all go through this renderer.
 pub fn display_caster(
     pos: DVec3,
@@ -118,9 +119,11 @@ pub fn display_caster(
     (d.shadow_radius > 0.0).then_some((pos, d.shadow_radius, d.shadow_strength))
 }
 
-/// `EntityRenderer.extractShadow`'s gates: the radius clamped to
-/// `MAX_SHADOW_RADIUS` (32) and the strength faded over 256 blocks squared
-/// from the camera. None when either is 0 or less, so no shadow is drawn.
+/// `EntityRenderDispatcher.render`'s shadow gates: the radius clamped to
+/// 32 (1.21.8 inlines the literal in the `renderShadow` call; 1.21.9's
+/// `MAX_SHADOW_RADIUS` constant does not exist here) and the strength
+/// faded over 256 blocks squared from the camera. None when either is 0
+/// or less, so no shadow is drawn.
 fn shadow_gates(radius: f32, strength: f32, dist_sq: f64) -> Option<(f32, f32)> {
     let radius = radius.min(32.0);
     if radius <= 0.0 {
@@ -183,7 +186,9 @@ pub fn shadow(
     let r = f64::from(radius);
     let (x0, x1) = ((pos.x - r).floor() as i32, (pos.x + r).floor() as i32);
     let (z0, z1) = ((pos.z - r).floor() as i32, (pos.z + r).floor() as i32);
-    let depth = (pow / 0.5 - 1.0).min(radius);
+    // `EntityRenderDispatcher.renderShadow`: the scan reaches min(pow / 0.5,
+    // radius) below the feet (1.21.9's `extractShadow` subtracts 1.0 here).
+    let depth = (pow / 0.5).min(radius);
     let (y0, y1) = (
         (pos.y - f64::from(depth)).floor() as i32,
         pos.y.floor() as i32,
@@ -196,7 +201,7 @@ pub fn shadow(
                 if below.render_shape == crate::blocks::RenderShape::Invisible {
                     continue;
                 }
-                // extractShadowPiece: only a block whose collision shape is a full
+                // renderBlockShadow: only a block whose collision shape is a full
                 // block takes a shadow (hoppers, cauldrons, slabs, farmland... take none).
                 if !below.full_collision {
                     continue;
@@ -234,9 +239,9 @@ pub fn shadow(
                 let v = |wz: f64| (-((wz - pos.z) as f32) / 2.0 / radius + 0.5).clamp(0.0, 1.0);
                 let a = (alpha * 255.0) as u32;
                 let color = a << 24 | 0x00FF_FFFF;
-                // ShadowFeatureRenderer: relativeY + shapeBelow.minY, the block top
-                // itself. A model's feet sit 0.001 above it (LivingEntityRenderer's
-                // translate(0, -1.501, 0)), so a lifted shadow fights with them.
+                // renderBlockShadow: the block top itself. A model's feet sit
+                // 0.001 above it (LivingEntityRenderer's translate(0, -1.501, 0)),
+                // so a lifted shadow fights with them.
                 for (wx, wz) in [(bx0, bz0), (bx0, bz1), (bx1, bz1), (bx1, bz0)] {
                     let p = DVec3::new(wx, top, wz) - camera;
                     out.push(Vertex {
@@ -513,7 +518,7 @@ mod tests {
         let mut mannequin = mob("minecraft:mannequin", S::Zombie);
         mannequin.extra.model_scale = 0.25;
         assert_eq!(mob_shadow_radius(&mannequin), 0.125);
-        // AvatarRenderer is no MobRenderer: no age scale.
+        // PlayerRenderer is no MobRenderer: no age scale.
         mannequin.extra.age = -1;
         assert_eq!(mob_shadow_radius(&mannequin), 0.125);
     }
@@ -541,7 +546,7 @@ mod tests {
         assert_eq!(shadow_params("minecraft:spider"), (0.8, 1.0));
     }
     /// `DisplayRenderer.getShadowRadius`/`getShadowStrength` behind
-    /// `EntityRenderer.extractShadow`: a display casts a shadow only above a
+    /// `EntityRenderDispatcher.render`: a display casts a shadow only above a
     /// radius of 0, with the radius clamped to 32 and the strength faded by
     /// the camera distance.
     #[test]

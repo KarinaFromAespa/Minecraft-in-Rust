@@ -1,11 +1,11 @@
-//! The system clipboard and the text-editing shortcuts of 26.3:
-//! `KeyboardHandler.getClipboard`/`setClipboard`, `InputWithModifiers.isSelectAll`,
+//! The system clipboard and the text-editing shortcuts:
+//! `KeyboardHandler.getClipboard`/`setClipboard`, `Screen.isSelectAll`,
 //! `isCopy`, `isPaste` and `isCut`, `StringUtil.filterText` and
 //! `ChatFormatting.stripFormatting`.
 
 use winit::keyboard::{Key, KeyCode, PhysicalKey};
 
-/// A text-editing shortcut (`InputWithModifiers.isSelectAll`, `isCopy`,
+/// A text-editing shortcut (`Screen.isSelectAll`, `isCopy`,
 /// `isPaste`, `isCut`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditShortcut {
@@ -39,8 +39,8 @@ pub fn shortcut_letter(logical: &Key, physical: PhysicalKey) -> Option<char> {
     })
 }
 
-/// `InputWithModifiers.isSelectAll`/`isCopy`/`isPaste`/`isCut`: A, C, V or X
-/// with the edit modifier (`InputQuirks.EDIT_SHORTCUT_KEY_MODIFIER`: Cmd on
+/// `Screen.isSelectAll`/`isCopy`/`isPaste`/`isCut`: A, C, V or X
+/// with the edit modifier (`Screen.hasControlDown`: Cmd on
 /// macOS, Ctrl elsewhere) and neither Shift nor Alt.
 pub fn edit_shortcut(
     letter: Option<char>,

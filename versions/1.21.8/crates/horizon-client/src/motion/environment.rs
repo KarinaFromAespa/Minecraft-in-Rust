@@ -44,7 +44,11 @@ impl MotionWorld<'_, '_, '_> {
             .mod_fluid()
             .is_some_and(|m| m.fluid.info().entity.can_extinguish);
         if self.player.fluids.was_touching_water || extinguishes {
-            self.player.fire_ticks = self.player.fire_ticks.min(0);
+            // `LivingEntity.baseTick` clears fire when wet, and 1.21.8's
+            // `clearFire` zeroes the ticks outright, wiping the player's
+            // -20 fire immunity; the `min(0)` form that kept it came in
+            // 1.21.9.
+            self.player.fire_ticks = 0;
         }
         Ok(())
     }
@@ -150,7 +154,6 @@ impl MotionWorld<'_, '_, '_> {
         }
         let damage = fire_contact(self.scene, self.assets.registry, self.player.bounds());
         if damage > 0.0 {
-            self.player.ticks_frozen = 0;
             if !self.player.fluids.was_touching_water {
                 let multiplier = self.player.attribute("minecraft:burning_time")?;
                 let ticks = ignite_contact(
@@ -159,7 +162,18 @@ impl MotionWorld<'_, '_, '_> {
                     &mut self.scene.random,
                     multiplier,
                 );
+                // 1.21.8 has no CLEAR_FREEZE: the freeze clears only when
+                // fireIgnite ignites (igniteForTicks), i.e. once the timer
+                // reaches 0 after its climb from -20 — not during the delay.
+                if ticks >= 0 {
+                    self.player.ticks_frozen = 0;
+                }
                 self.player.set_remaining_fire_ticks(ticks);
+            } else if self.player.fire_ticks >= -1 {
+                // In water the ignite is skipped, but a timer at -1 or above
+                // would still have reached 0 on fireIgnite's increment — the
+                // ignite, and its freeze clear, happen without a draw.
+                self.player.ticks_frozen = 0;
             }
             self.environment_hurt("minecraft:in_fire", damage)?;
         } else if self.player.fire_ticks <= 0 {
@@ -316,7 +330,7 @@ impl MotionWorld<'_, '_, '_> {
         // stateAbove.getCollisionShape(level, pos): the shape is asked at the
         // column's own position.
         let binding = self.collision_binding;
-        let context = CollisionContext::empty(false);
+        let context = CollisionContext::empty();
         let empty = binding
             .collision_shape_with_context(&mut self.collisions(), above, p, &context)?
             .is_empty()

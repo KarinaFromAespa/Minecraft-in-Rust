@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 //! Runs tools/test_toggle_keys_parity.py's event sequences through
-//! `ToggleKeys`, the sneak/sprint/attack/use toggle mappings.
+//! `ToggleKeys`: the sneak/sprint toggle mappings and the plain attack/use
+//! mappings.
 use horizon_client::{
     Result,
     keymapping::{KeyAction, ToggleKeys},
@@ -40,7 +41,9 @@ pub fn main() -> Result<()> {
                     options[slot()],
                 ),
                 "open" => keys.screen_opened(options),
-                "close" => keys.screen_closed(options),
+                // Closing a screen restores nothing in 1.21.8 (no
+                // `restoreToggleStatesOnScreenClosed`): the op pins that.
+                "close" => {},
                 "respawn" => keys.respawn(),
                 other => panic!("{other}"),
             }

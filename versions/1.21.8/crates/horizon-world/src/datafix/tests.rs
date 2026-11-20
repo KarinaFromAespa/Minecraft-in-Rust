@@ -35,31 +35,39 @@ fn item_stacks_of_1_20_take_components() {
 }
 
 #[test]
-fn level_data_of_1_20_moves_to_the_new_fields() {
+fn level_data_of_1_20_keeps_its_1_21_8_fields() {
     let mut level = snbt(
         "{DataVersion: 3465, Difficulty: 3b, DifficultyLocked: 1b, hardcore: 0b, SpawnX: 1, SpawnY: 64, SpawnZ: -3, \
          SpawnAngle: 90.0f, GameRules: {doFireTick: \"false\", keepInventory: \"true\", randomTickSpeed: \"5\"}}",
     );
     update(Ty::Level, &mut level, 3465, CURRENT);
-    let settings = level
-        .get("difficulty_settings")
-        .expect("difficulty settings");
+    // (update() applies the fixes; the caller stamps DataVersion.)
+    // The difficulty_settings compound (4771), the namespaced game_rules
+    // (4658) and the `spawn` compound (4548) are all later than 1.21.8, so
+    // a 1.21.8 upgrade leaves the 1.20 fields exactly as they are.
+    assert_eq!(level.get("Difficulty"), Some(&Tag::Byte(3)));
+    assert_eq!(level.get("DifficultyLocked"), Some(&Tag::Byte(1)));
+    assert_eq!(level.get("hardcore"), Some(&Tag::Byte(0)));
+    assert!(level.get("difficulty_settings").is_none());
+    let rules = level.get("GameRules").expect("game rules");
     assert_eq!(
-        dynamic::as_str(settings.get("difficulty")).as_deref(),
-        Some("hard")
-    );
-    assert_eq!(settings.get("locked"), Some(&Tag::Byte(1)));
-    let rules = level.get("game_rules").expect("game rules");
-    assert_eq!(rules.get("minecraft:keep_inventory"), Some(&Tag::Byte(1)));
-    assert_eq!(rules.get("minecraft:random_tick_speed"), Some(&Tag::Int(5)));
-    assert_eq!(
-        rules.get("minecraft:fire_spread_radius_around_player"),
-        Some(&Tag::Int(0))
+        dynamic::as_str(rules.get("doFireTick")).as_deref(),
+        Some("false")
     );
     assert_eq!(
-        level.get("spawn").and_then(|s| s.get("pos")),
-        Some(&Tag::IntArray(vec![1, 64, -3]))
+        dynamic::as_str(rules.get("keepInventory")).as_deref(),
+        Some("true")
     );
+    assert_eq!(
+        dynamic::as_str(rules.get("randomTickSpeed")).as_deref(),
+        Some("5")
+    );
+    assert!(level.get("game_rules").is_none());
+    assert_eq!(level.get("SpawnX"), Some(&Tag::Int(1)));
+    assert_eq!(level.get("SpawnY"), Some(&Tag::Int(64)));
+    assert_eq!(level.get("SpawnZ"), Some(&Tag::Int(-3)));
+    assert_eq!(level.get("SpawnAngle"), Some(&Tag::Float(90.0f32.to_bits())));
+    assert!(level.get("spawn").is_none());
 }
 
 #[test]

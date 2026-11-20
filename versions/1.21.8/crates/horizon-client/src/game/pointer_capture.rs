@@ -13,7 +13,6 @@ impl Game<'_> {
             sensitivity: f64::from(self.settings.sensitivity),
             smooth_camera: self.smooth_camera,
             scoping: self.scoping(),
-            invert_x: self.settings.invert_x,
             invert_y: self.settings.invert_y,
         }
     }
@@ -94,20 +93,20 @@ impl Game<'_> {
     }
     /// `KeyMapping.setAll`: every key physically held is held again, as the
     /// mapping it is bound to, so a key pressed or kept down behind a screen
-    /// counts once the game has the keyboard back. A sneak or sprint that
-    /// toggles keeps its toggle state (`shouldSetOnIngameFocus`).
+    /// counts once the game has the keyboard back. 1.21.8's `setAll` has no
+    /// toggle exemption (1.21.9's `shouldSetOnIngameFocus` skips toggles
+    /// whose option is on): a held shift flips a toggled sneak, as
+    /// `setDown(true)` does under the option.
     pub(super) fn restore_held_keys(&mut self) {
         let held: Vec<KeyCode> = self.physical_keys.iter().copied().collect();
         let toggles = [self.settings.toggle_crouch, self.settings.toggle_sprint];
         for key in held {
-            for mapped in self.settings.keys.translate_all(key) {
+            if let Some(mapped) = self.settings.keys.translate(key) {
                 match mapped {
                     Ok(slot_key @ (KeyCode::ShiftLeft | KeyCode::ControlLeft)) => {
                         let slot = usize::from(slot_key == KeyCode::ControlLeft);
-                        if !toggles[slot] {
-                            self.toggles.0[slot].set_down(true, false);
-                            self.sync_toggle(slot);
-                        }
+                        self.toggles.0[slot].set_down(true, toggles[slot]);
+                        self.sync_toggle(slot);
                     }
                     Ok(other) => {
                         self.keys.insert(other);
@@ -160,8 +159,8 @@ impl Game<'_> {
             return;
         }
         if capture && !self.captured && !cfg!(target_os = "macos") {
-            // MouseHandler.grabMouse: KeyMapping.setAll unless
-            // InputQuirks.RESTORE_KEY_STATE_AFTER_MOUSE_GRAB is off (macOS).
+            // MouseHandler.grabMouse: KeyMapping.setAll unless on macOS
+            // (`!Minecraft.ON_OSX`).
             self.restore_held_keys();
         }
         let Some(window) = &self.window else { return };
@@ -313,31 +312,6 @@ impl Game<'_> {
             self.captured = self.capture_mode.is_some();
             window.set_cursor_visible(!self.captured);
         }
-    }
-    /// `GuiGraphicsExtractor.applyCursor` -> `Window.selectCursor` at the end
-    /// of a frame: the cursor the frame's widgets asked for, set on the window
-    /// only when it changes.
-    pub(super) fn apply_cursor_icon(&mut self) {
-        use horizon_client::widgets::Cursor;
-        let wanted = horizon_client::widgets::take_cursor();
-        // The widgets under the keyboard's hidden pointer aren't under the
-        // mouse (`handleCursor` asks only for a hovered widget).
-        let effective = if self.settings.allow_cursor_changes && !self.key_focus_driving() {
-            wanted
-        } else {
-            Cursor::Arrow
-        };
-        if effective == self.cursor_icon || !self.keyboard_mouse {
-            return;
-        }
-        if let Some(window) = &self.window {
-            window.set_cursor(match effective {
-                Cursor::Arrow => winit::window::CursorIcon::Default,
-                Cursor::PointingHand => winit::window::CursorIcon::Pointer,
-                Cursor::NotAllowed => winit::window::CursorIcon::NotAllowed,
-            });
-        }
-        self.cursor_icon = effective;
     }
     /// LevelLoadingScreen.onClose -> Gui.setScreen(null) -> grabMouse.
     pub(super) fn capture_loaded_world(&mut self) {

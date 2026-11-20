@@ -98,7 +98,7 @@ fn java_max(a: f32, b: f32) -> f32 {
     }
 }
 
-/// `ChestRenderer.submit` and `ChestModel.setupAnim`: the lid and lock
+/// `ChestRenderer.render` and `ChestModel.setupAnim`: the lid and lock
 /// `xRot` for a render-state openness.
 pub fn chest_lid_x_rot(open: f32) -> f32 {
     let open = 1.0 - open;
@@ -144,15 +144,15 @@ pub fn mth_frac(v: f32) -> f32 {
     v - mth_floor(v) as f32
 }
 
-/// `EnchantTableRenderState` (`EnchantTableRenderer.extractRenderState`) and
-/// the `BookModel.State` its `submit` builds.
+/// The book pose `EnchantTableRenderer.render` computes from the
+/// enchanting table's fields (see `BookModel.setupAnim`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BookRender {
     pub flip: f32,
     pub open: f32,
     pub time: f32,
     pub y_rot: f32,
-    /// `BookModel.State.forAnimation`: openness, pageFlip1, pageFlip2.
+    /// `BookModel.setupAnim`'s openness, pageFlip1, pageFlip2.
     pub openness: f32,
     pub page_flip1: f32,
     pub page_flip2: f32,
@@ -211,8 +211,7 @@ impl EnchantingBook {
         self.flip_a += (diff - self.flip_a) * 0.9;
         self.flip += self.flip_a;
     }
-    /// `EnchantTableRenderer.extractRenderState` and the book state of its
-    /// `submit`.
+    /// The book pose `EnchantTableRenderer.render` computes.
     pub fn render(&self, a: f32) -> BookRender {
         let flip = self.o_flip + a * (self.flip - self.o_flip);
         let open = self.o_open + a * (self.open - self.o_open);
@@ -758,7 +757,7 @@ impl PotWobble {
             false
         }
     }
-    /// `DecoratedPotRenderer.extractRenderState`'s `wobbleProgress`.
+    /// `DecoratedPotRenderer.render`'s wobble progress.
     pub fn progress(&self, game_time: i64, partial: f32) -> f32 {
         match self.style {
             Some(style) => {
@@ -1027,10 +1026,14 @@ impl BlockEntityAnims {
         if let Some(w) = self.pots.get(&pos)
             && w.style.is_some()
         {
-            // extractRenderState never copies lastWobbleStyle into the render
-            // state, so DecoratedPotRenderer.submit always takes the
-            // non-POSITIVE branch (with the style's own duration).
-            anim.wobble = Some((false, w.progress(game_time, partial)));
+            // DecoratedPotRenderer.render reads lastWobbleStyle directly, so
+            // a POSITIVE wobble takes the X/Z tilt branch (1.21.9's
+            // extractRenderState never copies the style into the render
+            // state, so its submit always takes the non-POSITIVE branch).
+            anim.wobble = Some((
+                w.style == Some(WobbleStyle::Positive),
+                w.progress(game_time, partial),
+            ));
         }
         anim
     }

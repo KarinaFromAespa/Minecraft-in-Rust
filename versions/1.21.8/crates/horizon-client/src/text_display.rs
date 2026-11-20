@@ -402,7 +402,7 @@ impl Lines {
     pub fn height(&self) -> f32 {
         self.lines.len() as f32 * 10.0 - 1.0
     }
-    /// `submitInner`'s pose for the text, after the display's own: half a
+    /// `renderInner`'s pose for the text, after the display's own: half a
     /// turn about y, the mirrored 0.025 scale and `translate(1 - width / 2,
     /// -height, 0)`.
     pub fn pose(&self) -> glam::Mat4 {
@@ -460,7 +460,7 @@ impl CachedQuads {
             .resolved()
             .spans
             .iter()
-            .any(|s| s.style.obfuscated == Some(true) || s.style.inline_object.is_some());
+            .any(|s| s.style.obfuscated == Some(true));
         Self {
             key: (
                 d.text.clone(),
@@ -510,7 +510,7 @@ fn transformed_bounds(
 /// `TEXT_POLYGON_OFFSET` and `TEXT_SEE_THROUGH` keep.
 pub const CORNERS: [usize; 4] = [5, 2, 1, 0];
 
-/// `TextDisplayRenderer.submitInner` after its `translate(1 - width / 2,
+/// `TextDisplayRenderer.renderInner` after its `translate(1 - width / 2,
 /// -height, 0)`: the background and each line, in text units, each quad's
 /// `depth` its z (the background 0.01 behind, `Font.prepareBackground`).
 /// `default_background` is `Options.getBackgroundOpacity(0.25)` as a colour.

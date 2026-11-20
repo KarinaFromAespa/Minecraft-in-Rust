@@ -1,13 +1,13 @@
-//! The F3 overlay's text entries (26.3 `DebugEntry*`): what each enabled
-//! entry of `debug-profile.json` reports to the `DebugScreenDisplayer`, in
-//! `DebugScreenEntryList.rebuildCurrentList`'s order (by identifier). The
-//! entries that read the server's level ask the integrated server for their
-//! lines (`ServerDebug`); on another server they show what vanilla shows
-//! there, nothing or `??`.
+//! The F3 overlay's text entries, in 1.21.8's fixed order — the left column
+//! is `getGameInformation`, the right column `getSystemInformation`.
+//! (1.21.9 sorted the entries by identifier and split them by count, and
+//! let the player configure which show; 1.21.8 has no such system — the
+//! lists are fixed, with a shorter pair while debug info is reduced.)
+//! The entries that read the server's level ask the integrated server for
+//! their lines (`ServerDebug`); on another server they show what vanilla
+//! shows there, nothing or `??`.
 use super::Game;
-use horizon_client::{
-    debug_entries::ENTRIES, debug_overlay as overlay, debug_overlay::Displayer, java_text,
-};
+use horizon_client::{debug_overlay as overlay, debug_overlay::Displayer, java_text};
 use horizon_world::{
     heightmap::{HeightmapState, HeightmapType},
     worldgen::terrain::TerrainBlockStates,
@@ -17,13 +17,69 @@ use std::collections::{HashMap, HashSet};
 /// `DebugEntryLookingAt.RANGE`.
 const LOOKING_AT_RANGE: f64 = 20.0;
 
-/// The entries whose lines come from the server thread.
-const SERVER_ENTRIES: [&str; 4] = [
+/// 1.21.8's left column, `getGameInformation`, in order. The 1.21.9-only
+/// entries with no 1.21.8 line (`day_count`, `sound_cache`) are listed so
+/// their arms run and say so; the Horizon-only ones (`player_speed`,
+/// `gpu_utilization`) land where they fit. Entries with no arm at all
+/// (`detailed_memory`, `simple_performance_impactors`, the renderers) are
+/// omitted.
+const LEFT_ENTRIES: [&str; 21] = [
+    "game_version",
+    "fps",
+    "tps",
+    "chunk_render_stats",
+    "entity_render_stats",
+    "particle_render_stats",
     "chunk_source_stats",
-    "entity_spawn_counts",
+    "player_position",
+    "player_section_position",
+    "player_speed",
+    "light_levels",
     "heightmap",
+    "biome",
     "local_difficulty",
+    "day_count",
+    "chunk_generation_stats",
+    "entity_spawn_counts",
+    "post_effects",
+    "sound_mood",
+    "sound_cache",
+    "gpu_utilization",
 ];
+
+/// 1.21.8's right column, `getSystemInformation`, in order: the memory
+/// lines, then the system lines, then the targeted block, fluid, entity.
+const RIGHT_ENTRIES: [&str; 8] = [
+    "memory",
+    "system_specs",
+    "looking_at_block_state",
+    "looking_at_block_tags",
+    "looking_at_fluid_state",
+    "looking_at_fluid_tags",
+    "looking_at_entity",
+    "looking_at_entity_tags",
+];
+
+/// 1.21.8's reduced left column (`getGameInformation` while
+/// `showOnlyReducedInfo`): the version, fps, server line, section and
+/// entity statistics, the particle line and the chunk-source stats. The
+/// blank line and the chunk-relative coordinates come from
+/// `player_section_position`'s arm, last.
+const REDUCED_LEFT: [&str; 8] = [
+    "game_version",
+    "fps",
+    "tps",
+    "chunk_render_stats",
+    "entity_render_stats",
+    "particle_render_stats",
+    "chunk_source_stats",
+    "player_section_position",
+];
+
+/// 1.21.8's reduced right column (`getSystemInformation` while
+/// `showOnlyReducedInfo`): the memory lines and the system lines; the
+/// targeted-block/fluid/entity sections are dropped.
+const REDUCED_RIGHT: [&str; 2] = ["memory", "system_specs"];
 
 /// What the server thread reports for the window's player
 /// (`DebugScreenOverlay.getServerChunk` and its `ServerLevel`).
@@ -37,177 +93,241 @@ pub(super) struct ServerDebug {
 }
 
 impl Game<'_> {
-    /// Every enabled entry's lines, by identifier.
+    /// Every entry's lines, in 1.21.8's fixed order: the left column is
+    /// `getGameInformation`, the right column `getSystemInformation`.
+    /// While debug info is reduced the lists are the shorter fixed pair
+    /// vanilla returns under `showOnlyReducedInfo`.
     pub(super) fn debug_entry_lines(&self, d: &mut Displayer, framebuffer: [i32; 2]) {
         let reduced = self.reduced_debug_info();
-        let mut paths: Vec<&str> = ENTRIES
-            .iter()
-            .map(|e| e.path)
-            .filter(|path| self.debug_entries.enabled(path, self.debug, reduced))
-            .collect();
-        paths.sort_unstable();
-        let server = self.server_debug(paths.iter().any(|p| SERVER_ENTRIES.contains(p)));
-        for path in paths {
-            match path {
-                "biome" => self.debug_biome_line(d),
-                "chunk_render_stats" => self.debug_chunk_render_line(d),
-                "chunk_source_stats" => self.debug_chunk_source_lines(d, server.as_ref()),
-                "day_count" => {
-                    if self.player.is_some() {
-                        d.line(format!("Day #{}", self.world.day_time.div_euclid(24000)));
-                    }
+        // Every server entry is shown in both lists (`chunk_source_stats`
+        // is in the reduced left column), so the server data is always
+        // wanted.
+        let server = self.server_debug(true);
+        let (left, right): (&[&str], &[&str]) = if reduced {
+            (&REDUCED_LEFT, &REDUCED_RIGHT)
+        } else {
+            (&LEFT_ENTRIES, &RIGHT_ENTRIES)
+        };
+        d.left();
+        for path in left {
+            self.debug_entry_line(d, path, server.as_ref(), reduced, framebuffer);
+        }
+        d.right();
+        for path in right {
+            self.debug_entry_line(d, path, server.as_ref(), reduced, framebuffer);
+        }
+    }
+
+    /// One entry's lines, into the selected column.
+    fn debug_entry_line(
+        &self,
+        d: &mut Displayer,
+        path: &str,
+        server: Option<&ServerDebug>,
+        reduced: bool,
+        framebuffer: [i32; 2],
+    ) {
+        match path {
+            "biome" => self.debug_biome_line(d),
+            "chunk_render_stats" => self.debug_chunk_render_line(d),
+            "chunk_source_stats" => self.debug_chunk_source_lines(d, server),
+            // The day rides the Local Difficulty line in 1.21.8
+            // ("Local Difficulty: %.2f // %.2f (Day %d)"); 1.21.9 split
+            // it into its own entry.
+            "day_count" => {}
+            "entity_render_stats" => self.debug_entity_render_line(d),
+            "entity_spawn_counts" => {
+                if let Some(line) = server.and_then(|s| s.spawn_counts.clone()) {
+                    d.line(line);
                 }
-                "entity_render_stats" => self.debug_entity_render_line(d),
-                "entity_spawn_counts" => {
-                    if let Some(line) = server.as_ref().and_then(|s| s.spawn_counts.clone()) {
-                        d.line(line);
-                    }
+            }
+            "fps" => self.debug_fps_line(d),
+            "game_version" => d.priority(format!(
+                "Minecraft {v} ({v}/horizon)",
+                v = horizon_client::save::VERSION_NAME
+            )),
+            "gpu_utilization" => d.line(overlay::gpu_line(self.gpu_utilization)),
+            "heightmap" => self.debug_heightmap_lines(d, server),
+            "light_levels" => {
+                if let Some(feet) = self.debug_feet() {
+                    let light = self.world.light(feet[0], feet[1], feet[2]);
+                    d.group("light", [overlay::light_line(light >> 4, light & 15)]);
                 }
-                "fps" => self.debug_fps_line(d),
-                "game_version" => d.priority(format!(
-                    "Minecraft {v} ({v}/horizon)",
-                    v = horizon_client::save::VERSION_NAME
-                )),
-                "gpu_utilization" => d.line(overlay::gpu_line(self.gpu_utilization)),
-                "heightmap" => self.debug_heightmap_lines(d, server.as_ref()),
-                "light_levels" => {
-                    if let Some(feet) = self.debug_feet() {
-                        let light = self.world.light(feet[0], feet[1], feet[2]);
-                        d.group("light", [overlay::light_line(light >> 4, light & 15)]);
-                    }
+            }
+            "local_difficulty" => {
+                if let Some(line) = server.and_then(|s| s.difficulty.clone()) {
+                    d.line(line);
+                } else if self
+                    .debug_feet()
+                    .is_some_and(|feet| feet[1] >= self.world.bottom_y() && feet[1] < self.world.top_y())
+                {
+                    // `getGameInformation`: no server chunk, no
+                    // difficulty — "??".
+                    d.line("Local Difficulty: ??");
                 }
-                "local_difficulty" => {
-                    if let Some(line) = server.as_ref().and_then(|s| s.difficulty.clone()) {
-                        d.line(line);
+            }
+            "looking_at_block_state" | "looking_at_block_tags" => {
+                let lines = self.debug_looking_at_block(path == "looking_at_block_state");
+                if !lines.is_empty() {
+                    // `getSystemInformation`: a blank line before each
+                    // targeted section.
+                    if path == "looking_at_block_state" {
+                        d.line(String::new());
                     }
-                }
-                "looking_at_block_state" | "looking_at_block_tags" => {
-                    let lines = self.debug_looking_at_block(path == "looking_at_block_state");
                     d.group("looking_at_block", lines);
                 }
-                "looking_at_entity" | "looking_at_entity_tags" => {
-                    let lines = self.crosshair_entity_type().map_or_else(Vec::new, |kind| {
-                        if path == "looking_at_entity" {
-                            vec![format!("{}Targeted Entity", overlay::UNDERLINE), kind]
-                        } else {
-                            overlay::tag_lines(&self.res.mob_data().entity_tags, &kind)
-                        }
-                    });
+            }
+            "looking_at_entity" | "looking_at_entity_tags" => {
+                let lines = self.crosshair_entity_type().map_or_else(Vec::new, |kind| {
+                    if path == "looking_at_entity" {
+                        vec![format!("{}Targeted Entity", overlay::UNDERLINE), kind]
+                    } else {
+                        overlay::tag_lines(&self.res.mob_data().entity_tags, &kind)
+                    }
+                });
+                if !lines.is_empty() {
+                    if path == "looking_at_entity" {
+                        d.line(String::new());
+                    }
                     d.group("looking_at_entity", lines);
                 }
-                "looking_at_fluid_state" | "looking_at_fluid_tags" => {
-                    let lines = self.debug_looking_at_fluid(path == "looking_at_fluid_state");
+            }
+            "looking_at_fluid_state" | "looking_at_fluid_tags" => {
+                let lines = self.debug_looking_at_fluid(path == "looking_at_fluid_state");
+                if !lines.is_empty() {
+                    if path == "looking_at_fluid_state" {
+                        d.line(String::new());
+                    }
                     d.group("looking_at_fluid", lines);
                 }
-                "memory" => {
-                    if let Some(lines) = self.memory_meter.borrow_mut().lines() {
-                        d.group("memory", lines);
+            }
+            "memory" => {
+                if let Some(lines) = self.memory_meter.borrow_mut().lines() {
+                    d.group("memory", lines);
+                    // `getSystemInformation`: a blank line after the
+                    // memory lines, before the CPU line.
+                    d.line(String::new());
+                }
+            }
+            "particle_render_stats" => d.line(format!("P: {}", self.particles.len())),
+            "player_position" => {
+                if let Some(p) = self.player.as_ref() {
+                    let mut lines = overlay::position(
+                        [p.position.x, p.position.y, p.position.z],
+                        self.yaw,
+                        self.pitch,
+                        self.dim.id(),
+                        self.streaming.forced.len(),
+                    );
+                    // `getGameInformation`: the dimension line first,
+                    // then a blank, then XYZ, Block, Chunk, Facing.
+                    if let Some(dim_fc) = lines.pop() {
+                        d.line(dim_fc);
+                        d.line(String::new());
+                        d.group("position", lines);
                     }
                 }
-                "particle_render_stats" => d.line(format!("P: {}", self.particles.len())),
-                "player_position" | "player_section_position" => {
-                    if let Some(p) = self.player.as_ref() {
-                        let mut lines = overlay::position(
-                            [p.position.x, p.position.y, p.position.z],
-                            self.yaw,
-                            self.pitch,
-                            self.dim.id(),
-                            self.streaming.forced.len(),
-                        );
-                        let section = lines.pop().unwrap_or_default();
-                        if path == "player_position" {
-                            d.group("position", lines);
-                        } else {
-                            d.group("position", [section]);
-                        }
-                    }
-                }
-                "player_speed" => {
-                    if self.player.is_some() {
-                        let speed = self.known_player_movement();
-                        d.group(
-                            "position",
-                            [format!(
-                                "Speed: {} blocks/tick",
-                                java_text::format_fixed(speed.length(), 3)
-                            )],
-                        );
-                    }
-                }
-                "post_effects" => {
-                    let effects = self.requested_post_effects();
-                    if !effects.is_empty() {
-                        d.line(format!("Post: {}", effects.join(", ")));
-                    }
-                }
-                "simple_performance_impactors" => self.debug_performance_lines(d),
-                "sound_cache" => {
-                    let (buffers, bytes) = self.audio.cache_stats();
-                    d.line(overlay::sound_cache_line(buffers, bytes));
-                }
-                "sound_mood" => {
-                    if self.player.is_some() {
-                        d.line(overlay::sound_mood_line(
-                            self.audio.engine.used_channels(),
-                            [
-                                horizon_client::sound_engine::STATIC_CHANNELS,
-                                horizon_client::sound_engine::STREAMING_CHANNELS,
-                            ],
-                            self.ambience.moodiness,
+            }
+            "player_section_position" => {
+                // Only the reduced list has this line, as its last one
+                // (plain ints, no zero-padding); the full list carries
+                // the chunk-relative coordinates on the Block line.
+                if reduced {
+                    if let Some(feet) = self.debug_feet() {
+                        d.line(String::new());
+                        d.line(format!(
+                            "Chunk-relative: {} {} {}",
+                            feet[0] & 15,
+                            feet[1] & 15,
+                            feet[2] & 15
                         ));
                     }
                 }
-                "system_specs" => {
-                    self.debug_system_lines(d, framebuffer);
-                    // Horizon's own: the shader pack's GPU time per pass (an
-                    // empty group would move others).
-                    let pass_lines = self.renderer.as_ref().map_or_else(Vec::new, |r| {
-                        overlay::shader_pass_lines(&r.shader_pass_times())
-                    });
-                    if self.debug && !pass_lines.is_empty() {
-                        d.group("shader pack", pass_lines);
-                    }
-                    // Horizon's own passes, in a group of their own.
-                    let own_lines = self.renderer.as_ref().map_or_else(Vec::new, |r| {
-                        overlay::labelled_pass_lines("Horizon GPU", &r.own_pass_times())
-                    });
-                    if self.debug && !own_lines.is_empty() {
-                        d.group("Horizon passes", own_lines);
-                    }
-                }
-                "tps" => self.debug_tps_line(d),
-                // DebugEntryChunkGeneration, where the world is generated
-                // here: the window's server thread publishes its generators.
-                "chunk_generation_stats" => {
-                    if let Some(p) = self.player.as_ref() {
-                        let terrain = self
-                            .integrated
-                            .as_ref()
-                            .and_then(|server| server.terrain(self.dim.id()));
-                        // `DebugEntryChunkGeneration.display`: the feet block
-                        // decides whether the line is sampled again; otherwise
-                        // the last result is drawn.
-                        let feet = [
-                            p.position.x.floor() as i32,
-                            p.position.y.floor() as i32,
-                            p.position.z.floor() as i32,
-                        ];
-                        let dim = self.dim.id();
-                        let mut cache = self.debug_density.borrow_mut();
-                        let line = cache.line(
-                            dim,
-                            feet,
-                            terrain.map(|t| move || t.density_debug_line(feet)),
-                        );
-                        if let Some(line) = line {
-                            d.group("chunk_generation", [line.to_owned()]);
-                        }
-                    }
-                }
-                // detailed_memory: the JVM's memory pools, which Horizon
-                // has none of. The rest are renderers (debug_renderers.rs).
-                _ => {}
             }
+            "player_speed" => {
+                if self.player.is_some() {
+                    let speed = self.known_player_movement();
+                    d.group(
+                        "position",
+                        [format!(
+                            "Speed: {} blocks/tick",
+                            java_text::format_fixed(speed.length(), 3)
+                        )],
+                    );
+                }
+            }
+            "post_effects" => {
+                let effects = self.requested_post_effects();
+                if !effects.is_empty() {
+                    d.line(format!("Post: {}", effects.join(", ")));
+                }
+            }
+            // 1.21.9's `DebugEntrySoundCache`: 1.21.8 has no cache line —
+            // its one sound line is the channels plus the mood.
+            "sound_cache" => {}
+            "sound_mood" => {
+                if self.player.is_some() {
+                    d.line(overlay::sound_mood_line(
+                        self.audio.engine.used_channels(),
+                        [
+                            horizon_client::sound_engine::STATIC_CHANNELS,
+                            horizon_client::sound_engine::STREAMING_CHANNELS,
+                        ],
+                        self.ambience.moodiness,
+                    ));
+                }
+            }
+            "system_specs" => {
+                self.debug_system_lines(d, framebuffer);
+                // Horizon's own: the shader pack's GPU time per pass (an
+                // empty group would move others).
+                let pass_lines = self.renderer.as_ref().map_or_else(Vec::new, |r| {
+                    overlay::shader_pass_lines(&r.shader_pass_times())
+                });
+                if self.debug && !pass_lines.is_empty() {
+                    d.group("shader pack", pass_lines);
+                }
+                // Horizon's own passes, in a group of their own.
+                let own_lines = self.renderer.as_ref().map_or_else(Vec::new, |r| {
+                    overlay::labelled_pass_lines("Horizon GPU", &r.own_pass_times())
+                });
+                if self.debug && !own_lines.is_empty() {
+                    d.group("Horizon passes", own_lines);
+                }
+            }
+            "tps" => self.debug_tps_line(d),
+            // DebugEntryChunkGeneration, where the world is generated
+            // here: the window's server thread publishes its generators.
+            "chunk_generation_stats" => {
+                if let Some(p) = self.player.as_ref() {
+                    let terrain = self
+                        .integrated
+                        .as_ref()
+                        .and_then(|server| server.terrain(self.dim.id()));
+                    // `DebugEntryChunkGeneration.display`: the feet block
+                    // decides whether the line is sampled again; otherwise
+                    // the last result is drawn.
+                    let feet = [
+                        p.position.x.floor() as i32,
+                        p.position.y.floor() as i32,
+                        p.position.z.floor() as i32,
+                    ];
+                    let dim = self.dim.id();
+                    let mut cache = self.debug_density.borrow_mut();
+                    let line = cache.line(
+                        dim,
+                        feet,
+                        terrain.map(|t| move || t.density_debug_line(feet)),
+                    );
+                    if let Some(line) = line {
+                        d.group("chunk_generation", [line.to_owned()]);
+                    }
+                }
+            }
+            // detailed_memory: the JVM's memory pools, which Horizon
+            // has none of. The rest are renderer entries, which 1.21.8
+            // never draws (item 420).
+            _ => {}
         }
     }
 
@@ -547,7 +667,10 @@ impl Game<'_> {
         });
         let difficulty = (loaded && inside).then(|| {
             let at = [f64::from(x), f64::from(y), f64::from(z)];
-            overlay::local_difficulty_line(self.local_difficulty(at).effective)
+            overlay::local_difficulty_line(
+                self.local_difficulty(at).effective,
+                self.world.day_time.div_euclid(24000),
+            )
         });
         let spawn_counts = self
             .spawn_counts

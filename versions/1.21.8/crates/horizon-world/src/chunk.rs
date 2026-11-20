@@ -764,7 +764,7 @@ mod tests {
 
     /// `PalettedContainer.pack` re-encodes the cells into a fresh palette, so a
     /// state no cell holds any more is not written and the bit count comes from
-    /// the states that remain: `getConfigurationForPaletteSize(17)` is
+    /// the states that remain: `calculateBitsForSerialization(17)` is
     /// `SimpleBitStorage(5, 4096)` (342 longs), `(16)` is `(4, 4096)` (256).
     #[test]
     fn a_state_no_cell_holds_is_not_saved() {

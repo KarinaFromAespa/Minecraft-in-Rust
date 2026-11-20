@@ -1,7 +1,7 @@
 //! Leads on the game side: putting them on and taking them off mobs
 //! (`Entity.interact`'s leash part), fence knots (`LeadItem.useOn` and
 //! `LeashFenceKnotEntity.interact`), loading and saving who holds what,
-//! breaking, and drawing the rope (`LeashFeatureRenderer`) and the knot.
+//! breaking, and drawing the rope (`EntityRenderer.renderLeash`) and the knot.
 use super::Game;
 use horizon_client::actions::Action;
 use horizon_client::{
@@ -674,7 +674,7 @@ impl Game<'_> {
         }
         attached
     }
-    /// `LeashFeatureRenderer` for every lead and `LeashKnotRenderer` for the knots.
+    /// `EntityRenderer.renderLeash` for every lead and `LeashKnotRenderer` for the knots.
     pub(super) fn leash_geometry(&self, camera: glam::DVec3, alpha: f64, out: &mut Vec<Vertex>) {
         let atlas = &self.gui.atlas;
         let white = atlas.font.white();
@@ -806,7 +806,7 @@ impl Game<'_> {
                 let (dx_off, dz_off) = (d.z * k, d.x * k);
                 let point = |step: i32, fudge: f64| {
                     let progress = f64::from(step) / 24.0;
-                    // LeashFeatureRenderer.addVertexPair: a quad lead is straight.
+                    // EntityRenderer.addVertexPair: a quad lead is straight.
                     let y = if !slack {
                         d.y * progress
                     } else if d.y > 0.0 {

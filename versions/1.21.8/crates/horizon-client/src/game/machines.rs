@@ -390,13 +390,17 @@ impl Containers<'_> {
                 && self.get(view, slot).is_none();
         }
         if view.kind == Kind::Bookshelf {
-            // ListBackedContainer.canPlaceItem: `acceptsItemType` (the books)
-            // and a free slot, as `getMaxStackSize` is 1.
-            return self
-                .items
-                .item_tags
-                .get("minecraft:bookshelf_books")
-                .is_some_and(|m| m.contains(&*stack.item))
+            // ChiseledBookShelfBlockEntity.canPlaceItem: a book from the
+            // `bookshelf_books` tag, into an empty slot, and the stack's
+            // count must equal the shelf's max stack size, 1 (1.21.9
+            // moved this to `ListBackedContainer.canPlaceItem`, which
+            // drops the count check for an empty slot).
+            return stack.count == 1
+                && self
+                    .items
+                    .item_tags
+                    .get("minecraft:bookshelf_books")
+                    .is_some_and(|m| m.contains(&*stack.item))
                 && self.get(view, slot).is_none();
         }
         if view.kind == Kind::Brewing {

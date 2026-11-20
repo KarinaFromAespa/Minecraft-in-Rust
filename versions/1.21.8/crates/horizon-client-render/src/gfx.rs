@@ -997,9 +997,12 @@ pub struct Frame<'a> {
     pub dark_disc: bool,
     /// The hit block outline as line segments (from, to) in world space.
     pub outline: Vec<[f64; 6]>,
-    /// `BlockOutlineRenderState.isTranslucent`: draw after translucent terrain.
+    /// `LevelRenderer.renderBlockOutline` with `translucent` true: the hit
+    /// block's render type sorts on upload, so its outline draws after the
+    /// translucent terrain group.
     pub outline_after_terrain: bool,
-    /// `BlockOutlineRenderState.highContrast`: a thick black outline under a bright one.
+    /// `LevelRenderer.renderBlockOutline` with `highContrastBlockOutline` on:
+    /// a thick black outline (`secondaryBlockOutline`) under a bright one.
     pub outline_high_contrast: bool,
     /// The PvP & HUD page's outline and hit colour (`pvp::Frame`; default: vanilla's).
     pub pvp: crate::pvp::Frame,
@@ -11094,8 +11097,10 @@ impl Renderer {
                 pass.draw_indexed(0..text_quads * 6, (entity_quads * 4) as i32, 0..1);
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            // FeatureRenderDispatcher.PreparedFrame.executeTranslucent: the shadows
-            // come before the translucent items, which then cover them (#7026).
+            // `EntityRenderDispatcher.render` draws each entity's shadow right
+            // after the entity, before `LevelRenderer` flushes the translucent
+            // item sheet: the shadows come before the translucent items,
+            // which then cover them (#7026).
             if shadow_quads > 0 && !oit_on {
                 pass.set_pipeline(warped.map_or(&self.shadow_blob_pipeline, |w| &w.entity_shadows));
                 pass.set_bind_group(0, &self.entity_group, &[]);

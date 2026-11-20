@@ -1,7 +1,7 @@
 //! `ItemPickupParticle`: a taken item entity, experience orb, arrow or trident flies
 //! into whoever took it over three ticks (`ClientPacketListener.handleTakeItemEntity`
-//! adds one for every `ClientboundTakeItemEntityPacket`), drawn with the render
-//! state it had when it was taken (`extractEntity(from, 1.0F)`).
+//! adds one for every `ClientboundTakeItemEntityPacket`), drawn as the taken
+//! entity itself (an item entity is copied, `getSafeCopy`).
 use super::Game;
 use horizon_client::{
     entities::{ExperienceOrb, ItemEntity},
@@ -63,7 +63,7 @@ pub(super) struct Pickup {
     target_old: [f64; 3],
 }
 
-/// `ParticleEngine`'s ITEM_PICKUP group and the particles waiting to join it.
+/// The live item-pickup particles and the ones waiting to join them.
 #[derive(Default)]
 pub(super) struct Pickups {
     pub live: Vec<Pickup>,
@@ -81,9 +81,9 @@ impl Pickups {
     }
 }
 
-/// `ItemPickupParticleGroup.ParticleInstance.fromParticle`: the position at
-/// `partial`, from the taken entity's to the collector's (lerped between ticks)
-/// along the square of the particle's age.
+/// `ItemPickupParticle.renderCustom`: the position at `partial`, from the
+/// taken entity's to the collector's (lerped between ticks) along the
+/// square of the particle's age.
 pub(super) fn position(p: &Pickup, partial: f64) -> [f64; 3] {
     let time = (p.life as f32 + partial as f32) / LIFE_TIME as f32;
     let time = f64::from(time * time);
@@ -149,8 +149,8 @@ impl Game<'_> {
             target_old: target,
         });
     }
-    /// `ParticleEngine.tick` for the ITEM_PICKUP group: age (removed at
-    /// `LIFE_TIME`), follow the collector, then let the new particles in.
+    /// `ItemPickupParticle.tick`: age (removed at `LIFE_TIME`), follow the
+    /// collector, then let the new particles in.
     pub(super) fn tick_pickups(&mut self) {
         let mut live = std::mem::take(&mut self.pickups.live);
         live.retain_mut(|p| {

@@ -70,7 +70,7 @@ pub fn main() -> Result<()> {
                     match clicks.release(&target, button, carried_empty, false, shift, pick) {
                         Release::Click(input) => Some(input),
                         Release::QuickCraft => panic!("no drags in these cases"),
-                        Release::Nothing => None,
+                        Release::Nothing | Release::End => None,
                     }
                 };
                 if let Some(input) = click {

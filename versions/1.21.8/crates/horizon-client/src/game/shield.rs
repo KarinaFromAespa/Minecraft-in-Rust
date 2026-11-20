@@ -141,9 +141,11 @@ impl Game<'_> {
             let pitch = 0.8 + self.world.random.next_float() * 0.4;
             self.audio.play(sound, at, 1.0, pitch);
         }
-        if outcome.blocked <= 0.0 {
-            return;
-        }
+        // No early return on a zero block: 1.21.8's applyItemBlocking runs
+        // hurtBlockingItem and blockUsingItem even when nothing was blocked
+        // (the `blocked > 0` gate came in 1.21.9). The damage function below
+        // answers 0 for a zero block under its threshold, and
+        // blocked_by_attacker still knocks back and disables.
         // ItemDamageFunction.apply, then hurtAndBreak.
         let (threshold, base, factor) = component.item_damage;
         let item_damage = if outcome.blocked < threshold {

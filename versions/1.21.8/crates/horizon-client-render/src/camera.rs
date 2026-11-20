@@ -25,7 +25,8 @@
 //! The camera (`Camera.tick`, `tickFov`, `calculateFov`, `alignWithEntity`,
 //! `getMaxZoom`, `setRotation`, `move`), view and hurt bobbing
 //! (`GameRenderer.bobView`, `bobHurt`), the walk and bob history they read
-//! (`ClientAvatarState`), and `AbstractClientPlayer.getFieldOfViewModifier`.
+//! (the walk/bob/cloak fields `Player` keeps), and
+//! `AbstractClientPlayer.getFieldOfViewModifier`.
 //!
 //! The float arithmetic follows vanilla and JOML's default (non-FMA,
 //! non-fast-math) code paths operation by operation.
@@ -943,7 +944,8 @@ pub fn modify_fov_based_on_death_or_fluid(
     fov
 }
 
-/// `ClientAvatarState`: the walked distance, view bob and cloak of a player.
+/// The walked distance, view bob and cloak of a player (`Player`'s fields,
+/// ticked from `AbstractClientPlayer.tick`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct AvatarBob {
     pub walk_dist: f32,
@@ -955,9 +957,11 @@ pub struct AvatarBob {
     pub cloak_o: [f64; 3],
 }
 impl AvatarBob {
-    /// `ClientAvatarState.tick` (at the start of `AbstractClientPlayer.tick`)
-    /// with the player's position then: `moveCloak` eases the cloak a quarter
-    /// of the way there, or puts it there from 10 blocks away.
+    /// `Player.moveCloak` (from `Player.tick`, at the start of
+    /// `AbstractClientPlayer.tick`) with the player's position then: the cloak
+    /// snaps to the player from 10 blocks away, and ALWAYS eases a quarter of
+    /// the way there besides — after a snap the ease overshoots past the
+    /// player and decays back over the next ticks.
     pub fn tick(&mut self, position: [f64; 3]) {
         self.walk_dist_o = self.walk_dist;
         self.cloak_o = self.cloak;
@@ -966,12 +970,11 @@ impl AvatarBob {
             if d > 10.0 || d < -10.0 {
                 self.cloak[i] = position[i];
                 self.cloak_o[i] = position[i];
-            } else {
-                self.cloak[i] += d * 0.25;
             }
+            self.cloak[i] += d * 0.25;
         }
     }
-    /// `AvatarRenderer.extractCapeState`: the cape's `capeFlap`, `capeLean`
+    /// `PlayerRenderer.extractCapeState`: the cape's `capeFlap`, `capeLean`
     /// and `capeLean2` (degrees) for the player at `position` (interpolated)
     /// with its body turned `body_yaw` and its `fallFlyingScale`.
     pub fn cape(
@@ -995,15 +998,18 @@ impl AvatarBob {
         flap += trig::sin(f64::from(walk * 6.0)) * 32.0 * bob;
         [flap, lean, lean2]
     }
-    /// `LocalPlayer.move`: `addWalkedDistance(Mth.length(dx, dz) * 0.6F)`
+    /// `LocalPlayer.move`: `walkDist += Mth.length(dx, dz) * 0.6F`
     /// with the float horizontal displacement.
     pub fn add_walked(&mut self, dx: f32, dz: f32) {
         self.walk_dist += (dx * dx + dz * dz).sqrt() * 0.6;
     }
-    /// `AbstractClientPlayer.updateBob`: toward the horizontal speed (at most
-    /// 0.1) on the ground, toward 0 otherwise.
-    pub fn update_bob(&mut self, on_ground_alive_not_swimming: bool, velocity: [f64; 3]) {
-        let target = if on_ground_alive_not_swimming {
+    /// `Player.aiStep`: toward the horizontal speed (at most
+    /// 0.1) on the ground, toward 0 otherwise. The caller decides the
+    /// condition: `Player.aiStep` (the local player) passes ground, alive
+    /// and not swimming; `RemotePlayer.aiStep` passes ground and alive
+    /// only — its inline bob has no swimming check.
+    pub fn update_bob(&mut self, on_ground_alive: bool, velocity: [f64; 3]) {
+        let target = if on_ground_alive {
             java_min(
                 0.1,
                 (velocity[0] * velocity[0] + velocity[2] * velocity[2]).sqrt() as f32,
@@ -1014,7 +1020,7 @@ impl AvatarBob {
         self.bob_o = self.bob;
         self.bob += (target - self.bob) * 0.4;
     }
-    /// `ClientAvatarState.resetBob` (`AbstractClientPlayer.rideTick`).
+    /// `Player.rideTick`: the bob resets to 0 while riding.
     pub fn reset_bob(&mut self) {
         self.bob_o = self.bob;
         self.bob = 0.0;
@@ -1028,7 +1034,7 @@ impl AvatarBob {
     }
 }
 
-/// The parts of `CameraRenderState.entityRenderState` the bobbing reads.
+/// What `GameRenderer.bobHurt`/`bobView` read off the camera entity.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BobState {
     /// A living camera entity: `hurtTime - partial`, `hurtDuration`,
@@ -1137,13 +1143,15 @@ mod tests {
         let half_width = half_height * 1600.0 / 900.0;
         assert!((max[0] - half_width).abs() < 1e-3 && (min[0] + half_width).abs() < 1e-3);
     }
-    /// `moveCloak` trails a quarter of the way, jumps from 10 blocks away; the
-    /// cape leans back as the player walks forward (south, body yaw 0).
+    /// `moveCloak` trails a quarter of the way, and the cape leans back as the
+    /// player walks forward (south, body yaw 0).
     #[test]
     fn the_cloak_trails_the_player() {
-        let mut a = super::AvatarBob::default();
-        a.tick([0.0, 64.0, 0.0]);
-        assert_eq!((a.cloak, a.cloak_o), ([0.0, 64.0, 0.0], [0.0, 64.0, 0.0]));
+        let mut a = super::AvatarBob {
+            cloak: [0.0, 64.0, 0.0],
+            cloak_o: [0.0, 64.0, 0.0],
+            ..Default::default()
+        };
         a.tick([0.0, 64.0, 1.0]);
         assert_eq!(a.cloak, [0.0, 64.0, 0.25]);
         let [flap, lean, lean2] = a.cape(1.0, [0.0, 64.0, 1.0], 0.0, 0.0);
@@ -1152,6 +1160,29 @@ mod tests {
         assert_eq!(a.cape(1.0, [0.0, 60.0, 0.25], 0.0, 0.0)[0], 32.0);
         // Gliding takes the lean away.
         assert_eq!(a.cape(1.0, [0.0, 64.0, 1.0], 0.0, 1.0)[1], 0.0);
+    }
+    /// `Player.moveCloak`: a jump past 10 blocks snaps the cloak to the player
+    /// and STILL eases a quarter of the jump, overshooting past the player and
+    /// decaying back — the cape pins at full flap for the ticks after a
+    /// teleport, and a fresh cloak starts at the origin, so the first tick at
+    /// spawn snaps the whole drop and eases a quarter of it past the player.
+    #[test]
+    fn a_teleport_overshoots_the_cloak() {
+        let mut a = super::AvatarBob {
+            cloak: [0.0, 64.0, 0.0],
+            cloak_o: [0.0, 64.0, 0.0],
+            ..Default::default()
+        };
+        a.tick([0.0, 64.0, 20.0]);
+        assert_eq!((a.cloak, a.cloak_o), ([0.0, 64.0, 25.0], [0.0, 64.0, 20.0]));
+        // The overshoot decays a quarter of the way back each tick.
+        a.tick([0.0, 64.0, 20.0]);
+        assert_eq!(a.cloak, [0.0, 64.0, 23.75]);
+        a.tick([0.0, 64.0, 20.0]);
+        assert_eq!(a.cloak, [0.0, 64.0, 22.8125]);
+        let mut b = super::AvatarBob::default();
+        b.tick([0.0, 64.0, 0.0]);
+        assert_eq!((b.cloak, b.cloak_o), ([0.0, 80.0, 0.0], [0.0, 64.0, 0.0]));
     }
 
     #[test]

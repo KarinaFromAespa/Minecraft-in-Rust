@@ -15,14 +15,11 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.TextAlignment;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.WidgetTooltipHolder;
 import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.locale.Language;
 import net.minecraft.network.chat.Component;
@@ -46,15 +43,22 @@ import org.joml.Matrix3x2fStack;
  * Original oracle for the resource pack screen's drawing: a real
  * PackSelectionScreen over a PackRepository of the case's packs (titles,
  * descriptions, sources, compatibility, required, positions, icons), driven
- * by the case's clicks, typing in the search box and mouse wheel, with the
+ * by the case's clicks and mouse wheel, with the
  * ConfirmScreen an incompatible pack opens (a stand-in Gui switches screens
  * as Gui.setScreen does: the old screen loses focus, the new one is
  * initialised or repositioned). The screen shown at the end is drawn
- * (Screen.extractRenderState: its widgets, then the tooltip) and every
+ * (Screen.render: its widgets, then the tooltip) and every
  * GuiGraphicsExtractor call is recorded. The case's language ("lang", over
  * en_us, from the prepared assets) and clock ("now", Util.getMillis) are set
  * first: a button label wider than its button scrolls with the clock
  * (ActiveTextCollector.defaultScrollingHelper), drawn with a scissor of its own.
+ *
+ * NOTE (1.21.8): GuiGraphicsExtractor, ActiveTextCollector and TextAlignment
+ * do not exist in 1.21.8 — the Capture class below still targets 1.21.9's
+ * render-state extraction, as do the Loom, RecipeBook and Hud oracles. The
+ * harness cannot run against the 1.21.8 jar until that family is ported to
+ * 1.21.8's GuiGraphics. The search box, MouseButtonEvent input and blink
+ * handling were removed here (1.21.9-only), so only the Capture port remains.
  *
  * Input lines: case JSON. Output lines: {screen, draws} or {error}.
  */
@@ -357,25 +361,21 @@ public final class VanillaPackScreenOracle {
                 ? ResourceLocation.withDefaultNamespace("pack/" + Util.sanitizeName(id, ResourceLocation::validPathChar) + "/" + com.google.common.hash.Hashing.sha1().hashUnencodedChars(id) + "/icon")
                 : ResourceLocation.withDefaultNamespace("textures/misc/unknown_pack.png"));
         }
-        var search = (EditBox) field(PackSelectionScreen.class, "search").get(screen);
-        var info = new MouseButtonInfo(1, 0);
         for (var a : c.getAsJsonArray("actions")) {
             var o = a.getAsJsonObject();
             Screen s = gui.current;
             switch (o.get("type").getAsString()) {
                 case "click" -> {
-                    var event = new MouseButtonEvent(o.get("x").getAsDouble(), o.get("y").getAsDouble(), info);
+                    double x = o.get("x").getAsDouble(), y = o.get("y").getAsDouble();
                     // Never press Open Pack Folder: it opens a file manager.
-                    if (s.getChildAt(event.x(), event.y()).orElse(null) instanceof net.minecraft.client.gui.components.Button b
+                    if (s.getChildAt(x, y).orElse(null) instanceof net.minecraft.client.gui.components.Button b
                         && b.getMessage().getString().equals(Component.translatable("pack.openFolder").getString())) {
                         throw new IllegalArgumentException("click on Open Pack Folder");
                     }
-                    s.mouseClicked(event, false);
-                    if (gui.current == s) s.mouseReleased(event);
+                    s.mouseClicked(x, y, 0);
+                    if (gui.current == s) s.mouseReleased(x, y, 0);
                 }
                 case "scroll" -> s.mouseScrolled(o.get("x").getAsDouble(), o.get("y").getAsDouble(), 0.0, o.get("amount").getAsDouble());
-                case "type" -> { if (s == screen && screen.getFocused() == search) search.insertText(o.get("text").getAsString()); }
-                case "erase" -> { if (s == screen && screen.getFocused() == search) search.deleteChars(-o.get("count").getAsInt()); }
                 default -> throw new IllegalArgumentException(o.toString());
             }
         }
@@ -387,7 +387,6 @@ public final class VanillaPackScreenOracle {
                 put(holder, WidgetTooltipHolder.class, "displayStartTime", Util.getMillis() - 1000L);
             }
         }
-        if (shown == screen) put(search, EditBox.class, "focusedTime", Util.getMillis() - c.get("blink").getAsLong());
         var g = alloc(Capture.class);
         g.draws = new JsonArray();
         g.stack = new Matrix3x2fStack(16);

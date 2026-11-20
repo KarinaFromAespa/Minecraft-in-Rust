@@ -111,7 +111,11 @@ pub const RULES: &[Rule] = &[
     b("send_command_feedback", "chat", true),
     b("show_advancement_messages", "chat", true),
     b("show_death_messages", "chat", true),
-    b("spawner_blocks_work", "misc", true),
+    // `GameRules.RULE_SPAWN_CHUNK_RADIUS`, 1.21.8 only (1.21.9 removed
+    // it): the spawn-chunk radius, 2 by default. Its callback re-sets
+    // the default spawn pos to re-ticket the spawn chunks; this tree
+    // has no spawn-chunk ticketing, so the value has no reader yet.
+    i("spawn_chunk_radius", "misc", 2, 0, 32),
     b("spawn_mobs", "spawning", true),
     b("spawn_monsters", "spawning", true),
     b("spawn_patrols", "spawning", true),

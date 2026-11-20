@@ -1569,8 +1569,10 @@ impl Streaming {
         }
         (self.non_air_sections)(self.protos.get(&(x, z))?.as_ref()?)
     }
-    /// `ChunkMap.getLatestStatus` for the loading screen's chunk map: the
-    /// furthest step this column has reached, `None` before it is asked for.
+    /// `ChunkHolder.getLatestStatus` (via `getVisibleChunkIfPresent`) for the
+    /// loading screen's chunk map: the furthest step this column has
+    /// reached, `None` before it is asked for. (1.21.9 added a
+    /// `ChunkMap.getLatestStatus` shortcut for it.)
     pub fn latest_status(
         &self,
         world: &World,

@@ -296,20 +296,16 @@ impl SkullSkin {
             let location = crate::skins::skin_location(&crate::skins::texture_hash(&url)?);
             Some((url, location))
         });
-        // A `Dynamic` profile (a name or id only) resolves through the
+        // An unresolved profile (a name or id only) resolves through the
         // services when the skull is drawn.
         let dynamic = crate::skins::dynamic_nbt(profile);
-        // DefaultPlayerSkin.get(id), or getDefaultSkin (slim steve) without an id.
-        let fallback = crate::skins::profile_uuid_nbt(profile)
-            .or_else(|| {
-                crate::skins::nbt_text(profile.get("name"))
-                    .map(|name| horizon_protocol::crypto::offline_uuid(&name))
-            })
-            .map_or("entity/player/slim/steve", crate::tab_list::default_skin);
+        // `DefaultPlayerSkin.get(gameProfile)`: the id, or nil when the
+        // profile has none — a name-only head falls back to slim alex.
+        let fallback =
+            crate::tab_list::default_skin(crate::skins::profile_uuid_nbt(profile).unwrap_or(0));
         Self {
             download,
             dynamic,
-            texture: crate::skins::profile_texture_nbt(profile),
             fallback,
         }
     }
@@ -736,7 +732,8 @@ pub use crate::providers::Providers;
 
 /// A `ChestBlock`, which `ChestBlock.combine` can join into a double chest:
 /// chests, trapped chests and copper chests in every weathering state, waxed
-/// or not (`CopperChestBlock` extends `ChestBlock`). Ender chests are
+/// or not (`CopperChestBlock` extends `ChestBlock` in 1.21.9; no such block
+/// in 1.21.8, so the arm is dead by data here). Ender chests are
 /// `EnderChestBlock`s and always single.
 pub fn is_chest_block(name: &str) -> bool {
     matches!(name, "minecraft:chest" | "minecraft:trapped_chest") || name.ends_with("copper_chest")

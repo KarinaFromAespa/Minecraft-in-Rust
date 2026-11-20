@@ -335,7 +335,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             history.add(MovementRecord {
                 from: Vec3::new(i as f64, 0.0, 0.0),
                 to: Vec3::new((i + 1) as f64, 0.0, 0.0),
-                original: Some(Vec3::new(1.0, 0.0, 0.0)),
+                axis_independent: true,
             });
         }
         let mut w = World {
@@ -389,12 +389,9 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         for r in w.history.records() {
             writeln!(w.out, "{}", vec("from", r.from))?;
             writeln!(w.out, "{}", vec("to", r.to))?;
-            writeln!(
-                w.out,
-                "{}",
-                r.original
-                    .map_or_else(|| "original none".to_string(), |v| vec("original", v))
-            )?;
+            // 1.21.8's `Entity.Movement` carries the `axisIndependant`
+            // boolean, not 1.21.9's pre-collision movement vector.
+            writeln!(w.out, "axis_independent {}", r.axis_independent)?;
         }
         writeln!(w.out, "queries {}", w.calls)?;
     }

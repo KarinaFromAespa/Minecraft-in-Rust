@@ -99,6 +99,11 @@ impl Game<'_> {
             return;
         }
         t.spawn_delay = SPAWN_DELAY;
+        // 1.21.8 rolls the spawn chance only with doMobSpawning on; the
+        // delay above still counts down without it.
+        if !self.ui.rules.bool("spawn_mobs") {
+            return;
+        }
         let chance = t.chance;
         t.chance = (chance + 25).clamp(MIN_CHANCE, MAX_CHANCE);
         if self.world.random.next_int_bound(100).unwrap_or(100) <= chance && self.spawn_trader() {

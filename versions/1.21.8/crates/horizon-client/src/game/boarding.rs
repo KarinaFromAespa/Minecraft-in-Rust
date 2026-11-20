@@ -32,7 +32,7 @@ impl Game<'_> {
         self.note_started_riding(vehicle);
     }
 
-    /// A rider link changed on `vehicle` (`sendEventAndTriggers`). Every
+    /// A rider link changed on `vehicle` (`Entity.startRiding`): every
     /// player aboard hears the trigger; a host's turn can fire it now, while
     /// a guest's turn (the hub held by its action) leaves it for
     /// [`Self::flush_started_riding`] once every player is back in place.

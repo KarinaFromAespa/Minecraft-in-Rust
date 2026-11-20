@@ -340,7 +340,8 @@ pub struct ArrowScene<'a, 'r> {
     pub tnt_explodes: bool,
     pub owners: &'a dyn OwnerLookup,
 }
-/// `EntityReference.getEntity` for an owner the arrow only knows by UUID.
+/// `EntityReference.get` for an owner the arrow only knows by UUID (this
+/// level only in 1.21.8; 1.21.9's `getEntity` looks through every level).
 pub trait OwnerLookup {
     /// A loaded entity other than a player has this UUID.
     fn non_player_entity(&self, uuid: [i32; 4]) -> bool;
@@ -810,7 +811,6 @@ impl Ticker<'_, '_, '_, '_> {
         let x_rot = degrees(movement.y, movement.horizontal_distance());
         self.p.pitch = lerp_rotation(self.p.pitch, x_rot);
         self.p.yaw = lerp_rotation(self.p.yaw, y_rot);
-        self.check_left_owner(targets);
         let mut hit = Hit::None;
         let end = Vec3::new(
             original.x + movement.x,
@@ -819,12 +819,25 @@ impl Ticker<'_, '_, '_, '_> {
         );
         if physics && impact {
             hit = self.step_move_and_hit(original, end, targets, impact);
+            // 1.21.8: `Projectile.tick` (`super.tick()`, at the end of the
+            // flight branch, after inertia and gravity) updates `leftOwner`,
+            // so the hit check above used the value from the end of the
+            // previous tick. 1.21.9 calls `checkLeftOwner()` before the hit
+            // check, from `AbstractArrow.tick` itself. The update runs here,
+            // after the move, rather than in `finish()` (which the entity-hit
+            // path skips — `finish_entity_hit` runs it later, after the
+            // deflection, where the per-tick targets are gone): it sees the
+            // pre-drag velocity and, on a deflecting hit, the pre-deflection
+            // one. Both are second-order (a 1% sweep difference; a deflect
+            // while still inside the owner's box).
+            self.check_left_owner(targets);
             if matches!(hit, Hit::Entity { .. }) {
                 return hit;
             }
         } else {
             self.p.position = end;
             self.apply_effects_from_blocks(original, end);
+            self.check_left_owner(targets);
             if physics {
                 self.st.canceled_impact_inside = true;
             }
@@ -1234,13 +1247,11 @@ impl ArrowScene<'_, '_> {
         let previous_fire = fire_ticks;
         let mut visited = HashSet::new();
         let mut effects = Collector::default();
-        let used = self.check_inside_blocks(from, to, &mut visited, &mut effects, 16, &mut visit);
-        if 16 - used <= 0 {
-            self.check_inside_blocks(to, to, &mut visited, &mut effects, 1, &mut visit);
-        }
+        // 1.21.8 has no block cap on the sweep and no fallback
+        // point-check; both came in 1.21.9.
+        self.check_inside_blocks(from, to, &mut visited, &mut effects, &mut visit);
         for effect in effects.finish() {
             match effect {
-                Effect::ClearFreeze => {}
                 Effect::FireIgnite => {
                     // BaseFireBlock.fireIgnite for a non-player entity.
                     if fire_ticks < 0 {
@@ -1272,9 +1283,8 @@ impl ArrowScene<'_, '_> {
         to: Vec3,
         visited: &mut HashSet<BlockPos>,
         effects: &mut Collector,
-        max_iterations: i32,
         visit: &mut impl FnMut(BlockStateId, BlockPos, bool),
-    ) -> i32 {
+    ) {
         let deflated = bounds(to).deflate(Vec3::new(
             f64::from(1.0e-5f32),
             f64::from(1.0e-5f32),
@@ -1282,12 +1292,7 @@ impl ArrowScene<'_, '_> {
         ));
         let far = from.distance_squared(to) > 0.999_990_000_000_252_6f64 * 0.999_990_000_000_252_6;
         let mut hits = Vec::new();
-        let mut iterations = 0;
         let _ = sweep_intersected_blocks(from, to, deflated, 1_000_000, |p, iteration| {
-            if iteration >= max_iterations {
-                return false;
-            }
-            iterations = iteration;
             hits.push((p, iteration));
             true
         });
@@ -1313,7 +1318,6 @@ impl ArrowScene<'_, '_> {
             visit(state, p, precise);
             if matches!(name, "minecraft:fire" | "minecraft:soul_fire") {
                 // BaseFireBlock.entityInside (its inFire hurt does nothing to arrows).
-                effects.apply(Effect::ClearFreeze);
                 effects.apply(Effect::FireIgnite);
             }
             if inside_fluid {
@@ -1323,14 +1327,12 @@ impl ArrowScene<'_, '_> {
                     FluidTemplate::Water => effects.apply(Effect::Extinguish),
                     // LavaFluid.entityInside (lavaHurt does nothing to arrows).
                     FluidTemplate::Lava => {
-                        effects.apply(Effect::ClearFreeze);
                         effects.apply(Effect::LavaIgnite);
                     }
                     FluidTemplate::Empty => {}
                 }
             }
         }
-        iterations + 1
     }
     /// `Entity.collidedWithFluid`: the fluid's box swept from `from` to `to`.
     fn collided_with_fluid(&self, fluid: FluidState, p: BlockPos, from: Vec3, to: Vec3) -> bool {
@@ -1365,16 +1367,15 @@ impl FluidHeightWorld for &ArrowScene<'_, '_> {
     }
 }
 /// `InsideBlockEffectType`s an arrow meets, in their apply order (FREEZE
-/// needs powder snow, which an arrow's collision context passes through).
+/// needs powder snow, which an arrow's collision context passes through;
+/// CLEAR_FREEZE is 1.21.9-only).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Effect {
-    ClearFreeze,
     FireIgnite,
     LavaIgnite,
     Extinguish,
 }
-const EFFECT_ORDER: [Effect; 4] = [
-    Effect::ClearFreeze,
+const EFFECT_ORDER: [Effect; 3] = [
     Effect::FireIgnite,
     Effect::LavaIgnite,
     Effect::Extinguish,
@@ -1383,14 +1384,14 @@ const EFFECT_ORDER: [Effect; 4] = [
 /// in type order, steps in the order they were reached.
 struct Collector {
     last_step: i32,
-    step: [bool; 4],
+    step: [bool; 3],
     effects: Vec<Effect>,
 }
 impl Default for Collector {
     fn default() -> Self {
         Self {
             last_step: -1,
-            step: [false; 4],
+            step: [false; 3],
             effects: Vec::new(),
         }
     }

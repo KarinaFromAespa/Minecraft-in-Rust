@@ -1175,9 +1175,9 @@ impl MeshTables {
     }
     /// `ModelBlockRenderer.tesselateFlat`'s light coords (`LightCoordsUtil`
     /// packing, the quad's own emission included) for `quad` of `state`
-    /// drawn as the only block at `pos`, as `MovingBlockRenderState` gives
-    /// it: `light` is the world's stored light (sky << 4 | block) at a
-    /// position. For block models drawn outside the chunk mesh.
+    /// drawn as the only block at `pos`, as `PistonHeadRenderer` gives
+    /// the moved block: `light` is the world's stored light (sky << 4 |
+    /// block) at a position. For block models drawn outside the chunk mesh.
     pub fn flat_light(
         &self,
         state: BlockStateId,

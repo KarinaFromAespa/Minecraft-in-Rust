@@ -156,6 +156,17 @@ impl Levels {
     ) -> Option<&horizon_client::worldborder::WorldBorder> {
         self.parked.get(&dim).map(|level| &level.border)
     }
+    /// Replace a parked level's world border: the Overworld border's
+    /// listener mirroring its edits into the other levels.
+    pub(super) fn set_parked_border(
+        &mut self,
+        dim: Dim,
+        border: horizon_client::worldborder::WorldBorder,
+    ) {
+        if let Some(level) = self.parked.get_mut(&dim) {
+            level.border = border;
+        }
+    }
 
     /// The worlds of the levels not in place.
     pub(super) fn parked_worlds(&self) -> impl Iterator<Item = &World> {
@@ -298,14 +309,14 @@ impl Game<'_> {
             creaking: Default::default(),
             spawn_scratch: Default::default(),
             idle: 0,
-            border: self.load_border(dim),
+            border: self.load_border(dim, self.overworld_border()),
             border_sent: None,
         })
     }
 
     /// `MinecraftServer.prepareLevels` activates every level's saved tickets:
     /// a level holding saved `PORTAL` tickets opens with the world and ticks
-    /// while they hold it (`shouldKeepDimensionActive`).
+    /// while they hold it (their chunks stay ticketed).
     pub(super) fn open_saved_portal_levels(&mut self) -> Result<()> {
         if self.options.execution_role.is_client() {
             return Ok(());
@@ -329,10 +340,12 @@ impl Game<'_> {
 
     /// `MinecraftServer.prepareLevels`: before the first tick, the chunks the
     /// open levels' restored tickets hold (forced chunks, a native mod's) are
-    /// loaded (`ChunkLoadCounter`). The first tick then finds them ticking
-    /// and unpacks their saved block and fluid ticks at the game time they
-    /// were saved at (`startTickingChunk`), not at whichever tick they finish
-    /// streaming in.
+    /// loaded — 1.21.8 waits on the spawn region and activates the saved
+    /// tickets (`activateAllDeactivatedTickets`); this tree models no spawn
+    /// ticket, so it waits on the restored tickets instead. The first tick
+    /// then finds them ticking and unpacks their saved block and fluid ticks
+    /// at the game time they were saved at (`startTickingChunk`), not at
+    /// whichever tick they finish streaming in.
     pub(super) fn prepare_levels(&mut self) -> Result<()> {
         if self.options.execution_role.is_client() {
             return Ok(());
@@ -838,8 +851,8 @@ impl Game<'_> {
                     // A pending portal arrival keeps its destination level
                     // running so it can land and tick (the portal ticket).
                     || !self.arrival_chunks(*d).is_empty()
-                    // A portal ticket keeps its dimension active
-                    // (`TicketType.shouldKeepDimensionActive`).
+                    // A portal ticket keeps its dimension's level open
+                    // (its chunks stay ticketed).
                     || !self.portal_tickets_in(*d).is_empty()
             })
             .collect();
@@ -993,7 +1006,8 @@ mod tests {
         assert!(levels.parked.is_empty());
     }
 
-    /// `ServerLevel.getWorldBorder`: `/worldborder` in one level leaves the others' alone.
+    /// `ServerLevel.getWorldBorder`: `/worldborder` in one level leaves the others' alone
+    /// in memory (the delegates don't propagate back). Only the Overworld's is saved.
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
     fn each_level_keeps_its_own_world_border() {
@@ -1091,10 +1105,12 @@ mod tests {
         game
     }
 
-    /// Expected values from the official 26.3 dedicated server restarted on the
-    /// same world: each level's `world_border` SavedData is read when the level
-    /// is made, so the Overworld's saved border is in place for the first
-    /// command, and a first `/worldborder set` is not overwritten later.
+    /// Expected values from the official 1.21.8 dedicated server restarted on the
+    /// same world: only the Overworld's border is saved (in level.dat), so the
+    /// Overworld's saved border is in place for the first command, a Nether-only
+    /// size does not survive the reopen, and a first `/worldborder set` is not
+    /// overwritten later. The Nether's centre is the Overworld's divided by its
+    /// coordinate scale (8).
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and a scratch HORIZON_HOME"]
     fn a_reopened_world_has_each_levels_saved_border_from_the_start() {
@@ -1106,6 +1122,7 @@ mod tests {
             // A server ticks before it saves.
             game.tick_world(true).unwrap();
             assert!(game.run_command("worldborder set 50"));
+            assert!(game.run_command("worldborder center 800 800"));
             assert!(game.run_command("execute in minecraft:the_nether run worldborder set 100"));
             game.save_game().unwrap();
         }
@@ -1113,6 +1130,12 @@ mod tests {
         let mut failures = Vec::new();
         if game.border.size() != 50.0 {
             failures.push(format!("in place after the open: {}", game.border.size()));
+        }
+        if game.border.center() != [800.0, 800.0] {
+            failures.push(format!(
+                "centre in place after the open: {:?}",
+                game.border.center()
+            ));
         }
         assert!(game.run_command("worldborder set 70"));
         game.tick_world(true).unwrap();
@@ -1124,14 +1147,26 @@ mod tests {
             game.levels.parked_border(Dim::Nether).map(|b| b.size()),
             game.levels.parked_border(Dim::End).map(|b| b.size()),
         );
-        if sizes != (70.0, Some(100.0), Some(59_999_968.0)) {
+        // The Nether's 100 did not survive the reopen: the Nether and the
+        // End re-derive their borders from the Overworld's (70 after the
+        // set).
+        if sizes != (70.0, Some(70.0), Some(70.0)) {
             failures.push(format!("after the first set and a tick: {sizes:?}"));
+        }
+        let nether_centre = game
+            .levels
+            .parked_border(Dim::Nether)
+            .map(|b| b.center());
+        if nether_centre != Some([100.0, 100.0]) {
+            failures.push(format!("nether centre after the reopen: {nether_centre:?}"));
         }
         assert!(failures.is_empty(), "reopened borders: {failures:#?}");
     }
 
     /// Added controls (H260, after the baseline): a new world, and a read and a
     /// set before the first tick that survive a tick, a save and another reopen.
+    /// A Nether-only size does not survive a reopen: the Nether re-derives its
+    /// border from the Overworld's saved one.
     #[test]
     #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES and a scratch HORIZON_HOME"]
     fn reopened_borders_keep_through_a_tick_and_a_save_and_a_new_world_has_defaults() {
@@ -1182,7 +1217,9 @@ mod tests {
             }
             game.tick_world(true).unwrap();
             let got = sizes(&mut game);
-            if got != (Some(70.0), Some(100.0), Some(DEFAULT)) {
+            // The Nether's 100 did not survive the reopen: it re-derives
+            // from the Overworld's 70, as the End does.
+            if got != (Some(70.0), Some(70.0), Some(70.0)) {
                 failures.push(format!("after a tick: {got:?}"));
             }
             game.save_game().unwrap();
@@ -1190,7 +1227,7 @@ mod tests {
         {
             let mut game = open_game(&root, &home, &world);
             let got = sizes(&mut game);
-            if got != (Some(70.0), Some(100.0), Some(DEFAULT)) {
+            if got != (Some(70.0), Some(70.0), Some(70.0)) {
                 failures.push(format!("after the save and another reopen: {got:?}"));
             }
         }

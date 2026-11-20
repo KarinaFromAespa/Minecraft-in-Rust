@@ -368,7 +368,10 @@ pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
 fn slot_update(slot: &RealmSlot) -> serde_json::Value {
     serde_json::json!({
         "slotId": slot.slot_id,
+        "pvp": slot.options.pvp,
+        "spawnMonsters": slot.options.spawn_monsters,
         "spawnProtection": slot.options.spawn_protection,
+        "commandBlocks": slot.options.command_blocks,
         "forceGameMode": slot.options.force_game_mode,
         "difficulty": slot.options.difficulty,
         "gameMode": slot.options.game_mode,
@@ -518,7 +521,13 @@ impl InviteCode {
 #[serde(rename_all = "camelCase", default)]
 pub struct RealmWorldOptions {
     #[serde(deserialize_with = "nullable")]
+    pub pvp: bool,
+    #[serde(deserialize_with = "nullable")]
+    pub spawn_monsters: bool,
+    #[serde(deserialize_with = "nullable")]
     pub spawn_protection: i32,
+    #[serde(deserialize_with = "nullable")]
+    pub command_blocks: bool,
     #[serde(deserialize_with = "nullable")]
     pub force_game_mode: bool,
     #[serde(deserialize_with = "nullable")]
@@ -543,7 +552,10 @@ impl Default for RealmWorldOptions {
     /// `new RealmsWorldOptions()`: normal difficulty, no template.
     fn default() -> Self {
         Self {
+            pvp: false,
+            spawn_monsters: false,
             spawn_protection: 0,
+            command_blocks: false,
             force_game_mode: false,
             difficulty: 2,
             game_mode: 0,

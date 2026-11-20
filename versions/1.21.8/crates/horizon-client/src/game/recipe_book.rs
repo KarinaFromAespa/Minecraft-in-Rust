@@ -73,8 +73,6 @@ pub(super) struct RecipeUi {
     ghost: Vec<Ghost>,
     last_placed: Option<String>,
     overlay: Option<Overlay>,
-    /// A press landed in the search box, so a drag selects text in it.
-    search_drag: bool,
     view: View,
     view_key: u64,
     /// Squeeze animations of new recipes: ticks left per button index and tab.
@@ -762,7 +760,6 @@ impl Game<'_> {
             // left edge plus eight to the search box's own left edge.
             let magnifier = inside(cursor, xo + 8.0, yo + 13.0, search.x - xo, 14.0);
             if magnifier || inside(cursor, search.x, search.y, search.width, search.height) {
-                self.recipe_ui.search_drag = true;
                 search.focused = true;
                 search.reset_blink();
                 if !magnifier {
@@ -808,9 +805,10 @@ impl Game<'_> {
             .and_then(|b| b.entries.get(entry))
             .map(|e| e.display_id);
     }
-    /// `RecipeBookComponent.keyPressed`: Enter or Space (`isSelection`) places
-    /// the recipe clicked last again, key repeats included, as many as fit
-    /// with Shift. The focused search box takes the key first.
+    /// `RecipeBookComponent.keyPressed`: Enter or Space
+    /// (`CommonInputs.selected`: 257, 32, 335) places the recipe clicked
+    /// last again, key repeats included, as many as fit with Shift. The
+    /// focused search box takes the key first.
     pub(super) fn recipe_book_key(&mut self, key: winit::keyboard::KeyCode) -> bool {
         use winit::keyboard::KeyCode;
         if !matches!(key, KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space) {
@@ -839,23 +837,6 @@ impl Game<'_> {
             .play("minecraft:ui.button.click", None, 0.25, 1.0);
         let shift = self.shift_down();
         self.try_place(entry, shift)
-    }
-    /// `RecipeBookComponent.mouseDragged`: while the search box is focused a
-    /// drag moves its selection end to the pointer (`EditBox.onDrag`).
-    pub(super) fn recipe_book_drag(&mut self) {
-        if !self.recipe_ui.search_drag || !self.active_book().is_some_and(|b| self.book_open(b)) {
-            return;
-        }
-        let x = self.cursor.0;
-        if let Some(search) = self.recipe_ui.search.as_mut()
-            && search.focused
-        {
-            search.drag_to(&self.gui.atlas, x);
-        }
-    }
-    /// A mouse button let go: a drag no longer selects in the search box.
-    pub(super) fn recipe_book_release(&mut self) {
-        self.recipe_ui.search_drag = false;
     }
     /// `RecipeBookComponent.sendUpdateSettings`: the server owns the saved book.
     fn send_book_settings(&self, book_type: BookType) {
@@ -1116,6 +1097,8 @@ impl Game<'_> {
         self.recipe_ui.overlay = None;
     }
     /// `RecipeBookComponent.tryPlaceRecipe`: false when the click is refused.
+    /// 1.21.8 reads the Shift state inside (`Screen.hasShiftDown()`); 1.21.9
+    /// takes it as a parameter. The Rust passes it in, read at the click.
     fn try_place(&mut self, entry_index: usize, use_max: bool) -> bool {
         let Some(book_type) = self.active_book() else {
             return false;

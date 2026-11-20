@@ -1,5 +1,5 @@
 //! Commands of the hosted game rather than the world: `/dialog`, `/kick`,
-//! `/posteffect`, `/fetchprofile`, `/spectate`, `/publish`, `/unpublish`,
+//! `/posteffect`, `/spectate`, `/publish`, `/unpublish`,
 //! `/waypoint`, `/debug`, `/jfr` and `/test`; on a dedicated server only,
 //! `/op`, `/deop`, `/ban`, `/ban-ip`, `/banlist`, `/pardon`, `/pardon-ip`,
 //! `/setidletimeout`, `/transfer` and `/whitelist`.
@@ -49,19 +49,6 @@ pub fn register(d: &mut Dispatcher, root: usize) {
     let t = d.argument(remove, "targets", PLAYERS);
     let id = d.argument(t, "posteffect", ArgType::Id("post_effects"));
     d.executes(id, "posteffect.remove");
-
-    // FetchProfileCommand
-    let fp = d.literal(root, "fetchprofile");
-    d.requires(fp, GAMEMASTERS);
-    let name = d.literal(fp, "name");
-    let n = d.argument(name, "name", ArgType::Greedy);
-    d.executes(n, "fetchprofile");
-    let id = d.literal(fp, "id");
-    let u = d.argument(id, "id", ArgType::Uuid);
-    d.executes(u, "fetchprofile");
-    let entity = d.literal(fp, "entity");
-    let e = d.argument(entity, "entity", ENTITY);
-    d.executes(e, "fetchprofile");
 
     // SpectateCommand
     let spectate = d.literal(root, "spectate");

@@ -93,7 +93,7 @@ fn thrown_player_at<'a>(
 fn thrown_margin(age: u32) -> f64 {
     ((f64::from(age) - 2.0) / 20.0).clamp(0.0, 0.3)
 }
-/// `Projectile.isOutsideOwnerCollisionRange` (`checkLeftOwner`): none of the
+/// `Projectile.checkLeftOwner` (`isOutsideOwnerCollisionRange` in 1.21.9): none of the
 /// boxes of the thrower's vehicle tree (`owner.getRootVehicle().getSelfAndPassengers()`,
 /// here `ridden`) is within a block of the potion's (0.25 wide) grown by its
 /// motion; true too when there is no thrower (`ridden` empty).
@@ -1253,7 +1253,7 @@ impl Game<'_> {
     /// thrower and who shares their vehicle), the mob that is the vehicle, and
     /// the boxes of all of them. Until the potion has left it, none can be hit
     /// (`canHitEntity`: `isPassengerOfSameVehicle`) and any one near keeps it
-    /// from leaving (`isOutsideOwnerCollisionRange`).
+    /// from leaving (`checkLeftOwner`).
     pub(super) fn thrown_ridden(
         &self,
         owner: Option<Who>,
@@ -1373,6 +1373,18 @@ impl Game<'_> {
                             );
                             t.last_deflected_by = Some(m.id);
                             deflected.push(m.id);
+                            // `Projectile.deflect` in 1.21.8 takes the
+                            // resolved owner (`getOwner()`): a thrower that
+                            // no longer resolves in this level is dropped
+                            // with the turn, name and guest with it.
+                            // (1.21.9 passes the bare `owner` reference.)
+                            if t.thrower.is_some()
+                                && self.owner_look(t.thrower, t.guest).is_none()
+                            {
+                                t.thrower = None;
+                                t.owner = None;
+                                t.guest = None;
+                            }
                         }
                         // ThrowableProjectile.tick: `setPos(hitResult.getLocation())`
                         // before the deflection, so it does not step on past the

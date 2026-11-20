@@ -346,7 +346,7 @@ impl MobWorld<'_> {
         };
         let state = self.world.block(x, y, z);
         let at = horizon_core::position::BlockPos::new(x, y, z);
-        let context = horizon_world::collision_context::CollisionContext::empty(false);
+        let context = horizon_world::collision_context::CollisionContext::empty();
         let offset = Vec3::new(f64::from(x), f64::from(y), f64::from(z));
         self.collision
             .collision_shape_with_context(&mut scene, state, at, &context)
@@ -555,8 +555,8 @@ impl Mob {
     pub fn awake_dims_in(&self, long_jumping: bool) -> (f64, f64, f64) {
         let k = &self.kind;
         // `LivingEntity.getDimensions` is `getDefaultDimensions(pose).scale(
-        // getScale())` on every living entity: the species' box (a player's or
-        // mannequin's follows its pose, Avatar.POSES) times its
+        // getScale())` on every living entity: the species' box (a player's
+        // follows its pose, Player.POSES) times its
         // `minecraft:scale` (`getScale`), width, height and eye height alike.
         let scale = self.model_scale();
         if matches!(&*k.id, "minecraft:player" | "minecraft:mannequin") {

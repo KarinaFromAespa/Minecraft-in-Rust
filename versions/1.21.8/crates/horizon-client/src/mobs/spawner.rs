@@ -242,8 +242,6 @@ pub trait SpawnerLevel: NaturalLevel {
     /// `hasNearbyAlivePlayer`: a living non-spectator closer than `range`
     /// (any distance when negative).
     fn alive_player_near(&self, x: f64, y: f64, z: f64, range: f64) -> bool;
-    /// The `spawner_blocks_work` game rule.
-    fn spawner_blocks_work(&self) -> bool;
     /// `EntityType.byString`: the entity type exists.
     fn entity_exists(&self, id: &str) -> bool;
     /// Entities of the exact class of `id` whose box meets `bounds`.
@@ -271,7 +269,7 @@ pub trait SpawnerExt: Sized {
         random: &mut impl RandomSource,
         events: &mut Vec<SpawnerEvent>,
     );
-    /// `setEntityData` (`TypedEntityData.loadInto`): an op's spawn egg with
+    /// `setEntityData` (`CustomData.loadInto`): an op's spawn egg with
     /// entity data: the next data's `id`, then `data` merged into it.
     fn set_entity_data(
         &mut self,
@@ -467,7 +465,7 @@ impl SpawnerExt for Spawner {
         spawn: &mut dyn FnMut(&L, &SpawnerSpawn) -> Option<SpawnerAdded>,
         events: &mut Vec<SpawnerEvent>,
     ) {
-        if !self.near_player(l, pos) || !l.spawner_blocks_work() {
+        if !self.near_player(l, pos) {
             return;
         }
         if self.spawn_delay == -1 {
@@ -664,7 +662,7 @@ impl SpawnerExt for Spawner {
     }
 }
 
-/// `TrialSpawnerRenderer.extractSpawnerData`: the spin in degrees and the
+/// `SpawnerRenderer.renderEntityInSpawner`: the spin in degrees and the
 /// scale of a display mob of the given size, between the last two spins.
 pub fn display_pose(o_spin: f64, spin: f64, alpha: f32, width: f32, height: f32) -> (f32, f32) {
     let spin = (o_spin + f64::from(alpha) * (spin - o_spin)) as f32 * 10.0;

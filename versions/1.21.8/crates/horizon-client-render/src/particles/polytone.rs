@@ -1866,7 +1866,7 @@ mod tests {
         engine.rects = vec![Some(rect); 13];
         engine.polytone_entity(&level, "minecraft:player", [1.0, 64.0, 1.0]);
         engine.tick(&level);
-        let p = engine.particles.last().unwrap();
+        let p = engine.particles.back().unwrap();
         // The camera 5 blocks south, at the particle's height.
         let camera = DVec3::new(p.position[0], p.position[1], p.position[2] + 5.0);
         let mut out = Vec::new();

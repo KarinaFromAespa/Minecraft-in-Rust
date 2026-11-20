@@ -542,10 +542,10 @@ impl NaturalLevel for GameLevel<'_, '_> {
         squares.near(x, z, extent, out);
     }
     fn respawn(&self) -> Option<[i32; 3]> {
-        // The world spawn point lives in the overworld.
-        if self.game.dim != Dim::Overworld {
-            return None;
-        }
+        // The world spawn point lives in the overworld, but 1.21.8's
+        // `getSharedSpawnPos` carries no dimension: the 24-block spawn
+        // protection applies in every dimension, against the overworld
+        // spawn's coordinates.
         self.game.level.spawn.map(|s| {
             [
                 s[0].floor() as i32,
@@ -618,9 +618,6 @@ impl horizon_client::mobs::spawner::SpawnerLevel for GameLevel<'_, '_> {
     /// `Level.hasNearbyAlivePlayer`, over every player.
     fn alive_player_near(&self, x: f64, y: f64, z: f64, range: f64) -> bool {
         self.players.iter().any(|p| p.alive_near(x, y, z, range))
-    }
-    fn spawner_blocks_work(&self) -> bool {
-        self.game.ui.rules.bool("spawner_blocks_work")
     }
     fn entity_exists(&self, id: &str) -> bool {
         self.game.res.mob_types().contains_key(id) || self.game.entity_type_exists(id)
@@ -812,7 +809,9 @@ impl<'a> Game<'a> {
         }
         laps.lap("sn_inhabited");
         let spawn_mobs = self.ui.rules.bool("spawn_mobs");
-        let spawn_enemies = self.ui.rules.bool("spawn_monsters");
+        // 1.21.8 has no `spawn_monsters` rule: enemies spawn whenever the
+        // difficulty is not peaceful (`NaturalSpawner.spawnForChunk`).
+        let spawn_enemies = self.ui.difficulty != 0;
         let mut random = std::mem::replace(&mut self.world.random, LegacyRandom::new(0));
         let mut pending = Vec::new();
         let last_state;

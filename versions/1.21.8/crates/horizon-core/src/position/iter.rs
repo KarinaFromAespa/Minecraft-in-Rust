@@ -1,4 +1,4 @@
-//! Inclusive block boxes in vanilla's fixed and movement-dependent visit orders.
+//! Inclusive block boxes in vanilla's fixed visit order.
 use super::BlockPos;
 use crate::geometry::{Aabb, Axis, Vec3, floor_i32};
 
@@ -27,11 +27,7 @@ pub struct BlockBoxIter {
     count: usize,
 }
 impl BlockBoxIter {
-    fn new(
-        a: BlockPos,
-        b: BlockPos,
-        direction: Option<Vec3>,
-    ) -> Result<Self, BlockIterationTooLarge> {
+    fn new(a: BlockPos, b: BlockPos) -> Result<Self, BlockIterationTooLarge> {
         let a = [a.x, a.y, a.z];
         let b = [b.x, b.y, b.z];
         let min = std::array::from_fn::<_, 3, _>(|i| a[i].min(b[i]));
@@ -43,28 +39,14 @@ impl BlockBoxIter {
                 total.checked_mul(size).filter(|v| *v <= i32::MAX as u64)
             })
             .ok_or(BlockIterationTooLarge)?;
-        let mut start = min;
-        let mut steps = [1; 3];
-        let axes = if let Some(direction) = direction {
-            for axis in Axis::ALL {
-                let i = axis as usize;
-                // NaN takes the negative direction in Java's dcmpl branch.
-                let forward = direction.component(axis) >= 0.0;
-                if !forward {
-                    start[i] = max[i];
-                    steps[i] = -1;
-                }
-            }
-            let [first, second, third] = Axis::step_order(direction);
-            [third, second, first]
-        } else {
-            [Axis::X, Axis::Y, Axis::Z]
-        };
+        // `betweenClosed` order: ascending, X innermost. 1.21.9's
+        // direction-ordered `betweenCornersInDirection` does not exist in
+        // 1.21.8 (item 178 removed it with the sweep rework).
         Ok(Self {
-            start,
-            steps,
+            start: min,
+            steps: [1; 3],
             sizes: sizes.map(|v| v as usize),
-            axes,
+            axes: [Axis::X, Axis::Y, Axis::Z],
             index: 0,
             count: count as usize,
         })
@@ -101,29 +83,12 @@ impl BlockPos {
         Self::new(floor_i32(point.x), floor_i32(point.y), floor_i32(point.z))
     }
     pub fn between_closed(a: Self, b: Self) -> Result<BlockBoxIter, BlockIterationTooLarge> {
-        BlockBoxIter::new(a, b, None)
+        BlockBoxIter::new(a, b)
     }
     pub fn between_closed_box(b: Aabb) -> Result<BlockBoxIter, BlockIterationTooLarge> {
         Self::between_closed(
             Self::containing(b.min_position()),
             Self::containing(b.max_position()),
-        )
-    }
-    pub fn between_corners_in_direction(
-        a: Self,
-        b: Self,
-        direction: Vec3,
-    ) -> Result<BlockBoxIter, BlockIterationTooLarge> {
-        BlockBoxIter::new(a, b, Some(direction))
-    }
-    pub fn between_box_corners_in_direction(
-        b: Aabb,
-        direction: Vec3,
-    ) -> Result<BlockBoxIter, BlockIterationTooLarge> {
-        Self::between_corners_in_direction(
-            Self::containing(b.min_position()),
-            Self::containing(b.max_position()),
-            direction,
         )
     }
 }
@@ -138,12 +103,6 @@ mod tests {
         assert_eq!(
             BlockPos::between_closed(b, a).unwrap().collect::<Vec<_>>(),
             vec![a, BlockPos::new(0, 0, 0), BlockPos::new(-1, 1, 0), b]
-        );
-        assert_eq!(
-            BlockPos::between_corners_in_direction(a, b, Vec3::new(-1.0, 0.0, 0.0))
-                .unwrap()
-                .collect::<Vec<_>>(),
-            vec![BlockPos::new(0, 0, 0), a, b, BlockPos::new(-1, 1, 0)]
         );
         assert_eq!(
             BlockPos::between_closed_box(Aabb::unit_cube(Vec3::ZERO))

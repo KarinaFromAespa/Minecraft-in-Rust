@@ -3,7 +3,7 @@
 use super::{
     Game,
     block_editor::{
-        Editor, Item, Outcome, Pos, cycle, footer_action, on_off, valid_character_for_name,
+        Editor, Item, Outcome, Pos, cycle, footer_action, on_off, valid_character_for_name, LABEL,
     },
 };
 use horizon_client::{
@@ -154,6 +154,7 @@ impl Editor for StructureEditor {
             x,
             y,
             right,
+            color: LABEL,
         };
         let button = |id: u8, x: f32, bw: f32, y: f32, text: Text, active: bool| Item::Button {
             id,
@@ -331,6 +332,7 @@ impl Editor for StructureEditor {
             x: mid - 153.0,
             y: 174.0,
             right: false,
+            color: LABEL,
         });
         items
     }

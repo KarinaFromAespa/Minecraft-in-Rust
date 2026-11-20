@@ -128,7 +128,6 @@ impl Game<'_> {
                 }
                 result
             }
-            Screen::DebugOptions => edit_box(&mut self.debug_options.as_mut()?.search, replacement),
             Screen::Inventory if self.mod_browser_typing() => {
                 let result = edit_box(self.panel.search.as_mut()?, replacement);
                 if replacement.is_some() {
@@ -473,7 +472,6 @@ mod tests {
                 &Measure(&font),
                 &commands,
                 "underlying",
-                false,
                 0,
                 640,
                 360,

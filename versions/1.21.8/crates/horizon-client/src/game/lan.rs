@@ -19,13 +19,11 @@ use horizon_client::{
     },
     mobs::{Mob, Species, Who, leash::Holder},
     text::Text,
-    world::World,
 };
 use horizon_protocol::{
     entity_data::{Value, serializer},
     packets::play::{self, Clientbound as C},
 };
-use horizon_world::block_collision::BlockCollisionRegistry;
 use level_event_targets::level_event_except;
 use std::{
     collections::HashMap,
@@ -1173,11 +1171,7 @@ pub const HELP: &[&str] = &[
 /// (setting a mode does nothing when it is already theirs). A world open to
 /// LAN is an integrated server, which leaves out the players who have game
 /// master permission; a dedicated server does not.
-fn enforce_guest_game_mode(
-    host: &mut LanHost,
-    world: &World,
-    collision: &BlockCollisionRegistry<'_>,
-) {
+fn enforce_guest_game_mode(host: &mut LanHost) {
     if !host.hub.config.force_game_mode {
         return;
     }
@@ -1191,7 +1185,7 @@ fn enforce_guest_game_mode(
         .map(|g| g.conn)
         .collect();
     for conn in stale {
-        host.hub.set_game_mode(conn, mode, world, Some(collision));
+        host.hub.set_game_mode(conn, mode);
     }
 }
 
@@ -1205,7 +1199,7 @@ impl Game<'_> {
             })
     }
 
-    /// MinecraftServer.setRespawnData: every placed player hears a changed world spawn.
+    /// `ServerLevel.setDefaultSpawnPos`: every placed player hears a changed world spawn.
     pub(super) fn lan_broadcast_world_spawn(&self) {
         if let Some(host) = &self.lan {
             for guest in host.hub.guests.iter().filter(|guest| guest.placed) {
@@ -1730,7 +1724,7 @@ impl Game<'_> {
             g.advancements = progress;
             g.advancements_loaded = true;
         }
-        // PlayerList.getPlayerStats: locateStatsFile moves an old name-based file first.
+        // PlayerList.getPlayerStats: it moves an old name-based file first.
         let mut stats = super::stats::Stats::read(&super::stats::locate_player_json(
             &self.world_root,
             "stats",
@@ -1790,7 +1784,7 @@ impl Game<'_> {
             host.hub.config.default_game_mode = mode;
             // `setWorldGameType` and `DefaultGameModeCommands.setMode`: a
             // world that forces its mode puts the guests online in it.
-            enforce_guest_game_mode(host, &self.world, self.collision);
+            enforce_guest_game_mode(host);
         }
     }
 
@@ -1799,56 +1793,7 @@ impl Game<'_> {
         if let Some(host) = self.lan.as_mut() {
             host.settings.force_game_mode = force;
             host.hub.config.force_game_mode = force;
-            enforce_guest_game_mode(host, &self.world, self.collision);
-        }
-    }
-
-    /// Update the live view distance used for player chunk tracking.
-    pub(super) fn set_view_distance(&mut self, distance: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.set_view_distance(distance);
-        }
-    }
-
-    /// Update the live spawn-protection radius.
-    pub(super) fn set_spawn_protection(&mut self, radius: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.spawn_protection = radius;
-        }
-    }
-
-    /// Update the live simulation distance sent to player clients.
-    pub(super) fn set_simulation_distance(&mut self, distance: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.set_simulation_distance(distance);
-        }
-    }
-
-    /// Update the live entity tracking range percentage.
-    pub(super) fn set_entity_broadcast_range_percentage(&mut self, percentage: i32) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.entity_range_percent = percentage;
-        }
-    }
-
-    /// Update the live movement check's flight policy.
-    pub(super) fn set_allow_flight(&mut self, allow: bool) {
-        if let Some(host) = self.lan.as_mut() {
-            host.hub.config.allow_flight = allow;
-        }
-    }
-
-    /// Update whether status responses include online player names.
-    pub(super) fn set_hide_online_players(&mut self, hide: bool) {
-        if let Some(host) = self.lan.as_ref() {
-            host.hub.lan.shared.set_hide_online_players(hide);
-        }
-    }
-
-    /// Update whether the server answers connection status requests.
-    pub(super) fn set_status_replies(&mut self, enable: bool) {
-        if let Some(host) = self.lan.as_ref() {
-            host.hub.lan.shared.set_enable_status(enable);
+            enforce_guest_game_mode(host);
         }
     }
 
@@ -2389,7 +2334,19 @@ impl Game<'_> {
                 tick_frozen: self.clock.frozen(),
                 tick_steps: self.clock.step_state(),
                 collision: Some(self.collision),
-                border: &self.border,
+                // PlayerList.sendLevelInfo sends the Overworld's border, not
+                // the level's: live when the Overworld is in place, its
+                // parked copy when another level is, level.dat's when the
+                // Overworld has not been opened yet (the same three arms as
+                // `overworld_border`, borrowed field by field so the
+                // `&mut self.world` above still holds).
+                border: if self.dim == super::Dim::Overworld {
+                    &self.border
+                } else {
+                    self.levels
+                        .parked_border(super::Dim::Overworld)
+                        .unwrap_or(&self.level.border)
+                },
                 streaming: Some(&self.streaming),
             };
             host.hub.movement_checks = (
@@ -2723,7 +2680,15 @@ impl Game<'_> {
                     tick_frozen: self.clock.frozen(),
                     tick_steps: self.clock.step_state(),
                     collision: Some(self.collision),
-                    border: &self.border,
+                    // PlayerList.sendLevelInfo sends the Overworld's border,
+                    // not the level's (see the tick's TickCtx above).
+                    border: if self.dim == super::Dim::Overworld {
+                        &self.border
+                    } else {
+                        self.levels
+                            .parked_border(super::Dim::Overworld)
+                            .unwrap_or(&self.level.border)
+                    },
                     streaming: Some(&self.streaming),
                 };
                 host.hub.movement_checks = (
@@ -2864,7 +2829,7 @@ impl Game<'_> {
         let Some(g) = host.hub.guest_mut(conn) else {
             return;
         };
-        // PlayerList.loadPlayerData: the owner gets the world's player file,
+        // PlayerList.load: the owner gets the world's player file,
         // everyone else their own.
         let known = match owner.filter(|o| o.uuid == g.uuid) {
             Some(o) => playerdata::load_owner(g, &root, o.saved.take().as_deref()),
@@ -2875,8 +2840,8 @@ impl Game<'_> {
         // PlayerEvent.LoadFromFile: the player's data is read and applied,
         // the player not yet placed.
         self.native_player_load_from_file(g.uuid, &g.name, &playerdata::directory(&root));
-        // PrepareSpawnTask: with no saved rotation the player faces the world
-        // spawn's angle (`/setworldspawn ... <angle>`).
+        // PlayerList.placeNewPlayer: with no saved rotation the player faces
+        // the world spawn's angle (`/setworldspawn ... <angle>`).
         playerdata::face_world_spawn(g, known, self.level.world_spawn_angle);
         if !known || force {
             g.game_mode = default_mode;
@@ -2893,13 +2858,10 @@ impl Game<'_> {
             };
             g.position = feet;
             g.previous_position = feet;
-            // Ready.spawn snaps the newcomer to the respawn data's yaw and
-            // pitch, which for a player without a bed or anchor is the world
-            // spawn's angle (`setworldspawn <pos> <rotation>`).
-            (g.yaw, g.pitch) = (
-                self.level.world_spawn_angle[0],
-                self.level.world_spawn_angle[1],
-            );
+            // PlayerList.placeNewPlayer snaps the newcomer to the shared
+            // spawn's angle, pitch 0 — the world's `SpawnAngle` (a yaw
+            // alone in 1.21.8; `setworldspawn` stores no pitch).
+            (g.yaw, g.pitch) = (self.level.world_spawn_angle[0], 0.0);
             g.head_yaw = g.yaw;
             g.health = 20.0;
             g.food = 20;
@@ -2977,7 +2939,15 @@ impl Game<'_> {
             tick_frozen: self.clock.frozen(),
             tick_steps: self.clock.step_state(),
             collision: Some(self.collision),
-            border: &self.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's (see the tick's TickCtx above).
+            border: if self.dim == super::Dim::Overworld {
+                &self.border
+            } else {
+                self.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&self.level.border)
+            },
             streaming: Some(&self.streaming),
         };
         host.hub.place_new_player(conn, &mut ctx);
@@ -4340,50 +4310,37 @@ mod world_spawn_sync_tests {
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2]
         );
         game.lan.as_mut().unwrap().hub.compass_targets.clear();
-        // Rotation alone is a changed RespawnData, even at the same block.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
+        // An angle alone is a changed spawn, even at the same block.
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
         assert_eq!(sent[0].pos, [-7, 90, 12]);
-        // 1.21.8's spawn packet carries yaw only; the pitch is stored but
-        // not sent.
+        // 1.21.8's spawn packet carries yaw only.
         assert_eq!(sent[0].yaw, 45.0);
         println!(
             "world-spawn\tangle\t{}\t{}\t{}\t{:.1}",
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45 -10")));
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 45")));
         assert!(spawns(&rx).is_empty());
-        // RespawnData.of wraps yaw and clamps pitch before storing or comparing.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405 100")));
+        // `AngleArgument.getAngle` wraps the yaw before storing or comparing;
+        // there is no pitch to clamp in 1.21.8.
+        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405")));
         let sent = spawns(&rx);
         assert_eq!(sent.len(), 1);
-        assert_eq!(game.level.world_spawn_angle, [45.0, 90.0]);
+        assert_eq!(game.level.world_spawn_angle, [45.0, 0.0]);
         assert_eq!(sent[0].yaw, 45.0);
         println!(
             "world-spawn\tnormalized\t{}\t{}\t{}\t{:.1}",
             sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
         );
-        for command in [
-            "setworldspawn -7 90 12 45 90",
-            "setworldspawn -7 90 12 405 100",
-        ] {
+        for command in ["setworldspawn -7 90 12 45", "setworldspawn -7 90 12 405"] {
             game.as_console(|game| assert!(game.run_command(command)));
             assert!(
                 spawns(&rx).is_empty(),
-                "equivalent normalized rotations are unchanged"
+                "equivalent normalized angles are unchanged"
             );
         }
-        // Clamp raw pitch: wrapping -270 first would incorrectly produce +90.
-        game.as_console(|game| assert!(game.run_command("setworldspawn -7 90 12 405 -270")));
-        let sent = spawns(&rx);
-        assert_eq!(sent.len(), 1);
-        assert_eq!(game.level.world_spawn_angle, [45.0, -90.0]);
-        assert_eq!(sent[0].yaw, 45.0);
-        println!(
-            "world-spawn\tclamped\t{}\t{}\t{}\t{:.1}",
-            sent[0].pos[0], sent[0].pos[1], sent[0].pos[2], sent[0].yaw,
-        );
     }
 
     #[test]

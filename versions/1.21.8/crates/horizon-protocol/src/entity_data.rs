@@ -46,11 +46,12 @@ pub struct Profile {
     pub uuid: Option<u128>,
     /// `PropertyMap`: its `textures` property carries the skin.
     pub properties: Vec<crate::packets::login::Property>,
-    /// `PlayerSkin.Patch`: texture asset ids overriding the profile's.
+    /// 1.21.9's `PlayerSkin.Patch`: texture asset ids overriding the
+    /// profile's. A 1.21.8 profile carries none; these stay `None` here.
     pub body: Option<String>,
     pub cape: Option<String>,
     pub elytra: Option<String>,
-    /// `PlayerModelType`: true is the slim (4px arms) model.
+    /// `PlayerSkin.Model`: true is the slim (4px arms) model.
     pub slim: Option<bool>,
 }
 /// One `ParticleTypes.STREAM_CODEC` value: the `minecraft:particle_type` id,

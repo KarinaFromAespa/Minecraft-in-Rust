@@ -114,12 +114,10 @@ impl Game<'_> {
         cart: Option<u32>,
     ) -> Result<()> {
         // `BaseSpawner.serverTick` does nothing without an alive player in
-        // range (`isNearPlayer`) or with the rule off: no level to build for it.
+        // range (`isNearPlayer`): no level to build for it.
         let at = [key.0, key.1, key.2].map(|c| f64::from(c) + 0.5);
         let range = f64::from(spawner.required_player_range);
-        if !self.alive_player_near(at[0], at[1], at[2], range)
-            || !self.ui.rules.bool("spawner_blocks_work")
-        {
+        if !self.alive_player_near(at[0], at[1], at[2], range) {
             return Ok(());
         }
         // While its delay counts down, `serverTick` only takes one off it: no
@@ -435,13 +433,7 @@ impl Game<'_> {
             Some(BlockEntity::TrialSpawner(_)) => true,
             _ => return None,
         };
-        if !self.ui.rules.bool("spawner_blocks_work") {
-            self.system_message(horizon_client::text::Text::translate(
-                "advMode.notEnabled.spawner",
-                &[],
-            ));
-            return Some(false);
-        }
+        // No spawner-enabled gate in 1.21.8: the egg always sets the spawner.
         if trial {
             // TrialSpawnerBlockEntity.setEntityId and setEntityData:
             // overrideEntityToSpawn, which ends in setState(INACTIVE).

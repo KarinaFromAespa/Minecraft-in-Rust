@@ -1672,7 +1672,9 @@ impl PostEffects {
         rp.draw(0..3, 0..1);
     }
 
-    /// `PostPass.addToFrame`'s execution: one fullscreen triangle.
+    /// `PostPass.addToFrame`'s execution: one fullscreen triangle. 1.21.8
+    /// draws the pass as an indexed quad (6 indices, the quad vertex
+    /// buffer); the triangle covers the same pixels, so the Rust keeps it.
     #[allow(clippy::too_many_arguments)]
     fn run_pass(
         &mut self,

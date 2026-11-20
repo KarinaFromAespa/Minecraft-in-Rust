@@ -150,7 +150,7 @@ impl Game<'_> {
         let stuck = horizon_client::falling_block::apply_effects_from_blocks(
             from,
             f.position,
-            recorded.then_some(wanted),
+            recorded,
             &mut f.velocity,
             &mut f.fall_distance,
             &mut tops,

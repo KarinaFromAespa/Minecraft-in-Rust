@@ -1310,7 +1310,7 @@ path fires neither. Bundles that use them need `"hooks": 157`.
 
 API 158 adds a server player's game mode about to change: `native_player_game_mode_changed(player, name, from, to, cancel)` is heard before the change (NeoForge's `PlayerChangeGameModeEvent`) for the `/gamemode` command, the F3+F4 switcher and a hardcore world's respawn into spectator, once for each change to a different mode (0 survival, 1 creative, 2 adventure, 3 spectator), on a server; not for the default mode a player joins with. A mod sets `cancel` to keep the old mode. Bundles that use it need `"hooks": 158`.
 
-API 159 adds the server's difficulty changed, from one of `peaceful`, `easy`, `normal`, `hard` to another, through `native_difficulty_changed` (NeoForge's `DifficultyChangeEvent`). It is vanilla's `MinecraftServer.setDifficulty`, which `/difficulty`, a dedicated server's management and a test environment's difficulty all go through, and it is told only when the difficulty is another one. It only hears: the change has already happened. Bundles that use it need "hooks": 159.
+API 159 adds the server's difficulty changed, from one of `peaceful`, `easy`, `normal`, `hard` to another, through `native_difficulty_changed` (NeoForge's `DifficultyChangeEvent`). It is vanilla's `MinecraftServer.setDifficulty`, which `/difficulty`, the console and a test environment's difficulty all go through, and it is told only when the difficulty is another one. It only hears: the change has already happened. Bundles that use it need "hooks": 159.
 
 API 160 adds a player's fishing rod: `native_player_fish(player, name, state, cancel)` is heard for the cast (`state` 0), a fish biting (1), the reel-in with a catch (2), the reel-in with nothing on the line (3) and the reel-in of a bobber hooked to an entity or item (4), for a player of a server (Bukkit's `PlayerFishEvent`; NeoForge's `ItemFishedEvent` fires later, once the loot is rolled). A mod sets `cancel` to stop a cast, make the fish get away, or leave the bobber out on a reel-in. The player's state is swapped in. Bundles that use it need `"hooks": 160`.
 
@@ -2698,10 +2698,9 @@ server only.
   413.
 - **`native_world_border(dimension)`** (`native_world_border.rs`): the level's world border as the server enforces it,
   `[min_x, min_z, max_x, max_z]` in blocks (the previous size while it moves), for a web map's border line or a
-  pre-generator's `worldborder` selection. Vanilla 26.3 keeps a border per level (`ServerLevel.getWorldBorder`, each
-  level's `data/minecraft/world_border.dat`, `/worldborder` changing the level it runs in); Horizon keeps one for every
-  level today, so the three levels answer the same bounds until that is fixed, and the helper then answers each level's
-  own. None for another dimension. API @API:world_border@.
+  pre-generator's `worldborder` selection. Vanilla 1.21.8 keeps one border, the Overworld's in level.dat, and each
+  other level derives its own from it, its centre divided by its coordinate scale (`Level$1`); a level not open yet
+  answers the derived border. None for another dimension. API @API:world_border@.
 - **`native_set_player_view_distance(uuid, distance)`** (`native_view_distance.rs`): limits one player's view distance
   to `distance` chunks (2 to 32), None gives it the server's again. The player's distance is the smallest of the
   server's, what its client asked for and the limit; only that player is told its radius (`SetChunkCacheRadius`), and

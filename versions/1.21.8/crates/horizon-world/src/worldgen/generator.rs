@@ -1342,7 +1342,10 @@ where
                 .get_or_init(|| Arc::new(super::blending::Blender::empty()))
                 .clone()
         }
-        // `SharedConstants.DEBUG_DISABLE_BLENDING`.
+        // A Horizon-only hook for the old-world e2e comparison (off by
+        // default): 1.21.8 vanilla has no way to disable blending — the
+        // `SharedConstants.DEBUG_DISABLE_BLENDING` flag it mirrors arrived
+        // in 1.21.9.
         static DISABLED: OnceLock<bool> = OnceLock::new();
         if *DISABLED.get_or_init(|| std::env::var_os("HORIZON_DISABLE_BLENDING").is_some()) {
             return empty_blender();
@@ -2851,6 +2854,13 @@ where
         search: &BiomeSearch<'_>,
     ) -> Option<(String, [i32; 3])> {
         // BiomeSource.findClosestBiome3d.
+        // FixedBiomeSource.findClosestBiome3d (1.21.8): the origin itself when
+        // the fixed biome passes, with no search and no Y clamp (1.21.9 clamps
+        // Y into [minY+1, maxY+1]).
+        if let ResolvedBiomeSource::Fixed(source) = &self.source {
+            return (search.allowed)(&source.biome)
+                .then(|| (source.biome.clone(), search.origin));
+        }
         let candidates: BTreeSet<&str> = self
             .source
             .possible_biomes()
@@ -3329,7 +3339,7 @@ where
         query: &JigsawQuery<'_>,
     ) -> Option<JigsawPieces> {
         // JigsawPlacement.generateJigsaw: addPieces with no heightmap
-        // projection, MaxDistance(128), no aliases, no padding and
+        // projection, max distance 128, no aliases, no padding and
         // waterlogging applied. The pieces draw from the GenerationContext's
         // random, seeded from the level seed and the position's chunk, not
         // from the level random.
@@ -3343,7 +3353,7 @@ where
             max_depth: query.max_depth,
             use_expansion_hack: false,
             project_to: None,
-            max_distance: [128, 128],
+            max_distance: 128,
             aliases: &aliases,
             padding: [0, 0],
             waterlogging: true,
@@ -3395,7 +3405,12 @@ pub struct BiomeSearch<'a> {
 
 /// `Mth.outFromOrigin(origin, lower, upper, step)`.
 pub fn out_from_origin(origin: i32, lower: i32, upper: i32, step: i32) -> Vec<i32> {
-    let center = origin.clamp(lower, upper);
+    // 1.21.8 returns an empty stream when the origin is outside the bounds;
+    // the clamp into the bounds came in 1.21.9.
+    if origin < lower || origin > upper {
+        return Vec::new();
+    }
+    let center = origin;
     let mut out = Vec::new();
     let mut cursor = center;
     loop {

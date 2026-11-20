@@ -19,7 +19,7 @@ pub(super) fn dissolve_mask(quads: &mut [Vertex], skin: [f32; 4], mask: [f32; 4]
         ];
     }
 }
-/// `submitRays`: the death rays from a fixed seed, fading in white to magenta.
+/// `renderRays`: the death rays from a fixed seed, fading in white to magenta.
 pub(super) fn dragon_rays(
     base: glam::Mat4,
     t: f32,

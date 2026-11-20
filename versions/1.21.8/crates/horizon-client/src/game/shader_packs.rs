@@ -439,7 +439,10 @@ impl Game<'_> {
             .map(|c| c.biome(at.x, at.y, at.z));
         let (held_items, held_light) = self.held_for_pack();
         let status = self.pack_player_status();
-        let (end_flash, end_flash_direction) = self.end_flash_for_pack(partial);
+        // 1.21.8 has no End flash (`EndFlashState` is 1.21.9-only), so
+        // the `endFlashIntensity` / `endFlashPosition` uniforms stay
+        // at their no-flash values.
+        let (end_flash, end_flash_direction) = (0.0, glam::Vec3::ZERO);
         let info = biome.map(|b| world_biomes!(self).get(b));
         let dimension = self.remote.as_ref().map(|r| &r.dimension);
         PackInputs {

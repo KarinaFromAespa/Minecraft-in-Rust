@@ -1688,9 +1688,11 @@ impl Items {
             .as_str()
             .map(str::to_owned)
     }
-    /// `Block.dropFromBlockInteractLootTable`: the `block_interact` table `id`
-    /// for a right click on `state` (its `match_block` conditions see the
-    /// state), from the table's random sequence when it has one.
+    /// The 1.21.9 `Block.dropFromBlockInteractLootTable` shape: the
+    /// `block_interact` table `id` for a right click on `state` (its
+    /// `match_block` conditions see the state), from the table's random
+    /// sequence when it has one. Dead in 1.21.8: the harvest loot tables
+    /// are 1.21.9-only, so no block emits `InteractLoot`.
     pub fn interact_loot(
         &self,
         id: &str,

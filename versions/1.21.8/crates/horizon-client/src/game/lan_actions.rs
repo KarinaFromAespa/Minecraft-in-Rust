@@ -1142,12 +1142,16 @@ impl Game<'_> {
         // (ServerPlayer.forceSetRotation) sends the rotation alone, rider or not.
         let forced = std::mem::take(&mut self.rotation_forced);
         let turned = !forced && [self.yaw, self.pitch] != [g.yaw, g.pitch];
-        [g.yaw, g.pitch] = [self.yaw, self.pitch];
         if forced {
+            // 1.21.8's forceSetRotation sends the packet only; the server's
+            // stored rotation waits for the client's next move packet
+            // (1.21.9's 4-arg form sets it at once, via super).
             g.send(&C::PlayerRotation(play::PlayerRotation {
-                yaw: g.yaw,
-                pitch: g.pitch,
+                yaw: self.yaw,
+                pitch: self.pitch,
             }));
+        } else {
+            [g.yaw, g.pitch] = [self.yaw, self.pitch];
         }
         self.yaw = yaw;
         self.pitch = pitch;
@@ -1224,8 +1228,7 @@ impl Game<'_> {
         }
         if new_mode != g.game_mode {
             let conn = g.conn;
-            host.hub
-                .set_game_mode(conn, new_mode, &self.world, Some(self.collision));
+            host.hub.set_game_mode(conn, new_mode);
         }
         // LivingEntity.checkTotemDeathProtection's entity event, to every
         // client around, the guest's own included; this window draws it too.
@@ -2100,7 +2103,8 @@ impl Game<'_> {
     }
 
     /// `ServerGamePacketListenerImpl.wasBlockPlacementAttempt`: a block item,
-    /// or a bucket with something in it, that is not cooling down.
+    /// or any bucket (1.21.8 counts even an empty one; the non-empty
+    /// requirement came in 1.21.9), that is not cooling down.
     fn was_block_placement_attempt(&mut self, hand: Hand) -> bool {
         let Some(stack) = self.with_hand(hand, |g| g.held().cloned()) else {
             return false;
@@ -2108,7 +2112,13 @@ impl Game<'_> {
         let Some(info) = self.items().get(&stack.item).cloned() else {
             return false;
         };
-        (info.block.is_some() || horizon_client::items::bucket_contents(&stack.item).is_some())
+        (info.block.is_some()
+            // 1.21.8 counts any BucketItem, empty or full (the non-empty
+            // requirement came in 1.21.9); a milk bucket is one too, and
+            // bucket_contents answers None for it.
+            || stack.item.as_ref() == "minecraft:bucket"
+            || stack.item.as_ref() == "minecraft:milk_bucket"
+            || horizon_client::items::bucket_contents(&stack.item).is_some())
             && !self
                 .cooldowns
                 .is_on_cooldown(&horizon_client::cooldowns::group(
@@ -4115,7 +4125,17 @@ impl Game<'_> {
             tick_frozen: self.clock.frozen(),
             tick_steps: self.clock.step_state(),
             collision: Some(self.collision),
-            border: &self.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's (the same three arms as `overworld_border`,
+            // borrowed field by field so the `&mut self.world` above
+            // still holds).
+            border: if self.dim == super::Dim::Overworld {
+                &self.border
+            } else {
+                self.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&self.level.border)
+            },
             streaming: Some(&self.streaming),
         };
         host.hub.respawn(i, spawn, rotation, &ctx);
@@ -4131,8 +4151,7 @@ impl Game<'_> {
                 self.native_player_game_mode_changed(uuid, &name, from, SPECTATOR, &mut cancel);
             }
             if !cancel {
-                host.hub
-                    .set_game_mode(conn, SPECTATOR, &self.world, Some(self.collision));
+                host.hub.set_game_mode(conn, SPECTATOR);
             }
         }
         if let Some(config) = elsewhere {
@@ -5166,7 +5185,7 @@ impl Game<'_> {
                     .add(horizon_world::entity_move::MovementRecord {
                         from,
                         to,
-                        original: Some(delta),
+                        axis_independent: true,
                     });
                 from = to;
             }
@@ -6936,7 +6955,15 @@ mod connected_self_pose_tests {
             tick_frozen: true,
             tick_steps: Default::default(),
             collision: Some(game.collision),
-            border: &game.border,
+            // PlayerList.sendLevelInfo sends the Overworld's border, not
+            // the level's.
+            border: if game.dim == super::Dim::Overworld {
+                &game.border
+            } else {
+                game.levels
+                    .parked_border(super::Dim::Overworld)
+                    .unwrap_or(&game.level.border)
+            },
             streaming: None,
         };
         if drain {

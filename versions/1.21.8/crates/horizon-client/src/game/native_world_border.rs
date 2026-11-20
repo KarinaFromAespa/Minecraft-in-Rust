@@ -8,17 +8,29 @@ impl Game<'_> {
     /// The world border of the level `dimension` (`minecraft:the_nether`) as
     /// the server enforces it: `[min_x, min_z, max_x, max_z]` in blocks
     /// (`WorldBorder.getMinX` and the others, the previous size while it
-    /// moves). Vanilla keeps a border per level (`ServerLevel.getWorldBorder`,
-    /// each level's `data/minecraft/world_border.dat`); Horizon keeps one for
-    /// every level today, so the three levels answer the same bounds, and
-    /// this follows when that changes. None off a server and for a dimension
-    /// other than the Overworld, the Nether and the End. API
+    /// moves). Vanilla keeps one border, the Overworld's in level.dat, and
+    /// each other level derives its own from it, its centre divided by its
+    /// coordinate scale (`Level$1`); a level not opened yet answers the
+    /// derived border. None off a server and for a dimension other than
+    /// the Overworld, the Nether and the End. API
     /// @API:world_border@.
     pub(super) fn native_world_border(&self, dimension: &str) -> Option<[f64; 4]> {
-        let known = matches!(
-            dimension,
-            "minecraft:overworld" | "minecraft:the_nether" | "minecraft:the_end"
-        );
-        (known && self.native_authoritative()).then(|| self.border.bounds())
+        let dim = match dimension {
+            "minecraft:overworld" => super::Dim::Overworld,
+            "minecraft:the_nether" => super::Dim::Nether,
+            "minecraft:the_end" => super::Dim::End,
+            _ => return None,
+        };
+        if !self.native_authoritative() {
+            return None;
+        }
+        let border = if dim == self.dim {
+            self.border.clone()
+        } else if let Some(b) = self.levels.parked_border(dim) {
+            b.clone()
+        } else {
+            self.load_border(dim, self.overworld_border())
+        };
+        Some(border.bounds())
     }
 }

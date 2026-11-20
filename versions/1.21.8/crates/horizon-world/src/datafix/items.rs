@@ -695,19 +695,15 @@ fn fix_block_state_tag(v: Tag) -> Tag {
     Tag::Compound(out)
 }
 
-fn is_strictly_valid_json(v: &Tag) -> bool {
-    matches!(v, Tag::String(s) if json::parse_strict(&s.0).is_some())
-}
-
 fn fix_display(s: &mut Stack, mut d: Tag, hide_flags: i32) -> Tag {
-    if let Some(name) = d.get("Name").filter(|n| is_strictly_valid_json(n)) {
+    // 1.21.8 copies Name/Lore into components unconditionally; the strict-JSON
+    // validation (`LegacyComponentDataFixUtils.isStrictlyValidJson`) is a
+    // 1.21.9 addition to `ItemStackComponentizationFix`.
+    if let Some(name) = d.get("Name") {
         s.set_component("minecraft:custom_name", name.clone());
     }
     if d.get("Lore").is_some() {
-        let lore = stream(d.get("Lore"))
-            .into_iter()
-            .filter(is_strictly_valid_json)
-            .collect();
+        let lore = stream(d.get("Lore")).into_iter().collect();
         s.set_component("minecraft:lore", Tag::List(lore));
     }
     let color = d.get("color").and_then(as_number).map(|n| n.int_value());
@@ -826,10 +822,11 @@ fn fix_enchantments(s: &mut Stack, key: &str, ty: &str, hide: bool) {
     let mut enchantments: Vec<(String, i32)> = Vec::new();
     for e in stream(raw.as_ref()) {
         if let (Some(id), Some(level)) = (as_str(e.get("id")), e.get("lvl").and_then(as_number)) {
+            // 1.21.8 keeps every parsed enchantment (level clamped 0..=255);
+            // dropping level-0 entries is a 1.21.9 addition to
+            // `ItemStackComponentizationFix`.
             let level = level.int_value().clamp(0, 255);
-            if level > 0 {
-                enchantments.push((id, level));
-            }
+            enchantments.push((id, level));
         }
     }
     if !enchantments.is_empty() || hide {

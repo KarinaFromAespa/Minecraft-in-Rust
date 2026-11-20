@@ -59,7 +59,7 @@ pub const BOUNDING_BOX: u32 = 0xFFE5_E5E5;
 pub const STROKE_WIDTH: f32 = 2.5;
 
 impl Gizmos {
-    /// `DebugCrosshairRenderer`: the world axes one block in front of the
+    /// `DebugScreenOverlay.render3dCrosshair`: the world axes one block in front of the
     /// camera, `0.01 * gui_scale` long, X red, Y green, Z light blue, each a
     /// 2 pixel line over a 4 pixel black one. Drawn on top, in that order.
     pub fn debug_crosshair(&mut self, camera: [f64; 3], x_rot: f32, y_rot: f32, gui_scale: f32) {
@@ -119,7 +119,7 @@ impl Gizmos {
             width,
         }));
     }
-    /// `BlockEntityWithBoundingBoxRenderer.submit`: the box at `block` +
+    /// `BlockEntityWithBoundingBoxRenderer.render`: the box at `block` +
     /// `local` of `size` blocks (nothing when a side is empty), then the
     /// markers of the invisible blocks in it, indexed `z * sx * sy + y * sx + x`.
     pub fn bounding_box(
@@ -347,12 +347,16 @@ pub fn cuboid_fill_quads(min: [f64; 3], max: [f64; 3]) -> [[[f64; 3]; 4]; 6] {
     ]
 }
 
-/// `ARGB.colorFromFloat(0.375F, 1.0F, 0.0F, 0.0F)`: the fill of an error marker.
-pub const ERROR_MARKER_FILL: u32 = 0x5FFF_0000;
-/// `TestInstanceRenderer.submitErrorMarker`'s billboard text scale.
+/// `GameTestDebugRenderer.renderMarker`: 1.21.8's `showRedBox` colour
+/// -2130771968 (0x81000000: black, alpha 0x81) with the renderer's 0.75
+/// alpha factor — 0x81 * 0.75 = 96.75, truncated to 0x60. (1.21.9's
+/// `TestInstanceRenderer.submitErrorMarker` draws red at 0.375 instead.)
+pub const ERROR_MARKER_FILL: u32 = 0x6000_0000;
+/// `GameTestDebugRenderer.renderMarker`'s billboard text scale, 0.01 in
+/// world units per font pixel (`billboard_text_unit` divides by 16).
 pub const ERROR_MARKER_TEXT_SCALE: f32 = 0.16;
 
-/// `TestInstanceRenderer.submitErrorMarker`: the marker's box, `new
+/// `GameTestDebugRenderer.renderMarker`: the marker's box, `new
 /// AABB(pos).inflate(0.02F)`, and the centre of its text,
 /// `Vec3.atLowerCornerWithOffset(pos, 0.5, 1.2, 0.5)`.
 pub fn error_marker_shape(pos: [i32; 3]) -> ([f64; 3], [f64; 3], [f64; 3]) {
@@ -456,8 +460,9 @@ mod tests {
         assert_eq!(min, [10.0 - pad, 64.0 - pad, -3.0 - pad]);
         assert_eq!(max, [11.0 + pad, 65.0 + pad, -2.0 + pad]);
         assert_eq!(text, [10.5, 65.2, -2.5]);
-        // 0.375 of 255 floors to 95; the colour is red.
-        assert_eq!(ERROR_MARKER_FILL, 0x5FFF_0000);
+        // 0x81 of alpha times the renderer's 0.75 floors to 0x60; the colour
+        // is black (1.21.8's `showRedBox` passes -2130771968).
+        assert_eq!(ERROR_MARKER_FILL, 0x6000_0000);
         assert_eq!(billboard_text_unit(ERROR_MARKER_TEXT_SCALE), 0.01);
         let quads = cuboid_fill_quads(min, max);
         assert_eq!(quads.len(), 6);

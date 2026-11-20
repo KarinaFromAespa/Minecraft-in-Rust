@@ -1,5 +1,5 @@
 //! Mobs drawn by native mods on the client: `native_mob_submit` (vanilla's
-//! `EntityRenderer.submit` for a mob, NeoForge's `RenderLivingEvent.Pre` when
+//! `EntityRenderer.render` for a mob, NeoForge's `RenderLivingEvent.Pre` when
 //! it cancels) gets the mob's render state and a [`BlockEntityDraw`] posed at
 //! its feet and turned with its body, so a mod draws a model of its own with
 //! the helpers block entities draw with (`native_draw_cube`,

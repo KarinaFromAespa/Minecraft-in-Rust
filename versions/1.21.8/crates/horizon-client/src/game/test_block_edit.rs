@@ -1,7 +1,7 @@
 //! `TestBlockEditScreen`: the test block's mode and message.
 use super::{
     Game,
-    block_editor::{Editor, Item, Outcome, Pos, cycle, footer_action},
+    block_editor::{Editor, Item, Outcome, Pos, cycle, footer_action, LABEL},
 };
 use horizon_client::{
     containers::BlockEntity,
@@ -85,6 +85,7 @@ impl Editor for TestBlockEditor {
                 x: mid - 153.0,
                 y: 70.0,
                 right: false,
+                color: LABEL,
             });
         }
         items.push(Item::Label {
@@ -92,6 +93,7 @@ impl Editor for TestBlockEditor {
             x: mid - 153.0,
             y: 174.0,
             right: false,
+            color: LABEL,
         });
         items
     }

@@ -1042,6 +1042,10 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses, animations: &HashMap<String, Anim
 }
 /// The emissive layers of `WardenRenderer`: the bioluminescent skin, the
 /// pulsating spots, the tendrils and the heart, as (model, texture, alpha).
+/// 1.21.8 has no separate layer definitions for these — its renderer draws
+/// part lists from the one WARDEN model — so the exporter synthesizes the
+/// four `warden#<layer>` keys from that model's part lists
+/// (`VanillaEntityModelExporter`).
 pub fn emissive_layers(m: &Mob, partial: f32) -> [(&'static str, &'static str, f32); 5] {
     let age = m.age as f32 + partial;
     [

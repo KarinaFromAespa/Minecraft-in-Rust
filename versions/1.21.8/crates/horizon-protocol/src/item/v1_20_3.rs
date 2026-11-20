@@ -372,8 +372,14 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                 material: id_tag("minecraft:trim_material", value.get("material"))?,
                 pattern: id_tag("minecraft:trim_pattern", value.get("pattern"))?,
             },
-            49 => typed_data(value, "minecraft:entity_type")?,
-            51 => typed_data(value, "minecraft:block_entity_type")?,
+            // `CustomData`: the tag with its own `id`, as-is (1.21.9's
+            // `TypedEntityData` wrote a type id varint first and the tag
+            // without its id).
+            49 | 51 => {
+                let mut w = Writer::new();
+                w.nbt(value);
+                Component::Raw(w.data)
+            }
             52 => Component::Instrument(id_tag("minecraft:instrument", Some(value))?),
             58 => {
                 let target = if let Some(target) = value.get("target") {
@@ -491,15 +497,6 @@ fn profile(value: &Tag) -> Profile {
             })
             .collect(),
     }
-}
-fn typed_data(value: &Tag, registry: &str) -> Result<Component> {
-    let mut data = value.clone();
-    let id = id_tag(registry, data.get("id"))?;
-    d::remove(&mut data, "id");
-    let mut w = Writer::new();
-    w.varint(id);
-    w.nbt(&data);
-    Ok(Component::Raw(w.data))
 }
 fn container(value: &Tag) -> Result<Component> {
     let mut contents = Vec::new();
@@ -1103,10 +1100,9 @@ fn bees(value: &Tag) -> Result<Component> {
         let data = entry
             .get("entity_data")
             .ok_or_else(|| Error::new("bee has no entity data"))?;
-        let Component::Raw(data) = typed_data(data, "minecraft:entity_type")? else {
-            unreachable!();
-        };
-        w.bytes(&data);
+        // 1.21.8's `CustomData` form: the tag with its own `id`, as-is
+        // (1.21.9's `TypedEntityData` wrote a type id varint first).
+        w.nbt(data);
         w.varint(number(entry.get("ticks_in_hive"), 0));
         w.varint(number(entry.get("min_ticks_in_hive"), 0));
     }
@@ -1203,23 +1199,12 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
         ),
         48 => d::set(tag, "DebugProperty", r.nbt()?),
         49 | 51 => {
-            let id = r.varint()?;
+            // `CustomData`: the tag with its own `id` (1.21.9's
+            // `TypedEntityData` put a type id varint first).
             let mut data = r.nbt()?;
             if let Some(name) = data.get("CustomName").cloned() {
                 d::set(&mut data, "CustomName", json_text(&name));
             }
-            d::set(
-                &mut data,
-                "id",
-                d::string(&registry_name(
-                    if kind == 49 {
-                        "minecraft:entity_type"
-                    } else {
-                        "minecraft:block_entity_type"
-                    },
-                    id,
-                )?),
-            );
             d::set(
                 tag,
                 if kind == 49 {
@@ -1274,16 +1259,12 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
         68 => {
             let mut bees = Vec::new();
             for _ in 0..r.count(65536)? {
-                let id = r.varint()?;
+                // `CustomData`: the tag with its own `id` (1.21.9's
+                // `TypedEntityData` put a type id varint first).
                 let mut data = r.nbt()?;
                 if let Some(name) = data.get("CustomName").cloned() {
                     d::set(&mut data, "CustomName", json_text(&name));
                 }
-                d::set(
-                    &mut data,
-                    "id",
-                    d::string(&registry_name("minecraft:entity_type", id)?),
-                );
                 bees.push(Tag::compound([
                     ("EntityData", data),
                     ("TicksInHive", Tag::Int(r.varint()?)),
@@ -1750,8 +1731,10 @@ mod tests {
                         let mut r = Reader::new(data);
                         let mut w = Writer::new();
                         match *kind {
+                            // `CustomData`: the tag with its own `id`
+                            // (1.21.9's `TypedEntityData` put a type id
+                            // varint first).
                             49 | 51 => {
-                                w.varint(r.varint().unwrap());
                                 w.nbt(&r.nbt().unwrap());
                             }
                             65 | 66 => {
@@ -1776,7 +1759,9 @@ mod tests {
                                 let n = r.varint().unwrap();
                                 w.varint(n);
                                 for _ in 0..n {
-                                    w.varint(r.varint().unwrap());
+                                    // `CustomData`: the tag with its own `id`
+                                    // (1.21.9's `TypedEntityData` put a type
+                                    // id varint first).
                                     w.nbt(&r.nbt().unwrap());
                                     w.varint(r.varint().unwrap());
                                     w.varint(r.varint().unwrap());
@@ -1923,11 +1908,11 @@ mod tests {
             panic!("entity data")
         };
         let mut r = Reader::new(data);
-        let kind = r.varint().unwrap();
+        // `CustomData`: the tag with its own `id`, as-is (1.21.9's
+        // `TypedEntityData` put a type id varint first).
         let mut entity = r.nbt().unwrap();
         d::set(entity.get_mut("item").unwrap(), "count", Tag::Int(2));
         let mut w = Writer::new();
-        w.varint(kind);
         w.nbt(&entity);
         *data = w.data;
         assert_eq!(cache.lock().unwrap().original(&stack), None);
@@ -2075,7 +2060,7 @@ mod tests {
             (
                 "container",
                 "018904010a0a000e426c6f636b456e7469747954616708000a437573746f6d4e616d65000e7b2274657874223a22426f78227d0900054974656d730a00000001010004536c6f7402080002696400116d696e6563726166743a6469616d6f6e64010005436f756e740300080002696400156d696e6563726166743a7368756c6b65725f626f780000",
-                "01a804020033180a0a000a437573746f6d4e616d65080004746578740003426f78000042030000de06030000",
+                "01a8040200330a0a000a437573746f6d4e616d65080004746578740003426f7800080002696400156d696e6563726166743a7368756c6b65725f626f780042030000de06030000",
             ),
             (
                 "block_state",
@@ -2122,7 +2107,7 @@ mod tests {
             (
                 "entity",
                 "019408010a0a0009456e7469747954616708000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0100044e6f41490103000e486f72697a6f6e46697874757265000000070000",
-                "01e7080100315f0a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e466978747572650003000e486f72697a6f6e46697874757265000000070100044e6f41490100",
+                "01e7080100310a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e466978747572650003000e486f72697a6f6e46697874757265000000070100044e6f4149010800026964000d6d696e6563726166743a70696700",
             ),
             (
                 "predicate_nbt",
@@ -2132,7 +2117,7 @@ mod tests {
             (
                 "bees",
                 "01bb09010a0a000e426c6f636b456e74697479546167090004426565730a000000010a000a456e746974794461746108000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0800026964000d6d696e6563726166743a6265650003000b5469636b73496e486976650000000a0300124d696e4f636375706174696f6e5469636b7300000258000000",
-                "019b0a010044010b0a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e4669787475726500000ad804",
+                "019b0a010044010a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e46697874757265000800026964000d6d696e6563726166743a626565000ad804",
             ),
             (
                 "lock_loot",
@@ -2226,7 +2211,7 @@ mod tests {
             (
                 "container",
                 "01f403010a0a000e426c6f636b456e7469747954616708000a437573746f6d4e616d65000e7b2274657874223a22426f78227d0900054974656d730a00000001010004536c6f7402080002696400116d696e6563726166743a6469616d6f6e64010005436f756e740300080002696400156d696e6563726166743a7368756c6b65725f626f780000",
-                "01a804020033180a0a000a437573746f6d4e616d65080004746578740003426f78000042030000de06030000",
+                "01a8040200330a0a000a437573746f6d4e616d65080004746578740003426f7800080002696400156d696e6563726166743a7368756c6b65725f626f780042030000de06030000",
             ),
             (
                 "block_state",
@@ -2273,7 +2258,7 @@ mod tests {
             (
                 "entity",
                 "01ed07010a0a0009456e7469747954616708000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d03000e486f72697a6f6e46697874757265000000070100044e6f4149010000",
-                "01e7080100315f0a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e466978747572650003000e486f72697a6f6e46697874757265000000070100044e6f41490100",
+                "01e7080100310a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e466978747572650003000e486f72697a6f6e46697874757265000000070100044e6f4149010800026964000d6d696e6563726166743a70696700",
             ),
             (
                 "predicate_nbt",
@@ -2283,7 +2268,7 @@ mod tests {
             (
                 "bees",
                 "019409010a0a000e426c6f636b456e74697479546167090004426565730a000000010300124d696e4f636375706174696f6e5469636b730000025803000b5469636b73496e486976650000000a0a000a456e746974794461746108000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0800026964000d6d696e6563726166743a62656500000000",
-                "019b0a010044010b0a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e4669787475726500000ad804",
+                "019b0a010044010a0a000a437573746f6d4e616d6508000474657874000e486f72697a6f6e46697874757265000800026964000d6d696e6563726166743a626565000ad804",
             ),
             (
                 "lock_loot",
@@ -2309,12 +2294,12 @@ mod tests {
             (
                 "tnt_entity",
                 "0101010a0a0009456e746974795461670200044675736500280800026964000d6d696e6563726166743a746e740000",
-                "01010100317f0a0200044675736500280a000b626c6f636b5f73746174650800044e616d65000d6d696e6563726166743a746e740002000466757365002800",
+                "01010100310a0200044675736500280a000b626c6f636b5f73746174650800044e616d65000d6d696e6563726166743a746e74000200046675736500280800026964000d6d696e6563726166743a746e7400",
             ),
             (
                 "arrow_entity",
                 "0101010a0a0009456e74697479546167080006506f74696f6e00106d696e6563726166743a706f69736f6e0800026964000f6d696e6563726166743a6172726f770000",
-                "0101010031060a0a00046974656d0a000a636f6d706f6e656e74730a00196d696e6563726166743a706f74696f6e5f636f6e74656e7473080006706f74696f6e00106d696e6563726166743a706f69736f6e0000030005636f756e7400000001080002696400166d696e6563726166743a7469707065645f6172726f770000",
+                "01010100310a0800026964000f6d696e6563726166743a6172726f770a00046974656d0a000a636f6d706f6e656e74730a00196d696e6563726166743a706f74696f6e5f636f6e74656e7473080006706f74696f6e00106d696e6563726166743a706f69736f6e0000030005636f756e7400000001080002696400166d696e6563726166743a7469707065645f6172726f770000",
             ),
         ] {
             check_legacy_fixture(

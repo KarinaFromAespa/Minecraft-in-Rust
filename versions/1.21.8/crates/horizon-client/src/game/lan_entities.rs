@@ -612,7 +612,6 @@ impl Game<'_> {
                         "gui" => 6,
                         "ground" => 7,
                         "fixed" => 8,
-                        "on_shelf" => 9,
                         _ => 0,
                     },
                     _ => 0,

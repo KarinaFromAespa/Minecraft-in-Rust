@@ -350,11 +350,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 Class::Farmland => self.farmland_random_tick(state, pos),
                 Class::NetherPortal => {
                     // NetherPortalBlock.randomTick: only the overworld sets
-                    // NETHER_PORTAL_SPAWNS_PIGLINS.
+                    // NETHER_PORTAL_SPAWNS_PIGLINS. Mob spawning on, and the
+                    // difficulty roll (which fails on its own in peaceful).
                     let rules = self.level.game_rules();
                     let difficulty = self.level.difficulty();
                     if rules.spawn_mobs
-                        && rules.spawn_monsters
                         && difficulty != 0
                         && self.level.dimension_type().nether_portal_spawns_piglin
                         && self.rand_int(2000) < difficulty
@@ -755,6 +755,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
         }
     }
+    /// `FrostedIceBlock.tick`: a one-in-three roll (or fewer than four
+    /// frosted-ice neighbours) plus enough light ages the ice by one, or
+    /// melts it at age 3 — and ages every frosted-ice neighbour the same
+    /// way, rescheduling the ones that only aged. The light is the max
+    /// local raw brightness in every dimension: the End has no sky light
+    /// in 1.21.8, so the max there is already the block light. 1.21.9
+    /// gave the End sky light and switched this tick to block light only
+    /// there; that branch does not exist here.
     fn frosted_ice_tick(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
         let block = b.block(state);
@@ -771,11 +779,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             true
         };
         if self.rand_int(3) == 0 || fewer(self, pos, 4) {
-            let brightness = if self.level.level_key() == super::LevelKey::END {
-                self.level.block_light(pos)
-            } else {
-                self.max_local_raw_brightness(pos)
-            };
+            let brightness = self.max_local_raw_brightness(pos);
             let age = b.table.int(state, b.props.age);
             if brightness > 11 - age - i32::from(b.facts(state).dampening)
                 && self.frosted_slightly_melt(pos, state)
@@ -1689,8 +1693,18 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// back to unoxidized, then 3 to 5 random walks of up to 8 steps each
     /// scrape one step of oxidation off the weathering copper they land on.
     /// A waxed block is left as it is but still starts the walks.
+    /// A struck lightning rod cleans the block behind it (opposite the
+    /// rod's facing), not the rod's own position — the rod itself is never
+    /// weathering copper. 1.21.9 dropped that redirect.
     pub(crate) fn lightning_clear_copper(&mut self, struck: BlockPos) {
         let b = self.b;
+        let state = self.state(struck);
+        let struck = if b.table.name(state) == "minecraft:lightning_rod" {
+            let [dx, dy, dz] = b.facing(state).opposite().normal();
+            struck.offset(dx, dy, dz)
+        } else {
+            struck
+        };
         let state = self.state(struck);
         let weathering = b
             .data(state)

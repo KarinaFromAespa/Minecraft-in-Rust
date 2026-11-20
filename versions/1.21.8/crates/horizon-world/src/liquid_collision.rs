@@ -38,9 +38,9 @@ impl LiquidCollision {
         position: BlockPos,
         context: &CollisionContext<'_>,
     ) -> Result<VoxelShape, W::Error> {
-        if context.always_collide_with_fluid() {
-            return Ok(VoxelShape::block());
-        }
+        // `LiquidBlock.getCollisionShape`: only the stable-surface shape,
+        // never a full block — 1.21.9's `alwaysCollideWithFluid` arm does
+        // not exist in 1.21.8.
         if !self.fluid.is_source() {
             return Ok(VoxelShape::empty());
         }

@@ -72,12 +72,12 @@ impl Game<'_> {
         let center = self.test_source_block();
         let source_dim = self.dim;
         // findSelectedTestPositionsAcrossDimensions: every level's test
-        // blocks within 250 blocks whose test was selected.
+        // blocks within 200 blocks whose test was selected.
         let mut found: Vec<(Pos, String, Rotation)> = Vec::new();
         if !selected.is_empty() {
             for dim in self.loaded_dims() {
                 let back = self.enter_command_level(dim);
-                for pos in self.find_test_instance_blocks(center, 250) {
+                for pos in self.find_test_instance_blocks(center, 200) {
                     let key = self.test_instance_at(pos).and_then(|b| b.data.test.clone());
                     let key = key.map(|k| {
                         if k.contains(':') {
@@ -174,7 +174,8 @@ impl Game<'_> {
     }
 
     /// `TestCommand.showPos`, but for the highlight the client draws
-    /// (`ClientboundGameTestHighlightPosPacket`).
+    /// (`DebugPackets.sendGameTestAddMarker`, ten seconds): 1.21.8 has no
+    /// game-test highlight packet.
     pub(super) fn test_show_pos(&mut self, ctx: &Context) -> R<i32> {
         // `source.getPlayerOrException().pick(10, 1, false)`: the source
         // player's own eyes and view. A connected player's are in place only
@@ -205,7 +206,7 @@ impl Game<'_> {
                     })
                 })
         };
-        let found = containing(self, 15).or_else(|| containing(self, 250));
+        let found = containing(self, 15).or_else(|| containing(self, 200));
         let Some(block) = found else {
             return Err(err(
                 "commands.test.error.no_test_containing_pos",

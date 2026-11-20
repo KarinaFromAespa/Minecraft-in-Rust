@@ -268,7 +268,6 @@ pub(crate) fn page_tab(
             .hovered(hover)
             .focused(focused)
     });
-    crate::widgets::widget_cursor(hover, has);
     if has {
         crate::widgets::target_as(rect, crate::widgets::Kind::Tab(open));
     }
@@ -316,7 +315,6 @@ pub(crate) fn search_field(
     }
     if !search.value.is_empty() {
         let hover = ui::hovered(cursor, clear[0], clear[1], clear[2], clear[3]);
-        crate::widgets::widget_cursor(hover, true);
         let color = if hover { style::WHITE } else { style::MUTED };
         let cy = y + ((h - 8.0) / 2.0).floor();
         ui::centered_text(
@@ -501,7 +499,6 @@ pub(crate) fn row(batch: &mut HudBatch, atlas: &HudAtlas, cols: &Columns, y: f32
         let lit = [rect[0] + 2.0, y + 1.0, rect[2] - 4.0, style::ROW - 2.0];
         style::fill(batch, atlas, lit, style::HOVER);
     }
-    crate::widgets::widget_cursor(hover, live);
     // The control socket's widget tree, the narrator and a controller's focus.
     let kind = match slider {
         Some(value) => crate::widgets::Kind::Slider {
@@ -692,7 +689,6 @@ fn pad_row(batch: &mut HudBatch, atlas: &HudAtlas, cols: &Columns, y: f32, view:
     if live && (hover || focused) {
         lit(batch, atlas, rect);
     }
-    crate::widgets::widget_cursor(hover, live);
     crate::widgets::record(label, rect, live);
     crate::widgets::narratable(|| {
         let mut n = crate::widgets::Narratable::button(label.to_owned(), rect, live)
@@ -763,7 +759,6 @@ fn pad_row(batch: &mut HudBatch, atlas: &HudAtlas, cols: &Columns, y: f32, view:
     let reset = reset_rect(cols, y);
     let reset_label = lang::get("controls.reset");
     let reset_hover = resets && reset_hover;
-    crate::widgets::widget_cursor(reset_hover, resets);
     crate::widgets::record(&reset_label, reset, resets);
     crate::widgets::narratable(|| {
         let what = lang::tr("narrator.controls.reset", &[&name]);
@@ -867,7 +862,6 @@ fn strip_place(
             .hovered(hover)
             .focused(focused)
     });
-    crate::widgets::widget_cursor(hover, has);
     if has {
         crate::widgets::target_as(rect, crate::widgets::Kind::Tab(open));
     }
@@ -977,7 +971,6 @@ fn foot_button_with_room(
             .hovered(hovered)
             .focused(focused)
     });
-    crate::widgets::widget_cursor(hovered, true);
     crate::widgets::target(rect);
     style::button_with_room(batch, atlas, rect, label, (hover, true, primary), room);
 }
@@ -1481,7 +1474,9 @@ pub(crate) trait Hosted {
     /// does now (`Screen::slider_released`).
     fn release(&mut self) -> Option<Vec<Output>>;
     /// A controller's or the keyboard's focus is on the row at `rect`: if the list hides part of
-    /// it, it scrolls all into view (`AbstractSelectionList.setSelected`). How far the row moved
+    /// it, it scrolls all into view (`AbstractSelectionList.ensureVisible`, reached from
+    /// `setFocused` on keyboard input — 1.21.8's `setSelected` is a plain assignment; the
+    /// scroll-in-`setSelected` form came in 1.21.9). How far the row moved
     /// down, when it moved.
     fn reveal(&mut self, s: &Settings, size: (f32, f32), rect: [f32; 4]) -> Option<f32>;
     /// The mouse wheel at `at`: it scrolls, unless the row under it takes the step (`wheel_step`).

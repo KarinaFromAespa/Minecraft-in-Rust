@@ -31,7 +31,7 @@ pub fn white_uv(white: &crate::hud::Rect) -> [f32; 2] {
 // Four layers, fourteen segments (eight trunk, two branches of three), four quads.
 pub(super) const QUADS: u32 = 4 * 14 * 4;
 
-/// `LightningBoltRenderer.submit`: keep random draws, layers and quad order unchanged.
+/// `LightningBoltRenderer.render`: keep random draws, layers and quad order unchanged.
 fn geometry(seed: i64, uv: [f32; 2]) -> Vec<Vertex> {
     let mut out = Vec::with_capacity(QUADS as usize * 4);
     // ARGB 0.45, 0.45, 0.5 at 0.3 alpha, packed RGBA.

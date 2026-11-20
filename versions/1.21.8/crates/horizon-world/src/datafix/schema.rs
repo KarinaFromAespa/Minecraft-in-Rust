@@ -648,12 +648,9 @@ impl Walker<'_> {
                     self.field(Ty::ItemStack, c, "display_item");
                 }
             }
-            "minecraft:test_instance_block" if k >= key(4302, 0) => {
-                if let Some(d) = v.get_mut("data") {
-                    self.field(Ty::TextComponent, d, "error_message");
-                }
-                self.list_of_field(Ty::TextComponent, v, "errors", "text");
-            }
+            // No structured `test_instance_block` arm: 1.21.8's V4302 registers
+            // it simple (`registerSimple`); the error_message/errors text
+            // fields are a 1.21.9 addition to the schema.
             _ => {}
         }
     }

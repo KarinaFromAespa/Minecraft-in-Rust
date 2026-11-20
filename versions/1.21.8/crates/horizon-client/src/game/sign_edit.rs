@@ -716,7 +716,7 @@ impl Game<'_> {
                 edit.edit.x = text_x;
                 edit.edit.y = ly;
                 edit.edit.width = max_width;
-                edit.edit.click(&self.gui.atlas, mx, shift, false);
+                edit.edit.click(&self.gui.atlas, mx, shift);
             }
             self.sign_write();
             return;

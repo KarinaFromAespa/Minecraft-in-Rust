@@ -1,6 +1,15 @@
-//! BlockGetter.forEachBlockIntersectedBetween's ordered movement-path visits.
+//! `BlockGetter.forEachBlockIntersectedBetween`'s movement-path visits, in
+//! 1.21.8's form: the tiny-movement threshold is `(0.99999)^2` (1.21.9
+//! narrowed it to `(1e-5)^2`), the start and final boxes are visited with
+//! `betweenClosed` (1.21.9's direction-ordered iteration does not exist in
+//! 1.21.8), and the ray walks from the final box's min corner minus the
+//! movement to the min corner, capped at `MAX_BLOCK_ITERATIONS_ALONG_TRAVEL`
+//! (16) ray steps (1.21.9 walks from the furthest corner with no cap).
 use super::{Aabb, TraversalError, Vec3, clamp, floor_i32};
 use crate::{fast_hash::FxHashSet, position::BlockPos};
+
+/// `BlockGetter.MAX_BLOCK_ITERATIONS_ALONG_TRAVEL`.
+const MAX_BLOCK_ITERATIONS_ALONG_TRAVEL: i32 = 16;
 
 struct Sweep<'v, V> {
     visitor: &'v mut V,
@@ -20,18 +29,14 @@ impl<V: FnMut(BlockPos, i32) -> bool> Sweep<'_, V> {
         &mut self,
         positions: impl Iterator<Item = BlockPos>,
         step: i32,
-        deduplicate: bool,
     ) -> Result<bool, TraversalError> {
         for pos in positions {
             self.spend()?;
-            if deduplicate && !self.visited.insert(pos.pack()) {
+            if !self.visited.insert(pos.pack()) {
                 continue;
             }
             if !(self.visitor)(pos, step) {
                 return Ok(false);
-            }
-            if !deduplicate {
-                self.visited.insert(pos.pack());
             }
         }
         Ok(true)
@@ -63,7 +68,7 @@ pub fn sweep_intersected_blocks(
     if !movement.is_finite() {
         return Err(TraversalError::NonFinite);
     }
-    if movement.length_squared() < (1.0e-5_f32 * 1.0e-5_f32) as f64 {
+    if movement.length_squared() < (0.99999_f32 * 0.99999_f32) as f64 {
         let blocks =
             BlockPos::between_closed_box(final_box).map_err(|_| TraversalError::InvalidBounds)?;
         // This branch has no deduplication in vanilla. Avoid allocating a set
@@ -86,29 +91,23 @@ pub fn sweep_intersected_blocks(
         work: 0,
         limit: max_work,
     };
-    let initial_box = final_box.move_by(movement.scale(-1.0));
-    if !initial_box.min_position().is_finite() || !initial_box.max_position().is_finite() {
+    // 1.21.8's `addCollisionsAlongTravel` walks from the final box's min
+    // corner minus the movement, to the min corner; there is no separate
+    // start-box visit (1.21.9 visited the moved box first, direction-ordered).
+    let min = final_box.min_position();
+    let origin = min.subtract(movement);
+    if !origin.is_finite() || !min.is_finite() {
         return Err(TraversalError::NonFinite);
-    }
-    let initial = BlockPos::between_box_corners_in_direction(initial_box, movement)
-        .map_err(|_| TraversalError::InvalidBounds)?;
-    if !sweep.visit(initial, 0, false)? {
-        return Ok(false);
     }
     let size = final_box.size().components();
-    let corner = furthest_corner(movement);
-    let center = final_box.center().components();
-    let finish = Vec3::new(
-        center[0] + size[0] * 0.5 * corner[0] as f64,
-        center[1] + size[1] * 0.5 * corner[1] as f64,
-        center[2] + size[2] * 0.5 * corner[2] as f64,
-    );
-    let origin = finish.subtract(movement);
-    if !origin.is_finite() || !finish.is_finite() || size.iter().any(|v| !v.is_finite()) {
+    if size.iter().any(|v| !v.is_finite()) {
         return Err(TraversalError::NonFinite);
     }
+    // The direction vanilla derives: the min corner minus the walk's origin
+    // (not `movement` itself, which can differ by an ulp).
+    let direction = min.subtract(origin);
     let mut position = origin.components().map(floor_i32);
-    let delta = movement.components();
+    let delta = direction.components();
     let sign = delta.map(|v| {
         if v == 0.0 {
             0i32
@@ -147,16 +146,23 @@ pub fn sweep_intersected_blocks(
         };
         position[axis] = position[axis].wrapping_add(sign[axis]);
         boundary[axis] += increment[axis];
+        // The count increments on every ray step, not only on a clip hit, and
+        // the walk stops past `MAX_BLOCK_ITERATIONS_ALONG_TRAVEL`:
+        // vanilla's `if (count++ > 16) break` visits steps 1..=17 and returns
+        // 18, so the final box takes step 19.
+        step = step.wrapping_add(1);
+        if step > MAX_BLOCK_ITERATIONS_ALONG_TRAVEL + 1 {
+            break;
+        }
         let pos = BlockPos::new(position[0], position[1], position[2]);
         // The static Java clip takes raw endpoints, including wrapped +1 ints.
         let block_box = Aabb {
             min: Vec3::from_block(pos),
             max: Vec3::from_block(pos.offset(1, 1, 1)),
         };
-        let Some(point) = block_box.clip(origin, finish) else {
+        let Some(point) = block_box.clip(origin, min) else {
             continue;
         };
-        step = step.wrapping_add(1);
         let clamped = std::array::from_fn::<_, 3, _>(|i| {
             clamp(
                 point.components()[i],
@@ -164,37 +170,23 @@ pub fn sweep_intersected_blocks(
                 (position[i] as f64 + 1.0) - 1.0e-5_f32 as f64,
             )
         });
-        let opposite =
-            std::array::from_fn::<_, 3, _>(|i| floor_i32(clamped[i] - size[i] * corner[i] as f64));
-        let blocks = BlockPos::between_corners_in_direction(
+        // The far corner is the clamped hit plus the box size (1.21.9
+        // subtracted the size times the furthest corner's signs), and the
+        // box is visited in plain ascending order, not direction-ordered.
+        let far =
+            std::array::from_fn::<_, 3, _>(|i| floor_i32(clamped[i] + size[i]));
+        let blocks = BlockPos::between_closed(
             pos,
-            BlockPos::new(opposite[0], opposite[1], opposite[2]),
-            movement,
+            BlockPos::new(far[0], far[1], far[2]),
         )
         .map_err(|_| TraversalError::InvalidBounds)?;
-        if !sweep.visit(blocks, step, true)? {
+        if !sweep.visit(blocks, step)? {
             return Ok(false);
         }
     }
-    let final_blocks = BlockPos::between_box_corners_in_direction(final_box, movement)
+    let final_blocks = BlockPos::between_closed_box(final_box)
         .map_err(|_| TraversalError::InvalidBounds)?;
-    sweep.visit(final_blocks, step.wrapping_add(1), true)
-}
-
-fn furthest_corner(movement: Vec3) -> [i32; 3] {
-    let abs = [
-        Vec3::new(1.0, 0.0, 0.0).dot(movement).abs(),
-        Vec3::new(0.0, 1.0, 0.0).dot(movement).abs(),
-        Vec3::new(0.0, 0.0, 1.0).dot(movement).abs(),
-    ];
-    let [x, y, z] = movement.components().map(|v| if v >= 0.0 { 1 } else { -1 });
-    if abs[0] <= abs[1] && abs[0] <= abs[2] {
-        [-x, -z, y]
-    } else if abs[1] <= abs[2] {
-        [z, -y, -x]
-    } else {
-        [-y, x, -z]
-    }
+    sweep.visit(final_blocks, step.wrapping_add(1))
 }
 
 #[cfg(test)]

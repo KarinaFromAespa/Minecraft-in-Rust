@@ -671,7 +671,7 @@ fn draw_layers(
     batch.text_styled(
         atlas,
         &Text::translate("createWorld.customize.flat.tile", &[]).underlined(),
-        left + 2.0,
+        left,
         top + 3.0,
         u32::MAX,
         true,
@@ -681,47 +681,31 @@ fn draw_layers(
     batch.text_styled(
         atlas,
         &height_header,
-        right - hw - 2.0,
+        right - hw - 8.0,
         top + 3.0,
         u32::MAX,
         true,
     );
     let offset = state.scroll.amount.trunc();
     let selected = state.selected;
-    // DetailsList: its header row ("Layer Material. Height"), then the layers
-    // top first, each "Selected: <item>. Height. <height>".
+    // DetailsList: the layers top first, each narrated as
+    // "Selected: <item>" (`Entry.getNarration`); the header is
+    // `renderHeader`, not a row, so it is not narrated.
     crate::widgets::narratable(|| {
-        use crate::widgets::{ListKind, Narratable, Row, join_for_narration as join};
-        let tr = |key: &str| Text::translate(key, &[]).plain();
-        let height = tr("createWorld.customize.flat.height");
+        use crate::widgets::{ListKind, Narratable, Row};
         let row = |i: usize| {
-            let narration = match i.checked_sub(1) {
-                None => join(&[&tr("createWorld.customize.flat.tile"), &height]),
-                Some(layer) => {
-                    let layer = &state.settings.layers[state.settings.layers.len() - 1 - layer];
-                    let item = Text::translate(
-                        "narrator.select",
-                        &[Text::literal(item_name(&layer.block))],
-                    )
-                    .plain();
-                    join(&[&item, &height, &layer.height.to_string()])
-                }
-            };
-            Row::new(i, narration)
-        };
-        let over_header = cursor.1 >= top
-            && cursor.1 < bottom
-            && cursor.1 - top - 2.0 + state.scroll.amount < HEADER;
-        let hovered = if over_header {
-            Some(0)
-        } else {
-            layer_row(state, cursor, (w, h)).map(|r| r + 1)
+            let layer = &state.settings.layers[state.settings.layers.len() - 1 - i];
+            Row::new(
+                i,
+                Text::translate("narrator.select", &[Text::literal(item_name(&layer.block))])
+                    .plain(),
+            )
         };
         Narratable::list(
             ListKind::Object,
-            state.settings.layers.len() + 1,
-            hovered.map(row),
-            selected.map(|r| row(r + 1)),
+            state.settings.layers.len(),
+            layer_row(state, cursor, (w, h)).map(row),
+            selected.map(row),
             [0.0, top, w, bottom - top],
         )
         .key(crate::widgets::key_of(&"create_world/flat/layers"))
@@ -756,13 +740,13 @@ fn draw_layers(
             &mut pending,
             batch,
             &layer.block,
-            left + 2.0,
+            left,
             y + 1.0,
         );
         batch.text(
             atlas,
             &item_name(&layer.block),
-            left + 2.0 + 18.0 + 5.0,
+            left + 18.0 + 5.0,
             y + 5.0,
             u32::MAX,
             true,
@@ -783,7 +767,7 @@ fn draw_layers(
         batch.text(
             atlas,
             &label,
-            right - text_width - 2.0,
+            right - text_width - 8.0,
             y + 5.0,
             u32::MAX,
             true,
@@ -1066,9 +1050,9 @@ fn pretty(name: &str) -> String {
         .join(" ")
 }
 
-/// `CreateFlatWorldScreen.DetailsList.deleteLayer`: after a row is removed the
-/// same row stays selected, or the last one when the removed row was the last
-/// of the list. An empty list selects nothing.
+/// `CreateFlatWorldScreen`'s delete-layer button, inline: after a row is
+/// removed the same row stays selected, or the last one when the removed
+/// row was the last of the list. An empty list selects nothing.
 pub(super) fn selection_after_removal(row: usize, remaining: usize) -> Option<usize> {
     (remaining > 0).then(|| row.min(remaining - 1))
 }

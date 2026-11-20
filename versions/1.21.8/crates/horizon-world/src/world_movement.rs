@@ -160,7 +160,7 @@ where
         // collectAllColliders without the body's own context, as
         // no_collision_empty: it changes only powder snow and a strider's
         // fluids, neither of which holds a flying player up.
-        CollisionContext::empty(false),
+        CollisionContext::empty(),
         reach,
         false,
         1_000_000,

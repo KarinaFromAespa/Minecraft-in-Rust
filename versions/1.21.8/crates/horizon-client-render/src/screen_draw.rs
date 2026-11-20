@@ -390,7 +390,10 @@ pub fn clip(m: &Measure, t: &Text, width: i32) -> Text {
         .append(Text::literal("..."))
 }
 
-/// `StringWidget` (CLAMPED) at its position: its single line, clipped when wider than `max_width`.
+/// `StringWidget` at its position: its single line, `clipText`-clipped with "..." when wider
+/// than `max_width` (1.21.8 clips against the widget width and aligns by `alignX`; the
+/// `maxWidth`/`TextOverflow` form came in 1.21.9 — callers here pass the width and the x they
+/// want, centring manually where they need it).
 pub fn string_widget(
     out: &mut Vec<Draw>,
     m: &Measure,
@@ -952,7 +955,10 @@ impl TextField {
         }
         if show_cursor {
             if insert {
-                fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, color);
+                // EditBox.CURSOR_INSERT_COLOR (-3092272): the bar is fixed
+                // light grey, not the text colour (1.21.9 draws it in the
+                // text colour).
+                fill(out, cursor_x, ty - 1, cursor_x + 1, ty + 10, -3092272);
             } else {
                 text(
                     out,

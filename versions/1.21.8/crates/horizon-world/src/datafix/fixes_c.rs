@@ -23,12 +23,10 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
     out.push((key(4424, 0), |cx| {
         feature_flag_remove(cx, &["minecraft:locator_bar"])
     }));
-    out.push((key(4424, 0), |cx| {
-        cx.each(Ty::Player, add_locator_bar_style)
-    }));
-    out.push((key(4424, 0), |cx| {
-        cx.each(Ty::Entity, add_locator_bar_style)
-    }));
+    // No locator_bar_icon style fix: 1.21.8's DataFixers registers only the
+    // feature-flag removal at 4424. The AddFieldFix that adds
+    // `locator_bar_icon.style = "minecraft:default"` to players and entities
+    // is a 1.21.9 addition at the same schema; 1.21.8 data has no style field.
     out.push((key(4535, 0), |cx| {
         cx.entity("minecraft:copper_golem", |e| {
             update(e, "weather_state", |v| {
@@ -235,17 +233,6 @@ pub(super) fn register(out: &mut Vec<(Key, FixFn)>) {
             },
         );
     }));
-}
-
-// ------------------------------------------------------------------ 4424
-
-/// `AddFieldFix` with the path `locator_bar_icon`: as vanilla does it, the
-/// value is replaced by its `locator_bar_icon` with a style added.
-fn add_locator_bar_style(v: &mut Tag) {
-    if let Some(mut icon) = v.get("locator_bar_icon").cloned() {
-        set(&mut icon, "style", string("minecraft:default"));
-        *v = icon;
-    }
 }
 
 // ------------------------------------------------------------------ 4544, 4548, 4658, 4766

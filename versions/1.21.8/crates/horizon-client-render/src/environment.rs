@@ -851,7 +851,14 @@ impl Environment {
             pack_root: packs.root.clone(),
             colormaps: packs.colormaps.clone(),
         };
-        let mut dimension_map = AttributeMap::parse(&json["attributes"])?;
+        // 1.21.8 dimension types carry no `attributes` (the environment
+        // system is 26.x): a missing field is an empty map, so every
+        // attribute takes its default, instead of failing the load.
+        let mut dimension_map = if json["attributes"].is_null() {
+            AttributeMap::default()
+        } else {
+            AttributeMap::parse(&json["attributes"])?
+        };
         let (mut rain, mut thunder) = horizon_world::environment_system::weather_maps();
         let mut dimension_post = AttributeMap::default();
         for m in &mine {

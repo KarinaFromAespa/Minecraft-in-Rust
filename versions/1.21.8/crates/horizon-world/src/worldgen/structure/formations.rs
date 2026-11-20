@@ -137,7 +137,7 @@ pub fn generate(
             max_depth,
             use_expansion_hack: false,
             project_to: None,
-            max_distance: [distance, distance],
+            max_distance: distance,
             aliases: &Default::default(),
             padding: [0, 0],
             waterlogging: true,

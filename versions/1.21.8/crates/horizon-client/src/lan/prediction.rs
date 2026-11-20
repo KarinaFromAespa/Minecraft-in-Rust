@@ -834,7 +834,7 @@ mod tests {
         for (i, (input, yaw)) in run.script.into_iter().enumerate() {
             let tick = i as u64;
             if let Some(push) = push.as_ref().filter(|p| p.tick == i) {
-                let velocity = horizon_protocol::buf::LpVec3::quantize(push.velocity);
+                let velocity = horizon_protocol::buf::ShortVec3::quantize(push.velocity);
                 if push.heard {
                     record.changed(tick, Change::Velocity(velocity));
                 }

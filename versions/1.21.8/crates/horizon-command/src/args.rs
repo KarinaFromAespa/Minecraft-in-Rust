@@ -629,7 +629,7 @@ pub fn read_double_bounds(reader: &mut Reader) -> CmdResult<DoubleRange> {
     }
     Ok(b)
 }
-/// MinMaxBounds.FloatDegrees.fromReader (no swap check).
+/// `WrappedMinMaxBounds.fromReader` (no swap check).
 pub fn read_float_bounds(reader: &mut Reader) -> CmdResult<(Option<f32>, Option<f32>)> {
     read_bounds(
         reader,

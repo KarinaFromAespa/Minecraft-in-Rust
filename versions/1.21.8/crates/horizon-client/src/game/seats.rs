@@ -7,7 +7,7 @@ use super::{Game, Keys};
 use horizon_core::geometry::Vec3;
 use horizon_world::nbt::Tag;
 
-/// `Avatar.DEFAULT_VEHICLE_ATTACHMENT`: a player sits this far below the vehicle's passenger point.
+/// `Player.DEFAULT_VEHICLE_ATTACHMENT`: a player sits this far below the vehicle's passenger point.
 const PLAYER_VEHICLE_ATTACHMENT: f64 = 0.6;
 
 /// Such a vehicle: where it is, and how tall and wide its box is.

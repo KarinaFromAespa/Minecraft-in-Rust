@@ -14,11 +14,11 @@ use winit::keyboard::KeyCode;
 
 impl Screen {
     /// The screens whose own `keyPressed` takes every press: the social
-    /// screen, the command block and block editors, the debug options.
+    /// screen, the command block and block editors.
     pub(super) fn takes_presses(self) -> bool {
         matches!(
             self,
-            Self::Social | Self::CommandBlock | Self::DebugOptions | Self::BlockEditor
+            Self::Social | Self::CommandBlock | Self::BlockEditor
         )
     }
 }
@@ -29,7 +29,6 @@ impl Game<'_> {
         match self.screen {
             Screen::Social => self.social_key(event),
             Screen::CommandBlock => self.command_block_key(event),
-            Screen::DebugOptions => self.debug_options_key(event),
             Screen::BlockEditor => self.block_editor_key(event),
             _ => {}
         }
@@ -79,7 +78,6 @@ impl Screen {
             | Self::DialogWarning
             | Self::CommandBlock
             | Self::BlockEditor
-            | Self::DebugOptions
             | Self::HudEditor => true,
         }
     }
@@ -96,8 +94,7 @@ impl Screen {
             | Self::Social
             | Self::ServerLinks
             | Self::ConfirmLink
-            | Self::DialogWarning
-            | Self::DebugOptions => true,
+            | Self::DialogWarning => true,
             Self::Playing
             | Self::GameModeSwitcher
             | Self::EmoteWheel
@@ -204,7 +201,8 @@ fn feedback_link() -> &'static str {
         "https://aka.ms/snapshotfeedback?ref=game"
     }
 }
-/// `PauseScreen.createPauseMenu`'s icon tooltips (`SpriteIconButton.withTootip`).
+/// The pause menu's icon row (`PauseScreen.createPauseMenu`'s feedback
+/// buttons, drawn as icons): each icon shows its label as a tooltip.
 const ICON_LABELS: [&str; 4] = [
     "menu.reportBugs",
     "menu.sendFeedback",
@@ -422,7 +420,7 @@ impl Game<'_> {
                 });
             }
         }
-        // SpriteIconButton.withTootip: the label as a tooltip.
+        // Each icon shows its label as a tooltip on hover.
         if let Some(tip) = tooltip {
             let lines: Vec<Text> = atlas
                 .font
@@ -988,7 +986,6 @@ mod tests {
             Screen::DialogWarning,
             Screen::CommandBlock,
             Screen::BlockEditor,
-            Screen::DebugOptions,
             Screen::HudEditor,
         ] {
             assert!(screen.is_pause_screen(), "{}", screen.id());

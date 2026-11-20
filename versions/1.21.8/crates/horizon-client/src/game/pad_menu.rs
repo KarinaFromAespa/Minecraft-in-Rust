@@ -1256,8 +1256,11 @@ impl Game<'_> {
         }
     }
 
-    /// `AbstractSelectionList.setSelected`: a settings row the focus lands on, or presses, while
-    /// its list hides part of it scrolls all into view first. Where it is now.
+    /// `AbstractSelectionList.ensureVisible` (via `setFocused`, on keyboard
+    /// input — 1.21.8's `setSelected` is a plain assignment; the
+    /// scroll-in-`setSelected` form came in 1.21.9): a settings row the focus
+    /// lands on, or presses, while its list hides part of it scrolls all
+    /// into view first. Where it is now.
     fn pad_reveal(&mut self, target: Target) -> Target {
         if self.screen != Screen::Options {
             return target;
@@ -2001,11 +2004,6 @@ impl Game<'_> {
         self.pad.menu.nudge = None;
     }
 
-    /// The keyboard drives the open menu's focus.
-    pub(super) fn key_focus_driving(&self) -> bool {
-        self.pad.menu.keyboard && self.key_focus_screen()
-    }
-
     /// A pointer event the keyboard sends (a press, the hidden pointer on
     /// the focused widget) is being handled: the screen's narration doesn't
     /// take it for the mouse (`InputType` stays the keyboard's).
@@ -2350,7 +2348,7 @@ impl Game<'_> {
             || self.mod_browser_typing()
             || matches!(
                 self.screen,
-                Screen::CommandBlock | Screen::BlockEditor | Screen::Social | Screen::DebugOptions
+                Screen::CommandBlock | Screen::BlockEditor | Screen::Social
             )
     }
 
@@ -2486,12 +2484,6 @@ impl Game<'_> {
             match text {
                 Some(t) => self.social_type(t),
                 None if backspace => self.social_backspace(),
-                None => {}
-            }
-        } else if self.screen == Screen::DebugOptions {
-            match text {
-                Some(t) => self.debug_options_type(t),
-                None if backspace => self.debug_options_backspace(),
                 None => {}
             }
         } else if self.screen == Screen::Options {

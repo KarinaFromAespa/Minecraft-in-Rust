@@ -208,9 +208,12 @@ impl<'r, 'a> BlockParser<'r, 'a> {
             self.reader.skip_whitespace();
             self.sugg = Sugg::Equals;
             if !self.reader.can_read() || self.reader.peek() != '=' {
+                // 1.21.8's ERROR_EXPECTED_VALUE passes (id, property) to a
+                // message that reads (property, block) - swapped in vanilla
+                // (1.21.9 fixed the lambda); keep the 1.21.8 order.
                 return Err(CommandError::tr_at(
                     "argument.block.property.novalue",
-                    &[&key, &self.id],
+                    &[&self.id, &key],
                     self.reader,
                 ));
             }
@@ -278,9 +281,12 @@ impl<'r, 'a> BlockParser<'r, 'a> {
             self.reader.skip_whitespace();
             if !self.reader.can_read() || self.reader.peek() != '=' {
                 self.reader.cursor = key_start;
+                // 1.21.8's ERROR_EXPECTED_VALUE passes (id, property) to a
+                // message that reads (property, block) - swapped in vanilla
+                // (1.21.9 fixed the lambda); keep the 1.21.8 order.
                 return Err(CommandError::tr_at(
                     "argument.block.property.novalue",
-                    &[&key, &self.id],
+                    &[&self.id, &key],
                     self.reader,
                 ));
             }

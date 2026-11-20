@@ -172,7 +172,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             let mut scan = BlockCollisionScan::new(
                 &mut world,
-                CollisionContext::empty(false),
+                CollisionContext::empty(),
                 bounds,
                 f["suffocating"].as_bool().unwrap(),
                 1_000_000,

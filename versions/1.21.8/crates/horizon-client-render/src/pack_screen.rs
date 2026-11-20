@@ -1,5 +1,5 @@
 //! The resource pack screen (`PackSelectionScreen` with its two
-//! `TransferableSelectionList`s, search box and buttons) and the
+//! `TransferableSelectionList`s and buttons) and the
 //! `ConfirmScreen` an incompatible pack opens, as vanilla's state machine:
 //! clicks, the mouse wheel and typing change the selection model, the lists'
 //! entries, scroll, selection and focus as the vanilla widgets do, and
@@ -142,9 +142,12 @@ pub fn icon_texture(id: &str) -> String {
     format!("pack/{sanitized}/{hash}/icon")
 }
 
+/// `AbstractSelectionList.headerHeight` for this list: `(int)(9.0F * 1.5F)`,
+/// the height of the title band `renderHeader` draws in above the rows.
+const HEADER_HEIGHT: i32 = 13;
+
 #[derive(Clone, Debug, PartialEq)]
 enum Row {
-    Header,
     Pack(String),
 }
 #[derive(Clone, Debug)]
@@ -189,13 +192,13 @@ impl List {
         self.y + self.height
     }
     fn row_left(&self) -> i32 {
-        self.x + self.width / 2 - self.row_width() / 2
+        self.x + self.width / 2 - self.row_width() / 2 + 2
     }
     fn row_width(&self) -> i32 {
-        self.width - 4
+        self.width
     }
     fn content_height(&self) -> i32 {
-        self.entries.iter().map(|e| e.height).sum::<i32>() + 4
+        self.entries.iter().map(|e| e.height).sum::<i32>() + HEADER_HEIGHT + 4
     }
     fn max_scroll(&self) -> i32 {
         (self.content_height() - self.height).max(0)
@@ -203,19 +206,15 @@ impl List {
     fn scrollable(&self) -> bool {
         self.max_scroll() > 0
     }
-    /// `TransferableSelectionList.Entry.getWidth`.
-    fn entry_width(&self) -> i32 {
-        self.row_width() - if self.scrollable() { 6 } else { 0 }
-    }
     fn next_y(&self) -> i32 {
-        self.y + 2 - self.scroll as i32 + self.entries.iter().map(|e| e.height).sum::<i32>()
+        self.y + 4 + HEADER_HEIGHT - self.scroll as i32 + self.entries.iter().map(|e| e.height).sum::<i32>()
     }
     fn add(&mut self, row: Row, height: i32) {
         let y = self.next_y();
         self.entries.push(Entry { row, y, height });
     }
     fn reposition(&mut self) {
-        let mut y = self.y + 2 - self.scroll as i32;
+        let mut y = self.y + 4 + HEADER_HEIGHT - self.scroll as i32;
         for e in &mut self.entries {
             e.y = y;
             y += e.height;
@@ -227,12 +226,12 @@ impl List {
     }
     fn scroll_to(&mut self, i: usize) {
         let e = &self.entries[i];
-        let top = e.y - self.y - 2;
+        let top = e.y - self.y;
         if top < 0 {
             self.set_scroll(self.scroll + top as f64);
         }
         let e = &self.entries[i];
-        let bottom = self.bottom() - e.y - e.height - 2;
+        let bottom = self.bottom() - e.y - e.height;
         if bottom < 0 {
             self.set_scroll(self.scroll - bottom as f64);
         }
@@ -241,8 +240,8 @@ impl List {
         self.selected = i;
         if let Some(i) = i {
             let e = &self.entries[i];
-            let top = e.y + 2 < self.y;
-            let bottom = e.y + 2 + e.height - 4 > self.bottom();
+            let top = e.y < self.y;
+            let bottom = e.y + e.height > self.bottom();
             if top || bottom {
                 self.scroll_to(i);
             }
@@ -267,7 +266,7 @@ impl List {
     }
     /// `getEntryAtPosition`.
     fn entry_at(&self, x: i32, y: i32) -> Option<usize> {
-        let (left, w) = (self.row_left(), self.entry_width());
+        let (left, w) = (self.row_left(), self.row_width());
         self.entries
             .iter()
             .position(|e| x >= left && x < left + w && y >= e.y && y < e.y + e.height)
@@ -298,7 +297,6 @@ impl List {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Focus {
     None,
-    Search,
     List(usize),
     /// Open Pack Folder (0) or Done (1).
     Button(usize),
@@ -337,7 +335,6 @@ pub struct PackScreen {
     pub in_world: bool,
     pub packs: Vec<PackInfo>,
     pub model: SelectionModel,
-    search: TextField,
     focus: Focus,
     /// 0: available, 1: selected.
     lists: [List; 2],
@@ -363,8 +360,8 @@ pub struct PackScreen {
     pub browsing_allowed: bool,
     /// The packs with Polytone options (#11486): their cards carry an options button.
     pub with_options: std::collections::BTreeSet<String>,
-    /// The browser's own search box, separate from the one that filters the
-    /// player's installed packs.
+    /// The browser's own search box (Horizon's Modrinth browser; vanilla's
+    /// pack screen has no search box — the filter was added in 1.21.9).
     browser_search: TextField,
     /// The browser's search box has the keyboard.
     browser_focus: bool,
@@ -411,7 +408,8 @@ const BACK_H: i32 = 20;
 const INSTALL_W: i32 = 70;
 
 impl PackScreen {
-    /// `PackSelectionScreen.init`: the lists filled, the search box focused.
+    /// `PackSelectionScreen.init`: the lists filled, no initial focus
+    /// (1.21.8 sets none; the search box it focused is 1.21.9-only).
     pub fn new(
         m: &Measure,
         title: Text,
@@ -422,12 +420,6 @@ impl PackScreen {
         selected: &[String],
     ) -> Self {
         let model = SelectionModel::new(packs.iter().map(PackInfo::selectable).collect(), selected);
-        let mut search = TextField::new(0, 0, 200, 15);
-        search.hint = Some(tr("gui.packSelection.search").with_style(&Style {
-            color: Some(d::GRAY),
-            italic: Some(true),
-            ..Style::default()
-        }));
         let icons = packs
             .iter()
             .filter_map(|p| Some((icon_texture(&p.id), p.icon.clone()?)))
@@ -440,7 +432,6 @@ impl PackScreen {
             packs,
             icons,
             model,
-            search,
             focus: Focus::None,
             lists: [List::new(false, height - 66), List::new(true, height - 66)],
             confirm: None,
@@ -462,22 +453,31 @@ impl PackScreen {
             changed: false,
         };
         s.reposition(m);
-        s.populate(None);
-        s.set_focus(Focus::Search);
+        s.populate();
         s
     }
     fn info(&self, id: &str) -> Option<&PackInfo> {
         self.packs.iter().find(|p| p.id == id)
     }
-    /// The header layout: title, drop info and search box, centred.
-    fn header(&self, m: &Measure) -> [(i32, i32); 3] {
+    /// The header's centred column: its left edge and width (the wider of
+    /// the title, the drop info and 200).
+    fn header_col(&self, m: &Measure) -> (i32, i32) {
         let tw = m.width(&self.title);
         let dw = m.width(&tr("pack.dropInfo"));
         let col = tw.max(dw).max(200);
         let frame = self.width.max(col);
-        let lx = (0.5 * (frame - col) as f32) as i32;
+        ((0.5 * (frame - col) as f32) as i32, col)
+    }
+    /// The header layout: title and drop info, centred. The vertical
+    /// `LinearLayout` (spacing 5, two 9 px lines = 23 px) sits centred in
+    /// the 33 px header, so the title is at y 5 and the drop info at y 19.
+    /// (1.21.9 added a search box row and a 49 px header.)
+    fn header(&self, m: &Measure) -> [(i32, i32); 2] {
+        let (lx, col) = self.header_col(m);
         let cell = |w: i32| lx + (0.5 * (col - w) as f32) as i32;
-        [(cell(tw), 4), (cell(dw), 17), (cell(200), 30)]
+        let tw = m.width(&self.title);
+        let dw = m.width(&tr("pack.dropInfo"));
+        [(cell(tw), 5), (cell(dw), 19)]
     }
     /// The footer's two buttons.
     fn footer(&self) -> [(i32, i32); 2] {
@@ -486,90 +486,61 @@ impl PackScreen {
         let y = self.height - 33 + (0.5f32 * 13.0).round() as i32;
         [(x, y), (x + 158, y)]
     }
-    /// `repositionElements`.
+    /// `repositionElements`: the lists fill the content between the 33 px
+    /// header and the 33 px footer.
     fn reposition(&mut self, m: &Measure) {
-        let (sx, sy) = self.header(m)[2];
-        self.search.x = sx;
-        self.search.y = sy;
-        let content = self.height - 49 - 33;
+        let _ = m;
+        let content = self.height - 33 - 33;
         let w = self.width;
-        self.lists[0].update_size(200, content, w / 2 - 15 - 200, 49);
-        self.lists[1].update_size(200, content, w / 2 + 15, 49);
+        self.lists[0].update_size(200, content, w / 2 - 15 - 200, 33);
+        self.lists[1].update_size(200, content, w / 2 + 15, 33);
     }
-    /// `AbstractContainerEventHandler.setFocused` on the screen.
+    /// `AbstractContainerEventHandler.setFocused` on the screen: 1.21.8
+    /// always unfocuses the old element and focuses the new one, even when
+    /// they are the same (1.21.9 added the early return on re-focus).
     fn set_focus(&mut self, f: Focus) {
-        if self.focus == f {
-            return;
-        }
         match self.focus {
-            Focus::Search => self.search.focused = false,
             Focus::List(i) => self.lists[i].focused = false,
             Focus::None | Focus::Button(_) => {}
         }
-        if f == Focus::Search {
-            self.search.focused = true;
-        }
         self.focus = f;
     }
-    fn shown(&self, side: usize) -> Vec<String> {
-        let value = self.search.value.to_lowercase();
-        let blank = self.search.value.trim().is_empty()
-            && self.search.value.chars().all(char::is_whitespace);
-        let list = if side == 1 {
-            &self.model.selected
-        } else {
-            &self.model.unselected
-        };
-        list.iter()
-            .filter(|p| {
-                blank
-                    || p.id.to_lowercase().contains(&value)
-                    || self.info(&p.id).is_some_and(|i| {
-                        i.title.plain().to_lowercase().contains(&value)
-                            || i.description.plain().to_lowercase().contains(&value)
-                    })
-            })
-            .map(|p| p.id.clone())
-            .collect()
-    }
-    /// `TransferableSelectionList.updateList`.
-    fn update_list(&mut self, side: usize, ids: Vec<String>, transferred: Option<&str>) {
+    /// `PackSelectionScreen.updateList`: rebuild one list from the model,
+    /// keeping the previously selected pack selected when it is still there.
+    /// (1.21.9's `TransferableSelectionList.updateList` instead selected a
+    /// transferred pack and focused its list.)
+    fn update_list(&mut self, side: usize, ids: Vec<String>) {
         let l = &mut self.lists[side];
+        let keep = l.selected.map(|i| {
+            let Row::Pack(id) = &l.entries[i].row;
+            id.clone()
+        });
         l.entries.clear();
         l.selected = None;
-        l.add(Row::Header, 13);
-        l.set_selected(None);
         for id in ids {
-            let hit = transferred == Some(id.as_str());
             self.lists[side].add(Row::Pack(id), 36);
-            if hit {
-                self.set_focus(Focus::List(side));
-                let l = &mut self.lists[side];
-                l.focused = true;
-                let i = l.entries.len() - 1;
-                l.set_selected(Some(i));
-            }
+        }
+        if let Some(keep) = keep
+            && let Some(i) = self.lists[side]
+                .entries
+                .iter()
+                .position(|e| e.row == Row::Pack(keep.clone()))
+        {
+            self.lists[side].set_selected(Some(i));
         }
         let l = &mut self.lists[side];
         l.set_scroll(l.scroll);
     }
-    /// `populateLists`: both lists, then again through the search filter.
-    fn populate(&mut self, transferred: Option<&str>) {
+    /// `populateLists`: both lists from the model.
+    fn populate(&mut self) {
         let all = |m: &SelectionModel, side: bool| -> Vec<String> {
             (if side { &m.selected } else { &m.unselected })
                 .iter()
                 .map(|p| p.id.clone())
                 .collect()
         };
-        self.update_list(1, all(&self.model, true), transferred);
-        self.update_list(0, all(&self.model, false), transferred);
-        self.filter(transferred);
-    }
-    /// `updateFilteredEntries`.
-    fn filter(&mut self, transferred: Option<&str>) {
-        let (sel, avail) = (self.shown(1), self.shown(0));
-        self.update_list(1, sel, transferred);
-        self.update_list(0, avail, transferred);
+        self.update_list(1, all(&self.model, true));
+        self.update_list(0, all(&self.model, false));
     }
     /// The pack's index in its model list.
     fn model_index(&self, side: usize, id: &str) -> Option<usize> {
@@ -597,7 +568,7 @@ impl PackScreen {
     }
 
     /// Whether a left click activates a footer or confirmation button.
-    /// Pack entries and the search field do not play widget click sounds.
+    /// Pack entries do not play widget click sounds.
     pub fn button_at(&self, m: &Measure, x: f64, y: f64) -> bool {
         let buttons = if let Some(c) = &self.confirm {
             self.confirm_layout(m, c).2
@@ -615,11 +586,6 @@ impl PackScreen {
         }
         if let Some(action) = self.browser_click(m, x, y) {
             return action;
-        }
-        if self.search.contains(x, y) {
-            self.search.click(m, x, false);
-            self.set_focus(Focus::Search);
-            return Action::None;
         }
         for side in 0..2 {
             if !self.lists[side].is_over(x, y) {
@@ -648,29 +614,23 @@ impl PackScreen {
             let mut took = false;
             if let Some(i) = hit {
                 took = true;
-                match l.entries[i].row.clone() {
-                    Row::Header => {
-                        let l = &mut self.lists[side];
-                        l.focused = true;
+                let Row::Pack(id) = l.entries[i].row.clone();
+                let current = self.entry_click(m, side, i, &id, x as i32, y as i32);
+                // A click on the list focuses it (the container sets the
+                // focus to the child under the mouse) — unless the click
+                // opened the incompatible-pack ConfirmScreen, which clears
+                // the focus as `setScreen` does.
+                if self.confirm.is_none() {
+                    let l = &mut self.lists[side];
+                    l.focused = true;
+                    if current
+                        && l.entries.iter().any(|e| e.row == Row::Pack(id.clone()))
+                    {
                         l.set_selected(Some(i));
-                    }
-                    Row::Pack(id) => {
-                        let current = self.entry_click(m, side, i, &id, x as i32, y as i32);
-                        if self.lists[side]
-                            .entries
-                            .iter()
-                            .any(|e| e.row == Row::Pack(id.clone()))
-                        {
-                            let l = &mut self.lists[side];
-                            l.focused = true;
-                            if current {
-                                l.set_selected(Some(i));
-                            }
-                        }
                     }
                 }
             }
-            if took {
+            if took && self.confirm.is_none() {
                 self.set_focus(Focus::List(side));
             }
             return Action::None;
@@ -702,7 +662,10 @@ impl PackScreen {
             return true;
         }
         let e = &self.lists[side].entries[i];
-        let (cx, cy) = (self.lists[side].row_left() + 2, e.y + 2);
+        // `PackEntry.mouseClicked`: the icon sits at the row's own origin
+        // (`getRowLeft`, `getRowTop`) — 1.21.9 inset it by the 2 px content
+        // padding.
+        let (cx, cy) = (self.lists[side].row_left(), e.y);
         let (rx, ry) = (x - cx, y - cy);
         let (sel, unsel, up, down) = self.flags(side, id);
         let icon = (0..32).contains(&rx) && (0..32).contains(&ry);
@@ -730,7 +693,7 @@ impl PackScreen {
             return true;
         }
         self.changed = true;
-        self.populate(Some(id));
+        self.populate();
         let _ = m;
         false
     }
@@ -787,7 +750,7 @@ impl PackScreen {
                 {
                     self.model.activate(false, index, true);
                     self.changed = true;
-                    self.populate(Some(&c.id));
+                    self.populate();
                 }
                 return Action::None;
             }
@@ -836,7 +799,7 @@ impl PackScreen {
         }
     }
     pub fn scroll(&mut self, x: f64, y: f64, amount: f64) {
-        if self.confirm.is_some() || self.search.contains(x, y) {
+        if self.confirm.is_some() {
             return;
         }
         for l in &mut self.lists {
@@ -846,42 +809,28 @@ impl PackScreen {
             }
         }
     }
-    /// Typed text, when the search box has the focus.
+    /// Typed text, when the browser's search box is open.
     pub fn type_text(&mut self, m: &Measure, s: &str) {
         if self.browser.is_some() {
             self.browser_search.insert_text(m, s);
-            return;
-        }
-        if self.confirm.is_none() && self.focus == Focus::Search && self.search.insert_text(m, s) {
-            self.filter(None);
         }
     }
-    /// Ctrl+A/C/V/X in the search box; false when it does not have the focus.
+    /// Ctrl+A/C/V/X in the browser's search box; false when it is not open.
     pub fn shortcut(
         &mut self,
         m: &Measure,
         shortcut: crate::clipboard::EditShortcut,
         clipboard: &mut dyn crate::clipboard::Clipboard,
     ) -> bool {
-        if !self.search_focused() {
+        if self.browser.is_none() {
             return false;
         }
-        if self.search.shortcut(m, shortcut, clipboard) {
-            self.filter(None);
-        }
-        true
+        self.browser_search.shortcut(m, shortcut, clipboard)
     }
-    /// Backspace in the search box.
+    /// Backspace in the browser's search box.
     pub fn erase(&mut self, m: &Measure, count: isize) {
         if self.browser.is_some() {
             self.browser_search.delete_chars(m, -count);
-            return;
-        }
-        if self.confirm.is_none()
-            && self.focus == Focus::Search
-            && self.search.delete_chars(m, -count)
-        {
-            self.filter(None);
         }
     }
     /// Keeps a browser icon, remembering it so [`Self::release_browser_icons`]
@@ -917,8 +866,9 @@ impl PackScreen {
         self.browser.is_some()
     }
     pub fn search_focused(&self) -> bool {
-        // The browser's own box counts: the game routes typing by this.
-        self.browser_typing() || (self.confirm.is_none() && self.focus == Focus::Search)
+        // Only the browser's box takes typing now: vanilla's pack screen
+        // has no search box in 1.21.8.
+        self.browser_typing()
     }
     /// Resize (`Screen.init` on a new size: `repositionElements`).
     pub fn resize(&mut self, m: &Measure, width: i32, height: i32) {
@@ -960,9 +910,8 @@ impl PackScreen {
         }
     }
 
-    /// The shown screen's calls (`Screen.extractRenderState`); `blink_ms`
-    /// is the time since the search box took the focus.
-    pub fn draw(&self, m: &Measure, mouse: (i32, i32), blink_ms: u64, now_ms: i64) -> Vec<Draw> {
+    /// The shown screen's calls (`Screen.render`).
+    pub fn draw(&self, m: &Measure, mouse: (i32, i32), now_ms: i64) -> Vec<Draw> {
         let mut out = Vec::new();
         // PackSelectionScreen, or the ConfirmScreen over it (its title and
         // its message).
@@ -979,12 +928,11 @@ impl PackScreen {
             d::label(&mut out, &lines, mx, my, self.width - 50, true);
             for ((bx, by), key) in buttons.into_iter().zip(["gui.yes", "gui.no"]) {
                 let hover = d::inside(mouse, bx, by, 150, 20);
-                crate::widgets::widget_cursor(hover, true);
                 d::button(&mut out, m, &tr(key), bx, by, 150, 20, true, hover, now_ms);
             }
             return out;
         }
-        let [(tx, ty), (dx, dy), _] = self.header(m);
+        let [(tx, ty), (dx, dy)] = self.header(m);
         d::string_widget(&mut out, m, &self.title, tx, ty, 0);
         d::string_widget(
             &mut out,
@@ -994,7 +942,6 @@ impl PackScreen {
             dy,
             0,
         );
-        self.search.draw(&mut out, m, blink_ms, None);
         for side in 0..2 {
             self.draw_list(&mut out, m, side, mouse);
         }
@@ -1071,12 +1018,8 @@ impl PackScreen {
         let (bx, by) = self.add_button(m);
         if d::inside(point, bx, by, ADD_SIZE, ADD_SIZE) {
             let mut browser = crate::pack_browser::Browser::new();
-            // Opens on the text already in the search box, so a player who
-            // searched their own packs first keeps the term; it is then the
-            // browser's box that carries it.
-            browser.query = self.search.value.clone();
             browser.search();
-            self.browser_search.set_value(m, &self.search.value);
+            self.browser_search.set_value(m, "");
             self.browser_focus = true;
             self.browser = Some(browser);
             // Horizon's own screen, so it may ask for the menu panorama.
@@ -1380,11 +1323,11 @@ impl PackScreen {
     fn options_button(&self, side: usize, i: usize) -> Option<(String, i32, i32)> {
         let l = &self.lists[side];
         let e = l.entries.get(i)?;
-        let Row::Pack(id) = &e.row else { return None };
+        let Row::Pack(id) = &e.row;
         if !self.with_options.contains(id) {
             return None;
         }
-        let x = l.row_left() + l.entry_width() - OPTIONS_SIZE - 2;
+        let x = l.row_left() + l.row_width() - OPTIONS_SIZE - 2;
         let y = e.y + (e.height - OPTIONS_SIZE) / 2;
         Some((id.clone(), x, y))
     }
@@ -1414,11 +1357,13 @@ impl PackScreen {
             d::fill(out, x + at, y + row - 1, x + at + 2, y + row + 2, knob);
         }
     }
-    /// The Add button, just right of the search box.
+    /// The Add button, just right of the header's centred column and centred
+    /// on the 33 px header. (It used to sit beside the search box, which is
+    /// 1.21.9-only.)
     fn add_button(&self, m: &Measure) -> (i32, i32) {
-        let (sx, sy) = self.header(m)[2];
-        // The search box is 15 tall: centre the taller button on it.
-        (sx + 204, sy - (ADD_SIZE - 15) / 2)
+        let (lx, col) = self.header_col(m);
+        let sx = lx + (0.5 * (col - 200) as f32) as i32;
+        (sx + 204, (33 - ADD_SIZE) / 2)
     }
     /// The footer's two buttons, "Open Pack Folder" and "Done", over their
     /// labels; a label wider than its button scrolls with the clock.
@@ -1432,8 +1377,6 @@ impl PackScreen {
     ) {
         for (i, ((bx, by), label)) in self.footer().into_iter().zip(labels).enumerate() {
             let hover = d::inside(mouse, bx, by, 150, 20);
-            // The cursor follows the mouse; the highlight also keyboard focus.
-            crate::widgets::widget_cursor(hover, true);
             if i == 1 && self.browser.is_none() {
                 crate::widgets::declare_action(
                     crate::widgets::Action::Done,
@@ -1476,20 +1419,15 @@ impl PackScreen {
             "pack.available.title"
         };
         // TransferableSelectionList: the row under the mouse, else the
-        // selected one; the header narrates its title, a pack "Selected:
-        // <title>".
+        // selected one; a pack narrates "Selected: <title>".
         crate::widgets::narratable(|| {
             use crate::widgets::{ListKind, Narratable, Row as Narrated};
             let narrated = |i: usize| {
-                let text = match &l.entries[i].row {
-                    Row::Header => tr(header).plain(),
-                    Row::Pack(id) => {
-                        let title = self
-                            .info(id)
-                            .map_or_else(|| Text::literal(id.clone()), |p| p.title.clone());
-                        Text::translate("narrator.select", &[title]).plain()
-                    }
-                };
+                let Row::Pack(id) = &l.entries[i].row;
+                let title = self
+                    .info(id)
+                    .map_or_else(|| Text::literal(id.clone()), |p| p.title.clone());
+                let text = Text::translate("narrator.select", &[title]).plain();
                 Narrated::new(i, text)
             };
             Narratable::list(
@@ -1520,8 +1458,19 @@ impl PackScreen {
             x1: right.clamp(0, self.width),
             y1: l.bottom().clamp(0, self.height),
         });
-        let (left, w) = (l.row_left(), l.entry_width());
-        let narrow = if l.scrollable() { 6 } else { 0 };
+        let (left, w) = (l.row_left(), l.row_width());
+        // `TransferableSelectionList.renderHeader`: the title, underlined
+        // and bold, centred over the rows at `min(getY() + 3, getY() + 4 -
+        // scroll)` — it scrolls up with the list. (1.21.9 made it a
+        // `HeaderEntry` row instead.)
+        let t = tr(header).with_style(&Style {
+            underlined: Some(true),
+            bold: Some(true),
+            ..Style::default()
+        });
+        let tw = m.width(&t);
+        let ty = (l.y + 3).min(l.y + 4 - l.scroll as i32);
+        d::text(out, t, left + w / 2 - tw / 2, ty, -1, true);
         let mut tooltip = None;
         for (i, e) in l.entries.iter().enumerate() {
             if e.y + e.height < l.y || e.y > l.bottom() {
@@ -1529,105 +1478,97 @@ impl PackScreen {
             }
             if l.selected == Some(i) {
                 let color = if l.focused { -1 } else { -8355712 };
-                d::fill(out, left, e.y, left + w, e.y + e.height, color);
+                // `renderSelection`: the outline spans the row, ±2 px
+                // vertically; with a scrollbar the right edge stops at the
+                // scrollbar (`getRight() - 6 - 1`). The entry's drawn
+                // height is `itemHeight - 4`.
+                let (x0, x1) = if l.scrollable() {
+                    (left - 2, l.x + l.width - 6 - 1)
+                } else {
+                    (left - 2, l.x + l.width)
+                };
+                let h = e.height - 4;
+                d::fill(out, x0, e.y - 2, x1, e.y + h + 2, color);
+                d::fill(out, x0 + 1, e.y - 1, x1 - 1, e.y + h + 1, -16777216);
+            }
+            // The icon sits at the row's own origin (`getRowLeft`,
+            // `getRowTop`) — 1.21.9 inset it by the 2 px content padding.
+            let (cx, cy) = (left, e.y);
+            let Row::Pack(id) = &e.row;
+            let Some(p) = self.info(id) else { continue };
+            if p.compat != Compat::Compatible {
+                // The tint spans the row, stopping 7 px short of
+                // its right edge when the scrollbar shows.
+                let short = if l.scrollable() { 7 } else { 0 };
                 d::fill(
                     out,
-                    left + 1,
-                    e.y + 1,
-                    left + w - 1,
-                    e.y + e.height - 1,
-                    -16777216,
+                    left - 1,
+                    e.y - 1,
+                    left + w - 3 - short,
+                    e.y + e.height - 4 + 1,
+                    -8978432,
                 );
             }
-            let (cx, cy) = (left + 2, e.y + 2);
-            match &e.row {
-                Row::Header => {
-                    let t = tr(header).with_style(&Style {
-                        underlined: Some(true),
-                        bold: Some(true),
-                        ..Style::default()
-                    });
-                    let tw = m.width(&t);
-                    d::text(
-                        out,
-                        t,
-                        left + w / 2 - tw / 2,
-                        cy + (e.height - 4) / 2 - 4,
-                        -1,
-                        true,
-                    );
+            let icon = if p.icon.is_some() {
+                icon_texture(id)
+            } else {
+                "textures/misc/unknown_pack.png".into()
+            };
+            d::blit(out, &icon, cx, cy, (0.0, 0.0), 32, 32, [32, 32]);
+            let (mut name, (mut desc, mut desc_style)) =
+                (p.title.clone(), p.extended_description());
+            let focus_hover = l.selected == Some(i) && l.focused;
+            if self.overlay(id) && (hovered == Some(i) || focus_hover) {
+                d::fill(out, cx, cy, cx + 32, cy + 32, -1601138544);
+                let (rx, ry) = (mouse.0 - cx, mouse.1 - cy);
+                if p.compat != Compat::Compatible {
+                    name = tr("pack.incompatible");
+                    desc = tr(&format!("pack.incompatible.{}", p.compat.key()))
+                        .with_color(d::GRAY);
+                    desc_style = Style::color(d::GRAY);
                 }
-                Row::Pack(id) => {
-                    let Some(p) = self.info(id) else { continue };
-                    if p.compat != Compat::Compatible {
-                        d::fill(
-                            out,
-                            cx - 1,
-                            cy - 1,
-                            cx + w - 4 + 1,
-                            cy + e.height - 4 + 1,
-                            -8978432,
-                        );
-                    }
-                    let icon = if p.icon.is_some() {
-                        icon_texture(id)
+                let (sel, unsel, up, down) = self.flags(side, id);
+                let quarter = |x0: i32, x1: i32, y0: i32, y1: i32| {
+                    (x0..x1).contains(&rx) && (y0..y1).contains(&ry)
+                };
+                let mut arrow = |name: &str, on: bool| {
+                    let s = if on {
+                        format!("transferable_list/{name}_highlighted")
                     } else {
-                        "textures/misc/unknown_pack.png".into()
+                        format!("transferable_list/{name}")
                     };
-                    d::blit(out, &icon, cx, cy, (0.0, 0.0), 32, 32, [32, 32]);
-                    let (mut name, (mut desc, mut desc_style)) =
-                        (p.title.clone(), p.extended_description());
-                    let focus_hover = l.selected == Some(i) && l.focused;
-                    if self.overlay(id) && (hovered == Some(i) || focus_hover) {
-                        d::fill(out, cx, cy, cx + 32, cy + 32, -1601138544);
-                        let (rx, ry) = (mouse.0 - cx, mouse.1 - cy);
-                        if p.compat != Compat::Compatible {
-                            name = tr("pack.incompatible");
-                            desc = tr(&format!("pack.incompatible.{}", p.compat.key()))
-                                .with_color(d::GRAY);
-                            desc_style = Style::color(d::GRAY);
-                        }
-                        let (sel, unsel, up, down) = self.flags(side, id);
-                        let quarter = |x0: i32, x1: i32, y0: i32, y1: i32| {
-                            (x0..x1).contains(&rx) && (y0..y1).contains(&ry)
-                        };
-                        let mut arrow = |name: &str, on: bool| {
-                            let s = if on {
-                                format!("transferable_list/{name}_highlighted")
-                            } else {
-                                format!("transferable_list/{name}")
-                            };
-                            d::sprite(out, &s, cx, cy, 32, 32);
-                        };
-                        if sel {
-                            arrow("select", quarter(0, 32, 0, 32));
-                        } else {
-                            if unsel {
-                                arrow("unselect", quarter(0, 16, 0, 32));
-                            }
-                            if up {
-                                arrow("move_up", quarter(16, 32, 0, 16));
-                            }
-                            if down {
-                                arrow("move_down", quarter(16, 32, 16, 32));
-                            }
-                        }
+                    d::sprite(out, &s, cx, cy, 32, 32);
+                };
+                if sel {
+                    arrow("select", quarter(0, 32, 0, 32));
+                } else {
+                    if unsel {
+                        arrow("unselect", quarter(0, 16, 0, 32));
                     }
-                    let mut max = 157 - narrow;
-                    if let Some((_, bx, by)) = self.options_button(side, i) {
-                        let hover = hovered == Some(i)
-                            && d::inside(mouse, bx, by, OPTIONS_SIZE, OPTIONS_SIZE);
-                        Self::draw_options_button(out, bx, by, hover);
-                        if hover {
-                            tooltip = Some(tr("horizon.pack.optionsInfo"));
-                        }
-                        max -= OPTIONS_SIZE + 2;
+                    if up {
+                        arrow("move_up", quarter(16, 32, 0, 16));
                     }
-                    d::string_widget(out, m, &name, cx + 34, cy + 1, max);
-                    let lines = d::label_lines(m, &desc, max, 2, &desc_style);
-                    d::label(out, &lines, cx + 34, cy + 12, max, false);
+                    if down {
+                        arrow("move_down", quarter(16, 32, 16, 32));
+                    }
                 }
             }
+            // The name and description truncate at 157 px in both
+            // versions; 1.21.9 also narrowed them by 6 px with a
+            // scrollbar (the `Entry.getWidth` form).
+            let mut max = 157;
+            if let Some((_, bx, by)) = self.options_button(side, i) {
+                let hover = hovered == Some(i)
+                    && d::inside(mouse, bx, by, OPTIONS_SIZE, OPTIONS_SIZE);
+                Self::draw_options_button(out, bx, by, hover);
+                if hover {
+                    tooltip = Some(tr("horizon.pack.optionsInfo"));
+                }
+                max -= OPTIONS_SIZE + 2;
+            }
+            d::string_widget(out, m, &name, cx + 34, cy + 1, max);
+            let lines = d::label_lines(m, &desc, max, 2, &desc_style);
+            d::label(out, &lines, cx + 34, cy + 12, max, false);
         }
         out.push(Draw::NoScissor);
         if let Some(t) = tooltip {
@@ -1746,7 +1687,7 @@ mod icon_tests {
         assert_eq!(id, "file/Configurable");
         let (cx, cy) = (bx + OPTIONS_SIZE / 2, by + OPTIONS_SIZE / 2);
         // Hovered, it explains itself.
-        let draws = screen.draw(&m, (cx, cy), 0, 0);
+        let draws = screen.draw(&m, (cx, cy), 0);
         assert!(draws.iter().any(|d| matches!(d, Draw::Tooltip { .. })));
         assert_eq!(
             screen.click(&m, cx as f64, cy as f64),
@@ -1772,7 +1713,7 @@ mod icon_tests {
             pack("file/Iconless", None),
         ];
         let screen = PackScreen::new(&m, tr("resourcePack.title"), 480, 320, false, packs, &[]);
-        let mut draws = screen.draw(&m, (0, 0), 0, 0);
+        let mut draws = screen.draw(&m, (0, 0), 0);
         let mut patches = Vec::new();
         screen.bind_icons(&mut draws, &atlas, &mut patches);
         let icons: Vec<&str> = draws
@@ -1873,10 +1814,9 @@ mod click_sound_tests {
         let (ax, ay) = screen.add_button(&m);
         screen.click(&m, f64::from(ax) + 2.0, f64::from(ay) + 2.0);
         assert!(screen.browser.is_some(), "the Add button opens the browser");
-        // Typing reaches the browser's own box, not the pack filter.
+        // Typing reaches the browser's own box.
         screen.type_text(&m, "blue");
         assert_eq!(screen.browser_search.value, "blue");
-        assert_eq!(screen.search.value, "", "the pack filter is left alone");
         // The Search button sends it to the browser.
         let (sx, sy) = screen.browser_search_button();
         screen.click(&m, f64::from(sx) + 2.0, f64::from(sy) + 2.0);
@@ -1900,11 +1840,9 @@ mod click_sound_tests {
         let title = tr("resourcePack.title");
         let mut screen = PackScreen::new(&m, title, 480, 320, false, Vec::new(), &[]);
         assert!(!screen.button_at(&m, 0.0, 0.0));
-        assert!(!screen.button_at(
-            &m,
-            screen.search.x as f64 + 1.0,
-            screen.search.y as f64 + 1.0
-        ));
+        // A point inside the available list (x 25, y 33 at this size) is
+        // not a button either.
+        assert!(!screen.button_at(&m, 30.0, 40.0));
         let buttons = screen.footer();
         for (i, (x, y)) in buttons.into_iter().enumerate() {
             assert!(screen.button_at(&m, x as f64 + 1.0, y as f64 + 1.0));

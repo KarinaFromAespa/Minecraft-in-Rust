@@ -6,7 +6,10 @@ use horizon_client::server::{
     eula,
     java_properties::now_millis,
     properties::{DIFFICULTIES, GAME_MODES, ServerProperties, SystemEntropy},
-    user_lists::{BanEntry, BanList, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry, WhiteList},
+    user_lists::{
+        BanEntry, BanList, DEFAULT_BAN_REASON, IpBanList, NameAndId, OpEntry, OpList, WhiteEntry,
+        WhiteList,
+    },
 };
 use horizon_protocol::crypto::uuid_string;
 use std::{fmt::Write as _, path::Path};
@@ -45,10 +48,6 @@ fn lines(text: &str) -> Vec<String> {
 fn latin1(bytes: &[u8]) -> String {
     bytes.iter().map(|&b| char::from(b)).collect()
 }
-fn has_key(text: &str, key: &str) -> bool {
-    text.split('\n')
-        .any(|l| l.trim_matches(|c: char| c <= ' ').starts_with(key))
-}
 
 fn work(dir: &Path) -> std::io::Result<std::path::PathBuf> {
     let w = std::env::temp_dir().join(format!(
@@ -69,12 +68,9 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
     let w = work(dir)?;
     let props = w.join("server.properties");
     if dir.join("server.properties").exists() || dir.join("properties.default").exists() {
-        let before = std::fs::read(&props)
-            .map(|b| latin1(&b))
-            .unwrap_or_default();
         match ServerProperties::from_file(&props, &mut SystemEntropy::default()) {
             Ok(p) => {
-                print_properties(&p, &before, out)?;
+                print_properties(&p, out)?;
                 p.store(&props)?;
                 writeln!(out, "stored:")?;
                 for (i, line) in lines(&std::fs::read_to_string(&props)?)
@@ -83,10 +79,6 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
                 {
                     let line = if i == 1 && line.starts_with('#') {
                         "#DATE".to_owned()
-                    } else if line.starts_with("management-server-secret=")
-                        && !has_key(&before, "management-server-secret")
-                    {
-                        "management-server-secret=<random>".to_owned()
                     } else {
                         line
                     };
@@ -161,24 +153,54 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
                         "(Unknown)".into()
                     },
                     expires: date(expires),
-                    reason: (reason != "-").then(|| reason.to_owned()),
+                    reason: if reason != "-" {
+                        reason.to_owned()
+                    } else {
+                        DEFAULT_BAN_REASON.into()
+                    },
                 }
             }
+            // 1.21.8's add/remove are void, so the probe reports the state
+            // after the action: on the list for an add, off it for a remove.
             let r = match a[0] {
-                "op" => ops.add(OpEntry {
-                    user: user(a[1], a[2]),
-                    level: a[3].parse::<i32>()?.clamp(0, 4),
-                    bypasses_player_limit: a[4].eq_ignore_ascii_case("true"),
-                }),
-                "deop" => ops.remove(&user(a[1], a[2])),
-                "white" => white.add(WhiteEntry {
-                    user: user(a[1], a[2]),
-                }),
-                "unwhite" => white.remove(&user(a[1], a[2])),
-                "ban" => bans.add(ban(user(a[1], a[2]), a[3], a[4], a[5], a[6])),
-                "pardon" => bans.remove(&user(a[1], a[2])),
-                "banip" => ips.add(ban(a[1].to_owned(), a[2], a[3], a[4], a[5])),
-                "pardonip" => ips.remove(&a[1].to_owned()),
+                "op" => {
+                    ops.add(OpEntry {
+                        user: user(a[1], a[2]),
+                        level: a[3].parse::<i32>()?.clamp(0, 4),
+                        bypasses_player_limit: a[4].eq_ignore_ascii_case("true"),
+                    });
+                    ops.contains(&user(a[1], a[2]))
+                }
+                "deop" => {
+                    ops.remove(&user(a[1], a[2]));
+                    !ops.contains(&user(a[1], a[2]))
+                }
+                "white" => {
+                    white.add(WhiteEntry {
+                        user: user(a[1], a[2]),
+                    });
+                    white.contains(&user(a[1], a[2]))
+                }
+                "unwhite" => {
+                    white.remove(&user(a[1], a[2]));
+                    !white.contains(&user(a[1], a[2]))
+                }
+                "ban" => {
+                    bans.add(ban(user(a[1], a[2]), a[3], a[4], a[5], a[6]));
+                    bans.contains(&user(a[1], a[2]))
+                }
+                "pardon" => {
+                    bans.remove(&user(a[1], a[2]));
+                    !bans.contains(&user(a[1], a[2]))
+                }
+                "banip" => {
+                    ips.add(ban(a[1].to_owned(), a[2], a[3], a[4], a[5]));
+                    ips.contains(&a[1].to_owned())
+                }
+                "pardonip" => {
+                    ips.remove(&a[1].to_owned());
+                    !ips.contains(&a[1].to_owned())
+                }
                 "isbanned" => bans.contains(&user(a[1], a[2])),
                 "isop" => ops.get(&user(a[1], a[2])).is_some(),
                 other => return Err(format!("unknown action {other}").into()),
@@ -210,12 +232,7 @@ fn run_case(dir: &Path, out: &mut String) -> Result<(), Box<dyn std::error::Erro
     Ok(())
 }
 
-fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std::fmt::Result {
-    let secret = if has_key(before, "management-server-secret") {
-        p.management_server_secret.clone()
-    } else {
-        "<random>".into()
-    };
+fn print_properties(p: &ServerProperties, out: &mut String) -> std::fmt::Result {
     let pack = p.resource_pack.as_ref().map_or_else(
         || "none".to_owned(),
         |i| {
@@ -237,9 +254,9 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.prevent_proxy_connections.to_string(),
         ),
         ("server-ip", p.server_ip.clone()),
+        ("pvp", p.pvp.to_string()),
         ("allow-flight", p.allow_flight.to_string()),
         ("motd", p.motd.clone()),
-        ("enable-code-of-conduct", p.code_of_conduct.to_string()),
         ("bug-report-link", p.bug_report_link.clone()),
         ("force-gamemode", p.force_game_mode.to_string()),
         ("enforce-whitelist", p.enforce_whitelist.to_string()),
@@ -247,32 +264,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
         ("gamemode", GAME_MODES[p.game_mode as usize].to_owned()),
         ("level-name", p.level_name.clone()),
         ("server-port", p.server_port.to_string()),
-        (
-            "management-server-enabled",
-            p.management_server_enabled.to_string(),
-        ),
-        ("management-server-host", p.management_server_host.clone()),
-        (
-            "management-server-port",
-            p.management_server_port.to_string(),
-        ),
-        ("management-server-secret", secret),
-        (
-            "management-server-tls-enabled",
-            p.management_server_tls_enabled.to_string(),
-        ),
-        (
-            "management-server-tls-keystore",
-            p.management_server_tls_keystore.clone(),
-        ),
-        (
-            "management-server-tls-keystore-password",
-            p.management_server_tls_keystore_password.clone(),
-        ),
-        (
-            "management-server-allowed-origins",
-            p.management_server_allowed_origins.clone(),
-        ),
         (
             "announce-player-achievements",
             opt_bool(p.announce_player_achievements),
@@ -283,7 +274,10 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
         ("rcon.port", p.rcon_port.to_string()),
         ("rcon.password", p.rcon_password.clone()),
         ("hardcore", p.hardcore.to_string()),
+        ("allow-nether", p.allow_nether.to_string()),
+        ("spawn-monsters", p.spawn_monsters.to_string()),
         ("use-native-transport", p.use_native_transport.to_string()),
+        ("enable-command-block", p.enable_command_block.to_string()),
         ("spawn-protection", p.spawn_protection.to_string()),
         ("op-permission-level", p.op_permission_level.to_string()),
         (
@@ -332,10 +326,6 @@ fn print_properties(p: &ServerProperties, before: &str, out: &mut String) -> std
             p.text_filtering_version.to_string(),
         ),
         ("player-idle-timeout", p.player_idle_timeout.to_string()),
-        (
-            "status-heartbeat-interval",
-            p.status_heartbeat_interval.to_string(),
-        ),
         ("white-list", p.white_list.to_string()),
         (
             "enforce-secure-profile",

@@ -18,11 +18,15 @@ pub struct CollisionFlags {
     pub below: bool,
     pub minor: bool,
 }
+/// `Entity.Movement`: a tick's move, from where it started to where it
+/// ended. `axis_independent` is vanilla's `axisIndependant`: a real move
+/// splits its block checks per axis, in the order of the displacement
+/// itself; a merged or finalizing record checks straight through.
 #[derive(Clone, Copy, Debug)]
 pub struct MovementRecord {
     pub from: Vec3,
     pub to: Vec3,
-    pub original: Option<Vec3>,
+    pub axis_independent: bool,
 }
 #[derive(Clone, Debug, Default)]
 pub struct MovementHistory {
@@ -39,7 +43,7 @@ impl MovementHistory {
             self.records.push_front(MovementRecord {
                 from: first.from,
                 to: second.to,
-                original: None,
+                axis_independent: false,
             });
         }
         self.records.push_back(record);
@@ -128,7 +132,8 @@ pub fn move_entity<W: EntityMoveWorld>(
     if world.no_physics() {
         world.set_position(world.position().add_vector(movement))?;
         world.record_movement(mover, movement)?;
-        world.set_collision_flags(CollisionFlags::default());
+        // 1.21.8 leaves the collision flags as they were; the reset came
+        // in 1.21.9.
         return Ok(());
     }
     if mover == MoverType::Piston {
@@ -150,9 +155,9 @@ pub fn move_entity<W: EntityMoveWorld>(
     let length = resolved.length_squared();
     if length > 1.0e-7 || movement.length_squared() - length < 1.0e-7 {
         if world.fall_distance() != 0.0 && length >= 1.0 {
-            let distance = resolved.length().min(8.0);
+            // 1.21.8 traces the whole move; the 8-block cap came in 1.21.9.
             let from = world.position();
-            let to = from.add_vector(resolved.normalize().scale(distance));
+            let to = from.add_vector(resolved);
             if world.fall_reset_clip(from, to)? {
                 world.reset_fall_distance()?;
             }
@@ -162,7 +167,7 @@ pub fn move_entity<W: EntityMoveWorld>(
         world.movement_history().add(MovementRecord {
             from,
             to,
-            original: Some(movement),
+            axis_independent: true,
         });
         world.set_position(to)?;
         world.record_movement(mover, resolved)?;

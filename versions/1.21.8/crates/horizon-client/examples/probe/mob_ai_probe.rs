@@ -63,7 +63,8 @@ struct Scenario {
     boat: Option<[f64; 2]>,
     /// Creaking hearts placed when the scenario starts.
     hearts: Vec<Vec<String>>,
-    /// `ServerLevel.isSpawningMonsters`.
+    /// Whether monsters may spawn (difficulty not peaceful and the
+    /// mob-spawning rule on).
     spawning: bool,
     /// The day time moves on with every tick.
     daycycle: bool,

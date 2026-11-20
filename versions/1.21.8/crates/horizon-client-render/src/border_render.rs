@@ -1,14 +1,17 @@
-//! The world border wall (`WorldBorderRenderer`, `WorldBorderRenderState`):
-//! which border the camera is near, the wall's fade and status colour, the
-//! cached vertex buffer of the four walls, the scrolling texture transform
-//! and which walls are drawn. Kept free of GPU types so the parity fixture
-//! can compare every value with vanilla's renderer.
+//! The world border wall (`WorldBorderRenderer`): which border the camera
+//! is near, the wall's fade and status colour, the cached vertex buffer of
+//! the four walls, the scrolling texture transform and which walls are drawn.
+//! 1.21.8's `render` computes the bounds, tint and fade inline; the Rust
+//! keeps them in its own record so the parity fixture can compare every
+//! value. Kept free of GPU types for the same reason.
 use crate::worldborder::{WorldBorder, jclamp, jmax, jmin, status_color};
 
 /// `WorldBorderRenderer.RENDERING_OFFSET`.
 const OFFSET: f64 = 0.01;
 
-/// `WorldBorderRenderState`.
+/// What 1.21.8's `WorldBorderRenderer.render` computes inline — the bounds,
+/// the status tint and the fade — kept in the Rust's own record (1.21.9
+/// split this out into `WorldBorderRenderState`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct BorderRenderState {
     pub min_x: f64,
@@ -54,7 +57,8 @@ fn java_double_compare(a: f64, b: f64) -> std::cmp::Ordering {
     }
 }
 
-/// `WorldBorderRenderer.extract`.
+/// The visibility, fade and tint 1.21.8's `WorldBorderRenderer.render`
+/// computes before drawing (1.21.9 split this out into `extract`).
 pub fn extract(
     border: &WorldBorder,
     partial: f32,
@@ -89,9 +93,9 @@ pub fn extract(
 /// buffer origin and texture coordinates.
 pub type BorderVertex = [f32; 5];
 
-/// What `WorldBorderRenderer.prepareDynamicTransforms` writes: the colour
-/// modulator, the model offset of the buffer origin from the camera and
-/// the texture matrix translation (both u and v).
+/// What `WorldBorderRenderer.render` writes into the dynamic uniforms: the
+/// colour modulator, the model offset of the buffer origin from the camera
+/// and the texture matrix translation (both u and v).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct BorderTransforms {
     pub color: [f32; 4],
@@ -227,7 +231,7 @@ impl BorderRenderer {
     pub fn take_rebuilt(&mut self) -> bool {
         std::mem::take(&mut self.rebuilt)
     }
-    /// `prepareDynamicTransforms` at `Util.getMillis()` = `millis`.
+    /// The dynamic uniforms `render` writes at `Util.getMillis()` = `millis`.
     pub fn transforms(
         &self,
         state: &BorderRenderState,

@@ -263,7 +263,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         let always = f["always"].as_bool().unwrap();
         let other = number(&f["other"]);
         let context = match f["mode"].as_str().unwrap() {
-            "empty" => CollisionContext::empty(always),
+            "empty" => CollisionContext::empty(),
             "position" => CollisionContext::position(player.y),
             "player" => CollisionContext::for_entity(player, always),
             "marker" => CollisionContext::for_entity(marker, always),
@@ -286,7 +286,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             "context {} {} {} {} {}",
             context.is_descending(),
             context.is_placement(),
-            context.always_collide_with_fluid(),
+            context.stand_on_any_fluid(),
             context.entity().map_or(0, |id| id.0),
             held
         )?;

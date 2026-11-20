@@ -40,8 +40,9 @@ impl Game<'_> {
         if f64::from(zombie.random.next_float()) >= zombie.attrs.spawn_reinforcements {
             return;
         }
-        // ServerLevel.isSpawningMonsters.
-        if !self.ui.rules.bool("spawn_mobs") || !self.ui.rules.bool("spawn_monsters") {
+        // `Zombie.hurtServer`: Hard difficulty and mob spawning on. (Hard
+        // already excludes peaceful, so there is no difficulty check here.)
+        if !self.ui.rules.bool("spawn_mobs") {
             return;
         }
         let kind = zombie.kind.clone();

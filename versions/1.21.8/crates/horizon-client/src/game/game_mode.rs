@@ -1,8 +1,7 @@
 //! Game modes beyond survival and creative (`GameType`): adventure players
 //! cannot build, spectators fly through blocks and only watch.
 use super::{Game, Screen};
-use horizon_client::{collisions::SceneCollisions, command::args::GameMode};
-use horizon_world::world_movement::in_range_of_ground;
+use horizon_client::command::args::GameMode;
 
 pub(super) fn mode_id_of(mode: GameMode) -> i32 {
     match mode {
@@ -147,28 +146,6 @@ impl Game<'_> {
                 p.flying = false;
             } else if was_spectator {
                 p.flying = true;
-            }
-        }
-        // ServerPlayerGameMode.changeGameModeForPlayer: a player left flying
-        // by the change lands when the ground is within a block.
-        let flying = self
-            .player
-            .as_ref()
-            .filter(|p| p.flying)
-            .map(|p| p.bounds());
-        if changed
-            && mode != GameMode::Spectator
-            && let Some(bounds) = flying
-        {
-            let mut scene = SceneCollisions {
-                world: &self.world,
-                binding: self.collision,
-                subject: None,
-            };
-            if in_range_of_ground(&mut scene, bounds)
-                && let Some(p) = self.player.as_mut()
-            {
-                p.flying = false;
             }
         }
         // InventoryScreen.containerTick: the open inventory follows the mode. Here, not in

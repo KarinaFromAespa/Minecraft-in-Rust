@@ -367,11 +367,9 @@ impl Game<'_> {
                 Event::SliderDrag => {
                     self.apply_settings();
                 }
-                // Options.createSoundSliderOptionInstance: the preview plays
-                // only without a level (on the title screen's options).
-                Event::Volume(source, volume) if self.title.is_some() => {
-                    self.audio.preview(source, volume);
-                }
+                // A volume slider only updates its source's volume in 1.21.8
+                // (`Options.createSoundSliderOptionInstance`); the preview
+                // sound is 1.21.9's `SoundPreviewHandler`.
                 Event::Volume(..) => {}
                 Event::CopyAgentDetails => {
                     use horizon_client::clipboard::Clipboard;

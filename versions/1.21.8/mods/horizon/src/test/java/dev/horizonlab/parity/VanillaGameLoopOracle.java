@@ -353,13 +353,11 @@ public final class VanillaGameLoopOracle {
         AtomicBoolean option = new AtomicBoolean();
         int value = 10000 + keys++;
         KeyMapping mapping = c.get("toggle").getAsBoolean()
-            ? new ToggleKeyMapping("key.test" + value, c.get("keyboard").getAsBoolean() ? InputConstants.Type.KEYBOARD : InputConstants.Type.MOUSE,
-                value, KeyMapping.Category.MISC, option::get, c.get("restore").getAsBoolean())
-            : new KeyMapping("key.test" + value, InputConstants.Type.KEYBOARD, value, KeyMapping.Category.MISC);
+            ? new ToggleKeyMapping("key.test" + value, value, "key.categories.misc", option::get)
+            : new KeyMapping("key.test" + value, InputConstants.Type.KEYBOARD, value, "key.categories.misc");
         var release = KeyMapping.class.getDeclaredMethod("release");
         release.setAccessible(true);
-        var key = c.get("toggle").getAsBoolean() && !c.get("keyboard").getAsBoolean()
-            ? InputConstants.Type.MOUSE.getOrCreate(value) : InputConstants.Type.KEYBOARD.getOrCreate(value);
+        var key = InputConstants.Type.KEYBOARD.getOrCreate(value);
         out.println("key");
         for (var e : c.getAsJsonArray("ops")) {
             var op = e.getAsJsonArray();
@@ -368,14 +366,8 @@ public final class VanillaGameLoopOracle {
                 case "option" -> option.set(op.get(1).getAsBoolean());
                 case "down" -> mapping.setDown(op.get(1).getAsBoolean());
                 case "release" -> release.invoke(mapping);
-                case "restore" -> result = mapping instanceof ToggleKeyMapping t ? " " + t.shouldRestoreStateOnScreenClosed() : " false";
                 case "click" -> KeyMapping.click(key);
                 case "consume" -> result = " " + mapping.consumeClick();
-                case "ingame" -> {
-                    var m = KeyMapping.class.getDeclaredMethod("shouldSetOnIngameFocus");
-                    m.setAccessible(true);
-                    result = " " + m.invoke(mapping);
-                }
                 default -> throw new IllegalArgumentException(op.toString());
             }
             out.println(op.get(0).getAsString() + result + " " + mapping.isDown());

@@ -374,9 +374,10 @@ impl ChunkTickets {
         });
     }
     /// `TicketStorage.purgeStaleTickets` for the `PORTAL` tickets, once a
-    /// tick: a ticket counts down only where `can_expire` (`canTicketExpire`:
-    /// `PORTAL` waits for its chunk to finish loading) and goes below zero,
-    /// `PORTAL_TIMEOUT + 1` counted ticks after it was placed.
+    /// tick: a ticket counts down only where `can_expire` (the purge's
+    /// chunk-ready gate: `PORTAL` waits for its chunk to finish loading)
+    /// and goes below zero, `PORTAL_TIMEOUT + 1` counted ticks after it
+    /// was placed.
     pub fn tick_portal(&mut self, mut can_expire: impl FnMut(&PortalTicket) -> bool) {
         self.portal.retain_mut(|t| {
             if !can_expire(t) {
@@ -387,7 +388,8 @@ impl ChunkTickets {
             t.ticks_left >= 0
         });
     }
-    /// While one is held, it keeps its level active (`shouldKeepDimensionActive`).
+    /// The `PORTAL` tickets held: while one is held, its chunk stays loaded
+    /// and ticking.
     pub fn portal_tickets(&self) -> &[PortalTicket] {
         &self.portal
     }

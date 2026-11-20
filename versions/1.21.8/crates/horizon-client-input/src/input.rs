@@ -69,8 +69,8 @@ fn square_movement(v: [f32; 2]) -> [f32; 2] {
     )
 }
 
-/// `InputQuirks.isQuitShortcutDown`: checks whether the platform's window-closing
-/// keyboard shortcut is held.
+/// Whether the platform's window-closing keyboard shortcut is held
+/// (a platform convention, not a vanilla rule).
 /// - On macOS: Command (`super_key()`) + `Q`.
 /// - On Windows / Linux / other: Alt (`alt_key()`) + `F4`.
 pub fn is_quit_shortcut_down(modifiers: ModifiersState, keys: &HashSet<KeyCode>) -> bool {

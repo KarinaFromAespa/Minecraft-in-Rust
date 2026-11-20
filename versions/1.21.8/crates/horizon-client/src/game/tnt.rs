@@ -112,10 +112,11 @@ impl PrimedTnt {
         }
     }
     /// Entity.applyEffectsFromBlocks for a move from `from` to here
-    /// (`original` the step it asked for, when the move was recorded): powder
-    /// snow and cobwebs it went through make it stuck, a bubble column lifts or
-    /// drags it, and slime it stands on slows it, first. Returns the columns it
-    /// is at the top of, which send their surface particles.
+    /// (`axis_independent` whether the move was recorded by `Entity.move` —
+    /// vanilla's `Movement.axisIndependant`): powder snow and cobwebs it went
+    /// through make it stuck, a bubble column lifts or drags it, and slime it
+    /// stands on slows it, first. Returns the columns it is at the top of,
+    /// which send their surface particles.
     pub(super) fn apply_effects_from_blocks(
         &mut self,
         world: &horizon_client::world::World,
@@ -123,7 +124,7 @@ impl PrimedTnt {
         facts: &horizon_client::blocks::BlockFacts,
         collision: &horizon_world::block_collision::BlockCollisionRegistry<'_>,
         from: Vec3,
-        original: Option<Vec3>,
+        axis_independent: bool,
     ) -> Vec<BlockPos> {
         if self.on_ground {
             // SlimeBlock.stepOn, before the blocks it is inside.
@@ -143,7 +144,7 @@ impl PrimedTnt {
         let stuck = horizon_client::falling_block::apply_effects_from_blocks(
             from,
             self.position,
-            original,
+            axis_independent,
             &mut self.velocity,
             &mut self.fall_distance,
             &mut Vec::new(),
@@ -262,7 +263,7 @@ impl PrimedTnt {
             facts,
             collision,
             from,
-            recorded.then_some(wanted),
+            recorded,
         );
         // Entity.scale(getAirDrag()): 0.98F, widened before it scales motion.
         self.velocity = horizon_client::entity_rules::scale_air_drag(self.velocity);
@@ -422,7 +423,7 @@ impl Game<'_> {
             self.res.facts(),
             self.collision,
             from,
-            None,
+            false,
         );
         let (to, bounds) = (t.position, t.bounds());
         self.entity_powder_snow_particles(from, to, bounds, known, false);
@@ -528,7 +529,8 @@ impl Game<'_> {
             self.persist.raw.get(&id),
         )
     }
-    /// `EntityReference.of(owner)`: the UUID of the player or mob that lit it.
+    /// `new EntityReference(owner)` (null when there is no owner): the UUID of
+    /// the player or mob that lit it.
     fn tnt_owner_uuid(&mut self, owner: Option<Who>, guest: Option<u32>) -> Option<[i32; 4]> {
         match owner? {
             Who::Player => match guest {

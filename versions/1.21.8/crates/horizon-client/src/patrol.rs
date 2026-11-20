@@ -55,7 +55,7 @@ pub struct PatrolSpawner {
 
 impl PatrolSpawner {
     /// `PatrolSpawner.tick`. `spawn_enemies` is the chunk source's flag
-    /// (`spawn_mobs` and `spawn_monsters`); `random` is the level random.
+    /// (`spawn_mobs` and difficulty not peaceful); `random` is the level random.
     /// `spawn` creates, finalizes and adds a pillager at a position that
     /// passed the spawn checks (`EntityType.create` succeeding), and says
     /// whether it did.

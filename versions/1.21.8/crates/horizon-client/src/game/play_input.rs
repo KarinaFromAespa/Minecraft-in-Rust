@@ -119,22 +119,20 @@ impl Game<'_> {
                         .holds_action(&self.settings.controller, ["key.sneak", "key.sprint"][slot])
             }
             Source::Pad => self.physical_keys.iter().any(|physical| {
-                self.settings
-                    .keys
-                    .translate_all(*physical)
-                    .contains(&Ok(key))
+                self.settings.keys.translate(*physical) == Some(Ok(key))
             }),
             Source::Agent => false,
         }
     }
-    /// Apply a physical key to every mapping bound to it.
+    /// Apply a physical key to the mapping bound to it (`KeyMapping.set`
+    /// drives one mapping per key in 1.21.8).
     pub(super) fn mapped_key_event(
         &mut self,
         key: KeyCode,
         pressed: bool,
         repeat: bool,
     ) -> Result<()> {
-        for mapped in self.settings.keys.translate_all(key) {
+        if let Some(mapped) = self.settings.keys.translate(key) {
             match mapped {
                 Ok(k) => {
                     self.mapped_key(k, pressed, repeat, key, Source::Keyboard)?;
@@ -240,8 +238,10 @@ impl Game<'_> {
         }
         self.key_pressed(key, raw)
     }
-    /// `KeyMapping.releaseAll` when a screen opens and
-    /// `restoreToggleStatesOnScreenClosed` when it closes.
+    /// `KeyMapping.releaseAll` when a screen opens. Closing a screen
+    /// restores nothing in 1.21.8 (1.21.9's
+    /// `restoreToggleStatesOnScreenClosed` does not exist here); a toggle
+    /// stayed down through it.
     pub(super) fn track_toggle_screens(&mut self) {
         let dialog = self.dialog_open();
         drop_held_behind_dialog(dialog, &mut self.keys, &mut self.left, &mut self.right);
@@ -257,12 +257,11 @@ impl Game<'_> {
         let options = [
             self.settings.toggle_crouch,
             self.settings.toggle_sprint,
-            self.settings.toggle_attack,
-            self.settings.toggle_use,
+            // Attack and use are plain mappings in 1.21.8: no toggle option.
+            false,
+            false,
         ];
-        if playing {
-            self.toggles.screen_closed(options);
-        } else {
+        if !playing {
             self.toggles.screen_opened(options);
         }
         self.sync_toggle(0);
@@ -359,20 +358,20 @@ impl Game<'_> {
                 let keys = &self.settings.keys;
                 self.physical_buttons
                     .iter()
-                    .any(|held| keys.translate_mouse_all(*held).contains(&Err(button)))
+                    .any(|held| keys.translate_mouse(*held) == Some(Err(button)))
                     || self
                         .physical_keys
                         .iter()
-                        .any(|held| keys.translate_all(*held).contains(&Err(button)))
+                        .any(|held| keys.translate(*held) == Some(Err(button)))
             }
         }
     }
-    /// Two mappings with one default button are separate mappings all the same
-    /// (`Minecraft.handleKeybinds`): whether the middle-button action a physical `input` translated
-    /// to is one of those it is bound to, for this player now.
+    /// The middle-button action a physical `input` translated to is pick
+    /// block when it is bound to it (`KeyBinds::middle_acts`); any other
+    /// button acts as itself.
     pub(super) fn shared_default_acts(&self, button: MouseButton, input: Option<&str>) -> bool {
         button != MouseButton::Middle
-            || input.is_none_or(|input| self.settings.keys.middle_acts(input, self.spectator()))
+            || input.is_none_or(|input| self.settings.keys.middle_acts(input))
     }
     /// A mouse button while playing (window or control socket).
     pub(super) fn play_mouse(&mut self, button: MouseButton, pressed: bool) -> Result<()> {
@@ -382,8 +381,9 @@ impl Game<'_> {
         if self.sleeping.is_some() {
             return Ok(());
         }
-        // key.spectatorHotbar (the middle button) opens the spectator menu
-        // and uses its selected item.
+        // `MouseHandler.onMouseMiddleClick`: the middle button opens the
+        // spectator menu and uses its selected item (1.21.9 moved this to
+        // the `key.spectatorHotbar` mapping; 1.21.8 has none).
         if button == MouseButton::Middle && self.spectator() {
             if pressed {
                 self.spectator_action_key();
@@ -399,13 +399,11 @@ impl Game<'_> {
                 if pressed {
                     self.attack_clicks += 1;
                 }
-                self.toggles
-                    .button(2, pressed, false, self.settings.toggle_attack);
+                self.toggles.button(2, pressed, false, false);
                 self.left = self.toggles.is_down(2);
             }
             MouseButton::Right => {
-                self.toggles
-                    .button(3, pressed, false, self.settings.toggle_use);
+                self.toggles.button(3, pressed, false, false);
                 self.right = self.toggles.is_down(3);
                 // handleKeybinds consumes use clicks without acting while an
                 // item is in use. Minecraft.tick runs them after the attack

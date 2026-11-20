@@ -387,21 +387,19 @@ pub struct Skull {
 }
 /// `SkullBlockRenderer.getPlayerSkin` of a head's profile: its skin's URL
 /// with the `skins/<sha1>` sprite it downloads to, and the
-/// `DefaultPlayerSkin` drawn until that sprite is there (steve for a
+/// `DefaultPlayerSkin` drawn until that sprite is there (slim alex for a
 /// profile with no id).
 #[derive(Clone, Debug)]
 pub struct SkullSkin {
     pub download: Option<(String, String)>,
-    /// `ResolvableProfile.nameOrId` when the profile is `Dynamic` (a name or
-    /// an id only): the key `skins::Resolver` resolves it by.
+    /// The name or id when the profile is unresolved (no properties and
+    /// exactly one of a name or an id): the key `skins::Resolver` resolves
+    /// it by.
     pub dynamic: Option<NameOrId>,
-    /// `PlayerSkin.Patch.body`: the profile's `texture`, a resource pack
-    /// texture drawn instead of any skin.
-    pub texture: Option<String>,
     pub fallback: &'static str,
 }
-/// `Either<String, UUID>`: the key a `Dynamic` `ResolvableProfile` resolves
-/// by (`ResolvableProfile.nameOrId`).
+/// `Either<String, UUID>`: the key an unresolved `ResolvableProfile`
+/// resolves by — its name, or its id.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum NameOrId {
     Name(String),

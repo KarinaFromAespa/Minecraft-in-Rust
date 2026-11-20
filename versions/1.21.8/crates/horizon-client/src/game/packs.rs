@@ -329,9 +329,12 @@ impl Game<'_> {
         })?);
         Ok(())
     }
-    /// `LoadingOverlay.tick` once the reload is done: the staged pack is
+    /// `LoadingOverlay.render` once the reload is done: the staged pack is
     /// applied on the render thread, and its outcome goes to whoever asked
     /// (`reloadResourcePacks`' callback, or `PackReloadConfig.Callbacks`).
+    /// 1.21.8 starts the fade-out inline in `render`, gated on the fade-in
+    /// progress reaching 2.0 (1000 ms after `fadeInStart`); the separate
+    /// `tick` and `isReadyToFadeOut` came in 1.21.9.
     pub(super) fn drive_pack_reload(&mut self) {
         let Some((kind, staged)) = self.pack_reload.as_mut().and_then(PackReload::finished) else {
             return;
@@ -425,9 +428,6 @@ impl Game<'_> {
         // The new atlas's skin and map slots are blank: players and maps
         // upload into it again instead of naming sprites it does not have.
         self.skin_slots.forget();
-        self.skin_downloads
-            .borrow_mut()
-            .set_resource_root(self.options.resources.clone());
         self.maps.slots.forget();
         self.map_patches.clear();
         // Kept mod block entities name the old atlas's sprites.
@@ -654,10 +654,12 @@ pub(super) struct PackReload {
     /// How long the overlay stays up before the reload may be applied.
     hold: Duration,
 }
-/// `LoadingOverlay.isReadyToFadeOut`: a reload started from inside the game
-/// (`fadeIn`) is not ready while `Util.getMillis() - fadeInStart < 1000L`, so
-/// a pack that stages in a few frames still shows its overlay for a second
-/// instead of flashing.
+/// `LoadingOverlay.render`'s fade-out gate: a reload started from inside
+/// the game (`fadeIn`) is not ready until the fade-in progress reaches
+/// 2.0, i.e. 1000 ms after `fadeInStart` (the progress is in 500 ms
+/// units), so a pack that stages in a few frames still shows its overlay
+/// for a second instead of flashing. (1.21.9 extracted the gate into
+/// `isReadyToFadeOut` with the same 1000 ms threshold.)
 pub(super) const OVERLAY_HOLD: Duration = Duration::from_millis(1000);
 impl PackReload {
     /// Starts `stage` on its own thread and returns at once.
@@ -756,9 +758,9 @@ mod tests {
         );
     }
 
-    /// `LoadingOverlay.isReadyToFadeOut`: a reload that stages at once still
-    /// keeps its overlay up - the 1000 ms `fadeInStart` gate - so a small pack
-    /// does not flash the Mojang logo for a frame or two.
+    /// `LoadingOverlay.render`'s fade-out gate: a reload that stages at once
+    /// still keeps its overlay up - the 1000 ms `fadeInStart` gate - so a
+    /// small pack does not flash the Mojang logo for a frame or two.
     #[test]
     fn a_fast_reload_keeps_the_overlay_up_before_it_applies() {
         assert_eq!(OVERLAY_HOLD, Duration::from_millis(1000));

@@ -120,7 +120,7 @@ class Vanilla:
             'server-port': port, 'online-mode': 'false', 'white-list': 'false', 'enforce-whitelist': 'false',
             'level-name': world, 'level-seed': '4242', 'spawn-protection': '0', 'view-distance': '4',
             'simulation-distance': '4', 'sync-chunk-writes': 'true', 'enable-query': 'false',
-            'enable-rcon': 'false', 'management-server-enabled': 'false', 'pause-when-empty-seconds': '-1',
+            'enable-rcon': 'false', 'pause-when-empty-seconds': '-1',
             'level-type': 'minecraft:flat', 'generate-structures': 'false', 'spawn-monsters': 'false',
             'spawn-npcs': 'false', 'spawn-animals': 'false', 'max-tick-time': '-1',
         }

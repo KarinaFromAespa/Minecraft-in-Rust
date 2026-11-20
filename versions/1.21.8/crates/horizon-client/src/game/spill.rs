@@ -412,17 +412,18 @@ impl GameLevel<'_> {
     }
     /// An item `atLowerCornerWithOffset(pos, 0.5, 1.01, 0.5).offsetRandomXZ(random,
     /// 0.7)` with the default pickup delay (`ComposterBlock.extractProduce`).
-    pub(super) fn pop_above(&mut self, pos: BlockPos, item: std::sync::Arc<str>) {
+    pub(super) fn pop_above(&mut self, pos: BlockPos, item: std::sync::Arc<str>, count: u32) {
         let at = removal::jukebox_pop_position(&mut self.world.random, pos);
         self.spill.spawns.push(Spawn {
-            stack: ItemStack::new(&item, 1),
+            stack: ItemStack::new(&item, count),
             pos: at,
             motion: None,
             delay: 10,
         });
     }
-    /// `Block.dropFromBlockInteractLootTable` with `Block.popResource` of
-    /// every stack.
+    /// The 1.21.9 `Block.dropFromBlockInteractLootTable` shape, with
+    /// `Block.popResource` of every stack — dead in 1.21.8: the harvest
+    /// loot tables are 1.21.9-only, so no block emits `InteractLoot`.
     pub(super) fn drop_interact_loot(
         &mut self,
         pos: BlockPos,
@@ -681,10 +682,11 @@ impl GameLevel<'_> {
                 | PreRemove::Nothing => {}
             }
         }
-        // BlockEntity.setRemoved: a jukebox always reports its song stopping,
-        // a beacon plays its deactivation.
+        // `BlockEntity.setRemoved`: a beacon plays its deactivation. A
+        // jukebox has no such override in 1.21.8 — its song stops only
+        // through `preRemoveSideEffects` (above), gated on a song playing;
+        // the `setRemoved` stop came in 1.21.9.
         match kind {
-            PreRemove::Jukebox => self.jukebox_stopped(pos, old),
             PreRemove::Beacon => self.events.push(LevelEvent::Sound {
                 pos,
                 sound: "minecraft:block.beacon.deactivate".into(),

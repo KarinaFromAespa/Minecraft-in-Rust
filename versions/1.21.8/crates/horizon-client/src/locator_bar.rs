@@ -51,7 +51,10 @@ impl WaypointStyle {
                 (namespace == "minecraft").then(|| format!("hud/locator_bar_dot/{path}"))
             })
             .collect::<Option<Vec<_>>>()?;
-        (!sprites.is_empty() && near_distance > 0 && near_distance < far_distance).then_some(Self {
+        // `validate`: only far > near. The empty-sprites rejection is the
+        // codec's `nonEmptyList` (both versions); the near > 0 check came
+        // in 1.21.9's validate, and 1.21.8 accepts near 0 (as MISSING does).
+        (!sprites.is_empty() && near_distance < far_distance).then_some(Self {
             near_distance,
             far_distance,
             sprites,
@@ -60,22 +63,16 @@ impl WaypointStyle {
     /// `WaypointStyle.sprite`.
     pub fn sprite(&self, distance: f32) -> &str {
         let (first, last) = (&self.sprites[0], &self.sprites[self.sprites.len() - 1]);
-        if distance < self.near_distance as f32 {
+        if distance <= self.near_distance as f32 {
             return first;
         }
         if distance >= self.far_distance as f32 {
             return last;
         }
-        match self.sprites.len() {
-            1 => first,
-            3 => &self.sprites[1],
-            n => {
-                let t = (distance - self.near_distance as f32)
-                    / (self.far_distance - self.near_distance) as f32;
-                // Mth.lerpInt(t, 1, n - 1).
-                &self.sprites[(1 + (t * (n as f32 - 2.0)).floor() as i32) as usize]
-            }
-        }
+        let t = (distance - self.near_distance as f32)
+            / (self.far_distance - self.near_distance) as f32;
+        // Mth.lerpInt(t, 0, n): no 1- and 3-sprite special cases in 1.21.8.
+        &self.sprites[(t * self.sprites.len() as f32).floor() as usize]
     }
 }
 
@@ -578,26 +575,37 @@ mod tests {
         .unwrap();
         assert_eq!((default.near_distance, default.far_distance), (128, 332));
         assert_eq!(default.sprite(10.0), "hud/locator_bar_dot/default_0");
-        assert_eq!(default.sprite(128.0), "hud/locator_bar_dot/default_1");
-        // lerpInt((d - 128) / 204, 1, 3): halfway is the third sprite.
+        // 1.21.8: at the near distance the first sprite (<=, not <).
+        assert_eq!(default.sprite(128.0), "hud/locator_bar_dot/default_0");
+        // lerpInt((d - 128) / 204, 0, 4).
+        assert_eq!(default.sprite(129.0), "hud/locator_bar_dot/default_0");
         assert_eq!(default.sprite(229.0), "hud/locator_bar_dot/default_1");
         assert_eq!(default.sprite(230.0), "hud/locator_bar_dot/default_2");
+        assert_eq!(default.sprite(300.0), "hud/locator_bar_dot/default_3");
         assert_eq!(default.sprite(332.0), "hud/locator_bar_dot/default_3");
         let bowtie = WaypointStyle::parse(
             r#"{"near_distance":64,"sprites":["minecraft:bowtie","minecraft:default_0","minecraft:default_1","minecraft:default_2","minecraft:default_3"]}"#,
         )
         .unwrap();
         assert_eq!(bowtie.sprite(63.0), "hud/locator_bar_dot/bowtie");
-        // lerpInt((d - 64) / 268, 1, 4).
-        assert_eq!(bowtie.sprite(64.0), "hud/locator_bar_dot/default_0");
+        // lerpInt((d - 64) / 268, 0, 5).
+        assert_eq!(bowtie.sprite(64.0), "hud/locator_bar_dot/bowtie");
         assert_eq!(bowtie.sprite(200.0), "hud/locator_bar_dot/default_1");
-        assert_eq!(bowtie.sprite(300.0), "hud/locator_bar_dot/default_2");
-        // Three sprites: the middle one between near and far.
+        assert_eq!(bowtie.sprite(300.0), "hud/locator_bar_dot/default_3");
+        // Three sprites: no middle special case in 1.21.8.
         let three = WaypointStyle::parse(r#"{"sprites":["a","b","c"]}"#).unwrap();
+        assert_eq!(three.sprite(129.0), "hud/locator_bar_dot/a");
         assert_eq!(three.sprite(200.0), "hud/locator_bar_dot/b");
-        // validate: sprites, near > 0, far > near.
+        assert_eq!(three.sprite(300.0), "hud/locator_bar_dot/c");
+        // validate: sprites (the codec's nonEmptyList), far > near only —
+        // near 0 is valid in 1.21.8 (the near > 0 check came in 1.21.9).
         assert!(WaypointStyle::parse(r#"{"sprites":[]}"#).is_none());
-        assert!(WaypointStyle::parse(r#"{"near_distance":0,"sprites":["a"]}"#).is_none());
+        assert_eq!(
+            WaypointStyle::parse(r#"{"near_distance":0,"sprites":["a"]}"#)
+                .unwrap()
+                .near_distance,
+            0
+        );
         assert!(WaypointStyle::parse(r#"{"near_distance":400,"sprites":["a"]}"#).is_none());
         assert_eq!(
             WaypointStyles::default().get("minecraft:none").sprite(5.0),

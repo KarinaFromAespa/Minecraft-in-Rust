@@ -449,29 +449,6 @@ pub fn die(
     death_state(m);
     let this = loot_entity(m, d.vehicle.clone());
     let mut skulls = false;
-    // Creeper.killedEntity: a charged creeper's victim drops its head.
-    if let Some(source) = d.damage.as_ref().and_then(|x| x.source.as_ref())
-        && source.kind == "minecraft:creeper"
-        && source.powered
-        && d.mob_drops
-    {
-        let params = EntityLootParams {
-            this: this.clone(),
-            damage: d.damage.clone(),
-            player: None,
-            luck: 0.0,
-        };
-        let items = roll(
-            d,
-            "minecraft:charged_creeper/root",
-            &params,
-            sequences,
-            0,
-            level_random,
-        );
-        skulls = items.iter().any(|i| !i.is_empty());
-        out.extend(items.into_iter().filter(|i| !i.is_empty()).map(Drop::Item));
-    }
     let killed_by_player = d.player_killed;
     let s = m.species();
     // Fox.dropAllDeathLoot: whatever it holds in its mouth comes out first.
@@ -543,6 +520,33 @@ pub fn die(
         // WitherBoss.dropCustomDeathLoot.
         if s == Species::Wither {
             out.push(Drop::Item(loot_stack("minecraft:nether_star", 1)));
+        }
+        // Creeper/Zombie/Skeleton/WitherSkeleton/Piglin.dropCustomDeathLoot:
+        // a charged creeper's victim drops its own head directly — there is
+        // no charged_creeper loot table in 1.21.8. The skull drop is on the
+        // concrete `Skeleton` class's dropCustomDeathLoot, so Stray and
+        // Bogged (which extend AbstractSkeleton and have no override) drop
+        // nothing, as the 1.21.9 table's exact-type conditions exclude them;
+        // Husk, Drowned, Zombie Villager and Zombified Piglin return an
+        // empty skull. A creeper never drops its own head from its own blast
+        // (it is discarded before the blast hurts anything), so the killer
+        // here is always another creeper.
+        if let Some(source) = d.damage.as_ref().and_then(|x| x.source.as_ref())
+            && source.kind == "minecraft:creeper"
+            && source.powered
+        {
+            let head = match s {
+                Species::Creeper => Some("minecraft:creeper_head"),
+                Species::Zombie => Some("minecraft:zombie_head"),
+                Species::Skeleton => Some("minecraft:skeleton_skull"),
+                Species::WitherSkeleton => Some("minecraft:wither_skeleton_skull"),
+                Species::Piglin => Some("minecraft:piglin_head"),
+                _ => None,
+            };
+            if let Some(head) = head {
+                skulls = true;
+                out.push(Drop::Item(loot_stack(head, 1)));
+            }
         }
     }
     // Allay.dropEquipment: its inventory, then the main-hand item unless it

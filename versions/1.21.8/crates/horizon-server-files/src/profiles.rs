@@ -1,5 +1,5 @@
 //! Finding a player's account by name, as an online-mode server does for the
-//! names given to `op`, `whitelist` and `ban` (CachedUserNameToIdResolver,
+//! names given to `op`, `whitelist` and `ban` (GameProfileCache,
 //! MinecraftServicesProfileRepository.findProfileByName): the services'
 //! `profiles` / `getByName` endpoint, found through the discovery document.
 use crate::{
@@ -27,7 +27,7 @@ pub fn valid_player_name(name: &str) -> bool {
     name.encode_utf16().count() <= 16 && name.encode_utf16().all(|c| c > 32 && c < 127)
 }
 
-/// How a server resolves a name it was given (CachedUserNameToIdResolver.get,
+/// How a server resolves a name it was given (GameProfileCache.get,
 /// without the usercache.json cache): an offline server makes the offline
 /// profile; an online one asks the services (for the name in lower case) and
 /// knows nobody they don't.
@@ -50,27 +50,6 @@ pub fn find_by_name(discovery: &str, name: &str) -> Option<NameAndId> {
     let doc = json::parse(&agent.get(discovery).call().ok()?.into_string().ok()?, true).ok()?;
     let url = endpoint(&doc, "profiles", "getByName")?.replace("{name}", &name.to_lowercase());
     found(&agent.get(&url).call().ok()?.into_string().ok()?, name)
-}
-
-/// YggdrasilMinecraftSessionService.fetchProfile(id, true), as the management protocol finds a player given by
-/// id that the user cache doesn't know: the `session` / `getProfileById` endpoint, or None.
-pub fn find_by_id(discovery: &str, id: u128) -> Option<NameAndId> {
-    let agent = ureq::AgentBuilder::new()
-        .timeout(Duration::from_secs(15))
-        .user_agent(&format!("Horizon/{}", horizon_core::release::VERSION))
-        .build();
-    let doc = json::parse(&agent.get(discovery).call().ok()?.into_string().ok()?, true).ok()?;
-    let url =
-        endpoint(&doc, "session", "getProfileById")?.replace("{profileId}", &format!("{id:032x}"));
-    let separator = if url.contains('?') { '&' } else { '?' };
-    let answer = agent
-        .get(&format!("{url}{separator}unsigned=false"))
-        .call()
-        .ok()?
-        .into_string()
-        .ok()?;
-    let name = json::parse(&answer, true).ok()?.get("name")?.as_string()?;
-    found(&answer, &name).filter(|user| user.id == id)
 }
 
 /// MinecraftServicesKeyInfo.get: the services' public keys from the

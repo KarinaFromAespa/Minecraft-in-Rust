@@ -363,8 +363,10 @@ fn warden_anger_from_nbt(tag: &Tag) -> Vec<([i32; 4], i32)> {
     }
     out
 }
-/// `ResolvableProfile.CODEC`: the name, id and properties of a profile, then the
-/// skin's texture ids and model (`PlayerSkin.Patch`: "texture", "cape", "elytra", "model").
+/// `ResolvableProfile.CODEC`: the name, id and properties of a profile, then
+/// the 1.21.9 skin-patch fields ("texture", "cape", "elytra", "model"), which
+/// a 1.21.8 profile never carries — read for the mannequin model only, never
+/// used.
 fn profile_nbt(p: &horizon_protocol::entity_data::Profile) -> Tag {
     let mut entries: Vec<(&'static str, Tag)> = Vec::new();
     if let Some(name) = &p.name {

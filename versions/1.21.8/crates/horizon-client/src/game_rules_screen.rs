@@ -372,7 +372,7 @@ impl RulesScreen {
             self.unfocus();
             self.search.focused = true;
             self.search.reset_blink();
-            self.search.click(atlas, cursor.0, false, false);
+            self.search.click(atlas, cursor.0, false);
             return None;
         }
         let rows = self.rows();
@@ -393,7 +393,7 @@ impl RulesScreen {
                 if let Some(b) = self.number(r.name) {
                     b.focused = true;
                     b.reset_blink();
-                    b.click(atlas, cursor.0, false, false);
+                    b.click(atlas, cursor.0, false);
                 }
             }
         }

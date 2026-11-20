@@ -149,222 +149,59 @@ fn build(v: &serde_json::Value, parent: &Style, out: &mut Text) -> Style {
         serde_json::Value::Null => Style::default(),
     }
 }
-fn format_of(v: &serde_json::Value) -> Option<(i64, i64)> {
-    match v {
-        serde_json::Value::Number(n) => Some((n.as_i64()?, 0)),
-        serde_json::Value::Array(a) => Some((
-            a.first()?.as_i64()?,
-            a.get(1).and_then(|m| m.as_i64()).unwrap_or(0),
-        )),
-        _ => None,
-    }
-}
-/// `PackFormat`: major and minor.
+/// `PackFormat`: major and minor. 1.21.8 has no minor versions (both pack
+/// formats are `(major, 0)`); the pair is kept because the version constants
+/// carry it.
 type Format = (i64, i64);
-/// `PackFormat.lastPreMinorVersion`: the last major without minor versions,
-/// for the resource pack format (64) or the data pack one (81).
-fn last_pre_minor(current: Format) -> i64 {
-    if current.0 == horizon_core::version::DATA_PACK_FORMAT.0 {
-        81
-    } else {
-        64
-    }
+
+/// `Codec.INT` through Gson: any JSON number reads through `Number.intValue`,
+/// so a decimal such as `97.1` counts as its whole part (97), as it does for
+/// the game. Out of i32 range does not parse.
+fn codec_int(v: &serde_json::Value) -> Option<i64> {
+    v.as_i64()
+        .or_else(|| {
+            v.as_f64()
+                .filter(|f| f.is_finite())
+                .map(|f| f.trunc() as i64)
+        })
+        .filter(|n| i32::try_from(*n).is_ok())
 }
-/// `PackFormat.fullCodec(default_minor)`: an int, or a list of 1 to 256
-/// non-negative ints whose second is the minor. None: it does not parse.
-fn format_codec(v: &serde_json::Value, default_minor: i64) -> Option<Format> {
-    // `Codec.INT` reads any JSON number through `Number.intValue`: a decimal such as `97.1`
-    // counts as its whole part (97), as it does for the game.
-    let non_negative = |v: &serde_json::Value| {
-        v.as_i64()
-            .or_else(|| {
-                v.as_f64()
-                    .filter(|f| f.is_finite())
-                    .map(|f| f.trunc() as i64)
-            })
-            .filter(|n| *n >= 0 && *n <= i64::from(i32::MAX))
-    };
-    match v {
-        serde_json::Value::Array(a) if (1..=256).contains(&a.len()) => {
-            let list: Option<Vec<i64>> = a.iter().map(non_negative).collect();
-            let list = list?;
-            Some((list[0], list.get(1).copied().unwrap_or(default_minor)))
-        }
-        serde_json::Value::Array(_) => None,
-        v => Some((non_negative(v)?, default_minor)),
-    }
-}
-/// `InclusiveRange.codec(Codec.INT)`: `[min, max]` or
-/// `{min_inclusive, max_inclusive}`, min not above max.
+
+/// `InclusiveRange.codec(Codec.INT)` (`ExtraCodecs.intervalCodec`): a single
+/// int (a range of one), `[min, max]`, or `{min_inclusive, max_inclusive}`;
+/// min not above max.
 fn int_range_codec(v: &serde_json::Value) -> Option<(i64, i64)> {
-    let int = |v: &serde_json::Value| v.as_i64().filter(|n| i32::try_from(*n).is_ok());
+    if let Some(n) = codec_int(v) {
+        return Some((n, n));
+    }
     let (min, max) = match v {
-        serde_json::Value::Array(a) if a.len() == 2 => (int(&a[0])?, int(&a[1])?),
-        serde_json::Value::Object(o) => {
-            (int(o.get("min_inclusive")?)?, int(o.get("max_inclusive")?)?)
-        }
+        serde_json::Value::Array(a) if a.len() == 2 => (codec_int(&a[0])?, codec_int(&a[1])?),
+        serde_json::Value::Object(o) => (
+            codec_int(o.get("min_inclusive")?)?,
+            codec_int(o.get("max_inclusive")?)?,
+        ),
         _ => return None,
     };
     (min <= max).then_some((min, max))
 }
-/// An `optionalFieldOf`: absent is `Ok(None)`, one that does not parse an error.
-fn optional<T>(
-    v: &serde_json::Value,
-    parse: impl Fn(&serde_json::Value) -> Option<T>,
-) -> Result<Option<T>, ()> {
-    if v.is_null() {
-        Ok(None)
-    } else {
-        parse(v).map(Some).ok_or(())
+
+/// `Pack.getDeclaredPackVersions` for a pack's `pack` section: the
+/// `supported_formats` range when it contains the main `pack_format`, else
+/// the main format alone (vanilla logs a warning for the mismatch).
+/// `supported_formats` is lenient-optional — absent or unparseable counts as
+/// absent — and `min_format`/`max_format` do not exist in 1.21.8 (the
+/// `PackFormat`/`IntermediaryFormat` split came in 1.21.9), so they are
+/// ignored entirely. Err when `pack_format` itself is missing or does not
+/// parse: vanilla then has no metadata section and skips the pack, while the
+/// Rust lists it as Unknown — a pre-existing divergence (item 165), not
+/// changed here.
+pub fn validate_pack_range(pack: &serde_json::Value) -> Result<(i64, i64), String> {
+    let main = codec_int(&pack["pack_format"])
+        .ok_or_else(|| "Pack field pack_format does not parse".to_string())?;
+    match int_range_codec(&pack["supported_formats"]) {
+        Some((min, max)) if min <= main && main <= max => Ok((min, max)),
+        _ => Ok((main, main)),
     }
-}
-/// `PackFormat.IntermediaryFormat.validatePackFormatForRange`.
-fn validate_pack_format_for_range(main_format: i64, min: i64, max: i64) -> Option<String> {
-    if main_format < min || main_format > max {
-        Some(format!(
-            "Pack declared support for versions {min} to {max} but declared main format is {main_format}"
-        ))
-    } else if main_format < 15 {
-        Some("Multi-version packs cannot support minimum version of less than 15, since this will leave versions in range unable to load pack.".into())
-    } else {
-        None
-    }
-}
-/// `PackFormat` as `toString` prints it.
-fn format_text(f: Format) -> String {
-    if f.1 == i64::from(i32::MAX) {
-        format!("{}.*", f.0)
-    } else {
-        format!("{}.{}", f.0, f.1)
-    }
-}
-/// `PackFormat.IntermediaryFormat.validate` for a pack's `pack` section
-/// (`hasPackFormatField`, no `requireOldField`): the supported range, or why
-/// vanilla refuses the metadata (it then falls back to a pack of unknown
-/// format).
-pub fn validate_pack_range(
-    pack: &serde_json::Value,
-    last_pre_minor: i64,
-) -> Result<(Format, Format), String> {
-    const CONTEXT: &str = "Pack";
-    const OLD: &str = "supported_formats";
-    let bad = |field: &str| format!("{CONTEXT} field {field} does not parse");
-    let min =
-        optional(&pack["min_format"], |v| format_codec(v, 0)).map_err(|()| bad("min_format"))?;
-    let max = optional(&pack["max_format"], |v| {
-        format_codec(v, i64::from(i32::MAX))
-    })
-    .map_err(|()| bad("max_format"))?;
-    let format = optional(&pack["pack_format"], |v| {
-        v.as_i64().filter(|n| i32::try_from(*n).is_ok())
-    })
-    .map_err(|()| bad("pack_format"))?;
-    let supported = optional(&pack[OLD], int_range_codec).map_err(|()| bad(OLD))?;
-    if min.is_some() != max.is_some() {
-        return Err(format!(
-            "{CONTEXT} missing field, must declare both min_format and max_format"
-        ));
-    }
-    if let (Some(min), Some(max)) = (min, max) {
-        return validate_new_format(min, max, format, supported, last_pre_minor);
-    }
-    if let Some(supported) = supported {
-        return validate_old_format(supported, format, last_pre_minor);
-    }
-    match format {
-        Some(main) if main > last_pre_minor => Err(format!(
-            "{CONTEXT} declares support for version newer than {last_pre_minor}, but is missing mandatory fields min_format and max_format"
-        )),
-        Some(main) => Ok(((main, 0), (main, 0))),
-        None => Err(format!(
-            "{CONTEXT} could not be parsed, missing format version information"
-        )),
-    }
-}
-/// `PackFormat.IntermediaryFormat.validateNewFormat`.
-fn validate_new_format(
-    min: Format,
-    max: Format,
-    format: Option<i64>,
-    supported: Option<(i64, i64)>,
-    last_pre_minor: i64,
-) -> Result<(Format, Format), String> {
-    const OLD: &str = "supported_formats";
-    let (major_min, major_max) = (min.0, max.0);
-    if min > max {
-        return Err(format!(
-            "Pack min_format ({}) is greater than max_format ({})",
-            format_text(min),
-            format_text(max)
-        ));
-    }
-    if major_min > last_pre_minor {
-        if supported.is_some() {
-            return Err(format!(
-                "Pack key {OLD} is deprecated starting from pack format {}. Remove {OLD} from your pack.mcmeta.",
-                last_pre_minor + 1
-            ));
-        }
-        if let Some(main) = format
-            && let Some(error) = validate_pack_format_for_range(main, major_min, major_max)
-        {
-            return Err(error);
-        }
-    } else {
-        let Some(old) = supported else {
-            return Err(format!(
-                "Pack declares support for format {major_min}, but game versions supporting formats 15 to {last_pre_minor} require a {OLD} field. Add \"{OLD}\": [{major_min}, {last_pre_minor}] or require a version greater or equal to {}.0.",
-                last_pre_minor + 1
-            ));
-        };
-        if old.0 != major_min {
-            return Err(format!(
-                "Pack version declaration mismatch between {OLD} (from {}) and min_format ({})",
-                old.0,
-                format_text(min)
-            ));
-        }
-        if old.1 != major_max && old.1 != last_pre_minor {
-            return Err(format!(
-                "Pack version declaration mismatch between {OLD} (up to {}) and max_format ({})",
-                old.1,
-                format_text(max)
-            ));
-        }
-        let Some(main) = format else {
-            return Err(format!(
-                "Pack declares support for formats up to {last_pre_minor}, but game versions supporting formats 15 to {last_pre_minor} require a pack_format field. Add \"pack_format\": {major_min} or require a version greater or equal to {}.0.",
-                last_pre_minor + 1
-            ));
-        };
-        if let Some(error) = validate_pack_format_for_range(main, major_min, major_max) {
-            return Err(error);
-        }
-    }
-    Ok((min, max))
-}
-/// `PackFormat.IntermediaryFormat.validateOldFormat`.
-fn validate_old_format(
-    supported: (i64, i64),
-    format: Option<i64>,
-    last_pre_minor: i64,
-) -> Result<(Format, Format), String> {
-    let (min, max) = supported;
-    if max > last_pre_minor {
-        return Err(format!(
-            "Pack declares support for version newer than {last_pre_minor}, but is missing mandatory fields min_format and max_format"
-        ));
-    }
-    let Some(main) = format else {
-        return Err(format!(
-            "Pack declares support for formats up to {last_pre_minor}, but game versions supporting formats 15 to {last_pre_minor} require a pack_format field. Add \"pack_format\": {min} or require a version greater or equal to {}.0.",
-            last_pre_minor + 1
-        ));
-    };
-    if let Some(error) = validate_pack_format_for_range(main, min, max) {
-        return Err(error);
-    }
-    Ok(((min, 0), (max, 0)))
 }
 /// PackCompatibility: inside the pack's declared range.
 pub fn compatible(meta: &serde_json::Value) -> bool {
@@ -376,38 +213,36 @@ pub fn compatibility(meta: &serde_json::Value) -> crate::pack_screen::Compat {
     compatibility_for(meta, RESOURCE_FORMAT)
 }
 /// `compatibility` against `current`, the resource or the data pack format.
-/// Metadata that fails `PackFormat.packCodec` parses as the fallback type,
-/// whose format is `Integer.MAX_VALUE`: unknown.
+/// `PackCompatibility.forVersion` on the declared range: too old when the
+/// range's max is below the current format, too new when the current format
+/// is below the range's min, else compatible. Metadata with no (valid)
+/// `pack_format` is unknown — vanilla has no metadata section for such a
+/// pack and skips it; the Rust lists it as unknown (item 165).
 pub fn compatibility_for(meta: &serde_json::Value, current: Format) -> crate::pack_screen::Compat {
     use crate::pack_screen::Compat;
-    match validate_pack_range(&meta["pack"], last_pre_minor(current)) {
+    match validate_pack_range(&meta["pack"]) {
         Err(_) => Compat::Unknown,
-        Ok((_, max)) if max < current => Compat::TooOld,
-        Ok((min, _)) if current < min => Compat::TooNew,
+        Ok((_, max)) if max < current.0 => Compat::TooOld,
+        Ok((min, _)) if current.0 < min => Compat::TooNew,
         Ok(_) => Compat::Compatible,
     }
 }
 /// Whether an `overlays.entries[]` item applies to the current format
-/// (OverlayMetadataSection: `formats` as an int, `[min, max]` or
-/// `{min_inclusive, max_inclusive}`, or `min_format`/`max_format`).
+/// (`OverlayMetadataSection.OverlayEntry`: `formats` as a single int, `[min,
+/// max]` or `{min_inclusive, max_inclusive}` — the `min_format`/`max_format`
+/// form came in 1.21.9 and does not exist in 1.21.8).
 fn overlay_applies(entry: &serde_json::Value) -> bool {
-    let current = RESOURCE_FORMAT;
-    if let (Some(min), Some(max)) = (
-        format_of(&entry["min_format"]),
-        format_of(&entry["max_format"]),
-    ) {
-        return min <= current && current <= (max.0, if max.1 == 0 { i64::MAX } else { max.1 });
-    }
+    let current = RESOURCE_FORMAT.0;
     let formats = &entry["formats"];
     if let Some(n) = formats.as_i64() {
-        return n == current.0;
+        return n == current;
     }
     if let Some(a) = formats.as_array() {
         return match (
             a.first().and_then(|v| v.as_i64()),
             a.get(1).and_then(|v| v.as_i64()),
         ) {
-            (Some(lo), Some(hi)) => lo <= current.0 && current.0 <= hi,
+            (Some(lo), Some(hi)) => lo <= current && current <= hi,
             _ => false,
         };
     }
@@ -415,7 +250,7 @@ fn overlay_applies(entry: &serde_json::Value) -> bool {
         formats["min_inclusive"].as_i64(),
         formats["max_inclusive"].as_i64(),
     ) {
-        (Some(lo), Some(hi)) => lo <= current.0 && current.0 <= hi,
+        (Some(lo), Some(hi)) => lo <= current && current <= hi,
         _ => false,
     }
 }
@@ -1448,141 +1283,82 @@ mod tests {
         assert!(read_meta(&Source::Dir(dir.clone())).is_none());
         fs::remove_dir_all(&dir).ok();
     }
-    /// `PackFormat.IntermediaryFormat.validate` and its three helpers, with
-    /// the resource pack's last pre-minor version, 64.
+    /// `Pack.getDeclaredPackVersions`, with the resource pack format 64.
     #[test]
     fn pack_format_validation() {
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
-        let check = |s: &str| validate_pack_range(&v(s), 64);
-        // validate: both min_format and max_format, or neither.
-        assert!(
-            check(r#"{"min_format":97}"#)
-                .unwrap_err()
-                .contains("both min_format and max_format")
-        );
-        assert!(check(r#"{"max_format":97}"#).is_err());
-        assert!(check("{}").unwrap_err().contains("missing format version"));
-        // A pack_format alone: fine up to 64, not above.
-        assert_eq!(check(r#"{"pack_format":34}"#), Ok(((34, 0), (34, 0))));
-        assert!(
-            check(r#"{"pack_format":97}"#)
-                .unwrap_err()
-                .contains("newer than 64")
-        );
-        // validateNewFormat: min above max, the deprecated key above 64.
-        assert!(
-            check(r#"{"min_format":98,"max_format":97}"#)
-                .unwrap_err()
-                .contains("greater than max_format")
-        );
-        assert!(check(r#"{"min_format":[97,2],"max_format":[97,1]}"#).is_err());
-        assert!(
-            check(r#"{"min_format":97,"max_format":98,"supported_formats":[97,98]}"#)
-                .unwrap_err()
-                .contains("deprecated")
-        );
-        // A decimal reads as its whole part, in a list or alone: `[97.1]` is format 97 (a pack
-        // that meant `[97, 1]` still loads and counts as compatible).
-        assert_eq!(
-            check(r#"{"min_format":[97.1],"max_format":[97.1]}"#),
-            Ok(((97, 0), (97, i64::from(i32::MAX))))
-        );
-        assert_eq!(
-            check(r#"{"min_format":97.9,"max_format":98.5}"#),
-            Ok(((97, 0), (98, i64::from(i32::MAX))))
-        );
-        assert_eq!(
-            check(r#"{"min_format":97,"max_format":98}"#),
-            Ok(((97, 0), (98, i64::from(i32::MAX))))
-        );
-        assert_eq!(
-            check(r#"{"min_format":[97,0],"max_format":[97,1]}"#),
-            Ok(((97, 0), (97, 1)))
-        );
-        // validatePackFormatForRange: a pack_format outside the range.
-        assert!(
-            check(r#"{"min_format":97,"max_format":98,"pack_format":99}"#)
-                .unwrap_err()
-                .contains("declared main format is 99")
-        );
-        assert!(check(r#"{"min_format":97,"max_format":98,"pack_format":98}"#).is_ok());
-        // Below 65 the old fields are required and must agree.
-        assert!(
-            check(r#"{"min_format":34,"max_format":70}"#)
-                .unwrap_err()
-                .contains("require a supported_formats")
-        );
-        assert!(
-            check(
-                r#"{"min_format":34,"max_format":70,"supported_formats":[35,64],"pack_format":35}"#
-            )
-            .unwrap_err()
-            .contains("mismatch")
-        );
-        assert!(
-            check(
-                r#"{"min_format":34,"max_format":70,"supported_formats":[34,60],"pack_format":35}"#
-            )
-            .unwrap_err()
-            .contains("mismatch")
-        );
-        assert!(
-            check(r#"{"min_format":34,"max_format":70,"supported_formats":[34,64]}"#)
-                .unwrap_err()
-                .contains("require a pack_format")
-        );
-        assert!(
-            check(
-                r#"{"min_format":34,"max_format":70,"supported_formats":[34,64],"pack_format":33}"#
-            )
-            .is_err()
-        );
-        assert!(
-            check(
-                r#"{"min_format":34,"max_format":70,"supported_formats":[34,64],"pack_format":34}"#
-            )
-            .is_ok()
-        );
-        // Multi-version packs below 15 cannot work.
-        assert!(
-            check(
-                r#"{"min_format":10,"max_format":70,"supported_formats":[10,64],"pack_format":10}"#
-            )
-            .unwrap_err()
-            .contains("less than 15")
-        );
-        // validateOldFormat: a range above 64, or no pack_format.
-        assert!(
-            check(r#"{"supported_formats":[34,70],"pack_format":34}"#)
-                .unwrap_err()
-                .contains("newer than 64")
-        );
-        assert!(
-            check(r#"{"supported_formats":[34,60]}"#)
-                .unwrap_err()
-                .contains("require a pack_format")
-        );
+        let check = |s: &str| validate_pack_range(&v(s));
+        // pack_format is required; without it there is no metadata section.
+        assert!(check("{}").is_err());
+        assert!(check(r#"{"supported_formats":[34,60]}"#).is_err());
+        // A pack_format alone: the range is the format alone, whatever it is —
+        // 1.21.8 has no "newer than current" refusal at parse time.
+        assert_eq!(check(r#"{"pack_format":34}"#), Ok((34, 34)));
+        assert_eq!(check(r#"{"pack_format":97}"#), Ok((97, 97)));
+        // The supported range, when it contains the main format.
         assert_eq!(
             check(r#"{"supported_formats":[34,60],"pack_format":40}"#),
-            Ok(((34, 0), (60, 0)))
+            Ok((34, 60))
         );
-        assert!(
+        assert_eq!(
             check(
                 r#"{"supported_formats":{"min_inclusive":34,"max_inclusive":60},"pack_format":40}"#
-            )
-            .is_ok()
+            ),
+            Ok((34, 60))
         );
-        assert!(check(r#"{"supported_formats":[60,34],"pack_format":40}"#).is_err());
-        // A refused pack is of unknown format.
+        // A single int is a range of one (ExtraCodecs.intervalCodec).
+        assert_eq!(
+            check(r#"{"supported_formats":40,"pack_format":40}"#),
+            Ok((40, 40))
+        );
+        // The main format outside the range: the main format alone (vanilla
+        // logs a warning).
+        assert_eq!(
+            check(r#"{"supported_formats":[34,60],"pack_format":33}"#),
+            Ok((33, 33))
+        );
+        assert_eq!(
+            check(r#"{"supported_formats":[34,60],"pack_format":61}"#),
+            Ok((61, 61))
+        );
+        // supported_formats is lenient-optional: unparseable counts as absent.
+        assert_eq!(
+            check(r#"{"supported_formats":[60,34],"pack_format":40}"#),
+            Ok((40, 40))
+        );
+        assert_eq!(
+            check(r#"{"supported_formats":"nope","pack_format":40}"#),
+            Ok((40, 40))
+        );
+        // min_format/max_format do not exist in 1.21.8: ignored entirely.
+        assert_eq!(
+            check(r#"{"pack_format":40,"min_format":97,"max_format":98}"#),
+            Ok((40, 40))
+        );
+        assert!(check(r#"{"min_format":97,"max_format":98}"#).is_err());
+        // Codec.INT reads a decimal as its whole part.
+        assert_eq!(check(r#"{"pack_format":97.9}"#), Ok((97, 97)));
+        // Compatibility: a newer-than-current main format is TOO_NEW, not
+        // Unknown; an older one TOO_OLD; no format at all Unknown.
         use crate::pack_screen::Compat;
         assert_eq!(
             compatibility(&v(r#"{"pack":{"pack_format":97}}"#)),
+            Compat::TooNew
+        );
+        assert_eq!(
+            compatibility(&v(r#"{"pack":{"pack_format":34}}"#)),
+            Compat::TooOld
+        );
+        assert_eq!(
+            compatibility(&v(r#"{"pack":{"pack_format":64}}"#)),
+            Compat::Compatible
+        );
+        assert_eq!(
+            compatibility(&v(r#"{"pack":{"supported_formats":[34,64]}}"#)),
             Compat::Unknown
         );
         assert_eq!(
-            compatibility(&v(
-                r#"{"pack":{"min_format":97,"max_format":98,"pack_format":99}}"#
-            )),
+            compatibility(&v(r#"{"pack":{"min_format":97,"max_format":98}}"#)),
             Compat::Unknown
         );
     }
@@ -1590,15 +1366,15 @@ mod tests {
     fn compatibility_ranges() {
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         assert!(compatible(&v(
+            r#"{"pack":{"pack_format":64,"supported_formats":[34,64]}}"#
+        )));
+        assert!(compatible(&v(r#"{"pack":{"pack_format":64}}"#)));
+        assert!(!compatible(&v(r#"{"pack":{"pack_format":34}}"#)));
+        assert!(!compatible(&v(r#"{"pack":{"pack_format":97}}"#)));
+        // min_format/max_format are ignored: no pack_format, no compatibility.
+        assert!(!compatible(&v(
             r#"{"pack":{"min_format":97,"max_format":98}}"#
         )));
-        assert!(compatible(&v(
-            r#"{"pack":{"min_format":[97,0],"max_format":[97,1]}}"#
-        )));
-        assert!(!compatible(&v(
-            r#"{"pack":{"min_format":[97,2],"max_format":99}}"#
-        )));
-        assert!(!compatible(&v(r#"{"pack":{"pack_format":34}}"#)));
         assert_eq!(
             component(&v(r#"["a",{"text":"b","color":"red"}]"#)).plain(),
             "ab"
@@ -2154,18 +1930,18 @@ mod tests {
         let v = |s: &str| serde_json::from_str::<serde_json::Value>(s).unwrap();
         let meta = v(r#"{"overlays":{"entries":[
             {"formats":[90,96],"directory":"old"},
-            {"formats":{"min_inclusive":97,"max_inclusive":97},"directory":"new"},
-            {"min_format":97,"max_format":[97,5],"directory":"also"},
+            {"formats":{"min_inclusive":64,"max_inclusive":64},"directory":"new"},
+            {"formats":[60,70],"directory":"also"},
             {"formats":50,"directory":"no"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["new", "also"]);
         // Only one plain folder of the pack, as vanilla's DIR_VALIDATOR has it.
         let meta = v(r#"{"overlays":{"entries":[
-            {"formats":97,"directory":".."},
-            {"formats":97,"directory":"../outside"},
-            {"formats":97,"directory":"/etc"},
-            {"formats":97,"directory":"a/b"},
-            {"formats":97,"directory":"C:"},
-            {"formats":97,"directory":"ok_1.21-x"}]}}"#);
+            {"formats":64,"directory":".."},
+            {"formats":64,"directory":"../outside"},
+            {"formats":64,"directory":"/etc"},
+            {"formats":64,"directory":"a/b"},
+            {"formats":64,"directory":"C:"},
+            {"formats":64,"directory":"ok_1.21-x"}]}}"#);
         assert_eq!(overlays_of(&meta, &Default::default()), ["ok_1.21-x"]);
         let base = std::env::temp_dir().join(format!("horizon-packs-ov-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
@@ -2186,8 +1962,8 @@ mod tests {
         fs::create_dir_all(dir.join("old/assets/minecraft/textures/block")).unwrap();
         fs::write(
             dir.join("pack.mcmeta"),
-            br#"{"pack":{"description":"p","pack_format":97},
-            "overlays":{"entries":[{"formats":97,"directory":"new"},{"formats":1,"directory":"old"}]},
+            br#"{"pack":{"description":"p","pack_format":64},
+            "overlays":{"entries":[{"formats":64,"directory":"new"},{"formats":1,"directory":"old"}]},
             "filter":{"block":[{"path":"textures/block/dirt\\.png"}]}}"#,
         )
         .unwrap();

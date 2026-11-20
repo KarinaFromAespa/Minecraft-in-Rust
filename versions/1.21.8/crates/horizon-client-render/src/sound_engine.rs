@@ -1394,6 +1394,13 @@ impl SoundEngine {
             }
             silently = true;
         }
+        // 1.21.8's listener gain is the master volume, and a non-music sound
+        // never starts while it is zero — even one that can start silent
+        // (a minecart, a bee): 1.21.9 folds the master into the channel
+        // volume instead, so such a sound starts silently there.
+        if self.source_volumes[MASTER] <= 0.0 && source != MUSIC {
+            return PlayResult::NotStarted;
+        }
         let position = instance.position;
         let looping = instance.looping && instance.delay <= 0;
         let unmuffled = self.unmuffled.contains(&instance.identifier);

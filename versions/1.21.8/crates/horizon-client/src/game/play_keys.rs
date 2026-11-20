@@ -119,9 +119,8 @@ impl Game<'_> {
                 Screen::WorldOptions => self.world_options_escape(),
                 Screen::CommandBlock => self.close_command_block(),
                 Screen::BlockEditor => self.close_block_editor(),
-                Screen::Chat => self.close_chat(chat::ChatExit::Intentional),
+                Screen::Chat => self.close_chat(),
                 Screen::Win => self.close_win_screen()?,
-                Screen::DebugOptions => self.close_debug_options(),
                 Screen::Mod => self.close_mod_screen(),
                 Screen::Studio => self.close_studio_screen(),
                 Screen::HudEditor => self.close_hud_editor(),
@@ -326,7 +325,8 @@ impl Game<'_> {
             _ if self.screen == Screen::Dead => {
                 self.death_key(key)?;
             }
-            _ if self.screen == Screen::Stats => self.stats_key(raw),
+            // `StatsScreen` has no `keyPressed` of its own: Escape is the
+            // screens' keys above, and every other key does nothing here.
             _ => {}
         }
         Ok(())

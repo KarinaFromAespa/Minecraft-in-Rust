@@ -130,7 +130,7 @@ pub fn vehicle_attachment(r: &Mob, vehicle_width: f32) -> f64 {
 }
 fn unscaled_vehicle_attachment(r: &Mob, vehicle_width: f32) -> f64 {
     use Species as S;
-    // Avatar.DEFAULT_VEHICLE_ATTACHMENT.
+    // Player.DEFAULT_VEHICLE_ATTACHMENT.
     if avatar(r) {
         return f64::from(0.6_f32);
     }

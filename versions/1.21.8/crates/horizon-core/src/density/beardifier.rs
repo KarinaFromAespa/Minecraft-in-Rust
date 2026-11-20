@@ -142,8 +142,13 @@ pub struct Beardifier {
     affected: Option<StructureBounds>,
 }
 impl Beardifier {
-    /// Matches the runtime constructor. A missing affected box makes the entire
-    /// sampler empty, even when the supplied component lists are nonempty.
+    /// 1.21.8's constructor takes the piece and junction iterators with no
+    /// affected box; the Rust keeps the box (1.21.9's form) as an exact
+    /// cull — the kernels reach 12 blocks past a piece or junction, the
+    /// box is inflated by 24, and the ground-level-delta edge needs
+    /// |delta| > 12, which vanilla data never produces. A missing
+    /// affected box makes the entire sampler empty, even when the
+    /// supplied component lists are nonempty.
     pub fn new(
         pieces: Vec<RigidPiece>,
         junctions: Vec<JigsawJunction>,

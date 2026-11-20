@@ -128,7 +128,7 @@ fn read_line_bounded(reader: &mut impl BufRead, line: &mut String) -> std::io::R
     Ok(n)
 }
 
-/// Reads one request from a connection, plain or TLS (the management protocol's `websocket::Link`).
+/// Reads one request from a connection.
 pub fn read_request(stream: impl Read) -> Result<Request, Response> {
     fn bad(m: &str) -> Response {
         Response::error(400, m)

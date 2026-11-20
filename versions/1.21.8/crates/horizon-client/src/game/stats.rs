@@ -190,7 +190,7 @@ fn valid_path_segment(segment: &str) -> bool {
         })
 }
 
-/// `PlayerList.locateStatsFile`: the player's stats file, with the one an older
+/// `PlayerList.getPlayerStats`: the player's stats file, with the one an older
 /// version named after the player (`stats/<name>.json`) moved to the uuid file the
 /// first time it is asked for. A uuid file that is already there wins, and a move
 /// that fails leaves the old one in place.
@@ -405,13 +405,13 @@ impl Game<'_> {
     /// `PhantomSpawner.tick`: tired players under an open night sky draw
     /// phantoms. A custom spawner ticks only while `spawn_mobs` is on
     /// (`ServerChunkCache.tickChunks`), and this one only spawns enemies
-    /// (`ServerLevel.isSpawningMonsters`: `spawn_monsters` too). Every
+    /// (difficulty not peaceful). Every
     /// player of the level counts: the game's own and the hosted ones (a
     /// server thread's players are all hosted).
     pub(super) fn spawn_phantoms(&mut self) {
         let rules = &self.ui.rules;
         if !rules.bool("spawn_mobs")
-            || !rules.bool("spawn_monsters")
+            || self.ui.difficulty == 0
             || !rules.bool("spawn_phantoms")
             || self.dim != Dim::Overworld
         {
@@ -516,7 +516,7 @@ fn phantom_group_size(random: &mut impl RandomSource, difficulty_id: i32) -> i32
 mod tests {
     use super::*;
 
-    /// `PlayerList.locateStatsFile`: a stats file an older version named after the player is moved
+    /// `PlayerList.getPlayerStats`: a stats file an older version named after the player is moved
     /// to the uuid file the first time it is asked for; a uuid file that is already there wins, and
     /// a name vanilla would not write as a path segment is not looked for at all.
     #[test]

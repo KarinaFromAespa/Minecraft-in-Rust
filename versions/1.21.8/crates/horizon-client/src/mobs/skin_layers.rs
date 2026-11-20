@@ -26,8 +26,8 @@ pub const OUTER_PARTS: [&str; 6] = [
     "right_pants",
 ];
 
-/// The size of a prepared skin image: `resample_64` always hands out this
-/// many texels a side, wide and legacy skins alike.
+/// The size of a prepared skin image: `Downloader::image` keeps every skin
+/// at this many texels a side, wide and legacy skins alike.
 pub const SIZE: usize = 64;
 
 /// How far a texel is pushed out, in model units (1 = 1/16 block = one skin

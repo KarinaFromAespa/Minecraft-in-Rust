@@ -94,12 +94,14 @@ const MODEL_PART_KEYS: [&str; 7] = [
     "modelPart_right_pants_leg",
     "modelPart_hat",
 ];
-/// The Accessibility Settings page:
-/// `AccessibilityOptionsScreen.options`, with the Controls link inserted separately.
+/// The Accessibility Settings page: `AccessibilityOptionsScreen.options`,
+/// with auto-jump and the crouch/sprint toggles (1.21.9 moved those to the
+/// Controls screen and put a Controls link in their place).
 pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::Narrator,
     Opt::ShowSubtitles,
     Opt::HighContrast,
+    Opt::AutoJump,
     Opt::MenuBlur,
     Opt::TextBackgroundOpacity,
     Opt::TextBackground,
@@ -108,6 +110,8 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::ChatDelay,
     Opt::NotificationDisplayTime,
     Opt::ViewBobbing,
+    Opt::ToggleCrouch,
+    Opt::ToggleSprint,
     Opt::DistortionEffects,
     Opt::FovEffects,
     Opt::DarknessPulsing,
@@ -123,35 +127,26 @@ pub(crate) const ACCESSIBILITY_OPTIONS: &[Opt] = &[
     Opt::HighContrastBlockOutlines,
 ];
 
-/// `ControlsScreen.options`: the controls added by Java Edition 26.3, in
-/// their vanilla order. The macOS-only Control-click switch is omitted on
-/// other platforms just as `InputQuirks.EMULATE_RIGHT_CLICK_WITH_CTRL_KEY`
-/// does in Java.
+/// `ControlsScreen.options` in 1.21.8, in vanilla order, plus Horizon's
+/// own quit shortcuts.
 pub(crate) fn vanilla_control_options() -> Vec<Opt> {
     let mut options = vec![
         Opt::ToggleCrouch,
         Opt::ToggleSprint,
-        Opt::ToggleAttack,
-        Opt::ToggleUse,
         Opt::AutoJump,
-        Opt::SprintWindow,
         Opt::QuitShortcuts,
     ];
-    if cfg!(target_os = "macos") {
-        options.push(Opt::CtrlClickEmulatesRightClick);
-    }
     options.push(Opt::OperatorItemsTab);
     options
 }
 
-/// `MouseSettingsScreen.options` in Java Edition 26.3, in vanilla order.
+/// `MouseSettingsScreen.options` in 1.21.8, in vanilla order (no Invert X
+/// or cursor-changes switch; touchscreen is not modelled yet).
 pub(crate) const MOUSE_OPTIONS: &[Opt] = &[
     Opt::Sensitivity,
+    Opt::InvertY,
     Opt::WheelSensitivity,
     Opt::DiscreteScroll,
-    Opt::InvertX,
-    Opt::InvertY,
-    Opt::AllowCursorChanges,
 ];
 
 impl Opt {
@@ -179,7 +174,6 @@ impl Opt {
             Opt::ChatDelay => "chatDelay",
             Opt::HideMatchedNames => "hideMatchedNames",
             Opt::OnlySecureChat => "onlyShowSecureChat",
-            Opt::SaveChatDrafts => "saveChatDrafts",
             Opt::DistortionEffects => "screenEffectScale",
             Opt::FovEffects => "fovEffectScale",
             Opt::DarknessPulsing => "darknessEffectScale",
@@ -197,7 +191,6 @@ impl Opt {
             Opt::SoundDevice => "soundDevice",
             Opt::OperatorItemsTab => "operatorItemsTab",
             Opt::QuitShortcuts => "quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "ctrlClickEmulatesRightClick",
             Opt::ModelPart(i) => MODEL_PART_KEYS[i],
             Opt::AllowServerListing => "allowServerListing",
             Opt::RealmsNotifications => "realmsNotifications",
@@ -216,10 +209,8 @@ impl Opt {
             Opt::SimulationDistance => "options.simulationDistance",
             Opt::Sensitivity => "options.sensitivity",
             Opt::WheelSensitivity => "options.mouseWheelSensitivity",
-            Opt::InvertX => "options.invertMouseX",
-            Opt::InvertY => "options.invertMouseY",
+            Opt::InvertY => "options.invertMouse",
             Opt::DiscreteScroll => "options.discrete_mouse_scroll",
-            Opt::AllowCursorChanges => "options.allowCursorChanges",
             Opt::Volume(_) => "soundCategory.master",
             Opt::SoundDevice => "options.audioDevice",
             Opt::GuiScale => "options.guiScale",
@@ -254,12 +245,8 @@ impl Opt {
             Opt::MenuBlur => "options.accessibility.menu_background_blurriness",
             Opt::ToggleCrouch => "key.sneak",
             Opt::ToggleSprint => "key.sprint",
-            Opt::ToggleAttack => "key.attack",
-            Opt::ToggleUse => "key.use",
             Opt::AutoJump => "options.autoJump",
-            Opt::SprintWindow => "options.sprintWindow",
             Opt::QuitShortcuts => "options.quitShortcuts",
-            Opt::CtrlClickEmulatesRightClick => "options.ctrlClickEmulatesRightClick",
             Opt::OperatorItemsTab => "options.operatorItemsTab",
             Opt::ChatVisibility => "options.chat.visibility",
             Opt::ChatColors => "options.chat.color",
@@ -275,7 +262,6 @@ impl Opt {
             Opt::AutoSuggestions => "options.autoSuggestCommands",
             Opt::HideMatchedNames => "options.hideMatchedNames",
             Opt::OnlySecureChat => "options.onlyShowSecureChat",
-            Opt::SaveChatDrafts => "options.chat.drafts",
             Opt::ReducedDebugInfo => "options.reducedDebugInfo",
             Opt::HighContrast => "options.accessibility.high_contrast",
             Opt::ShowSubtitles => "options.showSubtitles",
@@ -401,7 +387,6 @@ impl Opt {
             Opt::PadMoveDeadzone => unit(s.controller.move_deadzone, 0.0, 0.5),
             Opt::PadLookDeadzone => unit(s.controller.look_deadzone, 0.0, 0.5),
             Opt::PadTriggerThreshold => unit(s.controller.trigger_threshold, 0.1, 0.9),
-            Opt::SprintWindow => unit(s.sprint_window as f32, 0.0, 10.0),
             _ => Kind::Cycle,
         }
     }
@@ -433,7 +418,7 @@ impl Opt {
                 "options.textureFiltering.rgss",
                 "options.textureFiltering.anisotropic",
             ][s.file.int("textureFiltering").clamp(0, 2) as usize],
-            // InputQuirks.REPLACE_CTRL_KEY_WITH_CMD_KEY: Cmd+B on macOS.
+            // `Screen.hasControlDown`: Cmd on macOS.
             Opt::NarratorHotkey if cfg!(target_os = "macos") => {
                 "options.accessibility.narrator_hotkey.mac"
             }
@@ -466,7 +451,6 @@ impl Opt {
             Opt::NotificationDisplayTime => Some(95),
             Opt::PadMoveDeadzone | Opt::PadLookDeadzone => Some(50),
             Opt::PadTriggerThreshold => Some(80),
-            Opt::SprintWindow => Some(10),
             _ => None,
         }
     }
@@ -516,14 +500,6 @@ impl Opt {
                 }
             }
             Opt::PanoramaSpeed => percent(c, s.file.double("panoramaScrollSpeed") as f32),
-            Opt::SprintWindow => {
-                let value = if s.sprint_window == 0 {
-                    tr("options.off")
-                } else {
-                    Text::tr("options.value", &[&s.sprint_window])
-                };
-                generic(c, value)
-            }
             Opt::Fov => match s.fov as i32 {
                 70 => generic(c, tr("options.fov.min")),
                 110 => generic(c, tr("options.fov.max")),
@@ -712,7 +688,6 @@ impl Opt {
             Opt::HideSplashTexts => on_off(s.file.bool("hideSplashTexts")),
             Opt::HideMatchedNames
             | Opt::OnlySecureChat
-            | Opt::SaveChatDrafts
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
@@ -736,10 +711,8 @@ impl Opt {
             Opt::NarratorHotkey => on_off(s.file.bool("narratorHotkey")),
             Opt::RotateWithMinecarts => on_off(s.file.bool("rotateWithMinecart")),
             Opt::HighContrastBlockOutlines => on_off(s.file.bool("highContrastBlockOutline")),
-            Opt::InvertX => on_off(s.invert_x),
             Opt::InvertY => on_off(s.invert_y),
             Opt::DiscreteScroll => on_off(s.discrete_scroll),
-            Opt::AllowCursorChanges => on_off(s.allow_cursor_changes),
             Opt::ViewBobbing => on_off(s.view_bobbing),
             Opt::Vsync => on_off(s.vsync),
             Opt::Fullscreen => on_off(s.fullscreen),
@@ -800,19 +773,8 @@ impl Opt {
             } else {
                 "options.off"
             }),
-            Opt::ToggleAttack => tr(if s.toggle_attack {
-                "options.key.toggle"
-            } else {
-                "options.key.hold"
-            }),
-            Opt::ToggleUse => tr(if s.toggle_use {
-                "options.key.toggle"
-            } else {
-                "options.key.hold"
-            }),
             Opt::AutoJump => on_off(s.auto_jump),
             Opt::QuitShortcuts => on_off(s.quit_shortcuts),
-            Opt::CtrlClickEmulatesRightClick => on_off(s.ctrl_click_emulates_right_click),
             Opt::OperatorItemsTab => on_off(s.operator_items_tab),
             Opt::ChatVisibility => tr([
                 "options.chat.visibility.full",
@@ -951,7 +913,6 @@ impl Opt {
             Opt::PadMoveDeadzone => s.controller.move_deadzone = step(0.0, 50.0) / 100.0,
             Opt::PadLookDeadzone => s.controller.look_deadzone = step(0.0, 50.0) / 100.0,
             Opt::PadTriggerThreshold => s.controller.trigger_threshold = step(10.0, 90.0) / 100.0,
-            Opt::SprintWindow => s.sprint_window = step(0.0, 10.0) as i32,
             _ => {}
         }
         if self.affects_preset() {
@@ -1011,7 +972,6 @@ impl Opt {
             | Opt::MonochromeLogo
             | Opt::HideMatchedNames
             | Opt::OnlySecureChat
-            | Opt::SaveChatDrafts
             | Opt::ModelPart(_)
             | Opt::AllowServerListing
             | Opt::RealmsNotifications
@@ -1028,10 +988,8 @@ impl Opt {
                 let n = next(s.narrator().id() as u8, 4);
                 s.set_narrator(horizon_narrator::Status::by_id(i32::from(n)));
             }
-            Opt::InvertX => s.invert_x = !s.invert_x,
             Opt::InvertY => s.invert_y = !s.invert_y,
             Opt::DiscreteScroll => s.discrete_scroll = !s.discrete_scroll,
-            Opt::AllowCursorChanges => s.allow_cursor_changes = !s.allow_cursor_changes,
             Opt::ViewBobbing => s.view_bobbing = !s.view_bobbing,
             Opt::Vsync => s.vsync = !s.vsync,
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
@@ -1098,13 +1056,8 @@ impl Opt {
             Opt::ToggleCrouch => s.toggle_crouch = !s.toggle_crouch,
             Opt::ToggleSprint => s.toggle_sprint = !s.toggle_sprint,
             Opt::SkinLayers3d => s.extras.three_d_skin_layers = !s.extras.three_d_skin_layers,
-            Opt::ToggleAttack => s.toggle_attack = !s.toggle_attack,
-            Opt::ToggleUse => s.toggle_use = !s.toggle_use,
             Opt::AutoJump => s.auto_jump = !s.auto_jump,
             Opt::QuitShortcuts => s.quit_shortcuts = !s.quit_shortcuts,
-            Opt::CtrlClickEmulatesRightClick => {
-                s.ctrl_click_emulates_right_click = !s.ctrl_click_emulates_right_click
-            }
             Opt::OperatorItemsTab => s.operator_items_tab = !s.operator_items_tab,
             Opt::ChatVisibility => s.chat_visibility = next(s.chat_visibility, 3),
             Opt::ChatColors => s.chat_colors = !s.chat_colors,
@@ -1656,8 +1609,6 @@ pub struct OptionsUi {
     data_pack_stamp: (Vec<(String, Option<std::time::SystemTime>)>, Instant),
     /// A reload failure, dismissed before returning to the current page.
     pub resource_error: Option<String>,
-    /// When the pack screen's search box took the focus (its cursor blink).
-    pack_focus: Instant,
     /// The selection carried over from a pack screen made again over a changed pack list
     /// (`update_pack_infos`) differs from the settings'.
     pack_reselected: bool,
@@ -1749,7 +1700,6 @@ impl Default for OptionsUi {
             data_pack_resources: Default::default(),
             data_pack_stamp: (Vec::new(), Instant::now()),
             resource_error: None,
-            pack_focus: Instant::now(),
             pack_reselected: false,
             in_world: false,
             minecart_improvements: false,
@@ -2895,22 +2845,8 @@ impl OptionsUi {
                 Opt::HideMatchedNames,
                 Opt::ReducedDebugInfo,
                 Opt::OnlySecureChat,
-                Opt::SaveChatDrafts,
             ]),
-            Page::Accessibility => {
-                let mut rows = vec![Row::Buttons(
-                    option_widget(s, Opt::Narrator, 0.0, 0.0, 150.0),
-                    Some(button(
-                        0.0,
-                        0.0,
-                        150.0,
-                        tr("options.controls"),
-                        Act::Push(Page::Controls),
-                    )),
-                )];
-                rows.extend(pairs(&ACCESSIBILITY_OPTIONS[1..]));
-                rows
-            }
+            Page::Accessibility => pairs(ACCESSIBILITY_OPTIONS),
             Page::Font => pairs(&[Opt::ForceUnicode, Opt::JapaneseGlyphs]),
             Page::Mods => {
                 let browse = button(
@@ -3204,7 +3140,7 @@ impl OptionsUi {
                         last_category = category;
                         rows.begin(&out, y);
                         let label =
-                            Text::translate(&format!("key.category.minecraft.{category}"), &[])
+                            Text::translate(&format!("key.categories.{category}"), &[])
                                 .with_style(&Style {
                                     bold: Some(true),
                                     underlined: Some(true),
@@ -3247,7 +3183,7 @@ impl OptionsUi {
                         message = Text::literal("[ ")
                             .append(message.with_color(text::WHITE))
                             .append(" ]")
-                            .with_color(text::YELLOW);
+                            .with_color(text::RED);
                     }
                     if self.selected_key == Some(name) {
                         message = Text::literal("> ")
@@ -3271,7 +3207,7 @@ impl OptionsUi {
                             h: 18.0,
                             kind: WKind::Text {
                                 text: Text::empty(),
-                                color: rgba(255, 255, 0, 255),
+                                color: rgba(255, 0, 0, 255),
                                 centered: false,
                             },
                             list: false,
@@ -3671,11 +3607,10 @@ impl OptionsUi {
         if self.page() == Page::Packs {
             self.watch_data_packs(atlas, (w, h));
             ui::menu_background(batch, atlas, 0.0, 0.0, w, h, self.in_world);
-            let blink = self.pack_focus.elapsed().as_millis() as u64;
             let m = crate::screen_draw::Measure(&atlas.font);
             let mouse = (cursor.0.floor() as i32, cursor.1.floor() as i32);
             let packs = self.packs(atlas, (w, h));
-            let mut draws = packs.draw(&m, mouse, blink, crate::hud_overlays::now_ms());
+            let mut draws = packs.draw(&m, mouse, crate::hud_overlays::now_ms());
             packs.bind_icons(&mut draws, atlas, &mut batch.patches);
             crate::screen_draw::paint(batch, atlas, &draws);
             return;
@@ -4047,11 +3982,7 @@ impl OptionsUi {
             if p.button_at(&m, x as f64, y as f64) {
                 events.push(Event::ButtonClick);
             }
-            let before = p.search_focused();
             let action = p.click(&m, x as f64, y as f64);
-            if !before && p.search_focused() {
-                self.pack_focus = Instant::now();
-            }
             match action {
                 crate::pack_screen::Action::OpenFolder => events.push(match &self.data_pack_dir {
                     Some(dir) => Event::OpenDataPackFolder(dir.clone()),
@@ -4089,7 +4020,7 @@ impl OptionsUi {
                 self.focus = Some(FocusId::Search);
                 self.focus_from_keyboard = false;
                 self.can_change_value = false;
-                search.click(atlas, x, false, false);
+                search.click(atlas, x, false);
                 self.scroll = 0.0;
                 events.push(Event::ButtonClick);
                 return events;
@@ -4102,7 +4033,7 @@ impl OptionsUi {
                 self.focus = Some(FocusId::Search);
                 self.focus_from_keyboard = false;
                 self.can_change_value = false;
-                search.click(atlas, x, false, false);
+                search.click(atlas, x, false);
                 self.scroll = 0.0;
                 return events;
             }
@@ -4535,7 +4466,6 @@ impl OptionsUi {
                 }
             }
             None => {
-                self.pack_focus = Instant::now();
                 let title = if self.data_pack_dir.is_some() {
                     "dataPack.title"
                 } else {
@@ -5240,7 +5170,7 @@ mod tests {
     }
 
     #[test]
-    fn mouse_settings_match_java_26_3_option_order() {
+    fn mouse_settings_match_java_1_21_8_option_order() {
         let mut ui = OptionsUi::default();
         ui.show(Page::Mouse);
         let mut options = Vec::new();
@@ -5256,11 +5186,9 @@ mod tests {
             options,
             vec![
                 Opt::Sensitivity,
+                Opt::InvertY,
                 Opt::WheelSensitivity,
                 Opt::DiscreteScroll,
-                Opt::InvertX,
-                Opt::InvertY,
-                Opt::AllowCursorChanges,
             ]
         );
     }
@@ -5268,14 +5196,11 @@ mod tests {
     #[test]
     fn mouse_settings_round_trip_with_java_defaults() {
         let mut settings = Settings::default();
-        assert!(!settings.invert_x);
-        assert!(settings.allow_cursor_changes);
-        Opt::InvertX.cycle(&mut settings, false, [854, 480]);
-        Opt::AllowCursorChanges.cycle(&mut settings, false, [854, 480]);
+        assert!(!settings.invert_y);
+        Opt::InvertY.cycle(&mut settings, false, [854, 480]);
         let loaded = Settings::parse(&settings.serialize());
-        assert!(loaded.invert_x);
-        assert!(!loaded.allow_cursor_changes);
-        assert!(!loaded.file.bool("allowCursorChanges"));
+        assert!(loaded.invert_y);
+        assert!(loaded.file.bool("invertYMouse"));
     }
 
     #[test]
@@ -5315,11 +5240,13 @@ mod tests {
                 assert_eq!(s.serialize(), before);
             }
         }
-        assert!(widgets.iter().any(|w| matches!(
+        // 1.21.8's `AccessibilityOptionsScreen.addFooter` has only the help
+        // link and Done: the Controls button is 1.21.9's, so no Controls
+        // link is among these widgets.
+        assert!(!widgets.iter().any(|w| matches!(
             w.kind,
             WKind::Button {
                 act: Act::Push(Page::Controls),
-                active: true,
                 ..
             }
         )));
@@ -5411,20 +5338,13 @@ mod tests {
     }
 
     #[test]
-    fn sprint_window_and_new_control_switches_round_trip() {
+    fn new_control_switches_round_trip() {
         let mut settings = Settings::default();
-        set_slider(Opt::SprintWindow, &mut settings, 0.5);
         settings.operator_items_tab = true;
         settings.quit_shortcuts = false;
-        settings.ctrl_click_emulates_right_click = true;
-        settings.toggle_attack = true;
-        settings.toggle_use = true;
         let loaded = Settings::parse(&settings.serialize());
-        assert_eq!(loaded.sprint_window, 5);
         assert!(loaded.operator_items_tab);
         assert!(!loaded.quit_shortcuts);
-        assert!(loaded.ctrl_click_emulates_right_click);
-        assert!(loaded.toggle_attack && loaded.toggle_use);
     }
 
     #[test]
@@ -5446,9 +5366,7 @@ mod tests {
             Opt::ChunkFade,
             Opt::ImprovedTransparency,
             Opt::ChatDelay,
-            Opt::SaveChatDrafts,
             Opt::MusicToast,
-            Opt::CtrlClickEmulatesRightClick,
         ] {
             assert!(opt.available(), "{opt:?} is read and must be clickable");
         }
@@ -6011,8 +5929,7 @@ mod tests {
     }
 
     #[test]
-    fn pointer_cursor_leaves_a_clicked_option_while_its_focus_stays() {
-        use crate::widgets::{Cursor, take_cursor};
+    fn moving_the_pointer_leaves_a_clicked_options_focus() {
         let atlas = atlas();
         let mut s = Settings::default();
         let mut ui = OptionsUi::default();
@@ -6049,9 +5966,7 @@ mod tests {
             "the accepted click keeps vanilla's focus"
         );
         assert!(!ui.focus_from_keyboard);
-        let _ = take_cursor();
         ui.draw(&s, NONE, &mut HudBatch::new([480, 480]), &atlas, over);
-        assert_eq!(take_cursor(), Cursor::PointingHand);
         ui.draw(
             &s,
             NONE,
@@ -6059,29 +5974,14 @@ mod tests {
             &atlas,
             (-10.0, -10.0),
         );
-        assert_eq!(take_cursor(), Cursor::Arrow, "focus is not mouse hover");
         assert!(
             ui.focus.is_some(),
             "moving the pointer does not clear focus"
         );
-        ui.focus_from_keyboard = true;
-        ui.draw(
-            &s,
-            NONE,
-            &mut HudBatch::new([480, 480]),
-            &atlas,
-            (-10.0, -10.0),
-        );
-        assert_eq!(
-            take_cursor(),
-            Cursor::Arrow,
-            "keyboard focus is not mouse hover either"
-        );
     }
 
     #[test]
-    fn pointer_cursor_leaves_a_disabled_option_without_focusing_it() {
-        use crate::widgets::{Cursor, take_cursor};
+    fn a_disabled_option_rejects_a_click_without_focusing_it() {
         let atlas = atlas();
         let mut s = Settings::default();
         let mut ui = OptionsUi::default();
@@ -6096,9 +5996,6 @@ mod tests {
             })
             .expect("visible disabled button");
         let over = (button.x + 1.0, button.y + 1.0);
-        let _ = take_cursor();
-        ui.draw(&s, NONE, &mut HudBatch::new([480, 480]), &atlas, over);
-        assert_eq!(take_cursor(), Cursor::NotAllowed);
         assert!(
             ui.click(
                 &mut s,
@@ -6116,14 +6013,6 @@ mod tests {
             ui.focus.is_none(),
             "an inactive widget rejects the click before focus"
         );
-        ui.draw(
-            &s,
-            NONE,
-            &mut HudBatch::new([480, 480]),
-            &atlas,
-            (-10.0, -10.0),
-        );
-        assert_eq!(take_cursor(), Cursor::Arrow);
     }
 
     #[test]
@@ -7623,6 +7512,12 @@ mod tests {
             ("ChatOpacity", &["Accessibility", "Chat"][..]),
             ("TextBackgroundOpacity", &["Accessibility", "Chat"][..]),
             ("ChatLineSpacing", &["Accessibility", "Chat"][..]),
+            // 1.21.8's ControlsScreen.options is toggleCrouch, toggleSprint,
+            // autoJump, operatorItemsTab; the first three are also on the
+            // Accessibility screen.
+            ("AutoJump", &["Accessibility", "Controls"][..]),
+            ("ToggleCrouch", &["Accessibility", "Controls"][..]),
+            ("ToggleSprint", &["Accessibility", "Controls"][..]),
         ]
         .into();
         for (id, pages) in &places {
@@ -7632,11 +7527,12 @@ mod tests {
                 None => assert_eq!(pages.len(), 1, "{id} is on {pages:?}"),
             }
         }
-        // AccessibilityOptionsScreen links Controls, as vanilla's does.
+        // 1.21.8's Accessibility screen has no Controls link (that button
+        // is 1.21.9's), so Controls opens from the Options screen only.
         for (page, from) in &ways_in {
             let from: Vec<&str> = from.iter().map(String::as_str).collect();
             match page.as_str() {
-                "Controls" => assert_eq!(from, ["Accessibility", "Main"]),
+                "Controls" => assert_eq!(from, ["Main"]),
                 _ => assert_eq!(from.len(), 1, "{page} opens from {from:?}"),
             }
         }
@@ -8090,7 +7986,6 @@ mod tests {
             Opt::PadMoveDeadzone,
             Opt::PadLookDeadzone,
             Opt::PadTriggerThreshold,
-            Opt::SprintWindow,
         ];
         for opt in stepped_opts {
             let steps = opt.slider_steps().expect("slider steps");

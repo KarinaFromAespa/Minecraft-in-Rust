@@ -658,7 +658,7 @@ impl Guest {
         let own = |id: i32| id == self.entity_id;
         let change = match packet {
             C::SetEntityMotion(p) if own(p.id) => {
-                Change::Velocity(horizon_protocol::buf::LpVec3::quantize(p.velocity))
+                Change::Velocity(horizon_protocol::buf::ShortVec3::quantize(p.velocity))
             }
             C::Explode(p) => match p.knockback {
                 Some(k) => Change::Knockback(k),
@@ -732,11 +732,12 @@ impl Guest {
     pub fn client_loaded(&self) -> bool {
         !self.dead && self.load_timeout == 0
     }
-    /// `ServerPlayerGameMode.changeGameModeForPlayer`: the mode left becomes
-    /// the previous one; the mode already in use changes nothing.
+    /// `ServerPlayerGameMode.changeGameModeForPlayer`: the mode changes, the
+    /// previous one stays what it was (1.21.8 passes the old previous
+    /// through; the mode left becoming the previous is 1.21.9). The mode
+    /// already in use changes nothing.
     pub fn change_game_mode(&mut self, mode: i32) {
         if mode != self.game_mode {
-            self.previous_game_mode = Some(self.game_mode);
             self.game_mode = mode;
             // GameType.updatePlayerAbilities sets mayfly for the new mode.
             self.allow_flight = false;
@@ -781,7 +782,7 @@ impl Guest {
             Pose::Standing
         }
     }
-    /// `Avatar.POSES` for the guest's pose, with its scale attribute: also for
+    /// `Player.POSES` for the guest's pose, with its scale attribute: also for
     /// a pose the client has announced (gliding) before the body's own tick
     /// has taken it.
     pub fn dimensions(&self) -> Dimensions {

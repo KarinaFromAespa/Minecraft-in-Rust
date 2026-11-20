@@ -82,7 +82,7 @@ impl StandUpLevel<'_, '_> {
                 &mut scene,
                 self.world.block(p[0], p[1], p[2]),
                 BlockPos::new(p[0], p[1], p[2]),
-                &CollisionContext::empty(false),
+                &CollisionContext::empty(),
             )
             .unwrap_or_else(|_| VoxelShape::empty())
     }

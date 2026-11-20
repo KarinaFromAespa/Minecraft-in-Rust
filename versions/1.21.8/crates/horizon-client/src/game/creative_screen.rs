@@ -102,12 +102,6 @@ impl Game<'_> {
             if i != selected && self.creative_screen.on_page(t) {
                 let (tx, ty) = Creative::tab_position(t);
                 batch.sprite(&self.gui.atlas, &tab_sprite(t, false), ox + tx, oy + ty);
-                let mouse = (self.cursor.0 - ox, self.cursor.1 - oy);
-                if Creative::tab_wants_hand(t, false, mouse) {
-                    horizon_client::widgets::request_cursor(
-                        horizon_client::widgets::Cursor::PointingHand,
-                    );
-                }
             }
         }
         let background = if tab.search {
@@ -453,7 +447,7 @@ impl Game<'_> {
         search.x = x;
         search.y = y;
         search.width = w;
-        search.click(&self.gui.atlas, mx, shift, false);
+        search.click(&self.gui.atlas, mx, shift);
         true
     }
 }

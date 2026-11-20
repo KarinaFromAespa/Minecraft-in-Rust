@@ -236,7 +236,7 @@ impl SpectatorGui {
             }
         }
     }
-    /// `SpectatorGui.onHotbarActionKeyPressed`: the key that opens the menu
+    /// `SpectatorGui.onMouseMiddleClick`: the key that opens the menu
     /// and uses the selected item.
     pub fn on_action_key(&mut self, now: i64, fresh: Option<SpectatorMenu>) -> Outcome {
         self.last_selection = now;

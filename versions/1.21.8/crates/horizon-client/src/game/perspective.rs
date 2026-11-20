@@ -511,6 +511,10 @@ impl Game<'_> {
         let bed = self.sleeping.map_or(0, |head| self.bed_facing(head));
         let spectator = self.spectator();
         let ridden = self.ridden_body();
+        // `LivingEntityRenderer.isEntityUpsideDown`: the local player flips
+        // by its own profile name (unless its cape is hidden).
+        let upside_down_name =
+            matches!(self.own_profile_name().as_str(), "Dinnerbone" | "Grumm");
         let Some(m) = self.player_model.as_mut() else {
             return;
         };
@@ -619,6 +623,7 @@ impl Game<'_> {
         };
         m.extra.main_hand_left = self.settings.main_hand_left;
         m.extra.hidden_model_parts = !self.settings.file.model_customisation() & 0x7F;
+        m.extra.upside_down_name = upside_down_name;
         m.extra.spectator = spectator;
         m.extra.using_item = using;
         m.extra.using_off_hand = using_off_hand;
@@ -627,7 +632,7 @@ impl Game<'_> {
         m.extra.ints[5] = charge_duration;
         m.extra.elytra.tick(fall_flying, crouching, velocity);
         m.extra.swim.tick(visually_swimming, in_water);
-        // The local player's ClientAvatarState, its cloak in the model's frame
+        // The local player's walk/bob/cloak state, its cloak in the model's frame
         // (the model stands 0.125 lower while crouching).
         m.extra.avatar = avatar;
         if crouching {
@@ -785,7 +790,7 @@ impl Game<'_> {
             &self.player_armor_layers(),
             out,
         );
-        // AvatarRenderer.shouldRenderLayers: a spectator draws no layers.
+        // PlayerRenderer.shouldRenderLayers: a spectator draws no layers.
         if horizon_client::mobs::render::layers_shown(m) {
             let chest = self.armor[1].as_ref().map(|s| &*s.item);
             // CapeLayer: no cape on an invisible player (`isInvisible`, whoever looks).
@@ -1011,7 +1016,7 @@ impl Game<'_> {
             _ => 0,
         }
     }
-    /// `WingsLayer.submit` for any wearer: the wings of `chest`'s equipment
+    /// `WingsLayer.render` for any wearer: the wings of `chest`'s equipment
     /// asset on `base` (the wearer's model transform), `baby` for the baby
     /// elytra model. `cape` is a player's own cape texture, which has its
     /// elytra (`WingsLayer.getPlayerElytraTexture`). `stack` is the worn
@@ -1165,8 +1170,9 @@ impl Game<'_> {
             out,
         );
     }
-    /// `Deadmau5EarsLayer` (`AbstractClientPlayer.showExtraEars`): the ears
-    /// of a player whose profile name is `deadmau5`, in the player's skin.
+    /// `Deadmau5EarsLayer.render` (`"deadmau5".equals(state.name)`, the game
+    /// profile name `PlayerRenderer` extracts): the ears of a player whose
+    /// profile name is `deadmau5`, in the player's skin.
     pub(super) fn player_ears_geometry(
         &self,
         m: &Mob,
@@ -1503,7 +1509,7 @@ fn rope_old_after_turn(old: (f32, f32), yaw: f32, pitch: f32, xo: f64, yo: f64) 
 
 /// `EntityRenderer.getPackedLightCoords` (`Entity.getLightProbePosition`):
 /// the block containing the entity's eye position, undoing
-/// `AvatarRenderer.getRenderOffset`'s 0.125 crouch drop on the model position.
+/// `PlayerRenderer.getRenderOffset`'s 0.125 crouch drop on the model position.
 pub(super) fn entity_light_block(position: Vec3, crouching: bool, eye_height: f64) -> [i32; 3] {
     let y = position.y + if crouching { 0.125 } else { 0.0 } + eye_height;
     [
@@ -1840,7 +1846,7 @@ mod preview_tests {
         assert!(body_visible(own_invisible(&effects, true), Some(team)));
     }
 
-    /// LivingEntityRenderer.submit: an invisible body is not drawn, its
+    /// LivingEntityRenderer.render: an invisible body is not drawn, its
     /// HumanoidArmorLayer is.
     #[test]
     fn an_invisible_body_keeps_its_armour() {
@@ -1891,7 +1897,7 @@ mod preview_tests {
         assert!(!hidden.is_empty(), "the armour still draws");
         assert!(hidden.iter().all(|v| v.uv[0] >= 0.5), "only the armour");
         assert_eq!(hidden.len() * 2, shown.len());
-        // AvatarRenderer.shouldRenderLayers: a spectator has no armour layer.
+        // PlayerRenderer.shouldRenderLayers: a spectator has no armour layer.
         let mut ghost = m.clone();
         ghost.extra.spectator = true;
         assert!(!horizon_client::mobs::render::layers_shown(&ghost));

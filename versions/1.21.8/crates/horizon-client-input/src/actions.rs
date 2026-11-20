@@ -57,7 +57,6 @@ actions! {
     SmoothCamera, "key.smoothCamera", None;
     Fullscreen, "key.fullscreen", Some(KeyCode::F11);
     SpectatorOutlines, "key.spectatorOutlines", None;
-    SpectatorHotbar, "key.spectatorHotbar", None;
     SwapOffhand, "key.swapOffhand", Some(KeyCode::KeyF);
     SaveToolbarActivator, "key.saveToolbarActivator", Some(KeyCode::KeyC);
     LoadToolbarActivator, "key.loadToolbarActivator", Some(KeyCode::KeyX);
@@ -83,7 +82,6 @@ actions! {
     DebugCopyRecreateCommand, "key.debug.copyRecreateCommand", None;
     DebugSpectate, "key.debug.spectate", None;
     DebugSwitchGameMode, "key.debug.switchGameMode", None;
-    DebugDebugOptions, "key.debug.debugOptions", None;
     DebugFocusPause, "key.debug.focusPause", None;
     DebugDumpDynamicTextures, "key.debug.dumpDynamicTextures", None;
     DebugReloadResourcePacks, "key.debug.reloadResourcePacks", None;

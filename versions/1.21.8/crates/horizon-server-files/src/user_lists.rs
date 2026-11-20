@@ -26,7 +26,11 @@ impl JavaKey for JKey {
     }
 }
 
-/// NameAndId.
+/// The (id, name) pair a list entry carries: 1.21.8's entries hold a
+/// `GameProfile` (`createGameProfile`/`appendTo` in each entry class);
+/// 1.21.9 split the pair out as the `NameAndId` record. The JSON form
+/// (uuid + name, both required, null on an unparseable uuid) and the
+/// file format are identical in both versions.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NameAndId {
     pub id: u128,
@@ -131,9 +135,11 @@ pub trait Entry: Clone {
     fn expired(&self, _now: i64) -> bool {
         false
     }
-    /// `infos.equals(previous)` in StoredUserList.add: only ban entries
-    /// override equals; the others compare by identity, so a new entry is
-    /// never equal to the stored one.
+    /// Whether this entry equals the stored one: the watcher is told of
+    /// an `add` only when the entry is new or different (1.21.9's `add`
+    /// itself returned false for an equal entry; 1.21.8's always saves).
+    /// Only ban entries override equals; the others compare by identity,
+    /// so a new entry is never equal to the stored one.
     fn same(&self, _other: &Self) -> bool {
         false
     }
@@ -198,6 +204,12 @@ impl Entry for WhiteEntry {
     }
 }
 
+/// `BanListEntry`'s reason when none is given (its constructor and its
+/// JSON load both default a missing reason to this, so the reason is
+/// never null in 1.21.8; the nullable reason and `getReasonMessage`'s
+/// translatable default came in 1.21.9).
+pub const DEFAULT_BAN_REASON: &str = "Banned by an operator.";
+
 /// BanListEntry for players (NameAndId) or addresses (String).
 #[derive(Clone, Debug)]
 pub struct BanEntry<T> {
@@ -205,7 +217,7 @@ pub struct BanEntry<T> {
     pub created: i64,
     pub source: String,
     pub expires: Option<i64>,
-    pub reason: Option<String>,
+    pub reason: String,
 }
 impl<T: PartialEq> PartialEq for BanEntry<T> {
     fn eq(&self, o: &Self) -> bool {
@@ -227,7 +239,7 @@ impl<T> BanEntry<T> {
             created: now_millis(),
             source: source.unwrap_or_else(|| "(Unknown)".into()),
             expires,
-            reason,
+            reason: reason.unwrap_or_else(|| DEFAULT_BAN_REASON.into()),
         }
     }
     fn fields(user: T, o: &Json) -> Self {
@@ -244,7 +256,10 @@ impl<T> BanEntry<T> {
                 .and_then(Json::as_string)
                 .unwrap_or_else(|| "(Unknown)".into()),
             expires: date("expires"),
-            reason: o.get("reason").and_then(Json::as_string),
+            reason: o
+                .get("reason")
+                .and_then(Json::as_string)
+                .unwrap_or_else(|| DEFAULT_BAN_REASON.into()),
         }
     }
     fn serialize_ban(&self, o: &mut Json) {
@@ -254,10 +269,7 @@ impl<T> BanEntry<T> {
             "expires",
             Json::String(self.expires.map_or_else(|| "forever".into(), format_date)),
         );
-        o.add(
-            "reason",
-            self.reason.clone().map_or(Json::Null, Json::String),
-        );
+        o.add("reason", Json::String(self.reason.clone()));
     }
 }
 impl Entry for BanEntry<NameAndId> {
@@ -325,8 +337,10 @@ fn json_bool(v: &Json) -> bool {
     }
 }
 
-/// What happened to a list, for the one that watches it: what vanilla's `StoredUserList` tells its
-/// `NotificationService` (`playerOped`/`playerDeoped`, `playerAddedToAllowlist`/`playerRemovedFromAllowlist`,
+/// What happened to a list, for the one that watches it. The watcher is
+/// Horizon's own event-stream feed (1.21.8 has no `NotificationService` —
+/// the 1.21.9 one names these `playerOped`/`playerDeoped`,
+/// `playerAddedToAllowlist`/`playerRemovedFromAllowlist`,
 /// `playerBanned`/`playerUnbanned`, `ipBanned`/`ipUnbanned`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Change<E> {
@@ -351,7 +365,7 @@ impl<E: Entry> UserList<E> {
         }
     }
     /// Has `watcher` told of every change from now on (`add`, `remove` and `clear`, not a `load`, and not the
-    /// expired entries `get` drops, as vanilla's don't).
+    /// expired entries `get` drops).
     pub fn watch(&mut self, watcher: impl Fn(Change<E>) + Send + 'static) {
         self.watcher = Some(Box::new(watcher));
     }
@@ -384,38 +398,30 @@ impl<E: Entry> UserList<E> {
         }
         self.map.get(&JKey(E::key(user)))
     }
-    /// Returns false when an equal entry is already there; saves otherwise.
-    pub fn add(&mut self, entry: E) -> bool {
+    /// StoredUserList.add: the entry goes in and the list saves, always
+    /// (1.21.9 returned false for an equal entry and skipped the save).
+    /// The watcher is told only when the entry is new or different.
+    pub fn add(&mut self, entry: E) {
         let key = JKey(E::key(entry.user()));
-        if self.map.get(&key).is_some_and(|old| entry.same(old)) {
-            return false;
-        }
+        let changed = !self.map.get(&key).is_some_and(|old| entry.same(old));
         self.map.put(key, entry.clone());
         if let Err(e) = self.save() {
             log::warn!("Could not save the list after adding a user. {e}");
         }
-        self.told(Change::Added(entry));
-        true
+        if changed {
+            self.told(Change::Added(entry));
+        }
     }
-    pub fn remove(&mut self, user: &E::User) -> bool {
-        let Some(entry) = self.map.remove(&JKey(E::key(user))) else {
-            return false;
-        };
+    /// StoredUserList.remove: the entry goes out and the list saves, always
+    /// (1.21.9 returned false when absent and skipped the save). The
+    /// watcher is told only when an entry was there.
+    pub fn remove(&mut self, user: &E::User) {
+        let removed = self.map.remove(&JKey(E::key(user)));
         if let Err(e) = self.save() {
             log::warn!("Could not save the list after removing a user. {e}");
         }
-        self.told(Change::Removed(entry));
-        true
-    }
-    /// StoredUserList.clear: no entry left; saves.
-    pub fn clear(&mut self) {
-        let entries: Vec<E> = self.map.entries().map(|(_, e)| e.clone()).collect();
-        for entry in entries {
+        if let Some(entry) = removed {
             self.told(Change::Removed(entry));
-        }
-        self.map.clear();
-        if let Err(e) = self.save() {
-            log::warn!("Could not save the list after removing a user. {e}");
         }
     }
     pub fn to_json(&self) -> String {
@@ -527,13 +533,15 @@ mod tests {
             level,
             bypasses_player_limit: false,
         };
-        assert!(ops.add(op("Kim", 4)));
-        assert!(ops.add(op("Lee", 2)));
+        ops.add(op("Kim", 4));
+        ops.add(op("Lee", 2));
         // A removal that finds nothing says nothing; one that finds an entry says which.
-        assert!(!ops.remove(&NameAndId::offline("Nobody")));
-        assert!(ops.remove(&NameAndId::offline("Kim")));
-        // A clear says it for each entry that is left, and the list is empty after.
-        ops.clear();
+        assert!(!ops.contains(&NameAndId::offline("Nobody")));
+        ops.remove(&NameAndId::offline("Nobody"));
+        assert!(ops.contains(&NameAndId::offline("Kim")));
+        ops.remove(&NameAndId::offline("Kim"));
+        // Removing the last entry leaves the list empty.
+        ops.remove(&NameAndId::offline("Lee"));
         assert!(ops.is_empty());
         assert_eq!(
             *heard.lock().unwrap(),
@@ -544,32 +552,32 @@ mod tests {
                 Change::Removed(op("Lee", 2)),
             ]
         );
-        // A ban equal to the stored one is not added again, so nothing is said.
+        // A ban equal to the stored one saves again (1.21.8's add is
+        // unconditional) but nothing is said.
         let mut bans = BanList::new(dir.join("banned-players.json"));
         let said = Arc::new(Mutex::new(0));
         let counter = said.clone();
         bans.watch(move |_| *counter.lock().unwrap() += 1);
         let ban = BanEntry::new(NameAndId::offline("Kim"), None, None, None);
-        assert!(bans.add(ban.clone()));
-        assert!(!bans.add(ban));
+        bans.add(ban.clone());
+        bans.add(ban);
+        assert!(bans.contains(&NameAndId::offline("Kim")));
         assert_eq!(*said.lock().unwrap(), 1);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// `BanListEntry`: a ban with no reason carries "Banned by an
+    /// operator." — the reason is never null in 1.21.8.
     #[test]
-    fn a_cleared_list_saves_empty() {
-        let dir = std::env::temp_dir().join(format!("horizon-lists-{}", std::process::id()));
-        std::fs::create_dir_all(&dir).unwrap();
-        let mut white = WhiteList::new(dir.join("whitelist.json"));
-        assert!(white.add(WhiteEntry {
-            user: NameAndId::offline("Kim")
-        }));
-        white.clear();
-        assert!(white.is_empty());
-        assert_eq!(
-            std::fs::read_to_string(dir.join("whitelist.json")).unwrap(),
-            "[]"
+    fn a_ban_without_a_reason_carries_the_default() {
+        let ban = BanEntry::new(NameAndId::offline("Kim"), None, None, None);
+        assert_eq!(ban.reason, "Banned by an operator.");
+        let ban = BanEntry::new(
+            NameAndId::offline("Kim"),
+            None,
+            None,
+            Some("griefing".into()),
         );
-        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(ban.reason, "griefing");
     }
 }

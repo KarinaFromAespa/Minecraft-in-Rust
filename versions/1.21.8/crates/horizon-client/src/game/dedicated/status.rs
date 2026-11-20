@@ -1,8 +1,7 @@
 //! What `horizon-server` asks the dedicated server on its control endpoint (`--control-socket`, docs/server.md
 //! section 2): `server-status` answers with the tick rate, the tick times `/tick query` reports, the players
 //! (including their positions) and the loaded chunks; `console <line>` runs a console command and answers with the lines it logged;
-//! `server-events <since>` answers the typed events after that number (events.rs); `management <connection>
-//! <json>` edits the lists as vanilla's management protocol does (management.rs).
+//! `server-events <since>` answers the typed events after that number (events.rs).
 //! `player-expect <uuid> [seconds]`, `player-drop <uuid>`, `player-export <uuid> [freeze]`,
 //! `player-release <uuid> ...`, `player-import <uuid> <json>` and `player-confirm <uuid> ...` are a proxy's,
 //! for a player it moves between two servers, and `transfer-status` the counts it reads first (transfer.rs).
@@ -53,7 +52,6 @@ impl Game<'_> {
                 Some(("server-events", since)) => {
                     super::events::since(since.trim().parse().unwrap_or(0))
                 }
-                Some(("management", rest)) => self.management(state, rest),
                 // A proxy moving a player here or away (transfer.rs, lan/arrivals.rs).
                 Some((verb, rest)) if verb.starts_with("player-") => {
                     self.player_request(verb, rest)

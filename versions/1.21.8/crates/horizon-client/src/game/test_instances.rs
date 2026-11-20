@@ -10,7 +10,6 @@ use super::{
 };
 use horizon_client::{
     block_entity_render::vertex_light,
-    component::name_text,
     containers::BlockEntity,
     hud::HudBatch,
     mesher::Vertex,
@@ -279,10 +278,10 @@ impl Game<'_> {
             .insert((absolute[0], absolute[1], absolute[2]), (text, until));
     }
 
-    /// `TestInstanceRenderer.submit`'s error markers, for any player within
-    /// the beacon's view distance of the block: each marked block in a
-    /// translucent red box (`out`, blending) and its text as a billboard over
-    /// everything (`see_through`).
+    /// `GameTestDebugRenderer.render`: the transient failure markers, each
+    /// marked block in a translucent box (`out`, blending) and its text as
+    /// a billboard over everything (`see_through`). No view-distance gate:
+    /// 1.21.8's debug renderer draws every marker it holds.
     pub(super) fn test_instance_marker_geometry(
         &mut self,
         camera: glam::DVec3,
@@ -299,23 +298,8 @@ impl Game<'_> {
             .iter()
             .map(|(&pos, (text, _))| ([pos.0, pos.1, pos.2], text.clone(), HIGHLIGHT_FILL))
             .collect();
-        for (pos, entity) in &self.world.block_entities {
-            let BlockEntity::TestInstanceBlock(b) = entity else {
-                continue;
-            };
-            // BeaconRenderer.getViewDistance: 256, by the horizontal distance.
-            let dx = f64::from(pos.0) + 0.5 - camera.x;
-            let dz = f64::from(pos.2) + 0.5 - camera.z;
-            if dx * dx + dz * dz >= 256.0 * 256.0 {
-                continue;
-            }
-            for marker in &b.error_markers {
-                markers.push((
-                    marker.pos,
-                    name_text(&marker.text).plain(),
-                    g::ERROR_MARKER_FILL,
-                ));
-            }
+        for (pos, text) in &self.game_tests.markers {
+            markers.push((*pos, text.plain(), g::ERROR_MARKER_FILL));
         }
         if markers.is_empty() {
             return;
@@ -519,19 +503,11 @@ impl Game<'_> {
         let _ = self.process_level_events();
     }
 
-    /// `clearErrorMarkers`.
-    pub(super) fn clear_error_markers(&mut self, pos: Pos) {
-        if let Some(b) = self.test_instance_mut(pos)
-            && !b.error_markers.is_empty()
-        {
-            b.error_markers.clear();
-        }
-    }
-
-    /// `resetTest`.
+    /// `resetTest`: barriers off, the structure re-placed, status CLEARED.
+    /// 1.21.8's `resetTest` clears no markers (they are transient debug
+    /// packets, not block state).
     pub(super) fn reset_test(&mut self, pos: Pos) {
         self.remove_test_barriers(pos);
-        self.clear_error_markers(pos);
         if self.place_test_structure(pos) {
             let name = self.test_name(pos);
             self.system_message(
@@ -546,7 +522,10 @@ impl Game<'_> {
         }
     }
 
-    /// `placeStructure()`: the test's structure, cleared space first.
+    /// `placeStructure()`: the test's structure, placed in the space as it
+    /// stands. 1.21.8's `placeStructure` clears no space first (the
+    /// `clearSpaceForStructure` call came in 1.21.9); it force-loads the
+    /// chunks and removes the entities.
     pub(super) fn place_test_structure(&mut self, pos: Pos) -> bool {
         let Some(def) = self.test_holder(pos) else {
             return false;
@@ -560,16 +539,10 @@ impl Game<'_> {
             return false;
         };
         let origin = [pos.0, pos.1, pos.2];
-        // `forceLoadChunks`, then `StructureUtils.clearSpaceForStructure(
-        // getTestBoundingBox())`.
+        // `forceLoadChunks`, then `removeEntities`: `getTestBounds()`,
+        // the structure's box inflated.
         if let Some(inner) = self.test_structure_box(pos) {
             self.force_load_test_chunks(&inner);
-            let area = BoundingBox::new(
-                inner.min.map(|v| v - padding),
-                inner.max.map(|v| v + padding),
-            );
-            self.clear_test_space(&area);
-            // removeEntities: `getTestBounds()`, the structure's box inflated.
             self.discard_entities_in(inflate(aabb_of(&inner), f64::from(padding)));
         }
         let corner = block.start_corner(origin, padding, rotation);
@@ -592,10 +565,25 @@ impl Game<'_> {
         true
     }
 
-    /// `StructureUtils.clearSpaceForStructure`'s blocks: air in the box (stone
-    /// below the ground height, which no row of the box is).
+    /// `StructureUtils.clearSpaceForStructure`: 1.21.8 clears an inflated
+    /// box (2 west/north, 3 down/south, 3 east/up to +20) — the ground
+    /// height is still the given box's `minY - 1`, so the rows below it
+    /// come back as stone and the rest as air — and its ticks, block
+    /// events and non-player entities go with it.
     pub(super) fn clear_test_space(&mut self, area: &BoundingBox) {
         let ground = area.min[1] - 1;
+        let area = BoundingBox::new(
+            [
+                area.min[0] - 2,
+                area.min[1] - 3,
+                area.min[2] - 3,
+            ],
+            [
+                area.max[0] + 3,
+                area.max[1] + 20,
+                area.max[2] + 3,
+            ],
+        );
         for y in area.min[1]..=area.max[1] {
             for z in area.min[2]..=area.max[2] {
                 for x in area.min[0]..=area.max[0] {
@@ -609,9 +597,9 @@ impl Game<'_> {
             }
         }
         // `getBlockTicks().clearArea`, `clearBlockEvents`.
-        self.clear_test_ticks(area);
+        self.clear_test_ticks(&area);
         // The entities but the players.
-        self.discard_entities_in(aabb_of(area));
+        self.discard_entities_in(aabb_of(&area));
     }
 
     /// `getBlockTicks().clearArea(bounds)` and `clearBlockEvents(bounds)`.
@@ -682,7 +670,7 @@ impl Game<'_> {
             ));
             return;
         }
-        self.clear_error_markers(pos);
+        self.clear_game_test_markers();
         // GameTestTicker.SINGLETON.clear(), FailedTestTracker.forgetFailedTests().
         self.clear_game_tests();
         self.game_tests.failed.clear();

@@ -74,7 +74,10 @@ impl MatterPhase {
             _ => None,
         };
         let mut rail_or_chain = BTreeSet::new();
-        for name in ["minecraft:rail", "minecraft:iron_chain"] {
+        // 1.21.8's id is `minecraft:chain` (`iron_chain` is the 1.21.9
+        // rename at DataVersion 4541); looking up the new id here would
+        // silently drop every chain state from the set.
+        for name in ["minecraft:rail", "minecraft:chain"] {
             rail_or_chain.extend(bindings.blocks.get(name).into_iter().flat_map(|s| s.iter()));
         }
         Ok(Self {

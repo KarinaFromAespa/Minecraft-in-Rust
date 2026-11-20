@@ -34,7 +34,6 @@ use horizon_world::{
     block_collision_scan::BlockCollisionScan,
     collision_context::CollisionContext,
     nbt::{JavaString, Tag},
-    world_movement::in_range_of_ground,
 };
 use std::sync::{Arc, Mutex, atomic::Ordering};
 
@@ -146,7 +145,9 @@ pub struct TickCtx<'a> {
     /// Block collisions, for ServerGamePacketListenerImpl's moved-wrongly
     /// check (none: moves are not checked against blocks).
     pub collision: Option<&'a BlockCollisionRegistry<'a>>,
-    /// The level's world border (PlayerList.sendLevelInfo sends it).
+    /// The Overworld's world border: `PlayerList.sendLevelInfo` sends
+    /// `server.overworld().getWorldBorder()`, not the level's own (the
+    /// level's form came in 1.21.9).
     pub border: &'a crate::worldborder::WorldBorder,
     /// The level's columns still being generated: a column is sent once
     /// each neighbour is loaded or a decorated proto chunk (#4294). None:
@@ -478,7 +479,7 @@ pub fn display_name(uuid: u128, name: &str) -> Tag {
 }
 
 /// `ChunkMap.getPlayerViewDistance`: `Mth.clamp(requested, 2, server)` (Java's max then min
-/// order also handles a management value below two without panicking when the bounds cross),
+/// order also handles a server value below two without panicking when the bounds cross),
 /// under a native mod's limit for the player.
 fn guest_view(requested: i8, server: i32, limit: Option<i32>) -> i32 {
     i32::from(requested)
@@ -4783,13 +4784,7 @@ impl Hub {
     }
 
     /// Set a guest's game mode and tell everyone (ServerPlayer.setGameMode).
-    pub fn set_game_mode(
-        &mut self,
-        conn: u32,
-        mode: i32,
-        world: &World,
-        collision: Option<&BlockCollisionRegistry<'_>>,
-    ) {
+    pub fn set_game_mode(&mut self, conn: u32, mode: i32) {
         let Some(g) = self.guest_mut(conn) else {
             return;
         };
@@ -4800,21 +4795,6 @@ impl Hub {
             g.flying = true;
         } else if !g.creative() {
             g.flying = false;
-        }
-        // ServerPlayerGameMode.changeGameModeForPlayer: a player left flying
-        // by the change lands when the ground is within a block.
-        if !g.spectator()
-            && g.flying
-            && let Some(binding) = collision
-        {
-            let mut scene = SceneCollisions {
-                world,
-                binding,
-                subject: None,
-            };
-            if in_range_of_ground(&mut scene, g.bounds()) {
-                g.flying = false;
-            }
         }
         let uuid = g.uuid;
         g.send(&C::GameEvent(play::GameEvent {

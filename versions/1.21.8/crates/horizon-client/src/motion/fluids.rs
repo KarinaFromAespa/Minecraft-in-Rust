@@ -284,7 +284,7 @@ pub fn bubble_column_at(
         binding: collision,
         subject: None,
     };
-    let context = horizon_world::collision_context::CollisionContext::empty(false);
+    let context = horizon_world::collision_context::CollisionContext::empty();
     let surface = collision
         .collision_shape_with_context(&mut scene, above, pos, &context)
         .is_ok_and(|shape| shape.is_empty())

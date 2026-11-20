@@ -1103,8 +1103,8 @@ pub struct Extra {
     pub model_scale: f32,
     /// Players: crouching and riding (HumanoidModel's poses).
     pub crouching: bool,
-    /// A player's or mannequin's synced pose (`Entity.DATA_POSE`), which
-    /// sets its box (`Avatar.POSES`).
+    /// A player's synced pose (`Entity.DATA_POSE`), which sets its box
+    /// (`Player.POSES`).
     pub avatar_pose: crate::pose::Pose,
     /// `Entity.isSprinting` (`Entity.DATA_SHARED_FLAGS_ID`'s flag 3): the dust a
     /// player raises; a cat or ocelot dashing (`Cat/Ocelot.customServerAiStep`),
@@ -1244,18 +1244,23 @@ pub struct Extra {
     pub shoulder_parrots: [Option<i32>; 2],
     pub main_hand_left: bool,
     /// The skin layers a player hides (`PlayerModelPart` bits, set to
-    /// `Avatar.DATA_PLAYER_MODE_CUSTOMISATION` inverted); 0 shows all.
+    /// `Player.DATA_PLAYER_MODE_CUSTOMISATION` inverted); 0 shows all.
     pub hidden_model_parts: u8,
-    /// `AvatarRenderState.isSpectator`: a player in spectator mode shows only its head.
+    /// This player's profile name is Dinnerbone or Grumm
+    /// (`LivingEntityRenderer.isEntityUpsideDown`: a player flips by its
+    /// profile name in 1.21.8, unless its cape is hidden).
+    pub upside_down_name: bool,
+    /// `PlayerRenderState.isSpectator`: a player in spectator mode shows only its head.
     pub spectator: bool,
     pub elytra: ElytraAnimation,
     pub swim: SwimAnimation,
-    /// `ClientAvatarState` of a player: the cloak, bob and walked distance its cape swings with.
+    /// A player's cloak, bob and walked distance (`Player`'s fields), which its cape swings with.
     pub avatar: crate::camera::AvatarBob,
     /// The arm the current swing moves (`currentSwing.hand().asArm`): `Some(true)`
     /// for the right arm.
     pub swing_right_arm: Option<bool>,
-    /// The current swing is a STAB (`SwingAnimationType` 2): a spear's jab.
+    /// The current swing is a STAB (26.x's `SwingAnimationType` 2): a
+    /// spear's jab. Unreachable in 1.21.8 — no spear item exists.
     pub swing_stab: bool,
     pub flag: bool,
     pub flag2: bool,
@@ -2600,7 +2605,9 @@ pub struct Seen {
     pub hurt_by: Option<(Who, i32)>,
     /// A raider in an active raid.
     pub active_raid: bool,
-    /// A copper golem's `openedChestPos` (`ContainerUser.hasContainerOpen`).
+    /// A copper golem's `openedChestPos` (1.21.9's
+    /// `ContainerUser.hasContainerOpen`; neither the golem nor the
+    /// interface is in 1.21.8 — unreachable, item 229 owns the golem).
     pub opened_chest: Option<[i32; 3]>,
     /// `isPassenger`.
     pub passenger: bool,
@@ -5036,16 +5043,15 @@ impl Mob {
         let visually = e.synced_pose == 3 || (!e.fall_flying && e.synced_pose == 1);
         e.elytra.tick(e.fall_flying, e.crouching, self.velocity);
         e.swim.tick(visually, in_water);
-        // AbstractClientPlayer.tick's ClientAvatarState.tick (from where the
-        // player was before this tick's move), RemotePlayer.aiStep's
-        // updateBob and rideTick's resetBob.
+        // AbstractClientPlayer.tick's Player.moveCloak (from where the
+        // player was before this tick's move), RemotePlayer.aiStep's own
+        // inline bob (no swimming check, unlike Player.aiStep) and
+        // Player.rideTick's bob reset.
         e.avatar.tick([p.x, p.y, p.z]);
         if e.passenger {
             e.avatar.reset_bob();
         } else {
-            let swimming = e.synced_pose == 3;
-            e.avatar
-                .update_bob(on_ground_alive && !swimming, [v.x, v.y, v.z]);
+            e.avatar.update_bob(on_ground_alive, [v.x, v.y, v.z]);
         }
     }
 }
@@ -5080,6 +5086,25 @@ mod elytra_tests {
         for (angle, resting) in wings.angles.iter().zip(ElytraAnimation::RESTING) {
             assert!((angle - resting).abs() < 0.00001);
         }
+    }
+}
+#[cfg(test)]
+mod avatar_bob_tests {
+    use super::sensor_scan_tests::kind;
+    use super::*;
+    use horizon_core::geometry::Vec3;
+
+    /// `RemotePlayer.aiStep` bobs a swimming player on the ground: its
+    /// inline bob has no swimming check (unlike `Player.aiStep`).
+    #[test]
+    fn a_swimming_remote_player_still_bobs_on_the_ground() {
+        let mut m = Mob::new(1, kind(), Vec3::ZERO, 0.0);
+        m.extra.synced_pose = 3;
+        m.on_ground = true;
+        m.velocity = Vec3::new(0.1, 0.0, 0.0);
+        m.tick_avatar_pose(false);
+        assert!((m.extra.avatar.bob - 0.04).abs() < 0.00001);
+        assert_eq!(m.extra.avatar.bob_o, 0.0);
     }
 }
 #[cfg(test)]

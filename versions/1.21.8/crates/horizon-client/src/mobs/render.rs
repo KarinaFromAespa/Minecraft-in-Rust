@@ -1,4 +1,4 @@
-//! Mob rendering (`LivingEntityRenderer.submit` and the render layers):
+//! Mob rendering (`LivingEntityRenderer.render` and the render layers):
 //! variant/baby model and texture selection, setupRotations, per-species
 //! scale, and extra layers (sheep wool, spider eyes, drowned/stray outer
 //! layers, villager overlays, collars...).
@@ -235,14 +235,15 @@ fn climate(m: &Mob) -> &'static str {
         _ => "temperate",
     }
 }
-/// `AvatarRenderer` entities: a mannequin draws exactly like a player —
-/// the player model, its resolved skin and the same scale.
+/// `PlayerRenderer` entities: a player (the mannequin arm is unreachable
+/// here — no mannequin entity in 1.21.8 — but draws exactly like a player
+/// when present) — the player model, its resolved skin and the same scale.
 fn avatar(m: &Mob) -> bool {
     matches!(&*m.kind.id, "minecraft:player" | "minecraft:mannequin")
 }
-/// `AvatarRenderer.shouldRenderLayers`: a spectating player or mannequin
-/// draws no layers at all (armour, held items, head item, cape, wings,
-/// parrots, ears, stuck arrows), only its translucent head.
+/// `PlayerRenderer.shouldRenderLayers`: a spectating player draws no layers
+/// at all (armour, held items, head item, cape, wings, parrots, ears, stuck
+/// arrows), only its translucent head.
 pub fn layers_shown(m: &Mob) -> bool {
     !(avatar(m) && m.extra.spectator)
 }
@@ -258,7 +259,7 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
         }
     };
     if avatar(m) {
-        // AvatarRenderer: PlayerModel's slim layer for a slim skin.
+        // PlayerRenderer: PlayerModel's slim layer for a slim skin.
         return (
             if m.slim { "player_slim#main" } else { "main" }.into(),
             m.skin.as_deref().unwrap_or(&m.kind.texture).into(),
@@ -343,9 +344,15 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
             interned(format_args!("entity/frog/frog_{}", climate(m))),
         ),
         // RabbitRenderer.getTextureLocation: the Toast name tag, else the
-        // variant (the killer bunny's id is 99).
+        // variant (the killer bunny's id is 99). 1.21.8 compares the
+        // formatting-stripped display name (`"Toast".equals(
+        // ChatFormatting.stripFormatting(getName().getString()))`), so a
+        // rabbit named e.g. `§6Toast` is Toast too; without a custom name
+        // the display name is the type name, never Toast.
         S::Rabbit => {
-            let name = if m.custom_name.as_deref() == Some("Toast") {
+            let name = if m.custom_name.as_deref().is_some_and(|n| {
+                horizon_client::clipboard::strip_formatting(n) == "Toast"
+            }) {
                 "toast"
             } else {
                 match m.extra.variant {
@@ -381,7 +388,7 @@ pub fn body(m: &Mob) -> (Cow<'static, str>, Cow<'_, str>) {
                 b(&interned(format_args!("entity/axolotl/axolotl_{name}"))),
             )
         }
-        // SalmonRenderer.submit: the model of the salmon's size.
+        // SalmonRenderer.render: the model of the salmon's size.
         S::Salmon => {
             let model = match m.extra.variant {
                 0 => "salmon_small#main",
@@ -589,7 +596,7 @@ pub fn body_color(m: &Mob, alpha: f32) -> u32 {
     match m.species() {
         Species::Wolf => super::tame::tint(m, alpha),
         Species::TropicalFish => abgr(dye(m.extra.variant2 as usize)),
-        // LivingEntityRenderer.submit: a spectator is invisible
+        // LivingEntityRenderer.render: a spectator is invisible
         // (Player.updateInvisibilityStatus) but not to another spectator or
         // itself, so its body is forced translucent (654311423, alpha 38).
         _ if avatar(m) && m.extra.spectator => 0x26FF_FFFF,
@@ -827,7 +834,7 @@ pub fn layers(m: &Mob, age: f32) -> Vec<Layer> {
         // SheepWoolUndercoatLayer has no isSheared guard: a sheared dyed sheep
         // keeps it, while only SheepWoolLayer stops.
         S::Sheep => {
-            // MobRenderer.checkMagicName(entity, "jeb_"): an exact custom name.
+            // SheepRenderState.isJebSheep: an exact custom name.
             let jeb = m.custom_name.as_deref() == Some("jeb_");
             let color = abgr(if jeb {
                 jeb_wool_rgb(age)
@@ -1072,7 +1079,7 @@ impl super::MobType {
         super::species::def(self.species).model
     }
 }
-/// The mob's root transform (LivingEntityRenderer.submit + setupRotations).
+/// The mob's root transform (LivingEntityRenderer.render + setupRotations).
 pub fn base_transform(m: &Mob, alpha: f32, camera: glam::DVec3) -> glam::Mat4 {
     let a = f64::from(alpha);
     let p = glam::DVec3::new(
@@ -1101,7 +1108,27 @@ fn enderman_render_offset(m: &Mob, alpha: f32) -> glam::DVec3 {
     let z = random.next_gaussian() * d;
     glam::DVec3::new(x, 0.0, z)
 }
-/// `base_transform` from a pose of the entity's origin (`EntityRenderDispatcher.submit`
+/// `LivingEntityRenderer.isEntityUpsideDown` in 1.21.8: a living entity
+/// whose display name — its custom name when it has one, else a player's
+/// profile name — strips to Dinnerbone or Grumm hangs upside down, unless
+/// it is a player hiding its cape (`PlayerModelPart.CAPE`, bit 0 of the
+/// skin customisation). 1.21.9 compared the custom name exactly, so a
+/// formatted name never flipped and a player needed a custom name at all.
+fn upside_down(m: &Mob) -> bool {
+    let cape_shown = m.extra.hidden_model_parts & 1 == 0;
+    if m.custom_name.as_deref().is_some_and(|n| {
+        matches!(
+            horizon_client::clipboard::strip_formatting(n).as_str(),
+            "Dinnerbone" | "Grumm"
+        )
+    }) {
+        // A player with such a custom name still needs its cape shown.
+        return !avatar(m) || cape_shown;
+    }
+    avatar(m) && m.extra.upside_down_name && cape_shown
+}
+
+/// `base_transform` from a pose of the entity's origin (`EntityRenderDispatcher.render`
 /// under a pose stack, as `SpawnerRenderer` draws the mob inside a spawner).
 pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 {
     let mut body = anim::body_rot(m, alpha);
@@ -1114,7 +1141,7 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
     let sleep = (m.species() == Species::Villager || avatar(m))
         .then(|| super::villager::sleep_pose(m))
         .flatten();
-    // `LivingEntityRenderer.submit` moves a sleeper toward the pillow before
+    // `LivingEntityRenderer.render` moves a sleeper toward the pillow before
     // it scales the model, so the bed offset is not scaled and the pose after
     // it is. Keep the two apart.
     let (sleep_offset, rotation) = match sleep {
@@ -1147,7 +1174,7 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
                 .unwrap_or_else(|| glam::Mat4::from_rotation_y((180.0 - body).to_radians())),
         ),
     };
-    // `LivingEntityRenderer.submit`: `poseStack.scale(state.scale, ...)` for
+    // `LivingEntityRenderer.render`: `poseStack.scale(state.scale, ...)` for
     // every living entity, after the sleeping offset and before
     // setupRotations, so a pose translation scales with the model but the bed
     // it lies in does not.
@@ -1166,8 +1193,8 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
         let pitch = m.previous_head_pitch + (m.head_pitch - m.previous_head_pitch) * alpha;
         base *= glam::Mat4::from_rotation_x((-90.0 - pitch).to_radians())
             * glam::Mat4::from_rotation_y(((m.age as f32 + alpha) * -75.0).to_radians());
-    } else if matches!(m.custom_name.as_deref(), Some("Dinnerbone" | "Grumm")) {
-        // isEntityUpsideDown
+    } else if upside_down(m) {
+        // isEntityUpsideDown (1.21.8: the stripped display name).
         base *= glam::Mat4::from_translation(glam::Vec3::new(0.0, m.height() + 0.1, 0.0))
             * glam::Mat4::from_rotation_z(PI);
     }
@@ -1181,7 +1208,7 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
             base *= glam::Mat4::from_rotation_z((6.5 * triangle_wave).to_radians());
         }
     }
-    // AvatarRenderer.setupRotations, after LivingEntityRenderer's.
+    // PlayerRenderer.setupRotations, after LivingEntityRenderer's.
     if m.extra.fall_flying {
         let ticks = m.extra.fall_fly_ticks as f32 + alpha;
         let scale = (ticks * ticks / 100.0).min(1.0);
@@ -1216,7 +1243,7 @@ pub fn base_transform_at(m: &Mob, alpha: f32, origin: glam::Mat4) -> glam::Mat4 
                 * glam::Mat4::from_translation(-middle);
         }
     } else if m.extra.swim.amount(alpha) > 0.0 {
-        // AvatarRenderer.setupRotations: tip forward with the swim amount,
+        // PlayerRenderer.setupRotations: tip forward with the swim amount,
         // following the pitch in water, then lie along the swimming box.
         let amount = m.extra.swim.amount(alpha);
         let pitch = m.previous_head_pitch + (m.head_pitch - m.previous_head_pitch) * alpha;
@@ -1313,8 +1340,8 @@ fn red_overlay(m: &Mob) -> bool {
 }
 fn species_scale(m: &Mob, alpha: f32) -> glam::Mat4 {
     if avatar(m) {
-        // AvatarRenderer.scale, shared by the inventory and world renderer.
-        // The entity's own `scale` is `LivingEntityRenderer.submit`'s, applied
+        // PlayerRenderer.scale, shared by the inventory and world renderer.
+        // The entity's own `scale` is `LivingEntityRenderer.render`'s, applied
         // by `base_transform_at` before setupRotations.
         return glam::Mat4::from_scale(glam::Vec3::splat(0.9375));
     }
@@ -1570,7 +1597,7 @@ pub fn render_skinned(
         Some(skin),
     );
 }
-/// `CapeLayer.submit` with `PlayerCapeModel`: the player model's body posed
+/// `CapeLayer.render` with `PlayerCapeModel`: the player model's body posed
 /// as the player's, its cape turned by `ModelPart.rotateBy` with the cape's
 /// flap and leans. `base` is the player's root transform (moved out over a
 /// chestplate); `uv` the cape texture.
@@ -1597,7 +1624,7 @@ pub fn cape(
         m.previous.z + (m.position.z - m.previous.z) * a,
     ];
     let body = anim::body_rot(m, alpha);
-    // LivingEntityRenderState.fallFlyingScale.
+    // PlayerRenderState.fallFlyingScale().
     let ticks = m.extra.fall_fly_ticks as f32 + alpha;
     let gliding = (ticks * ticks / 100.0).clamp(0.0, 1.0);
     let [flap, lean, lean2] = m.extra.avatar.cape(alpha, at, body, gliding);
@@ -1612,10 +1639,10 @@ pub fn cape(
     // RenderTypes.entitySolid with OverlayTexture.NO_OVERLAY.
     draw(model, base, &poses, uv, 0xFFFF_FFFF, light, 0, out);
 }
-/// `Deadmau5EarsLayer.submit` with `PlayerEarsModel`: the player model's
+/// `Deadmau5EarsLayer.render` with `PlayerEarsModel`: the player model's
 /// head carrying two 6x6x1 ears (the model's other cubes are cleared),
 /// drawn with the player's skin as `RenderTypes.entitySolid`. The caller has
-/// checked `showExtraEars`; an invisible avatar draws no ears.
+/// checked the profile name is `deadmau5`; an invisible avatar draws no ears.
 #[allow(clippy::too_many_arguments)]
 pub fn ears(
     m: &Mob,
@@ -1685,7 +1712,7 @@ fn snap_to_face(value: f32) -> f32 {
     if value > 0.5 { 1.0 } else { 0.5 }
 }
 
-/// `StuckInBodyLayer.submit` (with `submitStuckItem`) for a player: `count`
+/// `StuckInBodyLayer.render` (with `renderStuckItem`) for a player: `count`
 /// copies of `item` (`ArrowLayer`'s arrow model, `BeeStingerLayer`'s stinger)
 /// stuck in random cubes of the posed body, placed from a random source
 /// seeded by the entity id `id`. `on_surface` is `PlacementStyle.ON_SURFACE`.
@@ -1761,7 +1788,7 @@ pub fn stuck_in_body(
         super::render_model(item, t, &|p| p.pose, uv, light, 0, out);
     }
 }
-/// `ParrotOnShoulderLayer.submitOnShoulder`: a parrot of `variant` on the
+/// `ParrotOnShoulderLayer.renderOnShoulder`: a parrot of `variant` on the
 /// avatar's left or right shoulder, in `ParrotModel.Pose.ON_SHOULDER` with
 /// the avatar's walk animation, age and head turn. `base` is the avatar's
 /// root transform; `parrot` the parrot's entity type (its model).
@@ -1810,7 +1837,7 @@ fn shoulder_parrot_texture(variant: i32) -> String {
     format!("entity/parrot/parrot_{name}")
 }
 /// `render_with` without the body, for an avatar the viewer can't see:
-/// `LivingEntityRenderer.submit` gets no render type for an invisible body
+/// `LivingEntityRenderer.render` gets no render type for an invisible body
 /// (`isBodyVisible`, `isInvisibleTo`), but its layers still draw
 /// (`HumanoidArmorLayer`: the armour in `extra`).
 #[allow(clippy::too_many_arguments)]
@@ -1828,7 +1855,7 @@ pub fn render_layers(
     render_visible(m, alpha, base, atlas, light, data, extra, false, out, None);
 }
 /// A mob drawn under `origin` instead of at its position (the spinning mob
-/// of `SpawnerRenderer.submitEntityInSpawner`).
+/// of `SpawnerRenderer.renderEntityInSpawner`).
 pub fn render_posed(
     m: &Mob,
     alpha: f32,
@@ -2400,7 +2427,7 @@ fn allay_hand(model: &Part, base: glam::Mat4, poses: &Poses) -> Option<glam::Mat
     )
 }
 /// The hand of a mob in model space, up to the item's own transform
-/// (`ItemInHandLayer.submitArmWithItem`).
+/// (`ItemInHandLayer.renderArmWithItem`).
 fn hand_base(
     m: &Mob,
     model: &Part,
@@ -2571,7 +2598,7 @@ fn crossed_arms_matrix(model: &Part, base: glam::Mat4, poses: &Poses) -> Option<
             * glam::Mat4::from_rotation_x(std::f32::consts::PI),
     )
 }
-/// The pose a mob's held item is submitted under (`ItemInHandLayer`:
+/// The pose a mob's held item is rendered under (`ItemInHandLayer`:
 /// `translateToHand`, then the hand offset; the item model adds its own
 /// display transform), or `None` when the mob shows no held items.
 pub fn held_item_transform(
@@ -2785,7 +2812,7 @@ mod tests {
         assert!(held_item_stack(&extra, true).is_none());
     }
 
-    /// The elytra's flight yaw (`AvatarRenderer.extractFlightData`) lerps
+    /// The elytra's flight yaw (`PlayerRenderer.extractFlightData`) lerps
     /// the velocity of the previous tick towards this tick's, so the model
     /// does not step once per tick while the view turns (#4104).
     #[test]
@@ -3376,6 +3403,80 @@ mod tests {
         mob.extra.sheared = true;
         assert!(sheep_layer(&mob, "sheep#wool", 0.0).is_none());
     }
+
+    /// RabbitRenderer's Toast check compares the formatting-stripped display
+    /// name in 1.21.8 (`"Toast".equals(ChatFormatting.stripFormatting(
+    /// getName().getString()))`), not the exact custom name: a rabbit named
+    /// `§6Toast` is Toast too, and an unnamed rabbit is never Toast.
+    #[test]
+    fn a_formatted_toast_rabbit_is_toast() {
+        let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        kind.species = Species::Rabbit;
+        let mut mob = Mob::new(
+            1,
+            std::sync::Arc::new(kind),
+            horizon_core::geometry::Vec3::ZERO,
+            0.0,
+        );
+        assert_eq!(body(&mob).1, "entity/rabbit/rabbit_brown");
+        mob.custom_name = Some("Toast".into());
+        assert_eq!(body(&mob).1, "entity/rabbit/rabbit_toast");
+        mob.custom_name = Some("§6Toast".into());
+        assert_eq!(body(&mob).1, "entity/rabbit/rabbit_toast");
+        mob.custom_name = Some("Toasty".into());
+        assert_eq!(body(&mob).1, "entity/rabbit/rabbit_brown");
+    }
+
+    /// `LivingEntityRenderer.isEntityUpsideDown` in 1.21.8 compares the
+    /// formatting-stripped display name, not the exact custom name: a mob
+    /// named `§6Dinnerbone` hangs upside down too. A player flips by its
+    /// profile name (`upside_down_name`), unless its cape is hidden (bit 0
+    /// of `hidden_model_parts`) — a custom-named player needs its cape too.
+    #[test]
+    fn a_formatted_dinnerbone_mob_hangs_upside_down() {
+        let mut kind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        kind.species = Species::Rabbit;
+        let mut mob = Mob::new(
+            1,
+            std::sync::Arc::new(kind),
+            horizon_core::geometry::Vec3::ZERO,
+            0.0,
+        );
+        // The point a body-length above the feet: upright it stays at 1.0,
+        // flipped it drops to the height less 0.9 (the turn about the feet
+        // plus the height + 0.1 lift).
+        let up = |m: &Mob| {
+            base_transform_at(m, 0.0, glam::Mat4::IDENTITY)
+                .transform_point3(glam::Vec3::new(0.0, 1.0, 0.0))
+                .y
+        };
+        assert_eq!(up(&mob), 1.0);
+        mob.custom_name = Some("Dinnerbone".into());
+        assert!((up(&mob) - (mob.height() - 0.9)).abs() < 1e-5);
+        mob.custom_name = Some("§6Grumm".into());
+        assert!((up(&mob) - (mob.height() - 0.9)).abs() < 1e-5);
+        mob.custom_name = Some("Dinnerbonex".into());
+        assert_eq!(up(&mob), 1.0);
+        // A player by its profile name, cape shown or not.
+        let mut pkind = (*crate::mobs::sensor_scan_tests::kind()).clone();
+        pkind.id = "minecraft:player".into();
+        let mut player = Mob::new(
+            2,
+            std::sync::Arc::new(pkind),
+            horizon_core::geometry::Vec3::ZERO,
+            0.0,
+        );
+        player.extra.upside_down_name = true;
+        assert!((up(&player) - (player.height() - 0.9)).abs() < 1e-5);
+        player.extra.hidden_model_parts = 1;
+        assert_eq!(up(&player), 1.0);
+        player.extra.hidden_model_parts = 0;
+        player.extra.upside_down_name = false;
+        player.custom_name = Some("§6Dinnerbone".into());
+        assert!((up(&player) - (player.height() - 0.9)).abs() < 1e-5);
+        player.extra.hidden_model_parts = 1;
+        assert_eq!(up(&player), 1.0);
+    }
 }
 
 #[cfg(test)]
@@ -3413,8 +3514,8 @@ mod scroll_tests {
         assert!((scroll_u(1.0, 0.5) - 0.5).abs() < 1e-6);
     }
 
-    /// `SheepWoolLayer.submit` returns early on a sheared sheep, but
-    /// `SheepWoolUndercoatLayer.submit` has no isSheared guard: a sheared
+    /// `SheepWoolLayer.render` returns early on a sheared sheep, but
+    /// `SheepWoolUndercoatLayer.render` has no isSheared guard: a sheared
     /// dyed sheep keeps its undercoat and loses only its wool.
     #[test]
     fn a_sheared_dyed_sheep_keeps_its_wool_undercoat() {
@@ -4045,7 +4146,7 @@ mod random_texture_tests {
         assert_eq!(two.y, 0.0);
     }
 
-    /// `LivingEntityRenderer.submit` translates a sleeper toward its pillow
+    /// `LivingEntityRenderer.render` translates a sleeper toward its pillow
     /// before `poseStack.scale(state.scale)`: the bed offset is not scaled and
     /// the pose after it is. The uniform scale after `setupRotations` instead
     /// would leave the pose's own translations unscaled; the one before the
@@ -4061,7 +4162,7 @@ mod random_texture_tests {
         let mut m = Mob::new(1, std::sync::Arc::new(kind), Vec3::ZERO, 0.0);
         // Villager.sleeping: the bed faces north, so the head goes to +z.
         m.extra.ints[1] = 1;
-        // The eye height of the standing pose, as `submit` extracts it.
+        // The eye height of the standing pose, as `render` extracts it.
         let bed = |m: &Mob| {
             let eye = m.awake_dims().2 as f32;
             glam::Vec3::new(0.0, 0.0, eye - 0.1)
@@ -4117,9 +4218,9 @@ mod random_texture_tests {
         }
     }
 
-    /// The avatar's 0.9375 `AvatarRenderer.scale` and the entity's own
+    /// The avatar's 0.9375 `PlayerRenderer.scale` and the entity's own
     /// `minecraft:scale` are two factors: at scale 2 the model is 1.875 times
-    /// the model's, not 3.75, so the submitted scale is not applied twice.
+    /// the model's, not 3.75, so the rendered scale is not applied twice.
     #[test]
     fn an_avatar_at_scale_two_scales_its_model_once() {
         use horizon_core::geometry::Vec3;

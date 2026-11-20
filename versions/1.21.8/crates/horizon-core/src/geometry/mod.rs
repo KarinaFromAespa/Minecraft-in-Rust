@@ -604,11 +604,9 @@ impl Aabb {
     pub fn collided_along_vector(self, movement: Vec3, boxes: &[Self]) -> bool {
         let start = self.center();
         let end = start.add_vector(movement);
-        let amount = self.size().scale(0.5).subtract(Vec3::new(
-            COLLISION_EPSILON,
-            COLLISION_EPSILON,
-            COLLISION_EPSILON,
-        ));
+        // 1.21.8 inflates by half the size exactly; 1.21.9 subtracts
+        // COLLISION_EPSILON from each half-size.
+        let amount = self.size().scale(0.5);
         boxes.iter().any(|b| {
             let b = b.inflate(amount);
             b.contains(end) || b.contains(start) || b.clip(start, end).is_some()

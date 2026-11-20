@@ -38,32 +38,21 @@ impl Game<'_> {
             (-1, 0) => "west",
             _ => "east",
         };
-        // dropFromBlockInteractLootTable(CARVE_PUMPKIN): each stack as an
-        // ItemEntity in front of the carved side, moved by the level random
-        // (no pickup delay).
+        // 1.21.8 drops a fixed stack of 4 pumpkin seeds, no loot table
+        // (`CARVE_PUMPKIN` is 1.21.9's form, and 1.21.8's data has no
+        // such table): one ItemEntity in front of the carved side,
+        // moved by the level random (no pickup delay).
         let (dx, dz) = (f64::from(dx), f64::from(dz));
-        let table = "minecraft:carve/pumpkin";
-        let mut drops = self.sequence_loot(table, table, Some(shears));
-        let origin = pos.map(|c| f64::from(c) + 0.5);
-        self.native_use_drops(
-            table,
-            origin,
-            Some((pos, state)),
-            None,
-            Some(shears),
-            &mut drops,
-        );
-        for seeds in drops {
-            let at = [
-                f64::from(pos[0]) + 0.5 + dx * 0.65,
-                f64::from(pos[1]) + 0.1,
-                f64::from(pos[2]) + 0.5 + dz * 0.65,
-            ];
-            let r = &mut self.world.random;
-            let vx = 0.05 * dx + r.next_double() * 0.02;
-            let vz = 0.05 * dz + r.next_double() * 0.02;
-            self.spawn_item(seeds, at, [vx, 0.05, vz], 0);
-        }
+        let seeds = ItemStack::new("minecraft:pumpkin_seeds", 4);
+        let at = [
+            f64::from(pos[0]) + 0.5 + dx * 0.65,
+            f64::from(pos[1]) + 0.1,
+            f64::from(pos[2]) + 0.5 + dz * 0.65,
+        ];
+        let r = &mut self.world.random;
+        let vx = 0.05 * dx + r.next_double() * 0.02;
+        let vz = 0.05 * dz + r.next_double() * 0.02;
+        self.spawn_item(seeds, at, [vx, 0.05, vz], 0);
         self.audio.play(
             "minecraft:block.pumpkin.carve",
             Some([

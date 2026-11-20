@@ -169,8 +169,8 @@ pub fn discover_folder(dir: &Path) -> Vec<DataPack> {
     packs.sort_by(|a, b| a.id.cmp(&b.id));
     packs
 }
-/// `Pack.readPackMetadata`: even its fallback codec requires a pack section
-/// and description. Keep this folder gate separate from format compatibility
+/// `Pack.readPackMetadata`: 1.21.8's codec requires a pack section and
+/// description. Keep this folder gate separate from format compatibility
 /// and the existing interpretation of the description component.
 fn folder_metadata_present(path: &Path) -> bool {
     let Some(meta) = std::fs::read(path.join("pack.mcmeta"))

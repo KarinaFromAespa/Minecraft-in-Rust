@@ -929,23 +929,14 @@ impl PlayerMotion {
     /// Vehicle bindings remain separate; hunger, flight, water, collision, the
     /// item in use and blindness use this actor's actual state.
     pub fn sprint_input_tick(&mut self, keys: crate::sprint::Keys) -> Result<()> {
-        self.sprint_input_tick_with_window(keys, 7)
-    }
-    /// The same phase with Java's `Options.sprintWindow` value.
-    pub fn sprint_input_tick_with_window(
-        &mut self,
-        keys: crate::sprint::Keys,
-        sprint_window: i32,
-    ) -> Result<()> {
         let conditions = self.sprint_conditions();
-        self.run_sprint_tick(keys, conditions, sprint_window)
+        self.run_sprint_tick(keys, conditions)
     }
     /// The same phase for a passenger: `LocalPlayer.isSprintingPossible` asks the
     /// vehicle's `canSprint` and this client's authority there, not food.
     pub fn sprint_input_tick_riding(
         &mut self,
         keys: crate::sprint::Keys,
-        sprint_window: i32,
         vehicle_can_sprint: bool,
         vehicle_local: bool,
     ) -> Result<()> {
@@ -955,7 +946,7 @@ impl PlayerMotion {
             vehicle_local,
             ..self.sprint_conditions()
         };
-        self.run_sprint_tick(keys, conditions, sprint_window)
+        self.run_sprint_tick(keys, conditions)
     }
     fn sprint_conditions(&self) -> crate::sprint::Conditions {
         crate::sprint::Conditions {
@@ -963,8 +954,8 @@ impl PlayerMotion {
             mobility_restricted: self.mobility_restricted,
             enough_food: self.health.food.has_enough_food(),
             may_fly: self.may_fly,
-            flying: self.flying,
-            // Entity.isInShallowWater.
+            // Entity.isInShallowWater (1.21.9's name for 1.21.8's
+            // `isInWater && !isUnderWater`).
             shallow_water: self.fluids.was_touching_water && !self.is_under_water(),
             fall_flying: self.fall_flying,
             on_ground: self.ground.on_ground,
@@ -982,12 +973,11 @@ impl PlayerMotion {
         &mut self,
         keys: crate::sprint::Keys,
         conditions: crate::sprint::Conditions,
-        sprint_window: i32,
     ) -> Result<()> {
         // The sprint setter edits attributes and flags, independent of local
         // keyboard history. Retain the input prefix even if that setter fails.
         let mut state = self.sprint_input;
-        let result = state.tick(keys, conditions, sprint_window.clamp(0, 10), |value| {
+        let result = state.tick(keys, conditions, |value| {
             self.set_sprinting(value)
         });
         self.sprint_input = state;
@@ -1295,16 +1285,8 @@ impl MotionWorld<'_, '_, '_> {
         self.player.food_tick(self.health, self.scene.health_rules)
     }
     pub fn controlled_simulation_tick(&mut self, keys: crate::sprint::Keys) -> Result<()> {
-        self.controlled_simulation_tick_with_sprint_window(keys, 7)
-    }
-    /// Local simulation with the configured double-tap sprint window.
-    pub fn controlled_simulation_tick_with_sprint_window(
-        &mut self,
-        keys: crate::sprint::Keys,
-        sprint_window: i32,
-    ) -> Result<()> {
         self.local_tick(keys, |player, keys| {
-            player.sprint_input_tick_with_window(keys, sprint_window)
+            player.sprint_input_tick(keys)
         })
     }
     /// A client's tick played again by the server's movement prediction: the
@@ -1581,13 +1563,13 @@ impl MotionWorld<'_, '_, '_> {
             None => movements.push(MovementRecord {
                 from: self.player.old_position,
                 to: position,
-                original: None,
+                axis_independent: false,
             }),
             Some(last) if last.to.distance_squared(position) > f64::from(9.999_999_4e-11_f32) => {
                 movements.push(MovementRecord {
                     from: last.to,
                     to: position,
-                    original: None,
+                    axis_independent: false,
                 })
             }
             _ => {}
@@ -1646,50 +1628,39 @@ impl MotionWorld<'_, '_, '_> {
         for movement in &movements {
             let mut from = movement.from;
             let delta = movement.to.subtract(movement.from);
-            let mut budget = 16;
-            match movement.original {
-                Some(original) if delta.length_squared() > 0.0 => {
-                    for axis in Axis::step_order(original) {
-                        let step = delta.component(axis);
-                        if step != 0.0 {
-                            let to = from.relative(
-                                match axis {
-                                    Axis::X => Direction::East,
-                                    Axis::Y => Direction::Up,
-                                    Axis::Z => Direction::South,
-                                },
-                                step,
-                            );
-                            budget -= self.check_inside_blocks(
-                                from,
-                                to,
-                                &mut visited,
-                                &mut entered,
-                                budget,
-                                pass,
-                            )?;
-                            from = to;
-                        }
+            // 1.21.8 splits a real move's checks per axis, in the order of
+            // the displacement itself (`axisStepOrder(delta)`); 1.21.9
+            // ordered them by the pre-collision movement and capped the
+            // blocks at 16 a tick. Neither the cap nor the fallback
+            // point-check exists here.
+            if movement.axis_independent && delta.length_squared() > 0.0 {
+                for axis in Axis::step_order(delta) {
+                    let step = delta.component(axis);
+                    if step != 0.0 {
+                        let to = from.relative(
+                            match axis {
+                                Axis::X => Direction::East,
+                                Axis::Y => Direction::Up,
+                                Axis::Z => Direction::South,
+                            },
+                            step,
+                        );
+                        self.check_inside_blocks(
+                            from,
+                            to,
+                            &mut visited,
+                            &mut entered,
+                            pass,
+                        )?;
+                        from = to;
                     }
                 }
-                _ => {
-                    budget -= self.check_inside_blocks(
-                        movement.from,
-                        movement.to,
-                        &mut visited,
-                        &mut entered,
-                        16,
-                        pass,
-                    )?;
-                }
-            }
-            if budget <= 0 {
+            } else {
                 self.check_inside_blocks(
-                    movement.to,
+                    movement.from,
                     movement.to,
                     &mut visited,
                     &mut entered,
-                    1,
                     pass,
                 )?;
             }
@@ -1756,9 +1727,8 @@ impl MotionWorld<'_, '_, '_> {
         to: Vec3,
         visited: &mut crate::fast_hash::FxHashSet<i64>,
         entered: &mut Vec<(i32, BlockPos)>,
-        max_iterations: i32,
         pass: BlockPass,
-    ) -> Result<i32> {
+    ) -> Result<()> {
         let damage_only = pass != BlockPass::Client;
         let deflated = self.player.dimensions.bounds(to).deflate(Vec3::new(
             f64::from(1.0e-5_f32),
@@ -1770,7 +1740,6 @@ impl MotionWorld<'_, '_, '_> {
         let far = 0.999_990_000_000_252_6_f64;
         let moved_far = from.distance_squared(to) > far * far;
         let mut hits = Vec::new();
-        let mut iterations = 0;
         let alive = !self.player.health.dead_or_dying();
         // Nothing below changes a block, so each is read once, as the sweep
         // visits it, and air (`state.isAir()`, the most of a path) is
@@ -1782,10 +1751,9 @@ impl MotionWorld<'_, '_, '_> {
             deflated,
             1_000_000,
             |p, iteration| {
-                if !alive || iteration >= max_iterations {
+                if !alive {
                     return false;
                 }
-                iterations = iteration;
                 let state = scene.block(p.x, p.y, p.z);
                 let air = registry.state(state).is_none_or(|d| {
                     matches!(
@@ -1801,6 +1769,13 @@ impl MotionWorld<'_, '_, '_> {
         )
         .map_err(|e| format!("block sweep: {e:?}"))?;
         for (step, p, state) in hits {
+            // 1.21.8 marks every non-air block visited as the sweep
+            // reaches it, before asking whether the entity is inside it;
+            // 1.21.9 only marked blocks it collided with, so a near miss
+            // could trigger on a later segment.
+            if !visited.insert(p.pack()) {
+                continue;
+            }
             let Some(definition) = self.assets.registry.state(state) else {
                 continue;
             };
@@ -1857,7 +1832,7 @@ impl MotionWorld<'_, '_, '_> {
                             .collided_along_vector(to.subtract(from), &boxes)
                     }
             };
-            if inside && visited.insert(p.pack()) {
+            if inside {
                 // The server's early pass: only what `makeStuckInBlock` does
                 // there, before the landing is checked.
                 if pass == BlockPass::ServerStuck {
@@ -1943,7 +1918,7 @@ impl MotionWorld<'_, '_, '_> {
                 }
             }
         }
-        Ok(iterations + 1)
+        Ok(())
     }
     /// `HoneyBlock.entityInside`: a falling player touching a side of the block
     /// slides down it (`isSlidingDown`, `doSlideMovement`, `maybeDoSlideEffects`).
@@ -2011,11 +1986,11 @@ impl MotionWorld<'_, '_, '_> {
         }
         self.player.impulse.try_reset();
     }
-    /// `LavaCauldronBlock.entityInside`: CLEAR_FREEZE, LAVA_IGNITE
-    /// (`Entity.lavaIgnite`, 15 seconds) and then `Entity.lavaHurt` (lava,
-    /// 4), as ordinary lava does to the player.
+    /// `LavaCauldronBlock.entityInside`: LAVA_IGNITE (`Entity.lavaIgnite`,
+    /// 15 seconds — its `igniteForTicks` clears the freeze, so no separate
+    /// clear is needed; CLEAR_FREEZE is 1.21.9-only) and then
+    /// `Entity.lavaHurt` (lava, 4), as ordinary lava does to the player.
     fn lava_cauldron_inside(&mut self) -> Result<()> {
-        self.player.ticks_frozen = 0;
         self.player.ignite_for_ticks(300)?;
         self.environment_hurt("minecraft:lava", 4.0)
     }
@@ -3770,7 +3745,7 @@ mod tests {
                 .add(horizon_world::entity_move::MovementRecord {
                     from,
                     to: at,
-                    original: Some(delta),
+                    axis_independent: true,
                 });
             let mut w = MotionWorld {
                 entities: &[],
@@ -5402,8 +5377,8 @@ mod tests {
             "direct fire hurts during the immunity delay"
         );
         assert_eq!(
-            w.player.ticks_frozen, 0,
-            "fire contact clears freeze during the delay"
+            w.player.ticks_frozen, 138,
+            "fire contact does not clear freeze during the delay (1.21.8 has no CLEAR_FREEZE); only the melt runs"
         );
         assert!(w.player.health.health() < hp);
         w.player.status.fire_resistance = true;
@@ -5415,7 +5390,7 @@ mod tests {
         w.player.fire_ticks = -20;
         w.player.ticks_frozen = 140;
         w.controlled_simulation_tick(Default::default()).unwrap();
-        assert_eq!(w.player.ticks_frozen, 0);
+        assert_eq!(w.player.ticks_frozen, 138);
         assert_eq!(
             w.player.fire_ticks, -19,
             "creative preserves the fire-contact delay"
@@ -5428,6 +5403,10 @@ mod tests {
         assert_eq!(
             w.player.fire_ticks, 1,
             "creative clamps only after ignition"
+        );
+        assert_eq!(
+            w.player.ticks_frozen, 0,
+            "ignition at the end of the delay clears the freeze"
         );
         w.player.ticks_frozen = 140;
         w.player.ignite_for_ticks(160).unwrap();

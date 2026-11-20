@@ -8612,9 +8612,9 @@ impl Game<'_> {
     }
     /// The server's difficulty changed, from `from` to `to` (`peaceful`,
     /// `easy`, `normal`, `hard`; NeoForge's `DifficultyChangeEvent`). It is
-    /// vanilla's `MinecraftServer.setDifficulty`, which `/difficulty`, a
-    /// dedicated server's management and a test environment's difficulty all
-    /// go through, and it is told only when the difficulty is another one. It
+    /// vanilla's `MinecraftServer.setDifficulty`, which `/difficulty`, the
+    /// console and a test environment's difficulty all go through, and it is
+    /// told only when the difficulty is another one. It
     /// only hears: the change has already happened. Server-side. API
     /// 159.
     pub(super) fn native_difficulty_changed(&mut self, from: &str, to: &str) {
@@ -8688,7 +8688,7 @@ impl Game<'_> {
         mod_api::dispatch_player_save_to_file(self, mod_api::mods(), player, name, directory);
     }
     /// A player was loaded from the world's save (NeoForge's
-    /// `PlayerEvent.LoadFromFile`, `PlayerList.loadPlayerData`): their `.dat`
+    /// `PlayerEvent.LoadFromFile`, `PlayerList.load`): their `.dat`
     /// has been read and applied, and they are not placed in a level yet.
     /// `directory` is the world's player directory (`players/data`): a mod
     /// reads its own file there, named `<uuid>.<suffix>` as
