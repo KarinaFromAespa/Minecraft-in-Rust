@@ -334,7 +334,32 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 109/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 + 4 zero-diff)
+### Rank 2: 110/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127 + 4 zero-diff)
+
+- **Item 127 — `crates/horizon-client/src/mobs/warden.rs`
+  (2 classes, 17 methods, 1 named in Horizon),
+  real fix (exporter):** 1.21.8 registers only
+  `ModelLayers.WARDEN` — its renderer draws the
+  five emissive layers as part lists from the one
+  model — while 1.21.9 bakes four separate layers
+  from `create*Layer` factories. The 1.21.8 export
+  therefore lacked the four `warden#<layer>` keys
+  the Rust draws, and the render loop skips a layer
+  whose model is missing, so the warden's glow
+  never drew. `VanillaEntityModelExporter` now
+  synthesizes the four keys by filtering the baked
+  WARDEN tree to each getter's part list, mirroring
+  1.21.8's skipDraw mechanism (a part draws exactly
+  when listed — so 1.21.8's pulsating spots cover
+  body + head + arms + legs, where 1.21.9's baked
+  layer lost the head and arms to
+  `retainExactParts`). Verified: javac compiles
+  against the 1.21.8 client jar, and the real
+  filter run against the warden tree shape keeps
+  exactly the right parts per layer. `setupAnim`
+  and the layer textures/alphas are identical in
+  both versions; `Warden.sendDebugPackets` is
+  1.21.8-only and debug-only.
 
 - **Item 126 — `crates/horizon-client/src/mobs/aquatic.rs`
   (4 classes, 7 methods, 2 named in Horizon),
