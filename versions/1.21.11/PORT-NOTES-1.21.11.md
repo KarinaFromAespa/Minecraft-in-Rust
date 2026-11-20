@@ -6167,3 +6167,75 @@ Verification: `cargo test -p horizon-client-lib --lib
 at line 630 (gallop breathe push, untouched by this item). Rank 2
 now 258/492 (80 changed, 178 no-change). work-items.json
 rank2.closed = 258 on 2026-11-20.
+
+## Item 80 — border_render.rs (rank 2, CHANGED)
+
+4 classes, 27 methods, 5 named (`WorldBorderRenderer.extract`,
+`render`; `Mth.ceil`, `createInsecureUUID`, `floor`). Javap diff
+(945 lines) read in full Nov 20, 2026; a literal comparison over
+the decompile. Triage note `rank2-item-80-TRIAGE.md` (workdir root,
+scratch). The Java delta: `WorldBorderRenderer` is a package move
+only — `state/level/WorldBorderRenderState` (26.1) vs
+`state/WorldBorderRenderState` (1.21.11); `GpuDevice` /
+`CommandEncoder` / `RenderPass` are interfaces in 1.21.11 vs
+classes in 26.1; `RenderPass$Draw` takes 6 args in 1.21.11, 7 in
+26.1 (an extra `iconst_0` — the literal comparison's only
+WorldBorderRenderer delta). The extract/render/rebuild/
+shouldRebuild logic is byte-identical modulo the package path.
+`WorldBorderRenderState` + `DistancePerDirection`: NO javap hunks,
+ZERO literal differences — identical (the report's method counts
+are decompile noise, cf. item 73). `Mth`: `floor`/`lfloor`/`ceil`/
+`ceilLong` use trunc + adjust in 1.21.11 vs `Math.floor/ceil` +
+cast in 26.1 (identical for all finite in-i32-range values; they
+differ only out of range, where the 1.21.11 form wraps MIN - 1 to
+MAX); `wobble` uses `RandomSource.create` (LegacyRandomSource) in
+1.21.11 vs `createThreadLocalInstance` (SingleThreadedRandomSource)
+in 26.1 — different deterministic jitter (same pattern as item
+77's buildStars), no Rust mirror anywhere;
+`createInsecureUUID()` (no-arg) + the static `RANDOM` field are
+1.21.11-ONLY (26.1 removed them), no Rust mirror anywhere (the
+values are random by design). **RENDERING_OFFSET does not exist in
+either version**: no such field in 26.1's or 1.21.11's
+WorldBorderRenderer (verified by javap on both jars), no 0.01
+literal in either decompile; both versions' rebuild uses the raw
+state bounds. The Rust's `OFFSET = 0.01` cited a vanilla constant
+that exists in neither version in this diff.
+
+Fix (border_render.rs): removed the RENDERING_OFFSET inset from
+`rebuild` — the min/max clamps and the south/east wall positions
+now use the raw state bounds, as both versions'
+`rebuildWorldBorderBuffer` does; the `OFFSET` const is deleted.
+The walls sit exactly on the border lines in 1.21.11 (the Rust had
+them inset by 1 cm). Verified matching, no edits: `extract`
+(gates, `alpha = 1 - distance/rd`, `pow(alpha, 4)`, clamp, tint);
+`closestBorder` (north/south/west/east order, stable sort by
+`Double.compare` — the Rust's `java_double_compare` handles NaN
+and -0.0/+0.0 exactly); all 16 rebuild vertices (quads, u/v,
+vertex order incl. the north quad's reversed u, `(floor(min) & 1)
+* 0.5` for u0, `(max - min) / 2` for u1); `prepare` (alpha gate,
+`v0 = -frac(camY * 0.5)`, `v1 = v0 + half_height`, rebuild arg
+order); `transforms` (colour /255 + alpha, model offset, texture
+offset `(millis % 3000) / 3000` on BOTH u and v); `sides` (filter
+`distance < renderDistance`, `get2DDataValue` indices);
+`shouldRebuild`; `depth_far` — vanilla's call site
+(`LevelRenderer.lambda$addWeatherPass$4`) passes
+`GameRenderer.getDepthFar()` = `max(renderDistance * 4, cloudRange
+* 16)` with renderDistance in blocks, exactly the Rust's
+`camera::depth_far`; BorderStatus colours verified from the
+1.21.11 jar (GROWING 0x40FF80, SHRINKING 0xFF3030, STATIONARY
+0x20A0FF); the Rust's local `floor`/`ceil` already use the 1.21.11
+trunc+adjust form (there is no central `jmath::floor`/`ceil`
+mirror). Version-neutral notes: the Rust's `floor`/`ceil` use
+`v as i32` (Rust saturates) where Java's cast wraps — unobservable
+at border coordinates (bounded to ±3e7); the
+`world_border_render` parity harness + oracle are 26.3-shaped (the
+oracle drives the real 26.3 renderer via reflection, calling
+`prepareDynamicTransforms`/`draw` as separate methods; 1.21.11
+inlines them in `render`) — removing the offset diverges the Rust
+from the 26.3 oracle, expected for the 1.21.11 port, oracle rewrite
+is T4 scope.
+
+Verification: `cargo test -p horizon-client-render --lib
+--no-default-features border_render::` 1 passed. rustfmt --check
+clean on border_render.rs. Rank 2 now 259/492 (81 changed, 178
+no-change). work-items.json rank2.closed = 259 on 2026-11-20.
