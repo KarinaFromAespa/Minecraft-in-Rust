@@ -109,6 +109,11 @@ impl BlockPos {
             Self::containing(b.max_position()),
         )
     }
+    /// `BlockPos.betweenCornersInDirection` — 1.21.9-only; 1.21.8 has no
+    /// direction-ordered box iteration. Kept while the swept traversal
+    /// (`geometry::sweep`, item 178) still uses it; item 178 reworks the
+    /// traversal to 1.21.8's form (`betweenClosed` + the min-corner walk)
+    /// and removes this.
     pub fn between_corners_in_direction(
         a: Self,
         b: Self,
@@ -116,6 +121,8 @@ impl BlockPos {
     ) -> Result<BlockBoxIter, BlockIterationTooLarge> {
         BlockBoxIter::new(a, b, Some(direction))
     }
+    /// `BlockPos.betweenCornersInDirection` over an AABB — 1.21.9-only, as
+    /// above; item 178 removes it with the sweep rework.
     pub fn between_box_corners_in_direction(
         b: Aabb,
         direction: Vec3,

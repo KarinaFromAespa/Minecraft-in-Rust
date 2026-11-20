@@ -334,7 +334,36 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 106/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123 + 4 zero-diff)
+### Rank 2: 107/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124 + 4 zero-diff)
+
+- **Item 124 — widely named: core
+  (10 classes, 28 methods, 0 named in Horizon),
+  citations only + referral to item 178:**
+  ClientAsset (+DownloadedTexture, +Texture),
+  BlockPos (+MutableBlockPos), NonNullList,
+  HolderGetter, SectionPos. `ClientAsset`'s 1.21.9
+  split (interface + `ResourceTexture` +
+  URL-based `DownloadedTexture`) has no Rust
+  citations; the 1.21.8 record equals 1.21.9's
+  `ResourceTexture`. `NonNullList` differs only in
+  the null check (`Objects.requireNonNull` vs
+  `Validate.notNull`, both NPE) with no citations.
+  `HolderGetter.getRandomElementOf` moved from
+  `Registry` (1.21.8, same body) — the Rust cites
+  the `Registry` form, already 1.21.8-correct.
+  `SectionPos.STREAM_CODEC` is 1.21.9-only with no
+  citation. `BlockPos.betweenCornersInDirection` is
+  1.21.9-only and the Rust implements it for the
+  swept traversal — but the traversal rework is
+  **item 178**'s scope (`BlockGetter`,
+  `forEachBlockIntersectedBetween`): 1.21.8's
+  traversal differs wholesale (tiny-movement
+  threshold (0.99999)^2 vs (1e-5)^2, `betweenClosed`
+  for the start/final boxes, the min-corner ray walk
+  with `MAX_BLOCK_ITERATIONS_ALONG_TRAVEL = 16`).
+  Removing the iterator here would break the sweep
+  with no replacement, so it stays with doc notes
+  marking it 1.21.9-only pending item 178.
 
 - **Item 123 — `crates/horizon-client/src/game/loom.rs`
   (1 class, 8 methods, 2 named in Horizon),
