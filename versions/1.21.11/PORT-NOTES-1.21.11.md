@@ -2668,3 +2668,52 @@ forceTimeSynchronization, managedBlock, setFatalException,
 synchronizeTime, throwIfFatalException — all accounted for.
 Rank 2 now 210/492 (46 changed, 164 no-change).
 work-items.json rank2.closed = 210 on 2026-11-20.
+
+## Item 32 — menu.rs (rank 2, NO-CHANGE)
+
+AbstractContainerScreen / StonecutterMenu / LecternBlockEntity /
+SmithingMenu / BrewingStandMenu$PotionSlot / CraftingRecipe (+
+CraftingBookInfo), 7 classes, 50 methods, 13 named. Harness menu_click.
+No behaviour change: every menu-side rule is identical in both versions.
+The differences are render-plumbing renames (extract* → render*,
+GuiGraphicsExtractor → GuiGraphics, identical bodies), two method
+inlinings with byte-identical bodies (shouldAddSlotToQuickCraft into
+mouseDragged, quickCraftToSlots into mouseReleased — verified against the
+26.1 helpers), a pure rename (ContainerInput → ClickType, same seven
+values), a signature change with identical math
+(getQuickCraftPlaceCount takes the set in 1.21.11, the count in 26.1 —
+decompiled AbstractContainerMenu in both versions: type 0 →
+floor(count/size), 1 → 1, 2 → maxStackSize, default → count), and
+API-shape changes with identical outcomes (smithing/stonecutter assemble
+takes registryAccess in 1.21.11 — the Rust has no assemble call there,
+it clones precomputed results; defaultCraftingReminder returns the stack
+directly in 1.21.11 vs a template in 26.1 — the Rust maps item → 1-count
+stack either way; LecternBlockEntity.resolveBook wraps the source in a
+ResolutionContext in 26.1 — no Rust mirror). The Rust mirrors verified:
+`quick_craft_accepts` (the shouldAddSlotToQuickCraft gate, exact),
+`quick_craft_preview` (place-count math + remainder, exact), `click`'s
+QUICK_CRAFT state machine (status 0/1/2, single-slot fallback to Pickup),
+stonecutter `button` (same index → false, invalid index still true),
+`stone_changed` / `stone_setup_result`, `smith_result` / `smith_error`
+(all inputs filled, no result), lectern `set_data` (clamp 0..pageCount-1)
+and `lectern_button` (100+n / 1 / 2 / 3 take-book), brewing `Role::Potion`
+(is_bottle = recipe inputs ∪ glass bottle, exactly vanilla's four items;
+the `#minecraft:brewing_potion_inputs` tag clause is dead — the tag does
+not exist in 1.21.11's data, checked in server-game.jar). Screen-framework
+differences with no Rust mirror, recorded: mouseReleased returns literal
+`true` in 1.21.11 vs `super.mouseReleased(event)` in 26.1 (the Rust's
+inventory_mouse_release returns ()); the tooltip step moves from the
+base render() (26.1) to the subclass render() (1.21.11 — renderTooltip
+is defined but never called in the 1.21.11 base class); renderBg /
+renderBackground are 1.21.11-only; DEFAULT_IMAGE_WIDTH/HEIGHT become
+mutable fields with the same 176/166 defaults. The one fix is cosmetic:
+`quick_craft_preview`'s doc comment cited the 26.x name `extractSlot`,
+now `renderSlot` (the only stale 26.x citation in menu.rs).
+Referrals: inventory_input.rs items (191/226/315) for the mouseReleased
+return; container_screen.rs items (226/262/315/342) for the tooltip
+caller; books.rs items for the unmirrored lectern resolveBook.
+Method-name diff run explicitly: only the extract*/render* renames, the
+two inlined helpers, renderBackground/renderBg, and the 26.x-only
+CraftingBookInfo record. Javap string-constant scan: no string changes.
+Rank 2 now 211/492 (46 changed, 165 no-change).
+work-items.json rank2.closed = 211 on 2026-11-20.
