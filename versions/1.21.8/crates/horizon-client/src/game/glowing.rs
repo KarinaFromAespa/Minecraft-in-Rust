@@ -1,6 +1,7 @@
-//! Glowing entities (`EntityRenderer.extractRenderState`'s outlineColor): which entities
-//! appear glowing, in which team colour, and their silhouettes for the renderer's entity
-//! outline (`OutlineBufferSource`).
+//! Glowing entities (`Minecraft.shouldEntityAppearGlowing` + `Entity.getTeamColor`,
+//! captured into `EntityRenderState.outlineColor` by 1.21.9's `extractRenderState`):
+//! which entities appear glowing, in which team colour, and their silhouettes for
+//! the renderer's entity outline (`OutlineBufferSource`).
 use super::{Game, Vertex};
 use horizon_client::{mobs::Mob, scoreboard as sb};
 
