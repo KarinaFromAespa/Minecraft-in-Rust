@@ -1474,7 +1474,9 @@ pub(crate) trait Hosted {
     /// does now (`Screen::slider_released`).
     fn release(&mut self) -> Option<Vec<Output>>;
     /// A controller's or the keyboard's focus is on the row at `rect`: if the list hides part of
-    /// it, it scrolls all into view (`AbstractSelectionList.setSelected`). How far the row moved
+    /// it, it scrolls all into view (`AbstractSelectionList.ensureVisible`, reached from
+    /// `setFocused` on keyboard input — 1.21.8's `setSelected` is a plain assignment; the
+    /// scroll-in-`setSelected` form came in 1.21.9). How far the row moved
     /// down, when it moved.
     fn reveal(&mut self, s: &Settings, size: (f32, f32), rect: [f32; 4]) -> Option<f32>;
     /// The mouse wheel at `at`: it scrolls, unless the row under it takes the step (`wheel_step`).
