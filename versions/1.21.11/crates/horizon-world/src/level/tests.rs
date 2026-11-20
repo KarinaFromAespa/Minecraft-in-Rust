@@ -2509,6 +2509,49 @@ fn sculk_charge_spreads_veins_and_sculk() {
     );
 }
 
+/// `SculkBlock.canPlaceGrowth`: three sensors or shriekers near a charged
+/// sculk block stop it growing a new one above it; with fewer, the charge
+/// grows one.
+#[test]
+fn sculk_growth_stops_at_three_nearby_sensors() {
+    for sensors in [0, 3] {
+        let mut w = world!();
+        w.floor(0, 14, "stone");
+        let origin = BlockPos::new(0, 1, 0);
+        let catalyst = w.id("sculk_catalyst", &[]);
+        w.put(origin, catalyst);
+        let sculk_pos = BlockPos::new(10, 1, 0);
+        w.put(sculk_pos, w.id("sculk", &[]));
+        let sensor = w.id("sculk_sensor", &[]);
+        for (dx, dz) in [(-2, 0), (2, 0), (0, 2)].into_iter().take(sensors) {
+            w.put(BlockPos::new(10 + dx, 1, dz), sensor);
+        }
+        let mut spreader = sculk::SculkSpreader::default();
+        spreader.add_cursors(sculk_pos, 40);
+        for _ in 0..80 {
+            w.f.behaviours.sculk_update_cursors(
+                &mut w.level,
+                &mut w.ticks,
+                &mut spreader,
+                origin,
+                true,
+            );
+        }
+        let above = w.get(BlockPos::new(10, 2, 0));
+        let grown = above == w.id("sculk_sensor", &[]) || above == w.id("sculk_shrieker", &[]);
+        assert_eq!(
+            grown,
+            sensors == 0,
+            "with {sensors} sensors nearby, growth above the sculk is {}",
+            if sensors == 0 {
+                "expected"
+            } else {
+                "inhibited"
+            }
+        );
+    }
+}
+
 #[test]
 fn shrieker_responds_when_the_shriek_ends() {
     let mut w = world!();

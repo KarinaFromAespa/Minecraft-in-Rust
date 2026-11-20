@@ -7452,3 +7452,32 @@ trim-recipe serializer, incl. the unvalidated named pattern;
 crafting.rs `Template` still cites `ItemStackTemplate` (item 30's
 file). Tests: `cargo test -p horizon-client-lib --lib
 --no-default-features stations::` 26 passed. rustfmt --check clean.
+
+## Item 105 — level/sculk.rs (rank 2, CHANGED)
+
+7 classes, 11 methods, 5 named: SculkVeinBlock, SculkVeinSpreaderConfig,
+ChargeCursor, SculkBehaviour$1, SculkBlock, CalibratedSculkSensor
+VibrationUser, SculkSpreader.
+
+Java delta, jar-verified: pure API shape — `is(Object)` ->
+`is(Block)`/`is(Fluid)`, `private` -> package-private, the 26.1
+`Objects.requireNonNull` on the outer-this. Every behaviour is
+identical in both versions (attemptUseCharge, getRandomGrowthState,
+canPlaceGrowth, regrow, onDischarged, attemptPlaceSculk,
+hasSubstrateAccess, cursor update/merge/movement, updateCursors, the
+calibrated sensor's radius 16 and frequency filter; the
+level-spreader constants 10/4/10/5 match the Rust's). Literal
+comparison zero in all five classes.
+The one fix is a dead tag in the Rust's `sculk_can_place_growth`:
+vanilla counts sculk sensors and shriekers directly in both versions,
+but the Rust counted members of a `minecraft:sculk_growth_inhibitors`
+tag that exists in NEITHER jar (verified by listing both client jars'
+data packs), so growth was never inhibited. It now counts the two
+blocks directly (3+ inhibits). New test
+`sculk_growth_stops_at_three_nearby_sensors` (0 sensors -> growth,
+3 sensors -> none; early-returns locally without fixtures, runs on
+CI). Referral: `worldgen/sculk.rs:108,558` uses the same nonexistent
+tag in its own `can_place_growth` — same fix pattern, that file's
+item's scope. Tests: `cargo test -p horizon-world --lib
+--no-default-features sculk` 4 passed. rustfmt --check clean on
+sculk.rs.
