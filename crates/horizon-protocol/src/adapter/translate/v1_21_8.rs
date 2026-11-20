@@ -108,7 +108,7 @@ mod tests {
         let mut w = Writer::new();
         w.varint(42);
         w.uuid(7);
-        w.varint(49); // 1.21.8's falling block, pinned id 49.
+        w.varint(49); // 1.21.8's falling block; the pin's is 40.
         crate::buf::Vec3d::write(&[1.0, 64.0, -2.0], &mut w);
         for angle in [-64, 32, -128] {
             w.i8(angle);
@@ -122,7 +122,7 @@ mod tests {
         else {
             panic!("spawn");
         };
-        assert_eq!((e.id, e.kind, e.position), (42, 50, [1.0, 64.0, -2.0]));
+        assert_eq!((e.id, e.kind, e.position), (42, 40, [1.0, 64.0, -2.0]));
         assert_eq!((e.pitch, e.yaw, e.head_yaw, e.data), (-64, 32, -128, 0));
         assert!((e.velocity[0] + 1.0).abs() < 0.001);
         assert!((e.velocity[1] - 0.5).abs() < 0.001);
@@ -303,18 +303,18 @@ mod tests {
             data: vec![],
         };
         let new = super::super::renumber_states(ids, &old, 16);
-        assert_eq!(new.get(0), 7003);
-        assert_eq!(ids.block_state.down(7003), Some(7016));
+        assert_eq!(new.get(0), 6773);
+        assert_eq!(ids.block_state.down(6773), Some(7016));
         let sent = [3, 0xfa, 0x02, 0, 0]; // Three chain items, old id 378.
         let stack = {
             let _up = ids::renumbering(ids, Way::Up);
             Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
         };
-        assert_eq!((stack.item, stack.count), (369, 3));
+        assert_eq!((stack.item, stack.count), (356, 3));
         let mut w = Writer::new();
         {
             let _down = ids::renumbering(ids, Way::Down);
-            Slot::write(&Some(Stack::new(369, 3)), &mut w);
+            Slot::write(&Some(Stack::new(356, 3)), &mut w);
         }
         assert_eq!(w.data, sent);
     }
@@ -323,10 +323,10 @@ mod tests {
     fn discs_before_and_after_lava_chicken_keep_their_identity_on_1_21_8() {
         use crate::item::{Slot, Stack};
         let ids = ServerVersion::V1_21_8.ids().unwrap();
-        // Vanilla reports: cat is 1250 in 1.21.8, 1211 pinned; pigstep is 1267 -> 1227. The
+        // Vanilla reports: cat is 1250 in 1.21.8, 1169 pinned; pigstep is 1267 -> 1185. The
         // newer lava chicken disc occupies 1.21.8 id 1256, with no pinned counterpart; pinned
-        // 1217 is mall.
-        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1211), ([3, 0xf3, 0x09, 0, 0], 1227)] {
+        // 1175 is mall.
+        for (sent, pinned) in [([3, 0xe2, 0x09, 0, 0], 1169), ([3, 0xf3, 0x09, 0, 0], 1185)] {
             let stack = {
                 let _up = ids::renumbering(ids, Way::Up);
                 Slot::read(&mut Reader::new(&sent)).unwrap().unwrap()
@@ -340,18 +340,18 @@ mod tests {
             assert_eq!(w.data, sent);
         }
         assert_eq!(ids.item.up(1256), None);
-        assert_eq!(ids.item.down(1217), Some(1257)); // mall
+        assert_eq!(ids.item.down(1175), Some(1257)); // mall
         assert_eq!(
-            ServerVersion::V1_21_6.ids().unwrap().item.down(1217),
+            ServerVersion::V1_21_6.ids().unwrap().item.down(1175),
             Some(1256)
         ); // mall
-        assert_eq!(ids.block_state.up(7016), Some(7003)); // inherited chain axis=x, waterlogged=true
+        assert_eq!(ids.block_state.up(7016), Some(6773)); // inherited chain axis=x, waterlogged=true
     }
 
     #[test]
     fn a_1_21_8_sound_after_the_inserted_disc_is_not_off_by_one() {
         let mut w = Writer::new();
-        w.varint(1181); // Level-up holder: 1.21.8 registry id 1180 + 1, pinned id 1134.
+        w.varint(1181); // Level-up holder: 1.21.8 registry id 1180 + 1, pinned id 1114.
         w.varint(0);
         for coordinate in [8, 512, -16] {
             w.i32(coordinate);
@@ -366,13 +366,13 @@ mod tests {
         ) else {
             panic!("sound");
         };
-        assert_eq!(p.sound, (1134, None));
+        assert_eq!(p.sound, (1114, None));
         assert_eq!(
             (p.x, p.y, p.z, p.volume, p.pitch, p.seed),
             (8, 512, -16, 1.0, 0.5, 42)
         );
         assert_eq!(
-            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1134),
+            ServerVersion::V1_21_8.ids().unwrap().sound_event.down(1114),
             Some(1180)
         );
     }
