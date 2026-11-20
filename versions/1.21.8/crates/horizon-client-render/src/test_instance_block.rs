@@ -104,57 +104,25 @@ impl Data {
     }
 }
 
-/// `TestInstanceBlockEntity.ErrorMarker`.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ErrorMarker {
-    pub pos: [i32; 3],
-    pub text: Tag,
-}
-
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TestInstanceBlock {
     pub data: Data,
-    pub error_markers: Vec<ErrorMarker>,
 }
 
 impl TestInstanceBlock {
     /// `saveAdditional` (also `getUpdateTag`, which is `saveCustomOnly`).
+    /// 1.21.8 stores no error markers on the block entity: failures are
+    /// transient debug packets (`ReportGameListener.showRedBox`), so there
+    /// is no `errors` key (1.21.9-only).
     pub fn save(&self) -> Vec<(&'static str, Tag)> {
-        let mut entries = vec![("data", self.data.save())];
-        if !self.error_markers.is_empty() {
-            let markers = self
-                .error_markers
-                .iter()
-                .map(|m| {
-                    Tag::compound([
-                        ("pos", Tag::IntArray(m.pos.to_vec())),
-                        ("text", m.text.clone()),
-                    ])
-                })
-                .collect();
-            entries.push(("errors", Tag::List(markers)));
-        }
-        entries
+        vec![("data", self.data.save())]
     }
 
-    /// `loadAdditional`: the data is replaced only when it decodes, and the
-    /// markers are always replaced.
+    /// `loadAdditional`: the data is replaced only when it decodes. A stray
+    /// `errors` key (1.21.9 data) is ignored.
     pub fn load(&mut self, tag: &Tag) {
         if let Some(data) = tag.get("data").and_then(Data::load) {
             self.data = data;
-        }
-        self.error_markers.clear();
-        if let Some(Tag::List(markers)) = tag.get("errors") {
-            for m in markers {
-                if let (Some(Tag::IntArray(p)), Some(text)) = (m.get("pos"), m.get("text"))
-                    && p.len() == 3
-                {
-                    self.error_markers.push(ErrorMarker {
-                        pos: [p[0], p[1], p[2]],
-                        text: text.clone(),
-                    });
-                }
-            }
         }
     }
 
@@ -216,10 +184,6 @@ mod tests {
                 status: Status::Finished,
                 error_message: Some(string("boom")),
             },
-            error_markers: vec![ErrorMarker {
-                pos: [1, 2, 3],
-                text: string("here"),
-            }],
         }
     }
 
@@ -231,20 +195,18 @@ mod tests {
             text(tag.get("data").unwrap().get("rotation")).as_deref(),
             Some("180")
         );
+        // 1.21.8 stores no markers: no `errors` key, ever.
+        assert!(tag.get("errors").is_none());
         let mut loaded = TestInstanceBlock::default();
         loaded.load(&tag);
         assert_eq!(loaded, block);
-        // No markers, no `errors` key; a bad `data` leaves the old one.
-        let mut plain = block.clone();
-        plain.error_markers.clear();
-        assert!(Tag::compound(plain.save()).get("errors").is_none());
+        // A bad `data` leaves the old one.
         let mut kept = block;
         kept.load(&Tag::compound([(
             "data",
             Tag::compound(Vec::<(&str, Tag)>::new()),
         )]));
         assert_eq!(kept.data.test.as_deref(), Some("minecraft:always_pass"));
-        assert!(kept.error_markers.is_empty());
     }
 
     #[test]

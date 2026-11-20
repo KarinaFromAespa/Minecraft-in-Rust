@@ -268,6 +268,8 @@ impl Game<'_> {
             self.feedback_unbroadcast(Text::translate("commands.test.no_tests", &[]));
             return Ok(0);
         }
+        // `GameTestRunner.clearMarkers`, then `FailedTestTracker.forgetFailedTests`.
+        self.clear_game_test_markers();
         self.game_tests.failed.clear();
         self.feedback_unbroadcast(Text::translate(
             "commands.test.run.running",
@@ -299,6 +301,8 @@ impl Game<'_> {
         for (key, def) in self.finder_tests(&finder) {
             infos.extend(self.test_info_for(key, def, 0, Retry::none())?);
         }
+        // `GameTestRunner.clearMarkers`, then `FailedTestTracker.forgetFailedTests`.
+        self.clear_game_test_markers();
         self.game_tests.failed.clear();
         let batches = verify_batches(&infos, || self.game_tests.next_id());
         let grid = Grid::new(self.test_around(), 10).clearing();
@@ -330,6 +334,8 @@ impl Game<'_> {
     /// `TestCommand.clear`.
     fn clear_tests(&mut self, finder: &Finder) -> R<i32> {
         self.clear_game_tests();
+        // `GameTestRunner.clearMarkers`.
+        self.clear_game_test_markers();
         let tests = self.finder_positions(finder);
         for &pos in &tests {
             if let Some(area) = self.test_bounding_box(pos) {

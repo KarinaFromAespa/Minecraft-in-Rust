@@ -22,7 +22,7 @@ use horizon_client::{
     containers::BlockEntity,
     lan::data::component_nbt,
     test_block::TestBlockMode,
-    test_instance_block::{ErrorMarker, Status, TestInstanceBlock},
+    test_instance_block::{Status, TestInstanceBlock},
     text::{self, Text},
 };
 use horizon_world::{
@@ -284,7 +284,6 @@ pub(super) struct Batch {
 pub(super) struct RunnerOptions {
     halt_on_error: bool,
     batch_size: usize,
-    clear_between_batches: bool,
     grid_for_existing: bool,
     grid: Option<Grid>,
     /// `trackAndStartRunner`'s source is the command's own, not the
@@ -298,7 +297,6 @@ impl RunnerOptions {
         Self {
             halt_on_error,
             batch_size: 50,
-            clear_between_batches: false,
             grid_for_existing: false,
             grid,
             from_command,
@@ -307,12 +305,13 @@ impl RunnerOptions {
     }
 
     /// `/test verify`: `batcher(fromGameTestInfo(100))`, the grid for
-    /// existing tests too, `haltOnError`, `clearBetweenBatches`.
+    /// existing tests too, `haltOnError(true)`. 1.21.8 has no
+    /// `clearBetweenBatches` (1.21.9-only); the grid clears on batch start
+    /// through its own `clearOnBatch`.
     pub(super) fn verify(grid: Grid) -> Self {
         Self {
             halt_on_error: true,
             batch_size: 100,
-            clear_between_batches: true,
             grid_for_existing: true,
             grid: Some(grid),
             from_command: true,
@@ -416,14 +415,9 @@ struct Runner {
     halt_on_error: bool,
     /// `GameTestBatchFactory.fromGameTestInfo(maxTestsPerBatch)`, for reruns.
     batch_size: usize,
-    /// `clearBetweenBatches`.
-    clear_between_batches: bool,
     /// The grid is also `existingStructureSpawner` (`/test verify`): a test
     /// with a block is moved onto it.
     grid_for_existing: bool,
-    /// The tests of the batch before: their levels and blocks, for
-    /// `clearBetweenBatches`.
-    last_batch: Vec<(Dim, Pos)>,
     /// `newStructureSpawner`: where the tests without a block go.
     grid: Option<Grid>,
     /// `ReportGameListener`'s (attempts, successes), by original test.
@@ -560,8 +554,14 @@ pub(super) struct GameTests {
     /// The command that starts the runner is still running: its source takes
     /// `TestBatchSummaryDisplayer`'s lines then and there.
     command_start: bool,
-    /// `GameTestRunner.currentEnvironment`.
-    environment: Option<Activation>,
+    /// `GameTestRunner.currentEnvironment`, with its id: 1.21.8 only ends
+    /// and re-activates the environment when the batch's differs.
+    environment: Option<(String, Activation)>,
+    /// `GameTestDebugRenderer.markers`: the failure markers
+    /// `ReportGameListener.showRedBox` sends as debug packets, keyed by
+    /// position (a later marker at the same position replaces the first).
+    /// Transient — 1.21.8 stores nothing on the block entity.
+    pub(super) markers: Vec<([i32; 3], Text)>,
 }
 
 impl GameTests {
@@ -658,9 +658,7 @@ impl Game<'_> {
             tracked,
             halt_on_error: options.halt_on_error,
             batch_size: options.batch_size,
-            clear_between_batches: options.clear_between_batches,
             grid_for_existing: options.grid_for_existing,
-            last_batch: Vec::new(),
             grid: options.grid,
             reports: Vec::new(),
             scheduled: Vec::new(),
@@ -685,13 +683,6 @@ impl Game<'_> {
             return;
         }
         runner.current = index;
-        // clearBetweenBatches: the batch before is cleared and its blocks
-        // destroyed.
-        let cleared = if index > 0 && runner.clear_between_batches {
-            std::mem::take(&mut runner.last_batch)
-        } else {
-            Vec::new()
-        };
         // StructureGridSpawner.onBatchStart (clearOnBatch), every dimension.
         let mut grid_cleared: Vec<(Dim, Pos)> = Vec::new();
         if let Some(grid) = runner.grid.as_mut().filter(|g| g.clear_on_batch) {
@@ -705,14 +696,6 @@ impl Game<'_> {
                 g.row_z = (g.first.2, g.first.2 + 1);
                 g.count = 0;
             }
-        }
-        for (dim, pos) in cleared {
-            self.in_test_level(dim, |g| {
-                if let Some(area) = g.test_bounding_box(pos) {
-                    g.clear_test_space(&area);
-                }
-                g.set_test_block_state(pos, "minecraft:air", flags::UPDATE_ALL);
-            });
         }
         for (dim, pos) in grid_cleared {
             self.in_test_level(dim, |g| {
@@ -740,14 +723,23 @@ impl Game<'_> {
             "Running test environment '{environment}' batch {batch_number} ({} tests)...",
             spawned.len()
         );
-        // endCurrentEnvironment, then TestEnvironmentDefinition.activate.
-        self.end_test_environment();
-        match self.test_environment(&environment) {
-            Some(definition) => {
-                let activation = self.activate_test_environment(definition);
-                self.game_tests.environment = Some(activation);
+        // 1.21.8 only ends and re-activates the environment when the
+        // batch's differs from the current one (1.21.9 re-setups every
+        // batch); batches of one environment share the activation.
+        let same_environment = self
+            .game_tests
+            .environment
+            .as_ref()
+            .is_some_and(|(current, _)| current == &environment);
+        if !same_environment {
+            self.end_test_environment();
+            match self.test_environment(&environment) {
+                Some(definition) => {
+                    let activation = self.activate_test_environment(definition);
+                    self.game_tests.environment = Some((environment.clone(), activation));
+                }
+                None => log::error!("Missing test environment {environment}"),
             }
-            None => log::error!("Missing test environment {environment}"),
         }
         // TestBatchSummaryDisplayer.testBatchStarting: `sendSuccess(.., true)`
         // to the source that started the runner.
@@ -765,14 +757,13 @@ impl Game<'_> {
         }
         if let Some(runner) = self.game_tests.runner.as_mut() {
             runner.batch_pending = spawned.len();
-            runner.last_batch = spawned.iter().map(|i| (i.dim, i.pos)).collect();
         }
         self.game_tests.ticker.extend(spawned);
     }
 
     /// `GameTestRunner.endCurrentEnvironment`.
     fn end_test_environment(&mut self) {
-        if let Some(activation) = self.game_tests.environment.take() {
+        if let Some((_, activation)) = self.game_tests.environment.take() {
             self.tear_down_test_environment(activation);
         }
     }
@@ -1330,16 +1321,23 @@ impl Game<'_> {
         self.mark_block_entity_updated(pos);
     }
 
-    /// `markError`.
-    fn mark_test_error(&mut self, pos: Pos, at: Pos, message: &Text) {
-        let Some(block) = self.test_instance_mut(pos) else {
-            return;
-        };
-        block.error_markers.push(ErrorMarker {
-            pos: [at.0, at.1, at.2],
-            text: component_nbt(&message.component()),
-        });
-        self.mark_block_entity_updated(pos);
+    /// `ReportGameListener.showRedBox` (`DebugPackets.sendGameTestAddMarker`,
+    /// colour -2130771968, `Integer.MAX_VALUE` ms): the failure marker goes
+    /// to the transient debug store, keyed by position — 1.21.8 stores
+    /// nothing on the block entity (its `markError` is 1.21.9-only).
+    fn mark_test_error(&mut self, at: Pos, message: &Text) {
+        let pos = [at.0, at.1, at.2];
+        let markers = &mut self.game_tests.markers;
+        if let Some(slot) = markers.iter_mut().find(|(p, _)| *p == pos) {
+            slot.1 = message.clone();
+        } else {
+            markers.push((pos, message.clone()));
+        }
+    }
+
+    /// `GameTestRunner.clearMarkers` (`DebugPackets.sendGameTestClearPacket`).
+    pub(super) fn clear_game_test_markers(&mut self) {
+        self.game_tests.markers.clear();
     }
 
     // ---- listeners ----
@@ -1422,10 +1420,10 @@ impl Game<'_> {
         if !passed && counted {
             self.game_tests.failed.push(info.key.clone());
         }
-        // The runner's batch listener.
-        if passed {
-            self.remove_test_barriers(info.pos);
-        } else if halt {
+        // The runner's batch listener: 1.21.8 removes no barriers here
+        // (1.21.9's `testCompleted` does); a pass clears them through
+        // `reportPassed`'s `setSuccess` instead.
+        if !passed && halt {
             self.release_forced_chunks();
             self.clear_game_tests();
             return;
@@ -1513,9 +1511,11 @@ impl Game<'_> {
         }
     }
 
-    /// `ReportGameListener.reportPassed`.
+    /// `ReportGameListener.reportPassed`: `setSuccess` (status FINISHED,
+    /// barriers removed) then the green line.
     fn report_passed(&mut self, info: &Info, line: &str) {
         self.set_test_status(info.pos, Status::Finished, None);
+        self.remove_test_barriers(info.pos);
         self.say(text::GREEN, line.to_owned());
     }
 
@@ -1554,7 +1554,7 @@ impl Game<'_> {
             message, absolute, ..
         } = error
         {
-            self.mark_test_error(info.pos, *absolute, message);
+            self.mark_test_error(*absolute, message);
         }
     }
 
