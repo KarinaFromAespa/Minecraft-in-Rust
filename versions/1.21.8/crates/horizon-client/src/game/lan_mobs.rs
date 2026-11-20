@@ -473,7 +473,7 @@ pub(super) fn omen_of(
     }
 }
 
-/// A guest's bounding box, by its pose (`Avatar.POSES`).
+/// A guest's bounding box, by its pose (`Player.POSES`).
 pub(super) fn guest_bounds(g: &horizon_client::lan::guest::Guest) -> Aabb {
     g.bounds()
 }

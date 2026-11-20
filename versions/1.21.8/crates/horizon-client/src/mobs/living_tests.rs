@@ -637,7 +637,7 @@ fn landing_dust_is_pulled_to_the_block_it_landed_on() {
 }
 /// `LivingEntity.getDimensions` is `getDefaultDimensions(pose).scale(
 /// getScale())` on every living entity, not only on a player or mannequin
-/// whose pose sets the box (`Avatar.POSES`): a cow's `EntityType.COW` box
+/// whose pose sets the box (`Player.POSES`): a cow's `EntityType.COW` box
 /// (0.9 x 1.4, its eyes at 1.3) at `minecraft:scale` 2 is 1.8 x 2.8 with
 /// the eyes at 2.6, and the box `Mob.bounds` hands the hitbox raycast, the
 /// attack range and the leash pins grows with it.

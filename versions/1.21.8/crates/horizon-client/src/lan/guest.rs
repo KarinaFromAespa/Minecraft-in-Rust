@@ -782,7 +782,7 @@ impl Guest {
             Pose::Standing
         }
     }
-    /// `Avatar.POSES` for the guest's pose, with its scale attribute: also for
+    /// `Player.POSES` for the guest's pose, with its scale attribute: also for
     /// a pose the client has announced (gliding) before the body's own tick
     /// has taken it.
     pub fn dimensions(&self) -> Dimensions {

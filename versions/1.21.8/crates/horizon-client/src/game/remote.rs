@@ -4234,14 +4234,14 @@ impl Game<'_> {
                                 }
                             }
                         }
-                        // Avatar.DATA_PLAYER_MAIN_HAND (HumanoidArm: 0 left, 1
+                        // Player.DATA_PLAYER_MAIN_HAND (HumanoidArm: 0 left, 1
                         // right): the arm a swing of the main hand moves.
                         if let (15, Value::Id(arm)) = (index, value)
                             && let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32)
                         {
                             m.extra.main_hand_left = *arm == 0;
                         }
-                        // Avatar.DATA_PLAYER_MODE_CUSTOMISATION: the skin layers
+                        // Player.DATA_PLAYER_MODE_CUSTOMISATION: the skin layers
                         // the player shows (PlayerModelPart bits).
                         if let (16, Value::Byte(bits)) = (index, value)
                             && let Some(m) = self.mob_index.get_mut(&mut self.mobs, p.id as u32)
@@ -5995,7 +5995,7 @@ impl Game<'_> {
         }
         if self.player_model.is_some() {
             let (skin, is_slim) = self.drawn_skin(own, skin_of(&skins, own));
-            // Avatar.isModelPartShown(CAPE): the Skin Customization option.
+            // Player.isModelPartShown(CAPE): the Skin Customization option.
             let cape = capes
                 .get(&own)
                 .filter(|_| self.settings.file.bool("modelPart_cape"))

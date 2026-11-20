@@ -482,7 +482,7 @@ impl MobWorld<'_> {
                 position: p.position,
                 eye_y: p.eye[1],
                 bounds: p.bounds,
-                // A riding player's seat is `Avatar.DEFAULT_VEHICLE_ATTACHMENT`
+                // A riding player's seat is `Player.DEFAULT_VEHICLE_ATTACHMENT`
                 // (0.6) above its feet.
                 hitbox: if p.passenger {
                     let (lo, hi) = (p.bounds.min_position(), p.bounds.max_position());

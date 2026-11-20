@@ -51,8 +51,8 @@ impl Pose {
             Self::Sleeping => "SLEEPING",
         }
     }
-    /// `Avatar.POSES` (and `LivingEntity.SLEEPING_DIMENSIONS`): the box of a
-    /// player or mannequin in this pose; sleeping ignores the scale.
+    /// `Player.POSES` (and `LivingEntity.SLEEPING_DIMENSIONS`): the box of a
+    /// player in this pose; sleeping ignores the scale.
     pub fn dimensions(self, scale: f32) -> Dimensions {
         let (width, height, eye_height) = match self {
             Self::Standing => (0.6 * scale, 1.8 * scale, 1.62 * scale),

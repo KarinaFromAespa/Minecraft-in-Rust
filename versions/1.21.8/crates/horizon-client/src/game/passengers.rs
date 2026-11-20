@@ -283,7 +283,7 @@ impl Game<'_> {
         // attachment (the top of its box in its pose and scale) less the rider's own,
         // which is 0 for both (Display and Interaction are 0 by 0). On the
         // local player, the top of its box in its pose and scale
-        // (`Avatar.POSES`).
+        // (`Player.POSES`).
         let me = self.remote.as_ref().map(|r| r.entity_id as u32);
         let own_seat = self.player.as_ref().map(|p| {
             p.position

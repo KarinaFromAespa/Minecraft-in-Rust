@@ -1103,8 +1103,8 @@ pub struct Extra {
     pub model_scale: f32,
     /// Players: crouching and riding (HumanoidModel's poses).
     pub crouching: bool,
-    /// A player's or mannequin's synced pose (`Entity.DATA_POSE`), which
-    /// sets its box (`Avatar.POSES`).
+    /// A player's synced pose (`Entity.DATA_POSE`), which sets its box
+    /// (`Player.POSES`).
     pub avatar_pose: crate::pose::Pose,
     /// `Entity.isSprinting` (`Entity.DATA_SHARED_FLAGS_ID`'s flag 3): the dust a
     /// player raises; a cat or ocelot dashing (`Cat/Ocelot.customServerAiStep`),
@@ -1244,7 +1244,7 @@ pub struct Extra {
     pub shoulder_parrots: [Option<i32>; 2],
     pub main_hand_left: bool,
     /// The skin layers a player hides (`PlayerModelPart` bits, set to
-    /// `Avatar.DATA_PLAYER_MODE_CUSTOMISATION` inverted); 0 shows all.
+    /// `Player.DATA_PLAYER_MODE_CUSTOMISATION` inverted); 0 shows all.
     pub hidden_model_parts: u8,
     /// This player's profile name is Dinnerbone or Grumm
     /// (`LivingEntityRenderer.isEntityUpsideDown`: a player flips by its

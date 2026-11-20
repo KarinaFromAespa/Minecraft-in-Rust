@@ -555,8 +555,8 @@ impl Mob {
     pub fn awake_dims_in(&self, long_jumping: bool) -> (f64, f64, f64) {
         let k = &self.kind;
         // `LivingEntity.getDimensions` is `getDefaultDimensions(pose).scale(
-        // getScale())` on every living entity: the species' box (a player's or
-        // mannequin's follows its pose, Avatar.POSES) times its
+        // getScale())` on every living entity: the species' box (a player's
+        // follows its pose, Player.POSES) times its
         // `minecraft:scale` (`getScale`), width, height and eye height alike.
         let scale = self.model_scale();
         if matches!(&*k.id, "minecraft:player" | "minecraft:mannequin") {
