@@ -7377,3 +7377,39 @@ both versions). Tests: `cargo test -p horizon-client-lib --lib
 --no-default-features furnace::` 9 passed (the furnace tests live in
 the horizon-client-lib binary, not horizon-client's). rustfmt
 --check clean on furnace.rs.
+
+## Item 103 — mobs/aquatic.rs (rank 2, NO-CHANGE)
+
+5 classes, 21 methods, 4 named: Tadpole, TadpoleModel,
+AgeableWaterCreature, AbstractSchoolingFish, Squid$SquidFleeGoal.
+
+Java delta, jar-verified: the tadpole age-lock feature is entirely
+26.1-only — the `AGE_LOCKED` synced boolean, `ageLockParticleTimer`,
+`setAgeLocked`/`isAgeLocked`/`setAgeLockedData`, the `AgeLocked`
+save/bucket tags, the golden-dandelion interaction, and the
+`!isAgeLocked()` gates on feeding and on the aiStep age increment
+(literal comparison: only `"AgeLocked"` and `40` on the 26.1 side).
+The Rust has no age-lock mirror anywhere (tree-wide removal done in
+earlier items): aiStep ages unconditionally and converts at 24000,
+feeding is ungated with vanilla's speed-up math, bucket data writes
+Age only. The tadpole brain migration (`BRAIN_PROVIDER` /
+`getActivities` -> `SENSOR_TYPES`/`MEMORY_TYPES` + `brainProvider()` /
+`makeBrain`, same four sensors) needs no fix — the Rust cites only
+`TadpoleAi`'s brain, and the activities table is item 38's. TadpoleModel
+uses `entityCutout` in 26.1 vs `entityCutoutNoCull` in 1.21.11 — the
+javap diff misses it (the normalizer hides the invokedynamic bootstrap
+method reference, the same failure mode as the hidden string constants
+of items 29/94) and the literal comparison is zero, so the decompile
+is the authority; no Rust mirror (no per-model render-type table),
+and the tail animation matches both versions exactly. Squid's
+26.1-only `BABY_DIMENSIONS` (0.5 x 0.63, eye 0.37) was already fixed
+in item 15. AgeableWaterCreature (`is(Object)` -> `is(Block)`),
+AbstractSchoolingFish.tick (`getRandom()` -> `level.random`) and
+SquidFleeGoal (ctor visibility) are API-shape-only; all three are
+mirrored (spawn_rules `surface_water`, aquatic `school_tick`,
+aquatic `SquidFlee` — including the discarded normalize).
+Version-neutral gap, recorded not fixed: SquidFleeGoal.tick spawns a
+BUBBLE particle at `fleeTicks % 10 == 5` in both versions, and the
+Rust's goal tick has no events channel to emit one. Tests:
+`cargo test -p horizon-client-lib --lib --no-default-features
+mobs::aquatic::` 9 passed, 1 ignored (fixture).
