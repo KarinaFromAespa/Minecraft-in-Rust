@@ -257,7 +257,7 @@ SPECIES = {
                 {'idleUnderWaterAnimationState': 2}, {'idleUnderWaterOnGroundAnimationState': 1}, {'playDeadAnimationState': 4}],
     'frog': [{'isSwimming': T}, {'isSwimming': F}, {'jumpAnimationState': 2}, {'croakAnimationState': 1},
              {'tongueAnimationState': 3}, {'swimIdleAnimationState': 2, 'isSwimming': T}],
-    'rabbit': [{'hopAnimationState': 2}, {'idleHeadTiltAnimationState': 1}],
+    'rabbit': [{'jumpCompletion': 0.5}, {'jumpCompletion': 0.25}, {'jumpCompletion': 0.0}],
     # EndCrystalModel (not a mob): the base hidden for a placed crystal.
     'end_crystal': [{'showsBottom': F}, {'showsBottom': F, 'ageInTicks': 91234.5}],
     'fox': FOX,

@@ -542,13 +542,7 @@ pub fn main() -> horizon_client::Result<()> {
                 }
                 horizon_client::mobs::copper_golem::anim(&mob, s, p, &animations);
             }
-            Species::Rabbit => b_anim::rabbit(
-                p,
-                s,
-                &started("hopAnimationState"),
-                &started("idleHeadTiltAnimationState"),
-                &animations,
-            ),
+            Species::Rabbit => b_anim::rabbit(p, s, num("jumpCompletion")),
             Species::Fox => b_anim::fox(
                 p,
                 s,
@@ -556,13 +550,11 @@ pub fn main() -> horizon_client::Result<()> {
                     crouching: flag("isCrouching"),
                     sleeping: flag("isSleeping"),
                     sitting: flag("isSitting"),
-                    pouncing: flag("isPouncing"),
                     faceplanted: flag("isFaceplanted"),
                     head_roll_angle: num("headRollAngle"),
                     crouch_amount: num("crouchAmount"),
                     leg_motion_pos: 0.67,
                 },
-                &animations,
             ),
             Species::Cat | Species::Ocelot => horizon_client::mobs::tame::feline(
                 p,

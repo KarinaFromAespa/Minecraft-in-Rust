@@ -7380,9 +7380,6 @@ impl Game<'_> {
             m.previous_head_pitch = m.head_pitch;
             m.previous_limb_speed = m.limb_speed;
             m.age += 1;
-            if m.species() == horizon_client::mobs::Species::Rabbit {
-                horizon_client::mobs::rabbit::base_tick(m);
-            }
             if matches!(
                 m.species(),
                 horizon_client::mobs::Species::Horse

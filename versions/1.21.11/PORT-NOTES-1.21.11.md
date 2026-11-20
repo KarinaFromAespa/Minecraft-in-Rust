@@ -5537,3 +5537,108 @@ perspective.rs, hooks.rs, shapes.rs, tick.rs (tests.rs flags two
 pre-existing drifts, left alone). Rank 2 now 247/492 (76 changed,
 171 no-change).
 work-items.json rank2.closed = 247 on 2026-11-20.
+
+## Item 69 — crates/horizon-client/src/mobs/body_anim.rs (rank 2, CHANGED)
+
+19 classes, 48 methods, 4 named. Decompile diff +686/-328 (1293
+lines) read in full Nov 20, 2026; javap diff +2760/-799 (3889
+lines) scanned, key constants confirmed in it (polar bear
+`ldc float 0.44444445f`); 26.1's BabyGoatModel,
+Adult/BabyFoxModel, Adult/BabyStriderModel, AdultBeeModel and
+1.21.11's Rabbit / ModelPart / PartPose / LivingEntityRenderer
+decompiled directly. Triage note `rank2-item-69-TRIAGE.md`
+(workdir root, scratch).
+
+The 26.x model split is the whole story: 10 of the 19 classes
+are 26.1-only Adult/Baby model subclasses that do not exist in
+1.21.11. In 1.21.11 each species has ONE concrete model class
+whose `setupAnim` serves both ages, and the baby layer is the
+adult mesh through a `BABY_TRANSFORMER` (`MeshTransformer.scaling`
+0.5 bee/strider, 0.6 armadillo; `BabyModelTransform` fox/goat/
+polar bear/rabbit; `LlamaModel::transformToBaby` llama). The
+Rust was ported from 26.x, so every baby branch in it mirrors a
+26.1 subclass. Seven fixes:
+
+**Fix 1 — polar bear cub head.** 1.21.11 multiplies the head's
+stand offsets by `isBaby ? 0.44444445 : 1.0` (4/9 = 1 /
+`BABY_HEAD_SCALE` 2.25); 26.1 has no baby factor. The Rust
+applied the full offsets to cubs. Body/legs already used
+`ageScale`.
+**Fix 2 — strider baby branch.** The Rust's baby branch (body
+17.25, legs 20.0, `bristle0/1/2` on xRot) is 26.1's
+`BabyStriderModel`, decompiled to confirm. Deleted: babies run
+the adult animation on the 0.5-scaled baby layer, as in
+1.21.11. (Vanilla's absolute body.y = 2.0 / leg.y = 8.0 on the
+transformer-shifted baby mesh means the baby strider's feet
+don't touch the ground in 1.21.11 either — the port mirrors the
+code, floating feet and all.)
+**Fix 3 — goat baby tilt.** The PI/8 head tilt is 26.1's
+`BabyGoatModel.setupAnim`; removed.
+**Fix 4 — bee antennae.** 1.21.11's one `BeeModel` animates the
+antennae at every age; the Rust gated them on `!s.baby`
+(26.1's base `BeeModel` has no antenna fields — they live on
+`AdultBeeModel`).
+**Fix 5 — armadillo.** 1.21.11 applies the walk animation
+unconditionally (26.1 gates it on `!isHidingInShell`), and one
+`ArmadilloAnimation` serves both ages — `BabyArmadilloAnimation`
+is 26.1-only (verified absent from the 1.21.11 jar), so the baby
+prefix resolved to nothing and baby armadillos never animated
+at all.
+**Fix 6 — rabbit procedural hop.** 1.21.11 has NO keyframe
+animations for rabbits: head always follows the look; haunches
+`+= sin(jumpCompletion*PI) * 50°`, front legs `+= sin * −40°`.
+Rewrote `rabbit()` to that form, with a new
+`rabbit::jump_completion` helper on the client hop counters
+(mirroring `Rabbit.getJumpCompletion`). The 26.1-only
+`rabbit::base_tick` (`setupAnimationStates` driver) and its
+`IDLE_TIMEOUT` clock are deleted with both production callers
+(`mobs/ai.rs`, `game/remote.rs`); 1.21.11's `Rabbit` entity has
+no `hopAnimationState` / `idleHeadTiltAnimationState` /
+`idleTimeout` (javap). Tests rewritten; the idle-timeout test
+deleted.
+**Fix 7 — fox single form.** Rewrote `fox()` to 1.21.11's
+inline `setupAnim`: procedural leg swings at every age (the
+`FoxBabyAnimation` walk is gone), crouch/sleep/sit unified
+under `ageScale`, kit sleep tail −2.1816616 + `body.z += 2`,
+kit sit head −1.75/−0.375, crouch wiggle 0.05 -> **0.01**, and
+the pouncing pose deleted (no such pose in 1.21.11 — it was
+26.1's `AdultFoxModel.setPouncingPose`). The `pouncing` field
+is removed from the `Fox` struct and `fox::pose` (the entity
+`POUNCING` flag stays — item 33's pounce pitch uses it).
+
+Harness: `entity_anim_fixture.rs` updated for the new
+signatures (rabbit reads `num("jumpCompletion")`); the
+entity-model driver's rabbit cases are now `jumpCompletion`
+0.5 / 0.25 / 0.0 — the old `hopAnimationState` /
+`idleHeadTiltAnimationState` cases would throw in the generic
+reflective oracle against 1.21.11's `RabbitRenderState`, which
+has no such fields. Fox `isPouncing` cases stay (the field
+exists on the render state; both sides now ignore it).
+
+Already 1.21.11-shaped: `llama()`; the strider adult branch
+(identical to 1.21.11's inline code and to 26.1's
+`AdultStriderModel.customAnimations`); the fox adult
+walk/crouch/sleep/sit/faceplant/head-look values; the bee
+wing/leg bob and roll; the armadillo head clamps and roll/peek
+names. `bat`, `frog`, `parrot`, `snow_golem`, `silverfish`,
+`endermite` are not in this item's class list; untouched.
+
+Referrals (base models live in other items): axolotl baby
+keyframe branch -> item 779 (`AxolotlModel`); panda baby sit
+branch -> item 115 (`PandaModel`); turtle egg-belly baby gate
+-> item 152 (`TurtleModel`, + 707 `BabyTurtleModel`). The
+`Anim::Rabbit` state slots are now never started for rabbits;
+the slots are generic per-mob state and stay.
+
+Verification: `cargo check -p horizon-client --lib --tests
+--no-default-features` clean (1m09s); `cargo check
+-p horizon-client-lib --example client_probe
+--no-default-features` clean (55s); rustfmt --check clean on
+body_anim.rs, rabbit.rs, fox.rs, ai.rs, remote.rs,
+entity_anim_fixture.rs. New `body_anim::tests`: 6 passed
+(baby polar bear head 4/9, baby strider = adult anim, baby fox
+sleep/sit at half scale, crouch wiggle 0.01, baby bee antennae,
+baby goat no tilt). `mobs::rabbit::`: 10 passed; `mobs::fox::`:
+7 passed; `mobs::polar_bear::`: 3 passed. Rank 2 now 248/492
+(77 changed, 171 no-change).
+work-items.json rank2.closed = 248 on 2026-11-20.

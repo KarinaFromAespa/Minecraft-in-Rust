@@ -1170,7 +1170,6 @@ pub fn pose(m: &Mob, partial: f32) -> super::body_anim::Fox {
         crouching: flag(m, CROUCHING),
         sleeping: flag(m, SLEEPING),
         sitting: flag(m, SITTING),
-        pouncing: flag(m, POUNCING),
         faceplanted: flag(m, FACEPLANTED),
         head_roll_angle: m.anim.lerp(INTERESTED_ANGLE, partial) * 0.11 * std::f32::consts::PI,
         crouch_amount: m.anim.lerp(CROUCH_AMOUNT, partial),
