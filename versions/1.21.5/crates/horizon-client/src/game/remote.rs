@@ -579,6 +579,8 @@ pub(super) struct Remote {
     position_sender: horizon_client::player_sync::PositionSender,
     last_input: u8,
     was_sprinting: bool,
+    /// `LocalPlayer.sendShiftKeyState` (1.21.5): the shift key's last sent state.
+    was_shift_key_down: bool,
     /// The slot the server last heard (`MultiPlayerGameMode.carriedIndex`): a cell, so `send` can
     /// send a new one first (`ensureHasSentCarriedItem`).
     carried: std::cell::Cell<Option<usize>>,
@@ -1180,6 +1182,7 @@ impl Game<'_> {
             position_sender: Default::default(),
             last_input: 0,
             was_sprinting: false,
+            was_shift_key_down: false,
             carried: std::cell::Cell::new(None),
             was_shared_flags: 0,
             was_living_flags: 0,
@@ -1410,6 +1413,7 @@ impl Game<'_> {
             position_sender: Default::default(),
             last_input: 0,
             was_sprinting: false,
+            was_shift_key_down: false,
             was_shared_flags: 0,
             was_living_flags: 0,
             last_recorded_pose: None,
@@ -6999,7 +7003,7 @@ impl Game<'_> {
             let id = self.remote.as_ref().map_or(0, |r| r.entity_id);
             self.send(S::PlayerCommand(play::PlayerCommand {
                 id,
-                action: 6,
+                action: 8,
                 data: 0,
             }));
         }
@@ -7853,6 +7857,21 @@ impl Game<'_> {
             return;
         };
         let mut out = paddles;
+        // `LocalPlayer.sendShiftKeyState` (1.21.5): the shift key's press and
+        // release go as `PlayerCommand` 0/1 — 1.21.6 dropped both actions and
+        // reads the shift from the input packet instead. Sent before the
+        // input packet, as `LocalPlayer.tick` orders them.
+        {
+            let sneaking = input & SHIFT_INPUT != 0;
+            if sneaking != r.was_shift_key_down {
+                r.was_shift_key_down = sneaking;
+                out.push(S::PlayerCommand(play::PlayerCommand {
+                    id: r.entity_id,
+                    action: if sneaking { 0 } else { 1 },
+                    data: 0,
+                }));
+            }
+        }
         if input != r.last_input {
             r.last_input = input;
             out.push(S::PlayerInput(play::PlayerInput { flags: input }));
@@ -7863,7 +7882,7 @@ impl Game<'_> {
                 r.was_sprinting = sprinting;
                 out.push(S::PlayerCommand(play::PlayerCommand {
                     id: r.entity_id,
-                    action: if sprinting { 1 } else { 2 },
+                    action: if sprinting { 3 } else { 4 },
                     data: 0,
                 }));
             }
@@ -9812,7 +9831,7 @@ impl Game<'_> {
                     let id = self.remote.as_ref().map_or(0, |r| r.entity_id);
                     self.send(S::PlayerCommand(play::PlayerCommand {
                         id,
-                        action: 5,
+                        action: 7,
                         data: 0,
                     }));
                 }
@@ -10810,7 +10829,7 @@ impl Game<'_> {
         let id = self.remote.as_ref().map_or(0, |r| r.entity_id);
         self.send(S::PlayerCommand(play::PlayerCommand {
             id,
-            action: 0,
+            action: 2,
             data: 0,
         }));
     }

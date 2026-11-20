@@ -2936,7 +2936,8 @@ impl Game<'_> {
         ));
         Ok(1)
     }
-    /// `ServerLevel.updateNeighboursOnBlockSet` (`Behaviours::update_neighbours_on_block_set`) for the
+    /// `Level.setBlock`'s flag-1 neighbour branch (`Behaviours::update_neighbours_on_block_set`,
+    /// the steps 1.21.6 extracted as `ServerLevel.updateNeighboursOnBlockSet`) for the
     /// block now at `pos`, which replaced `old`.
     fn update_neighbours_on_block_set(&mut self, pos: [i32; 3], old: BlockStateId) -> R<()> {
         self.with_level(|b, level, ticks| {

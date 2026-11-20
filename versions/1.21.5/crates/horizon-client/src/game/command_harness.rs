@@ -735,10 +735,10 @@ impl Game<'_> {
                 }
                 "player_command" => {
                     // The owner's real ServerboundPlayerCommandPacket, through the
-                    // server's own handler (START_RIDING_JUMP is action 3).
+                    // server's own handler (START_RIDING_JUMP is action 5).
                     let action = match op["action"].as_str() {
-                        Some("start_riding_jump") => 3,
-                        Some("stop_riding_jump") => 4,
+                        Some("start_riding_jump") => 5,
+                        Some("stop_riding_jump") => 6,
                         _ => return Err("player command: unknown action".into()),
                     };
                     let data = op["data"].as_i64().ok_or("player command: missing data")? as i32;

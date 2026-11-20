@@ -437,6 +437,49 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m18s, shared with
     item 12).
+- **Item 12 — lan_actions.rs, ported:** the LAN host's
+  server-side packet handling:
+  - `ServerboundPlayerCommandPacket.Action`: 1.21.5 has NINE
+    actions — `PRESS_SHIFT_KEY` (0) and `RELEASE_SHIFT_KEY` (1)
+    head the enum, so every other action sits two higher than
+    in 1.21.6 (STOP_SLEEPING 2, START/STOP_SPRINTING 3/4,
+    START/STOP_RIDING_JUMP 5/6, OPEN_INVENTORY 7,
+    START_FALL_FLYING 8). Renumbered everywhere the ids are
+    read or sent: `lan/hub.rs` (decode + the shift-key arms,
+    which now own `g.sneaking` and the `Sneak` mod event),
+    `game/lan_actions.rs` (the game's arms + the sprint event),
+    `game/remote.rs` (all four senders), `game/remote_vehicles.rs`
+    (`riding_jump` + its test), `game/command_harness.rs` (the
+    `player_command` op), `lan/hub_tests.rs` (the riding-jump
+    test). The client gains `LocalPlayer.sendShiftKeyState`
+    (`was_shift_key_down` on `Remote`, sent before the input
+    packet as `LocalPlayer.tick` orders it).
+  - `handlePlayerInput`: 1.21.5 only records the keys
+    (`setLastClientInput`) — removed the sneaking update and
+    the idle-timer reset from the hub's handler (both 1.21.6
+    additions). The crouch-pose test now drives the pose
+    through PRESS/RELEASE_SHIFT_KEY.
+  - `handleMoveVehicle`: 1.21.5 checks `noCollision` on the box
+    deflated 0.0625, before the move and at the target
+    (`lan_vehicles.rs` now deflates both by 0.0625, not 0 /
+    1e-5); the 1.21.6-only `!isFlyingVehicle()` exemption was
+    never in the code — the comment said otherwise and now
+    doesn't. `handleMovePlayer`'s `collide()` already implements
+    the 1.21.5 form (`isPlayerCollidingWithAnythingNew` over
+    `getCollisions`, 1e-5 deflate) — only the comment cited the
+    1.21.6 name and query.
+  - No Rust surface (verified): `level()`→`serverLevel()`
+    renames, `ServerLevel.updateNeighboursOnBlockSet` (a 1.21.6
+    extraction — `Level.setBlock`'s neighbour branch is
+    byte-identical in both versions, and the Rust's helper
+    implements it; comment re-cited), `waitForChunkAndEntities`
+    (1.21.6-only, no Rust surface),
+    `removeLatestMovementRecordingBatch` vs `removeLatestMovementRecording`
+    (the Rust records no vehicle movement to roll back),
+    the waypoint manager (already compute-but-drop for 1.21.5).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m18s, shared with
+    item 11).
 
 ## What remains, by cause
 

@@ -538,11 +538,15 @@ impl Game<'_> {
             .unwrap_or(wanted);
         let reached = old.add_vector(resolved);
         let wrongly = (target.x - reached.x).powi(2) + (target.z - reached.z).powi(2) > 0.0625;
-        let free_before = scene.unobstructed(bounds).unwrap_or(true);
-        // isEntityCollidingWithAnythingNew: a box that was free is not there.
+        // `handleMoveVehicle`: no collision on the box deflated 0.0625, before
+        // the move and at the target (1.21.6 checks the undeflated box, then
+        // `isEntityCollidingWithAnythingNew` at 1e-5).
+        let free_before = scene
+            .unobstructed(bounds.deflate(Vec3::new(0.0625, 0.0625, 0.0625)))
+            .unwrap_or(true);
         let moved_box = bounds.move_by(target.subtract(old));
         let free_after = scene
-            .unobstructed(moved_box.deflate(Vec3::new(1.0E-5, 1.0E-5, 1.0E-5)))
+            .unobstructed(moved_box.deflate(Vec3::new(0.0625, 0.0625, 0.0625)))
             .unwrap_or(true);
         // Entity.move in `vehicle.move`, before the checks: a long move through
         // water or a reset block resets the fall, which a move put back keeps
@@ -561,8 +565,8 @@ impl Game<'_> {
         }
         // clientVehicleIsFloating: the move didn't go down a step, the vehicle hadn't come down onto
         // something on its last move (`verticalCollisionBelow` before this one), and nothing but air is
-        // around its box grown by 0.0625 and stretched 0.55 down (water holds a boat up). A flying or
-        // no-gravity mount, and a server that allows flight, never float.
+        // around its box grown by 0.0625 and stretched 0.55 down (water holds a boat up). A no-gravity
+        // mount, and a server that allows flight, never float (1.21.6 also exempts flying vehicles).
         let (gravity, no_gravity) = match mount {
             Some(i) => (0.08, self.mobs[i].no_gravity),
             None => (0.04, false),

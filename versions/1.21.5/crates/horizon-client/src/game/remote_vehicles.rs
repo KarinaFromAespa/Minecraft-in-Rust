@@ -651,7 +651,7 @@ fn client_moves(m: &Mob, first_passenger: bool, steer: bool) -> bool {
 fn riding_jump(player: i32, scale: f32) -> S {
     S::PlayerCommand(play::PlayerCommand {
         id: player,
-        action: 3,
+        action: 5,
         data: (scale * 100.0).floor() as i32,
     })
 }
@@ -958,7 +958,7 @@ mod tests {
             other => panic!("{other:?}"),
         }
         match riding_jump(42, 0.75) {
-            S::PlayerCommand(p) => assert_eq!((p.id, p.action, p.data), (42, 3, 75)),
+            S::PlayerCommand(p) => assert_eq!((p.id, p.action, p.data), (42, 5, 75)),
             other => panic!("{other:?}"),
         }
     }
