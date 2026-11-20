@@ -7285,3 +7285,31 @@ Verification: literal comparison zero for FaceBakery and for
 the geometry pair. `cargo test -p horizon-assets --lib bake::`
 13 passed. Rank 2 now 279/492 (93 changed, 186 no-change).
 work-items.json rank2.closed = 279 on 2026-11-21.
+
+## Item 101 — game/structure_blocks.rs (rank 2, NO-CHANGE)
+
+3 classes, 32 methods, 3 named: StructureBlockEntity,
+StructureTemplate, StructureTemplateManager.
+
+Java delta, jar-verified: StructureTemplate is bytecode-identical
+(zero javap hunks — its +536/-579 decompile diff is Vineflower
+parameter-name noise). StructureBlockEntity differs only by
+`is(Object)` -> `is(Block)` in three spots. The
+StructureTemplateManager diff is an internal refactor — 26.1's
+`loader/` package vs 1.21.11's inlined private helpers — with no
+observable behaviour change: same lookup order (generated ->
+test structures, IDE-only -> datapacks), same get/save logic,
+same `generated/<ns>/structures/<path>.nbt` path with the same
+validation, same DataVersion-500 default (relocated from the
+loader classes into the manager). Literal comparison confirms
+it (only log strings and relocated path constants differ).
+
+No Rust fix: template_entry/write_template/read_template_tag
+already match 1.21.11's manager. Version-neutral gap: the Rust
+never datafixes templates on load (vanilla runs the DataFixer
+in both versions) — the datafix system's scope, not this item's.
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::structure_blocks::` 4 passed. Rank
+2 now 280/492 (93 changed, 187 no-change). work-items.json
+rank2.closed = 280 on 2026-11-21.
