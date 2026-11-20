@@ -113,7 +113,7 @@ const TICKET_LEVEL: i32 = 31;
 const FULL_LEVEL: i32 = 33;
 const LIGHT_LEVEL: i32 = 34;
 
-/// `HashCommon.mix(ChunkPos.pack(x, z))`.
+/// `HashCommon.mix(ChunkPos.asLong(x, z))`.
 fn ticket_hash(x: i32, z: i32) -> u64 {
     let packed = u64::from(x as u32) | (u64::from(z as u32) << 32);
     let h = packed.wrapping_mul(0x9E37_79B9_7F4A_7C15);

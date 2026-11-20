@@ -8400,3 +8400,37 @@ and the dedicated server logs instead. Gap recorded: no
 `selectLevelLoadFocusPos` mirror — `prepare_levels` waits on saved
 tickets rather than loading around the owner's saved position.
 Tests: `chunk_io::` 3 passed.
+
+## Item 128 — game/nether_portal.rs (rank 2, CHANGED)
+
+2 classes, 19 methods, 3 named (`ChunkPos.containing`,
+`ChunkPos.pack`, `BaseFireBlock.onPlace`).
+
+Java delta is API shape only: ChunkPos goes record → plain
+class (`containing`/`unpack` statics become ctors, `pack` →
+`asLong`/`toLong`, the `getRegionX(long)`/`getRegionZ(long)`
+statics are gone, all values identical); BaseFireBlock differs
+only by `is(Object)` → `is(Block)` noise and `getRandom()` →
+`random`.
+
+The real find: `portal_frame` read the
+`minecraft:nether_portal_frame` tag, which exists in NEITHER
+jar (26.3-only) — a nonexistent tag resolves to the empty set,
+so no portal frame was ever found and fire could never light a
+portal. Vanilla's `PortalShape.FRAME` is `state.is(Blocks.OBSIDIAN)`
+in both versions (verified from the 1.21.11 decompile and the
+26.1 javap lambda); the predicate now checks obsidian directly.
+New level test `fire_lit_inside_an_obsidian_frame_creates_a_portal`
+(runs on CI; early-returns locally without fixtures). Citations
+reworded: `ChunkPos.containing` → `ChunkPos(BlockPos)`,
+`ChunkPos.pack(x, z)` → `ChunkPos.asLong(x, z)`; the Rust's own
+`pack`/`unpack` API names stay. Checked, no action:
+`base_fire_on_place` matches `onPlace` exactly;
+`find_empty_portal_shape` tries the preferred axis then the
+other, as vanilla's `findPortalShape` does;
+`fire_can_be_placed_at` matches `canBePlacedAt`/`isPortal`;
+`portal_empty` is fine (`BlockTags.FIRE` exists in 1.21.11).
+Recorded: the game-level `try_light_portal` is an uncalled
+duplicate of the live `base_fire_on_place` path (cleanup, not
+fixed); the rest of the PortalShape mirror belongs to the
+PortalShape item.

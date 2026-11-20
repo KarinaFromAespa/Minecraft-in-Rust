@@ -504,7 +504,7 @@ impl Game<'_> {
         }
         created
     }
-    /// `ChunkPos.containing`: the chunk a position is in.
+    /// `ChunkPos(BlockPos)`: the chunk a position is in.
     pub(super) fn chunk_of(at: Vec3) -> (i32, i32) {
         ((at.x.floor() as i32) >> 4, (at.z.floor() as i32) >> 4)
     }

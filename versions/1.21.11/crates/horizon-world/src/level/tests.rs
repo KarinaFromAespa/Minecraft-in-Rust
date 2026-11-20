@@ -4354,6 +4354,34 @@ fn a_level_can_answer_how_a_block_burns() {
     assert_eq!(w.get(at.offset(1, 0, 0)), glass, "and never burns it away");
 }
 
+/// `BaseFireBlock.onPlace`: fire lit inside an empty obsidian frame
+/// (Overworld) creates the portal blocks.
+#[test]
+fn fire_lit_inside_an_obsidian_frame_creates_a_portal() {
+    let mut w = world!();
+    w.floor(0, 10, "stone");
+    let obsidian = w.id("obsidian", &[]);
+    // A 4-wide, 5-tall frame at z = 0, interior 2 by 3.
+    for x in 0..4 {
+        w.set(BlockPos::new(x, 1, 0), obsidian);
+        w.set(BlockPos::new(x, 5, 0), obsidian);
+    }
+    for y in 2..5 {
+        w.set(BlockPos::new(0, y, 0), obsidian);
+        w.set(BlockPos::new(3, y, 0), obsidian);
+    }
+    w.set(BlockPos::new(1, 2, 0), w.id("fire", &[]));
+    for y in 2..5 {
+        for x in 1..3 {
+            assert_eq!(
+                w.name(BlockPos::new(x, y, 0)),
+                "nether_portal[axis=x]",
+                "the frame's interior becomes portal blocks"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_level_can_answer_what_makes_a_campfire_signal() {
     let mut w = world!();
