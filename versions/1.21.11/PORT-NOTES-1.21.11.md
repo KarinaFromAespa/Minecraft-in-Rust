@@ -4523,3 +4523,80 @@ the new test. No rustfmt run (comment-only edits plus small hand-formatted
 code edits).
 Rank 2 now 233/492 (65 changed, 168 no-change).
 work-items.json rank2.closed = 233 on 2026-11-20.
+
+## Item 55 — crates/horizon-client/src/advancements.rs (rank 2, CHANGED)
+
+KilledTrigger$TriggerInstance (10), PlayerPredicate (8, named matches),
+EntityHasScoreCondition (8, named test), LootItemRandomChanceCondition (4,
+named test), WeatherCheck (4, named test), KilledByArrowTrigger$TriggerInstance
+(3), PlayerPredicate$Builder (3), DataComponentExactPredicate (3, named test),
+PlayerPredicate$AdvancementCriterionsPredicate (2),
+PlayerPredicate$AdvancementDonePredicate (2), AdvancementProgress (1),
+CollectionPredicate (1), ContextAwarePredicate (1), FoodPredicate (1,
+**removed in 1.21.11**), FoodPredicate$Builder (1, **removed in 1.21.11**),
+RecipeCraftedTrigger$TriggerInstance (1), Validatable (1, **removed in
+1.21.11**), WeatherCheck$Builder (1): 18 classes, 55 methods, 5 named.
+
+**The change — `PlayerPredicate` has no food in 1.21.11.** 26.1's
+`PlayerPredicate` is an 8-field record (level, food, gamemode, stats,
+recipes, advancements, lookingAt, input); 1.21.11's is 7 fields — the
+`food` field (`FoodPredicate`) is gone, the class does not exist in the
+1.21.11 jar, the CODEC drops the `"food"` optional field (P8 → P7), and
+`Builder` loses `setFood`. The Rust mirrored the 26.1 food check in
+`player_facts` (food level in `level`, saturation widened to double in
+`saturation`, against `PlayerFacts.food`, always filled from
+`Player.getFoodData` for the local player and LAN guests). Removed: the
+`player_facts` food block, the `PlayerFacts.food` field + Debug entry,
+and both fill sites in game/advancements.rs (the local `player_facts`
+guard simplified to `is_none()` since `p` is no longer read). A `food`
+key in a predicate JSON is now ignored, as the codec ignores unknown
+fields. The test pinning the 26.1 behaviour
+(`player_food_tests_level_and_saturation_in_their_bounds`, including the
+1.2f→double widening edge) is replaced by
+`a_food_field_in_a_player_predicate_is_ignored`. `FoodData` itself (the
+hunger mechanic) is untouched — only the predicate mirror is removed.
+`FactsAsked` never indexed food, so no index change.
+
+**Citation fix:** `predicate_references` cited
+"`Validatable.validateHolder`'s active-name rule" — `Validatable` is
+removed in 1.21.11, and no `validateHolder` exists on 26.1's
+`Validatable` either (javap-verified). The visited-set cycle rule lives
+in 1.21.11's `ValidationContext` (`enterElement` / `hasVisitedElement`,
+decompile-verified); the citation now says so.
+
+**Verified, no change:** `killed` (KilledTrigger — the `entity` →
+`entityPredicate` rename is Java-internal; the codec field stays
+`"entity"`); `killed_by_arrow` (weapon, distinct-victim matching,
+unique-entity-type count); `literal_random_chance` (`draw() < chance`,
+always draws); entity_scores (missing objective/score fails, constant
+integer ranges); weather_check (absent fields impose no constraint);
+`components` (DataComponentExactPredicate.test — every expected component
+equals what the entity reports); `potions` (CollectionPredicate —
+contains + count + size); `Progress` (done/grant/revoke, `from_json`
+ignoring "done" as vanilla's CODEC does, `to_json` writing derived done,
+`counts()` = vanilla's percent/progress-text inputs); the player
+predicate arm (instanceof player → gamemode array membership —
+`GameTypePredicate.CODEC` is a list codec in BOTH versions, javap-verified
+→ lookingAt → input → `player_facts`). The loot conditions' `MAP_CODEC`
+→ `CODEC` / `codec()` → `getType()` renames and the
+`getReferencedContextParams`/`validate` plumbing changes touch no
+`test()` body. `AdvancementProgress`, `CollectionPredicate`,
+`ContextAwarePredicate.matches`, `AdvancementCriterionsPredicate` /
+`AdvancementDonePredicate` / `StatMatcher` are identical apart from
+visibility/generics.
+
+**Recorded, not changed:** a single-string `"gamemode"` fails to decode
+in vanilla (list codec) but passes unconstrained in the Rust
+(version-neutral; vanilla data always uses lists);
+`literal_random_chance` supports only literal float chances and
+entity_scores only `entity == "this"` with constant integer ranges
+(documented bounded contexts); the `input` mirror covers sneak only.
+
+Verification: `cargo check -p horizon-client --lib --tests
+--no-default-features` clean (JOBS=1, 3m35s). `cargo test -p
+horizon-client-lib --lib advancements::` — 55 passed, 0 failed, 1
+ignored, including the new test and all 5 player predicate tests.
+No rustfmt run (advancements.rs declares test modules; game/advancements.rs
+is a file mod).
+Rank 2 now 234/492 (66 changed, 168 no-change).
+work-items.json rank2.closed = 234 on 2026-11-20.
