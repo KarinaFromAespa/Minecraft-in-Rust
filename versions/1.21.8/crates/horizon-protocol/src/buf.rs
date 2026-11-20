@@ -591,7 +591,9 @@ pub fn set_bit(set: &mut Vec<u8>, i: usize) {
     }
     set[i / 8] |= 1 << (i % 8);
 }
-/// LpVec3: a low-precision velocity (Vec3.LP_STREAM_CODEC).
+/// LpVec3: a low-precision velocity (Vec3.LP_STREAM_CODEC). 1.21.9-only:
+/// the 1.21.8 wire uses ShortVec3. The adapter still needs this to read
+/// the newer form down.
 pub struct LpVec3;
 impl LpVec3 {
     fn unpack(v: u64) -> f64 {
@@ -659,6 +661,14 @@ impl Codec<[f64; 3]> for LpVec3 {
 /// (`ClientboundAddEntityPacket` / `ClientboundSetEntityMotionPacket` before
 /// 1.21.9 replaced them with LpVec3).
 pub struct ShortVec3;
+impl ShortVec3 {
+    /// `v` as a reader decodes it after it was written.
+    pub fn quantize(v: [f64; 3]) -> [f64; 3] {
+        let mut w = Writer::new();
+        Self::write(&v, &mut w);
+        Self::read(&mut Reader::new(&w.data)).unwrap_or([0.0; 3])
+    }
+}
 impl Codec<[f64; 3]> for ShortVec3 {
     fn read(r: &mut Reader) -> Result<[f64; 3]> {
         Ok([r.i16()?, r.i16()?, r.i16()?].map(|v| f64::from(v) / 8000.0))

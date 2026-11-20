@@ -658,7 +658,7 @@ impl Guest {
         let own = |id: i32| id == self.entity_id;
         let change = match packet {
             C::SetEntityMotion(p) if own(p.id) => {
-                Change::Velocity(horizon_protocol::buf::LpVec3::quantize(p.velocity))
+                Change::Velocity(horizon_protocol::buf::ShortVec3::quantize(p.velocity))
             }
             C::Explode(p) => match p.knockback {
                 Some(k) => Change::Knockback(k),
