@@ -732,7 +732,8 @@ pub use crate::providers::Providers;
 
 /// A `ChestBlock`, which `ChestBlock.combine` can join into a double chest:
 /// chests, trapped chests and copper chests in every weathering state, waxed
-/// or not (`CopperChestBlock` extends `ChestBlock`). Ender chests are
+/// or not (`CopperChestBlock` extends `ChestBlock` in 1.21.9; no such block
+/// in 1.21.8, so the arm is dead by data here). Ender chests are
 /// `EnderChestBlock`s and always single.
 pub fn is_chest_block(name: &str) -> bool {
     matches!(name, "minecraft:chest" | "minecraft:trapped_chest") || name.ends_with("copper_chest")
