@@ -326,7 +326,8 @@ impl Game<'_> {
             _ if self.screen == Screen::Dead => {
                 self.death_key(key)?;
             }
-            _ if self.screen == Screen::Stats => self.stats_key(raw),
+            // `StatsScreen` has no `keyPressed` of its own: Escape is the
+            // screens' keys above, and every other key does nothing here.
             _ => {}
         }
         Ok(())

@@ -1,9 +1,9 @@
-//! The Statistics screen (`StatsScreen`): General, Items and Mobs tabs over
-//! the player's statistics, with the Done button.
+//! The Statistics screen (`StatsScreen`): the title header, the General,
+//! Items and Mobs lists over the player's statistics, and the three list
+//! buttons over the Done button in the footer.
 use super::{Game, Screen};
 use horizon_client::{hud::HudBatch, items::ItemStack, text::Text, ui};
 use std::fmt::Write as _;
-use winit::keyboard::KeyCode;
 
 /// `Stats.CUSTOM` in registration order with its formatter.
 const CUSTOM: &[(&str, Format)] = &[
@@ -208,80 +208,42 @@ pub(super) struct StatsUi {
     /// The list's scrolling: the wheel and the held scrollbar.
     scroll: horizon_client::ui::Scroll,
     sort: Option<(usize, i32)>,
+    /// `ItemStatisticsList.headerPressed`: the sort column held down, cleared
+    /// when the button comes up.
+    header_pressed: Option<usize>,
 }
-impl StatsUi {
-    /// `TabNavigationBar.keyPressed` (`MenuTabBar.keyPressed`), which
-    /// `StatsScreen.keyPressed` runs before the screen's own keys: with
-    /// Control held, Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs and
-    /// Ctrl+1..9 (Ctrl+0 is the tenth) pick one directly; a tab that cannot be
-    /// chosen is not switched to, the key is still taken. Whether the tab bar
-    /// took the key.
-    fn key(&mut self, key: KeyCode, ctrl: bool, shift: bool, active: [bool; 3]) -> bool {
-        if !ctrl {
-            return false;
-        }
-        let Some(tab) = tab_key(self.tab, &active, key, shift) else {
-            return false;
-        };
-        if active[tab] && tab != self.tab {
-            self.tab = tab;
-            self.scroll.amount = 0.0;
-        }
-        true
-    }
-}
-/// `InputConstants.Key.getNumericKeyValue`: the main row's digits and the
-/// keypad's, 1..9 and 0.
-fn numeric_key_value(key: KeyCode) -> Option<usize> {
-    Some(match key {
-        KeyCode::Digit1 | KeyCode::Numpad1 => 1,
-        KeyCode::Digit2 | KeyCode::Numpad2 => 2,
-        KeyCode::Digit3 | KeyCode::Numpad3 => 3,
-        KeyCode::Digit4 | KeyCode::Numpad4 => 4,
-        KeyCode::Digit5 | KeyCode::Numpad5 => 5,
-        KeyCode::Digit6 | KeyCode::Numpad6 => 6,
-        KeyCode::Digit7 | KeyCode::Numpad7 => 7,
-        KeyCode::Digit8 | KeyCode::Numpad8 => 8,
-        KeyCode::Digit9 | KeyCode::Numpad9 => 9,
-        KeyCode::Digit0 | KeyCode::Numpad0 => 0,
-        _ => return None,
+/// `ItemStatisticsList.clickedHeader`: the column a click at `x` (pixels
+/// right of the list's left edge) sorts, or none. A column's window is the
+/// 36 pixels left of its `getColumnX` — twice the 18-pixel icon.
+fn header_column(x: f32) -> Option<usize> {
+    (0..COLUMNS.len()).find(|&c| {
+        let col_x = 75.0 + 40.0 * c as f32;
+        x >= col_x - 36.0 && x <= col_x
     })
 }
-/// `TabNavigationBar.getNextTabIndex`: the tab a key picks, or none. A digit
-/// names a tab (`Math.floorMod(digit - 1, 10)`, then clamped to the last tab);
-/// Tab moves to the next (Shift: the previous) tab that can be chosen, one
-/// full turn at most.
-fn tab_key(current: usize, active: &[bool], key: KeyCode, shift: bool) -> Option<usize> {
-    if active.is_empty() {
-        return None;
+/// `ItemStatisticsList.sortByColumn`: a click on a column sorts it
+/// descending, then ascending, then off; a click on another column starts
+/// it descending.
+fn sort_click(sort: Option<(usize, i32)>, c: usize) -> Option<(usize, i32)> {
+    match sort {
+        Some((sc, -1)) if sc == c => Some((c, 1)),
+        Some((sc, _)) if sc == c => None,
+        _ => Some((c, -1)),
     }
-    if let Some(digit) = numeric_key_value(key) {
-        // `Math.floorMod(digit - 1, 10)`, then `Mth.clamp` to the last tab.
-        return Some((digit + 9) % 10).map(|i| i.min(active.len() - 1));
-    }
-    if key != KeyCode::Tab {
-        return None;
-    }
-    let step: isize = if shift { -1 } else { 1 };
-    let count = active.len() as isize;
-    let mut i = (current as isize + step).rem_euclid(count);
-    for _ in 0..count {
-        if active[i as usize] {
-            return Some(i as usize);
-        }
-        i = (i + step).rem_euclid(count);
-    }
-    None
 }
-/// `MenuTabBar` geometry: three tabs over at most 400 pixels.
-fn tabs(w: f32) -> (f32, f32) {
-    let total = w.min(400.0) - 28.0;
-    let tab = ((total / 3.0) / 2.0).round() * 2.0;
-    let x0 = ((w - tab * 3.0) / 2.0).floor();
-    (x0, tab)
+/// `StatsScreen.initButtons`: the footer is a vertical layout of the three
+/// list buttons (120 wide, 5 apart) over the Done button, centred in the
+/// 58-pixel footer (`FrameLayout` centres its child: (58 - 45) / 2 = 6).
+/// The buttons row's y and the Done button's y.
+fn stats_footer(h: f32) -> (f32, f32) {
+    (h - FOOTER + 6.0, h - FOOTER + 31.0)
 }
-const TAB_H: f32 = 24.0;
-const FOOTER: f32 = 33.0;
+/// The buttons row's left edge: three 120-pixel buttons 5 apart, centred.
+fn stats_buttons_x(w: f32) -> f32 {
+    ((w - 370.0) / 2.0).floor()
+}
+const HEADER: f32 = 33.0;
+const FOOTER: f32 = 58.0;
 impl Game<'_> {
     pub(super) fn open_stats(&mut self) {
         self.load_stats();
@@ -306,6 +268,9 @@ impl Game<'_> {
     fn stats_rows(&self) -> (f32, usize) {
         match self.stats_ui.tab {
             0 => (14.0, CUSTOM.len()),
+            // The +1 is `ItemStatisticsList`'s 22-pixel header (its 6-arg
+            // `super` call sets `renderHeader` and `headerHeight`), one
+            // row's height, ahead of the rows.
             1 => (22.0, self.stat_items().len() + 1),
             _ => (36.0, self.stat_mobs().len()),
         }
@@ -409,69 +374,11 @@ impl Game<'_> {
         let (w, h) = (batch.width, batch.height);
         let atlas = &self.gui.atlas;
         ui::menu_background(batch, atlas, 0.0, 0.0, w, h, true);
-        let (top, bottom) = (TAB_H, h - FOOTER);
+        let (top, bottom) = (HEADER, h - FOOTER);
         ui::separators(batch, atlas, top, bottom, true);
-        // The tab bar.
-        let mut tab_tip = false;
-        let (x0, tw) = tabs(w);
-        const TABS: [&str; 3] = ["stat.generalButton", "stat.itemsButton", "stat.mobsButton"];
-        // Its TabNavigationBar: the hovered tab, else the current one (a
-        // GridLayoutTab's extra narration is empty).
-        horizon_client::widgets::narratable(|| {
-            use horizon_client::widgets::{ListKind, Narratable, Row, What};
-            let row = |i: usize| {
-                let mut row = Row::new(i, Text::translate(TABS[i], &[]).plain());
-                row.hint = Some(String::new());
-                row
-            };
-            let hovered = (0..TABS.len())
-                .find(|&i| ui::hovered(self.cursor, x0 + tw * i as f32, 0.0, tw, TAB_H));
-            Narratable::new(
-                What::List {
-                    kind: ListKind::Tabs,
-                    total: TABS.len(),
-                    hovered: hovered.map(row),
-                    selected: Some(row(self.stats_ui.tab.min(TABS.len() - 1))),
-                },
-                [x0, 0.0, tw * TABS.len() as f32, TAB_H],
-            )
-            .key(horizon_client::widgets::key_of(&"stats/tabs"))
-        });
-        for (i, key) in TABS.into_iter().enumerate() {
-            let x = x0 + tw * i as f32;
-            let selected = self.stats_ui.tab == i;
-            let active = self.stats_tab_active(i);
-            // Only one that can be chosen: the bumpers step from the selected tab by clicking.
-            if active {
-                horizon_client::widgets::target_as(
-                    [x, 0.0, tw, TAB_H],
-                    horizon_client::widgets::Kind::Tab(selected),
-                );
-            }
-            let hover = ui::hovered(self.cursor, x, 0.0, tw, TAB_H);
-            if hover && !active {
-                tab_tip = true;
-            }
-            let sprite = match (selected, hover) {
-                (true, true) => "gui/sprites/widget/tab_selected_highlighted",
-                (true, false) => "gui/sprites/widget/tab_selected",
-                (false, true) => "gui/sprites/widget/tab_highlighted",
-                (false, false) => "gui/sprites/widget/tab",
-            };
-            ui::nine_slice(batch, atlas, sprite, x, 0.0, tw, TAB_H, u32::MAX);
-            ui::menu_tab_label(
-                batch,
-                atlas,
-                &Text::translate(key, &[]),
-                (x, 0.0, tw, TAB_H),
-                selected,
-                active,
-                horizon_client::hud_overlays::now_ms(),
-            );
-            if selected {
-                batch.fill(atlas, x + 2.0, TAB_H - 3.0, tw - 4.0, 1.0, u32::MAX);
-            }
-        }
+        // The header's title: `HeaderAndFooterLayout` centres it vertically
+        // in the 33-pixel header, (33 - 9) / 2 = 12.
+        ui::centered_text(batch, atlas, &Text::translate("gui.stats", &[]), 0.0, 12.0, w, u32::MAX);
         // The list.
         let (row_h, rows) = self.stats_rows();
         let content = row_h * rows as f32 + 4.0;
@@ -540,42 +447,39 @@ impl Game<'_> {
                 if items.is_empty() {
                     return self.draw_stats_footer(batch, w, h);
                 }
-                // ItemStatisticsList, a ContainerObjectSelectionList: the
-                // header's sort buttons and each row's item.
+                // ItemStatisticsList, an ObjectSelectionList over its
+                // ItemRows: the header is not an entry, so the hovered row
+                // is one past the hovered item, and a row narrates
+                // `narrator.select` with the item's name.
+                let hovered_item = hovered_row.and_then(|p| p.checked_sub(1));
                 horizon_client::widgets::narratable(|| {
-                    horizon_client::widgets::Narratable::container_list(
-                        rows,
-                        hovered_row,
-                        list_rect,
-                    )
-                    .key(list_key)
+                    use horizon_client::widgets::{ListKind, Narratable, Row};
+                    let hovered = hovered_item.map(|i| {
+                        let stack = ItemStack::new(&items[i], 1);
+                        let name =
+                            horizon_client::stations::hover_name(&self.pack.names, &stack);
+                        Row::new(i, tr("narrator.select", &[&name]))
+                    });
+                    Narratable::list(ListKind::Object, items.len(), hovered, None, list_rect)
+                        .key(list_key)
                 });
-                // The header row of sort buttons.
+                // The header, drawn by `renderHeader` above the rows and
+                // scrolling with them: a column's background is the slot
+                // sprite while it is held, the header sprite otherwise, its
+                // icon shifted a pixel while held, and the sort arrow 18
+                // pixels left of the icon.
                 let y = row_y(0);
                 if visible(y) {
-                    for (c, (ty, sprite)) in COLUMNS.iter().enumerate() {
+                    for (c, (_, sprite)) in COLUMNS.iter().enumerate() {
                         let x = left + 75.0 + 40.0 * c as f32 - 18.0;
-                        let hover = ui::hovered(self.cursor, x, y + 1.0, 18.0, 18.0);
-                        // StatSortButton: an ImageButton named by its stat
-                        // type, which is its tooltip too.
-                        horizon_client::widgets::narratable(|| {
-                            let name = tr(&format!("stat_type.minecraft.{ty}"), &[]);
-                            horizon_client::widgets::Narratable::button(
-                                name.clone(),
-                                [x, y + 1.0, 18.0, 18.0],
-                                true,
-                            )
-                            .hint(name)
-                            .key(horizon_client::widgets::key_of(&("stats/sort", c)))
-                            .child_of(list_key, 0)
-                        });
-                        let bg = if hover {
-                            "gui/sprites/statistics/header"
+                        let pressed = self.stats_ui.header_pressed == Some(c);
+                        let (dx, bg) = if pressed {
+                            (1.0, "gui/sprites/container/slot")
                         } else {
-                            "gui/sprites/container/slot"
+                            (0.0, "gui/sprites/statistics/header")
                         };
                         batch.sprite(atlas, bg, x, y + 1.0);
-                        batch.sprite(atlas, sprite, x, y + 1.0);
+                        batch.sprite(atlas, sprite, x + dx, y + 1.0 + dx);
                         if let Some((sc, order)) = self.stats_ui.sort
                             && sc == c
                         {
@@ -584,7 +488,7 @@ impl Game<'_> {
                             } else {
                                 "gui/sprites/statistics/sort_up"
                             };
-                            batch.sprite(atlas, s, x, y + 1.0);
+                            batch.sprite(atlas, s, x - 18.0, y + 1.0);
                         }
                     }
                 }
@@ -594,17 +498,6 @@ impl Game<'_> {
                         continue;
                     }
                     let stack = ItemStack::new(item, 1);
-                    // ItemRowWidget, an ItemDisplayWidget: "Item: <name>".
-                    horizon_client::widgets::narratable(|| {
-                        let name = horizon_client::stations::hover_name(&self.pack.names, &stack);
-                        horizon_client::widgets::Narratable::text(
-                            tr("narration.item", &[&name]),
-                            [left + 1.0, y + 1.0, 18.0, 18.0],
-                        )
-                        .key(horizon_client::widgets::key_of(&("stats/item", item)))
-                        .child_of(list_key, i + 1)
-                        .without_tooltip()
-                    });
                     batch.sprite(
                         &self.gui.atlas,
                         "gui/sprites/container/slot",
@@ -612,16 +505,16 @@ impl Game<'_> {
                         y + 1.0,
                     );
                     self.draw_item(batch, &stack, left + 2.0, y + 2.0);
-                    // `ItemRowWidget.extractTooltip`: the item's tooltip at the slot's corner.
+                    // `renderDecorations`: hovering a row's slot shows the
+                    // item's name at the cursor.
                     if ui::hovered(self.cursor, left + 1.0, y + 1.0, 18.0, 18.0) {
-                        tip = Some((stack.clone(), left + 19.0, y + 19.0));
+                        tip = Some(Text::literal(horizon_client::stations::hover_name(
+                            &self.pack.names,
+                            &stack,
+                        )));
                     }
                     let atlas = &self.gui.atlas;
-                    let color = if (i + 1) % 2 == 0 {
-                        u32::MAX
-                    } else {
-                        0xFFBA_BABA
-                    };
+                    let color = if i % 2 == 0 { u32::MAX } else { 0xFFBA_BABA };
                     for (c, (ty, _)) in COLUMNS.iter().enumerate() {
                         let x = left + 75.0 + 40.0 * c as f32;
                         let text = match self.stat_item(ty, item) {
@@ -630,6 +523,20 @@ impl Game<'_> {
                         };
                         let tw = HudBatch::text_width(atlas, &text);
                         batch.text(atlas, &text, x - tw, (y + 7.0).floor(), color, true);
+                    }
+                }
+                // `renderDecorations`: with no row under the mouse, hovering
+                // a column shows its stat type's name.
+                if hovered_item.is_none() && self.cursor.1 >= top && self.cursor.1 < bottom {
+                    let x = self.cursor.0 - left;
+                    if let Some(c) = (0..COLUMNS.len()).find(|&c| {
+                        let col_x = 75.0 + 40.0 * c as f32;
+                        x >= col_x - 18.0 && x <= col_x
+                    }) {
+                        tip = Some(Text::translate(
+                            &format!("stat_type.minecraft.{}", COLUMNS[c].0),
+                            &[],
+                        ));
                     }
                 }
             }
@@ -666,47 +573,48 @@ impl Game<'_> {
             self.stats_ui.scroll.amount,
         );
         self.draw_stats_footer(batch, w, h);
-        if let Some((stack, x, y)) = tip {
-            self.draw_stack_tooltip(batch, &stack, x, y);
-        }
-        // The empty tab's Tooltip.create(gui.stats.none_found).
-        if tab_tip {
+        if let Some(tip) = tip {
             let atlas = &self.gui.atlas;
-            let tip = Text::translate("gui.stats.none_found", &[]);
-            // Tooltip.splitTooltip: font.split(message, 170).
-            ui::tooltip(batch, atlas, &atlas.font.split(&tip, 170.0), self.cursor);
+            ui::tooltip(batch, atlas, std::slice::from_ref(&tip), self.cursor);
         }
     }
     fn draw_stats_footer(&self, batch: &mut HudBatch, w: f32, h: f32) {
         let atlas = &self.gui.atlas;
-        let (bx, by) = ((w / 2.0 - 100.0).floor(), h - FOOTER + 6.0);
-        let hover = ui::hovered(self.cursor, bx, by, 200.0, 20.0);
+        // `initButtons`: the three list buttons, each active only while its
+        // list has rows, over the Done button.
+        const TABS: [&str; 3] = ["stat.generalButton", "stat.itemsButton", "stat.mobsButton"];
+        let (buttons_y, done_y) = stats_footer(h);
+        let x0 = stats_buttons_x(w);
+        for (i, key) in TABS.into_iter().enumerate() {
+            let x = x0 + 125.0 * i as f32;
+            let active = self.stats_tab_active(i);
+            let hover = ui::hovered(self.cursor, x, buttons_y, 120.0, 20.0);
+            ui::button(
+                batch,
+                atlas,
+                x,
+                buttons_y,
+                120.0,
+                20.0,
+                &Text::translate(key, &[]),
+                active,
+                hover,
+            );
+        }
+        let bx = (w / 2.0 - 100.0).floor();
+        let hover = ui::hovered(self.cursor, bx, done_y, 200.0, 20.0);
         ui::action_button(
             batch,
             atlas,
             horizon_client::widgets::Action::Done,
             bx,
-            by,
+            done_y,
             200.0,
             20.0,
             &Text::translate("gui.done", &[]),
             true,
             hover,
         );
-    }
-    /// `StatsScreen.keyPressed`: the tab bar sees the key first
-    /// (`MenuTabBar.keyPressed`), and the rest of `Screen.keyPressed` is
-    /// Escape, which the screens' keys already handle.
-    pub(super) fn stats_key(&mut self, key: KeyCode) {
-        let active = [true, self.stats_tab_active(1), self.stats_tab_active(2)];
-        let ctrl = self.has_control_down_with_quirk();
-        let shift = self.has_shift_down();
-        let before = self.stats_ui.tab;
-        if self.stats_ui.key(key, ctrl, shift, active) && self.stats_ui.tab != before {
-            // TabManager.setCurrentTab(.., true): the click of a tab press.
-            self.audio
-                .play("minecraft:ui.button.click", None, 0.25, 1.0);
-        }
     }
     pub(super) fn stats_click(&mut self, size: [u32; 2]) {
         // A press on the scrollbar holds it and clicks nothing else.
@@ -715,23 +623,27 @@ impl Game<'_> {
         }
         let b = HudBatch::new(size);
         let (w, h) = (b.width, b.height);
-        let (x0, tw) = tabs(w);
+        let (buttons_y, done_y) = stats_footer(h);
+        let x0 = stats_buttons_x(w);
         for i in 0..3 {
-            if ui::hovered(self.cursor, x0 + tw * i as f32, 0.0, tw, TAB_H)
-                && self.stats_ui.tab != i
+            if ui::hovered(self.cursor, x0 + 125.0 * i as f32, buttons_y, 120.0, 20.0)
                 && self.stats_tab_active(i)
             {
-                self.stats_ui.tab = i;
-                self.stats_ui.scroll.amount = 0.0;
+                // A Button plays its click on any press, even the current
+                // tab's; only a switch re-lays the list out at the top.
                 self.audio
                     .play("minecraft:ui.button.click", None, 0.25, 1.0);
+                if self.stats_ui.tab != i {
+                    self.stats_ui.tab = i;
+                    self.stats_ui.scroll.amount = 0.0;
+                }
                 return;
             }
         }
         if ui::hovered(
             self.cursor,
             (w / 2.0 - 100.0).floor(),
-            h - FOOTER + 6.0,
+            done_y,
             200.0,
             20.0,
         ) {
@@ -741,20 +653,20 @@ impl Game<'_> {
             return;
         }
         if self.stats_ui.tab == 1 {
+            // `clickedHeader` ignores the click's y: any click in the list
+            // whose x falls in a column's window sorts, and holds the
+            // column down until the button comes up.
             let left = ((w - 280.0) / 2.0).floor();
-            let y = TAB_H + 4.0 - self.stats_ui.scroll.amount;
-            for c in 0..COLUMNS.len() {
-                let x = left + 75.0 + 40.0 * c as f32 - 18.0;
-                if ui::hovered(self.cursor, x, y + 1.0, 18.0, 18.0) {
-                    // sortByColumn: descending, ascending, off.
-                    self.stats_ui.sort = match self.stats_ui.sort {
-                        Some((sc, -1)) if sc == c => Some((c, 1)),
-                        Some((sc, _)) if sc == c => None,
-                        _ => Some((c, -1)),
-                    };
-                    self.audio
-                        .play("minecraft:ui.button.click", None, 0.25, 1.0);
-                }
+            let top = HEADER;
+            let bottom = h - FOOTER;
+            if self.cursor.1 >= top
+                && self.cursor.1 < bottom
+                && let Some(c) = header_column(self.cursor.0 - left)
+            {
+                self.stats_ui.header_pressed = Some(c);
+                self.stats_ui.sort = sort_click(self.stats_ui.sort, c);
+                self.audio
+                    .play("minecraft:ui.button.click", None, 0.25, 1.0);
             }
         }
     }
@@ -764,7 +676,7 @@ impl Game<'_> {
         let content = self.stats_content();
         self.stats_ui
             .scroll
-            .wheel(amount, row_h / 2.0, TAB_H, h - FOOTER, content);
+            .wheel(amount, row_h / 2.0, HEADER, h - FOOTER, content);
     }
     /// A press on the statistics list's scrollbar holds it
     /// (`AbstractSelectionList.updateScrolling`).
@@ -774,7 +686,7 @@ impl Game<'_> {
         let content = self.stats_content();
         self.stats_ui
             .scroll
-            .press(self.cursor, Self::stats_bar(w), TAB_H, h - FOOTER, content)
+            .press(self.cursor, Self::stats_bar(w), HEADER, h - FOOTER, content)
     }
     /// The pointer moved while the scrollbar is held.
     pub(super) fn stats_drag(&mut self) {
@@ -785,18 +697,19 @@ impl Game<'_> {
         let content = self.stats_content();
         self.stats_ui
             .scroll
-            .drag(self.cursor.1, TAB_H, h - FOOTER, content);
+            .drag(self.cursor.1, HEADER, h - FOOTER, content);
     }
-    /// The button came up: the scrollbar lets go.
+    /// The button came up: the scrollbar lets go, and a held sort column
+    /// is released (`headerPressed` clears when the button is not pressed).
     pub(super) fn stats_release(&mut self) {
         self.stats_ui.scroll.release();
+        self.stats_ui.header_pressed = None;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use winit::keyboard::KeyCode::{Digit0, Digit1, Digit2, Digit3, Numpad8, Tab};
 
     /// `ItemStatisticsList`: a mined block's row is its item (`Block.asItem`),
     /// air dropped, and a `BlockItem`'s Mined column reads its block's count.
@@ -879,58 +792,36 @@ mod tests {
         assert_eq!(up, ["none", "d", "b", "a", "c"]);
     }
 
-    /// `StatsScreen.keyPressed`: with Control held the tab bar takes the key -
-    /// Ctrl+Tab and Ctrl+Shift+Tab cycle the tabs, Ctrl+1..9 pick one (Ctrl+0
-    /// is the tenth, past the last tab) - and without it the key goes on.
+    /// `ItemStatisticsList.clickedHeader`: a column's click window is the 36
+    /// pixels left of its `getColumnX` — column 0 spans 39..75, column 1
+    /// spans 79..115, and the gap between them sorts nothing.
     #[test]
-    fn control_and_tab_switch_the_statistics_tabs() {
-        let all = [true, true, true];
-        let mut ui = StatsUi::default();
-        assert_eq!(ui.tab, 0);
-        for expected in [1, 2, 0] {
-            assert!(ui.key(Tab, true, false, all));
-            assert_eq!(ui.tab, expected, "Ctrl+Tab");
-        }
-        assert!(ui.key(Tab, true, true, all));
-        assert_eq!(ui.tab, 2, "Ctrl+Shift+Tab wraps back to the last tab");
-        assert!(ui.key(Digit1, true, false, all));
-        assert_eq!(ui.tab, 0);
-        assert!(ui.key(Digit2, true, false, all));
-        assert_eq!(ui.tab, 1);
-        assert!(ui.key(Numpad8, true, false, all));
-        assert_eq!(ui.tab, 2, "a digit past the last tab picks the last one");
-        assert!(ui.key(Digit0, true, false, all));
-        assert_eq!(ui.tab, 2, "0 is the tenth tab, clamped to the last one");
-        // Without Control the tab bar leaves the key for the rest of the screen.
-        assert!(!ui.key(Tab, false, false, all));
-        assert!(!ui.key(Digit3, false, false, all));
-        assert_eq!(ui.tab, 2, "the last tab stays");
+    fn header_click_windows_are_36_wide() {
+        assert_eq!(header_column(39.0), Some(0));
+        assert_eq!(header_column(75.0), Some(0));
+        assert_eq!(header_column(38.0), None);
+        assert_eq!(header_column(76.0), None);
+        assert_eq!(header_column(79.0), Some(1));
+        assert_eq!(header_column(115.0), Some(1));
+        assert_eq!(header_column(275.0), Some(5));
+        assert_eq!(header_column(276.0), None);
     }
 
-    /// `StatsScreen.setTabActiveStateAndTooltip`: the Items and Mobs tabs that
-    /// have no rows cannot be chosen, so the cycle skips them; a digit naming
-    /// one is still taken, and switches nothing.
+    /// `ItemStatisticsList.sortByColumn`: the first click sorts descending,
+    /// the second ascending, the third off; a click on another column starts
+    /// it descending.
     #[test]
-    fn an_empty_tab_is_skipped_by_the_keyboard() {
-        let only_general_and_mobs = [true, false, true];
-        let mut ui = StatsUi::default();
-        assert!(ui.key(Tab, true, false, only_general_and_mobs));
-        assert_eq!(ui.tab, 2, "the empty Items tab is skipped");
-        assert!(ui.key(Tab, true, false, only_general_and_mobs));
-        assert_eq!(ui.tab, 0);
-        assert!(ui.key(Tab, true, true, only_general_and_mobs));
-        assert_eq!(ui.tab, 2);
-        assert!(ui.key(Digit2, true, false, only_general_and_mobs));
-        assert_eq!(ui.tab, 2, "an empty tab is not switched to");
-    }
-
-    /// Switching tabs starts the new list at the top, as a tab press does.
-    #[test]
-    fn a_tab_switch_scrolls_back_to_the_top() {
-        let mut ui = StatsUi::default();
-        ui.scroll.amount = 120.0;
-        assert!(ui.key(Tab, true, false, [true, true, true]));
-        assert_eq!(ui.tab, 1);
-        assert_eq!(ui.scroll.amount, 0.0);
+    fn sort_clicks_cycle_descending_ascending_off() {
+        let mut sort = None;
+        sort = sort_click(sort, 2);
+        assert_eq!(sort, Some((2, -1)));
+        sort = sort_click(sort, 2);
+        assert_eq!(sort, Some((2, 1)));
+        sort = sort_click(sort, 2);
+        assert_eq!(sort, None);
+        sort = sort_click(sort, 4);
+        assert_eq!(sort, Some((4, -1)));
+        sort = sort_click(sort, 1);
+        assert_eq!(sort, Some((1, -1)));
     }
 }

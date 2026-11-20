@@ -7295,7 +7295,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 8/163 (327 + 7 zero-diff: 356, 372, 382–385, 396)
+### Rank 3: 9/163 (327, 328 + 7 zero-diff: 356, 372, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7315,6 +7315,31 @@ includes constant-pool churn.
   options lists' first-row +2 offset is Horizon's own layout (list
   top 33, tested), not a vanilla port — not changed. Cargo check
   0/0.
+
+- **Item 328 — `crates/horizon-client/src/game/stats_screen.rs`
+  (StatsScreen, 5 named methods), the 1.21.9 tab-bar screen
+  rewritten to the 1.21.8 button screen:** 1.21.9's TabNavigationBar
+  + TabManager + Ctrl+Tab/Ctrl+digit keys are gone — 1.21.8 has
+  three buttons (General/Items/Mobs, 120 wide, 5 apart, centred) over
+  Done in a 58-pixel footer, and no `keyPressed` at all (Escape is
+  the screens' keys). Title "Statistics" centred at y=12 in the
+  33-pixel header; list 33..h−58; buttons row at h−52, Done at h−27
+  (FrameLayout centres the 45-pixel footer content in 58:
+  (58−45)/2=6, verified against the jar). The Items list keeps its
+  geometry — the 22-pixel header is the first row's slot and scrolls
+  with the list — but the header is no longer an entry: its
+  background is the slot sprite while held, the header sprite
+  otherwise, its icon shifted a pixel while held; the sort arrow sits
+  18 pixels left of the icon; a click anywhere in the list whose x
+  falls in a column's 36-pixel window sorts (the y is ignored), and
+  the held column clears on release. Row colours are now `i % 2`
+  (no header row); hovering a row's slot shows the item's name only
+  at the cursor, and hovering a column with no row under the mouse
+  shows the column's stat type. Rows narrate `narrator.select` with
+  the item name (the list is an ObjectSelectionList again). The sort
+  comparator is byte-identical in both jars (javap), so the sort
+  tests stand; the three tab-key tests are replaced by header-window
+  and sort-cycle tests. Cargo check 0/0; 4/4 stats tests pass.
 
 ### Rank 4 content: closed 2/2 (chain)
 
