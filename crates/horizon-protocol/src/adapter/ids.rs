@@ -183,16 +183,17 @@ impl Quirks {
         vibration_source_identifier: false,
         simple_spell_particles: false,
     };
-    /// The pinned 1.21.1's own wire layouts: what `quirks()` and
-    /// `quirks_written()` return when no other version is active. 1.21.1 is
+    /// The pinned 1.20.6's own wire layouts: what `quirks()` and
+    /// `quirks_written()` return when no other version is active. 1.20.6 is
     /// pre-26.3 (bare tag slot displays, item-id pot decorations), pre-1.21.11
     /// (EitherHolders, stacks in components), pre-1.21.9 (count-first nested
     /// stacks, optional profile fields), pre-1.21.6 (no attribute display or
     /// shearing in equippable), pre-1.21.5 (tooltip booleans instead of
-    /// tooltip_display) and pre-1.21.2 (prefixed attributes, the generic
-    /// boat, fire_resistant), and the last release whose spell particles
-    /// carried no options and whose wolf variants were holders. (The
-    /// shoulder parrots are compound tags in 1.21.1 too, but
+    /// tooltip_display), pre-1.21.2 (prefixed attributes, the generic
+    /// boat, fire_resistant), and pre-1.21 (food has no remainder,
+    /// attribute modifiers use UUIDs and names, wolf variants are not
+    /// holders), and its spell particles carried no options. (The
+    /// shoulder parrots are compound tags in 1.20.6 too, but
     /// EntityData::read converts them
     /// unconditionally — no quirk gates that.)
     pub const PINNED: Self = Self {
@@ -207,8 +208,8 @@ impl Quirks {
         integer_custom_model_data: true,
         trail_without_duration: true,
         components_before_1_21_2: true,
-        components_before_1_21: false,
-        wolf_variant_holder: true,
+        components_before_1_21: true,
+        wolf_variant_holder: false,
         legacy_item_nbt: false,
         legacy_item_data_version: 0,
         components_as_json: false,
