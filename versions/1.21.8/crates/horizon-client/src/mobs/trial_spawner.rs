@@ -398,10 +398,10 @@ pub trait TrialSpawnerExt: Sized {
     /// and both configs spawn only `id` (`withSpawning`), saved inline as
     /// `Holder.direct`. The caller then sets the state to `inactive`.
     fn override_entity(&mut self, id: &str);
-    /// `overrideEntityToSpawn(TypedEntityData)` (an op's spawn egg with entity
+    /// `overrideEntityToSpawn(CustomData)` (an op's spawn egg with entity
     /// data, `FullConfig.overrideEntityData`): as [`Self::override_entity`],
     /// but each config's spawn data is `id` with `data` merged over it
-    /// (`TypedEntityData.loadInto`).
+    /// (`CustomData.loadInto`).
     fn override_entity_data(&mut self, id: &str, data: &Compound);
     /// `resetStatistics`.
     fn reset_statistics(&mut self);

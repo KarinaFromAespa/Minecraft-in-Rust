@@ -58,7 +58,7 @@ pub fn decode_component(id: &str, t: &Tag, reg: &Registries) -> Result<(), Strin
         },
         "minecraft:enchantments" | "minecraft:stored_enchantments" => enchantment_map(t, reg),
         "minecraft:custom_name" | "minecraft:item_name" => super::component::decode(t),
-        // TypedEntityData.codec: the type is the compound's id.
+        // `CustomData.CODEC`: the type is the compound's `id`.
         "minecraft:block_entity_data" => match t {
             Tag::Compound(c) => match c.get(&"id".into()) {
                 None => Err(format!("Expected 'id' field in {}", snbt(t))),

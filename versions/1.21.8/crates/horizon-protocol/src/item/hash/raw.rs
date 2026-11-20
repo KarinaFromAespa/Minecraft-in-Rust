@@ -7,7 +7,6 @@
 use super::*;
 use crate::buf::Reader;
 use crate::item::Profile;
-use horizon_world::nbt::Tag;
 
 /// `DyeColor` names by id.
 fn dye(id: i32) -> Option<HashCode> {
@@ -66,29 +65,6 @@ const TROPICAL: [(i32, &str); 12] = [
     (1281, "clayfish"),
 ];
 
-/// `TypedEntityData.codec`: the NBT with the type's identifier as `id`.
-fn typed_data(registry: &str, names: &dyn Names, r: &mut Reader) -> Option<HashCode> {
-    let id = registry_entry(registry, names, r)?;
-    let Tag::Compound(mut tag) = r.nbt().ok()? else {
-        return None;
-    };
-    // `stripId` leaves the data without its own id; the codec writes the type's.
-    tag.remove(&"id".into());
-    Some(typed_with_id(id, &tag))
-}
-fn typed_with_id(id: HashCode, tag: &horizon_world::nbt::Compound) -> HashCode {
-    let mut entries: Vec<(HashCode, HashCode)> = tag
-        .iter()
-        .map(|(k, v)| {
-            (
-                HashOps::create_string_units(&k.0),
-                HashOps::from_nbt(v, &[]),
-            )
-        })
-        .collect();
-    entries.push((string("id"), id));
-    HashOps::create_map(entries)
-}
 /// A list written as a count and its elements, hashed as a list.
 fn list(
     r: &mut Reader,
@@ -349,10 +325,12 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         88 => named(&HORSE, r)?,
         90 => named(&LLAMA, r)?,
         91 => named(&AXOLOTL, r)?,
-        // `TypedEntityData` (entity_data, block_entity_data) and `CustomData`.
-        49 => typed_data("minecraft:entity_type", names, r)?,
-        51 => typed_data("minecraft:block_entity_type", names, r)?,
-        50 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        // `CustomData` (entity_data, bucket_entity_data, block_entity_data):
+        // a compound tag with its own `id` (`CustomData.STREAM_CODEC` is
+        // `ByteBufCodecs.COMPOUND_TAG`); 1.21.9's `TypedEntityData` put a
+        // type id varint first. The hash is the same either way: `create_map`
+        // sorts, and the tag's `id` string hashes like the registry entry.
+        49 | 50 | 51 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `BlockItemStateProperties`: a string map.
         67 => {
             let n = r.count(r.remaining()).ok()?;
@@ -532,15 +510,18 @@ mod tests {
                 -1883525005,
             ),
             (
+                // 1.21.8's `CustomData` form: the tag with its own `id`, no
+                // type varint (1.21.11's `TypedEntityData` wrote the varint
+                // first); the hash is the same either way.
                 "entity_data",
                 49,
-                "1d0a0100044e6f4149010300034167650000000500",
+                "0a0800026964000d6d696e6563726166743a636f770100044e6f4149010300034167650000000500",
                 1343601188,
             ),
             (
                 "block_entity_data",
                 51,
-                "010a0800044c6f636b00017800",
+                "0a0800026964000f6d696e6563726166743a63686573740800044c6f636b00017800",
                 -1404731534,
             ),
             (

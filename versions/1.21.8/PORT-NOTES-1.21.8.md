@@ -334,7 +334,35 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 152/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169 + 4 zero-diff)
+### Rank 2: 153/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170 + 4 zero-diff)
+
+- **Item 170 — `crates/horizon-protocol/src/item/hash/raw.rs`
+  (1 class, 15 methods, 0 named in Horizon), 5 fixes + 3 citations:**
+  `CustomData`: in 1.21.9 the entity/block-entity methods moved to the new
+  `TypedEntityData` class, whose `streamCodec` writes a type id varint first
+  and the tag without its `id`. In 1.21.8 `CustomData` carries them itself
+  (`CODEC_WITH_ID`, `parseEntityId`/`parseEntityType`,
+  `loadInto(Entity)`/`loadInto(BlockEntity, provider)`, `update`/`read`,
+  `size`/`contains`/`getUnsafe`) and its `STREAM_CODEC` is plain
+  `ByteBufCodecs.COMPOUND_TAG` — the tag with its own `id`, no varint
+  (javap-verified: 1.21.8's `ENTITY_DATA`, `BUCKET_ENTITY_DATA` and
+  `BLOCK_ENTITY_DATA` are all `DataComponentType<CustomData>`). Five
+  readers/writers still used the 1.21.9 form and are fixed to the 1.21.8 one:
+  (1) `raw.rs` hash arms 49/51 (entity_data/block_entity_data) now hash the
+  tag as-is (`typed_data`/`typed_with_id` deleted; the two test cases re-cut
+  to 1.21.8 bytes — the hashes are unchanged, `create_map` sorts and the
+  tag's `id` string hashes like the registry entry; test passes);
+  (2) `skip.rs` arms 49/51 now skip just the tag; (3) `item_sync.rs`
+  `block_entity_data_tag` returns the tag as-is (no varint, no id
+  re-insertion); (4) `v1_20_3.rs` `legacy_raw` arms 49/51 and the bees arm
+  (68) read just the tag; (5) `v1_20_3.rs` `typed_data` (the legacy→wire
+  writer, incl. the `bees()` writer) writes the tag with its `id`. The test
+  normalizer's 49/51 arm follows. Citations reworded to `CustomData.loadInto`
+  (spawner.rs, trial_spawner.rs) and `CustomData.CODEC` (horizon-command
+  item.rs). The bees hash/skip readers were already 1.21.8 (earlier item);
+  this closes the deferred generic `TypedEntityData` protocol layer from
+  item 80 (items 257/170). `cargo check --workspace --all-targets` 0/0;
+  `components_read_past_hash_as_vanilla_does` passes.
 
 - **Item 169 — `crates/horizon-client/src/mod_content_tests.rs`
   (1 class, 5 methods, 1 named in Horizon), zero-diff:**

@@ -269,7 +269,7 @@ pub trait SpawnerExt: Sized {
         random: &mut impl RandomSource,
         events: &mut Vec<SpawnerEvent>,
     );
-    /// `setEntityData` (`TypedEntityData.loadInto`): an op's spawn egg with
+    /// `setEntityData` (`CustomData.loadInto`): an op's spawn egg with
     /// entity data: the next data's `id`, then `data` merged into it.
     fn set_entity_data(
         &mut self,
