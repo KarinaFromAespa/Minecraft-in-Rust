@@ -81,8 +81,6 @@ pub struct LoomView<'a> {
     pub start_row: usize,
     /// The result banner's colour and layers (`resultBannerPatterns`).
     pub result: Option<(&'a str, &'a [BannerLayer])>,
-    /// The dye stack's colour (`DataComponents.DYE`, white without one).
-    pub dye: &'a str,
     pub mouse: (f32, f32),
 }
 
@@ -176,9 +174,8 @@ pub fn loom(v: &LoomView, banners: &Banners) -> Vec<ScreenDraw> {
                 let button = if index as i32 == v.selected {
                     "container/loom/pattern_selected"
                 } else if highlighted {
-                    out.push(ScreenDraw::Tooltip {
-                        key: banners.layer_key(&BannerLayer::new(pattern, v.dye)),
-                    });
+                    // 1.21.8 shows no tooltip for a hovered pattern; the
+                    // pattern-name tooltip came in 1.21.9.
                     "container/loom/pattern_highlighted"
                 } else {
                     "container/loom/pattern"

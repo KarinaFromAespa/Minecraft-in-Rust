@@ -310,7 +310,9 @@ impl Game<'_> {
         tooltip
     }
     /// `LoomScreen.extractBackground` after the background (the verified
-    /// `screen_layout::loom`); returns the hovered pattern's tooltip.
+    /// `screen_layout::loom`). 1.21.8 shows no tooltip for a hovered
+    /// pattern (the pattern-name tooltip came in 1.21.9), so this always
+    /// returns `None`; the return shape is shared with `paint_screen`.
     pub(super) fn draw_loom(
         &mut self,
         batch: &mut HudBatch,
@@ -320,11 +322,6 @@ impl Game<'_> {
     ) -> Option<Vec<(horizon_client::text::Text, u32)>> {
         let s = self.station.as_ref()?;
         let l = &s.loom;
-        let dye = s.inputs[1]
-            .as_ref()
-            .and_then(|d| self.items().get(&d.item))
-            .and_then(|i| i.dye.clone())
-            .unwrap_or_else(|| "white".to_owned());
         let result = s
             .result
             .as_ref()
@@ -344,7 +341,6 @@ impl Game<'_> {
             scroll: l.scroll,
             start_row: l.start_row,
             result,
-            dye: &dye,
             mouse: local,
         };
         let draws = screen_layout::loom(&view, &self.stations().banners);
