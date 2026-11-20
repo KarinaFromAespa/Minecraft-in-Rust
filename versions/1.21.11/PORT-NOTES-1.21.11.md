@@ -7855,3 +7855,55 @@ crumb guards (unreachable — vanilla stops eating when the hand
 empties) and the `BABY_TRANSFORMER` geometry (prepared layer data).
 Tests: `mobs::panda::` 2 passed, `mobs::body_anim::` 7 passed.
 rustfmt --check clean on panda.rs, body_anim.rs.
+
+## Item 116 — shulker (rank 2, NO-CHANGE)
+
+7 classes, 14 methods, 4 named: Shulker (5, `canStayAt`,
+`hitByShulkerBullet`, `hurtServer`, `setRawPeekAmount`),
+ShulkerRenderer (4), ShulkerModel (1), ShulkerAttackGoal (1),
+ShulkerLookControl (1), ShulkerNearestAttackGoal (1),
+ShulkerPeekGoal (1).
+
+Java delta, jar-verified (javap diff 277 lines + decompile diff 935
+lines, both read in full): the ONLY real change is ShulkerModel's
+render type — 26.1 `entityCutoutZOffset` → 1.21.11
+`entityCutoutNoCullZOffset`. It is visible only in the decompile:
+the javap diff has no ShulkerModel hunk at all, the normalizer hiding
+the invokedynamic bootstrap — the second case of the item-103
+TadpoleModel blind spot; the decompile is the authority for render
+types. Mesh and `setupAnim` identical. ShulkerRenderer is API shape
+only (`SpriteId` → `Material`). Entity logic identical everywhere:
+peek step 0.05/tick toward raw*0.01; `getPhysicalPeek` formula;
+`getProgressDeltaAabb`; `canStayAt` (moving-piston exception,
+face-full support, noCollision of the deflated fully-opened box);
+`teleportSomewhere` (5 tries, ±8, y > minY, air, world border,
+attach face, SHULKER_TELEPORT, peek 0, target null); `hurtServer`
+(closed + arrow → false; <50% + nextInt(4)==0 → teleport; bullet →
+hitByShulkerBullet); `hitByShulkerBullet` (level-random float,
+failure (count-1)/5, baby keeps variant at the old position);
+`setRawPeekAmount` (armor modifier swap, SHULKER_CLOSE +
+CONTAINER_CLOSE at 0, else SHULKER_OPEN + CONTAINER_OPEN);
+`setPos` snap + 6-tick client slide; `getRenderPosition`
+((ticks-a)/6)^2*scale; `sanitizeScale` min(3.0) in both; color 16 =
+null; attack goal (20 + nextInt(10)*20/2, dist^2 < 400); peek goal
+(1/40, 20*(1+nextInt(3)), peek 30); nearest-attack search areas
+(4.0 on the attach axis); look control atan2(-deltaRight,
+deltaForward). Visibility noise only otherwise (private →
+package-private, `level().getRandom()` → `level().random` — same
+stream, `is(Object)` → `is(Block)`, `entity.is(TYPE)` →
+`getType() == TYPE`).
+
+Already 1.21.11-shaped: the shulker is absent from
+`culls_back_faces` (mobs.rs:487 — only bat + turtle_baby cull),
+i.e. NoCull, the 1.21.11 form (under the 26.1 culling form it would
+have belonged in the list). `anim`/`rotations`/`texture` match the
+decompile exactly; peek ease, physical peek, progress AABB,
+canStayAt, teleport (including the `shulker_does_not_teleport_to`
+tag and level event 2016), hurt/bullet (the level random is already
+threaded through `run_pending_teleports`, unlike the axolotl gap in
+item 114), setPeek sounds + container events, the +20 closed-shell
+armor (`armor::values`), setPos snap + slide, look yaw, both goals,
+sanitizeScale min(3.0), dims 1x1x0.5 — all mirrored. Tests:
+`mobs::shulker::` 12 passed, 1 ignored. No code changes. Referral:
+the shulker-box block-entity path is item 16's scope (it shares
+ShulkerModel, so the NoCull form applies there too).
