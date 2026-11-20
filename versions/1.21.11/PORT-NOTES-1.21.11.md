@@ -4834,3 +4834,61 @@ horizon-client-render --lib --no-default-features mesher::lighting::` —
 mesher.rs is a module root and was hand-formatted to match.
 Rank 2 now 236/492 (68 changed, 168 no-change).
 work-items.json rank2.closed = 236 on 2026-11-20.
+
+## Item 58 — crates/horizon-client/src/game/enchant_effects.rs (rank 2, NO-CHANGE)
+
+EnchantmentHelper (10, named doPostPiercingAttackEffects, enchantItem,
+getAvailableEnchantmentResults, getEnchantmentLevel,
+getItemEnchantmentLevel), EnchantmentAttributeEffect (2),
+PlaySoundEffect (2, named apply), SpawnParticlesEffect (2, named apply),
+SpawnParticlesEffect$VelocitySource (2), ApplyEntityImpulse (1),
+ReplaceDisk (1, named apply), UnobstructedPredicate (1): 8 classes, 21
+methods, 8 named.
+
+Every delta is a rename or plumbing, except two narrowings the Rust
+already implements in its 1.21.11 shape. The lunge rename:
+26.1 `LivingEntity.postPiercingAttack()` →
+`EnchantmentHelper.doPostPiercingAttackEffects` →
+`Enchantment.doPostPiercingAttack`; 1.21.11
+`Player.lungeForwardMaybe()` (food gate) →
+`LivingEntity.lungeForwardMaybe()` (server-side only) →
+`EnchantmentHelper.doLungeEffects` (instanceof LivingEntity guard) →
+`Enchantment.doLunge`; the component id `minecraft:post_piercing_attack`
+is unchanged in both versions, and the Rust's `post_piercing_attack`
+already cites `doLungeEffects`, reads that component, and is called from
+spear.rs after the jab. The food term moved out of `lunge.json`'s
+requirements (26.1's any_of: not-a-player / creative / food ≥ 7) into
+`Player.lungeForwardMaybe`'s `hasEnoughFoodToDoExhaustiveManoeuvres()`
+in 1.21.11; the Rust's gate (not riding / not fall-flying / not in
+water, plus creative or food ≥ 7) is already the 1.21.11 shape. The
+impulse grace narrowed from LivingEntity to Player
+(`ApplyEntityImpulse.apply` calls `applyPostImpulseGraceTime(10)` in
+both, same body); the Rust's `ImpulseContext` lives on the player only
+(living_fall.rs already records the split) and the lunge path runs only
+for the player. The impulse rotation matches: Java's
+`Vec3.addLocalCoordinates` (dir.z·forward + dir.y·up + dir.x·right from
+the look basis) expands to exactly the Rust's pitch-then-yaw formula.
+Everything else in EnchantmentHelper is identical (all modify/process/
+doPostAttack/location/tick/enchant-selection helpers, `getRandomItemWith`
+in EquipmentSlot order from the entity random); `EnchantmentAttribute-
+Effect` is a `MAP_CODEC` → `CODEC` rename (`idForSlot`'s `id/slot`
+suffix matches the Rust's format); PlaySound/SpawnParticles are
+`FloatProviders` → `FloatProvider` renames (the Rust's `soul_speed_tick`
+matches the soul-speed data in both versions: particles first, then the
+35% sound, same draw order); ReplaceDisk is a `getState` signature
+change (the disk loop matches term by term); UnobstructedPredicate lost
+`final` on its CODEC. No Rust edits.
+
+Referrals: `Enchantment` → item 12 (closed); `Avatar` → item 312;
+`Vec3.addLocalCoordinates` → item 332. Known version-neutral gaps
+recorded, not fixed: the `apply_impulse` arm never calls
+`apply_grace_time(10)`; `post_piercing_attack` hardcodes the vanilla
+lunge gate and skips `matchingSlot` and the JSON requirements; the
+`play_sound` arm ignores `isSilent()` and reads volume/pitch as plain
+floats; `replace_disk` only fires the block_place game event; the
+impulse arm uses libm trig where Java uses Mth's sine table.
+
+Verification: `cargo check -p horizon-client --lib --tests
+--no-default-features` clean (JOBS=1, 3m02s).
+Rank 2 now 237/492 (68 changed, 169 no-change).
+work-items.json rank2.closed = 237 on 2026-11-20.
