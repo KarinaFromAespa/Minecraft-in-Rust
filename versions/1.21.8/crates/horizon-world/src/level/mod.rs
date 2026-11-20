@@ -727,9 +727,11 @@ pub trait LevelAccess {
     fn adjust_has_analog_output(&self, _state: BlockStateId, vanilla: bool) -> bool {
         vanilla
     }
-    /// `BlockState.getAnalogOutputSignal(level, pos, direction)` once the
-    /// library answered `vanilla`, `direction` pointing from the block to the
-    /// comparator reading it: the output to use. The default keeps it.
+    /// `BlockState.getAnalogOutputSignal(level, pos)` once the library
+    /// answered `vanilla`: the output to use. The default keeps it. The
+    /// `direction` (pointing from the block to the comparator reading it)
+    /// is Horizon's own mod-hook parameter — 1.21.8's vanilla method takes
+    /// no direction, and no 1.21.9 override reads the one 1.21.9 added.
     fn adjust_analog_output(
         &self,
         _pos: BlockPos,
