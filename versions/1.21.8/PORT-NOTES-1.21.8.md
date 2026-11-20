@@ -350,6 +350,17 @@ judge evaluates them). D4 blocked — the stamp quirk (profile stamped
 f037448, judge's staged candidate HEAD c2766f7; patch 0006 dead
 code in the CI judge). D6 blocked — no playtest.md; deferred by the
 owner, never claimed.
+
+Re-run 44777574897 (main@111dca9, the pin-record commit), success
+in ~1h32m, with the complete pin: profile identical (2/2/13).
+Verdict **failed**: D1 fail — the tag audit finds 36 dead
+production tags (inherited from the unported 1.21.11 behaviour;
+triage belongs at 1.21.11). D2 pass — 433 protocol tests, 0
+failing. D3 pass — rank-1 9/9, rank-2 317/317. D4 blocked — the
+stamp quirk (profile stamped 111dca9, staged HEAD 42650c8). D5
+blocked — the same stamp quirk (local re-check with
+--local-evidence: fail, 7 of 8 subset harnesses failing, only
+block_properties passing). D6 blocked — deferred by the owner.
 ## Behaviour port (2026-11-19)
 
 Direction 1.21.9 -> 1.21.8, 526 items (ranks 9/317/163/35/2).
