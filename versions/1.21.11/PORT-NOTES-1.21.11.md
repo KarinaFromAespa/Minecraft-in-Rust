@@ -5344,3 +5344,60 @@ new test: no harness exercises `postprocess_chunks` (needs a live
 Game with lit chunks). Rank 2 now 244/492 (73 changed, 171
 no-change).
 work-items.json rank2.closed = 244 on 2026-11-20.
+
+## Item 66 — crates/horizon-client/src/game/stats_screen.rs (rank 2, CHANGED)
+
+14 classes, 61 methods, 3 named. Javap diff +734/-807 (2052 lines),
+decompile diff +292/-308 (865 lines), both read in full Nov 20,
+2026, plus direct `javap` on Stats / WidgetSprites /
+StatsScreen$ItemStatisticsList from both jars. Triage note
+`rank2-item-66-TRIAGE.md` (workdir root, scratch).
+
+**Fixes (all verified against the 1.21.11 jar).** (1) The CUSTOM table
+listed `sleep_in_straw_bed`, which exists in neither jar (the straw
+bed is a 26.2/26.3 addition) — the General tab shows every CUSTOM
+entry, so the bogus row would render. Removed; new test
+`custom_stats_are_the_1_21_11_set` pins the 77-entry set and order.
+The other 77 entries were verified one by one against
+`Stats.<clinit>` (string ids + formatters): no mismatches. Trap:
+comparing Java FIELD names misleads — the field is `CROUCH_TIME`
+but the registered id is `sneak_time`; the Rust's `sneak_time` is
+correct. (2) The sort-button background is always the header sprite:
+`WidgetSprites(HEADER, SLOT)` gives the focused variant the header
+too and the button is never inactive; the Rust drew SLOT normally
+and HEADER on hover (inverted). (3) The sort arrow sits 18px left
+of its button (`getColumnX - 36`); the Rust drew it on the button.
+(4) Citations: `ItemRowWidget.extractTooltip` -> `renderTooltip`
+(the 1.21.11 name); the test comment's "vanilla 26.3's" ->
+"vanilla's".
+
+Java delta: Tooltip loses its 26.1-only `style` + `component`
+fields, 3-arg `create` and accessors (no Rust mirror exists —
+`ui::tooltip` draws pre-split lines directly); StatsScreen is the
+26.x render-state rename throughout (`extractRenderState` ->
+`render`, `extractContent` -> `renderContent`, `extractTooltip` ->
+`renderTooltip`, `graphics.text` -> `drawString`, etc.) plus
+visibility changes and `updateWidth` -> `setWidth` +
+`arrangeElements` — no behaviour change. Verified unchanged: the
+General tab (sort by translated label, colours, formatters), the
+Items tab (columns, header sprites, mined/"-" rules, row shading),
+the sort (`sortByColumn` desc -> asc -> off, comparator with -1 for
+non-BlockItem on a block column, tie-break by `Item.getId`), the
+Mobs tab (texts, argument orders, colours, row 36), the tab-active
+rule and the empty-tab tooltip split at 170, the list top (the
+ctor's y0=33 is pre-layout; `doLayout` sets it to the 24px header).
+
+Version-neutral gaps (recorded, not fixed): mob rows iterate the
+BTreeMap stats values (lexicographic, killed then killed_by) where
+vanilla iterates the entity registry — no entity registry order
+exists in the Rust (`mob_types()` is a HashMap), so fixing needs
+new plumbing; the item slot/tooltip sit 1px off vanilla's anchor
+(consistent shift, presumably the renderer's own anchoring); the
+item rows' initial order is map order where vanilla uses an
+identity hash set (both effectively arbitrary).
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::stats_screen::` 6 passed (5 existing +
+the new CUSTOM test); rustfmt --check clean on stats_screen.rs.
+Rank 2 now 245/492 (74 changed, 171 no-change).
+work-items.json rank2.closed = 245 on 2026-11-20.
