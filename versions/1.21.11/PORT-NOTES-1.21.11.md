@@ -5775,3 +5775,46 @@ Verification: `cargo test -p horizon-client --lib
 --no-default-features mobs::breeze::` 7 passed. Rank 2 now
 251/492 (78 changed, 173 no-change). work-items.json
 rank2.closed = 251 on 2026-11-20.
+
+## Item 73 — widely named: core (`net/minecraft/core/*`) (rank 2, NO-CHANGE)
+
+23 classes, 85 methods, 0 named in Horizon. Javap diff read in
+full Nov 20, 2026 (431 lines); decompile diff read via a
+normalizing comparison (its bulk is Vineflower dropping parameter
+names and re-flowing lines on the 1.21.11 side); BlockPos$1/$2/$6
+checked by javap in `scratch-vf/m73/`. Triage note
+`rank2-item-73-TRIAGE.md` (workdir root, scratch).
+
+The real Java delta is 26.1-only data components on holders:
+`Holder.Direct`'s components field, `Holder.components()` /
+`areComponentsBound()`, `Holder.direct(value, components)`,
+`Holder.Reference.bindComponents`, `Registry.componentLookup()`,
+plus `WritableRegistry.bindTags(Map)` (1.21.11 has only the
+single-tag `bindTag`) and `HolderGetter.Provider.get/getOrThrow(TagKey)`
+defaults. NONE of it has a Rust mirror — the Rust has no general
+`Holder<T>` (only `trim.rs`'s components-free `Named | Direct`),
+no `component_lookup` / `bind_components` anywhere, and the only
+`bind_tags` is worldgen's own feature-block binding. The rest is
+compiler/visibility noise (Direction lambda order, Axis ctor
+visibility, HolderSet$Direct visibility, Registry$1 requireNonNull).
+BlockPos, MutableBlockPos, Direction and UUIDUtil are
+bytecode-identical between versions (no javap hunks) — the
+report's "changed" counts there come from the decompile
+comparison. Rust mirrors verified matching: BlockPos pack/unpack,
+`between_closed` order (X, Y, Z), `between_corners_in_direction`
+(axisStepOrder YZX/YXZ, start-corner sign, NaN negative),
+`spiralAround`, Direction 2D/3D data values and
+`orderedByNearest`, UUID text/int-array/wire forms. No Rust edits.
+
+Version-neutral gaps recorded (identical in both versions):
+`from_3d_data_value` uses `(data % 6).unsigned_abs()`, wrong for
+negative data (vanilla floorMods; `from_2d` already uses
+`rem_euclid`); `ordered_by_nearest` uses fdlibm trig where vanilla
+uses the Mth sine table (cf. item 58); `spiral_around` skips
+vanilla's axis validation (unobservable).
+
+Verification: `cargo test -p horizon-core --lib position::` 4
+passed; `cargo test -p horizon-core --lib geometry::` 29 passed;
+`cargo test -p horizon-client-core --lib uuid::` 2 passed. Rank 2
+now 252/492 (78 changed, 174 no-change). work-items.json
+rank2.closed = 252 on 2026-11-20.
