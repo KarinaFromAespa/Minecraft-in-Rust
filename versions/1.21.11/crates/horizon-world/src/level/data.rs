@@ -438,7 +438,7 @@ tags! {
     supports_bamboo = "supports_bamboo",
     supports_cocoa = "supports_cocoa",
     supports_azalea = "supports_azalea",
-    supports_dry_vegetation = "supports_dry_vegetation",
+    dry_vegetation_may_place_on = "dry_vegetation_may_place_on",
     supports_nether_sprouts = "supports_nether_sprouts",
     supports_nether_wart = "supports_nether_wart",
     supports_wither_rose = "supports_wither_rose",

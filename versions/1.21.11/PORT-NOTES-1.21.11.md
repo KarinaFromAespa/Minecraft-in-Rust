@@ -4892,3 +4892,77 @@ Verification: `cargo check -p horizon-client --lib --tests
 --no-default-features` clean (JOBS=1, 3m02s).
 Rank 2 now 237/492 (68 changed, 169 no-change).
 work-items.json rank2.closed = 237 on 2026-11-20.
+
+## Item 59 — crates/horizon-client/src/animate_tick.rs (rank 2, CHANGED)
+
+9 classes, 18 methods, 8 named: HangingMossBlock, CampfireBlockEntity,
+LightningRodBlock, AmbientDesertBlockSoundsPlayer, DryVegetationBlock,
+EyeblossomBlock, ShortDryGrassBlock, TallDryGrassBlock, EyeblossomBlock$Type.
+
+Two fixes. (1) HangingMoss bonemeal target drops the build-height guard:
+26.1 `isValidBonemealTarget` is `canGrowInto(tip.below()) &&
+isInsideBuildHeight(tip.below())`; 1.21.11 is `canGrowInto` only — the
+same 26.x guard pattern item 27 removed elsewhere (this discharges item
+27's HangingMoss referral; Bamboo, item 95, is still open). The
+`performBonemeal` arm and `hanging_moss_tip` (`getTip`) already
+matched. New test `hanging_moss_bonemeals_at_the_bottom_of_the_world`
+(growth_tests.rs): tip at min_y, meal used, nothing placed below.
+(2) The dry-vegetation support tag is `dry_vegetation_may_place_on` in
+1.21.11; 26.1 renamed it `supports_dry_vegetation` (and changed its
+contents: 1.21.11 = #sand, #terracotta, #dirt, farmland; 26.1 = #sand,
+#terracotta, #supports_vegetation). The 26.1 name was resolved in three
+places, all fixed: `horizon-prepare/src/survival.rs` VEGETATION_RULES
+(the prepare pipeline's `bind_definitions`; the exporter records the
+placement class but the tag is a static constant, so the hardcoded
+table is the only source), `tools/test_block_survival_parity.py`
+VEGETATION_RULES (the harness driver, which itself produces
+`survival-rules.json`), and the live survival path (`level/data.rs`
+`Tags` table + the `Class::DryVegetation` arm in `level/survive.rs`).
+`Tags::resolve` silently substitutes an EMPTY set for a missing tag, so
+with the 26.1 name dry grass could never survive on any ground. New
+test `dry_vegetation_binds_the_1_21_11_support_tag` pins the binding
+(short_dry_grass: owner VegetationBlock, placement DryVegetationBlock;
+both dry-grass blocks extend DryVegetationBlock and neither overrides
+`mayPlaceOn`, verified from the 1.21.11 jar). The short/tall dry-grass
+bonemeal targets were already 1.21.11-shaped (item 27): short is
+always a target, tall is `hasSpreadableNeighbourPos` only.
+
+Verified identical, no change: EyeblossomBlock.animateTick (nextInt
+700, below pale_moss_block → EYEBLOSSOM_IDLE; `randomTick`/`tick`/
+`tryChangingState` identical), HangingMossBlock.animateTick (nextInt
+500, above pale-oak logs/leaves), LightningRodBlock.animateTick
+(thundering, nextInt(200) <= gameTime%200, y == world surface − 1,
+sparks along the facing axis, UniformInt 1..2; the Rust uses
+`level_random()` here, matching Java), CampfireBlockEntity
+(`cookTick`/`cooldownTick`/`particleTick`: 0.11 chance, 2+nextInt(2)
+puffs, per-slot 0.2 chance, 4 smoke at the slot corner, velocity
+(0, 5.0E-4, 0); the Rust's re-drawn loop bound and 2D-direction table
+match), AmbientDesertBlockSoundsPlayer (sand 2100, dry grass 200,
+dead bush 130 + nextInt(3) gate; `sand_sound_nearby` matches the
+≥3-matches early-exit and the far-column scan exactly).
+
+Referral — the `supports_*` tag family is 26.1-new: NONE of the
+`supports_*` block tags exist in the 1.21.11 jar (verified:
+supports_azalea/cactus/sugar_cane/bamboo/cocoa/lily_pad/frogspawn/
+mangrove_propagule/nether_sprouts/nether_wart/wither_rose/crops/
+big_dripleaf all absent). 1.21.11 uses differently-named tags
+(`bamboo_plantable_on`, `azalea_grows_on`) or hardcoded checks. Every
+Rust lookup of a `supports_*` tag silently resolves to the empty set,
+so those blocks' survival is broken until their own items audit them.
+The Python driver's VEGETATION_RULES still says `LilyPadBlock` where
+the Rust table (item 53) says `WaterlilyBlock` — an item-53 loose end
+in the driver. Known version-neutral gap recorded, not fixed: the
+animate-tick arms draw from the particle-provider random stream where
+Java draws everything from the level random (odds match, exact
+sequences differ; affects every arm).
+
+Verification: `cargo check -p horizon-world --lib --tests
+--no-default-features` clean (JOBS=1, 1m50s); `cargo test
+-p horizon-prepare --lib survival::` 2 passed; `cargo test
+-p horizon-world --lib --no-default-features
+level::growth_tests::hanging_moss_bonemeals_at_the_bottom_of_the_world`
+1 passed (fixture-skipped locally, runs on CI); `python3 -m py_compile
+tools/test_block_survival_parity.py` OK; rustfmt --check clean on all
+five edited Rust files.
+Rank 2 now 238/492 (69 changed, 169 no-change).
+work-items.json rank2.closed = 238 on 2026-11-20.

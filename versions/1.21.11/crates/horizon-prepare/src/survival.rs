@@ -74,7 +74,9 @@ const VEGETATION_RULES: &[(&str, &str)] = &[
     ("AzaleaBlock", "TagBelow:minecraft:supports_azalea"),
     (
         "DryVegetationBlock",
-        "TagBelow:minecraft:supports_dry_vegetation",
+        // 1.21.11's tag is `dry_vegetation_may_place_on`; 26.1 renamed it
+        // `supports_dry_vegetation` (and changed its contents).
+        "TagBelow:minecraft:dry_vegetation_may_place_on",
     ),
     (
         "NetherSproutsBlock",
@@ -170,13 +172,35 @@ mod tests {
             "minecraft:lily_pad".to_owned(),
             Value::str("WaterlilyBlock"),
         )]);
-        let definitions =
-            bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
         assert_eq!(
             definitions
                 .get("minecraft:lily_pad")
                 .and_then(Value::as_str),
             Some("LilyPad")
+        );
+    }
+
+    /// 1.21.11's dry-vegetation support tag is
+    /// `dry_vegetation_may_place_on`; 26.1 renamed it
+    /// `supports_dry_vegetation`, which does not exist in 1.21.11, so the
+    /// old name bound an empty tag and dry grass could never survive.
+    #[test]
+    fn dry_vegetation_binds_the_1_21_11_support_tag() {
+        let classes = Value::Object(vec![(
+            "minecraft:short_dry_grass".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:short_dry_grass".to_owned(),
+            Value::str("DryVegetationBlock"),
+        )]);
+        let definitions = bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:short_dry_grass")
+                .and_then(Value::as_str),
+            Some("TagBelow:minecraft:dry_vegetation_may_place_on")
         );
     }
 }

@@ -460,8 +460,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 .iter()
                 .any(|&face| self.lichen_can_spread_in_any_direction(state, pos, face.opposite())),
             Kind::HangingMoss => {
+                // `HangingMossBlock.isValidBonemealTarget` in 1.21.11:
+                // `canGrowInto` only, no build-height check (26.x added one).
                 let grow = below(self.hanging_moss_tip(pos, state));
-                b.is_air(self.state(grow)) && self.is_inside_build_height(grow.y)
+                b.is_air(self.state(grow))
             }
             Kind::MossyCarpet => {
                 b.table.bool(state, p.bottom) && !b.is_air(self.mossy_topper_all_sides(pos))

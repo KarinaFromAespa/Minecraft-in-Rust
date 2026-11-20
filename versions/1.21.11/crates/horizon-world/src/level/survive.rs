@@ -391,7 +391,10 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 // farmland, hardcoded (the `supports_crops` tag is gone; it
                 // held only farmland).
                 Class::Crop | Class::PitcherCrop => b.is_block(ground, b.named.farmland),
-                Class::DryVegetation => b.in_set(ground, &t.supports_dry_vegetation),
+                // `DryVegetationBlock.mayPlaceOn` in 1.21.11: the
+                // `dry_vegetation_may_place_on` tag (26.1 renamed it
+                // `supports_dry_vegetation`).
+                Class::DryVegetation => b.in_set(ground, &t.dry_vegetation_may_place_on),
                 Class::LilyPad => {
                     let fluid = self.fluid_at(ground_pos);
                     let above = self.fluid_at(above(ground_pos));

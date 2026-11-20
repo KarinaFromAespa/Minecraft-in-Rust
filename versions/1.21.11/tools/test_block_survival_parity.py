@@ -55,7 +55,7 @@ VEGETATION_RULES={
     'LilyPadBlock':'LilyPad',
     'VegetationBlock':'Vegetation',
     'AzaleaBlock':'TagBelow:minecraft:supports_azalea',
-    'DryVegetationBlock':'TagBelow:minecraft:supports_dry_vegetation',
+    'DryVegetationBlock':'TagBelow:minecraft:dry_vegetation_may_place_on',
     'NetherSproutsBlock':'TagBelow:minecraft:supports_nether_sprouts',
     'NetherWartBlock':'TagBelow:minecraft:supports_nether_wart',
     'WitherRoseBlock':'TagBelow:minecraft:supports_wither_rose',
