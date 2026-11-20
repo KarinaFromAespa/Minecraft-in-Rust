@@ -2,7 +2,7 @@
 //! `ItemModelResolver` of `horizon-assets` fills an [`ItemRenderState`]
 //! (`ItemStackRenderState`: layers of baked quads or special renderers, each
 //! with its display transform, local transform, tints and foil), and
-//! [`ItemRenderState::submit`] turns it into the quads `ItemFeatureRenderer`
+//! [`ItemRenderState::submit`] turns it into the quads `ItemStackRenderState.render`
 //! and the special model renderers submit, in pose space. A sink then draws
 //! them: [`gui`] into the HUD batch with the GUI item lighting, [`WorldSink`]
 //! into entity vertices with the level's lighting.
@@ -433,7 +433,7 @@ pub fn argb(color: i32) -> u32 {
     color as u32
 }
 
-/// `ItemFeatureRenderer.prepareMainSubmit` for one cuboid layer.
+/// `ItemStackRenderState.render` for one cuboid layer.
 fn submit_quads(
     renderer: &ItemRenderer,
     baked: &BakedItemModel,

@@ -4289,8 +4289,9 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
     }
     /// `CreateWorldScreen.keyPressed`, `DirectJoinServerScreen.keyPressed` and
     /// `WorldSelectionList.keyPressed` on Enter (Space too on the list): Create New
-    /// World creates, a rename saves, Direct Connection joins, the selected
-    /// world joins.
+    /// World creates, Direct Connection joins, the selected
+    /// world joins. (1.21.9's `EditWorldScreen` also confirmed a rename on
+    /// Enter; 1.21.8 has no such override — the rename saves from its button.)
     pub fn confirm_key(&mut self) -> Action {
         self.confirm_key_size((854.0, 480.0)).0
     }
@@ -4300,10 +4301,6 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         self.remember_direct_address();
         if self.rules.get_mut().is_some() {
             return (Action::None, false);
-        }
-        if matches!(self.mode, Mode::Edit { .. }) && self.focused_button.is_none() {
-            self.confirm_edit();
-            return (Action::None, true);
         }
         if self.list_focused() && self.focused_button.is_none() {
             let action = self.join_selected();

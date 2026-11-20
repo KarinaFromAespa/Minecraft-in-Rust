@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 139/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–462 + 464–470 + 115 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–462, 464–470)
+### Rank 3: 149/163 (327–364 + 366–369 + 371–422 + 424–452 + 454–462 + 464–480 + 124 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409–422, 424, 426–439, 441–447, 449, 450, 452, 454–462, 464–473, 475–480)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7730,6 +7730,20 @@ includes constant-pool churn.
   from the docs; both versions render it in
   `PistonHeadRenderer` with `tesselateFlat` lighting, which
   the Rust already implements. No code change.
+
+- **Item 474 — Enter no longer confirms a world rename:**
+  1.21.9's `EditWorldScreen` gained a `keyPressed` override
+  that renames and closes on confirmation; 1.21.8 has no such
+  override — Enter in the name field does nothing, and the
+  rename saves from its button. The `Mode::Edit` arm is out
+  of `confirm_key_size`; `confirm_edit` stays for the
+  gamepad path and its test.
+
+- **Item 475 — `ItemFeatureRenderer` citations re-cut:**
+  the 1.21.9 submitter class is gone from the docs; 1.21.8
+  renders item layers through `ItemStackRenderState.render`
+  (via `entity.ItemRenderer.renderStatic`), which the Rust
+  already implements. No code change.
 
 ### Rank 4 content: closed 2/2 (chain)
 
