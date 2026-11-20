@@ -2187,7 +2187,7 @@ impl Game<'_> {
     }
     /// `ToastManager.SLOT_COUNT`.
     pub(super) const TOAST_SLOTS: usize = 5;
-    /// `ToastManager.update` and `extractRenderState` for the `AdvancementToast`s and
+    /// `ToastManager.update` and `render` for the `AdvancementToast`s and
     /// `RecipeToast`s: up to five stack in 32-pixel slots, the rest queue. `hidden` (F1)
     /// keeps them timing out without drawing them.
     pub(super) fn draw_toasts(&mut self, batch: &mut HudBatch, hidden: bool) {
@@ -2296,7 +2296,7 @@ impl Game<'_> {
         let atlas = &self.gui.atlas;
         batch.sprite(atlas, "gui/sprites/toast/advancement", x, y);
         let (key, color) = toast_label(frame);
-        // AdvancementToast.extractRenderState: a title of one line sits under
+        // AdvancementToast.render: a title of one line sits under
         // the frame's label; a longer one is wrapped at 125, the label fading
         // out first (to 1.5 s) and the lines fading in after it over 0.3 s.
         let lines = atlas.font.split(&title.resolve_legacy(), 125.0);

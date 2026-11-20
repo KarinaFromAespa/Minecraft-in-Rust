@@ -6018,3 +6018,55 @@ Verification: `cargo test -p horizon-client-render --lib
 `gfx::sunrise_fan::` 4 passed; rustfmt --check clean on
 core_sky.rs. Rank 2 now 256/492 (79 changed, 177 no-change).
 work-items.json rank2.closed = 256 on 2026-11-20.
+
+## Item 78 — game/advancements.rs (rank 2, NO-CHANGE + citation fixes)
+
+25 classes, 59 methods, 2 named
+(`AdvancementToast.extractRenderState`, `ItemPredicate.test`).
+Javap diff (1097 lines) read in full Nov 20, 2026; a literal
+comparison over the decompile finds ZERO string or numeric
+differences in all 25 classes. Triage note
+`rank2-item-78-TRIAGE.md` (workdir root, scratch). The Java delta
+is API shape only, no behaviour: `validate(ValidationContextSource)`
+-> `validate(CriterionValidator)` in all 12 TriggerInstance
+classes plus `Advancement.lambda$validate` (same fields, same
+param sets, same names validated — 26.1 calls
+`Validatable.validate`, 1.21.11 calls
+`CriterionValidator.validate/validateEntity/validateEntities`);
+`ItemStackTemplate` -> `ItemStack` for `DisplayInfo.icon` and
+`Advancement$Builder.display` (icon codec
+`ItemStackTemplate.CODEC` -> `ItemStack.STRICT_CODEC`);
+`ItemInstance` -> `ItemStack` for `ItemPredicate.test` and the
+trigger methods (`count()` -> `getCount()`);
+`extractRenderState(GuiGraphicsExtractor)` -> `render(GuiGraphics)`
+on Toast/AdvancementToast/RecipeToast (`text` -> `drawString`,
+`fakeItem` -> `renderFakeItem`); 26.1's AdvancementToast caches
+`iconItem` in the ctor, 1.21.11 reads `display.getIcon()` live at
+render. No Rust mirror of ItemStackTemplate, ItemInstance,
+ValidationContextSource or CriterionValidator exists in this
+file; every game trigger function already takes `&ItemStack`,
+and the lib's `Display.icon` is a plain item-id string parsed
+from the 1.21.11 JSON form. Verified matching:
+`AdvancementToast.render` (DISPLAY_TIME 5000, title split at 125,
+challenge -30465 else -256, one-line label (30,7) + title (30,18)
+white, multi-line label fade to 1500 ms then lines fading in at
+*252 centred on height/2 - n*9/2, icon (8,8));
+`RecipeToast.update`/`render` (changed/lastChanged logic, index
+`time / max(1.0, 5000*multiplier/n) % n`, title (30,7) -11534256,
+description (30,18) -16777216, station at 0.6 scale (3,3),
+result (8,8)); TOAST_SLOTS 5, 32 px slots, 160 px width;
+`award()` toast gate; `recipe_toast` follows
+`RecipeToast.addOrUpdate`. Citation fixes (comment-only):
+`extractRenderState` -> `render` in the `draw_toasts` doc and the
+`draw_toast` comment. Version-neutral notes: the Rust's `Toast`
+snapshots the icon id at award where 1.21.11 reads the display's
+icon live (unobservable — displays immutable); vanilla draws the
+fading label/lines even at alpha 0, the Rust skips alpha-0 draws
+(unobservable).
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::advancements::` 13 passed, 8 ignored
+(fixtures). rustfmt not run: the file declares `#[path]` test
+submodules, and the edits are comment-only. Rank 2 now 257/492
+(79 changed, 178 no-change). work-items.json rank2.closed = 257
+on 2026-11-20.
