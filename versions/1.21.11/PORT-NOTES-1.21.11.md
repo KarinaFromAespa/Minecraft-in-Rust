@@ -4966,3 +4966,74 @@ tools/test_block_survival_parity.py` OK; rustfmt --check clean on all
 five edited Rust files.
 Rank 2 now 238/492 (69 changed, 169 no-change).
 work-items.json rank2.closed = 238 on 2026-11-20.
+
+## Item 60 — crates/horizon-client/src/entity_nbt.rs (rank 2, NO-CHANGE)
+
+13 classes, 56 methods, 4 named. Javap diff +205/-317 (839 lines),
+decompile diff 1612 lines, both read in full Nov 20, 2026. No Rust
+edits. Triage note `rank2-item-60-TRIAGE.md` (workdir root, scratch).
+
+The one real behaviour delta in these classes is the pig sound variant,
+and it is 26.1-only: 26.1's `Pig` has `DATA_SOUND_VARIANT_ID`,
+`saves/loads sound_variant`, routes sounds through `getSoundSet()`
+(baby vs adult sets), overrides `playEatingSound`, handles the
+`PIG_SOUND_VARIANT` component, and picks a random sound variant in
+`finalizeSpawn`. 1.21.11 has none of it — fixed `PIG_AMBIENT/HURT/DEATH/
+STEP` sounds, no `playEatingSound` override. The Rust is already
+1.21.11-shaped throughout: `finalize::sound_variants` is non-empty
+only for wolves ("only wolves have them in 1.21.11"); entity_nbt writes
+`sound_variant` only for wolves and the test
+`farm_animals_keep_their_variant_and_wolves_their_sound_variant` pins
+that a pig never writes it; pig sounds are the fixed `entity.pig.*`
+events; `eating_sound` has an explicit comment that pigs have no
+eating sound in 1.21.11; `finalize` picks the variant alone for
+pig/cow/chicken; no `pig_sound_variant` in the component registry.
+
+Pig entity-data indices verified 1.21.11-correct by counting `defineId`
+calls per class in both jars (Entity 8, LivingEntity 7, Mob 1,
+AgeableMob 1 in 1.21.11 vs 2 in 26.1 — the age-lock item 23 removed):
+baby 16, pig boost 17, pig variant 18. `remote_mob_data.rs` and
+`lan.rs` both use 17/18. The 1.21.11 serializer remap was verified
+against the true `registerSerializer` call order in both jars' static
+initializers (field declaration order is NOT registration order):
+1.21.11 has 39 serializers (0–38), 26.1 has 43; the Rust's `V1_21_11`
+`up`/`down` runs map every id correctly, and 1.21.11 has no cat/cow/
+pig/chicken sound-variant serializers (only wolf). No translation runs
+for a 1.21.11 server anyway (`older_server` returns None for the
+pinned version), so `remote_mob_data::apply` sees raw 1.21.11 wire
+indices. Item 335's referral (verify the serializer remap) is answered
+for the 1.21.11 table.
+
+`ExpirableValue` is a Record with `Optional<Long>` ttl in 26.1 and a
+plain mutable class with a `long` ttl (`Long.MAX_VALUE` = never
+expires) in 1.21.11; the codec wire shape is identical. The Rust's
+`Slot<T>` is already the 1.21.11 shape, and the expiry semantics were
+verified against `Brain.forgetOutdatedMemories` bytecode in the
+1.21.11 jar (erase-if-expired, then tick — a ttl-1 memory is visible
+during the set tick plus one more, exactly the Rust's behaviour).
+
+`ConversionType` is identical in both versions (`entityTags` →
+`getTags` rename only); the Rust's `mobs::conversion::single` covers
+the modelled fields, with command tags travelling via
+`entity_nbt::conversion_tags`. `AngerManagement` is identical except
+`highestAnger` visibility and the ctor's unseeded random source; the
+Rust's warden mirror matches, including `sort_and_update_highest`.
+`EvokerFangs` (+0/-0) and `TagValueInput` + wrappers are identical
+apart from visibility and compiler artifacts; the Rust's NBT
+(`Warmup`/`Owner`) and `game/fangs.rs` tick match.
+
+Known version-neutral gaps, recorded not fixed: `conversion::single`
+does not copy absorption, the ANGRY_AT brain memory, the on-fire flag,
+the portal cooldown, the team, or CUSTOM_DATA, and it copies
+`invulnerable_time` although neither version's `convertCommon` does
+(its comment contradicts the code); warden anger starts
+`conversion_delay` at 0 instead of drawing 0..=2 and does not transfer
+anger to the UUID map on unload-removals; the breeding variant coin
+for pigs/cows/chickens/foxes/cats/wolves is drawn from the level random
+where Java draws `this.random.nextBoolean()` from the mother's random
+(the axolotl/mooshroom arms use the mother's random correctly).
+
+Verification, Nov 20, 2026: `cargo check -p horizon-client --lib
+--tests --no-default-features` clean (JOBS=1).
+Rank 2 now 239/492 (69 changed, 170 no-change).
+work-items.json rank2.closed = 239 on 2026-11-20.
