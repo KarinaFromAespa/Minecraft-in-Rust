@@ -185,3 +185,81 @@ fn a_patched_stack_reads_its_patch_over_its_items_defaults() {
     }
     assert_eq!(view.to_map(), *merged);
 }
+
+#[test]
+fn a_26x_transformation_field_parses_ignored_on_every_unbaked_record() {
+    // 1.21.11 has no per-model `transformation` (26.x added it to every
+    // Unbaked record and a `Transformation.compose` at bake): DFU ignores
+    // the unknown field, so a pack carrying it still parses — and resolves
+    // exactly as the same model without it.
+    let leaf = json!({"type": "minecraft:model", "model": "example:item/leaf"});
+    let transform = json!({"translation": [0, 1, 0]});
+    let node = |v: Value| ItemModelNode::decode(&v).unwrap();
+    assert!(matches!(
+        node(json!({"type": "minecraft:composite", "transformation": transform,
+            "models": [leaf.clone()]})),
+        ItemModelNode::Composite { models } if models.len() == 1
+    ));
+    assert!(matches!(
+        node(json!({"type": "minecraft:composite", "models": []})),
+        ItemModelNode::Composite { models } if models.is_empty()
+    ));
+    assert!(matches!(
+        node(
+            json!({"type": "minecraft:condition", "property": "minecraft:damaged",
+            "transformation": transform,
+            "on_true": leaf.clone(), "on_false": {"type": "minecraft:empty"}})
+        ),
+        ItemModelNode::Condition { .. }
+    ));
+    assert!(matches!(
+        node(json!({"type": "minecraft:select", "property": "minecraft:main_hand",
+            "transformation": transform,
+            "cases": [{"when": "right", "model": leaf.clone()}]})),
+        ItemModelNode::Select { cases, .. } if cases.len() == 1
+    ));
+    assert!(matches!(
+        node(
+            json!({"type": "minecraft:special", "base": "example:item/base",
+            "transformation": transform,
+            "model": {"type": "minecraft:conduit"}})
+        ),
+        ItemModelNode::Special { .. }
+    ));
+    // The resolved layers are identical with and without the field.
+    let resolve = |model: &str| {
+        let mut models = ItemModels::default();
+        models.definitions.insert(
+            "example:tool".into(),
+            ClientItem::from_json(&format!(r#"{{"model":{model}}}"#)).unwrap(),
+        );
+        models.prototypes.insert(
+            "example:tool".into(),
+            BTreeMap::from([(
+                "minecraft:item_model".into(),
+                Value::String("example:tool".into()),
+            )]),
+        );
+        let context = Context {
+            display: DisplayContext::Gui,
+            owner: None,
+            level: None,
+            seed: 0,
+        };
+        models.resolve(&StackView::new("example:tool", 1), &context, &NoEnv)
+    };
+    let plain = r#"{"type":"minecraft:composite","models":[
+        {"type":"minecraft:model","model":"example:item/leaf"}]}"#;
+    let moved = r#"{"type":"minecraft:composite",
+        "transformation":{"translation":[0,1,0]},"models":[
+        {"type":"minecraft:model","model":"example:item/leaf"}]}"#;
+    assert_eq!(resolve(plain), resolve(moved));
+    assert_eq!(resolve(plain).layers.len(), 1);
+    assert_eq!(
+        resolve(r#"{"type":"minecraft:composite","models":[]}"#)
+            .layers
+            .len(),
+        0,
+        "an empty composite wraps, it does not substitute the missing model"
+    );
+}

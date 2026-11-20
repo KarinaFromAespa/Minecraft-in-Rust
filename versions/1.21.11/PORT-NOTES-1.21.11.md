@@ -7571,3 +7571,44 @@ Tests: `biome::` 8 passed; `mesher::tint_tests::` 5 passed, 2 ignored;
 -p horizon-client-lib --lib --tests` clean. rustfmt --check clean on
 biome.rs and tint_tests.rs; mesher.rs flags only the pre-existing
 drift at line 2145.
+
+## Item 108 — client/renderer/item Unbaked types (rank 2, NO-CHANGE + test)
+
+10 classes, 57 methods, 0 named: CompositeModel$Unbaked,
+ItemModel$BakingContext, SelectItemModel$Unbaked,
+SpecialModelWrapper$Unbaked, ConditionalItemModel$Unbaked,
+SpecialModelWrapper, ItemModel$Unbaked, SelectItemModel$UnbakedSwitch,
+SelectItemModel, SelectItemModel$SwitchCase.
+
+Java delta, jar-verified: the `transformation` field is 26.1-only on all
+four Unbaked records (no field, no `Transformation.EXTENDED_CODEC`, no
+`Transformation.compose` in 1.21.11); `bake(BakingContext, Matrix4fc)`
+-> `bake(BakingContext)`; 26.1's composite bake has the empty-list ->
+`EmptyModel.INSTANCE` and single-model shortcuts, 1.21.11 always wraps;
+BakingContext `SpriteGetter sprites` -> `MaterialSet materials`,
+`MissingItemModel missingItemModel` -> `ItemModel missingItemModel`
+(the class itself exists in both jars); 1.21.11's SelectItemModel
+null-checks the selector result (defensive — `get` never returns null
+in practice, the map's default is the baked fallback); SelectItemModel
+fallback `orElseGet` (lazy) -> `orElse` (eager), same result;
+SpecialModelWrapper drops its `transformation` field and the
+`setLocalTransform` call; SwitchCase visibility only;
+`SpecialModelRenderer$Unbaked<?>` -> raw (erasure); TextureSlots
+package move only. Codec field names identical ("models", "on_true",
+"on_false", "fallback", "when", "cases", "base", "model").
+
+The Rust is already 1.21.11-shaped: `ItemModelNode` carries no
+transformation field and decode ignores unknown fields (vanilla DFU
+behaviour, documented in the module doc); `node()` iterates composite
+children with no shortcuts; select falls back to the missing layer
+exactly as 1.21.11's baked fallback does; special layers are identity
+(`layer_matrix` composes display x local-identity); the case-list
+validations mirror `validateCases` exactly (verified by decompiling
+`SelectItemModelProperty$Type` from the 1.21.11 jar). No
+`withTransform`/`setLocalTransform` mirror anywhere. New test pins the
+core finding: a `transformation` field parses ignored on every Unbaked
+record, and a composite resolves identically with and without it (an
+empty composite resolves to 0 layers). Referrals: RangeDispatchItemModel
+is in its own item; `ModelRenderProperties` is in no report item (item
+37's note stands). Tests: `cargo test -p horizon-assets --lib
+item_model::` 22 passed. rustfmt --check clean on item_model/tests.rs.
