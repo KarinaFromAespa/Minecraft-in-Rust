@@ -64,21 +64,22 @@ impl Game<'_> {
             None => self.level.player_uuid.map_or(0, uuid),
         }
     }
-    /// An entity's block position and (interpolated) eyes, by UUID.
-    fn waypoint_entity(&self, id: u128, alpha: f64) -> Option<([i32; 3], [f64; 3])> {
-        let at = |p: [f64; 3], q: [f64; 3], eyes: f64| {
-            let pos: [f64; 3] = std::array::from_fn(|i| q[i] + (p[i] - q[i]) * alpha);
-            (p.map(|c| c.floor() as i32), [pos[0], pos[1] + eyes, pos[2]])
+    /// `Vec3iWaypoint.position`: the tracked entity's block position and
+    /// eye position. 1.21.8 calls `getEyePosition()` with no partial tick,
+    /// so the eyes are the entity's current position, not interpolated.
+    fn waypoint_entity(&self, id: u128) -> Option<([i32; 3], [f64; 3])> {
+        let at = |p: [f64; 3], eyes: f64| {
+            (p.map(|c| c.floor() as i32), [p[0], p[1] + eyes, p[2]])
         };
         if let Some(r) = &self.remote {
             let entity = r.player_entity(id)?;
             let m = self.mobs.iter().find(|m| m.id == entity)?;
             let v = |v: horizon_core::geometry::Vec3| [v.x, v.y, v.z];
-            return Some(at(v(m.position), v(m.previous), m.eye_height()));
+            return Some(at(v(m.position), m.eye_height()));
         }
         let host = self.lan.as_ref()?;
         let g = host.hub.guests.iter().find(|g| g.uuid == id && g.placed)?;
-        Some(at(g.position, g.previous_position, PLAYER_EYES))
+        Some(at(g.position, PLAYER_EYES))
     }
     /// `LocatorBar.extractRenderState` from the last frame's camera.
     pub(super) fn locator_bar_draws(&self, gui_width: i32, gui_height: i32) -> Vec<GuiDraw> {
@@ -86,7 +87,6 @@ impl Game<'_> {
         else {
             return Vec::new();
         };
-        let alpha = self.clock.camera_fraction();
         // Camera.getViewRotationProjectionMatrix, through view space: the
         // depth along the look direction and the height on screen.
         let (sy, cy) = (
@@ -107,7 +107,7 @@ impl Game<'_> {
             // Points behind the camera land past the far plane (z > 1).
             [0.0, y, if depth < 0.0 { 2.0 } else { 0.5 }]
         };
-        let entity = |id: u128| self.waypoint_entity(id, alpha);
+        let entity = |id: u128| self.waypoint_entity(id);
         let view = View {
             gui_width,
             gui_height,
