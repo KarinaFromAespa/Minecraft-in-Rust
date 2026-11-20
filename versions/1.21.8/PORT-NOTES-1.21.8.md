@@ -328,6 +328,28 @@ never reached the stamp check; the E6 subset file has since been
 added, so the final proof's D5 reaches it. D6 blocked — no
 playtest.md; the playtest is deferred by the owner, never claimed.
 
+## Final CI proof (run 44763683904, 2026-11-20)
+
+port-verify on main@f037448 (the merge: behaviour complete,
+526/526), success in ~1h13m. Profile **2 pass / 2 oracle / 13 fail**
+of 17 — identical to run 44728873506 and to 1.21.7/1.21.9. Passing:
+block_properties, lan. Classified oracle: chunk_generation,
+command_exec; true oracle count 9 as before (6 more oracle-compile
+failures hide in the fail column plus component_patch's exit-1 run).
+Published profile: 23 entries, 2 pass / 21 fail.
+
+Verdict: **blocked** — but only on evidence placement, not on the
+code. D2 **pass**: cargo check --workspace --all-targets 0 errors /
+0 warnings, protocol tests **433 pass / 0 failing** (the v1_20_3
+trio fixed). D1/D3/D5 blocked because the pin existed at dispatch
+(from the 44728873506 record) but lacked the three metadata files
+the judge reads from the pin — work-items.json, harness-subset.txt,
+regen-determinism.json (all three exist in versions/1.21.8/ and are
+recorded in the pin with this proof; a re-run is dispatched so the
+judge evaluates them). D4 blocked — the stamp quirk (profile stamped
+f037448, judge's staged candidate HEAD c2766f7; patch 0006 dead
+code in the CI judge). D6 blocked — no playtest.md; deferred by the
+owner, never claimed.
 ## Behaviour port (2026-11-19)
 
 Direction 1.21.9 -> 1.21.8, 526 items (ranks 9/317/163/35/2).

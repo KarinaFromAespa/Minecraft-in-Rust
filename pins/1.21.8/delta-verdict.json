@@ -1,73 +1,62 @@
 {
   "schema": "delta-verdict/1",
   "release": "1.21.8",
-  "commit": "5d0ff8128c7f68cd2210458dce0294860d1691d2",
+  "commit": "c2766f75166f04f9afbc1ab0e8c1676c37ea53e7",
   "tree": ".horizon-ports/1.21.8",
-  "pin": "versions/1.21.8",
+  "pin": "pins/1.21.8",
   "mode": "recorded",
   "verified": false,
-  "state": "failed",
-  "checked_at": "2026-11-20T12:49:07Z",
+  "state": "blocked",
+  "checked_at": "2026-11-20T16:41:42Z",
   "scalars": {
     "tier": "D",
     "suite_pass": null,
     "suite_total": null,
     "suite_exempt": 0,
-    "items_closed": 326,
-    "items_total": 326,
+    "items_closed": null,
+    "items_total": null,
     "items_accepted": 0
   },
-  "index_line": "| 1.21.8 | D | \u2014 | 326/326 | 0 | failed 2026-11-20 |",
+  "index_line": "| 1.21.8 | D | \u2014 | \u2014 | 0 | blocked 2026-11-20 |",
   "checks": {
     "D1": {
-      "status": "fail",
+      "status": "blocked",
       "notes": [
-        "tag audit: dead production tag(s): minecraft:beneath_bamboo_podzol_replaceable, minecraft:blocks_dolphin_jump, minecraft:blocks_fluid_flow, minecraft:blocks_lava_fire_spread, minecraft:blocks_motion_in_heightmap (+32 more)"
+        "no regen-determinism.json: hash the COMMITTED tables as `committed`, do one fresh `version_port.py regen <v> --worktree A` as `fresh`, and compare"
       ],
       "evidence": [
         ".horizon-ports/1.21.8/research-lock.json",
         ".horizon-ports/1.21.8/crates/horizon-core/src/version.rs",
-        ".horizon-ports/1.21.8/diff-1.21.9-1.21.8/regen.json",
-        "versions/1.21.8/regen-determinism.json",
-        ".horizon-ports/1.21.8/.local/horizon-client/1.21.8",
-        "tools/tag_audit.py"
+        ".horizon-ports/1.21.8/diff-1.21.9-1.21.8/regen.json"
       ]
     },
     "D2": {
-      "status": "fail",
+      "status": "pass",
       "notes": [
-        "3 protocol test(s) failing without an accepted gap: item::v1_20_3::tests::modified_764_projectile_entity_data_exposes_the_reverse_schema_limit, item::v1_20_3::tests::vanilla_1_20_2_slots_match_datafix_3578_and_current_component_encoder, item::v1_20_3::tests::vanilla_legacy_slots_match_current_datafix_and_component_encoder"
+        "cargo check --workspace --all-targets: 0 errors, 0 warnings",
+        "protocol tests: 433, none failing"
       ],
       "evidence": [
-        "versions/1.21.8/ci-out/cargo-check.log",
-        "versions/1.21.8/ci-out/cargo-test-protocol.log"
+        "pins/1.21.8/ci-out/cargo-check.log",
+        "pins/1.21.8/ci-out/cargo-test-protocol.log"
       ]
     },
     "D3": {
-      "status": "pass",
+      "status": "blocked",
       "notes": [
-        "rank-1: 9 closed, 0 accepted, 9 total",
-        "rank-2: 317 closed, 0 accepted, 317 total",
-        "totals read from summary.ranks",
-        "rank-3+: Inherits the 1.21.9 delta's answers for everything this release did not change; rank-3+ items are unmeasured until the behaviour port reaches them."
+        "no work-items.json: record closure per rank in the pin"
       ],
       "evidence": [
-        ".horizon-ports/1.21.8/diff-1.21.9-1.21.8/report.json",
-        "versions/1.21.8/work-items.json"
-      ],
-      "metrics": {
-        "items_closed": 326,
-        "items_total": 326,
-        "items_accepted": 0
-      }
+        ".horizon-ports/1.21.8/diff-1.21.9-1.21.8/report.json"
+      ]
     },
     "D4": {
       "status": "blocked",
       "notes": [
-        "profile.json is stamped for commit 50163f80d217, HEAD is 5d0ff8128c7f \u2014 re-record the sweep for this tree"
+        "profile.json is stamped for commit f03744839b34, HEAD is c2766f75166f \u2014 re-record the sweep for this tree"
       ],
       "evidence": [
-        "versions/1.21.8/profile.json"
+        "pins/1.21.8/profile.json"
       ]
     },
     "D5": {
@@ -76,7 +65,7 @@
         "no harness-subset.txt: the era's regression subset is undefined"
       ],
       "evidence": [
-        "versions/1.21.8/harness-subset.txt"
+        "pins/1.21.8/harness-subset.txt"
       ]
     },
     "D6": {
@@ -85,7 +74,7 @@
         "no playtest.md: the play gate has not been recorded"
       ],
       "evidence": [
-        "versions/1.21.8/playtest.md"
+        "pins/1.21.8/playtest.md"
       ]
     }
   }
