@@ -8298,3 +8298,35 @@ parts belong to the HumanoidModel item. Version-neutral gap
 recorded: `humanoid()` bobs the arms for every humanoid while
 vanilla's `bobArms` runs only for zombies — not a delta, left for
 its own item. Tests: `mobs::anim::` 12 passed (1 new).
+
+## Item 125 — game/books.rs (rank 2, CHANGED)
+
+6 classes, 19 methods, 3 named (`BookViewScreen.handleClickEvent`,
+`LecternScreen.bookChanged`, `LecternScreen.pageChanged`).
+
+Java delta, jar-verified (javap diff 352 lines + decompile diff 832
+lines, both read in full): no behaviour change. The whole delta is
+the GuiGraphicsExtractor → GuiGraphics rename, a constant-true
+guarded pattern switch in 26.1's `handleClickEvent` (plain switch
+in 1.21.11, same semantics), `bookChanged`/`pageChanged` going
+private → package-private, and a requireNonNull compiler artifact
+in `LecternMenu$1`'s ctor.
+
+Changes: `save_book` now drops every trailing empty page, as
+vanilla's `eraseEmptyTrailingPages` does — the Rust kept at least
+one, so an all-blank book sent `[""]` where vanilla sends `[]`
+(version-neutral, in this item's named class; extracted as
+`drop_trailing_empty_pages` with a unit test). The page-indicator
+comment no longer says "26.3's en_us template" (1.21.11's value is
+the same positional form). Checked, no action: `book_follow_link`
+mirrors `handleClickEvent` exactly; the lectern book/page sync,
+turn-page visibility and sound, editor limits (1024 chars, 14
+lines, 100 pages, 15-char title), PageButton geometry, and the
+menu engine's lectern buttons all match both versions, including
+the `setPage` clamp's count = 0 case. `LecternBlockEntity.resolveBook`
+(the item-32 referral) exists in both versions and has no Rust
+mirror — server-side book-content resolution, recorded not fixed.
+Version-neutral nit recorded: Take Book resets the menu's page to
+0 in the Rust while vanilla leaves it — unobservable, out of this
+item's file scope. Tests: `game::books::save_book_tests::` 1 passed
+(new; the module's other 3 tests are `#[ignore]`d, fixture-bound).
