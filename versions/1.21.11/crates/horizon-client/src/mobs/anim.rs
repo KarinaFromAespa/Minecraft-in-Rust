@@ -400,8 +400,6 @@ pub struct Hum {
     pub fly_speed_scale: f32,
     /// `Some(aggressive)` for `ZombieModel`-style `animateZombieArms`.
     pub zombie: Option<bool>,
-    /// The main hand holds something (`getMainHandItemStack() != EMPTY`).
-    pub holding: bool,
     /// `maxCrossbowChargeDuration`, `ticksUsingItem`.
     pub charge: (f32, f32),
     /// `PiglinModel.setupAttackAnimation`: swing a held weapon down.
@@ -431,7 +429,6 @@ impl Hum {
             fall_flying: false,
             fly_speed_scale: 1.0,
             zombie: None,
-            holding: false,
             charge: (0.0, 0.0),
             weapon_swing: false,
             swim: 0.0,
@@ -634,26 +631,23 @@ pub(super) fn humanoid(p: &mut Poses, s: &State, h: &Hum) {
     // AnimationUtils.animateZombieArms leaves the arms of a spear alone.
     let using_spear = h.right == ArmPose::Spear || h.left == ArmPose::Spear;
     if let Some(aggressive) = h.zombie.filter(|_| !using_spear) {
-        // AnimationUtils.animateZombieArms
-        let raise = !s.baby || !h.holding;
-        let drop = if raise {
-            -PI / if aggressive { 1.5 } else { 2.25 }
-        } else {
-            0.0
-        };
-        let ym = if raise { 1.0 } else { -1.0 } * (swing * PI).msin();
+        // AnimationUtils.animateZombieArms: 1.21.11 has no baby guard, so
+        // a baby holding an item raises its arms like an adult (26.1
+        // returned early for a baby with a main-hand item).
+        let drop = -PI / if aggressive { 1.5 } else { 2.25 };
+        let ym = (swing * PI).msin();
         let xm = ((1.0 - (1.0 - swing) * (1.0 - swing)) * PI).msin();
         let x = drop + ym * 1.2 - xm * 0.4;
         let y = 0.1 - ym * 0.6;
         // An arm raising a trident keeps its pose.
         if h.right != ArmPose::ThrowTrident {
             p.xrot("right_arm", x);
-            p.yrot("right_arm", if raise { -y } else { y });
+            p.yrot("right_arm", -y);
             p.zrot("right_arm", 0.0);
         }
         if h.left != ArmPose::ThrowTrident {
             p.xrot("left_arm", x);
-            p.yrot("left_arm", if raise { y } else { -y });
+            p.yrot("left_arm", y);
             p.zrot("left_arm", 0.0);
         }
     }
@@ -928,7 +922,6 @@ fn vanilla_setup(
                 }
             }
             h.zombie = Some(m.ai.aggressive);
-            h.holding = m.extra.main_hand.is_some();
             h.crouching = m.extra.crouching;
             h.passenger = m.extra.passenger;
             humanoid(p, s, &h);
@@ -1669,5 +1662,39 @@ mod flight_pose_tests {
         };
         let mut p = Poses::new(&root);
         assert_eq!(p.get("leg")[3], 0.5);
+    }
+
+    #[test]
+    fn a_baby_zombie_holding_an_item_raises_its_arms_like_an_adult() {
+        // 1.21.11's animateZombieArms has no baby guard (26.1 returned
+        // early for a baby with a main-hand item): at rest, aggressive,
+        // the arms raise to -PI / 1.5 with the zombie bob on top.
+        let mut h = Hum::new(ArmPose::Empty, ArmPose::Empty);
+        h.zombie = Some(true);
+        let state = State {
+            pos: 0.0,
+            speed: 0.0,
+            age: 0.0,
+            y_rot: 0.0,
+            x_rot: 0.0,
+            swing: 0.0,
+            baby: true,
+            partial: 0.0,
+        };
+        let mut p = Poses {
+            map: ["head", "right_arm", "left_arm"]
+                .into_iter()
+                .map(|n| (key(n), [0.0; 9]))
+                .collect(),
+            dummy: [0.0; 9],
+            skipped: Default::default(),
+            hidden: Default::default(),
+            version: 0,
+        };
+        humanoid(&mut p, &state, &h);
+        assert_eq!(p.get("right_arm")[3], -PI / 1.5);
+        assert_eq!(p.get("left_arm")[3], -PI / 1.5);
+        assert_eq!(p.get("right_arm")[4], -0.1);
+        assert_eq!(p.get("left_arm")[4], 0.1);
     }
 }

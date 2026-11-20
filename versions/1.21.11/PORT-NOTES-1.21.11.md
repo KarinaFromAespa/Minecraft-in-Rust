@@ -8264,3 +8264,37 @@ getUpdatedState + canSupportAtFace + canSurvive (`countFaces > 0`).
 tick.rs (item 95's file). No citation names a 26.1-only member.
 Tests: `level::growth_tests::` 21 passed (smoke check; no code
 changed).
+
+## Item 124 — mobs/anim.rs (rank 2, CHANGED)
+
+10 classes, 21 methods, 3 named (`DrownedRenderer.getArmPose`,
+`AnimationUtils.animateZombieArms`, `EndermanModel.setupAnim`).
+
+Java delta, jar-verified (javap diff 950 lines + decompile diff 1552
+lines, both read in full): one real behaviour change — 26.1's
+`animateZombieArms` returns early for a baby holding a main-hand
+item, 1.21.11 has no baby guard. The rest is API shape and layers:
+DrownedRenderer loses the baby texture and BabyDrownedModel (always
+the adult texture, plain DrownedModel in the baby layer);
+DonkeyModel / EquineSaddleModel / SheepModel gain the 1.21.11 baby
+layers (`createBabyLayer`, `createSaddleLayer(float, boolean)`,
+SheepModel.BABY_TRANSFORMER); PiglinModel becomes concrete with a
+`setAllVisible` override; EndermanModel's carried-block check goes
+from `BlockModelRenderState.isEmpty()` to a BlockState null check
+(same arms); QuadrupedModel loses the render-type ctor;
+HumanoidMobRenderer's `getAttackArm` inverts its comparison with
+identical meaning.
+
+Changes: the zombie-arms block drops the 26.1-only baby guard
+(babies now raise their arms like adults), and the orphaned
+`Hum.holding` field goes with it (field, default, setter). New test
+pins a baby zombie's raised arms at rest. Checked, no action: the
+drowned texture is already 1.21.11-shaped (one texture for both
+ages, recorded in render.rs); the enderman carried-block arms match
+exactly; the equine/sheep baby geometry lives in the prepared layer
+data; PiglinModel.setAllVisible needs no mirror (no per-part
+visibility toggling in the Rust); HumanoidModel's 26.1-only extra
+parts belong to the HumanoidModel item. Version-neutral gap
+recorded: `humanoid()` bobs the arms for every humanoid while
+vanilla's `bobArms` runs only for zombies — not a delta, left for
+its own item. Tests: `mobs::anim::` 12 passed (1 new).
