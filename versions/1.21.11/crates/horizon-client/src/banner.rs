@@ -137,14 +137,14 @@ impl Banners {
     pub fn pattern(&self, id: &str) -> Option<&Pattern> {
         self.patterns.iter().find(|p| &*p.id == id)
     }
-    /// `Sheets.getBannerSprite` texture name of a pattern.
+    /// `Sheets.getBannerMaterial` texture name of a pattern.
     pub fn banner_texture(&self, id: &str) -> String {
         match self.pattern(id) {
             Some(p) => format!("entity/banner/{}", p.asset),
             None => format!("entity/banner/{}", id.trim_start_matches("minecraft:")),
         }
     }
-    /// `Sheets.getShieldSprite` texture name of a pattern.
+    /// `Sheets.getShieldMaterial` texture name of a pattern.
     pub fn shield_texture(&self, id: &str) -> String {
         match self.pattern(id) {
             Some(p) => format!("entity/shield/{}", p.asset),

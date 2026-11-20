@@ -3834,3 +3834,59 @@ content — that belongs to the other hub items.)
 Tests: no code changed, no build needed.
 Rank 2 now 224/492 (57 changed, 167 no-change).
 work-items.json rank2.closed = 224 on 2026-11-20.
+
+## Item 46 — banner.rs (rank 2, CHANGED)
+
+Sheets, LoomMenu: 2 classes, 48 methods, 8 named. Harnesses cauldron,
+menu_click, place_recipe, trading. The banner/shield cloth textures
+moved in 26.x: 1.21.11 keeps them at the top of `textures/entity/`
+(`entity/banner_base.png`, `entity/shield_base.png`,
+`entity/shield_base_nopattern.png`), 26.1 moved them under the pattern
+subdirectories (`entity/banner/banner_base.png`, ...). Same bytes in
+both jars (sha256-verified); only the path changed. The holding
+constants moved too: banner cloth is 26.1 `Sheets.BANNER_BASE` but
+1.21.11 `ModelBakery.BANNER_BASE` (1.21.11's `Sheets.BANNER_BASE` is
+"base", the base pattern layer); shield is 26.1
+`Sheets.SHIELD_BASE`/`SHIELD_BASE_NO_PATTERN` but 1.21.11
+`ModelBakery.SHIELD_BASE`/`NO_PATTERN_SHIELD`. The draw sequence is
+identical in both versions (javap-verified on BannerRenderer and
+ShieldSpecialRenderer): cloth white, base layer dyed, up to 16 pattern
+layers; shield picks base vs nopattern on `has_patterns`.
+
+Fixed 17 sites: `entity/banner/banner_base` → `entity/banner_base`
+(block_entity_render.rs x4, block_entity_render_tests.rs x2,
+mob_blocks.rs, item_render/special.rs x3) and
+`entity/shield/shield_base` → `entity/shield_base` (special.rs x7,
+including nopattern). Citations fixed: `getBannerSprite`/
+`getShieldSprite` → `getBannerMaterial`/`getShieldMaterial`
+(banner.rs, game/banners.rs — same computeIfAbsent-on-assetId logic);
+`cutoutBlockItemSheet` → `cutoutBlockSheet` (mob_blocks.rs — 1.21.11
+has no cutoutBlockItemSheet). `block_entity_cem.rs`'s "banner_base"
+strings are OptiFine CEM part names, not textures — untouched. Chest
+materials differ only in API shape (same texture file names in both
+jars); bed/shulker/sign/decorated-pot/armor-trim logic identical.
+
+LoomMenu was already 1.21.11-shaped and needed no change, verified
+against the decompile and the 1.21.11 datagen: the dye slot takes any
+DyeItem (no `#loom_dyes` tag, no DYE component — the datagen has no
+`minecraft:dye` component on any item, so the name fallback is the live
+path); the pattern slot takes any stack with PROVIDES_BANNER_PATTERNS
+(no `#loom_patterns` tag); the component is a TagKey in 1.21.11
+(`#minecraft:pattern_item/flower`, 10 items) resolved through the
+registry, a HolderSet in 26.1 — the Rust resolves the tag; menu.rs's
+slotsChanged/clickMenuButton/quickMoveStack match vanilla exactly.
+Version-neutral divergence, documented not fixed: vanilla's
+slotsChanged has no else branch (it does nothing when banner or dye is
+empty), while the Rust's `loom_changed` clears the result, patterns and
+index — the engine's full-recompute shape; same in both jars.
+
+Tests: `cargo check -p horizon-client-render --lib --tests
+--no-default-features`, `cargo check -p horizon-client --lib --tests
+--no-default-features` and `--bin horizon-client --tests` all clean;
+horizon-client-render banner tests 3 passed, 0 failed. The
+horizon-client lib test binary link OOMs on this VM under 3-stream
+load (established) — its tests run on CI. rustfmt clean on edited
+files except pre-existing drift at special.rs:449 (book renderer,
+untouched).
+Rank 2 now 225/492 (58 changed, 167 no-change).
+work-items.json rank2.closed = 225 on 2026-11-20.

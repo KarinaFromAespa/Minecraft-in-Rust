@@ -158,7 +158,7 @@ impl Game<'_> {
         );
         let still = Poses::new(pole);
         let white = 0xFFFF_FFFF;
-        if let Some(r) = uv("entity/banner/banner_base") {
+        if let Some(r) = uv("entity/banner_base") {
             render::draw(pole, m, &still, r, white, light, 0, out);
             render::draw(flag, m, &flag_poses, r, white, light, 0, out);
         }
@@ -179,7 +179,7 @@ impl Game<'_> {
     /// `BlockModelRenderState.submit` of a block state's baked model, as every block layer of
     /// a mob draws it (`CarriedBlockLayer`, `MushroomCowMushroomLayer`, `SnowGolemHeadLayer`,
     /// `IronGolemFlowerLayer`, `BlockDecorationLayer`): lit, through
-    /// `Sheets.cutoutBlockItemSheet` or `translucentBlockItemSheet`, whose `ITEM_CUTOUT` and
+    /// `Sheets.cutoutBlockSheet` or `translucentBlockItemSheet`, whose `ITEM_CUTOUT` and
     /// `ITEM_TRANSLUCENT` pipelines cull back faces. Without the cull both coplanar sides of
     /// a cross model (a flower, a mushroom) are drawn and flicker as the mob moves. `CULL_BACK`
     /// would drop them too, but it turns off the normal lighting this model needs.

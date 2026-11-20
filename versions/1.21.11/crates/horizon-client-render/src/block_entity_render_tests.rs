@@ -1287,7 +1287,7 @@ fn banner_cache_keeps_the_pole_static_while_the_flag_and_patterns_update() {
     let renderer = banner_renderer();
     let world = World::new(BlockStateId(0), 1);
     let sprites = sprite_atlas(&[
-        "entity/banner/banner_base",
+        "entity/banner_base",
         "entity/banner/base",
         "entity/banner/pattern",
         "entity/banner/alternate_pattern",
@@ -1361,7 +1361,7 @@ fn banner_cache_keeps_the_pole_static_while_the_flag_and_patterns_update() {
 fn cached_wall_banner_poles_use_the_wall_model() {
     let renderer = banner_renderer();
     let world = World::new(BlockStateId(0), 1);
-    let sprites = sprite_atlas(&["entity/banner/banner_base", "entity/banner/base"]);
+    let sprites = sprite_atlas(&["entity/banner_base", "entity/banner/base"]);
     let anim = |_: [i32; 3]| BlockAnim::default();
     let scene = Scene {
         camera: DVec3::new(2.25, 64.5, -3.75),

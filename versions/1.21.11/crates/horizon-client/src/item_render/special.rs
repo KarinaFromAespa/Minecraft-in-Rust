@@ -429,7 +429,7 @@ pub(super) fn submit_banner_result(
             draw(flag, "root", pose, &flag_pose, r, color, Foil::None, sink);
         }
     };
-    part("entity/banner/banner_base", argb(-1));
+    part("entity/banner_base", argb(-1));
     part("entity/banner/base", dye(base));
     for (texture, color) in layers.iter().take(16) {
         part(texture, dye(color));
@@ -559,11 +559,11 @@ pub(super) fn submit(
             } else {
                 ("standing_banner", "standing_banner_flag")
             };
-            part(main, &none, "entity/banner/banner_base", white, Foil::None);
+            part(main, &none, "entity/banner_base", white, Foil::None);
             part(
                 flag,
                 &flag_pose,
-                "entity/banner/banner_base",
+                "entity/banner_base",
                 white,
                 Foil::None,
             );
@@ -585,10 +585,14 @@ pub(super) fn submit(
             let patterns = pattern_layers(&argument["minecraft:banner_patterns"]);
             let base_color = argument["minecraft:base_color"].as_str();
             let has_patterns = !patterns.is_empty() || base_color.is_some();
+            // `ModelBakery.SHIELD_BASE` / `NO_PATTERN_SHIELD`: 1.21.11 keeps
+            // them at `textures/entity/shield_base.png` and
+            // `textures/entity/shield_base_nopattern.png`; 26.x moved them
+            // under `entity/shield/`.
             let base = if has_patterns {
-                "entity/shield/shield_base"
+                "entity/shield_base"
             } else {
-                "entity/shield/shield_base_nopattern"
+                "entity/shield_base_nopattern"
             };
             // Without patterns: `entitySolidGlint`. With them, vanilla draws
             // `patternedShieldGlint` last, the glint alone over the finished
@@ -741,8 +745,8 @@ mod tests {
         let renderer = ItemRenderer::load_with_library(&root, library).unwrap();
         let _ = std::fs::remove_dir_all(&root);
         let textures = [
-            "entity/shield/shield_base",
-            "entity/shield/shield_base_nopattern",
+            "entity/shield_base",
+            "entity/shield_base_nopattern",
             "entity/shield/base",
             "entity/shield/stripe_bottom",
         ];
@@ -799,7 +803,7 @@ mod tests {
         assert_eq!(
             drawn(banner.clone(), true),
             [
-                ("entity/shield/shield_base", Foil::Standard),
+                ("entity/shield_base", Foil::Standard),
                 ("entity/shield/base", Foil::Standard),
                 ("entity/shield/stripe_bottom", Foil::Standard),
             ]
@@ -807,14 +811,14 @@ mod tests {
         assert_eq!(
             drawn(banner, false),
             [
-                ("entity/shield/shield_base", Foil::None),
+                ("entity/shield_base", Foil::None),
                 ("entity/shield/base", Foil::None),
                 ("entity/shield/stripe_bottom", Foil::None),
             ]
         );
         assert_eq!(
             drawn(Value::Null, true),
-            [("entity/shield/shield_base_nopattern", Foil::Standard)]
+            [("entity/shield_base_nopattern", Foil::Standard)]
         );
     }
     /// `DecoratedPotRenderer` draws every part with `RenderTypes.entitySolid`,

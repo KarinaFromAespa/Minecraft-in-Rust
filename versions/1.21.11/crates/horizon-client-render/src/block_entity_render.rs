@@ -2425,7 +2425,7 @@ impl BlockEntityRenderer {
             Kind::Banner { .. } if options.banners => {
                 // Only the stationary pole is cached; the flag below keeps its
                 // normal frame-by-frame wave and pattern draws.
-                add_sprite("entity/banner/banner_base");
+                add_sprite("entity/banner_base");
             }
             Kind::DecoratedPot { .. } if options.decorated_pots => {
                 let anim = (scene.anim)(pos);
@@ -3361,7 +3361,7 @@ impl BlockEntityRenderer {
         let Some((main, _, transform, main_key, _)) = Self::banner_parts(shapes, kind, base) else {
             return;
         };
-        let texture = shapes.texture(main_key, "entity/banner/banner_base", scene.sprites);
+        let texture = shapes.texture(main_key, "entity/banner_base", scene.sprites);
         let Some(sprite) = scene.sprites.get(texture).copied() else {
             return;
         };
@@ -3439,7 +3439,9 @@ impl BlockEntityRenderer {
                     .flatten(),
             })
         };
-        let banner_base = "entity/banner/banner_base";
+        // `ModelBakery.BANNER_BASE`: 1.21.11 keeps the banner cloth at
+        // `textures/entity/banner_base.png`; 26.x moved it under `entity/banner/`.
+        let banner_base = "entity/banner_base";
         let main_texture = shapes.texture(main_key, banner_base, scene.sprites);
         let flag_texture = shapes.texture(flag_key, banner_base, scene.sprites);
         if !skip_pole && let Some(paint) = paint(main_texture, 0xFFFFFF) {
@@ -3743,7 +3745,7 @@ mod tests {
         );
         let world = World::new(BlockStateId(0), 1);
         let base_sprites = [
-            "entity/banner/banner_base",
+            "entity/banner_base",
             "entity/chest/normal",
             "entity/chest/trapped",
             "entity/chest/ender",
