@@ -1693,8 +1693,18 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
     /// back to unoxidized, then 3 to 5 random walks of up to 8 steps each
     /// scrape one step of oxidation off the weathering copper they land on.
     /// A waxed block is left as it is but still starts the walks.
+    /// A struck lightning rod cleans the block behind it (opposite the
+    /// rod's facing), not the rod's own position — the rod itself is never
+    /// weathering copper. 1.21.9 dropped that redirect.
     pub(crate) fn lightning_clear_copper(&mut self, struck: BlockPos) {
         let b = self.b;
+        let state = self.state(struck);
+        let struck = if b.table.name(state) == "minecraft:lightning_rod" {
+            let [dx, dy, dz] = b.facing(state).opposite().normal();
+            struck.offset(dx, dy, dz)
+        } else {
+            struck
+        };
         let state = self.state(struck);
         let weathering = b
             .data(state)
