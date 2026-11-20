@@ -334,7 +334,21 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 90/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107 + 4 zero-diff)
+### Rank 2: 91/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108 + 4 zero-diff)
+
+- **Item 108 — `crates/horizon-client/src/creative.rs`
+  (2 classes, 15 methods, 2 named in Horizon),
+  zero-diff:** CreativeModeInventoryScreen, CreativeModeTabs.
+  The screen diff is the 1.21.9 input-event rework (event
+  objects vs raw params) with identical logic in every hunk —
+  the scroll formula, the search-tab hotbar-swap gate and the
+  escape check all match the Rust. The tab contents are
+  data-driven from `creative-inventory.json`, exported from the
+  pinned 1.21.8 jar, so the 1.21.9-only items (copper
+  bars/chains, shelves, copper chests/tools/armour, copper
+  golem), the `CHAIN` rename and the order swaps are all dead
+  by data. No code changed; no check run (tree unchanged since
+  item 106's 0/0 check).
 
 - **Item 107 — `crates/horizon-world/src/level/pistons.rs`
   (2 classes, 6 methods, 3 named in Horizon),
