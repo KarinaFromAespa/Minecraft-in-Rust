@@ -481,13 +481,8 @@ impl Loading {
                 .fullscreen_resolution
                 .as_deref()
                 .and_then(horizon_client::window::VideoMode::read);
-            self.fullscreen.apply(
-                &window,
-                self.settings.fullscreen,
-                self.settings.file.bool("exclusiveFullscreen"),
-                preferred,
-                false,
-            );
+            self.fullscreen
+                .apply(&window, self.settings.fullscreen, preferred, false);
         }
         self.update_menu_cursor();
     }

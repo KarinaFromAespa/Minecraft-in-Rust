@@ -3460,3 +3460,118 @@ Tests: all 9 frog tests pass
 mobs::frog::`). `rustfmt --edition 2024 --check` clean on frog.rs.
 Rank 2 now 220/492 (54 changed, 166 no-change).
 work-items.json rank2.closed = 220 on 2026-11-20.
+
+## Item 42 — horizon-client-render/gfx.rs (rank 2, CHANGED)
+
+SectionRenderDispatcher$RenderSection, Options, DrawableGizmoPrimitives$Group,
+BlockOutlineRenderState, FeatureRenderDispatcher, NativeImage,
+DrawableGizmoPrimitives, DepthStencilState (removed), NativeImage$Format,
+NativeImage$WriteCallback, OutlineBufferSource$EntityOutlineGenerator,
+DrawableGizmoPrimitives$Line/$Point/$Quad/$TriangleFan,
+WeightedList$Flat: 16 classes, 81 methods, 6 named. Harnesses
+block_particles, blockstate_transform, breaking_model, mipmap,
+model_baking, particle_providers, sprite_animation, tab_list. The one
+real behaviour change is the removal of the `exclusiveFullscreen`
+option; everything else in the item is identical, visibility-only, or
+vanilla GPU plumbing the Rust does not mirror.
+
+`Options.exclusiveFullscreen` is gone in 1.21.11 — field, accessor,
+`initialExclusiveFullscreen`, both tooltips, `processDumpedOptions`
+line. A jar-wide constant-pool scan finds ZERO references to
+`exclusiveFullscreen` in the whole 1.21.11 client jar, and
+`BackendOptions` (the record that carried the flag into
+`RenderSystem.initBackendSystem` in 26.1) is gone too. The option never
+controlled the window mode: `Window.setMode()` in BOTH versions always
+calls `glfwSetWindowMonitor` with the monitor and the preferred video
+mode — exclusive fullscreen — and in 26.1 the option was read once at
+startup into the backend flag (changing it mid-game did nothing until
+restart). The Rust's option → winit Exclusive-vs-Borderless mapping
+mirrored 26.3 (`Window.exclusiveFullscreen`/`setExclusiveFullscreen`
+exist in neither jar). So the option is removed in full and fullscreen
+is now always the preferred-video-mode path, like vanilla: the
+options-file default, the `Opt::ExclusiveFullscreen` variant, the Video
+Settings row and the graphics-screen row, the `FullscreenState`
+exclusive field/`set_exclusive`/reapply branch, and the `exclusive`
+parameter of `fullscreen_request` are all gone; `fullscreen_request`
+always takes the preferred mode if the monitor has it, else the current
+mode (`Monitor.getPreferredVidMode`), falling back to borderless only
+when no usable mode exists. `borderless_fullscreen` itself stays: the
+HDR calibration window, the splitscreen-guest F11 and
+`settle_created_fullscreen` use it, and those are Horizon paths, not
+vanilla fullscreen. The `fullscreenResolution` preferred mode stays
+(`preferredFullscreenVideoMode` exists in both jars' Window;
+`VideoSettingsScreen.addOptions` is unchanged between versions).
+User-visible: fullscreen now switches display mode like vanilla.
+
+The removal's blast radius, all jar-verified: `VideoSettingsScreen.
+displayOptions` drops the entry — that is item 733's single method, so
+item 733 is DISCHARGED by this change. The `Opt::ExclusiveMode`
+resolution row keeps its variant name but its caption key changes from
+`options.fullscreen.exclusive.mode` (a key in NEITHER jar's lang — a
+26.3-ism) to `options.fullscreen.resolution` ("Fullscreen Resolution"
+in both jars' lang), and the `the_new_video_options_read_as_vanilla_
+words_them` expectations change with it. The two graphics-screen hints
+are reworded ("Fills the screen (borderless)." → "Takes the display
+over, at the mode below."; "The display mode exclusive fullscreen
+uses. …" → "The display mode fullscreen uses. …") and the three old
+hint keys removed from all 87 lang files (the lang test requires every
+locale key to exist in en_us.json, so the removals land together; the
+reworded strings fall back to English elsewhere until re-translated).
+`FramerateLimitTracker.getThrottleReason` is IDENTICAL in both jars and
+has neither a focus nor an exclusive-fullscreen input, so the
+`FrameContext` fields and the `(focused || !exclusive_fullscreen)` gate
+in `throttle_reason` — a 26.3-ism — are removed; the game-loop harness
+never exercises that branch (no (iconified=false, focused=false) limit
+case; its scope note explicitly excludes it). FramerateLimitTracker is
+in NO report item (report gap, recorded here).
+
+No-change verdicts, all jar-verified: `RenderSection.getVisibility`
+is byte-identical (`elapsed >= fade ? 1.0 : elapsed / fade`), and the
+Rust's `chunk_visibility`/`fade_millis` match it (test pins it); the
+section-dispatcher async/uber-buffer rewrite is vanilla GPU plumbing
+with no Rust mirror. `BlockOutlineRenderState` is NOT new in 1.21.11 —
+it moved packages (`state.level` → `state`) and is otherwise identical.
+`FeatureRenderDispatcher` collapses its solid/translucent split into
+one `renderAllFeatures` (shadows first); the Rust's
+`PreparedFrame.executeTranslucent` citation named a class in neither
+jar and now cites `renderAllFeatures`. `NativeImage.
+computeTransparency`/`isClosed` are removed and `resizeSubRectTo`
+switches STB filter (`nstbir_resize_uint8_linear` →
+`nstbir_resize_uint8`), but the Rust mirrors neither method (the resize
+comment cites the Rust's own `square_downscale` box average).
+`DepthStencilState` is removed; 26.1's `DEFAULT` was (LESS_THAN_OR_
+EQUAL, write=true) and 1.21.11's `RenderPipeline.Builder.build()`
+defaults to exactly that (LEQUAL + write), so the two gfx.rs comments
+now cite the builder default instead. `DrawableGizmoPrimitives` is
+identical modulo names and the `CameraRenderState` package move; the
+Rust's opaque-first grouping matches. `WeightedList$Flat` is a ctor
+visibility change only — but the OUTER `WeightedList.isEmpty()` DID
+change (`selector == null` → `items.isEmpty()`): that is item 137's
+scope, referred, not fixed here. `Options.maxAnisotropyValue` is
+unchanged (`sampler_anisotropy` matches); the `chatVisibility`/
+`improvedTransparency` callback changes are Options$N anonymous classes
+→ item 364. `keyDebugLightmapTexture`, `isSoundDeviceDefault`,
+`getCloudStatus`→`getCloudsType`, `resizeGui`→`resizeDisplay` have no
+Rust mirror. Item 117 (Window) owns the remaining `setMode`/
+`updateFullscreen`/ctor differences — but NOT the fullscreen mode
+itself, which this item settles as always-exclusive.
+
+Tests: horizon-client-input lib tests 127 passed, 0 failed;
+`cargo check -p horizon-client-render --lib --tests` and `cargo check
+-p horizon-client --lib --tests` clean; `cargo check -p
+horizon-client-lib --example client_probe` clean (covers the
+game_loop_probe edit — the probe is a module of client_probe, not its
+own cargo target); lang tests 16 passed incl.
+`bundled_files_are_served_and_have_no_stale_or_repeated_keys`;
+targeted render tests pass (`video_page_lists_vanilla_display_and_
+quality_options_in_order`, `fullscreen_mode_picks_a_monitor_mode_or_
+the_current_one`, `vanilla_video_rows_work_on_the_graphics_screen`,
+`chunk_fade_is_vanillas_get_visibility`). `rustfmt --edition 2024
+--check` clean on the edited leaf files (window.rs, options.rs,
+startup_menu.rs, game_loop_probe.rs, options_file.rs, settings.rs);
+gfx.rs, options_ui.rs and graphics_ui.rs are module roots and were
+hand-checked against rustfmt's layout instead. The ignored
+`the_new_video_options_read_as_vanilla_words_them` runs on CI with the
+1.21.11 prepared lang data.
+Rank 2 now 221/492 (55 changed, 166 no-change).
+work-items.json rank2.closed = 221 on 2026-11-20.

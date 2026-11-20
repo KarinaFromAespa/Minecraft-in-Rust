@@ -56,8 +56,6 @@ pub enum ThrottleReason {
 pub struct FrameContext {
     pub inactivity: InactivityFpsLimit,
     pub iconified: bool,
-    pub focused: bool,
-    pub exclusive_fullscreen: bool,
     pub now_ms: i64,
     pub latest_input_ms: i64,
     pub has_level: bool,
@@ -67,7 +65,7 @@ pub struct FrameContext {
 
 /// `getThrottleReason`.
 pub fn throttle_reason(c: FrameContext) -> ThrottleReason {
-    if !c.iconified && (c.focused || !c.exclusive_fullscreen) {
+    if !c.iconified {
         if c.inactivity == InactivityFpsLimit::Afk {
             let afk = c.now_ms - c.latest_input_ms;
             if afk > 600_000 {
@@ -357,8 +355,6 @@ pub struct FullscreenState {
     actual: bool,
     /// The state last asked of the window system, or adopted from it.
     requested: bool,
-    /// `Window.exclusiveFullscreen`.
-    exclusive: bool,
     /// `Window.preferredFullscreenVideoMode`.
     mode: Option<VideoMode>,
     /// `Window.dirty`: the preferred mode changed and the screen has not been left yet.
@@ -371,48 +367,35 @@ impl FullscreenState {
         Self {
             actual: false,
             requested,
-            exclusive: false,
             mode: None,
             mode_dirty: false,
         }
     }
 
-    /// `Window.updateFullscreenIfChanged` with the exclusive option and preferred mode: asks the
-    /// window to enter, leave or change its fullscreen only when one of them changed.
-    /// `in_video_screen` holds a changed mode back until the Video Settings screen closes
-    /// (`changeFullscreenVideoMode`).
+    /// `Window.updateFullscreenIfChanged` with the preferred mode: asks the
+    /// window to enter, leave or change its fullscreen only when one of them
+    /// changed. `in_video_screen` holds a changed mode back until the Video
+    /// Settings screen closes (`changeFullscreenVideoMode`). Fullscreen is
+    /// always the monitor's preferred video mode (`Window.setMode`): 1.21.11
+    /// has no exclusive-fullscreen option.
     pub fn apply(
         &mut self,
         window: &winit::window::Window,
         wanted: bool,
-        exclusive: bool,
         preferred: Option<VideoMode>,
         in_video_screen: bool,
     ) {
         let request = self.request(wanted);
-        let reapply = self.set_exclusive(exclusive);
         self.set_preferred_mode(preferred);
         let mode_change = !in_video_screen && self.take_mode_change();
         match request {
             Some(false) => window.set_fullscreen(None),
-            Some(true) => enter_fullscreen(
-                window,
-                fullscreen_request(window, exclusive, preferred.as_ref()),
-            ),
-            None if reapply || mode_change => enter_fullscreen(
-                window,
-                fullscreen_request(window, exclusive, preferred.as_ref()),
-            ),
+            Some(true) => enter_fullscreen(window, fullscreen_request(window, preferred.as_ref())),
+            None if mode_change => {
+                enter_fullscreen(window, fullscreen_request(window, preferred.as_ref()))
+            }
             None => {}
         }
-    }
-
-    /// `Window.setExclusiveFullscreen`: true when the option changed while fullscreen is
-    /// requested, so the window has to enter the other kind of fullscreen at once.
-    pub fn set_exclusive(&mut self, exclusive: bool) -> bool {
-        let changed = self.exclusive != exclusive;
-        self.exclusive = exclusive;
-        changed && self.requested
     }
 
     /// `Window.setPreferredFullscreenVideoMode`: a changed mode waits for `take_mode_change`.
@@ -609,21 +592,17 @@ pub fn settle_created_fullscreen(window: &winit::window::Window, fullscreen: boo
     }
 }
 
-/// `Window.applyFullscreen`: the fullscreen the window asks for. Exclusive fullscreen takes
-/// `Monitor.getPreferredVideoMode` (the preferred mode if the monitor has it, else the desktop
-/// mode); a monitor with no usable mode falls back to borderless, as vanilla does.
+/// `Window.setMode`: fullscreen takes `Monitor.getPreferredVidMode` (the
+/// preferred mode if the monitor has it, else the desktop mode); a monitor
+/// with no usable mode falls back to borderless, as vanilla does.
 pub fn fullscreen_request(
     window: &winit::window::Window,
-    exclusive: bool,
     preferred: Option<&VideoMode>,
 ) -> winit::window::Fullscreen {
     use winit::window::Fullscreen;
     let monitor = window
         .current_monitor()
         .or_else(|| window.primary_monitor());
-    if !exclusive {
-        return Fullscreen::Borderless(monitor);
-    }
     let Some(monitor) = monitor else {
         return Fullscreen::Borderless(None);
     };
@@ -709,15 +688,6 @@ mod tests {
         assert!(icon().is_some());
     }
 
-    #[test]
-    fn exclusive_fullscreen_reapplies_only_while_fullscreen_is_requested() {
-        let mut f = FullscreenState::new(false);
-        assert!(!f.set_exclusive(true));
-        assert!(!f.set_exclusive(true));
-        assert_eq!(f.request(true), Some(true));
-        assert!(f.set_exclusive(false));
-        assert!(!f.set_exclusive(false));
-    }
     #[test]
     fn a_changed_video_mode_applies_once_when_fullscreen() {
         let mode = VideoMode::read(

@@ -146,7 +146,6 @@ static TABLE: LazyLock<Vec<Def>> = LazyLock::new(|| {
         n("graphicsPreset", GRAPHICS_PRESET, 1),
         id("prioritizeChunkUpdates", 3, 0),
         b("fullscreen", false),
-        b("exclusiveFullscreen", false),
         b("macFullscreenMenuVisibility", false),
         u("gamma", 0.5),
         def("guiScale", O(LazyInt(0)), V::Int(0)),

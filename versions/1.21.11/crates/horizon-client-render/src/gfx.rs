@@ -3475,8 +3475,9 @@ impl Renderer {
             true,
             Some(alpha_blend),
         );
-        // RenderPipelines.LINES: DepthStencilState.DEFAULT, so an opaque hitbox or
-        // chunk border keeps the water and clouds drawn after it behind it.
+        // RenderPipelines.LINES: depth test and write, the RenderPipeline builder's
+        // default in 1.21.11, so an opaque hitbox or chunk border keeps the water and
+        // clouds drawn after it behind it.
         let debug_lines_opaque = pipeline(
             "Debug lines opaque",
             "vs_debug_line",
@@ -4534,8 +4535,8 @@ impl Renderer {
             cache: None,
         };
         let additive_pipeline = kept.create_render_pipeline(&additive_descriptor);
-        // `RenderPipelines.DRAGON_RAYS` uses DepthStencilState.DEFAULT:
-        // unlike eyes, a ray hides the faces and rays behind it.
+        // `RenderPipelines.DRAGON_RAYS` keeps the RenderPipeline builder's default
+        // depth test and write: unlike eyes, a ray hides the faces and rays behind it.
         let dragon_rays_pipeline = kept.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Dragon death rays"),
             primitive: wgpu::PrimitiveState {
@@ -11094,7 +11095,7 @@ impl Renderer {
                 pass.draw_indexed(0..text_quads * 6, (entity_quads * 4) as i32, 0..1);
                 pass.set_bind_group(0, &self.group, &[]);
             }
-            // FeatureRenderDispatcher.PreparedFrame.executeTranslucent: the shadows
+            // FeatureRenderDispatcher.renderAllFeatures: the shadows
             // come before the translucent items, which then cover them (#7026).
             if shadow_quads > 0 && !oit_on {
                 pass.set_pipeline(warped.map_or(&self.shadow_blob_pipeline, |w| &w.entity_shadows));

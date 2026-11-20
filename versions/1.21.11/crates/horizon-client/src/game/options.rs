@@ -10,7 +10,7 @@ use horizon_client::{
     window::{FrameContext, InactivityFpsLimit, framerate_limit},
 };
 use serde_json::{Value, json};
-use winit::{event::MouseButton, keyboard::KeyCode, window::Fullscreen};
+use winit::{event::MouseButton, keyboard::KeyCode};
 
 /// `CommonLinks.ACCESSIBILITY_HELP`, the Accessibility page's footer link.
 pub(super) const ACCESSIBILITY_HELP_LINK: &str = "https://aka.ms/MinecraftJavaAccessibility";
@@ -527,7 +527,6 @@ impl Game<'_> {
             }
             let in_video_screen = self.screen == Screen::Options && self.ui.options.video_open();
             let wanted = self.settings.fullscreen;
-            let exclusive = self.settings.file.bool("exclusiveFullscreen");
             let preferred = self
                 .settings
                 .file
@@ -536,7 +535,7 @@ impl Game<'_> {
                 .and_then(horizon_client::window::VideoMode::read);
             let leaving = !wanted && w.fullscreen().is_some();
             self.fullscreen
-                .apply(&w, wanted, exclusive, preferred, in_video_screen);
+                .apply(&w, wanted, preferred, in_video_screen);
             if leaving {
                 windowed_again(&w);
             }
@@ -687,12 +686,6 @@ impl Game<'_> {
                 .window
                 .as_ref()
                 .is_some_and(|w| w.is_minimized().unwrap_or(false)),
-            focused: self.focused,
-            // Window.isExclusiveFullscreen.
-            exclusive_fullscreen: self
-                .window
-                .as_ref()
-                .is_some_and(|w| matches!(w.fullscreen(), Some(Fullscreen::Exclusive(_)))),
             now_ms: self.started.elapsed().as_millis() as i64,
             latest_input_ms: self.last_input.duration_since(self.started).as_millis() as i64,
             has_level: self.title.is_none(),

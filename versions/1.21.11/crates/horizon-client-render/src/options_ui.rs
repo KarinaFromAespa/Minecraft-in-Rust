@@ -228,8 +228,7 @@ impl Opt {
             Opt::MaxFps => "options.framerateLimit",
             Opt::Vsync => "options.vsync",
             Opt::Fullscreen => "options.fullscreen",
-            Opt::ExclusiveFullscreen => "options.exclusiveFullscreen",
-            Opt::ExclusiveMode => "options.fullscreen.exclusive.mode",
+            Opt::ExclusiveMode => "options.fullscreen.resolution",
             Opt::GraphicsBackend => "options.graphicsApi",
             Opt::TextureFiltering => "options.textureFiltering",
             Opt::MaxAnisotropy => "options.maxAnisotropy",
@@ -420,14 +419,6 @@ impl Opt {
                 "options.prioritizeChunkUpdates.byPlayer",
                 "options.prioritizeChunkUpdates.nearby",
             ][usize::from(s.prioritize_chunk_updates.min(2))],
-            // Options.exclusiveFullscreen: a tooltip per value.
-            Opt::ExclusiveFullscreen => {
-                if s.file.bool("exclusiveFullscreen") {
-                    "options.exclusiveFullscreen.on"
-                } else {
-                    "options.exclusiveFullscreen.off"
-                }
-            }
             Opt::TextureFiltering => [
                 "options.textureFiltering.none",
                 "options.textureFiltering.rgss",
@@ -743,7 +734,6 @@ impl Opt {
             Opt::ViewBobbing => on_off(s.view_bobbing),
             Opt::Vsync => on_off(s.vsync),
             Opt::Fullscreen => on_off(s.fullscreen),
-            Opt::ExclusiveFullscreen => on_off(s.file.bool("exclusiveFullscreen")),
             Opt::TextureFiltering => tr([
                 "options.textureFiltering.none",
                 "options.textureFiltering.rgss",
@@ -1035,11 +1025,6 @@ impl Opt {
             Opt::ViewBobbing => s.view_bobbing = !s.view_bobbing,
             Opt::Vsync => s.vsync = !s.vsync,
             Opt::Fullscreen => s.fullscreen = !s.fullscreen,
-            Opt::ExclusiveFullscreen => {
-                let on = s.file.bool("exclusiveFullscreen");
-                s.file
-                    .set("exclusiveFullscreen", crate::options_file::V::Bool(!on));
-            }
             Opt::TextureFiltering => {
                 let n = next(s.file.int("textureFiltering").clamp(0, 2) as u8, 3);
                 s.file.set(
@@ -2738,7 +2723,6 @@ impl OptionsUi {
                     Opt::InactivityFps,
                     Opt::GuiScale,
                     Opt::Fullscreen,
-                    Opt::ExclusiveFullscreen,
                     Opt::Gamma,
                     Opt::GraphicsBackend,
                 ]));
@@ -5970,10 +5954,10 @@ mod tests {
                 _ => Vec::new(),
             })
             .collect();
-        // VideoSettingsScreen.addOptions: the exclusive mode row, displayOptions, the preset,
-        // qualityOptions, then the preferences.
+        // VideoSettingsScreen.addOptions: the fullscreen-resolution row, displayOptions,
+        // the preset, qualityOptions, then the preferences.
         assert_eq!(
-            opts[..9],
+            opts[..8],
             [
                 Opt::ExclusiveMode,
                 Opt::MaxFps,
@@ -5981,7 +5965,6 @@ mod tests {
                 Opt::InactivityFps,
                 Opt::GuiScale,
                 Opt::Fullscreen,
-                Opt::ExclusiveFullscreen,
                 Opt::Gamma,
                 Opt::GraphicsBackend,
             ]
@@ -5993,7 +5976,7 @@ mod tests {
     }
 
     #[test]
-    fn exclusive_fullscreen_mode_picks_a_monitor_mode_or_the_current_one() {
+    fn fullscreen_mode_picks_a_monitor_mode_or_the_current_one() {
         let mut s = Settings::default();
         // No monitor mode: the slider changes nothing.
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
@@ -6238,27 +6221,6 @@ mod tests {
     }
 
     #[test]
-    fn exclusive_fullscreen_and_its_tooltips_follow_the_option() {
-        let mut s = Settings::default();
-        assert!(!s.file.bool("exclusiveFullscreen"));
-        assert_eq!(
-            Opt::ExclusiveFullscreen.tooltip_key(&s),
-            "options.exclusiveFullscreen.off.tooltip"
-        );
-        Opt::ExclusiveFullscreen.cycle(&mut s, false, [854, 480]);
-        assert!(s.file.bool("exclusiveFullscreen"));
-        assert_eq!(
-            Opt::ExclusiveFullscreen.tooltip_key(&s),
-            "options.exclusiveFullscreen.on.tooltip"
-        );
-        // The mode row's own tooltip says it only matters with Exclusive Fullscreen.
-        assert_eq!(
-            Opt::ExclusiveMode.tooltip_key(&s),
-            "options.fullscreen.exclusive.mode.tooltip"
-        );
-    }
-
-    #[test]
     fn the_graphics_api_option_cycles_default_opengl_vulkan_and_asks_for_a_restart() {
         use crate::graphics::GraphicsApi;
         let mut s = Settings::default();
@@ -6320,17 +6282,17 @@ mod tests {
         s.video_modes = vec![mode(1280, 60.0), mode(1920, 144.0), mode(2560, 59.94)];
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: Current"
+            "Fullscreen Resolution: Current"
         );
         Opt::ExclusiveMode.set_slider(&mut s, 2.0 / 3.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 1920x1080@144 (24bit)"
+            "Fullscreen Resolution: 1920x1080@144 (24bit)"
         );
         Opt::ExclusiveMode.set_slider(&mut s, 1.0);
         assert_eq!(
             Opt::ExclusiveMode.label(&s).plain(),
-            "Exclusive Fullscreen Mode: 2560x1440@59.94 (24bit)"
+            "Fullscreen Resolution: 2560x1440@59.94 (24bit)"
         );
         s.horizon.api = GraphicsApi::Vulkan;
         assert_eq!(
