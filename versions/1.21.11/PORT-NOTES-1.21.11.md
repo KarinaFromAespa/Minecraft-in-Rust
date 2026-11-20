@@ -7481,3 +7481,28 @@ tag in its own `can_place_growth` — same fix pattern, that file's
 item's scope. Tests: `cargo test -p horizon-world --lib
 --no-default-features sculk` 4 passed. rustfmt --check clean on
 sculk.rs.
+
+## Item 106 — level_loading.rs (rank 2, NO-CHANGE + citations)
+
+7 classes, 19 methods, 4 named: LevelLoadingScreen, LoadingOverlay,
+ConnectScreen, LevelLoadTracker (+3 state records).
+
+Java delta, jar-verified: pure API shape — `extractRenderState` ->
+`render`, `extractBackground` -> `renderBackground`,
+`extractChunksForRendering` -> `renderChunks`, `extractProgressBar` ->
+`drawProgressBar`, `GuiGraphicsExtractor` -> `GuiGraphics`
+(`centeredText` -> `drawCenteredString`), `private` ->
+package-private, the nether-portal sprite plumbing
+(`getBlockStateModelSet().getParticleMaterial()` ->
+`getBlockModelShaper().getParticleIcon()`), and the overlay's
+no-fade clear (26.1 `clearColorOverride` vs 1.21.11 direct
+`clearColorTexture` — same outcome). Literal comparison zero in all
+four classes. All Rust mirrors already 1.21.11-shaped (COLORS table,
+chunk-map geometry, logo layout, progress-bar fills, tracker state
+machine with the 30s timeout and 500ms close delay, the ConnectScreen
+cancel button). Citation fixes only (7 spots). NOT touched: the
+FileFixerProgressScreen citations in this file (item 346's scope);
+`LevelLoadProgressTracker` is in NO report item (report gap);
+`determineLevelLoadingReason` is items 15/241's scope. Tests: `cargo
+test -p horizon-client-render --lib --no-default-features
+level_loading::` 12 passed. rustfmt --check clean.
