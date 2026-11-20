@@ -334,7 +334,23 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 115/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132 + 4 zero-diff)
+### Rank 2: 116/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133 + 4 zero-diff)
+
+- **Item 133 — `crates/horizon-client/src/mobs/undead.rs`
+  (3 classes, 5 methods, 2 named in Horizon),
+  real fix:** AbstractSkeleton, Drowned,
+  RemoveBlockGoal. Stray and Bogged no longer drop
+  a skeleton skull from a charged creeper: in
+  1.21.8 the drop is on the concrete `Skeleton`
+  class's `dropCustomDeathLoot` — Stray and Bogged
+  extend `AbstractSkeleton` and have no override
+  (Stray verified by javap on the 1.21.8 jar) —
+  and 1.21.9's `charged_creeper` tables exclude
+  them too. The Drowned/Husk/Zombie-Villager/
+  Zombified-Piglin empty skull was already right.
+  `reassessWeaponGoal`, `updateSwimming` and
+  `RemoveBlockGoal` differ only by `isClientSide()`
+  vs the field. Check 0/0.
 
 - **Item 132 — `crates/horizon-client-render/src/hud.rs`
   (7 classes, 15 methods, 1 named in Horizon),
