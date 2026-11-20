@@ -85,8 +85,13 @@ impl Behaviours {
                 let n = super::update::rel(below, d);
                 !self.is_water_fluid(self.fluid(level.block_state(n)).kind())
             });
-        // Biome.shouldSnow(level, top)
-        let snows_at_top = Self::precipitation_kind(settings, top, sea) == BiomePrecipitation::Snow
+        // Biome.shouldSnow(level, top): 1.21.8 gates on warmEnoughToRain
+        // alone - no hasPrecipitation check - where 1.21.9 requires
+        // getPrecipitationAt == SNOW. A dry biome colder than 0.15
+        // accumulates snow in 1.21.8 (no vanilla biome reaches it, but a
+        // datapack biome can); like shouldFreeze above, only the
+        // temperature gate applies.
+        let snows_at_top = settings.height_adjusted(top, sea) < 0.15
             && inside(top)
             && level.block_light(top) < 10
             && {
