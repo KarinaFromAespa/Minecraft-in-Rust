@@ -2616,14 +2616,14 @@ mod tests {
     fn a_1_21_11_unknown_entity_is_dropped_and_vanilla_entities_are_remapped() {
         let session = Session::new(ServerVersion::V1_21_11);
         // 1.21.11 is six protocols above the pin: its entities map down to the
-        // 1.21.3 ids, and one the pin lacks (the nautilus) is dropped.
+        // 1.21.1 ids, and one the pin lacks (the nautilus) is dropped.
         for (kind, data, expected) in [
-            (88, 0, None), // nautilus: no 1.21.3 counterpart
-            (153, 0, Some((146, 0))), // zombie villager
-            (0, 0, Some((0, 0))),
-            (51, 1381, Some((50, 1381))), // falling block, with a state that maps to itself
+            (88, 0, None), // nautilus: no 1.21.1 counterpart
+            (153, 0, Some((126, 0))), // zombie villager
+            (2, 0, Some((0, 0))), // allay: 2 in 1.21.11, 0 pinned (0 and 1 are the acacia boats)
+            (51, 1381, Some((40, 1338))), // falling block, its state renumbered too
         ] {
-            // 1.21.11's layout, written by hand: the pinned codec is 1.21.3's now.
+            // 1.21.11's layout, written by hand: the pinned codec is 1.21.1's now.
             let mut w = Writer::new();
             w.varint(7);
             w.uuid(1);
@@ -2762,14 +2762,14 @@ mod tests {
     fn a_26_2_chunk_section_on_the_global_palette_is_renumbered() {
         let ids = ids();
         // Every block a different state from 0..4096: past 8 bits, so the global palette at 15 bits —
-        // the width both numberings use (1.21.8 has 27,946 states, 26.2 has 32,366).
+        // the width both numberings use (1.21.1 has 26,684 states, 26.2 has 32,366).
         let values: Vec<i32> = (0..4096).map(|i| 13000 + i).collect();
         let old = Paletted::from_values(&values, Strategy::Blocks, 15);
         assert_eq!(old.bits, 15);
         let new = renumber_states(ids, &old, 15);
         assert_eq!(new.bits, 15);
-        // oak_slab type=top waterlogged=true is 13330 in 26.2, 11497 in 1.21.3.
-        assert_eq!(new.get(330), 11497);
+        // oak_slab type=top waterlogged=true is 13330 in 26.2, 11162 in 1.21.1.
+        assert_eq!(new.get(330), 11162);
         assert_eq!(new.get(0), ids.block_state.up(13000).unwrap());
     }
 

@@ -432,9 +432,9 @@ mod tests {
     #[test]
     fn a_chunk_goes_down_and_back_up() {
         let ids = ids();
-        // A section of one state (calcite: 22785 pinned, 27160 in 26.2), and one on the global palette:
+        // A section of one state (calcite: 22316 pinned, 27160 in 26.2), and one on the global palette:
         // 4096 states that 26.2 has too (its 13000.., oak_slab's 13330 among them).
-        let one = Paletted::from_values(&[22785; chunk::BLOCKS], Strategy::Blocks, 15);
+        let one = Paletted::from_values(&[22316; chunk::BLOCKS], Strategy::Blocks, 15);
         let many: Vec<i32> = (0..4096)
             .map(|i| ids.block_state.up(13000 + i).unwrap_or(1))
             .collect();
