@@ -334,7 +334,26 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 131/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148 + 4 zero-diff)
+### Rank 2: 132/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149 + 4 zero-diff)
+
+- **Item 149 — `crates/horizon-client-render/src/gfx/pack_atlas.rs`
+  (3 classes, 10 methods, 1 named in Horizon), zero-diff:**
+  `SpriteLoader`: 1.21.9 made `stitch` and `runSpriteSuppliers`
+  private, dropped the 4-arg `loadAndStitch` overload and the
+  `DEFAULT_METADATA_SECTIONS` constant, narrowed the 5-arg
+  `loadAndStitch` parameter from `Collection` to `Set`, and
+  swapped `Preparations.waitForUpload()` for
+  `Preparations.getSprite()`. The `stitch` body itself is
+  byte-identical (verified by direct comparison), so the mip-level
+  arithmetic `stitch_mip_level` mirrors is unchanged; nothing else
+  here has a Rust surface (no `wait_for_upload`, `get_sprite`,
+  or `load_and_stitch` anywhere). `ChunkSectionLayer`: 1.21.8
+  has `outputTarget()` (translucent → translucent target,
+  tripwire → weather target, else main); 1.21.9 removed it. The
+  Rust tree has no output-target code at all (no
+  `output_target`, `translucent_target`, or `weather_target`
+  references) and mentions `ChunkSectionLayer` only in a comment
+  about `SOLID` layer picking.
 
 - **Item 148 — `crates/horizon-client/src/mobs/breeze.rs`
   (2 classes, 11 methods, 1 named in Horizon), zero-diff:**
