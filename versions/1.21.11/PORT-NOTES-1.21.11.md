@@ -8204,3 +8204,42 @@ sensor-order comment); villager_brain.rs:1,312 cite
 `Villager.BRAIN_PROVIDER` (the villager-brain item's scope). Tests:
 `mobs::warden_brain::` 2 passed, 2 ignored (needs prepared resources);
 `mobs::warden::` 8 passed.
+
+## Item 122 — spectator_menu.rs (rank 2, CHANGED)
+
+8 classes, 22 methods, 3 named (`SpectatorGui.extractHotbar`,
+`SpectatorGui.extractAction`, `SpectatorMenuItem.extractIcon`).
+
+Java delta, jar-verified (javap diff 332 lines + decompile diff 569
+lines, both read in full): almost entirely the `GuiGraphicsExtractor`
+→ `GuiGraphics` rename (extract* → render*, `text` → `drawString`,
+`textWithBackdrop` → `drawStringWithBackdrop`,
+`PlayerFaceExtractor.extractRenderState` → `PlayerFaceRenderer.draw`),
+plus visibility-only changes (SpectatorMenu's sprites, texts and
+`page` field private → package-private) and one unobservable change
+(TeamSelectionItem.create picks the icon member with
+`RandomSource.create()` instead of `createThreadLocalInstance()` —
+both non-deterministic; the Rust picks by SystemTime nanos). All
+behaviour identical: fade, hotbar/action geometry, scroll, selectSlot,
+paging, player filter + UUID ordering, team fill + face. Constants
+verified: FADE_OUT_DELAY 5000L / FADE_OUT_TIME 2000L exist as fields
+in both versions, HOTBAR_SPRITE "hud/hotbar", all eight spectatorMenu
+lang keys in the 1.21.11 jar.
+
+Changes: the three citations reworded to the 1.21.11 form
+(`renderHotbar` / `renderAction` / `renderIcon`). And the team icon's
+colour square now fades with the menu: vanilla fills (1,1)-(15,15)
+with `ARGB.colorFromFloat(alpha, r * brightness, ...)` while the Rust
+filled at alpha 255, so the square stayed opaque while everything
+else faded out. Version-neutral, in this item's named class, small
+fix (the item-121 precedent); the wrong `ARGB.scaleRGB` comment goes
+with it. New test pins the fill colour at alpha 0.5 and at brightness
+0.25. Checked, no action: PlayerMenuItem is in no report item
+(decompiled from both jars — rename only; its face draws with
+`ARGB.white(alpha)` and no brightness scaling, but Player items can
+only ever be enabled, so the Rust's brightness tint equals
+white(alpha) there); RootSpectatorMenuCategory is in no report item
+(prompt "spectatorMenu.root.prompt", matches). Referral:
+game/spectator.rs:110 still cites `Hud.extractHotbar` / `extractAction`
+(the item-87 tree-wide sweep). Tests: `spectator_menu::` 1 passed
+(new; the module had no tests before).

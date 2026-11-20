@@ -3,7 +3,7 @@
 //! Teleport to Team Member, laid out as [`GuiDraw`] calls.
 use crate::{
     font::Font,
-    hud_layout::{Blend, GuiDraw, argb, color_from_float, fill, white, width},
+    hud_layout::{Blend, GuiDraw, color_from_float, fill, white, width},
     hud_overlays::text_with_backdrop,
     text::Text,
 };
@@ -278,7 +278,7 @@ impl SpectatorGui {
         let delta = self.last_selection - now + FADE_OUT_DELAY;
         (delta as f32 / FADE_OUT_TIME).clamp(0.0, 1.0)
     }
-    /// `SpectatorGui.extractHotbar`: the page's nine slots; a menu that has
+    /// `SpectatorGui.renderHotbar`: the page's nine slots; a menu that has
     /// faded out exits instead. `key_label` is the hotbar key of a slot.
     pub fn hotbar(
         &mut self,
@@ -332,7 +332,7 @@ impl SpectatorGui {
         }
         out
     }
-    /// `SpectatorGui.extractAction`: the selected item's name, or the
+    /// `SpectatorGui.renderAction`: the selected item's name, or the
     /// page's prompt, over the hotbar.
     pub fn action(&self, w: i32, h: i32, now: i64, font: &Font, background: u32) -> Vec<GuiDraw> {
         let mut out = Vec::new();
@@ -376,7 +376,7 @@ fn sprite(name: &'static str, x: i32, y: i32, w: i32, h: i32, color: u32) -> Gui
     }
 }
 
-/// `SpectatorMenuItem.extractIcon` at the slot's corner.
+/// `SpectatorMenuItem.renderIcon` at the slot's corner.
 fn icon(out: &mut Vec<GuiDraw>, item: &Item, x: i32, y: i32, brightness: f32, alpha: f32) {
     let tint = color_from_float(alpha, brightness, brightness, brightness);
     match item {
@@ -403,17 +403,58 @@ fn icon(out: &mut Vec<GuiDraw>, item: &Item, x: i32, y: i32, brightness: f32, al
         Item::Player(m) => crate::tab_list::face(out, &m.skin, x + 2, y + 2, 12, true, false, tint),
         Item::Team(t) => {
             if let Some(rgb) = t.color {
-                // ARGB.scaleRGB.
-                let c = |s: u32| (((rgb >> s) & 255) as f32 * brightness) as u32;
-                out.push(fill(
-                    x + 1,
-                    y + 1,
-                    x + 15,
-                    y + 15,
-                    argb(255, c(16), c(8), c(0)),
-                ));
+                // ARGB.colorFromFloat(alpha, r * brightness, ...): the
+                // square fades with the menu like every other draw.
+                let c = |s: u32| ((rgb >> s) & 255) as f32 / 255.0;
+                let fill_color = color_from_float(
+                    alpha,
+                    c(16) * brightness,
+                    c(8) * brightness,
+                    c(0) * brightness,
+                );
+                out.push(fill(x + 1, y + 1, x + 15, y + 15, fill_color));
             }
             crate::tab_list::face(out, &t.icon, x + 2, y + 2, 12, true, false, tint);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn team_fill(color: u32, brightness: f32, alpha: f32) -> Option<(i32, i32, i32, i32, u32)> {
+        let team = Item::Team(Team {
+            name: Text::literal("Red"),
+            color: Some(color),
+            players: vec![],
+            icon: String::new(),
+        });
+        let mut out = Vec::new();
+        icon(&mut out, &team, 0, 0, brightness, alpha);
+        out.iter().find_map(|d| match d {
+            GuiDraw::Fill {
+                x0,
+                y0,
+                x1,
+                y1,
+                color,
+            } => Some((*x0, *y0, *x1, *y1, *color)),
+            _ => None,
+        })
+    }
+
+    #[test]
+    fn a_team_icon_s_colour_square_fades_with_the_menu() {
+        // ARGB.colorFromFloat(0.5, 1, 0, 0): alpha floor(0.5 * 255) = 127.
+        assert_eq!(
+            team_fill(0xFF_00_00, 1.0, 0.5),
+            Some((1, 1, 15, 15, 0x7F_FF_00_00))
+        );
+        // A dimmed icon (brightness 0.25) at full alpha: red floor(0.25 * 255) = 63.
+        assert_eq!(
+            team_fill(0xFF_00_00, 0.25, 1.0),
+            Some((1, 1, 15, 15, 0xFF_3F_00_00))
+        );
     }
 }
