@@ -15,11 +15,11 @@ use crate::{
 /// value of 2 (a gamerule of 0 completes the listener with no grid at
 /// all). 1.21.9's `createChunkLoadStatusView` uses 8 instead.
 pub const STATUS_RADIUS: i32 = 5;
-/// `LevelLoadProgressTracker.EXPECTED_PLAYER_CHUNKS`: the 7x7 chunks
-/// `PrepareSpawnTask` waits for around the player.
+/// `LoggerChunkProgressListener`'s max count at the default
+/// `spawnChunkRadius` of 2: the FULL grid's diameter (7) squared —
+/// the 7x7 chunks `PrepareSpawnTask` waits for around the spawn.
+/// (1.21.9 renamed the same 49 `EXPECTED_PLAYER_CHUNKS`.)
 const PLAYER_CHUNKS: usize = 49;
-/// `LevelLoadProgressTracker.PREPARE_SERVER_WEIGHT`.
-const PREPARE_WEIGHT: usize = 10;
 
 /// `ChunkStatus`, as far as the chunk status map tells them apart.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -196,7 +196,8 @@ impl LevelLoadTracker {
     }
 }
 
-/// `LevelLoadListener.Stage`.
+/// The load's stages: the server starting, the spawn preparing, the
+/// initial chunks, the spawn grid.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stage {
     StartServer,
@@ -205,62 +206,54 @@ pub enum Stage {
     LoadPlayerChunks,
 }
 
-/// `LevelLoadProgressTracker` (with `includePlayerChunks`).
+/// `LoggerChunkProgressListener` (1.21.8): the count of FULL chunks
+/// over the max count of the spawn grid (`diameter * diameter`, 49
+/// at the default gamerule); 100% when the max is 0 (the gamerule
+/// is 0, the listener completes at once). No segments: 1.21.9's
+/// weighted `LevelLoadProgressTracker` does not exist in 1.21.8.
 #[derive(Debug, Default)]
 struct ProgressTracker {
-    total_weight: usize,
-    finalized_weight: usize,
-    segment_weight: usize,
-    segment_fraction: f32,
-    progress: f32,
+    count: usize,
+    /// None until the spawn focus is set and the first counts arrive.
+    max: Option<usize>,
 }
 impl ProgressTracker {
     fn tracks(stage: Stage) -> bool {
         matches!(stage, Stage::LoadInitialChunks | Stage::LoadPlayerChunks)
     }
-    fn begin_segment(&mut self, weight: usize) {
-        self.segment_weight = weight;
-        self.segment_fraction = 0.0;
-        self.update_progress();
-    }
-    fn finish_segment(&mut self) {
-        self.finalized_weight += self.segment_weight;
-        self.segment_weight = 0;
-        self.update_progress();
-    }
-    fn update_progress(&mut self) {
-        self.progress = if self.total_weight == 0 {
-            0.0
-        } else {
-            (self.finalized_weight as f32 + self.segment_fraction * self.segment_weight as f32)
-                / self.total_weight as f32
-        };
+    fn progress(&self) -> f32 {
+        match self.max {
+            None => 0.0,
+            Some(0) => 1.0,
+            Some(max) => self.count.min(max) as f32 / max as f32,
+        }
     }
     fn start(&mut self, stage: Stage, total_chunks: usize) {
         match stage {
             Stage::LoadInitialChunks => {
-                self.total_weight = PREPARE_WEIGHT + total_chunks + PLAYER_CHUNKS;
-                self.begin_segment(PREPARE_WEIGHT);
-                self.finish_segment();
-                self.begin_segment(total_chunks);
+                // prepareLevels loads through the same listener; the
+                // window reports its counts once the spawn focus is set.
+                self.count = 0;
+                self.max = None;
             }
-            Stage::LoadPlayerChunks => self.begin_segment(PLAYER_CHUNKS),
+            Stage::LoadPlayerChunks => {
+                self.count = 0;
+                self.max = Some(total_chunks);
+            }
             _ => {}
         }
     }
     fn update(&mut self, stage: Stage, current: usize, total: usize) {
         if Self::tracks(stage) {
-            self.segment_fraction = if total == 0 {
-                0.0
-            } else {
-                current as f32 / total as f32
-            };
-            self.update_progress();
+            self.count = current;
+            self.max = Some(total);
         }
     }
     fn finish(&mut self, stage: Stage) {
         if Self::tracks(stage) {
-            self.finish_segment();
+            if let Some(max) = self.max {
+                self.count = max;
+            }
         }
     }
 }
@@ -292,29 +285,29 @@ impl Default for ServerLoadView {
     }
 }
 impl ServerLoadView {
-    /// `LevelLoadListener.start`.
+    /// `ChunkProgressListener.start`.
     pub fn start(&self, stage: Stage, total_chunks: usize) {
         Self::lock(&self.tracker).start(stage, total_chunks);
         // `serverStage = stage`, whatever the stage.
         self.has_progress
             .store(true, std::sync::atomic::Ordering::Relaxed);
     }
-    /// `LevelLoadListener.update`.
+    /// `ChunkProgressListener.onStatusChange` (a chunk reached FULL).
     pub fn update(&self, stage: Stage, current: usize, total: usize) {
         Self::lock(&self.tracker).update(stage, current, total);
     }
-    /// `LevelLoadListener.finish`.
+    /// `ChunkProgressListener.stop`.
     pub fn finish(&self, stage: Stage) {
         Self::lock(&self.tracker).finish(stage);
     }
     /// Whether the listener started (`StoringChunkProgressListener`'s
-    /// `started`, set by `LevelLoadListener.start`).
+    /// `started`, set by `ChunkProgressListener.start`).
     pub fn has_progress(&self) -> bool {
         self.has_progress.load(std::sync::atomic::Ordering::Relaxed)
     }
     /// `LoggerChunkProgressListener.getProgress`, as a fraction.
     pub fn server_progress(&self) -> f32 {
-        Self::lock(&self.tracker).progress
+        Self::lock(&self.tracker).progress()
     }
     /// The status map's radius, from the world's `spawnChunkRadius`
     /// gamerule: 0 when the gamerule is 0 (the listener completes with
@@ -348,11 +341,11 @@ impl ServerLoadView {
     }
 }
 
-/// `LevelLoadProgressTracker.get` once the server is prepared, with `ready`
-/// of the player's 49 chunks loaded (no forced chunks to load first).
+/// `LoggerChunkProgressListener.getProgress` once the spawn focus is
+/// set, with `ready` of the 49 FULL chunks loaded (the default
+/// gamerule's 7x7 grid).
 pub fn progress(ready: usize) -> f32 {
-    let total = PREPARE_WEIGHT + PLAYER_CHUNKS;
-    (PREPARE_WEIGHT + ready.min(PLAYER_CHUNKS)) as f32 / total as f32
+    ready.min(PLAYER_CHUNKS) as f32 / PLAYER_CHUNKS as f32
 }
 
 /// `ARGB.opaque` as the batch's RGBA.
@@ -699,8 +692,8 @@ mod tests {
     }
 
     #[test]
-    fn progress_weighs_the_prepared_server_and_the_player_chunks() {
-        assert_eq!(progress(0), 10.0 / 59.0);
+    fn progress_counts_full_chunks_over_the_spawn_grid() {
+        assert_eq!(progress(0), 0.0);
         assert_eq!(progress(49), 1.0);
         assert_eq!(progress(100), 1.0);
     }
@@ -742,20 +735,21 @@ mod tracker_tests {
     };
 
     #[test]
-    fn server_progress_follows_the_listener_like_the_progress_tracker() {
+    fn server_progress_counts_full_chunks_like_the_logger_listener() {
         let view = ServerLoadView::default();
         assert!(!view.has_progress() && view.server_progress() == 0.0);
         // A stage the tracker ignores still counts as progress being made.
         view.start(Stage::StartServer, 0);
         assert!(view.has_progress() && view.server_progress() == 0.0);
-        // prepareLevels with no forced chunks: the 10 of preparing, of 59.
+        // prepareLevels reports no counts yet: 0 until the spawn focus
+        // is set and the window starts counting.
         view.start(Stage::LoadInitialChunks, 0);
         view.finish(Stage::LoadInitialChunks);
-        assert_eq!(view.server_progress(), 10.0 / 59.0);
-        // PrepareSpawnTask: the 49 player chunks.
+        assert_eq!(view.server_progress(), 0.0);
+        // PrepareSpawnTask: the 49 chunks of the spawn grid.
         view.start(Stage::LoadPlayerChunks, 49);
         view.update(Stage::LoadPlayerChunks, 20, 49);
-        assert_eq!(view.server_progress(), (10.0 + 20.0) / 59.0);
+        assert_eq!(view.server_progress(), 20.0 / 49.0);
         assert_eq!(view.server_progress(), progress(20));
         view.update(Stage::LoadPlayerChunks, 49, 49);
         view.finish(Stage::LoadPlayerChunks);

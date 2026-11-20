@@ -43,7 +43,9 @@ const CALL_TIMEOUT: Duration = Duration::from_secs(10);
 pub(super) const NO_ANSWER: &str =
     "the integrated server stopped or did not answer within 10 s (the game log says which)";
 
-/// `LevelLoadProgressTracker.EXPECTED_PLAYER_CHUNKS`: the 7x7 chunks around the spawn.
+/// `LoggerChunkProgressListener`'s max count at the default
+/// `spawnChunkRadius` of 2: the FULL grid's diameter (7) squared —
+/// the 7x7 chunks around the spawn.
 const PLAYER_CHUNKS: usize = 49;
 
 /// What the window tells its server thread.
@@ -76,8 +78,8 @@ struct Flags {
     terrain: Mutex<
         std::collections::HashMap<&'static str, Arc<horizon_client::vanillagen::VanillaTerrain>>,
     >,
-    /// What the server's `LevelLoadListener` reports, for the window's
-    /// `LevelLoadingScreen` (`LevelLoadTracker.serverProgress/statusView`).
+    /// What the server's `StoringChunkProgressListener` reports, for the window's
+    /// `LevelLoadingScreen` (its progress and status map).
     load: Arc<horizon_client::level_loading::ServerLoadView>,
     /// What the world's upgrade has done (`UpgradeProgress`): the window shows it on
     /// `FileFixerProgressScreen` while the file fixers run, and its Cancel stops them.
@@ -297,8 +299,8 @@ pub(super) struct Serving {
     /// Where the load focus is and how far the player's chunks are.
     load: LoadPhase,
 }
-/// The part of `LevelLoadListener` after `prepareLevels`: `PrepareSpawnTask`'s
-/// `LOAD_PLAYER_CHUNKS`.
+/// The part of the load after `prepareLevels`: `PrepareSpawnTask`'s
+/// spawn grid.
 #[derive(Default)]
 struct LoadPhase {
     /// `updateFocus`: the spawn chunk, once the stage started.

@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 72/163 (327–364 + 366–369 + 371–400 + 55 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–400)
+### Rank 3: 82/163 (327–364 + 366–369 + 371–410 + 64 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–381, 382–385, 386–390, 391, 394, 396, 397–407, 409, 410)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7612,6 +7612,19 @@ includes constant-pool churn.
   now runs outside the `spawn_mobs` gate, with the roll alone
   gated inside. (The cat, patrol and siege spawners gate their
   whole tick, so they stay inside.)
+- **Item 408 — `crates/horizon-client-render/src/level_loading.rs`
+  (+ integrated.rs), the loading percentage counts FULL chunks:**
+  1.21.9's `LevelLoadProgressTracker` (weighted segments: prepare
+  10 + chunks + 49 player chunks, so 10/59 after prepareLevels)
+  does not exist in 1.21.8. 1.21.8's
+  `LoggerChunkProgressListener.getProgress` is count/maxCount
+  over the spawn grid (49 at the default gamerule; 100% when the
+  max is 0). The weighted tracker is replaced by the count model,
+  and the `LevelLoadListener` / `LevelLoadProgressTracker`
+  citations are re-cut to `ChunkProgressListener` /
+  `StoringChunkProgressListener`. (The two separate loading
+  screens and the gamerule-based status radius were already
+  1.21.8-form, item 232.)
 
 ### Rank 4 content: closed 2/2 (chain)
 
