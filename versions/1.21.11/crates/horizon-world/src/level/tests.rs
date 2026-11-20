@@ -2711,6 +2711,29 @@ fn a_bucket_replaces_a_bubble_column_and_breaks_a_flower() {
 }
 
 #[test]
+fn soul_sand_under_water_raises_a_bubble_column_from_its_own_shape_update() {
+    let mut w = world!();
+    let sand = BlockPos::new(0, 10, 0);
+    let water = BlockPos::new(0, 11, 0);
+    // Raw placement (world generation): no onPlace, no neighbour updates,
+    // so the water-side check never fires. postProcessGeneration calls
+    // updateShape on the non-liquid blocks; SoulSandBlock.updateShape
+    // schedules the 20-tick bubble-column check when water is above, and
+    // its tick raises the column (drag=false: soul sand pushes up).
+    w.put(sand, w.id("soul_sand", &[]));
+    w.put(water, w.id("water", &[("level", "0")]));
+    let state = w.get(sand);
+    let updated = w
+        .b()
+        .update_from_neighbour_shapes(&mut w.level, &mut w.ticks, sand, state);
+    assert_eq!(updated, state);
+    for _ in 0..20 {
+        w.tick();
+    }
+    assert_eq!(w.name(water), "bubble_column[drag=false]");
+}
+
+#[test]
 fn clicked_bucket_pours_beside_a_refusing_block() {
     let mut w = world!();
     let at = BlockPos::new(0, 10, 0);

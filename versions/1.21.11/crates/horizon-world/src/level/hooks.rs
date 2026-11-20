@@ -195,6 +195,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                     // (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
                     self.schedule_tick(pos, block, 20);
                 }
+                Class::SoulSand => {
+                    // SoulSandBlock.onPlace schedules the bubble-column check
+                    // (BUBBLE_COLUMN_CHECK_DELAY, 20 ticks).
+                    self.schedule_tick(pos, block, 20);
+                }
                 Class::Liquid => self.liquid_block_changed(pos, state),
                 Class::PistonBase => {
                     if !same && self.moving_piston(pos).is_none() {

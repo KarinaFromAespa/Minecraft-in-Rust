@@ -5464,3 +5464,76 @@ passed; rustfmt --check clean on armor_stands.rs (render.rs flags
 one pre-existing drift at line 914, left alone). Rank 2 now
 246/492 (75 changed, 171 no-change).
 work-items.json rank2.closed = 246 on 2026-11-20.
+
+## Item 68 — crates/horizon-client/src/game/perspective.rs (rank 2, CHANGED)
+
+5 classes, 30 methods, 6 named. Javap diff +249/-138 (594 lines),
+decompile diff +334/-335 (884 lines), both read in full Nov 20,
+2026, plus direct `javap` on BubbleColumnBlock / MagmaBlock /
+LiquidBlock / Entity / EntityRenderer / LivingEntityRenderer /
+AbstractClientPlayer / InventoryScreen from both jars. Triage
+note `rank2-item-68-TRIAGE.md` (workdir root, scratch).
+
+**Fix 1 — SoulSand bubble-column arms.** 1.21.11's SoulSandBlock
+(and MagmaBlock) has `tick` (updateColumn above), `updateShape`
+(UP becomes water -> schedule self 20 ticks) and `onPlace`
+(schedule self 20 ticks); 26.1 has none of the three — the
+mechanism moved to LiquidBlock in 26.x (water-side:
+`shouldBubbleColumnOccupy` + `tryScheduleBubbleBlockColumn`,
+which the Rust mirrors). The Rust had the full 1.21.11-shaped
+mechanism for Magma but NO SoulSand arms at all
+(`Class::SoulSand` existed and was never matched). Player
+placement was covered by the water side, but worldgen /
+postprocess soul sand under water never raised a column
+(postprocess calls the shape update on non-liquids and skips
+the water above — and the item-65 comment claimed the columns
+come from "those blocks' own shape update", true for magma,
+false for soul sand). Added the three arms in
+horizon-world/src/level/{hooks,shapes,tick}.rs, mirroring Magma
+exactly; the extra tick is a no-op where the water side already
+handled it (`bubble_column_update_for` is idempotent). New test
+`soul_sand_under_water_raises_a_bubble_column_from_its_own_shape_update`
+pins the discriminating case (raw placement + shape update,
+column `drag=false` after 20 ticks; fails without the arms).
+**Fix 2 — citations** in perspective.rs:
+`extractEntityInInventoryFollowsMouse` ->
+`renderEntityInInventoryFollowsMouse` (module doc, fn doc, scale
+comment; 1.21.11's InventoryScreen has only that method).
+
+Java delta otherwise: InventoryScreen is the 26.x render rename
+throughout, plus one real difference — 1.21.11's doll helper
+sets `lightCoords = 15728880` (full bright); the Rust already
+passes its packed full-bright `240 | 240 << 8` to every doll
+call, so no fix. AvatarRenderer: layers, arm poses, cape/flight
+state, scale 0.9375, crouch offset, hand render, rotations,
+upside-down all identical; the scoreText difference is
+structural — 26.1's `EntityRenderer` sets `scoreText =
+entity.belowNameDisplay()` for EVERY entity within 10 blocks
+(26.1's `Entity` has `belowNameDisplay`), 1.21.11 only in
+`AvatarRenderer` (players only; `Entity.belowNameDisplay`
+doesn't exist). The Rust's names.rs is already 1.21.11-shaped
+(players only, < 100, lift `9.0*1.15*0.025`). IronBarsBlock:
+only the equivalent water-check rename. GuiEntityRenderer:
+identical except the CameraRenderState package move.
+Verified unchanged: doll math (rect/size/offset/angles),
+arm-pose tree + two-handed gate, cape flap/lean/lean2 formulas,
+visual shapes (bars empty, soul sand full), `bars_attach_to`
+and `is_exception_for_connection`, the bubble-column block's
+own 5-tick re-evaluation.
+
+Version-neutral gaps (recorded, not fixed): the avatar crouch
+render offset (`scale * 2/16` down, on top of the crouch pose)
+has no mirror in `base_transform` — a crouching player renders
+0.125 blocks high; `affects_offhand` also suppresses the
+off-hand pose for THROW_TRIDENT where vanilla's gate is
+`isTwoHanded()` only (nil visible difference).
+
+Verification: `cargo test -p horizon-world --lib
+--no-default-features level::tests::soul_sand_under_water_raises_a_bubble_column_from_its_own_shape_update`
+passed (early-returns locally — no prepared resources on this
+VM; runs for real on CI); `cargo check -p horizon-client --lib
+--tests --no-default-features` clean; rustfmt --check clean on
+perspective.rs, hooks.rs, shapes.rs, tick.rs (tests.rs flags two
+pre-existing drifts, left alone). Rank 2 now 247/492 (76 changed,
+171 no-change).
+work-items.json rank2.closed = 247 on 2026-11-20.

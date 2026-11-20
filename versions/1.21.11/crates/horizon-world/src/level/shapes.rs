@@ -627,6 +627,16 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                 }
                 sup!()
             }
+            Class::SoulSand => {
+                // SoulSandBlock.updateShape: water appearing above schedules
+                // the bubble-column check (BUBBLE_COLUMN_CHECK_DELAY, 20
+                // ticks). 26.1 dropped this (and the tick and onPlace) when
+                // the check moved to LiquidBlock; 1.21.11 keeps it.
+                if dir == Direction::Up && b.is_block(nstate, n.water) {
+                    self.schedule_tick(pos, block, 20);
+                }
+                sup!()
+            }
             Class::MangrovePropagule => {
                 self.waterlogged_tick(state, pos);
                 survive_or_air!(dir == Direction::Up)

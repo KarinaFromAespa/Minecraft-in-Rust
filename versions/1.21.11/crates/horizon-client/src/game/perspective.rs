@@ -1,7 +1,7 @@
 //! The camera type (`CameraType`: first person, third person behind and
 //! in front, cycled by F5), the detached camera (`Camera.setup` with
 //! `getMaxZoom`), and the local player drawn as a model: in third person
-//! and in the inventory (`InventoryScreen.extractEntityInInventoryFollowsMouse`).
+//! and in the inventory (`InventoryScreen.renderEntityInInventoryFollowsMouse`).
 use super::{Game, Screen, native_mob_draw::NativePlayerRender, shoulders::shoulder_variants};
 use horizon_client::{
     blocks::BlockFacts,
@@ -849,7 +849,7 @@ impl Game<'_> {
             self.mark_outline(&out[start..], color);
         }
     }
-    /// `extractEntityInInventoryFollowsMouse`: the player in the box
+    /// `renderEntityInInventoryFollowsMouse`: the player in the box
     /// `[x0, x1) x [y0, y1)`, `size` pixels per block, turned toward the
     /// cursor; drawn with a depth buffer and back-face culling.
     #[allow(clippy::too_many_arguments)]
@@ -877,7 +877,7 @@ impl Game<'_> {
         let x_angle = ((cx - self.cursor.0) / 40.0).atan();
         let y_angle = ((cy - self.cursor.1) / 40.0).atan();
         let mut m = m.clone();
-        // `extractEntityInInventory` divides the size by the entity's scale: the
+        // `renderEntityInInventoryFollowsMouse` divides the size by the entity's scale: the
         // preview is the same size whatever the player's scale.
         m.extra.model_scale = 0.0;
         // The render state: still, facing out, the head toward the cursor.

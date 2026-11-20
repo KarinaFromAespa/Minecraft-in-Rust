@@ -78,6 +78,19 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
                         state,
                     );
                 }
+                Class::SoulSand => {
+                    // SoulSandBlock.tick: BubbleColumnBlock.updateColumn
+                    // above, so soul sand placed under water starts (or
+                    // stops) the bubble column there.
+                    let above_pos = above(pos);
+                    let above_state = self.state(above_pos);
+                    self.bubble_column_update_for(
+                        b.named.bubble_column,
+                        above_pos,
+                        above_state,
+                        state,
+                    );
+                }
                 Class::Button => self.button_tick(pos, state),
                 Class::Diode => self.diode_tick(pos, state),
                 Class::Composter => {
