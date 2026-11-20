@@ -58,6 +58,11 @@ impl Drop for Nested {
 
 /// minecraft:data_component_type registry ids (1.21.4).
 pub mod component {
+    /// DataComponents' registry order at the pinned 1.21.1 (57 entries).
+    /// These are PIN ids: they shift whenever the registry does, so a port
+    /// across a registry boundary re-pins them from the pin's reports (the
+    /// 1.21.2 boundary added 11 components and removed fire_resistant, which
+    /// is why 1.21.1 is the first pin where these differ from 1.21.3's).
     pub const CUSTOM_DATA: i32 = 0;
     pub const MAX_STACK_SIZE: i32 = 1;
     pub const MAX_DAMAGE: i32 = 2;
@@ -65,56 +70,72 @@ pub mod component {
     pub const UNBREAKABLE: i32 = 4;
     pub const CUSTOM_NAME: i32 = 5;
     pub const ITEM_NAME: i32 = 6;
-    pub const ITEM_MODEL: i32 = 7;
-    pub const LORE: i32 = 8;
-    pub const RARITY: i32 = 9;
-    pub const ENCHANTMENTS: i32 = 10;
+    /// Not a pinned component: 1.21.1 has no `item_model` (a 1.21.2
+    /// addition). The negative value is an internal marker only, so the
+    /// arms that name it can never match a canonical id here.
+    pub const ITEM_MODEL: i32 = -1004;
+    pub const LORE: i32 = 7;
+    pub const RARITY: i32 = 8;
+    pub const ENCHANTMENTS: i32 = 9;
     /// `AdventureModePredicate`: the blocks an adventure player may place on.
-    pub const CAN_PLACE_ON: i32 = 11;
+    pub const CAN_PLACE_ON: i32 = 10;
     /// `AdventureModePredicate`: the blocks an adventure player may break.
-    pub const CAN_BREAK: i32 = 12;
+    pub const CAN_BREAK: i32 = 11;
     /// `ItemAttributeModifiers`: a list of entries, each with a display from 1.21.6 on.
-    pub const ATTRIBUTE_MODIFIERS: i32 = 13;
-    pub const CUSTOM_MODEL_DATA: i32 = 14;
-    /// 1.21.4's two tooltip booleans, which the pin codec folds into the
+    pub const ATTRIBUTE_MODIFIERS: i32 = 12;
+    pub const CUSTOM_MODEL_DATA: i32 = 13;
+    /// 1.21.1's two tooltip booleans, which the pin codec folds into the
     /// synthesized `TOOLTIP_DISPLAY` below (1.21.5 folded them into one
     /// component; the pin predates it).
-    pub const HIDE_ADDITIONAL_TOOLTIP: i32 = 15;
-    pub const HIDE_TOOLTIP: i32 = 16;
-    pub const REPAIR_COST: i32 = 17;
-    pub const CREATIVE_SLOT_LOCK: i32 = 18;
-    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 19;
-    /// `Consumable.STREAM_CODEC`: consumeSeconds first.
-    pub const CONSUMABLE: i32 = 22;
-    pub const EQUIPPABLE: i32 = 28;
-    pub const GLIDER: i32 = 30;
+    pub const HIDE_ADDITIONAL_TOOLTIP: i32 = 14;
+    pub const HIDE_TOOLTIP: i32 = 15;
+    pub const REPAIR_COST: i32 = 16;
+    pub const CREATIVE_SLOT_LOCK: i32 = 17;
+    pub const ENCHANTMENT_GLINT_OVERRIDE: i32 = 18;
+    /// `FoodProperties.STREAM_CODEC`: the full pre-1.21.2 form (nutrition,
+    /// saturation, canAlwaysEat, eatSeconds, an optional remainder, the
+    /// possible effects) — 1.21.2 split the tail into consumable and
+    /// use_remainder, which this pin predates.
+    pub const FOOD: i32 = 20;
+    /// `Unit.STREAM_CODEC`: the pre-1.21.2 fire flag (1.21.2 replaced it
+    /// with damage_resistant, a holder set).
+    pub const FIRE_RESISTANT: i32 = 21;
+    /// `Tool.STREAM_CODEC`: rules, defaultMiningSpeed, damagePerBlock
+    /// (1.21.5 added canDestroyBlocksInCreative after the damage).
+    pub const TOOL: i32 = 22;
+    /// Not pinned components: 1.21.1 has no `consumable`, `equippable`,
+    /// `glider`, `death_protection`, `use_remainder` or `damage_resistant`
+    /// (all 1.21.2 additions). Negative internal markers, as for ITEM_MODEL.
+    pub const CONSUMABLE: i32 = -1005;
+    pub const EQUIPPABLE: i32 = -1006;
+    pub const GLIDER: i32 = -1007;
     /// `DeathProtection`: the `death_effects` a stack runs when it saves its holder.
-    pub const DEATH_PROTECTION: i32 = 32;
-    pub const STORED_ENCHANTMENTS: i32 = 33;
-    pub const PROFILE: i32 = 57;
-    pub const BANNER_PATTERNS: i32 = 59;
-    pub const BASE_COLOR: i32 = 60;
-    pub const DYED_COLOR: i32 = 34;
-    pub const MAP_ID: i32 = 36;
-    pub const MAP_POST_PROCESSING: i32 = 38;
-    pub const CHARGED_PROJECTILES: i32 = 39;
-    pub const BUNDLE_CONTENTS: i32 = 40;
-    pub const POTION_CONTENTS: i32 = 41;
-    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 42;
-    pub const WRITABLE_BOOK_CONTENT: i32 = 43;
-    pub const WRITTEN_BOOK_CONTENT: i32 = 44;
-    pub const TRIM: i32 = 45;
-    pub const INSTRUMENT: i32 = 50;
-    pub const LODESTONE_TRACKER: i32 = 54;
-    pub const FIREWORK_EXPLOSION: i32 = 55;
-    pub const FIREWORKS: i32 = 56;
-    pub const BLOCK_ENTITY_DATA: i32 = 49;
-    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 51;
-    pub const USE_REMAINDER: i32 = 23;
-    pub const POT_DECORATIONS: i32 = 61;
-    pub const JUKEBOX_PLAYABLE: i32 = 52;
-    pub const DAMAGE_RESISTANT: i32 = 25;
-    pub const CONTAINER: i32 = 62;
+    pub const DEATH_PROTECTION: i32 = -1008;
+    pub const USE_REMAINDER: i32 = -1009;
+    pub const DAMAGE_RESISTANT: i32 = -1010;
+    pub const STORED_ENCHANTMENTS: i32 = 23;
+    pub const PROFILE: i32 = 47;
+    pub const BANNER_PATTERNS: i32 = 49;
+    pub const BASE_COLOR: i32 = 50;
+    pub const DYED_COLOR: i32 = 24;
+    pub const MAP_ID: i32 = 26;
+    pub const MAP_POST_PROCESSING: i32 = 28;
+    pub const CHARGED_PROJECTILES: i32 = 29;
+    pub const BUNDLE_CONTENTS: i32 = 30;
+    pub const POTION_CONTENTS: i32 = 31;
+    pub const SUSPICIOUS_STEW_EFFECTS: i32 = 32;
+    pub const WRITABLE_BOOK_CONTENT: i32 = 33;
+    pub const WRITTEN_BOOK_CONTENT: i32 = 34;
+    pub const TRIM: i32 = 35;
+    pub const INSTRUMENT: i32 = 40;
+    pub const LODESTONE_TRACKER: i32 = 44;
+    pub const FIREWORK_EXPLOSION: i32 = 45;
+    pub const FIREWORKS: i32 = 46;
+    pub const BLOCK_ENTITY_DATA: i32 = 39;
+    pub const OMINOUS_BOTTLE_AMPLIFIER: i32 = 41;
+    pub const POT_DECORATIONS: i32 = 51;
+    pub const JUKEBOX_PLAYABLE: i32 = 42;
+    pub const CONTAINER: i32 = 52;
     /// Not a pinned component: 1.21.4 has no `tooltip_display` (a 1.21.5
     /// addition). The negative value is an internal marker only, so the
     /// synthesized form the pin codec builds from the two hide booleans
@@ -390,7 +411,8 @@ impl Component {
             UNBREAKABLE
             | CREATIVE_SLOT_LOCK
             | HIDE_TOOLTIP
-            | HIDE_ADDITIONAL_TOOLTIP => Self::Unit,
+            | HIDE_ADDITIONAL_TOOLTIP
+            | FIRE_RESISTANT => Self::Unit,
             ENCHANTMENT_GLINT_OVERRIDE => Self::Bool(r.bool()?),
             CUSTOM_NAME | ITEM_NAME => Self::Text(r.nbt()?),
             CUSTOM_DATA => Self::Nbt(r.nbt()?),
@@ -421,12 +443,21 @@ impl Component {
                 let potion = if r.bool()? { Some(r.varint()?) } else { None };
                 let color = if r.bool()? { Some(r.i32()?) } else { None };
                 let start = r.position();
-                skip::potion_effects_and_name(r)?;
-                // No custom effects and no name: an empty tail.
-                let rest = match r.since(start) {
-                    [0, 0] => Vec::new(),
-                    bytes => bytes.to_vec(),
+                // The custom name arrived in 1.21.2; the pin's tail is the
+                // effects alone. The stored tail always carries the name
+                // field (a false bool when the wire had none), so the write
+                // side can strip it for a pre-1.21.2 target.
+                let rest = if ids::quirks().components_before_1_21_2 {
+                    skip::potion_effects(r)?;
+                    let mut rest = r.since(start).to_vec();
+                    rest.push(0);
+                    rest
+                } else {
+                    skip::potion_effects_and_name(r)?;
+                    r.since(start).to_vec()
                 };
+                // No custom effects and no name: an empty tail.
+                let rest = if rest == [0, 0] { Vec::new() } else { rest };
                 Self::Potion {
                     potion,
                     color,
@@ -601,6 +632,26 @@ impl Component {
                     && ids::quirks_written().either_holders_and_tag_resistance
                 {
                     write_damage_resistant(bytes).ok()
+                } else if kind == component::TOOL
+                    && !ids::quirks_written().components_before_1_21_5
+                {
+                    // A 1.21.5+ target takes the canDestroyBlocksInCreative
+                    // bool the pin lacks (true: the vanilla default).
+                    let mut bytes = bytes.to_vec();
+                    bytes.push(1);
+                    Some(bytes)
+                } else if matches!(kind, component::CAN_PLACE_ON | component::CAN_BREAK)
+                    && !ids::quirks_written().components_before_1_21_5
+                {
+                    append_predicate_matchers(bytes)
+                } else if kind == component::FOOD
+                    && !ids::quirks_written().components_before_1_21_2
+                {
+                    truncate_food(bytes)
+                } else if kind == component::INSTRUMENT
+                    && !ids::quirks_written().components_before_1_21_2
+                {
+                    expand_instrument(bytes)
                 } else {
                     v1_21_5::write(kind, bytes)
                 };
@@ -681,10 +732,16 @@ impl Component {
                 if let Some(color) = color {
                     w.i32(*color);
                 }
-                // An empty tail is no custom effects and no name.
+                // An empty tail is no custom effects and no name. A
+                // pre-1.21.2 target takes the effects alone (no name field);
+                // a newer one takes the stored tail as it is.
                 if rest.is_empty() {
                     w.varint(0);
-                    w.bool(false);
+                    if !ids::quirks_written().components_before_1_21_2 {
+                        w.bool(false);
+                    }
+                } else if ids::quirks_written().components_before_1_21_2 {
+                    w.bytes(&strip_potion_name(rest));
                 } else {
                     w.bytes(rest);
                 }
@@ -909,8 +966,74 @@ fn write_damage_resistant(bytes: &[u8]) -> Result<Vec<u8>> {
     Ok(w.data)
 }
 
-/// A pot's decorations in the item-id form (four item ids, a brick for an
-/// undecorated side) from the internal template form.
+/// A potion tail without its 1.21.2+ custom name: the effect count and
+/// effects, dropping the trailing name field. Unparseable tails (which
+/// cannot come from `Component::read`) come back empty.
+fn strip_potion_name(rest: &[u8]) -> Vec<u8> {
+    let mut r = Reader::new(rest);
+    let Ok(n) = r.count(65536) else {
+        return Vec::new();
+    };
+    for _ in 0..n {
+        if skip::mob_effect_skip(&mut r).is_err() {
+            return Vec::new();
+        }
+    }
+    rest[..r.position()].to_vec()
+}
+
+/// A pin-form food (nutrition, saturation, canAlwaysEat, eatSeconds, an
+/// optional remainder, the possible effects) as a 1.21.2+ server reads it:
+/// the first three fields only. The tail has no field there — the
+/// consumable and use_remainder components carry it, and this write cannot
+/// emit them (see PORT-NOTES).
+fn truncate_food(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    w.varint(r.varint().ok()?);
+    w.f32(r.f32().ok()?);
+    w.bool(r.bool().ok()?);
+    Some(w.data)
+}
+
+/// A pin-form direct instrument (sound, useDuration in ticks, range) as a
+/// 1.21.2+ server reads it: the duration in float seconds, then
+/// durabilityDamage 0 and an empty description. A reference passes through.
+fn expand_instrument(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    let holder = r.varint().ok()?;
+    w.varint(holder);
+    if holder == 0 {
+        copy_sound_holder(&mut r, &mut w).ok()?;
+        w.f32(r.varint().ok()? as f32 / 20.0);
+        w.f32(r.f32().ok()?);
+        w.varint(0);
+        w.nbt(&Tag::String("".into()));
+    }
+    (r.remaining() == 0).then_some(w.data)
+}
+
+/// Pin-form block predicates (blocks, properties, nbt) as a 1.21.5+ server
+/// reads them: an empty DataComponentMatchers pair (exact, partial) after
+/// each predicate's nbt.
+fn append_predicate_matchers(bytes: &[u8]) -> Option<Vec<u8>> {
+    let mut r = Reader::new(bytes);
+    let mut w = Writer::new();
+    let n = r.count(65536).ok()?;
+    w.varint(n as i32);
+    for _ in 0..n {
+        let start = r.position();
+        if r.bool().ok()? {
+            skip::holder_set(&mut r).ok()?;
+        }
+        skip::block_properties_and_nbt(&mut r).ok()?;
+        w.bytes(r.since(start));
+        w.varint(0);
+        w.varint(0);
+    }
+    (r.remaining() == 0).then_some(w.data)
+}
 fn write_pot_decorations(bytes: &[u8]) -> Result<Vec<u8>> {
     let mut r = Reader::new(bytes);
     let mut w = Writer::new();
@@ -1119,18 +1242,98 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
     Ok(match kind {
         // EitherHolder.streamCodec: ByteBufCodecs.either(the holder, its ResourceKey), a flag set for the
         // holder, which then reads as the pinned one does. A key names an entry of the server's registry
-        // that the pinned holder can't point to without its numbering. The instrument's wrapper started
-        // in 1.21.5, so a pre-1.21.5 stack sends its holder bare; the jukebox's predates it.
-        INSTRUMENT | JUKEBOX_PLAYABLE
-            if quirks.either_holders_and_tag_resistance
-                && (kind == JUKEBOX_PLAYABLE || !quirks.components_before_1_21_5) =>
-        {
+        // that the pinned holder can't point to without its numbering. The jukebox's wrapper predates
+        // 1.21.5 (the instrument's started there; see its own arm below).
+        JUKEBOX_PLAYABLE if quirks.either_holders_and_tag_resistance => {
             if r.bool()? {
                 Older::Pinned
             } else {
                 r.string(32767)?;
                 Older::Dropped
             }
+        }
+        // InstrumentComponent gained durabilityDamage and a description in 1.21.2, its use duration went
+        // from int ticks to float seconds, and 1.21.5 wrapped the holder in an EitherHolder flag. A newer
+        // server's direct instrument is rewritten to the pin's three-field form (sound, ticks, range); a
+        // reference passes through (its id is the server's — see `Component::read`).
+        INSTRUMENT if !quirks.components_before_1_21_2 => {
+            if quirks.either_holders_and_tag_resistance && !quirks.components_before_1_21_5 {
+                if !r.bool()? {
+                    r.string(32767)?;
+                    return Ok(Older::Dropped);
+                }
+            }
+            let holder = r.varint()?;
+            let mut w = Writer::new();
+            if holder == 0 {
+                w.varint(0);
+                copy_sound_holder(r, &mut w)?;
+                w.varint((r.f32()? * 20.0) as i32);
+                w.f32(r.f32()?);
+                r.varint()?; // durabilityDamage: the pin has no such field.
+                r.nbt()?; // description: likewise.
+            } else {
+                w.varint(holder);
+            }
+            Older::Rewritten(w.data)
+        }
+        // FoodProperties was split in 1.21.2: a newer server's food is just nutrition, saturation and
+        // canAlwaysEat, with the rest in consumable and use_remainder (both dropped at this pin). The
+        // pin's food is the combined form, so the tail is rebuilt with vanilla's defaults: 1.6s to eat,
+        // no remainder, no effects. A newer server's consume effects are lost here; merging them into
+        // the pin's food needs the whole stack (see PORT-NOTES).
+        FOOD if !quirks.components_before_1_21_2 => {
+            let mut w = Writer::new();
+            w.varint(r.varint()?);
+            w.f32(r.f32()?);
+            w.bool(r.bool()?);
+            w.f32(1.6);
+            w.bool(false);
+            w.varint(0);
+            Older::Rewritten(w.data)
+        }
+        // Tool gained canDestroyBlocksInCreative in 1.21.5; the pin's form ends at damagePerBlock. A
+        // 1.21.5+ server's trailing bool is dropped (its rules' block ids are renumbered, as ever).
+        TOOL if !quirks.components_before_1_21_5 => {
+            let mut w = Writer::new();
+            let n = r.count(65536)?;
+            w.varint(n as i32);
+            for _ in 0..n {
+                v1_21_4::block_set(r, &mut w)?;
+                let speed = r.bool()?;
+                w.bool(speed);
+                if speed {
+                    w.f32(r.f32()?);
+                }
+                let drops = r.bool()?;
+                w.bool(drops);
+                if drops {
+                    w.bool(r.bool()?);
+                }
+            }
+            w.f32(r.f32()?);
+            w.varint(r.varint()?);
+            r.bool()?; // canDestroyBlocksInCreative: the pin has no such field.
+            Older::Rewritten(w.data)
+        }
+        // BlockPredicate gained the DataComponentMatchers (exact, partial) in 1.21.5; the pin's form
+        // ends at the nbt predicate. A 1.21.5+ server's matchers are dropped.
+        CAN_PLACE_ON | CAN_BREAK if !quirks.components_before_1_21_5 => {
+            let mut w = Writer::new();
+            let n = r.count(65536)?;
+            w.varint(n as i32);
+            for _ in 0..n {
+                let blocks = r.bool()?;
+                w.bool(blocks);
+                if blocks {
+                    v1_21_4::block_set(r, &mut w)?;
+                }
+                let start = r.position();
+                skip::block_properties_and_nbt(r)?;
+                w.bytes(r.since(start));
+                skip::component_matchers(r)?;
+            }
+            Older::Rewritten(w.data)
         }
         // TagKey.streamCodec: the tag's id. A HolderSet names a tag behind a 0.
         DAMAGE_RESISTANT if quirks.either_holders_and_tag_resistance => {
@@ -1141,8 +1344,9 @@ fn older_layout(kind: i32, r: &mut Reader) -> Result<Older> {
             Older::Rewritten(w.data)
         }
         // ByteBufCodecs.registry(ITEM).apply(list(4)): back, left, right and front, a brick for none;
-        // the pinned layout has four optional stack templates of one item and no components. The value
-        // is kept as these bytes and sent on as they are, so its items take their pinned ids here.
+        // the internal form is four optional stack templates of one item and no components (the pin wire
+        // itself is four item ids, as the older form is). The value is kept as these bytes and sent on as
+        // they are, so its items take their pinned ids here.
         POT_DECORATIONS if quirks.pot_decorations_are_items => {
             let n = r.count(4)?;
             let items = (0..n)
@@ -1227,15 +1431,58 @@ fn skip_sound(r: &mut Reader) -> Result<()> {
     Ok(())
 }
 
+/// A sound holder copied from one numbering to another: a direct event (0,
+/// a name, an optional fixed range) passes through, a reference is
+/// renumbered.
+fn copy_sound_holder(r: &mut Reader, w: &mut Writer) -> Result<()> {
+    let holder = r.varint()?;
+    if holder == 0 {
+        w.varint(0);
+        w.string(&r.string(32767)?);
+        let fixed = r.bool()?;
+        w.bool(fixed);
+        if fixed {
+            w.f32(r.f32()?);
+        }
+    } else {
+        w.varint(ids::sound_event(holder - 1) + 1);
+    }
+    Ok(())
+}
+
 fn skip_dropped(name: &str, r: &mut Reader) -> Result<()> {
     match name {
-        // Unit.STREAM_CODEC: the pre-1.21.2 fire flag 1.21.4 no longer has
-        // (fire_resistant became damage_resistant). The two hide flags are
-        // pin components now, so an older server's map to them instead of
-        // dropping; the arms stay so a stray one still reads past.
+        // Unit.STREAM_CODEC: fire_resistant and the two hide flags are pin
+        // components at 1.21.1, so no server's drop list names them; the arms
+        // stay so a stray one still reads past.
         "minecraft:fire_resistant"
         | "minecraft:hide_tooltip"
         | "minecraft:hide_additional_tooltip" => Ok(()),
+        // The 1.21.2 components this pin predates, with their 1.21.2+
+        // stream codecs (DataComponents in the 1.21.11 jar; the shapes
+        // carried into 26.x unchanged). ItemModel: a resource location.
+        "minecraft:item_model" | "minecraft:tooltip_style" => {
+            r.string(32767).map(drop)
+        }
+        // Consumable: consumeSeconds, animation, sound,
+        // hasConsumeParticles, onConsumeEffects.
+        "minecraft:consumable" => skip::consumable(r),
+        // UseRemainder: one item stack template.
+        "minecraft:use_remainder" => Template::read(r).map(drop),
+        // UseCooldown: seconds, cooldownGroup.
+        "minecraft:use_cooldown" => skip::use_cooldown(r),
+        // DamageResistant, Repairable, Enchantable: a holder set, a holder
+        // set, a varint (the enchantment value).
+        "minecraft:damage_resistant" | "minecraft:repairable" => skip::holder_set(r),
+        "minecraft:enchantable" => r.varint().map(drop),
+        // Equippable: slot, equipSound, assetId, cameraOverlay,
+        // allowedEntities, dispensable, swappable, damageOnHurt,
+        // equipOnInteract, canBeSheared, shearingSound.
+        "minecraft:equippable" => skip::equippable(r),
+        // Glider: Unit.
+        "minecraft:glider" => Ok(()),
+        // DeathProtection: deathEffects.
+        "minecraft:death_protection" => skip::death_protection(r),
         // TooltipDisplay.STREAM_CODEC (1.21.5+): hide, then the hidden ids.
         "minecraft:tooltip_display" => {
             r.bool()?;

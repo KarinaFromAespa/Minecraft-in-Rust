@@ -9,10 +9,18 @@ pub(super) fn reading() -> bool {
 pub(super) fn writing() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_5)
 }
-pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 10, 11, 12, 13, 33, 34, 45, 52];
-// The old hide_additional_tooltip hid item-specific tooltip providers.
+/// The components whose pre-1.21.5 wire carries a trailing show-in-tooltip
+/// bool: unbreakable, enchantments, can_place_on, can_break,
+/// attribute_modifiers, stored_enchantments, dyed_color, trim,
+/// jukebox_playable — PINNED 1.21.1 ids.
+pub(super) const TOOLTIP_FLAGS: &[i32] = &[4, 9, 10, 11, 12, 23, 24, 35, 42];
+// The old hide_additional_tooltip hid item-specific tooltip providers:
+// banner_patterns, bees, block_entity_data, block_state, bundle_contents,
+// charged_projectiles, container, container_loot, firework_explosion,
+// fireworks, instrument, map_id, pot_decorations, potion_contents,
+// written_book_content — PINNED 1.21.1 ids.
 pub(super) const ADDITIONAL: &[i32] = &[
-    59, 64, 49, 63, 40, 39, 62, 66, 55, 56, 50, 36, 61, 41, 44,
+    49, 54, 39, 53, 30, 29, 52, 56, 45, 46, 40, 26, 51, 31, 34,
 ];
 
 pub(super) fn tooltip_ids() -> (i32, i32) {
@@ -94,13 +102,7 @@ pub(super) fn read_added_legacy(raw: i32, r: &mut Reader) -> Result<Option<(i32,
         return Ok(None);
     }
     let kind = ids::component(raw);
-    // InstrumentComponent's EitherHolder wrapper starts in 1.21.5; this era sends
-    // Instrument.STREAM_CODEC directly. Earlier duration layouts are handled by v1_21_1.
-    let layout = if kind == component::INSTRUMENT {
-        Older::Pinned
-    } else {
-        older_layout(kind, r)?
-    };
+    let layout = older_layout(kind, r)?;
     let component = match layout {
         Older::Dropped => return Ok(None),
         Older::Rewritten(bytes) => {
@@ -122,7 +124,7 @@ pub(super) fn read_added_legacy(raw: i32, r: &mut Reader) -> Result<Option<(i32,
 pub(super) fn read_component(kind: i32, r: &mut Reader) -> Result<Component> {
     match kind {
         // can_place_on, can_break, tool (pinned ids).
-        11 | 12 | 26 => Ok(Component::Raw(rewrite(kind, r, true)?)),
+        10 | 11 | 22 => Ok(Component::Raw(rewrite(kind, r, true)?)),
         component::TRIM => {
             let material = r.varint()?;
             let pattern = r.varint()?;
@@ -195,7 +197,7 @@ pub(super) fn write_stack(stack: Option<&Stack>, w: &mut Writer) {
 
 pub(super) fn write_component(kind: i32, value: &Component, w: &mut Writer) {
     match (kind, value) {
-        (11 | 12 | 26, Component::Raw(bytes)) => {
+        (10 | 11 | 22, Component::Raw(bytes)) => {
             let rewritten =
                 rewrite(kind, &mut Reader::new(bytes), false).unwrap_or_else(|_| bytes.clone());
             w.bytes(&rewritten);
@@ -204,7 +206,7 @@ pub(super) fn write_component(kind: i32, value: &Component, w: &mut Writer) {
     }
 }
 
-fn block_set(r: &mut Reader, w: &mut Writer) -> Result<()> {
+pub(super) fn block_set(r: &mut Reader, w: &mut Writer) -> Result<()> {
     let n = r.varint()?;
     w.varint(n);
     if n == 0 {
@@ -227,11 +229,15 @@ fn block_set(r: &mut Reader, w: &mut Writer) -> Result<()> {
     Ok(())
 }
 pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
+    // `up` no longer changes the shape: the pin's tool and predicates carry
+    // neither the 1.21.5 bool nor the matchers, and neither does this era's.
+    // (It stays in the signature so the call sites read the same.)
+    let _ = up;
     let mut w = Writer::new();
     let n = r.count(65536)?;
     w.varint(n as i32);
     for _ in 0..n {
-        if kind == 26 { // tool
+        if kind == 22 { // tool
             block_set(r, &mut w)?;
             let speed = r.bool()?;
             w.bool(speed);
@@ -252,22 +258,11 @@ pub(super) fn rewrite(kind: i32, r: &mut Reader, up: bool) -> Result<Vec<u8>> {
             let start = r.position();
             skip::block_properties_and_nbt(r)?;
             w.bytes(r.since(start));
-            if up {
-                w.varint(0);
-                w.varint(0);
-            } else {
-                skip::component_matchers(r)?;
-            }
         }
     }
-    if kind == 26 { // tool
+    if kind == 22 { // tool
         w.f32(r.f32()?);
         w.varint(r.varint()?);
-        if up {
-            w.bool(true);
-        } else {
-            r.bool()?;
-        }
     }
     Ok(w.data)
 }

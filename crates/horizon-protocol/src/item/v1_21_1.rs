@@ -1,4 +1,7 @@
 //! Item patches before 1.21.2 split FoodProperties into food, consumable and use_remainder.
+//! The step only runs when the pin is at/after 1.21.2: at this pin (1.21.1) the old form IS the pin
+//! form — its food is already combined and its fire flag is already a unit — so there is nothing to
+//! split or convert, and the sessions that would use it fall through to `v1_21_4::read_stack`.
 use super::*;
 use crate::Error;
 
@@ -9,10 +12,12 @@ const OLD_FOOD: i32 = 20;
 const OLD_FIRE_RESISTANT: i32 = 21;
 
 pub(super) fn reading() -> bool {
-    matches!(ids::active(),Some((ids,ids::Way::Up)) if ids.quirks.components_before_1_21_2)
+    !ids::Quirks::PINNED.components_before_1_21_2
+        && matches!(ids::active(),Some((ids,ids::Way::Up)) if ids.quirks.components_before_1_21_2)
 }
 pub(super) fn writing() -> bool {
-    matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_2)
+    !ids::Quirks::PINNED.components_before_1_21_2
+        && matches!(ids::active(),Some((ids,ids::Way::Down)) if ids.quirks.components_before_1_21_2)
 }
 
 pub(super) fn read_stack(r: &mut Reader) -> Result<Option<Stack>> {

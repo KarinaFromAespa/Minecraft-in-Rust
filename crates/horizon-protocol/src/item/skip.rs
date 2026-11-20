@@ -12,61 +12,55 @@ use crate::{
 
 type Read = fn(&mut Reader) -> Result<()>;
 
-/// DataComponents' registry order (1.21.4) for the ids `Component::read`
-/// doesn't decode itself.
+/// DataComponents' registry order (1.21.1) for the ids `Component::read`
+/// doesn't decode itself. The pin predates 1.21.2, so the shapes here are
+/// the pre-split ones: food is the full combined form, the instrument is
+/// sound + an int use duration + range, the tool has no
+/// canDestroyBlocksInCreative bool, and block predicates have no component
+/// matchers. The 1.21.2+ components (consumable, use_remainder,
+/// use_cooldown, damage_resistant, repairable, equippable, glider,
+/// death_protection, enchantable, item_model, tooltip_style) have no arm:
+/// they never reach this function at this pin (`skip_dropped` reads past
+/// them, and `older_layout` converts the ones with a pin counterpart).
 pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
     match kind {
-        // Unit.STREAM_CODEC: glider.
-        30 => Ok(()),
         // Components without a network codec go as their NBT: intangible_projectile,
         // map_decorations, debug_stick_state, recipes, lock, container_loot.
-        20 | 37 | 46 | 53 | 65 | 66 => nbt(r),
+        19 | 27 | 36 | 43 | 55 | 56 => nbt(r),
         // A VarInt (VAR_INT, an idMapper, a registry or holderRegistry id):
-        // enchantable, ominous_bottle_amplifier, base_color.
-        27 | 51 | 60 => varint(r),
-        // Identifier.STREAM_CODEC: tooltip_style, note_block_sound.
-        31 | 58 => ident(r),
+        // ominous_bottle_amplifier, base_color.
+        41 | 50 => varint(r),
+        // Identifier.STREAM_CODEC: note_block_sound.
+        48 => ident(r),
         // AdventureModePredicate: can_place_on, can_break.
-        11..=12 => list(r, block_predicate),
-        13 => list(r, attribute_modifier),
-        // FoodProperties.DIRECT_STREAM_CODEC: nutrition, saturation, canAlwaysEat.
-        21 => {
+        10..=11 => list(r, block_predicate),
+        12 => list(r, attribute_modifier),
+        // FoodProperties.STREAM_CODEC (before the 1.21.2 split): nutrition,
+        // saturation, canAlwaysEat, eatSeconds, an optional remainder
+        // template, then the possible effects (an effect and a probability).
+        20 => {
             varint(r)?;
             f32(r)?;
-            boolean(r)
-        }
-        // Consumable: consumeSeconds, animation, sound, hasConsumeParticles, onConsumeEffects.
-        22 => {
-            f32(r)?;
-            varint(r)?;
-            sound(r)?;
             boolean(r)?;
-            list(r, consume_effect)
-        }
-        // UseRemainder: one template.
-        23 => template(r),
-        // UseCooldown: seconds, cooldownGroup.
-        24 => {
             f32(r)?;
-            optional(r, ident)
+            optional(r, template)?;
+            list(r, |r| {
+                mob_effect(r)?;
+                f32(r)
+            })
         }
-        // DamageResistant, Repairable: a holder set.
-        25 | 29 => holder_set(r),
-        26 => tool(r),
-        28 => equippable(r),
-        // DeathProtection: deathEffects.
-        32 => list(r, consume_effect),
+        22 => tool(r),
         // MapColor: a big-endian int.
-        35 => i32(r),
+        25 => i32(r),
         // BundleContents: templates.
-        40 => list(r, template),
+        30 => list(r, template),
         // SuspiciousStewEffects: effect, duration.
-        42 => list(r, |r| {
+        32 => list(r, |r| {
             varint(r)?;
             varint(r)
         }),
         // ArmorTrim: material, then Holder<TrimPattern> (assetId, description, decal).
-        45 => {
+        35 => {
             trim_material(r)?;
             holder(r, |r| {
                 ident(r)?;
@@ -75,62 +69,63 @@ pub(super) fn component(kind: i32, r: &mut Reader) -> Result<()> {
             })
         }
         // TypedEntityData (entity_data, block_entity_data): the type id, then a compound.
-        47 | 49 => {
+        37 | 39 => {
             varint(r)?;
             nbt(r)
         }
         // CustomData: bucket_entity_data.
-        48 => nbt(r),
-        // InstrumentComponent: Holder<Instrument> (soundEvent, useDuration, range,
-        // durabilityDamage, description).
-        50 => holder(r, |r| {
+        38 => nbt(r),
+        // Instrument: Holder<Instrument> (soundEvent, useDuration in ticks,
+        // range). 1.21.2 made the duration a float in seconds and added
+        // durabilityDamage and a description; the pin predates both.
+        40 => holder(r, |r| {
             sound(r)?;
-            f32(r)?;
-            f32(r)?;
             varint(r)?;
-            nbt(r)
+            f32(r)
         }),
         // JukeboxPlayable: Holder<JukeboxSong> (soundEvent, description, lengthInSeconds,
         // comparatorOutput).
-        52 => holder(r, |r| {
+        42 => holder(r, |r| {
             sound(r)?;
             nbt(r)?;
             f32(r)?;
             varint(r)
         }),
         // LodestoneTracker: target (GlobalPos: dimension, BlockPos), tracked.
-        54 => {
+        44 => {
             optional(r, |r| {
                 ident(r)?;
                 r.i64().map(drop)
             })?;
             boolean(r)
         }
-        55 => firework_explosion(r),
+        45 => firework_explosion(r),
         // Fireworks: flightDuration, explosions.
-        56 => {
+        46 => {
             varint(r)?;
             list(r, firework_explosion)
         }
         // BannerPatternLayers: Holder<BannerPattern> (assetId, translationKey), colour.
-        59 => list(r, |r| {
+        49 => list(r, |r| {
             holder(r, |r| {
                 ident(r)?;
                 string(r)
             })?;
             varint(r)
         }),
-        // PotDecorations: back, left, right, front.
-        61 => (0..4).try_for_each(|_| optional(r, template)),
+        // PotDecorations: back, left, right, front. The internal form is
+        // four optional templates: `older_layout` rewrites the pin wire's
+        // four item ids into these before `Component::read` sees them.
+        51 => (0..4).try_for_each(|_| optional(r, template)),
         // ItemContainerContents: optional templates.
-        62 => list(r, |r| optional(r, template)),
+        52 => list(r, |r| optional(r, template)),
         // BlockItemStateProperties: a string to string map.
-        63 => list(r, |r| {
+        53 => list(r, |r| {
             string(r)?;
             string(r)
         }),
         // Bees: Occupant (entity type and data, ticksInHive, minTicksInHive).
-        64 => list(r, |r| {
+        54 => list(r, |r| {
             varint(r)?;
             nbt(r)?;
             varint(r)?;
@@ -239,7 +234,24 @@ fn effect_details(r: &mut Reader) -> Result<()> {
     boolean(r)?;
     optional(r, effect_details)
 }
-/// ConsumeEffect.STREAM_CODEC: the consume_effect_type id, then that type's fields.
+/// Consumable: consumeSeconds, animation, sound, hasConsumeParticles, onConsumeEffects.
+/// Only `skip_dropped` reads this at the pin (consumable is a 1.21.2 addition).
+pub(super) fn consumable(r: &mut Reader) -> Result<()> {
+    f32(r)?;
+    varint(r)?;
+    sound(r)?;
+    boolean(r)?;
+    list(r, consume_effect)
+}
+/// UseCooldown: seconds, cooldownGroup. Only `skip_dropped` reads this at the pin.
+pub(super) fn use_cooldown(r: &mut Reader) -> Result<()> {
+    f32(r)?;
+    optional(r, ident)
+}
+/// DeathProtection: deathEffects. Only `skip_dropped` reads this at the pin.
+pub(super) fn death_protection(r: &mut Reader) -> Result<()> {
+    list(r, consume_effect)
+}
 fn consume_effect(r: &mut Reader) -> Result<()> {
     match r.varint()? {
         // apply_effects: effects, probability.
@@ -261,11 +273,12 @@ fn consume_effect(r: &mut Reader) -> Result<()> {
         other => Err(Error::new(format!("unknown consume effect type {other}"))),
     }
 }
-/// BlockPredicate: blocks, properties, nbt, then DataComponentMatchers (exact, partial).
+/// BlockPredicate: blocks, properties, nbt. (1.21.5 added the
+/// DataComponentMatchers after the nbt; the pin predates them, and
+/// `older_layout` strips them from a newer server's predicates.)
 fn block_predicate(r: &mut Reader) -> Result<()> {
     optional(r, holder_set)?;
-    block_properties_and_nbt(r)?;
-    component_matchers(r)
+    block_properties_and_nbt(r)
 }
 pub(super) fn block_properties_and_nbt(r: &mut Reader) -> Result<()> {
     // StatePropertiesPredicate: PropertyMatchers, each a name and an
@@ -314,8 +327,10 @@ fn attribute_modifier(r: &mut Reader) -> Result<()> {
         ))),
     }
 }
-/// Tool: rules (blocks, speed, correctForDrops), defaultMiningSpeed, damagePerBlock,
-/// canDestroyBlocksInCreative.
+/// Tool: rules (blocks, speed, correctForDrops), defaultMiningSpeed,
+/// damagePerBlock. (1.21.5 added canDestroyBlocksInCreative after the
+/// damage; the pin predates it, and `older_layout` strips it from a newer
+/// server's tools.)
 fn tool(r: &mut Reader) -> Result<()> {
     list(r, |r| {
         holder_set(r)?;
@@ -323,12 +338,12 @@ fn tool(r: &mut Reader) -> Result<()> {
         optional(r, boolean)
     })?;
     f32(r)?;
-    varint(r)?;
-    boolean(r)
+    varint(r)
 }
 /// Equippable: slot, equipSound, assetId, cameraOverlay, allowedEntities, dispensable,
 /// swappable, damageOnHurt, equipOnInteract, canBeSheared, shearingSound.
-fn equippable(r: &mut Reader) -> Result<()> {
+/// Only `skip_dropped` reads this at the pin (equippable is a 1.21.2 addition).
+pub(super) fn equippable(r: &mut Reader) -> Result<()> {
     varint(r)?;
     sound(r)?;
     optional(r, ident)?;
@@ -354,10 +369,20 @@ pub(super) fn blocks_attacks(r: &mut Reader) -> Result<()> {
     optional(r, sound)
 }
 /// PotionContents' customEffects and customName (`Component::read` reads
-/// the potion and colour before them).
+/// the potion and colour before them). The custom name arrived in 1.21.2;
+/// `potion_effects` reads the pre-1.21.2 tail (effects only).
 pub(super) fn potion_effects_and_name(r: &mut Reader) -> Result<()> {
     list(r, mob_effect)?;
     optional(r, string)
+}
+/// PotionContents' customEffects without the custom name: the 1.21.1 tail.
+pub(super) fn potion_effects(r: &mut Reader) -> Result<()> {
+    list(r, mob_effect)
+}
+/// A MobEffectInstance: the effect id, duration, amplifier, ambient,
+/// showParticles, showIcon, and an optional hidden effect (same shape).
+pub(super) fn mob_effect_skip(r: &mut Reader) -> Result<()> {
+    mob_effect(r)
 }
 /// FireworkExplosion: shape, colors, fadeColors, hasTrail, hasTwinkle.
 fn firework_explosion(r: &mut Reader) -> Result<()> {
