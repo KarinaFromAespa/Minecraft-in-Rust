@@ -39,11 +39,13 @@ public final class VanillaCuboidModelOracle {
     }
     private static Object face(BlockElementFace value) {
         if (value == null) return null;
-        var uv = value.uv();
-        // 1.21.4 has no per-face rotation field: the rotation lives on the
-        // BlockFaceUV as an int in degrees (0/90/180/270), and the uv box
-        // is the public float[] uvs (minU, minV, maxU, maxV).
-        return map("cull", direction(value.cullForDirection()), "tint", value.tintIndex(), "texture", value.texture(),
+        var uv = value.uv;
+        // 1.20.6 BlockElementFace is a plain class with public final fields,
+        // not the record accessors the 1.21.2 model rework introduced. The
+        // rotation lives on the BlockFaceUV as an int in degrees
+        // (0/90/180/270), and the uv box is the public float[] uvs
+        // (minU, minV, maxU, maxV).
+        return map("cull", direction(value.cullForDirection), "tint", value.tintIndex, "texture", value.texture,
             "rotation", uv == null ? 0 : uv.rotation, "uv", uv == null ? null : new long[]{bits(uv.uvs[0]), bits(uv.uvs[1]), bits(uv.uvs[2]), bits(uv.uvs[3])});
     }
     static Object element(BlockElement value) {

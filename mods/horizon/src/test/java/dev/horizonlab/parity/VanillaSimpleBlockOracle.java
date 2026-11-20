@@ -155,9 +155,9 @@ public final class VanillaSimpleBlockOracle {
    BlockStateProvider.CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow();
   }
   var bundle=JsonParser.parseString(Files.readString(dir.resolve("feature-catalog.json"))).getAsJsonObject();
-  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.FEATURE,ResourceLocation.parse(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow().feature(),RegistrationInfo.BUILT_IN);
+  for(var entry:bundle.getAsJsonObject("features").entrySet())features.register(ResourceKey.create(Registries.FEATURE,new ResourceLocation(entry.getKey())),ConfiguredFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow().feature(),RegistrationInfo.BUILT_IN);
   features.freeze();
-  for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,ResourceLocation.parse(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
+  for(var entry:bundle.getAsJsonObject("placed").entrySet())placed.register(ResourceKey.create(Registries.PLACED_FEATURE,new ResourceLocation(entry.getKey())),PlacedFeature.DIRECT_CODEC.parse(ops,JsonParser.parseString(entry.getValue().getAsString())).getOrThrow(),RegistrationInfo.BUILT_IN);
   placed.freeze();
   var contextMethod=VanillaPlacementOracle.class.getDeclaredMethod("context",JsonObject.class);contextMethod.setAccessible(true);
   var bounds=new JsonObject();bounds.add("context",JsonParser.parseString("[-64,384,63]"));

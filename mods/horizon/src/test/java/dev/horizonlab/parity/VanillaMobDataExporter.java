@@ -178,7 +178,7 @@ public final class VanillaMobDataExporter {
             var file = TagFile.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString(text)).getOrThrow();
             var list = new ArrayList<TagLoader.EntryWithSource>();
             for (var e : file.entries()) list.add(new TagLoader.EntryWithSource(e, "vanilla"));
-            definitions.put(ResourceLocation.parse("minecraft:" + name.substring(prefix.length(), name.length() - 5)), list);
+            definitions.put(new ResourceLocation("minecraft:" + name.substring(prefix.length(), name.length() - 5)), list);
         }
         var tags = new HashMap<TagKey<T>, List<Holder<T>>>();
         loader.build(definitions).forEach((id, values) -> tags.put(TagKey.create(key, id), List.copyOf(values)));

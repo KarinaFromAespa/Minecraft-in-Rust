@@ -47,7 +47,7 @@ public final class VanillaHeightmapOracle {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(ResourceLocation.parse(item.getKey()),entries);
+            definitions.put(new ResourceLocation(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Block>,List<Holder<Block>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.BLOCK,id),List.copyOf(values)));

@@ -37,6 +37,8 @@ public final class VanillaMovementRegistryOracle {
         Actor(){super(null,null);}void configure(Level level){setLevel(level);}BlockPos cached;
         @Override public BlockPos blockPosition(){return cached;}
         BlockPos support(float offset){return getOnPos(offset);}float jump(){return getBlockJumpFactor();}float speed(){return getBlockSpeedFactor();}
+        // getBlockPosBelowThatAffectsMyMovement is protected in 1.20.6 (public from 1.21): expose it here.
+        BlockPos below(){return getBlockPosBelowThatAffectsMyMovement();}
     }
     public static void main(String[] args)throws Exception {
         net.minecraft.SharedConstants.tryDetectVersion();net.minecraft.server.Bootstrap.bootStrap();Path dir=Path.of(args[1]);
@@ -53,7 +55,7 @@ public final class VanillaMovementRegistryOracle {
             for(var line:(Iterable<String>)lines::iterator){
                 var f=JsonParser.parseString(line).getAsJsonObject();int tagMode=f.get("tags").getAsInt();if(active!=tagMode){var selected=new HashMap<TagKey<Block>,List<Holder<Block>>>();for(var tag:tags)selected.put(tag,tagMode==0?natural.get(tag):tagMode==1?List.of():all);((MappedRegistry<Block>)registry).bindTags(selected);active=tagMode;}
                 var level=(Level)allocate.invoke(unsafe,Level.class);level.input=f;level.out=out;var entity=(Actor)allocate.invoke(unsafe,Actor.class);entity.configure(level);entity.cached=position(f.get("cached"));support.set(entity,f.get("support").isJsonNull()?Optional.empty():Optional.of(position(f.get("support"))));var v=f.getAsJsonArray("position");pos.set(entity,new Vec3(number(v.get(0)),number(v.get(1)),number(v.get(2))));
-                try{int mode=f.get("mode").getAsInt();if(mode<4){BlockPos p=switch(mode){case 0->entity.support(Float.intBitsToFloat(Integer.parseUnsignedInt(f.get("offset").getAsString(),16)));case 1->entity.getOnPosLegacy();case 2->entity.getOnPos();case 3->entity.getBlockPosBelowThatAffectsMyMovement();default->throw new AssertionError();};out.printf("position %d %d %d%n",p.getX(),p.getY(),p.getZ());}else{float factor=mode==4?entity.jump():entity.speed();out.printf("factor %08x%n",Float.floatToIntBits(factor));}}
+                try{int mode=f.get("mode").getAsInt();if(mode<4){BlockPos p=switch(mode){case 0->entity.support(Float.intBitsToFloat(Integer.parseUnsignedInt(f.get("offset").getAsString(),16)));case 1->entity.getOnPosLegacy();case 2->entity.getOnPos();case 3->entity.below();default->throw new AssertionError();};out.printf("position %d %d %d%n",p.getX(),p.getY(),p.getZ());}else{float factor=mode==4?entity.jump():entity.speed();out.printf("factor %08x%n",Float.floatToIntBits(factor));}}
                 catch(Stop error){out.println("error");}out.println("queries "+level.calls);
             }
         }

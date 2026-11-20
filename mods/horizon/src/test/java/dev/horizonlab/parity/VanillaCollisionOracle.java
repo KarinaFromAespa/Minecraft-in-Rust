@@ -29,14 +29,20 @@ public final class VanillaCollisionOracle {
         return encodedStates.computeIfAbsent(state, s -> VanillaStateCodec.encodeFull(s)).copy();
     }
     private static final Field CACHE, COLLISION, DISCRETE;
-    private static final Method INDEX;
+    private static final Method INDEX, COORDS;
     static {
         try {
             CACHE = BlockBehaviour.BlockStateBase.class.getDeclaredField("cache"); CACHE.setAccessible(true);
             COLLISION = CACHE.getType().getDeclaredField("collisionShape"); COLLISION.setAccessible(true);
             DISCRETE = VoxelShape.class.getDeclaredField("shape"); DISCRETE.setAccessible(true);
             INDEX = VoxelShape.class.getDeclaredMethod("findIndex", Direction.Axis.class, double.class); INDEX.setAccessible(true);
+            // VoxelShape.getCoords is protected in 1.20.6 (public from 1.21).
+            COORDS = VoxelShape.class.getDeclaredMethod("getCoords", Direction.Axis.class); COORDS.setAccessible(true);
         } catch (ReflectiveOperationException e) { throw new ExceptionInInitializerError(e); }
+    }
+    @SuppressWarnings("unchecked")
+    private static it.unimi.dsi.fastutil.doubles.DoubleList coords(VoxelShape shape, Direction.Axis axis) throws ReflectiveOperationException {
+        return (it.unimi.dsi.fastutil.doubles.DoubleList) COORDS.invoke(shape, axis);
     }
     private static VoxelShape cached(BlockState state) throws ReflectiveOperationException {
         Object cache = CACHE.get(state);
@@ -50,9 +56,9 @@ public final class VanillaCollisionOracle {
         CompoundTag tag = new CompoundTag();
         tag.putByte("canonical",(byte)(shape==Shapes.empty()?1:shape==Shapes.block()?2:0));
         tag.putByte("cube", (byte)(shape instanceof CubeVoxelShape ? 1 : 0));
-        int cubeAxes=0;for(Direction.Axis axis:Direction.Axis.values())if(shape.getCoords(axis) instanceof CubePointRange)cubeAxes|=1<<axis.ordinal();tag.putByte("cube_axes",(byte)cubeAxes);
+        int cubeAxes=0;for(Direction.Axis axis:Direction.Axis.values())if(coords(shape, axis) instanceof CubePointRange)cubeAxes|=1<<axis.ordinal();tag.putByte("cube_axes",(byte)cubeAxes);
         for (Direction.Axis axis : Direction.Axis.values()) {
-            var coords = shape.getCoords(axis); long[] bits = new long[coords.size()];
+            var coords = coords(shape, axis); long[] bits = new long[coords.size()];
             for (int i = 0; i < bits.length; i++) bits[i] = Double.doubleToRawLongBits(coords.getDouble(i));
             tag.putLongArray(axis.getName(), bits);
         }
@@ -159,7 +165,7 @@ public final class VanillaCollisionOracle {
                 List<AABB> boxes=shape.toAabbs(); out.printf("state %d cached %d%n",id,boxes.size());
                 out.printf("identity %d%n",identities.computeIfAbsent(shape,key->identities.size()));
                 out.printf("canonical %b %b%n",shape==Shapes.empty(),shape==Shapes.block());
-                int cubeAxes=0;for(Direction.Axis axis:Direction.Axis.values())if(shape.getCoords(axis) instanceof CubePointRange)cubeAxes|=1<<axis.ordinal();out.printf("cube %d %d%n",shape instanceof CubeVoxelShape?1:0,cubeAxes);
+                int cubeAxes=0;for(Direction.Axis axis:Direction.Axis.values())if(coords(shape, axis) instanceof CubePointRange)cubeAxes|=1<<axis.ordinal();out.printf("cube %d %d%n",shape instanceof CubeVoxelShape?1:0,cubeAxes);
                 values(out,"axis-extrema",shape.min(Direction.Axis.X),shape.min(Direction.Axis.Y),shape.min(Direction.Axis.Z),shape.max(Direction.Axis.X),shape.max(Direction.Axis.Y),shape.max(Direction.Axis.Z));
                 if (shape.isEmpty()) out.println("bounds none"); else box(out,"bounds",shape.bounds());
                 for (AABB b:boxes) box(out,"part",b);

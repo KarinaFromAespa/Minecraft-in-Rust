@@ -32,7 +32,7 @@ public final class VanillaBlockSurvivalOracle {
             var file=TagFile.CODEC.parse(JsonOps.INSTANCE,JsonParser.parseString(item.getValue().getAsString())).getOrThrow();
             var entries=new ArrayList<TagLoader.EntryWithSource>();
             for(var entry:file.entries())entries.add(new TagLoader.EntryWithSource(entry,"vanilla"));
-            definitions.put(ResourceLocation.parse(item.getKey()),entries);
+            definitions.put(new ResourceLocation(item.getKey()),entries);
         }
         var tags=new HashMap<TagKey<Fluid>,List<Holder<Fluid>>>();
         loader.build(definitions).forEach((id,values)->tags.put(TagKey.create(Registries.FLUID,id),List.copyOf(values)));

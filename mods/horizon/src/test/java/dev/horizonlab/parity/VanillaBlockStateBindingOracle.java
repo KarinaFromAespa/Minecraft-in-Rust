@@ -26,7 +26,7 @@ public final class VanillaBlockStateBindingOracle {
     private static void export(Path path) throws Exception {
         var blocks=new TreeMap<String,Object>();
         var ids=new TreeSet<>(BuiltInRegistries.BLOCK.keySet());
-        ids.add(ResourceLocation.parse("minecraft:item_frame"));ids.add(ResourceLocation.parse("minecraft:glow_item_frame"));
+        ids.add(new ResourceLocation("minecraft:item_frame"));ids.add(new ResourceLocation("minecraft:glow_item_frame"));
         for(var id:ids) {
             var definition=Objects.requireNonNull(mapper.apply(id));
             var schema=new TreeMap<String,Object>();
@@ -75,7 +75,7 @@ public final class VanillaBlockStateBindingOracle {
     }
     @SuppressWarnings("unchecked")
     private static Object bind(JsonObject row) throws Exception {
-        var states=Objects.requireNonNull(mapper.apply(ResourceLocation.parse(row.get("block").getAsString())));
+        var states=Objects.requireNonNull(mapper.apply(new ResourceLocation(row.get("block").getAsString())));
         // 1.21.1 has no instantiate()/UnbakedBlockStateModel/visualEqualityGroup:
         // parse with fromJsonElement (the Context carries the state definition,
         // as the loader sets it) and replay BlockStateModelLoader's selection:

@@ -68,7 +68,7 @@ public final class VanillaFaceVisibilityOracle {
                     // 1.21.8 has no BlockTags.BARS constant (the bars tag
                     // came with the copper bars in 1.21.9): build the key
                     // directly. No 1.21.8 block is in it.
-                    "can_occlude",state.canOcclude(),"bars_tag",state.is(TagKey.create(Registries.BLOCK,ResourceLocation.withDefaultNamespace("bars"))),"default",Block.getId(state),"states",ids));
+                    "can_occlude",state.canOcclude(),"bars_tag",state.is(TagKey.create(Registries.BLOCK,new ResourceLocation("bars"))),"default",Block.getId(state),"states",ids));
             }
             Files.writeString(directory.resolve("definitions.json"),JSON.toJson(definitions));return;
         }
