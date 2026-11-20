@@ -636,9 +636,11 @@ impl<'a, 'w> Finder<'a, 'w> {
             for yy in y..y + self.entity_height {
                 for zz in z..z + self.entity_depth {
                     let fluid = self.fluid(xx, yy, zz);
-                    let below = self.state(xx, yy - 1, zz);
+                    // 1.21.11 tests the candidate cell itself for
+                    // isPathfindable(WATER); 26.x tested the block below it.
+                    let state = self.state(xx, yy, zz);
                     if fluid == Fluid::None
-                        && below.flags & data::WATER != 0
+                        && state.flags & data::WATER != 0
                         && self.is_air(xx, yy, zz)
                     {
                         return PathType::Breach;
@@ -991,9 +993,9 @@ impl<'a, 'w> Finder<'a, 'w> {
         if e.kind == PathType::WalkableDoor || n.kind == PathType::WalkableDoor {
             return false;
         }
-        if self.mob.width > 1.0 && (e.cost_malus > 0.0 || n.cost_malus > 0.0) {
-            return false;
-        }
+        // 1.21.11 has no wide-mob diagonal gate (26.x refuses a diagonal
+        // step when either neighbour's malus is positive for a mob wider
+        // than one block — the BIG_MOBS_CLOSE_TO_DANGER behaviour).
         let between_posts = n.kind == PathType::Fence
             && e.kind == PathType::Fence
             && f64::from(self.mob.width) < 0.5;

@@ -7221,3 +7221,33 @@ rest zero. `cargo test -p horizon-client-core --lib
 component::` 12 passed. rustfmt --check clean. Rank 2 now
 277/492 (92 changed, 185 no-change). work-items.json
 rank2.closed = 277 on 2026-11-21.
+
+## Item 99 — mobs/path.rs (rank 2, CHANGED)
+
+6 classes, 13 methods, 5 named: FlyNodeEvaluator, Path,
+Path$DebugData, PathType, SwimNodeEvaluator, WalkNodeEvaluator.
+
+Java delta, jar-verified: PathType is 26 values in 1.21.11 vs
+27 in 26.1 — the FIRE/DAMAGING/ON_TOP_OF_* names are
+DANGER_*/DAMAGE_* in 1.21.11 (malus unchanged) and
+BIG_MOBS_CLOSE_TO_DANGER (4.0) is 26.1-only. Its two uses are
+26.1-only too: WalkNodeEvaluator.getNodeType returns it for
+wide mobs near danger, and isDiagonalValid refuses a diagonal
+step for a mob wider than one block when either neighbour's
+malus is positive. SwimNodeEvaluator's BREACH test checks the
+block below the candidate cell in 26.1, the candidate cell
+itself in 1.21.11. Path's node-array helpers differ only in
+visibility; the rest is renames.
+
+Fixes: `diagonal_pair_valid` drops the wide-mob gate;
+`swim_path_type` tests the candidate cell's own state for
+WATER-pathfindability. The PathType enum and the getNodeType
+OPEN override were already 1.21.11-shaped (no change).
+
+Verification: literal comparison zero across all five classes
+(the enum names are identifiers in the decompile; the javap
+diff is the authority). `cargo test -p horizon-client-lib
+--lib --no-default-features mobs::path::` 3 passed (the
+evaluators run through the mob_ai probe on CI). rustfmt
+--check clean. Rank 2 now 278/492 (93 changed, 185
+no-change). work-items.json rank2.closed = 278 on 2026-11-21.
