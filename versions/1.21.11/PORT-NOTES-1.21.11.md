@@ -8363,3 +8363,40 @@ and the `lungeForwardMaybe` citation in `jab()` were already the
 `post_piercing_attack()` is the 26.1 hook name for 1.21.11's
 `lungeForwardMaybe` — a cosmetic rename for the spear item's
 scope. Tests: `game::hand::tests::` 4 passed.
+
+## Item 127 — game/integrated.rs (rank 2, CHANGED)
+
+2 classes, 19 methods, 3 named (`IntegratedServer.initServer`,
+`IntegratedServer.publishServer`, `IntegratedServer.tickServer`).
+
+Java delta, jar-verified (javap diff 553 lines + decompile diff
+484 lines, both read in full): 1.21.11 keeps the singleplayer
+owner's player tag in memory on save (`IntegratedPlayerList.save`
++ `getSingleplayerData`) and reads it from level.dat
+(`getLoadedPlayerTag`) for the level-load focus position, where
+26.1 loads it from playerdata/ on disk; the low-disk warning is
+restructured — 26.1's base-class `warnOnLowDiskSpace` /
+`sendLowDiskSpaceWarning` don't exist in 1.21.11, where
+`IntegratedServer.saveEverything` calls a private
+`warnOnLowDiskSpace` after every save (and the chunk-failure
+reports call it too); 26.1 saves everything at the end of
+`initServer` and refreshes chat abilities on `publishServer`,
+1.21.11 does neither; `forceGameTimeSynchronization` →
+`forceTimeSynchronization` (the WorldClock item's scope);
+`onServerCrash` relays via `minecraft.delayCrashRaw`; the system
+report says "Integrated Server (map_client.txt)"; several
+methods go protected → public.
+
+Changes: `save_game_with` (the `saveEverything` mirror) now warns
+on low disk space after every successful integrated save — before,
+the toast only appeared on a chunk failure. chunk_io.rs citations
+reworded to the 1.21.11 form (`IntegratedServer.warnOnLowDiskSpace`,
+no `sendLowDiskSpaceWarning`). No change needed in integrated.rs
+itself (no init save, no publish chat refresh — already the
+1.21.11 form). Checked, no action: `store_owner` / `load_owner`
+already mirror the level.dat owner mechanism; `save::low_disk_space`
+already mirrors the 64 MiB check; the window toasts from the queue
+and the dedicated server logs instead. Gap recorded: no
+`selectLevelLoadFocusPos` mirror — `prepare_levels` waits on saved
+tickets rather than loading around the owner's saved position.
+Tests: `chunk_io::` 3 passed.

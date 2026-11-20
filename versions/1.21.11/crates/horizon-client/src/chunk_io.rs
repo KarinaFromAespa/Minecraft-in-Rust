@@ -1,10 +1,10 @@
-//! `IntegratedServer.reportChunkLoadFailure` / `reportChunkSaveFailure` /
-//! `sendLowDiskSpaceWarning`: the region storage runs on the server thread and
-//! its writer thread, and the toasts are the window's. Each failure is logged,
-//! checked for low disk space (`MinecraftServer.warnOnLowDiskSpace`) and queued
-//! here; the window drains the queue every frame (`Minecraft.execute`).
-//! `SystemToast.addOrUpdate` makes a repeat reset the toast it already shows,
-//! so only the newest chunk of each kind is kept.
+//! `IntegratedServer.saveEverything` / `reportChunkLoadFailure` /
+//! `reportChunkSaveFailure`: the region storage runs on the server thread and
+//! its writer thread, and the toasts are the window's. Each save and each
+//! failure is checked for low disk space (`IntegratedServer.warnOnLowDiskSpace`)
+//! and queued here; the window drains the queue every frame
+//! (`Minecraft.execute`). `SystemToast.addOrUpdate` makes a repeat reset the
+//! toast it already shows, so only the newest chunk of each kind is kept.
 use crate::{lang, save, toasts::SystemToast};
 use std::{path::Path, sync::Mutex};
 
@@ -44,11 +44,13 @@ fn with(update: impl FnOnce(&mut Pending)) {
     update(&mut pending);
 }
 
-/// `MinecraftServer.warnOnLowDiskSpace` for the world folder `dir`.
+/// `IntegratedServer.warnOnLowDiskSpace` for the world folder `dir`
+/// (1.21.11's private check after a save and on a chunk failure; the
+/// 26.1 base-class `MinecraftServer.warnOnLowDiskSpace` does not exist
+/// in 1.21.11). The log line is this build's own — vanilla only toasts.
 fn warn_on_low_disk_space(dir: &Path) -> bool {
     let low = save::low_disk_space(dir);
     if low {
-        // `MinecraftServer.sendLowDiskSpaceWarning`.
         log::warn!("Low disk space! Might not be able to save the world.");
     }
     low
@@ -68,8 +70,10 @@ pub fn report_save_failure(dir: &Path, x: i32, z: i32, error: &dyn std::fmt::Dis
     with(|p| p.save_failed(x, z, low));
 }
 
-/// A low-disk report from the local chunk storage, shown as a toast. (The
-/// packet that warned a server's operators does not exist in 1.21.11.)
+/// A low-disk report — from the local chunk storage, or from the save's own
+/// check (`IntegratedServer.saveEverything` → `warnOnLowDiskSpace`) —
+/// shown as a toast. (The packet that warned a server's operators does not
+/// exist in 1.21.11.)
 pub fn report_low_disk_space() {
     with(|p| p.low_disk_space = true);
 }

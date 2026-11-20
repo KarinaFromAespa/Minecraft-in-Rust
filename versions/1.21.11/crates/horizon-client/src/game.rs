@@ -9107,6 +9107,12 @@ impl Game<'_> {
         if dedicated {
             dedicated::events::record_server("saved", serde_json::json!({}));
         }
+        // `IntegratedServer.saveEverything` warns on low disk space after
+        // every save (`warnOnLowDiskSpace`); a dedicated server has no such
+        // warning in 1.21.11, so it stays quiet here.
+        if !dedicated && horizon_client::save::low_disk_space(&self.world_root) {
+            horizon_client::chunk_io::report_low_disk_space();
+        }
         Ok(())
     }
     /// `ChunkMap.saveChunksEagerly`: snapshot only while the tick and writer
