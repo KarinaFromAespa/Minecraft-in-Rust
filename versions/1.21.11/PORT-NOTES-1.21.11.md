@@ -4061,3 +4061,70 @@ horizon-client lib test binary link OOMs on this VM under 3-stream load
 (established) — tests run on CI.
 Rank 2 now 228/492 (61 changed, 167 no-change).
 work-items.json rank2.closed = 228 on 2026-11-20.
+
+## Item 50 — crates/horizon-items/src/items.rs (rank 2, NO-CHANGE)
+
+EnchantRandomlyFunction, EnchantWithLevelsFunction (+$Builders),
+LootCommand, SetItemDamageFunction, BonusLevelTableCondition,
+UniformGenerator, LootPool (+$Builder), CopyBlockState (+$Builder),
+ExplosionCondition, LootItemEntityPropertyCondition, DynamicLoot,
+ApplyExplosionDecay, SetPotionFunction, FlintAndSteelItem, Tool$Rule: 19
+classes, 82 methods, 4 named. One real difference, jar-verified — and it
+needs no Rust change:
+
+26.1's two enchant functions carry `includeAdditionalCostComponent`
+(field, codec entry, builder method): when set, they write
+`DataComponents.ADDITIONAL_TRADE_COST` — `2 + nextInt(5 + level*10) +
+3*level` for EnchantRandomlyFunction, the enchantment cost itself for
+EnchantWithLevelsFunction. 1.21.11 removes all of it (`enchantItem`
+becomes static). Neither Rust loot evaluator ever implemented the
+component — loot.rs and items.rs are already 1.21.11-shaped, and 0 of
+the 1.21.11 jar's 1324 loot tables use the flag (25 use the two
+functions). In 26.1 the flag appears only in `villager_trade/` data (21
+files), never in loot tables.
+
+`merchant.rs` keeps its flag handling: it is the trade-data mechanism
+that reproduces the 1.21.11 hardcoded trade costs, verified against the
+decompiled 1.21.11 classes — EnchantBookForEmeralds' `2 + nextInt(5 +
+level*10) + 3*level`, doubled for `DOUBLE_TRADE_PRICE`, capped at 64,
+and EnchantedItemForEmeralds' `min(base + levels, 64)`. Removing it
+would break both trades. The 1.21.11 trade DATA that would use it does
+not exist yet (1.21.11 has no villager_trade/trade_set data; trades are
+hardcoded) — generating it is item 751's scope, which owns the
+VillagerTrades listing classes. Notes for 751: the Rust reads only the
+singular `given_item_modifier`, while 26.1 data uses the plural; the
+book trade's 4-arg level bounds and empty-tag fallback have no Rust
+mirror (unobservable with the standard trade).
+
+No-change verdicts (all jar-verified): LootCommand only moves to
+`createItemStack(1, false)` — the boolean is `checkOverstacked`, and
+1.21.11 never validates (item 35); the Rust's `tool_stack` already
+builds the stack directly with no validation. FlintAndSteelItem.useOn
+is byte-identical in both versions and the Rust's game.rs arm matches
+both branches (light a block / place fire). Tool$Rule identical.
+LootPool's roll logic identical (only `validate` rewritten); pool math
+verified in both evaluators. DynamicLoot, ApplyExplosionDecay,
+CopyBlockState, SetItemDamageFunction, SetPotionFunction,
+BonusLevelTableCondition, ExplosionCondition,
+LootItemEntityPropertyCondition, UniformGenerator: bodies identical,
+only MAP_CODEC → CODEC / `codec()` → `getType()` / `validate` →
+`getReferencedContextParams` plumbing; the Rust mirrors are exact
+(`survives_explosion`, `table_bonus`, `explosion_decay`, `copy_state`,
+`set_damage`, `uniform` in both evaluators). Enchant level min is 1 in
+both versions (no `min_level` in any enchantment JSON), so the Rust's
+`Mth.nextInt(random, 1, max)` is exactly vanilla.
+
+Recorded gaps (all version-neutral, vanilla-unobservable, not fixed):
+the loot.rs evaluator lacks the five block-only kinds
+(`survives_explosion`, `table_bonus`, `explosion_decay`, `copy_state`,
+`dynamic`) — it only rolls entity/chest/fishing/vault/trial tables,
+and all vanilla uses are in `blocks/` tables, rolled by items.rs,
+which has all five; the items.rs evaluator omits the `bonus_rolls`
+term — every `bonus_rolls` in 1.21.11 data is `0.0`; items.rs `choose`
+keeps zero-weight entries as candidates — 0 weight-0 entries in
+vanilla data; items.rs `entity_properties` answers false for non-`this`
+targets (documented approximation).
+
+No Rust changes; no build needed (no-change closure, item-45 precedent).
+Rank 2 now 229/492 (61 changed, 168 no-change).
+work-items.json rank2.closed = 229 on 2026-11-20.
