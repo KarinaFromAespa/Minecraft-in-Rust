@@ -1,5 +1,5 @@
 //! A text display's text for differential tests against vanilla's
-//! `TextDisplayRenderer.submitInner` (tools/test_text_display_render_parity.py):
+//! `TextDisplayRenderer.renderInner` (tools/test_text_display_render_parity.py):
 //! decodes each case's entity data from vanilla's wire bytes, lays the text out
 //! with `horizon_client::text_display` and prints the pose and every quad in
 //! text units [x, y, z, ARGB], as VanillaTextDisplayRenderOracle does.

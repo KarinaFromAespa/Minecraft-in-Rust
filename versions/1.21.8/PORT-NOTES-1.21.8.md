@@ -334,7 +334,29 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 138/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155 + 4 zero-diff)
+### Rank 2: 139/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156 + 4 zero-diff)
+
+- **Item 156 — `crates/horizon-client/examples/probe/text_display_render_fixture.rs`
+  (1 class, 7 methods, 1 named in Horizon), citations only:**
+  `DisplayRenderer$TextDisplayRenderer`: 1.21.9 rewrote the
+  display renderers onto the submit pipeline
+  (`submit`/`submitInner`/`SubmitNodeCollector`); 1.21.8
+  renders directly (`render`/`renderInner`/
+  `MultiBufferSource`/`drawInBatch`). The behaviour is
+  identical: the background quad's vertices, the line
+  alignment switch, the `opacity << 24 | 0xFFFFFF` text
+  colour, and the billboard orientation math (camera YRot −
+  180, XRot negated — 1.21.9 captures the camera rotations
+  into the render state, 1.21.8 reads them live from the
+  camera, same frame, same values). The Rust
+  `text_display::draw` mirrors the shared math. Reworded the
+  three stale `submitInner` citations (fixture docstring,
+  `Lines::pose`, `draw`) to 1.21.8's `renderInner`. Harness
+  debt (see Debt below): the
+  `VanillaTextDisplayRenderOracle` still calls 1.21.9's
+  `submitInner` via reflection and needs a `renderInner` +
+  capturing-buffer-source rework; text_display_render is not
+  one of the 17 port-verify harnesses. Check 0/0.
 
 - **Item 155 — widely named: client/renderer/item
   (7 classes, 18 methods, 0 named in Horizon), zero-diff:**
@@ -4843,3 +4865,12 @@ expected, since the report hashes semantic tokens, not bytes.
 - Dead tags are inherited 26.3-isms from the unported 1.21.11
   behaviour; triage belongs at 1.21.11, not here (same as 1.21.7 /
   1.21.9).
+- `VanillaTextDisplayRenderOracle` still calls 1.21.9's
+  `TextDisplayRenderer.submitInner` via reflection with a
+  `SubmitNodeCollector`; 1.21.8 has `renderInner` taking a
+  `MultiBufferSource`, so the text_display_render oracle fails
+  against the 1.21.8 jar. It needs a `renderInner` +
+  capturing-buffer-source rework (same class of debt as the
+  item-100 collision oracles and the item-119 server-files
+  oracle); text_display_render is not one of the 17
+  port-verify harnesses.
