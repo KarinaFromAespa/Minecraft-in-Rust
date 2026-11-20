@@ -6880,3 +6880,24 @@ in client_lib.rs, so its tests live in the horizon-client-lib
 binary). rustfmt clean on item_tooltip.rs (leaf). Rank 2 now
 269/492 (87 changed, 182 no-change). work-items.json
 rank2.closed = 269 on 2026-11-21.
+
+## Item 91 — network/codec (rank 2, NO-CHANGE)
+
+34 classes, 68 methods, 0 named: `ByteBufCodecs$1`–`$34`
+(the anonymous StreamCodec implementations).
+
+Java delta: none. `javap_diff.py 91` is +0/-0 across all 34
+inner classes; the outer `ByteBufCodecs` (in NO report item)
+was compared directly with the same normalizer and is also
+identical; the literal comparison is zero too. The report's
+"68 changed methods" are pure decompile noise — the same
+failure mode as item 73.
+
+Verified matching: the Rust cites `ByteBufCodecs.registry`,
+`.holder`, `.holderSet`, `.readCount`, all identical in both
+versions; no citation is stale.
+
+Verification: `cargo test -p horizon-protocol --lib buf::`
+9 passed. No files edited. Rank 2 now 270/492 (87 changed,
+183 no-change). work-items.json rank2.closed = 270 on
+2026-11-21.
