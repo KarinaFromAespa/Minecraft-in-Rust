@@ -133,19 +133,19 @@ const KINDS: &[(&str, i32)] = &[
     ("bucket_entity_data", 38),
     ("block_entity_data", 39),
     ("instrument", 40),
-    ("recipes", 43),
-    ("lodestone_tracker", 44),
-    ("firework_explosion", 45),
-    ("fireworks", 46),
-    ("profile", 47),
-    ("banner_patterns", 49),
-    ("base_color", 50),
-    ("pot_decorations", 51),
-    ("container", 52),
-    ("block_state", 53),
-    ("bees", 54),
-    ("lock", 55),
-    ("container_loot", 56),
+    ("recipes", 42),
+    ("lodestone_tracker", 43),
+    ("firework_explosion", 44),
+    ("fireworks", 45),
+    ("profile", 46),
+    ("banner_patterns", 48),
+    ("base_color", 49),
+    ("pot_decorations", 50),
+    ("container", 51),
+    ("block_state", 52),
+    ("bees", 53),
+    ("lock", 54),
+    ("container_loot", 55),
 ];
 pub(super) fn reading() -> bool {
     matches!(ids::active(),Some((ids,ids::Way::Up)) if ids.quirks.legacy_item_nbt)
@@ -351,7 +351,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                 }
                 raw_nbt(&value)
             }
-            36 | 38 | 43 | 55 | 56 => raw_nbt(value),
+            36 | 38 | 42 | 54 | 55 => raw_nbt(value),
             29 | 30 => Component::Stacks(
                 list(Some(value))
                     .iter()
@@ -416,7 +416,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
             37 => typed_data(value, "minecraft:entity_type")?,
             39 => typed_data(value, "minecraft:block_entity_type")?,
             40 => Component::Instrument(id_tag("minecraft:instrument", Some(value))?),
-            44 => {
+            43 => {
                 let target = if let Some(target) = value.get("target") {
                     let coords = int_array(target.get("pos"));
                     if coords.len() == 3 {
@@ -436,16 +436,16 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     tracked: d::as_bool(value.get("tracked"), true),
                 }
             }
-            45 => Component::FireworkExplosion(explosion(value)),
-            46 => Component::Fireworks {
+            44 => Component::FireworkExplosion(explosion(value)),
+            45 => Component::Fireworks {
                 flight: number(value.get("flight_duration"), 0),
                 explosions: list(value.get("explosions"))
                     .iter()
                     .map(explosion)
                     .collect(),
             },
-            47 => Component::Profile(profile(value)),
-            49 => Component::BannerPatterns(
+            46 => Component::Profile(profile(value)),
+            48 => Component::BannerPatterns(
                 list(Some(value))
                     .iter()
                     .map(|v| {
@@ -456,10 +456,10 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                     })
                     .collect::<Result<_>>()?,
             ),
-            50 => Component::Int(dye(Some(value))),
-            51 => decorations(value)?,
-            52 => container(value)?,
-            53 => {
+            49 => Component::Int(dye(Some(value))),
+            50 => decorations(value)?,
+            51 => container(value)?,
+            52 => {
                 let mut w = Writer::new();
                 let Tag::Compound(map) = value else {
                     return Err(Error::new("block state is not a map"));
@@ -471,7 +471,7 @@ fn from_tag(saved: &Tag, known: Option<(i32, i32)>) -> Result<Stack> {
                 }
                 Component::Raw(w.data)
             }
-            54 => bees(value)?,
+            53 => bees(value)?,
             _ => continue,
         };
         stack.added.push((kind, value));
@@ -624,7 +624,17 @@ fn attributes(value: &Tag) -> Result<Component> {
     w.varint(entries.len() as i32);
     for entry in entries {
         w.varint(id_tag("minecraft:attribute", entry.get("type"))?);
-        w.string(&text(entry.get("id")).ok_or_else(|| Error::new("attribute modifier has no id"))?);
+        // The 1.21 uuid-to-id fix runs at data version 3945, past this pin, so a datafixed
+        // modifier still carries its UUID and name: derive the id the same way the pre-1.21
+        // wire reader does, instead of erroring on the missing field.
+        let id = match text(entry.get("id")) {
+            Some(id) => id,
+            None => super::v1_20_5::modifier_id(
+                uuid(entry.get("uuid")).unwrap_or(0),
+                &text(entry.get("name")).unwrap_or_default(),
+            ),
+        };
+        w.string(&id);
         w.f64(d::as_double(entry.get("amount"), 0.0));
         w.varint(match text(entry.get("operation")).as_deref() {
             Some("add_multiplied_base") => 1,
@@ -1042,7 +1052,7 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                 "instrument",
                 d::string(&registry_name("minecraft:instrument", *id)?),
             ),
-            (44, Component::LodestoneTracker { target, tracked }) => {
+            (43, Component::LodestoneTracker { target, tracked }) => {
                 if let Some((dimension, [x, y, z])) = target {
                     d::set(&mut tag, "LodestoneDimension", d::string(dimension));
                     d::set(
@@ -1057,16 +1067,16 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                 }
                 d::set(&mut tag, "LodestoneTracked", Tag::Byte(i8::from(*tracked)));
             }
-            (45, Component::FireworkExplosion(value)) => {
+            (44, Component::FireworkExplosion(value)) => {
                 d::set(&mut tag, "Explosion", legacy_explosion(value))
             }
-            (46, Component::Fireworks { flight, .. }) => {
+            (45, Component::Fireworks { flight, .. }) => {
                 set_sub(&mut tag, "Fireworks", "Flight", Tag::Byte(*flight as i8))
             }
-            (47, Component::Profile(profile)) => {
+            (46, Component::Profile(profile)) => {
                 d::set(&mut tag, "SkullOwner", legacy_profile(profile))
             }
-            (49, Component::BannerPatterns(layers)) => {
+            (48, Component::BannerPatterns(layers)) => {
                 let layers = layers
                     .iter()
                     .map(|(id, color)| {
@@ -1084,13 +1094,13 @@ fn legacy_tag(stack: &Stack) -> Result<Tag> {
                     .collect::<Result<Vec<_>>>()?;
                 set_sub(&mut tag, "BlockEntityTag", "Patterns", Tag::List(layers));
             }
-            (50, Component::Int(color)) => {
+            (49, Component::Int(color)) => {
                 set_sub(&mut tag, "BlockEntityTag", "Base", Tag::Int(*color))
             }
             (kind, Component::Raw(bytes)) => legacy_raw(&mut tag, kind, bytes)?,
             _ => {}
         }
-        if let (46, Component::Fireworks { explosions, .. }) = (*kind, value)
+        if let (45, Component::Fireworks { explosions, .. }) = (*kind, value)
             && !explosions.is_empty()
         {
             set_sub(
@@ -1323,8 +1333,8 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
                 }
             }
         }
-        43 => d::set(tag, "Recipes", r.nbt()?),
-        51 => {
+        42 => d::set(tag, "Recipes", r.nbt()?),
+        50 => {
             let mut sherds = Vec::new();
             for _ in 0..4 {
                 sherds.push(if r.bool()? {
@@ -1340,7 +1350,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             }
             set_sub(tag, "BlockEntityTag", "sherds", Tag::List(sherds));
         }
-        52 => {
+        51 => {
             let mut items = Vec::new();
             for slot in 0..r.count(256)? {
                 if r.bool()? {
@@ -1353,7 +1363,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             }
             set_sub(tag, "BlockEntityTag", "Items", Tag::List(items));
         }
-        53 => {
+        52 => {
             let mut state = d::empty_map();
             for _ in 0..r.count(65536)? {
                 let key = r.string(32767)?;
@@ -1361,7 +1371,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             }
             d::set(tag, "BlockStateTag", state);
         }
-        54 => {
+        53 => {
             let mut bees = Vec::new();
             for _ in 0..r.count(65536)? {
                 let id = r.varint()?;
@@ -1382,7 +1392,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
             }
             set_sub(tag, "BlockEntityTag", "Bees", Tag::List(bees));
         }
-        55 => {
+        54 => {
             let value = r.nbt()?;
             // The pin's LockCode is a bare string; a newer server's is a
             // components predicate naming the key's custom_name.
@@ -1409,7 +1419,7 @@ fn legacy_raw(tag: &mut Tag, kind: i32, bytes: &[u8]) -> Result<()> {
                 );
             }
         }
-        56 => {
+        55 => {
             let value = r.nbt()?;
             if let Some(table) = value.get("loot_table") {
                 set_sub(tag, "BlockEntityTag", "LootTable", table.clone());
@@ -1639,15 +1649,15 @@ mod tests {
                     (288, "minecraft:decorated_pot", "minecraft:decorated_pot"),
                     (299, "minecraft:chest", "minecraft:chest"),
                     (522, "minecraft:shulker_box", "minecraft:shulker_box"),
-                    (802, "minecraft:arrow", "minecraft:arrow"),
-                    (805, "minecraft:diamond", "minecraft:diamond"),
-                    (838, "minecraft:diamond_sword", "minecraft:diamond_sword"),
+                    (801, "minecraft:arrow", "minecraft:arrow"),
+                    (804, "minecraft:diamond", "minecraft:diamond"),
+                    (837, "minecraft:diamond_sword", "minecraft:diamond_sword"),
                     (
-                        840,
+                        839,
                         "minecraft:diamond_pickaxe",
                         "minecraft:diamond_pickaxe",
                     ),
-                    (848, "minecraft:stick", "minecraft:stick"),
+                    (847, "minecraft:stick", "minecraft:stick"),
                     (
                         857,
                         "minecraft:leather_chestplate",
@@ -1675,16 +1685,16 @@ mod tests {
                     (1113, "minecraft:firework_star", "minecraft:firework_star"),
                     (1114, "minecraft:enchanted_book", "minecraft:enchanted_book"),
                     (1133, "minecraft:white_banner", "minecraft:white_banner"),
-                    (1192, "minecraft:crossbow", "minecraft:crossbow"),
+                    (1189, "minecraft:crossbow", "minecraft:crossbow"),
                     (
-                        1193,
+                        1190,
                         "minecraft:suspicious_stew",
                         "minecraft:suspicious_stew",
                     ),
-                    (1203, "minecraft:goat_horn", "minecraft:goat_horn"),
-                    (1223, "minecraft:beehive", "minecraft:beehive"),
+                    (1200, "minecraft:goat_horn", "minecraft:goat_horn"),
+                    (1220, "minecraft:beehive", "minecraft:beehive"),
                     (
-                        1288,
+                        1285,
                         "minecraft:angler_pottery_sherd",
                         "minecraft:angler_pottery_sherd",
                     ),
@@ -1842,7 +1852,7 @@ mod tests {
                     Component::Raw(data)
                         if matches!(
                             *kind,
-                            27 | 36 | 37 | 38 | 39 | 43 | 51 | 52 | 54 | 55 | 56
+                            27 | 36 | 37 | 38 | 39 | 42 | 50 | 51 | 53 | 54 | 55
                         ) =>
                     {
                         let mut r = Reader::new(data);
@@ -1852,8 +1862,8 @@ mod tests {
                                 w.varint(r.varint().unwrap());
                                 w.nbt(&r.nbt().unwrap());
                             }
-                            51 | 52 => {
-                                let n = if *kind == 51 {
+                            50 | 51 => {
+                                let n = if *kind == 50 {
                                     4
                                 } else {
                                     let n = r.varint().unwrap();
@@ -1870,7 +1880,7 @@ mod tests {
                                     }
                                 }
                             }
-                            54 => {
+                            53 => {
                                 let n = r.varint().unwrap();
                                 w.varint(n);
                                 for _ in 0..n {
@@ -2113,7 +2123,7 @@ mod tests {
             (
                 "ordinary",
                 "01c206010a03000a526570616972436f73740000000301000b556e627265616b61626c650103000f437573746f6d4d6f64656c446174610000000703000644616d616765000000110a0007646973706c61790900044c6f72650800000001000f7b2274657874223a224c6f7265227d0800044e616d6500257b2274657874223a22486f72697a6f6e46697874757265222c22626f6c64223a747275657d000a000e486f72697a6f6e4669787475726503000576616c75650000002a0000",
-                "01c6060700000a0a000e486f72697a6f6e4669787475726503000576616c75650000002a00000d07050a010004626f6c640108000474657874000e486f72697a6f6e4669787475726500031107010800044c6f726510030401",
+                "01c5060700000a0a000e486f72697a6f6e4669787475726503000576616c75650000002a00000d07050a010004626f6c640108000474657874000e486f72697a6f6e4669787475726500031107010800044c6f726510030401",
             ),
             (
                 "enchants",
@@ -2128,27 +2138,27 @@ mod tests {
             (
                 "attributes",
                 "01cc06010a03000948696465466c616773000000020900124174747269627574654d6f646966696572730a00000001080004536c6f7400086d61696e68616e6408000d4174747269627574654e616d65001f6d696e6563726166743a67656e657269632e61747461636b5f64616d6167650300094f7065726174696f6e000000000b00045555494400000004cb3f55d3645c4f38a4979c13a33db5cf060006416d6f756e743ff80000000000000800044e616d65000f576561706f6e206d6f6469666965720000",
-                "01d00601000c01021c6d696e6563726166743a626173655f61747461636b5f64616d6167653ff8000000000000000100",
+                "01cf0601000c01021c6d696e6563726166743a626173655f61747461636b5f64616d6167653ff8000000000000000100",
             ),
             (
                 "predicate",
                 "01c406010a03000644616d6167650000000003000948696465466c6167730000001809000a43616e506c6163654f6e0800000001000f6d696e6563726166743a73746f6e6509000a43616e44657374726f790800000003000f6d696e6563726166743a73746f6e65000f236d696e6563726166743a6c6f677300196d696e6563726166743a6f616b5f6c6f675b617869733d795d00",
-                "01c80602000b03010201000001000e6d696e6563726166743a6c6f6773000001022e0101046178697301017900000a01010201000000",
+                "01c70602000b03010201000001000e6d696e6563726166743a6c6f6773000001022e0101046178697301017900000a01010201000000",
             ),
             (
                 "profile",
                 "01ca08010a0a000a536b756c6c4f776e65720a000a50726f7065727469657309000874657874757265730a0000000108000556616c75650007666978747572650800095369676e6174757265000973796e74686574696300000b0002496400000004000000000000000000000000000000010800044e616d65000e486f72697a6f6e466978747572650000",
-                "01d10801002f010e486f72697a6f6e466978747572650100000000000000000000000000000001010874657874757265730766697874757265010973796e746865746963",
+                "01d10801002e010e486f72697a6f6e466978747572650100000000000000000000000000000001010874657874757265730766697874757265010973796e746865746963",
             ),
             (
                 "fireworks",
                 "01d108030a0a000946697265776f726b73010006466c696768740209000a4578706c6f73696f6e730a0000000101000454797065010b0006436f6c6f72730000000200ff0000000000ff010005547261696c010b000a46616465436f6c6f7273000000010000ff00010007466c69636b657201000000",
-                "03d80801002e0201010200ff0000000000ff010000ff000101",
+                "03d80801002d0201010200ff0000000000ff010000ff000101",
             ),
             (
                 "firework_star",
                 "01d208010a0a00094578706c6f73696f6e01000454797065020b0006436f6c6f72730000000100ff0000010005547261696c010000",
-                "01d90801002d020100ff0000000100",
+                "01d90801002c020100ff0000000100",
             ),
             (
                 "written_book",
@@ -2163,37 +2173,37 @@ mod tests {
             (
                 "crossbow",
                 "019e09010a03000644616d616765000000000900124368617267656450726f6a656374696c65730a000000020800026964000f6d696e6563726166743a6172726f77010005436f756e740100080002696400196d696e6563726166743a66697265776f726b5f726f636b6574010005436f756e74010a00037461670a000946697265776f726b73010006466c6967687402000000010007436861726765640100",
-                "01a80901001d0201a206000001d80801002e0200",
+                "01a50901001d0201a106000001d80801002d0200",
             ),
             (
                 "bundle",
                 "019f07010a0900054974656d730a000000020800026964000f6d696e6563726166743a73746f6e65010005436f756e740200080002696400176d696e6563726166743a6469616d6f6e645f73776f7264010005436f756e74010a000374616703000644616d61676500000009000000",
-                "01a20701001e020201000001c60601000309",
+                "01a20701001e020201000001c50601000309",
             ),
             (
                 "container",
                 "018904010a0a000e426c6f636b456e7469747954616708000a437573746f6d4e616d65000e7b2274657874223a22426f78227d0900054974656d730a00000001010004536c6f7402080002696400116d696e6563726166743a6469616d6f6e64010005436f756e740300080002696400156d696e6563726166743a7368756c6b65725f626f780000",
-                "018a04020027170a08000a437573746f6d4e616d65000e7b2274657874223a22426f78227d003403000003a5060000",
+                "018a04020027170a08000a437573746f6d4e616d65000e7b2274657874223a22426f78227d003303000003a4060000",
             ),
             (
                 "block_state",
                 "018301010a0a000d426c6f636b5374617465546167080004617869730001790000",
-                "0184010100350104617869730179",
+                "0184010100340104617869730179",
             ),
             (
                 "compass",
                 "019d07010a0800124c6f646573746f6e6544696d656e73696f6e00136d696e6563726166743a6f766572776f726c640a000c4c6f646573746f6e65506f73030001580000000a03000159000000400300015afffffffe000100104c6f646573746f6e65547261636b65640000",
-                "01a00701002c01136d696e6563726166743a6f766572776f726c64000002bfffffe04000",
+                "01a00701002b01136d696e6563726166743a6f766572776f726c64000002bfffffe04000",
             ),
             (
                 "goat_horn",
                 "01a709010a08000a696e737472756d656e74001a6d696e6563726166743a706f6e6465725f676f61745f686f726e00",
-                "01b30901002801",
+                "01b00901002801",
             ),
             (
                 "banner",
                 "01e608010a03000948696465466c616773000000200a000e426c6f636b456e746974795461670900085061747465726e730a000000020800075061747465726e00026273030005436f6c6f720000000e000800075061747465726e00027473030005436f6c6f720000000b000000",
-                "01ed0801003102200e270b",
+                "01ed0801003002200e270b",
             ),
             (
                 "dyed",
@@ -2204,12 +2214,12 @@ mod tests {
             (
                 "stew",
                 "019f09010a090007656666656374730a000000010300086475726174696f6e000000140800026964000f6d696e6563726166743a73706565640000",
-                "01a909010020010014",
+                "01a609010020010014",
             ),
             (
                 "pot",
                 "019f02010a0a000e426c6f636b456e746974795461670900067368657264730800000004000f6d696e6563726166743a627269636b001e6d696e6563726166743a616e676c65725f706f74746572795f7368657264000f6d696e6563726166743a627269636b000f6d696e6563726166743a627269636b0000",
-                "01a002010033049907990799079907",
+                "01a002010032049907990799079907",
             ),
             (
                 "trim",
@@ -2225,17 +2235,17 @@ mod tests {
             (
                 "predicate_nbt",
                 "01c406010a03000644616d6167650000000009000a43616e44657374726f79080000000100226d696e6563726166743a73746f6e657b486f72697a6f6e466978747572653a31627d00",
-                "01c80601000b0101020100010a01000e486f72697a6f6e46697874757265010001",
+                "01c70601000b0101020100010a01000e486f72697a6f6e46697874757265010001",
             ),
             (
                 "bees",
                 "01bb09010a0a000e426c6f636b456e74697479546167090004426565730a000000010a000a456e746974794461746108000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0800026964000d6d696e6563726166743a6265650003000b5469636b73496e486976650000000a0300124d696e4f636375706174696f6e5469636b7300000258000000",
-                "01c70901003601070a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d000ad804",
+                "01c40901003501070a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d000ad804",
             ),
             (
                 "lock_loot",
                 "01aa02010a0a000e426c6f636b456e746974795461670800094c6f6f745461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e0800044c6f636b00034b657904000d4c6f6f745461626c6553656564000000000000007b0000",
-                "01ab020200380a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e04000473656564000000000000007b00370800034b6579",
+                "01ab020200370a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e04000473656564000000000000007b00360800034b6579",
             ),
             (
                 "map_decor",
@@ -2264,7 +2274,7 @@ mod tests {
             (
                 "ordinary",
                 "019d06010a03000a526570616972436f73740000000301000b556e627265616b61626c650103000f437573746f6d4d6f64656c44617461000000070a0007646973706c61790900044c6f72650800000001000f7b2274657874223a224c6f7265227d0800044e616d6500257b2274657874223a22486f72697a6f6e46697874757265222c22626f6c64223a747275657d000a000e486f72697a6f6e4669787475726503000576616c75650000002a0003000644616d6167650000001100",
-                "01c6060700000a0a000e486f72697a6f6e4669787475726503000576616c75650000002a00000d07050a010004626f6c640108000474657874000e486f72697a6f6e4669787475726500031107010800044c6f726510030401",
+                "01c5060700000a0a000e486f72697a6f6e4669787475726503000576616c75650000002a00000d07050a010004626f6c640108000474657874000e486f72697a6f6e4669787475726500031107010800044c6f726510030401",
             ),
             (
                 "enchants",
@@ -2279,27 +2289,27 @@ mod tests {
             (
                 "attributes",
                 "01a706010a03000948696465466c616773000000020900124174747269627574654d6f646966696572730a00000001060006416d6f756e743ff8000000000000080004536c6f7400086d61696e68616e6408000d4174747269627574654e616d65001f6d696e6563726166743a67656e657269632e61747461636b5f64616d6167650300094f7065726174696f6e000000000b00045555494400000004cb3f55d3645c4f38a4979c13a33db5cf0800044e616d65000f576561706f6e206d6f6469666965720000",
-                "01d00601000c01021c6d696e6563726166743a626173655f61747461636b5f64616d6167653ff8000000000000000100",
+                "01cf0601000c01021c6d696e6563726166743a626173655f61747461636b5f64616d6167653ff8000000000000000100",
             ),
             (
                 "predicate",
                 "019f06010a03000948696465466c6167730000001803000644616d6167650000000009000a43616e506c6163654f6e0800000001000f6d696e6563726166743a73746f6e6509000a43616e44657374726f790800000003000f6d696e6563726166743a73746f6e65000f236d696e6563726166743a6c6f677300196d696e6563726166743a6f616b5f6c6f675b617869733d795d00",
-                "01c80602000b03010201000001000e6d696e6563726166743a6c6f6773000001022e0101046178697301017900000a01010201000000",
+                "01c70602000b03010201000001000e6d696e6563726166743a6c6f6773000001022e0101046178697301017900000a01010201000000",
             ),
             (
                 "profile",
                 "01a308010a0a000a536b756c6c4f776e65720b0002496400000004000000000000000000000000000000010a000a50726f7065727469657309000874657874757265730a000000010800095369676e6174757265000973796e74686574696308000556616c756500076669787475726500000800044e616d65000e486f72697a6f6e466978747572650000",
-                "01d10801002f010e486f72697a6f6e466978747572650100000000000000000000000000000001010874657874757265730766697874757265010973796e746865746963",
+                "01d10801002e010e486f72697a6f6e466978747572650100000000000000000000000000000001010874657874757265730766697874757265010973796e746865746963",
             ),
             (
                 "fireworks",
                 "01aa08030a0a000946697265776f726b73010006466c696768740209000a4578706c6f73696f6e730a0000000101000454797065010b0006436f6c6f72730000000200ff0000000000ff010005547261696c010b000a46616465436f6c6f7273000000010000ff00010007466c69636b657201000000",
-                "03d80801002e0201010200ff0000000000ff010000ff000101",
+                "03d80801002d0201010200ff0000000000ff010000ff000101",
             ),
             (
                 "firework_star",
                 "01ab08010a0a00094578706c6f73696f6e01000454797065020b0006436f6c6f72730000000100ff0000010005547261696c010000",
-                "01d90801002d020100ff0000000100",
+                "01d90801002c020100ff0000000100",
             ),
             (
                 "written_book",
@@ -2314,37 +2324,37 @@ mod tests {
             (
                 "crossbow",
                 "01f708010a0900124368617267656450726f6a656374696c65730a000000020800026964000f6d696e6563726166743a6172726f77010005436f756e740100080002696400196d696e6563726166743a66697265776f726b5f726f636b6574010005436f756e74010a00037461670a000946697265776f726b73010006466c6967687402000000010007436861726765640103000644616d6167650000000000",
-                "01a80901001d0201a206000001d80801002e0200",
+                "01a50901001d0201a106000001d80801002d0200",
             ),
             (
                 "bundle",
                 "01fa06010a0900054974656d730a000000020800026964000f6d696e6563726166743a73746f6e65010005436f756e740200080002696400176d696e6563726166743a6469616d6f6e645f73776f7264010005436f756e74010a000374616703000644616d61676500000009000000",
-                "01a20701001e020201000001c60601000309",
+                "01a20701001e020201000001c50601000309",
             ),
             (
                 "container",
                 "01f403010a0a000e426c6f636b456e7469747954616708000a437573746f6d4e616d65000e7b2274657874223a22426f78227d0900054974656d730a00000001010004536c6f7402080002696400116d696e6563726166743a6469616d6f6e64010005436f756e740300080002696400156d696e6563726166743a7368756c6b65725f626f780000",
-                "018a04020027170a08000a437573746f6d4e616d65000e7b2274657874223a22426f78227d003403000003a5060000",
+                "018a04020027170a08000a437573746f6d4e616d65000e7b2274657874223a22426f78227d003303000003a4060000",
             ),
             (
                 "block_state",
                 "016e010a0a000d426c6f636b5374617465546167080004617869730001790000",
-                "0184010100350104617869730179",
+                "0184010100340104617869730179",
             ),
             (
                 "compass",
                 "01f806010a0800124c6f646573746f6e6544696d656e73696f6e00136d696e6563726166743a6f766572776f726c640a000c4c6f646573746f6e65506f73030001580000000a03000159000000400300015afffffffe000100104c6f646573746f6e65547261636b65640000",
-                "01a00701002c01136d696e6563726166743a6f766572776f726c64000002bfffffe04000",
+                "01a00701002b01136d696e6563726166743a6f766572776f726c64000002bfffffe04000",
             ),
             (
                 "goat_horn",
                 "018009010a08000a696e737472756d656e74001a6d696e6563726166743a706f6e6465725f676f61745f686f726e00",
-                "01b30901002801",
+                "01b00901002801",
             ),
             (
                 "banner",
                 "01bf08010a03000948696465466c616773000000200a000e426c6f636b456e746974795461670900085061747465726e730a000000020800075061747465726e00026273030005436f6c6f720000000e000800075061747465726e00027473030005436f6c6f720000000b000000",
-                "01ed0801003102200e270b",
+                "01ed0801003002200e270b",
             ),
             (
                 "dyed",
@@ -2355,12 +2365,12 @@ mod tests {
             (
                 "stew",
                 "01f808010a090007656666656374730a000000010300086475726174696f6e000000140800026964000f6d696e6563726166743a73706565640000",
-                "01a909010020010014",
+                "01a609010020010014",
             ),
             (
                 "pot",
                 "018a02010a0a000e426c6f636b456e746974795461670900067368657264730800000004000f6d696e6563726166743a627269636b001e6d696e6563726166743a616e676c65725f706f74746572795f7368657264000f6d696e6563726166743a627269636b000f6d696e6563726166743a627269636b0000",
-                "01a002010033049907990799079907",
+                "01a002010032049907990799079907",
             ),
             (
                 "trim",
@@ -2376,17 +2386,17 @@ mod tests {
             (
                 "predicate_nbt",
                 "019f06010a03000644616d6167650000000009000a43616e44657374726f79080000000100226d696e6563726166743a73746f6e657b486f72697a6f6e466978747572653a31627d00",
-                "01c80601000b0101020100010a01000e486f72697a6f6e46697874757265010001",
+                "01c70601000b0101020100010a01000e486f72697a6f6e46697874757265010001",
             ),
             (
                 "bees",
                 "019409010a0a000e426c6f636b456e74697479546167090004426565730a000000010300124d696e4f636375706174696f6e5469636b730000025803000b5469636b73496e486976650000000a0a000a456e746974794461746108000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d0800026964000d6d696e6563726166743a62656500000000",
-                "01c70901003601070a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d000ad804",
+                "01c40901003501070a08000a437573746f6d4e616d6500197b2274657874223a22486f72697a6f6e46697874757265227d000ad804",
             ),
             (
                 "lock_loot",
                 "019502010a0a000e426c6f636b456e746974795461670800094c6f6f745461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e0800044c6f636b00034b657904000d4c6f6f745461626c6553656564000000000000007b0000",
-                "01ab020200380a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e04000473656564000000000000007b00370800034b6579",
+                "01ab020200370a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e04000473656564000000000000007b00360800034b6579",
             ),
             (
                 "map_decor",
@@ -2402,7 +2412,7 @@ mod tests {
             (
                 "predicate_grass",
                 "019f06010a03000644616d6167650000000009000a43616e506c6163654f6e0800000001000f6d696e6563726166743a677261737309000a43616e44657374726f790800000001000f6d696e6563726166743a677261737300",
-                "01c80602000b0101027b0000010a0101027b000001",
+                "01c70602000b0101027b0000010a0101027b000001",
             ),
             (
                 "tnt_entity",
