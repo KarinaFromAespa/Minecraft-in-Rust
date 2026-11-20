@@ -334,7 +334,23 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 157/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174 + 4 zero-diff)
+### Rank 2: 158/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175 + 4 zero-diff)
+
+- **Item 175 — `crates/horizon-client/src/entity_nbt.rs`
+  (2 classes, 4 methods, 1 named in Horizon), zero-diff:**
+  `ShulkerBullet` and `SmallFireball`: every change is a mechanical rename
+  with identical semantics — `EntityReference.of(x)` vs `new
+  EntityReference(x)` (same, as item 146), `EntityReference.getEntity`
+  vs `get(ref, level, Entity.class)` (same, as item 159),
+  `level().isClientSide()` (method) vs `isClientSide` (field), and
+  `setDeltaMovement(packet.getMovement())` vs
+  `setDeltaMovement(xa, ya, za)` (same values). The Rust shulker tick
+  (steps countdown, `select_next_move` on expiry or target alignment)
+  and the small-fireball hit (5.0 damage, ignite 100 ticks, restore on
+  shield refusal) implement the shared behaviour; the save/load
+  (`Dir`/`Steps`/TXD/TYD/TZD, `Target`) is unchanged between versions.
+  No stale citations (the `getEntity` hits are all `Level.getEntity` /
+  `ServerLevel.getEntity`, different methods).
 
 - **Item 174 — `crates/horizon-client/examples/old_world_fixture.rs`
   (1 class, 4 methods, 1 named in Horizon), comments only:**
