@@ -286,9 +286,48 @@ set rewired (7 removed, 1 renamed, 108 renumbered); adapter ladder
 re-based to 772; oracles ported to the 1.21.8 API; workspace compiles
 (0 errors, 0 warnings); protocol tests 430 pass / 2 fail
 (sandbox-network pair only); prepare verified ok end-to-end.
-Behaviour port unstarted (0/526). Harness profile: 2 pass / 2 oracle /
-13 fail of 17 measured locally (true oracle count 9; the other six
-fails are real verdicts or environmental). CI port-verify to confirm.
+Behaviour port in progress (Stream 3, 370/526 at cc1d6cd).
+Harness profile: CI run 44728873506 (behaviour/1.21.8@50163f8,
+success, ~1h13m): 2 pass / 2 oracle / 13 fail of 17 (true oracle
+count 9 — see "CI proof" below). Verdict: failed (D1 fail, D2 fail,
+D3 pass, D4/D5/D6 blocked). D6 deferred (owner). Metadata recorded
+in pins/1.21.8/ with the run.
+
+## CI proof (run 44728873506, 2026-11-20)
+
+port-verify on behaviour/1.21.8@50163f8 (rank 2 complete + items
+327–335), success in ~1h13m. Profile **2 pass / 2 oracle / 13 fail**
+of 17 — identical to 1.21.7's and 1.21.9's. Passing:
+block_properties, lan. Classified oracle: chunk_generation,
+command_exec. The classifier undercounts as before: 6 more
+oracle-compile failures hide in the fail column (datafix ×6 worlds,
+first_person, food, item_model, resource_pack, options — javac
+errors in the harness logs), and component_patch's oracle compiles
+but its run exits 1, so the true oracle count is **9** and the
+honest reading is 2 pass / 9 oracle / 6 real fail (command_parse,
+entity_components, hotbar, light, save_roundtrip, sound_event).
+Published profile: 23 entries (17 + datafix#1..#6), 2 pass / 21 fail.
+
+Verdict (recorded in pins/1.21.8/delta-verdict.json): **failed**.
+D1 fail — the tag audit finds 37 dead production tags (36 at the
+current head: item 350's copper-golem removal dropped the
+`minecraft:copper` lookup, and the jar defines no copper block
+tag). D2 fail — 3 protocol tests without an accepted gap, the
+v1_20_3 legacy-slot trio: item 170 re-cut the readers/writers to
+the 1.21.8 CustomData form but left the pinned fixtures (and the
+test normalizer's bees arm) in the 1.21.9 TypedEntityData form.
+Fixed after the run by re-cutting the container / entity / bees /
+tnt_entity / arrow_entity fixtures to the 1.21.8 form (the tag with
+its own `id`, no type-id varint) and the normalizer's bees arm;
+verified locally 430 pass / 2 fail (the sandbox-network pair
+only) — the final proof re-checks on CI. D3 pass — rank-1 9/9,
+rank-2 317/317. D4 blocked — the profile stamp quirk (profile
+stamped 50163f8, judge's staged candidate HEAD 5d0ff81; patch 0006
+is dead code in the CI judge, as on 26.2, 1.21.7 and 1.21.9).
+D5 blocked — no harness-subset.txt in the tree at dispatch, so D5
+never reached the stamp check; the E6 subset file has since been
+added, so the final proof's D5 reaches it. D6 blocked — no
+playtest.md; the playtest is deferred by the owner, never claimed.
 
 ## Behaviour port (2026-11-19)
 
@@ -2579,6 +2618,13 @@ includes constant-pool churn.
   this closes the deferred generic `TypedEntityData` protocol layer from
   item 80 (items 257/170). `cargo check --workspace --all-targets` 0/0;
   `components_read_past_hash_as_vanilla_does` passes.
+  Follow-up (found by CI run 44728873506, D2 fail): the re-cut missed
+  the three `v1_20_3.rs` legacy-slot tests — the pinned fixtures for
+  container / entity / bees / tnt_entity / arrow_entity were still in
+  the 1.21.9 form, and the test normalizer's bees arm (68) still read
+  a type-id varint. All re-cut to the 1.21.8 form after the run;
+  `cargo test -p horizon-protocol` locally 430 pass / 2 fail (the
+  sandbox-network pair only).
 
 - **Item 169 — `crates/horizon-client/src/mod_content_tests.rs`
   (1 class, 5 methods, 1 named in Horizon), zero-diff:**
