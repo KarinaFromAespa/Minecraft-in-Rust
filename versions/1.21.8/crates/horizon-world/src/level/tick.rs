@@ -755,6 +755,14 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             }
         }
     }
+    /// `FrostedIceBlock.tick`: a one-in-three roll (or fewer than four
+    /// frosted-ice neighbours) plus enough light ages the ice by one, or
+    /// melts it at age 3 — and ages every frosted-ice neighbour the same
+    /// way, rescheduling the ones that only aged. The light is the max
+    /// local raw brightness in every dimension: the End has no sky light
+    /// in 1.21.8, so the max there is already the block light. 1.21.9
+    /// gave the End sky light and switched this tick to block light only
+    /// there; that branch does not exist here.
     fn frosted_ice_tick(&mut self, pos: BlockPos, state: BlockStateId) {
         let b = self.b;
         let block = b.block(state);
@@ -771,11 +779,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             true
         };
         if self.rand_int(3) == 0 || fewer(self, pos, 4) {
-            let brightness = if self.level.level_key() == super::LevelKey::END {
-                self.level.block_light(pos)
-            } else {
-                self.max_local_raw_brightness(pos)
-            };
+            let brightness = self.max_local_raw_brightness(pos);
             let age = b.table.int(state, b.props.age);
             if brightness > 11 - age - i32::from(b.facts(state).dampening)
                 && self.frosted_slightly_melt(pos, state)
