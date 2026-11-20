@@ -98,7 +98,7 @@ fn sprite(name: &'static str, x: i32, y: i32, w: i32, h: i32) -> GuiDraw {
     }
 }
 
-/// `PlayerFaceExtractor.extractRenderState`: the skin's face, then its hat
+/// `PlayerFaceRenderer.draw`: the skin's face, then its hat
 /// layer, upside down for Dinnerbone and Grumm.
 #[allow(clippy::too_many_arguments)]
 pub fn face(
@@ -342,7 +342,7 @@ pub struct TabInputs<'a> {
     /// [`row_background`].
     pub background: u32,
     /// The player is in the level with an upside-down name
-    /// (`AvatarRenderer.isPlayerUpsideDown`).
+    /// (`LivingEntityRenderer.isEntityUpsideDown`).
     pub upside_down: &'a dyn Fn(u128) -> bool,
     /// A mark after the player's head, or none: an extension point for what lives above the
     /// engine (Horizon's mark, `horizon_cosmetics::mark`). Vanilla draws none.
