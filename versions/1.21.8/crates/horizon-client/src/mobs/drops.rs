@@ -523,13 +523,14 @@ pub fn die(
         }
         // Creeper/Zombie/Skeleton/WitherSkeleton/Piglin.dropCustomDeathLoot:
         // a charged creeper's victim drops its own head directly — there is
-        // no charged_creeper loot table in 1.21.8. Stray and Bogged inherit
-        // Skeleton's, so they drop a skeleton skull too (the 1.21.9 table's
-        // exact-type conditions exclude them); Husk, Drowned, Zombie
-        // Villager and Zombified Piglin return an empty skull. A creeper
-        // never drops its own head from its own blast (it is discarded
-        // before the blast hurts anything), so the killer here is always
-        // another creeper.
+        // no charged_creeper loot table in 1.21.8. The skull drop is on the
+        // concrete `Skeleton` class's dropCustomDeathLoot, so Stray and
+        // Bogged (which extend AbstractSkeleton and have no override) drop
+        // nothing, as the 1.21.9 table's exact-type conditions exclude them;
+        // Husk, Drowned, Zombie Villager and Zombified Piglin return an
+        // empty skull. A creeper never drops its own head from its own blast
+        // (it is discarded before the blast hurts anything), so the killer
+        // here is always another creeper.
         if let Some(source) = d.damage.as_ref().and_then(|x| x.source.as_ref())
             && source.kind == "minecraft:creeper"
             && source.powered
@@ -537,9 +538,7 @@ pub fn die(
             let head = match s {
                 Species::Creeper => Some("minecraft:creeper_head"),
                 Species::Zombie => Some("minecraft:zombie_head"),
-                Species::Skeleton | Species::Stray | Species::Bogged => {
-                    Some("minecraft:skeleton_skull")
-                }
+                Species::Skeleton => Some("minecraft:skeleton_skull"),
                 Species::WitherSkeleton => Some("minecraft:wither_skeleton_skull"),
                 Species::Piglin => Some("minecraft:piglin_head"),
                 _ => None,
