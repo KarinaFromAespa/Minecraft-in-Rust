@@ -188,7 +188,7 @@ classes! {
     Lectern = "LecternBlock",
     Lever = "LeverBlock",
     Light = "LightBlock",
-    LilyPad = "LilyPadBlock",
+    LilyPad = "WaterlilyBlock",
     Liquid = "LiquidBlock",
     Loom = "LoomBlock",
     Magma = "MagmaBlock",
@@ -336,5 +336,19 @@ impl ClassSet {
     pub fn contains(self, class: Class) -> bool {
         let i = class as usize;
         self.0[i / 64] & (1 << (i % 64)) != 0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The 1.21.11 prepared class chain names the lily pad
+    /// `WaterlilyBlock` (26.1 renamed it `LilyPadBlock`); the boat
+    /// friction skip, the boat-breaks-pad hook and the lily-pad
+    /// survival rule all recognise it through this name.
+    #[test]
+    fn lily_pad_recognises_the_1_21_11_class_name() {
+        assert_eq!(Class::from_java("WaterlilyBlock"), Some(Class::LilyPad));
     }
 }

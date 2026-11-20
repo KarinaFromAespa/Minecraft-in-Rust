@@ -575,7 +575,7 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
         }
     }
 
-    /// `LilyPadBlock.entityInside` for a boat: the lily pad at `pos` is
+    /// `WaterlilyBlock.entityInside` for a boat: the lily pad at `pos` is
     /// destroyed with its drops (`Level.destroyBlock(pos, true, entity)`).
     pub(crate) fn boat_inside(&mut self, pos: BlockPos) {
         let b = self.b;

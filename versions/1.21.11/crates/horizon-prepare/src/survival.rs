@@ -69,7 +69,7 @@ const CLASS_RULES: &[(&str, &str)] = &[
 ];
 
 const VEGETATION_RULES: &[(&str, &str)] = &[
-    ("LilyPadBlock", "LilyPad"),
+    ("WaterlilyBlock", "LilyPad"),
     ("VegetationBlock", "Vegetation"),
     ("AzaleaBlock", "TagBelow:minecraft:supports_azalea"),
     (
@@ -151,4 +151,32 @@ pub fn bind_definitions(
         }
     }
     Ok(definitions)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// 1.21.11's placement class for the lily pad is `WaterlilyBlock`
+    /// (26.1 renamed it `LilyPadBlock`); without the 1.21.11 name the
+    /// pad binds no survival rule.
+    #[test]
+    fn lily_pad_binds_its_rule_from_the_1_21_11_placement_class() {
+        let classes = Value::Object(vec![(
+            "minecraft:lily_pad".to_owned(),
+            Value::str("VegetationBlock"),
+        )]);
+        let placement = Value::Object(vec![(
+            "minecraft:lily_pad".to_owned(),
+            Value::str("WaterlilyBlock"),
+        )]);
+        let definitions =
+            bind_definitions(&classes, &placement, &Value::Object(vec![])).unwrap();
+        assert_eq!(
+            definitions
+                .get("minecraft:lily_pad")
+                .and_then(Value::as_str),
+            Some("LilyPad")
+        );
+    }
 }

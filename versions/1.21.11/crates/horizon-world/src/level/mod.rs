@@ -1296,7 +1296,7 @@ impl Behaviours {
             || data.is(classes::Class::Button)
             || data.is(classes::Class::TripWire)
     }
-    /// `LilyPadBlock.entityInside` for a boat whose box is inside `pos`.
+    /// `WaterlilyBlock.entityInside` for a boat whose box is inside `pos`.
     pub fn boat_inside<L: LevelAccess + ?Sized>(
         &self,
         level: &mut L,

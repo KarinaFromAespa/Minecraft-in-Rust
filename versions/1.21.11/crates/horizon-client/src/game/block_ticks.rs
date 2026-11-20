@@ -131,7 +131,7 @@ impl Game<'_> {
         let entity_ticking = self.entity_ticking_area();
         let first_contact_drop = self.next_entity + 1;
         self.with_level(|b, level, ticks| {
-            // LilyPadBlock.entityInside: a boat inside a lily pad breaks it.
+            // WaterlilyBlock.entityInside: a boat inside a lily pad breaks it.
             scratch.boat_cells.clear();
             for bounds in level.boat_trigger_boxes() {
                 let (lo, hi) = (bounds.min_position(), bounds.max_position());

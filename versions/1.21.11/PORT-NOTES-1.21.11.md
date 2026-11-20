@@ -4301,3 +4301,129 @@ passed, 0 failed, including the new test. catalog.rs declares a
 hand-formatted.
 Rank 2 now 231/492 (63 changed, 168 no-change).
 work-items.json rank2.closed = 231 on 2026-11-20.
+
+## Item 53 — crates/horizon-client/src/game/boats.rs (rank 2, CHANGED)
+
+AbstractBoatRenderer (8, named submit), AbstractBoat (6, named
+getGroundFriction, interact, modifyPassengerFluidInteractionBox,
+positionRider, tick), ModelLayers (3), BoatRenderer (3, named
+submitTypeAdditions), RaftRenderer (2), AbstractChestBoat (2,
+named interact), ContainerEntity (1, named chestVehicleDestroyed):
+7 classes, 25 methods, 9 named.
+
+**The change — `WaterlilyBlock`, not `LilyPadBlock` (26.1 renamed
+it).** The 1.21.11 mappings name it `WaterlilyBlock` (2
+occurrences, 0 for `LilyPadBlock`), and the 1.21.11 prepared
+`block-behaviours.json` gives the lily pad the class chain
+`["WaterlilyBlock", "VegetationBlock", "Block"]`. The Rust matched
+the 26.1 name in three places, so in the 1.21.11 build lily pads
+counted toward `getGroundFriction` instead of being skipped
+(boats.rs:651), boats never broke lily pads they ran into and the
+lily-pad survival rule never applied (`classes.rs:191` —
+`from_java` returned None for the 1.21.11 chain, so
+`hooks.rs:583` `boat_inside` and the `survive.rs:395` rule never
+fired), and the pad bound no survival rule at prepare time
+(`survival.rs:72` — the 1.21.11 placement class is
+`WaterlilyBlock`). All three fixed to the 1.21.11 name, plus four
+comment citations (block_ticks.rs:134, game.rs:939, hooks.rs:578,
+level/mod.rs:1299). Two pinning tests (machine-consumed
+contracts): `Class::from_java("WaterlilyBlock") ==
+Some(Class::LilyPad)` and `bind_definitions` binds the `LilyPad`
+rule from the 1.21.11 placement class.
+
+**Systematic finding (recorded, NOT fixed here — their items'
+scope):** 14 of the 270 `classes.rs` literals appear nowhere in
+the 1.21.11 prepared class chains. Verified rename map:
+`FarmlandBlock` → `FarmBlock`, `PathBlock` → `DirtPathBlock`,
+`RedstoneWireBlock` → `RedStoneWireBlock` (capital S),
+`SnowyBlock`/`SpreadingSnowyBlock` →
+`SnowyDirtBlock`/`SpreadingSnowyDirtBlock`,
+`NetherFungusBlock` → `FungusBlock`, `NetherRootsBlock` →
+`RootsBlock`; `AbstractBedBlock` and `SpeleothemBlock` have no
+1.21.11 counterpart (BedBlock extends HorizontalDirectionalBlock
+directly; PointedDripstoneBlock extends Block directly);
+`PotentSulfurBlock`, `SulfurSpikeBlock`, `ShelfMushroomBlock`,
+`StrawBedBlock` are 26.x-new blocks absent in 1.21.11. The same
+renames sit in `survival.rs` CLASS_RULES (`PathBlock`,
+`FarmlandBlock`, `SpeleothemBlock`, `ShelfMushroomBlock` —
+farmland owner is `FarmBlock`, dirt-path owner `DirtPathBlock`,
+dripstone owner `PointedDripstoneBlock` itself). Each rename needs
+its own item's verification of the attached behaviour before the
+literal changes — renaming blind could activate a 26.x-shaped
+override — so this item fixes only WaterlilyBlock (fully
+verified here). Full use-site table in rank2-item-53-TRIAGE.md.
+
+**`modifyPassengerFluidInteractionBox` — 26.1-only; 1.21.11
+short-circuits instead (verified, no Rust change).** 26.1's
+`Entity.getFluidInteractionBox()` deflates the box 0.001 and lets
+the vehicle clip it (AbstractBoat clips to above the hull, or
+null when the hull covers it). 1.21.11 has no
+`getFluidInteractionBox` at all: the water path short-circuits
+for a passenger of a non-underwater boat (`wasTouchingWater =
+false`, no water height / splash / fall reset / current push),
+the lava path runs UNCLIPPED, and `updateFluidOnEyes` skips the
+eye check when a non-underwater boat's box spans the eye height.
+The Rust's player-path clip (`motion/fluids.rs`
+`interaction_box()`, item 26) is equivalent for water + eyes
+(boat not underwater ⟹ no water above the boat top, so the
+clipped box holds no water — the same answer as the short-circuit).
+Two gaps remain, both fluid-system scope (the shared
+`EntityFluidInteraction` computes one box for all fluids;
+per-fluid boxes would restructure it and the fluid_box harness):
+(1) the player lava path is clipped where 1.21.11 runs it
+unclipped — transient (the boat sinks and burns within ticks),
+but real; (2) the mob path (`entities/fluids.rs`,
+`game/entity.rs` `push_by_fluid`) has no boat short-circuit at
+all — a mob riding a boat on water reads water immersion + push
+where 1.21.11 reads none (observable mainly via
+fire-extinguishing / `isInWater` logic).
+
+Verified, no change: tick / floatBoat / controlBoat / paddles
+(exact mirrors — buoyancy per status, invFriction 0.9/0.9/0.45/
+0.9/land halved for a player controller, `(vy + buoyancy *
+(0.04/0.65)) * 0.75`, paddle state `[right && !left || up, left
+&& !right || up]`, paddle sounds at the π/4 stroke crossing with
+`getPaddleSound`'s water/land/null by status, pitch 0.8+0.4·rand);
+seat / positionRider (single 0.0 / chest 0.15 — javap-verified
+both versions; two passengers 0.2/−0.6 + 0.2 for animals; ride
+heights height/3 and height·0.8888889, javap-verified both
+versions); pickup checks (area inflate (0.2, −0.01, 0.2), no
+player steering, count < max, width < boat width,
+`cannot_be_pushed_onto_boats` on the TYPE — the 1.21.11
+`getType().is(tag)` form); boat_status; getGroundFriction apart
+from the class name; interact (leash first, chest on sneak/full
+seat, board otherwise, `out_of_control >= 60` gate — the 26.1
+`Vec3 location` parameter is gone in 1.21.11, signature only,
+and the Rust's boat interact consumes no hit location); chest
+boat destroy/remove double dropContents, boat item only on the
+death path with `entity_drops`, piglin anger on a player's
+destroying hit with `entity_drops` (not creative), CONTAINER_OPEN
++ piglin anger on opening. `chestVehicleDestroyed`: 26.1
+`instanceof Player` vs 1.21.11 `getType() == EntityType.PLAYER`
+— equivalent. `Entity.is(tag)` vs `getType().is(tag)` (tick
+pickup, positionRider): equivalent — 26.1's `is(TagKey)` comes
+via `TypedInstance`/`Holder` and checks the type's tags; 1.21.11
+has no `Entity.is(TagKey)`. Renderers: submit logic identical
+(translate (0, 0.375, 0), YP (180−yRot), hurt tilt, bubble
+wobble about (1,0,1), scale (−1,−1,1), YP 90°, water patch when
+not underwater, rafts none) — the 26.1→1.21.11 change is plumbing
+only (submitModel takes a texture Identifier in 26.1, a RenderType
+via abstract `renderType()` in 1.21.11). ModelLayers: no
+boat-layer changes; the 15 new baby saddle/armor layers and the
+hanging-sign AttachmentType change belong to the mounts/signs
+items. Report gaps: Boat, Raft, ChestBoat, ChestRaft, BoatModel,
+RaftModel, VehicleEntity are in NO report item (their key methods
+were verified identical anyway).
+
+Pre-existing version-neutral approximations (recorded, not fixed):
+`water_level_above` uses `ceil(maxY)` where vanilla uses
+`ceil(maxY − lastYd)`; `boat_dismount_target` simplifies vanilla's
+`getDismountLocationForPassenger`. Same code in both versions.
+
+`cargo check -p horizon-world -p horizon-prepare -p horizon-client
+--lib --tests --no-default-features` and `cargo check -p
+horizon-client --bin horizon-client --tests --no-default-features`
+both clean (JOBS=1). New tests pass (1 + 1). Single-token edits;
+no rustfmt run.
+Rank 2 now 232/492 (64 changed, 168 no-change).
+work-items.json rank2.closed = 232 on 2026-11-20.

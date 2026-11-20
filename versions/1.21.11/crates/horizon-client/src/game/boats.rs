@@ -648,7 +648,7 @@ impl Game<'_> {
                     }
                     let state = self.world.block(x, y, z);
                     let f = self.res.facts().get(state);
-                    if f.name.as_ref() == "minecraft:air" || f.has_class("LilyPadBlock") {
+                    if f.name.as_ref() == "minecraft:air" || f.has_class("WaterlilyBlock") {
                         continue;
                     }
                     let Ok(shape) = self.collision.collision_shape_with_context(
