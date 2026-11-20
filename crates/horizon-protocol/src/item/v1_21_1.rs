@@ -517,88 +517,88 @@ mod tests {
     #[test]
     fn vanilla_component_fixtures_preserve_food_effects_remainders_and_following_fields() {
         // The actual vanilla DataComponentPatch.STREAM_CODEC plus count/item fields from the 1.21.1
-        // registry. At this pin the 1.21.1 wire IS the pin wire (the v1_21_1 step is inert: its food
-        // is already combined, its fire flag already a unit), so the pinned side repeats the old
-        // side, and the test pins the 1.21.1 forms and their round-trip. Encoding the parsed patch
-        // directly retains explicit removals.
+        // registry, against the pin's 1.20.6 wire: the pinned side is the 1.20.6 form (UUID
+        // attributes, no food remainder, count-first container, hide flags as components), and the
+        // test pins the 1.21.1 forms and their round-trip. Encoding the parsed patch directly
+        // retains explicit removals.
         for (label, old, pinned) in [
             (
                 "damage_model",
                 "01d00602000db9600311",
-                "01d00602000db9600311",
+                "01cf0602000db9600311",
             ),
             (
                 "potion",
                 "01d006020003111f0119010001e2400112022801000000",
-                "01d006020003111f0119010001e2400112022801000000",
+                "01cf06020003111f0119010001e2400112022801000000",
             ),
-            ("potion_empty", "01d00601001f000000", "01d00601001f000000"),
+            ("potion_empty", "01d00601001f000000", "01cf0601001f000000"),
             (
                 "instrument",
                 "01d006020003112800c3055042800000",
-                "01d006020003112800c3055042800000",
+                "01cf06020003112800c3055042800000",
             ),
             (
                 "instrument_direct_sound",
                 "01d00601002800000e6d696e6563726166743a7465737401408000005a42000000",
-                "01d00601002800000e6d696e6563726166743a7465737401408000005a42000000",
+                "01cf0601002800000e6d696e6563726166743a7465737401408000005a42000000",
             ),
             (
                 "attributes",
                 "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020000",
-                "01d00601000c02020b6d696e6563726166743a783ff80000000000000001150b6d696e6563726166743a793fd0000000000000020000",
+                "01cf0601000c02027dd3a41b61e131b09f48d20fb816df220b6d696e6563726166743a783ff8000000000000000111afe7f7d1094f3f22842df4dbe1e6f91c0b6d696e6563726166743a793fd0000000000000020000",
             ),
             (
                 "food_simple",
                 "01d0060200031114033fa00000003fcccccd0000",
-                "01d0060200031114033fa00000003fcccccd0000",
+                "01cf060200031114033fa00000003fcccccd00",
             ),
             (
                 "food_full",
                 "01d0060200031114033fa00000013f4ccccd01019f06000002120228010000003e80000009000a000101003f400000",
-                "01d0060200031114033fa00000013f4ccccd01019f06000002120228010000003e80000009000a000101003f400000",
+                "01cf060200031114033fa00000013f4ccccd02120228010000003e80000009000a000101003f400000",
             ),
             (
                 "food_nested",
                 "01d006010014013f000000003fcccccd0101d00602000d071500",
-                "01d006010014013f000000003fcccccd0101d00602000d071500",
+                "01cf06010014013f000000003fcccccd00",
             ),
             (
                 "fire",
                 "01d0060200031115",
-                "01d0060200031115",
+                "01cf060200031115",
             ),
-            ("removed_food", "01d006000114", "01d006000114"),
-            ("removed_fire", "01d006000115", "01d006000115"),
+            ("removed_food", "01d006000114", "01cf06000114"),
+            ("removed_fire", "01d006000115", "01cf06000115"),
             (
                 "hidden",
                 "01d00604000f04001800ff0000000e",
-                "01d00604000f04001800ff0000000e",
+                "01cf06030004001800ff0000000f",
             ),
             (
                 "tool",
                 "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
-                "01d006010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
+                "01cf06010016020301b50201408000000101001a6d696e6563726166743a6d696e6561626c652f7069636b61786500004000000002",
             ),
             (
                 "profile",
                 "01d00601002f010b486f72697a6f6e576972650000",
-                "01d00601002f010b486f72697a6f6e576972650000",
+                "01cf0601002e010b486f72697a6f6e576972650000",
             ),
             (
                 "container",
                 "01d00601003406030100000000000002e4020000",
-                "01d00601003406030100000000000002e4020000",
+                "01cf0601003306030100000000000002e4020000",
             ),
             (
                 "bundle",
                 "01d00601001e0202e402000003d00601000d09",
-                "01d00601001e0202e402000003d00601000d09",
+                "01cf0601001e0202e402000003cf0601000d09",
             ),
             (
                 "can_break",
                 "01d00601000b01010201000000",
-                "01d00601000b01010201000000",
+                "01cf0601000b01010201000000",
             ),
         ] {
             let old = bytes(old);
@@ -611,7 +611,15 @@ mod tests {
             assert_eq!(r.remaining(), 0, "{label}");
             let expected = Slot::read(&mut Reader::new(&pinned))
                 .unwrap_or_else(|e| panic!("{label} pinned: {e}"));
-            assert_eq!(canonical(stack.clone()), canonical(expected), "{label}");
+            // Three fixtures cannot decode to the 1.21.1 canonical form at
+            // this pin: the UUID form cannot carry arbitrary modifier ids
+            // ("attributes" reads back as minecraft:<uuid>), and the pin's
+            // food has no remainder field ("food_full", "food_nested"). The
+            // pinned bytes are still parsed above, and the 1.21.1 round-trip
+            // below is byte-exact for all three.
+            if label != "attributes" && label != "food_full" && label != "food_nested" {
+                assert_eq!(canonical(stack.clone()), canonical(expected), "{label}");
+            }
             let mut w = Writer::new();
             {
                 let _down = ids::renumbering(ServerVersion::V1_21_1.ids().unwrap(), Way::Down);
@@ -629,13 +637,22 @@ mod tests {
             };
             assert_eq!(r.remaining(), 0, "{label}");
             assert_eq!(canonical(back), canonical(stack.clone()), "{label}");
-            let mut w = Writer::new();
-            DelimitedSlot::write(&stack, &mut w);
-            assert_eq!(
-                DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap(),
-                stack,
-                "{label}"
-            );
+            // Two fixtures are lossy through the pin's delimited wire, which
+            // is the 1.20.6 form: arbitrary modifier ids (the write derives a
+            // stable UUID from the id, and the read falls back to
+            // minecraft:<uuid> -- vanilla's own 1.21 datafix loses the name
+            // the same way) and food with a use remainder (the pin's food
+            // has no remainder field). The 1.21.1 round-trip above is still
+            // byte-exact for both.
+            if label != "attributes" && label != "food_full" && label != "food_nested" {
+                let mut w = Writer::new();
+                DelimitedSlot::write(&stack, &mut w);
+                assert_eq!(
+                    DelimitedSlot::read(&mut Reader::new(&w.data)).unwrap(),
+                    stack,
+                    "{label}"
+                );
+            }
         }
     }
 }
