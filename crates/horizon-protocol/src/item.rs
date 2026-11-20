@@ -2597,7 +2597,7 @@ mod tests {
             0x7a, 0x5d, 0x6a, 0x1a, 0x30, 0xd7, 0x41, 0x87, 0x88, 0xc5, 0xef, 0xe9, 0x12, 0x01,
             0x89, 0x22,
         ];
-        let mut bytes = vec![1, 1, 1, 0, 47, 1, 0, 1];
+        let mut bytes = vec![1, 1, 1, 0, 46, 1, 0, 1];
         bytes.extend_from_slice(&uuid);
         bytes.extend_from_slice(&[1, 8]);
         bytes.extend_from_slice(b"textures");
@@ -2662,19 +2662,19 @@ mod tests {
     #[test]
     fn components_read_past_keep_their_bytes() {
         // Vanilla 26.3's encoding (tools/test_item_wire_parity.py), re-based to the
-        // pinned 1.21.4 numbering, of a chestplate's
+        // pinned 1.20.6 numbering, of a chestplate's
         // armour trim (decoded: both holders are references), a banner's patterns
         // (one direct), a pot's sherds and a stew's effects: one server's
         // inventory, recipe book and advancements had them. The pot's value is
-        // in 1.21.4's own form (four item ids: brick, angler, brick, skull).
+        // in 1.20.6's own form (four item ids: brick, angler, brick, skull).
         // The trim carries its show flag (a tooltip-flagged component).
         for (hex, kind) in [
             ("01bd08010023050201", 35),
-            ("01890b01003102200e000b6d696e6563726166743a7801790b", 49),
-            ("01880301003304ba07bd0aba07d20a", 51),
+            ("01890b01003002200e000b6d696e6563726166743a7801790b", 48),
+            ("01880301003204ba07bd0aba07d20a", 50),
             ("01a408010020020f6412a001", 32),
             // A goat horn's instrument by reference (InstrumentComponent's holder).
-            // 1.21.1's instrument sends its holder bare (the EitherHolder
+            // 1.20.6's instrument sends its holder bare (the EitherHolder
             // wrapper started in 1.21.5).
             ("01bd0801002802", 40),
         ] {

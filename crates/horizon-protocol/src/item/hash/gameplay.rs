@@ -237,12 +237,6 @@ pub(super) fn code(kind: i32, r: &mut Reader, names: &dyn Names) -> Option<HashC
             let rec = float_or(rec, "default_mining_speed", mining, 1.0);
             int_or(rec, "damage_per_block", damage, 1).build()
         }
-        // `JukeboxSong.CODEC` is a `RegistryFixedCodec`: a direct song cannot be
-        // encoded (vanilla's client would throw), so only a reference hashes.
-        42 => match int(r)? {
-            0 => return None,
-            id => entry(names, "minecraft:jukebox_song", id - 1)?,
-        },
         // AdventureModePredicate (can_place_on, can_break): `compactListCodec`
         // writes one predicate as itself and `nonEmptyList` refuses none.
         10 | 11 => {

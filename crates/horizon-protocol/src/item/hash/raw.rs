@@ -300,11 +300,11 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         // Persistent codecs only: the stream form is the codec's NBT.
         // intangible_projectile, map_decorations, debug_stick_state, recipes,
         // lock (an `ItemPredicate`) and container_loot.
-        19 | 27 | 36 | 43 | 55 | 56 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
+        19 | 27 | 36 | 42 | 54 | 55 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `Identifier.CODEC`: note_block_sound.
-        48 => string(&r.string(32767).ok()?),
+        47 => string(&r.string(32767).ok()?),
         // The entity-variant components (wolf_variant, pig_variant, ...):
-        // 26.2 ids, which cannot occur in a 1.21.1-numbered stack; kept so
+        // 26.2 ids, which cannot occur in a 1.20.6-numbered stack; kept so
         // the arms stay readable against the newer trees.
         // `DyeColor.CODEC`: wolf/collar, tropical_fish/base_color and
         // pattern_color, cat/collar, sheep/color, shulker/color.
@@ -338,7 +338,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
         39 => typed_data("minecraft:block_entity_type", names, r)?,
         38 => HashOps::from_nbt(&r.nbt().ok()?, &[]),
         // `BlockItemStateProperties`: a string map.
-        53 => {
+        52 => {
             let n = r.count(r.remaining()).ok()?;
             let mut entries = Vec::with_capacity(n);
             for _ in 0..n {
@@ -359,7 +359,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
                 .build()
         }
         40 => holder_or("minecraft:instrument", names, r, |r| instrument(r, names))?,
-        49 => list(r, |r| {
+        48 => list(r, |r| {
             let pattern = holder_or("minecraft:banner_pattern", names, r, banner_pattern)?;
             let color = dye(r.varint().ok()?)?;
             Some(
@@ -370,7 +370,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             )
         })?,
         // `PotDecorations`: back, left, right, front.
-        51 => {
+        50 => {
             let mut rec = RecordHash::new();
             for side in ["back", "left", "right", "front"] {
                 rec = rec.optional(side, optional(r, |r| template_code(r, names))?);
@@ -378,7 +378,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             rec.build()
         }
         // `ItemContainerContents`: the occupied slots as `{slot, item}`.
-        52 => {
+        51 => {
             let n = r.count(256).ok()?;
             let mut slots = Vec::new();
             for slot in 0..n {
@@ -394,7 +394,7 @@ pub(super) fn code(kind: i32, bytes: &[u8], names: &dyn Names) -> Option<HashCod
             HashOps::create_list(slots)
         }
         // `Bees`: occupants.
-        54 => list(r, |r| {
+        53 => list(r, |r| {
             let data = typed_data("minecraft:entity_type", names, r)?;
             let ticks = r.varint().ok()?;
             let min = r.varint().ok()?;
@@ -496,20 +496,20 @@ mod tests {
         ("potion_contents", 31, "00000001026e6d", -1256264264),
         (
         "profile",
-        47,
+        46,
         "010000000100000002000000030000000405537465766501087465787475726573036162630103736967010d6d696e6563726166743a666f6f010e6d696e6563726166743a63617065000101",
         1753620268,
         ),
-        ("profile", 47, "0001054e6f746368000000000000", -1744970702),
+        ("profile", 46, "0001054e6f746368000000000000", -1744970702),
         (
         "profile",
-        47,
+        46,
         "000001fffffffb000000060000000700000008000000000100",
         -196647545,
         ),
         (
         "profile",
-        47,
+        46,
         "010000000100000001000000010000000101610108746578747572657301760000000000",
         -1883525005,
         ),
@@ -533,39 +533,39 @@ mod tests {
         ),
         (
         "container",
-        52,
+        51,
         "0601b2070300000000000001ff060101000304",
         92591498,
         ),
-        ("container", 52, "00", -1978007022),
+        ("container", 51, "00", -1978007022),
         (
         "pot_decorations",
-        51,
+        50,
         "01810801000000000101020000",
         1078935147,
         ),
         (
         "block_state",
-        53,
+        52,
         "02036c6974047472756506666163696e67056e6f727468",
         1069123732,
         ),
-        ("bees", 54, "010b0a030003416765000000030003d804", -122152224),
+        ("bees", 53, "010b0a030003416765000000030003d804", -122152224),
         (
         "lock",
-        55,
+        54,
         "0a0800056974656d73000f6d696e6563726166743a737469636b00",
         791108361,
         ),
         (
         "container_loot",
-        56,
+        55,
         "0a04000473656564000000000000000508000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
         33155076,
         ),
         (
         "container_loot",
-        56,
+        55,
         "0a08000a6c6f6f745f7461626c65001f6d696e6563726166743a6368657374732f73696d706c655f64756e67656f6e00",
         -2040272502,
         ),
@@ -583,14 +583,14 @@ mod tests {
         ),
         (
         "recipes",
-        43,
+        42,
         "090800000001000f6d696e6563726166743a737469636b",
         -533729841,
         ),
         ("intangible_projectile", 19, "0a00", -982207288),
         (
         "note_block_sound",
-        48,
+        47,
         "106d696e6563726166743a637573746f6d",
         1404676026,
         ),
@@ -600,7 +600,7 @@ mod tests {
             let mut r = Reader::new(&bytes);
             // The cases are vanilla 1.21.11's stream bytes: read them as
             // 1.21.11 data (its Either-form profiles and template-form
-            // containers), not as the pinned 1.21.1's.
+            // containers), not as the pinned 1.20.6's.
             let c = {
                 let _up = crate::adapter::ids::renumbering(
                     crate::adapter::ServerVersion::V1_21_11.ids().unwrap(),
@@ -631,7 +631,7 @@ mod tests {
         ),
         (
         "banner_patterns",
-        49,
+        48,
         "02000b6d696e6563726166743a62016b0e000b6d696e6563726166743a63016c0b",
         -178464072,
         ),
