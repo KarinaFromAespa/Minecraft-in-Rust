@@ -779,7 +779,7 @@ impl Game<'_> {
         let at = [from.x, from.y, from.z];
         self.hurt_player_from(amount, Some(at), "minecraft:fireworks", Some(None));
     }
-    /// `FireworkEntityRenderer.submit`: the item (GROUND) facing the camera,
+    /// `FireworkEntityRenderer.render`: the item (GROUND) facing the camera,
     /// lit at the rocket's light probe.
     pub(super) fn rocket_geometry(&self, camera: glam::DVec3, alpha: f64, out: &mut Vec<Vertex>) {
         let orientation = glam::Mat4::from_quat(self.camera_orientation());

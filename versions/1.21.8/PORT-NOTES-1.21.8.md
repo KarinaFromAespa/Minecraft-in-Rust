@@ -334,7 +334,20 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 87/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104 + 4 zero-diff)
+### Rank 2: 88/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105 + 4 zero-diff)
+
+- **Item 105 — `crates/horizon-client/src/game/fireworks.rs`
+  (2 classes, 6 methods, 3 named in Horizon),
+  citations only:** FireworkEntityRenderer, FireworkRocketEntity.
+  The `rocket_geometry` doc cited `submit`, the 1.21.9
+  submit-pipeline name — reworded to 1.21.8's `render`. Verified
+  no-change: the renderer geometry is identical in both versions
+  (camera orientation, angled → Z 180° · Y 180° · X 90°, item
+  GROUND, light probe at the eye); tick/handleEntityEvent differ
+  only by `isClientSide()` vs the field, and the Rust's
+  every-tick spark and event-17 explosion match vanilla.
+  Comment-only change; no check run (tree unchanged since item
+  104's 0/0 check).
 
 - **Item 104 — `crates/horizon-client/src/mobs/zombie_villager.rs`
   (1 class, 7 methods, 3 named in Horizon),
