@@ -19,7 +19,7 @@ const SECTION_HEADING: &str = "============";
 /// A key the screen reacts to (`keyPressed` / `keyReleased`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Key {
-    /// `KeyEvent.isUp`: the up arrow scrolls back.
+    /// Key 265 (GLFW up arrow): the up arrow scrolls back.
     Up,
     /// Space speeds the scroll up.
     Space,
