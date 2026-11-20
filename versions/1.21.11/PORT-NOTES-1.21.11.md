@@ -8106,3 +8106,49 @@ test early-returns locally without fixtures, runs on CI);
 `game::block_items::tests::` 3 passed. `cargo check` clean (world lib
 + tests, client lib); rustfmt --check clean on block_items.rs, tests.rs
 only its two pre-existing drift spots.
+
+## Item 120 — lan/data (rank 2, NO-CHANGE)
+
+6 classes, 23 methods, 3 named (`FileToIdConverter.listMatchingResources`,
+`Registries.elementsDirPath`, `Registries.tagsDirPath`).
+
+Java delta, jar-verified (javap diff 513 lines + decompile diff 992
+lines, both read in full): Registries changes generic types only
+(`FloatProviderType`/`IntProviderType`/`Loot*Type` wrappers; every
+registry string id unchanged), drops 7 registries that are 26.1-only
+(the cat/chicken/cow/pig sound variants, `trade_set`,
+`villager_trade`, `world_clock`), inlines `elementsDirPath` /
+`tagsDirPath` with identical results (path, `"tags/" + path`), and
+loses the 26.1-only `componentsDirPath` (no Rust mirror). ListTag is
+bytecode-identical (zero javap hunks; the +245/-245 decompile diff is
+pure parameter-name noise). FileToIdConverter goes from a Record to a
+plain class and inlines `extensionMatches` as lambdas with the
+identical predicate. TagNetworkSerialization changes visibility only.
+`RegistryDataLoader` was decompiled from both jars to settle the
+synchronized list: 26.1 synchronizes 28 registries, 1.21.11
+synchronizes 23 — the same minus the four sound variants and
+`WORLD_CLOCK`, in the same order; the Rust's `SYNCHRONIZED` already
+omits the sound variants. The `world_clock` entry in `SYNCHRONIZED`
+was investigated and deliberately NOT removed: the internal model is
+26.1-shaped by design and the adapter owns the wire difference in
+both directions (the server-side adapter drops the `world_clock`
+REGISTRY_DATA packet for ≤1.21.11 clients, `client_session.rs`; the
+client-side adapter synthesizes it — overworld alone, clock 0 —
+`translate.rs` `world_clocks()`), so the wire is already correct; in
+the 1.21.11 tree the server-side registry is empty (no
+`data/minecraft/world_clock/` in the 1.21.11 jar), so removing the
+entry would change nothing observable today and would break the
+invariant that the internal model carries the 26.1 registry set. The
+clock system's behaviour is the WorldClock item's scope (item 74's
+referral). The four non-vanilla entries in `SYNCHRONIZED`
+(`sulfur_cube_archetype`, `decorated_pot_pattern`,
+`block_transformer`, `worldgen/block_state_provider`) are
+version-neutral Horizon extensions. The `tagsDirPath` / `file_order`
+/ `serializeTagsToNetwork` / `ListTag.wrapIfNeeded` mirrors all match
+both versions, and no citation names a 26.1-only member. Referrals:
+`datapack.rs` still accepts `trade_set/` and `villager_trade/` pack
+files (item 751); `RegistryDataLoader`'s load machinery is in no
+report item. Tests: `lan::data::` 7 passed, 1 ignored (needs prepared
+resources; the tests live in the horizon-client-lib binary, 0 in the
+horizon-client lib binary); `step_1_21_11` adapter tests 5 passed,
+including the two clock tests.
