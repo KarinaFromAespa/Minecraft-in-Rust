@@ -64,7 +64,7 @@ pub const WATER_MASK_OVERLAY: u32 = 13;
 pub const ENERGY_SWIRL_OVERLAY: u32 = 34;
 /// The overlay of entity shadow quads (`RenderTypes.entityShadow`).
 pub const SHADOW_OVERLAY: u32 = 14;
-/// The overlay of translucent-layer particles (`SingleQuadParticle.Layer.translucent`).
+/// The overlay of translucent-layer particles (`ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT`).
 pub const TRANSLUCENT_PARTICLE_OVERLAY: u32 = 15;
 /// The overlay of item quads with translucent pixels (`Sheets.translucentItemSheet`,
 /// `RenderPipelines.ITEM_TRANSLUCENT`); past the creeper swell range (16 to 31).

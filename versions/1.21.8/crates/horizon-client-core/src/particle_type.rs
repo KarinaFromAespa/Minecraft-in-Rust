@@ -187,11 +187,13 @@ impl ParticleType {
                 | Self::OminousSpawning
         )
     }
-    /// `SingleQuadParticle.Layer.translucent`: types whose vanilla particle class
-    /// hardcodes the translucent layer, drawn after translucent terrain.
-    /// `TerrainParticle`, `BreakingItemParticle` and `BlockMarker` resolve their
-    /// layer from the sprite instead (`Layer.bySprite`); see the `translucent`
-    /// sprite set on the engine.
+    /// `ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT`: types whose vanilla
+    /// particle class hardcodes the translucent render type, drawn after
+    /// translucent terrain. `TerrainParticle`, `BreakingItemParticle` and
+    /// `BlockMarker` return `TERRAIN_SHEET` instead (1.21.8 draws every
+    /// terrain-sheet particle with the translucent render type; the
+    /// per-sprite split is the engine's equivalent — see the `atlas`
+    /// comment on the engine).
     pub fn translucent_layer(self) -> bool {
         match self {
             // CampfireSmokeParticle.

@@ -334,7 +334,24 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 91/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108 + 4 zero-diff)
+### Rank 2: 92/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109 + 4 zero-diff)
+
+- **Item 109 — widely named: `client/particle`
+  (6 classes, 34 methods, 0 named in Horizon),
+  citations only:** Particle, ItemPickupParticle,
+  TerrainParticle (+ Crumbling/DustPillar/Provider). Four stale
+  1.21.9 citations reworded to the 1.21.8 forms: the pickup
+  particle is drawn as the taken entity itself (`getSafeCopy`),
+  not a render state; its flight is `renderCustom`, not the
+  1.21.9 particle-group class; the translucent layer is
+  `ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT`, not
+  `SingleQuadParticle.Layer`. Verified no-change: the pickup
+  flight math (3 ticks, squared time, lerped target) and tick
+  match `renderCustom` exactly; the crumbling/dust-pillar
+  providers already draw from `level_random` in vanilla order
+  (item 14); the translucent list matches 1.21.8's render
+  types. Comment-only changes; no check run (tree unchanged
+  since item 106's 0/0 check).
 
 - **Item 108 — `crates/horizon-client/src/creative.rs`
   (2 classes, 15 methods, 2 named in Horizon),
