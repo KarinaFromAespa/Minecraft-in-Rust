@@ -392,6 +392,51 @@ is the oracle; decompiled code is a reading aid.
     --all-targets` 0 errors / 0 warnings (9m55s); full
     workspace check 0/0 (12m29s, item-8 state, before these
     edits — the client check above covers them).
+- **Item 11 — realms.rs, ported:** the Realms screens' 1.21.5
+  forms, in `crates/horizon-client/src/realms.rs`:
+  - `RealmsWorldSlotButton`: all four slots are 80 square, 18
+    apart (`frame(slot)`, 374 wide, centred) — not 1.21.6's
+    80-active/50-others; the picture sits at +3/+3, 74x74, and
+    is dimmed 0.56 on the ACTIVE slot (1.21.6 dims the inactive
+    ones); the active slot draws the checkmark at +67/+4; names
+    clamp at 64px; the version draws under EVERY slot (blank
+    versions draw nothing). `getAction` regains JOIN: clicking
+    the active slot of an unexpired, initialized Realm joins it
+    (`joinRealm` — play when open, `openTheWorld(true)` when
+    closed, via a new `open_then_join` + `join_after_open`
+    flag that starts the join when the open lands); the active
+    slot of an expired/uninitialized Realm and the minigame slot
+    of an expired one are inert. The Worlds tab's three buttons
+    re-centre under the 374-wide slots.
+  - `RealmsMainScreen`: the CLOSED-state play-button tooltip
+    (`mco.play.button.realm.closed`) is 1.21.6-only — removed.
+    The play-button condition itself is identical in both
+    versions (`!expired && OPEN && (compatible || upgrade ||
+    own)`), only its home moved (screen method in 1.21.5, DTO
+    method in 1.21.6) — comments fixed.
+  - No Rust surface (verified): the render-API renames
+    (`pushPose`, `RenderType::guiTextured`, `getName`,
+    `isStable`, `sayNow`), the ARGB→RGB colour literals (same
+    rendered colours), the tooltip-API renames, `RealmsUtil`'s
+    1.21.6-only async helpers, the `RealmsSlot` wrapper (upload
+    flow identical), `GetServerDetailsTask`'s
+    `RealmsJoinInformation`→`RealmsServerAddress` rename,
+    `RealmsPopups.customPopupScreen` (1.21.6-only), and the
+    loading screen's `paddingTop(10)` (the Rust draws no such
+    padding).
+  - Structural gap (documented, not ported): 1.21.6 reworked the
+    configure flow into tabs (`RealmsWorldsTab` et al. in
+    `configuration/`); 1.21.5 has separate screens
+    (`RealmsConfigureWorldScreen`, `RealmsSettingsScreen`,
+    `RealmsPlayerScreen`, `RealmsSlotOptionsScreen`). The Rust
+    keeps the tabbed navigation — re-hosting the configure flow
+    as separate screens is item 404's question (rank 4, the
+    1.21.6-only tab classes), not this item's. The slot
+    tooltips (`slot.tooltip.*`) were never modelled in the Rust
+    either (pre-existing gap, same in 1.21.6).
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m18s, shared with
+    item 12).
 
 ## What remains, by cause
 

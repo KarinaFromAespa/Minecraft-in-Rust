@@ -311,8 +311,9 @@ fn changed_distance(picked: Option<i32>, range: Option<&RealmTierRange>) -> Opti
     picked.filter(|picked| range.is_some_and(|range| *picked != range.current_or_default()))
 }
 
-/// `RealmsServer.shouldPlayButtonBeActive`: open and unexpired, and this client can play
+/// `RealmsMainScreen.shouldPlayButtonBeActive`: open and unexpired, and this client can play
 /// it — the compatibility says compatible or an upgrade, or the player owns the Realm.
+/// (1.21.6 moved the check onto `RealmsServer` itself; the logic is the same.)
 fn can_play(server: &RealmServer, me: Option<u128>) -> bool {
     server.is_open()
         && (server.compatibility == "COMPATIBLE"
@@ -1392,6 +1393,9 @@ pub struct Screen {
     /// A button press that has to wait for the settings tab's save (`Play`, the open/close
     /// toggle): `RealmsConfigureWorldScreen` saves an active tab before either runs.
     after_save: Option<AfterSave>,
+    /// `RealmsConfigureWorldScreen.joinRealm` on a closed Realm: the open it asked for,
+    /// joined once it lands (`openTheWorld(true)`).
+    join_after_open: Option<i64>,
     /// `RealmsMainScreen.redirectToPdpIfNoRealms`: opened from the title screen, the first
     /// empty server list opens the product page.
     redirect_to_pdp: bool,
@@ -1761,6 +1765,7 @@ impl Screen {
             settings_slider: None,
             other_slider: None,
             after_save: None,
+            join_after_open: None,
             redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
@@ -2225,6 +2230,8 @@ impl Screen {
             }
         }
         let mut refresh = false;
+        // `openTheWorld(true)`: a slot's JOIN on a closed Realm, joined once the open lands.
+        let mut join_after_open: Option<RealmServer> = None;
         let mut refetch_detail = false;
         let mut slot_options_saved = false;
         let mut open_region_screen = false;
@@ -2308,8 +2315,17 @@ impl Screen {
                             let open = server.is_open();
                             server.state = if open { "CLOSED" } else { "OPEN" }.to_owned();
                             refresh = true;
+                            // `openTheWorld(true)`: the open a slot's JOIN
+                            // asked for — the join starts once it lands.
+                            if !open && self.join_after_open == Some(server.id) {
+                                self.join_after_open = None;
+                                join_after_open = Some(server.clone());
+                            }
                         }
-                        Err(e) => *error = Some(e.text()),
+                        Err(e) => {
+                            *error = Some(e.text());
+                            self.join_after_open = None;
+                        }
                     }
                 }
                 if let Some(result) = subscription_job.as_ref().and_then(take) {
@@ -2890,6 +2906,11 @@ impl Screen {
         }
         if refresh {
             self.refresh();
+        }
+        if let Some(server) = join_after_open {
+            // `RealmsConfigureWorldScreen.joinRealm` on a closed Realm: the
+            // open landed, so the join starts now.
+            let _ = self.start_join(server);
         }
         Outcome::None
     }
@@ -3569,6 +3590,20 @@ impl Screen {
             last,
         };
         Outcome::None
+    }
+
+    /// `RealmsConfigureWorldScreen.joinRealm` on a closed Realm: `openTheWorld(true)` —
+    /// open it, then join once the open lands (the Configure job's completion starts it).
+    fn open_then_join(&mut self, server: RealmServer) {
+        if let SubScreen::Configure { error, job, .. } = &mut self.subscreen
+            && job.is_none()
+            && let Some(client) = client()
+        {
+            *error = None;
+            let id = server.id;
+            self.join_after_open = Some(id);
+            *job = Some(spawn(move || client.open_realm(id)));
+        }
     }
 
     /// `RealmsConfigureWorldScreen.init`'s `fetchSubscription`: the subscription tab's
@@ -6101,8 +6136,11 @@ impl Screen {
                         return Outcome::None;
                     }
                 }
-                // RealmsWorldsTab's slot buttons (`createSlotButton`): `getAction` leaves the
-                // active slot and, on an expired Realm, an empty one inert.
+                // `RealmsConfigureWorldScreen.addSlotButton`:
+                // `RealmsWorldSlotButton.getAction` — the active slot joins
+                // (unexpired, initialized); the active slot of an expired or
+                // uninitialized Realm, and the minigame slot of an expired
+                // one, are inert; the rest switch.
                 let switch = match &self.subscreen {
                     SubScreen::Configure {
                         server,
@@ -6110,8 +6148,8 @@ impl Screen {
                         detail: Some(Ok(detail)),
                         ..
                     } => {
-                        // The same 80/50 geometry the draw uses.
-                        let x0 = ((w - 278.0) / 2.0).floor();
+                        // The same 80-square geometry the draw uses.
+                        let x0 = ((w - 374.0) / 2.0).floor();
                         let y0 = 24.0 + ((h - 57.0 - 176.0) / 6.0).trunc();
                         let big = if detail.world_type == "MINIGAME" {
                             4
@@ -6122,8 +6160,6 @@ impl Screen {
                         let mut hit = None;
                         for slot in 1..=4 {
                             let active = slot == big;
-                            let size = if active { 80.0 } else { 50.0 };
-                            let by = if active { y0 } else { y0 + 30.0 };
                             // `RealmsWorldSlotButton.State`: slot 4 is the minigame, empty
                             // while the Realm has none; the other slots read their options.
                             let (empty, minigame) = if slot == 4 {
@@ -6137,30 +6173,41 @@ impl Screen {
                                     false,
                                 )
                             };
-                            if !active
-                                && !(empty && server.expired)
-                                && (bx..bx + size).contains(&x)
-                                && (by..by + size).contains(&y)
+                            let join = active
+                                && !server.expired
+                                && server.state != "UNINITIALIZED";
+                            let nothing = active || (minigame && server.expired);
+                            if (join || !nothing)
+                                && (bx..bx + 80.0).contains(&x)
+                                && (y0..y0 + 80.0).contains(&y)
                             {
-                                hit = Some((server.clone(), slot, minigame, empty));
+                                hit = Some((server.clone(), slot, minigame, empty, join));
                             }
-                            bx += size + 16.0;
+                            bx += 98.0;
                         }
                         hit
                     }
                     _ => None,
                 };
-                if let Some((server, slot, minigame, empty)) = switch {
-                    if minigame {
-                        // `RealmsWorldsTab.switchToMinigame`: the minigame template list.
+                if let Some((server, slot, minigame, empty, join)) = switch {
+                    if join {
+                        // `RealmsWorldSlotButton`'s JOIN:
+                        // `RealmsConfigureWorldScreen.joinRealm` plays an open
+                        // Realm, opens a closed one and joins when it opens.
+                        if server.is_open() {
+                            return self.start_join(server);
+                        }
+                        self.open_then_join(server);
+                    } else if minigame {
+                        // `RealmsConfigureWorldScreen.switchToMinigame`: the minigame template list.
                         let active = server.active_slot;
                         self.open_template_list(server, active, ResetKind::Reset, None, None);
                     } else if empty {
-                        // `RealmsWorldsTab.switchToEmptySlot`'s question, then
+                        // `RealmsConfigureWorldScreen.switchToEmptySlot`'s question, then
                         // `RealmsResetWorldScreen.forEmptySlot`.
                         self.subscreen = SubScreen::Popup(Popup::SwitchEmpty { server, slot });
                     } else {
-                        // `RealmsWorldsTab.switchToFullSlot`'s question, then the switch.
+                        // `RealmsConfigureWorldScreen.switchToFullSlot`'s question, then the switch.
                         self.subscreen = SubScreen::Popup(Popup::SwitchSlot { server, slot });
                     }
                 }
@@ -7197,10 +7244,10 @@ impl Screen {
                     let active = detail.slots.get(&detail.active_slot);
                     let empty = active.is_none_or(|slot| slot.options.empty);
                     let minigame = server.world_type == "MINIGAME";
-                    let x0 = ((w - 278.0) / 2.0).floor();
+                    let x0 = ((w - 374.0) / 2.0).floor();
                     let y0 = 24.0 + ((h - 57.0 - 176.0) / 6.0).trunc();
                     buttons.push((
-                        x0 + 64.0,
+                        x0 + 112.0,
                         y0 + 100.0,
                         150.0,
                         t("mco.configure.world.buttons.options"),
@@ -7210,7 +7257,7 @@ impl Screen {
                     ));
                     // `RealmsWorldsTab`: `backupButton.active = !isMinigame()`.
                     buttons.push((
-                        x0 + 64.0,
+                        x0 + 112.0,
                         y0 + 128.0,
                         150.0,
                         t("mco.configure.world.backup"),
@@ -7226,7 +7273,7 @@ impl Screen {
                         t("mco.configure.world.buttons.resetworld")
                     };
                     buttons.push((
-                        x0 + 64.0,
+                        x0 + 112.0,
                         y0 + 156.0,
                         150.0,
                         reset,
@@ -7882,7 +7929,7 @@ impl Screen {
                         let server = self.selected_server();
                         let uuid = session().map(|s| s.uuid);
                         let owned = server.zip(uuid).is_some_and(|(s, u)| s.owned_by(u));
-                        // `RealmsServer.shouldPlayButtonBeActive`: unexpired, open, and
+                        // `RealmsMainScreen.shouldPlayButtonBeActive`: unexpired, open, and
                         // compatible (or an upgrade, or the player's own Realm).
                         let can_play = server.is_some_and(|s| can_play(s, uuid));
                         let expired = server.is_some_and(|s| s.expired);
@@ -8825,9 +8872,10 @@ impl Screen {
                     },
                     ConfigureTab::Worlds => match detail {
                         Some(Ok(detail)) => {
-                            // `RealmsWorldsTab`: four 80/50 square slots 16 apart, the
-                            // active one 80 (slot 4 on a minigame Realm), bottom-aligned.
-                            let x0 = ((w - 278.0) / 2.0).floor();
+                            // `RealmsConfigureWorldScreen`: four 80-square slots 18
+                            // apart (`frame(slot)`), the active one slot 4 on a
+                            // minigame Realm.
+                            let x0 = ((w - 374.0) / 2.0).floor();
                             let y0 = 24.0 + ((h - 57.0 - 176.0) / 6.0).trunc();
                             let big = if detail.world_type == "MINIGAME" {
                                 4
@@ -8837,8 +8885,8 @@ impl Screen {
                             let mut x = x0;
                             for slot in 1..=4 {
                                 let active = slot == big;
-                                let size = if active { 80.0 } else { 50.0 };
-                                let y = if active { y0 } else { y0 + 30.0 };
+                                let size = 80.0;
+                                let y = y0;
                                 let entry = detail.slots.get(&slot);
                                 // `RealmsWorldSlotButton.State`: slot 4 is the minigame —
                                 // its emptiness and image come from `minigameId`/
@@ -8864,16 +8912,19 @@ impl Screen {
                                             .flatten()
                                     })
                                 };
-                                let tint = if active { u32::MAX } else { 0xFF8E_8E8E };
+                                // `RealmsWorldSlotButton.renderWidget`: the active
+                                // slot's picture is dimmed 0.56 (1.21.6 dims the
+                                // inactive ones instead).
+                                let tint = if active { 0xFF8E_8E8E } else { u32::MAX };
                                 match slot_picture(slot, empty, image) {
                                     SlotPicture::Empty => crate::ui::blit_sprite(
                                         batch,
                                         atlas,
                                         "gui/realms/empty_frame",
-                                        x + 1.0,
-                                        y + 1.0,
-                                        size - 2.0,
-                                        size - 2.0,
+                                        x + 3.0,
+                                        y + 3.0,
+                                        74.0,
+                                        74.0,
                                         tint,
                                     ),
                                     SlotPicture::Image(encoded) => {
@@ -8891,10 +8942,10 @@ impl Screen {
                                             batch.sprite_scaled(
                                                 atlas,
                                                 &sprite,
-                                                x + 1.0,
-                                                y + 1.0,
-                                                size - 2.0,
-                                                size - 2.0,
+                                                x + 3.0,
+                                                y + 3.0,
+                                                74.0,
+                                                74.0,
                                                 tint,
                                             );
                                         }
@@ -8902,28 +8953,33 @@ impl Screen {
                                     SlotPicture::Preset => batch.picture(
                                         atlas,
                                         "gui/presets/isles",
-                                        x + 1.0,
-                                        y + 1.0,
-                                        size - 2.0,
-                                        size - 2.0,
+                                        x + 3.0,
+                                        y + 3.0,
+                                        74.0,
+                                        74.0,
                                         tint,
                                     ),
                                     SlotPicture::Panorama(panorama) => batch.picture(
                                         atlas,
                                         &format!("gui/title/background/{panorama}"),
-                                        x + 1.0,
-                                        y + 1.0,
-                                        size - 2.0,
-                                        size - 2.0,
+                                        x + 3.0,
+                                        y + 3.0,
+                                        74.0,
+                                        74.0,
                                         tint,
                                     ),
                                 }
-                                // `RealmsWorldSlotButton.extractContents`: a switchable slot
-                                // shows the white frame while hovered, the active one its
-                                // 0.8 grey, the rest 0.56 grey.
-                                let switchable = !active && !(server.expired && empty);
+                                // `RealmsWorldSlotButton.renderWidget`: a slot whose
+                                // action is not NOTHING shows the white frame while
+                                // hovered, the active one its 0.8 grey, the rest
+                                // 0.56 grey.
+                                let minigame = slot == 4;
+                                let actionable = (active
+                                    && !server.expired
+                                    && server.state != "UNINITIALIZED")
+                                    || (!active && !(minigame && server.expired));
                                 let frame =
-                                    if switchable && crate::ui::hovered(cursor, x, y, size, size) {
+                                    if actionable && crate::ui::hovered(cursor, x, y, size, size) {
                                         u32::MAX
                                     } else if active {
                                         0xFFCC_CCCC
@@ -8940,7 +8996,23 @@ impl Screen {
                                     size,
                                     frame,
                                 );
-                                // `RealmsWorldSlotButton.extractContents`: the hardcore
+                                // `RealmsWorldSlotButton.renderWidget`: the active slot's
+                                // checkmark, 9x8 at x + 67, y + 4.
+                                if active
+                                    && atlas.sprites.contains_key("gui/sprites/icon/checkmark")
+                                {
+                                    crate::ui::blit_sprite(
+                                        batch,
+                                        atlas,
+                                        "gui/sprites/icon/checkmark",
+                                        x + 67.0,
+                                        y + 4.0,
+                                        9.0,
+                                        8.0,
+                                        u32::MAX,
+                                    );
+                                }
+                                // `RealmsWorldSlotButton.renderWidget`: the hardcore
                                 // heart 9x8 at x + 3, y + 4.
                                 if hardcore
                                     && atlas
@@ -8965,10 +9037,9 @@ impl Screen {
                                         .map(|entry| slot_name(&entry.options, slot))
                                         .unwrap_or_else(|| t("mco.configure.world.slot.empty"))
                                 };
-                                // `slotNameWidget.setMaxWidth(width - (active ? 2 : 0))`:
-                                // a long name never leaves its frame.
-                                let name =
-                                    clamp_text(atlas, &name, size - if active { 2.0 } else { 0.0 });
+                                // `RealmsWorldSlotButton.renderWidget`: a name wider
+                                // than 64 is cut to 64 minus the dots, then the dots.
+                                let name = clamp_text(atlas, &name, 64.0);
                                 let tw = HudBatch::text_width(atlas, &name);
                                 batch.text(
                                     atlas,
@@ -8978,8 +9049,10 @@ impl Screen {
                                     u32::MAX,
                                     true,
                                 );
-                                if active
-                                    && let Some(entry) = entry
+                                // `RealmsWorldSlotButton.renderWidget`: every slot
+                                // draws its version below the frame (blank versions
+                                // draw nothing — `getVersionComponent` returns EMPTY).
+                                if let Some(entry) = entry
                                     && !entry.options.version.is_empty()
                                 {
                                     let version = &entry.options.version;
@@ -9000,7 +9073,7 @@ impl Screen {
                                         true,
                                     );
                                 }
-                                x += size + 16.0;
+                                x += 98.0;
                             }
                         }
                         Some(Err(e)) => {
@@ -11586,20 +11659,6 @@ impl Screen {
             } else if crate::ui::hovered(cursor, news[0], news[1], 20.0, 20.0) {
                 crate::ui::tooltip(batch, atlas, &[Text::translate("mco.news", &[])], cursor);
             }
-            if matches!(self.subscreen, SubScreen::Main)
-                && self.layout_state() == LayoutState::List
-                && crate::ui::hovered(cursor, cx - 154.0, h - 55.0, 100.0, 20.0)
-                && self
-                    .selected_server()
-                    .is_some_and(|server| server.state == "CLOSED" && !server.expired)
-            {
-                crate::ui::tooltip(
-                    batch,
-                    atlas,
-                    &[Text::translate("mco.play.button.realm.closed", &[])],
-                    cursor,
-                );
-            }
         }
         // `RealmsSettingsTab`'s widget tooltips (`nameEdit.setTooltip`, the distance
         // options' `cachedConstantTooltip`) and `setTabTooltip(3, ...)`: drawn last, so
@@ -11870,6 +11929,7 @@ mod tests {
             settings_slider: None,
             other_slider: None,
             after_save: None,
+            join_after_open: None,
             redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
@@ -12256,16 +12316,15 @@ mod tests {
         assert_eq!(slot_name(&named, 1), "Base");
     }
 
-    /// `RealmsWorldsTab`: the active slot is 80 square, the others 50, 16 apart, centred.
+    /// `RealmsConfigureWorldScreen`: all four slots are 80 square, 18 apart, centred.
     #[test]
-    fn the_slot_buttons_give_the_active_slot_eighty_pixels() {
-        let boxes = slot_boxes(427.0, 2);
-        // 80 + 50*3 + 16*3 = 278 wide, centred on 427 starts at 74.
-        assert_eq!(boxes[0], (74.0, 50.0, 1));
-        assert_eq!(boxes[1].0, 140.0);
-        assert_eq!(boxes[1].1, 80.0);
-        assert_eq!(boxes[1].2, 2);
-        assert_eq!(boxes[3].1, 50.0);
+    fn the_slot_buttons_are_all_eighty_pixels_square() {
+        let boxes = slot_boxes(427.0);
+        // 80*4 + 18*3 = 374 wide, centred on 427 starts at 26.
+        assert_eq!(boxes[0], (26.0, 80.0, 1));
+        assert_eq!(boxes[1], (124.0, 80.0, 2));
+        assert_eq!(boxes[2], (222.0, 80.0, 3));
+        assert_eq!(boxes[3], (320.0, 80.0, 4));
     }
 
     /// `RealmsWorldSlotButton.State`'s texture order: the minigame's image (or
@@ -12362,6 +12421,7 @@ mod tests {
             settings_slider: None,
             other_slider: None,
             after_save: None,
+            join_after_open: None,
             redirect_to_pdp: false,
             template_link_rect: std::cell::Cell::new([0.0; 4]),
             trial: false,
@@ -12455,21 +12515,14 @@ mod tests {
         assert_eq!(tab_geometry(300.0), (14.0, 68.0));
     }
 
-    /// `RealmsWorldsTab`'s four slot buttons: the active slot is 80 square, the others 50,
-    /// spaced 16 and centred (`GridLayout.spacing(16)`).
-    fn slot_boxes(w: f32, active_slot: i32) -> [(f32, f32, i32); 4] {
-        let sizes: [f32; 4] = std::array::from_fn(|i| {
-            if i as i32 + 1 == active_slot {
-                80.0
-            } else {
-                50.0
-            }
-        });
-        let total: f32 = sizes.iter().sum::<f32>() + 16.0 * 3.0;
+    /// `RealmsConfigureWorldScreen`'s four slot buttons: all 80 square,
+    /// 18 apart (`frame(slot)`), centred.
+    fn slot_boxes(w: f32) -> [(f32, f32, i32); 4] {
+        let total: f32 = 80.0 * 4.0 + 18.0 * 3.0;
         let mut x = ((w - total) / 2.0).floor();
         std::array::from_fn(|i| {
-            let at = (x, sizes[i], i as i32 + 1);
-            x += sizes[i] + 16.0;
+            let at = (x, 80.0, i as i32 + 1);
+            x += 98.0;
             at
         })
     }
