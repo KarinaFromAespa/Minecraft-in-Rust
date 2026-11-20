@@ -2017,10 +2017,7 @@ fn a_26_2_client_joins_only_a_server_that_accepts_older_clients() {
                     | cb::MOVE_ENTITY_POS
                     | cb::MOVE_ENTITY_POS_ROT
                     | cb::MOVE_ENTITY_ROT
-                    | cb::ENTITY_POSITION_SYNC
-                    | cb::ANIMATE
-                    // Its tag displays are 26.2's bare tag ids.
-                    | cb::RECIPE_BOOK_ADD => continue,
+                    | cb::ANIMATE => continue,
                     _ => {}
                 }
             }
@@ -2132,9 +2129,7 @@ fn a_26_2_clients_walk_dig_swing_and_teleport_confirmations_read_as_26_3s() {
                         | cb::MOVE_ENTITY_POS
                         | cb::MOVE_ENTITY_POS_ROT
                         | cb::MOVE_ENTITY_ROT
-                        | cb::ENTITY_POSITION_SYNC
                         | cb::ANIMATE
-                        | cb::RECIPE_BOOK_ADD
                 ) {
                     continue;
                 }
