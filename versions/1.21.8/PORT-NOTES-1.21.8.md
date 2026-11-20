@@ -334,7 +334,29 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 104/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121 + 4 zero-diff)
+### Rank 2: 105/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122 + 4 zero-diff)
+
+- **Item 122 — `crates/horizon-client-render/src/gfx/translucency.rs`
+  (3 classes, 18 methods, 1 named in Horizon),
+  citations only:** MeshData (+SortState),
+  VertexSorting. The diff is a pure container-type
+  change: 1.21.9 stores the quad centroids in a
+  `CompactVectorArray` (jar-verified 1.21.9-only)
+  and sorts through `sort(CompactVectorArray)`;
+  1.21.8 uses a plain `Vector3f[]`. The logic is
+  identical — `unpackQuadCentroids` takes the
+  midpoint of each quad's opposite corners,
+  `byDistance` merge-sorts the indices by descending
+  distance-squared — and the Rust matches both
+  versions (`quad_center` is the midpoint,
+  `Sorter::sort` stable-sorts descending with
+  `total_cmp`, which orders -0.0 and NaN the way
+  Guava's `Floats.compare` does). The module doc's
+  "Vanilla 26.3" is reworded to the 1.21.8 form, and
+  `quad_center`'s doc now cites `unpackQuadCentroids`
+  instead of the 26.3 name `decodeQuadCentroids`. The
+  resort-timing logic (`update`/`update_lod`) cites
+  classes outside this item's diff and is untouched.
 
 - **Item 121 — widely named: util
   (5 classes, 29 methods, 0 named in Horizon),

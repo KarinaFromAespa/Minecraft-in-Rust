@@ -1,7 +1,9 @@
-//! Vanilla 26.3 MeshData.SortState / VertexSorting.byDistance.
+//! Vanilla MeshData.SortState / VertexSorting.byDistance, 1.21.8 form: the
+//! centroids are a plain `Vector3f` array (1.21.9 packs them into a
+//! CompactVectorArray, which 1.21.8 does not have).
 //! Keep vertex order intact; only the quad indices change as the camera moves.
 
-/// MeshData.decodeQuadCentroids uses the opposite corners, not all four vertices.
+/// MeshData.unpackQuadCentroids uses the opposite corners, not all four vertices.
 pub fn quad_center(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {
     std::array::from_fn(|i| (a[i] + b[i]) / 2.0)
 }
