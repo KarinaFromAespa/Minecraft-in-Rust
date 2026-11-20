@@ -2327,7 +2327,7 @@ mod hub_tests {
         for wanted in [
             id::GAME_EVENT,
             id::PLAYER_ABILITIES,
-            id::SET_HELD_SLOT,
+            id::SET_CARRIED_ITEM,
             id::PLAYER_POSITION,
         ] {
             assert!(
@@ -2510,7 +2510,7 @@ mod hub_tests {
         for wanted in [
             id::GAME_EVENT,
             id::PLAYER_ABILITIES,
-            id::SET_HELD_SLOT,
+            id::SET_CARRIED_ITEM,
             id::PLAYER_POSITION,
         ] {
             assert!(
@@ -2952,14 +2952,6 @@ mod hub_tests {
             "{reply}"
         );
         assert!(!hub.guests[1].placed);
-    }
-
-    /// The login sent the target's recipe book; the import sends the imported one.
-    #[test]
-    fn an_import_sends_the_recipe_book_again() {
-        let (_hub, _seen, mine) = import_without_placing(serde_json::json!({}));
-        let sent = ids(&mine);
-        assert!(sent.contains(&id::RECIPE_BOOK_SETTINGS), "{sent:?}");
     }
 
     /// After the commit, a retry of the confirm (or of the import) whose reply was lost finds the

@@ -2316,7 +2316,7 @@ impl Hub {
 
     /// 1.21.1 has no client_tick_end: the per-client-tick reset and the
     /// anticheat's tick-end checks run once per server tick instead.
-    pub(crate) fn tick_end(&mut self, events: &mut Vec<HostEvent>) {
+    pub fn tick_end(&mut self, events: &mut Vec<HostEvent>) {
         for i in 0..self.guests.len() {
             let g = &mut self.guests[i];
             if !g.position_this_tick {
