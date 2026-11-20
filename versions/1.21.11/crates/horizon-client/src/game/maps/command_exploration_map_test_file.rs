@@ -86,11 +86,8 @@ mod command_exploration_map_tests {
             .and_then(|d| d.other("minecraft:map_decorations"))
             .cloned();
         game.save_maps();
-        let saved =
-            horizon_client::save::read_dat(&game.world_root.join("data/minecraft/maps/0.dat"));
-        let counter = horizon_client::save::read_dat(
-            &game.world_root.join("data/minecraft/maps/last_id.dat"),
-        );
+        let saved = horizon_client::save::read_dat(&game.world_root.join("data/map_0.dat"));
+        let counter = horizon_client::save::read_dat(&game.world_root.join("data/idcounts.dat"));
         let headers = saved.as_ref().and_then(|t| t.get("data")).map(|d| {
             (
                 d.get("xCenter").cloned(),

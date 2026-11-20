@@ -6993,3 +6993,49 @@ horizon-client-lib --lib --no-default-features mobs::equine::`
 equine.rs only the pre-existing drift at 630. Rank 2 now
 272/492 (88 changed, 184 no-change). work-items.json
 rank2.closed = 272 on 2026-11-21.
+
+## Item 94 — game/maps.rs (rank 2, CHANGED)
+
+5 classes, 16 methods, 5 named: CompassItem, MapIndex,
+MapItemSavedData (+ HoldingPlayer), ExplorationMapFunction.
+
+Java delta, jar-verified: the map save paths are the 26.x
+SavedDataType rework reversed — 26.1's MapIndex TYPE is
+`maps/last_id` (file `data/minecraft/maps/last_id.dat`) vs
+1.21.11's plain `"idcounts"` (`data/idcounts.dat`); `MapId.key()`
+is `"maps/" + id` in 26.1 vs `"map_" + id` in 1.21.11 (verified
+from the `makeConcatWithConstants` bootstrap args — MapId is in
+no report item, and the javap normalizer hides string constants).
+The NBT shape is the same (`{"map": int}`, default -1).
+`tickCarriedBy` loses its ItemFrame parameter in 1.21.11 — the
+stack itself knows (`ItemStack.isFramed()` / `getFrame()`); the
+holder-retention, no-player-markers-while-framed and frame-marker
+outcomes are identical. `isTrackedCountOverLimit` is `>` in 26.1
+vs `>=` in 1.21.11 — at exactly 256 tracked decorations 1.21.11
+refuses the 257th banner marker. The rest is API shape:
+CompassItem `is(Block)`, ExplorationMapFunction `MAP_CODEC` ->
+`CODEC` + `codec()` -> `getType()`, HoldingPlayer visibility.
+
+Verified matching: `tick_framed` (explicit frame param) matches
+1.21.11's outcomes (holders kept while framed, no player marker
+without a carried copy, stale-frame removal, direction*90, dirty
+on change) — the Rust has no entity-representation mirror, so the
+explicit form is the right Rust shape; its doc now says so instead
+of citing the bogus `placedInFrame`. No `MAP_CODEC`/`codec()`
+citation; compass `useOn` compares block names.
+
+Fixes: `tracked_over_limit` `>` -> `>=` (new boundary test:
+255 tracked -> not over, 256 -> over). Map paths: `map_path`
+builds `data/map_<id>.dat`; `next_map_id` reads and `save_maps`
+writes `data/idcounts.dat`; the `map_files` harness op and the
+exploration-map test file read the new paths. Before this fix a
+1.21.11 world opened by the Rust found no counter file, so the
+first new map took id 0 and collided with the world's existing
+`map_0.dat`.
+
+Verification: literal comparison — only MapIndex differs
+(`maps/last_id` vs `idcounts`). `cargo test -p horizon-client
+--lib --no-default-features game::maps::` 8 passed, 6 ignored
+(fixtures). rustfmt --check clean on maps.rs (module root, not
+reformatted). Rank 2 now 273/492 (89 changed, 184 no-change).
+work-items.json rank2.closed = 273 on 2026-11-21.
