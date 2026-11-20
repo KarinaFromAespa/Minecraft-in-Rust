@@ -6070,3 +6070,100 @@ Verification: `cargo test -p horizon-client --lib
 submodules, and the edits are comment-only. Rank 2 now 257/492
 (79 changed, 178 no-change). work-items.json rank2.closed = 257
 on 2026-11-20.
+
+## Item 79 — mobs/equine.rs (rank 2, CHANGED)
+
+5 classes, 29 methods, 5 named (`AbstractEquineModel.setupAnim`;
+`AbstractHorse.aiStep`, `causeFallDamage`, `handleEating`,
+`playStepSound`). Javap diff (1262 lines) read in full Nov 20,
+2026; a literal comparison over the decompile. Triage note
+`rank2-item-79-TRIAGE.md` (workdir root, scratch). The Java delta
+is the 26.x Adult/Baby model split, equine edition (same pattern
+as item 69): 26.1 has `BabyHorseModel` + `BabyDonkeyModel` (both
+absent in 1.21.11 — verified by jar listing) and a 7-arg
+`AbstractEquineModel` ctor; 1.21.11 has one `AbstractEquineModel`
+with `BABY_TRANSFORMER` + `createBabyMesh`/`createFullScaleBabyMesh`
+and `setupAnim` scaling its offsets by `EquineRenderState.ageScale`
+= `LivingEntity.getAgeScale()` = `isBaby() ? 0.5 : 1.0` (verified
+from the 1.21.11 jar; no override in AbstractHorse). Scaled: head
+y (-8, 7), head z (-4), leg y (12.0), leg z (4.0), tail y/z
+(speed, speed*2). NOT scaled: stand angle (PI/12), leg xRot
+offset (-PI/3), tail xRot (PI/6 + speed*0.75). 26.1's setupAnim
+inlines the same constants via virtual getters with NO ageScale;
+the baby classes overrode them: BabyHorseModel (4.0, 0.0, -PI/2),
+BabyDonkeyModel (PI/3, 1.0, 0.5, 0.0, -PI/4) — verified from the
+26.1 jar. The Rust's (baby, donkey) parameter table was verbatim
+those 26.1 overrides. 1.21.11's `DonkeyModel.setupAnim` only calls
+super + toggles chest visibility (`hasChest`); `HorseModel` is
+just a ctor. Goal registration: 1.21.11's `registerGoals` adds
+MountPanicGoal(1) FIRST, then RunAroundLikeCrazyGoal(1), Breed(2),
+FollowParent(4), stroll(6), look(7), random look(8),
+RandomStand(9); `addBehaviourGoals` adds FloatGoal(0) +
+TemptGoal(3, 1.25, HORSE_TEMPT_ITEMS). 26.1 keeps MountPanicGoal in
+`addBehaviourGoals` (after RunAroundLikeCrazy).
+SkeletonHorse's `addBehaviourGoals` override is EMPTY in both
+versions; ZombieHorse's adds Float + Tempt in both. Because
+MountPanicGoal moved to `registerGoals` — which neither subclass
+overrides — the skeleton AND zombie horse GET MountPanicGoal in
+1.21.11 (in 26.1 neither had it). `MountPanicGoal.shouldPanic` =
+`!isMobControlled() && super.shouldPanic()` (identical both
+versions); `Mob.isMobControlled()` returns false and only
+`ZombieHorse` overrides it (`getFirstPassenger() instanceof Mob`).
+Sounds: 26.1 plays `HORSE_LAND_BABY` / `HORSE_STEP_BABY` for
+babies; 1.21.11 always plays `HORSE_LAND` / `HORSE_STEP`. The
+Rust already plays the adult sounds unconditionally. `handleEating`:
+food table identical (wheat 2.0/20/3, sugar 1.0/30/3, hay
+20.0/180/0, apple 3.0/60/3, red mushroom 3.0/0/3, carrot 3.0/60/3,
+golden carrot 4.0/60/5+love, golden apple 10.0/240/10+love);
+26.1 checks `Items.HAY_BLOCK`, 1.21.11 `Blocks.HAY_BLOCK.asItem()`
+(same item); 26.1 checks `isAgeLocked()` before the baby age-up
+arm, 1.21.11 has NO age-lock check (age locking is 26.x-only, cf.
+item 76). The Rust's table + `feed_mount` already match 1.21.11.
+`CamelHuskRenderer`: 26.1 extends MobRenderer with AdultCamelModel
++ a static saddle layer; 1.21.11 extends CamelRenderer and
+overrides `createCamelSaddleLayer` (CAMEL_HUSK_SADDLE +
+CAMEL_HUSK_BABY_SADDLE). Same texture; shadow 0.7 in both. The
+husk baby saddle layer is built from the SAME mesh + the SAME
+`CamelModel.BABY_TRANSFORMER` as the camel baby saddle (verified
+in LayerDefinitions) — geometrically identical, so the Rust's
+`camel_baby#saddle` geometry + husk texture is correct. `aiStep`:
+NO hunks — identical. `BABY_SCALE = 0.7F` is a 26.1-only field;
+no Rust mirror.
+
+Fixes (equine.rs): (1) `anim()` to the 1.21.11 ageScale form —
+dropped the (baby, donkey) parameter table and the baby-donkey
+specials (hind-leg lerp, head-pitch -30 degree override); one set
+of constants with `age = if baby { 0.5 } else { 1.0 }`
+(`LivingEntity.getAgeScale`): stand angle PI/12, stand_y 12.0*age,
+stand_z 4.0*age, stand_x_off -PI/3, tail xRot PI/6 + speed*0.75;
+head y `lerp(eating, lerp(standing, 0, -8*age), 7*age)`, head z
+`lerp(standing, z, -4*age)`. Donkeys/mules now animate exactly
+like horses (only the chest toggle differs, already handled in
+anim.rs). (2) `register()` to the 1.21.11 order and gates:
+MountPanic(1) FIRST, before RunAroundLikeCrazy(1), for EVERY horse
+species; the skeleton keeps no Float/Tempt (empty override), the
+zombie keeps Float + Tempt. Observable: a riderless zombie/skeleton
+horse on fire now panics, as in 1.21.11. (3) `MountPanic.can_use` /
+`can_continue` to `!isMobControlled()` (version-neutral fix,
+bundled with the registration change — the zombie horse newly gets
+the goal, and its gate was wrong for exactly that species): the
+Rust required NO rider at all, so a player-ridden horse never
+panicked (vanilla: it does) and a zombie horse with a mob rider did
+panic (vanilla: it doesn't). Now reuses the existing
+`mob_controlled_rider` helper. Verified matching, no edits: step
+sounds (`entity.horse.step` unconditional, gallop/step_wood logic);
+land sound (`living.rs`: `entity.horse.land` 0.4/1.0, no baby
+branch); food table + `feed_mount` (exact, including the age-up
+`* 20` and no age-lock check); donkey chest toggle (anim.rs);
+camel husk texture/model/saddle. Version-neutral note: the baby
+horse MODEL GEOMETRY (`horse_baby#main` etc.) is baked by the model
+pipeline from the layer definitions — the 1.21.11
+`createBabyMesh`/`BABY_TRANSFORMER` application is the bake
+pipeline's scope; the keys already exist (species.rs).
+
+Verification: `cargo test -p horizon-client-lib --lib
+--no-default-features mobs::equine::` 10 passed, 1 ignored
+(fixture). rustfmt --check on equine.rs: only pre-existing drift
+at line 630 (gallop breathe push, untouched by this item). Rank 2
+now 258/492 (80 changed, 178 no-change). work-items.json
+rank2.closed = 258 on 2026-11-20.

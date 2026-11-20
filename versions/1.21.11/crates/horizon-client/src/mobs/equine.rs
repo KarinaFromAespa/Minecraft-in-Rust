@@ -189,6 +189,11 @@ pub fn register(m: &mut Mob) {
     let rears = can_rear(species);
     let stand_interval = m.kind.ambient_interval;
     let g = &mut m.ai.goals;
+    // registerGoals: the mount panic first, then the bolting — both at 1.
+    // 1.21.11 registers MountPanicGoal here, for every horse (26.1 kept it
+    // in addBehaviourGoals, which the skeleton's empty override and the
+    // zombie's override both dropped).
+    g.add(1, MountPanic(Panic::new(1.2)));
     g.add(1, RunAroundLikeCrazy);
     g.add(2, Breed::new(1.0));
     g.add(4, FollowParent::new(1.0));
@@ -205,12 +210,9 @@ pub fn register(m: &mut Mob) {
         );
     }
     // addBehaviourGoals, after the rest: none for the skeleton horse (it
-    // sinks), no mount panic for the zombie horse.
+    // sinks; its override is empty).
     if species != Species::SkeletonHorse {
         g.add(0, Float);
-        if species != Species::ZombieHorse {
-            g.add(1, MountPanic(Panic::new(1.2)));
-        }
         g.add(3, Tempt::new(1.25, tempt, false));
     }
 }
@@ -344,7 +346,9 @@ fn boost_factor(m: &mut Mob) -> f32 {
     }
     1.0 + 1.15 * (m.extra.counter as f32 / m.extra.counter2 as f32 * PI).msin()
 }
-/// `AbstractHorse.MountPanicGoal`: only without a rider.
+/// `AbstractHorse.MountPanicGoal`: `shouldPanic` is `!isMobControlled() &&
+/// super.shouldPanic()` — a mob on a zombie horse's back keeps it from
+/// panicking, but a player rider does not.
 #[derive(Clone, Debug)]
 struct MountPanic(Panic);
 impl Goal for MountPanic {
@@ -353,10 +357,10 @@ impl Goal for MountPanic {
         self.0.flags()
     }
     fn can_use(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        m.rider.is_none() && self.0.can_use(m, cx)
+        !mob_controlled_rider(m) && self.0.can_use(m, cx)
     }
     fn can_continue(&mut self, m: &mut Mob, cx: &mut Cx) -> bool {
-        m.rider.is_none() && self.0.can_continue(m, cx)
+        !mob_controlled_rider(m) && self.0.can_continue(m, cx)
     }
     fn start(&mut self, m: &mut Mob, cx: &mut Cx) {
         self.0.start(m, cx)
@@ -991,13 +995,15 @@ pub fn saddle_texture(s: Species) -> &'static str {
 /// `AbstractEquineModel.setupAnim` with the adult and baby offsets.
 pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     let baby = m.is_baby();
-    let donkey = matches!(m.species(), Species::Donkey | Species::Mule);
-    // Leg/tail/head parameters (getLeg*, getTailXRotOffset).
-    let (stand_angle, stand_y, stand_z, stand_x_off, tail_off) = match (baby, donkey) {
-        (false, _) => (PI / 12.0, 12.0, 4.0, -PI / 3.0, 0.0),
-        (true, false) => (PI / 12.0, 4.0, 0.0, -PI / 3.0, -PI / 2.0),
-        (true, true) => (PI / 3.0, 1.0, 0.5, 0.0, -PI / 4.0),
-    };
+    // `LivingEntity.getAgeScale`: 0.5 for a baby, 1.0 for an adult. 1.21.11
+    // has one `AbstractEquineModel` whose setupAnim scales the head, leg and
+    // tail offsets by it; 26.1's separate BabyHorseModel/BabyDonkeyModel
+    // classes overrode the getters instead, and are gone.
+    let age = if baby { 0.5 } else { 1.0 };
+    // The standing offsets, inlined constants in 1.21.11's setupAnim; the
+    // angle and the leg xRot offset are NOT scaled by the age.
+    let (stand_angle, stand_y, stand_z, stand_x_off) =
+        (PI / 12.0, 12.0 * age, 4.0 * age, -PI / 3.0);
     let clamped = s.y_rot.clamp(-20.0, 20.0);
     let mut head_x = s.x_rot.to_radians();
     let (speed, pos) = (s.speed, s.pos);
@@ -1020,20 +1026,14 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
         "head_parts",
         standing * clamped.to_radians() + (1.0 - standing.max(eating)) * clamped.to_radians(),
     );
-    // animateHeadPartsPlacement
+    // animateHeadPartsPlacement, inlined in 1.21.11's setupAnim and scaled
+    // by the age (the eating and standing lerps use the same constants for
+    // every horse).
     {
         let hp = p.get("head_parts");
         let lerp = |t: f32, a: f32, b: f32| a + (b - a) * t;
-        if baby && donkey {
-            hp[1] = lerp(eating, hp[1], -1.2);
-            hp[2] = lerp(standing, hp[2], -3.6);
-        } else if baby {
-            hp[1] += lerp(eating, lerp(standing, 0.0, -2.0), 2.0);
-            hp[2] = lerp(standing, hp[2], -4.0);
-        } else {
-            hp[1] += lerp(eating, lerp(standing, 0.0, -8.0), 7.0);
-            hp[2] = lerp(standing, hp[2], -4.0);
-        }
+        hp[1] += lerp(eating, lerp(standing, 0.0, -8.0 * age), 7.0 * age);
+        hp[2] = lerp(standing, hp[2], -4.0 * age);
     }
     let body_x = p.get("body")[3];
     p.xrot("body", standing * (-PI / 4.0) + istand * body_x);
@@ -1054,15 +1054,9 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
     p.xrot("right_hind_leg", stand + leg1 * 0.5 * speed * istand);
     p.xrot("left_front_leg", rleg);
     p.xrot("right_front_leg", lleg);
-    if baby && donkey {
-        let lerp = |t: f32, a: f32, b: f32| a + (b - a) * t;
-        // BabyDonkeyModel lerps the right leg from the left leg's new height.
-        let y = lerp(standing, p.get("left_hind_leg")[1], -0.3);
-        p.get("left_hind_leg")[1] = y;
-        p.get("right_hind_leg")[1] = lerp(standing, y, -0.3);
-    }
-    let age = if baby { 0.5 } else { 1.0 };
-    p.xrot("tail", tail_off + PI / 6.0 + speed * 0.75);
+    // Tail (xRot is 0.5235988 + walkAnimationSpeed * 0.75, unscaled; the
+    // y/z offsets scale with the age).
+    p.xrot("tail", PI / 6.0 + speed * 0.75);
     {
         let t = p.get("tail");
         t[1] += speed * age;
@@ -1077,17 +1071,6 @@ pub fn anim(m: &Mob, s: &State, p: &mut Poses) {
             0.0
         },
     );
-    if baby && donkey {
-        // BabyDonkeyModel overrides the state's pitch with -30 degrees and
-        // sets the head parts again.
-        let head_x = -30.0f32 * horizon_core::geometry::trig::DEG_TO_RAD;
-        let base =
-            (1.0 - standing.max(eating)) * (PI / 6.0 + head_x + feeding * s.age.msin() * 0.05);
-        p.xrot(
-            "head_parts",
-            standing * (PI / 12.0 + head_x) + eating * (PI / 2.0 + s.age.msin() * 0.05) + base,
-        );
-    }
 }
 
 #[cfg(test)]
