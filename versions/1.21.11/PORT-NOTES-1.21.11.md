@@ -6543,3 +6543,58 @@ Verification: `cargo test -p horizon-client-lib --lib
 --no-default-features arrows::` 7 passed, 1 ignored. No files
 edited. Rank 2 now 263/492 (83 changed, 180 no-change).
 work-items.json rank2.closed = 263 on 2026-11-20.
+
+## Item 85 — game/item_draw.rs (rank 2, CHANGED)
+
+2 classes, 32 methods, 4 named: ItemEntityRenderer,
+BundleContents. The version delta is API shape only (the
+literal comparison finds ZERO differences in both classes),
+but the file's `BundleContents.weight` mirror was wrong in
+both versions and is fixed here.
+
+Java delta, jar-verified: ItemEntityRenderer is a package
+move only (`state.level.CameraRenderState` -> `state.
+CameraRenderState`), zero body change — hover `-minY +
+0.0625`, bob `sin(age/10 + bobOffset) * 0.1 + 0.1`, spin
+`age/20 + bobOffset`, `submitMultipleFromCount` with the
+cluster seed (3D: copies at +/-0.15 on three axes; flat:
+z-step = zsize x 1.5, jitter +/-0.075 x/y). BundleContents:
+26.1 holds `List<ItemStackTemplate>` + a lazily memoized
+`Supplier<DataResult<Fraction>>` weight; 1.21.11 holds
+`List<ItemStack>` + an eagerly computed `Fraction` field.
+Same values: nested bundle = 1/16 + inner weight
+(`BUNDLE_IN_BUNDLE_WEIGHT = 1/16` in both), beehive with
+bees = 1 (`BEEHIVE_WEIGHT = success(ONE)` in 26.1), default
+= 1 / maxStackSize; content weight = sum of `getWeight x
+count`; the codec gains `flatXmap` + `checkAndCreate`
+("Excessive total bundle weight" on fraction overflow).
+Renames: `getSelectedItemIndex()` -> `getSelectedItem()`
+(the index), 26.1's `getSelectedItem()` -> `hasSelectedItem()`;
+1.21.11-only `getItemUnsafe`, `itemsCopy`. `equals`/`hashCode`
+are count-insensitive in 1.21.11 (`ItemStack.listMatches` /
+`hashStackList`) vs count-sensitive in 26.1 — no Rust mirror.
+
+Verified matching: `cluster_poses_with_depth` matches
+`submitMultipleFromCount` exactly; `horizon-items/bundle.rs`
+already implements the full weight model exactly (nested
+1/16, beehive 1, exact reduced `Fraction`).
+
+Fix: `bundle_fullness` (the `NumericProperty::BundleFullness`
+host service) summed `count / max_stack_size` — a nested
+bundle weighed count/1 = 1.0 (vanilla: 1/16 + inner) and a
+beehive with bees weighed 1/64 (vanilla: 1). It now uses the
+full `getWeight` model via a new `bundle_item_weight` helper
+over the JSON form (recursive nested bundles, non-empty
+`minecraft:bees` -> 1, else count/max). New test
+`bundle_fullness_weighs_nested_bundles_and_beehives` pins
+0.5 / 1.0 / 1/64 / 1/16+0.25 / 1/16.
+
+Version-neutral note: the `!`-patch removal form
+(`!minecraft:bees`) is not consulted by the new helper; the
+resolved components map makes it unobservable here.
+
+Verification: `cargo test -p horizon-client --lib
+--no-default-features game::item_draw::` 4 passed, 0 failed.
+rustfmt clean on game/item_draw.rs (leaf file). Rank 2 now
+264/492 (84 changed, 180 no-change). work-items.json
+rank2.closed = 264 on 2026-11-20.
