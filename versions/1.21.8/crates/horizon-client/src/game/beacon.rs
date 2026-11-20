@@ -355,10 +355,13 @@ impl Game<'_> {
     /// focus (GUI origin relative).
     pub(super) fn beacon_targets(&self) -> Vec<[f32; 4]> {
         let (ux, uy) = upgrade_button();
-        buttons()
+        // 1.21.8's BeaconScreen.init adds the confirm and cancel buttons
+        // first, then the powers and the upgrade; 1.21.9 moved them last.
+        // Tab order follows the widget list.
+        [(164.0, 107.0), (190.0, 107.0)]
             .into_iter()
-            .map(|(_, x, y, _)| (x, y))
-            .chain([(ux, uy), (164.0, 107.0), (190.0, 107.0)])
+            .chain(buttons().into_iter().map(|(_, x, y, _)| (x, y)))
+            .chain([(ux, uy)])
             .map(|(x, y)| [x + SHIFT, y, 22.0, 22.0])
             .collect()
     }
