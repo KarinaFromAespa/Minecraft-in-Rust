@@ -334,7 +334,12 @@ pub fn native_upgrade_block_state(
 }
 
 /// `SimpleRegionStorage.upgradeChunkTag` for entity chunks (default version -1)
-/// and POI chunks (default 1945).
+/// and POI chunks (default 1945). 1.21.6 returns the update unstamped: the
+/// `NbtUtils.addCurrentDataVersion` call is a 1.21.7 addition, so the
+/// DataVersion field stays as loaded here (as `update_player` does); the
+/// stamp happens at save time, where both storages write a fresh tag.
+/// (Region chunks differ: `ChunkStorage.upgradeChunkTag` stamps in both
+/// versions, so `update_chunk_to` keeps its stamp.)
 pub fn update_region_tag(root: Ty, tag: &mut Tag) {
     update_region_tag_to(root, tag, CURRENT);
 }
@@ -347,7 +352,6 @@ pub fn update_region_tag_to(root: Ty, tag: &mut Tag, to: i32) {
         return;
     }
     update(root, tag, version, to);
-    dynamic::set(tag, "DataVersion", Tag::Int(to));
 }
 
 /// `PlayerDataStorage.load`: the DataVersion field stays as loaded.

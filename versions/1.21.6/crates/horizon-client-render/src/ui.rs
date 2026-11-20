@@ -1394,10 +1394,10 @@ impl Caret {
 
 /// `EditBox.extractWidgetRenderState` for Horizon's append-only fields,
 /// unbordered and with the cursor at the end: the text from (x, y), the
-/// highlight when Select All covers the value (`invert_text` as
-/// `setInvertHighlightedTextColor`), and the cursor, blinking from when the
-/// field took the focus (`TextCursorUtils.isCursorVisible`): an underscore,
-/// or a bar once the value is `max_chars` long. `shadow` is `setTextShadow`.
+/// highlight when Select All covers the value, and the cursor, blinking
+/// from when the field took the focus (`TextCursorUtils.isCursorVisible`):
+/// an underscore, or a bar once the value is `max_chars` long. `shadow` is
+/// `setTextShadow`.
 #[allow(clippy::too_many_arguments)]
 pub fn append_field(
     batch: &mut HudBatch,
@@ -1407,7 +1407,6 @@ pub fn append_field(
     (color, shadow): (u32, bool),
     max_chars: usize,
     selected: bool,
-    invert_text: bool,
     focused_ms: u128,
 ) {
     let mut cursor_x = x;
@@ -1422,7 +1421,7 @@ pub fn append_field(
     if selected && !value.is_empty() {
         let right = x + width;
         let (x0, x1) = (cursor_x.min(right), (x - 1.0).min(right));
-        batch.text_highlight(atlas, (x1, y - 1.0, x0 - x1, 11.0), invert_text);
+        batch.text_highlight(atlas, (x1, y - 1.0, x0 - x1, 11.0));
     }
     if (focused_ms / 300).is_multiple_of(2) {
         if insert {
@@ -1894,7 +1893,7 @@ impl EditBox {
             let right = self.x + self.width;
             let (x0, x1) = (cursor_x.min(right), (hx - 1.0).min(right));
             let (a, b) = (x0.min(x1), x0.max(x1));
-            batch.text_highlight(atlas, (a, ty - 1.0, b - a, 11.0), true);
+            batch.text_highlight(atlas, (a, ty - 1.0, b - a, 11.0));
         }
         if show_cursor {
             if insert {
@@ -2390,7 +2389,6 @@ mod tests {
             (u32::MAX, true),
             50,
             true,
-            true,
             0,
         );
         let blends: Vec<_> = b.blends.iter().map(|(_, blend)| *blend).collect();
@@ -2398,7 +2396,8 @@ mod tests {
         for (r, _) in &b.blends {
             assert_eq!(span(&b, r), (9.0, end, 19.0, 30.0));
         }
-        // The anvil keeps its text colour; 300 ms later the cursor is hidden.
+        // The anvil's highlight inverts like every EditBox in 1.21.6; 300 ms
+        // later the cursor is hidden.
         let mut b = HudBatch::new([854, 480]);
         append_field(
             &mut b,
@@ -2408,11 +2407,10 @@ mod tests {
             (u32::MAX, true),
             50,
             true,
-            false,
             300,
         );
         let blends: Vec<_> = b.blends.iter().map(|(_, blend)| *blend).collect();
-        assert_eq!(blends, vec![Blend::Additive]);
+        assert_eq!(blends, vec![Blend::Invert, Blend::Additive]);
         let quads = |ms| {
             let mut b = HudBatch::new([854, 480]);
             append_field(
@@ -2422,7 +2420,6 @@ mod tests {
                 (10.0, 20.0, 103.0),
                 (0, true),
                 50,
-                false,
                 false,
                 ms,
             );
@@ -2439,7 +2436,6 @@ mod tests {
             (u32::MAX, true),
             3,
             false,
-            true,
             0,
         );
         let bar = b.vertices.len() as u32 - 6..b.vertices.len() as u32;

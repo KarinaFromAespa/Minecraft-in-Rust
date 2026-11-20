@@ -1377,7 +1377,6 @@ impl Game<'_> {
                     batch.text_highlight(
                         atlas,
                         (sx, 49.0, HudBatch::text_width(atlas, &sel), 11.0),
-                        true,
                     );
                 }
                 if title_edit.cursor_visible() {
@@ -1492,7 +1491,6 @@ impl Game<'_> {
                                 atlas.font.width(&sel),
                                 9.0,
                             ),
-                            true,
                         );
                     }
                 }

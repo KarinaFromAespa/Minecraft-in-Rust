@@ -81,7 +81,10 @@ fn old_chunks_are_converted_and_current_ones_skipped() {
     );
     let progress = run(&world, false, false);
     assert!(progress.is_finished());
-    assert_eq!(version_of(&file, ChunkPos::new(0, 0)), CURRENT);
+    // 1.21.6's EntityUpgrader does not stamp: SimpleRegionStorage
+    // .upgradeChunkTag returns the update unstamped (the stamp is a
+    // 1.21.7 addition), so the converted entity chunk keeps 4000.
+    assert_eq!(version_of(&file, ChunkPos::new(0, 0)), 4000);
     assert_eq!(version_of(&file, ChunkPos::new(0, 1)), CURRENT);
     // The last data type run is the blocks; entities counted 1 converted, 1 skipped.
     assert_eq!(progress.data_fix_type(), Some(UpgradeDataFixType::Chunk));
@@ -156,7 +159,9 @@ fn poi_chunks_without_a_version_start_at_1945() {
         )],
     );
     run(&world, false, false);
-    assert_eq!(version_of(&file, pos), CURRENT);
+    // The fixes run from the 1945 default, but 1.21.6 does not stamp:
+    // the POI chunk still has no DataVersion after the upgrade.
+    assert_eq!(version_of(&file, pos), -1);
 }
 
 #[test]
@@ -261,7 +266,10 @@ fn the_worker_thread_finishes_and_a_cancel_joins_it() {
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
     upgrader.cancel();
-    assert_eq!(version_of(&file, ChunkPos::new(0, 0)), CURRENT);
+    // The converted entity chunk keeps its old DataVersion: 1.21.6's
+    // SimpleRegionStorage.upgradeChunkTag does not stamp (see
+    // old_chunks_are_converted_and_current_ones_skipped).
+    assert_eq!(version_of(&file, ChunkPos::new(0, 0)), 4000);
     assert_eq!(upgrader.levels(), [OVERWORLD, NETHER, END]);
 }
 

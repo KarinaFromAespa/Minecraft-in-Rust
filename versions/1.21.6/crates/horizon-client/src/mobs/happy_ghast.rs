@@ -322,7 +322,7 @@ pub fn player_above(m: &Mob, w: &MobWorld) -> bool {
     let b = m.bounds();
     let (lo, hi) = (b.min_position(), b.max_position());
     let area = Aabb::new(
-        Vec3::new(lo.x - 1.0, hi.y - f64::from(1.0e-5_f32), lo.z - 1.0),
+        Vec3::new(lo.x - 1.0, hi.y, lo.z - 1.0),
         Vec3::new(hi.x + 1.0, hi.y + (hi.y - lo.y) / 2.0, hi.z + 1.0),
     );
     area.contains(p.position)

@@ -833,7 +833,6 @@ impl Game<'_> {
                         HudBatch::text_width(atlas, &sel),
                         line_height,
                     ),
-                    true,
                 );
             }
             let pre: String = value.chars().take(edit.edit.cursor).collect();
