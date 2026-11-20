@@ -334,7 +334,28 @@ includes constant-pool churn.
   SAVED_DATA_WORLD_BORDER (only used by the inert 4544 fix; 1.21.8
   has no world_border.dat file).
 
-### Rank 2: 107/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124 + 4 zero-diff)
+### Rank 2: 108/317 (items 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 38, 39, 41, 42, 43, 44, 45, 46, 48, 49, 50, 51, 52, 40, 47, 53, 55, 61, 62, 63, 65, 67, 69, 71, 72, 58, 59, 64, 66, 68, 76, 77, 78, 79, 83, 84, 86, 87, 88, 89, 54, 57, 60, 70, 73, 80, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125 + 4 zero-diff)
+
+- **Item 125 — `crates/horizon-client/src/game/native_block_entity_draw.rs`
+  (3 classes, 7 methods, 2 named in Horizon),
+  citations only:** BlockEntityRenderer,
+  ItemStackRenderState, BlockEntityRenderState
+  (absent from 1.21.8). 1.21.9 rebuilt block-entity
+  rendering around a render state
+  (`createRenderState` / `extractRenderState` /
+  `submit` over a `SubmitNodeCollector`); 1.21.8 has
+  the single `render` method taking a
+  `MultiBufferSource`. The docs cited the 1.21.9
+  names — reworded to the 1.21.8 forms
+  (`BlockEntityRenderer.render`,
+  `ItemStackRenderState.render`, and
+  `BlockRenderer.renderSingleBlock` for the
+  1.21.9-only `submitBlockModel`). The Rust's own
+  `native_block_entity_submit` / `native_mob_submit`
+  names stay: Horizon's own mod API, not vanilla
+  citations. The item-layer render structure is
+  identical in both versions; only the sink differs,
+  which the Rust does not model.
 
 - **Item 124 — widely named: core
   (10 classes, 28 methods, 0 named in Horizon),

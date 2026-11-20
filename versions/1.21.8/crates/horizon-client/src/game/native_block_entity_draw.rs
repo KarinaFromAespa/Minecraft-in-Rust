@@ -1,5 +1,5 @@
 //! Mod block entities drawn on the client: `native_block_entity_submit`
-//! (vanilla's `BlockEntityRenderer.submit`) gets a [`BlockEntityDraw`], whose
+//! (vanilla's `BlockEntityRenderer.render`) gets a [`BlockEntityDraw`], whose
 //! pose stack (`PoseStack`) places what the helpers here add to the entity
 //! batch, as vanilla's block entity renderers draw.
 
@@ -41,12 +41,13 @@ fn in_frustum(frustum: Option<&impl Cull>, origin: Vec3, bounds: [f32; 6]) -> bo
     frustum.is_none_or(|f| f.intersects(min, max))
 }
 
-/// One mod block entity's frame, as `submit` gets it: the render state's
-/// partial tick, game time and light, and the pose stack the helpers draw
-/// under (`native_draw_quad`, `native_draw_cube`, `native_draw_block`).
+/// One mod block entity's frame, as `submit` gets it: the partial tick,
+/// game time and light, and the pose stack the helpers draw under
+/// (`native_draw_quad`, `native_draw_cube`, `native_draw_block`).
 // Native mods read and drive it; nothing in Horizon does.
 pub struct BlockEntityDraw {
-    /// The frame's partial tick, 0 to 1 (`BlockEntityRenderState`).
+    /// The frame's partial tick, 0 to 1 (the `partialTick`
+    /// `BlockEntityRenderer.render` takes).
     pub partial: f32,
     /// The level's game time, for animations.
     pub game_time: i64,
@@ -656,9 +657,9 @@ impl Game<'_> {
 
     /// Draws block `block`'s model (`mymod:cog`, any block with a model) in
     /// the state with `properties` (`[("axis", "x")]`, the rest default)
-    /// under `draw`'s pose, as vanilla's `submitBlockModel` draws a block in
-    /// an entity's place: a block's baked model, with its default tints. A
-    /// moving part that is no block is a standalone model
+    /// under `draw`'s pose, as vanilla's `BlockRenderer.renderSingleBlock`
+    /// draws a block in an entity's place: a block's baked model, with its
+    /// default tints. A moving part that is no block is a standalone model
     /// (`native_draw_model`). False for an unknown block or property. API 71.
     pub(super) fn native_draw_block(
         &self,
@@ -760,7 +761,7 @@ impl Game<'_> {
     }
 
     /// Draws `stack` under `draw`'s pose as an item is drawn in the world
-    /// (`ItemModelResolver.updateForTopItem` and `ItemStackRenderState.submit`), centred on the
+    /// (`ItemModelResolver.updateForTopItem` and `ItemStackRenderState.render`), centred on the
     /// pose's origin, in its model's `display` transform: `Fixed` as a
     /// campfire's or an item frame's, `Ground` as a dropped item's. `seed`
     /// picks among random models (a campfire passes its slot plus its
