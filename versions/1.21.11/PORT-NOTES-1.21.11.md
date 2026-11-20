@@ -3327,3 +3327,54 @@ files (one diff reported only in item_model/foreign.rs — pre-existing
 drift, rustfmt recursing through the module root, not touched).
 Rank 2 now 218/492 (53 changed, 165 no-change).
 work-items.json rank2.closed = 218 on 2026-11-20.
+
+## Item 40 — horizon-protocol/hash_ops.rs (rank 2, NO-CHANGE)
+
+HashOps, NbtOps, HashOps$MapHashBuilder, HashOps$ListHashBuilder:
+4 classes, 87 methods, 6 named in Horizon. No 26.1 → 1.21.11 behaviour
+change — the delta is visibility widening, one new default overload,
+and compiler artifacts.
+
+HashOps: fields `hashFunction` / `empty`, `hashMap(Stream)` and
+`isEmpty`, and both builders go private → package-private. All bodies
+identical (createNumeric switch, createByte(6)/Short(7)/Int(8)/Long(9)/
+Float(10)/Double(11)/String(12)/Boolean, hashMap tag 2 + entries sorted
+by key-then-value hash unsigned + tag 3, createList 4/5,
+createByteList 14/15, createIntList 16/17, createLongList 18/19,
+remove/set/update no-ops, mergeTo* gated on isEmpty, get*/convertTo
+unsupported). The payload constants are outside every diff hunk —
+unchanged — so the vanilla-printed hash values in the Rust tests
+(printed from the 26.3 jars) still hold for 1.21.11. Builder ctors lose
+the `Objects.requireNonNull` on the outer instance (javac artifact).
+
+NbtOps: `convertTo` has the same 13 arms in the same order with the
+same calls; only the switch compilation differs (26.1's guarded-pattern
+re-dispatch loop vs 1.21.11's plain switch expression,
+`typeSwitch:(LTag;I)` → `(LObject;I)` — javac version artifacts). All
+other methods identical modulo parameter names (the 1.21.11 jar lost
+debug info). Nested classes private → package-private. New in 1.21.11:
+`ListCollector.acceptAll(Stream<Tag>)`, a default method delegating to
+`acceptAll(Iterable)` — new API, no behaviour change, and the Rust has
+no ListCollector mirror (it never merges NBT lists). Method-name diff
+run explicitly on the raw javap dumps: no method added or removed in
+any of the four classes (the `acceptAll(Stream)` addition is in the
+nested `NbtOps$ListCollector`, visible in the decompile where
+Vineflower inlines nested classes).
+
+The Rust mirror matches 1.21.11 throughout: `empty`/`empty_map`/
+`empty_list` hash the vanilla payloads; the create* methods match the
+tag bytes and little-endian Guava puts (putFloat/putDouble write raw
+bits; createString writes the UTF-16 length then unencoded chars);
+`create_map` sorts by (key, value) as unsigned u32s (vanilla's
+`padToLong` order); `from_nbt` matches `convertTo` arm for arm (the
+`bool_keys` handling is a documented Horizon extension for the text
+component codec); `RecordHash` mirrors MapHashBuilder. No mirror is
+needed for `createNumeric` (callers dispatch by type), the no-op
+`remove`/`set`/`update`, the `mergeTo*` family (the Rust hashes from
+scratch), or the unsupported `get*`/`convertTo`.
+
+Tests: all 6 hash_ops tests pass
+(`cargo test -p horizon-protocol --lib hash_ops::`), including the
+vanilla-printed hash values and the CRC-32C check value.
+Rank 2 now 219/492 (53 changed, 166 no-change).
+work-items.json rank2.closed = 219 on 2026-11-20.
