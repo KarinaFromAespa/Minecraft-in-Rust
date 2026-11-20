@@ -3351,7 +3351,10 @@ impl ParticleEngine {
                 q.lifetime = ((base as f32 * 2.5).max(1.0)) as i32;
                 q.has_physics = false;
                 if ty == T::Sneeze {
-                    q.set_color(0.22, 1.0, 0.53);
+                    // 1.21.8 `PlayerCloudParticle$SneezeProvider` passes the
+                    // raw (200, 50, 120) triple as floats (jar-verified); the
+                    // in-range (0.22, 1.0, 0.53) green is 1.21.9's fix.
+                    q.set_color(200.0, 50.0, 120.0);
                     q.rgba[3] = 0.4;
                 }
                 q.size_curve = Size::GrowIn;
@@ -3456,10 +3459,14 @@ impl ParticleEngine {
                 q.friction = 0.92;
                 q.size = 0.5;
                 if ty == T::GlowSquidInk {
-                    // ARGB.colorFromFloat(1, 0.2, 0.8, 0.6), back to floats.
-                    q.set_color(51.0 / 255.0, 204.0 / 255.0, 153.0 / 255.0);
+                    // 1.21.8 `SquidInkParticle` passes `ARGB.red/green/blue`
+                    // (ints) to the float `setColor`, widening them raw
+                    // (jar-verified): glow is (204, 31, 102), plain is
+                    // (255, 255, 255). The in-range (0.2, 0.8, 0.6) /
+                    // black pair is 1.21.9's `redFloat` fix.
+                    q.set_color(204.0, 31.0, 102.0);
                 } else {
-                    q.set_color(0.0, 0.0, 0.0);
+                    q.set_color(255.0, 255.0, 255.0);
                 }
                 q.lifetime = (q.size * 12.0 / (r.next_float() * 0.8 + 0.2)) as i32;
                 q.has_physics = false;
