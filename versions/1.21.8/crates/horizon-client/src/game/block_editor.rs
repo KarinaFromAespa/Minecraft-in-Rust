@@ -19,8 +19,13 @@ use winit::{
 
 pub(super) type Pos = (i32, i32, i32);
 
-/// `Screen.extractRenderState`'s grey for the labels: `-6250336`.
+/// The grey for the Structure, Jigsaw and Test Block labels: `-6250336`,
+/// the same in both versions.
 pub(super) const LABEL: u32 = 0xFFA0_A0A0;
+
+/// `TestInstanceBlockEditScreen.COLOR_SILVER` for its labels in 1.21.8:
+/// `-4144960`. 1.21.9 redrew them in the shared `-6250336` grey.
+pub(super) const LABEL_SILVER: u32 = 0xFFC0_C0C0;
 
 /// The job of an edit screen's footer button `id`, given the ids of its Done and Cancel.
 pub(super) fn footer_action(
@@ -44,6 +49,9 @@ pub(super) enum Item {
         y: f32,
         /// Right-aligned at `x` (the labels beside the right-hand buttons).
         right: bool,
+        /// The label colour: [`LABEL`] for most editors, [`LABEL_SILVER`]
+        /// for the test instance's (1.21.8's `COLOR_SILVER`).
+        color: u32,
     },
     Title {
         text: Text,
@@ -311,13 +319,19 @@ impl Game<'_> {
                         true,
                     );
                 }
-                Item::Label { text, x, y, right } => {
+                Item::Label {
+                    text,
+                    x,
+                    y,
+                    right,
+                    color,
+                } => {
                     let x = if *right {
                         x - atlas.font.width_text(text)
                     } else {
                         *x
                     };
-                    batch.text_styled(atlas, text, x, *y, LABEL, true);
+                    batch.text_styled(atlas, text, x, *y, *color, true);
                 }
                 Item::Edit { index, x, y, w: ew } => {
                     if let Some(edit) = screen.editor.edits().get_mut(*index) {

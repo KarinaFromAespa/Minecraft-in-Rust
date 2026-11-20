@@ -2630,19 +2630,16 @@ Would you like to enable the Narrator or visit the Accessibility Settings?",
         })
     }
 
-    /// The `Tooltip` vanilla sets on a button of the open screen, as its key:
-    /// `CommonButtons.language` and `accessibility` on the title's icon row and
-    /// the onboarding screen, and `FriendsButton` while friends are available
-    /// (always, for Horizon's Join a Friend).
+    /// The `Tooltip` on a button of the open screen, as its key: only the
+    /// FriendsButton has one (Horizon's Join a Friend). Vanilla sets no
+    /// tooltip on `CommonButtons.language` / `accessibility` in either
+    /// version (jar-verified: neither builder calls `withTootip`, and
+    /// the `options.language.tooltip` /
+    /// `options.accessibility.tooltip` keys do not exist in either lang
+    /// file), so the icon row shows none.
     fn button_tooltip(&self, id: u8) -> Option<&'static str> {
         match (&self.mode, id) {
             (Mode::Main, 5) => Some("gui.friends.open.tooltip"),
-            (Mode::Main, 6) | (Mode::Onboarding(_), onboarding::LANGUAGE) => {
-                Some("options.language.tooltip")
-            }
-            (Mode::Main, 7) | (Mode::Onboarding(_), onboarding::ACCESSIBILITY) => {
-                Some("options.accessibility.tooltip")
-            }
             _ => None,
         }
     }

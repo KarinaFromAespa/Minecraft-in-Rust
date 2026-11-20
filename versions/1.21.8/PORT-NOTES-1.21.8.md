@@ -7341,7 +7341,7 @@ includes constant-pool churn.
   decompiled output, none added/removed — no change. (The diff
   tool's semantic hash flagged them; the decompiled sources match.)
 
-### Rank 3: 40/163 (327–360 + 28 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 372, 382–385, 396)
+### Rank 3: 52/163 (327–364 + 366–369 + 371 + 372 + 373–375 + 38 zero-diff: 332, 333, 335, 338, 340–343, 345–349, 351–358, 360, 361–363, 366, 367, 369, 371, 372, 373–375, 382–385, 396)
 
 - **Item 327 — `crates/horizon-client/src/game/pad_menu.rs`
   (2 classes, 61 methods, 7 named in Horizon), citations only (1
@@ -7551,6 +7551,40 @@ includes constant-pool churn.
   refuse to load (`pack_format` is required). Zero-diff:
   `ServerFunctionLibrary.reload` (signature-only; the load logic
   is identical).
+- **Item 364 — `crates/horizon-client/src/title.rs`
+  (SpriteIconButton, `withTootip`), no tooltip on the title's
+  language/accessibility icons:** 1.21.9 added `withTootip()`
+  (tooltip = the button's message) to
+  `SpriteIconButton.Builder`, but neither version's
+  `CommonButtons.language` / `accessibility` calls it
+  (jar-verified: builder -> width -> sprite(15x15) -> build in
+  both), and the `options.language.tooltip` /
+  `options.accessibility.tooltip` keys do not exist in either
+  lang file. The Rust showed those tooltips on hover (and read
+  them as narration hints); the language/accessibility arms are
+  removed from `button_tooltip`, keeping the FriendsButton arm
+  (Horizon's own). The 15x15 centered-sprite geometry is
+  identical in both versions.
+- **Item 368 — `crates/horizon-client/src/game/block_editor.rs`
+  (+ the four edit screens), test-instance labels in silver:**
+  1.21.8's `TestInstanceBlockEditScreen` draws its labels in
+  `COLOR_SILVER` (-4144960); 1.21.9 redrew them in the shared grey
+  (-6250336) the Structure/Jigsaw/Test Block screens use in both
+  versions. `Item::Label` now carries its colour: the
+  test-instance editor passes `LABEL_SILVER` (0xFFC0_C0C0), the
+  other three pass `LABEL`. Zero-diff: the transparent background
+  (1.21.8's `renderBackground` -> `renderTransparentBackground`
+  vs 1.21.9's `isInGameUi`), Enter 257/335 -> onDone (with the
+  jigsaw `doneButton.active` guard in both), and the
+  name-character validation (same logic, different input-event
+  API).
+- **Items 365/370 deferred — the JSON-RPC management server:**
+  jar-verified absent from 1.21.8 (0 `jsonrpc` classes in the
+  server jar vs 106 in 1.21.9). Removing the Rust's server
+  (`management.rs` + methods + schema + TLS) and the client's
+  `dedicated/management.rs` is one coordinated job with items
+  423, 453, 463, 483 and 484; it lands when item 484 is reached,
+  and all seven close together.
 
 ### Rank 4 content: closed 2/2 (chain)
 
