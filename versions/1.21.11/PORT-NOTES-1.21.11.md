@@ -12566,3 +12566,7 @@ Compiler noise only (redundant local store, lambda type widening).
 ## Item 674 — server/commands/data (DataCommands) — NO-CHANGE
 
 Compiler artifact only (`typeSwitch` descriptor on pattern switches).
+
+## Item 675 — horizon-client-core/src/lang.rs (LanguageManager) — NO-CHANGE
+
+Exception table only (`Exception` vs `RuntimeException` + `IOException`).
