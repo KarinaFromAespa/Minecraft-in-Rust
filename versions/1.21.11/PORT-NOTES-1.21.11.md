@@ -12756,3 +12756,7 @@ Visibility plus anonymous-class constructor field order, as item 692.
 ## Item 719 — horizon-server/src/query.rs (QueryThreadGs4$RequestChallenge) — NO-CHANGE
 
 RandomSource factory only, as items 670/679/706.
+
+## Item 720 — horizon-world/src/datafix/dynamic.rs (ResolvableProfile$Dynamic) — NO-CHANGE
+
+Visibility only.
