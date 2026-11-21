@@ -8345,13 +8345,60 @@ is the oracle; decompiled code is a reading aid.
     reworked h262 / h13076
     / live-wolf tests run
     in CI.
+- **Item 174 — Adventure
+  predicate, removed
+  items, dye text
+  colours:**
+  - AdventureModePredicate:
+    the port tests
+    `BlockPredicate.matches`
+    directly (state, then
+    `nbt` against the block
+    entity's tag) and has
+    no `areSameBlocks`
+    cache at all, so the
+    diff — the cache
+    helper's `saveWithId`
+    form replacing the
+    `TagValueOutput` one,
+    over identical tags —
+    has no surface. Items:
+    the registry is
+    data-driven from the
+    1.21.5 prepared
+    resources, and no Rust
+    or Python in the tree
+    names `dried_ghast`,
+    any `*_harness`,
+    `happy_ghast_spawn_egg`
+    or `music_disc_tears`;
+    jukebox songs resolve
+    by id from the same
+    registry. The carved
+    pumpkin and the seven
+    heads carry no
+    waypoint-hide attribute
+    in the port (only the
+    pumpkinblur overlay);
+    the waypoint attribute
+    hooks belong to items
+    13/225/260/264.
+    DyeColor: `DYE_TEXT`
+    already holds all
+    sixteen 1.21.5 raw
+    `textColor` values,
+    checked against the
+    decomp.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **173 of 426 are
-closed** (rank 1 complete, rank 2 at 164/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **174 of 426 are
+closed** (rank 1 complete, rank 2 at 165/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
