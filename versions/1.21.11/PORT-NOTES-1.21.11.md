@@ -11043,3 +11043,17 @@ aborting when none is alive. All 24
 `EnderDragonFight` citations re-pointed
 to `EndDragonFight`. `fight_data`: 4
 passed.
+
+## Item 487 — templatesystem/loader/ResourceManagerTemplateSource (rank 2, NO-CHANGE)
+
+1 class, 0 methods named. 26.1-only
+(the whole `templatesystem/loader/`
+package — `TemplateSource`,
+`DirectoryTemplateSource`,
+`ResourceManagerTemplateSource` — is
+absent from both 1.21.11 jars);
+template reading lives on
+`StructureTemplateManager` in 1.21.11
+(item 457), which is what the Rust
+already cites. No citations anywhere.
+`nbt::`: 14 passed.
