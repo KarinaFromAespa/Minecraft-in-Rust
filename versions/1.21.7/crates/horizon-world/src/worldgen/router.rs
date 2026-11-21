@@ -55,10 +55,21 @@ impl NoiseRouter {
     /// Missing/null fields or any invalid root leave the registry unchanged.
     pub fn from_json(json: &str, registry: &mut DensityRegistry) -> Result<Self, DecodeError> {
         let object: Object = serde_json::from_str(json)?;
-        let inputs = RouterField::ALL
-            .iter()
-            .map(|field| required(&object, field.name()).map(|raw| raw.get()))
-            .collect::<Result<Vec<_>, _>>()?;
+        // 1.21.7's router has no chunk_surface_level (a 26.x addition):
+        // synthesize it from the preliminary surface level, exactly as
+        // the settings upgrader does — interpolated on a 16x1 cell.
+        let mut owned: Vec<String> = Vec::with_capacity(8);
+        for field in RouterField::ALL {
+            if field == RouterField::ChunkSurfaceLevel && !object.contains_key(field.name()) {
+                let raw = required(&object, "preliminary_surface_level")?.get();
+                owned.push(format!(
+                    "{{\"type\": \"minecraft:interpolated\", \"cell_size_xz\": 16, \"cell_size_y\": 1, \"input\": {raw}}}"
+                ));
+            } else {
+                owned.push(required(&object, field.name())?.get().to_string());
+            }
+        }
+        let inputs: Vec<&str> = owned.iter().map(String::as_str).collect();
         let functions = registry
             .decode_functions(&inputs)?
             .try_into()
@@ -164,5 +175,37 @@ mod tests {
                 -0.5
             );
         }
+    }
+
+    #[test]
+    fn missing_chunk_surface_level_falls_back_to_preliminary_surface() {
+        let mut registry = DensityRegistry::from_json(
+            &BTreeMap::new(),
+            &BTreeMap::from([(
+                "minecraft:shared".into(),
+                r#"{"type":"cache","input":{"type":"gradient","axis":"x","from_coordinate":0,"to_coordinate":16,"from_value":-1,"to_value":1}}"#.into(),
+            )]),
+        )
+        .unwrap();
+        // Every router field except chunk_surface_level, plus the 1.21.7
+        // preliminary surface level it is synthesized from.
+        let mut object: BTreeMap<_, _> = RouterField::ALL
+            .iter()
+            .filter(|field| **field != RouterField::ChunkSurfaceLevel)
+            .map(|field| (field.name(), "minecraft:shared"))
+            .collect();
+        object.insert("preliminary_surface_level", "minecraft:shared");
+        let json = serde_json::to_string(&object).unwrap();
+        let router = NoiseRouter::from_json(&json, &mut registry).unwrap();
+        let mut compiler = DensityCompiler::new_seeded(registry.into_graph(), 0, false);
+        let samplers = router.compile(&mut compiler).unwrap();
+        let mut context = SamplerContext::cached();
+        assert_eq!(
+            samplers
+                .get(RouterField::ChunkSurfaceLevel)
+                .sample_value(&mut context, [4, 99, -32])
+                .unwrap(),
+            -0.5
+        );
     }
 }

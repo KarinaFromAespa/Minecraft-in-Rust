@@ -543,3 +543,10 @@ Carried 26.2's `shift_noise` helper over verbatim: it accepts either
 spelling, resolving the argument string against the noise registry
 (`minecraft:offset` is a noise, not a density function — there is no
 density_function/offset.json).
+
+Twelfth launch crash, same morning (12:50 NPT): "invalid world
+generation field: chunk_surface_level". 26.x added a
+chunk_surface_level slot to the noise router; 1.21.7's router has
+no such field. When it is absent, the router now synthesizes it
+from the preliminary surface level, exactly as the settings
+upgrader does — interpolated on a 16x1 cell.
