@@ -10113,12 +10113,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 232 — Empty vertex
+  format:
+  -
+    DefaultVertexFormat.EMP
+    TY (a format with no
+    elements, for vertex-
+    ID-driven draws) was
+    added in 1.21.6. The
+    port has no
+    DefaultVertexFormat
+    type at all — its
+    vertex layouts are per-
+    pipeline wgpu
+    VertexBufferLayouts,
+    and the only mentions
+    of the Java formats are
+    doc comments citing
+    POSITION and BLOCK as
+    shapes. The port's
+    buffers: &[] pipelines
+    are wgpu's own empty-
+    layout idiom for
+    fullscreen passes, not
+    a port of the Java
+    constant.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **231 of 426 are
-closed** (rank 1 complete, rank 2 at 222/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **232 of 426 are
+closed** (rank 1 complete, rank 2 at 223/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
