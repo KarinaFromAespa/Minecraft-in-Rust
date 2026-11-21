@@ -12078,3 +12078,8 @@ Only `getRandom()` vs the `random` field (same source).
 
 Only the `ItemInstance` vs `ItemStack` parameter rename in the trigger
 call.
+
+## Item 590 — game/initial_spawn.rs (BonusChestFeature) — NO-CHANGE
+
+`place` is identical in both versions; the diff is a re-numbering artifact
+from `ChunkPos.containing` (26.1) vs `new ChunkPos` (1.21.11).
