@@ -9166,13 +9166,49 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 204 — Chat
+  narration:**
+  - 1.21.5 says player chat
+    with `sayChat`, system
+    messages once with
+    `say` after the branch,
+    and never narrates a
+    chat validation error.
+    The port already used
+    those calls, but it
+    gated narration on the
+    line showing:
+    `signed_chat_line`
+    returned false when the
+    Chat option hid the
+    source, which also
+    dropped the chat log,
+    the processed mark and
+    the delay timer.
+    Vanilla narrates, logs
+    and marks accepted
+    messages whether or not
+    they show, so the early
+    return is gone —
+    visibility filters only
+    the display, in
+    `push_message` — and
+    system chat says once
+    after the branch. Stale
+    `sayChatQueued` /
+    `saySystemChatQueued`
+    comments corrected.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib` 0/0
+    (28m58s, contended).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **203 of 426 are
-closed** (rank 1 complete, rank 2 at 194/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **204 of 426 are
+closed** (rank 1 complete, rank 2 at 195/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

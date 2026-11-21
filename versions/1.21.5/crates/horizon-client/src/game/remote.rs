@@ -1806,7 +1806,11 @@ impl Game<'_> {
         self.signed_chat_line(content, source, None, ChatTrust::Secure)
     }
     /// `chat_line` of a player message, keeping its signature for a
-    /// deletion (`GuiMessage.signature`).
+    /// deletion (`GuiMessage.signature`). Returns whether the line was
+    /// accepted, not whether it shows: the Chat option filters the
+    /// display (`push_message`), never the acceptance — 1.21.5's
+    /// `showMessageToPlayer` narrates, logs and marks the message
+    /// processed even when the chat hides it.
     fn signed_chat_line(
         &mut self,
         content: horizon_client::text::Text,
@@ -1814,9 +1818,6 @@ impl Game<'_> {
         signature: Option<Signature>,
         trust: ChatTrust,
     ) -> bool {
-        if !self.ui.chat.shows(source) {
-            return false;
-        }
         let text = content.plain();
         let focused = self.screen == Screen::Chat;
         if source == horizon_client::chat::ChatSource::Player {
@@ -1868,8 +1869,8 @@ impl Game<'_> {
     /// italic `chat.validation_error` in its chat type (queued under Chat Delay as any
     /// message). Its signature counts as processed but not shown, for the acknowledgement the
     /// client sends the server. Vanilla also
-    /// skips a blocked sender and one restricted to friends (not kept here either) and
-    /// narrates the line.
+    /// skips a blocked sender and one restricted to friends (not kept here either), and
+    /// 1.21.5 does not narrate the line (1.21.6 added `saySystemChatQueued`).
     fn handle_chat_message_error(
         &mut self,
         chat_type: &play::ChatTypeBound,
@@ -1884,7 +1885,8 @@ impl Game<'_> {
             "italic": true,
         });
         let line = self.decorate_chat(chat_type, &error, Decoration::Chat);
-        // saySystemChatQueued(boundChatType.decorateNarration(CHAT_VALIDATION_ERROR)).
+        // 1.21.5 builds the error narration but never says it; 1.21.6 says
+        // it with `saySystemChatQueued`.
         let narration = self
             .decorate_chat(chat_type, &error, Decoration::Narration)
             .plain();
@@ -1987,7 +1989,8 @@ impl Game<'_> {
 
     /// `showMessageToPlayer`: the line joins the chat if Only Show Secure
     /// Chat, mods and the Chat option let it through, and the narrator says
-    /// it (`sayChatQueued`).
+    /// it (`sayChat`) whenever it is accepted — even when the Chat option
+    /// hides it, which only filters the display.
     fn player_chat_line(&mut self, chat: QueuedChat) -> bool {
         let QueuedChat {
             mut line,
@@ -2009,7 +2012,8 @@ impl Game<'_> {
         let source = horizon_client::chat::ChatSource::Player;
         let shown = self.signed_chat_line(line, source, signature, trust);
         // `handleChatMessageError` (1.21.5) shows the error line but does not
-        // narrate it; only a shown player message is said.
+        // narrate it; an accepted player message is said whether or not the
+        // Chat option shows it.
         if shown && !error {
             self.say_chat(&narration);
         }
@@ -5249,10 +5253,12 @@ impl Game<'_> {
                 if p.overlay {
                     self.say(&text);
                     self.titles.set_overlay(text, false);
-                } else if self.chat_line(text.clone(), horizon_client::chat::ChatSource::Server) {
+                } else {
                     // `handleSystemMessage` (1.21.5) says the message with the
-                    // system gate once the chat takes it — not the
-                    // system-or-chat gate 1.21.6 gave it.
+                    // system gate once, after the branch — not the
+                    // system-or-chat gate 1.21.6 gave it, and not only when
+                    // the Chat option shows the line.
+                    self.chat_line(text.clone(), horizon_client::chat::ChatSource::Server);
                     self.say(&text);
                 }
             }
