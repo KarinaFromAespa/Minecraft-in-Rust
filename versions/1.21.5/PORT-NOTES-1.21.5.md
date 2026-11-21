@@ -7004,13 +7004,43 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-command
     -p horizon-client --lib`
     passed at item 145.
+- **Item 147 — StreamCodec
+  composite verified
+  against 1.21.5:**
+  - The 11-arity
+    `StreamCodec.composite`
+    overload is 1.21.6-only;
+    1.21.5 tops out at the
+    smaller arities. It has
+    no Rust surface: the
+    protocol crate has no
+    composite combinator at
+    all — every packet codec
+    is hand-written field
+    by field, so a Java
+    combinator's arity
+    limit cannot bite. No
+    1.21.6 changed class
+    even calls the 11-arity
+    form (only
+    `StreamCodec` itself
+    mentions `Function11`),
+    so no 1.21.5 packet
+    codec is shaped by its
+    absence.
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **146 of 426 are
-closed** (rank 1 complete, rank 2 at 137/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **147 of 426 are
+closed** (rank 1 complete, rank 2 at 138/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
