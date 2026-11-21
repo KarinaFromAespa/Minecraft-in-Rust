@@ -12582,3 +12582,7 @@ Visibility only.
 ## Item 678 — horizon-client-render/src/gfx/core_lines.rs (ShapeRenderer) — NO-CHANGE
 
 Parameter type only (`Vector3fc` vs `Vector3f` on `setNormal`).
+
+## Item 679 — horizon-client-render/src/gfx/end_sky/tests.rs (EndFlashState) — NO-CHANGE
+
+RandomSource factory only, as item 670.
