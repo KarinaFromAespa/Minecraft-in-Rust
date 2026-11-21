@@ -11522,3 +11522,23 @@ defaults), a `scrollBarY` zero-guard, and
 only `updateScrolling`, and its scroll constants
 (SCROLLER_W 6.0, thumb 32) live in settings_shell.rs
 (item 87) and match 1.21.11.
+
+## Item 529 — multiline_edit.rs (rank 3, NO-CHANGE apart from citations)
+
+`AbstractTextAreaWidget` is pure renames
+(`extract*` -> `render*`, GuiGraphicsExtractor ->
+GuiGraphics) plus the ScrollbarSettings constructor
+params; `StringView` is a visibility change only.
+`MultiLineEditBox`'s real differences: 26.1-only IME
+(`preeditUpdated`, `IMEPreeditOverlay`,
+`onTextInputFocusChange` in `setFocused` — no Rust
+surface), and `scrollRate`, which 1.21.11 returns as
+9.0/2.0 = 4.5 while 26.1 truncates to int 4 through
+`defaultSettings`. The Rust already matches 1.21.11
+throughout: SCROLL_RATE 4.5, PADDING 4.0
+(INNER_PADDING), 300 ms blink, 1-wide insert cursor
+from y-1 to y+10, "_" append cursor, cursor colour
+0xD0D0D0, limit text 0xA0A0A0. Two citations re-pointed
+to the 1.21.11 names (`renderWidget`,
+`MultiLineEditBox.renderContents`). Tests:
+`multiline_edit` 8 passed.

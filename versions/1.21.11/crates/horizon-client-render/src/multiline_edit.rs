@@ -467,8 +467,8 @@ impl MultiLineEdit {
         bottom - self.scroll.amount >= self.y && top - self.scroll.amount <= self.y + self.height
     }
 
-    /// `extractWidgetRenderState`: the frame, the text under a scissor, the
-    /// scroll bar and the character count.
+    /// `renderWidget` (26.1's `extractWidgetRenderState`): the frame, the
+    /// text under a scissor, the scroll bar and the character count.
     pub fn draw(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
         crate::widgets::target_as(
             [self.x, self.y, self.width, self.height],
@@ -525,7 +525,8 @@ impl MultiLineEdit {
         }
     }
 
-    /// `MultiLineEditBox.extractContents` (the placeholder is empty).
+    /// `MultiLineEditBox.renderContents` (26.1's `extractContents`; the
+    /// placeholder is empty).
     fn draw_contents(&self, batch: &mut HudBatch, atlas: &HudAtlas) {
         if self.chars.is_empty() && !self.focused {
             return;
