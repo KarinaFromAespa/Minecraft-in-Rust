@@ -10707,12 +10707,31 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 255 — Client pack
+  version:
+  - The same accessor
+    rename as items
+    231/249, for the
+    vanilla resource pack's
+    metadata: 1.21.6's pack
+    Version(PackType.CLIENT
+    _RESOURCES) is 1.21.5's
+    getPackVersion(PackType
+    .CLIENT_RESOURCES),
+    same value. The port
+    has no pack-version
+    surface (item 231), so
+    the rename has nothing
+    to land on.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **254 of 426 are
-closed** (rank 1 complete, rank 2 at 245/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **255 of 426 are
+closed** (rank 1 complete, rank 2 at 246/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
