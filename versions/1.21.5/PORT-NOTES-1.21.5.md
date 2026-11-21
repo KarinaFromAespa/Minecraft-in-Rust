@@ -3333,13 +3333,51 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 73 — Connection / server
+  listeners, verified:**
+  - The `protocolVersion()` /
+    `name()` -> `getProtocolVersion()`
+    / `getName()` changes are
+    Java record-to-class accessor
+    renames. The
+    `ChannelFutureListener` ->
+    `PacketSendListener` change
+    is Netty send plumbing: the
+    1.21.5 `doSendPacket` wraps
+    the listener with an
+    on-failure fallback packet,
+    while 1.21.6 attaches the
+    Netty listener directly.
+    The Rust network layer has
+    no per-packet send-listener
+    concept at all, so neither
+    form has a Rust surface.
+  - `handleCustomClickAction`
+    is already gone from the
+    protocol (configuration.rs /
+    play.rs carry the "1.21.5
+    has no dialog packets"
+    notes from the rewire).
+  - The handshake version check
+    already matches 1.21.5 in
+    `lan/conn.rs`: protocol !=
+    770 disconnects with
+    `outdated_client` below 754
+    and `incompatible` above,
+    with the game version name
+    as the argument.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **72 of 426 are
-closed** (rank 1 complete, rank 2 at 63/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **73 of 426 are
+closed** (rank 1 complete, rank 2 at 64/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
