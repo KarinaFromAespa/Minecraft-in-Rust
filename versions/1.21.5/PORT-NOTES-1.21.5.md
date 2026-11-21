@@ -3586,13 +3586,56 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 80 — Bee, verified:**
+  - Save/load is Java API-only
+    with identical keys; the
+    Rust side round-trips them
+    all in `mobs/bee.rs`
+    (`hive_pos`, `flower_pos`,
+    `HasNectar`, `HasStung`,
+    `TicksSincePollination`,
+    `CannotEnterHiveTicks`,
+    `CropsGrownSincePollination`).
+    `hasHome` -> `hasRestriction`
+    is the item-74 rename.
+  - The one real difference is
+    the `travellingTicks`
+    field initializer:
+    1.21.5 seeds it with
+    `level().random.nextInt(10)`
+    in both travel goals,
+    1.21.6 leaves it 0. It
+    has no gameplay effect:
+    `start()` and `stop()`
+    reset it to 0 in both
+    versions before any tick,
+    and the only other reader
+    is the `@VisibleForDebug`
+    `getTravellingTicks()`,
+    which the Rust port does
+    not implement. The two
+    level-random draws at
+    construction are also not
+    ported: the Rust goal
+    registration path takes
+    only the mob, so the level
+    random is not reachable
+    there (the port's
+    `draw_cooldowns` covers
+    the entity-random draws
+    only, in vanilla order).
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **79 of 426 are
-closed** (rank 1 complete, rank 2 at 70/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **80 of 426 are
+closed** (rank 1 complete, rank 2 at 71/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
