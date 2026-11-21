@@ -306,11 +306,11 @@ impl Game<'_> {
             silent: false,
         }
     }
-    /// `FireworkRocketItem.useOn`: launch from the clicked point.
+    /// `FireworkRocketItem.useOn`: launch from the clicked point. 1.21.5 has
+    /// no fall-flying guard: a gliding player clicking a block launches the
+    /// rocket there (1.21.6 returns PASS, leaving the boost to `use`).
     pub(super) fn launch_firework(&mut self, hit: &Hit, stack: &ItemStack) -> bool {
-        if &*stack.item != "minecraft:firework_rocket"
-            || use_on_passes(self.player.as_ref().is_some_and(|p| p.fall_flying))
-        {
+        if &*stack.item != "minecraft:firework_rocket" {
             return false;
         }
         let at = Vec3::new(
@@ -827,12 +827,6 @@ impl Game<'_> {
     }
 }
 
-/// `FireworkRocketItem.useOn` returns PASS while the player is fall flying,
-/// leaving the boost to `use` (a guest's UseItemOn must not launch a rocket).
-fn use_on_passes(fall_flying: bool) -> bool {
-    fall_flying
-}
-
 #[cfg(test)]
 mod tests {
     /// A flying rocket's vertices carry its own id for frame generation's and a temporal
@@ -893,10 +887,63 @@ mod tests {
         assert_eq!(marks.last(), Some(&(out.len() as u32, 0)));
     }
 
+    /// `FireworkRocketItem.useOn` while fall-flying: 1.21.5 launches the
+    /// rocket from the clicked point (1.21.6 returns PASS, so the click
+    /// boosts instead). The rocket is unattached, at the click plus the
+    /// face's 0.15 offset.
     #[test]
-    fn use_on_passes_only_while_gliding() {
-        assert!(super::use_on_passes(true));
-        assert!(!super::use_on_passes(false));
+    #[ignore = "needs prepared resources in HORIZON_TEST_RESOURCES"]
+    fn a_gliding_firework_used_on_a_block_launches() {
+        use crate::game::{Audio, Hit, Options, Progress, Settings, load_resources};
+        use horizon_core::geometry::Vec3;
+
+        let root = std::path::PathBuf::from(std::env::var_os("HORIZON_TEST_RESOURCES").unwrap());
+        let settings = Settings::default();
+        let loaded = load_resources(
+            root.clone(),
+            None,
+            &root,
+            &settings,
+            std::time::Instant::now(),
+            false,
+            true,
+            &Progress::new(),
+            &mut |_, _| unreachable!(),
+        )
+        .unwrap();
+        let mut options = Options::parse(std::iter::empty()).unwrap().unwrap();
+        options.resources = root.clone();
+        options.execution_role = crate::game::execution_role::ExecutionRole::IntegratedServer;
+        let res: &'static _ = Box::leak(Box::new(loaded.resources));
+        let mut game = super::Game::new(
+            res,
+            loaded.pack,
+            loaded.gui.unwrap(),
+            options,
+            settings,
+            Audio::silent(&root),
+            None,
+        )
+        .unwrap();
+        game.player = Some(
+            horizon_client::motion::PlayerMotion::new(game.motion, Vec3::new(10.5, 64.0, -3.25))
+                .unwrap(),
+        );
+        game.player.as_mut().unwrap().fall_flying = true;
+        game.inventory[game.selected] = Some(super::ItemStack::new("minecraft:firework_rocket", 1));
+        let stack = game.inventory[game.selected].clone().unwrap();
+        let hit = Hit {
+            pos: [10, 64, -3],
+            face: [0, 1, 0],
+            point: [10.5, 65.0, -2.75],
+        };
+        assert!(game.launch_firework(&hit, &stack));
+        assert_eq!(game.rockets.len(), 1);
+        let r = &game.rockets[0];
+        assert!(!r.attached, "a block-launched rocket is not attached");
+        assert!((r.position.x - 10.5).abs() < 1e-9, "{}", r.position.x);
+        assert!((r.position.y - 65.15).abs() < 1e-9, "{}", r.position.y);
+        assert!((r.position.z + 2.75).abs() < 1e-9, "{}", r.position.z);
     }
 
     /// `FireworkRocketItem.use` on the server, while fall-flying: 1.21.5's
