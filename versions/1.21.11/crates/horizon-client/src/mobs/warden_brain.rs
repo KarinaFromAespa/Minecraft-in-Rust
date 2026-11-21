@@ -266,10 +266,14 @@ impl Brain {
             }
         }
     }
-    /// `Sensor.randomlyDelayStart` for both sensors, from the warden's random.
-    pub fn delay_sensors(&mut self, random: &mut LegacyRandom) {
+    /// `Sensor`'s constructor in 1.21.11: each sensor's first scan is
+    /// delayed by a draw from the static `Sensor.RANDOM`, never the
+    /// entity's random (`randomlyDelayStart` is 26.1-only). The engine
+    /// draws from the brain seed so the phases stay deterministic.
+    pub fn delay_sensors(&mut self) {
+        let mut delay = LegacyRandom::new(self.shuffle_seed);
         for s in &mut self.sensors {
-            *s = i64::from(random.next_int_bound(20).unwrap_or(0));
+            *s = i64::from(delay.next_int_bound(20).unwrap_or(0));
         }
     }
 }
@@ -1348,6 +1352,25 @@ mod warden_owned_memory_tests {
             put(&mut entry, "ttl", Tag::Long(ttl));
         }
         entry
+    }
+
+    #[test]
+    fn sensor_delays_come_from_the_brain_seed() {
+        // 1.21.11's `Sensor` constructor draws each sensor's first-scan
+        // delay from the static `Sensor.RANDOM`, never the entity's
+        // random; the engine draws from the brain seed so the phases
+        // stay deterministic without consuming the mob's random.
+        let mut b = Brain::new(7);
+        b.delay_sensors();
+        let mut delay = LegacyRandom::new(7);
+        assert_eq!(
+            b.sensors[0],
+            i64::from(delay.next_int_bound(20).unwrap_or(0))
+        );
+        assert_eq!(
+            b.sensors[1],
+            i64::from(delay.next_int_bound(20).unwrap_or(0))
+        );
     }
     fn input(no_ai: bool, form: u8) -> Tag {
         let mut raw = Tag::compound([

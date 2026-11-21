@@ -349,13 +349,14 @@ pub fn register(m: &mut Mob) {
     m.set_malus(PathType::Lava, 8.0);
     m.set_malus(PathType::DamageFire, 0.0);
     m.set_malus(PathType::DangerFire, 0.0);
-    // Brain.Provider.makeBrain: the sensors start on a random phase.
+    // `WardenAi.makeBrain`: the sensors start on a random phase.
     delay_sensors(m);
 }
-/// `Sensor.randomlyDelayStart` for the warden's two sensors, from its random.
+/// The warden's two sensors start on a random phase (`Sensor`'s
+/// constructor draws it from the static `Sensor.RANDOM` in 1.21.11).
 pub fn delay_sensors(m: &mut Mob) {
     if let Some(mut st) = m.extra.warden.take() {
-        st.brain.delay_sensors(&mut m.random);
+        st.brain.delay_sensors();
         m.extra.warden = Some(st);
     }
 }

@@ -420,13 +420,15 @@ fn schedule(baby: bool, day_time: i64) -> Act {
     }
 }
 
-/// `Brain.Provider.makeBrain` and `Villager.registerBrainGoals`: a new brain
-/// from the packed memories (the sensors' first scans are delayed by draws
-/// from the mob's random), on the timeline's activity.
+/// A new brain from the packed memories (the sensors' first scans are
+/// delayed by draws from the brain seed — 1.21.11's `Sensor`
+/// constructor draws them from the static `Sensor.RANDOM`, never the
+/// mob's random), on the timeline's activity.
 fn make_brain(m: &mut Mob, packed: Memories, shuffle_seed: i64, w_times: (i64, i64)) -> Brain {
     let mut b = Brain::new(m.is_baby(), shuffle_seed, super::villager::is_farmer(m));
+    let mut delay = LegacyRandom::new(shuffle_seed);
     for (i, rate) in SENSOR_RATES.iter().enumerate() {
-        b.sensors[i] = i64::from(m.random.next_int_bound(*rate as i32).unwrap_or(0));
+        b.sensors[i] = i64::from(delay.next_int_bound(*rate as i32).unwrap_or(0));
     }
     b.mem = packed;
     b.update_from_schedule(w_times.0, w_times.1);

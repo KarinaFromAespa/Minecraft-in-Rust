@@ -8887,6 +8887,35 @@ babies in both versions, so `Baby::Scale(0.3, None)` stands;
 the lay-egg goal reads the same level random by field).
 Tests: `mobs::body_anim::` 8 passed (1 new).
 
+## Item 153 — mobs/warden.rs (rank 2, CHANGED)
+
+6 classes, 14 methods, 3 named. `Sensor.randomlyDelayStart`
+is 26.1-only: in 1.21.11 the `Sensor` constructor itself draws
+each sensor's first-scan delay from a static thread-safe
+`Sensor.RANDOM`, never the entity's random. The Rust mirrored
+the 26.1 form in all four brain files, so every brain init
+consumed draws from the mob's random and shifted its later
+draws against the oracle. All four now draw the delays from
+the brain seed (`warden_brain::delay_sensors` takes no random
+at all now — a type-level fact; animal/monster/villager brains
+draw from `LegacyRandom::new(shuffle_seed)`), which keeps the
+phases deterministic in harnesses. `Warden.BRAIN_PROVIDER` is
+also 26.1-only (`makeBrain(Dynamic)` → `WardenAi.makeBrain`;
+the warden.rs comment reworded, warden_brain.rs already done
+in item 121). The warden's path maluses already use the
+1.21.11 names (`DamageOther` 8.0, `DamageFire`/`DangerFire`
+0.0); `canTargetEntity`'s `getType() ==` form is the same
+predicate as the Rust's species comparison (armor stands are
+not modelled as mobs here). `WardenModel` is bytecode-identical.
+Tests: `mobs::warden::` 8 passed, `mobs::warden_brain::` 3
+passed (1 new: the phases come from the brain seed), 2
+ignored, `mobs::animal_brain::` 6 passed,
+`mobs::villager_brain::` 2 passed, 4 ignored,
+`mobs::breeze::` 7 passed, `mobs::creaking::` 5 passed.
+Recorded, not fixed: `monster_brain.rs:1-2,99` and
+`villager_brain.rs:1,312` still cite `BRAIN_PROVIDER` — their
+own items' scope.
+
 ## CI proof run 44850889695 (recorded below)
 
 Dispatched 01:33:40 UTC Nov 21, 2026 on behaviour/1.21.11 @

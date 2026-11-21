@@ -387,19 +387,22 @@ fn kind_for_species(species: Species) -> Option<Kind> {
     }
 }
 
-/// `Brain.Provider.makeBrain`: a new brain whose sensors' first scans are
-/// delayed by draws from the mob's random, on its default activity (idle).
-/// The gates shuffle with a random seeded with `shuffle_seed`.
+/// A new brain whose sensors' first scans are delayed by draws from
+/// the brain seed (1.21.11's `Sensor` constructor draws them from the
+/// static `Sensor.RANDOM`, never the mob's random), on its default
+/// activity (idle). The gates shuffle with a random seeded with
+/// `shuffle_seed`.
 pub fn init(m: &mut Mob, shuffle_seed: i64) {
     let Some(kind) = kind_of(m) else { return };
     // The copper golem's constructor: TRANSPORT_ITEMS_COOLDOWN_TICKS of
     // nextInt(60, 100).
     let cooldown =
         (kind == Kind::CopperGolem).then(|| 60 + m.random.next_int_bound(40).unwrap_or(0));
+    let mut delay = LegacyRandom::new(shuffle_seed);
     let sensors = kind
         .sensors()
         .iter()
-        .map(|s| (*s, i64::from(m.random.next_int_bound(20).unwrap_or(0))))
+        .map(|s| (*s, i64::from(delay.next_int_bound(20).unwrap_or(0))))
         .collect();
     let mut b = Brain {
         kind,

@@ -142,8 +142,10 @@ pub fn has_brain(s: Species) -> bool {
     matches!(s, Species::Breeze | Species::Creaking)
 }
 
-/// `Brain.Provider.makeBrain`: the sensors' first scans are delayed by draws
-/// from the mob's random; `RunOne` shuffles with `shuffle_seed`.
+/// A new brain whose sensors' first scans are delayed by draws from
+/// the brain seed (1.21.11's `Sensor` constructor draws them from the
+/// static `Sensor.RANDOM`, never the mob's random); `RunOne` shuffles
+/// with `shuffle_seed`.
 pub fn init(m: &mut Mob, shuffle_seed: i64) {
     let breeze = m.species() == Species::Breeze;
     let kinds: &[Sensor] = if breeze {
@@ -156,9 +158,10 @@ pub fn init(m: &mut Mob, shuffle_seed: i64) {
     } else {
         &[Sensor::NearestLiving, Sensor::NearestPlayers]
     };
+    let mut delay = LegacyRandom::new(shuffle_seed);
     let sensors = kinds
         .iter()
-        .map(|&k| (k, i64::from(m.random.next_int_bound(20).unwrap_or(0))))
+        .map(|&k| (k, i64::from(delay.next_int_bound(20).unwrap_or(0))))
         .collect();
     let (list, default_activity) = if breeze {
         (breeze_packages(shuffle_seed), Act::Fight)
