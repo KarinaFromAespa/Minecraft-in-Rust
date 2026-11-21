@@ -11253,12 +11253,69 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 269 — Realms client**
+  - Realms client: the port's
+    1.21.6 Realms model is now
+    the 1.21.5 one. Slots are
+    Map<Integer,
+    RealmsWorldOptions>
+    directly: RealmSlot and
+    RealmSetting are deleted,
+    and hardcore is an options
+    field read from the slot's
+    settings array
+    (parseSettings reads only
+    that setting).
+    RealmWorldOptions gained
+    pvp, spawnMonsters,
+    commandBlocks and hardcore,
+    plus toJson, which writes
+    only the non-default
+    fields. updateConfiguration
+    is gone: the settings tab
+    saves through update, POST
+    worlds/{id} with the name
+    and description only;
+    updateSlot posts
+    options.toJson(). invite
+    returns the whole
+    RealmServer; join already
+    returned the address. The
+    preferredRegions endpoint,
+    the region-preference DTOs
+    and the RegionPreference
+    screen are deleted.
+    RealmsError lost its
+    htmlPayload branch. The
+    tier configuration and
+    distance PUTs stay: they
+    are Horizon extensions, in
+    neither vanilla client.
+    fetchFeatureFlags' MSA gate
+    and
+    shouldPlayButtonBeActive
+    had no port surface. The
+    LenientJsonParser
+    difference is the item-251
+    gap (strict serde_json).
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    --tests: 0 errors, 0
+    warnings. Tests reworked:
+    slot parse (hardcore from
+    settings), error bodies (no
+    html case), description
+    update, slot update posts
+    options.toJson(); the
+    preferred-regions test is
+    deleted.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **268 of 426 are
-closed** (rank 1 complete, rank 2 complete). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **269 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 1/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

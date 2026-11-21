@@ -5,7 +5,7 @@
 //! `x-mojangauth` header vanilla adds for the invite-code service); it is never logged, never
 //! put in an error and never sent anywhere else.
 use horizon_core::version;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer};
 use std::io::Read;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
@@ -79,12 +79,10 @@ pub struct RealmServer {
     /// The invited players: only in the detail answer (`RealmsClient.getOwnRealm`).
     #[serde(default, deserialize_with = "nullable")]
     pub players: Vec<PlayerInfo>,
-    /// The world slots by id: only in the detail answer too (`RealmsServer.slots`).
+    /// The world slots by id: only in the detail answer too (`RealmsServer.slots`,
+    /// a `Map<Integer, RealmsWorldOptions>` — 1.21.6 wrapped each slot in a `RealmsSlot`).
     #[serde(default = "empty_slots", deserialize_with = "slots")]
-    pub slots: std::collections::HashMap<i32, RealmSlot>,
-    /// The settings tab's region preference (`RealmsServer.regionSelectionPreference`).
-    #[serde(default)]
-    pub region_selection_preference: Option<RegionSelectionPreferenceDto>,
+    pub slots: std::collections::HashMap<i32, RealmWorldOptions>,
     /// `RealmsServer.compatibility`: whether this client's version can play the Realm.
     /// Gson keeps `UNVERIFIABLE` when the service omits it, so the default does too.
     #[serde(default = "unverifiable_compatibility", deserialize_with = "nullable")]
@@ -119,40 +117,14 @@ pub struct Ops {
     pub ops: Vec<String>,
 }
 
-/// `RealmsSetting`: a slot's named setting (the hardcore marker).
-#[derive(Clone, Debug, Deserialize, Serialize, Default, PartialEq)]
-pub struct RealmSetting {
-    #[serde(default, deserialize_with = "nullable")]
-    pub name: String,
-    #[serde(default, deserialize_with = "setting_value")]
-    pub value: String,
-}
-
-/// `JsonPrimitive.getAsString`: the service sends a setting's value as a JSON bool or
-/// number where Gson reads a string, so either reads as its text.
-fn setting_value<'de, D: Deserializer<'de>>(d: D) -> Result<String, D::Error> {
-    Ok(match serde_json::Value::deserialize(d)? {
-        serde_json::Value::Bool(value) => value.to_string(),
-        serde_json::Value::Number(value) => value.to_string(),
-        serde_json::Value::String(value) => value,
-        _ => String::new(),
-    })
-}
-
-/// `RealmsSlot`: one of the Realm's world slots.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct RealmSlot {
-    pub slot_id: i32,
-    pub options: RealmWorldOptions,
-    pub settings: Vec<RealmSetting>,
-}
-
-/// `RealmsServer.finalizeSlots`: the JSON's `slots` list (`slotList`) by slot id, each slot's
-/// options a JSON string of their own (`RealmsSlot.RealmsWorldOptionsJsonAdapter`), and the
-/// world slots 1 to 3 it lacks empty (`RealmsSlot.defaults`).
+/// `RealmsServer.parseSlots`: the JSON's `slots` list (`slotList`) by slot id, each slot's
+/// options a JSON string of their own, its `hardcore` from the settings array
+/// (`parseSettings` reads only that setting), and the world slots 1 to 3 it lacks empty
+/// (`RealmsWorldOptions.createEmptyDefaults`). A slot whose options string is missing or
+/// not JSON is skipped, as the parse's catch does.
 fn slots<'de, D: Deserializer<'de>>(
     d: D,
-) -> Result<std::collections::HashMap<i32, RealmSlot>, D::Error> {
+) -> Result<std::collections::HashMap<i32, RealmWorldOptions>, D::Error> {
     #[derive(Deserialize, Default)]
     #[serde(rename_all = "camelCase")]
     struct Raw {
@@ -161,101 +133,53 @@ fn slots<'de, D: Deserializer<'de>>(
         #[serde(default)]
         options: Option<String>,
         #[serde(default, deserialize_with = "nullable")]
-        settings: Vec<RealmSetting>,
+        settings: Vec<RawSetting>,
+    }
+    #[derive(Deserialize, Default)]
+    struct RawSetting {
+        #[serde(default, deserialize_with = "nullable")]
+        name: String,
+        #[serde(default)]
+        value: serde_json::Value,
     }
     let list: Vec<Raw> = nullable(d)?;
     let mut slots = empty_slots();
     for raw in list {
-        // `RealmsWorldOptions.parse`: the defaults when the string is missing or not JSON.
-        let options = raw
-            .options
-            .and_then(|o| serde_json::from_str(&o).ok())
-            .unwrap_or_default();
-        slots.insert(
-            raw.slot_id,
-            RealmSlot {
-                slot_id: raw.slot_id,
-                options,
-                settings: raw.settings,
-            },
-        );
+        let Some(text) = raw.options else {
+            continue;
+        };
+        let Ok(mut options) = serde_json::from_str::<RealmWorldOptions>(&text) else {
+            continue;
+        };
+        // `parseSettings` + `readBoolean`: only the `hardcore` setting, the last one
+        // wins; the value reads as a bool or its text.
+        for setting in raw.settings {
+            if setting.name == "hardcore" {
+                options.hardcore = match &setting.value {
+                    serde_json::Value::Bool(value) => *value,
+                    serde_json::Value::String(value) => value == "true",
+                    _ => options.hardcore,
+                };
+            }
+        }
+        slots.insert(raw.slot_id, options);
     }
     Ok(slots)
 }
 
-/// `RealmsSlot.defaults` for world slots 1 to 3: empty, not hardcore.
-fn empty_slots() -> std::collections::HashMap<i32, RealmSlot> {
+/// `RealmsWorldOptions.createEmptyDefaults` for world slots 1 to 3: empty, not hardcore.
+fn empty_slots() -> std::collections::HashMap<i32, RealmWorldOptions> {
     (1..=3)
         .map(|slot_id| {
-            let slot = RealmSlot {
+            (
                 slot_id,
-                options: RealmWorldOptions {
+                RealmWorldOptions {
                     empty: true,
                     ..Default::default()
                 },
-                settings: Vec::new(),
-            };
-            (slot_id, slot)
+            )
         })
         .collect()
-}
-
-impl RealmSlot {
-    /// `RealmsSlot.isHardcore`: `RealmsSetting.isHardcore` of the settings.
-    pub fn is_hardcore(&self) -> bool {
-        self.settings
-            .iter()
-            .any(|s| s.name == "hardcore" && s.value == "true")
-    }
-}
-
-/// `RegionSelectionPreference`'s ids, as `RegionSelectionPreferenceJsonAdapter` writes them.
-pub const AUTOMATIC_PLAYER: i32 = 0;
-pub const AUTOMATIC_OWNER: i32 = 1;
-pub const MANUAL: i32 = 2;
-
-/// `RegionSelectionPreferenceDto`: how the Realm picks its region. The preference travels
-/// as its id ([`AUTOMATIC_PLAYER`], [`AUTOMATIC_OWNER`], [`MANUAL`]) and the region as its
-/// `RealmsRegion.nameId` (`EastUs2`).
-#[derive(Clone, Debug, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RegionSelectionPreferenceDto {
-    /// `RegionSelectionPreferenceDto.DEFAULT`'s when the service sends none.
-    #[serde(default = "automatic_owner", deserialize_with = "preference_id")]
-    pub region_selection_preference: i32,
-    #[serde(default)]
-    pub preferred_region: Option<String>,
-}
-
-fn automatic_owner() -> i32 {
-    AUTOMATIC_OWNER
-}
-
-/// `RegionSelectionPreferenceJsonAdapter.read`: an id it does not know (or null) is
-/// `DEFAULT_SELECTION`, automatic by player.
-fn preference_id<'de, D: Deserializer<'de>>(d: D) -> Result<i32, D::Error> {
-    Ok(Option::<i32>::deserialize(d)?
-        .filter(|id| (AUTOMATIC_PLAYER..=MANUAL).contains(id))
-        .unwrap_or(AUTOMATIC_PLAYER))
-}
-
-/// `RegionDataDto`: one region's service quality, from `preferredRegions`.
-#[derive(Clone, Debug, Deserialize, Default, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct RegionDataDto {
-    /// `RealmsRegion.nameId`.
-    #[serde(rename = "regionName", default, deserialize_with = "nullable")]
-    pub region: String,
-    /// `ServiceQuality.value`: 1 great to 4 poor, 5 unknown.
-    #[serde(default, deserialize_with = "nullable")]
-    pub service_quality: i32,
-}
-
-/// `PreferredRegionsDto`.
-#[derive(Clone, Debug, Deserialize, Default)]
-struct PreferredRegionsResponse {
-    #[serde(rename = "regionDataList", default, deserialize_with = "nullable")]
-    region_data: Vec<RegionDataDto>,
 }
 
 /// `RealmTierConfigurationDto`: the Realm tier's two distance ranges.
@@ -292,111 +216,6 @@ impl RealmTierRange {
     pub fn from_slider(&self, value: f32) -> i32 {
         self.min + (value * (self.max - self.min) as f32).round() as i32
     }
-}
-
-/// `RealmsRegion`: each region's `nameId` and its translation key.
-pub fn region_translation_key(name_id: &str) -> Option<&'static str> {
-    const REGIONS: [(&str, &str); 27] = [
-        (
-            "AustraliaEast",
-            "realms.configuration.region.australia_east",
-        ),
-        (
-            "AustraliaSoutheast",
-            "realms.configuration.region.australia_southeast",
-        ),
-        ("BrazilSouth", "realms.configuration.region.brazil_south"),
-        (
-            "CanadaCentral",
-            "realms.configuration.region.canada_central",
-        ),
-        ("CentralIndia", "realms.configuration.region.central_india"),
-        ("CentralUs", "realms.configuration.region.central_us"),
-        ("EastAsia", "realms.configuration.region.east_asia"),
-        ("EastUs", "realms.configuration.region.east_us"),
-        ("EastUs2", "realms.configuration.region.east_us_2"),
-        (
-            "FranceCentral",
-            "realms.configuration.region.france_central",
-        ),
-        ("JapanEast", "realms.configuration.region.japan_east"),
-        ("JapanWest", "realms.configuration.region.japan_west"),
-        ("KoreaCentral", "realms.configuration.region.korea_central"),
-        (
-            "MexicoCentral",
-            "realms.configuration.region.mexico_central",
-        ),
-        (
-            "NorthCentralUs",
-            "realms.configuration.region.north_central_us",
-        ),
-        ("NorthEurope", "realms.configuration.region.north_europe"),
-        (
-            "SouthCentralUs",
-            "realms.configuration.region.south_central_us",
-        ),
-        (
-            "SoutheastAsia",
-            "realms.configuration.region.southeast_asia",
-        ),
-        (
-            "SouthAfricaNorth",
-            "realms.configuration.region.south_africa_north",
-        ),
-        (
-            "SwedenCentral",
-            "realms.configuration.region.sweden_central",
-        ),
-        ("UAENorth", "realms.configuration.region.uae_north"),
-        ("UKSouth", "realms.configuration.region.uk_south"),
-        (
-            "WestCentralUs",
-            "realms.configuration.region.west_central_us",
-        ),
-        ("WestEurope", "realms.configuration.region.west_europe"),
-        ("WestUs", "realms.configuration.region.west_us"),
-        ("WestUs2", "realms.configuration.region.west_us_2"),
-        ("WestUs3", "realms.configuration.region.west_us_3"),
-    ];
-    REGIONS
-        .iter()
-        .find(|(id, _)| *id == name_id)
-        .map(|(_, key)| *key)
-}
-
-/// `RealmsSlotUpdateDto`'s JSON for `slot`.
-fn slot_update(slot: &RealmSlot) -> serde_json::Value {
-    serde_json::json!({
-        "slotId": slot.slot_id,
-        "spawnProtection": slot.options.spawn_protection,
-        "forceGameMode": slot.options.force_game_mode,
-        "difficulty": slot.options.difficulty,
-        "gameMode": slot.options.game_mode,
-        "slotName": slot.options.slot_name,
-        "version": slot.options.version,
-        "compatibility": slot.options.compatibility,
-        "worldTemplateId": slot.options.template_id,
-        "worldTemplateImage": slot.options.template_image,
-        "hardcore": slot.is_hardcore(),
-    })
-}
-
-/// `RealmsConfigurationDto`'s JSON.
-fn configuration_body(
-    name: &str,
-    description: &str,
-    preference: &RegionSelectionPreferenceDto,
-    slot: &RealmSlot,
-) -> serde_json::Value {
-    serde_json::json!({
-        "options": slot_update(slot),
-        "settings": slot.settings,
-        "regionSelectionPreference": {
-            "regionSelectionPreference": preference.region_selection_preference,
-            "preferredRegion": preference.preferred_region,
-        },
-        "description": { "name": name, "description": description },
-    })
 }
 
 /// `InviteCode`: one of the Realm's shareable invite codes.
@@ -513,18 +332,30 @@ impl InviteCode {
 }
 
 /// `RealmsWorldOptions`: a slot's options. Fields the JSON lacks keep the values of its
-/// constructor (`Default`); `empty` is never in the JSON (`RealmsSlot.defaults` sets it).
+/// constructor (`Default`); `empty` is never in the JSON (`createEmptyDefaults` sets
+/// it), and `hardcore` comes from the slot's settings array, not the options string.
+/// `pvp`, `spawnMonsters` and `commandBlocks` are data only: no Realms screen edits
+/// them, but `toJson` must carry them back to the service.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RealmWorldOptions {
     #[serde(deserialize_with = "nullable")]
+    pub pvp: bool,
+    #[serde(deserialize_with = "nullable")]
+    pub spawn_monsters: bool,
+    #[serde(deserialize_with = "nullable")]
     pub spawn_protection: i32,
+    #[serde(deserialize_with = "nullable")]
+    pub command_blocks: bool,
     #[serde(deserialize_with = "nullable")]
     pub force_game_mode: bool,
     #[serde(deserialize_with = "nullable")]
     pub difficulty: i32,
     #[serde(deserialize_with = "nullable")]
     pub game_mode: i32,
+    /// `RealmsSettings.hardcore`: from the slot's settings, never the options JSON.
+    #[serde(skip)]
+    pub hardcore: bool,
     #[serde(deserialize_with = "nullable")]
     pub slot_name: String,
     #[serde(deserialize_with = "nullable")]
@@ -540,13 +371,18 @@ pub struct RealmWorldOptions {
 }
 
 impl Default for RealmWorldOptions {
-    /// `new RealmsWorldOptions()`: normal difficulty, no template.
+    /// `RealmsWorldOptions.createDefaults`: pvp and monsters on, normal difficulty,
+    /// no template, not hardcore.
     fn default() -> Self {
         Self {
+            pvp: true,
+            spawn_monsters: true,
             spawn_protection: 0,
+            command_blocks: false,
             force_game_mode: false,
             difficulty: 2,
             game_mode: 0,
+            hardcore: false,
             slot_name: String::new(),
             version: String::new(),
             compatibility: "UNVERIFIABLE".into(),
@@ -554,6 +390,48 @@ impl Default for RealmWorldOptions {
             template_image: None,
             empty: false,
         }
+    }
+}
+
+impl RealmWorldOptions {
+    /// `RealmsWorldOptions.toJson`: only the fields that differ from the defaults.
+    /// The template id and image are never written.
+    pub fn to_json(&self) -> String {
+        let mut object = serde_json::Map::new();
+        if !self.pvp {
+            object.insert("pvp".into(), false.into());
+        }
+        if !self.spawn_monsters {
+            object.insert("spawnMonsters".into(), false.into());
+        }
+        if self.spawn_protection != 0 {
+            object.insert("spawnProtection".into(), self.spawn_protection.into());
+        }
+        if self.command_blocks {
+            object.insert("commandBlocks".into(), true.into());
+        }
+        if self.difficulty != 2 {
+            object.insert("difficulty".into(), self.difficulty.into());
+        }
+        if self.game_mode != 0 {
+            object.insert("gameMode".into(), self.game_mode.into());
+        }
+        if self.hardcore {
+            object.insert("hardcore".into(), true.into());
+        }
+        if self.force_game_mode {
+            object.insert("forceGameMode".into(), true.into());
+        }
+        if !self.slot_name.is_empty() {
+            object.insert("slotName".into(), self.slot_name.clone().into());
+        }
+        if !self.version.is_empty() {
+            object.insert("version".into(), self.version.clone().into());
+        }
+        if self.compatibility != "UNVERIFIABLE" {
+            object.insert("compatibility".into(), self.compatibility.clone().into());
+        }
+        serde_json::Value::Object(object).to_string()
     }
 }
 
@@ -577,7 +455,7 @@ struct RealmServerList {
     servers: Vec<RealmServer>,
 }
 
-/// `RealmsJoinInformation`: where to connect, and the world's resource pack.
+/// `RealmsServerAddress`: where to connect, and the world's resource pack.
 #[derive(Clone, Debug, Deserialize, Default, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RealmAddress {
@@ -1082,7 +960,7 @@ impl RealmsError {
         )
     }
     /// `RealmsError.parse` of a non-2xx answer.
-    fn from_answer(status: u16, body: &str, html: bool) -> Self {
+    fn from_answer(status: u16, body: &str) -> Self {
         let body = body.trim();
         let service = |code, reason, message| Self::Service {
             status,
@@ -1092,15 +970,6 @@ impl RealmsError {
         };
         if status == 429 || body.is_empty() {
             return service(None, None, None);
-        }
-        if html {
-            // CustomError.htmlPayload: the text between <body> and </body>.
-            let inner = body
-                .find("<body>")
-                .zip(body.find("</body>"))
-                .filter(|(a, b)| b > a)
-                .map(|(a, b)| body[a + 6..b].trim().to_owned());
-            return service(None, None, inner);
         }
         if let Ok(serde_json::Value::Object(o)) = serde_json::from_str::<serde_json::Value>(body) {
             let text = |k: &str| o.get(k).and_then(|v| v.as_str()).map(str::to_owned);
@@ -1221,7 +1090,6 @@ impl RealmsClient {
         }
         let auth =
             (status == 401).then(|| response.header("WWW-Authenticate").unwrap_or("").to_owned());
-        let html = response.content_type().starts_with("text/html");
         let text = response
             .into_string()
             .map_err(|e| RealmsError::Connectivity(e.to_string()))?;
@@ -1231,7 +1099,7 @@ impl RealmsClient {
         if let Some(header) = auth {
             return Err(RealmsError::Authentication(header));
         }
-        Err(RealmsError::from_answer(status, &text, html))
+        Err(RealmsError::from_answer(status, &text))
     }
 
     fn url(&self, path: &str) -> String {
@@ -1399,14 +1267,12 @@ impl RealmsClient {
     }
 
     /// `RealmsClient.invite`: `POST invites/{id}` with `{"name": ...}`; the answer is the
-    /// Realm as `RealmsServer.parse` reads it, and its `players` are the invited list.
-    pub fn invite_player(&self, realm_id: i64, name: &str) -> Result<Vec<PlayerInfo>, RealmsError> {
+    /// Realm as `RealmsServer.parse` reads it (1.21.6 returns only its `players`).
+    pub fn invite_player(&self, realm_id: i64, name: &str) -> Result<RealmServer, RealmsError> {
         let body = serde_json::json!({"name": name}).to_string();
         let url = self.url(&format!("invites/{realm_id}"));
         let json = Self::execute(self.request("POST", &url, READ_TIMEOUT), Some(&body))?;
-        serde_json::from_str::<RealmServer>(&json)
-            .map(|server| server.players)
-            .map_err(|_| RealmsError::Parse)
+        serde_json::from_str(&json).map_err(|_| RealmsError::Parse)
     }
 
     /// `RealmsClient.uninvite`: `DELETE invites/{id}/invite/{uuid}`.
@@ -1415,11 +1281,16 @@ impl RealmsClient {
         Self::execute(self.request("DELETE", &url, READ_TIMEOUT), None).map(drop)
     }
 
-    /// `RealmsClient.updateSlot`: `POST worlds/{id}/slot/{slotId}` with
-    /// `RealmsSlotUpdateDto`'s JSON.
-    pub fn update_slot(&self, realm_id: i64, slot: &RealmSlot) -> Result<(), RealmsError> {
-        let body = slot_update(slot).to_string();
-        let url = self.url(&format!("worlds/{realm_id}/slot/{}", slot.slot_id));
+    /// `RealmsClient.updateSlot`: `POST worlds/{id}/slot/{slotId}` with the options'
+    /// `toJson`.
+    pub fn update_slot(
+        &self,
+        realm_id: i64,
+        slot_id: i32,
+        options: &RealmWorldOptions,
+    ) -> Result<(), RealmsError> {
+        let body = options.to_json();
+        let url = self.url(&format!("worlds/{realm_id}/slot/{slot_id}"));
         Self::execute(self.request("POST", &url, READ_TIMEOUT), Some(&body)).map(drop)
     }
 
@@ -1430,31 +1301,12 @@ impl RealmsClient {
         json.trim().parse::<bool>().map_err(|_| RealmsError::Parse)
     }
 
-    /// `RealmsClient.getPreferredRegionSelections`: every region and its quality.
-    pub fn preferred_regions(&self) -> Result<Vec<RegionDataDto>, RealmsError> {
-        let json = Self::execute(
-            self.request("GET", &self.url("regions/preferredRegions"), READ_TIMEOUT),
-            None,
-        )?;
-        serde_json::from_str::<PreferredRegionsResponse>(&json)
-            .map(|r| r.region_data)
-            .map_err(|_| RealmsError::Parse)
-    }
-
-    /// `RealmsClient.updateConfiguration`: `POST worlds/{id}/configuration` with
-    /// `RealmsConfigurationDto`'s JSON: the active slot's `RealmsSlotUpdateDto` as `options`,
-    /// its settings, the region preference (its id and the region's `nameId`) and the
-    /// name and description.
-    pub fn update_configuration(
-        &self,
-        realm_id: i64,
-        name: &str,
-        description: &str,
-        preference: &RegionSelectionPreferenceDto,
-        slot: &RealmSlot,
-    ) -> Result<(), RealmsError> {
-        let body = configuration_body(name, description, preference, slot).to_string();
-        let url = self.url(&format!("worlds/{realm_id}/configuration"));
+    /// `RealmsClient.update`: `POST worlds/{id}` with `RealmsDescriptionDto`'s JSON —
+    /// the name and description only (1.21.6's `/configuration` endpoint, with the slot
+    /// and the region preference, does not exist here).
+    pub fn update(&self, realm_id: i64, name: &str, description: &str) -> Result<(), RealmsError> {
+        let body = serde_json::json!({"name": name, "description": description}).to_string();
+        let url = self.url(&format!("worlds/{realm_id}"));
         Self::execute(self.request("POST", &url, READ_TIMEOUT), Some(&body)).map(drop)
     }
 
@@ -2105,29 +1957,31 @@ mod tests {
         let one = &server.slots[&1];
         assert_eq!(
             (
-                one.options.slot_name.as_str(),
-                one.options.difficulty,
-                one.options.game_mode,
-                one.options.spawn_protection,
-                one.options.template_id,
+                one.slot_name.as_str(),
+                one.difficulty,
+                one.game_mode,
+                one.spawn_protection,
+                one.template_id,
             ),
             ("Spawn", 3, 1, 4, 42)
         );
-        assert!(one.is_hardcore() && !one.options.empty);
+        // `parseSettings`: the slot's hardcore comes from its settings, not the options.
+        assert!(one.hardcore && !one.empty);
         // `new RealmsWorldOptions()` for what the string leaves out.
-        let two = &server.slots[&2].options;
+        let two = &server.slots[&2];
         assert_eq!((two.difficulty, two.template_id, two.empty), (2, -1, false));
-        assert!(server.slots[&3].options.empty);
+        assert!(!two.hardcore && two.pvp && two.spawn_monsters && !two.command_blocks);
+        assert!(server.slots[&3].empty);
         assert_eq!(server.slots.len(), 3);
         // The list answer has no slots: the empty world slots still.
         let listed: RealmServer = serde_json::from_str(r#"{"id":7,"slots":null}"#).unwrap();
-        assert!(listed.slots.values().all(|s| s.options.empty));
+        assert!(listed.slots.values().all(|s| s.empty));
     }
 
     #[test]
     fn error_bodies_read_as_vanilla_parses_them() {
         assert_eq!(
-            RealmsError::from_answer(403, r#"{"errorCode":6002,"errorMsg":"tos"}"#, false),
+            RealmsError::from_answer(403, r#"{"errorCode":6002,"errorMsg":"tos"}"#),
             RealmsError::Service {
                 status: 403,
                 code: Some(6002),
@@ -2135,12 +1989,10 @@ mod tests {
                 message: Some("tos".into())
             }
         );
+        assert_eq!(RealmsError::from_answer(500, r#"{"errorCode":6006}"#).code(), 6006);
+        // An unreadable body keeps its raw text, capped at 256 characters.
         assert_eq!(
-            RealmsError::from_answer(500, r#"{"errorCode":6006}"#, false).code(),
-            6006
-        );
-        assert_eq!(
-            RealmsError::from_answer(502, "<html><body> Bad gateway </body></html>", true),
+            RealmsError::from_answer(502, "Bad gateway",),
             RealmsError::Service {
                 status: 502,
                 code: None,
@@ -2148,90 +2000,52 @@ mod tests {
                 message: Some("Bad gateway".into())
             }
         );
-        assert_eq!(RealmsError::from_answer(404, "", false).code(), 404);
+        assert_eq!(RealmsError::from_answer(404, "").code(), 404);
     }
 
-    /// `RealmsClient.updateConfiguration`'s request as gson writes `RealmsConfigurationDto`:
-    /// the slot under `options`, the preference as its id and the region as its `nameId`.
+    /// `RealmsClient.update`'s request as gson writes `RealmsDescriptionDto`: the name
+    /// and description, and nothing else.
     #[test]
-    fn a_configuration_update_posts_the_vanilla_dto() {
+    fn a_description_update_posts_the_vanilla_dto() {
         let (base, server) =
             serve_once("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-        let detail: RealmServer = serde_json::from_str(
-            r#"{"id":7,"activeSlot":1,"slots":[{"slotId":1,
-                "options":"{\"slotName\":\"Spawn\",\"worldTemplateId\":42}",
-                "settings":[{"name":"hardcore","value":"false"}]}]}"#,
-        )
-        .unwrap();
-        let preference = RegionSelectionPreferenceDto {
-            region_selection_preference: MANUAL,
-            preferred_region: Some("UKSouth".into()),
-        };
-        client(&base)
-            .update_configuration(7, "Base", "Hi", &preference, &detail.slots[&1])
-            .unwrap();
+        client(&base).update(7, "Base", "Hi").unwrap();
         let request = server.join().unwrap();
-        assert!(
-            request.starts_with("POST /worlds/7/configuration HTTP/1.1"),
-            "{request}"
-        );
+        assert!(request.starts_with("POST /worlds/7 HTTP/1.1"), "{request}");
         let body: serde_json::Value =
             serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
-        assert_eq!(body["options"]["slotId"], 1);
-        assert_eq!(body["options"]["slotName"], "Spawn");
-        assert_eq!(body["options"]["worldTemplateId"], 42);
-        assert_eq!(
-            body["settings"],
-            serde_json::json!([{"name": "hardcore", "value": "false"}])
-        );
-        assert_eq!(
-            body["regionSelectionPreference"],
-            serde_json::json!({"regionSelectionPreference": 2, "preferredRegion": "UKSouth"})
-        );
-        assert_eq!(
-            body["description"],
-            serde_json::json!({"name": "Base", "description": "Hi"})
-        );
+        assert_eq!(body, serde_json::json!({"name": "Base", "description": "Hi"}));
     }
 
-    /// `PreferredRegionsDto`: `regionDataList`, each region by `regionName` with its
-    /// `ServiceQuality` value; and a Realm's preference as its id.
+    /// `RealmsWorldOptions.toJson`: only the non-default fields, and `updateSlot` posts
+    /// exactly that JSON to the slot's path.
     #[test]
-    fn preferred_regions_and_the_realm_s_preference_read_as_vanilla_writes_them() {
-        let regions: PreferredRegionsResponse = serde_json::from_str(
-            r#"{"regionDataList":[{"regionName":"EastUs2","serviceQuality":1},
-                                  {"regionName":"WestEurope","serviceQuality":4}]}"#,
-        )
-        .unwrap();
+    fn a_slot_update_posts_the_options_json() {
+        let options = RealmWorldOptions {
+            pvp: false,
+            difficulty: 3,
+            game_mode: 1,
+            hardcore: true,
+            slot_name: "Spawn".into(),
+            ..Default::default()
+        };
+        let json: serde_json::Value = serde_json::from_str(&options.to_json()).unwrap();
         assert_eq!(
-            regions.region_data,
-            vec![
-                RegionDataDto {
-                    region: "EastUs2".into(),
-                    service_quality: 1
-                },
-                RegionDataDto {
-                    region: "WestEurope".into(),
-                    service_quality: 4
-                },
-            ]
+            json,
+            serde_json::json!({"pvp": false, "difficulty": 3, "gameMode": 1, "hardcore": true, "slotName": "Spawn"})
         );
-        assert_eq!(
-            region_translation_key("EastUs2"),
-            Some("realms.configuration.region.east_us_2")
-        );
-        let server: RealmServer = serde_json::from_str(
-            r#"{"id":7,"regionSelectionPreference":{"regionSelectionPreference":1,"preferredRegion":null}}"#,
-        )
-        .unwrap();
-        assert_eq!(
-            server.region_selection_preference,
-            Some(RegionSelectionPreferenceDto {
-                region_selection_preference: AUTOMATIC_OWNER,
-                preferred_region: None,
-            })
-        );
+        // The defaults write nothing at all.
+        assert_eq!(RealmWorldOptions::default().to_json(), "{}");
+        let (base, server) =
+            serve_once("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        client(&base).update_slot(7, 1, &options).unwrap();
+        let request = server.join().unwrap();
+        assert!(request.starts_with("POST /worlds/7/slot/1 HTTP/1.1"), "{request}");
+        let body: serde_json::Value =
+            serde_json::from_str(request.split("\r\n\r\n").nth(1).unwrap()).unwrap();
+        assert_eq!(body, json);
     }
+
     #[test]
     fn the_tier_configuration_names_both_ranges_and_their_default() {
         let body = r#"{"renderDistance":{"min":2,"max":16,"defaultValue":8,"current":12},"simDistance":{"min":3,"max":12,"defaultValue":6,"current":null}}"#;
@@ -2388,12 +2202,12 @@ mod tests {
             .into_boxed_str(),
         );
         let (base, server) = serve_once(answer);
-        let players = client(&base).invite_player(7, "Alex").unwrap();
+        let invited = client(&base).invite_player(7, "Alex").unwrap();
         let request = server.join().unwrap();
         assert!(request.starts_with("POST /invites/7 HTTP/1.1"), "{request}");
         assert!(request.contains("\"name\":\"Alex\""), "{request}");
-        assert_eq!(players.len(), 1);
-        assert_eq!(players[0].name, "Alex");
+        assert_eq!(invited.players.len(), 1);
+        assert_eq!(invited.players[0].name, "Alex");
 
         let (base, server) =
             serve_once("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
