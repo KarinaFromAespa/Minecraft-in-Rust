@@ -12570,3 +12570,7 @@ Compiler artifact only (`typeSwitch` descriptor on pattern switches).
 ## Item 675 — horizon-client-core/src/lang.rs (LanguageManager) — NO-CHANGE
 
 Exception table only (`Exception` vs `RuntimeException` + `IOException`).
+
+## Item 676 — horizon-client-core/src/text.rs (DrawableGizmoPrimitives$Text, HoverEvent$Action) — NO-CHANGE
+
+Visibility plus method order (identical lambda, emitted earlier).
