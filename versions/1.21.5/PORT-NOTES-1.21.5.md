@@ -12905,12 +12905,47 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 312 — BlockInput place**
+  - BlockInput: verified,
+    no code. The diff is
+    the
+    ValueInput/ValueOutput
+    refactor with an
+    identical algorithm,
+    and the port's
+    load_block_entity_tag
+    implements it directly:
+    snapshot the entity
+    (encode_block_entity,
+    saveWithoutMetadata's
+    form), load the
+    argument's tag into it 
+    (decode_block_entity_at
+    , loadWithComponents),
+    snapshot again, and
+    only replace the entity
+    and mark the chunk
+    modified when the
+    snapshots differ - with
+    the lock, custom name,
+    loot roll and hopper
+    cooldown folded into
+    the comparison, since
+    those live outside the
+    model. The 1.21.6
+    ProblemReporter logging
+    has no surface; the
+    port's silent form
+    matches 1.21.5.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **311 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 43/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **312 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 44/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
