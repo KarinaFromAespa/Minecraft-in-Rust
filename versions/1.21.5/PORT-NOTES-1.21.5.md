@@ -12359,12 +12359,40 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 297 — GPU command encoder**
+  - CommandEncoder:
+    verified, no code - the
+    diff is the Blaze3D GPU
+    API's signature churn
+    between the versions
+    (GpuTexture vs
+    GpuTextureView render
+    passes, writeToBuffer's
+    slice vs buffer+offset,
+    mapBuffer vs
+    readBuffer, the
+    scissored clear and
+    createFence being
+    1.21.6-only). The port
+    calls wgpu's
+    CommandEncoder directly
+    (gfx/submit.rs holds a
+    wgpu::CommandEncoder;
+    readbacks use
+    map_async) and has no
+    Blaze3D-shaped encoder
+    abstraction anywhere.
+    Same ground as items
+    287 and 293.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **296 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 28/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **297 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 29/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
