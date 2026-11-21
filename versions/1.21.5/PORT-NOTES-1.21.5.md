@@ -9012,13 +9012,43 @@ is the oracle; decompiled code is a reading aid.
     module; oracle edit
     uncompiled here (no
     full 1.21.5 jar).
+- **Item 198 — ValueInput
+  removed (1.21.6
+  only):**
+  - `ValueInput` is a
+    1.21.6-only class: the
+    Rust port has no
+    equivalent (item 159)
+    and needs none. The
+    food oracle, the one
+    in-subset harness on
+    the save API, is
+    converted to the 1.21.5
+    form: `FoodData` takes
+    a `CompoundTag`
+    directly, so the
+    `TagValue` wrappers are
+    gone from the oracle
+    and its driver scope
+    string. Eleven more
+    oracles still use the
+    1.21.6 save API; all
+    out of subset, recorded
+    as publish debt.
+  - Verification: javac
+    shows no syntax errors
+    (missing-symbol errors
+    only, no 1.21.5 jar
+    here); driver
+    py_compile; full oracle
+    compile runs in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **197 of 426 are
-closed** (rank 1 complete, rank 2 at 188/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **198 of 426 are
+closed** (rank 1 complete, rank 2 at 189/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
