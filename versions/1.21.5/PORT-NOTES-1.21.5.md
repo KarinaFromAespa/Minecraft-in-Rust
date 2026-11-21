@@ -9760,12 +9760,76 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 222 — Registry
+  data loader:
+  - The minecraft:dialog
+    registry is gone from
+    the loader: removed
+    from SYNCHRONIZED (the
+    configuration-phase
+    registries), and with
+    it the only pack
+    registry —
+    PACK_REGISTRIES,
+    pack_entries and the
+    sync_dialog_ids
+    plumbing are deleted
+    (the /dialog command
+    went in item 145, so
+    nothing read the ids).
+    The merge_pack_tags
+    dialog special-case is
+    gone too; pack tags now
+    merge only for
+    registries the packs
+    have tag files for. The
+    dialog UI system itself
+    stays for item 258 (its
+    registry lookups now
+    find nothing, which
+    they already handle).
+  - Tests: the dialog pack-
+    entries test is removed
+    with pack_entries; the
+    known-pack and cached-
+    NBT tests are reworked
+    onto
+    minecraft:chat_type
+    (they pin generic
+    machinery); the lan
+    reload test drops its
+    dialog overlay files
+    and assertions (its
+    subject is damage
+    laziness).
+  - Known gap: 1.21.5
+    parses registry data
+    with Gson's lenient
+    parser (JsonParser.pars
+    eReader), 1.21.6 with
+    the strict one; the
+    port parses with strict
+    serde_json throughout,
+    so a datapack file with
+    comments or trailing
+    commas loads in vanilla
+    1.21.5 but is rejected
+    here. No code change —
+    a lenient parser is out
+    of proportion for this
+    item.
+  - Verification: `cargo
+    check -j 1 -p horizon-
+    client --all-targets`
+    0/0 (7m56s); reworked
+    tests run in CI.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **221 of 426 are
-closed** (rank 1 complete, rank 2 at 212/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **222 of 426 are
+closed** (rank 1 complete, rank 2 at 213/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

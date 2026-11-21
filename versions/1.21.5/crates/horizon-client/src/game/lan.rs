@@ -152,7 +152,7 @@ pub(super) fn reload_sync_data(
     overlay: &horizon_world::loot::PackOverlay,
     kept: &SyncData,
 ) -> std::result::Result<Arc<SyncData>, String> {
-    // Kept pack dialogs count as packs: a world opened without packs after
+    // Kept pack entries count as packs: a world opened without packs after
     // a `/reload` that dropped them must read its own registries again.
     let packs = !overlay.files.is_empty() || kept.has_pack_entries();
     let sync = SyncData::reload(root, overlay, kept).map(|mut sync| {
@@ -161,24 +161,6 @@ pub(super) fn reload_sync_data(
     });
     SYNC.lock().unwrap_or_else(|e| e.into_inner()).data = Some((packs, sync.clone()));
     sync
-}
-
-impl Game<'_> {
-    /// The commands' `minecraft:dialog` ids as the clients get them in the
-    /// configuration phase (`sync`, the world's packs' dialogs among them):
-    /// `/dialog show` parses an id against these and sends its index.
-    pub(super) fn sync_dialog_ids(&mut self, sync: &SyncData) {
-        let Some(names) = sync.dynamic.registries.get("minecraft:dialog") else {
-            return;
-        };
-        let ids = names.iter().map(|(name, _)| name.clone()).collect();
-        self.ui
-            .registries
-            .by_registry
-            .entry("minecraft:dialog".to_owned())
-            .or_default()
-            .ids = ids;
-    }
 }
 
 /// The registries and tags a server sends without data packs over them, read
@@ -1338,7 +1320,6 @@ impl Game<'_> {
             world_sync.features = features;
             sync = Arc::new(world_sync);
         }
-        self.sync_dialog_ids(&sync);
         // The table the world plays with (`world_biomes!`): a world with
         // biome data packs sends their ids past the built-in list, as the
         // encoder's `SectionCoder` expects.
@@ -3859,12 +3840,8 @@ mod tests {
             .join("../../.local/horizon-client")
             .join(horizon_core::VANILLA_VERSION);
         let damage = Catalog::load(&root, &PackOverlay::NONE).unwrap();
-        let initial = vec![(
-            "dialog/demo:before".into(),
-            vec![br#"{"type":"minecraft:notice"}"#.to_vec()],
-        )];
         let mut cache = SyncCache::default();
-        initialize_world_sync_data(&mut cache, &root, &PackOverlay { files: &initial }, &damage)
+        initialize_world_sync_data(&mut cache, &root, &PackOverlay::NONE, &damage)
             .unwrap();
         assert!(cache.data.is_none());
         // A late vanilla helper cannot install its overlay over this world.
@@ -3880,10 +3857,6 @@ mod tests {
                 vec![br#"{"message_id":"changed","scaling":"never","exhaustion":0.9}"#.to_vec()],
             ),
             (
-                "dialog/demo:after".into(),
-                vec![br#"{"type":"minecraft:notice"}"#.to_vec()],
-            ),
-            (
                 "tags/demo:damage_type/reloaded".into(),
                 vec![
                     br#"{"values":["minecraft:fall",{"id":"demo:too_late","required":false}]}"#
@@ -3897,11 +3870,6 @@ mod tests {
         let wire = cached_sync_data(&mut cache, &root, &overlay).unwrap();
         assert!(wire.id("minecraft:damage_type", "demo:too_late").is_none());
         assert!(health.id("demo:too_late").is_none());
-        assert!(wire.id("minecraft:dialog", "demo:before").is_none());
-        assert!(
-            wire.id("minecraft:dialog", "demo:after").is_some(),
-            "unrelated registries stay lazy"
-        );
         let fall = wire.id("minecraft:damage_type", "minecraft:fall").unwrap();
         let packets = wire.registry_packets(false, &horizon_client::chunk::LevelShapes::VANILLA);
         let packet = packets
