@@ -12600,3 +12600,9 @@ Visibility only.
 26.1-only class; already handled — 1.21.11 has no pig/cow/chicken
 sound variants (finalize.rs:1845) and the preview uses plain
 `entity.cow.ambient`.
+
+## Item 683 — cauldron.rs (CauldronInteraction$Dispatcher) — NO-CHANGE
+
+26.1-only class; already handled — cauldron.rs:214 records that
+1.21.11 dropped the Dispatcher, and item 558 established the file is
+a complete port of the 1.21.11 table.
