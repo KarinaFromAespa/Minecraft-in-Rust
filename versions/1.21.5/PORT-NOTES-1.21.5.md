@@ -4193,13 +4193,54 @@ is the oracle; decompiled code is a reading aid.
     horizon-client
     --all-targets` 0 errors /
     0 warnings.
+- **Item 96 — ValidationContext /
+  ReloadableServerRegistries,
+  verified:**
+  - Pure Java API shape:
+    1.21.6 wrapped the loot
+    validation problem
+    strings in typed `Problem`
+    records (`MissingReference`,
+    `ParametersNotProvided`,
+    `RecursiveReference`,
+    `ReferenceNotAllowed`)
+    and `PathElement` params;
+    1.21.5 passes plain
+    strings. The message
+    texts are identical —
+    the records' `description()`
+    methods return exactly
+    the 1.21.5 strings — and
+    the validation logic is
+    untouched. The Rust port
+    has only a partial
+    predicate-graph check
+    (`predicate_graph.rs`,
+    explicitly not a port of
+    `ValidationContext`),
+    whose diagnostic texts
+    match both versions.
+  - `ReloadableServerRegistries`:
+    the log iteration differs
+    in shape only, same
+    output; 1.21.5's extra
+    `getKeys` helper feeds
+    only `/loot` and `/item`
+    command suggestions,
+    whose content is identical
+    in both versions.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **95 of 426 are
-closed** (rank 1 complete, rank 2 at 86/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **96 of 426 are
+closed** (rank 1 complete, rank 2 at 87/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
