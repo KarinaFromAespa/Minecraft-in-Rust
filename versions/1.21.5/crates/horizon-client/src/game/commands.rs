@@ -1274,7 +1274,6 @@ impl Game<'_> {
             "unpublish" => self.cmd_unpublish(),
             "debug" => self.cmd_debug(ctx),
             "jfr" => self.cmd_jfr(ctx),
-            "version" => self.cmd_version(),
             id if id.starts_with("test.") => self.cmd_test(id, ctx),
             "compute" => self.cmd_compute(ctx),
             "place" => self.cmd_place(ctx),
@@ -2811,7 +2810,7 @@ impl Game<'_> {
     /// Place a state like BlockInput.place: false when nothing changed.
     /// `BlockInput.place` for a block of a command. `command`: `/setblock` and `/fill` place with
     /// `UPDATE_CLIENTS | UPDATE_SKIP_BLOCK_ENTITY_SIDEEFFECTS`, so `Level.setBlock` notifies no neighbour,
-    /// and send that notice themselves once the shape updates are done (`update_neighbours_on_block_set`):
+    /// and send that notice themselves once the shape updates are done (`update_neighbors_at`):
     /// a block those shape updates pop off is gone before its neighbours are told of it.
     pub(super) fn place_state(
         &mut self,
@@ -2901,8 +2900,6 @@ impl Game<'_> {
         };
         if place_needed {
             let state = self.block_input_state(pos, &b, state, ctx.has("strict"))?;
-            // SetBlockCommand.setBlock reads the old state after a destroy.
-            let old_state = self.world.block(pos[0], pos[1], pos[2]);
             let placed = self.place_state(pos, state, ctx.has("strict"), true)?;
             let loaded = match &b.nbt {
                 Some(nbt) => self.load_block_entity_nbt(pos, nbt),
@@ -2912,23 +2909,13 @@ impl Game<'_> {
                 return Err(err("commands.setblock.failed", &[]));
             }
             if !ctx.has("strict") {
-                self.update_neighbours_on_block_set(pos, old_state)?;
+                self.update_neighbors_at(pos)?;
             }
         } else if !ctx.has("strict") {
-            // ServerLevel.updateNeighboursOnBlockSet still runs when placing
+            // `Level.updateNeighborsAt` still runs when placing
             // air was unnecessary. The unchanged air has no analog output or
             // removal side effects, so only its neighbours need notification.
-            let remaining = self.world.block(pos[0], pos[1], pos[2]);
-            self.with_level(|b, level, ticks| {
-                b.update_neighbors_at(
-                    level,
-                    ticks,
-                    horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]),
-                    b.block(remaining),
-                );
-            });
-            self.process_level_events()
-                .map_err(|e| CommandError::new(Text::literal(e.to_string())))?;
+            self.update_neighbors_at(pos)?;
         }
         self.feedback(Text::tr(
             "commands.setblock.success",
@@ -2936,16 +2923,19 @@ impl Game<'_> {
         ));
         Ok(1)
     }
-    /// `Level.setBlock`'s flag-1 neighbour branch (`Behaviours::update_neighbours_on_block_set`,
-    /// the steps 1.21.6 extracted as `ServerLevel.updateNeighboursOnBlockSet`) for the
-    /// block now at `pos`, which replaced `old`.
-    fn update_neighbours_on_block_set(&mut self, pos: [i32; 3], old: BlockStateId) -> R<()> {
+    /// `Level.updateNeighborsAt(pos, block)` for the block now at `pos`:
+    /// what `/setblock` and `/fill` do in 1.21.5 once a block is in and its
+    /// shape updates are done. 1.21.6's `updateNeighboursOnBlockSet` also ran
+    /// the replaced block's `affectNeighborsAfterRemoval` and the
+    /// analog-output update.
+    fn update_neighbors_at(&mut self, pos: [i32; 3]) -> R<()> {
+        let current = self.world.block(pos[0], pos[1], pos[2]);
         self.with_level(|b, level, ticks| {
-            b.update_neighbours_on_block_set(
+            b.update_neighbors_at(
                 level,
                 ticks,
                 horizon_core::position::BlockPos::new(pos[0], pos[1], pos[2]),
-                old,
+                b.block(current),
             );
         });
         self.process_level_events()
@@ -3140,8 +3130,8 @@ impl Game<'_> {
                 .data(state)
                 .is(horizon_world::level::classes::Class::Note);
         let mut count = 0;
-        // What was placed, and what it replaced, for the notices after the last block.
-        let mut updated: Vec<([i32; 3], BlockStateId)> = Vec::new();
+        // What was placed, for the notices after the last block.
+        let mut updated: Vec<[i32; 3]> = Vec::new();
         // Whether the filter takes a state, worked out once per state: a fill visits up to 32768 blocks of a handful
         // of states, and matching a tag is a name lookup.
         let mut matched: std::collections::HashMap<BlockStateId, bool> =
@@ -3207,7 +3197,6 @@ impl Game<'_> {
                     } else {
                         target
                     };
-                    let previous = self.world.block(x, y, z);
                     let placed = self.place_state([x, y, z], target, strict, true)?;
                     // BlockInput.place loads the tag into the block entity now
                     // there; a tag that changed it counts the block as placed.
@@ -3220,7 +3209,7 @@ impl Game<'_> {
                     if placed || loaded {
                         count += 1;
                         if !strict {
-                            updated.push(([x, y, z], previous));
+                            updated.push([x, y, z]);
                         }
                     } else if affected {
                         count += 1;
@@ -3229,8 +3218,8 @@ impl Game<'_> {
             }
         }
         // FillCommand.fillBlocks: every block is in before any neighbour hears of one.
-        for (pos, previous) in updated {
-            self.update_neighbours_on_block_set(pos, previous)?;
+        for pos in updated {
+            self.update_neighbors_at(pos)?;
         }
         if count == 0 {
             return Err(err("commands.fill.failed", &[]));

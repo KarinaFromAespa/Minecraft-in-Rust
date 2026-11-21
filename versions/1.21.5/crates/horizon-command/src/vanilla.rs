@@ -52,12 +52,12 @@ fn build_for_features(dev: bool, dedicated: bool, minecart_improvements: bool) -
     d
 }
 /// Commands(CommandSelection.DEDICATED) where it differs from INTEGRATED:
-/// `seed` and `version` check permissions (SeedCommand.register and
-/// VersionCommand.register get `selection != INTEGRATED`), `publish` and
-/// `unpublish` are not registered (`includeIntegrated`), and the dedicated
-/// commands are (`includeDedicated`: `/op`, `/ban`, `/whitelist`...).
+/// `seed` checks permissions (SeedCommand.register gets
+/// `selection != INTEGRATED`), `publish` and `unpublish` are not registered
+/// (`includeIntegrated`), and the dedicated commands are (`includeDedicated`:
+/// `/op`, `/ban`, `/whitelist`...).
 fn dedicated_selection(d: &mut Dispatcher) {
-    for name in ["seed", "version"] {
+    for name in ["seed"] {
         if let Some(n) = d.find(name) {
             d.requires(n, GAMEMASTERS);
         }
@@ -323,12 +323,10 @@ fn registered_with_features(dev: bool, minecart_improvements: bool) -> Dispatche
         d.executes(l, "difficulty");
     }
 
-    // seed and version: everyone in the integrated server, game masters on a
+    // seed: everyone in the integrated server, game masters on a
     // dedicated one (`dedicated_selection`).
     let seed = d.literal(root, "seed");
     d.executes(seed, "seed");
-    let version = d.literal(root, "version");
-    d.executes(version, "version");
 
     // spawnpoint [<targets>] [<pos>] [<rotation>]
     let sp = d.literal(root, "spawnpoint");

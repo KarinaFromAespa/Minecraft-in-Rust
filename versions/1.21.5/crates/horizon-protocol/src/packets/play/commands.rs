@@ -6,12 +6,13 @@ use crate::{
 };
 
 /// One entry of ClientboundCommandsPacket: a literal or an argument node.
+/// 1.21.5's flags are executable (4), redirect (8) and custom suggestions
+/// (16); the restricted flag (32) is 1.21.6's.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CommandNode {
     /// 0 root, 1 literal, 2 argument.
     pub kind: u8,
     pub executable: bool,
-    pub restricted: bool,
     pub children: Vec<i32>,
     pub redirect: Option<i32>,
     pub name: String,
@@ -261,7 +262,6 @@ impl Codec<Commands> for Commands {
             nodes.push(CommandNode {
                 kind,
                 executable: flags & 4 != 0,
-                restricted: flags & 32 != 0,
                 children,
                 redirect,
                 name,
@@ -292,9 +292,6 @@ impl Codec<Commands> for Commands {
             }
             if n.suggestions.is_some() {
                 flags |= 16;
-            }
-            if n.restricted {
-                flags |= 32;
             }
             w.u8(flags);
             w.varint(n.children.len() as i32);

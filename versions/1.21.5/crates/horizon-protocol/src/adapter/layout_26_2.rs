@@ -355,7 +355,6 @@ mod tests {
             |kind: u8, children: Vec<i32>, parser: Option<(i32, Vec<u8>)>| play::CommandNode {
                 kind,
                 executable: true,
-                restricted: false,
                 children,
                 redirect: None,
                 name: if kind == 0 { String::new() } else { "x".into() },

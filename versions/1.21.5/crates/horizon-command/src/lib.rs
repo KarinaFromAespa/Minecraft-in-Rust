@@ -288,9 +288,6 @@ pub struct Node {
     /// A custom suggestion provider (`.suggests(...)`), used instead of the
     /// argument type's own suggestions.
     pub suggests: Option<Suggests>,
-    /// ArgumentNodeStub's RESTRICTED_COMMAND: the server marked this node as
-    /// needing elevated permissions.
-    pub restricted: bool,
 }
 /// The custom SuggestionProviders vanilla command nodes use.
 #[derive(Clone, Debug, PartialEq)]
@@ -774,18 +771,8 @@ impl Dispatcher {
                 redirect: None,
                 permission: 0,
                 suggests: None,
-                restricted: false,
             }],
         }
-    }
-    /// This tree as a player without elevated permissions has it
-    /// (ClientPacketListener.restrictedSuggestionsProvider): no restricted node.
-    pub fn without_restricted(&self) -> Self {
-        let mut tree = self.clone();
-        for node in &mut tree.nodes {
-            node.children.retain(|&child| !self.nodes[child].restricted);
-        }
-        tree
     }
     fn add(&mut self, parent: usize, kind: NodeKind) -> usize {
         let name = match &kind {
@@ -809,7 +796,6 @@ impl Dispatcher {
             redirect: None,
             permission,
             suggests: None,
-            restricted: false,
         });
         let id = self.nodes.len() - 1;
         self.nodes[parent].children.push(id);

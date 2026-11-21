@@ -10,7 +10,6 @@ fn a_command_tree_with_a_cycle_is_refused() {
     let node = |kind: u8, name: &str, children: Vec<i32>, redirect: Option<i32>| CommandNode {
         kind,
         executable: false,
-        restricted: false,
         children,
         redirect,
         name: name.into(),

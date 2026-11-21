@@ -2042,7 +2042,6 @@ impl Hub {
                 nodes: vec![play::CommandNode {
                     kind: 0,
                     executable: false,
-                    restricted: false,
                     children: Vec::new(),
                     redirect: None,
                     name: String::new(),

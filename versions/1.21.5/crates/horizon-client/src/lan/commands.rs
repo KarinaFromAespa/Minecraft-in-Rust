@@ -41,8 +41,8 @@ const DEDICATED_ONLY: &[&str] = &[
 /// Registered only on integrated servers.
 const INTEGRATED_ONLY: &[&str] = &["publish", "unpublish"];
 /// Commands that check permissions only on dedicated servers
-/// (`checkPermissions` in SeedCommand and VersionCommand).
-const OPEN_WHEN_INTEGRATED: &[&str] = &["seed", "version"];
+/// (`checkPermissions` in SeedCommand).
+const OPEN_WHEN_INTEGRATED: &[&str] = &["seed"];
 /// Game rules of experimental features (minecart improvements), which the
 /// report lists but a vanilla-features world does not register.
 const EXPERIMENTAL_RULES: &[&str] = &["max_minecart_speed", "minecraft:max_minecart_speed"];
@@ -56,7 +56,6 @@ struct Node {
     name: String,
     kind: u8,
     executable: bool,
-    restricted: bool,
     children: Vec<usize>,
     redirect: Option<Vec<String>>,
     parser: Option<(String, Value)>,
@@ -136,7 +135,6 @@ impl CommandTree {
             name: String::new(),
             kind: 0,
             executable: false,
-            restricted: false,
             children: Vec::new(),
             redirect: None,
             parser: None,
@@ -199,7 +197,6 @@ impl CommandTree {
                 CommandNode {
                     kind: node.kind,
                     executable: node.executable,
-                    restricted: node.restricted,
                     children: node.children.iter().filter_map(|c| ids[*c]).collect(),
                     redirect: node
                         .redirect
@@ -288,7 +285,6 @@ fn fill(
             name: name.clone(),
             kind: if argument { 2 } else { 1 },
             executable: child["executable"].as_bool().unwrap_or(false),
-            restricted: required > 0,
             children: Vec::new(),
             redirect: redirect(child),
             parser: argument.then(|| {
@@ -418,7 +414,7 @@ mod tests {
         assert_eq!(tree.packet(0, false, &builtin).nodes.len(), 1);
         let packet = tree.packet(2, false, &builtin);
         let root = packet.nodes.iter().find(|n| n.name == "pregen").unwrap();
-        assert!(root.restricted && !root.executable);
+        assert!(!root.executable);
         let radius = packet.nodes.iter().find(|n| n.name == "radius").unwrap();
         assert!(radius.executable);
         assert_eq!(
@@ -514,7 +510,6 @@ mod tests {
             names,
             ["", "me", "tell", "say", "stop", "action", "message"]
         );
-        assert!(op.nodes[3].restricted);
     }
 
     #[test]
@@ -535,7 +530,6 @@ mod tests {
         assert_eq!(names(&plain), ["", "me", "action"]);
         let granted = tree.packet_granting(0, true, &b, &Value::Null, &[], &["say".into()]);
         assert_eq!(names(&granted), ["", "me", "say", "action", "message"]);
-        assert!(granted.nodes[2].restricted);
         // Nothing granted: the same tree as before.
         assert_eq!(
             names(&tree.packet_with_features(0, true, &b, &Value::Null, &[])),
@@ -567,7 +561,7 @@ mod tests {
         assert_eq!(packet.nodes[4].suggestions, None);
         assert_eq!(packet.nodes[3].suggestions, None);
         let beacon = &packet.nodes[2];
-        assert!(beacon.executable && !beacon.restricted);
+        assert!(beacon.executable);
         assert_eq!(beacon.children, [4, 5]);
         let height = packet.nodes[4].parser.as_ref().unwrap();
         assert_eq!(height.1, vec![3, 0, 0, 0, 1, 0, 0, 0, 64]);

@@ -94,7 +94,6 @@ pub fn from_packet(packet: &Commands, local: &Dispatcher) -> Dispatcher {
             // The server sent only what the player may use.
             permission: 0,
             suggests,
-            restricted: node.restricted,
         });
     }
     let mut d = Dispatcher::new();
@@ -289,7 +288,6 @@ mod tests {
         CommandNode {
             kind: 1,
             executable,
-            restricted: false,
             children,
             redirect: None,
             name: name.into(),
@@ -303,7 +301,6 @@ mod tests {
         CommandNode {
             kind: 2,
             executable,
-            restricted: false,
             children: Vec::new(),
             redirect: None,
             name: name.into(),
@@ -328,8 +325,7 @@ mod tests {
                 CommandNode {
                     kind: 0,
                     executable: false,
-                    restricted: false,
-                    children: vec![0, 1],
+                            children: vec![0, 1],
                     redirect: None,
                     name: String::new(),
                     parser: None,
@@ -340,10 +336,9 @@ mod tests {
         }
     }
 
-    /// `stop` runs but is restricted, `say <message>` signs, `list` is plain.
+    /// `stop` runs, `say <message>` signs, `list` is plain.
     fn tree_for_checks() -> Dispatcher {
-        let mut stop = literal("stop", Vec::new(), true);
-        stop.restricted = true;
+        let stop = literal("stop", Vec::new(), true);
         let tree = Commands {
             nodes: vec![
                 stop,
@@ -353,7 +348,6 @@ mod tests {
                 CommandNode {
                     kind: 0,
                     executable: false,
-                    restricted: false,
                     children: vec![0, 1, 3],
                     redirect: None,
                     name: String::new(),
@@ -376,17 +370,6 @@ mod tests {
         assert!(!tree.parse("nosuchcommand", &reg).is_valid());
         assert!(!tree.parse("say", &reg).is_valid());
         assert!(!tree.parse("list extra", &reg).is_valid());
-    }
-
-    #[test]
-    fn without_restricted_drops_only_restricted_nodes() {
-        let tree = tree_for_checks();
-        let reg = crate::Registries::default();
-        assert!(tree.parse("stop", &reg).is_valid());
-        let restricted = tree.without_restricted();
-        assert!(!restricted.parse("stop", &reg).is_valid());
-        assert!(restricted.parse("list", &reg).is_valid());
-        assert!(restricted.parse("say hello", &reg).is_valid());
     }
 
     #[test]
@@ -418,8 +401,7 @@ mod tests {
                 CommandNode {
                     kind: 0,
                     executable: false,
-                    restricted: false,
-                    children: vec![0, 3, 5],
+                            children: vec![0, 3, 5],
                     redirect: None,
                     name: String::new(),
                     parser: None,

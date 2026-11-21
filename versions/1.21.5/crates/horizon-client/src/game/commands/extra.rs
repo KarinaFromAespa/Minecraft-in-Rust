@@ -148,10 +148,6 @@ pub(in crate::game) struct CommandExtras {
     pub pregen: Option<super::pregen::PregenTask>,
 }
 
-use horizon_core::version::{
-    BUILD_TIME, DATA_PACK_FORMAT, DATA_VERSION, RESOURCE_PACK_FORMAT, STABLE, VANILLA_VERSION,
-    VERSION_ID,
-};
 
 fn num(n: impl std::fmt::Display) -> Text {
     Text::literal(n.to_string())
@@ -1161,57 +1157,9 @@ impl Game<'_> {
         self.feedback(Text::translate("commands.jfr.stopped", &[file]));
         Ok(1)
     }
-
-    /// `VersionCommand.dumpVersion`'s lines: Horizon reports the version it
-    /// implements.
-    pub(in crate::game) fn version_lines(&self) -> Vec<Text> {
-        let protocol = horizon_protocol::PROTOCOL_VERSION;
-        let mut lines: Vec<Text> = [
-            ("commands.version.id", vec![Text::literal(VERSION_ID)]),
-            (
-                "commands.version.name",
-                vec![Text::literal(VANILLA_VERSION)],
-            ),
-            ("commands.version.data", vec![num(DATA_VERSION)]),
-            ("commands.version.series", vec![Text::literal("main")]),
-            (
-                "commands.version.protocol",
-                vec![num(protocol), Text::literal(format!("0x{protocol:x}"))],
-            ),
-            (
-                "commands.version.build_time",
-                vec![Text::literal(BUILD_TIME)],
-            ),
-            (
-                "commands.version.pack.resource",
-                vec![num(RESOURCE_PACK_FORMAT.0)],
-            ),
-            ("commands.version.pack.data", vec![num(DATA_PACK_FORMAT.0)]),
-        ]
-        .into_iter()
-        .map(|(key, args)| Text::translate(key, &args))
-        .collect();
-        lines.push(Text::translate(
-            if STABLE {
-                "commands.version.stable.yes"
-            } else {
-                "commands.version.stable.no"
-            },
-            &[],
-        ));
-        lines
-    }
-    /// `VersionCommand`.
-    pub(super) fn cmd_version(&mut self) -> R<i32> {
-        if !self.command_source.is_some_and(|s| s.silent) {
-            self.system_message(Text::translate("commands.version.header", &[]));
-            for line in self.version_lines() {
-                self.system_message(line);
-            }
-        }
-        Ok(1)
-    }
 }
+
+// `VersionCommand` does not exist in 1.21.5 (added in 1.21.6).
 
 impl Game<'_> {
     /// `ServerPlayer.openDialog` for every target of `/dialog show`: a guest

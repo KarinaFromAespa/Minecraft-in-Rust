@@ -1283,11 +1283,11 @@ is the oracle; decompiled code is a reading aid.
   - F3+V (version dump) is 1.21.6-only: the
     `DumpVersion` action, its `key.debug.dumpVersion`
     binding (V) and the `DebugDumpVersion` input
-    action are all removed. `/version` stays — it is
-    `VersionCommand`, which 1.21.5 has — and its
-    lines now read the pack formats from the version
-    pin (55 / 71) instead of the hardcoded 26.3
-    values (97.1 / 121.0).
+    action are all removed. (`/version` itself is
+    also 1.21.6-only — corrected under item 36,
+    which removes the command outright; the
+    `version_lines` pack-format fix made here was
+    superseded by that removal.)
   - F3+I's `/summon` copy now strips `Dimension` as
     well as `UUID` and `Pos` (1.21.6 dropped the
     Dimension strip).
@@ -1364,13 +1364,66 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-core -p horizon-client
     --all-targets` 0 errors / 0 warnings (3m43s).
+- **Item 36 — Commands / Fill / SetBlock / TagLoader,
+  ported:**
+  - `/version` does not exist in 1.21.5
+    (`VersionCommand` has no class and no register
+    call in the 1.21.5 decomp — it arrived in
+    1.21.6): the tree literal, the dispatch arm,
+    `cmd_version` + `version_lines`, the
+    `OPEN_WHEN_INTEGRATED` entry and the dedicated
+    test's version cases are all removed. (This
+    corrects item 33's note, which kept `/version`.)
+    `/dialog` and `/waypoint` were already absent
+    from the tree (publish).
+  - `/setblock` and `/fill` notify neighbours with
+    plain `updateNeighborsAt(pos, newBlock)` in
+    1.21.5; 1.21.6's `updateNeighboursOnBlockSet`
+    also ran the replaced block's
+    `affectNeighborsAfterRemoval` and the
+    analog-output update. Both commands now call a
+    plain `update_neighbors_at` helper; fill
+    records positions only (no old states); the
+    `update_neighbours_on_block_set` helpers are
+    deleted from commands.rs and level/mod.rs.
+  - The commands packet has no restricted flag in
+    1.21.5 (flags are executable 4, redirect 8,
+    suggestions 16; bit 32 is 1.21.6's
+    `FLAG_RESTRICTED`): the field is out of the
+    protocol codec, the LAN tree builder, the
+    client tree model (`Node.restricted` and
+    `without_restricted`, 1.21.6-only) and all
+    literals/tests. The tree itself still comes
+    from the regenerated 1.21.5 commands.json.
+  - No-ops verified: the `hasPermission` lambdas
+    vs `PermissionCheck` wrapper are identical
+    semantics (the Rust gates on level numbers);
+    `trimOptionalPrefix`/`COMMAND_PREFIX`,
+    `DataPackCommand`/`DebugConfigCommand`
+    register signatures and the
+    AbstractMinecartContainer NBT change are
+    API-only (the minecarts comment now cites
+    CompoundTag's getters).
+  - KNOWN GAP: TagLoader reads tag files with
+    Gson's lenient `JsonParser` in 1.21.5
+    (`StrictJsonParser` in 1.21.6); the Rust's tag
+    codec is serde_json throughout (strict). Only
+    malformed data-pack tag files differ (comments,
+    single quotes, unquoted strings) — vanilla's
+    own tag files are strict JSON. A lenient
+    fallback needs a bridge in shared worldgen
+    tag code; not done here.
+  - Verification: `cargo check -p
+    horizon-command -p horizon-protocol -p
+    horizon-world -p horizon-client --all-targets`
+    0 errors / 0 warnings (13m48s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **35 of 426 are
-closed** (rank 1 complete, rank 2 at 26/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **36 of 426 are
+closed** (rank 1 complete, rank 2 at 27/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

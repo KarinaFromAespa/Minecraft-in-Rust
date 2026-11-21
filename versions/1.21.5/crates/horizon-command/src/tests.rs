@@ -265,13 +265,13 @@ fn commands_need_allow_commands() {
         .into_iter()
         .map(|s| s.text)
         .collect();
-    // Commands.java with CommandSelection.INTEGRATED: seed and version need no
-    // level (a dedicated server's tree: a_dedicated_server_keeps_seed_and_version_for_game_masters).
+    // Commands.java with CommandSelection.INTEGRATED: seed needs no
+    // level (a dedicated server's tree: a_dedicated_server_keeps_seed_for_game_masters).
     assert_eq!(
         root,
         [
             "help", "list", "me", "msg", "random", "seed", "teammsg", "tell", "tm", "trigger",
-            "version", "w"
+            "w"
         ]
     );
 }
@@ -990,18 +990,17 @@ fn root_commands(d: &Dispatcher, level: u8) -> Vec<String> {
         .collect()
 }
 #[test]
-fn a_dedicated_server_keeps_seed_and_version_for_game_masters() {
-    // Commands.java: SeedCommand.register(dispatcher, selection != INTEGRATED)
-    // and VersionCommand likewise; `checkPermissions` makes them require
-    // LEVEL_GAMEMASTERS instead of LEVEL_ALL. A dedicated server's player
-    // without op gets neither (a seed cracker's input on an SMP).
+fn a_dedicated_server_keeps_seed_for_game_masters() {
+    // Commands.java: SeedCommand.register(dispatcher, selection != INTEGRATED);
+    // `checkPermissions` makes it require LEVEL_GAMEMASTERS instead of
+    // LEVEL_ALL. A dedicated server's player without op gets neither (a seed
+    // cracker's input on an SMP).
     for dev in [false, true] {
         for horizon in [false, true] {
             let integrated = vanilla::game_tree(dev, horizon, false);
             let server = vanilla::game_tree(dev, horizon, true);
             let open = root_commands(integrated, 0);
             assert!(open.contains(&"seed".to_owned()), "{open:?}");
-            assert!(open.contains(&"version".to_owned()), "{open:?}");
             assert_eq!(
                 root_commands(server, 0),
                 [
@@ -1010,8 +1009,7 @@ fn a_dedicated_server_keeps_seed_and_version_for_game_masters() {
             );
             let gm = root_commands(server, 2);
             assert!(gm.contains(&"seed".to_owned()), "{gm:?}");
-            assert!(gm.contains(&"version".to_owned()), "{gm:?}");
-            for line in ["seed", "version"] {
+            for line in ["seed"] {
                 let player = Registries {
                     permission: 0,
                     ..reg()
