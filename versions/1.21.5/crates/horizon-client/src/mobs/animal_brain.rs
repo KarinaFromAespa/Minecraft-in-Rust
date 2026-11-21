@@ -1,5 +1,5 @@
-//! The `Brain`s of the sniffer (`SnifferAi`) and the ghastling
-//! (`HappyGhastAi`), ported behaviour for behaviour: memories that expire,
+//! The `Brain`s of the sniffer (`SnifferAi`), ported behaviour for
+//! behaviour: memories that expire,
 //! the sensors and their scan rates, the activities and their
 //! requirements, and the behaviours of each activity, started and ticked in
 //! vanilla's order (priority, then the activity's slot in
@@ -279,8 +279,6 @@ impl Act {
 pub enum Kind {
     Axolotl,
     Sniffer,
-    /// A happy ghast (the brain ticks while it is a ghastling).
-    Ghastling,
     /// `CopperGolemAi`.
     CopperGolem,
     /// `TadpoleAi`.
@@ -295,7 +293,6 @@ enum Sensor {
     HurtBy,
     Players,
     Tempting,
-    AdultAnyType,
 }
 impl Kind {
     /// `BRAIN_PROVIDER`'s sensors, in order (all scan every 20 ticks).
@@ -313,13 +310,6 @@ impl Kind {
                 Sensor::HurtBy,
                 Sensor::Players,
                 Sensor::Tempting,
-            ],
-            Kind::Ghastling => &[
-                Sensor::Living,
-                Sensor::HurtBy,
-                Sensor::Tempting,
-                Sensor::AdultAnyType,
-                Sensor::Players,
             ],
             Kind::CopperGolem => &[Sensor::Living, Sensor::HurtBy],
             // `Tadpole.SENSOR_TYPES`: the living entities, the players, what hurt it and
@@ -374,8 +364,6 @@ fn kind_for_species(species: Species) -> Option<Kind> {
     match species {
         Species::Axolotl => Some(Kind::Axolotl),
         Species::Sniffer => Some(Kind::Sniffer),
-        // Every happy ghast has the brain; only the ghastling's ticks.
-        Species::HappyGhast => Some(Kind::Ghastling),
         Species::CopperGolem => Some(Kind::CopperGolem),
         Species::Tadpole => Some(Kind::Tadpole),
         _ => None,
@@ -406,7 +394,6 @@ pub fn init(m: &mut Mob, shuffle_seed: i64) {
     b.list = match kind {
         Kind::Axolotl => axolotl_package(shuffle_seed),
         Kind::Sniffer => sniffer_package(shuffle_seed),
-        Kind::Ghastling => ghastling_package(shuffle_seed),
         Kind::CopperGolem => copper_golem_package(shuffle_seed),
         Kind::Tadpole => tadpole_package(shuffle_seed),
     };
@@ -427,20 +414,6 @@ pub fn set_transport_cooldown(m: &mut Mob, ticks: i32) {
     } else {
         slot.clear();
     }
-}
-
-/// The happy ghast grew up (`adultGhastSetup`): every running behaviour
-/// stops (`Brain.stopAll`) and the memories are cleared; the brain no
-/// longer ticks.
-pub fn grown_up(m: &mut Mob) {
-    let Some(b) = m.extra.animal_brain.as_deref_mut() else {
-        return;
-    };
-    for e in b.list.iter_mut() {
-        e.b.reset();
-    }
-    b.mem = Memories::default();
-    m.nav_stop();
 }
 
 /// `AnimalMakeLove.start` on the partner's side: it remembers `partner`
@@ -537,7 +510,7 @@ pub fn tick(m: &mut Mob, w: &MobWorld, lr: &mut LegacyRandom, events: &mut Vec<M
     }
 }
 
-/// `SnifferAi.updateActivity` / `HappyGhastAi.updateActivity`:
+/// `SnifferAi.updateActivity`:
 /// `setActiveActivityToFirstValid`.
 fn update_activity(m: &mut Mob) {
     let b = brain_mut(m);
@@ -548,7 +521,6 @@ fn update_activity(m: &mut Mob) {
     }
     let order: &[Act] = match b.kind {
         Kind::Sniffer => &[Act::Dig, Act::Sniff, Act::Idle],
-        Kind::Ghastling => &[Act::Panic, Act::Idle],
         // `TadpoleAi.updateActivity`: `setActiveActivityToFirstValid(IDLE)`.
         Kind::CopperGolem | Kind::Tadpole => &[Act::Idle],
         Kind::Axolotl => unreachable!(),
@@ -621,7 +593,6 @@ fn tick_sensors(m: &mut Mob, w: &MobWorld) {
             Sensor::HurtBy => sense_hurt(m, w),
             Sensor::Players => sense_players(m, w),
             Sensor::Tempting => sense_tempting(m, w),
-            Sensor::AdultAnyType => sense_adult(m, w),
         }
     }
 }
@@ -735,12 +706,8 @@ fn sense_hurt(m: &mut Mob, w: &MobWorld) {
 /// `TemptingSensor.forAnimal`: the nearest player within the tempt range
 /// holding the animal's food (and not riding it).
 fn sense_tempting(m: &mut Mob, w: &MobWorld) {
-    // Attributes.TEMPT_RANGE: 10 for animals, 16 for the happy ghast.
-    let range = if m.species() == Species::HappyGhast {
-        16.0
-    } else {
-        10.0
-    };
+    // Attributes.TEMPT_RANGE: 10 for animals.
+    let range = 10.0;
     let food = &m.kind.food;
     let holds = |item: &Option<std::sync::Arc<str>>| {
         item.as_deref()
@@ -756,49 +723,6 @@ fn sense_tempting(m: &mut Mob, w: &MobWorld) {
     mem(m)
         .tempting_player
         .set_opt(tempting.then_some(Who::Player));
-}
-/// `AdultSensorAnyType`: the nearest visible adult of a followable friendly
-/// type.
-fn sense_adult(m: &mut Mob, w: &MobWorld) {
-    if !mem(m).visible_mobs.present() {
-        return;
-    }
-    let found = find_closest(m, w, |_, who| match who {
-        Who::Mob(id) => w
-            .seen(id)
-            .is_some_and(|s| !s.baby && followable_friendly(s.species)),
-        Who::Player => false,
-    });
-    mem(m).nearest_visible_adult.set_opt(found);
-}
-/// `#followable_friendly_mobs`.
-fn followable_friendly(s: Species) -> bool {
-    matches!(
-        s,
-        Species::Camel
-            | Species::Cat
-            | Species::Chicken
-            | Species::Cow
-            | Species::Donkey
-            | Species::Fox
-            | Species::Goat
-            | Species::HappyGhast
-            | Species::Horse
-            | Species::SkeletonHorse
-            | Species::Llama
-            | Species::Mule
-            | Species::Ocelot
-            | Species::Panda
-            | Species::Parrot
-            | Species::Pig
-            | Species::PolarBear
-            | Species::Rabbit
-            | Species::Sheep
-            | Species::Sniffer
-            | Species::Strider
-            | Species::Villager
-            | Species::Wolf
-    )
 }
 
 // ---- Behaviours ------------------------------------------------------------
@@ -983,40 +907,6 @@ impl B {
             | B::Stroll { running, .. }
             | B::FollowAdult { running, .. } => *running,
             B::Gate(g) => g.running,
-        }
-    }
-    /// Stopped without its stop effects (the memories they would touch are
-    /// cleared with the rest).
-    fn reset(&mut self) {
-        match self {
-            B::PlayDead(t)
-            | B::Swim(t)
-            | B::AnimalPanic { t, .. }
-            | B::CountDownTemptation(t)
-            | B::MakeLove { t, .. }
-            | B::FollowTemptation { t, .. }
-            | B::LookAtTargetSink(t)
-            | B::FeelingHappy(t)
-            | B::Digging(t)
-            | B::FinishedDigging(t)
-            | B::Searching(t)
-            | B::Scenting(t)
-            | B::Sniffing(t)
-            | B::DoNothing(t)
-            | B::CountDownGaze(t)
-            | B::CountDownTransport(t) => t.running = false,
-            B::Transport(x) => x.running = false,
-            B::MoveToTargetSink { t, path, .. } => {
-                t.running = false;
-                *path = None;
-            }
-            B::Gate(g) => {
-                g.running = false;
-                for k in &mut g.kids {
-                    k.0.reset();
-                }
-            }
-            _ => self.set_one_shot(false),
         }
     }
     /// A one-shot (`OneShot`) runs only until its first tick.
@@ -1967,7 +1857,7 @@ fn follow_temptation_close(m: &mut Mob) -> f64 {
         }
         // `new FollowTemptation(speed)`: the default close-enough distance, 2.5.
         Kind::Axolotl | Kind::Tadpole => 2.5,
-        Kind::Ghastling | Kind::CopperGolem => 3.0,
+        Kind::CopperGolem => 3.0,
     }
 }
 fn can_mate_with(m: &Mob, w: &MobWorld, partner: Who) -> bool {
@@ -2140,7 +2030,6 @@ fn sniffer_package(seed: i64) -> Vec<Entry> {
     ));
     l
 }
-/// `HappyGhastAi.getActivities`, in `availableBehaviorsByPriority` order.
 /// `CopperGolemAi.getActivities`, in tick order: the core behaviours take
 /// priorities 0 to 5 in turn (`ActivityData.create(CORE, 0, ..)`), the idle
 /// ones 0, 1 and 2.
@@ -2201,74 +2090,6 @@ fn copper_golem_package(seed: i64) -> Vec<Entry> {
     ]
 }
 
-fn ghastling_package(seed: i64) -> Vec<Entry> {
-    let e = |act: Act, b: B| Entry { act, b };
-    vec![
-        // Priority 0.
-        e(Act::Core, B::Swim(Timed::new(60, 60))),
-        // Priority 1.
-        e(
-            Act::Core,
-            B::AnimalPanic {
-                t: Timed::new(100, 120),
-                fly: true,
-                speed: 2.0,
-            },
-        ),
-        e(
-            Act::Idle,
-            B::FollowTemptation {
-                t: Timed::new(60, 60),
-                look_in_the_eyes: true,
-            },
-        ),
-        // Priority 2.
-        e(Act::Core, B::LookAtTargetSink(Timed::new(45, 90))),
-        e(
-            Act::Idle,
-            B::FollowAdult {
-                running: false,
-                player: true,
-            },
-        ),
-        // Priority 3.
-        e(Act::Core, move_to_target_sink(150, 250)),
-        e(
-            Act::Idle,
-            B::FollowAdult {
-                running: false,
-                player: false,
-            },
-        ),
-        // Priority 4.
-        e(Act::Core, B::CountDownTemptation(Timed::new(60, 60))),
-        e(
-            Act::Idle,
-            B::Gate(Box::new(Gate::run_one(
-                seed,
-                vec![
-                    (
-                        B::Stroll {
-                            running: false,
-                            fly: true,
-                            speed: 1.0,
-                            range: (10, 7),
-                        },
-                        1,
-                    ),
-                    (
-                        B::WalkToLookTarget {
-                            running: false,
-                            speed: 1.0,
-                            close: 3,
-                        },
-                        1,
-                    ),
-                ],
-            ))),
-        ),
-    ]
-}
 fn move_to_target_sink(min: i32, max: i32) -> B {
     B::MoveToTargetSink {
         t: Timed::new(min, max),

@@ -4,7 +4,7 @@ Horizon servers.
 
 LivingEntity.baseTick: a rider whose eyes are in water (not in a bubble column) stops riding a vehicle whose
 type is in data/minecraft/tags/entity_type/dismounts_underwater.json (camel, chicken, donkey, horse, llama,
-mule, pig, ravager, spider, strider, trader llama, zombie horse, happy ghast). A vanilla-codec client rides
+mule, pig, ravager, spider, strider, trader llama, zombie horse). A vanilla-codec client rides
 each mount with `/ride`; water that stops below the rider's eyes keeps it on, deeper water throws it off, and
 a mount outside the tag (a skeleton horse, a cow) keeps its rider underwater.
 """

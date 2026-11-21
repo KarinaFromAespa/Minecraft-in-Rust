@@ -88,8 +88,6 @@ pub enum LookKind {
     SmoothSwimming(f32),
     /// Look controls that never reset pitch (e.g. ghasts keep their own).
     Fixed,
-    /// `HappyGhast.HappyGhastLookControl`.
-    HappyGhast,
     /// `Shulker.ShulkerLookControl`: the yaw turns in the attach face's
     /// plane and the head is never clamped to the body.
     Shulker,
@@ -344,12 +342,8 @@ impl Mob {
         if fox && super::fox::flag(self, super::fox::SLEEPING) {
             return;
         }
-        if look.kind == LookKind::HappyGhast {
-            return super::happy_ghast::look_control(self);
-        }
         let (x_d, y_d) = self.look_angles(look.wanted);
         match look.kind {
-            LookKind::HappyGhast => {}
             LookKind::SmoothSwimming(max) => {
                 if look.cooldown > 0 {
                     self.ai.look.cooldown -= 1;

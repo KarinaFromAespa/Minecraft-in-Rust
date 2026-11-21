@@ -175,7 +175,7 @@ mod functions;
 mod game_mode;
 mod game_tests;
 mod gamemode_switcher;
-mod ghasts;
+mod entity_collisions;
 mod glowing;
 mod golems;
 mod growth;
@@ -2400,7 +2400,7 @@ struct Game<'a> {
     cart_sounds: HashSet<u32>,
     /// The minecart the riding sounds were started for (`LocalPlayer.startRiding`).
     riding_cart_sounds: Option<u32>,
-    /// The happy ghast its riding sound was started for (`LocalPlayer.startRiding`).
+    /// The nautilus its riding sound was started for (`LocalPlayer.startRiding`).
     riding_sound: Option<u32>,
     /// `LocalPlayer.wasFallFlying` for the elytra's flying sound.
     was_fall_flying: bool,
@@ -4730,11 +4730,6 @@ impl Game<'_> {
                     kind: "portal_spawn",
                     ..
                 } => self.portal_spawn([pos.x, pos.y, pos.z]),
-                LevelEvent::BlockEvent {
-                    pos,
-                    state,
-                    kind: "spawn_ghastling",
-                } => self.spawn_ghastling([pos.x, pos.y, pos.z], state),
                 LevelEvent::GameEvent { pos, event, state } => {
                     self.sculk_level_event(pos, event, state)
                 }

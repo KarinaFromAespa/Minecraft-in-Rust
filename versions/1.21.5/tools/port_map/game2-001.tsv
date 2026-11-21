@@ -1,7 +1,6 @@
 WorldGenRegion.getChunk	port	crates/horizon-world/src/worldgen/feature_region.rs::TerrainRegion::chunk	gap: minor: returns the resident chunk without the generating-step status check
 GossipContainer.getReputation	port	crates/horizon-client/src/gossip.rs::Gossips::reputation	Villager calls it with all types only; the type predicate is fixed to all
 Frog.travelInWater	missing		minor: frog water travel (getSpeed() move, 0.9 drag on all axes) absent; generic fluid travel used instead
-HappyGhast.HappyGhastBodyRotationControl.clientTick	port	crates/horizon-client/src/mobs/happy_ghast.rs::ridden	gap: minor: vehicle yaw sync only; the super.clientTick step is Mob::body_rotation_tick in control.rs
 SnifferAi.initCoreActivity	inline	crates/horizon-client/src/mobs/animal_brain.rs::sniffer_package	core behaviour list (Swim, panic, sink, cooldown) built here
 SnifferAi.initSniffingActivity	inline	crates/horizon-client/src/mobs/animal_brain.rs::sniffer_package	Searching entry here; memory gates in update_activity
 SnifferAi.initDigActivity	inline	crates/horizon-client/src/mobs/animal_brain.rs::sniffer_package	Digging and FinishedDigging entries here; memory gates in update_activity

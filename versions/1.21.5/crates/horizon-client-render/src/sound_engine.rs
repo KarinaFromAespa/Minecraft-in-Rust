@@ -107,8 +107,8 @@ pub enum Ticking {
     Sniffer { sniffer: u32 },
     /// `ElytraOnPlayerSoundInstance`: ticks since it started.
     Elytra { time: i32 },
-    /// `RidingEntitySoundInstance` for the player riding a happy ghast
-    /// (`underwater_sound` false) or a nautilus (true).
+    /// `RidingEntitySoundInstance` for the player riding a nautilus
+    /// (`underwater_sound` true).
     RidingEntity { entity: u32, underwater_sound: bool },
     /// A native mod's music layer (`MusicLayers`), whose volume its owner
     /// sets each tick.

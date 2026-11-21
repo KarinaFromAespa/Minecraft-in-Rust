@@ -863,7 +863,6 @@ pub fn ageable(s: Species) -> bool {
             | S::Camel
             | S::CamelHusk
             | S::Sniffer
-            | S::HappyGhast
             | S::Nautilus
             | S::ZombieNautilus
             | S::ZombieHorse
@@ -965,11 +964,6 @@ fn age_boundary_reached(m: &mut Mob) {
             }
         }
         Species::SulfurCube if !baby => sulfur_size(m, 2),
-        // HappyGhast.ageBoundaryReached: adultGhastSetup or babyGhastSetup,
-        // then Animal's no-op. A hatched ghastling needs it before it is in
-        // the level (DriedGhastBlock.spawnGhastling sets the baby age before
-        // addFreshEntity), or its first tick flies the adult goals.
-        Species::HappyGhast => super::happy_ghast::ensure_setup(m),
         _ => {}
     }
 }

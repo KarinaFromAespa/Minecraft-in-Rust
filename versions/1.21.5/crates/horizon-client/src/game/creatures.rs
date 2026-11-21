@@ -7071,11 +7071,9 @@ impl Game<'_> {
                 }
                 ocelot_trust = Some(trusts);
             }
-            // HappyGhast.canFallInLove: never, so only a ghastling takes food.
             _ if is_food
                 && m.kind.flags.animal
-                && species != Species::Parrot
-                && (species != Species::HappyGhast || m.is_baby()) =>
+                && species != Species::Parrot =>
             {
                 // Animal.mobInteract: breed adults, speed up babies, then
                 // playEatingSound (silent unless the species overrides it).

@@ -11,7 +11,6 @@ use std::f32::consts::{FRAC_PI_6, PI};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Anim {
     Nautilus,
-    HappyGhast,
     Sniffer,
     Breeze,
     Warden,
@@ -841,7 +840,6 @@ fn vanilla_setup(
         Anim::Breeze => super::breeze::anim(m, s, p, w_anims),
         Anim::Sniffer => super::sniffer::anim(m, s, p, w_anims),
         Anim::CopperGolem => super::copper_golem::anim(m, s, p, w_anims),
-        Anim::HappyGhast => super::happy_ghast::anim(m, s, p),
         Anim::Nautilus => super::nautilus::anim(m, s, p, w_anims),
         // body_anim::llama runs first.
         Anim::Llama => quadruped(p, s),

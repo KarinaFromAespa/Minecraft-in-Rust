@@ -9,8 +9,8 @@ use horizon_core::{
     random::{LegacyRandom, RandomSource},
 };
 
-/// `Parrot.MOB_SOUND_MAP` (the happy ghast's is `SoundEvents.EMPTY`: "").
-const IMITATIONS: [(Species, &str); 41] = [
+/// `Parrot.MOB_SOUND_MAP`.
+const IMITATIONS: [(Species, &str); 40] = [
     (Species::Blaze, "entity.parrot.imitate.blaze"),
     (Species::Bogged, "entity.parrot.imitate.bogged"),
     (Species::Breeze, "entity.parrot.imitate.breeze"),
@@ -26,7 +26,6 @@ const IMITATIONS: [(Species, &str); 41] = [
     (Species::Endermite, "entity.parrot.imitate.endermite"),
     (Species::Evoker, "entity.parrot.imitate.evoker"),
     (Species::Ghast, "entity.parrot.imitate.ghast"),
-    (Species::HappyGhast, ""),
     (Species::Guardian, "entity.parrot.imitate.guardian"),
     (Species::Hoglin, "entity.parrot.imitate.hoglin"),
     (Species::Husk, "entity.parrot.imitate.husk"),
@@ -132,8 +131,7 @@ fn imitate_nearby_mobs(
 /// random imitable mob in `nearby` (`Parrot.imitateNearbyMobs`, half the time,
 /// those with a `silent` flag excluded after being picked), else its own
 /// ambient sound or a rare imitation (`Parrot.getAmbient`). `random` is drawn
-/// from in vanilla's order. Returns the sound, its volume and its pitch; the
-/// happy ghast's imitation is silent (`""`).
+/// from in vanilla's order. Returns the sound, its volume and its pitch.
 pub fn shoulder_sound(
     random: &mut LegacyRandom,
     player_alive: bool,
@@ -431,13 +429,5 @@ mod tests {
         let mut random = LegacyRandom::new(1);
         let (sound, volume, _) = shoulder_sound(&mut random, true, true, true, &nearby).unwrap();
         assert_eq!((sound, volume), ("entity.parrot.ambient", 1.0));
-        // The happy ghast's imitation is silent.
-        let ghast = [(Species::HappyGhast, false)];
-        let silent = (0..64_i64).filter(|&n| {
-            let seed = n.wrapping_mul(0x9E37_79B9_7F4A_7C15_u64 as i64);
-            let mut r = LegacyRandom::new(seed);
-            shoulder_sound(&mut r, true, false, true, &ghast).is_none()
-        });
-        assert!(silent.count() > 0);
     }
 }

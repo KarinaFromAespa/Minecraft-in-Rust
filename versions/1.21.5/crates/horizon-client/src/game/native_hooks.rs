@@ -9033,7 +9033,7 @@ impl Game<'_> {
     /// `minecraft:horse`, `minecraft:cushion`). Set `canceled` and it does not: a player stays
     /// where they were, a mob does not board, a `/ride` fails, and a rider whose dismount is
     /// canceled keeps riding. Told for a player boarding a boat, minecart, cushion or a mount (pig,
-    /// strider, horse and its kin, llama, nautilus, happy ghast) and getting off one by their
+    /// strider, horse and its kin, llama, nautilus) and getting off one by their
     /// own input, `/ride`, a stab, a buck, a teleport or spectator mode; and for the mobs
     /// Horizon seats on a vehicle (jockeys, raiders on a ravager, `/ride`) and lets off one
     /// (`/ride`, a stab). It is not told for a rider whose vehicle was removed from the

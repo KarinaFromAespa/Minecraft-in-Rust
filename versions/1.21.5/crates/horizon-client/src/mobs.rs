@@ -46,7 +46,6 @@ pub mod goals;
 pub mod goat;
 pub mod golem;
 pub mod guardian;
-pub mod happy_ghast;
 pub mod hostile;
 pub mod illager;
 pub mod illusioner;
@@ -357,9 +356,9 @@ pub struct Flags {
     /// WaterAnimal / fish: not affected by fluid physics (swims with its own control).
     pub aquatic_swimmer: bool,
     pub fall_immune: bool,
-    /// Flying-mob travel without gravity (ghast, phantom, happy ghast):
+    /// Flying-mob travel without gravity (ghast, phantom):
     /// the travel dispatch picks the friction form for ghasts and
-    /// phantoms, the 0.91-drag form for the happy ghast.
+    /// phantoms.
     pub flying: bool,
     /// Spiders: onClimbable while colliding horizontally.
     pub climber: bool,
@@ -1325,7 +1324,7 @@ pub struct Extra {
     pub raider: Option<Box<raider::State>>,
     /// A villager's raid activity and gossip.
     pub villager: Option<Box<villager::Ext>>,
-    /// The sniffer's and the ghastling's brain.
+    /// The sniffer's brain.
     pub animal_brain: Option<Box<animal_brain::Brain>>,
     pub axolotl: axolotl::Animation,
     /// The mob or boat this one rides, and the mob riding it (`getVehicle`,
@@ -2644,8 +2643,6 @@ pub struct Seen {
     pub hurt_recently: bool,
     /// `Hoglin.canBeHunted`: an adult hoglin without `CannotBeHunted`.
     pub huntable: bool,
-    /// A happy ghast's `isOnStillTimeout` (a player on its back holds it).
-    pub still: bool,
     /// `Entity.isVehicle`: something rides it.
     pub carrying: bool,
 }
@@ -2653,21 +2650,14 @@ impl Seen {
     /// Whether `canBeCollidedWith` can ever hold for this kind: the slots
     /// [`MobWorld::others_solid`] lists.
     pub fn may_block_mobs(&self) -> bool {
-        matches!(self.species, Species::Shulker | Species::HappyGhast)
+        matches!(self.species, Species::Shulker)
     }
     /// `canBeCollidedWith(mover)` for a mob of species `mover` moving into
     /// it (`EntityGetter.getEntityCollisions`): a living shulker
-    /// (`Shulker`), or an adult happy ghast held still, or carrying someone
-    /// when the mover is a happy ghast too (`HappyGhast`). Every other mob
-    /// keeps `Entity`'s false.
-    pub fn blocks_mob(&self, mover: Species) -> bool {
+    /// (`Shulker`). Every other mob keeps `Entity`'s false.
+    pub fn blocks_mob(&self, _mover: Species) -> bool {
         match self.species {
             Species::Shulker => self.alive,
-            Species::HappyGhast => {
-                self.alive
-                    && !self.baby
-                    && (self.still || (self.carrying && mover == Species::HappyGhast))
-            }
             _ => false,
         }
     }
@@ -2862,7 +2852,6 @@ impl Mob {
             lying: m.species() == Species::Cat && (m.extra.flag || m.extra.relax_one),
             ridden: m.rider.is_some() || m.extra.rider.is_some() || m.extra.mount.is_some(),
             is_vehicle: equine::is_vehicle(m),
-            still: m.species() == Species::HappyGhast && happy_ghast::on_still_timeout(m),
             carrying: m.rider.is_some() || m.extra.rider.is_some(),
             knockback_resistance: m.attrs.knockback_resistance,
             effects: m
@@ -4647,22 +4636,12 @@ impl Mob {
         let at = [self.position.x, self.eye_y(), self.position.z];
         events.push(MobEvent::Sound(event, at, 1.0, 1.0));
     }
-    /// `Mob.getAmbientSoundInterval`; `HappyGhast` waits six times as long
-    /// while it carries a passenger.
+    /// `Mob.getAmbientSoundInterval`.
     pub fn ambient_interval(&self) -> i32 {
-        let ridden = self.rider.is_some() || self.extra.rider.is_some();
-        if self.species() == Species::HappyGhast && ridden {
-            self.kind.ambient_interval * 6
-        } else {
-            self.kind.ambient_interval
-        }
+        self.kind.ambient_interval
     }
     /// LivingEntity.getVoicePitch.
     pub fn voice_pitch(&mut self) -> f32 {
-        // HappyGhast.getVoicePitch: always 1.0, babies and all.
-        if self.species() == Species::HappyGhast {
-            return 1.0;
-        }
         // Parrot.getVoicePitch is `getPitch(random)`, the plain 1.0 ± 0.2 an
         // adult gets below: a parrot is never a baby (`Parrot.canBeABaby`), so
         // the 1.5 `AgeableMob` gives a baby cannot reach it and the override

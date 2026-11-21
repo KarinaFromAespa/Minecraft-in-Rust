@@ -24,7 +24,6 @@ const CUSTOM: &[(&str, Format)] = &[
     ("minecart_one_cm", Format::Distance),
     ("boat_one_cm", Format::Distance),
     ("pig_one_cm", Format::Distance),
-    ("happy_ghast_one_cm", Format::Distance),
     ("horse_one_cm", Format::Distance),
     ("aviate_one_cm", Format::Distance),
     ("swim_one_cm", Format::Distance),

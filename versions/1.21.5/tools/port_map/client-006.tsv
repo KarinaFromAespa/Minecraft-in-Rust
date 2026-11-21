@@ -31,8 +31,6 @@ FoxModel.setCrouchingPose	port	crates/horizon-client/src/mobs/body_anim.rs::fox	
 FrogModel.createBodyLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
 TadpoleModel.createBodyLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
 TadpoleModel.setupAnim	port	crates/horizon-client/src/mobs/aquatic.rs::anim	aquatic setup arm for this species (fin/tail swing by age)
-HappyGhastHarnessModel.createHarnessLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
-HappyGhastModel.createBodyLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
 BabyGoatModel.createBodyLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
 GoatModel.createBodyLayer	skip:data		geometry baked into entity-models.json, which Horizon loads as a resource
 GoatModel.setupAnim	port	crates/horizon-client/src/mobs/body_anim.rs::goat	horn visibility and ramming head pitch

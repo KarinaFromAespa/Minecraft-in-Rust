@@ -59,7 +59,7 @@ pub struct Rider {
     pub steer: bool,
     /// Sprinting (camels run faster).
     pub sprint: bool,
-    /// Holding the jump key (a happy ghast rises).
+    /// Holding the jump key.
     pub jumping: bool,
     /// A server's player whose own client moves the mount
     /// (`Entity.isClientAuthoritative`): here it only turns (`tickRidden`).
@@ -312,7 +312,6 @@ pub fn controlled(m: &Mob) -> bool {
     match m.species() {
         // Pig/Strider.getControllingPassenger: saddled, the rider holding the stick.
         Species::Pig | Species::Strider => m.extra.saddled && r.steer,
-        Species::HappyGhast => super::happy_ghast::controlled(m),
         Species::Nautilus | Species::ZombieNautilus => super::nautilus::controlled(m),
         // AbstractHorse.getControllingPassenger: saddled with a player on it. A
         // tamed skeleton horse (SkeletonTrapGoal only tames it) needs the saddle too.
@@ -701,9 +700,6 @@ pub fn ridden_step(m: &mut Mob) {
     // AbstractNautilus.tickRidden turns half way toward the rider.
     if super::nautilus::is_nautilus(m.species()) {
         return super::nautilus::ridden(m);
-    }
-    if m.species() == Species::HappyGhast {
-        return super::happy_ghast::ridden(m);
     }
     // AbstractHorse.tickRidden: setRot(getRiddenRotation), then the body and
     // head turn with it. A camel that refuses to move keeps its rotation

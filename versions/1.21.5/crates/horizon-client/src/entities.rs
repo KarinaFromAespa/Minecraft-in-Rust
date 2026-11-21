@@ -712,7 +712,7 @@ impl ItemEntity {
                 wanted
             } else {
                 // `Entity.collide`: the entities that `canBeCollidedWith` the item stop it
-                // too (a boat, a shulker, a happy ghast held still; not a minecart), and
+                // too (a boat, a shulker; not a minecart), and
                 // so does the world border (`Entity.collectColliders`).
                 crate::collisions::EntityCollisions {
                     blocks: scene,
@@ -1110,7 +1110,7 @@ fn lava_cauldron_contacts(
     }
     contacts
 }
-/// The boxes that stop a dropped item (boats, minecarts, shulkers, a held-still happy ghast),
+/// The boxes that stop a dropped item (boats, minecarts, shulkers),
 /// binned by 8-block cell, so an item looks only at the ones near it: a farm with many drops and
 /// many vehicles checks a handful of boxes per item, not every box in the level.
 #[derive(Default)]
@@ -2437,7 +2437,7 @@ impl ArmorStand {
     /// this up to the blocks' push, then the bubble column
     /// (`Entity::push_by_bubble_column`), then [`ArmorStand::tick_settle`].
     /// `entities` are the boxes `EntityGetter.getEntityCollisions` gives the
-    /// stand (a living shulker, a boat, a happy ghast held still), which stop
+    /// stand (a living shulker, a boat), which stop
     /// its move as blocks do. None: a marker or a stand with `NoGravity` does
     /// not travel.
     pub fn tick_move(
@@ -3927,7 +3927,7 @@ mod entity_collision_tests {
     use super::*;
 
     /// `Entity.collide` stops an item at the entities that `canBeCollidedWith` it: dropped
-    /// above a boat's box (or a still happy ghast's) it lands on the box's top and rests,
+    /// above a boat's box it lands on the box's top and rests,
     /// where with no box it falls to the floor of the scene.
     #[test]
     fn an_item_lands_on_an_entity_box_under_it() {

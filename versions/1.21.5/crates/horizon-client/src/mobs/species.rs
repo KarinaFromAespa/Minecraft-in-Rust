@@ -87,7 +87,6 @@ pub enum Species {
     Allay,
     Breeze,
     Sniffer,
-    HappyGhast,
     Warden,
     Creaking,
     CamelHusk,
@@ -979,20 +978,6 @@ pub const ALL: &[Def] = &[
         Baby::Abs(0.95, 1.4, 1.38)
     ),
     def!(
-        HappyGhast,
-        "happy_ghast",
-        "happy_ghast#main",
-        "entity/ghast/happy_ghast",
-        A::HappyGhast,
-        [
-            "entity.happy_ghast.ambient",
-            "entity.happy_ghast.hurt",
-            "entity.happy_ghast.death"
-        ],
-        None,
-        Baby::Scale(0.2375, Some(0.46875))
-    ),
-    def!(
         Sniffer,
         "sniffer",
         "sniffer#main",
@@ -1351,7 +1336,6 @@ pub fn can_be_a_baby(s: Species) -> bool {
             | S::Fox
             | S::GlowSquid
             | S::Goat
-            | S::HappyGhast
             | S::Hoglin
             | S::Horse
             | S::Husk
@@ -1423,13 +1407,6 @@ impl Def {
             Species::Fox => &["fox_baby"],
             Species::Wolf => &["wolf_baby", "wolf_armor"],
             Species::Sniffer => &["sniffer_baby"],
-            Species::HappyGhast => &[
-                "happy_ghast_baby",
-                "happy_ghast_harness",
-                "happy_ghast_ropes",
-                "happy_ghast_baby_harness",
-                "happy_ghast_baby_ropes",
-            ],
             Species::Cat => &["cat_baby"],
             Species::Ocelot => &["ocelot_baby"],
             Species::Bee => &["bee_baby"],
@@ -1511,7 +1488,6 @@ impl Def {
                     | S::Parrot
                     | S::Bee
                     | S::Ghast
-                    | S::HappyGhast
                     | S::Blaze
                     | S::Phantom
                     | S::IronGolem
@@ -1523,7 +1499,7 @@ impl Def {
                     | S::Allay
                     | S::Breeze
             ),
-            flying: matches!(s, S::Ghast | S::Phantom | S::HappyGhast),
+            flying: matches!(s, S::Ghast | S::Phantom),
             climber: matches!(s, S::Spider | S::CaveSpider),
             lava_walker: s == S::Strider,
             omnidirectional: matches!(s, S::Bee | S::Parrot),
@@ -1642,7 +1618,6 @@ impl Def {
             S::Llama | S::TraderLlama => "llama_food",
             S::Goat => "goat_food",
             S::Sniffer => "sniffer_food",
-            S::HappyGhast => "happy_ghast_food",
             S::CamelHusk => "camel_husk_food",
             S::Nautilus | S::ZombieNautilus => "nautilus_food",
             S::SulfurCube => "sulfur_cube_food",
@@ -1684,7 +1659,6 @@ impl Def {
     pub fn air_speed(&self) -> f32 {
         match self.species {
             Species::Phantom => 0.2,
-            Species::HappyGhast => super::happy_ghast::AIR_SPEED,
             _ => 0.02,
         }
     }
@@ -1775,14 +1749,12 @@ impl Def {
         }
     }
 }
-/// Mobs whose `body` equipment slot Horizon keeps in `Extra::head` (a
-/// happy ghast's harness, nautilus armour, a sulfur cube's swallowed block,
-/// a wolf's armor).
+/// Mobs whose `body` equipment slot Horizon keeps in `Extra::head` (nautilus
+/// armour, a sulfur cube's swallowed block, a wolf's armor).
 pub fn body_slot(s: Species) -> bool {
     matches!(
         s,
-        Species::HappyGhast
-            | Species::Nautilus
+        Species::Nautilus
             | Species::ZombieNautilus
             | Species::SulfurCube
             | Species::Wolf

@@ -355,7 +355,6 @@ impl Game<'_> {
                 match sp {
                     Species::Pig => self.award_custom_stat("pig_one_cm", total),
                     Species::Strider => self.award_custom_stat("strider_one_cm", total),
-                    Species::HappyGhast => self.award_custom_stat("happy_ghast_one_cm", total),
                     Species::Nautilus | Species::ZombieNautilus => {
                         self.award_custom_stat("nautilus_one_cm", total)
                     }

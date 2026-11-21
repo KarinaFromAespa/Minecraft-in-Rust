@@ -264,10 +264,7 @@ fn block_space<'w, 'r>(m: &Mob, w: &'w MobWorld<'r>) -> BlockSpace<'w, 'r> {
 fn entities_clear(m: &Mob, w: &MobWorld, bounds: Aabb) -> bool {
     let grown = bounds.inflate(Vec3::new(1.0e-7, 1.0e-7, 1.0e-7));
     !w.others_near(grown).any(|s| {
-        s.id != m.id
-            && s.alive
-            && (s.species == Species::Shulker || (s.species == Species::HappyGhast && !s.baby))
-            && s.bounds.intersects(grown)
+        s.id != m.id && s.alive && s.species == Species::Shulker && s.bounds.intersects(grown)
     })
 }
 fn no_collision(m: &Mob, w: &MobWorld, bounds: Aabb) -> bool {

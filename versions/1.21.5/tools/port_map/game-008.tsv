@@ -38,7 +38,7 @@ MeleeAttack.create	inline	crates/horizon-client/src/mobs/monster_brain.rs::B::tr
 Mount.create	port	crates/horizon-client/src/mobs/piglin.rs::mount	with no walk under way and a RIDE_TARGET the baby piglin boards a ride target closer than a block (StartRiding), else looks at it and paths to its block at the mounting speed; the walk ends at its block and re-aims when the block moved 2 or more
 MoveToSkySeeingSpot.create	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	MoveToSkySeeingSpot arm: only when the villager cannot see the sky and has no walk target
 MoveToSkySeeingSpot.getOutdoorPosition	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	ten random spots within 10, 3 and 10 blocks, the first with no blocks above (no_blocks_above)
-MoveToTargetSink.checkExtraStartConditions	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	MoveToTargetSink arm: retry cooldown, reached, compute_path; the sniffer, ghastling, golem, breeze, creaking and warden brains carry the same arm
+MoveToTargetSink.checkExtraStartConditions	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	MoveToTargetSink arm: retry cooldown, reached, compute_path; the sniffer, golem, breeze, creaking and warden brains carry the same arm
 MoveToTargetSink.canStillUse	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::tick_or_stop	gap: minor: no spectator check (see isWalkTargetSpectator)
 MoveToTargetSink.start	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	the arm sets the PATH memory and starts the navigation as it starts
 MoveToTargetSink.isWalkTargetSpectator	missing		minor: a walk target on a player in spectator mode is not dropped
@@ -51,7 +51,7 @@ PoiCompetitorScan.competesForSameJobsite	inline	crates/horizon-client/src/mobs/v
 PrepareRamNearestTarget.start	port	crates/horizon-client/src/mobs/goat.rs::Ram::start	picks the nearest allowed target and chooses a ramming spot
 PrepareRamNearestTarget.canStillUse	port	crates/horizon-client/src/mobs/goat.rs::Ram::can_continue	prepare phase: a candidate whose target lives, within the 160 tick time out
 PrepareRamNearestTarget.getEdgeOfBlock	inline	crates/horizon-client/src/mobs/goat.rs::prepare_tick	half block offset by the sign toward the target
-RandomStroll.fly	inline	crates/horizon-client/src/mobs/animal_brain.rs::B::trigger	Stroll arm with fly set (ghastling); only without a walk target
+RandomStroll.fly	inline	crates/horizon-client/src/mobs/animal_brain.rs::B::trigger	Stroll arm with fly set; no species flies it now, only without a walk target
 RandomStroll.strollFlyOrSwim	inline	crates/horizon-client/src/mobs/animal_brain.rs::B::trigger	Stroll arm: only without a walk target, walk target set or erased; the monster and warden brains have their own stroll arms
 RandomStroll.getTargetSwimPos	inline	crates/horizon-client/src/mobs/animal_brain.rs::axolotl_action	SwimStroll arm: the (1,1) to (10,7) tiers with the fallback
 RandomStroll.getTargetFlyPos	inline	crates/horizon-client/src/mobs/animal_brain.rs::B::trigger	air_and_water_random_pos along the view vector, -2 vertical offset
@@ -63,7 +63,7 @@ SetLookAndInteract.create	inline	crates/horizon-client/src/mobs/villager_brain.r
 SetWalkTargetAwayFrom.create	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	WalkAwayFrom arm (nearest hostile and last attacker within 6 blocks, away 16 and 7, ten tries); piglins and hoglins use AvoidEntity and repellent goals
 SetWalkTargetFromAttackTargetIfTargetOutOfReach.create	inline	crates/horizon-client/src/mobs/monster_brain.rs::B::try_start	SetWalkTargetFromAttackTarget arm (the warden and axolotl brains have the same); piglins and hoglins chase with the MeleeAttack goal
 SetWalkTargetFromBlockMemory.create	port	crates/horizon-client/src/mobs/villager_brain.rs::walk_to_block_memory	
-SetWalkTargetFromLookTarget.create	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	WalkToLookTarget arm; the sniffer, ghastling and breeze brains have the same
+SetWalkTargetFromLookTarget.create	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	WalkToLookTarget arm; the sniffer and breeze brains have the same
 ShowTradesToPlayer.canStillUse	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::tick_or_stop	ShowTrades arm: still near the player, look time left and an interaction target
 ShowTradesToPlayer.start	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::try_start	looks at the player, look time 40
 ShowTradesToPlayer.stop	inline	crates/horizon-client/src/mobs/villager_brain.rs::B::do_stop	clears the interaction target and the held item (clearHeldItem), and the player's item it compared against

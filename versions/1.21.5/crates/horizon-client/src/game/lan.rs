@@ -343,7 +343,7 @@ pub(super) fn entity_uuid(id: u32) -> u128 {
 /// The SynchedEntityData index of the baby flag: AgeableMob.DATA_BABY_ID and
 /// Zombie.DATA_BABY_ID (Zoglin's too) are the first entry after Mob's (16);
 /// Piglin's comes after AbstractPiglin's zombification flag (17). Every
-/// AgeableMob has one, the happy ghast and the nautilus included (#6133).
+/// AgeableMob has one, the nautilus included (#6133).
 pub(super) fn baby_index(species: Species) -> Option<u8> {
     use Species as S;
     match species {
@@ -748,19 +748,6 @@ pub(super) fn mob_meta(
             } else if (kind == "minecraft:donkey" || kind == "minecraft:mule") && e.chested {
                 meta.push((19, serializer::BOOLEAN, Value::Bool(true)));
             }
-        }
-        // HappyGhast.STAYS_STILL (after AgeableMob's two and IS_LEASH_HOLDER),
-        // set while `serverStillTimeout > 0` (`syncStayStillFlag`).
-        "minecraft:happy_ghast" => {
-            // HappyGhast.IS_LEASH_HOLDER (`setLeashHolder` in `tick`).
-            if horizon_client::mobs::happy_ghast::is_leash_holder(m) {
-                meta.push((18, serializer::BOOLEAN, Value::Bool(true)));
-            }
-            defaults.push((18, serializer::BOOLEAN, Value::Bool(false)));
-            if horizon_client::mobs::happy_ghast::on_still_timeout(m) {
-                meta.push((19, serializer::BOOLEAN, Value::Bool(true)));
-            }
-            defaults.push((19, serializer::BOOLEAN, Value::Bool(false)));
         }
         // Villager.DATA_VILLAGER_DATA and ZombieVillager's (after Zombie's three).
         "minecraft:villager" | "minecraft:zombie_villager" => {
@@ -1953,9 +1940,6 @@ impl Game<'_> {
                 &mut e.meta,
                 &mut e.defaults,
             );
-            // HappyGhast.aiStep: requiresPrecisePosition while on a still timeout.
-            e.precise = m.species() == horizon_client::mobs::Species::HappyGhast
-                && horizon_client::mobs::happy_ghast::on_still_timeout(m);
             mob_freeze_meta(m, &mut e.meta, &mut e.defaults);
             mob_equipment(m, hub, &mut e.equipment);
             self.mob_attributes(m, &mut speeds, &mut e.attributes);

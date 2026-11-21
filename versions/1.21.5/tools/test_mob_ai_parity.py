@@ -259,18 +259,6 @@ def scenarios():
     for i, seed in enumerate([72, 73, 74]):
         add(f'sniffer_alone_{i}', 600, [f'mob minecraft:sniffer 0.5 -60 0.5 {90 * i} {seed} persistent'])
     add('sniffer_baby', 300, ['mob minecraft:sniffer 0.5 -60 0.5 0 75 persistent baby'])
-    # Happy ghasts float above the grass; ghastlings follow players and adults.
-    add('happy_ghast_player', 200, ['player 6.5 -60 0.5', 'mob minecraft:happy_ghast 0.5 -55 0.5 0 81 persistent'])
-    add('happy_ghast_alone', 200, ['mob minecraft:happy_ghast 0.5 -55 0.5 90 82 persistent'])
-    # The driver's seat overlaps the front of the ghast: it must not push its own rider.
-    # One tick isolates riding input and turning from later passenger repositioning.
-    for name, yaw in [('hover', 0), ('turn', 90)]:
-        add(f'happy_ghast_ridden_{name}', 1, ['player 0.5 -51.6 2.2',
-            f'mob minecraft:happy_ghast 0.5 -55 0.5 {yaw} 82 persistent ridden'])
-    add('ghastling_player', 200, ['player 8.5 -60 0.5', 'mob minecraft:happy_ghast 0.5 -57 0.5 0 83 persistent baby'])
-    add('ghastling_alone', 200, ['mob minecraft:happy_ghast 0.5 -57 0.5 0 84 persistent baby'])
-    add('ghastling_adult', 200, ['mob minecraft:happy_ghast 10.5 -55 0.5 0 85 persistent',
-                                 'mob minecraft:happy_ghast 0.5 -57 0.5 0 86 persistent baby'])
     # Breeding, temptation and growing up.
     add('sniffer_love', 300, ['mob minecraft:sniffer 0.5 -60 0.5 0 91 persistent inlove',
                               'mob minecraft:sniffer 4.5 -60 0.5 0 92 persistent inlove'])
@@ -280,12 +268,6 @@ def scenarios():
                             'mob minecraft:llama 4.5 -60 0.5 0 95 persistent tame inlove strength=2'])
     add('llama_tempted', 200, ['player 7.5 -60 0.5 hand=minecraft:hay_block',
                                'mob minecraft:llama 0.5 -60 0.5 0 96 persistent'])
-    add('ghastling_tempted', 200, ['player 8.5 -60 0.5 hand=minecraft:snowball',
-                                   'mob minecraft:happy_ghast 0.5 -57 0.5 0 97 persistent baby'])
-    add('happy_ghast_tempted', 200, ['player 12.5 -60 0.5 hand=minecraft:snowball',
-                                     'mob minecraft:happy_ghast 0.5 -55 0.5 0 98 persistent'])
-    add('ghastling_grows', 200, ['player 8.5 -60 0.5',
-                                 'mob minecraft:happy_ghast 0.5 -57 0.5 0 99 persistent age=-40'])
     # Llama caravans: two llamas fall in behind one on the player's lead; a wandering trader's two
     # llamas on its leads.
     add('llama_caravan', 300, ['player 0.5 -60 0.5',

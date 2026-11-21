@@ -2358,13 +2358,134 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check, 4s).
+- **Item 58 — Ghast / HappyGhast /
+  TemptGoal$ForNonPathfinders, ported:**
+  the happy ghast is removed wholesale
+  (entity, ghastling, harness, ropes,
+  `happy_ghast_one_cm`), and the plain
+  ghast's flight is already the 1.21.5
+  form.
+  - `crates/horizon-client/src/mobs/happy_ghast.rs`
+    (754 lines) deleted, with
+    `Species::HappyGhast`,
+    `Family::HappyGhast`,
+    `Anim::HappyGhast`,
+    `LookKind::HappyGhast`,
+    `Kind::Ghastling` and the
+    ghastling brain package,
+    `Sensor::AdultAnyType` /
+    `sense_adult` /
+    `followable_friendly`, the
+    harness and ropes layers, the
+    `happy_ghast_food` tag, the
+    baby scale, the still-timeout
+    save/load and the leash
+    dispatch. `game/ghasts.rs`
+    renamed to `game/entity_collisions.rs`
+    and trimmed to the three
+    collision fns (`interact_happy_ghast`,
+    `dismount_happy_ghast`,
+    `spawn_ghastling` deleted).
+  - The 1.21.5 ghast needs no code
+    change: it extends `FlyingMob`
+    with the fixed-0.1 move control,
+    the stepped `canReach` and the
+    single-pick float goal, which is
+    what `mobs/nether.rs` already
+    does (item 10). The 1.21.6
+    additions — `getSuitableFlyToPosition`
+    (64 tries + heightmap mirror),
+    the `FLYING_SPEED * 5 / 3`
+    acceleration, `CAMERA_DISTANCE`
+    (8.0) / `FLYING_SPEED` (0.06)
+    attributes, the quad-leash
+    overrides — are all gone with
+    the happy ghast. `TemptGoal`
+    is `PathfinderMob`-only again
+    with the fixed 6.25 stop
+    distance; `ForNonPathfinders`
+    (move-control navigation to a
+    random fraction toward the
+    player's eye) was 1.21.6-only.
+  - Collateral deletions:
+    `Seen.still` (no readers left),
+    `animal_brain::grown_up` (no
+    callers left — no 1.21.5
+    animal's brain stops on
+    growing up) and `B::reset`
+    (its only caller was
+    `grown_up`), the `CullGrow`
+    `height` parameter and the
+    down-growth (no species grows
+    down now), the `happy_ghast_one_cm`
+    statistic (scoreboard list and
+    stats screen), the parrot's
+    silent happy-ghast imitation
+    (`IMITATIONS` 41 → 40), the
+    `happy_ghast` shadow radius and
+    CEM tentacle mapping, the
+    `minecraft:happy_ghast`
+    anticheat carrier, the
+    still-timeout NBT round-trip
+    test, the harnessed-ghast
+    client-moves test, and the
+    `white_harness` dispenser case.
+  - Tools: `tools/test_happy_ghast_leash_parity.py`
+    deleted (it drove the deleted
+    Rust test); the mob-AI parity
+    scenarios, the LAN e2e mount
+    list (and the dead `rise`
+    branch), the entity-model and
+    dispenser and death-loot and
+    finalize-spawn lists all drop
+    the happy ghast. The three
+    leash/passenger corpora keep a
+    20-health holder by summoning a
+    husk instead (a zombie would
+    burn in daylight). The port map
+    loses 33 rows for classes and
+    methods absent in 1.21.5
+    (`HappyGhast*`,
+    `HappyGhastRenderer`,
+    `HappyGhastModel`,
+    `HappyGhastHarnessModel`,
+    `TemptGoal.ForNonPathfinders`,
+    `RopesLayer`,
+    `AdultSensorAnyType`, the
+    `RandomFloatAroundGoal` helpers)
+    and the surviving rows' notes
+    drop the ghast clauses.
+  - The command-exec oracle
+    (`VanillaCommandExecOracle.writeHappyGhastLeashReference`)
+    referenced
+    `net.minecraft.world.entity.animal.happyghast.HappyGhast`
+    directly, which does not exist
+    in 1.21.5 — the oracle could not
+    compile against the 1.21.5
+    server jar. The method and its
+    call site are deleted.
+  - Not this item: the dried ghast
+    block and its sounds
+    (`animate_tick.rs`,
+    `timeline.rs::dried_ghast_tick`,
+    the orphaned `spawn_ghastling`
+    event) belong to item 182
+    (`DriedGhastBlock`, removed);
+    the `spawn_ghastling` event is
+    currently unhandled (the
+    Game-side arm is gone).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (3m38s full, 49s re-check after
+    removing the dead `B::reset`).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **57 of 426 are
-closed** (rank 1 complete, rank 2 at 48/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **58 of 426 are
+closed** (rank 1 complete, rank 2 at 49/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

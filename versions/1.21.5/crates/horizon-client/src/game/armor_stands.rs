@@ -894,7 +894,7 @@ impl Game<'_> {
         // ServerLevel.tick: only entities in entity-ticking chunks tick.
         let ticking = self.entity_ticking_area();
         // EntityGetter.getEntityCollisions: the boxes that stop a stand's move
-        // (a living shulker, a boat, a happy ghast held still), gathered when
+        // (a living shulker, a boat), gathered when
         // the first stand travels. A server's stand rides nothing (`vehicle`
         // is set on a server's client only), but mobs can ride it (`/ride`):
         // `isPassengerOfSameVehicle` leaves those riders out.

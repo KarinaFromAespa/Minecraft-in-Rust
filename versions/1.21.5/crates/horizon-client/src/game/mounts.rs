@@ -121,7 +121,6 @@ pub(super) fn dismounts_underwater(species: Species) -> bool {
         Species::Camel
             | Species::Chicken
             | Species::Donkey
-            | Species::HappyGhast
             | Species::Horse
             | Species::Llama
             | Species::Mule
@@ -236,9 +235,6 @@ impl Game<'_> {
         }
         if horizon_client::mobs::llama::is_llama(species) {
             return self.interact_llama(index, item);
-        }
-        if species == Species::HappyGhast {
-            return self.interact_happy_ghast(index, item);
         }
         if horizon_client::mobs::nautilus::is_nautilus(species) {
             return self.interact_nautilus(index, item);
@@ -560,18 +556,6 @@ impl Game<'_> {
                 m.position.z + turned.z,
             );
         }
-        if m.species() == Species::HappyGhast {
-            // The attachment of the player's seat on the harnessed back.
-            let seat = self.remote.as_ref().map_or(0, |r| r.passenger_index);
-            let a = horizon_client::mobs::riders::happy_ghast_attachment(seat);
-            let turned = Vec3::new(a[0], a[1], a[2])
-                .rotate_y(-m.yaw * (std::f64::consts::PI / 180.0) as f32);
-            at = Vec3::new(
-                m.position.x + turned.x,
-                m.position.y + turned.y - 0.6,
-                m.position.z + turned.z,
-            );
-        }
         if horizon_client::mobs::llama::is_llama(m.species()) {
             // The passenger attachment (0, 1.37, -0.3), half of it for a baby.
             let (y, z) = if m.is_baby() {
@@ -618,11 +602,6 @@ impl Game<'_> {
             return;
         };
         m.rider = None;
-        if m.species() == Species::HappyGhast {
-            let id = m.id;
-            self.dismount_happy_ghast(id);
-            return;
-        }
         let mount = Mount {
             species: m.species(),
             position: m.position,
@@ -1189,7 +1168,6 @@ mod tests {
             Species::Camel,
             Species::Chicken,
             Species::Donkey,
-            Species::HappyGhast,
             Species::Horse,
             Species::Llama,
             Species::Mule,

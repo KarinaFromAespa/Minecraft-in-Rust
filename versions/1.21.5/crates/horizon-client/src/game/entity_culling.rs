@@ -402,7 +402,7 @@ struct CullGrow {
 }
 
 impl CullGrow {
-    fn of(species: Species, height: f64, dragon_head: bool) -> Self {
+    fn of(species: Species, dragon_head: bool) -> Self {
         let mut grow = Self::default();
         if dragon_head {
             grow.all += 0.5;
@@ -410,7 +410,6 @@ impl CullGrow {
         match species {
             Species::Illusioner => grow.side += 3.0,
             Species::Sniffer => grow.all += f64::from(0.6_f32), // inflate(0.6F)
-            Species::HappyGhast => grow.down += height / 2.0,
             _ => {}
         }
         grow
@@ -436,7 +435,6 @@ pub(super) fn cull_box(mob: &horizon_client::mobs::Mob, alpha: f64) -> (glam::DV
     let (width, height, _) = mob.dims();
     let grow = CullGrow::of(
         mob.species(),
-        height,
         mob.extra.head.as_deref() == Some("minecraft:dragon_head"),
     );
     let pos = glam::DVec3::new(
@@ -537,31 +535,28 @@ mod vanilla_entity_tests {
         assert_eq!(default_range(item, entity_view_scale(32, 1.0)), 40.0);
     }
 
-    /// `getBoundingBoxForCulling`: only four living renderers grow the box.
+    /// `getBoundingBoxForCulling`: only three living renderers grow the box.
     /// An illusioner asks for three blocks either side (room for its mirror
     /// images, which are drawn outside its own box), a sniffer for 0.6 all
-    /// round, a happy ghast for half its height below (its riders hang under
-    /// it) and anyone wearing a dragon head for 0.5 all round.
+    /// round and anyone wearing a dragon head for 0.5 all round.
     #[test]
-    fn only_the_four_living_renderers_grow_the_culling_box() {
+    fn only_the_three_living_renderers_grow_the_culling_box() {
         assert_eq!(
-            CullGrow::of(Species::Villager, 1.95, false),
+            CullGrow::of(Species::Villager, false),
             CullGrow::default()
         );
-        let illusioner = CullGrow::of(Species::Illusioner, 1.95, false);
+        let illusioner = CullGrow::of(Species::Illusioner, false);
         assert_eq!(
             (illusioner.side, illusioner.all, illusioner.down),
             (3.0, 0.0, 0.0)
         );
-        let sniffer = CullGrow::of(Species::Sniffer, 1.75, false);
+        let sniffer = CullGrow::of(Species::Sniffer, false);
         assert!((sniffer.all - 0.6).abs() < 1e-7 && sniffer.side == 0.0);
-        let ghast = CullGrow::of(Species::HappyGhast, 4.0, false);
-        assert_eq!((ghast.down, ghast.all), (2.0, 0.0));
         // A dragon head grows every axis, on any living entity.
-        let headed = CullGrow::of(Species::Villager, 1.95, true);
+        let headed = CullGrow::of(Species::Villager, true);
         assert_eq!((headed.all, headed.side, headed.down), (0.5, 0.0, 0.0));
         // The growths add up: an illusioner in a dragon head gets both.
-        let both = CullGrow::of(Species::Illusioner, 1.95, true);
+        let both = CullGrow::of(Species::Illusioner, true);
         assert_eq!((both.all, both.side), (0.5, 3.0));
     }
 
@@ -575,17 +570,13 @@ mod vanilla_entity_tests {
             pos,
             0.6,
             1.95,
-            CullGrow::of(Species::Illusioner, 1.95, false),
+            CullGrow::of(Species::Illusioner, false),
         );
         assert_eq!(lo, glam::DVec3::new(10.0 - 3.3, 64.0, -4.0 - 3.3));
         assert_eq!(hi, glam::DVec3::new(10.0 + 3.3, 64.0 + 1.95, -4.0 + 3.3));
-        let (lo, hi) = grown_box(pos, 0.6, 1.95, CullGrow::of(Species::Villager, 1.95, false));
+        let (lo, hi) = grown_box(pos, 0.6, 1.95, CullGrow::of(Species::Villager, false));
         assert!((lo.x - (10.0 - 0.3)).abs() < 1e-9);
         assert!((hi.y - (64.0 + 1.95)).abs() < 1e-9);
-        // A happy ghast's box drops by half its height below its feet.
-        let (lo, hi) = grown_box(pos, 4.0, 4.0, CullGrow::of(Species::HappyGhast, 4.0, false));
-        assert_eq!(lo.y, 62.0);
-        assert_eq!(hi.y, 68.0);
     }
 
     /// `Entity.shouldRenderAtSqrDistance` on a broken box: the size falls

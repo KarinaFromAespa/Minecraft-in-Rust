@@ -643,9 +643,6 @@ pub(super) struct Remote {
     stepped: HashMap<i32, SteppedInterpolation>,
     /// `LivingEntity.lerpHeadTo`: the head yaw and the ticks left to reach it.
     head_lerps: HashMap<i32, (f32, u32)>,
-    /// The happy ghast the player just got off, until the server's teleport
-    /// puts the player on top of it (`place_ghast_under`).
-    pub(super) ghast_dismount: Option<u32>,
     /// Whether the player is the first passenger of its vehicle, the one
     /// `getControllingPassenger` names.
     pub(super) first_passenger: bool,
@@ -1211,7 +1208,6 @@ impl Game<'_> {
             cart_lerps: HashMap::new(),
             stepped: HashMap::new(),
             head_lerps: HashMap::new(),
-            ghast_dismount: None,
             first_passenger: false,
             passenger_index: 0,
             pending_items: HashMap::new(),
@@ -1442,7 +1438,6 @@ impl Game<'_> {
             cart_lerps: HashMap::new(),
             stepped: HashMap::new(),
             head_lerps: HashMap::new(),
-            ghast_dismount: None,
             first_passenger: false,
             passenger_index: 0,
             pending_items: HashMap::new(),
@@ -6310,37 +6305,6 @@ impl Game<'_> {
             p.health.food.saturation = saturation;
         }
     }
-    /// `ServerPlayer.dismountTo` lands a rider at the ghast's own (x, maxY, z)
-    /// (`HappyGhast.getDismountLocationForPassenger`). A vanilla client
-    /// simulates the ghast it rides, so its copy is where the server has it;
-    /// this window's copy trails the server's by the stepped interpolation and
-    /// would rise into the rider's feet, which lets the rider fall through.
-    /// Put the copy under the landing spot.
-    fn place_ghast_under(&mut self, id: u32, spot: Vec3) {
-        let Some(m) = self
-            .mobs
-            .iter_mut()
-            .find(|m| m.id == id && m.species() == horizon_client::mobs::Species::HappyGhast)
-        else {
-            return;
-        };
-        let at = Vec3::new(spot.x, spot.y - f64::from(m.height()), spot.z);
-        // Only a teleport that is that dismount: right above the ghast.
-        if (at.x - m.position.x).powi(2) + (at.z - m.position.z).powi(2) > 25.0
-            || (at.y - m.position.y).abs() > 5.0
-        {
-            return;
-        }
-        m.position = at;
-        m.previous = at;
-        if let Some(handler) = self
-            .remote
-            .as_mut()
-            .and_then(|r| r.stepped.get_mut(&(id as i32)))
-        {
-            handler.cancel();
-        }
-    }
     /// `ClientPacketListener.handleLookAt`: `Entity.lookAt` from this
     /// player's feet or eyes, towards the packet's entity (its feet or eyes)
     /// when this client tracks it, else towards the packet's point.
@@ -6457,9 +6421,6 @@ impl Game<'_> {
             m.previous_head_pitch =
                 position_packet_pitch(m.previous_head_pitch, p.pitch, relative_pitch);
             m.head_pitch = pitch;
-        }
-        if let Some(id) = self.remote.as_mut().and_then(|r| r.ghast_dismount.take()) {
-            self.place_ghast_under(id, position);
         }
         // handleMovePlayer does not change LocalPlayer.sendPosition's baseline:
         // the next tick must still report the corrected state.
