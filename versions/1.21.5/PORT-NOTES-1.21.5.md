@@ -4073,13 +4073,57 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 93 — ResolvableProfile /
+  ItemAttributeModifiers,
+  verified:**
+  - `ResolvableProfile`: the
+    1.21.6-only addition is
+    `pollResolve` (a
+    non-blocking resolve
+    check), which has no Rust
+    equivalent — the port
+    resolves profiles through
+    its own cache/async path
+    (`native_profiles.rs`).
+    The `resolve()` fallback
+    (id → profile with name
+    or ""; name-only → nil
+    UUID) is identical in
+    both versions, only
+    refactored into a helper
+    in 1.21.6.
+  - `ItemAttributeModifiers`:
+    the per-modifier `Display`
+    (default / hidden /
+    override) is 1.21.6-only.
+    The Rust port reads only
+    the 1.21.5 entry shape
+    (`type`, `id`, `amount`,
+    `operation`, `slot`) and
+    the tooltip always
+    renders the default form
+    — which is exactly
+    1.21.5's behaviour, where
+    every modifier shows.
+    The default-form math
+    (base attack damage/speed
+    added, x100 for multiply
+    ops, x10 for knockback
+    resistance, plus/take/
+    equals lines) is the
+    same logic in both
+    versions. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **92 of 426 are
-closed** (rank 1 complete, rank 2 at 83/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **93 of 426 are
+closed** (rank 1 complete, rank 2 at 84/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
