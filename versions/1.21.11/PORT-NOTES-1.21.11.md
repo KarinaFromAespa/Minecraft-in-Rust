@@ -12135,3 +12135,13 @@ Only the provider accessor renames (`minInclusive`/`maxInclusive` vs
 
 Only visibility, field-init order, a `requireNonNull` and `ChunkPos`
 accessors.
+
+## Item 600 — game/allay_pickup_cooldown_tests.rs (AllayAi) — NO-CHANGE apart from citations
+
+The Brain API restructure (same as item 516) with identical behaviours
+and constants. The throw callback moved: 26.1's `AllayAi.onItemThrown`
+vs 1.21.11, where the throw sound lives in
+`GoAndGiveItemsToTarget.throwItem` and the criterion in
+`GoAndGiveItemsToTarget.tick` — same gate (`game_time % 7 == 0`, 90%),
+same pitch list. `allay_deliver` already implements the 1.21.11 form;
+three comments re-pointed from the 26.1-only `AllayAi.throwItem`.
