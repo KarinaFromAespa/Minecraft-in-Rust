@@ -12729,12 +12729,52 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 307 — Multiline text field**
+  - MultilineTextField,
+    AbstractTextAreaWidget:
+    verified, no code. The
+    port's MultiLineEdit is
+    the 1.21.5 form:
+    character limit only,
+    no line limit (no setLi
+    neLimit/overflowsLineLi
+    mit anywhere), and
+    set_value / insert_text
+    always apply truncated
+    to the character budget
+    - never refused. Draw
+    always renders the
+    background nine-slice
+    and the scrollbar, the
+    1.21.5 form with no sho
+    wBackground/showDecorat
+    ions flags, and clips
+    contents to the (x+1,
+    y+1, w-1, h-1) scissor.
+    Deliberate deviation,
+    item-141 pattern:
+    cursor_line_view
+    returns the last line
+    when the cursor is
+    outside the text
+    (1.21.6's lenient form)
+    rather than throwing as
+    1.21.5 does - the path
+    is unreachable in
+    normal operation, and
+    the port does not
+    replicate
+    crash-on-invariant
+    behaviour.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **306 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 38/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **307 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 39/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
