@@ -12562,3 +12562,7 @@ Visibility plus compiler-inserted checkcasts; same layout logic.
 ## Item 673 — client/gui/screens/multiplayer (WarningScreen) — NO-CHANGE
 
 Compiler noise only (redundant local store, lambda type widening).
+
+## Item 674 — server/commands/data (DataCommands) — NO-CHANGE
+
+Compiler artifact only (`typeSwitch` descriptor on pattern switches).
