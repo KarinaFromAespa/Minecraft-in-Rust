@@ -12431,12 +12431,45 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; comments
     only, no code changed.
 
+- **Item 299 — Checkbox and dialogs**
+  - Checkbox + dialog
+    screens: verified, no
+    code. The dialog
+    package is 1.21.6-only
+    and the port's dialog
+    system is already gone
+    (item 258 deleted
+    dialog.rs,
+    dialog_screen.rs,
+    game/dialogs.rs - all
+    three confirmed
+    absent). The Checkbox
+    delta is the alpha-0
+    pattern: both remaining
+    checkbox draws (code of
+    conduct, backup
+    erase-cache) use
+    rgba(224,224,224,255),
+    the opaque spelling of
+    1.21.5's 14737632, with
+    the same RGB. The box
+    (CHECKBOX_BOX, 17px),
+    the 4px spacing, and
+    the four
+    selected/highlighted
+    sprites match both
+    versions; RenderPipelin
+    es/RenderType is a pure
+    rename.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **298 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 30/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **299 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 31/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
