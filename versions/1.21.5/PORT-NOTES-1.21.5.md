@@ -8842,13 +8842,38 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 191 — Create
+  world screen
+  renames:**
+  - All three changes are
+    renames with identical
+    behaviour: the blit
+    pipeline argument, and
+    the version stability
+    and name accessors. The
+    port's own draws match
+    the shared blit args
+    (tab header 16 tile,
+    footer separator 32x2
+    at h-footer-2). Known
+    gap, version-neutral:
+    the port shows the
+    Experiments button
+    always, while vanilla
+    1.21.5, a stable
+    release, hides it
+    behind the stability
+    gate.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **190 of 426 are
-closed** (rank 1 complete, rank 2 at 181/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **191 of 426 are
+closed** (rank 1 complete, rank 2 at 182/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
