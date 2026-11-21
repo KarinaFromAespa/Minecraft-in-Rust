@@ -12716,3 +12716,7 @@ requireNonNull plus constructor field-init order.
 ## Item 709 — title/buffet.rs (CreateBuffetWorldScreen$BiomeList) — NO-CHANGE
 
 Visibility plus requireNonNull; same super-constructor arguments.
+
+## Item 710 — horizon-command/src/tests.rs (GameModeArgument) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
