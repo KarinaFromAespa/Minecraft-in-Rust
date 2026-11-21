@@ -958,3 +958,58 @@ needed, plus a check that the laptop's prepared data has
 suggestions, though execution still works). Regression tests:
 `argument_types_are_1_21_7s_registry` (protocol) and the updated
 `parses_vanilla_commands` / suggestion tests (horizon-command).
+
+No mobs spawn at all (2026-11-21). The owner reported no mobs in
+any of three fresh worlds — only terrain. Two independent 26.x-only
+assumptions, each enough on its own to leave a world empty.
+
+First, every biome's spawn list was empty. `BiomeInfo::from_json`
+(`crates/horizon-client-render/src/biome.rs`) read spawns only from
+the `minecraft:gameplay/natural_mob_spawns` environment attribute,
+but 1.21.7 biomes have no `attributes` key at all (the attribute
+system arrived in 1.21.11) — their spawns live in the legacy
+top-level `spawners` field (plains: 6 creature + 8 monster entries).
+So `NaturalSpawner` found no potential spawns anywhere, and
+`spawnMobsForChunkGeneration` returned early on zero weight. The
+26.2 tree carries the legacy fallback for exactly this and the
+1.21.7 port was missing it; it is ported here (the attribute wins
+when present): `spawners` when the attribute list is empty,
+`spawn_costs` likewise, `creature_spawn_probability` before the
+attribute, default 0.1. `parse_entries` also gains the legacy
+`minCount`/`maxCount` count form (a draw even when min == max, so
+never constant), which the 26.3 `count` forms alone didn't cover —
+the same fix covers structure `spawn_overrides`, which use the same
+entry shape.
+
+Second, mob data failed to load at all. `StructureMobFinalizer::load`
+(`crates/horizon-client/src/vanillagen/structure_mobs.rs`) required
+`minecraft:camel_husk` in `entity-types.json`, a 26.x-only entity
+(1.21.7's registry has 151 entries, no camel_husk; 26.2's has 158,
+with it), so `load()` returned None and the run log read "no mob
+data, structure mobs are finalized when loaded" — chunk-generation
+mobs (`spawn_generated`) and structure mobs (`finalize`) both dead.
+The husk reuses the camel's model (`camel#main`), so the camel's own
+size now stands in when the husk type is absent; the jockey can never
+materialize here anyway, since creating a `minecraft:camel_husk`
+finds no such type in the registry.
+
+Ruled out along the way: difficulty is `normal` in all three worlds
+(level.dat), the `spawn_mobs` game rule defaults true, and the
+natural-spawn tick itself is identical to 26.2. One wart remains: a
+husk that rolls the 26.x jockey attempt still gets an iron spear in
+hand (a 26.x item 1.21.7 lacks) before the camel create fails — a
+cosmetic oddity for desert husks, not a spawn blocker.
+Regression tests: `legacy_spawners_fill_spawns_without_attributes`
+and `attribute_spawns_win_over_legacy_spawners` (hermetic biome
+fixtures), `mob_data_loads_without_camel_husk` (minimal fixture);
+the existing bastion structure-mob tests pass against real 1.21.7
+prepared data — the chunk test matches the 26.3 vanilla list exactly.
+The ocean ruin test's expectation is adapted for 1.21.7: there is no
+nautilus here (a 26.x entity), so the trident drowned stays unmounted
+and the draws the nautilus would have taken shift the two mobs
+finalized after it; the first drowned and the trident bonus still
+match 26.3 exactly. Incidental: the horizon-client-lib test suite
+didn't compile on main (`arrows_client_tests.rs` still passed a
+`BTreeSet` where `FluidResources::from_registry` now takes a
+`&[bool]`); the call now passes `&[]`, same meaning (no state blocks
+fluid flow), and the arrow tests pass.
