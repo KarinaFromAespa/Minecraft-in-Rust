@@ -12728,3 +12728,7 @@ Visibility only.
 ## Item 712 — horizon-port-pack/src/oracle.rs (DirtPathBlock) — NO-CHANGE
 
 Class rename only (`FarmlandBlock` vs `FarmBlock`, same `turnToDirt`).
+
+## Item 713 — horizon-prepare/src/artifacts.rs (EventLoopGroupHolder) — NO-CHANGE
+
+Visibility only.
