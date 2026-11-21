@@ -11927,3 +11927,10 @@ gone.
 
 Only the `is(Object)` vs `is(Block)`/`is(Item)` overload widening in the
 wither-skull checks. The Rust cites the shared method names.
+
+## Item 566 — game/native_structures.rs (FileUtil) — NO-CHANGE
+
+1.21.11 has `isPathNormalized` and `createPathToResource`, which 26.1
+dropped; 26.1 has a package-private `isEmptyPath`. The Rust already cites
+`isPathNormalized` (the 1.21.11-only method) and implements it equivalently
+for template ids.
