@@ -235,7 +235,7 @@ pub fn draw(
     let title = Text::translate(TITLE, &[]);
     let tw = atlas.font.width_text(&title);
     batch.text_styled(atlas, &title, ((w - tw) / 2.0).floor(), 15.0, WHITE, true);
-    // `extractBackground`: the panel and the search icon.
+    // `renderBackground` (26.1: `extractBackground`): the panel and the search icon.
     let mx = margin_x(w) + 3.0;
     ui::blit_sprite(
         batch,

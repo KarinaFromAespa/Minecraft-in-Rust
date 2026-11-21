@@ -12200,3 +12200,9 @@ the 1.21.11 form.
 ## Item 610 — server_packs/download.rs (DownloadCacheCleaner, DownloadQueue) — NO-CHANGE
 
 Only visibility and a `requireNonNull` across eight download classes.
+
+## Item 611 — social_screen.rs (SocialInteractionsScreen) — NO-CHANGE apart from a citation
+
+Only the extractor rewire, visibility and compiler artifacts. Item
+523's `chat_allowed` row-button gate is already in place here. One
+citation re-pointed (`extractBackground` -> `renderBackground`).
