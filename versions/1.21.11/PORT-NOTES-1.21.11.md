@@ -10660,3 +10660,10 @@ the `BlockState.is(Object)` vs `is(Block)`
 overload tightening on the composter check.
 No source change. `cargo check -p
 horizon-client --tests` passes.
+
+## Item 306 — mobs/living.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. Normalized
+bytecode diff EMPTY: `Vec3i.compareTo` is
+identical in both versions. No source
+change. `position`: 7 passed, 1 ignored.
