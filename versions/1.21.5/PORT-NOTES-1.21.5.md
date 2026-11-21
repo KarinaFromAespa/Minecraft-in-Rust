@@ -3936,13 +3936,37 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 89 — FoodData, verified:**
+  - Pure Java API shape
+    (`ValueInput` / `ValueOutput`
+    back to `CompoundTag`) plus
+    the `level()` →
+    `serverLevel()` rename; the
+    tick logic is untouched.
+    The saved fields and
+    defaults are identical in
+    both versions — `foodLevel`
+    (20), `foodTickTimer` (0),
+    `foodSaturationLevel`
+    (5.0), `foodExhaustionLevel`
+    (0.0) — and the Rust
+    playerdata round-trip in
+    `save.rs` plus the
+    `FoodData::default` in
+    `horizon-world/src/food.rs`
+    match every one.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **88 of 426 are
-closed** (rank 1 complete, rank 2 at 79/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **89 of 426 are
+closed** (rank 1 complete, rank 2 at 80/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
