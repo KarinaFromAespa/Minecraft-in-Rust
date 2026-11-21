@@ -10677,3 +10677,13 @@ sky-light check uses the raw sky light in
 relaxes upper-bounded limits by up to 11
 at night. `valid_position` now reads the
 raw sky light. `mobs::spawner`: 7 passed.
+
+## Item 308 — projectiles.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. A single line:
+the `BlockState.is(Object)` vs `is(Block)`
+overload tightening on the bubble-column
+check. No source change. `projectiles`: 44
+passed; `mod_thrown_types_are_found_by_id_and_item_once_registered`
+fails identically on the clean tree
+(pre-existing, not chased).
