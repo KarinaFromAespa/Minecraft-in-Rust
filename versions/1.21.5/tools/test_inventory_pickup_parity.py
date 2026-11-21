@@ -21,7 +21,7 @@ def corpus():
     def op(kind,**kw):
         v=dict(kind=kind,inventory=0,other=1,a=0,b=3,slot=-1,amount=1,all=False,equipment=0,key=0,value=64,max=99,infinite=False,fail_at=0,mutate_at=0,mutate_ref=0,after_count=2,after_max=8,mutate_slot=1,replace_ref=2,after_selected=-1);v.update(kw);return v
     def stack(item,count,patch=None):return dict(item=item,count=count,pop=7,patch=patch or [])
-    def row(ops,count=5,slots=None,damaged=False):return dict(prototypes=[[],[[0,64]],[[0,1],[1,0],[2,100]]],stacks=[stack(2 if damaged else 1,count,[[1,3]] if damaged else []),stack(1,60),stack(2,1),stack(-1,0)],equipment_order=list(range(7)),shared_equipment=False,inventories=[dict(selected=0,changed=2147483647,mainhand=0,slots=slots if slots is not None else [[0,1],[35,2],[40,1]]),dict(selected=8,changed=0,mainhand=-1,slots=[[2,1],[39,0]])],ops=ops)
+    def row(ops,count=5,slots=None,damaged=False):return dict(prototypes=[[],[[0,64]],[[0,1],[1,0],[2,100]]],stacks=[stack(2 if damaged else 1,count,[[1,3]] if damaged else []),stack(1,60),stack(2,1),stack(-1,0)],equipment_order=list(range(5)),shared_equipment=False,inventories=[dict(selected=0,changed=2147483647,mainhand=0,slots=slots if slots is not None else [[0,1],[35,2],[40,1]]),dict(selected=8,changed=0,mainhand=-1,slots=[[2,1],[39,0]])],ops=ops)
     for damaged in [False,True]:
         for slot in [-2,-1,0,8,35,36,40,42,43,2147483647]:
             for count in edges:

@@ -7343,13 +7343,73 @@ is the oracle; decompiled code is a reading aid.
     consequences of the
     change (`screen_info`
     now carries `""`).
+- **Item 156 — Player
+  inventory body/saddle
+  slots removed; abilities
+  save verified:**
+  - `SLOT_BODY_ARMOR`
+    (41) and `SLOT_SADDLE`
+    (42) are 1.21.6-only:
+    1.21.5's
+    `EQUIPMENT_SLOT_MAPPING`
+    ends at OFFHAND (40),
+    so the container size
+    is 41, `getItem(41/42)`
+    returns empty and
+    `setItem(41/42)` is a
+    no-op. Removed the
+    41/42 arms from
+    `EquipmentSlot::inventory_slot`
+    and
+    `from_inventory_slot`
+    (`player_inventory.rs`);
+    `Body` and `Saddle`
+    stay entity equipment
+    slots (horses, wolves)
+    and keep their
+    `/item` `armor.body` /
+    `saddle` names. The
+    parity fixtures and
+    drivers now pin a
+    five-entry mapping
+    order (`[EquipmentSlot;
+    5]`, `range(5)`) in
+    place of seven; the
+    `0..43` snapshot range
+    and the slot-42 edge
+    cases stay, and now
+    test the unmapped-slot
+    no-op on both sides
+    (the oracles clear the
+    map and put only the
+    five ordered entries).
+    Inventory and
+    abilities save/load
+    were already the
+    1.21.5 `CompoundTag`
+    / `ListTag` form
+    (`Slot` byte + item,
+    `abilities` compound
+    with the same seven
+    keys and defaults);
+    the 1.21.6
+    `ValueInput` /
+    `ValueOutput` and
+    `Abilities.Packed`
+    APIs have no Rust
+    surface.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-world --lib
+    --tests --examples`
+    0/0 (2m 17s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **155 of 426 are
-closed** (rank 1 complete, rank 2 at 146/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **156 of 426 are
+closed** (rank 1 complete, rank 2 at 147/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

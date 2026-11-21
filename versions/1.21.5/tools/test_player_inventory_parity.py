@@ -22,7 +22,7 @@ def corpus():
     def op(kind,**kw):
         v=dict(kind=kind,inventory=0,other=1,a=0,b=3,slot=0,amount=1,all=False,equipment=0,key=0,value=64);v.update(kw);return v
     def stack(item,count,patch=None):return dict(item=item,count=count,pop=7,patch=patch or [])
-    def row(ops,count=5,slots=None,selected=0):return dict(prototypes=[[],[[0,64]],[[0,1],[1,0],[2,100]]],stacks=[stack(1,count),stack(1,60),stack(2,1),stack(-1,0)],equipment_order=list(range(7)),shared_equipment=False,inventories=[dict(selected=selected,changed=2147483647,mainhand=0,slots=slots if slots is not None else [[0,0],[8,1],[35,2],[36,2],[40,0],[42,1]]),dict(selected=8,changed=0,mainhand=-1,slots=[[2,1],[39,0]])],ops=ops)
+    def row(ops,count=5,slots=None,selected=0):return dict(prototypes=[[],[[0,64]],[[0,1],[1,0],[2,100]]],stacks=[stack(1,count),stack(1,60),stack(2,1),stack(-1,0)],equipment_order=list(range(5)),shared_equipment=False,inventories=[dict(selected=selected,changed=2147483647,mainhand=0,slots=slots if slots is not None else [[0,0],[8,1],[35,2],[36,2],[40,0],[42,1]]),dict(selected=8,changed=0,mainhand=-1,slots=[[2,1],[39,0]])],ops=ops)
     for kind in kinds:
         for slot in edges:
             for amount in [-2147483648,-1,0,1,64,2147483647]:
@@ -47,7 +47,7 @@ def corpus():
         for __ in range(18):
             k=rng.randrange(6)
             ops.append(op(rng.choice(kinds),inventory=rng.randrange(2),other=rng.randrange(2),a=rng.randrange(4),b=rng.randrange(4),slot=rng.choice(edges) if rng.randrange(2) else rng.randrange(43),amount=integer(),all=bool(rng.randrange(2)),equipment=rng.randrange(8),key=k,value=rng.choice([None,value(k)])))
-        yield dict(prototypes=prototypes,stacks=stacks,inventories=inventories,equipment_order=rng.sample(range(7),7),shared_equipment=bool(rng.randrange(2)),ops=ops)
+        yield dict(prototypes=prototypes,stacks=stacks,inventories=inventories,equipment_order=rng.sample(range(5),5),shared_equipment=bool(rng.randrange(2)),ops=ops)
 
 
 def main():

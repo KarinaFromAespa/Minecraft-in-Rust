@@ -197,7 +197,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             Inventory::new(stacks.clone(), equipment),
             Inventory::new(stacks.clone(), other),
         ];
-        let order: [EquipmentSlot; 7] = std::array::from_fn(|i| {
+        let order: [EquipmentSlot; 5] = std::array::from_fn(|i| {
             EquipmentSlot::from_inventory_slot(
                 36 + f["equipment_order"][i].as_i64().unwrap() as i32,
             )
