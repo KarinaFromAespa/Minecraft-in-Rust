@@ -11904,3 +11904,12 @@ Only the `BlockState.is` overload widening, the `Context.level()` return
 type (`WorldGenLevel` vs `LevelSimulatedReader`, as in item 538) and a
 compiler-generated lambda name — all behaviour-free. The Rust cites the
 shared names.
+
+## Item 563 — game/gamemode_switcher.rs (GameModeSwitcherScreen) — NO-CHANGE
+
+Only the extractor rewire (`extractRenderState`/`extractBackground`/
+`extractWidgetRenderState`/`extractIcon`/`extractSlot`/`extractSelection` ->
+`render`/`renderBackground`/`renderWidget`/`drawIcon`/`drawSlot`/
+`drawSelection`, `centeredText` -> `drawCenteredString`) and visibility —
+no behaviour change. The Rust cites only `mouseReleased` and the class name,
+both shared.
