@@ -7451,13 +7451,69 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     --tests` passed at
     item 155.
+- **Item 158 — Texture
+  filter/blur plumbing
+  verified against
+  1.21.5:**
+  - `AbstractTexture`'s
+    texture view and
+    `setUseMipmaps` are
+    1.21.6 GPU plumbing
+    with no Rust surface
+    (the port manages
+    samplers and mipmap
+    levels in its own
+    wgpu texture code,
+    driven by the Mipmap
+    Levels option).
+    1.21.5's
+    `setFilter(TriState,
+    ...)` / `defaultBlur`
+    form is behaviourally
+    inert: both TriState
+    callers in the 1.21.5
+    client (SkyRenderer,
+    WorldBorderRenderer)
+    pass explicit FALSE,
+    never DEFAULT, so the
+    default never decides
+    anything.
+    `OverlayTexture`'s
+    1.21.5 `setFilter(false,
+    false)` has no surface
+    either — the port has
+    no overlay texture,
+    the hurt red and white
+    flash are WGSL
+    constants
+    (`overlay.rs`).
+    `TextureAtlasSprite.isAnimated()`
+    (1.21.6-only) has no
+    surface: the port
+    derives animation from
+    a sprite's frames
+    list, with no
+    `is_animated` field.
+    The `SpriteContents`
+    upload-argument
+    difference is GPU
+    plumbing (the port
+    uploads via wgpu
+    directly).
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` passed at
+    item 155.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **157 of 426 are
-closed** (rank 1 complete, rank 2 at 148/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **158 of 426 are
+closed** (rank 1 complete, rank 2 at 149/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
