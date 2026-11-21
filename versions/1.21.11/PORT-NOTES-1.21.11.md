@@ -9114,3 +9114,16 @@ the composter check is an `is` overload change; dropper and hopper
 differ only by `getRandom()` vs the `random` field, the same source
 (the Rust uses `world.random` in both spots). Tests:
 `game::machines::` 24 passed, 5 ignored.
+
+## Item 162 — recipe_book_screen.rs (rank 2, CHANGED, citations only)
+
+4 classes, 9 methods, 3 named. The whole diff is the 26.1
+render-extraction rename (`extractRenderState`/`extractTooltip` on
+`GuiGraphicsExtractor` → `render`/`renderTooltip` on `GuiGraphics`;
+`text` → `drawString`): no behaviour delta, geometry and sprites
+identical. The Rust already used the 1.21.11 names in its docs; the
+one stale citation (`GuiGraphicsExtractor.item` etc. in the
+`ItemCall` doc) is fixed to `renderItem`/`renderFakeItem`/
+`renderItemDecorations`, verified from the 1.21.11 jar. The rest of
+the tree's Extractor citations stay with item 87's sweep. Tests:
+`recipe_book::` 23 passed.

@@ -27,7 +27,7 @@ impl Run {
     }
 }
 
-/// How an item is drawn: `GuiGraphicsExtractor.item`, `fakeItem` or `itemDecorations`.
+/// How an item is drawn: `GuiGraphics.renderItem`, `renderFakeItem` or `renderItemDecorations`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ItemCall {
     Item,
