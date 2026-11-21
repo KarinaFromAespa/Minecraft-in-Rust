@@ -11299,3 +11299,19 @@ parameters — panic 1.6, look 45/90, breed 0.4, charge
 package move. `ChargeAttack` is byte-identical. The
 Rust's goal model has no Brain-API surface and matches
 every constant and priority. No code touched.
+
+## Item 517 — game/advancements_screen.rs (rank 3, NO-CHANGE)
+
+4 classes, 32 methods, 1 named. The whole diff is the
+26.1 render-state-extractor rewire vs 1.21.11's
+immediate drawing (`GuiGraphicsExtractor` ->
+`GuiGraphics`, `extract*` -> `draw*`/`render*`,
+`horizontalLine` -> `hLine`, `fakeItem` ->
+`renderFakeItem`, `text` -> `drawString`), the
+`ItemStackTemplate` wrapper vs a plain `ItemStack`
+(26.1 caches the icon, 1.21.11 reads it at draw time;
+same icon, same x+8/y+5), and a lambda parameter type.
+Bodies identical — the hover body verified line-for-line
+after normalizing the names. One stale citation
+re-pointed: `extractHover` -> `drawHover`. No code
+touched.

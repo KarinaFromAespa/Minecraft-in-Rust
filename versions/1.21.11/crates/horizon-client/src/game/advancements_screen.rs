@@ -611,7 +611,7 @@ impl Game<'_> {
             self.adv_ui.fade = (self.adv_ui.fade - 0.12 * ticks).clamp(0.0, 1.0);
         }
     }
-    /// `AdvancementWidget.extractHover`, in GUI pixels.
+    /// `AdvancementWidget.drawHover` (26.1's `extractHover`), in GUI pixels.
     #[allow(clippy::too_many_arguments)]
     fn adv_draw_hover(
         &mut self,
