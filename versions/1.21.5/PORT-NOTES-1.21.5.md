@@ -1537,13 +1537,59 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings (2m51s).
+- **Item 39 — SignBlockEntity / SignBlock / sign
+  editors, ported:**
+  - A sign's click commands are `run_command`
+    only in 1.21.5: `ClickAction::ShowDialog`
+    and `ClickAction::Custom` (and their
+    `click_action` arms) are removed from
+    signs.rs, the two arms are out of
+    `execute_sign_click_commands`, and
+    `show_click_dialog` is deleted (its only
+    caller was the sign arm). `has_any_click_commands`
+    already matched `run_command` only.
+    `MinecraftServer.handleCustomClickAction`
+    has no Rust surface left.
+  - No-ops verified: the sign NBT layout
+    (`front_text` / `back_text` with
+    messages/color/has_glowing_text,
+    `is_waxed`, `allow_op_features`) is
+    compound-based already — the
+    ValueInput/ValueOutput → CompoundTag
+    migration is API-only; the editor's
+    offsets (90 standing, 125 hanging), the
+    hanging 16x16-at-4.5 background, the
+    title at y 40 and the shared text
+    highlight are already the 1.21.5 form
+    (`offsetSign`'s z and the
+    Lighting/flush/RenderType-vs-RenderPipelines
+    differences have no wgpu surface); the
+    applicator and empty-hand use paths
+    already run click commands before the
+    waxed-sound / editor branches, as
+    1.21.5's `useItemOn` / `useWithoutItem`
+    do (the `instanceof ServerLevel` vs
+    `isClientSide` guard differs only on a
+    path vanilla never calls client-side).
+  - NOT this item: the general `ClickEvent`
+    model's `ShowDialog` / `Custom` variants
+    (text.rs, component.rs) belong to items
+    175 (rank 2, `ClickEvent$Action`) and
+    391 (rank 3, `ClickEvent$Custom`); the
+    `/dialog` command implementation left
+    in extra.rs belongs to the dialog item
+    (item 36 already took it out of the
+    tree).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings (3m21s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **38 of 426 are
-closed** (rank 1 complete, rank 2 at 29/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **39 of 426 are
+closed** (rank 1 complete, rank 2 at 30/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

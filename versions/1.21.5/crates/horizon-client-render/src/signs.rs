@@ -44,36 +44,23 @@ impl Default for SignText {
         }
     }
 }
-/// The click events `SignBlockEntity.executeClickCommandsIfPresent` acts on.
+/// The click event `SignBlockEntity.executeClickCommandsIfPresent` acts on:
+/// `ClickEvent.RunCommand` only — 1.21.5 has no dialogs and no custom click
+/// actions (both arrived in 1.21.6).
 #[derive(Debug, PartialEq)]
-pub enum ClickAction<'a> {
+pub enum ClickAction {
     /// `ClickEvent.RunCommand`.
     RunCommand(String),
-    /// `ClickEvent.ShowDialog`: a registry id or the dialog itself.
-    ShowDialog(&'a Tag),
-    /// `ClickEvent.Custom`.
-    Custom {
-        id: String,
-        payload: Option<&'a Tag>,
-    },
 }
-/// A saved `click_event` as its action: the three a sign acts on, read the
+/// A saved `click_event` as its action: the `run_command` one, read the
 /// way `ClickEvent.CODEC` does; any other action or a malformed one is None.
-pub fn click_action(event: &Tag) -> Option<ClickAction<'_>> {
+pub fn click_action(event: &Tag) -> Option<ClickAction> {
     let Some(Tag::String(action)) = event.get("action") else {
         return None;
     };
     match action.to_string_lossy().as_str() {
         "run_command" => match event.get("command") {
             Some(Tag::String(command)) => Some(ClickAction::RunCommand(command.to_string_lossy())),
-            _ => None,
-        },
-        "show_dialog" => event.get("dialog").map(ClickAction::ShowDialog),
-        "custom" => match event.get("id") {
-            Some(Tag::String(id)) => Some(ClickAction::Custom {
-                id: id.to_string_lossy(),
-                payload: event.get("payload"),
-            }),
             _ => None,
         },
         _ => None,

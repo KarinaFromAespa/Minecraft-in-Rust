@@ -142,10 +142,10 @@ impl Game<'_> {
         }
     }
     /// `SignBlockEntity.executeClickCommandsIfPresent`: every line of the
-    /// side whose style has a `run_command`, `show_dialog` or `custom` click
-    /// event runs it as the acting player when the sign allows op features;
-    /// otherwise the player is told click actions are disabled. Whether any
-    /// line had one.
+    /// side whose style has a `run_command` click event runs it as the
+    /// acting player when the sign allows op features; otherwise the
+    /// player is told click actions are disabled. Whether any line had
+    /// one.
     fn execute_sign_click_commands(&mut self, pos: [i32; 3], front: bool) -> bool {
         let key = (pos[0], pos[1], pos[2]);
         let Some(BlockEntity::Sign(sign)) = self.world.block_entities.get(&key) else {
@@ -157,27 +157,11 @@ impl Game<'_> {
         let events: Vec<_> = side.click.iter().flatten().cloned().collect();
         let mut any_click_command = false;
         for event in &events {
-            match click_action(event) {
-                Some(ClickAction::RunCommand(command)) => {
-                    if allow_op_features {
-                        self.run_sign_command(pos, &command);
-                    }
-                    any_click_command = true;
+            if let Some(ClickAction::RunCommand(command)) = click_action(event) {
+                if allow_op_features {
+                    self.run_sign_command(pos, &command);
                 }
-                Some(ClickAction::ShowDialog(dialog)) => {
-                    if allow_op_features {
-                        self.show_click_dialog(dialog);
-                    }
-                    any_click_command = true;
-                }
-                // MinecraftServer.handleCustomClickAction only logs it.
-                Some(ClickAction::Custom { id, payload }) => {
-                    if allow_op_features {
-                        log::debug!("Received custom click action {id} with payload {payload:?}");
-                    }
-                    any_click_command = true;
-                }
-                None => {}
+                any_click_command = true;
             }
         }
         if !allow_op_features && any_click_command {
