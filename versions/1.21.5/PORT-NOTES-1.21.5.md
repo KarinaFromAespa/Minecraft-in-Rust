@@ -9137,13 +9137,42 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 203 — Rail
+  rotate/mirror
+  helpers:**
+  - 1.21.6 factored the
+    rail shape tables into
+    helpers; 1.21.5 inlines
+    them, with one real
+    difference: its
+    180-degree arm has no
+    straight-rail cases and
+    falls through to the
+    90-degree arm, so a
+    straight rail rotated
+    180 degrees swaps axis
+    (confirmed by javap on
+    the 1.21.5 jar). The
+    port needs no change:
+    its rotate table is
+    exported by calling
+    vanilla's own
+    `BlockState.rotate` on
+    the 1.21.5 server jar,
+    so the fallthrough is
+    in the data. The mirror
+    tables are identical in
+    both versions.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **202 of 426 are
-closed** (rank 1 complete, rank 2 at 193/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **203 of 426 are
+closed** (rank 1 complete, rank 2 at 194/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
