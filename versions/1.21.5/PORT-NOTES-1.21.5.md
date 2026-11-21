@@ -12837,12 +12837,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no code
     changed.
 
+- **Item 310 — End crystal and dragon breath**
+  - EndCrystal, DragonSitti
+    ngFlamingPhase:
+    verified, no code. The
+    crystal save is already
+    the 1.21.5 direct
+    CompoundTag form:
+    ShowBottom as a byte
+    (default true on read,
+    vanilla's
+    getBooleanOr),
+    beam_target as an int
+    array written only when
+    set (storeNullable's
+    form) - the
+    ValueInput/ValueOutput
+    refactor has no
+    surface, the serialized
+    form is identical. The 
+    setCustomParticle/setPa
+    rticle rename has no
+    surface either: no
+    custom_particle remains
+    in the tree (item 22),
+    and the port's Breath
+    has no particle field -
+    a dragon cloud is
+    dragon breath by
+    construction. The
+    Flaming phase spawns
+    its cloud at tick 10
+    with radius 5.0 and
+    duration 200, from the
+    dragon, with
+    instant-damage victims.
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **309 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 41/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **310 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 42/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
