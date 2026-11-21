@@ -12037,3 +12037,10 @@ Only the `WorldOptions` access path (`getWorldGenSettings().options()` vs
 26.1 gates on `TreeGrower.getMinimumHeight` against the build height. The
 Rust's Sapling arm already returns true with a comment noting exactly
 this (same pattern as item 533's mushrooms).
+
+## Item 582 — loot/odds.rs (ApplyBonusCount, MatchTool) — NO-CHANGE
+
+Only the `MAP_CODEC` + `codec()` (26.1) vs `CODEC` + `getType()` (1.21.11)
+loot registry refactor, the `ItemInstance` vs `ItemStack` rename, and
+record-constructor visibility. The bonus formulas and the tool predicate
+are untouched.
