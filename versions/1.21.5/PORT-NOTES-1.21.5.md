@@ -4326,13 +4326,43 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 100 — SpriteSourceList /
+  DownloadedPackSource,
+  verified:**
+  - `SpriteSourceList`: 1.21.6
+    parses atlas definitions
+    with `StrictJsonParser`,
+    1.21.5 with Gson's plain
+    `JsonParser`. Only
+    malformed pack JSON could
+    tell them apart; valid
+    definitions parse
+    identically, and the Rust
+    decoder (`serde_json`,
+    whole file fails on a
+    bad one) matches vanilla's
+    fail-the-file shape.
+  - `DownloadedPackSource`:
+    pure getter renames
+    (`name()` → `getName()` and
+    friends). The Rust
+    `server_packs/download.rs`
+    sends the same header
+    values (username, UUID,
+    version, version id,
+    pack format, User-Agent).
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **99 of 426 are
-closed** (rank 1 complete, rank 2 at 90/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **100 of 426 are
+closed** (rank 1 complete, rank 2 at 91/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
