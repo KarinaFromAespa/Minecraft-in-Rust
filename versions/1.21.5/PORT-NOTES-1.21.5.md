@@ -10301,12 +10301,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 239 — Recipe-book
+  screen order:
+  - Moved draw_carried
+    before draw_recipe_book
+    in the container draw:
+    1.21.5's AbstractRecipe
+    BookScreen.render calls
+    super.render (which
+    draws the carried item,
+    AbstractContainerScreen
+    .render) and only then
+    the book, so the book
+    covers a carried stack
+    under the mouse. The
+    port had it the other
+    way round. The strata
+    and the separate render
+    CarriedItem/renderSnapb
+    ackItem calls are
+    1.21.6-only (the 1.21.6
+    renderContents split);
+    the port has no strata,
+    and the snapback
+    animation is still
+    unimplemented (item
+    171).
+  - Verification: cargo
+    check -j 1 -p horizon-
+    client --lib --tests
+    0/0 (2m36s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **238 of 426 are
-closed** (rank 1 complete, rank 2 at 229/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **239 of 426 are
+closed** (rank 1 complete, rank 2 at 230/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -6431,6 +6431,10 @@ impl Game<'_> {
         self.draw_inventory_slots(batch, ox, oy);
         self.draw_hovered_slot_highlight(batch, true, ox, oy);
         self.draw_sort_buttons(batch, ox, oy);
+        // 1.21.5 `AbstractRecipeBookScreen.render`: `super.render` draws the
+        // carried item, then the book — so the book covers a carried stack
+        // under the mouse, not the other way round.
+        self.draw_carried(batch);
         self.draw_recipe_book(batch);
         let effect_tip = if self.container.is_none() && self.craft_size == 2 && !self.mount_active()
         {
@@ -6438,7 +6442,6 @@ impl Game<'_> {
         } else {
             None
         };
-        self.draw_carried(batch);
         self.draw_slot_tooltip(batch);
         self.draw_native_screen_tooltip(batch);
         if let Some(lines) = effect_tip {
