@@ -1,10 +1,17 @@
-//! `net.minecraft.util.worldupdate.WorldUpgrader` and `RegionStorageUpgrader`:
+//! `net.minecraft.util.worldupdate.WorldUpgrader` (its `AbstractUpgrader` /
+//! `ChunkUpgrader` / `SimpleRegionStorageUpgrader` inner classes):
 //! Optimize World. Worker threads, one region file each at a time, read every
 //! chunk of each dimension's `entities`, `poi` and `region` folders, bring it
 //! to the current DataVersion and write it back, reporting its counts through an [`UpgradeProgress`] the
 //! screen reads. Unlike [`super::files::upgrade_world`] (the converter that
 //! runs when an older world opens) it works on a world that is already at the
 //! current layout and decides per chunk whether anything changed.
+//! The upgrader's shape here follows 26.1's extracted `RegionStorageUpgrader`
+//! (one data type of one dimension, a `Builder`, tag modifiers) rather than
+//! 1.21.11's inner classes; the work it does is the same, and the files are
+//! independent, so the bytes do not depend on the shape — or on the thread
+//! count, where vanilla runs one file per dimension per pass and this port
+//! finishes each dimension in turn.
 use super::dynamic::{as_int, has, remove};
 use super::files::{generators, subdirectories};
 use super::progress::{UpgradeDataFixType, UpgradeProgress, UpgradeStatus, UpgradeType};
@@ -24,7 +31,8 @@ use std::thread::JoinHandle;
 
 const NEW_DIRECTORY_PREFIX: &str = "new_";
 
-/// `RegionStorageUpgrader.TagModifier`: may change the upgraded tag and
+/// The tag modifier 1.21.11 inlines in `ChunkUpgrader.tryProcessOnePosition`
+/// (26.1's `RegionStorageUpgrader.TagModifier`): may change the upgraded tag and
 /// reports whether it did.
 pub type TagModifier = Box<dyn Fn(ChunkPos, &mut Tag) -> bool + Send + Sync>;
 
@@ -59,7 +67,8 @@ pub fn world_dimensions(base: &Path) -> Vec<String> {
     out
 }
 
-/// `WorldUpgrader.verifyChunkPos`: warns about a chunk stored under another
+/// `ChunkUpgrader.tryProcessOnePosition`'s position check (26.1's
+/// `WorldUpgrader.verifyChunkPos`): warns about a chunk stored under another
 /// position; never reports a change.
 pub fn verify_chunk_pos(pos: ChunkPos, upgraded: &mut Tag) -> bool {
     let stored = ChunkPos::new(
@@ -72,7 +81,8 @@ pub fn verify_chunk_pos(pos: ChunkPos, upgraded: &mut Tag) -> bool {
     false
 }
 
-/// `WorldUpgrader.verifyChunkPosAndEraseCache`: also drops the heightmaps,
+/// `ChunkUpgrader.tryProcessOnePosition`'s erase-cache branch (26.1's
+/// `WorldUpgrader.verifyChunkPosAndEraseCache`): also drops the heightmaps,
 /// the light flag and the stored light of every section.
 pub fn verify_chunk_pos_and_erase_cache(pos: ChunkPos, upgraded: &mut Tag) -> bool {
     verify_chunk_pos(pos, upgraded);
@@ -115,13 +125,15 @@ pub fn status_key(progress: &UpgradeProgress) -> String {
     }
 }
 
-/// `FileToUpgrade`: a region file and the chunks it holds.
+/// `WorldUpgrader.FileToUpgrade`: a region file and the chunks it holds.
 struct FileToUpgrade {
     path: PathBuf,
     chunks: Vec<ChunkPos>,
 }
 
-/// `RegionStorageUpgrader.Builder`, as far as `WorldUpgrader` uses it.
+/// The upgrader's configuration: 1.21.11's upgrader constructors take the
+/// data-fix type, folder and statuses directly (26.1's
+/// `RegionStorageUpgrader.Builder`).
 #[derive(Clone)]
 struct Builder {
     data_fix_type: UpgradeDataFixType,
@@ -151,7 +163,7 @@ impl Builder {
             threads: worker_threads(),
         }
     }
-    /// `addTagModifier`: at most one per data version.
+    /// At most one modifier per data version (26.1's `Builder.addTagModifier`).
     fn add_tag_modifier(&mut self, version: i32, modifier: TagModifier) {
         let previous = self.tag_modifiers.insert(version, Arc::new(modifier));
         assert!(
@@ -161,7 +173,9 @@ impl Builder {
     }
 }
 
-/// `RegionStorageUpgrader`: one data type of one dimension.
+/// One data type of one dimension: 1.21.11's `AbstractUpgrader`, as
+/// `ChunkUpgrader` / `SimpleRegionStorageUpgrader` (26.1's extracted
+/// `RegionStorageUpgrader`).
 struct RegionStorageUpgrader {
     builder: Builder,
     progress: Arc<UpgradeProgress>,
@@ -187,7 +201,8 @@ pub fn worker_threads() -> usize {
 }
 
 impl RegionStorageUpgrader {
-    /// `init`: counts the chunks of the dimension's folder.
+    /// `getDimensionsToUpgrade` + `getFilesToProcess`: counts the chunks of
+    /// the dimension's folder.
     fn init(
         builder: Builder,
         progress: Arc<UpgradeProgress>,
@@ -639,7 +654,9 @@ fn work_with_threads(
     progress.set_finished(true);
 }
 
-/// `upgradeLevels`: counts every dimension first, then upgrades them in turn.
+/// `AbstractUpgrader.upgrade`: counts every dimension first, then upgrades
+/// them in turn (vanilla round-robins one file per dimension per pass; the
+/// files are independent, so the bytes are the same either way).
 fn upgrade_levels(
     base: &Path,
     levels: &[String],

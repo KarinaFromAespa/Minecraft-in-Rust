@@ -11134,3 +11134,27 @@ scissor/oversized bounds (verified
 identical) — the one edit re-points
 the module-doc citation there.
 `item_render::gui`: 8 passed.
+
+## Item 507 — datafix/world_upgrader.rs (rank 3, NO-CHANGE)
+
+6 classes, 30 methods, 3 named.
+26.1 extracted the upgrader into
+`RegionStorageUpgrader` (+ `Builder`,
+`TagModifier`), `FileToUpgrade` and the
+`UpgradeProgress` family; 1.21.11 keeps
+it in `WorldUpgrader`'s inner
+`AbstractUpgrader` / `ChunkUpgrader` /
+`SimpleRegionStorageUpgrader` classes
+with inline progress fields, and
+`verifyChunkPos` is inline in the chunk
+upgrader. The per-chunk behaviour is
+identical (order, counts, status keys,
+erase-cache drops, POI default 1945,
+recreate replacement), and vanilla's
+single-threaded round-robin vs the
+Rust's per-dimension workers cannot
+change the bytes (files are
+independent). Doc citations re-pointed
+to the 1.21.11 homes; the 26.1-shaped
+internal structure stays.
+`world_upgrader`: 13 passed.
