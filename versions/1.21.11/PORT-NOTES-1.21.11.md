@@ -12420,3 +12420,8 @@ the LAN-opened chat line (same system message).
 The registered effect-component sets are identical (31 names in both);
 the diff is registration order and the codec validation form (same
 loot validation refactor as item 628).
+
+## Item 646 — server_packs.rs (ServerPackManager, DownloadQueue) — NO-CHANGE
+
+Only visibility, constructor field-init order and `requireNonNull`
+across the 6 pack classes.
