@@ -11228,3 +11228,19 @@ GUI ortho projection (1000/11000,
 flip-Y, ORTHOGRAPHIC) and the -11000
 model view are the same in both.
 `pack_text`: 9 passed.
+
+## Item 512 — game/commands/text_commands.rs (rank 3, NO-CHANGE)
+
+6 classes, 30 methods, 2 named.
+`NbtContents` differs structurally
+(26.1: record + CompilableString path
++ `plain` flag for rich SNBT styling;
+1.21.11: class + compiled path +
+`asString` — string raw, else compact
+SNBT), but the Rust already implements
+the 1.21.11 form with a test.
+`ScoreContents` is CompilableString vs
+SelectorPattern with identical logic;
+tellraw/title differ only in the
+resolution API. `text_commands`: 4
+passed.
