@@ -12463,3 +12463,9 @@ Visibility, `requireNonNull`, field-init order and the
 ## Item 654 — world/level/levelgen/structure/pools (JigsawPlacement) — NO-CHANGE
 
 Only visibility.
+
+## Item 655 — horizon-client-input/src/clipboard.rs (ClipboardManager) — NO-CHANGE
+
+Only the GLFW error-callback plumbing (`GLFWErrorScope` vs manual
+set/restore) and a `memFree` overload; same observable behaviour. The
+Rust's clipboard goes through winit, never GLFW.
