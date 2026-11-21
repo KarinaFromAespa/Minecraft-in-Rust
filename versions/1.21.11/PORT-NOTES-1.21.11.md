@@ -12220,3 +12220,18 @@ machinery as Horizon's own state (documented in `load_world_state`):
 defaults give exactly 1.21.11 behaviour (1 tick per tick), `/time` is
 the classic 1.21.11 form with no pause/rate/marker subcommands, and
 nothing in the 1.21.11 UI or commands sets rate/paused.
+
+## Item 614 — game/commands/misc.rs (RandomCommand) — CHANGED: random sequences are per-level
+
+26.1 reads `RandomSequences` from the server; 1.21.11 reads them from
+the level (`ServerLevel.randomSequences`, one `data/random_sequences.dat`
+per dimension). The Rust kept one set for the whole game at the world's
+`data/minecraft/random_sequences.dat`, so a `/random` roll (or a loot,
+villager or fishing sequence) in one dimension advanced every
+dimension's stream. Now `Parked` carries each level's set, `swap_level`
+swaps it, `open_level` loads the dimension's set, and
+`save_random_sequences` writes the in-place level's set and every
+parked level's set, each to its dimension folder
+(`dimensions/minecraft/<name>/data/minecraft/random_sequences.dat`,
+the `raids_path` pattern). The overworld load falls back to the old
+world-root path for worlds saved by older Horizon builds.

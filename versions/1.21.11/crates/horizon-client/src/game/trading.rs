@@ -3,7 +3,7 @@
 //! buttons, payment slots, the result slot's `onTake`, villager experience and
 //! level-ups with new offers from the next trade set.
 use super::{
-    Game,
+    Dim, Game,
     stations::{INPUT, Kind, RESULT, Station},
 };
 use horizon_client::mobs::{
@@ -125,23 +125,53 @@ impl merchant::MapMaker for GameMaps<'_> {
     }
 }
 
+/// A dimension's `RandomSequences` from its `random_sequences.dat`
+/// (1.21.11: `ServerLevel.getRandomSequences`, one set per level —
+/// 26.1 moved them to the server). Missing or unreadable reads as empty.
+pub(super) fn load_random_sequences(
+    path: &std::path::Path,
+) -> horizon_client::random_sequences::RandomSequences {
+    horizon_client::save::read_dat(path)
+        .and_then(|t| t.get("data").cloned())
+        .map(|d| horizon_client::random_sequences::RandomSequences::from_nbt(&d))
+        .unwrap_or_default()
+}
+
 impl Game<'_> {
-    pub(super) fn random_sequences_path(&self) -> std::path::PathBuf {
-        self.world_root.join("data/minecraft/random_sequences.dat")
+    /// `RandomSequences` for `dim`: its dimension folder's
+    /// `data/minecraft/random_sequences.dat`, as `raids_path` places raids.
+    pub(super) fn random_sequences_path(&self, dim: Dim) -> std::path::PathBuf {
+        horizon_client::save::dimension_dir(&self.world_root, dim.id())
+            .join("data/minecraft/random_sequences.dat")
     }
-    /// `RandomSequences` as `random_sequences.dat` (not on a server's guest).
+    /// `RandomSequences` as `random_sequences.dat` (not on a server's
+    /// guest): the level in place and every parked level, each to its own
+    /// dimension folder.
     pub(super) fn save_random_sequences(&mut self) {
-        if self.remote.is_some() || self.rand_sequences.ids().is_empty() {
+        if self.remote.is_some() {
+            return;
+        }
+        self.write_random_sequences(self.dim, &self.rand_sequences);
+        for (dim, sequences) in self.levels.parked_rand_sequences() {
+            self.write_random_sequences(dim, sequences);
+        }
+    }
+    fn write_random_sequences(
+        &self,
+        dim: Dim,
+        sequences: &horizon_client::random_sequences::RandomSequences,
+    ) {
+        if sequences.ids().is_empty() {
             return;
         }
         let tag = horizon_world::nbt::Tag::compound([
-            ("data", self.rand_sequences.to_nbt()),
+            ("data", sequences.to_nbt()),
             (
                 "DataVersion",
                 horizon_world::nbt::Tag::Int(horizon_world::DATA_VERSION),
             ),
         ]);
-        if let Err(e) = horizon_client::save::write_dat(&self.random_sequences_path(), tag) {
+        if let Err(e) = horizon_client::save::write_dat(&self.random_sequences_path(dim), tag) {
             log::warn!("the villager random sequences were not written: {e}");
         }
     }

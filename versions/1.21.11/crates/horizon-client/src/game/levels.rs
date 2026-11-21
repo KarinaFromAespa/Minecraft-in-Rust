@@ -97,6 +97,8 @@ pub(super) struct Parked {
     spawn_scratch: super::natural_spawning::SpawnScratch,
     /// Server ticks since a player was last in the level.
     idle: u32,
+    /// The level's own random sequences (`ServerLevel.getRandomSequences`).
+    rand_sequences: horizon_client::random_sequences::RandomSequences,
     /// The level's own world border (`ServerLevel.getWorldBorder`), and what its players were
     /// last told of it (`LanHost::border_sent`).
     border: horizon_client::worldborder::WorldBorder,
@@ -228,6 +230,15 @@ impl Levels {
     pub(super) fn parked_dims(&self) -> Vec<Dim> {
         self.parked.keys().copied().collect()
     }
+
+    /// Each level not in place, with its random sequences.
+    pub(super) fn parked_rand_sequences(
+        &self,
+    ) -> impl Iterator<Item = (Dim, &horizon_client::random_sequences::RandomSequences)> {
+        self.parked
+            .iter()
+            .map(|(dim, level)| (*dim, &level.rand_sequences))
+    }
 }
 
 impl Game<'_> {
@@ -249,6 +260,9 @@ impl Game<'_> {
         world.shape = self.level_shapes.get(dim.id());
         world.fast_lava = self.dimension_type_of(dim).fast_lava;
         let tickets = ChunkTickets::with_saved_portal(save.load_portal_tickets());
+        let rand_sequences = super::trading::load_random_sequences(
+            &save.root.join("data/minecraft/random_sequences.dat"),
+        );
         Ok(Parked {
             world,
             streaming,
@@ -298,6 +312,7 @@ impl Game<'_> {
             creaking: Default::default(),
             spawn_scratch: Default::default(),
             idle: 0,
+            rand_sequences,
             border: self.load_border(dim),
             border_sent: None,
         })
@@ -456,6 +471,7 @@ impl Game<'_> {
         self.sculk.swap_level(&mut p.sculk);
         self.creaking.swap_level(&mut p.creaking);
         swap(&mut self.spawn_scratch, &mut p.spawn_scratch);
+        swap(&mut self.rand_sequences, &mut p.rand_sequences);
         swap(&mut self.border, &mut p.border);
         // What only the client draws starts over.
         self.particles.clear();

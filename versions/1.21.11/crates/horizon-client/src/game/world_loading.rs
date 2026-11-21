@@ -156,12 +156,19 @@ impl WorldRequest {
         horizon_client::save::upgrade_older_world_with(&save_root, upgrade)?;
         horizon_client::save::migrate_legacy(&save_root)?;
         let session_lock = horizon_client::save::SessionLock::acquire(&save_root)?;
-        // RandomSequences: the world's data/minecraft/random_sequences.dat.
-        let rand_sequences =
-            horizon_client::save::read_dat(&save_root.join("data/minecraft/random_sequences.dat"))
-                .and_then(|t| t.get("data").cloned())
-                .map(|d| horizon_client::random_sequences::RandomSequences::from_nbt(&d))
-                .unwrap_or_default();
+        // RandomSequences: the overworld's own set (1.21.11: one per level),
+        // in its dimension folder; older Horizon saves kept the one set at
+        // the world's data/minecraft/random_sequences.dat, which still reads.
+        let overworld_sequences =
+            horizon_client::save::dimension_dir(&save_root, "minecraft:overworld")
+                .join("data/minecraft/random_sequences.dat");
+        let rand_sequences = if overworld_sequences.exists() {
+            super::trading::load_random_sequences(&overworld_sequences)
+        } else {
+            super::trading::load_random_sequences(
+                &save_root.join("data/minecraft/random_sequences.dat"),
+            )
+        };
         let existing = Level::read(&save_root);
         let created = existing.is_none();
         let level = existing.unwrap_or_else(|| Level {
