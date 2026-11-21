@@ -9571,3 +9571,18 @@ baseline (see rank2-item-194-TRIAGE.md); a half-port
 with the baseline defaulting to 0 would regress every
 loaded water section, so it is left for a later item
 with the oracle harness to verify.
+
+## Item 195 — text_display.rs (rank 2, NO-CHANGE)
+
+3 classes, 7 methods, 2 named. No behavioural delta:
+`Brightness` gains the static `pack`/`block`/`sky`
+helpers in 1.21.11 (moved in from the 26.1-only
+`LightCoordsUtil`, same formulas — the Rust already
+cites `Brightness.pack`); `Display`/`BlockDisplay`/
+`ItemDisplay` are renames; `TextDisplay`'s load-time
+text resolution changes API (`resolve` with a
+`ResolutionContext` -> `updateForEntity` with the entity
+passed explicitly) with the same semantics, and the Rust
+resolves display text at render time anyway. The Rust's
+`text_display_data` matches vanilla field for field. No
+code changed.
