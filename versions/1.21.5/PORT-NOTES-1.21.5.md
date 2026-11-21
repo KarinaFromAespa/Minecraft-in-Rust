@@ -8474,13 +8474,43 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render
     --lib` 0/0 (38s);
     comment only.
+- **Item 177 — Recipe
+  book ghost slots,
+  overlay, tabs:**
+  - Ghost slots draw the
+    exact vanilla fills
+    (822018048 behind,
+    822083583 over the fake
+    item, decorations for
+    the result); the
+    render-type difference
+    is pipeline plumbing
+    over the same colour.
+    The ghost tooltip draws
+    in-frame from
+    `draw_slot_tooltip`,
+    the 1.21.5 form, not
+    the 1.21.6 next-frame
+    defer. The overlay's
+    sprite size, 25px
+    button grid and 0.375
+    mini-item scale match,
+    and its z=1000 / z=150
+    layering is the port's
+    draw order. Tab squeeze
+    is the same formula
+    about (x+8, y+12),
+    selected tabs shift -2.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **176 of 426 are
-closed** (rank 1 complete, rank 2 at 167/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **177 of 426 are
+closed** (rank 1 complete, rank 2 at 168/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
