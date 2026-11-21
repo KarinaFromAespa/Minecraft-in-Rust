@@ -10226,3 +10226,11 @@ first. New test
 restructure (item 218's pattern) and the PathType
 renames in `setTransient` (item 200's pattern) —
 both already the Rust's form. No code changed.
+
+## Item 260 — mobs/equip.rs (rank 2, NO-CHANGE)
+
+1 class, 5 methods, 1 named. The brain provider
+restructure (item 218's pattern) and the typed
+`is(Item)` spelling in `wantsToPickUp` — the Rust
+already implements the golden-axe-only pickup with
+a test. No code changed.
