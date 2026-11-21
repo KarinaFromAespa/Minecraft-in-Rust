@@ -12351,3 +12351,8 @@ so it already matches 1.21.11.
 The saddle/armor slot gates call `mount.is(tag)` (26.1) vs
 `mount.getType().is(tag)` (1.21.11) — the same predicate. The Rust
 gates by species. The Nautilus menu diff is `requireNonNull` noise.
+
+## Item 633 — game/spectator.rs (PlayerMenuItem, TeleportToTeamMenuCategory) — NO-CHANGE
+
+Pure extractor rewire (`extractIcon`→`renderIcon`,
+`PlayerFaceExtractor`→`PlayerFaceRenderer`).
