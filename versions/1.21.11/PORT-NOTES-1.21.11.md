@@ -11934,3 +11934,11 @@ wither-skull checks. The Rust cites the shared method names.
 dropped; 26.1 has a package-private `isEmptyPath`. The Rust already cites
 `isPathNormalized` (the 1.21.11-only method) and implements it equivalently
 for template ids.
+
+## Item 567 — lan/entity.rs (ChunkMap$TrackedEntity, EntityFluidInteraction$Tracker) — NO-CHANGE
+
+`TrackedEntity` differs only in visibility, a `requireNonNull`, field-init
+order and `ChunkPos` accessors. The 26.1-only `Tracker` adds a ~1e-5
+squared-length floor to `applyCurrentTo` that 1.21.11's inline fluid-pushing
+lacks; the Rust's `CurrentAccumulator::apply_to` already pushes on any
+nonzero current, with a comment noting the 26.x floor is gone.
