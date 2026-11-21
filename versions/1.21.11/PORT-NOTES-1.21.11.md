@@ -10667,3 +10667,13 @@ horizon-client --tests` passes.
 bytecode diff EMPTY: `Vec3i.compareTo` is
 identical in both versions. No source
 change. `position`: 7 passed, 1 ignored.
+
+## Item 307 — mobs/spawner.rs (rank 2, CHANGED)
+
+1 class, 1 method, 1 named. The spawner's
+sky-light check uses the raw sky light in
+1.21.11; 26.1 subtracts the sky darken
+(`getEffectiveSkyBrightness`), which
+relaxes upper-bounded limits by up to 11
+at night. `valid_position` now reads the
+raw sky light. `mobs::spawner`: 7 passed.
