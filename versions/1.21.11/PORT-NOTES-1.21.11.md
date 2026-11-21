@@ -12488,3 +12488,9 @@ is unchanged.
 ## Item 659 — extras_hud.rs (MapRenderer) — NO-CHANGE
 
 Only the `AtlasManager` package move (`model/sprite` vs `model`).
+
+## Item 660 — game/item_particles.rs (BreakingItemParticle$ItemParticleProvider) — NO-CHANGE
+
+Only the sprite-picking plumbing (`ItemStackTemplate` +
+`pickParticleMaterial` vs `ItemStack` + `pickParticleIcon`) and the
+`AtlasManager` package move; same sprite selection.
