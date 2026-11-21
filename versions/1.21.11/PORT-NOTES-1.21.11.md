@@ -12519,3 +12519,7 @@ Pure extractor rewire.
 ## Item 664 — game/zombie_villagers.rs (CuredZombieVillagerTrigger$TriggerInstance) — NO-CHANGE
 
 Same `validate` signature refactor as items 657/661.
+
+## Item 665 — lan/arrivals.rs (ChaseServer$PlayerPosition) — NO-CHANGE
+
+Visibility only.
