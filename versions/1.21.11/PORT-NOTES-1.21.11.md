@@ -10530,3 +10530,16 @@ with the title centred; label split width 170
 and the box colours are identical in both
 versions. `game_rules_screen`: 6 passed; the
 title rules test: 1 passed.
+
+## Item 293 — mobs/riders.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. Two hunks of the
+`is` spelling change: `updateControlFlags`
+tests the rider against the raiders tag via
+`LivingEntity.is` (26.1) vs `getType().is`
+(1.21.11) — the same membership — and the
+roar-target predicate excludes armor stands
+via `is` vs `getType().equals`. The flag
+assignments are identical. The Rust already
+implements the raider rule species-wise.
+`mobs::riders`: 13 passed.
