@@ -12210,3 +12210,13 @@ citation re-pointed (`extractBackground` -> `renderBackground`).
 ## Item 612 — commands/arguments (EntityArgument) — NO-CHANGE
 
 Only visibility, a `requireNonNull` and field-init order.
+
+## Item 613 — game/chat.rs (DeathScreen, clocks) — NO-CHANGE
+
+DeathScreen is the extractor rewire; SuggestionProviders is
+visibility. The clock system (`ServerClockManager`, `ClockTimeMarker`)
+is 26.x-only — 1.21.11 has no clock classes at all. The Rust keeps the
+machinery as Horizon's own state (documented in `load_world_state`):
+defaults give exactly 1.21.11 behaviour (1 tick per tick), `/time` is
+the classic 1.21.11 form with no pause/rate/marker subcommands, and
+nothing in the 1.21.11 UI or commands sets rate/paused.
