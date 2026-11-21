@@ -9313,3 +9313,15 @@ wgpu renderer does not model.
 `hud_overlays.rs` updated to the 1.21.11 method names. The
 `GuiGraphicsExtractor.itemDecorations` citations there belong
 to item 371, which owns the extractor rewire.
+
+## Item 177 — game/beacon.rs (rank 2, NO-CHANGE)
+
+2 classes, 23 methods, 1 named. No behavioural delta:
+`BeaconBlockEntity.tick` reads `getLightBlock()` where 26.1
+reads `getLightDampening()` — verified a pure rename by javap
+on both jars (identical computation bodies); the rest of the
+tick, `updateBase` and `applyEffects` is identical.
+`BeaconScreen` only renames the render-state-extraction
+methods to the `render*` forms with every layout number
+identical. No code changed. (The Rust's block-facts field
+keeps the 26.1 name `dampening` for the same value.)
