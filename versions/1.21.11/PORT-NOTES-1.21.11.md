@@ -10189,3 +10189,11 @@ trader's `updateTrades` uses the hardcoded
 of the three trade sets — item 751's work with the
 tables, as in item 235. The rest is spelling and
 visibility noise. No code changed.
+
+## Item 256 — game/inventory_slots.rs (rank 2, NO-CHANGE)
+
+2 classes, 5 methods, 1 named. The container screen
+reaches the same `114 + rows * 18` height by setting
+`imageHeight` after construction, and crafting
+`assemble` takes the registry lookup in 1.21.11 —
+both already the Rust's form. No code changed.
