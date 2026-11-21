@@ -11214,3 +11214,17 @@ match as a registered arm, and
 unchanged when ENTITY_DATA was
 removed. `cargo check -p
 horizon-client --tests` clean.
+
+## Item 511 — hud/pack_text.rs (rank 3, NO-CHANGE)
+
+5 classes, 41 methods, 1 named.
+`GlobalSettingsUniform.update` is
+identical except 1.21.11 takes a
+`Camera` where 26.1 takes its `Vec3`
+(same values, same Std140 writes).
+`GuiRenderer`'s big diff is the
+atlas/PiP restructure (item 506); the
+GUI ortho projection (1000/11000,
+flip-Y, ORTHOGRAPHIC) and the -11000
+model view are the same in both.
+`pack_text`: 9 passed.
