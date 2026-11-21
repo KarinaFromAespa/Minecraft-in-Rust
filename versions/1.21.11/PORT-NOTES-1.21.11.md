@@ -12307,3 +12307,8 @@ Only the `is` overload at 10 sites.
 
 Only visibility (private vs package-private constructors/fields)
 across the 7 mansion piece classes.
+
+## Item 626 — client/resources/server (DownloadedPackSource) — NO-CHANGE
+
+Only constructor field-init order and `requireNonNull` on the outer
+in the anonymous classes (same class as item 591).
