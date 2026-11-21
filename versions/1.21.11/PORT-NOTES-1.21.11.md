@@ -8743,6 +8743,20 @@ reworded in item_sync.rs, lan/guest.rs, item_data.rs);
 parameter-name noise only. Tests: `raid::tests::` 13 passed
 (horizon-client-lib); client_probe check clean.
 
+## Item 144 — widely named: nbt (rank 2, NO-CHANGE)
+
+29 classes, 46 methods, 0 named. The delta is visibility
+(`private` -> package-private on `CompoundTag.readNamedTagData`,
+`NbtOps$GenericListCollector`, `SnbtGrammar` fields/methods and
+inners) plus compiler artifacts (`Objects.requireNonNull`
+removals, a field-init order swap, `checkcast Object` in the
+float-convert switch) and one new default method,
+`ListCollector.acceptAll(Stream)` delegating to
+`acceptAll(Iterable)` (no Rust mirror). The other 23 classes
+have zero javap hunks despite the report's changed-method
+counts — the item-73/91 decompile-noise pattern. Tests:
+`nbt::` 14 passed, `snbt::` 6 passed, `nbt_path::` 12 passed.
+
 ## CI proof run 44839260120 (recorded below)
 
 Dispatched 05:31 NPT Nov 21, 2026 on behaviour/1.21.11 @
