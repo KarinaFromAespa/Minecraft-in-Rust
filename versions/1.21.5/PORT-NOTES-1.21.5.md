@@ -6294,13 +6294,43 @@ is the oracle; decompiled code is a reading aid.
     -p horizon-client-core
     -p horizon-client --lib`
     passed at item 131.
+- **Item 133 — Slime save/load
+  verified against 1.21.5:**
+  - The usual ValueInput/
+    ValueOutput → CompoundTag
+    refactor with identical
+    fields: `Size` (saved as
+    size-1, read as +1,
+    default 0 → size 1) and
+    `wasOnGround` (default
+    false). The Rust port
+    writes and reads exactly
+    that form for slimes and
+    magma cubes, and reads
+    the size first, as
+    vanilla does (the size's
+    attribute bases — max
+    health size², speed
+    0.2+0.1·size, attack
+    size, magma armour
+    3·size — are set by
+    `set_size` before the
+    saved health is applied).
+  - No stale 1.21.6 names in
+    the slime comments.
+  - Verification: no Rust
+    change; the tree state is
+    the one `cargo check -j 1
+    -p horizon-client-core
+    -p horizon-client --lib`
+    passed at item 131.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **132 of 426 are
-closed** (rank 1 complete, rank 2 at 123/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **133 of 426 are
+closed** (rank 1 complete, rank 2 at 124/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
