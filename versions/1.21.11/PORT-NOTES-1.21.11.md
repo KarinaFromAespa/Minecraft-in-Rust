@@ -12150,3 +12150,8 @@ three comments re-pointed from the 26.1-only `AllayAi.throwItem`.
 
 Only `vertex` static vs instance (slot re-numbering), the
 `CameraRenderState` package move and `getLightCoords` vs `getLightColor`.
+
+## Item 602 — inventory_effects.rs (EffectsInInventory) — NO-CHANGE
+
+Only the extractor rewire and `ComponentRenderUtils.clipText` vs
+`StringWidget.clipText`.
