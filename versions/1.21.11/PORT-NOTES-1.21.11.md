@@ -11244,3 +11244,18 @@ SelectorPattern with identical logic;
 tellraw/title differ only in the
 resolution API. `text_commands`: 4
 passed.
+
+## Item 513 — post_chain.rs (rank 3, NO-CHANGE)
+
+11 classes, 19 methods, 3 named.
+The whole diff is the projection-buffer
+restructure (`Projection` +
+`ProjectionMatrixBuffer` vs one
+`CachedOrthoProjectionMatrixBuffer`,
+same ortho), the GpuDevice class →
+interface form, typeSwitch receiver
+typing, visibility, and null-check
+codegen. `createPass`/`load` logic is
+identical; `process`/`close`/`getOrCreatePersistentTarget`
+are byte-identical. No Rust surface.
+`post_chain`: 13 passed.
