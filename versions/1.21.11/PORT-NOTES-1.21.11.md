@@ -12606,3 +12606,7 @@ sound variants (finalize.rs:1845) and the preview uses plain
 26.1-only class; already handled — cauldron.rs:214 records that
 1.21.11 dropped the Dispatcher, and item 558 established the file is
 a complete port of the 1.21.11 table.
+
+## Item 684 — game/clone_dimensions_tests.rs (DimensionArgument) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
