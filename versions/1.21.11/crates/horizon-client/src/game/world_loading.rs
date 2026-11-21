@@ -339,8 +339,9 @@ pub(super) struct WorldLoader {
 
 impl WorldLoader {
     /// Prepare the world on its own thread. `upgrade` is what its upgrade has done
-    /// (`UpgradeProgress`), which the window's `FileFixerProgressScreen` shows while the
-    /// file fixers run, and where its Cancel stops them.
+    /// (`UpgradeProgress`); in 1.21.11 there is no file-fixing flow, so the
+    /// file-fixer screen never shows and the handle only reports the datafix
+    /// progress.
     pub fn start(
         request: WorldRequest,
         res: Arc<Resources>,

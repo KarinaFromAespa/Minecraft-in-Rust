@@ -10847,3 +10847,15 @@ internal effect-action interfaces.
 decompiled bodies are identical. All 28
 Rust citations re-pointed to the 1.21.11
 names. `hud_overlays`: 6 passed.
+
+## Item 372 — util/worldupdate/UpgradeProgress (rank 2, NO-CHANGE)
+
+4 classes, 0 methods named. The 26.x
+file-fixer progress handle has no 1.21.11
+counterpart; the Rust's merged handle
+keeps its file-fixer half inert (the
+screen never shows) while its counters
+serve the live 1.21.11 `WorldUpgrader`
+port. Two stale doc comments fixed.
+`datafix`: 32 passed, 2 failed (the known
+pre-existing pair).
