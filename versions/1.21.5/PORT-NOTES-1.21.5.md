@@ -9417,13 +9417,38 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-lib
     --example client_probe`
     0/0 (2m16s).
+- **Item 213 — Shearable
+  animal armor:**
+  - 1.21.6 made wolf and
+    horse armor shearable
+    (`canBeSheared` plus a
+    shearing sound); 1.21.5
+    has neither field. The
+    port has no
+    armor-shearing
+    interaction at all —
+    hand shearing covers
+    sheep, mooshroom, snow
+    golem and bogged,
+    dispenser shearing the
+    same plus sulfur cube
+    and copper golem — and
+    the 1.21.5 adapter
+    forces `canBeSheared`
+    false on read and
+    strips both fields on
+    write, so no item can
+    carry the flag.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **212 of 426 are
-closed** (rank 1 complete, rank 2 at 203/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **213 of 426 are
+closed** (rank 1 complete, rank 2 at 204/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
