@@ -9330,13 +9330,29 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 210 — ChunkMap
+  visibility:**
+  - `getUpdatingChunkIfPresent`
+    is public in 1.21.6 and
+    protected in 1.21.5,
+    with an identical body.
+    A Java visibility
+    change has no Rust
+    surface, and the port
+    has no
+    updating-chunk-map
+    accessor by that name
+    at all.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **209 of 426 are
-closed** (rank 1 complete, rank 2 at 200/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **210 of 426 are
+closed** (rank 1 complete, rank 2 at 201/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
