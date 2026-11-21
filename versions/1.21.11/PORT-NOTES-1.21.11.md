@@ -9127,3 +9127,17 @@ one stale citation (`GuiGraphicsExtractor.item` etc. in the
 `renderItemDecorations`, verified from the 1.21.11 jar. The rest of
 the tree's Extractor citations stay with item 87's sweep. Tests:
 `recipe_book::` 23 passed.
+
+## Item 163 — game/frame_geometry.rs (rank 2, NO-CHANGE)
+
+6 classes, 38 methods, 0 named. The whole diff is 26.1's
+model-baking API rework (`SpriteId`/`MaterialBaker`/`Interner`/
+`dispatch` package vs `Material`/`SpriteGetter`/`PartCache`/`model`
+package): no behaviour delta in any baked output. The 26.1-only
+pieces (missing fluid model, `getBlockStateModel` helper,
+`InternerImpl`, the identity-matrix bake arg) have no Rust mirror;
+the 1.21.11-only material constants were already ported (banner /
+shield bases) or are name lookups (fluids, fire). Recorded:
+`DESTROY_STAGES_OIT` exists in neither version's ModelBakery and
+its sprites in neither jar — upstream-Horizon behaviour, not a
+vanilla delta. Tests: `model_library::` 2 passed.
