@@ -12712,3 +12712,7 @@ RandomSource factory only, as items 670/679.
 ## Item 708 — mobs/trader.rs (WanderingTrader$WanderToPositionGoal) — NO-CHANGE
 
 requireNonNull plus constructor field-init order.
+
+## Item 709 — title/buffet.rs (CreateBuffetWorldScreen$BiomeList) — NO-CHANGE
+
+Visibility plus requireNonNull; same super-constructor arguments.
