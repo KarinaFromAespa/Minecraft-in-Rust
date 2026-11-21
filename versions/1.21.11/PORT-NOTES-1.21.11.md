@@ -12662,3 +12662,7 @@ Visibility only.
 building the item render state; 26.1 does not. The Rust has no
 entity-representation plumbing and builds the render state from the
 stack + transform only, so the call has no observable effect.
+
+## Item 697 — game/pad_menu.rs (ComponentPath$Path) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
