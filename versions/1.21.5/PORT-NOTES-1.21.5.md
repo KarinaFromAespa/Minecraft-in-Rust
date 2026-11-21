@@ -7938,13 +7938,69 @@ is the oracle; decompiled code is a reading aid.
     of the two item
     files, identical;
     see item 147.
+- **Item 167 —
+  ItemRenderer
+  verified:**
+  - `SPECIAL_FOIL_*` /
+    `COMPASS_FOIL_*`
+    is a rename with
+    the same values
+    (0.5, 0.75,
+    0.0078125); the
+    port has no such
+    constants (glint
+    math uses
+    `Glint.scale`).
+    The compass-foil
+    translucent glint
+    (1.21.6) vs the
+    always-opaque one
+    (1.21.5) is
+    unrepresentable
+    in the port's
+    single-pass
+    composite — the
+    shader applies
+    the same
+    `glint_over` math
+    for overlays 7
+    and 33, and the
+    blend follows the
+    quad's own
+    translucency —
+    and vanilla
+    compass/clock
+    sprites have no
+    semi-transparent
+    pixels, so it is
+    unobservable with
+    vanilla assets.
+    `getFoilBuffer`
+    is a pure refactor
+    (identical
+    condition). The
+    GUI slot centre
+    is `translate(x +
+    8, y + 8)`; the
+    decoration blit
+    offset has no
+    surface (HUD draw
+    order puts
+    decorations on
+    top). No
+    model-identity
+    concept anywhere
+    (items 121, 138).
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **166 of 426 are
-closed** (rank 1 complete, rank 2 at 157/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **167 of 426 are
+closed** (rank 1 complete, rank 2 at 158/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
