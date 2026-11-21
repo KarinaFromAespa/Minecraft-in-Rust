@@ -78,9 +78,9 @@ fn format_amount(value: f64) -> String {
     text.trim_end_matches('0').trim_end_matches('.').to_owned()
 }
 
-/// `ItemAttributeModifiers.Display.Default.apply`: a modifier's line, none
-/// for a zero amount. `percent` is the modifier's operation id (0: added
-/// value, 1 and 2: multiplied).
+/// `ItemStack.addModifierTooltip`: a modifier's line, none for a zero
+/// amount. `percent` is the modifier's operation id (0: added value, 1 and
+/// 2: multiplied).
 fn modifier_line(
     translate: &dyn Fn(&str) -> Option<String>,
     attribute: &str,

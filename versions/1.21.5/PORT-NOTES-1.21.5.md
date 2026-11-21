@@ -845,13 +845,46 @@ is the oracle; decompiled code is a reading aid.
     profile builds from scratch in this workdir); the
     rewritten tests compile under `--all-targets` and CI
     runs them.
+- **Item 23 — ItemStack / ThrownEnderpearl /
+  PlayerInteractTrigger / AbstractThrownPotion /
+  DragonFireball, ported:** the shear-equipment system is
+  1.21.6-only — no `attemptToShearEquipment` /
+  `canShearEquipment` / `PLAYER_SHEARED_EQUIPMENT` exists
+  in the 1.21.5 decompile. `mounts.rs::shear_saddle` (the
+  whole 1.21.6 saddle-shearing path, including its trigger
+  fire) and its call in the interact dispatch are deleted;
+  shears clicks on mounts now fall through to
+  `interact_mount`, which matches 1.21.5 (ride / nothing,
+  and false for a ridden mount). The wolf-armor shear keeps
+  its drop (1.21.5 has it inline in `Wolf.mobInteract`,
+  item 21) but no longer fires the trigger; the sulfur
+  cube's shear-eject keeps its behaviour (a Horizon-original
+  mob) but no longer fires it either. The attribute-modifier
+  tooltip code already matches 1.21.5's inline
+  `addModifierTooltip` exactly (base attack damage/speed
+  added and rendered `equals` in DARK_GREEN, multiplied ops
+  x100, knockback resistance x10, plus/take by sign, zero
+  shows nothing) — the Rust has no 1.21.6 `Display.hidden`
+  concept, which is itself the 1.21.5 behaviour; only the
+  doc comment on `modifier_line` was re-cited.
+  `DragonFireball.setCustomParticle` -> `setParticle` has
+  no Rust surface (breath clouds spawn `DragonBreath`
+  particles directly). `ThrownEnderpearl`'s owner change
+  (`EntityReference` vs direct + `findOwner`) is the same
+  cross-dimension search with different plumbing and the
+  Rust models neither; `ItemStack.parse`/`save` have no Rust
+  surface (the Rust has its own item NBT codec), and
+  `AbstractThrownPotion.onHitAsPotion` was already handled
+  in item 22.
+  - Verification: `cargo check -p horizon-client
+    --all-targets` 0 errors / 0 warnings (2m10s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **22 of 426 are
-closed** (rank 1 complete, rank 2 at 13/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **23 of 426 are
+closed** (rank 1 complete, rank 2 at 14/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

@@ -6506,12 +6506,6 @@ impl Game<'_> {
             self.swing_arm();
             return Ok(true);
         }
-        if let Some(sheared) = self.shear_saddle(index, &item) {
-            if sheared {
-                self.swing_arm();
-            }
-            return Ok(sheared);
-        }
         // AbstractHorse.mobInteract: feed, equip or ride.
         if self.interact_mount(index, &item) {
             self.swing_arm();
@@ -7213,9 +7207,9 @@ impl Game<'_> {
             }
         }
         if let Some(stack) = armor_drop {
-            // Mob.shearItem: PLAYER_SHEARED_EQUIPMENT with the armor and the wolf.
-            let target = self.mob_entity(&self.mobs[index]);
-            self.trigger_item_entity("minecraft:player_sheared_equipment", &stack, &target);
+            // Wolf.mobInteract: the armor drops at the wolf's feet (1.21.6's
+            // shear-equipment path also fires PLAYER_SHEARED_EQUIPMENT;
+            // the trigger does not exist in 1.21.5).
             self.spawn_item(stack, [center[0], center[1] + 0.5, center[2]], [0.0; 3], 10);
         }
         if let Some(equip) = equip_event {
