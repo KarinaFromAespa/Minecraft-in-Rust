@@ -3288,13 +3288,58 @@ is the oracle; decompiled code is a reading aid.
     and `cargo check -p
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings.
+- **Item 72 — PistonMovingBlockEntity /
+  ServerLevel / EntityStorage,
+  verified:**
+  - The piston's
+    `removeLatestMovementRecording`
+    -> `removeLatestMovementRecordingBatch`
+    is a rename of a system the
+    Rust port never implemented:
+    no movement recording exists
+    anywhere in the tree. The
+    save/load change is Java
+    API-only (`ValueInput` /
+    `ValueOutput` vs `CompoundTag`
+    + `RegistryOps`); the keys
+    (`blockState`, `facing`,
+    `progress`, `extending`) are
+    identical and already pinned
+    by
+    `moving_piston_fields_match_vanilla`.
+  - `ServerLevel`'s waypoint
+    manager removal belongs to
+    item 108 (the locator bar):
+    the wire was unwired by the
+    publish, the internal
+    locator-bar / LAN tracker
+    stays until that item.
+    `updateNeighboursOnBlockSet`
+    and `waitForChunkAndEntities`
+    are 1.21.6-only methods with
+    no Rust equivalent (the first
+    is the standard neighbour-update
+    sequence the Rust block-set
+    code already does inline).
+  - `EntityStorage` is Java
+    API-only too: the stored form
+    is the same (`Entities` list,
+    `Position`, current
+    `DataVersion`), and the Rust
+    saver writes `Position` +
+    `Entities` the same way.
+    No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **71 of 426 are
-closed** (rank 1 complete, rank 2 at 62/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **72 of 426 are
+closed** (rank 1 complete, rank 2 at 63/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
