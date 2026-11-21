@@ -1,7 +1,8 @@
 //! Resource packs' Polytone post chains (#11486, wiki "Shaders"): vanilla `post_effect` chains a
 //! pack runs over the world while their `activation_condition` holds, with uniform blocks from
 //! expressions (`expression_uniforms`), the `PolyGlobals` block, and targets of their own
-//! (`post_targets`) kept between frames. `post_chain` runs them; this reads what they add.
+//! (`post_targets`), cleared every frame like the chain's own. `post_chain` runs them;
+//! this reads what they add.
 use crate::environment::Frame;
 use crate::post_chain::{Extras, InternalTarget};
 use horizon_polytone::expr::Program;
@@ -150,11 +151,9 @@ impl PolytonePost {
             .into_iter()
             .map(|(id, json)| {
                 let size = |key: &str| json[key].as_u64().filter(|n| *n > 0).map(|n| n as u32);
-                let target = InternalTarget {
-                    width: size("width"),
-                    height: size("height"),
-                    persistent: true,
-                    clear: [0.0; 4],
+                let target = match (size("width"), size("height")) {
+                    (Some(width), Some(height)) => InternalTarget::Fixed { width, height },
+                    _ => InternalTarget::FullScreen,
                 };
                 (id, target)
             })
@@ -252,7 +251,13 @@ mod tests {
             f32::from_le_bytes(extras.blocks["Weather"][..4].try_into().unwrap()),
             0.875
         );
-        assert!(extras.targets["p:history"].persistent);
+        assert_eq!(
+            extras.targets["p:history"],
+            InternalTarget::Fixed {
+                width: 1,
+                height: 1
+            }
+        );
         frame.rain = 1.0;
         assert!(post.frame(&frame, &PolyGlobals::default()).0.is_empty());
         std::fs::remove_dir_all(root).unwrap();

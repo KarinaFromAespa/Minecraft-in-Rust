@@ -1,17 +1,18 @@
 //! Vanilla's post-effect chains (`PostChainConfig`, `PostChain`, `PostPass`,
 //! `GameRenderer.preparePostEffects` / `applyPostEffects`): a `post_effect/*.json`
 //! names internal targets and passes (a vertex and a fragment shader, inputs read
-//! from targets, the target written, std140 uniform blocks) that run over the
+//! from targets, the target written, plain named uniforms) that run over the
 //! frame drawn so far, before the HUD.
 //!
 //! The JSON is read at run time from the active resource root, so a resource pack
 //! can replace or add chains. So are the shaders the passes name: their GLSL
 //! (`shaders/<path>.vsh` / `.fsh`, vanilla's or a pack's own) is translated to naga
-//! by `post_glsl` and bound as vanilla binds it (`SamplerInfo`, `Globals`, the pass's
-//! own uniform blocks, a sampler per input: a target's colour or depth, or a
+//! by `post_glsl` and bound as vanilla binds it (the plain uniforms in one
+//! synthetic block, `Globals`, a sampler per input: a target's colour or depth, or a
 //! `textures/effect/` image). Horizon's own WGSL stand-ins (`post_chain.wgsl`) for the
-//! vanilla `core/screenquad`, `post/rotscale`, `post/invert`, `post/blit`, `post/bits`,
-//! `post/color_convolve`, `post/box_blur` and `post/spiderclip` are only the fallback
+//! vanilla `post/screenquad`, `post/blit`, `post/blur`, `post/sobel`, `post/rotscale`,
+//! `post/invert`, `post/bits`, `post/color_convolve`, `post/box_blur` and
+//! `post/spiderclip` are only the fallback
 //! for a pass whose GLSL is missing or does not translate. A chain that cannot load
 //! (an unknown shader without a stand-in, a target the frame has no equivalent of)
 //! fails like a chain that does not compile (`GameRenderer.failedPostEffects`), once,
@@ -65,6 +66,32 @@ impl Uniform {
         }
     }
 
+    /// Its components as floats (ints converted), for a float slot.
+    fn floats(&self) -> Vec<f32> {
+        match self {
+            Uniform::Int(v) => vec![*v as f32],
+            Uniform::IVec3(v) => v.iter().map(|x| *x as f32).collect(),
+            Uniform::Float(v) => vec![*v],
+            Uniform::Vec2(v) => v.to_vec(),
+            Uniform::Vec3(v) => v.to_vec(),
+            Uniform::Vec4(v) => v.to_vec(),
+            Uniform::Matrix(v) => v.to_vec(),
+        }
+    }
+
+    /// Its components as ints (floats truncated), for an int slot.
+    fn ints(&self) -> Vec<i32> {
+        match self {
+            Uniform::Int(v) => vec![*v],
+            Uniform::IVec3(v) => v.to_vec(),
+            Uniform::Float(v) => vec![*v as i32],
+            Uniform::Vec2(v) => v.iter().map(|x| *x as i32).collect(),
+            Uniform::Vec3(v) => v.iter().map(|x| *x as i32).collect(),
+            Uniform::Vec4(v) => v.iter().map(|x| *x as i32).collect(),
+            Uniform::Matrix(v) => v.iter().map(|x| *x as i32).collect(),
+        }
+    }
+
     fn write(&self, out: &mut Vec<u8>) {
         match self {
             Uniform::Int(v) => out.extend_from_slice(&v.to_le_bytes()),
@@ -106,14 +133,77 @@ pub fn pack_block(values: &[Uniform]) -> Result<[u8; BLOCK_BYTES], String> {
     Ok(block)
 }
 
-/// `PostChainConfig.InternalTarget`.
+/// The synthetic block's bytes: the declared uniforms in order, each filled
+/// from `lookup` (a system value or a config uniform), zero otherwise. A
+/// value of the wrong shape is read component-wise, the rest zero.
+fn pack_plain(
+    layout: &[(String, crate::post_glsl::UniformKind)],
+    lookup: &dyn Fn(&str) -> Option<Uniform>,
+) -> Result<[u8; UNIFORM_BYTES as usize], String> {
+    let mut out = [0u8; UNIFORM_BYTES as usize];
+    let mut at = 0usize;
+    for (name, kind) in layout {
+        let (align, _) = kind.layout();
+        at = at.next_multiple_of(align);
+        let count = kind.count();
+        if at + count * 4 > out.len() {
+            return Err(format!("a uniform block of {} bytes", at + count * 4));
+        }
+        if let Some(value) = lookup(name) {
+            if kind.is_int() {
+                for (i, v) in value.ints().iter().take(count).enumerate() {
+                    out[at + i * 4..at + i * 4 + 4].copy_from_slice(&v.to_le_bytes());
+                }
+            } else {
+                for (i, v) in value.floats().iter().take(count).enumerate() {
+                    out[at + i * 4..at + i * 4 + 4].copy_from_slice(&v.to_le_bytes());
+                }
+            }
+        }
+        at += count * 4;
+    }
+    Ok(out)
+}
+
+/// `Matrix4f.setOrtho(0, width, 0, height, 0.1, 1000)`, column-major: the
+/// projection `PostChain.addToFrame` builds for its passes.
+fn ortho(width: u32, height: u32) -> [f32; 16] {
+    let (w, h) = (width as f32, height as f32);
+    let (near, far) = (0.1f32, 1000.0f32);
+    [
+        2.0 / w,
+        0.0,
+        0.0,
+        -1.0,
+        0.0,
+        2.0 / h,
+        0.0,
+        -1.0,
+        0.0,
+        0.0,
+        -2.0 / (far - near),
+        -(far + near) / (far - near),
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+    ]
+}
+
+/// `PostChainConfig.InternalTarget`: a fixed size, or the frame's size.
 #[derive(Clone, Debug, PartialEq)]
-pub struct InternalTarget {
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub persistent: bool,
-    /// `clear_color` as straight RGBA.
-    pub clear: [f32; 4],
+pub enum InternalTarget {
+    FullScreen,
+    Fixed { width: u32, height: u32 },
+}
+
+impl InternalTarget {
+    fn size(&self, frame: [u32; 2]) -> [u32; 2] {
+        match self {
+            InternalTarget::FullScreen => frame,
+            InternalTarget::Fixed { width, height } => [*width, *height],
+        }
+    }
 }
 
 /// What an input reads: `PostChainConfig.TargetInput` or `TextureInput`.
@@ -133,6 +223,14 @@ pub struct Input {
     pub bilinear: bool,
 }
 
+/// One named uniform of a pass (`PostChainConfig$Uniform`): its name and its
+/// value, from the `values` list by `setOnRenderPass`'s rule.
+#[derive(Clone, Debug, PartialEq)]
+pub struct NamedUniform {
+    pub name: String,
+    pub value: Uniform,
+}
+
 /// `PostChainConfig.Pass`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PassConfig {
@@ -140,7 +238,8 @@ pub struct PassConfig {
     pub fragment: String,
     pub inputs: Vec<Input>,
     pub output: String,
-    pub uniforms: BTreeMap<String, Vec<Uniform>>,
+    /// The pass's named uniforms, in file order.
+    pub uniforms: Vec<NamedUniform>,
 }
 
 /// `PostChainConfig`.
@@ -150,52 +249,65 @@ pub struct Config {
     pub passes: Vec<PassConfig>,
 }
 
-fn floats<const N: usize>(v: &Value) -> Result<[f32; N], String> {
-    let a = v
-        .as_array()
-        .filter(|a| a.len() == N)
-        .ok_or("a vector of the wrong length")?;
-    let mut out = [0.0; N];
-    for (o, x) in out.iter_mut().zip(a) {
-        *o = x.as_f64().ok_or("a vector entry that is not a number")? as f32;
+/// One `PostChainConfig$Uniform`: `name`, `type` and the optional `values`
+/// (at most four floats).
+fn named_uniform(v: &Value) -> Result<NamedUniform, String> {
+    let name = v["name"].as_str().ok_or("a uniform without a name")?;
+    let kind = v["type"].as_str().ok_or("a uniform without a type")?;
+    let values: Vec<f32> = match v.get("values") {
+        None => Vec::new(),
+        Some(list) => list
+            .as_array()
+            .ok_or("a uniform whose values are not a list")?
+            .iter()
+            .map(|x| {
+                x.as_f64()
+                    .ok_or("a uniform value that is not a number")
+                    .map(|x| x as f32)
+            })
+            .collect::<Result<Vec<_>, _>>()?,
+    };
+    if values.len() > 4 {
+        return Err("a uniform with more than four values".into());
     }
-    Ok(out)
+    Ok(NamedUniform {
+        name: name.to_owned(),
+        value: uniform_value(kind, &values)?,
+    })
 }
 
-fn uniform(v: &Value) -> Result<Uniform, String> {
-    let kind = v["type"].as_str().ok_or("a uniform without a type")?;
-    let value = &v["value"];
+/// `PostChainConfig$Uniform.setOnRenderPass`: an int type takes only the
+/// first value, as an int; a float type fills its components from one value
+/// or copies up to its count, the rest zero. No values means unset (zero).
+fn uniform_value(kind: &str, values: &[f32]) -> Result<Uniform, String> {
+    let fill = |n: usize| -> Vec<f32> {
+        if values.len() == 1 {
+            vec![values[0]; n]
+        } else {
+            (0..n)
+                .map(|i| values.get(i).copied().unwrap_or(0.0))
+                .collect()
+        }
+    };
     Ok(match kind {
-        "int" => Uniform::Int(value.as_i64().ok_or("a bad int")? as i32),
-        "float" => Uniform::Float(value.as_f64().ok_or("a bad float")? as f32),
-        "vec2" => Uniform::Vec2(floats(value)?),
-        "vec3" => Uniform::Vec3(floats(value)?),
-        "vec4" => Uniform::Vec4(floats(value)?),
-        "ivec3" => {
-            let a = value
-                .as_array()
-                .filter(|a| a.len() == 3)
-                .ok_or("a bad ivec3")?;
-            let mut out = [0; 3];
-            for (o, x) in out.iter_mut().zip(a) {
-                *o = x.as_i64().ok_or("a bad ivec3")? as i32;
-            }
-            Uniform::IVec3(out)
+        "int" => Uniform::Int(values.first().map_or(0, |v| *v as i32)),
+        "ivec3" => Uniform::IVec3([values.first().map_or(0, |v| *v as i32), 0, 0]),
+        "float" => Uniform::Float(values.first().copied().unwrap_or(0.0)),
+        "vec2" => {
+            let v = fill(2);
+            Uniform::Vec2([v[0], v[1]])
+        }
+        "vec3" => {
+            let v = fill(3);
+            Uniform::Vec3([v[0], v[1], v[2]])
+        }
+        "vec4" => {
+            let v = fill(4);
+            Uniform::Vec4([v[0], v[1], v[2], v[3]])
         }
         "matrix4x4" => {
-            let flat: Vec<f32> = match value.as_array() {
-                Some(rows) if rows.first().is_some_and(Value::is_array) => rows
-                    .iter()
-                    .flat_map(|r| r.as_array().into_iter().flatten())
-                    .filter_map(|x| x.as_f64().map(|x| x as f32))
-                    .collect(),
-                Some(flat) => flat
-                    .iter()
-                    .filter_map(|x| x.as_f64().map(|x| x as f32))
-                    .collect(),
-                None => Vec::new(),
-            };
-            Uniform::Matrix(flat.try_into().map_err(|_| "a bad matrix4x4")?)
+            let v = fill(16);
+            Uniform::Matrix(v.try_into().unwrap())
         }
         other => return Err(format!("unknown uniform type {other}")),
     })
@@ -208,29 +320,18 @@ impl Config {
         let mut targets = BTreeMap::new();
         if let Some(map) = json.get("targets").and_then(Value::as_object) {
             for (id, t) in map {
-                let size = |key: &str| -> Result<Option<u32>, String> {
-                    match t.get(key) {
-                        None => Ok(None),
-                        Some(v) => match v.as_u64() {
-                            Some(n) if n > 0 => Ok(Some(n as u32)),
-                            _ => Err(format!("target {id}: a bad {key}")),
-                        },
-                    }
-                };
-                let argb = t.get("clear_color").and_then(Value::as_u64).unwrap_or(0) as u32;
-                let [a, r, g, b] = [24, 16, 8, 0].map(|s| ((argb >> s) & 255) as f32 / 255.0);
-                targets.insert(
-                    normalise(id),
-                    InternalTarget {
-                        width: size("width")?,
-                        height: size("height")?,
-                        persistent: t
-                            .get("persistent")
-                            .and_then(Value::as_bool)
-                            .unwrap_or(false),
-                        clear: [r, g, b, a],
+                // `Codec.either(FixedSizedTarget, FullScreenTarget)`: a target is
+                // fixed only when both sizes are positive; anything else (a lone
+                // width, unknown fields) is fullscreen.
+                let size = |key: &str| t.get(key).and_then(Value::as_u64);
+                let target = match (size("width"), size("height")) {
+                    (Some(w), Some(h)) if w > 0 && h > 0 => InternalTarget::Fixed {
+                        width: w as u32,
+                        height: h as u32,
                     },
-                );
+                    _ => InternalTarget::FullScreen,
+                };
+                targets.insert(normalise(id), target);
             }
         }
         let mut passes = Vec::new();
@@ -291,16 +392,16 @@ impl Config {
                     bilinear: i.get("bilinear").and_then(Value::as_bool).unwrap_or(false),
                 });
             }
-            let mut uniforms = BTreeMap::new();
-            if let Some(map) = p.get("uniforms").and_then(Value::as_object) {
-                for (block, list) in map {
+            let mut uniforms = Vec::new();
+            match p.get("uniforms") {
+                None => {}
+                Some(list) => {
                     let list = list
                         .as_array()
-                        .ok_or(format!("pass {n}: a bad uniform block"))?;
-                    uniforms.insert(
-                        block.clone(),
-                        list.iter().map(uniform).collect::<Result<Vec<_>, _>>()?,
-                    );
+                        .ok_or(format!("pass {n}: uniforms is not a list"))?;
+                    for u in list {
+                        uniforms.push(named_uniform(u).map_err(|e| format!("pass {n}: {e}"))?);
+                    }
                 }
             }
             passes.push(PassConfig {
@@ -332,29 +433,47 @@ impl Config {
     }
 }
 
-/// A stand-in for a vanilla vertex shader: its entry point and uniform block.
-const VERTEX: [(&str, &str, &str); 2] = [
-    ("minecraft:core/screenquad", "vs_quad_gl", ""),
-    ("minecraft:post/rotscale", "vs_rotscale", "RotScaleConfig"),
+/// A stand-in for a vanilla vertex shader: its entry point and the plain
+/// uniforms it reads, in the order they pack.
+const VERTEX: [(&str, &str, &[&str]); 5] = [
+    ("minecraft:post/screenquad", "vs_quad_gl", &[]),
+    ("minecraft:post/blit", "vs_quad_gl", &[]),
+    ("minecraft:post/blur", "vs_quad_gl", &[]),
+    ("minecraft:post/sobel", "vs_quad_gl", &[]),
+    (
+        "minecraft:post/rotscale",
+        "vs_rotscale",
+        &["InScale", "InOffset", "InRotation"],
+    ),
 ];
 // The stand-ins are the fallback for a pass whose GLSL is missing or does not translate.
-/// A stand-in for a vanilla fragment shader: entry point, uniform block and the
-/// samplers it reads (`In`, then `Blur`).
-const FRAGMENT: [(&str, &str, &str, usize); 6] = [
-    ("minecraft:post/invert", "fs_invert", "InvertConfig", 1),
-    ("minecraft:post/blit", "fs_blit", "BlitConfig", 1),
-    ("minecraft:post/bits", "fs_bits", "BitsConfig", 1),
+/// A stand-in for a vanilla fragment shader: entry point, the plain uniforms
+/// it reads (in the order they pack) and the samplers it reads (`In`, then `Blur`).
+const FRAGMENT: [(&str, &str, &[&str], usize); 6] = [
+    ("minecraft:post/invert", "fs_invert", &["InverseAmount"], 1),
+    ("minecraft:post/blit", "fs_blit", &["ColorModulate"], 1),
+    (
+        "minecraft:post/bits",
+        "fs_bits",
+        &["Resolution", "MosaicSize"],
+        1,
+    ),
     (
         "minecraft:post/color_convolve",
         "fs_color_convolve",
-        "ColorConfig",
+        &["RedMatrix", "GreenMatrix", "BlueMatrix"],
         1,
     ),
-    ("minecraft:post/box_blur", "fs_box_blur", "BlurConfig", 1),
+    (
+        "minecraft:post/box_blur",
+        "fs_box_blur",
+        &["BlurDir", "Radius"],
+        1,
+    ),
     (
         "minecraft:post/spiderclip",
         "fs_spiderclip",
-        "SpiderConfig",
+        &["Scissor", "Vignette"],
         2,
     ),
 ];
@@ -371,20 +490,20 @@ enum Src {
     Image(usize),
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct InputRef {
     src: Src,
     bilinear: bool,
+    /// The sampler's name, for its `<sampler>Size` uniform.
+    sampler: String,
 }
 
 /// What a translated shader's uniform block is bound to.
 enum Block {
-    /// `SamplerInfo`: `OutSize`, then each input's size.
-    Info,
+    /// The synthetic block of the pass's plain uniforms.
+    Uniforms,
     /// `Globals` (`GlobalSettingsUniform`).
     Globals,
-    /// One of the pass's `uniforms` groups.
-    Custom(wgpu::Buffer),
     /// A block the request sets every frame (`Extras::blocks`), by name.
     Dynamic(String, wgpu::Buffer),
 }
@@ -399,6 +518,10 @@ struct Translated {
     blocks: Vec<(u32, Block)>,
     /// A sampler's texture binding (the sampler object follows) and the input it reads.
     samplers: Vec<(u32, usize)>,
+    /// The synthetic block's members, in pack order.
+    uniforms: Vec<(String, crate::post_glsl::UniformKind)>,
+    /// The config's named uniforms, by name (a later one wins).
+    values: BTreeMap<String, Uniform>,
 }
 
 impl Translated {
@@ -472,7 +595,8 @@ pub struct Request<'a> {
     pub effects: &'a [String],
     /// The active resource root (`assets/<namespace>/post_effect/<path>.json`).
     pub root: &'a Path,
-    /// `menuBackgroundBlurriness`, the radius of a `box_blur` pass with `Radius` 0.
+    /// `menuBackgroundBlurriness`, for the `Globals` block of translated pack
+    /// shaders (vanilla 1.21.5's own menu blur is `MenuBlur`, not this chain).
     pub menu_blur_radius: f32,
     /// What the `Globals` block holds besides the screen size and the blur radius.
     pub globals: Globals,
@@ -481,7 +605,7 @@ pub struct Request<'a> {
 }
 
 /// What resource packs' Polytone post chains add to every chain (#11486, wiki "Shaders"): their
-/// declared targets (`post_targets`), kept between frames, and uniform blocks set every frame.
+/// declared targets (`post_targets`), and uniform blocks set every frame.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Extras {
     pub targets: BTreeMap<String, InternalTarget>,
@@ -845,12 +969,7 @@ impl PostEffects {
         }
         let targets: Vec<(String, InternalTarget)> = std::iter::once((
             MAIN.to_owned(),
-            InternalTarget {
-                width: None,
-                height: None,
-                persistent: true,
-                clear: [0.0; 4],
-            },
+            InternalTarget::FullScreen,
         ))
         .chain(config.targets.iter().map(|(k, v)| (k.clone(), v.clone())))
         .collect();
@@ -905,6 +1024,18 @@ impl PostEffects {
         extras: &Extras,
     ) -> Result<Pass, String> {
         let program = crate::post_glsl::translate(root, &p.vertex, &p.fragment)?;
+        // `PostChain.createPass`: every uniform the config names must be one
+        // the shader declares (a plain uniform, not a block member).
+        for u in &p.uniforms {
+            if !program.uniforms.iter().any(|(name, _)| *name == u.name) {
+                return Err(format!(
+                    "pass {n}: Uniform '{}' does not exist for {}",
+                    u.name, p.fragment
+                ));
+            }
+        }
+        // The synthetic block must fit the buffer it binds to.
+        pack_plain(&program.uniforms, &|_| None)?;
         let mut refs = Vec::new();
         for input in &p.inputs {
             let src = match &input.source {
@@ -926,6 +1057,7 @@ impl PostEffects {
             refs.push(InputRef {
                 src,
                 bilinear: input.bilinear,
+                sampler: input.sampler.clone(),
             });
         }
         let mut pass = Pass::new(device, "", "", [(0, false); 2], output);
@@ -933,9 +1065,8 @@ impl PostEffects {
         let mut blocks = Vec::new();
         for (name, binding) in &program.blocks {
             let block = match name.as_str() {
-                "SamplerInfo" => Block::Info,
                 "Globals" => Block::Globals,
-                other if !p.uniforms.contains_key(other) && extras.blocks.contains_key(other) => {
+                other if extras.blocks.contains_key(other) => {
                     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
                         label: Some("Post effect pack uniforms"),
                         size: UNIFORM_BYTES,
@@ -944,20 +1075,7 @@ impl PostEffects {
                     });
                     Block::Dynamic(other.to_owned(), buffer)
                 }
-                other => {
-                    let values = p
-                        .uniforms
-                        .get(other)
-                        .ok_or(format!("pass {n}: the uniform block {other} is missing"))?;
-                    let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                        label: Some("Post effect uniforms"),
-                        size: UNIFORM_BYTES,
-                        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-                        mapped_at_creation: false,
-                    });
-                    queue.write_buffer(&buffer, 0, &pack_block(values)?);
-                    Block::Custom(buffer)
-                }
+                other => return Err(format!("pass {n}: the uniform block {other} is missing")),
             };
             entries.push(wgpu::BindGroupLayoutEntry {
                 binding: *binding,
@@ -970,6 +1088,19 @@ impl PostEffects {
                 count: None,
             });
             blocks.push((*binding, block));
+        }
+        if let Some(binding) = program.plain_binding {
+            entries.push(wgpu::BindGroupLayoutEntry {
+                binding,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Uniform,
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            });
+            blocks.push((binding, Block::Uniforms));
         }
         let mut samplers = Vec::new();
         for (name, texture) in &program.samplers {
@@ -1020,6 +1151,12 @@ impl PostEffects {
             pipelines: HashMap::new(),
             blocks,
             samplers,
+            uniforms: program.uniforms,
+            values: p
+                .uniforms
+                .iter()
+                .map(|u| (u.name.clone(), u.value))
+                .collect(),
         });
         Ok(pass)
     }
@@ -1033,11 +1170,11 @@ impl PostEffects {
         output: usize,
         index: &dyn Fn(&str) -> Option<usize>,
     ) -> Result<Pass, String> {
-        let &(_, vs, vs_block) = VERTEX
+        let &(_, vs, vs_uniforms) = VERTEX
             .iter()
             .find(|v| v.0 == p.vertex)
             .ok_or(format!("pass {n}: no vertex shader {}", p.vertex))?;
-        let &(_, fs, fs_block, samplers) = FRAGMENT
+        let &(_, fs, fs_uniforms, samplers) = FRAGMENT
             .iter()
             .find(|f| f.0 == p.fragment)
             .ok_or(format!("pass {n}: no fragment shader {}", p.fragment))?;
@@ -1064,14 +1201,38 @@ impl PostEffects {
         if samplers == 1 {
             inputs[1] = inputs[0];
         }
-        let block = |name: &str| match p.uniforms.get(name) {
-            Some(values) => pack_block(values),
-            None if name.is_empty() => Ok([0; BLOCK_BYTES]),
-            None => Err(format!("pass {n}: the uniform block {name} is missing")),
+        // `PostChain.createPass`: every uniform the config names must be one
+        // the shader declares. The system uniforms the pass sets itself
+        // (the projection, the output size, the sampler sizes) do not count.
+        for u in &p.uniforms {
+            let known = vs_uniforms.contains(&u.name.as_str())
+                || fs_uniforms.contains(&u.name.as_str())
+                || u.name == "OutSize"
+                || u.name == "ProjMat"
+                || p
+                    .inputs
+                    .iter()
+                    .any(|i| format!("{}Size", i.sampler) == u.name);
+            if !known {
+                return Err(format!(
+                    "pass {n}: Uniform '{}' does not exist for {}",
+                    u.name, p.fragment
+                ));
+            }
+        }
+        let fill = |names: &[&str]| -> Result<[u8; BLOCK_BYTES], String> {
+            let mut values = Vec::new();
+            for name in names {
+                let Some(u) = p.uniforms.iter().find(|u| u.name == *name) else {
+                    return Err(format!("pass {n}: the uniform {name} is missing"));
+                };
+                values.push(u.value);
+            }
+            pack_block(&values)
         };
         let pass = Pass::new(device, vs, fs, inputs, output);
-        queue.write_buffer(&pass.vs_block, 0, &block(vs_block)?);
-        queue.write_buffer(&pass.fs_block, 0, &block(fs_block)?);
+        queue.write_buffer(&pass.vs_block, 0, &fill(vs_uniforms)?);
+        queue.write_buffer(&pass.fs_block, 0, &fill(fs_uniforms)?);
         Ok(pass)
     }
 
@@ -1270,7 +1431,6 @@ impl PostEffects {
             &blit,
             [(&staging.1, size), (&staging.1, size)],
             (&work.1, size),
-            0.0,
             format,
             timing.as_deref_mut(),
         );
@@ -1290,7 +1450,6 @@ impl PostEffects {
                 &mut chain,
                 size,
                 depth,
-                req.menu_blur_radius,
                 format,
                 timing.as_deref_mut(),
             );
@@ -1304,7 +1463,6 @@ impl PostEffects {
             &blit,
             [(&work.1, size), (&work.1, size)],
             (target, size),
-            0.0,
             format,
             timing,
         );
@@ -1431,7 +1589,6 @@ impl PostEffects {
         chain: &mut Chain,
         size: [u32; 2],
         main_depth: Option<&wgpu::TextureView>,
-        menu_radius: f32,
         format: wgpu::TextureFormat,
         mut timing: Option<&mut crate::gfx::pack_timing::PassTiming>,
     ) {
@@ -1440,13 +1597,10 @@ impl PostEffects {
                 translated.ensure_pipeline(device, format);
             }
         }
-        let sizes: Vec<[u32; 2]> = chain
-            .targets
-            .iter()
-            .map(|(_, t)| [t.width.unwrap_or(size[0]), t.height.unwrap_or(size[1])])
-            .collect();
-        // PostChain.addToFrame: internal targets at their size, cleared to their
-        // colour; a persistent one only when it is made.
+        let sizes: Vec<[u32; 2]> = chain.targets.iter().map(|(_, t)| t.size(size)).collect();
+        // PostChain.addToFrame: internal targets are made fresh every frame and
+        // cleared to transparent black (1.21.5 has no persistent targets and no
+        // clear colour); the textures are reused, their contents are not.
         let remade = chain.size != size || chain.textures.len() + 1 != chain.targets.len();
         if remade {
             chain.size = size;
@@ -1507,29 +1661,21 @@ impl PostEffects {
                 });
             }
         }
-        for (i, (_, t)) in chain.targets.iter().enumerate().skip(1) {
-            if remade || !t.persistent {
-                let c = t.clear.map(f64::from);
-                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("Post effect target clear"),
-                    timestamp_writes: timing.as_deref_mut().and_then(|t| t.writes("Post clear")),
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view: &chain.textures[i - 1].1,
-                        resolve_target: None,
-                        depth_slice: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: c[0],
-                                g: c[1],
-                                b: c[2],
-                                a: c[3],
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    ..Default::default()
-                });
-            }
+        for (i, _) in chain.targets.iter().enumerate().skip(1) {
+            encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("Post effect target clear"),
+                timestamp_writes: timing.as_deref_mut().and_then(|t| t.writes("Post clear")),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &chain.textures[i - 1].1,
+                    resolve_target: None,
+                    depth_slice: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                ..Default::default()
+            });
         }
         let chain = &*chain;
         let view = |i: usize| {
@@ -1578,7 +1724,6 @@ impl PostEffects {
                 pass,
                 [a, b],
                 (view(pass.output), sizes[pass.output]),
-                menu_radius,
                 format,
                 timing.as_deref_mut(),
             );
@@ -1602,23 +1747,37 @@ impl PostEffects {
         let Some(pipeline) = translated.pipelines.get(&format) else {
             return;
         };
-        // SamplerInfo: OutSize, then each input's size.
-        let sizes = std::iter::once(output.1).chain(inputs.iter().map(|i| i.1));
-        let info: Vec<u8> = sizes
-            .flat_map(|s| s.map(|v| (v as f32).to_le_bytes()))
-            .flatten()
-            .collect();
-        queue.write_buffer(
-            &pass.info,
-            0,
-            &info[..info.len().min(UNIFORM_BYTES as usize)],
-        );
+        // The plain uniforms, in the declared order: the projection matrix,
+        // the output and input sizes, then the config's named uniforms (which
+        // win over the system values, as `setOnRenderPass` runs after them).
+        let system = |name: &str| -> Option<Uniform> {
+            match name {
+                "ProjMat" => Some(Uniform::Matrix(ortho(output.1[0], output.1[1]))),
+                "OutSize" => Some(Uniform::Vec2([output.1[0] as f32, output.1[1] as f32])),
+                _ => {
+                    let sampler = name.strip_suffix("Size")?;
+                    let slot = pass.refs.iter().position(|r| r.sampler == sampler)?;
+                    Some(Uniform::Vec2([
+                        inputs[slot].1[0] as f32,
+                        inputs[slot].1[1] as f32,
+                    ]))
+                }
+            }
+        };
+        let bytes = pack_plain(&translated.uniforms, &|name| {
+            translated
+                .values
+                .get(name)
+                .cloned()
+                .or_else(|| system(name))
+        })
+        .expect("the layout was sized at load");
+        queue.write_buffer(&pass.info, 0, &bytes);
         let mut entries = Vec::new();
         for (binding, block) in &translated.blocks {
             let buffer = match block {
-                Block::Info => &pass.info,
+                Block::Uniforms => &pass.info,
                 Block::Globals => &self.globals,
-                Block::Custom(buffer) => buffer,
                 Block::Dynamic(name, buffer) => {
                     if let Some(bytes) = self.extra_blocks.get(name) {
                         let n = bytes.len().min(UNIFORM_BYTES as usize) & !3;
@@ -1682,11 +1841,10 @@ impl PostEffects {
         pass: &Pass,
         inputs: [(&wgpu::TextureView, [u32; 2]); 2],
         output: (&wgpu::TextureView, [u32; 2]),
-        menu_radius: f32,
         format: wgpu::TextureFormat,
         timing: Option<&mut crate::gfx::pack_timing::PassTiming>,
     ) {
-        // SamplerInfo: OutSize, then each input's size.
+        // The stand-in shaders' `info`: OutSize, then each input's size.
         let info = [
             output.1[0] as f32,
             output.1[1] as f32,
@@ -1694,7 +1852,7 @@ impl PostEffects {
             inputs[0].1[1] as f32,
             inputs[1].1[0] as f32,
             inputs[1].1[1] as f32,
-            menu_radius,
+            0.0,
             0.0,
         ];
         queue.write_buffer(&pass.info, 0, &info.map(f32::to_le_bytes).concat());
@@ -1784,7 +1942,7 @@ impl Pass {
             fs,
             inputs,
             output,
-            info: buffer("Post effect sampler info", UNIFORM_BYTES),
+            info: buffer("Post effect pass info", UNIFORM_BYTES),
             vs_block: buffer("Post effect vertex uniforms", BLOCK_BYTES as u64),
             fs_block: buffer("Post effect fragment uniforms", BLOCK_BYTES as u64),
             refs: Vec::new(),
@@ -1800,16 +1958,16 @@ mod tests {
     const INVERT_THEN_BLIT: &str = r#"{
         "targets": { "swap": {} },
         "passes": [
-            { "vertex_shader": "minecraft:core/screenquad",
+            { "vertex_shader": "minecraft:post/blit",
               "fragment_shader": "minecraft:post/invert",
               "inputs": [ { "sampler_name": "In", "target": "minecraft:main" } ],
               "output": "swap",
-              "uniforms": { "InvertConfig": [ { "name": "InverseAmount", "type": "float", "value": 1.0 } ] } },
-            { "vertex_shader": "minecraft:core/screenquad",
+              "uniforms": [ { "name": "InverseAmount", "type": "float", "values": [1.0] } ] },
+            { "vertex_shader": "minecraft:post/blit",
               "fragment_shader": "minecraft:post/blit",
               "inputs": [ { "sampler_name": "In", "target": "swap", "bilinear": true } ],
               "output": "minecraft:main",
-              "uniforms": { "BlitConfig": [ { "name": "ColorModulate", "type": "vec4", "value": [1.0, 0.0, 0.5, 1.0] } ] } }
+              "uniforms": [ { "name": "ColorModulate", "type": "vec4", "values": [1.0, 0.0, 0.5, 1.0] } ] }
         ]
     }"#;
 
@@ -1846,24 +2004,89 @@ mod tests {
             }]
         );
         assert_eq!(
-            config.passes[1].uniforms["BlitConfig"],
-            [Uniform::Vec4([1.0, 0.0, 0.5, 1.0])]
+            config.passes[1].uniforms,
+            [NamedUniform {
+                name: "ColorModulate".into(),
+                value: Uniform::Vec4([1.0, 0.0, 0.5, 1.0])
+            }]
         );
         // Only the frame is outside the chain.
         assert_eq!(config.external_targets(), HashSet::from(["minecraft:main"]));
     }
 
     #[test]
-    fn target_options_and_clear_colour() {
+    fn targets_are_fixed_or_full_screen() {
         let config = Config::parse(
-            r#"{"targets":{"a":{"width":16,"height":8,"persistent":true,"clear_color":2180972544}}}"#,
+            r#"{"targets":{"a":{"width":16,"height":8},"b":{},"c":{"width":0},
+                "d":{"persistent":true,"clear_color":2180972544}}}"#,
         )
         .unwrap();
-        let t = &config.targets["minecraft:a"];
-        assert_eq!((t.width, t.height, t.persistent), (Some(16), Some(8), true));
-        // 0x81FF0000: alpha 129, red 255.
-        assert_eq!(t.clear, [1.0, 0.0, 0.0, 129.0 / 255.0]);
-        assert!(Config::parse(r#"{"targets":{"a":{"width":0}}}"#).is_err());
+        assert_eq!(
+            config.targets["minecraft:a"],
+            InternalTarget::Fixed {
+                width: 16,
+                height: 8
+            }
+        );
+        // A target with no size is fullscreen.
+        assert_eq!(
+            config.targets["minecraft:b"],
+            InternalTarget::FullScreen
+        );
+        // A lone width is not a fixed size, and the 1.21.6 fields are ignored:
+        // `either(Fixed, FullScreen)` falls through to fullscreen.
+        assert_eq!(
+            config.targets["minecraft:c"],
+            InternalTarget::FullScreen
+        );
+        assert_eq!(
+            config.targets["minecraft:d"],
+            InternalTarget::FullScreen
+        );
+    }
+
+    #[test]
+    fn uniforms_follow_set_on_render_pass() {
+        let pass = |uniforms: &str| {
+            format!(
+                r#"{{"passes":[{{"vertex_shader":"a","fragment_shader":"b","output":"o","uniforms":{uniforms}}}]}}"#
+            )
+        };
+        // No `values` means unset (zero): blur.json's Radius has none.
+        let config = Config::parse(&pass(r#"[{"name":"Radius","type":"float"}]"#)).unwrap();
+        assert_eq!(
+            config.passes[0].uniforms,
+            [NamedUniform {
+                name: "Radius".into(),
+                value: Uniform::Float(0.0)
+            }]
+        );
+        // One value fills a vector; an int type takes only the first.
+        let config = Config::parse(&pass(
+            r#"[{"name":"Scale","type":"vec2","values":[0.5]},
+                {"name":"Count","type":"ivec3","values":[2.9,3.0,4.0]}]"#,
+        ))
+        .unwrap();
+        assert_eq!(
+            config.passes[0].uniforms,
+            [
+                NamedUniform {
+                    name: "Scale".into(),
+                    value: Uniform::Vec2([0.5, 0.5])
+                },
+                NamedUniform {
+                    name: "Count".into(),
+                    value: Uniform::IVec3([2, 0, 0])
+                },
+            ]
+        );
+        // Five values, an unknown type, and the 1.21.6 object form are refused.
+        assert!(Config::parse(&pass(
+            r#"[{"name":"x","type":"vec4","values":[1,2,3,4,5]}]"#
+        ))
+        .is_err());
+        assert!(Config::parse(&pass(r#"[{"name":"x","type":"mat3"}]"#)).is_err());
+        assert!(Config::parse(&pass(r#"{"Block":[{"type":"float","value":1}]}"#)).is_err());
     }
 
     #[test]
@@ -1915,14 +2138,14 @@ mod tests {
 
     #[test]
     fn blocks_are_packed_as_std140() {
-        // BlurConfig { vec2 BlurDir; float Radius }.
+        // BlurDir (vec2), then Radius (float).
         let block = pack_block(&[Uniform::Vec2([1.0, 0.0]), Uniform::Float(7.0)]).unwrap();
         let words: Vec<f32> = block
             .chunks(4)
             .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
             .collect();
         assert_eq!(words[..3], [1.0, 0.0, 7.0]);
-        // ColorConfig { vec3, vec3, vec3 }: each starts on 16 bytes.
+        // Three vec3s: each starts on 16 bytes.
         let block = pack_block(&[
             Uniform::Vec3([1.0, 2.0, 3.0]),
             Uniform::Vec3([4.0, 5.0, 6.0]),
@@ -1933,7 +2156,7 @@ mod tests {
             .map(|c| f32::from_le_bytes(c.try_into().unwrap()))
             .collect();
         assert_eq!(words[..7], [1.0, 2.0, 3.0, 0.0, 4.0, 5.0, 6.0]);
-        // RotScaleConfig { vec2, vec2, float }.
+        // InScale, InOffset (vec2s), then InRotation (float).
         let block = pack_block(&[
             Uniform::Vec2([1.0, 2.0]),
             Uniform::Vec2([3.0, 4.0]),
@@ -2078,7 +2301,7 @@ mod tests {
         };
         let root = scratch(
             "unknown",
-            r#"{"passes":[{"vertex_shader":"minecraft:core/screenquad","fragment_shader":"minecraft:post/nope",
+            r#"{"passes":[{"vertex_shader":"minecraft:post/blit","fragment_shader":"minecraft:post/nope",
                 "inputs":[{"sampler_name":"In","target":"minecraft:main"}],"output":"minecraft:main"}]}"#,
         );
         let mut effects = PostEffects::new(&device);
@@ -2179,12 +2402,12 @@ mod tests {
         let root = scratch(
             "upright",
             r#"{"targets":{"swap":{}},"passes":[
-            {"vertex_shader":"minecraft:core/screenquad","fragment_shader":"minecraft:post/blit",
+            {"vertex_shader":"minecraft:post/blit","fragment_shader":"minecraft:post/blit",
              "inputs":[{"sampler_name":"In","target":"minecraft:main"}],"output":"swap",
-             "uniforms":{"BlitConfig":[{"name":"ColorModulate","type":"vec4","value":[1.0,1.0,1.0,1.0]}]}},
-            {"vertex_shader":"minecraft:core/screenquad","fragment_shader":"minecraft:post/blit",
+             "uniforms":[{"name":"ColorModulate","type":"vec4","values":[1.0,1.0,1.0,1.0]}]},
+            {"vertex_shader":"minecraft:post/blit","fragment_shader":"minecraft:post/blit",
              "inputs":[{"sampler_name":"In","target":"swap"}],"output":"minecraft:main",
-             "uniforms":{"BlitConfig":[{"name":"ColorModulate","type":"vec4","value":[1.0,1.0,1.0,1.0]}]}}]}"#,
+             "uniforms":[{"name":"ColorModulate","type":"vec4","values":[1.0,1.0,1.0,1.0]}]}]}"#,
         );
         let mut effects = PostEffects::new(&device);
         let [top, bottom] = run_halves(
@@ -2214,13 +2437,13 @@ mod tests {
                        {"sampler_name":"Depth","target":"minecraft:main","use_depth_buffer":true},
                        {"sampler_name":"Tint","location":"tint","width":1,"height":1}],
              "output":"half",
-             "uniforms":{"MineConfig":[{"name":"Scale","type":"float","value":0.5}]}},
+             "uniforms":[{"name":"Scale","type":"float","values":[0.5]}]},
             {"vertex_shader":"minecraft:core/quad","fragment_shader":"minecraft:post/mine",
              "inputs":[{"sampler_name":"In","target":"half"},
                        {"sampler_name":"Depth","target":"half","use_depth_buffer":true},
                        {"sampler_name":"Tint","location":"tint","width":1,"height":1}],
              "output":"minecraft:main",
-             "uniforms":{"MineConfig":[{"name":"Scale","type":"float","value":1.0}]}}]}"#,
+             "uniforms":[{"name":"Scale","type":"float","values":[1.0]}]}]}"#,
         );
         own_glsl(&root);
         let mut effects = PostEffects::new(&device);
@@ -2346,8 +2569,7 @@ mod tests {
         std::fs::write(
             shaders.join("post/mine.fsh"),
             "#version 330\nuniform sampler2D InSampler;\nuniform sampler2D DepthSampler;\nuniform sampler2D TintSampler;\n\
-             layout(std140) uniform SamplerInfo { vec2 OutSize; vec2 InSize; };\n\
-             layout(std140) uniform MineConfig { float Scale; };\n\
+             uniform vec2 OutSize;\nuniform vec2 InSize;\nuniform float Scale;\n\
              layout(location = 0) in vec2 texCoord;\nlayout(location = 0) out vec4 fragColor;\n\
              void main() {\n  vec4 c = texture(InSampler, texCoord);\n  float d = texture(DepthSampler, texCoord).r;\n\
                vec4 t = texture(TintSampler, texCoord);\n  fragColor = vec4(c.rgb * t.rgb * Scale * d, 1.0);\n}\n",
@@ -2382,13 +2604,13 @@ mod tests {
                        {"sampler_name":"Depth","target":"minecraft:main","use_depth_buffer":true},
                        {"sampler_name":"Tint","location":"tint","width":1,"height":1}],
              "output":"half",
-             "uniforms":{"MineConfig":[{"name":"Scale","type":"float","value":0.5}]}},
+             "uniforms":[{"name":"Scale","type":"float","values":[0.5]}]},
             {"vertex_shader":"minecraft:core/quad","fragment_shader":"minecraft:post/mine",
              "inputs":[{"sampler_name":"In","target":"half"},
                        {"sampler_name":"Depth","target":"half","use_depth_buffer":true},
                        {"sampler_name":"Tint","location":"tint","width":1,"height":1}],
              "output":"minecraft:main",
-             "uniforms":{"MineConfig":[{"name":"Scale","type":"float","value":1.0}]}}]}"#,
+             "uniforms":[{"name":"Scale","type":"float","values":[1.0]}]}]}"#,
         );
         own_glsl(&root);
         let mut effects = PostEffects::new(&device);
@@ -2429,7 +2651,7 @@ mod tests {
         let Some((device, queue)) = device() else {
             return;
         };
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/26.3");
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/1.21.5");
         if !root
             .join("assets/minecraft/post_effect/invert.json")
             .exists()
@@ -2462,7 +2684,7 @@ mod tests {
         let Some((device, queue)) = device() else {
             return;
         };
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/26.3");
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.local/horizon-client/1.21.5");
         if !root
             .join("assets/minecraft/post_effect/invert.json")
             .exists()

@@ -11366,12 +11366,95 @@ is the oracle; decompiled code is a reading aid.
     test-profile build OOMs
     under load).
 
+- **Item 271 — Post-processing chains**
+  - Post chains: the port's
+    1.21.6 model is now the
+    1.21.5 form. Uniform blocks
+    are gone: a pass names
+    plain uniforms in a list,
+    each {name, type, values?},
+    set by setOnRenderPass's
+    rule (one value fills a
+    vector; an int type takes
+    only the first; no values
+    means zero — blur's Radius
+    has none). Targets are
+    fixed-size or fullscreen
+    (the either codec); no
+    persistent targets, no
+    clear colour — every
+    internal target is cleared
+    to transparent black each
+    frame. The GLSL translator
+    wraps both stages' plain
+    uniforms into one synthetic
+    std140 block, and the
+    vertex shader's in vec4
+    Position becomes the
+    fullscreen triangle's
+    corner from the vertex
+    index, so vanilla 1.21.5's
+    #version 150 shaders
+    translate (they could not
+    before). Each frame the
+    block holds ProjMat
+    (setOrtho), OutSize, each
+    <sampler>Size, then the
+    config's uniforms, which
+    win. The stand-ins name the
+    1.21.5 shaders (post/blit,
+    post/blur, post/sobel,
+    post/screenquad; no
+    core/screenquad) and the
+    1.21.5 uniform names (InSca
+    le/InOffset/InRotation,
+    InverseAmount,
+    ColorModulate,
+    Resolution/MosaicSize,
+    Red/Green/BlueMatrix,
+    BlurDir/Radius,
+    Scissor/Vignette); a config
+    uniform the shader does not
+    declare fails the pass, as
+    createPass does. box_blur
+    is round(Radius) with no
+    menu-radius fallback (the
+    fallback was the 1.21.6
+    shader's rule); the menu
+    blur is MenuBlur, not this
+    chain. The Globals
+    machinery stays (item 105's
+    ground); Polytone post
+    targets follow the same
+    enum. Known gaps: strict
+    serde_json for chain JSON
+    (the item-251 gap — vanilla
+    parses leniently); a config
+    OutSize override is ignored
+    by the stand-ins (they
+    compute it); the
+    Consumer<RenderPass> hook
+    has no port surface (the
+    port never runs the blur
+    chain as a menu blur).
+  - Verification: cargo check
+    -j 1 -p horizon-client-
+    render --lib --tests: 0
+    errors, 0 warnings (2m03s).
+    cargo test --lib -- post_:
+    25 passed, 0 failed; the
+    GPU tests early-return
+    without a device on this
+    VM, the pure
+    config/pack/translator
+    tests ran.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **270 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 2/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **271 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 3/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
