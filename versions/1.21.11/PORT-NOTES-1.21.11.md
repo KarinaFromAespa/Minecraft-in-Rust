@@ -12065,3 +12065,7 @@ Only the `is(Object)` vs `is(Block)` overload widening in `damage`.
 `dropContents` differs only in that 26.1 caches `getRandom()` in a local
 while 1.21.11 reads the `random` field each time — same source, draw order
 and constants. The Rust's `drop_item_stack_at` matches exactly.
+
+## Item 587 — game/cat_spawner.rs (CatSpawner) — NO-CHANGE
+
+Only `getRandom()` vs the `random` field (same source).
