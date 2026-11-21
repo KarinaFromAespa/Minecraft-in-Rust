@@ -4418,13 +4418,45 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (no-op re-check).
+- **Item 103 — ServerStatsCounter,
+  verified:**
+  - The parse difference is
+    plumbing only: 1.21.6 uses
+    `StrictJsonParser`, 1.21.5
+    a non-lenient `JsonReader`
+    plus `Streams.parse` —
+    both strict JSON parsing
+    with the same failure
+    outcome (log and keep
+    empty stats), the same
+    STATS datafix (default
+    version 1343) and the
+    same codec over the
+    `"stats"` object. The
+    `toJson` change is a pure
+    getter rename; the same
+    DataVersion is written.
+    The Rust `game/stats.rs`
+    (`serde_json` strict
+    parse, `"stats"` object,
+    `DataVersion` from the
+    version constant) matches
+    the shared behaviour.
+    Pre-existing gap, not a
+    delta: the Rust read does
+    not run the STATS
+    datafix. No code change.
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (no-op re-check).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **102 of 426 are
-closed** (rank 1 complete, rank 2 at 93/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **103 of 426 are
+closed** (rank 1 complete, rank 2 at 94/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
