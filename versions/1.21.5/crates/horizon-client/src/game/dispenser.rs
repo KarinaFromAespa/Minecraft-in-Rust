@@ -2044,9 +2044,6 @@ impl Game<'_> {
         }
         Ok(false)
     }
-    /// `Entity.shearOffAllLeashConnections(null)`: the entity's own lead and
-    /// every lead held by it (within a 32 block box around its centre) drop;
-    /// a shear game event at the entity and a snip at its block follow.
     /// The brush behaviour: the first armadillo in front that `brushOffScute`s.
     fn dispense_brush(&mut self, pos: Pos, facing: Direction, stack: ItemStack) -> Dispensed {
         let target = offset(pos, facing);

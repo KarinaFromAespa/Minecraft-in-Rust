@@ -12972,12 +12972,45 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     passed (1m26s).
 
+- **Item 314 — Shears in a dispenser**
+  - ShearsDispenseItemBehav
+    ior: verified, comment
+    fix only - item 263's
+    ground. The dispenser
+    already implements the
+    1.21.5
+    tryShearLivingEntity
+    form: shear_entity
+    iterates living mobs in
+    the target block and
+    shears only Shearable
+    species (sheep,
+    mooshroom, snow golem,
+    bogged, sulfur cube,
+    copper golem), with no
+    leash cutting anywhere
+    - the 1.21.6
+    tryShearEntity
+    lead-shearing arm is
+    gone. Removed the one
+    leftover:
+    shear_off_leashes' doc
+    comment had survived
+    item 263 orphaned above
+    dispense_brush,
+    describing lead-cutting
+    the port no longer
+    does.
+  - Verification: cargo check -j 1 -p
+    horizon-client --lib
+    passed (33s).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **313 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 45/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **314 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 46/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
