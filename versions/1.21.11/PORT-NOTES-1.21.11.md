@@ -12622,3 +12622,7 @@ Visibility plus requireNonNull.
 ## Item 687 — game/commands/execute.rs (BuildContexts$Unbound) — NO-CHANGE
 
 Zero diff: the bytecode is identical in both versions.
+
+## Item 688 — game/crossbow.rs (Stray) — NO-CHANGE
+
+`is` overload only.
