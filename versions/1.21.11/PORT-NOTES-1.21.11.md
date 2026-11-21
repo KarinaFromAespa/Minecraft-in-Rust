@@ -11057,3 +11057,28 @@ template reading lives on
 (item 457), which is what the Rust
 already cites. No citations anywhere.
 `nbt::`: 14 passed.
+
+## Item 503 — client-render/fog.rs (rank 3, CHANGED)
+
+5 classes, 70 methods, 5 named.
+`FogRenderer.setupFog`/`computeFogColor`
+are a restructure only (26.1 writes
+the colour into `FogData.color` and
+returns the data; 1.21.11 returns the
+colour and inlines the buffer upload)
+with identical bodies, and
+`AtmosphericFogEnvironment` differs
+only in where the panoramic forward
+vector comes from. The one port:
+`LightmapRenderStateExtractor` is
+26.1-only — its torch flicker lives in
+`LightTexture` in 1.21.11 as
+`blockLightRedFlicker` (same formula,
+same `RandomSource.create()`), so
+`FogState.block_light_flicker` is
+renamed `block_light_red_flicker` and
+all 6 citations re-pointed to
+`LightTexture` (fog.rs, game.rs,
+sculk.rs, end.rs); none remain.
+`fog::`: 16 passed; `cargo check -p
+horizon-client --tests` clean.

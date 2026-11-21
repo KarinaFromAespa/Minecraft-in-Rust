@@ -445,7 +445,7 @@ impl Game<'_> {
         )
     }
 
-    /// LightmapRenderStateExtractor: End flashes add to the sky light factor
+    /// LightTexture.updateLightTexture: End flashes add to the sky light factor
     /// unless Hide Lightning Flashes is on (the sky sprite is not gated), a
     /// third of it under a boss bar's world fog. The lightmap's
     /// `AmbientColor` is the flash colour while a flash is active, hidden

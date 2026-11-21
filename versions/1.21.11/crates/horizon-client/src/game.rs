@@ -9994,7 +9994,7 @@ impl Game<'_> {
             ticks: self.texture_clock(),
             darkness: self.darkness_lighting(alpha as f32),
             night_vision: self.night_vision_intensity(alpha as f32),
-            block_flicker: self.fog.block_light_flicker,
+            block_flicker: self.fog.block_light_red_flicker,
             boss_darken: self
                 .boss_overlay
                 .darken_amount(self.clock.fraction() as f32),
