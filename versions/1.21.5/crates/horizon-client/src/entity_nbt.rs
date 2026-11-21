@@ -1341,7 +1341,7 @@ pub fn mob_to_nbt(
             map.insert("StunTick".into(), Tag::Int(m.extra.counter2));
             map.insert("RoarTick".into(), Tag::Int(m.extra.anim_ticks));
         }
-        "minecraft:vex" => crate::mobs::vex::write_nbt(m, map, &mut uuid_of),
+        "minecraft:vex" => crate::mobs::vex::write_nbt(m, map),
         "minecraft:endermite" => {
             map.insert("Lifetime".into(), Tag::Int(m.extra.counter));
         }

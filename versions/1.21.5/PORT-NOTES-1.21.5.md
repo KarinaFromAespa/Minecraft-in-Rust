@@ -2043,13 +2043,35 @@ is the oracle; decompiled code is a reading aid.
     horizon-command -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (9s).
+- **Item 53 — Vex, ported:**
+  - The owner is a plain field in 1.21.5,
+    never saved: the `EntityReference`
+    model is removed — `owner()` reads
+    `counter2` directly with no UUID
+    lookup, `write_nbt` writes no `owner`
+    key (and drops a stale one), and
+    `read_nbt` does not read it. A
+    summoned vex loses its evoker across
+    a chunk save and copies no target
+    after reloading; the tests assert the
+    loss and the stale-key drop. The
+    `CopyOwnerTargetGoal.start` null
+    check is gone in 1.21.5 too, but
+    `can_use` gates on a non-null owner
+    with a target, so the lookup in
+    `start` finds one whenever it runs.
+    The bound origin and limited life are
+    unchanged.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m28s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **52 of 426 are
-closed** (rank 1 complete, rank 2 at 43/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **53 of 426 are
+closed** (rank 1 complete, rank 2 at 44/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
