@@ -710,7 +710,9 @@ impl Settings {
                 }
             })
     }
-    /// `Options.getFinalSoundSourceVolume`: a source's volume times master's.
+    /// A source's volume times master's: the fold 1.21.5 computes inline in
+    /// `GameNarrator.narrateMessage` (voice) and applies as the listener gain
+    /// for sounds. (1.21.6 named the fold `getFinalSoundSourceVolume`.)
     pub fn final_volume(&self, source: &str) -> f32 {
         if source == "master" {
             self.master_volume

@@ -19,7 +19,7 @@ fn main() {
     } else {
         args.join(" ")
     };
-    horizon_narrator::say_system_queued(&message);
+    horizon_narrator::say(&message);
     // The speech thread speaks asynchronously; give it time to finish.
     std::thread::sleep(std::time::Duration::from_millis(
         400 + 90 * message.len() as u64,

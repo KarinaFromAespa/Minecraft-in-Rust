@@ -5905,7 +5905,7 @@ impl Game<'_> {
         }
         if let Some(title) = &self.title {
             for found in title.lan_found_narrations((w, h)) {
-                self.say_system_queued(&found);
+                self.say(&found);
             }
         }
         if self.screen == Screen::DebugOptions && self.title.is_some() {

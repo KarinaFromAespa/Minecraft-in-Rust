@@ -229,7 +229,7 @@ impl Game<'_> {
                     key,
                     &[keybinds::display_name(self.settings.keys.get("key.sneak"))],
                 );
-                self.say_system_now(&message);
+                self.say_now(&message);
                 self.titles.set_overlay(message, false);
                 if let Some(c) = self.carts.iter_mut().find(|c| c.id == vehicle_id) {
                     c.passenger_yaw_delta = 0.0;

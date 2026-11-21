@@ -245,7 +245,7 @@ impl Game<'_> {
             horizon_client::component::to_text(&s.description, &mut |k| Text::literal(k));
         // Hud.setNowPlaying: the overlay, said at once.
         let message = Text::translate("record.nowPlaying", &[description]);
-        self.say_system_now(&message);
+        self.say_now(&message);
         self.titles.set_overlay(message, true);
         self.update_song_volumes();
         self.notify_record_playing(pos, true);

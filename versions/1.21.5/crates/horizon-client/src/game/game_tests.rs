@@ -1474,7 +1474,7 @@ impl Game<'_> {
                 self.report_passed(info, &line);
                 false
             } else {
-                self.say(
+                self.say_report(
                     text::GREEN,
                     format!(
                         "Flaky test {} succeeded, attempt: {attempts} successes: {successes}",
@@ -1487,7 +1487,7 @@ impl Game<'_> {
             self.report_failure(info, None);
             if retry.has_retries() {
                 let line = retry_line(info, retry, attempts, successes, false);
-                self.say(text::RED, line);
+                self.say_report(text::RED, line);
                 retry.has_tries_left(attempts, successes)
             } else {
                 false
@@ -1500,7 +1500,7 @@ impl Game<'_> {
             if required > 1 {
                 line.push_str(&format!(", successes: {successes} ({required} required)"));
             }
-            self.say(text::YELLOW, line);
+            self.say_report(text::YELLOW, line);
             if max_attempts - attempts + successes >= required {
                 true
             } else {
@@ -1516,7 +1516,7 @@ impl Game<'_> {
     /// `ReportGameListener.reportPassed`.
     fn report_passed(&mut self, info: &Info, line: &str) {
         self.set_test_status(info.pos, Status::Finished, None);
-        self.say(text::GREEN, line.to_owned());
+        self.say_report(text::GREEN, line.to_owned());
     }
 
     /// `ReportGameListener.reportFailure`: the test's own error, or the
@@ -1549,7 +1549,7 @@ impl Game<'_> {
             info.key,
             message
         );
-        self.say(if required { text::RED } else { text::YELLOW }, message);
+        self.say_report(if required { text::RED } else { text::YELLOW }, message);
         if let TestError::AssertPos {
             message, absolute, ..
         } = error
@@ -1558,8 +1558,9 @@ impl Game<'_> {
         }
     }
 
-    /// `ReportGameListener.say`.
-    fn say(&mut self, color: u32, text: String) {
+    /// `ReportGameListener.say` (named `say_report`: `Game::say` is the
+    /// narrator's).
+    fn say_report(&mut self, color: u32, text: String) {
         self.game_tests
             .outbox
             .push(Out::Players(Text::literal(text).with_color(color)));

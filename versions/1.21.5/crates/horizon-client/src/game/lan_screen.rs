@@ -1195,7 +1195,7 @@ impl Game<'_> {
     /// `WorldOptionsScreen.sendPublishMessage`: a client system message the
     /// narrator says.
     fn send_publish_message(&mut self, message: Text) {
-        self.say_system_queued(&message);
+        self.say(&message);
         self.system_message(message);
     }
 

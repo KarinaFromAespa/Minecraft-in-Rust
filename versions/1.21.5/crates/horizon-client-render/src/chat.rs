@@ -1784,7 +1784,7 @@ impl ChatScreen {
             .strip_prefix(self.input.value.as_str())
             .map(str::to_owned);
         if l.last_narrated != l.current as isize {
-            horizon_narrator::say_system_now(&l.narration_message().plain());
+            horizon_narrator::say_now(&l.narration_message().plain());
         }
     }
     fn cycle(&mut self, l: &mut SuggestionList, dir: isize) {

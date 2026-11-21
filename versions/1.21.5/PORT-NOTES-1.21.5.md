@@ -1988,13 +1988,42 @@ is the oracle; decompiled code is a reading aid.
     horizon-client-render -p horizon-client
     --all-targets` 0 errors / 0 warnings
     (2m19s).
+- **Item 51 — GameNarrator, ported:**
+  - The 1.21.6 names go back to 1.21.5's:
+    `say_chat` (chat gate, and — unlike
+    the others — no empty check, so an
+    empty message is still logged and
+    said), `say` (system gate, empty
+    messages skipped), `say_now` (system
+    gate, interrupts). `saySystemChatQueued`
+    has no 1.21.5 equivalent and is
+    deleted with its `should_narrate_system_or_chat`
+    gate.
+  - Real behaviour changes at its two call
+    sites: `handleSystemMessage` says
+    system chat with the system gate only
+    (1.21.6 narrated it at Chat status
+    too), and `handleChatMessageError`
+    does not narrate at all in 1.21.5, so
+    the error branch's narration is
+    removed. The volume citations are
+    reworded to `narrateMessage`'s inline
+    voice-times-master product (the
+    computation was already that product).
+  - The game-test `ReportGameListener.say`
+    helper is renamed `say_report`: `Game::say`
+    is now the narrator's.
+  - Verification: `cargo check -p
+    horizon-narrator -p horizon-client-render
+    -p horizon-client --all-targets`
+    0 errors / 0 warnings (2m33s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **50 of 426 are
-closed** (rank 1 complete, rank 2 at 41/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **51 of 426 are
+closed** (rank 1 complete, rank 2 at 42/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

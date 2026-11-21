@@ -197,7 +197,7 @@ impl Game<'_> {
                     "gui.socialInteractions.shown_in_chat"
                 };
                 let line = Text::translate(key, &[Text::literal(name)]);
-                self.say_system_now(&line);
+                self.say_now(&line);
                 self.system_message(line);
             }
             Action::Done => self.close_social(),

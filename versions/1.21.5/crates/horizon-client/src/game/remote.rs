@@ -2016,10 +2016,10 @@ impl Game<'_> {
         }
         let source = horizon_client::chat::ChatSource::Player;
         let shown = self.signed_chat_line(line, source, signature, trust);
-        if shown && error {
-            self.say_system_chat_queued(&horizon_client::text::Text::literal(&narration));
-        } else if shown {
-            self.say_chat_queued(&narration);
+        // `handleChatMessageError` (1.21.5) shows the error line but does not
+        // narrate it; only a shown player message is said.
+        if shown && !error {
+            self.say_chat(&narration);
         }
         shown
     }
@@ -5249,11 +5249,13 @@ impl Game<'_> {
                     return Ok(());
                 }
                 if p.overlay {
-                    self.say_system_queued(&text);
+                    self.say(&text);
                     self.titles.set_overlay(text, false);
                 } else if self.chat_line(text.clone(), horizon_client::chat::ChatSource::Server) {
-                    // handleSystemMessage: said once the chat takes it.
-                    self.say_system_chat_queued(&text);
+                    // `handleSystemMessage` (1.21.5) says the message with the
+                    // system gate once the chat takes it — not the
+                    // system-or-chat gate 1.21.6 gave it.
+                    self.say(&text);
                 }
             }
             C::PlayerChat(p) => {
@@ -6525,7 +6527,7 @@ impl Game<'_> {
             self.send(S::PlayerLoaded(Empty));
         }
         // LevelLoadingScreen.onClose.
-        self.say_system_now(&horizon_client::text::Text::translate(
+        self.say_now(&horizon_client::text::Text::translate(
             "narrator.ready_to_play",
             &[],
         ));
@@ -10896,7 +10898,7 @@ impl Game<'_> {
                 .is_none_or(|t| t.elapsed() > Duration::from_millis(2000))
         {
             r.joining_narrated = Some(Instant::now());
-            self.say_system_now(&horizon_client::text::Text::translate(
+            self.say_now(&horizon_client::text::Text::translate(
                 "narrator.joining",
                 &[],
             ));

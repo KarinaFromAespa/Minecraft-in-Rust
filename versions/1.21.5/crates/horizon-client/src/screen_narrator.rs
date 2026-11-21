@@ -587,7 +587,7 @@ impl ScreenNarrator {
     pub fn frame(&mut self, gui: (f32, f32), cursor: (f32, f32), pad_focus: Option<[f32; 4]>) {
         let active = horizon_narrator::is_active();
         for said in self.frame_with(active, gui, cursor, pad_focus, &translate) {
-            horizon_narrator::say_system_now(&said);
+            horizon_narrator::say_now(&said);
         }
     }
 

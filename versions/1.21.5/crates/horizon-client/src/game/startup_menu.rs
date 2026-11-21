@@ -1284,7 +1284,7 @@ impl Loading {
             }
             let _ = title.update_toast(self.settings.notification_display_time);
             for found in title.lan_found_narrations((batch.width, batch.height)) {
-                horizon_narrator::say_system_queued(&found.plain());
+                horizon_narrator::say(&found.plain());
             }
             let items = match &self.loaded {
                 Some(Ok(loaded)) => Some(&*loaded.pack.item_renderer),
