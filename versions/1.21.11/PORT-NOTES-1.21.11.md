@@ -9934,3 +9934,11 @@ calls `getEffectiveSkyBrightness`, 1.21.11 inlines
 javap to be the same formula, so there is no
 behavioural delta; the Rust already implements the
 shared form. No code changed.
+
+## Item 226 — world/inventory (rank 2, NO-CHANGE)
+
+17 classes, 22 methods, 0 named. Sixteen anonymous
+slot classes differ only by dropped null-check codegen
+and `is` overload spellings (same tests); the
+26.1-only `ContainerInput` class changes no slot
+signature or body. No code changed.
