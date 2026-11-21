@@ -1669,13 +1669,49 @@ is the oracle; decompiled code is a reading aid.
   - Verification: `cargo check -p
     horizon-client --all-targets` 0 errors /
     0 warnings (1m32s).
+- **Item 42 — ExperienceOrb, ported:**
+  - The 1.21.6-only directional spawn is
+    gone: `awardWithDirection`,
+    `spawn_orbs_toward`/`add_orb_toward`,
+    the 0.25 offset along the direction, the
+    velocity flip and the spawn-time
+    `unstuckIfPossible` (`ExperienceOrb::unstuck`,
+    `unstuck_orb` and the unstuck tests are
+    all removed). `award`/`spawn_orbs` and
+    `add_orb` are 1.21.5's plain forms: the
+    orb spawns exactly at the given point,
+    its yaw is a `nextDouble` (1.21.6 drew
+    a `nextFloat`), and the motion's x/z
+    factors are the widened `0.2F`/`0.1F`
+    literals. `/summon experience_orb` also
+    stops unsticking (the summon constructor
+    never did). The XP-bottle test already
+    asserted the 1.21.5 form (item 22).
+  - The tick's stuck push is unconditional
+    in 1.21.5: a colliding orb with no
+    player following always gets
+    `moveTowardsClosestSpace` (1.21.6 only
+    pushes when the next move would still
+    collide). The inner collision gate is
+    removed.
+  - No-ops verified: save/load keys
+    (Health/Age/Value/Count) and the merge
+    cadence are unchanged;
+    `modifyDurabilityToRepairFromXp` takes
+    `serverLevel()` in 1.21.5 vs `level()`
+    in 1.21.6, the same level for a
+    ServerPlayer; `hasImpulse` has no Rust
+    surface.
+  - Verification: `cargo check -p
+    horizon-client --all-targets` 0 errors /
+    0 warnings (1m15s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **41 of 426 are
-closed** (rank 1 complete, rank 2 at 32/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **42 of 426 are
+closed** (rank 1 complete, rank 2 at 33/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
