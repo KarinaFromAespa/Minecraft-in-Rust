@@ -12523,3 +12523,12 @@ Same `validate` signature refactor as items 657/661.
 ## Item 665 — lan/arrivals.rs (ChaseServer$PlayerPosition) — NO-CHANGE
 
 Visibility only.
+
+## Item 666 — mobs/hostile.rs (SwellGoal) — CHANGED
+
+26.1 added `isDeadOrDying` checks to `SwellGoal.canUse` and `tick`;
+1.21.11 has neither — a creeper keeps swelling toward a dead target
+that is still present, close, and visible. The Rust had the 26.1 form;
+`Swell::can_use` and `Swell::tick` now drop the alive checks (deflate
+only when the target is gone). Distances (9.0 / 49.0) and LOS
+unchanged.
