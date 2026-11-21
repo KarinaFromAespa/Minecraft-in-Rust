@@ -12699,3 +12699,7 @@ requireNonNull only.
 ## Item 705 — mobs/farm.rs (SheepColorSpawnRules$SheepColorSpawnConfiguration) — NO-CHANGE
 
 Visibility only.
+
+## Item 706 — mobs/nether.rs (GhastModel) — NO-CHANGE
+
+RandomSource factory only, as items 670/679.
