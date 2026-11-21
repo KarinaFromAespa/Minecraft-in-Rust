@@ -9977,3 +9977,16 @@ adapter's internal clock model, not a wire field.
 DIM-1/DIM1 layout; `CardinalLightType` keeps the same
 values under its new home. New test pins the
 derivation and the ignoring of 26.x-shaped keys.
+
+## Item 230 — level/speleothem.rs (rank 2, CHANGED)
+
+1 class, 11 methods, 1 named. `canGrow` in 1.21.11
+wants a water BLOCK (source) two above the dripstone;
+26.1 accepted any water fluid state, so a waterlogged
+block two above grew dripstone there and not here.
+`speleothem_grow` now tests the block plus
+`is_source()` (the source check was also missing
+against both versions). `maybeTransferFluid` and the
+rest are identical. New level test: water-source
+column grows, waterlogged-fence column does not (runs
+in CI; skips locally without prepared resources).

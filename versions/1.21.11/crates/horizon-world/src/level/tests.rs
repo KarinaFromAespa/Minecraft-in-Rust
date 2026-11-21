@@ -2333,6 +2333,59 @@ fn dripstone_fills_cauldrons() {
 }
 
 #[test]
+fn dripstone_grows_only_under_a_water_source_block() {
+    // `PointedDripstoneBlock.canGrow` in 1.21.11 wants a water BLOCK
+    // (source) two above the dripstone: waterlogged fluid alone, which
+    // 26.1's fluid-state test accepted, does not grow it. Each column
+    // ticks in its own world, so the two columns' random streams are
+    // independent.
+    let mut a = world!();
+    let block = a.id("dripstone_block", &[]);
+    let water = a.id("water", &[]);
+    let tip_a = a.id(
+        "pointed_dripstone",
+        &[("vertical_direction", "down"), ("thickness", "tip")],
+    );
+    a.put(BlockPos::new(0, 11, 0), water);
+    a.put(BlockPos::new(0, 10, 0), block);
+    a.put(BlockPos::new(0, 9, 0), tip_a);
+    let mut b = world!();
+    let block = b.id("dripstone_block", &[]);
+    let fence = b.id("oak_fence", &[("waterlogged", "true")]);
+    let tip_b = b.id(
+        "pointed_dripstone",
+        &[("vertical_direction", "down"), ("thickness", "tip")],
+    );
+    b.put(BlockPos::new(0, 11, 0), fence);
+    b.put(BlockPos::new(0, 10, 0), block);
+    b.put(BlockPos::new(0, 9, 0), tip_b);
+    // Precondition: the waterlogged fence really does hold water, so the
+    // old fluid-kind test would have let this column grow.
+    assert_eq!(
+        b.b().fluid(b.get(BlockPos::new(0, 11, 0))).kind(),
+        crate::fluid::FluidKind::Water,
+        "the fence holds water"
+    );
+    for _ in 0..1000 {
+        a.b()
+            .random_tick(&mut a.level, &mut a.ticks, BlockPos::new(0, 9, 0));
+        b.b()
+            .random_tick(&mut b.level, &mut b.ticks, BlockPos::new(0, 9, 0));
+    }
+    assert!(
+        a.name(BlockPos::new(0, 8, 0))
+            .starts_with("pointed_dripstone"),
+        "the water-source column grows: {}",
+        a.name(BlockPos::new(0, 8, 0))
+    );
+    assert_eq!(
+        b.name(BlockPos::new(0, 8, 0)),
+        "air",
+        "the waterlogged-fence column does not grow"
+    );
+}
+
+#[test]
 fn a_level_can_answer_for_a_blocks_signal() {
     let mut w = world!();
     let source = BlockPos::new(0, 1, 0);

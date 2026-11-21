@@ -101,8 +101,11 @@ impl<L: LevelAccess + ?Sized> Sim<'_, L> {
             .link
             .is_some_and(|grow_on| b.is_block(self.above_state(pos), grow_on));
         if data.is(Class::PointedDripstone) {
-            let fluid = b.fluid(self.state(pos.offset(0, 2, 0)));
-            can_grow &= fluid.kind() == FluidKind::Water;
+            // `PointedDripstoneBlock.canGrow` in 1.21.11: a water
+            // BLOCK two above (not just waterlogged fluid, which
+            // 26.1's fluid-state test accepted), and a source.
+            let above2 = self.state(pos.offset(0, 2, 0));
+            can_grow &= b.is_block(above2, b.named.water) && b.fluid(above2).is_source();
         }
         if !can_grow {
             return;
