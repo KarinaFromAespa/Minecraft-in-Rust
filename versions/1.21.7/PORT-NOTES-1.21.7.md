@@ -746,3 +746,18 @@ decoding and none are in scope for this pass. Beware comparing
 against a run without `.local`: the level tests silently
 `return` (pass) when the fixture is missing, so a bare worktree
 reports 445 passed / 3 failed and looks healthier than it is.
+
+Movement attributes: vanilla 1.21.7's attribute registry has no
+`air_drag_modifier`, `bounciness` or `friction_modifier` (26.x
+additions), but the movement code reads all three for every living
+entity — the first world creation crashed on the render thread with
+"missing movement attribute minecraft:air_drag_modifier" right after
+the player logged in. `Catalog::from_json` now synthesizes the three
+when the catalog lacks them, with the 26.2-verified registry values
+(air drag 1.0 in [0, 2048], bounciness 0.0 in [0, 1], friction 1.0
+in [0, 2048], all syncable), and gives every entity supplier the
+registry default as its base — all 93 of 26.2's suppliers list them,
+with player bases exactly these defaults. Catalogs that already list
+an attribute are untouched, and a supplier that omits a listed
+attribute stays omitted. Two unit tests pin the synthesis and the
+no-duplicate scoping.

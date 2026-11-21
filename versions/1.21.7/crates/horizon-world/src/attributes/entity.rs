@@ -83,6 +83,31 @@ impl Catalog {
             });
         }
         let mut defaults = BTreeMap::new();
+        // 1.21.7 predates the three 26.x physics attributes: vanilla 1.21.7's
+        // attribute registry has no entries for them, but the movement code
+        // reads all three for every living entity (and the crash is a fatal
+        // "missing movement attribute"). Synthesize them with the 26.2-verified
+        // registry values so a 1.21.7 catalog behaves like a 26.x one; a
+        // catalog that already lists an attribute is untouched.
+        const SYNTHESIZED_ATTRIBUTES: [(&str, f64, f64, f64); 3] = [
+            ("minecraft:air_drag_modifier", 1.0, 0.0, 2048.0),
+            ("minecraft:bounciness", 0.0, 0.0, 1.0),
+            ("minecraft:friction_modifier", 1.0, 0.0, 2048.0),
+        ];
+        let mut synthesized = Vec::new();
+        for (name, default, min, max) in SYNTHESIZED_ATTRIBUTES {
+            if ids.contains_key(name) {
+                continue;
+            }
+            let id = AttributeId(attributes.len());
+            ids.insert(name.into(), id);
+            attributes.push(RegisteredAttribute {
+                name: name.into(),
+                definition: Definition::ranged(default, min, max)?,
+                syncable: true,
+            });
+            synthesized.push((id, default));
+        }
         for (entity, values) in v["entities"]
             .as_object()
             .ok_or_else(|| invalid("missing entity defaults"))?
@@ -96,6 +121,14 @@ impl Catalog {
                     .get(name)
                     .ok_or_else(|| invalid("unknown supplier attribute"))?;
                 bases[id.0] = Some(number(base)?);
+            }
+            // A pre-26.x supplier lists none of the synthesized attributes;
+            // give every entity the registry default, as all 93 of 26.2's
+            // suppliers do (player bases there are exactly these defaults).
+            for (id, default) in &synthesized {
+                if bases[id.0].is_none() {
+                    bases[id.0] = Some(*default);
+                }
             }
             defaults.insert(entity.clone(), Arc::from(bases));
         }
@@ -274,5 +307,88 @@ impl EntityAttributes {
     }
     pub fn clear_sync(&mut self, id: AttributeId) {
         self.sync[id.0] = false;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn catalog_json(attributes: Value, entities: Value) -> Value {
+        serde_json::json!({
+            "data_version": crate::DATA_VERSION,
+            "attributes": attributes,
+            "entities": entities,
+        })
+    }
+
+    fn ranged_attribute(id: &str, default: &str) -> Value {
+        serde_json::json!({
+            "id": id,
+            "default": default,
+            "syncable": true,
+            "min": "0000000000000000",
+            "max": "40a0000000000000",
+        })
+    }
+
+    #[test]
+    fn synthesizes_missing_physics_attributes() {
+        // A 1.21.7-shaped catalog: no air_drag_modifier, bounciness or
+        // friction_modifier anywhere, player supplier lists movement_speed.
+        let v = catalog_json(
+            serde_json::json!([ranged_attribute(
+                "minecraft:movement_speed",
+                "3fb999999999999a"
+            )]),
+            serde_json::json!({
+                "minecraft:player": {
+                    "minecraft:movement_speed": "3fb999999999999a",
+                },
+            }),
+        );
+        let catalog = Catalog::from_json(&v).expect("catalog loads");
+        for (name, expected) in [
+            ("minecraft:air_drag_modifier", 1.0),
+            ("minecraft:bounciness", 0.0),
+            ("minecraft:friction_modifier", 1.0),
+        ] {
+            let id = catalog.id(name).expect("synthesized attribute present");
+            assert_eq!(
+                catalog.default_base("minecraft:player", id),
+                Some(expected),
+                "{name} supplier base"
+            );
+        }
+        // The attributes that were there are untouched.
+        let speed = catalog.id("minecraft:movement_speed").unwrap();
+        assert_eq!(
+            catalog.default_base("minecraft:player", speed),
+            Some(0.1)
+        );
+    }
+
+    #[test]
+    fn keeps_catalog_attributes_unsynthesized() {
+        // A catalog that already lists air_drag_modifier keeps it exactly:
+        // no duplicate entry, and a supplier that omits it stays omitted
+        // (only synthesized attributes get a default base).
+        let v = catalog_json(
+            serde_json::json!([
+                ranged_attribute("minecraft:movement_speed", "3fb999999999999a"),
+                ranged_attribute("minecraft:air_drag_modifier", "4000000000000000"),
+            ]),
+            serde_json::json!({
+                "minecraft:player": {
+                    "minecraft:movement_speed": "3fb999999999999a",
+                },
+            }),
+        );
+        let catalog = Catalog::from_json(&v).expect("catalog loads");
+        // 2 listed + bounciness and friction_modifier synthesized; the
+        // listed air_drag_modifier is not duplicated (that would be 5).
+        assert_eq!(catalog.attributes().count(), 4);
+        let air = catalog.id("minecraft:air_drag_modifier").unwrap();
+        assert_eq!(catalog.default_base("minecraft:player", air), None);
     }
 }
