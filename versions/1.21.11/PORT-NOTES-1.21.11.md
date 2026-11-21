@@ -10624,3 +10624,10 @@ declining. The Rust logs the message and
 goes on (no native message box). No source
 change. `cargo check -p horizon-client
 --tests` passes.
+
+## Item 302 — game/native_reload_listeners.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. Normalized
+bytecode diff EMPTY: `prepare` is identical
+in both versions. No source change. `cargo
+check -p horizon-client --tests` passes.
