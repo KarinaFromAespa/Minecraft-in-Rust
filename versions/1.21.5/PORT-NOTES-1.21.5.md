@@ -6968,13 +6968,49 @@ is the oracle; decompiled code is a reading aid.
     --example client_probe`
     0 errors, 0 warnings
     (3m 38s).
+- **Item 146 — Warden model
+  verified against 1.21.5:**
+  - The same pure refactor
+    as item 137's sniffer:
+    1.21.6 bakes the six
+    animations into
+    `KeyframeAnimation`
+    fields at construction,
+    1.21.5 looks the
+    definitions up per call.
+    Same animations, same
+    parameters, same order.
+    The Rust port already
+    has the 1.21.5 shape:
+    `warden::anim` looks
+    each animation up by
+    name from the map every
+    frame and applies all
+    six in vanilla's order
+    (attack, sonic boom,
+    dig, emerge, roar,
+    sniff), after the
+    inline walk, idle-pose
+    and tendril poses.
+  - The animation
+    definitions themselves
+    are unchanged between
+    the versions (no
+    `WardenAnimation`
+    diff).
+  - Verification: no Rust
+    change; the tree state
+    is the one `cargo check
+    -j 1 -p horizon-command
+    -p horizon-client --lib`
+    passed at item 145.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **145 of 426 are
-closed** (rank 1 complete, rank 2 at 136/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **146 of 426 are
+closed** (rank 1 complete, rank 2 at 137/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
