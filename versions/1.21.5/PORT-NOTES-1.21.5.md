@@ -10092,12 +10092,33 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 231 — Server pack
+  version accessor:
+  - Pure accessor rename:
+    1.21.6's packVersion(Pa
+    ckType.SERVER_DATA) is
+    1.21.5's getPackVersion
+    (PackType.SERVER_DATA),
+    same value, in the
+    built-in vanilla
+    datapack's metadata
+    section. The port has
+    no pack-version surface
+    at all (the only
+    mention is a doc
+    comment in the port-
+    pack upgrader), so the
+    rename has nothing to
+    land on.
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **230 of 426 are
-closed** (rank 1 complete, rank 2 at 221/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **231 of 426 are
+closed** (rank 1 complete, rank 2 at 222/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
