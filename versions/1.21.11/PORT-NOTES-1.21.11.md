@@ -10914,3 +10914,12 @@ sprite-material system (`Material$Baked`,
 Rust surface — the Rust's `Material` is
 its own texture reference. `resolve`:
 12 passed.
+
+## Item 393 — commands/arguments/blocks (rank 2, NO-CHANGE)
+
+2 classes, 3 methods, 0 named. The
+`BlockInput` line is the `is` overload
+tightening; `BlockStateParser$1` is
+26.1's serialize consumer, already
+covered by item 291 (identical outputs).
+`block`: 2 passed.
