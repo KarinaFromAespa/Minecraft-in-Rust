@@ -75,8 +75,6 @@ pub enum ArgType {
     ResOrTagKey(&'static str),
     /// StringRepresentableArgument-like: one of the names, with the error key.
     StrEnum(&'static [&'static str], &'static str),
-    /// HexColorArgument.
-    HexColor,
     /// UuidArgument.
     Uuid,
     /// GameProfileArgument.
@@ -1322,41 +1320,6 @@ impl ArgType {
                 }
                 Arg::Str(pattern)
             }
-            ArgType::HexColor => {
-                let text = reader.read_unquoted_string();
-                if !matches!(text.len(), 3 | 6) {
-                    return Err(CommandError::tr_at(
-                        "argument.hexcolor.invalid",
-                        &[&text],
-                        reader,
-                    ));
-                }
-                // Integer.parseInt(s, begin, end, 16) per channel: a bad digit
-                // escapes Brigadier as a dispatcher parse exception.
-                let width = text.len() / 3;
-                for chunk in text.as_bytes().chunks(width) {
-                    let c = std::str::from_utf8(chunk).unwrap_or("");
-                    let signed = c.len() > 1 && (c.starts_with('+') || c.starts_with('-'));
-                    let digits = if signed { &c[1..] } else { c };
-                    if let Some(i) = digits.find(|ch: char| !ch.is_ascii_hexdigit()) {
-                        let index = i + usize::from(signed);
-                        let message = format!("Error at index {index} in: \"{c}\"");
-                        return Err(CommandError::tr_at(
-                            "command.exception",
-                            &[&message],
-                            reader,
-                        ));
-                    }
-                }
-                let v = i64::from_str_radix(text, 16).unwrap_or(0);
-                let rgb = if text.len() == 3 {
-                    let d = |i: u32| ((v >> (8 - 4 * i)) & 15) * 17;
-                    (d(0) << 16) | (d(1) << 8) | d(2)
-                } else {
-                    v
-                };
-                Arg::Int(rgb as i32)
-            }
             ArgType::Uuid => {
                 // UuidArgument: the longest run of [-A-Fa-f0-9] must be a UUID.
                 let rest = reader.remaining();
@@ -1730,7 +1693,6 @@ impl ArgType {
                 suggest_resources(builder, reg.ids(registry), "");
             }
             ArgType::StrEnum(values, _) => builder.suggest_matching(values.iter().copied()),
-            ArgType::HexColor => builder.suggest_matching(["F00", "FF0000"]),
             ArgType::ResourceSelector(registry) => {
                 suggest_resources(builder, reg.ids(registry), "")
             }

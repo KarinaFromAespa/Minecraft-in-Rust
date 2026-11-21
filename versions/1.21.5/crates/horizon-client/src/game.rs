@@ -3085,7 +3085,7 @@ struct Game<'a> {
     /// A dedicated server's operator, whitelist and ban lists, for `/op`,
     /// `/ban` and friends (`DedicatedPlayerList`).
     server_lists: Option<std::sync::Arc<std::sync::Mutex<dedicated::Lists>>>,
-    /// State of `/spectate`, `/posteffect`, `/debug`, `/waypoint` and friends.
+    /// State of `/spectate`, `/posteffect`, `/debug` and friends.
     cmds: commands::extra::CommandExtras,
     ui: chat::UiState,
     combat: combat::CombatTracker,

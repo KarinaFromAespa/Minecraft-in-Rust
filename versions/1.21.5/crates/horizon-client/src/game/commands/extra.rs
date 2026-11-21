@@ -1,8 +1,9 @@
 //! Commands that act on the player and the hosted game rather than the world:
-//! `/spectate` (SpectateCommand), `/waypoint` (WaypointCommand), `/dialog`
-//! (DialogCommand), `/posteffect` (PostEffectCommand), `/kick`,
+//! `/spectate` (SpectateCommand), `/posteffect` (PostEffectCommand), `/kick`,
 //! `/fetchprofile`, `/publish`, `/unpublish`, `/debug`, `/jfr` and
 //! `/version`, with vanilla's feedback and failures.
+//! No `/waypoint` (WaypointCommand) or `/dialog` (DialogCommand): both
+//! arrived in 1.21.6.
 use super::{Arg, Context, Game, R, Target, err};
 use horizon_client::actions::Action;
 use horizon_client::{
@@ -11,24 +12,8 @@ use horizon_client::{
     snbt,
     text::{self, ClickEvent, InlineObject, Style, Text},
 };
-use horizon_protocol::packets::play::DialogHolder;
 use horizon_world::nbt::Tag;
 use std::{collections::HashMap, time::Instant};
-
-/// Waypoint.Icon: the locator bar style and colour of a transmitter.
-#[derive(Clone, Debug, PartialEq)]
-pub(in crate::game) struct WaypointIcon {
-    pub style: String,
-    pub color: Option<i32>,
-}
-impl Default for WaypointIcon {
-    fn default() -> Self {
-        Self {
-            style: "minecraft:default".into(),
-            color: None,
-        }
-    }
-}
 
 /// A `/fetchprofile` lookup in flight: what it resolves, the message ids it
 /// answers with (`commands.fetchprofile.<kind>.success|failure`), the
@@ -130,14 +115,8 @@ pub(in crate::game) struct CommandExtras {
     pub profile_fetches: Vec<ProfileFetch>,
     /// The `/jfr start` recording: when it started and the tick count then.
     pub jfr: Option<(Instant, u64, String)>,
-    /// Waypoint icons changed by `/waypoint modify`.
-    pub waypoint_icons: HashMap<Target, WaypointIcon>,
     /// `/datapack disable vanilla` took the built-in pack out of the selection.
     pub vanilla_disabled: bool,
-    /// The waypoint manager's tracked transmitters (None until first used).
-    pub waypoints: Option<Vec<Target>>,
-    /// Entities whose waypoint transmit range changed since they last ticked.
-    pub waypoint_dirty: Vec<Target>,
     /// Attribute maps of living entities whose attributes Horizon does not
     /// model (an armor stand's, a mob's beyond its modelled three).
     pub attributes: HashMap<Target, horizon_world::attributes::entity::EntityAttributes>,
@@ -277,7 +256,6 @@ impl Game<'_> {
         }
         self.tick_profile_fetches();
         self.tick_camera();
-        self.tick_waypoints();
     }
     /// The camera part of `ServerPlayer.tick`: follow a living camera, drop a
     /// removed one, and stop when the player sneaks or leaves spectator mode.
@@ -301,248 +279,6 @@ impl Game<'_> {
             }
             _ => self.set_camera(None),
         }
-    }
-
-    // ---- /waypoint ------------------------------------------------------
-
-    /// A guest's body is only `Player` during its turn; retained command state
-    /// must use its connection so the next server tick still finds that body.
-    pub(super) fn waypoint_target(&self, t: Target) -> Target {
-        match t {
-            Target::Player => self.lan_acting.map_or(t, Target::Guest),
-            _ => t,
-        }
-    }
-
-    /// A living entity's `waypoint_transmit_range` (`isTransmittingWaypoint`).
-    fn transmit_range(&mut self, t: Target) -> f64 {
-        if matches!(t, Target::Guest(_)) {
-            return self
-                .for_player(t, |g| g.transmit_range(Target::Player))
-                .unwrap_or(0.0);
-        }
-        if t == Target::Player {
-            return self
-                .player
-                .as_mut()
-                .and_then(|p| {
-                    let k = p.attributes.key("minecraft:waypoint_transmit_range")?;
-                    p.attributes
-                        .value(Some(k), horizon_world::attribute_map::ValueKind::Computed)
-                        .ok()
-                })
-                .unwrap_or(0.0);
-        }
-        let catalog = self.motion.attributes.clone();
-        let Some(key) = catalog.id("minecraft:waypoint_transmit_range") else {
-            return 0.0;
-        };
-        match self.cmds.attributes.get_mut(&t) {
-            Some(map) => map.value(key).unwrap_or(0.0),
-            None => 0.0,
-        }
-    }
-    /// `ServerWaypointManager.transmitters()`: the tracked set. The player
-    /// joins tracked when transmitting; a changed range takes effect when the
-    /// entity next ticks (`LivingEntity.onAttributeUpdated`), and
-    /// `/waypoint modify` re-tracks its waypoint whatever its range.
-    fn waypoint_transmitters(&mut self) -> Vec<Target> {
-        if self.cmds.waypoints.is_none() {
-            let tracked = if self.transmit_range(Target::Player) > 0.0 {
-                vec![self.waypoint_target(Target::Player)]
-            } else {
-                Vec::new()
-            };
-            self.cmds.waypoints = Some(tracked);
-        }
-        let tracked = self.cmds.waypoints.clone().unwrap_or_default();
-        let alive: Vec<Target> = tracked
-            .into_iter()
-            .filter(|t| self.target_position(*t).is_some())
-            .collect();
-        self.cmds.waypoints = Some(alive.clone());
-        alive
-            .into_iter()
-            .map(|t| match t {
-                Target::Guest(conn) if self.lan_acting == Some(conn) => Target::Player,
-                _ => t,
-            })
-            .collect()
-    }
-    /// The waypoint part of a living entity's tick: dirty transmit ranges
-    /// track or untrack it.
-    pub(in crate::game) fn tick_waypoints(&mut self) {
-        let dirty = std::mem::take(&mut self.cmds.waypoint_dirty);
-        if dirty.is_empty() {
-            return;
-        }
-        self.waypoint_transmitters();
-        for t in dirty {
-            let on = self.transmit_range(t) > 0.0;
-            if let Some(tracked) = self.cmds.waypoints.as_mut() {
-                tracked.retain(|x| *x != t);
-                if on {
-                    tracked.push(t);
-                }
-            }
-        }
-    }
-    fn waypoint_icon(&self, t: Target) -> WaypointIcon {
-        self.cmds
-            .waypoint_icons
-            .get(&self.waypoint_target(t))
-            .cloned()
-            .unwrap_or_default()
-    }
-    /// `WaypointArgument.getWaypoint`.
-    fn waypoint_arg(&mut self, ctx: &Context) -> R<Target> {
-        let t = self.one_entity(ctx, "waypoint", false)?;
-        if !self.is_living(t) {
-            return Err(err("argument.waypoint.invalid", &[]));
-        }
-        Ok(t)
-    }
-    fn is_living(&self, t: Target) -> bool {
-        matches!(t, Target::Player | Target::Mob(_) | Target::Stand(_))
-    }
-    pub(super) fn cmd_waypoint(&mut self, id: &str, ctx: &Context) -> R<i32> {
-        if id == "waypoint.list" {
-            let dimension = self.dim.id();
-            let waypoints = self.waypoint_transmitters();
-            if waypoints.is_empty() {
-                self.feedback(Text::translate(
-                    "commands.waypoint.list.empty",
-                    &[Text::literal(dimension)],
-                ));
-                return Ok(0);
-            }
-            let mut names = Text::empty();
-            for (i, t) in waypoints.iter().enumerate() {
-                if i > 0 {
-                    names.push(", ");
-                }
-                let pos = self
-                    .target_position(*t)
-                    .unwrap_or_default()
-                    .map(|v| v.floor() as i32);
-                let color = self.waypoint_icon(*t).color.unwrap_or(-1) as u32 & 0xFF_FFFF;
-                let style = Style {
-                    color: Some(color),
-                    click: Some(text::ClickEvent::SuggestCommand(format!(
-                        "/execute in {dimension} run tp @s {} {} {}",
-                        pos[0], pos[1], pos[2]
-                    ))),
-                    hover: Some(Box::new(Text::translate("chat.coordinates.tooltip", &[]))),
-                    ..Style::default()
-                };
-                // getFeedbackDisplayName().copy().withStyle(color): the
-                // waypoint colour replaces the team colour of the name.
-                let name = match (
-                    *t,
-                    self.score
-                        .board
-                        .players_team(super::super::chat::PLAYER_NAME),
-                ) {
-                    (Target::Player, Some(team)) => {
-                        let mut n = Text::empty();
-                        n.push(horizon_client::scoreboard::comp_text(&team.prefix));
-                        n.push(super::super::chat::PLAYER_NAME);
-                        n.push(horizon_client::scoreboard::comp_text(&team.suffix));
-                        n
-                    }
-                    _ => self.target_name(*t),
-                };
-                names.push(name.with_style(&style));
-            }
-            let n = waypoints.len() as i32;
-            self.feedback(Text::translate(
-                "commands.waypoint.list.success",
-                &[num(n), Text::literal(dimension), names],
-            ));
-            return Ok(n);
-        }
-        let t = self.waypoint_arg(ctx)?;
-        let mut icon = self.waypoint_icon(t);
-        let style_literal = ctx.literals.iter().any(|l| l == "style");
-        let message = if style_literal {
-            icon.style = if ctx.literals.iter().any(|l| l == "reset") {
-                "minecraft:default".into()
-            } else {
-                match ctx.get("style") {
-                    Some(Arg::Resource(s)) => s.clone(),
-                    _ => "minecraft:default".into(),
-                }
-            };
-            Text::translate("commands.waypoint.modify.style", &[])
-        } else if ctx.literals.iter().any(|l| l == "reset") {
-            icon.color = None;
-            Text::translate("commands.waypoint.modify.color.reset", &[])
-        } else if ctx.literals.iter().any(|l| l == "hex") {
-            let rgb = match ctx.get("color") {
-                Some(Arg::Int(v)) => *v,
-                _ => 0,
-            };
-            icon.color = Some(rgb);
-            let hex = format!("{:06X}", rgb as u32 & 0xFF_FFFF);
-            Text::translate(
-                "commands.waypoint.modify.color",
-                &[Text::colored(hex, rgb as u32 & 0xFF_FFFF)],
-            )
-        } else {
-            let name = match ctx.get("color") {
-                Some(Arg::Str(s)) => s.clone(),
-                _ => "white".into(),
-            };
-            let rgb = text::named_color(&name).unwrap_or(0xFF_FFFF);
-            icon.color = Some(rgb as i32);
-            Text::translate(
-                "commands.waypoint.modify.color",
-                &[Text::colored(name, rgb)],
-            )
-        };
-        let t = self.waypoint_target(t);
-        self.cmds.waypoint_icons.insert(t, icon);
-        // WaypointCommand.mutateIcon: untrack, change, track again.
-        self.waypoint_transmitters();
-        if let Some(tracked) = self.cmds.waypoints.as_mut() {
-            tracked.retain(|x| *x != t);
-            tracked.push(t);
-        }
-        self.feedback(message);
-        Ok(0)
-    }
-
-    // ---- /dialog --------------------------------------------------------
-
-    pub(super) fn cmd_dialog(&mut self, id: &str, ctx: &Context) -> R<i32> {
-        let targets = self.entities(ctx, "targets", true)?;
-        let n = targets.len() as i32;
-        if id == "dialog.show" {
-            let Some(Arg::Resource(dialog)) = ctx.get("dialog").cloned() else {
-                return Ok(0);
-            };
-            self.show_dialog_to(&targets, &dialog);
-        } else {
-            self.clear_dialog_to(&targets);
-        }
-        let (single, multiple) = if id == "dialog.show" {
-            (
-                "commands.dialog.show.single",
-                "commands.dialog.show.multiple",
-            )
-        } else {
-            (
-                "commands.dialog.clear.single",
-                "commands.dialog.clear.multiple",
-            )
-        };
-        let message = if n == 1 {
-            Text::translate(single, &[self.target_name(targets[0])])
-        } else {
-            Text::translate(multiple, &[num(n)])
-        };
-        self.feedback(message);
-        Ok(n)
     }
 
     // ---- /posteffect ----------------------------------------------------
@@ -1160,68 +896,5 @@ impl Game<'_> {
 }
 
 // `VersionCommand` does not exist in 1.21.5 (added in 1.21.6).
-
-impl Game<'_> {
-    /// `ServerPlayer.openDialog` for every target of `/dialog show`: a guest
-    /// is sent `ClientboundShowDialogPacket`, the window's own player opens
-    /// the dialog on its screen.
-    fn show_dialog_to(&mut self, targets: &[Target], dialog: &str) {
-        let Some(holder) = self.dialog_holder(dialog) else {
-            return;
-        };
-        self.send_dialog(targets, &holder);
-    }
-    /// `ServerPlayer.openDialog` for each target: the screen to the
-    /// window's own player. Guests get nothing: 1.21.5 has no dialog
-    /// packet (it arrived in 1.21.6), so `/dialog show` cannot reach
-    /// them; the behaviour port removes the command.
-    fn send_dialog(&mut self, targets: &[Target], holder: &DialogHolder) {
-        for &t in targets {
-            match t {
-                Target::Player if self.lan_acting.is_some() => {}
-                Target::Player => self.show_play_dialog(holder),
-                _ => {}
-            }
-        }
-    }
-    /// `ServerPlayer.closeDialog` for every target of `/dialog clear`.
-    fn clear_dialog_to(&mut self, targets: &[Target]) {
-        for &t in targets {
-            match t {
-                Target::Player if self.lan_acting.is_some() => {}
-                Target::Player => self.clear_dialog(),
-                _ => {}
-            }
-        }
-    }
-    /// `ServerPlayer.openDialog`'s dialog: an entry of the `minecraft:dialog`
-    /// registry, or the dialog an inline `ResourceOrIdArgument` carries.
-    fn dialog_holder(&self, dialog: &str) -> Option<DialogHolder> {
-        let text = dialog.trim();
-        if text.starts_with('{') {
-            return horizon_client::command::snbt::parse_fully(text)
-                .ok()
-                .map(DialogHolder::Direct);
-        }
-        // A registry id, written with or without its namespace.
-        let id = if text.contains(':') {
-            text.to_owned()
-        } else {
-            format!("minecraft:{text}")
-        };
-        let index = self
-            .ui
-            .registries
-            .ids("minecraft:dialog")
-            .iter()
-            .position(|name| *name == id);
-        match index {
-            Some(i) => Some(DialogHolder::Registry(i as i32)),
-            None => {
-                log::warn!("Horizon: no dialog {id} in the registry");
-                None
-            }
-        }
-    }
-}
+// Neither does `DialogCommand`: `/dialog` arrived in 1.21.6 with it.
 impl Game<'_> {}

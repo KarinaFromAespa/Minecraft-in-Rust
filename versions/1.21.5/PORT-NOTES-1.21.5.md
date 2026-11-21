@@ -6872,13 +6872,109 @@ is the oracle; decompiled code is a reading aid.
     -j 1 -p horizon-client
     --lib` passed at item
     138.
+- **Item 145 — `/waypoint`
+  and `/dialog` removed —
+  CODE:**
+  - Both commands arrived
+    in 1.21.6 and are gone
+    from the tree: the
+    command trees in
+    `tree_extra.rs`, the
+    `waypoint.*` /
+    `dialog.*` dispatch in
+    `commands.rs`, the
+    executors in
+    `commands/extra.rs`
+    (`cmd_waypoint`,
+    `cmd_dialog`, the
+    `WaypointArgument`
+    equivalent
+    `waypoint_arg`, the
+    server waypoint
+    manager
+    `waypoint_transmitters`
+    / `tick_waypoints` /
+    `transmit_range`, the
+    `WaypointIcon` state
+    and the `waypoints` /
+    `waypoint_icons` /
+    `waypoint_dirty`
+    fields), the dialog
+    delivery helpers
+    (`show_dialog_to`,
+    `send_dialog`,
+    `clear_dialog_to`,
+    `dialog_holder`), the
+    `/attribute` hook that
+    marked
+    `waypoint_transmit_range`
+    changes dirty, and the
+    five
+    `commands.waypoint.*`
+    lang keys. The dialog
+    screen functions that
+    lost their only callers
+    went too
+    (`show_play_dialog` —
+    the handler for the
+    1.21.6-only
+    `ClientboundShowDialogPacket`
+    — and `clear_dialog`).
+  - `ArgType::HexColor`
+    went with the waypoint
+    tree, its only use
+    (item 142): the variant,
+    its parse and suggest
+    arms, the
+    `minecraft:hex_color`
+    network decode, and
+    the command-parse
+    fixture mapping.
+  - What stays, for its
+    owning items: the
+    `waypoint_transmit_range`
+    / `waypoint_receive_range`
+    attributes (item 225
+    owns the registry,
+    260 the player hooks,
+    264 the invisibility
+    modifier), the
+    attribute-update
+    waypoint events, and
+    the dialog UI system
+    (`dialogs.rs`, items
+    175/219/222/258). The
+    waypoint and dialog
+    packets were already
+    absent (`play.rs`
+    notes 1.21.5 has
+    neither).
+  - The four permission
+    refactors are the same
+    pure form as items 110
+    / 134 / 142; the levels
+    already match: `/jfr`
+    4, `/kick` 3,
+    `/publish` 4,
+    `/spectate` 2.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-command -p
+    horizon-client --lib`
+    0 errors, 0 warnings
+    (1m 25s); `cargo check
+    -j 1 -p
+    horizon-client-lib
+    --example client_probe`
+    0 errors, 0 warnings
+    (3m 38s).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **144 of 426 are
-closed** (rank 1 complete, rank 2 at 135/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **145 of 426 are
+closed** (rank 1 complete, rank 2 at 136/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

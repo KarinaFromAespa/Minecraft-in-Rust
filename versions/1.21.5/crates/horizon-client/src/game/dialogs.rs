@@ -250,14 +250,6 @@ impl Game<'_> {
         self.capture(false);
     }
 
-    /// `clearDialog`: the dialog closes (under the warning screen, Back then
-    /// returns to what was open before it).
-    pub(super) fn clear_dialog(&mut self) {
-        if self.dialogs.open.take().is_some() && !self.dialog_open() {
-            self.dialog_closed();
-        }
-    }
-
     /// Every dialog screen goes (a disconnect, or the level loading screen).
     pub(super) fn close_dialogs(&mut self) {
         self.dialogs = DialogState::default();
@@ -366,27 +358,6 @@ impl Game<'_> {
                 }
             }
             tag => self.show_dialog(tag),
-        }
-    }
-
-    /// `ClientboundShowDialogPacket` in play: a registry entry or the dialog.
-    pub(super) fn show_play_dialog(
-        &mut self,
-        dialog: &horizon_protocol::packets::play::DialogHolder,
-    ) {
-        use horizon_protocol::packets::play::DialogHolder;
-        match dialog {
-            DialogHolder::Direct(tag) => self.show_dialog(tag),
-            DialogHolder::Registry(id) => {
-                let tag = self
-                    .remote
-                    .as_ref()
-                    .and_then(|r| r.registries.data("minecraft:dialog", *id).cloned());
-                match tag {
-                    Some(tag) => self.show_dialog(&tag),
-                    None => log::warn!("Horizon: unknown dialog {id}"),
-                }
-            }
         }
     }
 
