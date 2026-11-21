@@ -12643,3 +12643,7 @@ Codec factory location only (`IntProviders.codec` vs
 ## Item 692 — game/lan_crafting.rs (AbstractFurnaceMenu) — NO-CHANGE
 
 Visibility plus anonymous-class constructor field order.
+
+## Item 693 — game/launch_options.rs (QuickPlay) — NO-CHANGE
+
+Compiler artifact only (`typeSwitch` descriptor, as item 674).
