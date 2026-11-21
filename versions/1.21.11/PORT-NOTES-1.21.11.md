@@ -9474,3 +9474,15 @@ renderer only changes how it reaches the camera entity
 26.1's frozen-aware per-entity partial tick for the
 frame's partial — which is already what the Rust uses;
 `Gizmos` is renames + access widening. No code changed.
+
+## Item 188 — game/music.rs (rank 2, NO-CHANGE)
+
+2 classes, 8 methods, 2 named. No behavioural delta:
+`PauseScreen` is the render-state-extraction rename with
+identical layout numbers and identical feedback/dialog
+logic; `ServerReconfigScreen` is only the
+`addRenderableWidget` return-type artifact. (26.1's
+`OptionsScreen` takes a third `inWorld` constructor
+argument; that belongs to the OptionsScreen item.) Doc
+citations updated (`extractRenderState` -> `render` /
+`renderToast`, `extractBackground` -> `renderBackground`).

@@ -83,8 +83,8 @@ impl Screen {
             | Self::HudEditor => true,
         }
     }
-    /// Screen.extractBackground for non-isInGameUi screens, and
-    /// PauseScreen.extractBackground only when showPauseMenu is true.
+    /// Screen.renderBackground for non-isInGameUi screens, and
+    /// PauseScreen.renderBackground only when showPauseMenu is true.
     pub(super) fn blurs_background(self, pause_menu: bool) -> bool {
         match self {
             Self::Paused => pause_menu,
