@@ -12381,3 +12381,7 @@ safely out of reach.
 ## Item 638 — level/redstone/experimental.rs (ExperimentalRedstoneWireEvaluator) — NO-CHANGE
 
 Only the `is` overload and `getRandom()` vs the `random` field.
+
+## Item 639 — worldgen/structure/ruined_portal.rs (RuinedPortalPiece) — NO-CHANGE
+
+Only the `is` overload at 6 sites.
