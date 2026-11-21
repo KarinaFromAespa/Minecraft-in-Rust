@@ -246,11 +246,6 @@ pub(super) struct LanHost {
     pub mob_players: horizon_client::fast_hash::FxHashMap<u32, u32>,
     /// An integrated server's owner (game/integrated.rs).
     pub owner: Option<Owner>,
-    /// The players' locator bars, one waypoint manager per level by
-    /// dimension id (game/lan_waypoints.rs), and the guests who are dead,
-    /// whose respawn replaces their waypoint.
-    pub waypoints: std::collections::HashMap<String, lan::waypoints::Waypoints>,
-    pub waypoint_dead: std::collections::HashSet<u128>,
     /// The world border as the guests were last told of it (lan/border.rs).
     pub border_sent: Option<lan::border::Sent>,
     /// Guests' commands waiting for the hub to be back in `self.lan`, where
@@ -1397,8 +1392,6 @@ impl Game<'_> {
             poses: HashMap::new(),
             mob_players: Default::default(),
             owner: None,
-            waypoints: Default::default(),
-            waypoint_dead: Default::default(),
             border_sent: None,
             commands: Vec::new(),
             quiet: std::collections::VecDeque::new(),
@@ -2814,7 +2807,6 @@ impl Game<'_> {
         self.lan_swings(&mut host);
         self.lan_update_streaming(&host);
         self.lan_guest_poses(&mut host);
-        self.lan_update_waypoints(&mut host);
         self.lan_sync_scoreboard(&mut host);
         self.lan_sync_border(&mut host);
         host.hub.anticheat_ping();
@@ -3690,8 +3682,6 @@ mod tests {
             poses: Default::default(),
             mob_players: Default::default(),
             owner: None,
-            waypoints: Default::default(),
-            waypoint_dead: Default::default(),
             border_sent: None,
             commands: Default::default(),
             quiet: Default::default(),

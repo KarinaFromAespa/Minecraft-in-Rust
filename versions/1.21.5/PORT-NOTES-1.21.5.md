@@ -4737,13 +4737,99 @@ is the oracle; decompiled code is a reading aid.
     --lib font::tests::
     a_unihex_provider_without_size_overrides_is_skipped`
     1 passed.
+- **Item 108 — WaypointStyle /
+  `world/waypoints` /
+  `Vec3.rotateClockwise90`,
+  the locator bar removed:**
+  - 1.21.5 has no locator
+    bar: `WaypointStyle.java`
+    and the `world/waypoints`
+    package are 1.21.6-only,
+    and the publish had
+    already unwired the
+    `ClientboundTrackedWaypoint`
+    packet from the
+    clientbound enum, so the
+    bar never drew in
+    1.21.5. The client bar
+    (`locator_bar.rs`: the
+    styles, the waypoint
+    view, `set_brightness`)
+    and the LAN tracker
+    (`lan/waypoints.rs`,
+    `game/lan_waypoints.rs`,
+    `game/locator_bar.rs`)
+    are deleted, with the
+    `Game` fields, the
+    `LanHost` fields, the
+    `WaypointStyles` load
+    and reload, the five
+    `clear_waypoints`
+    calls, and the
+    `TrackedWaypoint` codec
+    and its types in
+    `horizon-protocol`.
+  - `Vec3.rotateClockwise90`
+    is 1.21.6-only too: the
+    Rust method, the
+    geometry probe's
+    `"clockwise"` line and
+    the oracle's call are
+    gone (the oracle would
+    not compile against the
+    1.21.5 jar otherwise).
+  - The shared test client
+    `LocatorBarClient` kept
+    a waypoint branch that
+    would not compile
+    against the 1.21.5 jar
+    either: the import, the
+    `instanceof` branch and
+    the `waypoint` reader
+    are removed, so the
+    dedicated-server
+    harnesses that use it
+    still build. The
+    locator-bar harness
+    itself
+    (`tools/test_locator_bar_parity.py`)
+    stays in the tree but
+    cannot run on 1.21.5:
+    vanilla sends no
+    waypoint packets.
+  - Deliberately kept for
+    their own items: the
+    `locator_bar` game rule
+    (item 131), the
+    `/waypoint` command
+    (items 36/52/145) and
+    the
+    `waypoint_transmit_range`/
+    `waypoint_receive_range`
+    attribute hooks (items
+    13/145/225/260/264).
+  - Docs updated:
+    architecture (HUD row),
+    agent-control (frozen
+    HUD list), native-mods
+    (`contextual_info_bar`
+    is the jump bar or the
+    experience bar),
+    resource-packs (the
+    `waypoint_style/` row).
+  - Verification: `cargo check -p
+    horizon-client-render -p horizon-client
+    --all-targets` 0 errors / 0 warnings
+    (run at `-j 1`: the default parallel
+    check OOM-killed both horizon-client
+    rustc processes under 3-stream load).
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **107 of 426 are
-closed** (rank 1 complete, rank 2 at 98/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **108 of 426 are
+closed** (rank 1 complete, rank 2 at 99/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

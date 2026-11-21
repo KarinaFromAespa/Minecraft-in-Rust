@@ -1115,7 +1115,6 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.clear_waypoints();
         self.boss_overlay.reset();
         // The chat's tree until the server sends its own, or forever when it
         // sends none: the game's own, plus the commands native mods own.
@@ -1365,7 +1364,6 @@ impl Game<'_> {
             r.clear_sections(self.world.layout());
         }
         self.apply_settings();
-        self.clear_waypoints();
         self.boss_overlay.reset();
 
         let chat_tree = self.chat_tree_for(None);
@@ -1523,7 +1521,6 @@ impl Game<'_> {
             // Leaving on purpose: nothing for auto-reconnect to retry.
             self.extras_left();
         }
-        self.clear_waypoints();
         self.hud_disconnected();
         // Vanilla's Hud also ticks on the title and connect screens, so the
         // action bar has run out by the next world; Horizon's ticks in one.
@@ -2370,8 +2367,7 @@ impl Game<'_> {
                     self.clear_narrator();
                     self.hud_disconnected();
                     self.score.board = Default::default();
-                    self.clear_waypoints();
-                    if let Some(r) = self.remote.as_mut() {
+                                if let Some(r) = self.remote.as_mut() {
                         r.attachments.clear();
                         r.players.clear();
                         r.tab_players.clear();

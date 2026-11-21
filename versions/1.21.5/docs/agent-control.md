@@ -397,7 +397,7 @@ of the frame ([#8750](https://github.com/horizon-rust/horizon/issues/8750)).
     pulse, the dragon's healing beam and the player model's idle swing (third person, the
     inventory);
   - the HUD: the hearts' jiggle and blink, chat fading, titles, the action bar, the held item's
-    name, the locator bar and the tab list (a title shown while frozen fades in on the next
+    name and the tab list (a title shown while frozen fades in on the next
     `/tick step`);
   - a shader pack's clock (Iris's `frameTimeCounter`, `frameCounter` and `frameTime`, a Horizon
     pack's `time`, `frame_index` and `delta_time`, with smoothed values at their targets) and the

@@ -225,7 +225,6 @@ mod lan_screen;
 mod lan_stations;
 mod lan_trading;
 mod lan_vehicles;
-mod lan_waypoints;
 mod launch_api;
 mod launch_options;
 mod leads;
@@ -236,7 +235,6 @@ mod lightning;
 mod llamas;
 mod loading_screen;
 mod loading_window;
-mod locator_bar;
 mod loom;
 mod mace;
 mod machines;
@@ -2646,10 +2644,6 @@ struct Game<'a> {
     /// Entities of types Horizon does not simulate.
     others: Vec<commands::OtherEntity>,
     armor_stand_assets: armor_stands::ArmorStandAssets,
-    /// `WaypointStyleManager`.
-    waypoint_styles: horizon_client::locator_bar::WaypointStyles,
-    /// `ClientWaypointManager`: the locator bar's waypoints.
-    waypoints: horizon_client::locator_bar::ClientWaypoints,
     native_camera_frame: Option<horizon_client::mod_api::NativeCamera>,
     native_tasks: native_tasks::NativeTasks,
     /// The yaw and pitch a native mod's camera drew the last frame from (`native_camera_pose`),
@@ -12011,8 +12005,6 @@ impl<'a> Game<'a> {
             cushions: Vec::new(),
             others: Vec::new(),
             armor_stand_assets: prepared.armor_stand_assets,
-            waypoint_styles: prepared.waypoint_styles,
-            waypoints: Default::default(),
             native_camera_frame: None,
             native_tasks: native_tasks::NativeTasks::new(),
             posed_rotation: None,

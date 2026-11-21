@@ -88,7 +88,6 @@ pub mod join_seq;
 pub mod lan;
 pub mod landing;
 pub mod legacy_combat;
-pub mod locator_bar;
 pub mod lod_net;
 pub mod menu;
 pub mod merchant;

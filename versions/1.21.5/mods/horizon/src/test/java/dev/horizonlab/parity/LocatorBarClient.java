@@ -46,7 +46,6 @@ import net.minecraft.network.protocol.configuration.ServerboundSelectKnownPacks;
 import net.minecraft.network.protocol.game.ClientboundChunkBatchFinishedPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
 import net.minecraft.network.protocol.game.ClientboundSystemChatPacket;
-import net.minecraft.network.protocol.game.ClientboundTrackedWaypointPacket;
 import net.minecraft.network.protocol.game.GameProtocols;
 import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundChatCommandPacket;
@@ -69,11 +68,13 @@ import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Players made of vanilla's own protocol code, for the locator bar
- * (tools/test_locator_bar_parity.py). Each joins in offline mode, answers
- * keep-alives, pings, teleports and chunk batches, and records every
- * ClientboundTrackedWaypointPacket it receives, decoded by vanilla's codec
- * (a byte vanilla would not read is an error) and summarised from its bytes.
+ * Players made of vanilla's own protocol code, for the dedicated-server
+ * harnesses (tools/test_locator_bar_parity.py's shared library). Each joins
+ * in offline mode, answers keep-alives, pings, teleports and chunk batches,
+ * and records what the server sends it, decoded by vanilla's codec (a byte
+ * vanilla would not read is an error) and summarised from its bytes. (The
+ * name is from the locator-bar harness it was written for; 1.21.5 has no
+ * locator bar, and the waypoint recording is gone with it.)
  *
  * <p>{@code LocatorBarClient HOST PORT OUT} takes its script on stdin, one
  * line at a time: {@code step LABEL} (the label the next packets are recorded
@@ -314,29 +315,6 @@ public final class LocatorBarClient {
         json.addProperty("snbt", tag.toString());
         json.addProperty("nbt", java.util.HexFormat.of().formatHex(bytes.toByteArray()));
         return json;
-    }
-
-    /** The waypoint packet's fields, read back from its bytes (the operation and type are private enums). */
-    static String waypoint(byte[] payload) {
-        FriendlyByteBuf b = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload));
-        b.readVarInt(); // the packet id
-        String operation = switch (b.readVarInt()) {
-            case 0 -> "track";
-            case 1 -> "untrack";
-            case 2 -> "update";
-            default -> "operation?";
-        };
-        String id = b.readBoolean() ? NAMES.getOrDefault(b.readUUID(), "uuid?") : "name:" + b.readUtf();
-        String style = b.readUtf();
-        String color = b.readBoolean() ? String.format("#%02x%02x%02x", b.readUnsignedByte(), b.readUnsignedByte(), b.readUnsignedByte()) : "-";
-        String target = switch (b.readVarInt()) {
-            case 0 -> "empty";
-            case 1 -> "block " + b.readVarInt() + " " + b.readVarInt() + " " + b.readVarInt();
-            case 2 -> "chunk " + b.readVarInt() + " " + b.readVarInt();
-            case 3 -> "azimuth " + b.readFloat();
-            default -> "type?";
-        };
-        return operation + " " + id + " " + style + " " + color + " " + target;
     }
 
     /** One connection: login and configuration in the caller's thread, then play on its own. */
@@ -920,8 +898,6 @@ if (ownPoses && p instanceof net.minecraft.network.protocol.game.ClientboundSetE
                     } else if (p instanceof net.minecraft.network.protocol.game.ClientboundRespawnPacket rs) {
                         if (players) record("respawn " + rs.commonPlayerSpawnInfo().dimension().location());
                         seen.clear();
-                    } else if (p instanceof ClientboundTrackedWaypointPacket) {
-                        record(waypoint(r.payload));
                     } else if (p instanceof ClientboundSystemChatPacket c
                         && c.content().getContents() instanceof net.minecraft.network.chat.contents.TranslatableContents t
                         && t.getKey().equals("commands.time.query.gametime")) {
