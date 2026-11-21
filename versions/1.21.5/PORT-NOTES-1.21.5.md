@@ -10726,12 +10726,32 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code changed.
 
+- **Item 256 —
+  BufferBuilder cap:
+  - 1.21.6 added a
+    16,777,215-vertex cap
+    to BufferBuilder
+    (throwing past it);
+    1.21.5 has no cap. The
+    port has no vertex-
+    count cap anywhere —
+    its mesh and HUD
+    buffers grow unbounded,
+    the 1.21.5 form. (The
+    16777215 hits in the
+    tree are 0xFFFFFF
+    colour values and
+    shader depth packing,
+    unrelated.)
+  - Verification: read
+    only; no code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **255 of 426 are
-closed** (rank 1 complete, rank 2 at 246/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **256 of 426 are
+closed** (rank 1 complete, rank 2 at 247/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
