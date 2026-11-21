@@ -10481,3 +10481,10 @@ load/save path moved to flat, and
 (namespaced kept as fallback). New test
 `saved_data_types_cover_both_layouts`.
 `scoreboard`: 6 passed.
+
+## Item 289 — overlay.rs (rank 2, NO-CHANGE)
+
+1 class, 2 methods, 1 named. The normalized
+bytecode diff is empty: `CreeperRenderer` is
+identical in both versions. No source change.
+`overlay`: 39 passed.
