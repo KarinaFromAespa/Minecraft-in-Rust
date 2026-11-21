@@ -11889,3 +11889,11 @@ exactly and applies the 1.21.11 hideGui gate itself ("Only F1 hides it").
 
 Only the `CameraRenderState` package move in `submit`. The Rust cites
 `submit` by name, which is shared.
+
+## Item 561 — horizon-command/snbt.rs (SnbtGrammar$IntegerLiteral) — NO-CHANGE
+
+Only visibility and 1.21.11's extra `checkcast Object` instructions after
+each `DynamicOps.create*` call (a compiler artifact). The signed/unsigned
+parse paths, radix handling, `ERROR_EXPECTED_INTEGER_TYPE` and number-error
+reporting are identical, and the Rust's `IntegerLiteral::create` mirrors
+them exactly.
