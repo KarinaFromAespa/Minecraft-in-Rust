@@ -12403,3 +12403,9 @@ Only the `is` overload and a compiler artifact.
 
 Slot re-numbering from the `requireNonNull` removal plus the extractor
 rewire; all constants and geometry identical.
+
+## Item 643 — game/debug_renderers.rs (CollisionBoxRenderer, HeightMapRenderer, SolidFaceRenderer) — NO-CHANGE
+
+Equivalent access paths only (`getCameraEntity` vs
+`getMainCamera().entity()`, `ChunkPos` accessors vs fields, the `is`
+overload).
