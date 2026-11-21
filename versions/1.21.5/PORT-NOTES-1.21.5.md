@@ -8285,13 +8285,73 @@ is the oracle; decompiled code is a reading aid.
     test, updated
     filter test) run
     in CI.
+- **Item 173 — NeutralMob
+  anger saves the time
+  left (ZombifiedPiglin,
+  AbstractSkeleton):**
+  - The diff is the
+    ValueInput/ValueOutput
+    to CompoundTag
+    refactor, but under it
+    the port wrote the 26.x
+    form: `anger_end_time`
+    (absolute, long) and
+    `angry_at`, where
+    1.21.5's `NeutralMob`
+    saves `AngerTime` (int,
+    remaining) and
+    `AngryAt` (verified in
+    the 1.21.5 decomp). A
+    vanilla save's anger
+    was lost on load, and
+    `/summon wolf ~ ~ ~
+    {AngerTime:400}` did
+    nothing. The save/load
+    now reads and writes
+    the 1.21.5 keys; the
+    model keeps its
+    absolute end time and
+    the conversion happens
+    at the boundary only
+    (`adopt_anger_end`
+    derives the end from
+    the time left;
+    `refresh_anger_for_save`
+    recomputes the time
+    left from the end
+    before a save, so
+    missed ticks count).
+    The AbstractSkeleton
+    half needs no change:
+    the port reassesses the
+    weapon goal on its
+    first check after load.
+    The wolf's synched
+    metadata (absolute end)
+    is unchanged. Known
+    follow-up: the bee
+    still writes
+    `anger_end_time` — its
+    own model needs the
+    clock threaded into
+    `bee::to_nbt`/`from_nbt`.
+  - Verification: `cargo
+    check -j 1 -p
+    horizon-client --lib
+    --tests` 0/0 (1m52s).
+    The test-profile build
+    was not run (OOM under
+    load, item 122), so the
+    reworked h262 / h13076
+    / live-wolf tests run
+    in CI.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **172 of 426 are
-closed** (rank 1 complete, rank 2 at 163/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **173 of 426 are
+closed** (rank 1 complete, rank 2 at 164/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

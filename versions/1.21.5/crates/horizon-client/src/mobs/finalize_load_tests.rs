@@ -79,7 +79,7 @@ fn an_enderman_load_makes_its_speed_instance() {
     // Enderman.setTarget reads movement_speed, and the load ends with it
     // (readPersistentAngerSaveData), with or without saved anger.
     let d = [(SPEED, f64::from(0.3f32))];
-    for extra in ["", ",anger_end_time:5000L"] {
+    for extra in ["", ",AngerTime:5000"] {
         expect(
             "minecraft:enderman",
             Species::Enderman,

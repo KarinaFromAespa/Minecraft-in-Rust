@@ -1,6 +1,7 @@
 """Live anger writes, with a separate unmodified NoAI clock-drift diagnostic.
 
-All ends are derived from the observed scene clock. Metadata observations read
+All saved times are deltas (1.21.5's `AngerTime`); the absolute ends behind
+them are derived from the observed scene clock. Metadata observations read
 actual accessor/writer state; they do not assert network delivery.
 """
 
@@ -14,14 +15,14 @@ ACTORS = [
 
 def functions():
     out = {'parity_anger:ready': 'return 23\n',
-           'parity_anger:write': '$return run data merge entity $(target) {anger_end_time:$(end)L}\n'}
+           'parity_anger:write': '$return run data merge entity $(target) {AngerTime:$(delta)}\n'}
     for kind, scene, number, x, z, health, _ in ACTORS:
         if scene == 'loaded':
             out[f'parity_anger:load_{kind}'] = (
                 f'$return run summon {kind} {x} 200 {z} '
                 f'{{UUID:[I;316,0,0,{number}],Tags:["anger_{scene}_{kind}"],'
                 'NoAI:1b,NoGravity:1b,Silent:1b,PersistenceRequired:1b,'
-                f'Health:{health}f,anger_end_time:$(end)L}}\n')
+                f'Health:{health}f,AngerTime:$(delta)}}\n')
     return out
 
 
@@ -40,14 +41,12 @@ def groups(cmd, setup, clock_diagnostic=False):
         out.extend(setup('/execute store result score #now anger_write run time query gametime'))
         check(out, '/scoreboard players operation #now anger_write -= #clock anger_write', elapsed)
 
-    def end(out, delta):
-        out.extend([cmd('/scoreboard players operation #end anger_write = #clock anger_write'),
-                    cmd(f'/scoreboard players add #end anger_write {delta}'),
-                    cmd('/scoreboard players operation #delta anger_write = #end anger_write')])
-        check(out, '/scoreboard players operation #delta anger_write -= #clock anger_write', delta)
-        out.append(cmd('/execute store result storage parity_anger:args end long 1 '
-                       'run scoreboard players get #end anger_write'))
-        out.append(cmd('/data get storage parity_anger:args end'))
+    def set_delta(out, delta):
+        out.append(cmd(f'/scoreboard players set #delta anger_write {delta}'))
+        check(out, '/scoreboard players get #delta anger_write', delta)
+        out.append(cmd('/execute store result storage parity_anger:args delta int 1 '
+                       'run scoreboard players get #delta anger_write'))
+        out.append(cmd('/data get storage parity_anger:args delta'))
 
     def snapshot(out, actor, label, delta, elapsed=0):
         kind, scene, number, x, z, health, index = actor
@@ -55,7 +54,7 @@ def groups(cmd, setup, clock_diagnostic=False):
         fields = (f'UUID:[I;316,0,0,{number}],Health:{health}f,NoAI:1b,NoGravity:1b,'
                   f'PersistenceRequired:1b,Pos:[{x}d,200d,{z}d],Motion:[0d,0d,0d]')
         check(out, f'/execute as {uuid} if entity @s[type={kind},tag=anger_{scene}_{kind},nbt={{{fields}}}]')
-        out.append(cmd(f'/data get entity {uuid} anger_end_time'))
+        out.append(cmd(f'/data get entity {uuid} AngerTime'))
         out.append({'op': 'mob_anger', 'uuid': uuid, 'kind': f'minecraft:{kind}', 'index': index,
                     'label': f'{scene}_{kind}_{label}',
                     'expect_anger': {'uuid': [316, 0, 0, number], 'kind': f'minecraft:{kind}',
@@ -105,8 +104,8 @@ def groups(cmd, setup, clock_diagnostic=False):
     check(canonical, '/execute if score #clock anger_write matches 0..')
     check(canonical, '/tp @s 10.5 202 20.5')
     check(canonical, '/execute if data entity @s {playerGameType:1,Health:20f,Pos:[10.5d,202d,20.5d]}')
-    check(canonical, '/data modify storage parity_anger:args end set value 0L')
-    end(canonical, 600)
+    check(canonical, '/data modify storage parity_anger:args delta set value 0')
+    set_delta(canonical, 600)
     for actor in ACTORS:
         kind, scene, number, x, z, health, _ = actor
         uuid = f'0000013c-0000-0000-0000-{number:012x}'
@@ -125,10 +124,10 @@ def groups(cmd, setup, clock_diagnostic=False):
         snapshot(canonical, actor, 'no_write', 600 if scene == 'loaded' else None)
         if scene == 'loaded':
             continue
-        write(canonical, f'data merge entity {uuid} {{anger_end_time:-1L}}', False)
+        write(canonical, f'data merge entity {uuid} {{AngerTime:0}}', False)
         snapshot(canonical, actor, 'unchanged_calm', None)
         check(canonical, f'/data modify storage parity_anger:args target set value "{uuid}"')
-        end(canonical, 50)
+        set_delta(canonical, 50)
         write(canonical, 'function parity_anger:write with storage parity_anger:args')
         snapshot(canonical, actor, 'positive50', 50)
         write(canonical, 'function parity_anger:write with storage parity_anger:args', False)
@@ -137,14 +136,14 @@ def groups(cmd, setup, clock_diagnostic=False):
             write(canonical, f'data merge entity {uuid} {{Air:{air}s}}')
             check(canonical, f'/execute if data entity {uuid} {{Air:{air}s}}')
             snapshot(canonical, actor, f'unrelated_air{air}', 50)
-        end(canonical, 75)
+        set_delta(canonical, 75)
         write(canonical, 'function parity_anger:write with storage parity_anger:args')
         snapshot(canonical, actor, 'positive75', 75)
-        write(canonical, f'data merge entity {uuid} {{anger_end_time:-1L}}')
+        write(canonical, f'data merge entity {uuid} {{AngerTime:0}}')
         snapshot(canonical, actor, 'calmed', None)
     clock(canonical)
 
-    # H262 is outside the live-write gate. Keep its raw absolute ends, unnormalized.
+    # H262 is outside the live-write gate. Keep its raw times left, unnormalized.
     check(diagnostic, '/tick step 2')
     diagnostic.append({'op': 'tick', 'n': 2, 'record': True, 'label': 'anger-clock-two-ticks'})
     clock(diagnostic, 2)

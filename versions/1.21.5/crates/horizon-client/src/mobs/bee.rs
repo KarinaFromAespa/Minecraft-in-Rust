@@ -1218,7 +1218,9 @@ impl Goal for Wander {
 pub fn stable_destination(w: &MobWorld, p: [i32; 3]) -> bool {
     !w.facts.is_air(w.world.block(p[0], p[1] - 1, p[2]))
 }
-/// `Bee.addAdditionalSaveData` (and NeutralMob's `anger_end_time`).
+/// `Bee.addAdditionalSaveData`. The bee still writes the old
+/// `anger_end_time` key; 1.21.5's `NeutralMob` saves `AngerTime`
+/// (item 173's follow-up — the bee needs the clock threaded in).
 pub fn to_nbt(m: &Mob, map: &mut horizon_world::nbt::Compound) {
     use horizon_world::nbt::Tag;
     let b = get(m).cloned().unwrap_or_default();
