@@ -10035,3 +10035,16 @@ itself is identical. The Rust already implements the
 1.21.11 form in both paths (sheep dyeing from the item
 name, sign dyeing from the item registry entry). No
 code changed.
+
+## Item 235 — game/trading.rs (rank 2, NO-CHANGE)
+
+2 classes, 9 methods, 1 named. The offer-generation
+mechanism differs (26.1's registry `TradeSet` + loot
+context vs 1.21.11's hardcoded `VillagerTrades`
+listings picked by random removal), but the mechanism
+is inseparable from the tables, which are item 751's
+work (rank 3); `merchant.rs` already documents that
+`Trades` loads empty here. Everything else in
+`AbstractVillager` is identical, and
+`LookAndFollowTradingPlayerSink` is bytecode-identical.
+No code changed.
