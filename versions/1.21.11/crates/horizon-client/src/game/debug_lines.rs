@@ -163,9 +163,11 @@ impl Game<'_> {
                             .integrated
                             .as_ref()
                             .and_then(|server| server.terrain(self.dim.id()));
-                        // `DebugEntryChunkGeneration.display`: the feet block
-                        // decides whether the line is sampled again; otherwise
-                        // the last result is drawn.
+                        // `DebugEntryChunkGeneration.display`: the density
+                        // line for the feet block. The cache is the Rust's
+                        // own (26.1 cached the entry's result per position
+                        // the same way; 1.21.11 recomputes each frame, with
+                        // the same lines for the same feet).
                         let feet = [
                             p.position.x.floor() as i32,
                             p.position.y.floor() as i32,
@@ -223,10 +225,11 @@ impl Game<'_> {
         }
     }
 
-    /// `LevelExtractor.sectionStatistics`: the sections drawn of the view
+    /// `LevelRenderer.getSectionStatistics`: the sections drawn of the view
     /// area's (smart culling is always on), the render distance, and
-    /// `SectionRenderDispatcher.getStats` (the meshes queued; Horizon has
-    /// no buffer pool, so no buffer is ever free).
+    /// `SectionRenderDispatcher.getStats` (the meshes queued, the meshes
+    /// waiting for upload, and the free buffers; Horizon has no buffer
+    /// pool, so no buffer is ever free).
     fn debug_chunk_render_line(&self, d: &mut Displayer) {
         let Some(r) = self.renderer.as_ref() else {
             return;
@@ -235,14 +238,15 @@ impl Game<'_> {
         let side = (distance * 2 + 1) as usize;
         let total = side * side * (self.world.layout().height() / 16) as usize;
         d.line(format!(
-            "C: {}/{total} (s) D: {distance}, pC: {:03}, aB: {:02}",
+            "C: {}/{total} (s) D: {distance}, pC: {:03}, pU: {:02}, aB: {:02}",
             r.drawn_sections,
             self.streaming.pending(),
+            self.pending_uploads.len(),
             0
         ));
     }
 
-    /// `LevelExtractor.entityStatistics`: the mobs drawn last frame of the
+    /// `LevelRenderer.getEntityStatistics`: the mobs drawn last frame of the
     /// level's entities, and the server's simulation distance.
     fn debug_entity_render_line(&self, d: &mut Displayer) {
         if self.player.is_none() {

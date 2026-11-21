@@ -11174,3 +11174,22 @@ first-selector particle) is identical,
 and the Rust already cites
 `particleIcon`. horizon-assets: 57
 passed.
+
+## Item 509 — game/debug_lines.rs (rank 3, CHANGED)
+
+11 classes, 34 methods, 2 named.
+`SectionRenderDispatcher.getStats` is
+`"pC: %03d, pU: %02d, aB: %02d"` in
+1.21.11 — the middle field is the
+pending-upload queue, dropped by 26.1's
+uber-buffer restructure. The F3 chunk
+line now carries `pU` from
+`pending_uploads.len()`. The
+`LevelExtractor.*Statistics` citations
+re-pointed to
+`LevelRenderer.getSectionStatistics` /
+`getEntityStatistics`. The chunk-generation
+cache is the Rust's own optimization
+(1.21.11 recomputes; same lines).
+`cargo check -p horizon-client
+--tests` clean.
