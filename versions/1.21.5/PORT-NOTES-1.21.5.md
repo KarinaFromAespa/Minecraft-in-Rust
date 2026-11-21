@@ -11449,12 +11449,81 @@ is the oracle; decompiled code is a reading aid.
     config/pack/translator
     tests ran.
 
+- **Item 272 — Eye of ender and respawn yaw**
+  - Eye of ender and respawn
+    yaw: a summoned eye
+    (signalTo never ran) steers
+    towards (0, 0, 0) in 1.21.5
+    — there is no target to be
+    null, tx/ty/tz default to 0
+    — where the port flew it
+    straight. The steering is
+    now written as vanilla
+    writes it (cos/sin of the
+    angle), so an eye over its
+    target's column steers east
+    instead of dividing by
+    zero. The trail particles
+    now come from the server
+    too (1.21.5 spawns them on
+    both sides, with the
+    steered motion); the
+    clients draw their own as
+    well, so each sees two, as
+    in vanilla. signalTo
+    already took the
+    stronghold's integer block
+    position (the 1.21.5 form);
+    the tick's rotation has no
+    surface (the eye is a
+    camera-facing billboard),
+    and the Item save/load was
+    already the 1.21.5 form.
+    Respawn yaw:
+    TeleportTransition's world-
+    spawn yaw is 0 in 1.21.5,
+    not the shared spawn angle
+    — the missing-respawn-block
+    path (leaving the End,
+    death respawn with no bed),
+    the no-respawn-point path
+    (createDefault), and the
+    respawn-at-world-spawn
+    teleport all face yaw 0
+    now. An entity leaving the
+    End through an end portal
+    keeps its rotation (the yaw
+    addend is 0); into the End
+    it still faces west. A bed
+    or anchor respawn still
+    faces the block (look-at
+    yaw), and a new player
+    still joins facing the
+    spawn angle (the
+    ServerPlayer constructor,
+    the same in both versions).
+    Known gap: vanilla sets
+    pitch 0 on every respawn
+    transition; the port never
+    touches pitch on respawn
+    (pre-existing, same in both
+    versions).
+  - Verification: cargo check
+    -j 1 -p horizon-client
+    --lib --tests: 0 errors, 0
+    warnings (5m58s). The
+    end_portal_rotation test
+    pins the unchanged out-of-
+    End rotation (run in CI;
+    the test-profile build OOMs
+    under load).
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **271 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 3/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **272 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 4/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix

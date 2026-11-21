@@ -238,14 +238,16 @@ fn touches_nether_portal(
 /// of an entity facing `[yaw, pitch]`: into the End it faces west and keeps
 /// its pitch (`Relative.X_ROT`); out of it both turn by the world spawn's
 /// angles (`Relative.ROTATION`). The pitch stays within ±90.
-fn end_portal_rotation(into_end: bool, [yaw, pitch]: [f32; 2], spawn: [f32; 2]) -> [f32; 2] {
-    let (yaw, pitch) = if into_end {
+/// `EndPortalBlock.getPortalDestination`'s rotation: into the End, facing
+/// west; out of it, unchanged — 1.21.5's yaw addend is 0, not the shared
+/// spawn angle.
+fn end_portal_rotation(into_end: bool, [yaw, pitch]: [f32; 2]) -> [f32; 2] {
+    if into_end {
         // Direction.WEST.toYRot().
-        (90.0, pitch)
+        [90.0, pitch]
     } else {
-        (yaw + spawn[0], pitch + spawn[1])
-    };
-    [yaw, pitch.clamp(-90.0, 90.0)]
+        [yaw, pitch]
+    }
 }
 /// A waiting entity as `horizon_portal_arrivals.dat` keeps it.
 fn arrival_tag(a: &Arrival) -> Tag {
@@ -1295,8 +1297,7 @@ impl Game<'_> {
                 // EndPortalBlock.getPortalDestination: PLACE_PORTAL_TICKET.
                 self.place_portal_ticket(Self::chunk_of(at));
                 let into_end = plan.dim == Dim::End;
-                let turn =
-                    end_portal_rotation(into_end, [yaw, pitch], self.level.world_spawn_angle);
+                let turn = end_portal_rotation(into_end, [yaw, pitch]);
                 (at, motion, turn)
             } else {
                 let Some(exit) = self.nether_exit_portal(&plan) else {
@@ -1630,19 +1631,11 @@ mod tests {
     #[test]
     fn end_portals_turn_entities_like_their_teleport_transition() {
         // Into the End: facing west, pitch kept.
-        assert_eq!(
-            end_portal_rotation(true, [-30.0, 20.0], [45.0, 10.0]),
-            [90.0, 20.0]
-        );
-        // Out of it: turned by the world spawn's yaw and pitch, pitch clamped.
-        assert_eq!(
-            end_portal_rotation(false, [-30.0, 20.0], [45.0, 10.0]),
-            [15.0, 30.0]
-        );
-        assert_eq!(
-            end_portal_rotation(false, [0.0, 80.0], [0.0, 30.0]),
-            [0.0, 90.0]
-        );
+        assert_eq!(end_portal_rotation(true, [-30.0, 20.0]), [90.0, 20.0]);
+        // Out of it: unchanged (1.21.5's yaw addend is 0, not the shared
+        // spawn angle).
+        assert_eq!(end_portal_rotation(false, [-30.0, 20.0]), [-30.0, 20.0]);
+        assert_eq!(end_portal_rotation(false, [0.0, 80.0]), [0.0, 80.0]);
     }
 
     #[test]

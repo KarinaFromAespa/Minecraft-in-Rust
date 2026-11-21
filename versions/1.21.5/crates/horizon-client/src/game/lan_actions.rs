@@ -4117,8 +4117,10 @@ impl Game<'_> {
                 [at.x, at.y, at.z]
             });
             if found.is_none() {
-                // TeleportTransition.missingRespawnBlock.
+                // TeleportTransition.missingRespawnBlock: the world spawn
+                // faces yaw 0 in 1.21.5.
                 host.hub.missing_respawn_block(conn);
+                host.hub.guests[i].yaw = 0.0;
                 self.world_spawn_trip(conn);
             }
             host.hub.teleport(i, Some(at));

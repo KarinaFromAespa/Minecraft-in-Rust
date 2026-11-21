@@ -742,11 +742,19 @@ impl Game<'_> {
             self.spawn.map_or([0.5, 80.0, 0.5], |s| [s.x, s.y, s.z]),
             |[x, y, z]| [f64::from(x) + 0.5, f64::from(y), f64::from(z) + 0.5],
         );
+        // TeleportTransition.missingRespawnBlock faces yaw 0 in 1.21.5 (the
+        // pitch is kept, as on every respawn here).
+        let pitch = host
+            .hub
+            .guests
+            .iter()
+            .find(|g| g.conn == conn)
+            .map_or(0.0, |g| g.pitch);
         self.level_teleports.push(LevelTeleport {
             conn,
             dim: Dim::Overworld,
             at,
-            rotation: None,
+            rotation: Some([0.0, pitch]),
             vehicle: None,
             cause: None,
         });
@@ -845,10 +853,14 @@ impl Game<'_> {
                     // The respawn already put the player on this column:
                     // vanilla teleports once, so no second move.
                     Ok(at) if host.hub.guests[i].position == [at.x, at.y, at.z] => {
+                        // TeleportTransition: the world spawn faces yaw 0.
+                        host.hub.guests[i].yaw = 0.0;
                         self.tell_mods_changed_dimension(host, trip.conn, trip.left, trip.dim);
                         continue;
                     }
-                    Ok(at) => (at, yaw),
+                    // TeleportTransition (createDefault / missingRespawnBlock):
+                    // the world spawn faces yaw 0 in 1.21.5.
+                    Ok(at) => (at, 0.0),
                     Err(chunk) => {
                         self.spawn_wait.push(chunk);
                         self.server_trips.insert(k, trip);
