@@ -13037,12 +13037,41 @@ is the oracle; decompiled code is a reading aid.
     horizon-client --lib
     passed (30s).
 
+- **Item 316 — Breeze model**
+  - BreezeModel: verified,
+    no code. The same
+    refactor as items
+    137/146/157/280: 1.21.6
+    bakes KeyframeAnimation
+    fields in the
+    constructor, 1.21.5
+    looks the definitions
+    up per call via
+    Model.animate - and the
+    port already has the
+    1.21.5 shape, with no
+    baked animation
+    anywhere. breeze::anim
+    runs all six (IDLE,
+    SHOOT, SLIDE,
+    SLIDE_BACK, INHALE,
+    JUMP) per call by name
+    from the animations
+    map, against the six
+    anim states in
+    vanilla's order (idle,
+    shoot, slide, slide
+    back, inhale, long
+    jump).
+  - Verification: read only; no code
+    changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **315 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 47/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **316 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 48/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
