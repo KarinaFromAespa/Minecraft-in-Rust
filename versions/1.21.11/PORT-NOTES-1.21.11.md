@@ -9701,3 +9701,18 @@ Four doc citations updated to the 1.21.11 names
 changed. The remaining `extractWidgetRenderState`
 citations (multiline_edit.rs, multiplayer.rs) belong
 to their classes' own items / item 371.
+
+## Item 204 — EntityType (rank 2, CHANGED)
+
+1 class, 5 methods, 2 named. The registration table
+diffs to exactly one real delta: the rabbit is
+0.4 x 0.5 in 1.21.11 (26.1: 0.49 x 0.6, eye 0.59),
+with the default eye height height * 0.85 = 0.425
+(verified by javap on the 1.21.11 jar). Production
+dimensions flow from the prepared `entity-types.json`,
+so only the rabbit test fixture needed correcting
+(eye height 0.4 -> 0.425; the baby test now asserts
+the halved 0.2125). `create` and `isBlockDangerous`
+differ only by the `getRandom()` field access and the
+`is(Block)` overload spelling; 1.21.11 adds two `is`
+convenience overloads.

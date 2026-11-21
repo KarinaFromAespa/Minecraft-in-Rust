@@ -466,7 +466,10 @@ mod tests {
             species: Species::Rabbit,
             width: 0.4,
             height: 0.5,
-            eye_height: 0.4,
+            // 1.21.11's rabbit sets no eye height: the default is
+            // height * 0.85 (0.5 * 0.85 = 0.425); 26.1 overrode it
+            // with 0.59 alongside its larger 0.49 x 0.6 box.
+            eye_height: 0.425,
             category: "creature".into(),
             max_health: 3.0,
             speed: 0.3,
@@ -718,7 +721,7 @@ mod tests {
         let (w, h, e) = m.awake_dims_in(false);
         near(w, 0.2);
         near(h, 0.25);
-        near(e, 0.2);
+        near(e, 0.2125);
     }
 }
 #[cfg(test)]
