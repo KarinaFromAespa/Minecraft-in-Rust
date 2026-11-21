@@ -12586,3 +12586,7 @@ Parameter type only (`Vector3fc` vs `Vector3f` on `setNormal`).
 ## Item 679 — horizon-client-render/src/gfx/end_sky/tests.rs (EndFlashState) — NO-CHANGE
 
 RandomSource factory only, as item 670.
+
+## Item 680 — horizon-client-render/src/gfx/frame_gen.rs (Request$Post) — NO-CHANGE
+
+Zero diff: the bytecode is identical in both versions.
