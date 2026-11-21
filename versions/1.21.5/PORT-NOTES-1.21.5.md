@@ -9231,13 +9231,43 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read
     only; no code
     changed.
+- **Item 206 —
+  Reloadable registries:**
+  - The logging change
+    looks real but is not:
+    1.21.5's problem
+    collector stores plain
+    description strings
+    (javap:
+    `Multimap<String,
+    String>`,
+    `report(String)`), so
+    logging the entry
+    prints the same text
+    1.21.6 gets from
+    `description()` — the
+    port's
+    recursive-reference
+    diagnostic matches
+    both. The `lookup`
+    return type is the
+    `HolderGetter` /
+    `HolderLookup` rename,
+    and 1.21.5's `getKeys`
+    is the element-id
+    listing the port
+    already has as
+    `Registries::ids`.
+  - Verification: read
+    only; no code
+    changed.
 
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **205 of 426 are
-closed** (rank 1 complete, rank 2 at 196/259). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **206 of 426 are
+closed** (rank 1 complete, rank 2 at 197/259). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
