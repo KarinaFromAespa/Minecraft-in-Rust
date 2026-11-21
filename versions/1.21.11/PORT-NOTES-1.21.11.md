@@ -9372,3 +9372,15 @@ on every path that matters and the Rust's bool-returning
 `set` is the idiomatic equivalent; the 26.1 `SavedData`
 superclass, `reset`, and the `List` constructor have no
 Rust analogue. No code changed.
+
+## Item 181 — pack_screen.rs (rank 2, NO-CHANGE)
+
+5 classes, 22 methods, 1 named. No behavioural delta:
+`PackSelectionScreen` is renames + access widening with
+identical layout numbers; `TransferableSelectionList` is
+the render-state-extraction rename with identical layout
+numbers; `scrollbarWidth()` -> literal 6 and `scrollable()`
+-> `scrollbarVisible()` are verified equivalent by javap
+on `AbstractScrollArea` (26.1's default width is 6, both
+predicates are `maxScrollAmount() > 0`). One doc citation
+updated (`Screen.extractRenderState` -> `Screen.render`).
