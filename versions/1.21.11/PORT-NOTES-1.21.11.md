@@ -11855,3 +11855,13 @@ from the focused element's full rectangle (opposite border when nothing is
 focused). The shared `nextFocusPathInDirection` algorithm is identical, and
 the Rust models the 1.21.11 start points: `focus_step_rect` from the focused
 rect, `key_focus.rs` from the screen's opposite edge when unfocused.
+
+## Item 557 — gfx/panorama.rs (CubeMap, CubeMapTexture) — NO-CHANGE
+
+26.1 builds a `Projection` + `ProjectionMatrixBuffer` per render and takes
+Minecraft from the singleton; 1.21.11 holds a
+`CachedPerspectiveProjectionMatrixBuffer` and takes Minecraft as a parameter.
+The values are the same (FOV 85, near/far 0.05/10), as are the rotations,
+the PANORAMA pipeline and the 36-index draw; the GPU calls differ only in
+invokevirtual vs invokeinterface (the item 539 change). The Rust already
+encodes the shared values and cube order.
