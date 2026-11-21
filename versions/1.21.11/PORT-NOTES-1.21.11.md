@@ -12356,3 +12356,7 @@ gates by species. The Nautilus menu diff is `requireNonNull` noise.
 
 Pure extractor rewire (`extractIcon`→`renderIcon`,
 `PlayerFaceExtractor`→`PlayerFaceRenderer`).
+
+## Item 634 — game/tutorial.rs (TutorialToast) — NO-CHANGE
+
+Pure extractor rewire.
