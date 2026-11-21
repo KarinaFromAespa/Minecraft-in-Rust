@@ -9910,3 +9910,16 @@ illusion loop and the spell-goal logic are
 bytecode-identical. The constructor diffs are dropped
 null-check codegen plus visibility widening. No code
 changed.
+
+## Item 224 — environment_system.rs (rank 2, NO-CHANGE)
+
+5 classes, 12 methods, 1 named. The 26.x world-clock
+system (`ClockManager`, `Timeline$TimeMarkerInfo`,
+the timeline's `clock` field and `time_markers`) is
+absent in 1.21.11: timelines sample at
+`level.getDayTime()` directly. `Timelines.OVERWORLD_DAY`
+is renamed `DAY` (same key); every track keyframe is
+identical, and `ValueSampler` is logic-identical. The
+Rust already implements the 1.21.11 form (`Timeline`
+with `period` + `tracks` only, day-time sampling, the
+codec-shape test). No code changed.
