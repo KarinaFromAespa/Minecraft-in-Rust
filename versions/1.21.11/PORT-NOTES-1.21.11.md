@@ -9857,3 +9857,17 @@ but the below-name behaviour it carries exists in
 1.21.11 (`ClientMannequin.belowNameDisplay()` is in
 the jar) and the Rust models the behaviour, not the
 field. No code changed.
+
+## Item 218 — mobs/brain.rs (rank 2, NO-CHANGE)
+
+6 classes, 23 methods, 0 named. The brain
+serialization restructures (26.1's `Packed` record +
+`ActivitySupplier` vs 1.21.11's direct `Codec<Brain>`)
+but both write the same `Brain.memories` NBT
+(`{value, ttl?}` per memory, verified in the 1.21.11
+decompile); the outer `Brain` class is
+bytecode-identical, so tick/activity logic is
+unchanged. `Behavior.getRequiredMemories()` is a
+26.1-only getter. Two doc citations in brain.rs
+updated from `Brain.Packed` to the `memories` codec;
+no behavioural code changed.
