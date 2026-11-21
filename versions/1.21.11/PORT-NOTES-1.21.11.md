@@ -10687,3 +10687,11 @@ check. No source change. `projectiles`: 44
 passed; `mod_thrown_types_are_found_by_id_and_item_once_registered`
 fails identically on the clean tree
 (pre-existing, not chased).
+
+## Item 309 — structure_start_nbt.rs (rank 2, NO-CHANGE)
+
+1 class, 1 method, 1 named. Two lines:
+ChunkPos `x()`/`z()` methods vs fields;
+the tag keys are identical. No source
+change. `worldgen::structure::start`: 14
+passed.
