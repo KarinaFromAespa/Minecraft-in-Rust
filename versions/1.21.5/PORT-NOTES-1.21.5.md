@@ -11852,12 +11852,50 @@ is the oracle; decompiled code is a reading aid.
   - Verification: read only; no
     code changed.
 
+- **Item 282 — GoalUtils and DoorInteractGoal**
+  - GoalUtils and
+    DoorInteractGoal: already
+    the 1.21.5 form.
+    can_navigate_ground is
+    Ground + WallClimber,
+    exactly 1.21.5's instanceof
+    GroundPathNavigation
+    (javap:
+    WallClimberNavigation
+    extends
+    GroundPathNavigation;
+    AmphibiousPathNavigation
+    extends PathNavigation
+    directly) - item 170's
+    ground. mobRestricted /
+    isRestricted match the
+    1.21.5 formulas (centre
+    +0.5, radius + h + 1.0,
+    strict <) in
+    Mob::restricted and
+    within_home; the
+    home/restriction naming is
+    a pure rename.
+    DoorInteractGoal.canUse
+    matches 1.21.5 (ground +
+    horizontal-collision guard,
+    path nodes to min(next+2,
+    count), door at y+1,
+    distance squared <= 2.25,
+    head-block fallback); the
+    1.21.5 cast is safe behind
+    the guard, so the 1.21.6
+    cast-free form behaves
+    identically.
+  - Verification: read only; no
+    code changed.
+
 ## What remains, by cause
 
 ### Behaviour work from the diff (in progress — rank 1 done)
 
-The 426 ranked items are the port's work list; **281 of 426 are
-closed** (rank 1 complete, rank 2 complete, rank 3 at 13/133). The work is the dialog/waypoint/happy-ghast removals'
+The 426 ranked items are the port's work list; **282 of 426 are
+closed** (rank 1 complete, rank 2 complete, rank 3 at 14/133). The work is the dialog/waypoint/happy-ghast removals'
 behaviour consequences, the 1,202 changed classes (1,219 concern
 Horizon), and the 259 harness reruns — unattempted. The
 save-format step (4435 → 4325: 1 schema, 2 fixes, 14 datafix
