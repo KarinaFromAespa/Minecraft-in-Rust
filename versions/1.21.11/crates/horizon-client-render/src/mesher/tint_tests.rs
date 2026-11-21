@@ -308,7 +308,7 @@ fn a_tall_grass_upper_half_tints_from_the_block_below() {
         ),
     ]);
     let (plains, desert) = (biomes.id("minecraft:plains"), biomes.id("minecraft:desert"));
-    let mut layered = |cx: i32, cz: i32| {
+    let layered = |cx: i32, cz: i32| {
         let mut chunk = Chunk::empty(cx, cz);
         for qy in 0..(384 / 4) {
             for qz in 0..4 {
