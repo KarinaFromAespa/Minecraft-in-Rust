@@ -11988,3 +11988,8 @@ knot's own interact keeps event + sound on an attachment, verified against
 1.21.11's `LeashFenceKnotEntity.interact`); the BLOCK_ATTACH event stays
 gated on an attachment. New test:
 `a_fence_clicked_with_a_lead_keeps_its_knot_when_nothing_attaches`.
+
+## Item 573 — game/command_blocks.rs (BaseCommandBlock$CloseableCommandBlockSource, CommandBlock) — NO-CHANGE
+
+Only a `requireNonNull` on the outer instance and the `is(Object)` vs
+`is(Block)` overload in the chain check.
