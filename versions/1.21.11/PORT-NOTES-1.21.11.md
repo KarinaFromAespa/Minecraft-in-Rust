@@ -10932,3 +10932,11 @@ is the pure rename of 1.21.11's
 collapsing packages); the Rust's
 `CuboidModel` already matches (item 318).
 `model`: 29 passed.
+
+## Item 406 — world/entity/Entity inner classes (rank 2, NO-CHANGE)
+
+3 classes, 2 methods, 0 named.
+`EntityPathElement`/`Movement` differ
+only in visibility; `Flags` is a 26.1-only
+empty annotation interface. `mobs`: 706
+passed, 43 ignored.
